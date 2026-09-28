@@ -1,0 +1,5 @@
+• System-wide NSFW blur standardized via centralized KitsugiNsfwImage component
+• Player: auto-hide overlay, video quality selector, conditional audio track button
+• Voice actor names normalized (LastName, FirstName → FirstName LastName)
+• Airing calendar unified across TMDB, AniList and MAL
+• General performance improvements and bug fixes
