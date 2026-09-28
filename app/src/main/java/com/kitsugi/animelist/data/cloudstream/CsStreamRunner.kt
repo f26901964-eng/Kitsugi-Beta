@@ -92,57 +92,72 @@ object CsStreamRunner {
         "dropload.io"         to "dropload.tv",
         "vtube.to"            to "vtube.network",
         "vidmoly.to"          to "ww547.vidmoly.to",
-        // RecTV domain geçişleri — 2026-08 tanı raporu
-        // NOT: feroxx sürümü a.prectv70.lol kullanıyor (101 sonuç), b. sürümü 0 sonuç veriyor
-        "prectv38.sbs"        to "a.prectv70.lol",
-        "prectv43.sbs"        to "a.prectv70.lol",
-        "prectv50.sbs"        to "a.prectv70.lol",
-        "b.prectv70.lol"      to "a.prectv70.lol",  // maarrem/nikyokki → feroxx aktif endpoint
-        "m.prectv50.sbs"      to "a.prectv70.lol",
+        // Anizium domain yönlendirmeleri
+        "x.anizium.co"        to "api.anizium.co",
+        "x.anizium.de"        to "api.anizium.de",
+        // RecTV domain geçişleri (m.prectv72.lol aktif)
+        "prectv38.sbs"        to "m.prectv72.lol",
+        "prectv43.sbs"        to "m.prectv72.lol",
+        "prectv50.sbs"        to "m.prectv72.lol",
+        "a.prectv70.lol"      to "m.prectv72.lol",
+        "b.prectv70.lol"      to "m.prectv72.lol",
+        "m.prectv50.sbs"      to "m.prectv72.lol",
         // DBX (DiziBox) embed player
         "dbx.molystream.org"  to "www.molystream.org",
-        // DiziPal — sık domain değiştiriyor; bilinen eski sürümler
-        "dizipal1571.com"     to "dizipal.bid",
-        "dizipal1210.com"     to "dizipal.bid",
-        "dizipal1219.com"     to "dizipal.bid",
-        "dizipal1565.com"     to "dizipal.bid",
-        "dizipal1570.com"     to "dizipal.bid",
-        "dizipal1573.com"     to "dizipal.bid",
-        "dizipal1574.com"     to "dizipal.bid",
-        // DiziPalOriginal için özel aktif domain
-        "dizipal2106.com"     to "dizipal1572.com",
-        // DiziKorea — ölü domainler; aktif olan dizikorea3.com (feroxx sürümünde çalışıyor)
+        // DiziPal — en güncel canlı domain (dizipal3008.com)
+        "dizipal.bid"         to "dizipal3008.com",
+        "dizipal1571.com"     to "dizipal3008.com",
+        "dizipal1210.com"     to "dizipal3008.com",
+        "dizipal1219.com"     to "dizipal3008.com",
+        "dizipal1565.com"     to "dizipal3008.com",
+        "dizipal1570.com"     to "dizipal3008.com",
+        "dizipal1573.com"     to "dizipal3008.com",
+        "dizipal1574.com"     to "dizipal3008.com",
+        "dizipal2106.com"     to "dizipal3008.com",
+        // DiziKorea — ölü domainler; aktif olan dizikorea3.com
         "dizikorea2.com"      to "dizikorea3.com",
         "dizikorea.pw"        to "dizikorea3.com",
         // FilmMakinesi — güncel domain
         "filmmakinesi.sh"     to "filmmakinesi.to",
         "filmmakinesi.tv"     to "filmmakinesi.to",
-        // Dizilla — eski domain yönlendirmeleri
-        "dizilla40.com"       to "dizillahd.com",
+        // Dizilla — güncel canlı domain (dizilla.now)
+        "dizilla40.com"       to "dizilla.now",
+        "dizillahd.com"       to "dizilla.now",
         // HDFilmCehennemi — aktif mirror
         "hdfilmcehennemi.la"  to "hdfilmcehennemi.nl",
         "hdfilmcehennemi.com" to "hdfilmcehennemi.nl",
-        // DiziMom — aktif domain
-        "dizimom.love"        to "www.dizimom.rest",
-        "dizimom.ws"          to "www.dizimom.rest",
+        // DiziMom — güncel canlı domain (dizimom.help)
+        "dizimom.love"        to "www.dizimom.help",
+        "dizimom.ws"          to "www.dizimom.help",
+        "dizimom.rest"        to "www.dizimom.help",
+        "www.dizimom.rest"    to "www.dizimom.help",
         // DiziYou — aktif domain
         "diziyou.mx"          to "www.diziyou.one",
         "diziyou.to"          to "www.diziyou.one",
-        // SezonlukDizi — eski domainler; sezonlukdizi.cc ise CF/WAF 0-stream yüzünden KNOWN_BROKEN listesine alındı
+        // SezonlukDizi
         "sezonlukdizi8.com"   to "sezonlukdizi.cc",
         "sezonlukdizi10.com"  to "sezonlukdizi.cc",
         "sezonlukdizi12.com"  to "sezonlukdizi.cc",
         // FilmModu — aktif domain
         "filmmodu.vip"        to "www.filmmodu.one",
-        // FullHDFilm — hdfilm.us HTTP 200 AKTIF (2026-08 tanı düzeltmesi); cx eski ölü domain
-        // "hdfilm.us" — artık domain fix gerekmez, doğrudan çalışıyor
+        // FullHDFilm
         "fullhdfilm.cx"       to "hdfilm.us",
         "fullhdfilm.pro"      to "hdfilm.us",
-        // FullHDFilmizlesene — maarrem sürümü .tv kullanıyor, feroxx/nikyokki .mx/.so (aktif)
+        // FullHDFilmizlesene
         "fullhdfilmizlesene.tv"  to "www.fullhdfilmizlesene.mx",
         "fullhdfilmizlesene.so"  to "www.fullhdfilmizlesene.mx",
-        // SinemaCX — aktif domain: sinema.gg
-        "sinema.lat"          to "sinema.gg",
+        // SinemaCX — güncel domain (sinemacc.com)
+        "sinema.lat"          to "sinemacc.com",
+        "sinema.gg"           to "sinemacc.com",
+        "www.sinema.gg"       to "sinemacc.com",
+        // Diğer güncel adres yönlendirmeleri
+        "dizi73.life"         to "dizi75.life",
+        "dramaflix.cc"        to "dramaflix.net",
+        "hdfilmizle.vip"      to "www.hdfilmizle.live",
+        "dizifilm.life"       to "dizifilmizle.to",
+        "selcukflix.co"       to "selcukflix.com",
+        "tranimeizle.io"      to "www.tranimeizle.live",
+        "asyalog.com"         to "asyalog.co",
         "sinema.cv"           to "sinema.gg",
         // SetFilmIzle — .my boş döndürüyor, .uk de arama sıfır
         "setfilmizle.my"      to "www.setfilmizle.uk",

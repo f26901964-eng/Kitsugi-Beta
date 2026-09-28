@@ -9,6 +9,8 @@ import com.lagradost.nicehttp.ignoreAllSSLErrors
 import com.lagradost.cloudstream3.utils.extractorApis
 import okhttp3.Cache
 import okhttp3.OkHttpClient
+import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.ResponseBody.Companion.toResponseBody
 import java.io.File
 import java.util.concurrent.TimeUnit
 
@@ -41,6 +43,26 @@ object CsRuntimeInit {
                     var newUrl = urlStr
                     var hostHeader: String? = null
 
+                    // Anizium / Kraptor dead domain list stub
+                    if (urlStr.contains("Kraptor123/domainListesi") && urlStr.contains("eklenti_domainleri.txt")) {
+                        return@addInterceptor okhttp3.Response.Builder()
+                            .request(original)
+                            .protocol(okhttp3.Protocol.HTTP_1_1)
+                            .code(200)
+                            .message("OK")
+                            .body("Anizium=https://api.anizium.co\n".toResponseBody("text/plain".toMediaTypeOrNull()))
+                            .build()
+                    }
+
+                    // Anizium API endpoint rerouting
+                    if (urlStr.contains("anizium.co") || urlStr.contains("anizium.de")) {
+                        if (urlStr.contains("x.anizium.co/page") || urlStr.contains("x.anizium.co/anime")) {
+                            newUrl = urlStr.replace("x.anizium.co", "api.anizium.co")
+                        } else if (urlStr.contains("x.anizium.de/page") || urlStr.contains("x.anizium.de/anime")) {
+                            newUrl = urlStr.replace("x.anizium.de", "api.anizium.de")
+                        }
+                    }
+
                     if (urlStr.contains("boxyz.cfd/CDN/001_STR/boxyz.cfd/spor_v2.php")) {
                         newUrl = "https://diziboxen.help/CDN/001/002/dizibox/tv/list1.php"
                         hostHeader = "diziboxen.help"
@@ -63,6 +85,20 @@ object CsRuntimeInit {
 
                     if (hostHeader != null) {
                         requestBuilder.header("Host", hostHeader)
+                    }
+
+                    // Anizium Cf-Control auth header injection
+                    if (urlStr.contains("anizium.co") || urlStr.contains("anizium.de") ||
+                        newUrl.contains("anizium.co") || newUrl.contains("anizium.de")) {
+                        val cf = AniziumAuthHelper.generateCfControl()
+                        if (cf.isNotBlank()) {
+                            requestBuilder.header("Cf-Control", cf)
+                        }
+                        requestBuilder.header("device", "browser")
+                        requestBuilder.header("site", "main")
+                        if (original.header("language") == null) {
+                            requestBuilder.header("language", "tr")
+                        }
                     }
 
                     val hasUserAgent = original.header("User-Agent") != null
@@ -95,6 +131,39 @@ object CsRuntimeInit {
             )
         } catch (e: Exception) {
             android.util.Log.e("CsRuntimeInit", "Failed to initialize Cloudstream runtime", e)
+        }
+    }
+}
+
+/**
+ * Anizium API (api.anizium.co) için günlük XOR token üreteci.
+ * Anizium backend'i 'Cf-Control' başlığı bekler, aksi halde 401 Unauthorized döner.
+ */
+object AniziumAuthHelper {
+    private const val TOKEN_KEY = "hlxjl1c2w281ax473rt1ofgrvhyjvi"
+
+    fun generateCfControl(): String {
+        return try {
+            val tz = java.util.TimeZone.getTimeZone("Europe/Istanbul")
+            val sdf = java.text.SimpleDateFormat("EEEE", java.util.Locale.US).apply {
+                timeZone = tz
+            }
+            val weekday = sdf.format(java.util.Date()).lowercase()
+            val key = "${TOKEN_KEY}_$weekday".toByteArray(Charsets.UTF_8)
+
+            val chars = "abcdefghijklmnopqrstuvwxyz0123456789"
+            val r6 = (1..6).map { chars.random() }.joinToString("")
+            val timestamp = System.currentTimeMillis()
+            val payload = "{\"$r6\":$timestamp}".toByteArray(Charsets.UTF_8)
+
+            val hex = StringBuilder(payload.size * 2)
+            for (i in payload.indices) {
+                val b = (payload[i].toInt() xor key[i % key.size].toInt()) and 0xFF
+                hex.append(String.format("%02x", b))
+            }
+            hex.toString()
+        } catch (e: Exception) {
+            ""
         }
     }
 }
