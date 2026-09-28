@@ -2055,5 +2055,98 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
             } else null
         }
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Altyazı İndirme — Downloads/Kitsugi/Subtitles/
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Verilen [subtitle]'ı cihazın Downloads/Kitsugi/Subtitles/ klasörüne indirir.
+     * - Dosya formatını (SRT, ASS, VTT, TTML vb.) URL ve Content-Type'a göre tespit eder.
+     * - Android 10+ için MediaStore; eski sürümlerde doğrudan dosya yazımı kullanır.
+     * - Aynı dosya zaten varsa cache'den kopyalar, yoksa URL'den indirir.
+     * - Tamamlanma/hata durumunda Toast gösterir.
+     */
+    fun downloadSubtitleToStorage(subtitle: SubtitleInput) {
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            try {
+                // 1. Önce cache'e al (zaten varsa anında döner)
+                val cachedFile = com.kitsugi.animelist.core.player.SubtitleFileCache.cacheSubtitle(context, subtitle.url)
+                if (cachedFile == null || !cachedFile.exists()) {
+                    withContext(kotlinx.coroutines.Dispatchers.Main) {
+                        Toast.makeText(context, "⚠️ Altyazı indirilemedi", Toast.LENGTH_SHORT).show()
+                    }
+                    return@launch
+                }
+
+                // 2. Hedef dosya adını oluştur
+                val ext = cachedFile.extension.ifBlank { "srt" }
+                val baseName = subtitle.name
+                    .ifBlank { subtitle.lang.ifBlank { "subtitle" } }
+                    .replace(Regex("[/\\\\:*?\"<>|]"), "_") // güvenli dosya adı
+                val fileName = "${baseName}.${ext}"
+
+                // 3. Android 10+ MediaStore API ile Downloads/Kitsugi/Subtitles/ klasörüne yaz
+                val savedPath: String? = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
+                    val mimeType = when (ext.lowercase()) {
+                        "ass", "ssa" -> "text/x-ass"
+                        "vtt"        -> "text/vtt"
+                        "ttml", "dfxp" -> "application/ttml+xml"
+                        else         -> "application/x-subrip"  // srt
+                    }
+                    val values = android.content.ContentValues().apply {
+                        put(android.provider.MediaStore.Downloads.DISPLAY_NAME, fileName)
+                        put(android.provider.MediaStore.Downloads.MIME_TYPE, mimeType)
+                        put(android.provider.MediaStore.Downloads.RELATIVE_PATH,
+                            "${android.os.Environment.DIRECTORY_DOWNLOADS}/Kitsugi/Subtitles")
+                        put(android.provider.MediaStore.Downloads.IS_PENDING, 1)
+                    }
+                    val uri = context.contentResolver.insert(
+                        android.provider.MediaStore.Downloads.EXTERNAL_CONTENT_URI, values
+                    )
+                    if (uri != null) {
+                        context.contentResolver.openOutputStream(uri)?.use { out ->
+                            cachedFile.inputStream().copyTo(out)
+                        }
+                        values.clear()
+                        values.put(android.provider.MediaStore.Downloads.IS_PENDING, 0)
+                        context.contentResolver.update(uri, values, null, null)
+                        "Downloads/Kitsugi/Subtitles/$fileName"
+                    } else null
+                } else {
+                    // Android 9 ve altı: doğrudan Environment.DIRECTORY_DOWNLOADS
+                    @Suppress("DEPRECATION")
+                    val dir = java.io.File(
+                        android.os.Environment.getExternalStoragePublicDirectory(
+                            android.os.Environment.DIRECTORY_DOWNLOADS
+                        ),
+                        "Kitsugi/Subtitles"
+                    )
+                    dir.mkdirs()
+                    val dest = java.io.File(dir, fileName)
+                    cachedFile.copyTo(dest, overwrite = true)
+                    dest.absolutePath
+                }
+
+                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    if (savedPath != null) {
+                        Toast.makeText(
+                            context,
+                            "✅ Altyazı kaydedildi\n$savedPath",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    } else {
+                        Toast.makeText(context, "⚠️ Altyazı kaydedilemedi", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("KitsugiPlayer", "Altyazı indirme hatası: ${subtitle.url}", e)
+                withContext(kotlinx.coroutines.Dispatchers.Main) {
+                    Toast.makeText(context, "⚠️ Hata: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                }
+            }
+        }
+    }
 }
+
 

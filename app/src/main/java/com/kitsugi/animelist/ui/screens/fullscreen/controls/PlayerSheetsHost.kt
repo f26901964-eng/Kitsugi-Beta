@@ -62,6 +62,9 @@ fun PlayerSheetsHost(
     selectedSubtitleIndex: Int = -1,
     onSelectSubtitle: (Int) -> Unit = {},
     onAddSubtitleFile: () -> Unit = {},
+    /** Oynatıcıdaki SubtitleInput listesi — altyazı başına indirme butonu için */
+    subtitleInputs: List<com.kitsugi.animelist.core.player.SubtitleInput> = emptyList(),
+    onDownloadSubtitle: (com.kitsugi.animelist.core.player.SubtitleInput) -> Unit = {},
 
     // Audio Tracks
     audioTrackLabels: List<String> = emptyList(),
@@ -170,6 +173,8 @@ fun PlayerSheetsHost(
                         onOpenSubtitleSettings = { onOpenPanel(KitsugiPanels.SubtitleSettings) },
                         onOpenSubtitleDelay = { onOpenPanel(KitsugiPanels.SubtitleDelay) },
                         onDismissRequest = onDismissRequest,
+                        subtitleInputs = subtitleInputs,
+                        onDownloadSubtitle = onDownloadSubtitle,
                     )
                 }
 

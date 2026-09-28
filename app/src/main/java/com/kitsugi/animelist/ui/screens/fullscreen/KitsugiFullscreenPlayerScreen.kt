@@ -1101,6 +1101,8 @@ fun KitsugiFullscreenPlayerScreen(
                             }
                         },
                         onAddSubtitleFile = { subtitlesPicker.launch(arrayOf("*/*")) },
+                        subtitleInputs = currentSubtitles,
+                        onDownloadSubtitle = { subtitle -> viewModel.downloadSubtitleToStorage(subtitle) },
                         audioTrackLabels = audioTrackOptions.map { it.label },
                         selectedAudioIndex = audioTrackOptions.indexOfFirst { it.isSelected },
                         onSelectAudio = { idx -> audioTrackOptions.getOrNull(idx)?.let { playerEngine.selectTrack(it) } },

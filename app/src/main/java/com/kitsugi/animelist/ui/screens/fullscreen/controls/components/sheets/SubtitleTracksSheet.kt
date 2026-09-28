@@ -7,12 +7,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.MoreTime
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -39,6 +42,10 @@ fun SubtitleTracksSheet(
     onOpenSubtitleSettings: () -> Unit,
     onOpenSubtitleDelay: () -> Unit,
     onDismissRequest: () -> Unit,
+    /** Oynatıcıdaki mevcut SubtitleInput listesi — indirme butonları için eşleştirmede kullanılır. */
+    subtitleInputs: List<SubtitleInput> = emptyList(),
+    /** Kullanıcı bir altyazıyı indirmek istediğinde çağrılır. */
+    onDownloadSubtitle: (SubtitleInput) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val allTracks = androidx.compose.runtime.remember(tracks) {
@@ -78,10 +85,19 @@ fun SubtitleTracksSheet(
             AddTrackRow(title = "Harici Altyazı Ekle", onClick = onAddSubtitleFile)
         },
         track = { track ->
+            // "Altyazıyı Kapat" (-99) veya dahili track (-1) için indirme yok
+            // SubtitleInput listesi 0-tabanlı; player track ID'leri 1'den başlar
+            val matchedInput = if (track.id > 0) {
+                subtitleInputs.getOrNull(track.id - 1)
+                    ?.takeIf { it.url.startsWith("http", ignoreCase = true) }
+            } else null
+
             SubtitleTrackRow(
                 title = if (track.id == -99) track.label else buildTrackTitle(track),
                 selected = if (allSelected.contains(track.id)) 0 else -1,
                 onClick = { onSelect(track.id) },
+                downloadableInput = matchedInput,
+                onDownload = { onDownloadSubtitle(it) },
             )
         },
         footer = {
@@ -107,12 +123,15 @@ fun SubtitleTrackRow(
     selected: Int, // -1=seçilmedi, 0=1. seçim, 1=2. seçim
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    /** Eğer null değilse bu altyazı indirilebilir demektir — indirme ikonu gösterilir. */
+    downloadableInput: SubtitleInput? = null,
+    onDownload: (SubtitleInput) -> Unit = {},
 ) {
     Row(
         modifier = modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(start = 8.dp, end = 16.dp),
+            .padding(start = 8.dp, end = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Checkbox(
@@ -123,14 +142,26 @@ fun SubtitleTrackRow(
             text = title,
             fontStyle = if (selected > -1) FontStyle.Italic else FontStyle.Normal,
             fontWeight = if (selected > -1) FontWeight.ExtraBold else FontWeight.Normal,
+            modifier = Modifier.weight(1f),
         )
-        Spacer(modifier = Modifier.weight(1f))
         if (selected != -1) {
             Text(
                 text = "#${selected + 1}",
                 fontStyle = FontStyle.Italic,
                 fontWeight = FontWeight.ExtraBold,
             )
+        }
+        if (downloadableInput != null) {
+            IconButton(
+                onClick = { onDownload(downloadableInput) },
+                modifier = Modifier.size(36.dp),
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Download,
+                    contentDescription = "Altyazıyı İndir",
+                    modifier = Modifier.size(20.dp),
+                )
+            }
         }
     }
 }
