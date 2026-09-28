@@ -75,7 +75,9 @@ fun SearchScreen(
     addonExploreOpen: Boolean = false,
     onAddonExploreOpenChange: (Boolean) -> Unit = {},
     // Eklenti Portalı tam ekran navigasyonu
-    onOpenPluginPicker: () -> Unit = {}
+    onOpenPluginPicker: () -> Unit = {},
+    // Eklenti Keşfet tam ekran navigasyonu
+    onOpenAddonExplore: (String) -> Unit = {}
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val accentColor = LocalKitsugiAccent.current
@@ -662,21 +664,13 @@ fun SearchScreen(
 
     // Plugin picker is now handled via full-screen navigation (PluginPickerScreen)
 
-    // ── Eklentiye Özel Keşfet (tam ekran dialog) ──────────────────────────
+    // ── Eklentiye Özel Keşfet (tam ekran sayfa navigasyonu) ──────────────
     val exploreApi = selectedPluginApi
-    if (addonExploreOpen && exploreApi != null) {
-        AddonExploreDialog(
-            api = exploreApi,
-            onDismissRequest = {
-                onAddonExploreOpenChange(false)
-                viewModel.setSelectedPlugin(null, keepPlatformCs3 = true)
-            },
-            onSeeAllClick = onSeeAllAddonSection?.let { cb ->
-                { title, mainPageData, horizontalImages, initialItems ->
-                    cb(exploreApi.name, title, mainPageData, horizontalImages, initialItems)
-                }
-            }
-        )
+    LaunchedEffect(addonExploreOpen, exploreApi?.name) {
+        if (addonExploreOpen && exploreApi != null) {
+            onAddonExploreOpenChange(false)
+            onOpenAddonExplore(exploreApi.name)
+        }
     }
 
     // ── KitsugiAddonDetailDialog ──────────────────────────────────────────

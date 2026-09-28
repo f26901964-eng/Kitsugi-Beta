@@ -256,6 +256,14 @@ fun SettingsScreen(
                 addon = params.addon,
                 manga = params.manga,
                 onOpenDiagnostic = { activeDialog = SettingsDialog.PluginDiagnostic },
+                onExplorePlugin = { pluginName ->
+                    activeDialog = null
+                    params.onExplorePlugin?.invoke(pluginName)
+                },
+                onOpenPluginPicker = {
+                    activeDialog = null
+                    params.onOpenPluginPicker?.invoke()
+                },
                 onDismiss = { activeDialog = null }
             )
         }
@@ -690,6 +698,8 @@ private fun SettingsAddonsDialogWrapper(
     addon: AddonSettings,
     manga: MangaSettings,
     onOpenDiagnostic: () -> Unit,
+    onExplorePlugin: (String) -> Unit = {},
+    onOpenPluginPicker: () -> Unit = {},
     onDismiss: () -> Unit
 ) {
     KitsugiAddonsSettingsDialog(
@@ -763,6 +773,8 @@ private fun SettingsAddonsDialogWrapper(
         onConfirmUntrustedSignature = manga.onConfirmUntrustedSignature,
         onDismissUntrustedSignature = manga.onDismissUntrustedSignature,
         onOpenDiagnostic = onOpenDiagnostic,
+        onExplorePlugin = onExplorePlugin,
+        onOpenPluginPicker = onOpenPluginPicker,
         onDismiss = onDismiss
     )
 }

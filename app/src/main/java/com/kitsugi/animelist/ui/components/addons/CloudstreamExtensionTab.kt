@@ -56,7 +56,9 @@ internal fun CloudstreamExtensionsTab(
     onOpenDiagnostic: (() -> Unit)? = null,
     useGithubProxy: Boolean = false,
     onUseGithubProxyChanged: (Boolean) -> Unit = {},
-    listState: LazyListState = rememberLazyListState()
+    listState: LazyListState = rememberLazyListState(),
+    onExplorePlugin: ((String) -> Unit)? = null,
+    onOpenPluginPicker: (() -> Unit)? = null
 ) {
     var activeSection by rememberSaveable { mutableStateOf(CsTabSection.REPOS) }
     var newRepoUrl by rememberSaveable { mutableStateOf("") }
@@ -360,13 +362,33 @@ internal fun CloudstreamExtensionsTab(
         } else {
             // Yüklü CS Eklentileri
             item {
-                Text("Yüklü Video Sağlayıcıları", color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "Kitsugi video motoru tarafından kullanılan video sağlayıcı (.cs3) eklentileri.",
-                    color = KitsugiColors.TextSecondary,
-                    style = MaterialTheme.typography.bodySmall
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Yüklü Video Sağlayıcıları", color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Spacer(Modifier.height(4.dp))
+                        Text(
+                            "Kitsugi video motoru tarafından kullanılan video sağlayıcı (.cs3) eklentileri.",
+                            color = KitsugiColors.TextSecondary,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                    if (onOpenPluginPicker != null) {
+                        Button(
+                            onClick = onOpenPluginPicker,
+                            colors = ButtonDefaults.buttonColors(containerColor = accentColor.copy(alpha = 0.15f)),
+                            shape = RoundedCornerShape(12.dp),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                        ) {
+                            Icon(Icons.Rounded.Extension, contentDescription = null, tint = accentColor, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("Eklenti Portalı", color = accentColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
             }
 
             if (csPlugins.isEmpty()) {
@@ -393,6 +415,7 @@ internal fun CloudstreamExtensionsTab(
                         onToggleCsPlugin = onToggleCsPlugin,
                         onUninstallCsPlugin = onUninstallCsPlugin,
                         onVerifyPlugin = onVerifyPlugin,
+                        onExplorePlugin = onExplorePlugin,
                         onStartReinstall = {
                             reinstallStates[plugin.id] = PluginInstallState.LOADING
                         },

@@ -13,7 +13,7 @@ import java.util.Locale
 import java.util.TimeZone
 
 class KitsugiUpdateRepository(
-    private val repoOwner: String = "gameras1010-afk",
+    private val repoOwner: String = "KitsugiBeta-dev",
     private val repoName: String = "Kitsugi-Beta"
 ) {
 

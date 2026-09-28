@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.screens.search
 
 import android.util.Log
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.*
@@ -105,8 +106,21 @@ fun PluginPickerScreen(
     var isLoadingResults by remember { mutableStateOf(false) }
     var hasSearched by remember { mutableStateOf(false) }
     var activeDetailItem by remember { mutableStateOf<Pair<MainAPI, SearchResponse>?>(null) }
-
     val listState = rememberLazyListState()
+
+    BackHandler {
+        when {
+            activeDetailItem != null -> activeDetailItem = null
+            queryText.isNotEmpty() -> {
+                queryText = ""
+                pluginSearchResults = emptyList()
+                malSearchResults = emptyList()
+                tmdbSearchResults = emptyList()
+                hasSearched = false
+            }
+            else -> onBackClick()
+        }
+    }
 
     // Load active plugins
     LaunchedEffect(Unit) {
@@ -469,8 +483,7 @@ fun PluginPickerScreen(
                                     accentColor = accentColor,
                                     onClick = {
                                         searchViewModel.setSelectedPlugin(api.name, keepPlatformCs3 = true)
-                                        navState.addonExploreOpen = true
-                                        onBackClick()
+                                        navState.navigateToDetail(com.kitsugi.animelist.DetailScreen.AddonExplore(api.name))
                                     }
                                 )
                             }

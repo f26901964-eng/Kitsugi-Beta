@@ -113,6 +113,8 @@ fun KitsugiAddonsSettingsDialog(
     onOpenDiagnostic: (() -> Unit)? = null,
     useGithubProxy: Boolean = false,
     onUseGithubProxyChanged: (Boolean) -> Unit = {},
+    onExplorePlugin: ((String) -> Unit)? = null,
+    onOpenPluginPicker: (() -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
     val accentColor = LocalKitsugiAccent.current
@@ -313,7 +315,9 @@ fun KitsugiAddonsSettingsDialog(
                                 }
                             },
                             onOpenDiagnostic = onOpenDiagnostic,
-                            listState = cloudstreamListState
+                            listState = cloudstreamListState,
+                            onExplorePlugin = onExplorePlugin,
+                            onOpenPluginPicker = onOpenPluginPicker
                         )
                         2 -> MangaExtensionsTab(
                             sources = mangaSources,

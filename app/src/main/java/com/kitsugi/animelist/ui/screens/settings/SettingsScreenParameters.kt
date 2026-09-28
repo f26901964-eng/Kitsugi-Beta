@@ -16,7 +16,9 @@ class SettingsScreenParameters(
     val integrations: IntegrationsSettings,
     val download: DownloadSettings,
     val onOpenDownloads: (() -> Unit)? = null,
-    val onOpenWatchHistory: (() -> Unit)? = null
+    val onOpenWatchHistory: (() -> Unit)? = null,
+    val onExplorePlugin: ((String) -> Unit)? = null,
+    val onOpenPluginPicker: (() -> Unit)? = null
 )
 
 data class GeneralSettings(

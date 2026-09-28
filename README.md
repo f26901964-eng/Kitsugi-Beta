@@ -7,8 +7,8 @@
   **Android & Android TV için Gelişmiş AniList, Manga & Medya Takip Uygulaması**  
   *Advanced AniList, Manga & Media Tracker App for Android & Android TV*
 
-  [![Release](https://img.shields.io/github/v/release/gameras1010-afk/Kitsugi-Beta?color=7C4DFF&label=Son%20S%C3%BCr%C3%BCm%20%7C%20Latest%20Release&style=for-the-badge)](https://github.com/gameras1010-afk/Kitsugi-Beta/releases/latest)
-  [![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20Android%20TV-00C853?style=for-the-badge&logo=android)](https://github.com/gameras1010-afk/Kitsugi-Beta)
+  [![Release](https://img.shields.io/github/v/release/KitsugiBeta-dev/Kitsugi-Beta?color=7C4DFF&label=Son%20S%C3%BCr%C3%BCm%20%7C%20Latest%20Release&style=for-the-badge)](https://github.com/KitsugiBeta-dev/Kitsugi-Beta/releases/latest)
+  [![Platform](https://img.shields.io/badge/Platform-Android%20%7C%20Android%20TV-00C853?style=for-the-badge&logo=android)](https://github.com/KitsugiBeta-dev/Kitsugi-Beta)
   [![Kotlin](https://img.shields.io/badge/Kotlin-2.0.21-blue?style=for-the-badge&logo=kotlin)](https://kotlinlang.org)
   [![License](https://img.shields.io/badge/Lisans-BSD--3--Clause-orange?style=for-the-badge)](LICENSE)
 
@@ -60,7 +60,7 @@
 
 ## 📥 İndirme ve Kurulum
 
-1. **[Releases İndirme Sayfası](https://github.com/gameras1010-afk/Kitsugi-Beta/releases/latest)** adresine gidin.
+1. **[Releases İndirme Sayfası](https://github.com/KitsugiBeta-dev/Kitsugi-Beta/releases/latest)** adresine gidin.
 2. `app-foss-debug.apk` veya `app-gms-debug.apk` dosyasını indirin.
 3. Cihazınıza kurun *(Harici kaynaklardan yükleme iznini onaylayın)*.
 
@@ -144,7 +144,7 @@ app/src/main/java/com/kitsugi/animelist/
 
 ## 📥 Download & Installation
 
-1. Visit the **[Latest Release Download Page](https://github.com/gameras1010-afk/Kitsugi-Beta/releases/latest)**.
+1. Visit the **[Latest Release Download Page](https://github.com/KitsugiBeta-dev/Kitsugi-Beta/releases/latest)**.
 2. Download `app-foss-debug.apk` or `app-gms-debug.apk`.
 3. Install the APK on your device *(Enable installation from unknown sources if prompted)*.
 

@@ -93,6 +93,7 @@ class AppNavigationState(
                 DetailScreen.Downloads -> "downloads_${depth}"
                 DetailScreen.WatchHistory -> "watch_history_${depth}"
                 DetailScreen.PluginPicker -> "plugin_picker_${depth}"
+                is DetailScreen.AddonExplore -> "addon_explore_${depth}_${screen.apiName}"
             }
             stateHolder.removeState(key)
         }

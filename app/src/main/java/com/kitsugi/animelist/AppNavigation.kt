@@ -24,6 +24,7 @@ sealed interface DetailScreen {
     data object Downloads : DetailScreen
     data object WatchHistory : DetailScreen
     data object PluginPicker : DetailScreen
+    data class AddonExplore(val apiName: String) : DetailScreen
 }
 
 sealed interface AppStateKey {
@@ -53,6 +54,7 @@ sealed interface AppStateKey {
     data class Downloads(override val depth: Int) : AppStateKey
     data class WatchHistory(override val depth: Int) : AppStateKey
     data class PluginPicker(override val depth: Int) : AppStateKey
+    data class AddonExplore(val apiName: String, override val depth: Int) : AppStateKey
 }
 
 /**

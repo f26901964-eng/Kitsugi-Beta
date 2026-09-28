@@ -37,7 +37,8 @@ internal fun CsInstalledPluginRow(
     onUninstallCsPlugin: (CsPluginEntity) -> Unit,
     onVerifyPlugin: (pluginId: String, pluginName: String) -> Unit,
     onStartReinstall: () -> Unit,
-    onReinstallResult: (Boolean) -> Unit
+    onReinstallResult: (Boolean) -> Unit,
+    onExplorePlugin: ((String) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -395,7 +396,18 @@ internal fun CsInstalledPluginRow(
                     }
                 }
 
-                Spacer(Modifier.width(4.dp))
+                if (plugin.enabled && onExplorePlugin != null) {
+                    TextButton(
+                        onClick = { onExplorePlugin(plugin.name) },
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
+                        modifier = Modifier.height(32.dp)
+                    ) {
+                        Icon(Icons.Rounded.Explore, contentDescription = null, tint = accentColor, modifier = Modifier.size(16.dp))
+                        Spacer(Modifier.width(4.dp))
+                        Text("Keşfet", color = accentColor, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(Modifier.width(4.dp))
+                }
 
                 TextButton(
                     onClick = { onVerifyPlugin(plugin.id, plugin.name) },

@@ -2,6 +2,7 @@
 package com.kitsugi.animelist.ui.screens.search.components
 
 import android.util.Log
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
@@ -79,9 +80,9 @@ object AddonExploreCache {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun AddonExploreDialog(
+fun AddonExplorePage(
     api: MainAPI,
-    onDismissRequest: () -> Unit,
+    onBackClick: () -> Unit,
     onSeeAllClick: ((title: String, mainPageData: String, horizontalImages: Boolean, initialItems: List<SearchResponse>) -> Unit)? = null
 ) {
     val context = LocalContext.current
@@ -96,6 +97,19 @@ fun AddonExploreDialog(
     var homeLists by remember { mutableStateOf<List<HomePageList>>(emptyList()) }
     var hasSearched by remember { mutableStateOf(false) }
     var activeDetailUrl by remember { mutableStateOf<String?>(null) }
+
+    BackHandler {
+        when {
+            activeDetailUrl != null -> activeDetailUrl = null
+            hasSearched -> {
+                searchQuery = ""
+                searchResults = emptyList()
+                hasSearched = false
+                keyboardController?.hide()
+            }
+            else -> onBackClick()
+        }
+    }
 
     val loadHomeFeed = { forceRefresh: Boolean ->
         isHomeLoading = true
@@ -154,11 +168,7 @@ fun AddonExploreDialog(
         CsStreamRunner.CF_PROTECTED_PLUGINS.contains(api.name) || api.usesWebView
     }
 
-    Dialog(
-        onDismissRequest = onDismissRequest,
-        properties = DialogProperties(usePlatformDefaultWidth = false)
-    ) {
-        Surface(
+    Surface(
             modifier = Modifier.fillMaxSize(),
             color = KitsugiColors.Background
         ) {
@@ -303,13 +313,21 @@ fun AddonExploreDialog(
                         hasSearched = false
                         keyboardController?.hide()
                     },
-                    onBack = onDismissRequest,
+                    onBack = {
+                        if (hasSearched) {
+                            searchQuery = ""
+                            searchResults = emptyList()
+                            hasSearched = false
+                            keyboardController?.hide()
+                        } else {
+                            onBackClick()
+                        }
+                    },
                     onRefresh = { loadHomeFeed(true) },
                     modifier = Modifier.align(Alignment.TopCenter)
                 )
             }
         }
-    }
 
     // ── Detail Dialog (opens when a content card is tapped) ──────────────────
     activeDetailUrl?.let { detailUrl ->
@@ -319,6 +337,22 @@ fun AddonExploreDialog(
             onDismissRequest = { activeDetailUrl = null }
         )
     }
+}
+
+/**
+ * Geriye dönük uyumluluk köprüsü
+ */
+@Composable
+fun AddonExploreDialog(
+    api: MainAPI,
+    onDismissRequest: () -> Unit,
+    onSeeAllClick: ((title: String, mainPageData: String, horizontalImages: Boolean, initialItems: List<SearchResponse>) -> Unit)? = null
+) {
+    AddonExplorePage(
+        api = api,
+        onBackClick = onDismissRequest,
+        onSeeAllClick = onSeeAllClick
+    )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

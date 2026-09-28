@@ -747,9 +747,9 @@ fun AppRoot(
                 mangaBrowseViewModel.reset()
                 navState.closeMangaBrowse()
             }
-            navState.detailBackStack.isNotEmpty()         -> navState.popDetailStack()
-            navState.fullScreenGridState != null          -> navState.fullScreenGridState = null
             navState.addonFullScreenGridState != null     -> navState.addonFullScreenGridState = null
+            navState.fullScreenGridState != null          -> navState.fullScreenGridState = null
+            navState.detailBackStack.isNotEmpty()         -> navState.popDetailStack()
             appViewModel.popTabHistory()                  -> { /* Tab history popped */ }
             else                                          -> showExitConfirmDialog = true
         }
@@ -867,6 +867,7 @@ fun AppRoot(
                     activeScreen is DetailScreen.Downloads -> AppStateKey.Downloads(depth = currentDepth)
                     activeScreen is DetailScreen.WatchHistory -> AppStateKey.WatchHistory(depth = currentDepth)
                     activeScreen is DetailScreen.PluginPicker -> AppStateKey.PluginPicker(depth = currentDepth)
+                    activeScreen is DetailScreen.AddonExplore -> AppStateKey.AddonExplore(activeScreen.apiName, depth = currentDepth)
                     else                         -> AppStateKey.Tab(selectedTab)
                 }
 
@@ -1156,6 +1157,33 @@ private fun AppNavigationContent(
                         navState = navState,
                         onOpenApiDetail = onOpenApiDetail
                     )
+                }
+            }
+
+            is AppStateKey.AddonExplore -> {
+                navState.stateHolder.SaveableStateProvider(key = "addon_explore_${key.depth}_${key.apiName}") {
+                    val api = remember(key.apiName) {
+                        com.lagradost.cloudstream3.APIHolder.allProviders.firstOrNull { it.name.equals(key.apiName, ignoreCase = true) }
+                    }
+                    if (api != null) {
+                        com.kitsugi.animelist.ui.screens.search.components.AddonExplorePage(
+                            api = api,
+                            onBackClick = { navState.popDetailStack() },
+                            onSeeAllClick = { title, mainPageData, horizontalImages, initialItems ->
+                                navState.addonFullScreenGridState = com.kitsugi.animelist.ui.app.AddonFullScreenGridState(
+                                    title = title,
+                                    apiName = api.name,
+                                    initialItems = initialItems,
+                                    mainPageData = mainPageData,
+                                    horizontalImages = horizontalImages
+                                )
+                            }
+                        )
+                    } else {
+                        LaunchedEffect(Unit) {
+                            navState.popDetailStack()
+                        }
+                    }
                 }
             }
 

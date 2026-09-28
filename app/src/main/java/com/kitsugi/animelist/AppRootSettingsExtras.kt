@@ -427,6 +427,12 @@ internal fun SettingsContext.buildSettingsParams() =
         },
         onOpenWatchHistory = {
             navState.navigateToDetail(DetailScreen.WatchHistory)
+        },
+        onExplorePlugin = { pluginName ->
+            navState.navigateToDetail(DetailScreen.AddonExplore(pluginName))
+        },
+        onOpenPluginPicker = {
+            navState.navigateToDetail(DetailScreen.PluginPicker)
         }
     )
 
