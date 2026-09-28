@@ -20,3 +20,14 @@ scripts/openrouter_keys.txt
 api_keys.txt
 *.key
 *.secret
+
+# Kök dizinde birikmiş geçici dosyalar
+/*.py
+/*.class
+/*.jar
+/*.zip
+/*.txt
+/read_log.ps1
+/__pycache__/
+/.rclone/
+/debug_crash_analysis*.txt
