@@ -95,9 +95,58 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    private var debounceJob: Job? = null
+
     fun setQuery(value: String) {
         _uiState.update { it.copy(query = value) }
         saveCurrentStateToCache()
+
+        debounceJob?.cancel()
+        if (value.isBlank() && !_uiState.value.hasFiltersApplied && _uiState.value.currentTab != KitsugiSearchTab.Plugin) {
+            clearResults()
+            return
+        }
+        // AniHyou debounced live search
+        debounceJob = viewModelScope.launch {
+            kotlinx.coroutines.delay(400)
+            search(resetPage = true)
+        }
+    }
+
+    fun onSearchAction() {
+        debounceJob?.cancel()
+        search(resetPage = true)
+    }
+
+    fun setTab(tab: KitsugiSearchTab) {
+        saveCurrentStateToCache()
+        val mappedPlatform = when (tab) {
+            KitsugiSearchTab.TMDB -> SearchPlatform.TMDB
+            KitsugiSearchTab.Plugin -> SearchPlatform.CS3
+            else -> SearchPlatform.AniList
+        }
+        val mappedMediaType = when (tab) {
+            KitsugiSearchTab.Manga -> MediaType.Manga
+            KitsugiSearchTab.TMDB -> MediaType.Movie
+            else -> MediaType.Anime
+        }
+        val cached = loadStateFromCache(mappedPlatform, mappedMediaType)
+        _uiState.update {
+            it.copy(
+                currentTab = tab,
+                selectedPlatform = mappedPlatform,
+                selectedMediaType = mappedMediaType,
+                query = cached.query,
+                results = cached.results,
+                page = 1,
+                hasNextPage = true,
+                hasSearched = cached.hasSearched,
+                errorMessage = cached.errorMessage
+            )
+        }
+        if (!cached.hasSearched && (cached.query.isNotBlank() || _uiState.value.hasFiltersApplied || tab == KitsugiSearchTab.Plugin)) {
+            search(resetPage = true)
+        }
     }
 
     fun setMediaType(value: MediaType) {
@@ -177,7 +226,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 maxScore = filters.maxScore
             )
         }
-        search()
+        search(resetPage = true)
     }
 
     fun resetFilters() {
@@ -199,73 +248,97 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 maxEpCh = null,
                 minDuration = null,
                 maxDuration = null,
+                onMyList = null,
+                isDoujin = null,
+                isAdultFilter = null,
                 sortSearch = KitsugiMediaSortSearch.SEARCH_MATCH,
-                isSortDescending = true
+                isSortDescending = true,
+                page = 1,
+                hasNextPage = true
             )
         }
-        search()
+        search(resetPage = true)
     }
 
     // ── AniHyou-style reactive filter events ──────────────────────────────
 
     fun setFormats(values: List<KitsugiMediaFormat>) {
         _uiState.update { it.copy(selectedFormats = values) }
-        search()
+        search(resetPage = true)
     }
 
     fun setStatuses(values: List<KitsugiMediaStatus>) {
         _uiState.update { it.copy(selectedStatuses = values) }
-        search()
+        search(resetPage = true)
     }
 
     fun setCountry(value: KitsugiCountryOfOrigin?) {
         _uiState.update { it.copy(country = value) }
-        search()
+        search(resetPage = true)
     }
 
     fun setSources(values: List<KitsugiMediaSource>) {
         _uiState.update { it.copy(selectedSources = values) }
-        search()
+        search(resetPage = true)
     }
 
     fun setStartYear(value: Int?) {
         _uiState.update { it.copy(startYear = value) }
-        search()
+        search(resetPage = true)
     }
 
     fun setEndYear(value: Int?) {
         _uiState.update { it.copy(endYear = value) }
-        search()
+        search(resetPage = true)
     }
 
     fun setSeason(value: KitsugiMediaSeason?) {
         _uiState.update { it.copy(season = value) }
-        search()
+        search(resetPage = true)
     }
 
     fun setMinScore(value: Int?) {
         _uiState.update { it.copy(minScore = value) }
-        search()
+        search(resetPage = true)
     }
 
     fun setMaxScore(value: Int?) {
         _uiState.update { it.copy(maxScore = value) }
-        search()
+        search(resetPage = true)
     }
 
     fun setEpCh(range: IntRange?) {
         _uiState.update { it.copy(minEpCh = range?.first, maxEpCh = range?.last) }
-        search()
+        search(resetPage = true)
     }
 
     fun setDuration(range: IntRange?) {
         _uiState.update { it.copy(minDuration = range?.first, maxDuration = range?.last) }
-        search()
+        search(resetPage = true)
     }
 
     fun setSort(sortSearch: KitsugiMediaSortSearch, isDescending: Boolean) {
         _uiState.update { it.copy(sortSearch = sortSearch, isSortDescending = isDescending) }
-        search()
+        search(resetPage = true)
+    }
+
+    fun setOnMyList(value: Boolean?) {
+        _uiState.update { it.copy(onMyList = value) }
+        search(resetPage = true)
+    }
+
+    fun setIsDoujin(value: Boolean?) {
+        _uiState.update { it.copy(isDoujin = value) }
+        search(resetPage = true)
+    }
+
+    fun setIsAdultFilter(value: Boolean?) {
+        _uiState.update { it.copy(isAdultFilter = value) }
+        search(resetPage = true)
+    }
+
+    fun setShowMoreFilters(show: Boolean) {
+        _uiState.update { it.copy(showMoreFilters = show) }
     }
 
     /**
@@ -501,14 +574,15 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         return list.distinct()
     }
 
-    fun search() {
+    fun search(resetPage: Boolean = true) {
         val state = _uiState.value
-        if (state.query.isBlank() && !state.hasFiltersApplied) {
+        if (state.query.isBlank() && !state.hasFiltersApplied && state.currentTab != KitsugiSearchTab.Plugin) {
             clearResults()
             return
         }
 
         searchJob?.cancel()
+        debounceJob?.cancel()
 
         val queryNotBlank = state.query.isNotBlank()
         val newHistoryItem = if (queryNotBlank) {
@@ -519,22 +593,19 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             )
         } else null
 
-        _uiState.update { it.copy(isLoading = true, errorMessage = null) }
+        _uiState.update {
+            it.copy(
+                isLoading = true,
+                errorMessage = null,
+                page = if (resetPage) 1 else it.page,
+                hasNextPage = true
+            )
+        }
 
         searchJob = viewModelScope.launch {
             try {
                 val rawQuery = state.query.trim()
-                val fallbackCandidates = generateFallbackQueries(rawQuery)
-
-                var results = executeSearchForQuery(rawQuery)
-                if (results.isEmpty()) {
-                    for (fallback in fallbackCandidates) {
-                        if (fallback != rawQuery) {
-                            results = executeSearchForQuery(fallback)
-                            if (results.isNotEmpty()) break
-                        }
-                    }
-                }
+                val (results, hasNext) = executeSearchForPage(rawQuery, page = 1)
 
                 ensureActive()
 
@@ -549,6 +620,8 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                         results = results,
                         isLoading = false,
                         hasSearched = true,
+                        page = 1,
+                        hasNextPage = hasNext,
                         errorMessage = if (results.isEmpty()) "Sonuç bulunamadı." else null
                     )
                 }
@@ -567,355 +640,198 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    private suspend fun executeSearchForQuery(queryText: String): List<JikanSearchResult> {
+    fun loadMore() {
+        val state = _uiState.value
+        if (state.isLoading || state.isLoadingMore || !state.hasNextPage) return
+        if (state.query.isBlank() && !state.hasFiltersApplied && state.currentTab != KitsugiSearchTab.Plugin) return
+
+        val nextPage = state.page + 1
+        _uiState.update { it.copy(isLoadingMore = true) }
+
+        viewModelScope.launch {
+            try {
+                val (moreResults, hasNext) = executeSearchForPage(state.query.trim(), page = nextPage)
+                _uiState.update { current ->
+                    val currentIds = current.results.map { "${it.source}_${it.malId}" }.toSet()
+                    val uniqueNew = moreResults.filter { !currentIds.contains("${it.source}_${it.malId}") }
+                    current.copy(
+                        results = current.results + uniqueNew,
+                        page = nextPage,
+                        hasNextPage = hasNext,
+                        isLoadingMore = false
+                    )
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _uiState.update { it.copy(isLoadingMore = false) }
+            }
+        }
+    }
+
+    private suspend fun executeSearchForPage(queryText: String, page: Int): Pair<List<JikanSearchResult>, Boolean> {
         val state = _uiState.value
         val showAdult = showAdultContentState
 
-        // ── Derive filter values directly from state ──────────────────────
-        val firstStatus = state.selectedStatuses.firstOrNull()?.apiValue
-        val firstFormat = state.selectedFormats.firstOrNull()?.apiValue
-
-        // Jikan filters
-        val jikanStatus = when (firstStatus) {
-            "RELEASING" -> "airing"
-            "FINISHED" -> "complete"
-            "NOT_YET_RELEASED" -> "upcoming"
-            "HIATUS" -> "hiatus"
-            "CANCELLED" -> "discontinued"
-            else -> null
-        }
-        val jikanFormat = firstFormat?.lowercase()
-        val jikanGenreId = getJikanGenreId(state.genres.firstOrNull() ?: state.tags.firstOrNull())
-        val effectiveSort = state.effectiveSortApiValue
-        val jikanSort = if (effectiveSort.endsWith("_DESC") || effectiveSort == "POPULARITY_DESC") "desc" else "asc"
-        val jikanOrderBy = when {
-            effectiveSort.startsWith("SCORE") -> "score"
-            effectiveSort.startsWith("TITLE") -> "title"
-            else -> "popularity"
+        // 1. Karakter Arama (AniHyou)
+        if (state.currentTab == KitsugiSearchTab.Character) {
+            val paged = apiClient.searchCharacters(queryText, page = page, perPage = 24)
+            return Pair(paged.results, paged.hasNextPage)
         }
 
-        // AniList filters
-        val aniListStatus = firstStatus
-        val aniListFormat = firstFormat
+        // 2. Personel / Seslendirmen Arama (AniHyou)
+        if (state.currentTab == KitsugiSearchTab.Staff) {
+            val paged = apiClient.searchStaff(queryText, page = page, perPage = 24)
+            return Pair(paged.results, paged.hasNextPage)
+        }
+
+        // 3. Eklentiler Platformu (CloudStream providers)
+        if (state.currentTab == KitsugiSearchTab.Plugin || state.selectedPlatform == SearchPlatform.CS3) {
+            val rawResults = com.kitsugi.animelist.data.cloudstream.CsStreamRunner.searchAllAddons(getApplication(), queryText)
+            val list = rawResults.map { (api, response) ->
+                JikanSearchResult(
+                    malId = response.url.hashCode(),
+                    title = response.name,
+                    subtitle = api.name,
+                    type = MediaType.Anime,
+                    total = null,
+                    score = null,
+                    isAdult = false,
+                    imageUrl = response.posterUrl,
+                    year = null,
+                    source = "cs3",
+                    cs3Url = response.url,
+                    cs3ApiName = api.name
+                )
+            }
+            return Pair(list, false)
+        }
+
+        // 4. TMDB Platformu (Film & Dizi)
+        if (state.currentTab == KitsugiSearchTab.TMDB || state.selectedPlatform == SearchPlatform.TMDB) {
+            val tmdbGenreId = getTmdbGenreId(state.genres.firstOrNull() ?: state.tags.firstOrNull(), state.selectedMediaType == MediaType.Movie)
+            val results = if (queryText.isBlank() && tmdbGenreId != null) {
+                TmdbApiClient().discoverByGenre(tmdbGenreId, state.selectedMediaType == MediaType.Movie)
+            } else if (queryText.isNotBlank()) {
+                TmdbApiClient().search(queryText)
+            } else {
+                emptyList()
+            }
+            return Pair(results, results.size >= 20)
+        }
+
+        // 5. Anime / Manga Arama (AniHyou Standardında AniList GraphQL Motoru)
+        val targetMediaType = if (state.currentTab == KitsugiSearchTab.Manga || state.selectedMediaType == MediaType.Manga) MediaType.Manga else MediaType.Anime
+        val formatStrings = state.selectedFormats.map { it.apiValue }
+        val statusStrings = state.selectedStatuses.map { it.apiValue }
+        val sourceStrings = state.selectedSources.map { it.apiValue }
+        val aniListCountry = state.country?.code
         val aniListGenres = getAniListGenreNames(state.genres.filter { isOfficialAniListGenre(it) })
         val aniListExcludedGenres = getAniListGenreNames(state.excludedGenres.filter { isOfficialAniListGenre(it) })
         val aniListTags = state.tags.toMutableList().apply {
             addAll(state.genres.filter { !isOfficialAniListGenre(it) })
         }.distinct()
+        val effectiveSort = state.effectiveSortApiValue
         val aniListSort = when {
             effectiveSort == "SEARCH_MATCH" && queryText.isNotBlank() -> emptyList()
             effectiveSort == "SEARCH_MATCH" -> listOf("POPULARITY_DESC")
             else -> listOf(effectiveSort)
         }
-        val aniListCountry = state.country?.code
-        val aniListSources = state.selectedSources.map { it.apiValue }
-
+        val isDoujinFlag = when (state.isDoujin) {
+            true -> false
+            false -> true
+            null -> null
+        }
         val fallbacks = generateFallbackQueries(queryText)
 
         return runCatching {
-            when (state.selectedPlatform) {
-                SearchPlatform.MAL -> {
-                    // MAL/Jikan araması — hata veya boş sonuç durumunda Shikimori fallback
-                    var res = runCatching {
-                        apiClient.searchMALOnly(
-                            query = queryText,
-                            mediaType = state.selectedMediaType,
-                            showAdultContent = showAdult,
-                            status = jikanStatus,
-                            format = jikanFormat,
-                            genreId = jikanGenreId,
-                            sort = jikanSort,
-                            orderBy = jikanOrderBy
-                        )
-                    }.getOrElse { emptyList() }
+            var paged = apiClient.searchAniListPaged(
+                query = queryText,
+                mediaType = targetMediaType,
+                showAdultContent = showAdult,
+                formats = formatStrings.takeIf { it.isNotEmpty() },
+                statuses = statusStrings.takeIf { it.isNotEmpty() },
+                season = state.season?.apiValue,
+                genres = aniListGenres.takeIf { it.isNotEmpty() },
+                excludedGenres = aniListExcludedGenres.takeIf { it.isNotEmpty() },
+                tags = aniListTags.takeIf { it.isNotEmpty() },
+                minYear = state.startYear,
+                maxYear = state.endYear,
+                minScore = state.minScore,
+                maxScore = state.maxScore,
+                minEpCh = state.minEpCh,
+                maxEpCh = state.maxEpCh,
+                minDuration = state.minDuration,
+                maxDuration = state.maxDuration,
+                sort = aniListSort,
+                country = aniListCountry,
+                sources = sourceStrings.takeIf { it.isNotEmpty() },
+                isAdult = state.isAdultFilter,
+                isLicensed = isDoujinFlag,
+                page = page,
+                perPage = 24
+            )
 
-                    // Fallback sorguları — Jikan üzerinde dene
-                    if (res.isEmpty()) {
-                        for (fb in fallbacks) {
-                            res = runCatching {
-                                apiClient.searchMALOnly(
-                                    query = fb, mediaType = state.selectedMediaType,
-                                    showAdultContent = showAdult, status = jikanStatus,
-                                    format = jikanFormat, genreId = jikanGenreId,
-                                    sort = jikanSort, orderBy = jikanOrderBy
-                                )
-                            }.getOrElse { emptyList() }
-                            if (res.isNotEmpty()) break
-                        }
-                    }
-
-                    // Shikimori fallback — Jikan tamamen boşsa veya hata verdiyse
-                    if (res.isEmpty()) {
-                        android.util.Log.w("SearchViewModel", "MAL/Jikan boş, Shikimori fallback devrede: $queryText")
-                        val shiRes = runCatching {
-                            if (state.selectedMediaType == MediaType.Manga) {
-                                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchManga(queryText)
-                            } else {
-                                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchAnime(queryText)
-                            }
-                        }.getOrElse { emptyList() }
-                        if (shiRes.isNotEmpty()) res = shiRes
-                    }
-                    res
-                }
-                SearchPlatform.AniList -> {
-                    // AniList araması — hata veya boş sonuçta Kitsu fallback
-                    var res = runCatching {
-                        apiClient.searchAniList(
-                            query = queryText,
-                            mediaType = state.selectedMediaType,
+            // İlk sayfada sonuç boşsa fallback sorgularını dene
+            if (paged.results.isEmpty() && page == 1 && queryText.isNotBlank()) {
+                for (fb in fallbacks) {
+                    if (fb != queryText) {
+                        val fbPaged = apiClient.searchAniListPaged(
+                            query = fb,
+                            mediaType = targetMediaType,
                             showAdultContent = showAdult,
-                            status = aniListStatus,
-                            format = aniListFormat,
+                            formats = formatStrings.takeIf { it.isNotEmpty() },
+                            statuses = statusStrings.takeIf { it.isNotEmpty() },
                             season = state.season?.apiValue,
-                            genres = aniListGenres,
-                            excludedGenres = aniListExcludedGenres,
-                            tags = aniListTags,
+                            genres = aniListGenres.takeIf { it.isNotEmpty() },
+                            excludedGenres = aniListExcludedGenres.takeIf { it.isNotEmpty() },
+                            tags = aniListTags.takeIf { it.isNotEmpty() },
                             minYear = state.startYear,
                             maxYear = state.endYear,
                             minScore = state.minScore,
                             maxScore = state.maxScore,
+                            minEpCh = state.minEpCh,
+                            maxEpCh = state.maxEpCh,
+                            minDuration = state.minDuration,
+                            maxDuration = state.maxDuration,
                             sort = aniListSort,
                             country = aniListCountry,
-                            sources = aniListSources
+                            sources = sourceStrings.takeIf { it.isNotEmpty() },
+                            isAdult = state.isAdultFilter,
+                            isLicensed = isDoujinFlag,
+                            page = 1,
+                            perPage = 24
                         )
-                    }.getOrElse { emptyList() }
-
-                    // Fallback sorgular — AniList üzerinde dene
-                    if (res.isEmpty()) {
-                        for (fb in fallbacks) {
-                            res = runCatching {
-                                apiClient.searchAniList(
-                                    query = fb, mediaType = state.selectedMediaType,
-                                    showAdultContent = showAdult, status = aniListStatus,
-                                    format = aniListFormat, season = state.season?.apiValue,
-                                    genres = aniListGenres, excludedGenres = aniListExcludedGenres,
-                                    tags = aniListTags, minYear = state.startYear,
-                                    maxYear = state.endYear, minScore = state.minScore,
-                                    maxScore = state.maxScore, sort = aniListSort,
-                                    country = aniListCountry, sources = aniListSources
-                                )
-                            }.getOrElse { emptyList() }
-                            if (res.isNotEmpty()) break
+                        if (fbPaged.results.isNotEmpty()) {
+                            paged = fbPaged
+                            break
                         }
-                    }
-
-                    // Kitsu fallback — AniList tamamen boşsa veya hata verdiyse
-                    if (res.isEmpty()) {
-                        android.util.Log.w("SearchViewModel", "AniList boş, Kitsu fallback devrede: $queryText")
-                        res = runCatching<List<JikanSearchResult>> {
-                            com.kitsugi.animelist.data.remote.KitsuExploreClient.searchAnime(
-                                query = queryText,
-                                mediaType = state.selectedMediaType
-                            )
-                        }.getOrElse { emptyList() }
-                    }
-                    res
-                }
-                SearchPlatform.TMDB -> {
-                    val tmdbGenreId = getTmdbGenreId(state.genres.firstOrNull() ?: state.tags.firstOrNull(), state.selectedMediaType == MediaType.Movie)
-                    if (queryText.isBlank() && tmdbGenreId != null) {
-                        TmdbApiClient().discoverByGenre(tmdbGenreId, state.selectedMediaType == MediaType.Movie)
-                    } else if (queryText.isNotBlank()) {
-                        var res = TmdbApiClient().search(queryText)
-                        if (res.isEmpty()) {
-                            for (fb in fallbacks) {
-                                res = TmdbApiClient().search(fb)
-                                if (res.isNotEmpty()) break
-                            }
-                        }
-                        res
-                    } else {
-                        emptyList()
-                    }
-                }
-                SearchPlatform.All -> {
-                    coroutineScope {
-                        val malDeferred = async {
-                            runCatching {
-                                var res = apiClient.searchMALOnly(
-                                    query = queryText,
-                                    mediaType = state.selectedMediaType,
-                                    showAdultContent = showAdult,
-                                    status = jikanStatus,
-                                    format = jikanFormat,
-                                    genreId = jikanGenreId,
-                                    sort = jikanSort,
-                                    orderBy = jikanOrderBy
-                                )
-                                if (res.isEmpty()) {
-                                    for (fb in fallbacks) {
-                                        res = apiClient.searchMALOnly(
-                                            query = fb, mediaType = state.selectedMediaType,
-                                            showAdultContent = showAdult, status = jikanStatus,
-                                            format = jikanFormat, genreId = jikanGenreId,
-                                            sort = jikanSort, orderBy = jikanOrderBy
-                                        )
-                                        if (res.isNotEmpty()) break
-                                    }
-                                }
-                                // Shikimori fallback — Jikan boş/hata verdiyse Tümü sekmesinde de kurtar
-                                if (res.isEmpty()) {
-                                    val shiRes = runCatching {
-                                        if (state.selectedMediaType == MediaType.Manga) {
-                                            com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchManga(queryText)
-                                        } else {
-                                            com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchAnime(queryText)
-                                        }
-                                    }.getOrElse { emptyList() }
-                                    if (shiRes.isNotEmpty()) res = shiRes
-                                }
-                                res
-                            }.getOrElse { e ->
-                                if (e is kotlinx.coroutines.CancellationException) throw e
-                                // Jikan tamamen çöktüyse bile en azından Shikimori'yi burada da deneyelim (runCatching dışındaki genel hatalarda)
-                                runCatching {
-                                    if (state.selectedMediaType == MediaType.Manga) {
-                                        com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchManga(queryText)
-                                    } else {
-                                        com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchAnime(queryText)
-                                    }
-                                }.getOrElse { emptyList() }
-                            }
-                        }
-                        val aniListDeferred = async {
-                            runCatching {
-                                var res = apiClient.searchAniList(
-                                    query = queryText,
-                                    mediaType = state.selectedMediaType,
-                                    showAdultContent = showAdult,
-                                    status = aniListStatus,
-                                    format = aniListFormat,
-                                    season = state.season?.apiValue,
-                                    genres = aniListGenres,
-                                    excludedGenres = aniListExcludedGenres,
-                                    tags = aniListTags,
-                                    minYear = state.startYear,
-                                    maxYear = state.endYear,
-                                    minScore = state.minScore,
-                                    maxScore = state.maxScore,
-                                    sort = aniListSort,
-                                    country = aniListCountry,
-                                    sources = aniListSources
-                                )
-                                if (res.isEmpty()) {
-                                    for (fb in fallbacks) {
-                                        res = apiClient.searchAniList(
-                                            query = fb, mediaType = state.selectedMediaType,
-                                            showAdultContent = showAdult, status = aniListStatus,
-                                            format = aniListFormat, season = state.season?.apiValue,
-                                            genres = aniListGenres, excludedGenres = aniListExcludedGenres,
-                                            tags = aniListTags, minYear = state.startYear,
-                                            maxYear = state.endYear, minScore = state.minScore,
-                                            maxScore = state.maxScore, sort = aniListSort,
-                                            country = aniListCountry, sources = aniListSources
-                                        )
-                                        if (res.isNotEmpty()) break
-                                    }
-                                }
-                                // Kitsu fallback — AniList boş/hata verdiyse Tümü sekmesinde de kurtar
-                                if (res.isEmpty()) {
-                                    val kitRes = runCatching<List<JikanSearchResult>> {
-                                        com.kitsugi.animelist.data.remote.KitsuExploreClient.searchAnime(
-                                            query = queryText,
-                                            mediaType = state.selectedMediaType
-                                        )
-                                    }.getOrElse { emptyList() }
-                                    if (kitRes.isNotEmpty()) res = kitRes
-                                }
-                                res
-                            }.getOrElse { e ->
-                                if (e is kotlinx.coroutines.CancellationException) throw e
-                                runCatching<List<JikanSearchResult>> {
-                                    com.kitsugi.animelist.data.remote.KitsuExploreClient.searchAnime(
-                                        query = queryText,
-                                        mediaType = state.selectedMediaType
-                                    )
-                                }.getOrElse { emptyList() }
-                            }
-                        }
-                        val tmdbDeferred = async {
-                            if (state.selectedMediaType == MediaType.Manga || state.selectedMediaType == MediaType.Anime) {
-                                emptyList()
-                            } else {
-                                val tmdbGenreId = getTmdbGenreId(state.genres.firstOrNull() ?: state.tags.firstOrNull(), state.selectedMediaType == MediaType.Movie)
-                                if (queryText.isBlank() && tmdbGenreId != null) {
-                                    runCatching {
-                                        TmdbApiClient().discoverByGenre(tmdbGenreId, state.selectedMediaType == MediaType.Movie)
-                                    }.getOrElse { e ->
-                                        if (e is kotlinx.coroutines.CancellationException) throw e
-                                        emptyList()
-                                    }
-                                } else if (queryText.isNotBlank()) {
-                                    runCatching {
-                                        var res = TmdbApiClient().search(queryText)
-                                        if (res.isEmpty()) {
-                                            for (fb in fallbacks) {
-                                                res = TmdbApiClient().search(fb)
-                                                if (res.isNotEmpty()) break
-                                            }
-                                        }
-                                        res
-                                    }.getOrElse { e ->
-                                        if (e is kotlinx.coroutines.CancellationException) throw e
-                                        emptyList()
-                                    }
-                                } else {
-                                    emptyList()
-                                }
-                            }
-                        }
-                        val mal = malDeferred.await()
-                        val aniList = aniListDeferred.await()
-                        val tmdb = tmdbDeferred.await()
-
-                        val combined = mutableListOf<JikanSearchResult>()
-                        val maxLen = maxOf(mal.size, aniList.size, tmdb.size)
-                        for (i in 0 until maxLen) {
-                            if (i < mal.size) combined.add(mal[i])
-                            if (i < aniList.size) combined.add(aniList[i])
-                            if (i < tmdb.size) combined.add(tmdb[i])
-                        }
-
-                        val seenKeys = mutableSetOf<String>()
-                        val uniqueResults = mutableListOf<JikanSearchResult>()
-
-                        for (result in combined) {
-                            val itemKey = "${result.source.lowercase()}:${result.tmdbId ?: result.malId}"
-                            if (!seenKeys.contains(itemKey)) {
-                                seenKeys.add(itemKey)
-                                uniqueResults.add(result)
-                            }
-                        }
-                        uniqueResults
-                    }
-                }
-                SearchPlatform.CS3 -> {
-                    // Her zaman tüm aktif eklentilerde ara
-                    val rawResults = com.kitsugi.animelist.data.cloudstream.CsStreamRunner.searchAllAddons(getApplication(), queryText)
-                    rawResults.map { (api, response) ->
-                        JikanSearchResult(
-                            malId = response.url.hashCode(),
-                            title = response.name,
-                            subtitle = api.name,
-                            type = MediaType.Anime,
-                            total = null,
-                            score = null,
-                            isAdult = false,
-                            imageUrl = response.posterUrl,
-                            year = null,
-                            source = "cs3",
-                            cs3Url = response.url,
-                            cs3ApiName = api.name
-                        )
                     }
                 }
             }
+
+            // Kitsu fallback — AniList boşsa ve ilk sayfadaysa
+            if (paged.results.isEmpty() && page == 1 && queryText.isNotBlank()) {
+                val kitRes = runCatching<List<JikanSearchResult>> {
+                    com.kitsugi.animelist.data.remote.KitsuExploreClient.searchAnime(
+                        query = queryText,
+                        mediaType = targetMediaType
+                    )
+                }.getOrElse { emptyList() }
+                if (kitRes.isNotEmpty()) {
+                    return@runCatching Pair(kitRes, false)
+                }
+            }
+
+            Pair(paged.results, paged.hasNextPage)
         }.getOrElse { e ->
             if (e is kotlinx.coroutines.CancellationException) throw e
-            emptyList()
+            Pair(emptyList(), false)
         }
     }
+
+    private suspend fun executeSearchForQuery(queryText: String): List<JikanSearchResult> =
+        executeSearchForPage(queryText, 1).first
 
     fun clearHistory() {
         viewModelScope.launch {

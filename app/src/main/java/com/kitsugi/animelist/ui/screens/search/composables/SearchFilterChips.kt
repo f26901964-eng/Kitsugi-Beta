@@ -3,7 +3,11 @@ package com.kitsugi.animelist.ui.screens.search.composables
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -223,3 +227,58 @@ fun KitsugiSearchEpChDurationChip(
         }
     }
 }
+
+// ─── AniHyou Tri-Filter Chip (null -> true -> false -> null) ──────────────────
+
+@Composable
+fun KitsugiTriFilterChip(
+    text: String,
+    value: Boolean?,
+    onValueChanged: (Boolean?) -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
+) {
+    val accentColor = com.kitsugi.animelist.ui.theme.LocalKitsugiAccent.current
+    androidx.compose.material3.FilterChip(
+        selected = value != null,
+        onClick = {
+            onValueChanged(
+                when (value) {
+                    null -> true
+                    true -> false
+                    false -> null
+                }
+            )
+        },
+        label = { Text(text = text) },
+        modifier = modifier,
+        enabled = enabled,
+        leadingIcon = {
+            if (value == true) {
+                Icon(
+                    imageVector = Icons.Rounded.Check,
+                    contentDescription = "Evet"
+                )
+            } else if (value == false) {
+                Icon(
+                    imageVector = Icons.Rounded.Close,
+                    contentDescription = "Hayır"
+                )
+            }
+        },
+        colors = if (value == false) {
+            androidx.compose.material3.FilterChipDefaults.filterChipColors(
+                selectedContainerColor = com.kitsugi.animelist.ui.theme.KitsugiColors.AccentRed.copy(alpha = 0.2f),
+                selectedLabelColor = com.kitsugi.animelist.ui.theme.KitsugiColors.AccentRed,
+                selectedLeadingIconColor = com.kitsugi.animelist.ui.theme.KitsugiColors.AccentRed,
+            )
+        } else {
+            androidx.compose.material3.FilterChipDefaults.filterChipColors(
+                selectedContainerColor = accentColor.copy(alpha = 0.2f),
+                selectedLabelColor = accentColor,
+                selectedLeadingIconColor = accentColor,
+            )
+        }
+    )
+}
+

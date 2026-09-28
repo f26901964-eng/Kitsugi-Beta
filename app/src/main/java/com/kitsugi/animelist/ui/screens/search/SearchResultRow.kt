@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -292,3 +293,122 @@ private fun entryProgressText(entry: com.kitsugi.animelist.model.MediaEntry): St
     val totalText = entry.total?.toString() ?: "?"
     return "${entry.progress}/$totalText $unit"
 }
+
+/**
+ * Karakter ve Personel sonuçları için özel kart bileşeni (AniHyou Search tarzı).
+ */
+@Composable
+fun CharacterStaffResultRow(
+    result: JikanSearchResult,
+    isStaff: Boolean = false,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val accentColor = LocalKitsugiAccent.current
+    val isTv = LocalIsTv.current
+    val rowShape = if (isTv) KitsugiTvTokens.Shapes.posterCard else RoundedCornerShape(16.dp)
+
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(rowShape)
+            .background(KitsugiColors.Surface)
+            .tvClickable(shape = rowShape, onClick = onClick)
+            .padding(if (isTv) 8.dp else 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(14.dp)
+    ) {
+        // Avatar Görseli
+        val thumbSize = if (isTv) 64.dp else 56.dp
+        Box(
+            modifier = Modifier
+                .size(thumbSize)
+                .clip(RoundedCornerShape(14.dp))
+                .background(KitsugiColors.SurfaceStrong)
+        ) {
+            AsyncImage(
+                model = result.imageUrl,
+                contentDescription = result.title,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.matchParentSize()
+            )
+        }
+
+        // İsim ve Alt Bilgiler
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            Text(
+                text = result.title,
+                color = KitsugiColors.TextPrimary,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
+            if (!result.subtitle.isNullOrBlank()) {
+                Text(
+                    text = result.subtitle,
+                    color = KitsugiColors.TextMuted,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+
+            // Favori sayısı & Tip rozeti
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                if (result.total != null && result.total > 0) {
+                    val formattedFavorites = when {
+                        result.total >= 1000 -> String.format(java.util.Locale.US, "%.1fk", result.total / 1000.0)
+                        else -> result.total.toString()
+                    }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(KitsugiColors.AccentRed.copy(alpha = 0.12f))
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Favorite,
+                                contentDescription = "Favori",
+                                tint = KitsugiColors.AccentRed,
+                                modifier = Modifier.size(12.dp)
+                            )
+                            Text(
+                                text = formattedFavorites,
+                                color = KitsugiColors.AccentRed,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(KitsugiColors.SurfaceStrong)
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = if (isStaff) "Personel" else "Karakter",
+                        color = accentColor,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+        }
+    }
+}
+

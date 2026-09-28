@@ -7,6 +7,11 @@ import org.json.JSONArray
 import org.json.JSONObject
 import com.kitsugi.animelist.utils.*
 
+data class AniListPagedResult(
+    val results: List<JikanSearchResult>,
+    val hasNextPage: Boolean
+)
+
 class AniListSearchClient(
     private val accessToken: String? = null
 ) {
@@ -17,7 +22,10 @@ class AniListSearchClient(
         showAdultContent: Boolean = false,
         status: String? = null,
         format: String? = null,
+        formats: List<String>? = null,
+        statuses: List<String>? = null,
         season: String? = null,
+        seasonYear: Int? = null,
         genres: List<String>? = null,
         excludedGenres: List<String>? = null,
         tags: List<String>? = null,
@@ -25,26 +33,99 @@ class AniListSearchClient(
         maxYear: Int? = null,
         minScore: Int? = null,
         maxScore: Int? = null,
+        minEpCh: Int? = null,
+        maxEpCh: Int? = null,
+        minDuration: Int? = null,
+        maxDuration: Int? = null,
         sort: List<String> = listOf("POPULARITY_DESC"),
         country: String? = null,
-        sources: List<String>? = null
+        sources: List<String>? = null,
+        isAdult: Boolean? = null,
+        isLicensed: Boolean? = null,
+        page: Int = 1,
+        perPage: Int = 24
     ): List<JikanSearchResult> {
+        return searchAniListPaged(
+            query = query,
+            mediaType = mediaType,
+            showAdultContent = showAdultContent,
+            status = status,
+            format = format,
+            formats = formats,
+            statuses = statuses,
+            season = season,
+            seasonYear = seasonYear,
+            genres = genres,
+            excludedGenres = excludedGenres,
+            tags = tags,
+            minYear = minYear,
+            maxYear = maxYear,
+            minScore = minScore,
+            maxScore = maxScore,
+            minEpCh = minEpCh,
+            maxEpCh = maxEpCh,
+            minDuration = minDuration,
+            maxDuration = maxDuration,
+            sort = sort,
+            country = country,
+            sources = sources,
+            isAdult = isAdult,
+            isLicensed = isLicensed,
+            page = page,
+            perPage = perPage
+        ).results
+    }
+
+    suspend fun searchAniListPaged(
+        query: String,
+        mediaType: MediaType,
+        showAdultContent: Boolean = false,
+        status: String? = null,
+        format: String? = null,
+        formats: List<String>? = null,
+        statuses: List<String>? = null,
+        season: String? = null,
+        seasonYear: Int? = null,
+        genres: List<String>? = null,
+        excludedGenres: List<String>? = null,
+        tags: List<String>? = null,
+        minYear: Int? = null,
+        maxYear: Int? = null,
+        minScore: Int? = null,
+        maxScore: Int? = null,
+        minEpCh: Int? = null,
+        maxEpCh: Int? = null,
+        minDuration: Int? = null,
+        maxDuration: Int? = null,
+        sort: List<String> = listOf("POPULARITY_DESC"),
+        country: String? = null,
+        sources: List<String>? = null,
+        isAdult: Boolean? = null,
+        isLicensed: Boolean? = null,
+        page: Int = 1,
+        perPage: Int = 24
+    ): AniListPagedResult {
         return withContext(Dispatchers.IO) {
-            if (query.isBlank() && status == null && format == null && season == null &&
+            val allFormats = formats ?: format?.let { listOf(it) }
+            val allStatuses = statuses ?: status?.let { listOf(it) }
+
+            if (query.isBlank() && allStatuses.isNullOrEmpty() && allFormats.isNullOrEmpty() && season == null &&
                 genres.isNullOrEmpty() && excludedGenres.isNullOrEmpty() && tags.isNullOrEmpty() &&
                 minYear == null && maxYear == null && minScore == null && maxScore == null &&
-                country == null && sources.isNullOrEmpty()
+                country == null && sources.isNullOrEmpty() && minEpCh == null && maxEpCh == null &&
+                minDuration == null && maxDuration == null && isAdult == null && isLicensed == null
             ) {
-                return@withContext emptyList()
+                return@withContext AniListPagedResult(emptyList(), false)
             }
-            requestAniList(
+            requestAniListPaged(
                 mediaType = mediaType,
                 search = query.trim().takeIf { it.isNotBlank() },
-                status = status,
+                formats = allFormats,
+                statuses = allStatuses,
                 sort = sort,
-                perPage = 24,
-                format = format,
+                perPage = perPage,
                 season = season,
+                seasonYear = seasonYear,
                 genres = genres,
                 excludedGenres = excludedGenres,
                 tags = tags,
@@ -52,10 +133,163 @@ class AniListSearchClient(
                 maxYear = maxYear,
                 minScore = minScore,
                 maxScore = maxScore,
+                minEpCh = minEpCh,
+                maxEpCh = maxEpCh,
+                minDuration = minDuration,
+                maxDuration = maxDuration,
                 showAdultContent = showAdultContent,
                 country = country,
-                sources = sources
+                sources = sources,
+                isAdult = isAdult,
+                isLicensed = isLicensed,
+                page = page
             )
+        }
+    }
+
+    suspend fun searchCharacters(
+        query: String,
+        page: Int = 1,
+        perPage: Int = 24
+    ): AniListPagedResult {
+        return withContext(Dispatchers.IO) {
+            if (query.isBlank()) return@withContext AniListPagedResult(emptyList(), false)
+            val q = """
+                query (${'$'}search: String, ${'$'}page: Int, ${'$'}perPage: Int) {
+                    Page(page: ${'$'}page, perPage: ${'$'}perPage) {
+                        pageInfo {
+                            hasNextPage
+                        }
+                        characters(search: ${'$'}search, sort: SEARCH_MATCH) {
+                            id
+                            name {
+                                userPreferred
+                                native
+                                full
+                            }
+                            image {
+                                large
+                                medium
+                            }
+                            favourites
+                        }
+                    }
+                }
+            """.trimIndent()
+            val vars = JSONObject().put("search", query.trim()).put("page", page).put("perPage", perPage)
+            val resp = KitsugiApiBase.executeAniListQuery(q, vars, accessToken)
+                ?: return@withContext AniListPagedResult(emptyList(), false)
+            try {
+                val root = JSONObject(resp)
+                val pageObj = root.optJSONObject("data")?.optJSONObject("Page")
+                val charsArray = pageObj?.optJSONArray("characters") ?: return@withContext AniListPagedResult(emptyList(), false)
+                val hasNextPage = pageObj.optJSONObject("pageInfo")?.optBoolean("hasNextPage", false) ?: (charsArray.length() >= perPage)
+                val list = mutableListOf<JikanSearchResult>()
+                for (i in 0 until charsArray.length()) {
+                    val item = charsArray.optJSONObject(i) ?: continue
+                    val id = item.optInt("id", 0)
+                    if (id <= 0) continue
+                    val nameObj = item.optJSONObject("name")
+                    val name = nameObj?.optNullableString("userPreferred") ?: nameObj?.optNullableString("full") ?: "Bilinmeyen"
+                    val nativeName = nameObj?.optNullableString("native")
+                    val imgObj = item.optJSONObject("image")
+                    val imgUrl = imgObj?.optNullableString("large") ?: imgObj?.optNullableString("medium")
+                    val favs = item.optInt("favourites", 0)
+                    list.add(
+                        JikanSearchResult(
+                            malId = id,
+                            title = name,
+                            subtitle = if (!nativeName.isNullOrBlank()) nativeName else "Karakter",
+                            type = MediaType.Anime,
+                            total = null,
+                            score = null,
+                            isAdult = false,
+                            imageUrl = imgUrl,
+                            year = null,
+                            source = "character_anilist",
+                            favorites = favs
+                        )
+                    )
+                }
+                AniListPagedResult(list, hasNextPage)
+            } catch (e: Exception) {
+                AniListPagedResult(emptyList(), false)
+            }
+        }
+    }
+
+    suspend fun searchStaff(
+        query: String,
+        page: Int = 1,
+        perPage: Int = 24
+    ): AniListPagedResult {
+        return withContext(Dispatchers.IO) {
+            if (query.isBlank()) return@withContext AniListPagedResult(emptyList(), false)
+            val q = """
+                query (${'$'}search: String, ${'$'}page: Int, ${'$'}perPage: Int) {
+                    Page(page: ${'$'}page, perPage: ${'$'}perPage) {
+                        pageInfo {
+                            hasNextPage
+                        }
+                        staff(search: ${'$'}search, sort: SEARCH_MATCH) {
+                            id
+                            name {
+                                userPreferred
+                                native
+                                full
+                            }
+                            image {
+                                large
+                                medium
+                            }
+                            primaryOccupations
+                            favourites
+                        }
+                    }
+                }
+            """.trimIndent()
+            val vars = JSONObject().put("search", query.trim()).put("page", page).put("perPage", perPage)
+            val resp = KitsugiApiBase.executeAniListQuery(q, vars, accessToken)
+                ?: return@withContext AniListPagedResult(emptyList(), false)
+            try {
+                val root = JSONObject(resp)
+                val pageObj = root.optJSONObject("data")?.optJSONObject("Page")
+                val staffArray = pageObj?.optJSONArray("staff") ?: return@withContext AniListPagedResult(emptyList(), false)
+                val hasNextPage = pageObj.optJSONObject("pageInfo")?.optBoolean("hasNextPage", false) ?: (staffArray.length() >= perPage)
+                val list = mutableListOf<JikanSearchResult>()
+                for (i in 0 until staffArray.length()) {
+                    val item = staffArray.optJSONObject(i) ?: continue
+                    val id = item.optInt("id", 0)
+                    if (id <= 0) continue
+                    val nameObj = item.optJSONObject("name")
+                    val name = nameObj?.optNullableString("userPreferred") ?: nameObj?.optNullableString("full") ?: "Bilinmeyen"
+                    val nativeName = nameObj?.optNullableString("native")
+                    val occ = item.optJSONArray("primaryOccupations")?.let { arr ->
+                        (0 until arr.length()).mapNotNull { arr.optString(it).takeIf { s -> s.isNotBlank() } }.joinToString(", ")
+                    }
+                    val imgObj = item.optJSONObject("image")
+                    val imgUrl = imgObj?.optNullableString("large") ?: imgObj?.optNullableString("medium")
+                    val favs = item.optInt("favourites", 0)
+                    list.add(
+                        JikanSearchResult(
+                            malId = id,
+                            title = name,
+                            subtitle = occ?.ifBlank { null } ?: nativeName ?: "Personel / Seslendirmen",
+                            type = MediaType.Anime,
+                            total = null,
+                            score = null,
+                            isAdult = false,
+                            imageUrl = imgUrl,
+                            year = null,
+                            source = "staff_anilist",
+                            favorites = favs
+                        )
+                    )
+                }
+                AniListPagedResult(list, hasNextPage)
+            } catch (e: Exception) {
+                AniListPagedResult(emptyList(), false)
+            }
         }
     }
 
@@ -244,14 +478,65 @@ class AniListSearchClient(
         country: String? = null,
         sources: List<String>? = null
     ): List<JikanSearchResult> {
+        return requestAniListPaged(
+            mediaType = mediaType,
+            search = search,
+            formats = format?.let { listOf(it) },
+            statuses = status?.let { listOf(it) },
+            sort = sort,
+            perPage = perPage,
+            season = season,
+            seasonYear = seasonYear,
+            genres = genres,
+            excludedGenres = excludedGenres,
+            tags = tags,
+            minYear = minYear,
+            maxYear = maxYear,
+            minScore = minScore,
+            maxScore = maxScore,
+            page = page,
+            showAdultContent = showAdultContent,
+            country = country,
+            sources = sources
+        ).results
+    }
+
+    internal suspend fun requestAniListPaged(
+        mediaType: MediaType,
+        search: String?,
+        formats: List<String>? = null,
+        statuses: List<String>? = null,
+        sort: List<String>,
+        perPage: Int,
+        season: String? = null,
+        seasonYear: Int? = null,
+        genres: List<String>? = null,
+        excludedGenres: List<String>? = null,
+        tags: List<String>? = null,
+        minYear: Int? = null,
+        maxYear: Int? = null,
+        minScore: Int? = null,
+        maxScore: Int? = null,
+        minEpCh: Int? = null,
+        maxEpCh: Int? = null,
+        minDuration: Int? = null,
+        maxDuration: Int? = null,
+        page: Int = 1,
+        showAdultContent: Boolean = false,
+        country: String? = null,
+        sources: List<String>? = null,
+        isAdult: Boolean? = null,
+        isLicensed: Boolean? = null
+    ): AniListPagedResult {
         val query = """
             query (
                 ${'$'}page: Int,
                 ${'$'}perPage: Int,
                 ${'$'}search: String,
                 ${'$'}type: MediaType,
-                ${'$'}status: MediaStatus,
-                ${'$'}format: MediaFormat,
+                ${'$'}sort: [MediaSort],
+                ${'$'}formatIn: [MediaFormat],
+                ${'$'}statusIn: [MediaStatus],
                 ${'$'}season: MediaSeason,
                 ${'$'}seasonYear: Int,
                 ${'$'}genres: [String],
@@ -261,17 +546,29 @@ class AniListSearchClient(
                 ${'$'}startDateLess: FuzzyDateInt,
                 ${'$'}averageScoreGreater: Int,
                 ${'$'}averageScoreLess: Int,
-                ${'$'}sort: [MediaSort],
+                ${'$'}episodesGreater: Int,
+                ${'$'}episodesLesser: Int,
+                ${'$'}durationGreater: Int,
+                ${'$'}durationLesser: Int,
+                ${'$'}chaptersGreater: Int,
+                ${'$'}chaptersLesser: Int,
                 ${'$'}isAdult: Boolean,
+                ${'$'}isLicensed: Boolean,
                 ${'$'}countryOfOrigin: CountryCode,
                 ${'$'}sourceIn: [MediaSource]
             ) {
                 Page(page: ${'$'}page, perPage: ${'$'}perPage) {
+                    pageInfo {
+                        hasNextPage
+                        total
+                        currentPage
+                    }
                     media(
                         search: ${'$'}search,
                         type: ${'$'}type,
-                        status: ${'$'}status,
-                        format: ${'$'}format,
+                        sort: ${'$'}sort,
+                        format_in: ${'$'}formatIn,
+                        status_in: ${'$'}statusIn,
                         season: ${'$'}season,
                         seasonYear: ${'$'}seasonYear,
                         genre_in: ${'$'}genres,
@@ -281,8 +578,14 @@ class AniListSearchClient(
                         startDate_lesser: ${'$'}startDateLess,
                         averageScore_greater: ${'$'}averageScoreGreater,
                         averageScore_lesser: ${'$'}averageScoreLess,
-                        sort: ${'$'}sort,
+                        episodes_greater: ${'$'}episodesGreater,
+                        episodes_lesser: ${'$'}episodesLesser,
+                        duration_greater: ${'$'}durationGreater,
+                        duration_lesser: ${'$'}durationLesser,
+                        chapters_greater: ${'$'}chaptersGreater,
+                        chapters_lesser: ${'$'}chaptersLesser,
                         isAdult: ${'$'}isAdult,
+                        isLicensed: ${'$'}isLicensed,
                         countryOfOrigin: ${'$'}countryOfOrigin,
                         source_in: ${'$'}sourceIn
                     ) {
@@ -333,20 +636,26 @@ class AniListSearchClient(
             variables.put("sort", JSONArray(sort))
         }
 
-        if (!showAdultContent) {
+        if (isAdult != null) {
+            variables.put("isAdult", isAdult)
+        } else if (!showAdultContent) {
             variables.put("isAdult", false)
+        }
+
+        if (isLicensed != null) {
+            variables.put("isLicensed", isLicensed)
         }
 
         if (!search.isNullOrBlank()) {
             variables.put("search", search)
         }
 
-        if (!status.isNullOrBlank()) {
-            variables.put("status", status)
+        if (!statuses.isNullOrEmpty()) {
+            variables.put("statusIn", JSONArray(statuses))
         }
 
-        if (!format.isNullOrBlank()) {
-            variables.put("format", format)
+        if (!formats.isNullOrEmpty()) {
+            variables.put("formatIn", JSONArray(formats))
         }
 
         if (!season.isNullOrBlank()) {
@@ -385,6 +694,28 @@ class AniListSearchClient(
             variables.put("averageScoreLess", maxScore)
         }
 
+        if (mediaType == MediaType.Manga) {
+            if (minEpCh != null && minEpCh > 0) {
+                variables.put("chaptersGreater", minEpCh - 1)
+            }
+            if (maxEpCh != null && maxEpCh > 0) {
+                variables.put("chaptersLesser", maxEpCh + 1)
+            }
+        } else {
+            if (minEpCh != null && minEpCh > 0) {
+                variables.put("episodesGreater", minEpCh - 1)
+            }
+            if (maxEpCh != null && maxEpCh > 0) {
+                variables.put("episodesLesser", maxEpCh + 1)
+            }
+            if (minDuration != null && minDuration > 0) {
+                variables.put("durationGreater", minDuration - 1)
+            }
+            if (maxDuration != null && maxDuration > 0) {
+                variables.put("durationLesser", maxDuration + 1)
+            }
+        }
+
         if (!country.isNullOrBlank()) {
             variables.put("countryOfOrigin", country)
         }
@@ -393,25 +724,29 @@ class AniListSearchClient(
             variables.put("sourceIn", JSONArray(sources))
         }
 
-        // Tüm AniList trafiği tek merkezden (rate-limit + 429 retry uygulayan)
-        // KitsugiApiBase.executeAniListQuery üzerinden geçer. Böylece 429 yeme
-        // riski minimuma iner ve geçici hatalar otomatik tekrar denenir.
         val responseText = KitsugiApiBase.executeAniListQuery(
             query = query,
             variables = variables,
             accessToken = accessToken
-        ) ?: return emptyList()
+        ) ?: return AniListPagedResult(emptyList(), false)
 
-        return parseAniListResponse(
+        return parseAniListResponsePaged(
             jsonText = responseText,
-            mediaType = mediaType
+            mediaType = mediaType,
+            requestedPerPage = perPage
         )
     }
 
     private fun parseAniListResponse(
         jsonText: String,
         mediaType: MediaType
-    ): List<JikanSearchResult> {
+    ): List<JikanSearchResult> = parseAniListResponsePaged(jsonText, mediaType, 24).results
+
+    private fun parseAniListResponsePaged(
+        jsonText: String,
+        mediaType: MediaType,
+        requestedPerPage: Int
+    ): AniListPagedResult {
         val root = JSONObject(jsonText)
 
         val errors = root.optJSONArray("errors")
@@ -419,11 +754,10 @@ class AniListSearchClient(
             throw IllegalStateException(errors.toString())
         }
 
-        val mediaArray = root
-            .optJSONObject("data")
-            ?.optJSONObject("Page")
-            ?.optJSONArray("media")
-            ?: return emptyList()
+        val pageObj = root.optJSONObject("data")?.optJSONObject("Page")
+        val mediaArray = pageObj?.optJSONArray("media") ?: return AniListPagedResult(emptyList(), false)
+        val hasNextPage = pageObj.optJSONObject("pageInfo")?.optBoolean("hasNextPage", false)
+            ?: (mediaArray.length() >= requestedPerPage)
 
         val results = mutableListOf<JikanSearchResult>()
 
@@ -535,7 +869,7 @@ class AniListSearchClient(
             }
         }
 
-        return results
+        return AniListPagedResult(results, hasNextPage)
     }
 
     private fun getCurrentSeasonAndYear(): Pair<String, Int> {

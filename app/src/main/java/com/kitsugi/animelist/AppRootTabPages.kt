@@ -268,7 +268,27 @@ private fun SearchTabPage(ctx: TabPagesContext) {
         addonExploreOpen = ctx.navState.addonExploreOpen,
         onAddonExploreOpenChange = { open -> ctx.navState.addonExploreOpen = open },
         onOpenPluginPicker = { ctx.navState.navigateToDetail(com.kitsugi.animelist.DetailScreen.PluginPicker) },
-        onOpenAddonExplore = { apiName -> ctx.navState.navigateToDetail(com.kitsugi.animelist.DetailScreen.AddonExplore(apiName)) }
+        onOpenAddonExplore = { apiName -> ctx.navState.navigateToDetail(com.kitsugi.animelist.DetailScreen.AddonExplore(apiName)) },
+        onOpenCharacterDetail = { characterId, name, imageUrl ->
+            ctx.navState.navigateToDetail(
+                com.kitsugi.animelist.DetailScreen.CharacterDetail(
+                    characterId = characterId,
+                    source = "anilist",
+                    name = name,
+                    imageUrl = imageUrl
+                )
+            )
+        },
+        onOpenStaffDetail = { staffId, name, imageUrl ->
+            ctx.navState.navigateToDetail(
+                com.kitsugi.animelist.DetailScreen.StaffDetail(
+                    staffId = staffId,
+                    source = "anilist",
+                    name = name,
+                    imageUrl = imageUrl
+                )
+            )
+        }
     )
 }
 

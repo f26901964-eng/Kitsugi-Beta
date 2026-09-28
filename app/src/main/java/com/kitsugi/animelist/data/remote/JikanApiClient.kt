@@ -77,6 +77,76 @@ class JikanApiClient(
         sources = sources
     )
 
+    suspend fun searchAniListPaged(
+        query: String,
+        mediaType: MediaType,
+        showAdultContent: Boolean = false,
+        status: String? = null,
+        format: String? = null,
+        formats: List<String>? = null,
+        statuses: List<String>? = null,
+        season: String? = null,
+        seasonYear: Int? = null,
+        genres: List<String>? = null,
+        excludedGenres: List<String>? = null,
+        tags: List<String>? = null,
+        minYear: Int? = null,
+        maxYear: Int? = null,
+        minScore: Int? = null,
+        maxScore: Int? = null,
+        minEpCh: Int? = null,
+        maxEpCh: Int? = null,
+        minDuration: Int? = null,
+        maxDuration: Int? = null,
+        sort: List<String> = listOf("POPULARITY_DESC"),
+        country: String? = null,
+        sources: List<String>? = null,
+        isAdult: Boolean? = null,
+        isLicensed: Boolean? = null,
+        page: Int = 1,
+        perPage: Int = 24
+    ) = aniListSearchClient.searchAniListPaged(
+        query = query,
+        mediaType = mediaType,
+        showAdultContent = showAdultContent,
+        status = status,
+        format = format,
+        formats = formats,
+        statuses = statuses,
+        season = season,
+        seasonYear = seasonYear,
+        genres = genres,
+        excludedGenres = excludedGenres,
+        tags = tags,
+        minYear = minYear,
+        maxYear = maxYear,
+        minScore = minScore,
+        maxScore = maxScore,
+        minEpCh = minEpCh,
+        maxEpCh = maxEpCh,
+        minDuration = minDuration,
+        maxDuration = maxDuration,
+        sort = sort,
+        country = country,
+        sources = sources,
+        isAdult = isAdult,
+        isLicensed = isLicensed,
+        page = page,
+        perPage = perPage
+    )
+
+    suspend fun searchCharacters(
+        query: String,
+        page: Int = 1,
+        perPage: Int = 24
+    ) = aniListSearchClient.searchCharacters(query, page, perPage)
+
+    suspend fun searchStaff(
+        query: String,
+        page: Int = 1,
+        perPage: Int = 24
+    ) = aniListSearchClient.searchStaff(query, page, perPage)
+
     // Top & Filters
     suspend fun topAnime(page: Int = 1, showAdultContent: Boolean = false) = jikanSearchClient.topAnime(page, showAdultContent)
     suspend fun airingAnime(page: Int = 1, showAdultContent: Boolean = false) = jikanSearchClient.airingAnime(page, showAdultContent)

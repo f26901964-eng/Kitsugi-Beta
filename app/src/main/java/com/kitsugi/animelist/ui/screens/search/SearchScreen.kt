@@ -51,6 +51,7 @@ import com.kitsugi.animelist.ui.screens.search.composables.KitsugiSearchFormatCh
 import com.kitsugi.animelist.ui.screens.search.composables.KitsugiSearchSourceChip
 import com.kitsugi.animelist.ui.screens.search.composables.KitsugiSearchSortChip
 import com.kitsugi.animelist.ui.screens.search.composables.KitsugiSearchStatusChip
+import com.kitsugi.animelist.ui.screens.search.composables.KitsugiTriFilterChip
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalIsTv
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
@@ -77,7 +78,10 @@ fun SearchScreen(
     // Eklenti Portalı tam ekran navigasyonu
     onOpenPluginPicker: () -> Unit = {},
     // Eklenti Keşfet tam ekran navigasyonu
-    onOpenAddonExplore: (String) -> Unit = {}
+    onOpenAddonExplore: (String) -> Unit = {},
+    // AniHyou Karakter ve Personel detay yönlendirmeleri
+    onOpenCharacterDetail: ((characterId: Int, name: String?, imageUrl: String?) -> Unit)? = null,
+    onOpenStaffDetail: ((staffId: Int, name: String?, imageUrl: String?) -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val accentColor = LocalKitsugiAccent.current
@@ -86,6 +90,20 @@ fun SearchScreen(
     val scope = rememberCoroutineScope()
     val keyboardController = LocalSoftwareKeyboardController.current
     val context = androidx.compose.ui.platform.LocalContext.current
+
+    // AniHyou Infinite Scroll (OnBottomReached)
+    val shouldLoadMore by remember {
+        derivedStateOf {
+            val total = lazyListState.layoutInfo.totalItemsCount
+            val lastVisible = lazyListState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
+            total > 0 && lastVisible >= total - 3 && !uiState.isLoading && !uiState.isLoadingMore && uiState.hasNextPage
+        }
+    }
+    LaunchedEffect(shouldLoadMore) {
+        if (shouldLoadMore) {
+            viewModel.loadMore()
+        }
+    }
 
     // Active Dialog States
     var openPlatformDialog by remember { mutableStateOf(false) }
@@ -279,8 +297,16 @@ fun SearchScreen(
                                 ),
                                 decorationBox = { innerTextField ->
                                     if (uiState.query.isEmpty()) {
+                                        val placeholder = when (uiState.currentTab) {
+                                            KitsugiSearchTab.Anime -> "Anime ara..."
+                                            KitsugiSearchTab.Manga -> "Manga veya novel ara..."
+                                            KitsugiSearchTab.Character -> "Karakter ara..."
+                                            KitsugiSearchTab.Staff -> "Personel veya seslendirmen ara..."
+                                            KitsugiSearchTab.TMDB -> "Film veya dizi ara..."
+                                            KitsugiSearchTab.Plugin -> "Eklentilerde ara..."
+                                        }
                                         Text(
-                                            text = "Anime, dizi veya film ara...",
+                                            text = placeholder,
                                             color = KitsugiColors.TextMuted,
                                             style = MaterialTheme.typography.bodyMedium
                                         )
@@ -340,7 +366,7 @@ fun SearchScreen(
                 Spacer(modifier = Modifier.height(10.dp))
             }
 
-            // Search Type Selection (Anime, Manga, TMDB)
+            // Search Type Selection (Anime, Manga, Karakter, Personel, TMDB, Eklentiler)
             item {
                 Row(
                     modifier = Modifier
@@ -348,138 +374,158 @@ fun SearchScreen(
                         .horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    val isAnimeSelected = !isTmdbPlatform && currentMediaType == MediaType.Anime
-                    val isMangaSelected = !isTmdbPlatform && currentMediaType == MediaType.Manga
-                    val isTmdbSelected = isTmdbPlatform
-
-                    // Anime Chip
-                    SearchTypeChip(
-                        label = "Anime",
-                        selected = isAnimeSelected,
-                        onClick = {
-                            viewModel.setPlatformAndMediaType(SearchPlatform.All, MediaType.Anime)
-                        }
-                    )
-
-                    // Manga Chip
-                    SearchTypeChip(
-                        label = "Manga",
-                        selected = isMangaSelected,
-                        onClick = {
-                            viewModel.setPlatformAndMediaType(SearchPlatform.All, MediaType.Manga)
-                        }
-                    )
-
-                    // TMDB Chip
-                    SearchTypeChip(
-                        label = "Film & Dizi (TMDB)",
-                        selected = isTmdbSelected,
-                        onClick = {
-                            viewModel.setPlatformAndMediaType(SearchPlatform.TMDB, MediaType.Movie)
-                        }
-                    )
+                    KitsugiSearchTab.entries.forEach { tab ->
+                        SearchTypeChip(
+                            label = tab.label,
+                            selected = uiState.currentTab == tab,
+                            onClick = { viewModel.setTab(tab) }
+                        )
+                    }
                 }
                 Spacer(modifier = Modifier.height(12.dp))
             }
 
-            // ── AniHyou-style Sort Chip ───────────────────────────────────
-            item {
-                if (!isTmdbPlatform) {
-                    KitsugiSearchSortChip(
-                        sortSearch = uiState.sortSearch,
-                        isDescending = uiState.isSortDescending,
-                        onSortChanged = { sort, desc -> viewModel.setSort(sort, desc) }
-                    )
-                }
-            }
-
-            // ── AniHyou-style More Filters Row ────────────────────────────
-            item {
-                if (!isTmdbPlatform) {
-                    // Platform source chip
+            // ── AniHyou-style Sort & Filter Control Row ────────────────────
+            if (uiState.currentTab == KitsugiSearchTab.Anime || uiState.currentTab == KitsugiSearchTab.Manga) {
+                item {
                     Row(
                         modifier = Modifier
-                            .horizontalScroll(rememberScrollState())
-                            .padding(horizontal = 8.dp),
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        val sourceLabel = when (uiState.selectedPlatform) {
-                            SearchPlatform.MAL -> "MAL"
-                            SearchPlatform.AniList -> "AniList"
-                            SearchPlatform.CS3 -> "Eklentiler"
-                            else -> "Tümü"
-                        }
+                        KitsugiSearchSortChip(
+                            sortSearch = uiState.sortSearch,
+                            isDescending = uiState.isSortDescending,
+                            onSortChanged = { sort, desc -> viewModel.setSort(sort, desc) }
+                        )
+
+                        val filterLabel = if (uiState.activeFilterCount > 0) "Filtreler (${uiState.activeFilterCount})" else "Filtreler"
                         SearchFilterChip(
-                            label = "Kaynak: $sourceLabel",
-                            selected = uiState.selectedPlatform != SearchPlatform.All,
-                            onClick = { openPlatformDialog = true }
+                            label = filterLabel,
+                            selected = uiState.showMoreFilters || uiState.activeFilterCount > 0,
+                            onClick = { viewModel.setShowMoreFilters(!uiState.showMoreFilters) }
                         )
-                        KitsugiSearchFormatChip(
-                            mediaType = uiState.selectedMediaType,
-                            selectedFormats = uiState.selectedFormats,
-                            onFormatsChanged = { viewModel.setFormats(it) }
-                        )
-                        KitsugiSearchStatusChip(
-                            selectedStatuses = uiState.selectedStatuses,
-                            onStatusesChanged = { viewModel.setStatuses(it) }
-                        )
-                        KitsugiSearchCountryChip(
-                            selectedCountry = uiState.country,
-                            onCountryChanged = { viewModel.setCountry(it) }
-                        )
-                        KitsugiSearchSourceChip(
-                            selectedSources = uiState.selectedSources,
-                            onSourcesChanged = { viewModel.setSources(it) }
-                        )
-                        // Genres/Tags sheet trigger
-                        SearchFilterChip(
-                            label = "Türler / Etiketler",
-                            selected = uiState.genres.isNotEmpty() || uiState.excludedGenres.isNotEmpty() || uiState.tags.isNotEmpty(),
-                            onClick = { viewModel.setFilterSheetOpen(true) }
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(4.dp))
-                    // Date chips row
-                    KitsugiSearchDateChip(
-                        startYear = uiState.startYear,
-                        endYear = uiState.endYear,
-                        season = uiState.season,
-                        onStartYearChanged = { viewModel.setStartYear(it) },
-                        onEndYearChanged = { viewModel.setEndYear(it) },
-                        onSeasonChanged = { viewModel.setSeason(it) }
-                    )
-                    // Episode / Duration chips row
-                    KitsugiSearchEpChDurationChip(
-                        mediaType = uiState.selectedMediaType,
-                        minEpCh = uiState.minEpCh,
-                        maxEpCh = uiState.maxEpCh,
-                        minDuration = uiState.minDuration,
-                        maxDuration = uiState.maxDuration,
-                        onEpChChanged = { viewModel.setEpCh(it) },
-                        onDurationChanged = { viewModel.setDuration(it) }
-                    )
-                    // Clear all filters
-                    Row(
-                        modifier = Modifier.padding(horizontal = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        if (uiState.hasFiltersApplied || uiState.selectedPlatform != SearchPlatform.All) {
-                            TextButton(onClick = {
-                                viewModel.resetFilters()
-                                viewModel.setPlatform(SearchPlatform.All)
-                            }) {
-                                Text("Filtreleri Sıfırla", color = KitsugiColors.AccentRed)
+
+                        if (uiState.hasFiltersApplied) {
+                            TextButton(
+                                onClick = { viewModel.resetFilters() },
+                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = "Filtreleri Sıfırla",
+                                    color = KitsugiColors.AccentRed,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
                             }
                         }
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
-                } else {
-                    // TMDB Platform Filters
+                    Spacer(modifier = Modifier.height(6.dp))
+                }
+
+                // ── AniHyou Collapsible Filters Panel ─────────────────────────
+                item {
+                    AnimatedVisibility(
+                        visible = uiState.showMoreFilters,
+                        enter = expandVertically() + fadeIn(),
+                        exit = shrinkVertically() + fadeOut()
+                    ) {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            // Row 1: Format, Status, Country, Source, Genres/Tags Sheet
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                KitsugiSearchFormatChip(
+                                    mediaType = uiState.selectedMediaType,
+                                    selectedFormats = uiState.selectedFormats,
+                                    onFormatsChanged = { viewModel.setFormats(it) }
+                                )
+                                KitsugiSearchStatusChip(
+                                    selectedStatuses = uiState.selectedStatuses,
+                                    onStatusesChanged = { viewModel.setStatuses(it) }
+                                )
+                                KitsugiSearchCountryChip(
+                                    selectedCountry = uiState.country,
+                                    onCountryChanged = { viewModel.setCountry(it) }
+                                )
+                                KitsugiSearchSourceChip(
+                                    selectedSources = uiState.selectedSources,
+                                    onSourcesChanged = { viewModel.setSources(it) }
+                                )
+                                SearchFilterChip(
+                                    label = "Türler / Etiketler",
+                                    selected = uiState.genres.isNotEmpty() || uiState.excludedGenres.isNotEmpty() || uiState.tags.isNotEmpty(),
+                                    onClick = { viewModel.setFilterSheetOpen(true) }
+                                )
+                            }
+
+                            // Row 2: Date chips & Ep/Duration chips
+                            KitsugiSearchDateChip(
+                                startYear = uiState.startYear,
+                                endYear = uiState.endYear,
+                                season = uiState.season,
+                                onStartYearChanged = { viewModel.setStartYear(it) },
+                                onEndYearChanged = { viewModel.setEndYear(it) },
+                                onSeasonChanged = { viewModel.setSeason(it) }
+                            )
+
+                            KitsugiSearchEpChDurationChip(
+                                mediaType = uiState.selectedMediaType,
+                                minEpCh = uiState.minEpCh,
+                                maxEpCh = uiState.maxEpCh,
+                                minDuration = uiState.minDuration,
+                                maxDuration = uiState.maxDuration,
+                                onEpChChanged = { viewModel.setEpCh(it) },
+                                onDurationChanged = { viewModel.setDuration(it) }
+                            )
+
+                            // Row 3: AniHyou Tri-Filter Chips (Listemde, Doujinshi, Yetişkin)
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                KitsugiTriFilterChip(
+                                    text = "Listemde",
+                                    value = uiState.onMyList,
+                                    onValueChanged = { viewModel.setOnMyList(it) }
+                                )
+                                if (uiState.currentTab == KitsugiSearchTab.Manga || uiState.selectedMediaType == MediaType.Manga) {
+                                    KitsugiTriFilterChip(
+                                        text = "Doujinshi",
+                                        value = uiState.isDoujin,
+                                        onValueChanged = { viewModel.setIsDoujin(it) }
+                                    )
+                                }
+                                KitsugiTriFilterChip(
+                                    text = "🔞 Yetişkin (+18)",
+                                    value = uiState.isAdultFilter,
+                                    onValueChanged = { viewModel.setIsAdultFilter(it) }
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(6.dp))
+                        }
+                    }
+                }
+            } else if (uiState.currentTab == KitsugiSearchTab.TMDB) {
+                // TMDB Platform Filters
+                item {
                     Row(
                         modifier = Modifier
-                            .horizontalScroll(rememberScrollState())
-                            .padding(horizontal = 8.dp),
+                            .fillMaxWidth()
+                            .horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -497,6 +543,42 @@ fun SearchScreen(
                             selected = tmdbGenreLabel != "Tür Seç",
                             onClick = { openTmdbGenreDialog = true }
                         )
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+            } else if (uiState.currentTab == KitsugiSearchTab.Plugin) {
+                // Eklentiler Platform Banner
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(14.dp))
+                            .background(accentColor.copy(alpha = 0.1f))
+                            .border(1.dp, accentColor.copy(alpha = 0.3f), RoundedCornerShape(14.dp))
+                            .padding(horizontal = 14.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Extension,
+                                contentDescription = null,
+                                tint = accentColor,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                text = "Yüklü tüm eklentiler taranır",
+                                color = KitsugiColors.TextPrimary,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                        TextButton(onClick = onOpenPluginPicker) {
+                            Text("Eklentileri Yönet", color = accentColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                 }
@@ -537,29 +619,72 @@ fun SearchScreen(
                 }
             }
 
-            // Search Results List
-            val filteredResults = uiState.results.filter { showAdultContent || !it.isAdult }
+            // Search Results List (AniHyou-style filtered by adult and onMyList)
+            val filteredResults = uiState.results
+                .filter { showAdultContent || !it.isAdult }
+                .filter { result ->
+                    when (uiState.onMyList) {
+                        true -> isAlreadyInList(result)
+                        false -> !isAlreadyInList(result)
+                        null -> true
+                    }
+                }
 
-            items(filteredResults) { result ->
-                SearchResultRow(
-                    result = result,
-                    alreadyInList = isAlreadyInList(result),
-                    mediaEntry = getMediaEntry(result),
-                    onItemClick = {
-                        if (result.source == "cs3") {
-                            activeDetailCs3Item = result
-                        } else {
-                            onOpenApiDetail(result)
+            if (uiState.currentTab == KitsugiSearchTab.Character || uiState.currentTab == KitsugiSearchTab.Staff) {
+                items(filteredResults, key = { "${it.source}_${it.malId}" }) { result ->
+                    CharacterStaffResultRow(
+                        result = result,
+                        isStaff = uiState.currentTab == KitsugiSearchTab.Staff,
+                        onClick = {
+                            if (uiState.currentTab == KitsugiSearchTab.Staff) {
+                                onOpenStaffDetail?.invoke(result.malId, result.title, result.imageUrl)
+                            } else {
+                                onOpenCharacterDetail?.invoke(result.malId, result.title, result.imageUrl)
+                            }
                         }
-                    },
-                    onAddClick = {
-                        onAddSelectionToList(ApiSearchSelection(result = result, synopsis = null))
-                    },
-                    titleLanguage = titleLanguage,
-                    scoreFormat = scoreFormat,
-                    hideScores = hideScores
-                )
-                Spacer(modifier = Modifier.height(10.dp))
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                }
+            } else {
+                items(filteredResults, key = { "${it.source}_${it.malId}" }) { result ->
+                    SearchResultRow(
+                        result = result,
+                        alreadyInList = isAlreadyInList(result),
+                        mediaEntry = getMediaEntry(result),
+                        onItemClick = {
+                            if (result.source == "cs3") {
+                                activeDetailCs3Item = result
+                            } else {
+                                onOpenApiDetail(result)
+                            }
+                        },
+                        onAddClick = {
+                            onAddSelectionToList(ApiSearchSelection(result = result, synopsis = null))
+                        },
+                        titleLanguage = titleLanguage,
+                        scoreFormat = scoreFormat,
+                        hideScores = hideScores
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                }
+            }
+
+            // Infinite scroll loading spinner
+            if (uiState.isLoadingMore) {
+                item {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 16.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        CircularProgressIndicator(
+                            color = accentColor,
+                            modifier = Modifier.size(32.dp),
+                            strokeWidth = 2.5.dp
+                        )
+                    }
+                }
             }
 
             item { Spacer(modifier = Modifier.height(90.dp)) }

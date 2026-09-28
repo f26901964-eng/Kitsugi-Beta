@@ -9,22 +9,35 @@ import com.kitsugi.animelist.ui.screens.search.composables.KitsugiMediaSortSearc
 import com.kitsugi.animelist.ui.screens.search.composables.KitsugiMediaSource
 import com.kitsugi.animelist.ui.screens.search.composables.KitsugiMediaStatus
 
+enum class KitsugiSearchTab(val label: String) {
+    Anime("Anime"),
+    Manga("Manga"),
+    Character("Karakter"),
+    Staff("Personel"),
+    TMDB("Film & Dizi (TMDB)"),
+    Plugin("Eklentiler")
+}
+
 /**
  * Search ekranının UI durumu.
- * AniHyou SearchUiState.kt mimarisine uyarlanmıştır.
- * Tüm AniHyou filtre alanları (format, status, tarih, sezon, ülke, kaynak, puan, bölüm/süre)
- * doğrudan bu state'e taşınmıştır.
+ * AniHyou SearchUiState.kt mimarisine tam uyarlanmıştır.
+ * Tüm AniHyou filtre alanları, sayfalama ve 3-durumlu çip özellikleri doğrudan bu state'tedir.
  */
 data class SearchUiState(
     val query: String = "",
+    val currentTab: KitsugiSearchTab = KitsugiSearchTab.Anime,
     val selectedMediaType: MediaType = MediaType.Anime,
     val selectedPlatform: SearchPlatform = SearchPlatform.All,
     val results: List<JikanSearchResult> = emptyList(),
     val searchHistory: List<SearchHistoryItem> = emptyList(),
     val isLoading: Boolean = false,
+    val isLoadingMore: Boolean = false,
+    val page: Int = 1,
+    val hasNextPage: Boolean = true,
     val hasSearched: Boolean = false,
     val errorMessage: String? = null,
     val isFilterSheetOpen: Boolean = false,
+    val showMoreFilters: Boolean = true,
 
     // ── Plugin Explore Mode ────────────────────────────────────────────────
     /** When non-null, the search screen shows this plugin's explore page instead of normal search */
@@ -54,6 +67,11 @@ data class SearchUiState(
     val minDuration: Int? = null,
     val maxDuration: Int? = null,
 
+    // ── AniHyou Tri-Filter states ──────────────────────────────────────────
+    val onMyList: Boolean? = null,
+    val isDoujin: Boolean? = null,
+    val isAdultFilter: Boolean? = null,
+
     // ── Sort ───────────────────────────────────────────────────────────────
     val sortSearch: KitsugiMediaSortSearch = KitsugiMediaSortSearch.SEARCH_MATCH,
     val isSortDescending: Boolean = true,
@@ -79,7 +97,31 @@ data class SearchUiState(
         minEpCh != null ||
         maxEpCh != null ||
         minDuration != null ||
-        maxDuration != null
+        maxDuration != null ||
+        onMyList != null ||
+        isDoujin != null ||
+        isAdultFilter != null
+
+    val activeFilterCount: Int get() {
+        var count = 0
+        if (genres.isNotEmpty()) count += genres.size
+        if (excludedGenres.isNotEmpty()) count += excludedGenres.size
+        if (tags.isNotEmpty()) count += tags.size
+        if (selectedFormats.isNotEmpty()) count += selectedFormats.size
+        if (selectedStatuses.isNotEmpty()) count += selectedStatuses.size
+        if (country != null) count++
+        if (selectedSources.isNotEmpty()) count += selectedSources.size
+        if (startYear != null) count++
+        if (endYear != null) count++
+        if (season != null) count++
+        if (minScore != null || maxScore != null) count++
+        if (minEpCh != null || maxEpCh != null) count++
+        if (minDuration != null || maxDuration != null) count++
+        if (onMyList != null) count++
+        if (isDoujin != null) count++
+        if (isAdultFilter != null) count++
+        return count
+    }
 
     /** Returns the legacy SearchFilters object for backward-compatible ViewModel code. */
     fun toLegacyFilters(): SearchFilters = SearchFilters(
