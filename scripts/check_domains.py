@@ -210,7 +210,7 @@ def ask_ai_for_domain(plugin_name: str, old_url: str, key_pool: KeyPool) -> str 
                 headers={
                     "Authorization": f"Bearer {key}",
                     "Content-Type": "application/json",
-                    "HTTP-Referer": "https://github.com/gameras1010-afk/Kitsugi-Beta",
+                    "HTTP-Referer": "https://github.com/KitsugiBeta-dev/Kitsugi-Beta",
                     "X-Title": "Kitsugi Domain Updater",
                 },
                 json={

@@ -386,7 +386,7 @@ object CsStreamRunner {
 
     /**
      * Domain listesini GitHub'daki domain_fixes.json dosyasından çeker.
-     * URL: https://raw.githubusercontent.com/gameras1010-afk/Kitsugi-Beta/main/domain_fixes.json
+     * URL: https://raw.githubusercontent.com/KitsugiBeta-dev/Kitsugi-Beta/main/domain_fixes.json
      *
      * Dosyayı güncellemek için:
      *   1. Kitsugi-Beta/domain_fixes.json dosyasını düzenle
@@ -396,9 +396,9 @@ object CsStreamRunner {
     private suspend fun fetchRemoteDomains() = withContext(Dispatchers.IO) {
         if (isDomainListFetched.getAndSet(true)) return@withContext
         try {
-            Log.d(TAG, "Fetching remote domain list from GitHub (gameras1010-afk/Kitsugi-Beta)...")
+            Log.d(TAG, "Fetching remote domain list from GitHub (KitsugiBeta-dev/Kitsugi-Beta)...")
             val request = okhttp3.Request.Builder()
-                .url("https://raw.githubusercontent.com/gameras1010-afk/Kitsugi-Beta/main/domain_fixes.json")
+                .url("https://raw.githubusercontent.com/KitsugiBeta-dev/Kitsugi-Beta/main/domain_fixes.json")
                 .header("Cache-Control", "no-cache")
                 .build()
             val json = com.kitsugi.animelist.core.network.KitsugiHttpClient.client.newCall(request).execute().use { response ->

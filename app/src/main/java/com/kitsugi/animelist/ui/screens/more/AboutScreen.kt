@@ -56,7 +56,7 @@ fun AboutScreen(
 
     val version = BuildConfig.VERSION_NAME
     val developer = "Kitsugi Team"
-    val githubRepo = "https://github.com/gameras1010-afk/Kitsugi-Beta"
+    val githubRepo = "https://github.com/KitsugiBeta-dev/Kitsugi-Beta"
 
     var showDeveloperLogs by remember { mutableStateOf(false) }
 
