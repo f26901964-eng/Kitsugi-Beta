@@ -57,7 +57,7 @@ object FanartApiClient {
      *  1. Kullanıcının ayarlardan girdiği kişisel API anahtarı
      *  2. Bu built-in proje anahtarı (rate-limit paylaşımlı)
      */
-    private const val BUILT_IN_API_KEY = "7e8fce70b5cc0dc7c9b3b2b2741a9e92"
+    private const val BUILT_IN_API_KEY = "d5a4d282038f8b55b707b93e462911c8"
 
     /**
      * Etkin Fanart.tv API anahtarını döner.
