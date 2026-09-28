@@ -31,6 +31,87 @@ class SimklApiClient(
     }
 
 
+    suspend fun search(query: String, type: String? = null, limit: Int = 20): List<JikanSearchResult> = withContext(Dispatchers.IO) {
+        val rawQuery = query.trim()
+        if (rawQuery.isBlank()) return@withContext emptyList()
+        val encoded = URLEncoder.encode(rawQuery, "UTF-8")
+        val endpoint = when (type) {
+            "anime" -> "anime"
+            "movie", "movies" -> "movie"
+            "tv", "shows", "series" -> "tv"
+            else -> "all"
+        }
+        val url = "https://api.simkl.com/search/$endpoint?q=$encoded&client_id=$clientId&limit=$limit"
+        val request = Request.Builder()
+            .url(url)
+            .header("Accept", "application/json")
+            .build()
+
+        try {
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    android.util.Log.e("SimklApiClient", "search $endpoint HTTP ${response.code}")
+                    return@withContext emptyList()
+                }
+                val responseText = response.body?.string().orEmpty()
+                val jsonArray = JSONArray(responseText)
+                val results = mutableListOf<JikanSearchResult>()
+
+                for (i in 0 until minOf(jsonArray.length(), limit)) {
+                    val obj = jsonArray.getJSONObject(i)
+                    val title = obj.optString("title", "")
+                    val ids = obj.optJSONObject("ids") ?: continue
+
+                    val simklId = ids.optInt("simkl_id", 0).takeIf { it > 0 }
+                        ?: ids.optInt("simkl", 0)
+                    if (simklId <= 0) continue
+
+                    val tmdbId = ids.optInt("tmdb_id", 0).takeIf { it > 0 } ?: ids.optInt("tmdb", 0)
+                    val malId = ids.optInt("mal", 0)
+                    val poster = obj.optString("poster", "")
+                    val year = obj.optInt("year", 0)
+                    val itemType = obj.optString("type", type ?: "anime")
+
+                    val ratingsObj = obj.optJSONObject("ratings")
+                    val simklRating = ratingsObj?.optJSONObject("simkl")?.optDouble("rating", 0.0) ?: 0.0
+                    val imdbRating = ratingsObj?.optJSONObject("imdb")?.optDouble("rating", 0.0) ?: 0.0
+                    val score = if (simklRating > 0.0) (simklRating * 10).toInt()
+                    else if (imdbRating > 0.0) (imdbRating * 10).toInt()
+                    else null
+
+                    val mediaType = when (itemType.lowercase()) {
+                        "movie", "movies" -> MediaType.Movie
+                        "tv", "series", "shows" -> MediaType.TvShow
+                        else -> MediaType.Anime
+                    }
+
+                    results.add(
+                        JikanSearchResult(
+                            malId = simklId,
+                            title = title,
+                            subtitle = if (year > 0) year.toString() else "",
+                            type = mediaType,
+                            total = null,
+                            score = score,
+                            isAdult = false,
+                            imageUrl = if (poster.isNotEmpty()) "https://simkl.in/posters/${poster}_m.jpg" else null,
+                            year = if (year > 0) year else null,
+                            source = "simkl",
+                            realMalId = if (mediaType == MediaType.Anime && malId > 0) malId else null,
+                            titleEnglish = title,
+                            titleJapanese = null,
+                            tmdbId = if (tmdbId > 0) tmdbId else null
+                        )
+                    )
+                }
+                results
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("SimklApiClient", "search $endpoint failed: ${e.message}", e)
+            emptyList()
+        }
+    }
+
     suspend fun getTrending(typePath: String): List<JikanSearchResult> = withContext(Dispatchers.IO) {
         // NyanTV referansÄ±: api.simkl.com/trending yerine data.simkl.in CDN kullanÄ±yoruz
         // CDN: https://data.simkl.in/discover/trending/{tv|movies|anime}/today_100.json

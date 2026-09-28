@@ -14,6 +14,7 @@ import com.kitsugi.animelist.ui.screens.search.composables.KitsugiMediaSeason
 import com.kitsugi.animelist.ui.screens.search.composables.KitsugiMediaSortSearch
 import com.kitsugi.animelist.ui.screens.search.composables.KitsugiMediaSource
 import com.kitsugi.animelist.ui.screens.search.composables.KitsugiMediaStatus
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -25,6 +26,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.ensureActive
 import com.kitsugi.animelist.data.local.KitsugiDatabase
 import com.kitsugi.animelist.data.repository.SearchHistoryRepository
+import com.kitsugi.animelist.data.remote.KitsugiShikimoriClient
+import com.kitsugi.animelist.data.remote.KitsuExploreClient
+import com.kitsugi.animelist.data.remote.SimklApiClient
 
 /**
  * Search ViewModel.
@@ -102,7 +106,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         saveCurrentStateToCache()
 
         debounceJob?.cancel()
-        if (value.isBlank() && !_uiState.value.hasFiltersApplied && _uiState.value.currentTab != KitsugiSearchTab.Plugin) {
+        if (value.isBlank() && !_uiState.value.hasFiltersApplied) {
             clearResults()
             return
         }
@@ -122,8 +126,12 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         saveCurrentStateToCache()
         val mappedPlatform = when (tab) {
             KitsugiSearchTab.TMDB -> SearchPlatform.TMDB
-            KitsugiSearchTab.Plugin -> SearchPlatform.CS3
-            else -> SearchPlatform.AniList
+            KitsugiSearchTab.MAL -> SearchPlatform.MAL
+            KitsugiSearchTab.Kitsu -> SearchPlatform.Kitsu
+            KitsugiSearchTab.Shikimori -> SearchPlatform.Shikimori
+            KitsugiSearchTab.Simkl -> SearchPlatform.Simkl
+            KitsugiSearchTab.Anime, KitsugiSearchTab.Manga -> SearchPlatform.AniList
+            else -> SearchPlatform.All
         }
         val mappedMediaType = when (tab) {
             KitsugiSearchTab.Manga -> MediaType.Manga
@@ -144,7 +152,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 errorMessage = cached.errorMessage
             )
         }
-        if (!cached.hasSearched && (cached.query.isNotBlank() || _uiState.value.hasFiltersApplied || tab == KitsugiSearchTab.Plugin)) {
+        if (!cached.hasSearched && (cached.query.isNotBlank() || _uiState.value.hasFiltersApplied)) {
             search(resetPage = true)
         }
     }
@@ -576,7 +584,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
 
     fun search(resetPage: Boolean = true) {
         val state = _uiState.value
-        if (state.query.isBlank() && !state.hasFiltersApplied && state.currentTab != KitsugiSearchTab.Plugin) {
+        if (state.query.isBlank() && !state.hasFiltersApplied) {
             clearResults()
             return
         }
@@ -643,7 +651,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     fun loadMore() {
         val state = _uiState.value
         if (state.isLoading || state.isLoadingMore || !state.hasNextPage) return
-        if (state.query.isBlank() && !state.hasFiltersApplied && state.currentTab != KitsugiSearchTab.Plugin) return
+        if (state.query.isBlank() && !state.hasFiltersApplied) return
 
         val nextPage = state.page + 1
         _uiState.update { it.copy(isLoadingMore = true) }
@@ -673,41 +681,121 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         val state = _uiState.value
         val showAdult = showAdultContentState
 
-        // 1. Karakter Arama (AniHyou)
+        // 0. Seçenek C: "Tümü (All-in-One Çoklu Platform Arama)"
+        if (state.currentTab == KitsugiSearchTab.All) {
+            return coroutineScope {
+                val aniListDef = async(Dispatchers.IO) {
+                    runCatching {
+                        apiClient.searchAniListPaged(
+                            query = queryText,
+                            mediaType = MediaType.Anime,
+                            showAdultContent = showAdult,
+                            page = 1,
+                            perPage = 10
+                        ).results
+                    }.getOrElse { emptyList() }
+                }
+                val malDef = async(Dispatchers.IO) {
+                    runCatching {
+                        apiClient.searchMALOnly(
+                            query = queryText,
+                            mediaType = MediaType.Anime,
+                            showAdultContent = showAdult
+                        ).take(10)
+                    }.getOrElse { emptyList() }
+                }
+                val tmdbDef = async(Dispatchers.IO) {
+                    runCatching {
+                        TmdbApiClient().search(queryText).take(10)
+                    }.getOrElse { emptyList() }
+                }
+                val shikimoriDef = async(Dispatchers.IO) {
+                    runCatching {
+                        KitsugiShikimoriClient.searchAnime(queryText, limit = 10)
+                    }.getOrElse { emptyList() }
+                }
+                val kitsuDef = async(Dispatchers.IO) {
+                    runCatching {
+                        KitsuExploreClient.searchAnime(queryText, MediaType.Anime, limit = 10)
+                    }.getOrElse { emptyList() }
+                }
+                val simklDef = async(Dispatchers.IO) {
+                    runCatching {
+                        SimklApiClient().search(queryText, limit = 10)
+                    }.getOrElse { emptyList() }
+                }
+
+                val aniListRes = aniListDef.await()
+                val malRes = malDef.await()
+                val tmdbRes = tmdbDef.await()
+                val shikimoriRes = shikimoriDef.await()
+                val kitsuRes = kitsuDef.await()
+                val simklRes = simklDef.await()
+
+                _uiState.update {
+                    it.copy(
+                        multiResults = MultiPlatformResults(
+                            aniListResults = aniListRes,
+                            malResults = malRes,
+                            tmdbResults = tmdbRes,
+                            shikimoriResults = shikimoriRes,
+                            kitsuResults = kitsuRes,
+                            simklResults = simklRes
+                        )
+                    )
+                }
+
+                val combined = (aniListRes + malRes + tmdbRes + shikimoriRes + kitsuRes + simklRes)
+                    .distinctBy { "${it.source}_${it.malId}" }
+                Pair(combined, false)
+            }
+        }
+
+        // 1. MyAnimeList (MAL)
+        if (state.currentTab == KitsugiSearchTab.MAL || state.selectedPlatform == SearchPlatform.MAL) {
+            val results = apiClient.searchMALOnly(
+                query = queryText,
+                mediaType = state.selectedMediaType,
+                showAdultContent = showAdult
+            )
+            return Pair(results, false)
+        }
+
+        // 2. Shikimori (Rusya / Shikimori.one)
+        if (state.currentTab == KitsugiSearchTab.Shikimori || state.selectedPlatform == SearchPlatform.Shikimori) {
+            val results = if (state.selectedMediaType == MediaType.Manga) {
+                KitsugiShikimoriClient.searchManga(queryText, limit = 24)
+            } else {
+                KitsugiShikimoriClient.searchAnime(queryText, limit = 24)
+            }
+            return Pair(results, results.size >= 20)
+        }
+
+        // 3. Kitsu
+        if (state.currentTab == KitsugiSearchTab.Kitsu || state.selectedPlatform == SearchPlatform.Kitsu) {
+            val results = KitsuExploreClient.searchAnime(queryText, state.selectedMediaType, limit = 24)
+            return Pair(results, results.size >= 20)
+        }
+
+        // 4. Simkl
+        if (state.currentTab == KitsugiSearchTab.Simkl || state.selectedPlatform == SearchPlatform.Simkl) {
+            val results = SimklApiClient().search(queryText, limit = 24)
+            return Pair(results, results.size >= 20)
+        }
+
+        // 5. Karakter Arama (AniHyou)
         if (state.currentTab == KitsugiSearchTab.Character) {
             val paged = apiClient.searchCharacters(queryText, page = page, perPage = 24)
             return Pair(paged.results, paged.hasNextPage)
         }
 
-        // 2. Personel / Seslendirmen Arama (AniHyou)
+        // 6. Personel / Seslendirmen Arama (AniHyou)
         if (state.currentTab == KitsugiSearchTab.Staff) {
             val paged = apiClient.searchStaff(queryText, page = page, perPage = 24)
             return Pair(paged.results, paged.hasNextPage)
         }
 
-        // 3. Eklentiler Platformu (CloudStream providers)
-        if (state.currentTab == KitsugiSearchTab.Plugin || state.selectedPlatform == SearchPlatform.CS3) {
-            val rawResults = com.kitsugi.animelist.data.cloudstream.CsStreamRunner.searchAllAddons(getApplication(), queryText)
-            val list = rawResults.map { (api, response) ->
-                JikanSearchResult(
-                    malId = response.url.hashCode(),
-                    title = response.name,
-                    subtitle = api.name,
-                    type = MediaType.Anime,
-                    total = null,
-                    score = null,
-                    isAdult = false,
-                    imageUrl = response.posterUrl,
-                    year = null,
-                    source = "cs3",
-                    cs3Url = response.url,
-                    cs3ApiName = api.name
-                )
-            }
-            return Pair(list, false)
-        }
-
-        // 4. TMDB Platformu (Film & Dizi)
+        // 7. TMDB Platformu (Film & Dizi)
         if (state.currentTab == KitsugiSearchTab.TMDB || state.selectedPlatform == SearchPlatform.TMDB) {
             val tmdbGenreId = getTmdbGenreId(state.genres.firstOrNull() ?: state.tags.firstOrNull(), state.selectedMediaType == MediaType.Movie)
             val results = if (queryText.isBlank() && tmdbGenreId != null) {
@@ -855,7 +943,14 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun clearResults() {
-        _uiState.update { it.copy(results = emptyList(), hasSearched = false, errorMessage = null) }
+        _uiState.update { 
+            it.copy(
+                results = emptyList(),
+                multiResults = MultiPlatformResults(),
+                hasSearched = false,
+                errorMessage = null
+            )
+        }
         saveCurrentStateToCache()
     }
 
@@ -868,6 +963,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             it.copy(
                 query = "",
                 results = emptyList(),
+                multiResults = MultiPlatformResults(),
                 hasSearched = false,
                 errorMessage = null
             )

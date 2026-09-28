@@ -8,6 +8,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
@@ -43,6 +44,7 @@ import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.components.KitsugiEmptyState
 import com.kitsugi.animelist.ui.components.KitsugiShimmerSearchResultList
+import com.kitsugi.animelist.ui.components.KitsugiExploreMediaCard
 import com.kitsugi.animelist.ui.screens.search.components.AddonExploreDialog
 import com.kitsugi.animelist.ui.screens.search.composables.KitsugiSearchCountryChip
 import com.kitsugi.animelist.ui.screens.search.composables.KitsugiSearchDateChip
@@ -298,12 +300,16 @@ fun SearchScreen(
                                 decorationBox = { innerTextField ->
                                     if (uiState.query.isEmpty()) {
                                         val placeholder = when (uiState.currentTab) {
-                                            KitsugiSearchTab.Anime -> "Anime ara..."
+                                            KitsugiSearchTab.All -> "Tüm platformlarda ara (AniList, MAL, TMDB, Shikimori, Kitsu, Simkl)..."
+                                            KitsugiSearchTab.Anime -> "AniList'te anime ara..."
                                             KitsugiSearchTab.Manga -> "Manga veya novel ara..."
+                                            KitsugiSearchTab.MAL -> "MyAnimeList'te ara..."
+                                            KitsugiSearchTab.Shikimori -> "Shikimori'de ara (Rusça / Japonca)..."
+                                            KitsugiSearchTab.TMDB -> "Film veya dizi ara (TMDB)..."
+                                            KitsugiSearchTab.Kitsu -> "Kitsu'da ara..."
+                                            KitsugiSearchTab.Simkl -> "Simkl'de ara..."
                                             KitsugiSearchTab.Character -> "Karakter ara..."
                                             KitsugiSearchTab.Staff -> "Personel veya seslendirmen ara..."
-                                            KitsugiSearchTab.TMDB -> "Film veya dizi ara..."
-                                            KitsugiSearchTab.Plugin -> "Eklentilerde ara..."
                                         }
                                         Text(
                                             text = placeholder,
@@ -338,28 +344,23 @@ fun SearchScreen(
                         }
                     }
 
-                    // Eklenti Seç butonu — eklentiler platformu aktifse vurgu rengi
-                    val isCs3Active = uiState.selectedPlatform == SearchPlatform.CS3
+                    // Eklenti Portalı butonu
                     IconButton(
                         onClick = { onOpenPluginPicker() },
                         modifier = Modifier
                             .size(56.dp)
                             .clip(RoundedCornerShape(22.dp))
-                            .background(
-                                if (isCs3Active)
-                                    accentColor.copy(alpha = 0.18f)
-                                else KitsugiColors.Surface
-                            )
+                            .background(KitsugiColors.Surface)
                             .border(
-                                width = if (isCs3Active) 1.5.dp else 1.dp,
-                                color = if (isCs3Active) accentColor else KitsugiColors.Border,
+                                width = 1.dp,
+                                color = KitsugiColors.Border,
                                 shape = RoundedCornerShape(22.dp)
                             )
                     ) {
                         Icon(
                             imageVector = Icons.Default.Extension,
-                            contentDescription = "Eklenti Seç",
-                            tint = if (isCs3Active) accentColor else KitsugiColors.TextMuted
+                            contentDescription = "Eklenti Portalı",
+                            tint = KitsugiColors.TextMuted
                         )
                     }
                 }
@@ -546,43 +547,8 @@ fun SearchScreen(
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                 }
-            } else if (uiState.currentTab == KitsugiSearchTab.Plugin) {
-                // Eklentiler Platform Banner
-                item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(14.dp))
-                            .background(accentColor.copy(alpha = 0.1f))
-                            .border(1.dp, accentColor.copy(alpha = 0.3f), RoundedCornerShape(14.dp))
-                            .padding(horizontal = 14.dp, vertical = 10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Extension,
-                                contentDescription = null,
-                                tint = accentColor,
-                                modifier = Modifier.size(18.dp)
-                            )
-                            Text(
-                                text = "Yüklü tüm eklentiler taranır",
-                                color = KitsugiColors.TextPrimary,
-                                fontSize = 13.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                        TextButton(onClick = onOpenPluginPicker) {
-                            Text("Eklentileri Yönet", color = accentColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
             }
+
 
             // Active Filters Inline Dismissible Chips Row
             // (Active filter pills removed – chips themselves show active state)
@@ -630,7 +596,86 @@ fun SearchScreen(
                     }
                 }
 
-            if (uiState.currentTab == KitsugiSearchTab.Character || uiState.currentTab == KitsugiSearchTab.Staff) {
+            if (uiState.currentTab == KitsugiSearchTab.All) {
+                // Çoklu Platform Rafları (Seçenek C: All-in-One Multi Platform Search)
+                item {
+                    MultiSearchSection(
+                        title = "AniList",
+                        badgeText = "AL",
+                        badgeColor = Color(0xFF02A9FF),
+                        results = uiState.multiResults.aniListResults,
+                        isLoading = uiState.multiResults.isLoadingAniList,
+                        isAlreadyInList = isAlreadyInList,
+                        onItemClick = onOpenApiDetail,
+                        onSeeAllClick = { viewModel.setTab(KitsugiSearchTab.Anime) }
+                    )
+                }
+
+                item {
+                    MultiSearchSection(
+                        title = "MyAnimeList",
+                        badgeText = "MAL",
+                        badgeColor = Color(0xFF2E51A2),
+                        results = uiState.multiResults.malResults,
+                        isLoading = uiState.multiResults.isLoadingMal,
+                        isAlreadyInList = isAlreadyInList,
+                        onItemClick = onOpenApiDetail,
+                        onSeeAllClick = { viewModel.setTab(KitsugiSearchTab.MAL) }
+                    )
+                }
+
+                item {
+                    MultiSearchSection(
+                        title = "Film & Dizi (TMDB)",
+                        badgeText = "TMDB",
+                        badgeColor = Color(0xFF0D253F),
+                        results = uiState.multiResults.tmdbResults,
+                        isLoading = uiState.multiResults.isLoadingTmdb,
+                        isAlreadyInList = isAlreadyInList,
+                        onItemClick = onOpenApiDetail,
+                        onSeeAllClick = { viewModel.setTab(KitsugiSearchTab.TMDB) }
+                    )
+                }
+
+                item {
+                    MultiSearchSection(
+                        title = "Shikimori (Rusça Kaynak / Anime & Manga)",
+                        badgeText = "SHI",
+                        badgeColor = Color(0xFF4C86C8),
+                        results = uiState.multiResults.shikimoriResults,
+                        isLoading = uiState.multiResults.isLoadingShikimori,
+                        isAlreadyInList = isAlreadyInList,
+                        onItemClick = onOpenApiDetail,
+                        onSeeAllClick = { viewModel.setTab(KitsugiSearchTab.Shikimori) }
+                    )
+                }
+
+                item {
+                    MultiSearchSection(
+                        title = "Kitsu",
+                        badgeText = "KT",
+                        badgeColor = Color(0xFFE35A02),
+                        results = uiState.multiResults.kitsuResults,
+                        isLoading = uiState.multiResults.isLoadingKitsu,
+                        isAlreadyInList = isAlreadyInList,
+                        onItemClick = onOpenApiDetail,
+                        onSeeAllClick = { viewModel.setTab(KitsugiSearchTab.Kitsu) }
+                    )
+                }
+
+                item {
+                    MultiSearchSection(
+                        title = "Simkl",
+                        badgeText = "SK",
+                        badgeColor = Color(0xFF1F1F1F),
+                        results = uiState.multiResults.simklResults,
+                        isLoading = uiState.multiResults.isLoadingSimkl,
+                        isAlreadyInList = isAlreadyInList,
+                        onItemClick = onOpenApiDetail,
+                        onSeeAllClick = { viewModel.setTab(KitsugiSearchTab.Simkl) }
+                    )
+                }
+            } else if (uiState.currentTab == KitsugiSearchTab.Character || uiState.currentTab == KitsugiSearchTab.Staff) {
                 items(filteredResults, key = { "${it.source}_${it.malId}" }) { result ->
                     CharacterStaffResultRow(
                         result = result,
@@ -733,7 +778,15 @@ fun SearchScreen(
 
     // Dialog: Platform selection
     if (openPlatformDialog) {
-        val platforms = listOf(SearchPlatform.All, SearchPlatform.MAL, SearchPlatform.AniList, SearchPlatform.CS3)
+        val platforms = listOf(
+            SearchPlatform.All,
+            SearchPlatform.AniList,
+            SearchPlatform.MAL,
+            SearchPlatform.TMDB,
+            SearchPlatform.Shikimori,
+            SearchPlatform.Kitsu,
+            SearchPlatform.Simkl
+        )
         DialogWithRadioSelection(
             title = "Kaynak Platform Seç",
             options = platforms,
@@ -959,3 +1012,105 @@ fun ActiveFilterChip(
         }
     }
 }
+
+/**
+ * All-in-One Çoklu Platform Arama Bölümü (Yatay Kart Listesi)
+ */
+@Composable
+private fun MultiSearchSection(
+    title: String,
+    badgeText: String,
+    badgeColor: Color,
+    results: List<JikanSearchResult>,
+    isLoading: Boolean,
+    isAlreadyInList: (JikanSearchResult) -> Boolean,
+    onItemClick: (JikanSearchResult) -> Unit,
+    onSeeAllClick: () -> Unit
+) {
+    if (results.isEmpty() && !isLoading) return
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 10.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(badgeColor.copy(alpha = 0.9f))
+                        .padding(horizontal = 7.dp, vertical = 3.dp)
+                ) {
+                    Text(
+                        text = badgeText,
+                        color = Color.White,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Text(
+                    text = title,
+                    color = KitsugiColors.TextPrimary,
+                    fontSize = 16.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            if (results.isNotEmpty()) {
+                TextButton(
+                    onClick = onSeeAllClick,
+                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = "Tümünü Gör →",
+                        color = LocalKitsugiAccent.current,
+                        fontSize = 13.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+
+        if (isLoading && results.isEmpty()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(140.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                CircularProgressIndicator(
+                    color = badgeColor,
+                    modifier = Modifier.size(28.dp),
+                    strokeWidth = 2.5.dp
+                )
+            }
+        } else {
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(results, key = { "${it.source}_${it.malId}" }) { result ->
+                    Box(modifier = Modifier.width(135.dp)) {
+                        KitsugiExploreMediaCard(
+                            result = result,
+                            alreadyInList = isAlreadyInList(result),
+                            onClick = { onItemClick(result) },
+                            forceVertical = true
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+

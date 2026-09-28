@@ -10,25 +10,59 @@ import com.kitsugi.animelist.ui.screens.search.composables.KitsugiMediaSource
 import com.kitsugi.animelist.ui.screens.search.composables.KitsugiMediaStatus
 
 enum class KitsugiSearchTab(val label: String) {
-    Anime("Anime"),
-    Manga("Manga"),
-    Character("Karakter"),
-    Staff("Personel"),
-    TMDB("Film & Dizi (TMDB)"),
-    Plugin("Eklentiler")
+    All("🌟 Tümü"),
+    Anime("⚡ AniList"),
+    Manga("📖 Manga"),
+    MAL("⭐ MyAnimeList"),
+    Shikimori("🌸 Shikimori 🇷🇺"),
+    TMDB("🍿 Film & Dizi"),
+    Kitsu("🦊 Kitsu"),
+    Simkl("📺 Simkl"),
+    Character("👤 Karakter"),
+    Staff("🎙️ Personel")
+}
+
+/**
+ * Seçenek C: All-in-One Çoklu platform eş zamanlı arama sonuçları.
+ */
+data class MultiPlatformResults(
+    val aniListResults: List<JikanSearchResult> = emptyList(),
+    val malResults: List<JikanSearchResult> = emptyList(),
+    val tmdbResults: List<JikanSearchResult> = emptyList(),
+    val shikimoriResults: List<JikanSearchResult> = emptyList(),
+    val kitsuResults: List<JikanSearchResult> = emptyList(),
+    val simklResults: List<JikanSearchResult> = emptyList(),
+    val isLoadingAniList: Boolean = false,
+    val isLoadingMal: Boolean = false,
+    val isLoadingTmdb: Boolean = false,
+    val isLoadingShikimori: Boolean = false,
+    val isLoadingKitsu: Boolean = false,
+    val isLoadingSimkl: Boolean = false,
+) {
+    val isEmpty: Boolean get() =
+        aniListResults.isEmpty() &&
+        malResults.isEmpty() &&
+        tmdbResults.isEmpty() &&
+        shikimoriResults.isEmpty() &&
+        kitsuResults.isEmpty() &&
+        simklResults.isEmpty()
+
+    val isAnyLoading: Boolean get() =
+        isLoadingAniList || isLoadingMal || isLoadingTmdb ||
+        isLoadingShikimori || isLoadingKitsu || isLoadingSimkl
 }
 
 /**
  * Search ekranının UI durumu.
- * AniHyou SearchUiState.kt mimarisine tam uyarlanmıştır.
- * Tüm AniHyou filtre alanları, sayfalama ve 3-durumlu çip özellikleri doğrudan bu state'tedir.
+ * AniHyou SearchUiState.kt mimarisine ve Seçenek C Çoklu Platform motoruna tam uyarlanmıştır.
  */
 data class SearchUiState(
     val query: String = "",
-    val currentTab: KitsugiSearchTab = KitsugiSearchTab.Anime,
+    val currentTab: KitsugiSearchTab = KitsugiSearchTab.All,
     val selectedMediaType: MediaType = MediaType.Anime,
     val selectedPlatform: SearchPlatform = SearchPlatform.All,
     val results: List<JikanSearchResult> = emptyList(),
+    val multiResults: MultiPlatformResults = MultiPlatformResults(),
     val searchHistory: List<SearchHistoryItem> = emptyList(),
     val isLoading: Boolean = false,
     val isLoadingMore: Boolean = false,
@@ -147,9 +181,12 @@ data class SearchHistoryItem(
 
 enum class SearchPlatform(val label: String) {
     All("Tümü"),
-    MAL("MAL"),
     AniList("AniList"),
+    MAL("MyAnimeList"),
     TMDB("TMDB"),
+    Kitsu("Kitsu"),
+    Shikimori("Shikimori"),
+    Simkl("Simkl"),
     CS3("Eklentiler")
 }
 
