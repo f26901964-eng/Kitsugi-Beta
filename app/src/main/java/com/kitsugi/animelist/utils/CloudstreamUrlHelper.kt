@@ -46,8 +46,9 @@ object CloudstreamUrlHelper {
         // Dead legacy repositories are automatically redirected to the working Kitsugi-Plugins repo
         if (url.equals("https://raw.githubusercontent.com/keyiflerolsun/Kekik-cloudstream/master/repo.json", ignoreCase = true) ||
             url.equals("https://raw.githubusercontent.com/maarrem/cs-Kekik/master/repo.json", ignoreCase = true) ||
-            url.equals("https://raw.githubusercontent.com/maarrem/cs-Kekik/builds/repo.json", ignoreCase = true)) {
-            url = "https://raw.githubusercontent.com/gameras1010-afk/Kitsugi-Plugins/builds/repo.json"
+            url.equals("https://raw.githubusercontent.com/maarrem/cs-Kekik/builds/repo.json", ignoreCase = true) ||
+            url.equals("https://raw.githubusercontent.com/gameras1010-afk/Kitsugi-Plugins/builds/repo.json", ignoreCase = true)) {
+            url = "https://raw.githubusercontent.com/KitsugiBeta-dev/Kitsugi-Plugins/builds/repo.json"
         }
 
         return url
