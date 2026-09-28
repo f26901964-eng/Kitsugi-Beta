@@ -43,14 +43,55 @@ object CsRuntimeInit {
                     var newUrl = urlStr
                     var hostHeader: String? = null
 
-                    // Anizium / Kraptor dead domain list stub
-                    if (urlStr.contains("Kraptor123/domainListesi") && urlStr.contains("eklenti_domainleri.txt")) {
+                    // Kraptor / DomainListesi dead repository stub (33 eklentinin tamamı için güncel adresler)
+                    if (urlStr.contains("Kraptor123/domainListesi") || urlStr.contains("eklenti_domainleri.txt")) {
+                        val domainList = listOf(
+                            "Animeler:https://animeler.pw",
+                            "Animely:https://animely.net",
+                            "AnimPow:https://animpow.com",
+                            "Anizium:https://api.anizium.co",
+                            "AsyaFanatiklerim:https://asyafanatiklerim.com",
+                            "DiziAsia:https://diziasia.com",
+                            "DiziAsya:https://api.diziasya.com",
+                            "DiziFilmORG:https://dizifilmizle.to",
+                            "Dizigecesi:https://dizigecesi.com",
+                            "DiziGecesi:https://dizigecesi.com",
+                            "DiziLife:https://dizi75.life",
+                            "DiziPal:https://dizipal3008.com",
+                            "DiziPalOrijinal:https://dizipal3008.com",
+                            "DiziPalOriginal:https://dizipal3008.com",
+                            "Dizipod:https://dizipod.com",
+                            "DiziPod:https://dizipod.com",
+                            "DiziYo:https://www.diziyo.so",
+                            "FilmEkseni:https://filmekseni.vip",
+                            "FilmHane:https://www.filmhane.shop",
+                            "Filmzal:https://filmzal.me",
+                            "GinikoCanli:https://www.giniko.com",
+                            "HDFilmDelisi:https://hdfilmdelisi.one",
+                            "KickTR:https://kick.com",
+                            "KraptorPlus:https://a.111477.xyz",
+                            "MirrorVerse:https://net77.cc",
+                            "OnePaceTr:https://www.onepacetr.net",
+                            "OnePaceTR:https://www.onepacetr.net",
+                            "OpenAnime:https://openani.me",
+                            "SeiCode:https://seiwatch.net",
+                            "Sinezy:https://sinezy.to",
+                            "Syncler:https://syncler.net",
+                            "Torrential:https://api.real-debrid.com",
+                            "TrAnimeIzle:https://www.tranimeizle.live",
+                            "Turkdizileri:https://turkdizileri.com",
+                            "WFilmizle:https://wfilmizle.net",
+                            "YeniKaynak:https://www.yenikaynak.com",
+                            "YesilCamTv:https://yesilcamtv.com",
+                            "YTS:https://web.yts.gg"
+                        ).joinToString("|")
+
                         return@addInterceptor okhttp3.Response.Builder()
                             .request(original)
                             .protocol(okhttp3.Protocol.HTTP_1_1)
                             .code(200)
                             .message("OK")
-                            .body("Anizium=https://api.anizium.co\n".toResponseBody("text/plain".toMediaTypeOrNull()))
+                            .body(domainList.toResponseBody("text/plain".toMediaTypeOrNull()))
                             .build()
                     }
 

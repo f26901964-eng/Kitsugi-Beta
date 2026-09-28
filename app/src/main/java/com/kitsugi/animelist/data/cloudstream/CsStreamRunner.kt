@@ -159,6 +159,22 @@ object CsStreamRunner {
         "tranimeizle.io"      to "www.tranimeizle.live",
         "asyalog.com"         to "asyalog.co",
         "sinema.cv"           to "sinema.gg",
+        // WFilmizle — güncel domain (wfilmizle.net)
+        "wfilmizle.co"        to "wfilmizle.net",
+        "wfilmizle.to"        to "wfilmizle.net",
+        "wfilmizle.pro"       to "wfilmizle.net",
+        "wfilmizle.pw"        to "wfilmizle.net",
+        // Sinezy — güncel domain (sinezy.to)
+        "sinezy.info"         to "sinezy.to",
+        "sinezy.org"          to "sinezy.to",
+        // FilmHane — güncel domain (www.filmhane.shop)
+        "filmhane.org"        to "www.filmhane.shop",
+        "filmhane.net"        to "www.filmhane.shop",
+        "filmhane.one"        to "www.filmhane.shop",
+        "filmhane.pro"        to "www.filmhane.shop",
+        // DiziGecesi
+        "dizigecesi.net"      to "dizigecesi.com",
+        "dizigecesi.org"      to "dizigecesi.com",
         // SetFilmIzle — .my boş döndürüyor, .uk de arama sıfır
         "setfilmizle.my"      to "www.setfilmizle.uk",
         // KultFilmler — nikyokki sürümü kultfilmler.pro kullanıyor (ölü), .net aktif
