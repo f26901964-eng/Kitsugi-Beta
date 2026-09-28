@@ -61,12 +61,36 @@ fun AboutScreen(
     var showDeveloperLogs by remember { mutableStateOf(false) }
 
     val libraries = listOf(
-        LibraryInfo("CloudStream Engine", "Eklenti tabanlı medya sağlayıcısı", "https://github.com/recloudstream/cloudstream"),
-        LibraryInfo("Kotatsu Reader", "Gelişmiş manga okuyucu motoru", "https://github.com/KotatsuApp/Kotatsu"),
-        LibraryInfo("Supabase client", "Bulut veri eşitleme ve kimlik doğrulama", "https://supabase.com"),
+        // ── Medya Motoru ──────────────────────────────────────────────
+        LibraryInfo("CloudStream Engine", "Eklenti tabanlı medya sağlayıcısı (video akışı, torrent, debrid)", "https://github.com/recloudstream/cloudstream"),
+        LibraryInfo("Kotatsu Reader", "Gelişmiş manga okuyucu motoru ve kaynak yöneticisi", "https://github.com/KotatsuApp/Kotatsu"),
+        LibraryInfo("MPV-Android", "libmpv tabanlı gelişmiş video oynatıcı motoru (GPU render, hwdec, Lua)", "https://github.com/mpv-android/mpv-android"),
+        LibraryInfo("Media3 & ExoPlayer", "Google Media3 tabanlı güçlü video oynatıcı (arabellek & adaptif akış)", "https://github.com/google/ExoPlayer"),
+        // ── Platform API'leri ────────────────────────────────────────
+        LibraryInfo("AniList API (Apollo GraphQL)", "AniList anime/manga veritabanı – GraphQL istemcisi", "https://github.com/apollographql/apollo-kotlin"),
+        LibraryInfo("MyAnimeList / Jikan API", "MyAnimeList için açık REST API köprüsü", "https://jikan.moe"),
+        LibraryInfo("Kitsu API", "Kitsu.io anime & manga kataloğu REST API", "https://kitsu.io/api/edge"),
+        LibraryInfo("Shikimori API", "Rus dili anime veritabanı ve sosyal platform", "https://shikimori.one/api/doc"),
+        LibraryInfo("Simkl API", "Film, dizi ve anime takip platformu API'si", "https://simkl.com/apps/developer"),
+        LibraryInfo("TMDB API", "The Movie Database – film ve dizi meta verisi", "https://developer.themoviedb.org"),
+        LibraryInfo("MDBList API", "IMDb, Rotten Tomatoes, Metacritic puan toplayıcısı", "https://mdblist.com"),
+        LibraryInfo("Fanart.tv API", "Yüksek kaliteli anime/film sanat eserleri", "https://fanart.tv"),
+        LibraryInfo("AniSkip / AnimeSkip API", "Anime giriş/bitiş atlaması için topluluk veri tabanı", "https://aniskip.com"),
+        // ── Ağ Katmanı ───────────────────────────────────────────────
+        LibraryInfo("Retrofit 2", "Android için tip güvenli HTTP REST istemcisi", "https://github.com/square/retrofit"),
+        LibraryInfo("OkHttp 4", "Verimli HTTP/2 ağ iletişim katmanı", "https://github.com/square/okhttp"),
+        LibraryInfo("Gson", "Google JSON serileştirme/ayrıştırma kütüphanesi", "https://github.com/google/gson"),
+        // ── UI & Görüntü ─────────────────────────────────────────────
         LibraryInfo("Jetpack Compose", "Android için modern bildirimsel UI kütüphanesi", "https://developer.android.com/compose"),
-        LibraryInfo("Media3 & ExoPlayer", "Google Media3 tabanlı güçlü video oynatıcı", "https://github.com/google/ExoPlayer"),
-        LibraryInfo("Room Database", "Çevrimdışı öncelikli veri tabanı mimarisi", "https://developer.android.com/training/data-storage/room")
+        LibraryInfo("Coil 3", "Kotlin öncelikli eş zamansız görüntü yükleme kütüphanesi", "https://github.com/coil-kt/coil"),
+        // ── Veri & Depolama ──────────────────────────────────────────
+        LibraryInfo("Room Database", "Çevrimdışı öncelikli SQLite ORM veri tabanı mimarisi", "https://developer.android.com/training/data-storage/room"),
+        LibraryInfo("DataStore", "Jetpack DataStore – tip güvenli ayar depolama", "https://developer.android.com/topic/libraries/architecture/datastore"),
+        LibraryInfo("Supabase client", "Bulut veri eşitleme, gerçek zamanlı abonelik ve kimlik doğrulama", "https://supabase.com"),
+        // ── Bağımlılık Enjeksiyonu & Eş Zamanlılık ──────────────────
+        LibraryInfo("Hilt (Dagger)", "Android için derleme zamanı bağımlılık enjeksiyonu", "https://dagger.dev/hilt"),
+        LibraryInfo("Kotlin Coroutines & Flow", "Reaktif veri akışı ve eş zamansız programlama", "https://github.com/Kotlin/kotlinx.coroutines"),
+        LibraryInfo("WorkManager", "Garantili arka plan iş zamanlayıcısı (güncelleme, bildirim)", "https://developer.android.com/topic/libraries/architecture/workmanager"),
     )
 
     fun openUrl(url: String) {

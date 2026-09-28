@@ -47,10 +47,11 @@ fun KitsugiSystemSettingsDialog(
     dnsChoice: Int,
     onDnsChoiceSelected: (Int) -> Unit,
     download: com.kitsugi.animelist.ui.screens.settings.DownloadSettings,
+    initialPage: Int = 0,
     onDismiss: () -> Unit
 ) {
     val accentColor = LocalKitsugiAccent.current
-    val pagerState = rememberPagerState(initialPage = 0, pageCount = { 3 })
+    val pagerState = rememberPagerState(initialPage = initialPage, pageCount = { 3 })
     val scope = rememberCoroutineScope()
 
     val dataManagementScrollState = rememberScrollState()

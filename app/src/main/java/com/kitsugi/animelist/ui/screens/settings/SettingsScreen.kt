@@ -140,7 +140,7 @@ fun SettingsScreen(
                 description = "İndirilen anime bölümlerini yönetin ve çevrimdışı oynatın",
                 icon = Icons.Rounded.Download,
                 iconColor = KitsugiColors.AccentGreen,
-                onClick = { params.onOpenDownloads?.invoke() }
+                onClick = { activeDialog = SettingsDialog.Downloads }
             )
 
             KitsugiSettingsDivider()
@@ -299,6 +299,32 @@ fun SettingsScreen(
                 dnsChoice = params.integrations.dnsChoice,
                 onDnsChoiceSelected = params.integrations.onDnsChoiceSelected,
                 download = params.download,
+                initialPage = 0,
+                onDismiss = {
+                    activeDialog = null
+                }
+            )
+        }
+
+        SettingsDialog.Downloads -> {
+            KitsugiSystemSettingsDialog(
+                totalEntryCount = params.profile.totalEntryCount,
+                onExportFileClick = {
+                    activeDialog = null
+                    params.profile.onExportBackupFileClick()
+                },
+                onImportFileClick = {
+                    activeDialog = null
+                    params.profile.onImportBackupFileClick()
+                },
+                onDeleteAllClick = {
+                    activeDialog = null
+                    showDeleteAllConfirm = true
+                },
+                dnsChoice = params.integrations.dnsChoice,
+                onDnsChoiceSelected = params.integrations.onDnsChoiceSelected,
+                download = params.download,
+                initialPage = 2,
                 onDismiss = {
                     activeDialog = null
                 }
@@ -376,6 +402,7 @@ private enum class SettingsDialog {
     Addons,
     PlayerSettings,
     SystemSettings,
+    Downloads,
     Integrations,
     Feedback,
     PluginDiagnostic
