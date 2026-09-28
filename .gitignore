@@ -26,8 +26,11 @@ api_keys.txt
 /*.class
 /*.jar
 /*.zip
-/*.txt
 /read_log.ps1
 /__pycache__/
 /.rclone/
 /debug_crash_analysis*.txt
+/logdump*.txt
+/all_files*.txt
+/compile_*.txt
+/archive_contents.txt
