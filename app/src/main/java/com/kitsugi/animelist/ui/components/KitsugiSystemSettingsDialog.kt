@@ -48,6 +48,7 @@ fun KitsugiSystemSettingsDialog(
     onDnsChoiceSelected: (Int) -> Unit,
     download: com.kitsugi.animelist.ui.screens.settings.DownloadSettings,
     initialPage: Int = 0,
+    embeddedMode: Boolean = false,
     onDismiss: () -> Unit
 ) {
     val accentColor = LocalKitsugiAccent.current
@@ -67,6 +68,7 @@ fun KitsugiSystemSettingsDialog(
     KitsugiSheetOrDialog(
         onDismiss = onDismiss,
         fullScreen = true,
+        embeddedMode = embeddedMode,
         innerColumnScrollState = activeScrollState,
         sheetGesturesEnabled = false
     ) {
@@ -74,21 +76,23 @@ fun KitsugiSystemSettingsDialog(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .padding(horizontal = 16.dp, vertical = if (embeddedMode) 4.dp else 8.dp)
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Sistem & Veri Ayarları",
-                    color = KitsugiColors.TextPrimary,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                IconButton(onClick = onDismiss) {
-                    Icon(Icons.Rounded.Close, contentDescription = "Kapat", tint = KitsugiColors.TextSecondary)
+            if (!embeddedMode) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Sistem & Veri Ayarları",
+                        color = KitsugiColors.TextPrimary,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Rounded.Close, contentDescription = "Kapat", tint = KitsugiColors.TextSecondary)
+                    }
                 }
             }
             TabRow(

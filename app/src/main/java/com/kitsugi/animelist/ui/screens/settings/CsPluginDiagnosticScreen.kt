@@ -44,6 +44,7 @@ import java.io.File
 @Composable
 fun CsPluginDiagnosticScreen(
     onDismiss: () -> Unit,
+    embeddedMode: Boolean = false,
     vm: CsPluginDiagnosticViewModel = viewModel()
 ) {
     val context    = LocalContext.current
@@ -59,27 +60,15 @@ fun CsPluginDiagnosticScreen(
     val cfBlocked = results.count { it.loaded && it.searchCount == 0 }
     val dead      = results.count { !it.loaded }
 
-    Dialog(
-        onDismissRequest = {
-            if (!isRunning) onDismiss()
-        },
-        properties = DialogProperties(
-            usePlatformDefaultWidth = false,
-            dismissOnBackPress = !isRunning
-        )
-    ) {
-        Box(
+    val content = @Composable {
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(8.dp)
+                .clip(if (embeddedMode) RoundedCornerShape(0.dp) else RoundedCornerShape(20.dp))
+                .background(KitsugiColors.Surface)
         ) {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(KitsugiColors.Surface)
-            ) {
-                // ── Header ──────────────────────────────────────────────────
+            // ── Header ──────────────────────────────────────────────────
+            if (!embeddedMode) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -118,6 +107,7 @@ fun CsPluginDiagnosticScreen(
                         }
                     }
                 }
+            }
 
                 LazyColumn(
                     modifier = Modifier
@@ -263,8 +253,29 @@ fun CsPluginDiagnosticScreen(
                             Spacer(Modifier.width(6.dp))
                             Text("Raporu Paylaş (.md)", fontWeight = FontWeight.Bold)
                         }
-                    }
                 }
+            }
+        }
+    }
+
+    if (embeddedMode) {
+        content()
+    } else {
+        Dialog(
+            onDismissRequest = {
+                if (!isRunning) onDismiss()
+            },
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                dismissOnBackPress = !isRunning
+            )
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(8.dp)
+            ) {
+                content()
             }
         }
     }

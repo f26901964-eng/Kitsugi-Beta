@@ -23,6 +23,7 @@ import com.kitsugi.animelist.ui.utils.tvClickable
 @Composable
 fun FeedbackDialog(
     onDismiss: () -> Unit,
+    embeddedMode: Boolean = false,
     onSubmit: (title: String, type: String, description: String) -> Unit
 ) {
     val KitsugiColors = LocalKitsugiColors.current
@@ -38,36 +39,39 @@ fun FeedbackDialog(
     KitsugiSheetOrDialog(
         onDismiss = onDismiss,
         fullScreen = true,
+        embeddedMode = embeddedMode,
         innerColumnScrollState = scrollState
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .verticalScroll(scrollState)
-                .padding(horizontal = 24.dp, vertical = 16.dp)
+                .padding(horizontal = 24.dp, vertical = if (embeddedMode) 8.dp else 16.dp)
         ) {
-            // Header
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Geri Bildirim Gönder",
-                    color = KitsugiColors.textPrimary,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                IconButton(onClick = onDismiss) {
-                    Icon(
-                        imageVector = Icons.Rounded.Close,
-                        contentDescription = "Kapat",
-                        tint = KitsugiColors.textMuted
+            if (!embeddedMode) {
+                // Header
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Geri Bildirim Gönder",
+                        color = KitsugiColors.textPrimary,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
                     )
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.Rounded.Close,
+                            contentDescription = "Kapat",
+                            tint = KitsugiColors.textMuted
+                        )
+                    }
                 }
-            }
 
-            Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(16.dp))
+            }
 
             // Type Selector Label
             Text(

@@ -79,6 +79,12 @@ fun KitsugiSheetOrDialog(
     heightFraction: Float = 0.9f,
     fillMaxHeight: Boolean = false,
     fullScreen: Boolean = false,
+    /**
+     * Gömülü mod: true olduğunda tüm dialog/sheet sarmalayıcılarını atlar ve
+     * içeriği doğrudan tam boyutlu Column içinde render eder.
+     * Ayarlar alt sayfalarında mevcut dialog içeriklerini yeniden kullanmak için.
+     */
+    embeddedMode: Boolean = false,
     innerScrollState: LazyListState? = null,
     innerGridScrollState: LazyGridState? = null,
     innerColumnScrollState: androidx.compose.foundation.ScrollState? = null,
@@ -91,6 +97,16 @@ fun KitsugiSheetOrDialog(
     sheetGesturesEnabled: Boolean? = null,
     content: @Composable ColumnScope.() -> Unit
 ) {
+    // ── Gömülü mod: dialog/sheet sarmalayıcısız doğrudan render ──────────────
+    if (embeddedMode) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .navigationBarsPadding(),
+            content = content
+        )
+        return
+    }
     val isTv = LocalIsTv.current
     val screenHeight = LocalConfiguration.current.screenHeightDp.dp
 

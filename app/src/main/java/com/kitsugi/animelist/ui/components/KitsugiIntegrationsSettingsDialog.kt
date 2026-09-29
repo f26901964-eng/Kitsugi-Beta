@@ -109,6 +109,7 @@ fun KitsugiIntegrationsSettingsDialog(
     onFanartTvEnabledChanged: (Boolean) -> Unit,
     fanartTvApiKey: String,
     onFanartTvApiKeyChanged: (String) -> Unit,
+    embeddedMode: Boolean = false,
     onDismiss: () -> Unit
 ) {
     val accentColor = LocalKitsugiAccent.current
@@ -130,6 +131,7 @@ fun KitsugiIntegrationsSettingsDialog(
     KitsugiSheetOrDialog(
         onDismiss = onDismiss,
         fullScreen = true,
+        embeddedMode = embeddedMode,
         innerColumnScrollState = activeScrollState,
         sheetGesturesEnabled = false
     ) {
@@ -137,21 +139,23 @@ fun KitsugiIntegrationsSettingsDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .padding(horizontal = 16.dp, vertical = if (embeddedMode) 4.dp else 8.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = stringResource(R.string.integrations_title),
-                        color = KitsugiColors.TextPrimary,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.action_close), tint = KitsugiColors.TextSecondary)
+                if (!embeddedMode) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = stringResource(R.string.integrations_title),
+                            color = KitsugiColors.TextPrimary,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        IconButton(onClick = onDismiss) {
+                            Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.action_close), tint = KitsugiColors.TextSecondary)
+                        }
                     }
                 }
                 TabRow(

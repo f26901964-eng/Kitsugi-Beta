@@ -81,7 +81,8 @@ fun KitsugiPreferencesSettingsDialog(
     onMangaReadingModeSelected: (String) -> Unit = {},
     onMangaColorFilterSelected: (String) -> Unit = {},
     onMangaFitModeSelected: (String) -> Unit = {},
-    onMangaBrightnessChanged: (Float) -> Unit = {}
+    onMangaBrightnessChanged: (Float) -> Unit = {},
+    embeddedMode: Boolean = false
 ) {
     val pagerState = rememberPagerState(pageCount = { 3 })
     val scope = rememberCoroutineScope()
@@ -101,6 +102,7 @@ fun KitsugiPreferencesSettingsDialog(
     KitsugiSheetOrDialog(
         onDismiss = onDismiss,
         fullScreen = true,
+        embeddedMode = embeddedMode,
         innerColumnScrollState = activeScrollState,
         sheetGesturesEnabled = false
     ) {
@@ -108,21 +110,23 @@ fun KitsugiPreferencesSettingsDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .padding(horizontal = 16.dp, vertical = if (embeddedMode) 4.dp else 8.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = stringResource(R.string.settings_pref_title),
-                        color = KitsugiColors.textPrimary,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.settings_close), tint = KitsugiColors.textSecondary)
+                if (!embeddedMode) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = stringResource(R.string.settings_pref_title),
+                            color = KitsugiColors.textPrimary,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        IconButton(onClick = onDismiss) {
+                            Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.settings_close), tint = KitsugiColors.textSecondary)
+                        }
                     }
                 }
                 TabRow(

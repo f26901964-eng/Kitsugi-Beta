@@ -2,387 +2,326 @@
 
 package com.kitsugi.animelist.ui.screens.settings
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.SizeTransform
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ManageSearch
+import androidx.compose.material.icons.rounded.*
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.BuildConfig
 import com.kitsugi.animelist.ui.components.BackupImportMode
+import com.kitsugi.animelist.ui.components.KitsugiAccountConnectionsDialog
+import com.kitsugi.animelist.ui.components.KitsugiAddonsSettingsDialog
 import com.kitsugi.animelist.ui.components.KitsugiChoiceOption
 import com.kitsugi.animelist.ui.components.KitsugiConfirmDialog
-import com.kitsugi.animelist.ui.components.KitsugiPage
-import com.kitsugi.animelist.ui.components.KitsugiAccountConnectionsDialog
+import com.kitsugi.animelist.ui.components.KitsugiIntegrationsSettingsDialog
+import com.kitsugi.animelist.ui.components.KitsugiPlayerSettingsDialog
+import com.kitsugi.animelist.ui.components.KitsugiPreferencesSettingsDialog
 import com.kitsugi.animelist.ui.components.KitsugiSettingsDivider
 import com.kitsugi.animelist.ui.components.KitsugiSettingsItem
 import com.kitsugi.animelist.ui.components.KitsugiSettingsSection
-import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
-import com.kitsugi.animelist.ui.theme.KitsugiColors
-import com.kitsugi.animelist.ui.theme.LocalIsTv
-import androidx.compose.ui.graphics.Color
-import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
-import androidx.compose.runtime.CompositionLocalProvider
-import com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults
-import com.kitsugi.animelist.ui.utils.dpadVerticalFastScroll
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.*
-import androidx.compose.material.icons.automirrored.rounded.*
-import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.foundation.layout.navigationBarsPadding
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.background
-import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.ui.draw.clip
-
-import com.kitsugi.animelist.data.local.CloudstreamRepoEntity
-import com.kitsugi.animelist.data.local.CsPluginEntity
-import com.kitsugi.animelist.data.local.ManagedAddonEntity
-import com.kitsugi.animelist.data.local.MangaSourceStateEntity
-import com.kitsugi.animelist.data.remote.CsPlugin
-import com.kitsugi.animelist.ui.components.KitsugiAddonsSettingsDialog
-import com.kitsugi.animelist.ui.components.KitsugiPlayerSettingsDialog
-import com.kitsugi.animelist.ui.components.KitsugiPreferencesSettingsDialog
 import com.kitsugi.animelist.ui.components.KitsugiSystemSettingsDialog
-import com.kitsugi.animelist.ui.components.KitsugiIntegrationsSettingsDialog
+import com.kitsugi.animelist.ui.theme.KitsugiColors
+import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 
+// ─── Settings Nav Routes ────────────────────────────────────────────────────
+
+private enum class SettingsRoute {
+    // Ana menü
+    Main,
+    // Alt sayfalar
+    AccountConnections,
+    AppearancePreferences,
+    PlayerSettings,
+    AddonsExtensions,
+    Integrations,
+    DataBackup,
+    Downloads,
+    About,
+    Feedback,
+    PluginDiagnostic
+}
+
+// ─── Main Screen ─────────────────────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     params: SettingsScreenParameters
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val general = params.general
-    val profile = params.profile
-    val player = params.player
-    val addon = params.addon
-    val manga = params.manga
-    val integrations = params.integrations
+    val accentColor = LocalKitsugiAccent.current
 
-    var activeDialog by rememberSaveable {
-        mutableStateOf<SettingsDialog?>(null)
+    var route by rememberSaveable { mutableStateOf(SettingsRoute.Main) }
+    var showDeleteAllConfirm by rememberSaveable { mutableStateOf(false) }
+    var systemSettingsInitialPage by rememberSaveable { mutableStateOf(0) }
+
+    // Geri tuşu — Main'de değilsek Main'e dön
+    BackHandler(enabled = route != SettingsRoute.Main) {
+        route = SettingsRoute.Main
     }
 
-    var showDeleteAllConfirm by rememberSaveable {
-        mutableStateOf(false)
+    val isGoingForward = route != SettingsRoute.Main
+
+    AnimatedContent(
+        targetState = route,
+        transitionSpec = {
+            if (targetState != SettingsRoute.Main) {
+                // İleri: sağdan gir
+                (slideInHorizontally { it } + fadeIn()) togetherWith
+                        (slideOutHorizontally { -it / 3 } + fadeOut())
+            } else {
+                // Geri: sola git
+                (slideInHorizontally { -it / 3 } + fadeIn()) togetherWith
+                        (slideOutHorizontally { it } + fadeOut())
+            } using SizeTransform(clip = false)
+        },
+        label = "settings_route"
+    ) { currentRoute ->
+        when (currentRoute) {
+            SettingsRoute.Main -> {
+                SettingsMainPage(
+                    params = params,
+                    onNavigate = { route = it }
+                )
+            }
+
+            SettingsRoute.AccountConnections -> {
+                SettingsSubPage(
+                    title = "Hesap Bağlantıları",
+                    onBack = { route = SettingsRoute.Main }
+                ) {
+                    KitsugiAccountConnectionsDialog(
+                        embeddedMode = true,
+                        isAniListConnected = params.profile.isAniListConnected,
+                        anilistUsername = params.profile.anilistUsername,
+                        isAniListImportRunning = params.profile.isAniListImportRunning,
+                        onAniListImportClick = params.profile.onAniListImportClick,
+                        onAniListAuthClick = params.profile.onAniListAuthClick,
+                        isMalConnected = params.profile.isMalConnected,
+                        malUsername = params.profile.malUsername,
+                        isMalImportRunning = params.profile.isMalImportRunning,
+                        onMalImportClick = params.profile.onMalImportClick,
+                        onMalAuthClick = params.profile.onMalAuthClick,
+                        isSimklConnected = params.profile.isSimklConnected,
+                        simklUsername = params.profile.simklUsername,
+                        isSimklImportRunning = params.profile.isSimklImportRunning,
+                        isSimklSessionExpired = params.profile.isSimklSessionExpired,
+                        onSimklImportClick = params.profile.onSimklImportClick,
+                        onSimklAuthClick = params.profile.onSimklAuthClick,
+                        isCrossSyncRunning = params.profile.isCrossSyncRunning,
+                        onCrossSyncClick = params.profile.onCrossSyncClick,
+                        syncEnabledAnilist = params.profile.syncEnabledAnilist,
+                        onSyncEnabledAnilistChanged = params.profile.onSyncEnabledAnilistChanged,
+                        syncEnabledMal = params.profile.syncEnabledMal,
+                        onSyncEnabledMalChanged = params.profile.onSyncEnabledMalChanged,
+                        onDismiss = { route = SettingsRoute.Main }
+                    )
+                }
+            }
+
+            SettingsRoute.AppearancePreferences -> {
+                SettingsSubPage(
+                    title = "Görünüm & Tercihler",
+                    onBack = { route = SettingsRoute.Main }
+                ) {
+                    SettingsPreferencesContent(
+                        general = params.general,
+                        integrations = params.integrations
+                    )
+                }
+            }
+
+            SettingsRoute.PlayerSettings -> {
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .statusBarsPadding()
+                ) {
+                    SettingsPlayerContent(
+                        player = params.player,
+                        onDismiss = { route = SettingsRoute.Main }
+                    )
+                }
+            }
+
+            SettingsRoute.AddonsExtensions -> {
+                SettingsSubPage(
+                    title = "Eklentiler & Kaynaklar",
+                    onBack = { route = SettingsRoute.Main }
+                ) {
+                    SettingsAddonsContent(
+                        addon = params.addon,
+                        manga = params.manga,
+                        onOpenDiagnostic = { route = SettingsRoute.PluginDiagnostic },
+                        onExplorePlugin = { pluginName ->
+                            route = SettingsRoute.Main
+                            params.onExplorePlugin?.invoke(pluginName)
+                        },
+                        onOpenPluginPicker = {
+                            route = SettingsRoute.Main
+                            params.onOpenPluginPicker?.invoke()
+                        }
+                    )
+                }
+            }
+
+            SettingsRoute.Integrations -> {
+                SettingsSubPage(
+                    title = "Harici Entegrasyonlar",
+                    onBack = { route = SettingsRoute.Main }
+                ) {
+                    SettingsIntegrationsContent(integrations = params.integrations)
+                }
+            }
+
+            SettingsRoute.DataBackup -> {
+                SettingsSubPage(
+                    title = "Veri & Yedekleme",
+                    onBack = { route = SettingsRoute.Main }
+                ) {
+                    KitsugiSystemSettingsDialog(
+                        embeddedMode = true,
+                        totalEntryCount = params.profile.totalEntryCount,
+                        onExportFileClick = params.profile.onExportBackupFileClick,
+                        onImportFileClick = params.profile.onImportBackupFileClick,
+                        onDeleteAllClick = {
+                            showDeleteAllConfirm = true
+                        },
+                        dnsChoice = params.integrations.dnsChoice,
+                        onDnsChoiceSelected = params.integrations.onDnsChoiceSelected,
+                        download = params.download,
+                        initialPage = 0,
+                        onDismiss = { route = SettingsRoute.Main }
+                    )
+                }
+            }
+
+            SettingsRoute.Downloads -> {
+                SettingsSubPage(
+                    title = "İndirme Ayarları",
+                    onBack = { route = SettingsRoute.Main }
+                ) {
+                    KitsugiSystemSettingsDialog(
+                        embeddedMode = true,
+                        totalEntryCount = params.profile.totalEntryCount,
+                        onExportFileClick = params.profile.onExportBackupFileClick,
+                        onImportFileClick = params.profile.onImportBackupFileClick,
+                        onDeleteAllClick = { showDeleteAllConfirm = true },
+                        dnsChoice = params.integrations.dnsChoice,
+                        onDnsChoiceSelected = params.integrations.onDnsChoiceSelected,
+                        download = params.download,
+                        initialPage = 2,
+                        onDismiss = { route = SettingsRoute.Main }
+                    )
+                }
+            }
+
+            SettingsRoute.About -> {
+                SettingsSubPage(
+                    title = "Hakkında",
+                    onBack = { route = SettingsRoute.Main }
+                ) {
+                    SettingsAboutContent(
+                        onOpenAbout = params.integrations.onOpenAbout,
+                        onNavigateToFeedback = { route = SettingsRoute.Feedback }
+                    )
+                }
+            }
+
+            SettingsRoute.Feedback -> {
+                SettingsSubPage(
+                    title = "Geri Bildirim",
+                    onBack = { route = SettingsRoute.About }
+                ) {
+                    com.kitsugi.animelist.ui.screens.more.FeedbackDialog(
+                        embeddedMode = true,
+                        onDismiss = { route = SettingsRoute.About },
+                        onSubmit = { title, type, description ->
+                            val intent = android.content.Intent(android.content.Intent.ACTION_SENDTO).apply {
+                                data = android.net.Uri.parse("mailto:")
+                                putExtra(android.content.Intent.EXTRA_EMAIL, arrayOf("kitsugibeta@gmail.com"))
+                                val subject = "[Kitsugi Beta Feedback] [$type] $title"
+                                val body = """
+                                    Tür: $type
+                                    Konu: $title
+                                    
+                                    Açıklama:
+                                    $description
+                                    
+                                    -- Cihaz Bilgisi --
+                                    Uygulama Sürümü: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})
+                                    Cihaz: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}
+                                    Android Sürümü: API ${android.os.Build.VERSION.SDK_INT}
+                                """.trimIndent()
+                                putExtra(android.content.Intent.EXTRA_SUBJECT, subject)
+                                putExtra(android.content.Intent.EXTRA_TEXT, body)
+                            }
+                            runCatching {
+                                context.startActivity(intent)
+                            }.onFailure {
+                                android.widget.Toast.makeText(
+                                    context,
+                                    "E-posta uygulaması bulunamadı. Lütfen kitsugibeta@gmail.com adresine yazın.",
+                                    android.widget.Toast.LENGTH_LONG
+                                ).show()
+                            }
+                        }
+                    )
+                }
+            }
+
+            SettingsRoute.PluginDiagnostic -> {
+                SettingsSubPage(
+                    title = "Eklenti Tanılama",
+                    onBack = { route = SettingsRoute.AddonsExtensions }
+                ) {
+                    CsPluginDiagnosticScreen(
+                        embeddedMode = true,
+                        onDismiss = { route = SettingsRoute.AddonsExtensions }
+                    )
+                }
+            }
+        }
     }
 
-    val selectedTheme = themeOptions.firstOrNull { it.id == general.selectedThemeId }
-        ?: themeOptions.first()
-
-    val isTvDevice = com.kitsugi.animelist.ui.theme.LocalIsTvDevice.current
-    val scrollState = rememberScrollState()
-    val tvSpec = KitsugiScrollDefaults.rememberTvCenteredSpec()
-
-    CompositionLocalProvider(
-        LocalBringIntoViewSpec provides if (isTvDevice) tvSpec else LocalBringIntoViewSpec.current
-    ) {
-        KitsugiPage(
-            title = "Ayarlar",
-            modifier = Modifier
-                .then(if (isTvDevice) Modifier.dpadVerticalFastScroll(scrollState) else Modifier)
-                .verticalScroll(scrollState)
-        ) {
-        Spacer(modifier = Modifier.height(22.dp))
-
-        KitsugiSettingsSection(
-            title = "Hesap Ayarları"
-        ) {
-            KitsugiSettingsItem(
-                title = "Hesap Bağlantıları",
-                description = "AniList, MyAnimeList ve Simkl hesap eşitlemeleri",
-                icon = Icons.Rounded.Person,
-                iconColor = KitsugiColors.AccentBlue,
-                onClick = { activeDialog = SettingsDialog.AccountConnections }
-            )
-        }
-
-        Spacer(modifier = Modifier.height(22.dp))
-
-        KitsugiSettingsSection(
-            title = "Uygulama Ayarları"
-        ) {
-            KitsugiSettingsItem(
-                title = "Görünüm ve Tercihler",
-                description = "Tema, liste görünümü, puanlama ve dil ayarları",
-                icon = Icons.Rounded.Palette,
-                iconColor = selectedTheme.color ?: KitsugiColors.Accent,
-                onClick = { activeDialog = SettingsDialog.Preferences }
-            )
-
-            KitsugiSettingsDivider()
-
-            KitsugiSettingsItem(
-                title = "Oynatıcı Ayarları",
-                description = "Gelişmiş video oynatıcı, altyazı, ses ve arabellek ayarları",
-                icon = Icons.Rounded.PlayCircle,
-                iconColor = KitsugiColors.AccentOrange,
-                onClick = { activeDialog = SettingsDialog.PlayerSettings }
-            )
-
-            KitsugiSettingsDivider()
-
-            KitsugiSettingsItem(
-                title = "İndirilen Videolar",
-                description = "İndirilen anime bölümlerini yönetin ve çevrimdışı oynatın",
-                icon = Icons.Rounded.Download,
-                iconColor = KitsugiColors.AccentGreen,
-                onClick = {
-                    if (params.onOpenDownloads != null) {
-                        params.onOpenDownloads.invoke()
-                    } else {
-                        context.startActivity(android.content.Intent(context, com.kitsugi.animelist.ui.screens.offline.DownloadsActivity::class.java))
-                    }
-                }
-            )
-
-            KitsugiSettingsDivider()
-
-            KitsugiSettingsItem(
-                title = "İzleme Geçmişi",
-                description = "İzlediğiniz anime bölümlerini görüntüleyin veya temizleyin",
-                icon = Icons.Rounded.History,
-                iconColor = KitsugiColors.AccentOrange,
-                onClick = { params.onOpenWatchHistory?.invoke() }
-            )
-
-            KitsugiSettingsDivider()
-
-            KitsugiSettingsItem(
-                title = "Eklenti & Akış Ayarları",
-                description = "Torrent, video sağlayıcıları, debrid ve manga kaynakları",
-                icon = Icons.Rounded.Extension,
-                iconColor = KitsugiColors.AccentPurple,
-                onClick = { activeDialog = SettingsDialog.Addons }
-            )
-
-            KitsugiSettingsDivider()
-
-            KitsugiSettingsItem(
-                title = "Harici Entegrasyonlar",
-                description = "TMDB, MDBList ve AniSkip (Intro/Outro) ayarları",
-                icon = Icons.Rounded.Hub,
-                iconColor = KitsugiColors.AccentBlue,
-                onClick = { activeDialog = SettingsDialog.Integrations }
-            )
-
-            KitsugiSettingsDivider()
-
-            KitsugiSettingsItem(
-                title = "Sistem & Veri Ayarları",
-                description = "Veri yönetimi, yedekleme, DoH (DNS) ve hakkında bilgileri",
-                icon = Icons.Rounded.Storage,
-                iconColor = KitsugiColors.AccentGreen,
-                onClick = { activeDialog = SettingsDialog.SystemSettings }
-            )
-        }
-
-        Spacer(modifier = Modifier.height(22.dp))
-
-        KitsugiSettingsSection(
-            title = "Destek & Hakkında"
-        ) {
-            KitsugiSettingsItem(
-                title = "Geri Bildirim Gönder",
-                description = "Uygulamayla ilgili hata bildirin veya önerilerinizi paylaşın",
-                icon = Icons.Rounded.Feedback,
-                iconColor = KitsugiColors.AccentBlue,
-                onClick = { activeDialog = SettingsDialog.Feedback }
-            )
-
-            KitsugiSettingsDivider()
-
-            KitsugiSettingsItem(
-                title = "Hakkında",
-                description = "Sürüm bilgileri, açık kaynak kütüphaneler ve katkıda bulunanlar",
-                icon = Icons.Rounded.Info,
-                iconColor = KitsugiColors.AccentPurple,
-                onClick = integrations.onOpenAbout
-            )
-        }
-
-        Spacer(modifier = Modifier.height(100.dp))
-    }
-    }
-
-    when (activeDialog) {
-        SettingsDialog.AccountConnections -> {
-            KitsugiAccountConnectionsDialog(
-                isAniListConnected = profile.isAniListConnected,
-                anilistUsername = profile.anilistUsername,
-                isAniListImportRunning = profile.isAniListImportRunning,
-                onAniListImportClick = profile.onAniListImportClick,
-                onAniListAuthClick = profile.onAniListAuthClick,
-                isMalConnected = profile.isMalConnected,
-                malUsername = profile.malUsername,
-                isMalImportRunning = profile.isMalImportRunning,
-                onMalImportClick = profile.onMalImportClick,
-                onMalAuthClick = profile.onMalAuthClick,
-                isSimklConnected = profile.isSimklConnected,
-                simklUsername = profile.simklUsername,
-                isSimklImportRunning = profile.isSimklImportRunning,
-                isSimklSessionExpired = profile.isSimklSessionExpired,
-                onSimklImportClick = profile.onSimklImportClick,
-                onSimklAuthClick = profile.onSimklAuthClick,
-                isCrossSyncRunning = profile.isCrossSyncRunning,
-                onCrossSyncClick = profile.onCrossSyncClick,
-                syncEnabledAnilist = profile.syncEnabledAnilist,
-                onSyncEnabledAnilistChanged = profile.onSyncEnabledAnilistChanged,
-                syncEnabledMal = profile.syncEnabledMal,
-                onSyncEnabledMalChanged = profile.onSyncEnabledMalChanged,
-                onDismiss = {
-                    activeDialog = null
-                }
-            )
-        }
-
-        SettingsDialog.Preferences -> {
-            SettingsPreferencesDialogWrapper(
-                general = params.general,
-                integrations = params.integrations,
-                onDismiss = { activeDialog = null }
-            )
-        }
-
-        SettingsDialog.Addons -> {
-            SettingsAddonsDialogWrapper(
-                addon = params.addon,
-                manga = params.manga,
-                onOpenDiagnostic = { activeDialog = SettingsDialog.PluginDiagnostic },
-                onExplorePlugin = { pluginName ->
-                    activeDialog = null
-                    params.onExplorePlugin?.invoke(pluginName)
-                },
-                onOpenPluginPicker = {
-                    activeDialog = null
-                    params.onOpenPluginPicker?.invoke()
-                },
-                onDismiss = { activeDialog = null }
-            )
-        }
-
-        SettingsDialog.PluginDiagnostic -> {
-            CsPluginDiagnosticScreen(
-                onDismiss = { activeDialog = SettingsDialog.Addons }
-            )
-        }
-
-        SettingsDialog.PlayerSettings -> {
-            SettingsPlayerSettingsDialogWrapper(
-                player = params.player,
-                onDismiss = { activeDialog = null }
-            )
-        }
-
-        SettingsDialog.SystemSettings -> {
-            KitsugiSystemSettingsDialog(
-                totalEntryCount = params.profile.totalEntryCount,
-                onExportFileClick = {
-                    activeDialog = null
-                    params.profile.onExportBackupFileClick()
-                },
-                onImportFileClick = {
-                    activeDialog = null
-                    params.profile.onImportBackupFileClick()
-                },
-                onDeleteAllClick = {
-                    activeDialog = null
-                    showDeleteAllConfirm = true
-                },
-                dnsChoice = params.integrations.dnsChoice,
-                onDnsChoiceSelected = params.integrations.onDnsChoiceSelected,
-                download = params.download,
-                initialPage = 0,
-                onDismiss = {
-                    activeDialog = null
-                }
-            )
-        }
-
-        SettingsDialog.Downloads -> {
-            KitsugiSystemSettingsDialog(
-                totalEntryCount = params.profile.totalEntryCount,
-                onExportFileClick = {
-                    activeDialog = null
-                    params.profile.onExportBackupFileClick()
-                },
-                onImportFileClick = {
-                    activeDialog = null
-                    params.profile.onImportBackupFileClick()
-                },
-                onDeleteAllClick = {
-                    activeDialog = null
-                    showDeleteAllConfirm = true
-                },
-                dnsChoice = params.integrations.dnsChoice,
-                onDnsChoiceSelected = params.integrations.onDnsChoiceSelected,
-                download = params.download,
-                initialPage = 2,
-                onDismiss = {
-                    activeDialog = null
-                }
-            )
-        }
-
-        SettingsDialog.Integrations -> {
-            SettingsIntegrationsDialogWrapper(
-                integrations = params.integrations,
-                onDismiss = { activeDialog = null }
-            )
-        }
-
-        SettingsDialog.Feedback -> {
-            com.kitsugi.animelist.ui.screens.more.FeedbackDialog(
-                onDismiss = { activeDialog = null },
-                onSubmit = { title, type, description ->
-                    val intent = android.content.Intent(android.content.Intent.ACTION_SENDTO).apply {
-                        data = android.net.Uri.parse("mailto:")
-                        putExtra(android.content.Intent.EXTRA_EMAIL, arrayOf("kitsugibeta@gmail.com"))
-                        val subject = "[Kitsugi Beta Feedback] [$type] $title"
-                        val body = """
-                            Tür: $type
-                            Konu: $title
-                            
-                            Açıklama:
-                            $description
-                            
-                            -- Cihaz Bilgisi --
-                            Uygulama Sürümü: ${com.kitsugi.animelist.BuildConfig.VERSION_NAME} (${com.kitsugi.animelist.BuildConfig.VERSION_CODE})
-                            Cihaz: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}
-                            Android Sürümü: API ${android.os.Build.VERSION.SDK_INT}
-                        """.trimIndent()
-                        putExtra(android.content.Intent.EXTRA_SUBJECT, subject)
-                        putExtra(android.content.Intent.EXTRA_TEXT, body)
-                    }
-                    runCatching {
-                        context.startActivity(intent)
-                    }.onFailure {
-                        android.widget.Toast.makeText(
-                            context,
-                            "E-posta uygulaması bulunamadı. Lütfen kitsugibeta@gmail.com adresine yazın.",
-                            android.widget.Toast.LENGTH_LONG
-                        ).show()
-                    }
-                }
-            )
-        }
-
-        null -> Unit
-    }
-
+    // Confirm delete all dialog — route-bağımsız, üstte gösterilir
     if (showDeleteAllConfirm) {
         KitsugiConfirmDialog(
             title = "Tüm liste silinsin mi?",
@@ -390,100 +329,264 @@ fun SettingsScreen(
             confirmText = "Tümünü sil",
             isDestructive = true,
             onConfirm = {
-                profile.onDeleteAllEntries()
+                params.profile.onDeleteAllEntries()
                 showDeleteAllConfirm = false
-                activeDialog = SettingsDialog.SystemSettings
             },
             onDismiss = {
                 showDeleteAllConfirm = false
-                activeDialog = SettingsDialog.SystemSettings
             }
         )
     }
 }
 
-private enum class SettingsDialog {
-    AccountConnections,
-    Preferences,
-    Addons,
-    PlayerSettings,
-    SystemSettings,
-    Downloads,
-    Integrations,
-    Feedback,
-    PluginDiagnostic
+// ─── Ana Menü Sayfası ─────────────────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SettingsMainPage(
+    params: SettingsScreenParameters,
+    onNavigate: (SettingsRoute) -> Unit
+) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val accentColor = LocalKitsugiAccent.current
+    val scrollState = rememberLazyListState()
+
+    val selectedTheme = themeOptions.firstOrNull { it.id == params.general.selectedThemeId }
+        ?: themeOptions.first()
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+    ) {
+        // Top App Bar
+        TopAppBar(
+            title = {
+                Text(
+                    text = "Ayarlar",
+                    style = MaterialTheme.typography.headlineSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = KitsugiColors.TextPrimary
+                )
+            },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = KitsugiColors.Background
+            )
+        )
+
+        LazyColumn(
+            state = scrollState,
+            modifier = Modifier
+                .fillMaxSize()
+                .navigationBarsPadding(),
+        ) {
+            // ── Hesap Bağlantıları ──────────────────────────────────────────
+            item {
+                Spacer(Modifier.height(8.dp))
+                SectionHeader("Hesap")
+                SettingsNavCard {
+                    KitsugiSettingsItem(
+                        title = "Hesap Bağlantıları",
+                        description = "AniList, MyAnimeList ve Simkl hesap eşitlemeleri",
+                        icon = Icons.Rounded.Person,
+                        iconColor = KitsugiColors.AccentBlue,
+                        onClick = { onNavigate(SettingsRoute.AccountConnections) }
+                    )
+                }
+                Spacer(Modifier.height(16.dp))
+            }
+
+            // ── Uygulama Ayarları ───────────────────────────────────────────
+            item {
+                SectionHeader("Uygulama")
+                SettingsNavCard {
+                    KitsugiSettingsItem(
+                        title = "Görünüm & Tercihler",
+                        description = "Tema, liste görünümü, puanlama, dil ve bildirim ayarları",
+                        icon = Icons.Rounded.Palette,
+                        iconColor = selectedTheme.color ?: accentColor,
+                        onClick = { onNavigate(SettingsRoute.AppearancePreferences) }
+                    )
+                    KitsugiSettingsDivider()
+                    KitsugiSettingsItem(
+                        title = "Oynatıcı",
+                        description = "Dahili oynatıcı, jestler, altyazı, ses ve codec ayarları",
+                        icon = Icons.Rounded.PlayCircle,
+                        iconColor = KitsugiColors.AccentOrange,
+                        onClick = { onNavigate(SettingsRoute.PlayerSettings) }
+                    )
+                    KitsugiSettingsDivider()
+                    KitsugiSettingsItem(
+                        title = "İzleme Geçmişi",
+                        description = "İzlediğiniz anime bölümlerini görüntüleyin veya temizleyin",
+                        icon = Icons.Rounded.History,
+                        iconColor = KitsugiColors.AccentTeal,
+                        onClick = { params.onOpenWatchHistory?.invoke() }
+                    )
+                }
+                Spacer(Modifier.height(16.dp))
+            }
+
+            // ── Kaynaklar & Entegrasyonlar ──────────────────────────────────
+            item {
+                SectionHeader("Kaynaklar & Entegrasyonlar")
+                SettingsNavCard {
+                    KitsugiSettingsItem(
+                        title = "Eklentiler & Akış Kaynakları",
+                        description = "Torrent, video sağlayıcıları, debrid ve manga kaynakları",
+                        icon = Icons.Rounded.Extension,
+                        iconColor = KitsugiColors.AccentPurple,
+                        onClick = { onNavigate(SettingsRoute.AddonsExtensions) }
+                    )
+                    KitsugiSettingsDivider()
+                    KitsugiSettingsItem(
+                        title = "Harici Entegrasyonlar",
+                        description = "TMDB, MDBList, FanArt.tv ve AniSkip (Intro/Outro)",
+                        icon = Icons.Rounded.Hub,
+                        iconColor = KitsugiColors.AccentBlue,
+                        onClick = { onNavigate(SettingsRoute.Integrations) }
+                    )
+                }
+                Spacer(Modifier.height(16.dp))
+            }
+
+            // ── Veri & Depolama ─────────────────────────────────────────────
+            item {
+                SectionHeader("Veri & Depolama")
+                SettingsNavCard {
+                    KitsugiSettingsItem(
+                        title = "Veri & Yedekleme",
+                        description = "Yedek al/geri yükle, DoH (DNS) ve liste yönetimi",
+                        icon = Icons.Rounded.Storage,
+                        iconColor = KitsugiColors.AccentGreen,
+                        onClick = { onNavigate(SettingsRoute.DataBackup) }
+                    )
+                    KitsugiSettingsDivider()
+                    KitsugiSettingsItem(
+                        title = "İndirmeler",
+                        description = "İndirme konumu, otomatik indirme ve çevrimdışı oynatma",
+                        icon = Icons.Rounded.Download,
+                        iconColor = KitsugiColors.AccentGreen,
+                        onClick = {
+                            if (params.onOpenDownloads != null) {
+                                params.onOpenDownloads.invoke()
+                            } else {
+                                context.startActivity(
+                                    android.content.Intent(
+                                        context,
+                                        com.kitsugi.animelist.ui.screens.offline.DownloadsActivity::class.java
+                                    )
+                                )
+                            }
+                        }
+                    )
+                }
+                Spacer(Modifier.height(16.dp))
+            }
+
+            // ── Hakkında & Destek ───────────────────────────────────────────
+            item {
+                SectionHeader("Destek & Hakkında")
+                SettingsNavCard {
+                    KitsugiSettingsItem(
+                        title = "Hakkında",
+                        description = "Sürüm: ${BuildConfig.VERSION_NAME} • Açık kaynak & katkıda bulunanlar",
+                        icon = Icons.Rounded.Info,
+                        iconColor = KitsugiColors.AccentIndigo,
+                        onClick = { onNavigate(SettingsRoute.About) }
+                    )
+                    KitsugiSettingsDivider()
+                    KitsugiSettingsItem(
+                        title = "Geri Bildirim",
+                        description = "Hata bildirin veya önerilerinizi paylaşın",
+                        icon = Icons.Rounded.Feedback,
+                        iconColor = KitsugiColors.AccentBlue,
+                        onClick = { onNavigate(SettingsRoute.Feedback) }
+                    )
+                }
+                Spacer(Modifier.height(80.dp))
+            }
+        }
+    }
 }
 
-private val themeOptions = listOf(
-    KitsugiChoiceOption(
-        id = "mint",
-        title = "Mint",
-        description = "Mevcut Kitsugi açık mint teması",
-        color = Color(0xFFC8F4EF)
-    ),
-    KitsugiChoiceOption(
-        id = "pink",
-        title = "Pembe",
-        description = "Canlı pembe vurgu rengi",
-        color = KitsugiColors.AccentPink
-    ),
-    KitsugiChoiceOption(
-        id = "purple",
-        title = "Mor",
-        description = "Neon ve modern mor görünüm",
-        color = KitsugiColors.AccentPurple
-    ),
-    KitsugiChoiceOption(
-        id = "blue",
-        title = "Mavi",
-        description = "Sade ve temiz mavi vurgu",
-        color = KitsugiColors.AccentBlue
-    ),
-    KitsugiChoiceOption(
-        id = "green",
-        title = "Yeşil",
-        description = "Doğal ve dengeli yeşil vurgu",
-        color = KitsugiColors.AccentGreen
-    ),
-    KitsugiChoiceOption(
-        id = "red",
-        title = "Kırmızı",
-        description = "Tutkulu ve enerjik kırmızı vurgu",
-        color = KitsugiColors.AccentRed
-    ),
-    KitsugiChoiceOption(
-        id = "orange",
-        title = "Turuncu",
-        description = "Dinamik ve sıcak turuncu vurgu",
-        color = KitsugiColors.AccentOrange
-    ),
-    KitsugiChoiceOption(
-        id = "yellow",
-        title = "Sarı",
-        description = "Parlak ve neşeli sarı vurgu",
-        color = KitsugiColors.AccentYellow
-    ),
-    KitsugiChoiceOption(
-        id = "teal",
-        title = "Turkuaz",
-        description = "Ferah ve sakin turkuaz vurgu",
-        color = KitsugiColors.AccentTeal
-    ),
-    KitsugiChoiceOption(
-        id = "indigo",
-        title = "İndigo",
-        description = "Zengin ve derin indigo vurgu",
-        color = KitsugiColors.AccentIndigo
-    )
-)
+// ─── Sub-page shell ──────────────────────────────────────────────────────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SettingsSubPage(
+    title: String,
+    onBack: () -> Unit,
+    content: @Composable () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+    ) {
+        TopAppBar(
+            title = {
+                Text(
+                    text = title,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    color = KitsugiColors.TextPrimary
+                )
+            },
+            navigationIcon = {
+                IconButton(onClick = onBack) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                        contentDescription = "Geri",
+                        tint = KitsugiColors.TextPrimary
+                    )
+                }
+            },
+            colors = TopAppBarDefaults.topAppBarColors(
+                containerColor = KitsugiColors.Background
+            )
+        )
+        HorizontalDivider(color = KitsugiColors.Border.copy(alpha = 0.5f))
+        content()
+    }
+}
+
+// ─── Yardımcı bileşenler ──────────────────────────────────────────────────────
 
 @Composable
-private fun SettingsPreferencesDialogWrapper(
-    general: com.kitsugi.animelist.ui.screens.settings.GeneralSettings,
-    integrations: com.kitsugi.animelist.ui.screens.settings.IntegrationsSettings,
-    onDismiss: () -> Unit
+private fun SectionHeader(text: String) {
+    Text(
+        text = text.uppercase(),
+        style = MaterialTheme.typography.labelMedium,
+        fontWeight = FontWeight.Bold,
+        color = KitsugiColors.TextMuted,
+        modifier = Modifier.padding(horizontal = 20.dp, vertical = 6.dp)
+    )
+}
+
+@Composable
+private fun SettingsNavCard(content: @Composable () -> Unit) {
+    androidx.compose.material3.Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp),
+        shape = RoundedCornerShape(24.dp),
+        colors = androidx.compose.material3.CardDefaults.cardColors(
+            containerColor = KitsugiColors.Surface
+        )
+    ) {
+        content()
+    }
+}
+
+// ─── Alt sayfa içerikleri ─────────────────────────────────────────────────────
+
+@Composable
+private fun SettingsPreferencesContent(
+    general: GeneralSettings,
+    integrations: IntegrationsSettings
 ) {
-    val localSettings = remember(
+    val localSettings = androidx.compose.runtime.remember(
         general.selectedThemeId, general.themeMode, general.amoledBlack, general.customAccentColor, general.defaultTab,
         general.showAdultContent, general.blurAdultMedia, general.showAnimeLogos, general.selectedListLayoutId, general.selectedHomeLayoutId,
         general.titleLanguage, general.scoreFormat, general.hideScores, integrations.autoTranslateEnabled, integrations.preferredTranslator,
@@ -527,6 +630,7 @@ private fun SettingsPreferencesDialogWrapper(
         )
     }
     KitsugiPreferencesSettingsDialog(
+        embeddedMode = true,
         appSettings = localSettings,
         onThemeSelected = general.onThemeSelected,
         onThemeModeSelected = general.onThemeModeSelected,
@@ -555,21 +659,21 @@ private fun SettingsPreferencesDialogWrapper(
         onSplashAnimationEnabledChanged = general.onSplashAnimationEnabledChanged,
         onSplashSoundEnabledChanged = general.onSplashSoundEnabledChanged,
         onSearchHistoryEnabledChanged = general.onSearchHistoryEnabledChanged,
-        // ─── T1-07 – Manga Okuyucu Varsayılan Ayarları ───────────────────────
         onMangaReadingModeSelected = general.onMangaReadingModeSelected,
         onMangaColorFilterSelected = general.onMangaColorFilterSelected,
         onMangaFitModeSelected = general.onMangaFitModeSelected,
         onMangaBrightnessChanged = general.onMangaBrightnessChanged,
-        onDismiss = onDismiss
+        onDismiss = {}  // Sub-sayfada dismiss = no-op; geri butonu ile çıkılır
     )
 }
 
 @Composable
-private fun SettingsPlayerSettingsDialogWrapper(
+private fun SettingsPlayerContent(
     player: PlayerSettings,
     onDismiss: () -> Unit
 ) {
     KitsugiPlayerSettingsDialog(
+        embeddedMode = true,
         playerPreference = player.playerPreference,
         preferredExternalPlayerPackage = player.preferredExternalPlayerPackage,
         isAutoplayEnabled = player.isAutoplayEnabled,
@@ -657,85 +761,15 @@ private fun SettingsPlayerSettingsDialogWrapper(
 }
 
 @Composable
-private fun SettingsIntegrationsDialogWrapper(
-    integrations: IntegrationsSettings,
-    onDismiss: () -> Unit
-) {
-    KitsugiIntegrationsSettingsDialog(
-        tmdbEnabled = integrations.tmdbEnabled,
-        onTmdbEnabledChanged = integrations.onTmdbEnabledChanged,
-        tmdbApiKey = integrations.tmdbApiKey,
-        onTmdbApiKeyChanged = integrations.onTmdbApiKeyChanged,
-        tmdbModernHomeEnabled = integrations.tmdbModernHomeEnabled,
-        onTmdbModernHomeEnabledChanged = integrations.onTmdbModernHomeEnabledChanged,
-        tmdbEnrichContinueWatching = integrations.tmdbEnrichContinueWatching,
-        onTmdbEnrichContinueWatchingChanged = integrations.onTmdbEnrichContinueWatchingChanged,
-        tmdbLanguage = integrations.tmdbLanguage,
-        onTmdbLanguageChanged = integrations.onTmdbLanguageChanged,
-        tmdbUseArtwork = integrations.tmdbUseArtwork,
-        onTmdbUseArtworkChanged = integrations.onTmdbUseArtworkChanged,
-        tmdbUseBasicInfo = integrations.tmdbUseBasicInfo,
-        onTmdbUseBasicInfoChanged = integrations.onTmdbUseBasicInfoChanged,
-        tmdbUseDetails = integrations.tmdbUseDetails,
-        onTmdbUseDetailsChanged = integrations.onTmdbUseDetailsChanged,
-        tmdbUseReleaseDates = integrations.tmdbUseReleaseDates,
-        onTmdbUseReleaseDatesChanged = integrations.onTmdbUseReleaseDatesChanged,
-        tmdbUseCredits = integrations.tmdbUseCredits,
-        onTmdbUseCreditsChanged = integrations.onTmdbUseCreditsChanged,
-        tmdbUseProductions = integrations.tmdbUseProductions,
-        onTmdbUseProductionsChanged = integrations.onTmdbUseProductionsChanged,
-        tmdbUseNetworks = integrations.tmdbUseNetworks,
-        onTmdbUseNetworksChanged = integrations.onTmdbUseNetworksChanged,
-        tmdbUseEpisodes = integrations.tmdbUseEpisodes,
-        onTmdbUseEpisodesChanged = integrations.onTmdbUseEpisodesChanged,
-        tmdbUseTrailers = integrations.tmdbUseTrailers,
-        onTmdbUseTrailersChanged = integrations.onTmdbUseTrailersChanged,
-        tmdbUseMoreLikeThis = integrations.tmdbUseMoreLikeThis,
-        onTmdbUseMoreLikeThisChanged = integrations.onTmdbUseMoreLikeThisChanged,
-        tmdbUseCollections = integrations.tmdbUseCollections,
-        onTmdbUseCollectionsChanged = integrations.onTmdbUseCollectionsChanged,
-        mdbListEnabled = integrations.mdbListEnabled,
-        onMdbListEnabledChanged = integrations.onMdbListEnabledChanged,
-        mdbListApiKey = integrations.mdbListApiKey,
-        onMdbListApiKeyChanged = integrations.onMdbListApiKeyChanged,
-        mdbListShowImdb = integrations.mdbListShowImdb,
-        onMdbListShowImdbChanged = integrations.onMdbListShowImdbChanged,
-        mdbListShowTomatoes = integrations.mdbListShowTomatoes,
-        onMdbListShowTomatoesChanged = integrations.onMdbListShowTomatoesChanged,
-        mdbListShowMetacritic = integrations.mdbListShowMetacritic,
-        onMdbListShowMetacriticChanged = integrations.onMdbListShowMetacriticChanged,
-        mdbListShowAudience = integrations.mdbListShowAudience,
-        onMdbListShowAudienceChanged = integrations.onMdbListShowAudienceChanged,
-        mdbListShowLetterboxd = integrations.mdbListShowLetterboxd,
-        onMdbListShowLetterboxdChanged = integrations.onMdbListShowLetterboxdChanged,
-        mdbListShowTmdb = integrations.mdbListShowTmdb,
-        onMdbListShowTmdbChanged = integrations.onMdbListShowTmdbChanged,
-        mdbListShowTrakt = integrations.mdbListShowTrakt,
-        onMdbListShowTraktChanged = integrations.onMdbListShowTraktChanged,
-        aniSkipEnabled = integrations.aniSkipEnabled,
-        onAniSkipEnabledChanged = integrations.onAniSkipEnabledChanged,
-        aniSkipAutoSkip = integrations.aniSkipAutoSkip,
-        onAniSkipAutoSkipChanged = integrations.onAniSkipAutoSkipChanged,
-        animeSkipClientId = integrations.animeSkipClientId,
-        onAnimeSkipClientIdChanged = integrations.onAnimeSkipClientIdChanged,
-        fanartTvEnabled = integrations.fanartTvEnabled,
-        onFanartTvEnabledChanged = integrations.onFanartTvEnabledChanged,
-        fanartTvApiKey = integrations.fanartTvApiKey,
-        onFanartTvApiKeyChanged = integrations.onFanartTvApiKeyChanged,
-        onDismiss = onDismiss
-    )
-}
-
-@Composable
-private fun SettingsAddonsDialogWrapper(
+private fun SettingsAddonsContent(
     addon: AddonSettings,
     manga: MangaSettings,
     onOpenDiagnostic: () -> Unit,
-    onExplorePlugin: (String) -> Unit = {},
-    onOpenPluginPicker: () -> Unit = {},
-    onDismiss: () -> Unit
+    onExplorePlugin: (String) -> Unit,
+    onOpenPluginPicker: () -> Unit
 ) {
     KitsugiAddonsSettingsDialog(
+        embeddedMode = true,
         addons = addon.addons,
         initialDebridToken = addon.debridToken,
         repos = addon.repos,
@@ -808,6 +842,123 @@ private fun SettingsAddonsDialogWrapper(
         onOpenDiagnostic = onOpenDiagnostic,
         onExplorePlugin = onExplorePlugin,
         onOpenPluginPicker = onOpenPluginPicker,
-        onDismiss = onDismiss
+        onDismiss = {}
     )
 }
+
+@Composable
+private fun SettingsIntegrationsContent(integrations: IntegrationsSettings) {
+    KitsugiIntegrationsSettingsDialog(
+        embeddedMode = true,
+        tmdbEnabled = integrations.tmdbEnabled,
+        onTmdbEnabledChanged = integrations.onTmdbEnabledChanged,
+        tmdbApiKey = integrations.tmdbApiKey,
+        onTmdbApiKeyChanged = integrations.onTmdbApiKeyChanged,
+        tmdbModernHomeEnabled = integrations.tmdbModernHomeEnabled,
+        onTmdbModernHomeEnabledChanged = integrations.onTmdbModernHomeEnabledChanged,
+        tmdbEnrichContinueWatching = integrations.tmdbEnrichContinueWatching,
+        onTmdbEnrichContinueWatchingChanged = integrations.onTmdbEnrichContinueWatchingChanged,
+        tmdbLanguage = integrations.tmdbLanguage,
+        onTmdbLanguageChanged = integrations.onTmdbLanguageChanged,
+        tmdbUseArtwork = integrations.tmdbUseArtwork,
+        onTmdbUseArtworkChanged = integrations.onTmdbUseArtworkChanged,
+        tmdbUseBasicInfo = integrations.tmdbUseBasicInfo,
+        onTmdbUseBasicInfoChanged = integrations.onTmdbUseBasicInfoChanged,
+        tmdbUseDetails = integrations.tmdbUseDetails,
+        onTmdbUseDetailsChanged = integrations.onTmdbUseDetailsChanged,
+        tmdbUseReleaseDates = integrations.tmdbUseReleaseDates,
+        onTmdbUseReleaseDatesChanged = integrations.onTmdbUseReleaseDatesChanged,
+        tmdbUseCredits = integrations.tmdbUseCredits,
+        onTmdbUseCreditsChanged = integrations.onTmdbUseCreditsChanged,
+        tmdbUseProductions = integrations.tmdbUseProductions,
+        onTmdbUseProductionsChanged = integrations.onTmdbUseProductionsChanged,
+        tmdbUseNetworks = integrations.tmdbUseNetworks,
+        onTmdbUseNetworksChanged = integrations.onTmdbUseNetworksChanged,
+        tmdbUseEpisodes = integrations.tmdbUseEpisodes,
+        onTmdbUseEpisodesChanged = integrations.onTmdbUseEpisodesChanged,
+        tmdbUseTrailers = integrations.tmdbUseTrailers,
+        onTmdbUseTrailersChanged = integrations.onTmdbUseTrailersChanged,
+        tmdbUseMoreLikeThis = integrations.tmdbUseMoreLikeThis,
+        onTmdbUseMoreLikeThisChanged = integrations.onTmdbUseMoreLikeThisChanged,
+        tmdbUseCollections = integrations.tmdbUseCollections,
+        onTmdbUseCollectionsChanged = integrations.onTmdbUseCollectionsChanged,
+        mdbListEnabled = integrations.mdbListEnabled,
+        onMdbListEnabledChanged = integrations.onMdbListEnabledChanged,
+        mdbListApiKey = integrations.mdbListApiKey,
+        onMdbListApiKeyChanged = integrations.onMdbListApiKeyChanged,
+        mdbListShowImdb = integrations.mdbListShowImdb,
+        onMdbListShowImdbChanged = integrations.onMdbListShowImdbChanged,
+        mdbListShowTomatoes = integrations.mdbListShowTomatoes,
+        onMdbListShowTomatoesChanged = integrations.onMdbListShowTomatoesChanged,
+        mdbListShowMetacritic = integrations.mdbListShowMetacritic,
+        onMdbListShowMetacriticChanged = integrations.onMdbListShowMetacriticChanged,
+        mdbListShowAudience = integrations.mdbListShowAudience,
+        onMdbListShowAudienceChanged = integrations.onMdbListShowAudienceChanged,
+        mdbListShowLetterboxd = integrations.mdbListShowLetterboxd,
+        onMdbListShowLetterboxdChanged = integrations.onMdbListShowLetterboxdChanged,
+        mdbListShowTmdb = integrations.mdbListShowTmdb,
+        onMdbListShowTmdbChanged = integrations.onMdbListShowTmdbChanged,
+        mdbListShowTrakt = integrations.mdbListShowTrakt,
+        onMdbListShowTraktChanged = integrations.onMdbListShowTraktChanged,
+        aniSkipEnabled = integrations.aniSkipEnabled,
+        onAniSkipEnabledChanged = integrations.onAniSkipEnabledChanged,
+        aniSkipAutoSkip = integrations.aniSkipAutoSkip,
+        onAniSkipAutoSkipChanged = integrations.onAniSkipAutoSkipChanged,
+        animeSkipClientId = integrations.animeSkipClientId,
+        onAnimeSkipClientIdChanged = integrations.onAnimeSkipClientIdChanged,
+        fanartTvEnabled = integrations.fanartTvEnabled,
+        onFanartTvEnabledChanged = integrations.onFanartTvEnabledChanged,
+        fanartTvApiKey = integrations.fanartTvApiKey,
+        onFanartTvApiKeyChanged = integrations.onFanartTvApiKeyChanged,
+        onDismiss = {}
+    )
+}
+
+@Composable
+private fun SettingsAboutContent(
+    onOpenAbout: (() -> Unit)?,
+    onNavigateToFeedback: () -> Unit
+) {
+    val scrollState = rememberScrollState()
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(scrollState)
+            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .navigationBarsPadding()
+    ) {
+        SettingsNavCard {
+            KitsugiSettingsItem(
+                title = "Uygulama Bilgisi",
+                description = "Sürüm ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) • Değişiklik notları",
+                icon = Icons.Rounded.Info,
+                iconColor = KitsugiColors.AccentIndigo,
+                onClick = { onOpenAbout?.invoke() }
+            )
+            KitsugiSettingsDivider()
+            KitsugiSettingsItem(
+                title = "Geri Bildirim Gönder",
+                description = "Hata bildirin veya önerilerinizi paylaşın",
+                icon = Icons.Rounded.Feedback,
+                iconColor = KitsugiColors.AccentBlue,
+                onClick = onNavigateToFeedback
+            )
+        }
+        Spacer(Modifier.height(80.dp))
+    }
+}
+
+// ─── Tema seçenekleri (statik) ────────────────────────────────────────────────
+
+private val themeOptions = listOf(
+    KitsugiChoiceOption("mint", "Mint", "Mevcut Kitsugi açık mint teması", Color(0xFFC8F4EF)),
+    KitsugiChoiceOption("pink", "Pembe", "Canlı pembe vurgu rengi", KitsugiColors.AccentPink),
+    KitsugiChoiceOption("purple", "Mor", "Neon ve modern mor görünüm", KitsugiColors.AccentPurple),
+    KitsugiChoiceOption("blue", "Mavi", "Sade ve temiz mavi vurgu", KitsugiColors.AccentBlue),
+    KitsugiChoiceOption("green", "Yeşil", "Doğal ve dengeli yeşil vurgu", KitsugiColors.AccentGreen),
+    KitsugiChoiceOption("red", "Kırmızı", "Tutkulu ve enerjik kırmızı vurgu", KitsugiColors.AccentRed),
+    KitsugiChoiceOption("orange", "Turuncu", "Dinamik ve sıcak turuncu vurgu", KitsugiColors.AccentOrange),
+    KitsugiChoiceOption("yellow", "Sarı", "Parlak ve neşeli sarı vurgu", KitsugiColors.AccentYellow),
+    KitsugiChoiceOption("teal", "Turkuaz", "Ferah ve sakin turkuaz vurgu", KitsugiColors.AccentTeal),
+    KitsugiChoiceOption("indigo", "İndigo", "Zengin ve derin indigo vurgu", KitsugiColors.AccentIndigo)
+)

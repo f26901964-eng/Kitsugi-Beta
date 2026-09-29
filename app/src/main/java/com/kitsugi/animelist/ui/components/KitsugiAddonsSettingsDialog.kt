@@ -115,6 +115,7 @@ fun KitsugiAddonsSettingsDialog(
     onUseGithubProxyChanged: (Boolean) -> Unit = {},
     onExplorePlugin: ((String) -> Unit)? = null,
     onOpenPluginPicker: (() -> Unit)? = null,
+    embeddedMode: Boolean = false,
     onDismiss: () -> Unit
 ) {
     val accentColor = LocalKitsugiAccent.current
@@ -137,6 +138,7 @@ fun KitsugiAddonsSettingsDialog(
     KitsugiSheetOrDialog(
         onDismiss = onDismiss,
         fullScreen = true,
+        embeddedMode = embeddedMode,
         innerScrollState = activeListState,
         sheetGesturesEnabled = false
     ) {
@@ -144,21 +146,23 @@ fun KitsugiAddonsSettingsDialog(
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp)
+                    .padding(horizontal = 16.dp, vertical = if (embeddedMode) 4.dp else 8.dp)
             ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Eklenti & Akış Ayarları",
-                        color = KitsugiColors.TextPrimary,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    IconButton(onClick = onDismiss) {
-                        Icon(Icons.Rounded.Close, contentDescription = "Kapat", tint = KitsugiColors.TextSecondary)
+                if (!embeddedMode) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Eklenti & Akış Ayarları",
+                            color = KitsugiColors.TextPrimary,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                        IconButton(onClick = onDismiss) {
+                            Icon(Icons.Rounded.Close, contentDescription = "Kapat", tint = KitsugiColors.TextSecondary)
+                        }
                     }
                 }
                 TabRow(

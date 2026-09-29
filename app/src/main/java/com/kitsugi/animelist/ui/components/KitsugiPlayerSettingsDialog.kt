@@ -9,6 +9,8 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.activity.compose.BackHandler
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
@@ -144,6 +146,7 @@ fun KitsugiPlayerSettingsDialog(
     // ─── T1-04 – Dekoder Önceliği (Telefon) ──────────────────────────────────
     decoderPriority: Int = 0,
     onDecoderPriorityChanged: (Int) -> Unit = {},
+    embeddedMode: Boolean = false,
     onDismiss: () -> Unit
 ) {
     val accentColor = LocalKitsugiAccent.current
@@ -210,9 +213,18 @@ fun KitsugiPlayerSettingsDialog(
     var bufferRebExp by remember { mutableStateOf(false) }
     var bufferBackExp by remember { mutableStateOf(false) }
 
+    BackHandler(enabled = embeddedMode || activeSubScreen != PlayerSettingsSubScreen.Main) {
+        if (activeSubScreen != PlayerSettingsSubScreen.Main) {
+            activeSubScreen = PlayerSettingsSubScreen.Main
+        } else {
+            onDismiss()
+        }
+    }
+
     KitsugiSheetOrDialog(
         onDismiss = onDismiss,
         fullScreen = true,
+        embeddedMode = embeddedMode,
         innerScrollState = activeScrollState
     ) {
         Column(
@@ -232,7 +244,16 @@ fun KitsugiPlayerSettingsDialog(
                     if (activeSubScreen != PlayerSettingsSubScreen.Main) {
                         IconButton(onClick = { activeSubScreen = PlayerSettingsSubScreen.Main }) {
                             Icon(
-                                imageVector = Icons.Rounded.ArrowBack,
+                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                                contentDescription = "Geri",
+                                tint = KitsugiColors.TextPrimary
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                    } else if (embeddedMode) {
+                        IconButton(onClick = onDismiss) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
                                 contentDescription = "Geri",
                                 tint = KitsugiColors.TextPrimary
                             )
@@ -256,12 +277,14 @@ fun KitsugiPlayerSettingsDialog(
                         fontWeight = FontWeight.Bold
                     )
                 }
-                IconButton(onClick = onDismiss) {
-                    Icon(
-                        imageVector = Icons.Rounded.Close,
-                        contentDescription = "Kapat",
-                        tint = KitsugiColors.TextSecondary
-                    )
+                if (!embeddedMode) {
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = Icons.Rounded.Close,
+                            contentDescription = "Kapat",
+                            tint = KitsugiColors.TextSecondary
+                        )
+                    }
                 }
             }
 

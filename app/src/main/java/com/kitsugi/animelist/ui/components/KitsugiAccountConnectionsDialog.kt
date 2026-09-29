@@ -45,6 +45,7 @@ fun KitsugiAccountConnectionsDialog(
     onSyncEnabledAnilistChanged: (Boolean) -> Unit = {},
     syncEnabledMal: Boolean = false,
     onSyncEnabledMalChanged: (Boolean) -> Unit = {},
+    embeddedMode: Boolean = false,
     onDismiss: () -> Unit
 ) {
     val accentColor = LocalKitsugiAccent.current
@@ -53,27 +54,30 @@ fun KitsugiAccountConnectionsDialog(
     KitsugiSheetOrDialog(
         onDismiss = onDismiss,
         fullScreen = true,
+        embeddedMode = embeddedMode,
         innerColumnScrollState = scrollState
     ) {
-        // Header
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+        if (!embeddedMode) {
+            // Header
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
-                Text(
-                    text = "Hesap Bağlantıları",
-                    color = KitsugiColors.TextPrimary,
-                    style = MaterialTheme.typography.titleLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                IconButton(onClick = onDismiss) {
-                    Icon(Icons.Rounded.Close, contentDescription = "Kapat", tint = KitsugiColors.TextSecondary)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Hesap Bağlantıları",
+                        color = KitsugiColors.TextPrimary,
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    IconButton(onClick = onDismiss) {
+                        Icon(Icons.Rounded.Close, contentDescription = "Kapat", tint = KitsugiColors.TextSecondary)
+                    }
                 }
             }
         }
@@ -113,15 +117,17 @@ fun KitsugiAccountConnectionsDialog(
             )
         }
 
-        // Footer
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.End
-        ) {
-            TextButton(onClick = onDismiss) {
-                Text("Tamam", color = accentColor, fontWeight = FontWeight.SemiBold)
+        if (!embeddedMode) {
+            // Footer
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.End
+            ) {
+                TextButton(onClick = onDismiss) {
+                    Text("Tamam", color = accentColor, fontWeight = FontWeight.SemiBold)
+                }
             }
         }
     }
