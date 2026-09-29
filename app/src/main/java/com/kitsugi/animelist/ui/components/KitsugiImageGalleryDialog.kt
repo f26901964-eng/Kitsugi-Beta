@@ -16,13 +16,17 @@ import androidx.compose.foundation.gestures.calculatePan
 import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ChevronLeft
+import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Image
@@ -31,7 +35,6 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -73,7 +76,7 @@ fun KitsugiImageGalleryDialog(
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    
+
     // We only show category tabs if there are multiple categories.
     val availableCategories = remember(galleryItems) {
         val cats = galleryItems.map { it.category }.distinct()
@@ -83,11 +86,11 @@ fun KitsugiImageGalleryDialog(
             emptyList()
         }
     }
-    
-    var selectedCategoryFilter by remember(initialCategory, initialIndex) { 
-        mutableStateOf<GalleryCategory?>(initialCategory) 
+
+    var selectedCategoryFilter by remember(initialCategory, initialIndex) {
+        mutableStateOf<GalleryCategory?>(initialCategory)
     }
-    
+
     // Filtered items based on selected category
     val filteredItems = remember(galleryItems, selectedCategoryFilter) {
         if (selectedCategoryFilter == null) {
@@ -96,7 +99,7 @@ fun KitsugiImageGalleryDialog(
             galleryItems.filter { it.category == selectedCategoryFilter }
         }
     }
-    
+
     val resolvedInitialPage = remember(galleryItems, initialIndex, filteredItems) {
         val initialItem = galleryItems.getOrNull(initialIndex)
         if (initialItem != null) {
@@ -106,11 +109,11 @@ fun KitsugiImageGalleryDialog(
             0
         }
     }
-    
+
     val pagerState = rememberPagerState(initialPage = resolvedInitialPage.coerceIn(0, maxOf(0, filteredItems.size - 1)), pageCount = { filteredItems.size })
-    
+
     var isFirstLaunch by remember { mutableStateOf(true) }
-    
+
     // Reset to page 0 if selectedCategoryFilter changes to avoid index bounds error, ignoring first launch
     LaunchedEffect(selectedCategoryFilter) {
         if (isFirstLaunch) {
@@ -121,7 +124,7 @@ fun KitsugiImageGalleryDialog(
             }
         }
     }
-    
+
     val accentColor = LocalKitsugiAccent.current
     val density = LocalDensity.current
     val configuration = LocalConfiguration.current
@@ -137,7 +140,7 @@ fun KitsugiImageGalleryDialog(
     val dismissWithAnimation = {
         scope.launch {
             isAnimatedVisible = false
-            delay(280) // wait for exit animation to finish
+            delay(280)
             onDismiss()
         }
     }
@@ -168,6 +171,24 @@ fun KitsugiImageGalleryDialog(
         ),
         label = "download_glow"
     )
+
+    val onDownload = {
+        val currentItem = filteredItems.getOrNull(pagerState.currentPage)
+        if (currentItem != null) {
+            if (KitsugiImageDownloadHelper.hasWritePermission(context)) {
+                KitsugiImageDownloadHelper.downloadImage(context, currentItem.url, title)
+            } else {
+                launcher.launch(KitsugiImageDownloadHelper.getRequiredPermissions())
+            }
+        }
+    }
+
+    val onShare = {
+        val currentItem = filteredItems.getOrNull(pagerState.currentPage)
+        if (currentItem != null) {
+            KitsugiImageDownloadHelper.shareImage(context, currentItem.url, title)
+        }
+    }
 
     Dialog(
         onDismissRequest = { dismissWithAnimation() },
@@ -204,7 +225,7 @@ fun KitsugiImageGalleryDialog(
                             )
                         )
                 ) {
-                    // Ambient glow behind current image
+                    // Ambient glow
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -219,325 +240,984 @@ fun KitsugiImageGalleryDialog(
                             )
                     )
 
-                    Column(modifier = Modifier.fillMaxSize()) {
-                        // Header (üst)
-                        KitsugiGalleryHeader(
+                    if (isLandscape) {
+                        // ── LANDSCAPE LAYOUT (fanart.tv style) ─────────────────────────
+                        GalleryLandscapeLayout(
+                            filteredItems = filteredItems,
+                            availableCategories = availableCategories,
+                            selectedCategoryFilter = selectedCategoryFilter,
+                            onCategorySelected = { selectedCategoryFilter = it },
+                            pagerState = pagerState,
                             title = title,
-                            currentPage = pagerState.currentPage,
-                            totalPages = filteredItems.size,
                             accentColor = accentColor,
                             downloadGlow = downloadGlow,
-                            onDownload = {
-                                val currentItem = filteredItems.getOrNull(pagerState.currentPage)
-                                if (currentItem != null) {
-                                    if (KitsugiImageDownloadHelper.hasWritePermission(context)) {
-                                        KitsugiImageDownloadHelper.downloadImage(context, currentItem.url, title)
-                                    } else {
-                                        launcher.launch(KitsugiImageDownloadHelper.getRequiredPermissions())
-                                    }
-                                }
-                            },
-                            onShare = {
-                                val currentItem = filteredItems.getOrNull(pagerState.currentPage)
-                                if (currentItem != null) {
-                                    KitsugiImageDownloadHelper.shareImage(context, currentItem.url, title)
-                                }
-                            },
+                            onDownload = onDownload,
+                            onShare = onShare,
                             onDismiss = { dismissWithAnimation() },
-                            isLandscape = isLandscape
+                            density = density,
+                            galleryItems = galleryItems
                         )
+                    } else {
+                        // ── PORTRAIT LAYOUT (existing behaviour) ───────────────────────
+                        GalleryPortraitLayout(
+                            filteredItems = filteredItems,
+                            availableCategories = availableCategories,
+                            selectedCategoryFilter = selectedCategoryFilter,
+                            onCategorySelected = { selectedCategoryFilter = it },
+                            pagerState = pagerState,
+                            title = title,
+                            accentColor = accentColor,
+                            downloadGlow = downloadGlow,
+                            onDownload = onDownload,
+                            onShare = onShare,
+                            onDismiss = { dismissWithAnimation() },
+                            density = density,
+                            galleryItems = galleryItems
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
 
-                        // Categories filter (if multiple categories available)
-                        if (availableCategories.isNotEmpty()) {
-                            LazyRow(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 16.dp, vertical = 6.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                itemsIndexed(availableCategories) { _, cat ->
-                                    val isSelected = selectedCategoryFilter == cat
-                                    val count = if (cat == null) galleryItems.size else galleryItems.count { it.category == cat }
-                                    val label = if (cat == null) "Tümü ($count)" else "${cat.label} ($count)"
-                                    
-                                    Box(
-                                        modifier = Modifier
-                                            .clip(RoundedCornerShape(999.dp))
-                                            .background(if (isSelected) accentColor else KitsugiColors.SurfaceSoft)
-                                            .tvClickable(shape = RoundedCornerShape(999.dp)) {
-                                                selectedCategoryFilter = cat
-                                            }
-                                            .padding(horizontal = 14.dp, vertical = 6.dp)
-                                    ) {
-                                        Text(
-                                            text = label,
-                                            color = if (isSelected) KitsugiColors.Background else KitsugiColors.TextPrimary,
-                                            style = MaterialTheme.typography.labelMedium,
-                                            fontWeight = FontWeight.Bold
-                                        )
-                                    }
-                                }
-                            }
-                        }
+// ─────────────────────────────────────────────────────────────────────────────
+// LANDSCAPE LAYOUT  –  fanart.tv style
+//   Left: vertical thumbnail rail
+//   Center: full image + left/right nav arrows
+//   Right: detail panel (source, category, language, resolution, etc.)
+// ─────────────────────────────────────────────────────────────────────────────
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun GalleryLandscapeLayout(
+    filteredItems: List<GalleryItem>,
+    availableCategories: List<GalleryCategory?>,
+    selectedCategoryFilter: GalleryCategory?,
+    onCategorySelected: (GalleryCategory?) -> Unit,
+    pagerState: androidx.compose.foundation.pager.PagerState,
+    title: String,
+    accentColor: Color,
+    downloadGlow: Float,
+    onDownload: () -> Unit,
+    onShare: () -> Unit,
+    onDismiss: () -> Unit,
+    density: androidx.compose.ui.unit.Density,
+    galleryItems: List<GalleryItem>
+) {
+    val scope = rememberCoroutineScope()
+    val currentItem = filteredItems.getOrNull(pagerState.currentPage)
 
-                        // Main Pager & Image area
-                        Box(
+    Row(modifier = Modifier.fillMaxSize()) {
+
+        // ── LEFT: Vertical thumbnail rail ─────────────────────────────────────
+        val thumbRailState = rememberLazyListState()
+
+        LaunchedEffect(pagerState.currentPage) {
+            val viewportHeight = thumbRailState.layoutInfo.viewportEndOffset - thumbRailState.layoutInfo.viewportStartOffset
+            if (viewportHeight > 0) {
+                val itemHeightPx = with(density) { 72.dp.roundToPx() }
+                val targetOffset = (viewportHeight - itemHeightPx) / 2
+                thumbRailState.animateScrollToItem(pagerState.currentPage, -targetOffset)
+            } else {
+                thumbRailState.animateScrollToItem(pagerState.currentPage)
+            }
+        }
+
+        Box(
+            modifier = Modifier
+                .width(84.dp)
+                .fillMaxHeight()
+                .background(KitsugiColors.Background.copy(alpha = 0.85f))
+                .border(
+                    width = 1.dp,
+                    color = KitsugiColors.Border.copy(alpha = 0.4f),
+                    shape = RoundedCornerShape(0.dp)
+                )
+        ) {
+            LazyColumn(
+                state = thumbRailState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(vertical = 8.dp, horizontal = 8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                itemsIndexed(filteredItems) { index, item ->
+                    val isSelected = pagerState.currentPage == index
+                    val thumbScale by animateFloatAsState(
+                        targetValue = if (isSelected) 1.05f else 0.92f,
+                        animationSpec = spring(dampingRatio = 0.65f),
+                        label = "ls_thumb_scale_$index"
+                    )
+                    val thumbAlpha by animateFloatAsState(
+                        targetValue = if (isSelected) 1f else 0.45f,
+                        label = "ls_thumb_alpha_$index"
+                    )
+
+                    Box(
+                        modifier = Modifier
+                            .graphicsLayer(scaleX = thumbScale, scaleY = thumbScale, alpha = thumbAlpha)
+                    ) {
+                        AsyncImage(
+                            model = item.url,
+                            contentDescription = "Küçük resim $index",
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            HorizontalPager(
-                                state = pagerState,
-                                modifier = Modifier.fillMaxSize(),
-                                pageSpacing = if (isLandscape) 12.dp else 16.dp,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) { page ->
-                                val item = filteredItems.getOrNull(page)
-                                if (item != null) {
-                                    Box(modifier = Modifier.fillMaxSize()) {
-                                        GalleryImagePage(
-                                            imageUrl = item.url,
-                                            title = title,
-                                            page = page,
-                                            pagerState = pagerState
-                                        )
-                                        
-                                        // Source, Category & Metadata badge overlay on the page
-                                        FlowRow(
-                                            modifier = Modifier
-                                                .align(Alignment.BottomStart)
-                                                .padding(start = 20.dp, end = 20.dp, bottom = if (isLandscape) 12.dp else 24.dp)
-                                                .clip(RoundedCornerShape(14.dp))
-                                                .background(KitsugiColors.SurfaceStrong.copy(alpha = 0.88f))
-                                                .border(1.dp, KitsugiColors.Border.copy(alpha = 0.7f), RoundedCornerShape(14.dp))
-                                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                                        ) {
-                                            val badgeBg = when (item.source.lowercase()) {
-                                                "tmdb"      -> Color(0xFFFFB800)
-                                                "fanart.tv" -> Color(0xFF9C27B0) // Violet
-                                                "anilist"   -> Color(0xFF3DB4F2) // AniList blue
-                                                "simkl"     -> Color(0xFFE50914) // Simkl red
-                                                "kitsu"     -> Color(0xFFFD5C63) // Kitsu reddish-orange
-                                                "shikimori" -> Color(0xFF4C86C8) // Shikimori mavi
-                                                "jikan", "jikan (mal)", "mal" -> Color(0xFF2E51A2) // MAL blue
-                                                else        -> accentColor
-                                            }
-                                            
-                                            // 1. Kaynak Rozeti
-                                            Box(
-                                                modifier = Modifier
-                                                    .clip(RoundedCornerShape(6.dp))
-                                                    .background(badgeBg)
-                                                    .padding(horizontal = 7.dp, vertical = 3.dp)
-                                            ) {
-                                                Text(
-                                                    text = item.source,
-                                                    color = if (item.source.equals("tmdb", ignoreCase = true)) Color.Black else Color.White,
-                                                    fontSize = 11.sp,
-                                                    fontWeight = FontWeight.Bold
-                                                )
-                                            }
-
-                                            // 2. Kategori Rozeti
-                                            val catEmoji = when (item.category) {
-                                                GalleryCategory.POSTER    -> "📋"
-                                                GalleryCategory.BACKDROP  -> "🖼️"
-                                                GalleryCategory.LOGO      -> "🎨"
-                                                GalleryCategory.CLEARART  -> "✨"
-                                                GalleryCategory.CHARACTER -> "🎭"
-                                                GalleryCategory.THUMBNAIL -> "🌐"
-                                                GalleryCategory.BANNER    -> "🎫"
-                                                GalleryCategory.SQUARE    -> "🟩"
-                                                GalleryCategory.OTHER     -> "📁"
-                                            }
-                                            Box(
-                                                modifier = Modifier
-                                                    .clip(RoundedCornerShape(6.dp))
-                                                    .background(KitsugiColors.SurfaceSoft)
-                                                    .border(1.dp, KitsugiColors.Border, RoundedCornerShape(6.dp))
-                                                    .padding(horizontal = 7.dp, vertical = 3.dp)
-                                            ) {
-                                                Text(
-                                                    text = "$catEmoji ${item.category.label}",
-                                                    color = KitsugiColors.TextPrimary,
-                                                    fontSize = 11.sp,
-                                                    fontWeight = FontWeight.SemiBold
-                                                )
-                                            }
-
-                                            // 3. Dil Bilgisi
-                                            val langInfo = formatLanguage(item.language)
-                                            if (langInfo != null) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .clip(RoundedCornerShape(6.dp))
-                                                        .background(KitsugiColors.SurfaceSoft)
-                                                        .border(1.dp, KitsugiColors.Border, RoundedCornerShape(6.dp))
-                                                        .padding(horizontal = 7.dp, vertical = 3.dp)
-                                                ) {
-                                                    Text(
-                                                        text = "${langInfo.first} ${langInfo.second}",
-                                                        color = KitsugiColors.TextPrimary,
-                                                        fontSize = 11.sp,
-                                                        fontWeight = FontWeight.Medium
-                                                    )
-                                                }
-                                            } else if (item.language == null && (item.category == GalleryCategory.BACKDROP || item.category == GalleryCategory.LOGO || item.category == GalleryCategory.CLEARART)) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .clip(RoundedCornerShape(6.dp))
-                                                        .background(KitsugiColors.SurfaceSoft.copy(alpha = 0.6f))
-                                                        .padding(horizontal = 7.dp, vertical = 3.dp)
-                                                ) {
-                                                    Text(
-                                                        text = "✨ Metinsiz",
-                                                        color = KitsugiColors.TextMuted,
-                                                        fontSize = 11.sp,
-                                                        fontWeight = FontWeight.Normal
-                                                    )
-                                                }
-                                            }
-
-                                            // 4. Çözünürlük Bilgisi
-                                            val resStr = formatResolution(item.width, item.height)
-                                            if (resStr != null) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .clip(RoundedCornerShape(6.dp))
-                                                        .background(KitsugiColors.SurfaceSoft)
-                                                        .border(1.dp, KitsugiColors.Border, RoundedCornerShape(6.dp))
-                                                        .padding(horizontal = 7.dp, vertical = 3.dp)
-                                                ) {
-                                                    Text(
-                                                        text = "📐 $resStr",
-                                                        color = KitsugiColors.TextSecondary,
-                                                        fontSize = 11.sp,
-                                                        fontWeight = FontWeight.Medium
-                                                    )
-                                                }
-                                            }
-
-                                            // 5. Özel Açıklama (varsa)
-                                            if (!item.description.isNullOrBlank() && 
-                                                item.description != "TMDB Poster" && 
-                                                item.description != "TMDB Arka Plan" && 
-                                                item.description != "TMDB Logo") {
-                                                Text(
-                                                    text = item.description,
-                                                    color = KitsugiColors.TextPrimary,
-                                                    fontSize = 11.sp,
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    maxLines = 1,
-                                                    overflow = TextOverflow.Ellipsis
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
-
-                        // Thumbnail Strip (alt)
-                        if (filteredItems.size > 1) {
-                            val listState = androidx.compose.foundation.lazy.rememberLazyListState()
-
-                            LaunchedEffect(pagerState.currentPage) {
-                                val listInfo = listState.layoutInfo
-                                val viewportWidth = listInfo.viewportEndOffset - listInfo.viewportStartOffset
-                                if (viewportWidth > 0) {
-                                    val itemWidthPx = with(density) { (if (isLandscape) 40.dp else 52.dp).roundToPx() }
-                                    val targetOffset = (viewportWidth - itemWidthPx) / 2
-                                    listState.animateScrollToItem(pagerState.currentPage, -targetOffset)
-                                } else {
-                                    listState.animateScrollToItem(pagerState.currentPage)
-                                }
-                            }
-
+                                .size(width = 62.dp, height = 80.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .border(
+                                    width = if (isSelected) 2.dp else 0.dp,
+                                    color = if (isSelected) accentColor else Color.Transparent,
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .tvClickable(shape = RoundedCornerShape(8.dp)) {
+                                    scope.launch { pagerState.animateScrollToPage(index) }
+                                },
+                            contentScale = ContentScale.Crop
+                        )
+                        // Active indicator bar at left edge
+                        if (isSelected) {
                             Box(
                                 modifier = Modifier
-                                    .fillMaxWidth()
-                                    .background(
-                                        Brush.verticalGradient(
-                                            colors = listOf(
-                                                Color.Transparent,
-                                                KitsugiColors.Background.copy(alpha = if (isLandscape) 0.8f else 0.9f),
-                                                KitsugiColors.Surface.copy(alpha = if (isLandscape) 0.90f else 0.96f)
-                                            )
-                                        )
-                                    )
-                                    .navigationBarsPadding()
-                                    .padding(
-                                        bottom = if (isLandscape) 8.dp else 20.dp,
-                                        top = if (isLandscape) 12.dp else 24.dp
-                                    ),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                LazyRow(
-                                    state = listState,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                    contentPadding = PaddingValues(horizontal = 20.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    itemsIndexed(filteredItems) { index, item ->
-                                        val isSelected = pagerState.currentPage == index
-                                        val thumbScale by animateFloatAsState(
-                                            targetValue = if (isSelected) 1.12f else 0.88f,
-                                            animationSpec = spring(dampingRatio = 0.6f),
-                                            label = "thumb_scale_$index"
-                                        )
-                                        val thumbAlpha by animateFloatAsState(
-                                            targetValue = if (isSelected) 1f else 0.38f,
-                                            label = "thumb_alpha_$index"
-                                        )
+                                    .width(3.dp)
+                                    .height(28.dp)
+                                    .clip(RoundedCornerShape(topEnd = 3.dp, bottomEnd = 3.dp))
+                                    .background(accentColor)
+                                    .align(Alignment.CenterStart)
+                                    .offset(x = (-8).dp)
+                            )
+                        }
+                    }
+                }
+            }
+        }
 
+        // ── CENTER: Main image with nav arrows ────────────────────────────────
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxHeight()
+        ) {
+            // Category filter bar at top (compact)
+            Column(modifier = Modifier.fillMaxSize()) {
+                if (availableCategories.isNotEmpty()) {
+                    LazyRow(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp, vertical = 5.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        itemsIndexed(availableCategories) { _, cat ->
+                            val isSelected = selectedCategoryFilter == cat
+                            val count = if (cat == null) galleryItems.size else galleryItems.count { it.category == cat }
+                            val label = if (cat == null) "Tümü ($count)" else "${cat.label} ($count)"
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(999.dp))
+                                    .background(if (isSelected) accentColor else KitsugiColors.SurfaceSoft)
+                                    .tvClickable(shape = RoundedCornerShape(999.dp)) { onCategorySelected(cat) }
+                                    .padding(horizontal = 10.dp, vertical = 4.dp)
+                            ) {
+                                Text(
+                                    text = label,
+                                    color = if (isSelected) KitsugiColors.Background else KitsugiColors.TextPrimary,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Pager image
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+                    contentAlignment = Alignment.Center
+                ) {
+                    HorizontalPager(
+                        state = pagerState,
+                        modifier = Modifier.fillMaxSize(),
+                        pageSpacing = 8.dp,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) { page ->
+                        val item = filteredItems.getOrNull(page)
+                        if (item != null) {
+                            GalleryImagePage(
+                                imageUrl = item.url,
+                                title = title,
+                                page = page,
+                                pagerState = pagerState
+                            )
+                        }
+                    }
+
+                    // Left navigation arrow
+                    if (pagerState.currentPage > 0) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterStart)
+                                .padding(start = 8.dp)
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(KitsugiColors.SurfaceStrong.copy(alpha = 0.82f))
+                                .border(1.dp, KitsugiColors.Border.copy(alpha = 0.6f), CircleShape)
+                                .tvClickable(shape = CircleShape) {
+                                    scope.launch { pagerState.animateScrollToPage(pagerState.currentPage - 1) }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.ChevronLeft,
+                                contentDescription = "Önceki",
+                                tint = KitsugiColors.TextPrimary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+
+                    // Right navigation arrow
+                    if (pagerState.currentPage < filteredItems.size - 1) {
+                        Box(
+                            modifier = Modifier
+                                .align(Alignment.CenterEnd)
+                                .padding(end = 8.dp)
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(KitsugiColors.SurfaceStrong.copy(alpha = 0.82f))
+                                .border(1.dp, KitsugiColors.Border.copy(alpha = 0.6f), CircleShape)
+                                .tvClickable(shape = CircleShape) {
+                                    scope.launch { pagerState.animateScrollToPage(pagerState.currentPage + 1) }
+                                },
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.ChevronRight,
+                                contentDescription = "Sonraki",
+                                tint = KitsugiColors.TextPrimary,
+                                modifier = Modifier.size(24.dp)
+                            )
+                        }
+                    }
+                }
+
+                // Bottom: page counter
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (filteredItems.size > 1) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            Text(
+                                text = "${pagerState.currentPage + 1}",
+                                color = accentColor,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Black
+                            )
+                            Text(
+                                text = "/ ${filteredItems.size}",
+                                color = KitsugiColors.TextMuted,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // ── RIGHT: Detail panel (fanart.tv right side) ────────────────────────
+        Box(
+            modifier = Modifier
+                .width(220.dp)
+                .fillMaxHeight()
+                .background(KitsugiColors.Surface.copy(alpha = 0.94f))
+                .border(
+                    width = 1.dp,
+                    color = KitsugiColors.Border.copy(alpha = 0.4f),
+                    shape = RoundedCornerShape(0.dp)
+                )
+        ) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+            ) {
+                // Top action row (Download | Share | Close)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Download
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .background(
+                                color = accentColor.copy(alpha = 0.18f * downloadGlow),
+                                shape = RoundedCornerShape(10.dp)
+                            )
+                            .border(1.dp, accentColor.copy(alpha = 0.45f), RoundedCornerShape(10.dp))
+                            .tvClickable(shape = RoundedCornerShape(10.dp), onClick = onDownload),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Download,
+                            contentDescription = "İndir",
+                            tint = accentColor,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
+                    // Share
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .background(
+                                color = accentColor.copy(alpha = 0.12f),
+                                shape = RoundedCornerShape(10.dp)
+                            )
+                            .border(1.dp, accentColor.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
+                            .tvClickable(shape = RoundedCornerShape(10.dp), onClick = onShare),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Share,
+                            contentDescription = "Paylaş",
+                            tint = accentColor,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    // Close
+                    Box(
+                        modifier = Modifier
+                            .size(36.dp)
+                            .background(
+                                color = KitsugiColors.SurfaceStrong.copy(alpha = 0.85f),
+                                shape = RoundedCornerShape(10.dp)
+                            )
+                            .border(1.dp, KitsugiColors.Border, RoundedCornerShape(10.dp))
+                            .tvClickable(shape = RoundedCornerShape(10.dp), onClick = { onDismiss() }),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Close,
+                            contentDescription = "Kapat",
+                            tint = KitsugiColors.TextSecondary,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                // Title
+                Column(
+                    modifier = Modifier.padding(horizontal = 14.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(28.dp)
+                                .background(
+                                    color = accentColor.copy(alpha = 0.15f),
+                                    shape = RoundedCornerShape(8.dp)
+                                )
+                                .border(1.dp, accentColor.copy(alpha = 0.3f), RoundedCornerShape(8.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Image,
+                                contentDescription = null,
+                                tint = accentColor,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                        Text(
+                            text = title,
+                            color = KitsugiColors.TextPrimary,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                // Detail tabs: Details / Fans / Comments — mimic fanart.tv
+                var detailTab by remember { mutableStateOf(0) }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    listOf("Detaylar", "Diğer Resimler").forEachIndexed { idx, tabLabel ->
+                        val sel = detailTab == idx
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(if (sel) accentColor.copy(alpha = 0.15f) else Color.Transparent)
+                                .border(
+                                    1.dp,
+                                    if (sel) accentColor.copy(alpha = 0.5f) else KitsugiColors.Border.copy(alpha = 0.4f),
+                                    RoundedCornerShape(8.dp)
+                                )
+                                .tvClickable(shape = RoundedCornerShape(8.dp)) { detailTab = idx }
+                                .padding(horizontal = 10.dp, vertical = 5.dp)
+                        ) {
+                            Text(
+                                text = tabLabel,
+                                color = if (sel) accentColor else KitsugiColors.TextMuted,
+                                fontSize = 11.sp,
+                                fontWeight = if (sel) FontWeight.Bold else FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Divider
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(1.dp)
+                        .background(KitsugiColors.Border.copy(alpha = 0.4f))
+                )
+
+                // Panel content
+                if (detailTab == 0) {
+                    // ── Details tab ──
+                    LazyColumn(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(0.dp),
+                        contentPadding = PaddingValues(vertical = 8.dp)
+                    ) {
+                        if (currentItem != null) {
+                            // Source
+                            val badgeBg = when (currentItem.source.lowercase()) {
+                                "tmdb"      -> Color(0xFFFFB800)
+                                "fanart.tv" -> Color(0xFF9C27B0)
+                                "anilist"   -> Color(0xFF3DB4F2)
+                                "simkl"     -> Color(0xFFE50914)
+                                "kitsu"     -> Color(0xFFFD5C63)
+                                "shikimori" -> Color(0xFF4C86C8)
+                                "jikan", "jikan (mal)", "mal" -> Color(0xFF2E51A2)
+                                else        -> accentColor
+                            }
+
+                            item {
+                                DetailRow(
+                                    label = "Kaynak",
+                                    value = null,
+                                    badge = {
                                         Box(
                                             modifier = Modifier
-                                                .graphicsLayer(scaleX = thumbScale, scaleY = thumbScale, alpha = thumbAlpha)
+                                                .clip(RoundedCornerShape(5.dp))
+                                                .background(badgeBg)
+                                                .padding(horizontal = 8.dp, vertical = 3.dp)
                                         ) {
-                                            AsyncImage(
-                                                model = item.url,
-                                                contentDescription = "Thumbnail $index",
-                                                modifier = Modifier
-                                                    .size(
-                                                        width = if (isLandscape) 40.dp else 48.dp,
-                                                        height = if (isLandscape) 52.dp else 64.dp
-                                                    )
-                                                    .clip(RoundedCornerShape(10.dp))
-                                                    .border(
-                                                        width = if (isSelected) 2.dp else 0.dp,
-                                                        color = if (isSelected) accentColor else Color.Transparent,
-                                                        shape = RoundedCornerShape(10.dp)
-                                                    )
-                                                    .tvClickable(shape = RoundedCornerShape(10.dp)) {
-                                                        scope.launch { pagerState.animateScrollToPage(index) }
-                                                    },
-                                                contentScale = ContentScale.Crop
+                                            Text(
+                                                text = currentItem.source,
+                                                color = if (currentItem.source.equals("tmdb", ignoreCase = true)) Color.Black else Color.White,
+                                                fontSize = 11.sp,
+                                                fontWeight = FontWeight.Bold
                                             )
-                                            // Seçili sayfa indikatörü (küçük nokta)
-                                            if (isSelected) {
-                                                Box(
-                                                    modifier = Modifier
-                                                        .width(if (isLandscape) 12.dp else 16.dp)
-                                                        .height(if (isLandscape) 2.dp else 3.dp)
-                                                        .clip(RoundedCornerShape(2.dp))
-                                                        .background(accentColor)
-                                                        .align(Alignment.BottomCenter)
-                                                        .offset(y = if (isLandscape) 4.dp else 6.dp)
-                                                )
-                                            }
                                         }
                                     }
+                                )
+                            }
+
+                            // Category
+                            val catEmoji = when (currentItem.category) {
+                                GalleryCategory.POSTER    -> "📋"
+                                GalleryCategory.BACKDROP  -> "🖼️"
+                                GalleryCategory.LOGO      -> "🎨"
+                                GalleryCategory.CLEARART  -> "✨"
+                                GalleryCategory.CHARACTER -> "🎭"
+                                GalleryCategory.THUMBNAIL -> "🌐"
+                                GalleryCategory.BANNER    -> "🎫"
+                                GalleryCategory.SQUARE    -> "🟩"
+                                GalleryCategory.OTHER     -> "📁"
+                            }
+                            item {
+                                DetailRow(label = "Tür", value = "$catEmoji ${currentItem.category.label}")
+                            }
+
+                            // Language
+                            val langInfo = formatLanguage(currentItem.language)
+                            if (langInfo != null) {
+                                item {
+                                    DetailRow(label = "Dil", value = "${langInfo.first} ${langInfo.second}")
                                 }
+                            } else if (currentItem.language == null &&
+                                (currentItem.category == GalleryCategory.BACKDROP ||
+                                 currentItem.category == GalleryCategory.LOGO ||
+                                 currentItem.category == GalleryCategory.CLEARART)
+                            ) {
+                                item {
+                                    DetailRow(label = "Dil", value = "✨ Metinsiz")
+                                }
+                            }
+
+                            // Resolution
+                            val resStr = formatResolution(currentItem.width, currentItem.height)
+                            if (resStr != null) {
+                                item {
+                                    DetailRow(label = "Boyut", value = "📐 $resStr")
+                                }
+                            }
+
+                            // Description
+                            if (!currentItem.description.isNullOrBlank() &&
+                                currentItem.description != "TMDB Poster" &&
+                                currentItem.description != "TMDB Arka Plan" &&
+                                currentItem.description != "TMDB Logo"
+                            ) {
+                                item {
+                                    DetailRow(label = "Açıklama", value = currentItem.description)
+                                }
+                            }
+
+                            // Separator
+                            item { Spacer(modifier = Modifier.height(8.dp)) }
+
+                            // Page indicator
+                            item {
+                                DetailRow(
+                                    label = "Sayfa",
+                                    value = "${pagerState.currentPage + 1} / ${filteredItems.size}"
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    // ── Other images tab: small grid of same-category items ──
+                    val sameCategory = remember(currentItem, galleryItems) {
+                        if (currentItem == null) emptyList()
+                        else galleryItems.filter { it.category == currentItem.category && it.url != currentItem.url }
+                    }
+                    if (sameCategory.isEmpty()) {
+                        Box(
+                            modifier = Modifier.fillMaxSize(),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "Bu kategoride başka resim yok",
+                                color = KitsugiColors.TextMuted,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Medium,
+                                modifier = Modifier.padding(16.dp)
+                            )
+                        }
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            itemsIndexed(sameCategory) { _, relatedItem ->
+                                val relIdx = filteredItems.indexOf(relatedItem)
+                                AsyncImage(
+                                    model = relatedItem.url,
+                                    contentDescription = null,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height(90.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .border(1.dp, KitsugiColors.Border.copy(alpha = 0.4f), RoundedCornerShape(8.dp))
+                                        .tvClickable(shape = RoundedCornerShape(8.dp)) {
+                                            if (relIdx >= 0) {
+                                                scope.launch { pagerState.animateScrollToPage(relIdx) }
+                                            }
+                                        },
+                                    contentScale = ContentScale.Crop
+                                )
                             }
                         }
                     }
                 }
             }
         }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PORTRAIT LAYOUT  –  original behaviour
+// ─────────────────────────────────────────────────────────────────────────────
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun GalleryPortraitLayout(
+    filteredItems: List<GalleryItem>,
+    availableCategories: List<GalleryCategory?>,
+    selectedCategoryFilter: GalleryCategory?,
+    onCategorySelected: (GalleryCategory?) -> Unit,
+    pagerState: androidx.compose.foundation.pager.PagerState,
+    title: String,
+    accentColor: Color,
+    downloadGlow: Float,
+    onDownload: () -> Unit,
+    onShare: () -> Unit,
+    onDismiss: () -> Unit,
+    density: androidx.compose.ui.unit.Density,
+    galleryItems: List<GalleryItem>
+) {
+    val scope = rememberCoroutineScope()
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        // Header (üst)
+        KitsugiGalleryHeader(
+            title = title,
+            currentPage = pagerState.currentPage,
+            totalPages = filteredItems.size,
+            accentColor = accentColor,
+            downloadGlow = downloadGlow,
+            onDownload = onDownload,
+            onShare = onShare,
+            onDismiss = onDismiss,
+            isLandscape = false
+        )
+
+        // Categories filter (if multiple categories available)
+        if (availableCategories.isNotEmpty()) {
+            LazyRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                itemsIndexed(availableCategories) { _, cat ->
+                    val isSelected = selectedCategoryFilter == cat
+                    val count = if (cat == null) galleryItems.size else galleryItems.count { it.category == cat }
+                    val label = if (cat == null) "Tümü ($count)" else "${cat.label} ($count)"
+
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(999.dp))
+                            .background(if (isSelected) accentColor else KitsugiColors.SurfaceSoft)
+                            .tvClickable(shape = RoundedCornerShape(999.dp)) {
+                                onCategorySelected(cat)
+                            }
+                            .padding(horizontal = 14.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            text = label,
+                            color = if (isSelected) KitsugiColors.Background else KitsugiColors.TextPrimary,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+        }
+
+        // Main Pager & Image area
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f),
+            contentAlignment = Alignment.Center
+        ) {
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize(),
+                pageSpacing = 16.dp,
+                verticalAlignment = Alignment.CenterVertically
+            ) { page ->
+                val item = filteredItems.getOrNull(page)
+                if (item != null) {
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        GalleryImagePage(
+                            imageUrl = item.url,
+                            title = title,
+                            page = page,
+                            pagerState = pagerState
+                        )
+
+                        // Source, Category & Metadata badge overlay on the page
+                        FlowRow(
+                            modifier = Modifier
+                                .align(Alignment.BottomStart)
+                                .padding(start = 20.dp, end = 20.dp, bottom = 24.dp)
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(KitsugiColors.SurfaceStrong.copy(alpha = 0.88f))
+                                .border(1.dp, KitsugiColors.Border.copy(alpha = 0.7f), RoundedCornerShape(14.dp))
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            val badgeBg = when (item.source.lowercase()) {
+                                "tmdb"      -> Color(0xFFFFB800)
+                                "fanart.tv" -> Color(0xFF9C27B0)
+                                "anilist"   -> Color(0xFF3DB4F2)
+                                "simkl"     -> Color(0xFFE50914)
+                                "kitsu"     -> Color(0xFFFD5C63)
+                                "shikimori" -> Color(0xFF4C86C8)
+                                "jikan", "jikan (mal)", "mal" -> Color(0xFF2E51A2)
+                                else        -> accentColor
+                            }
+
+                            // 1. Kaynak Rozeti
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(badgeBg)
+                                    .padding(horizontal = 7.dp, vertical = 3.dp)
+                            ) {
+                                Text(
+                                    text = item.source,
+                                    color = if (item.source.equals("tmdb", ignoreCase = true)) Color.Black else Color.White,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            // 2. Kategori Rozeti
+                            val catEmoji = when (item.category) {
+                                GalleryCategory.POSTER    -> "📋"
+                                GalleryCategory.BACKDROP  -> "🖼️"
+                                GalleryCategory.LOGO      -> "🎨"
+                                GalleryCategory.CLEARART  -> "✨"
+                                GalleryCategory.CHARACTER -> "🎭"
+                                GalleryCategory.THUMBNAIL -> "🌐"
+                                GalleryCategory.BANNER    -> "🎫"
+                                GalleryCategory.SQUARE    -> "🟩"
+                                GalleryCategory.OTHER     -> "📁"
+                            }
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(KitsugiColors.SurfaceSoft)
+                                    .border(1.dp, KitsugiColors.Border, RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 7.dp, vertical = 3.dp)
+                            ) {
+                                Text(
+                                    text = "$catEmoji ${item.category.label}",
+                                    color = KitsugiColors.TextPrimary,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold
+                                )
+                            }
+
+                            // 3. Dil Bilgisi
+                            val langInfo = formatLanguage(item.language)
+                            if (langInfo != null) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(KitsugiColors.SurfaceSoft)
+                                        .border(1.dp, KitsugiColors.Border, RoundedCornerShape(6.dp))
+                                        .padding(horizontal = 7.dp, vertical = 3.dp)
+                                ) {
+                                    Text(
+                                        text = "${langInfo.first} ${langInfo.second}",
+                                        color = KitsugiColors.TextPrimary,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            } else if (item.language == null && (item.category == GalleryCategory.BACKDROP || item.category == GalleryCategory.LOGO || item.category == GalleryCategory.CLEARART)) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(KitsugiColors.SurfaceSoft.copy(alpha = 0.6f))
+                                        .padding(horizontal = 7.dp, vertical = 3.dp)
+                                ) {
+                                    Text(
+                                        text = "✨ Metinsiz",
+                                        color = KitsugiColors.TextMuted,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Normal
+                                    )
+                                }
+                            }
+
+                            // 4. Çözünürlük Bilgisi
+                            val resStr = formatResolution(item.width, item.height)
+                            if (resStr != null) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(KitsugiColors.SurfaceSoft)
+                                        .border(1.dp, KitsugiColors.Border, RoundedCornerShape(6.dp))
+                                        .padding(horizontal = 7.dp, vertical = 3.dp)
+                                ) {
+                                    Text(
+                                        text = "📐 $resStr",
+                                        color = KitsugiColors.TextSecondary,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+
+                            // 5. Özel Açıklama (varsa)
+                            if (!item.description.isNullOrBlank() &&
+                                item.description != "TMDB Poster" &&
+                                item.description != "TMDB Arka Plan" &&
+                                item.description != "TMDB Logo") {
+                                Text(
+                                    text = item.description,
+                                    color = KitsugiColors.TextPrimary,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        // Thumbnail Strip (alt)
+        if (filteredItems.size > 1) {
+            val listState = rememberLazyListState()
+
+            LaunchedEffect(pagerState.currentPage) {
+                val listInfo = listState.layoutInfo
+                val viewportWidth = listInfo.viewportEndOffset - listInfo.viewportStartOffset
+                if (viewportWidth > 0) {
+                    val itemWidthPx = with(density) { 52.dp.roundToPx() }
+                    val targetOffset = (viewportWidth - itemWidthPx) / 2
+                    listState.animateScrollToItem(pagerState.currentPage, -targetOffset)
+                } else {
+                    listState.animateScrollToItem(pagerState.currentPage)
+                }
+            }
+
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                Color.Transparent,
+                                KitsugiColors.Background.copy(alpha = 0.9f),
+                                KitsugiColors.Surface.copy(alpha = 0.96f)
+                            )
+                        )
+                    )
+                    .navigationBarsPadding()
+                    .padding(bottom = 20.dp, top = 24.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                LazyRow(
+                    state = listState,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    contentPadding = PaddingValues(horizontal = 20.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    itemsIndexed(filteredItems) { index, item ->
+                        val isSelected = pagerState.currentPage == index
+                        val thumbScale by animateFloatAsState(
+                            targetValue = if (isSelected) 1.12f else 0.88f,
+                            animationSpec = spring(dampingRatio = 0.6f),
+                            label = "thumb_scale_$index"
+                        )
+                        val thumbAlpha by animateFloatAsState(
+                            targetValue = if (isSelected) 1f else 0.38f,
+                            label = "thumb_alpha_$index"
+                        )
+
+                        Box(
+                            modifier = Modifier
+                                .graphicsLayer(scaleX = thumbScale, scaleY = thumbScale, alpha = thumbAlpha)
+                        ) {
+                            AsyncImage(
+                                model = item.url,
+                                contentDescription = "Thumbnail $index",
+                                modifier = Modifier
+                                    .size(width = 48.dp, height = 64.dp)
+                                    .clip(RoundedCornerShape(10.dp))
+                                    .border(
+                                        width = if (isSelected) 2.dp else 0.dp,
+                                        color = if (isSelected) accentColor else Color.Transparent,
+                                        shape = RoundedCornerShape(10.dp)
+                                    )
+                                    .tvClickable(shape = RoundedCornerShape(10.dp)) {
+                                        scope.launch { pagerState.animateScrollToPage(index) }
+                                    },
+                                contentScale = ContentScale.Crop
+                            )
+                            if (isSelected) {
+                                Box(
+                                    modifier = Modifier
+                                        .width(16.dp)
+                                        .height(3.dp)
+                                        .clip(RoundedCornerShape(2.dp))
+                                        .background(accentColor)
+                                        .align(Alignment.BottomCenter)
+                                        .offset(y = 6.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Detail row helper for the right panel
+// ─────────────────────────────────────────────────────────────────────────────
+@Composable
+private fun DetailRow(
+    label: String,
+    value: String?,
+    badge: (@Composable () -> Unit)? = null
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 7.dp)
+    ) {
+        Text(
+            text = label,
+            color = KitsugiColors.TextMuted,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.SemiBold,
+            letterSpacing = 0.5.sp
+        )
+        Spacer(modifier = Modifier.height(3.dp))
+        if (badge != null) {
+            badge()
+        } else if (value != null) {
+            Text(
+                text = value,
+                color = KitsugiColors.TextPrimary,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(1.dp)
+                .background(KitsugiColors.Border.copy(alpha = 0.25f))
+        )
     }
 }
 
@@ -560,7 +1240,6 @@ fun KitsugiImageGalleryDialog(
     )
 }
 
-// Custom gesture detector helper to allow page swipes when not zoomed in
 // Custom gesture detector helper to allow page swipes when not zoomed in
 suspend fun PointerInputScope.detectTransformGesturesCustom(
     onGesture: (pan: Offset, zoom: Float) -> Unit,
@@ -627,8 +1306,8 @@ private fun GalleryImagePage(
     val pageOffset = ((pagerState.currentPage - page) + pagerState.currentPageOffsetFraction)
     val isZoomed = zoomScale > 1f
 
-    val dominoScale = if (isZoomed) 1f else (1f - (kotlin.math.abs(pageOffset) * 0.15f)).coerceIn(0.75f, 1f)
-    val dominoAlpha = if (isZoomed) 1f else (1f - (kotlin.math.abs(pageOffset) * 0.45f)).coerceIn(0.35f, 1f)
+    val dominoScale = if (isZoomed) 1f else (1f - (abs(pageOffset) * 0.15f)).coerceIn(0.75f, 1f)
+    val dominoAlpha = if (isZoomed) 1f else (1f - (abs(pageOffset) * 0.45f)).coerceIn(0.35f, 1f)
     val dominoTranslationX = if (isZoomed) 0f else (pageOffset * 60.dp.value)
     BoxWithConstraints(
         modifier = Modifier.fillMaxSize(),
