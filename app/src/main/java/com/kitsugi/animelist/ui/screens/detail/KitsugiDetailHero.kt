@@ -345,7 +345,7 @@ fun KitsugiDetailHero(
             ) {
                 HeroDetailPill(
                     text = source.toFriendlySourceLabel().uppercase(),
-                    color = accentColor
+                    color = if (source.equals("tmdb", ignoreCase = true)) Color(0xFFFFB800) else accentColor
                 )
 
                 if (year != null) {

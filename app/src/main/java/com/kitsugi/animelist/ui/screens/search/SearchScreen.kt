@@ -649,7 +649,7 @@ fun SearchScreen(
                     MultiSearchSection(
                         title = "Film & Dizi (TMDB)",
                         badgeText = "TMDB",
-                        badgeColor = Color(0xFF0D253F),
+                        badgeColor = Color(0xFFFFB800),
                         results = uiState.multiResults.tmdbResults,
                         isLoading = uiState.multiResults.isLoadingTmdb,
                         isAlreadyInList = isAlreadyInList,
@@ -1096,7 +1096,7 @@ private fun MultiSearchSection(
             ) {
                 Text(
                     text = badgeText,
-                    color = Color.White,
+                    color = if (badgeText.equals("TMDB", ignoreCase = true) || badgeColor == Color(0xFFFFB800)) Color.Black else Color.White,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold
                 )

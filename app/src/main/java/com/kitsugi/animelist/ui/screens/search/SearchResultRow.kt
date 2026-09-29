@@ -197,6 +197,7 @@ fun SearchResultRow(
                     val sourceLabel = result.source.toFriendlySourceLabel()
                     val sourceColor = when (result.source.lowercase()) {
                         "anilist" -> KitsugiColors.AccentBlue
+                        "tmdb"    -> Color(0xFFFFB800)
                         else -> accentColor
                     }
                     Box(

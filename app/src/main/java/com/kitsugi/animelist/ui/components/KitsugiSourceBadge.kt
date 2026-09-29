@@ -36,18 +36,15 @@ fun KitsugiSourceBadge(
     val normalized = source.lowercase()
 
     // Platform renklerini ve etiketlerini tanımla
-    val (label, bgColor) = when (normalized) {
-        "anilist"          -> "AL"   to Color(0xFF02A9FF) // AniList mavi
-        "mal", "jikan"     -> "MAL"  to Color(0xFF2E51A2) // MyAnimeList lacivert
-        "tmdb"             -> "TMDB" to Color(0xFF0D253F) // TMDB koyu lacivert
-        "simkl"            -> "SK"   to Color(0xFF1F1F1F) // Simkl koyu
-        "kitsu"            -> "KT"   to Color(0xFFE35A02) // Kitsu turuncu
-        "shikimori"        -> "SHI"  to Color(0xFF4C86C8) // Shikimori mavi
+    val (label, bgColor, textColor) = when (normalized) {
+        "anilist"          -> Triple("AL",   Color(0xFF02A9FF), Color.White) // AniList mavi
+        "mal", "jikan"     -> Triple("MAL",  Color(0xFF2E51A2), Color.White) // MyAnimeList lacivert
+        "tmdb"             -> Triple("TMDB", Color(0xFFFFB800), Color.Black) // TMDB sarı
+        "simkl"            -> Triple("SK",   Color(0xFF1F1F1F), Color.White) // Simkl koyu
+        "kitsu"            -> Triple("KT",   Color(0xFFE35A02), Color.White) // Kitsu turuncu
+        "shikimori"        -> Triple("SHI",  Color(0xFF4C86C8), Color.White) // Shikimori mavi
         else -> return                                      // Bilinmeyen kaynak → gösterme
     }
-
-    // Ön plan metin rengi — her zaman beyaz, yeterli kontrast sağlar
-    val textColor = Color.White
 
     Box(
         modifier = modifier

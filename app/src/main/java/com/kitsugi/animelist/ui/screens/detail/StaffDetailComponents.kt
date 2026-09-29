@@ -350,7 +350,10 @@ internal fun StaffDetailLeftPanel(
             }
         }
         Column(modifier = Modifier.padding(16.dp)) {
-            DetailPill(text = source.toFriendlySourceLabel().uppercase(), color = accentColor)
+            DetailPill(
+                text = source.toFriendlySourceLabel().uppercase(),
+                color = if (source.equals("tmdb", ignoreCase = true)) Color(0xFFFFB800) else accentColor
+            )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = detail.name,
@@ -720,7 +723,7 @@ internal fun StaffPortraitHeroSection(
         ) {
             DetailPill(
                 text = source.toFriendlySourceLabel().uppercase(),
-                color = accentColor
+                color = if (source.equals("tmdb", ignoreCase = true)) Color(0xFFFFB800) else accentColor
             )
 
             Spacer(modifier = Modifier.height(10.dp))

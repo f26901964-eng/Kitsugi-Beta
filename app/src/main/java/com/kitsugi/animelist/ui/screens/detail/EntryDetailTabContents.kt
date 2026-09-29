@@ -444,7 +444,7 @@ internal fun DetailGalleryCard(
 
                             val badgeBgColor = when (item.source.lowercase()) {
                                 "fanart.tv" -> Color(0xFF9C27B0)
-                                "tmdb"      -> Color(0xFF00C853)
+                                "tmdb"      -> Color(0xFFFFB800)
                                 "jikan"     -> Color(0xFF00B0FF)
                                 "anilist"   -> Color(0xFF3DB4F2)
                                 "simkl"     -> Color(0xFFE50914)
@@ -490,7 +490,7 @@ internal fun DetailGalleryCard(
                                 ) {
                                     Text(
                                         text = item.source,
-                                        color = Color.White,
+                                        color = if (item.source.equals("tmdb", ignoreCase = true)) Color.Black else Color.White,
                                         fontSize = 8.sp,
                                         fontWeight = FontWeight.Bold
                                     )

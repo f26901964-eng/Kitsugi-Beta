@@ -352,7 +352,10 @@ internal fun CharacterDetailLeftPanel(
         }
         // İsim + native name + pill
         Column(modifier = Modifier.padding(16.dp)) {
-            DetailPill(text = source.toFriendlySourceLabel().uppercase(), color = accentColor)
+            DetailPill(
+                text = source.toFriendlySourceLabel().uppercase(),
+                color = if (source.equals("tmdb", ignoreCase = true)) Color(0xFFFFB800) else accentColor
+            )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
                 text = detail.name,
@@ -660,7 +663,10 @@ internal fun CharacterPortraitHeroSection(
         }
         // Name + native name + pill
         Column(modifier = androidx.compose.ui.Modifier.align(Alignment.BottomStart).padding(20.dp)) {
-            DetailPill(text = source.toFriendlySourceLabel().uppercase(), color = accentColor)
+            DetailPill(
+                text = source.toFriendlySourceLabel().uppercase(),
+                color = if (source.equals("tmdb", ignoreCase = true)) Color(0xFFFFB800) else accentColor
+            )
             Spacer(modifier = androidx.compose.ui.Modifier.height(10.dp))
             Text(
                 text = detail.name,

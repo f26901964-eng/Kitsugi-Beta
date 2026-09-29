@@ -317,7 +317,7 @@ fun KitsugiImageGalleryDialog(
                                             verticalArrangement = Arrangement.spacedBy(6.dp)
                                         ) {
                                             val badgeBg = when (item.source.lowercase()) {
-                                                "tmdb"      -> Color(0xFF01B4E4)
+                                                "tmdb"      -> Color(0xFFFFB800)
                                                 "fanart.tv" -> Color(0xFF9C27B0) // Violet
                                                 "anilist"   -> Color(0xFF3DB4F2) // AniList blue
                                                 "simkl"     -> Color(0xFFE50914) // Simkl red
@@ -336,7 +336,7 @@ fun KitsugiImageGalleryDialog(
                                             ) {
                                                 Text(
                                                     text = item.source,
-                                                    color = Color.White,
+                                                    color = if (item.source.equals("tmdb", ignoreCase = true)) Color.Black else Color.White,
                                                     fontSize = 11.sp,
                                                     fontWeight = FontWeight.Bold
                                                 )

@@ -216,7 +216,7 @@ internal fun StudioHeroHeader(
 
                 DetailPill(
                     text = source.toFriendlySourceLabel().uppercase(),
-                    color = KitsugiColors.TextSecondary
+                    color = if (source.equals("tmdb", ignoreCase = true)) Color(0xFFFFB800) else KitsugiColors.TextSecondary
                 )
 
                 if (detail.established != null) {

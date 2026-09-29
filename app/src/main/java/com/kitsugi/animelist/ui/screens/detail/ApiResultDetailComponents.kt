@@ -212,7 +212,7 @@ internal fun ApiHero(
 
                 ApiDetailPill(
                     text = result.source.toFriendlySourceLabel().uppercase(),
-                    color = accentColor
+                    color = if (result.source.equals("tmdb", ignoreCase = true)) Color(0xFFFFB800) else accentColor
                 )
 
                 if (result.year != null) {
@@ -1127,8 +1127,8 @@ internal fun ApiMdbListRatingCard(
                             emoji = "🎬",
                             label = "TMDB",
                             value = String.format("%.1f", ratings.tmdb),
-                            badgeColor = Color(0xFF0D253F),
-                            textColor = Color(0xFF01B4E4),
+                            badgeColor = Color(0xFFFFB800),
+                            textColor = Color(0xFF141414),
                             onClick = {
                                 val query = java.net.URLEncoder.encode(mediaTitle, "UTF-8")
                                 runCatching { uriHandler.openUri("https://www.themoviedb.org/search?query=$query") }

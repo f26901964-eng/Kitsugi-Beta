@@ -336,7 +336,7 @@ internal fun DetailHero(
             ) {
                 DetailPill(
                     text = entry.source.toFriendlySourceLabel().uppercase(),
-                    color = accentColor
+                    color = if (entry.source.equals("tmdb", ignoreCase = true)) Color(0xFFFFB800) else accentColor
                 )
 
                 if (entry.year != null) {

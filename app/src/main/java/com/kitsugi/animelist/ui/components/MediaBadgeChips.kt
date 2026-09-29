@@ -54,6 +54,7 @@ fun ImdbRatingSourceLabel(
     val friendlySource = source.toFriendlySourceLabel()
     val (bgColor, textColor, label) = when (friendlySource.lowercase()) {
         "imdb"        -> Triple(Color(0xFFF5C518), Color.Black, "IMDb")
+        "tmdb"        -> Triple(Color(0xFFFFB800), Color.Black, "TMDB")
         "simkl"       -> Triple(Color(0xFF1F2744), Color.White, "SIMKL")
         "anilist"     -> Triple(Color(0xFF02A9FF), Color.White, "AniList")
         "myanimelist" -> Triple(Color(0xFF2E51A2), Color.White, "MyAnimeList")

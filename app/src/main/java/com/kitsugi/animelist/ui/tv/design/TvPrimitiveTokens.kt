@@ -47,7 +47,7 @@ object KitsugiPrimitives {
     val torrent = Color(0xFF7E57C2)
     val premium = Color(0xFFFFD54F)
     val trakt = Color(0xFFED1C24)
-    val tmdb = Color(0xFF01B4E4)
+    val tmdb = Color(0xFFFFB800)
     val imdb = Color(0xFFF5C518)
     val mdblist = Color(0xFF7DD3FC)
 }
