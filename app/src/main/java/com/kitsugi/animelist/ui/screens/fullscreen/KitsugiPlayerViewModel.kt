@@ -1530,12 +1530,17 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                 }.toMutableList()
 
                     val settings = SettingsDataStore(context).settingsFlow.first()
-                    val preferredLangs = settings.preferredSubtitleLanguages.split(",").map { it.trim().lowercase() }
+                    val preferredLangs = settings.preferredSubtitleLanguages.split(",").map { it.trim().lowercase() }.filter { it.isNotEmpty() }
+                    val effectivePreferredLangs = if (preferredLangs.any { com.kitsugi.animelist.core.player.PlayerSubtitleUtils.matchesLanguageCode(it, "tr") }) {
+                        preferredLangs
+                    } else {
+                        listOf("tr") + preferredLangs
+                    }
                     val startupMode = settings.addonSubtitleStartupMode
 
                     val filteredSubs = if (startupMode == "PREFERRED_ONLY") {
                         remoteSubs.filter { sub ->
-                            preferredLangs.any { pref -> com.kitsugi.animelist.core.player.PlayerSubtitleUtils.matchesLanguageCode(sub.lang, pref) }
+                            effectivePreferredLangs.any { pref -> com.kitsugi.animelist.core.player.PlayerSubtitleUtils.matchesLanguageCode(sub.lang, pref) }
                         }
                     } else {
                         remoteSubs
@@ -1570,7 +1575,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                         val merged = (_currentSubtitles.value + processedSubs).distinctBy { it.url }
                         val sorted = com.kitsugi.animelist.core.player.PlayerSubtitleUtils.sortSubtitlesByPreference(
                             merged,
-                            preferredLangs
+                            effectivePreferredLangs
                         )
                         _currentSubtitles.value = sorted
                         Log.d("KitsugiPlayerViewModel", "Altyaz\u0131lar y\u00fcklendi: toplam=${sorted.size} (${processedSubs.size} yeni)")

@@ -150,20 +150,62 @@ object PlayerSubtitleUtils {
         }
     }
 
+    /**
+     * Verilen dil kodu veya parça etiketinin (label/title) Türkçe olup olmadığını kontrol eder.
+     * Hem ISO dil kodlarını ("tr", "tur") hem de etiket içindeki anahtar kelimeleri
+     * ("türkçe", "turkish", "turk", "[TR]", "(TR)" vb.) kapsamlı olarak doğrular.
+     */
+    fun isTurkish(lang: String?, label: String? = null): Boolean {
+        if (!lang.isNullOrBlank() && matchesLanguageCode(lang.trim(), "tr")) {
+            return true
+        }
+        if (!label.isNullOrBlank()) {
+            val lower = label.trim().lowercase(java.util.Locale.ROOT)
+            if (lower.contains("türkçe") || lower.contains("turkce") || lower.contains("turkish") || lower.contains("turk")) {
+                return true
+            }
+            val trRegex = Regex("""(^|[\s\[\(\-_\./])(tr|tur)([\s\]\)\-_\./]|$)""", RegexOption.IGNORE_CASE)
+            if (trRegex.containsMatchIn(lower)) {
+                return true
+            }
+        }
+        return false
+    }
+
+    /**
+     * Verilen parça dil kodu veya etiketinin hedeflenen dil kodu ile eşleşip eşleşmediğini kontrol eder.
+     */
+    fun matchesTrackLanguage(lang: String?, label: String?, targetLangCode: String): Boolean {
+        val target = targetLangCode.trim().lowercase(java.util.Locale.ROOT)
+        if (target == "tr" || target == "tur") {
+            return isTurkish(lang, label)
+        }
+        if (!lang.isNullOrBlank() && matchesLanguageCode(lang.trim(), target)) {
+            return true
+        }
+        if (!label.isNullOrBlank()) {
+            val lower = label.trim().lowercase(java.util.Locale.ROOT)
+            val aliases = LANG_ALIASES[target] ?: setOf(target)
+            if (aliases.any { lower.contains(it) }) {
+                return true
+            }
+        }
+        return false
+    }
+
     /** Verilen dil string'inin Türkçe olup olmadığını döner. */
     fun isTurkishLang(lang: String?): Boolean {
-        if (lang.isNullOrBlank()) return false
-        return matchesLanguageCode(lang.trim(), "tr")
+        return isTurkish(lang, null)
     }
 
     /**
      * SubtitleInput listesinden en iyi altyazıyı seçer.
      *
-     * Öncelik sırası:
-     *  1. Dahili (isExternal=false) Türkçe altyazı
-     *  2. Harici/addon (isExternal=true) Türkçe altyazı
-     *  3. Kullanıcı tercih listesindeki ilk eşleşme (sırasıyla)
-     *  4. Listedeki ilk altyazı (fallback)
+     * Kesin Öncelik Hiyerarşisi:
+     *  1. Dahili / site kaynağının (isExternal=false) Türkçe altyazısı
+     *  2. Harici servislerden (OpenSubtitles vb., isExternal=true) gelen Türkçe altyazı
+     *  3. Kullanıcı tercih listesindeki diğer diller (örn: "en") - önce dahili, sonra harici
+     *  4. Eşleşme yoksa null (ASLA rastgele İtalyanca veya yabancı dil seçilmez!)
      *
      * @param subtitles      Aranacak SubtitleInput listesi
      * @param preferredLangs Kullanıcı tercih dil listesi (BCP-47, örn: ["tr", "en"])
@@ -174,48 +216,88 @@ object PlayerSubtitleUtils {
     ): SubtitleInput? {
         if (subtitles.isEmpty()) return null
 
-        // Tercih sırasına göre dilleri gez, her dil için önce dahili (internal) sonra harici (external)
-        for (lang in preferredLangs) {
-            subtitles.firstOrNull { !it.isExternal && matchesLanguageCode(it.lang, lang) }?.let { return it }
-            subtitles.firstOrNull { it.isExternal && matchesLanguageCode(it.lang, lang) }?.let { return it }
+        val effectiveLangs = if (preferredLangs.any { matchesLanguageCode(it, "tr") }) {
+            preferredLangs
+        } else {
+            listOf("tr") + preferredLangs
         }
 
-        // Fallback 1: Dahili olan ilk altyazı
-        subtitles.firstOrNull { !it.isExternal }?.let { return it }
+        // 1. ÖNCELİK: Video kaynağı / site kaynaklı Türkçe altyazı (dahili veya eklenti stream'i ile gelen)
+        val sourceTurkish = subtitles.firstOrNull { !it.isExternal && isTurkish(it.lang, it.name) }
+        if (sourceTurkish != null) return sourceTurkish
 
-        // Fallback 2: Herhangi ilk altyazı
-        return subtitles.firstOrNull()
+        // 2. ÖNCELİK: OpenSubtitles / harici eklenti kaynaklı Türkçe altyazı
+        val addonTurkish = subtitles.firstOrNull { it.isExternal && isTurkish(it.lang, it.name) }
+        if (addonTurkish != null) return addonTurkish
+
+        // 3. ÖNCELİK: Kullanıcının tercih listesindeki diğer diller
+        for (lang in effectiveLangs) {
+            if (matchesLanguageCode(lang, "tr")) continue
+            val sourceMatch = subtitles.firstOrNull { !it.isExternal && matchesTrackLanguage(it.lang, it.name, lang) }
+            if (sourceMatch != null) return sourceMatch
+
+            val addonMatch = subtitles.firstOrNull { it.isExternal && matchesTrackLanguage(it.lang, it.name, lang) }
+            if (addonMatch != null) return addonMatch
+        }
+
+        // Eşleşme yoksa null dön (Asla yabancı altyazı fallback yapılmaz!)
+        return null
     }
 
     /**
-     * MPV track snapshot altyazılarından en iyi parçanın ID'sini seçer.
+     * MPV track snapshot altyazılarından en iyi parçayı seçer.
      *
-     * Öncelik sırası:
-     *  1. Kullanıcı tercih listesindeki diller için sırayla Dahili (isExternal=false)
-     *  2. Kullanıcı tercih listesindeki diller için sırayla Harici (isExternal=true)
-     *  3. Dahili ilk mevcut parça
-     *  4. Herhangi ilk mevcut parça (fallback)
+     * Kesin Öncelik Hiyerarşisi:
+     *  1. Video/site kaynağının kendi Türkçe altyazısı (dahili akış veya site tarafından sağlanan, isAddonSubtitle=false)
+     *  2. Harici servislerden (OpenSubtitles vb., isAddonSubtitle=true) gelen Türkçe altyazı
+     *  3. Kullanıcının diğer tercih dilleri (örn: İngilizce) - önce dahili, sonra harici
+     *  4. Eşleşme yoksa null (ASLA rastgele İtalyanca veya istenmeyen dilde altyazı seçilmez!)
      *
      * @param subtitleTracks MPV track snapshot altyazı listesi (MpvTrack)
-     * @param preferredLangs Kullanıcı tercih dil listesi
+     * @param preferredLangs Kullanıcı tercih dil listesi (örn: ["tr"] veya ["tr", "en"])
+     * @param isAddonSubtitle İlgili parçanın OpenSubtitles gibi harici eklentilerden gelip gelmediğini belirten fonksiyon
      */
     fun findBestMpvSubtitleTrack(
         subtitleTracks: List<com.kitsugi.animelist.core.player.engine.MpvTrack>,
-        preferredLangs: List<String>
+        preferredLangs: List<String>,
+        isAddonSubtitle: (com.kitsugi.animelist.core.player.engine.MpvTrack) -> Boolean = { it.isExternal }
     ): com.kitsugi.animelist.core.player.engine.MpvTrack? {
         if (subtitleTracks.isEmpty()) return null
 
-        // Tercih sırasına göre dilleri gez, her dil için önce dahili sonra harici
-        for (lang in preferredLangs) {
-            subtitleTracks.firstOrNull { !it.isExternal && matchesLanguageCode(it.language ?: "", lang) }?.let { return it }
-            subtitleTracks.firstOrNull { it.isExternal && matchesLanguageCode(it.language ?: "", lang) }?.let { return it }
+        val effectiveLangs = if (preferredLangs.any { matchesLanguageCode(it, "tr") }) {
+            preferredLangs
+        } else {
+            listOf("tr") + preferredLangs
         }
 
-        // Fallback 1: Dahili olan ilk altyazı
-        subtitleTracks.firstOrNull { !it.isExternal }?.let { return it }
+        // 1. ÖNCELİK: Video kaynağı / site kaynaklı Türkçe altyazı
+        val sourceTurkish = subtitleTracks.firstOrNull { track ->
+            !isAddonSubtitle(track) && isTurkish(track.language, track.name)
+        }
+        if (sourceTurkish != null) return sourceTurkish
 
-        // Fallback 2
-        return subtitleTracks.firstOrNull()
+        // 2. ÖNCELİK: OpenSubtitles / harici eklenti kaynaklı Türkçe altyazı
+        val addonTurkish = subtitleTracks.firstOrNull { track ->
+            isAddonSubtitle(track) && isTurkish(track.language, track.name)
+        }
+        if (addonTurkish != null) return addonTurkish
+
+        // 3. ÖNCELİK: Kullanıcının tercih listesindeki diğer diller
+        for (lang in effectiveLangs) {
+            if (matchesLanguageCode(lang, "tr")) continue
+            val sourceMatch = subtitleTracks.firstOrNull { track ->
+                !isAddonSubtitle(track) && matchesTrackLanguage(track.language, track.name, lang)
+            }
+            if (sourceMatch != null) return sourceMatch
+
+            val addonMatch = subtitleTracks.firstOrNull { track ->
+                isAddonSubtitle(track) && matchesTrackLanguage(track.language, track.name, lang)
+            }
+            if (addonMatch != null) return addonMatch
+        }
+
+        // Hiçbir tercih edilen dil bulunamadıysa null dön
+        return null
     }
 
     /**
@@ -223,7 +305,8 @@ object PlayerSubtitleUtils {
      *
      * Öncelik sırası:
      *  1. Türkçe ses parçası
-     *  2. İlk mevcut ses parçası (fallback)
+     *  2. Kullanıcı tercih listesi
+     *  3. İlk mevcut ses parçası (fallback)
      */
     fun findBestMpvAudioTrack(
         audioTracks: List<com.kitsugi.animelist.core.player.engine.MpvTrack>,
@@ -232,11 +315,11 @@ object PlayerSubtitleUtils {
         if (audioTracks.isEmpty()) return null
 
         // 1. Türkçe ses
-        audioTracks.firstOrNull { isTurkishLang(it.language) }?.let { return it }
+        audioTracks.firstOrNull { isTurkish(it.language, it.name) }?.let { return it }
 
         // 2. Kullanıcı tercih listesi
         for (lang in preferredLangs) {
-            audioTracks.firstOrNull { matchesLanguageCode(it.language ?: "", lang) }?.let { return it }
+            audioTracks.firstOrNull { matchesTrackLanguage(it.language, it.name, lang) }?.let { return it }
         }
 
         // 3. Fallback

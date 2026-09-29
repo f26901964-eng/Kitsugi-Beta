@@ -171,6 +171,7 @@ class MpvPlayerEngine(
         // Yeni ortam için otomatik parça seçimini sıfırla
         this.preparedSubtitles = subtitles
         this.initialSelectionDone = false
+        this._isSubtitleDisabled = false
 
         updateState(PlayerEngine.State.BUFFERING)
 
@@ -636,36 +637,58 @@ class MpvPlayerEngine(
             )
         }
 
+        val isAddonSub: (com.kitsugi.animelist.core.player.engine.MpvTrack) -> Boolean = { track ->
+            preparedSubtitles.any { sub ->
+                sub.isExternal && (
+                    track.name.contains(sub.name, ignoreCase = true) ||
+                    sub.name.contains(track.name, ignoreCase = true) ||
+                    (sub.lang.isNotBlank() && track.language == sub.lang)
+                )
+            }
+        }
+
         // ── İlk otomatik parça seçimi — yalnızca yeni medya yüklendiğinde tetiklenir ────────────────
-        if (!initialSelectionDone && snapshot.audioTracks.isNotEmpty()) {
+        if (!initialSelectionDone && (snapshot.audioTracks.isNotEmpty() || snapshot.subtitleTracks.isNotEmpty())) {
             initialSelectionDone = true
             val preferredLangs = settings.preferredSubtitleLanguages
                 .split(",").map { it.trim().lowercase() }.filter { it.isNotEmpty() }
 
             // ── Ses: Türkçe önce, sonra tercih listesi ───────────────────────────────
-            val isAnyAudioSelected = snapshot.audioTracks.any { it.isSelected }
-            if (!isAnyAudioSelected) {
+            val currentlySelectedAudio = snapshot.audioTracks.firstOrNull { it.isSelected }
+            val isSelectedAudioTurkish = currentlySelectedAudio != null && 
+                com.kitsugi.animelist.core.player.PlayerSubtitleUtils.isTurkish(currentlySelectedAudio.language, currentlySelectedAudio.name)
+            if (!isSelectedAudioTurkish) {
                 val bestAudio = com.kitsugi.animelist.core.player.PlayerSubtitleUtils
                     .findBestMpvAudioTrack(snapshot.audioTracks, preferredLangs)
-                if (bestAudio != null) {
+                if (bestAudio != null && currentlySelectedAudio?.id != bestAudio.id) {
                     Log.i(TAG, "Auto-selecting audio track: ${bestAudio.name} (id=${bestAudio.id})")
                     view.selectAudioTrackById(bestAudio.id)
                 }
             }
 
-            // ── Altyazı: Öncelik hiyerarşisi ─────────────────────────────────────────
-            // 1. Dahili (stream içi) Türkçe altyazı parçası
-            // 2. Harici (addon'dan yüklenen) Türkçe altyazı
-            // 3. Kullanıcı tercih dilleri
-            // 4. İlk mevcut altyazı (fallback)
+            // ── Altyazı: Kesin Öncelik Hiyerarşisi ───────────────────────────────────
+            // 1. Dahili / site kaynaklı Türkçe altyazı (isAddonSub = false)
+            // 2. Harici (OpenSubtitles vb.) Türkçe altyazı (isAddonSub = true)
+            // 3. Kullanıcı diğer tercih dilleri
+            // 4. Eşleşme yoksa: Devre dışı bırak (İtalyanca vb. yabancı diller ASLA seçilmez!)
             if (!_isSubtitleDisabled && snapshot.subtitleTracks.isNotEmpty()) {
-                val isAnySubSelected = snapshot.subtitleTracks.any { it.isSelected }
-                if (!isAnySubSelected) {
+                val currentlySelectedSub = snapshot.subtitleTracks.firstOrNull { it.isSelected }
+                val isSelectedTurkishSource = currentlySelectedSub != null && 
+                    !isAddonSub(currentlySelectedSub) && 
+                    com.kitsugi.animelist.core.player.PlayerSubtitleUtils.isTurkish(currentlySelectedSub.language, currentlySelectedSub.name)
+
+                if (!isSelectedTurkishSource) {
                     val bestSub = com.kitsugi.animelist.core.player.PlayerSubtitleUtils
-                        .findBestMpvSubtitleTrack(snapshot.subtitleTracks, preferredLangs)
+                        .findBestMpvSubtitleTrack(snapshot.subtitleTracks, preferredLangs, isAddonSub)
                     if (bestSub != null) {
-                        Log.i(TAG, "Auto-selecting subtitle track: ${bestSub.name} (id=${bestSub.id})")
-                        view.selectSubtitleTrackById(bestSub.id)
+                        if (currentlySelectedSub?.id != bestSub.id) {
+                            Log.i(TAG, "Auto-selecting subtitle track: ${bestSub.name} (id=${bestSub.id})")
+                            view.selectSubtitleTrackById(bestSub.id)
+                        }
+                    } else {
+                        // Türkçe veya tercih edilen dil bulunamadı — yabancı dili kapat
+                        Log.i(TAG, "No Turkish/preferred subtitle found. Disabling non-preferred track: ${currentlySelectedSub?.name}")
+                        view.disableSubtitles()
                     }
                 }
             }

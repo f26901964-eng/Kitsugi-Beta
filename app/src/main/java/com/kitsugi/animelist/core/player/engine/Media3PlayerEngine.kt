@@ -290,77 +290,105 @@ class Media3PlayerEngine(
                     .split(",").map { it.trim().lowercase() }.filter { it.isNotEmpty() }
 
                 // ── Ses parçası: Türkçe önce, sonra tercih listesi ─────────────────────
-                val isAnyAudioSelected2 = audioOptions.any { it.isSelected }
-                if (!isAnyAudioSelected2 && audioOptions.isNotEmpty()) {
+                val currentlySelectedAudio = audioOptions.firstOrNull { it.isSelected }
+                val isSelectedAudioTurkish = currentlySelectedAudio != null && run {
+                    val format = currentlySelectedAudio.group.getTrackFormat(currentlySelectedAudio.trackIndex)
+                    com.kitsugi.animelist.core.player.PlayerSubtitleUtils.isTurkish(format.language, format.label)
+                }
+                if (!isSelectedAudioTurkish && audioOptions.isNotEmpty()) {
                     val preferredAudio = audioOptions.find { opt ->
-                        val lang = opt.group.getTrackFormat(opt.trackIndex).language ?: ""
-                        com.kitsugi.animelist.core.player.PlayerSubtitleUtils.isTurkishLang(lang)
+                        val format = opt.group.getTrackFormat(opt.trackIndex)
+                        com.kitsugi.animelist.core.player.PlayerSubtitleUtils.isTurkish(format.language, format.label)
                     } ?: run {
-                        // Tercih listesine göre ses parçası bul
                         var found: TrackOption? = null
                         for (lang in preferredLangs) {
                             found = audioOptions.find { opt ->
-                                val l = opt.group.getTrackFormat(opt.trackIndex).language ?: ""
-                                com.kitsugi.animelist.core.player.PlayerSubtitleUtils.matchesLanguageCode(l, lang)
+                                val format = opt.group.getTrackFormat(opt.trackIndex)
+                                com.kitsugi.animelist.core.player.PlayerSubtitleUtils.matchesTrackLanguage(format.language, format.label, lang)
                             }
                             if (found != null) break
                         }
                         found ?: audioOptions.firstOrNull()
                     }
                     preferredAudio?.let {
-                        Log.i(TAG, "Auto-selecting audio track: ${it.label}")
-                        selectTrack(it)
+                        if (currentlySelectedAudio != it) {
+                            Log.i(TAG, "Auto-selecting audio track: ${it.label}")
+                            selectTrack(it)
+                        }
                     }
                 }
 
-                // ── Altyazı: Öncelik hiyerarşisi ─────────────────────────────────────
-                // Tercih edilen diller için sırayla:
-                // 1. Dahili (isExternal = false)
-                // 2. Harici (isExternal = true)
-                // Sonra fallback: dahili ilk, en son herhangi ilk
+                // ── Altyazı: Kesin Öncelik Hiyerarşisi ──────────────────────────────────
+                // 1. Dahili / site kaynaklı Türkçe altyazı (isExternal = false)
+                // 2. Harici (OpenSubtitles vb.) Türkçe altyazı (isExternal = true)
+                // 3. Kullanıcı diğer tercih dilleri
+                // 4. Eşleşme yoksa: Devre dışı bırak (İtalyanca vb. yabancı diller ASLA seçilmez!)
                 if (!isSubtitleDisabled && textOptions.isNotEmpty()) {
-                    val isAnySubSelected = textOptions.any { it.isSelected }
-                    if (!isAnySubSelected) {
-                        val isExternalTrack: (TrackOption) -> Boolean = { opt ->
-                            val format = opt.group.getTrackFormat(opt.trackIndex)
-                            val lang = format.language ?: ""
-                            val label = format.label ?: ""
-                            preparedSubtitles.any { sub ->
-                                sub.isExternal && 
-                                com.kitsugi.animelist.core.player.PlayerSubtitleUtils.matchesLanguageCode(sub.lang, lang) &&
-                                (label == sub.name || label.contains(sub.name, ignoreCase = true))
-                            }
+                    val isExternalTrack: (TrackOption) -> Boolean = { opt ->
+                        val format = opt.group.getTrackFormat(opt.trackIndex)
+                        val lang = format.language ?: ""
+                        val label = format.label ?: ""
+                        val id = format.id ?: ""
+                        preparedSubtitles.any { sub ->
+                            sub.isExternal && (
+                                (id.isNotBlank() && (id == sub.url || id == "file://${sub.url}")) ||
+                                (label.isNotBlank() && (label == sub.name || label.contains(sub.name, ignoreCase = true))) ||
+                                (sub.name.isNotBlank() && sub.name.contains(label, ignoreCase = true))
+                            )
                         }
+                    }
 
+                    val currentlySelected = textOptions.firstOrNull { it.isSelected }
+                    val isSelectedTurkishSource = currentlySelected != null && run {
+                        val format = currentlySelected.group.getTrackFormat(currentlySelected.trackIndex)
+                        !isExternalTrack(currentlySelected) && 
+                            com.kitsugi.animelist.core.player.PlayerSubtitleUtils.isTurkish(format.language, format.label)
+                    }
+
+                    if (!isSelectedTurkishSource) {
                         var bestSub: TrackOption? = null
-                        for (lang in preferredLangs) {
-                            // 1. Dahili matching lang
-                            bestSub = textOptions.find { opt ->
-                                val l = opt.group.getTrackFormat(opt.trackIndex).language ?: ""
-                                com.kitsugi.animelist.core.player.PlayerSubtitleUtils.matchesLanguageCode(l, lang) && !isExternalTrack(opt)
-                            }
-                            if (bestSub != null) break
 
-                            // 2. Harici matching lang
-                            bestSub = textOptions.find { opt ->
-                                val l = opt.group.getTrackFormat(opt.trackIndex).language ?: ""
-                                com.kitsugi.animelist.core.player.PlayerSubtitleUtils.matchesLanguageCode(l, lang) && isExternalTrack(opt)
-                            }
-                            if (bestSub != null) break
+                        // 1. ÖNCELİK: Dahili / site kaynaklı Türkçe altyazı
+                        bestSub = textOptions.find { opt ->
+                            val format = opt.group.getTrackFormat(opt.trackIndex)
+                            !isExternalTrack(opt) && com.kitsugi.animelist.core.player.PlayerSubtitleUtils.isTurkish(format.language, format.label)
                         }
 
+                        // 2. ÖNCELİK: Harici (OpenSubtitles vb.) Türkçe altyazı
                         if (bestSub == null) {
-                            // Fallback 1: İlk dahili altyazı
-                            bestSub = textOptions.find { !isExternalTrack(it) }
-                        }
-                        if (bestSub == null) {
-                            // Fallback 2: Herhangi ilk altyazı
-                            bestSub = textOptions.firstOrNull()
+                            bestSub = textOptions.find { opt ->
+                                val format = opt.group.getTrackFormat(opt.trackIndex)
+                                isExternalTrack(opt) && com.kitsugi.animelist.core.player.PlayerSubtitleUtils.isTurkish(format.language, format.label)
+                            }
                         }
 
-                        bestSub?.let {
-                            Log.i(TAG, "Auto-selecting subtitle track: ${it.label}")
-                            selectTrack(it)
+                        // 3. ÖNCELİK: Diğer tercih dilleri (sırayla dahili, sonra harici)
+                        if (bestSub == null) {
+                            for (lang in preferredLangs) {
+                                if (com.kitsugi.animelist.core.player.PlayerSubtitleUtils.matchesLanguageCode(lang, "tr")) continue
+                                bestSub = textOptions.find { opt ->
+                                    val format = opt.group.getTrackFormat(opt.trackIndex)
+                                    !isExternalTrack(opt) && com.kitsugi.animelist.core.player.PlayerSubtitleUtils.matchesTrackLanguage(format.language, format.label, lang)
+                                }
+                                if (bestSub != null) break
+
+                                bestSub = textOptions.find { opt ->
+                                    val format = opt.group.getTrackFormat(opt.trackIndex)
+                                    isExternalTrack(opt) && com.kitsugi.animelist.core.player.PlayerSubtitleUtils.matchesTrackLanguage(format.language, format.label, lang)
+                                }
+                                if (bestSub != null) break
+                            }
+                        }
+
+                        if (bestSub != null) {
+                            if (currentlySelected != bestSub) {
+                                Log.i(TAG, "Auto-selecting best subtitle track: ${bestSub.label}")
+                                selectTrack(bestSub)
+                            }
+                        } else {
+                            // Türkçe veya tercih edilen dil yoksa yabancı dili (İtalyanca vb.) kapat
+                            Log.i(TAG, "No Turkish/preferred subtitle found. Disabling non-preferred track: ${currentlySelected?.label}")
+                            disableSubtitles()
                         }
                     }
                 }
@@ -443,13 +471,23 @@ class Media3PlayerEngine(
                 setEnableDecoderFallback(true)
             }
 
-            val preferredLangs = settings.preferredSubtitleLanguages.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+            val preferredLangs = settings.preferredSubtitleLanguages.split(",").map { it.trim().lowercase() }.filter { it.isNotEmpty() }
+            val expandedTextLangs = mutableListOf<String>()
+            preferredLangs.forEach { lang ->
+                if (lang == "tr" || lang == "tur") {
+                    expandedTextLangs.add("tr")
+                    expandedTextLangs.add("tur")
+                    expandedTextLangs.add("turkish")
+                } else {
+                    expandedTextLangs.add(lang)
+                }
+            }
             val preferredAudioLangs = listOf("tr", "tur", "en", "eng", "ja", "jpn", "zxx", "und")
             val localSelector = androidx.media3.exoplayer.trackselection.DefaultTrackSelector(context).apply {
                 parameters = buildUponParameters()
                     .setPreferredAudioLanguages(*preferredAudioLangs.toTypedArray())
-                    .setPreferredTextLanguages(*preferredLangs.toTypedArray())
-                    .setSelectUndeterminedTextLanguage(true)
+                    .setPreferredTextLanguages(*expandedTextLangs.toTypedArray())
+                    .setSelectUndeterminedTextLanguage(false)
                     .build()
             }
             this.trackSelector = localSelector
@@ -532,9 +570,20 @@ class Media3PlayerEngine(
                     .build()
             }
             trackSelector?.let { selector ->
-                val preferredLangs = settings.preferredSubtitleLanguages.split(",").map { it.trim() }.filter { it.isNotEmpty() }
+                val preferredLangs = settings.preferredSubtitleLanguages.split(",").map { it.trim().lowercase() }.filter { it.isNotEmpty() }
+                val expandedTextLangs = mutableListOf<String>()
+                preferredLangs.forEach { lang ->
+                    if (lang == "tr" || lang == "tur") {
+                        expandedTextLangs.add("tr")
+                        expandedTextLangs.add("tur")
+                        expandedTextLangs.add("turkish")
+                    } else {
+                        expandedTextLangs.add(lang)
+                    }
+                }
                 selector.parameters = selector.buildUponParameters()
-                    .setPreferredTextLanguages(*preferredLangs.toTypedArray())
+                    .setPreferredTextLanguages(*expandedTextLangs.toTypedArray())
+                    .setSelectUndeterminedTextLanguage(false)
                     .build()
             }
         }

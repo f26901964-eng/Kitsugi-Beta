@@ -416,16 +416,39 @@ class KitsugiMpvSurfaceView @JvmOverloads constructor(
 
     fun applySubtitleLanguagePreferences(preferred: String, secondary: String?) {
         if (!initialized) return
-        val languages = listOfNotNull(
+        val rawLanguages = listOfNotNull(
             preferred.takeIf { it.isNotBlank() && !it.equals("none", ignoreCase = true) },
             secondary?.takeIf { it.isNotBlank() && !it.equals("none", ignoreCase = true) }
         )
-        if (languages.isEmpty()) {
+        if (rawLanguages.isEmpty()) {
             disableSubtitles()
             return
         }
+
+        // Genişletilmiş dil kodları (MPV slang için: tr -> tr,tur,turkish,türkçe,turk)
+        val expandedLanguages = mutableListOf<String>()
+        rawLanguages.forEach { langGroup ->
+            langGroup.split(",").map { it.trim().lowercase() }.filter { it.isNotEmpty() }.forEach { code ->
+                when (code) {
+                    "tr", "tur" -> {
+                        expandedLanguages.add("tr")
+                        expandedLanguages.add("tur")
+                        expandedLanguages.add("turkish")
+                        expandedLanguages.add("türkçe")
+                        expandedLanguages.add("turk")
+                    }
+                    "en", "eng" -> {
+                        expandedLanguages.add("en")
+                        expandedLanguages.add("eng")
+                        expandedLanguages.add("english")
+                    }
+                    else -> expandedLanguages.add(code)
+                }
+            }
+        }
+
         runCatching {
-            mpv.setPropertyString("slang", languages.joinToString(","))
+            mpv.setPropertyString("slang", expandedLanguages.distinct().joinToString(","))
         }.onFailure {
             Log.w(TAG, "Failed to set subtitle language preference: ${it.message}")
         }
