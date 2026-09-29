@@ -32,6 +32,7 @@ internal fun CsInstalledPluginRow(
     plugin: CsPluginEntity,
     accentColor: Color,
     reinstallState: PluginInstallState,
+    latestPlugin: CsPlugin? = null,
     onInstallPlugin: (CsPlugin, ((Boolean) -> Unit)?) -> Unit,
     onToggleCsPlugin: (CsPluginEntity, Boolean) -> Unit,
     onUninstallCsPlugin: (CsPluginEntity) -> Unit,
@@ -284,13 +285,35 @@ internal fun CsInstalledPluginRow(
                             }
                         }
                     }
-                    Text(
-                        text = "v${plugin.version} • ${plugin.id}",
-                        color = KitsugiColors.TextSecondary,
-                        style = MaterialTheme.typography.bodySmall,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    val hasUpdate = latestPlugin != null && latestPlugin.version > plugin.version
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Text(
+                            text = "v${plugin.version} • ${plugin.id}",
+                            color = KitsugiColors.TextSecondary,
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        if (hasUpdate) {
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(6.dp))
+                                    .background(KitsugiColors.AccentOrange.copy(alpha = 0.18f))
+                                    .border(1.dp, KitsugiColors.AccentOrange.copy(alpha = 0.45f), RoundedCornerShape(6.dp))
+                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    "⬆️ v${latestPlugin!!.version} Mevcut",
+                                    color = KitsugiColors.AccentOrange,
+                                    fontSize = 10.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                    }
                     if (!plugin.tvTypes.isNullOrBlank() && plugin.tvTypes != "[]") {
                         val types = try {
                             com.google.gson.Gson().fromJson(plugin.tvTypes, Array<String>::class.java).take(3).joinToString(", ")
@@ -326,6 +349,30 @@ internal fun CsInstalledPluginRow(
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                if (latestPlugin != null && latestPlugin.version > plugin.version) {
+                    Button(
+                        onClick = {
+                            onStartReinstall()
+                            onInstallPlugin(latestPlugin) { success ->
+                                onReinstallResult(success)
+                            }
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = KitsugiColors.AccentOrange),
+                        shape = RoundedCornerShape(8.dp),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                        modifier = Modifier.height(30.dp)
+                    ) {
+                        if (reinstallState == PluginInstallState.LOADING) {
+                            CircularProgressIndicator(modifier = Modifier.size(14.dp), color = Color.White, strokeWidth = 2.dp)
+                        } else {
+                            Icon(Icons.Rounded.ArrowCircleUp, contentDescription = null, tint = Color.White, modifier = Modifier.size(15.dp))
+                        }
+                        Spacer(Modifier.width(4.dp))
+                        Text("Güncelle (v${latestPlugin.version})", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                    Spacer(Modifier.width(6.dp))
+                }
+
                 TextButton(
                     onClick = {
                         val csPlugin = CsPlugin(

@@ -255,7 +255,13 @@ data class AddonSettings(
     val onUninstallCsPlugin: (CsPluginEntity) -> Unit = {},
     // ─── GitHub Vekil Sunucu ──────────────────────────────────────────────────
     val useGithubProxy: Boolean = false,
-    val onUseGithubProxyChanged: (Boolean) -> Unit = {}
+    val onUseGithubProxyChanged: (Boolean) -> Unit = {},
+    // ─── Eklenti Güncellemeleri ───────────────────────────────────────────────
+    val isCheckingUpdates: Boolean = false,
+    val availableUpdatesCount: Int = 0,
+    val onCheckForUpdates: () -> Unit = {},
+    val onUpdateAllPendingPlugins: () -> Unit = {},
+    val onRefreshRepo: (String) -> Unit = {}
 )
 
 data class MangaSettings(

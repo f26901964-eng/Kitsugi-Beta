@@ -43,7 +43,20 @@ object CloudstreamUrlHelper {
             url = if (realUrl.startsWith("http")) realUrl else "https://$realUrl"
         }
 
-        // Dead legacy repositories are automatically redirected to the working Kitsugi-Plugins repo
+        // Dead legacy repositories and old user accounts are automatically redirected to the working Kitsugi-Plugins repo
+        if (url.contains("gameras1010-afk/Kitsugi-Plugins", ignoreCase = true)) {
+            url = url.replace("gameras1010-afk/Kitsugi-Plugins", "KitsugiBeta-dev/Kitsugi-Plugins", ignoreCase = true)
+        }
+        if (url.contains("keyiflerolsun/Kekik-cloudstream", ignoreCase = true)) {
+            url = url.replace("keyiflerolsun/Kekik-cloudstream/master", "KitsugiBeta-dev/Kitsugi-Plugins/builds", ignoreCase = true)
+                .replace("keyiflerolsun/Kekik-cloudstream", "KitsugiBeta-dev/Kitsugi-Plugins/builds", ignoreCase = true)
+        }
+        if (url.contains("maarrem/cs-Kekik", ignoreCase = true)) {
+            url = url.replace("maarrem/cs-Kekik/master", "KitsugiBeta-dev/Kitsugi-Plugins/builds", ignoreCase = true)
+                .replace("maarrem/cs-Kekik/builds", "KitsugiBeta-dev/Kitsugi-Plugins/builds", ignoreCase = true)
+                .replace("maarrem/cs-Kekik", "KitsugiBeta-dev/Kitsugi-Plugins/builds", ignoreCase = true)
+        }
+
         if (url.equals("https://raw.githubusercontent.com/keyiflerolsun/Kekik-cloudstream/master/repo.json", ignoreCase = true) ||
             url.equals("https://raw.githubusercontent.com/maarrem/cs-Kekik/master/repo.json", ignoreCase = true) ||
             url.equals("https://raw.githubusercontent.com/maarrem/cs-Kekik/builds/repo.json", ignoreCase = true) ||
@@ -52,6 +65,15 @@ object CloudstreamUrlHelper {
         }
 
         return url
+    }
+
+    /**
+     * Appends a timestamp query parameter to bypass CDN/Fastly caches for instant updates.
+     */
+    fun withCacheBuster(url: String): String {
+        val trimmed = url.trim()
+        val sep = if (trimmed.contains("?")) "&" else "?"
+        return "$trimmed${sep}_ts=${System.currentTimeMillis()}"
     }
 
     /**

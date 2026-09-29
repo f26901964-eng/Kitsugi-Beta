@@ -117,8 +117,19 @@ class KitsugiDetailClient {
                         if (isFresh) {
                             val detail = gson.fromJson(cached.detailJson, KitsugiMediaDetail::class.java)
                             if (detail != null) {
+                                // Eski nsfw!="white" hatasından dolayı yanlışlıkla isAdult=true kalan içerikleri düzelt
+                                val isActuallyAdult = detail.isAdult && (
+                                    detail.rating?.contains("rx", ignoreCase = true) == true ||
+                                    detail.rating?.contains("hentai", ignoreCase = true) == true ||
+                                    detail.genres.any { it.contains("hentai", ignoreCase = true) }
+                                )
+                                val cleanDetail = if (detail.isAdult && !isActuallyAdult) {
+                                    detail.copy(isAdult = false)
+                                } else {
+                                    detail
+                                }
                                 android.util.Log.d("KitsugiDetailClient", "Serving fresh detail from Room cache for $cacheKey")
-                                return@withContext detail
+                                return@withContext cleanDetail
                             }
                         }
                     }
@@ -130,7 +141,7 @@ class KitsugiDetailClient {
             // 2. Primary source fetch
             val detail = when (source.lowercase()) {
                 "jikan", "mal" -> KitsugiMalDetailClient.fetchDetail(externalId, mediaType)
-                "shikimori" -> KitsugiMalDetailClient.fetchDetail(externalId, mediaType)
+                "shikimori" -> KitsugiShikimoriClient.fetchDetail(externalId, mediaType) ?: KitsugiMalDetailClient.fetchDetail(externalId, mediaType)
                 "anilist" -> KitsugiAniListDetailClient.fetchDetail(externalId, mediaType)
                 // Kitsu keşfet fallback öğeleri: stableId = kitsuId + 300_000_000
                 "kitsu" -> {

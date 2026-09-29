@@ -42,6 +42,7 @@ fun AppRootDetailPages(
     mediaRepository: MediaEntryRepository,
     coroutineScope: CoroutineScope,
     updateViewModel: com.kitsugi.animelist.core.update.AppUpdateViewModel,
+    addonViewModel: com.kitsugi.animelist.ui.app.AddonViewModel = viewModel(),
     onEditEntry: (MediaEntry) -> Unit,
     onDeleteEntry: (MediaEntry) -> Unit,
     onIncrementEntryProgress: (MediaEntry) -> Unit,
@@ -448,6 +449,9 @@ fun AppRootDetailPages(
                     },
                     onCheckForUpdatesClick = {
                         updateViewModel.checkForUpdates(silent = false, force = true)
+                    },
+                    onCheckForPluginUpdatesClick = {
+                        addonViewModel.checkForPluginUpdates()
                     },
                     onBackClick = { navState.popDetailStack() }
                 )

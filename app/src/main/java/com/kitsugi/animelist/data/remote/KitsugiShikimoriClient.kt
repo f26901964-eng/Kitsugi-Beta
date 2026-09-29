@@ -150,6 +150,142 @@ object KitsugiShikimoriClient {
         }
     }
 
+    /**
+     * Shikimori REST API üzerinden anime veya manga detaylarını çeker.
+     * Yaş sınırını ("rating") doğru şekilde ayrıştırır ve yalnızca "rx" (Hentai)
+     * olanları +18 (isAdult) olarak işaretler; "r" (17+ şiddet/aksiyon) içerikleri
+     * asla yetişkin olarak blurlamaz.
+     */
+    suspend fun fetchDetail(externalId: Int, mediaType: MediaType): KitsugiMediaDetail? =
+        withContext(Dispatchers.IO) {
+            if (externalId <= 0) return@withContext null
+            val endpoint = when (mediaType) {
+                MediaType.Anime, MediaType.Movie, MediaType.TvShow -> "animes"
+                MediaType.Manga -> "mangas"
+            }
+            val url = URL("$BASE_URL/$endpoint/$externalId")
+            Log.d(TAG, "Shikimori fetchDetail: $url")
+            runCatching {
+                KitsugiApiBase.runWithRateLimit {
+                    val response = KitsugiApiBase.executeGetRequest(url) ?: return@runWithRateLimit null
+                    val data = JSONObject(response)
+
+                    val russianTitle = data.optString("russian").takeIf { it.isNotBlank() }
+                    val romajiTitle = data.optString("name").takeIf { it.isNotBlank() }
+                    val engTitle = data.optJSONArray("english")?.optString(0)?.takeIf { it.isNotBlank() }
+                    val japTitle = data.optJSONArray("japanese")?.optString(0)?.takeIf { it.isNotBlank() }
+                    val mainTitle = russianTitle ?: romajiTitle ?: engTitle ?: "Bilinmeyen"
+
+                    val relativeImg = data.optJSONObject("image")?.optString("original")
+                    val imageUrl = relativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+
+                    val rawScore = data.optString("score", "0").toDoubleOrNull()
+                    val score = rawScore?.toInt()?.coerceIn(0, 10)
+                    val meanScore = rawScore?.let { (it * 10).toInt() }
+
+                    val year = data.optString("aired_on", "").take(4).toIntOrNull()
+                    val total = if (mediaType == MediaType.Manga) {
+                        data.optInt("chapters").takeIf { it > 0 }
+                    } else {
+                        data.optInt("episodes").takeIf { it > 0 }
+                    }
+
+                    val ratingRaw = data.optString("rating", "").lowercase()
+                    val statusRaw = data.optString("status", "")
+                    val statusStr = when (statusRaw) {
+                        "released" -> "Finished Airing"
+                        "ongoing"  -> "Currently Airing"
+                        "anons"    -> "Not yet aired"
+                        else       -> statusRaw
+                    }.toTurkishStatus()
+
+                    val genresList = mutableListOf<String>()
+                    val genresArr = data.optJSONArray("genres")
+                    if (genresArr != null) {
+                        for (i in 0 until genresArr.length()) {
+                            val gObj = genresArr.optJSONObject(i) ?: continue
+                            val gName = gObj.optString("name")
+                            if (gName.isNotBlank()) genresList.add(gName)
+                        }
+                    }
+
+                    // SADECE "rx" (Hentai) veya hentai türü yetişkin (+18) olarak kabul edilir!
+                    // "r" (17+ şiddet/aksiyon, PG-13 vb.) kesinlikle +18 DEĞİLDİR!
+                    val isAdult = ratingRaw == "rx" ||
+                        ratingRaw.contains("hentai") ||
+                        genresList.any { it.contains("hentai", ignoreCase = true) }
+
+                    val rating = when (ratingRaw) {
+                        "g"      -> "G - All Ages"
+                        "pg"     -> "PG - Children"
+                        "pg_13"  -> "PG-13 - Teens 13 or older"
+                        "r"      -> "R - 17+ (violence & profanity)"
+                        "r_plus" -> "R+ - Mild Nudity"
+                        "rx"     -> "Rx - Hentai"
+                        else     -> null
+                    }?.toTurkishRating()
+
+                    val studiosList = mutableListOf<KitsugiStudio>()
+                    val studiosArr = data.optJSONArray("studios")
+                    if (studiosArr != null) {
+                        for (i in 0 until studiosArr.length()) {
+                            val sObj = studiosArr.optJSONObject(i) ?: continue
+                            val sId = sObj.optInt("id")
+                            val sName = sObj.optString("name")
+                            if (sId > 0 && sName.isNotBlank()) {
+                                studiosList.add(KitsugiStudio(id = sId, name = sName, isMain = true))
+                            }
+                        }
+                    }
+
+                    // Fragman (PV)
+                    var trailerUrl: String? = null
+                    val videosArr = data.optJSONArray("videos")
+                    if (videosArr != null) {
+                        for (i in 0 until videosArr.length()) {
+                            val vObj = videosArr.optJSONObject(i) ?: continue
+                            val vUrl = vObj.optString("url")
+                            if (vUrl.isNotBlank() && (vUrl.contains("youtube.com") || vUrl.contains("youtu.be"))) {
+                                trailerUrl = vUrl
+                                break
+                            }
+                        }
+                    }
+
+                    val rawDesc = data.optNullableString("description")?.cleanApiText()
+                    val synopsis = translateIfRussian(rawDesc)
+                    val realMalId = data.optInt("myanimelist_id").takeIf { it > 0 } ?: externalId
+
+                    KitsugiMediaDetail(
+                        synopsis = synopsis,
+                        genres = genresList.toTurkishGenres(),
+                        status = statusStr,
+                        studios = studiosList,
+                        rating = rating,
+                        episodeDuration = data.optInt("duration").takeIf { it > 0 }?.let { "$it dk" },
+                        startDate = data.optNullableString("aired_on"),
+                        endDate = data.optNullableString("released_on"),
+                        titleEnglish = engTitle,
+                        titleJapanese = japTitle,
+                        titleRomaji = romajiTitle,
+                        titleNative = japTitle,
+                        trailerUrl = trailerUrl,
+                        title = mainTitle,
+                        imageUrl = imageUrl,
+                        score = score,
+                        meanScore = meanScore,
+                        year = year,
+                        total = total,
+                        isAdult = isAdult,
+                        realMalId = realMalId
+                    )
+                }
+            }.getOrElse { err ->
+                Log.e(TAG, "Shikimori fetchDetail exception: ${err.message}", err)
+                null
+            }
+        }
+
     // ─── Karakter / Ekip fonksiyonları ────────────────────────────────────
 
     suspend fun fetchCharacters(

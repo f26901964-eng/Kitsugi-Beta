@@ -47,6 +47,7 @@ fun AboutScreen(
     autoUpdateCheckEnabled: Boolean,
     onAutoUpdateCheckEnabledChanged: (Boolean) -> Unit,
     onCheckForUpdatesClick: () -> Unit,
+    onCheckForPluginUpdatesClick: (() -> Unit)? = null,
     onBackClick: () -> Unit
 ) {
     val KitsugiColors = LocalKitsugiColors.current
@@ -314,6 +315,46 @@ fun AboutScreen(
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 12.sp
                                 )
+                            }
+                        }
+
+                        if (onCheckForPluginUpdatesClick != null) {
+                            Divider(color = KitsugiColors.surfaceStrong, thickness = 1.dp)
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1.1f)) {
+                                    Text(
+                                        text = "Eklenti Güncellemeleri",
+                                        color = KitsugiColors.textPrimary,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                    Text(
+                                        text = "Depolardaki video sağlayıcı eklenti sürümlerini denetle",
+                                        color = KitsugiColors.textMuted,
+                                        style = MaterialTheme.typography.labelSmall
+                                    )
+                                }
+                                Button(
+                                    onClick = onCheckForPluginUpdatesClick,
+                                    colors = ButtonDefaults.buttonColors(containerColor = accentColor.copy(alpha = 0.2f)),
+                                    shape = RoundedCornerShape(12.dp),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 10.dp),
+                                    modifier = Modifier.weight(0.9f)
+                                ) {
+                                    Icon(Icons.Rounded.Code, contentDescription = null, tint = accentColor, modifier = Modifier.size(16.dp))
+                                    Spacer(Modifier.width(6.dp))
+                                    Text(
+                                        text = "Eklentileri Denetle",
+                                        color = accentColor,
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 11.sp
+                                    )
+                                }
                             }
                         }
                     }

@@ -46,12 +46,31 @@ class CloudstreamRepoRepository(private val context: Context) {
     suspend fun seedDefaultRepoIfEmpty() = withContext(Dispatchers.IO) {
         try {
             val allRepos = repoDao.getAllRepos()
-            val defaultUrl = "https://raw.githubusercontent.com/gameras1010-afk/Kitsugi-Plugins/builds/repo.json"
-            val hasDefault = allRepos.any { it.repoUrl.trim().equals(defaultUrl, ignoreCase = true) }
+            val defaultUrl = "https://raw.githubusercontent.com/KitsugiBeta-dev/Kitsugi-Plugins/builds/repo.json"
+
+            // Migrate any old repos immediately
+            for (repo in allRepos) {
+                val normalized = com.kitsugi.animelist.utils.CloudstreamUrlHelper.normalizeUrl(repo.repoUrl)
+                if (!normalized.equals(repo.repoUrl, ignoreCase = true)) {
+                    Log.d(TAG, "Migrating repo on seed: ${repo.repoUrl} -> $normalized")
+                    repoDao.deleteRepo(repo)
+                    repoDao.insertRepo(
+                        CloudstreamRepoEntity(
+                            repoUrl = normalized,
+                            name = if (repo.name.contains("gameras", ignoreCase = true) || repo.name.contains("keyifler", ignoreCase = true)) "Kitsugi Plugins (Önerilen)" else repo.name,
+                            description = repo.description,
+                            addedAt = repo.addedAt
+                        )
+                    )
+                }
+            }
+
+            val refreshedRepos = repoDao.getAllRepos()
+            val hasDefault = refreshedRepos.any { it.repoUrl.trim().equals(defaultUrl, ignoreCase = true) }
             if (!hasDefault) {
                 Log.d(TAG, "No default repository found, seeding Kitsugi Plugins repository...")
                 val fetched = try {
-                    client.fetchRepo(defaultUrl)
+                    client.fetchRepo(defaultUrl, forceRefresh = true)
                 } catch (e: Exception) {
                     null
                 }
@@ -160,9 +179,9 @@ class CloudstreamRepoRepository(private val context: Context) {
         Log.d(TAG, "Deleted repo: ${repo.name}")
     }
 
-    suspend fun fetchPluginsForRepo(repoUrl: String): List<CsPlugin>? = withContext(Dispatchers.IO) {
+    suspend fun fetchPluginsForRepo(repoUrl: String, forceRefresh: Boolean = false): List<CsPlugin>? = withContext(Dispatchers.IO) {
         val normalizedUrl = normalizeRepoUrl(repoUrl)
-        client.fetchAllPlugins(normalizedUrl)
+        client.fetchAllPlugins(normalizedUrl, forceRefresh = forceRefresh)
     }
 
     /**
@@ -248,7 +267,8 @@ class CloudstreamRepoRepository(private val context: Context) {
                 context,
                 plugin.internalName,
                 plugin.url,
-                plugin.fileHash
+                plugin.fileHash,
+                forceDownload = true
             )
             if (!downloadSuccess) {
                 Log.e(TAG, "Failed to download CS plugin: ${plugin.name}")
@@ -286,6 +306,7 @@ class CloudstreamRepoRepository(private val context: Context) {
 
             val extensionFile = java.io.File(context.filesDir, "cs_extensions/${plugin.internalName}.cs3")
             if (extensionFile.exists()) {
+                try { extensionFile.setWritable(true) } catch (_: Exception) {}
                 extensionFile.delete()
             }
             Log.d(TAG, "Successfully uninstalled CS plugin: ${plugin.name}")
@@ -294,20 +315,18 @@ class CloudstreamRepoRepository(private val context: Context) {
         }
     }
 
-    suspend fun syncAndAutoUpdate() = withContext(Dispatchers.IO) {
+    suspend fun syncAndAutoUpdate(force: Boolean = false): Int = withContext(Dispatchers.IO) {
         try {
             val now = System.currentTimeMillis()
-            if (now - lastSyncAtMs < SYNC_THROTTLE_MS) {
+            if (!force && (now - lastSyncAtMs < SYNC_THROTTLE_MS)) {
                 Log.d(TAG, "syncAndAutoUpdate throttled — son sync'ten ${(now - lastSyncAtMs) / 1000}s geçti, 30dk dolmadı.")
-                return@withContext
+                return@withContext 0
             }
             lastSyncAtMs = now
-            Log.d(TAG, "Starting syncAndAutoUpdate...")
+            Log.d(TAG, "Starting syncAndAutoUpdate (force=$force)...")
             val currentRepos = repoDao.getAllRepos()
 
-
-
-            // 1. Automatically migrate legacy repository URLs (e.g. keyiflerolsun/maarrem -> gameras1010-afk)
+            // 1. Automatically migrate legacy repository URLs (e.g. keyiflerolsun/maarrem/gameras -> KitsugiBeta-dev)
             val refreshedRepos = repoDao.getAllRepos()
             for (repo in refreshedRepos) {
                 val normalized = com.kitsugi.animelist.utils.CloudstreamUrlHelper.normalizeUrl(repo.repoUrl)
@@ -316,7 +335,7 @@ class CloudstreamRepoRepository(private val context: Context) {
                     repoDao.deleteRepo(repo)
                     
                     // Fetch metadata of the new repository
-                    val fetched = client.fetchRepo(normalized)
+                    val fetched = client.fetchRepo(normalized, forceRefresh = force)
                     val newEntity = if (fetched != null) {
                         CloudstreamRepoEntity(
                             repoUrl = normalized,
@@ -327,8 +346,8 @@ class CloudstreamRepoRepository(private val context: Context) {
                     } else {
                         CloudstreamRepoEntity(
                             repoUrl = normalized,
-                            name = if (repo.name.contains("keyiflerolsun", ignoreCase = true) || repo.name.contains("KekikAkademi", ignoreCase = true) || repo.name.contains("maarrem", ignoreCase = true)) {
-                                "Kitsugi Plugins Repository"
+                            name = if (repo.name.contains("keyiflerolsun", ignoreCase = true) || repo.name.contains("KekikAkademi", ignoreCase = true) || repo.name.contains("maarrem", ignoreCase = true) || repo.name.contains("gameras", ignoreCase = true)) {
+                                "Kitsugi Plugins (Önerilen)"
                             } else {
                                 repo.name
                             },
@@ -346,7 +365,7 @@ class CloudstreamRepoRepository(private val context: Context) {
             val allLatestPluginsMap = mutableMapOf<String, CsPlugin>()
             for (repo in updatedRepos) {
                 try {
-                    val repoPlugins = fetchPluginsForRepo(repo.repoUrl)
+                    val repoPlugins = fetchPluginsForRepo(repo.repoUrl, forceRefresh = force)
                     if (repoPlugins != null) {
                         for (plugin in repoPlugins) {
                             val existing = allLatestPluginsMap[plugin.internalName]
@@ -361,6 +380,7 @@ class CloudstreamRepoRepository(private val context: Context) {
             }
 
             // 3. Auto-update installed CS plugins if newer versions are available
+            var updatedCount = 0
             val installedCsPlugins = csPluginDao.getAllPlugins()
             for (installedPlugin in installedCsPlugins) {
                 val latestPlugin = allLatestPluginsMap[installedPlugin.id]
@@ -371,22 +391,25 @@ class CloudstreamRepoRepository(private val context: Context) {
                         context,
                         latestPlugin.internalName,
                         latestPlugin.url,
-                        latestPlugin.fileHash
+                        latestPlugin.fileHash,
+                        forceDownload = true
                     )
                     if (downloadSuccess) {
                         val updatedEntity = installedPlugin.copy(
                             version = latestPlugin.version,
                             downloadUrl = latestPlugin.url,
                             iconUrl = latestPlugin.iconUrl ?: installedPlugin.iconUrl,
-                            tvTypes = com.google.gson.Gson().toJson(latestPlugin.tvTypes ?: emptyList<String>())
+                            tvTypes = com.google.gson.Gson().toJson(latestPlugin.tvTypes ?: emptyList<String>()),
+                            installedAt = System.currentTimeMillis()
                         )
                         csPluginDao.upsert(updatedEntity)
+                        updatedCount++
                         
                         if (installedPlugin.enabled) {
-                            Log.d(TAG, "Reloading updated plugin in memory (async): ${installedPlugin.name}")
+                            Log.d(TAG, "Reloading updated plugin in memory (async with forceReload=true): ${installedPlugin.name}")
                             kotlinx.coroutines.GlobalScope.launch(Dispatchers.IO) {
                                 try {
-                                    com.kitsugi.animelist.data.cloudstream.CsPluginLoader.loadExtension(context, installedPlugin.id)
+                                    com.kitsugi.animelist.data.cloudstream.CsPluginLoader.loadExtension(context, installedPlugin.id, forceReload = true)
                                 } catch (e: Exception) {
                                     Log.e(TAG, "Failed to reload updated plugin: ${installedPlugin.name}", e)
                                 }
@@ -398,8 +421,10 @@ class CloudstreamRepoRepository(private val context: Context) {
                     }
                 }
             }
+            return@withContext updatedCount
         } catch (e: Exception) {
             Log.e(TAG, "syncAndAutoUpdate failed", e)
+            return@withContext 0
         }
     }
 }

@@ -560,7 +560,6 @@ internal object KitsugiMalDetailClient {
             val favorites = d.optionalPositiveInt("num_favorites")
 
             val nsfw = d.optString("nsfw", "white")
-            val isAdult = nsfw != "white"
 
             val statusRaw = d.optString("status", "")
             // MAL v2 status değerleri: "finished_airing", "currently_airing", "not_yet_aired"
@@ -597,6 +596,13 @@ internal object KitsugiMalDetailClient {
                     arr.optJSONObject(i)?.optNullableString("name")?.let { genres.add(it) }
                 }
             }
+
+            // SADECE "rx" (Hentai), nsfw="black" veya türünde hentai geçenler yetişkin (+18) kabul edilir!
+            // "gray" (R-17 şiddet/aksiyon, PG-13 vb.) kesinlikle +18 yetişkin içerik DEĞİLDİR!
+            val isAdult = ratingRaw.equals("rx", ignoreCase = true) ||
+                ratingRaw.contains("hentai", ignoreCase = true) ||
+                nsfw.equals("black", ignoreCase = true) ||
+                genres.any { it.contains("hentai", ignoreCase = true) }
 
             val total: Int? = if (mediaType == MediaType.Manga) {
                 d.optionalPositiveInt("num_chapters")

@@ -2075,8 +2075,13 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
     fun downloadSubtitleToStorage(subtitle: SubtitleInput) {
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             try {
-                // 1. Önce cache'e al (zaten varsa anında döner)
-                val cachedFile = com.kitsugi.animelist.core.player.SubtitleFileCache.cacheSubtitle(context, subtitle.url)
+                // 1. Önce cache'e al (yerel dosya ise doğrudan kullan, yoksa cacheSubtitle ile indir)
+                val cachedFile: java.io.File? = if (subtitle.url.startsWith("file://") || subtitle.url.startsWith("/")) {
+                    val local = java.io.File(subtitle.url.removePrefix("file://"))
+                    if (local.exists() && local.isFile) local else com.kitsugi.animelist.core.player.SubtitleFileCache.cacheSubtitle(context, subtitle.url)
+                } else {
+                    com.kitsugi.animelist.core.player.SubtitleFileCache.cacheSubtitle(context, subtitle.url)
+                }
                 if (cachedFile == null || !cachedFile.exists()) {
                     withContext(kotlinx.coroutines.Dispatchers.Main) {
                         Toast.makeText(context, "⚠️ Altyazı indirilemedi", Toast.LENGTH_SHORT).show()
@@ -2084,12 +2089,52 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                     return@launch
                 }
 
-                // 2. Hedef dosya adını oluştur
+                // 2. Hedef dosya adını video ve bölüm ismini içerecek şekilde oluştur
                 val ext = cachedFile.extension.ifBlank { "srt" }
-                val baseName = subtitle.name
-                    .ifBlank { subtitle.lang.ifBlank { "subtitle" } }
-                    .replace(Regex("[/\\\\:*?\"<>|]"), "_") // güvenli dosya adı
-                val fileName = "${baseName}.${ext}"
+
+                val rawTitle = when {
+                    animeTitle.isNotBlank() -> animeTitle.trim()
+                    _animeTitleFlow.value.isNotBlank() -> _animeTitleFlow.value.trim()
+                    _currentTitle.value.isNotBlank() -> _currentTitle.value.trim()
+                    else -> "Video"
+                }
+
+                val ep = _currentEpisode.value
+                val isMovieContent = _isMovie.value || (ep <= 0 && !rawTitle.contains("Bölüm", ignoreCase = true))
+
+                val videoPrefix = if (isMovieContent) {
+                    rawTitle
+                } else {
+                    val epRegex = Regex("""(?i)\b(bölüm|episode|ep\.?)\s*0*$ep\b""")
+                    if (ep > 0 && !epRegex.containsMatchIn(rawTitle)) {
+                        "$rawTitle - Bölüm $ep"
+                    } else {
+                        rawTitle
+                    }
+                }
+
+                val cleanVideoName = videoPrefix.replace(Regex("[/\\\\:*?\"<>|]"), "_").trim()
+
+                val rawLang = subtitle.lang.trim()
+                val safeLang = rawLang.lowercase().filter { it.isLetterOrDigit() }
+                val rawName = subtitle.name.replace(Regex("[/\\\\:*?\"<>|]"), "_").trim()
+
+                val isGenericName = rawName.isBlank() ||
+                    rawName.equals("subtitle", ignoreCase = true) ||
+                    rawName.equals("sub", ignoreCase = true) ||
+                    rawName.equals("default", ignoreCase = true) ||
+                    rawName.equals(safeLang, ignoreCase = true) ||
+                    (safeLang in listOf("tr", "tur") && (rawName.equals("turkish", ignoreCase = true) || rawName.equals("türkçe", ignoreCase = true))) ||
+                    (safeLang in listOf("en", "eng") && (rawName.equals("english", ignoreCase = true) || rawName.equals("ingilizce", ignoreCase = true)))
+
+                val subPart = when {
+                    safeLang.isNotBlank() && !isGenericName -> "${safeLang}_${rawName}"
+                    safeLang.isNotBlank() -> safeLang
+                    !isGenericName -> rawName
+                    else -> "sub"
+                }
+
+                val fileName = "${cleanVideoName}.${subPart}.${ext}"
 
                 // 3. Android 10+ MediaStore API ile Downloads/Kitsugi/Subtitles/ klasörüne yaz
                 val savedPath: String? = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {

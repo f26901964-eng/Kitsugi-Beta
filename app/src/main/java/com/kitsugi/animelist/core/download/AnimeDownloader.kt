@@ -306,6 +306,41 @@ class AnimeDownloader(private val context: Context) {
                                 }
                             }
                         }
+
+                        // Also copy all downloaded subtitles to custom directory with video prefix
+                        val subsDir = File(destDir, "subs")
+                        if (subsDir.exists()) {
+                            subsDir.listFiles()?.filter { it.isFile }?.forEach { subFile ->
+                                try {
+                                    val subExt = subFile.extension.ifBlank { "srt" }
+                                    val subMime = when (subExt.lowercase()) {
+                                        "ass", "ssa" -> "text/x-ass"
+                                        "vtt" -> "text/vtt"
+                                        else -> "application/x-subrip"
+                                    }
+                                    val safeLang = subFile.nameWithoutExtension.substringBefore("_", "tr")
+                                    val safeName = subFile.nameWithoutExtension.substringAfter("_", "")
+                                    val subLabel = if (safeName.isNotBlank() && !safeName.equals(safeLang, ignoreCase = true)) {
+                                        "${safeLang}_${safeName}"
+                                    } else {
+                                        safeLang
+                                    }
+                                    val subOutFilename = "${cleanTitle}_Bölüm_${download.episode}.${subLabel}.${subExt}"
+
+                                    customDirDoc.findFile(subOutFilename)?.delete()
+                                    val subDoc = customDirDoc.createFile(subMime, subOutFilename)
+                                    subDoc?.uri?.let { subUri ->
+                                        context.contentResolver.openOutputStream(subUri)?.use { subOutStream ->
+                                            subFile.inputStream().use { subInStream ->
+                                                subInStream.copyTo(subOutStream)
+                                            }
+                                        }
+                                    }
+                                } catch (subEx: Exception) {
+                                    android.util.Log.e("AnimeDownloader", "Failed to copy subtitle ${subFile.name} to custom SAF directory", subEx)
+                                }
+                            }
+                        }
                     }
                 } catch (e: Exception) {
                     android.util.Log.e("AnimeDownloader", "Failed to copy video to custom SAF directory", e)

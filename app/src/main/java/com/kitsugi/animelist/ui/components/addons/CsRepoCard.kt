@@ -33,6 +33,7 @@ internal fun CsRepoCard(
     accentColor: Color,
     onDeleteRepo: () -> Unit,
     onFetchRepoPlugins: () -> Unit,
+    onRefreshRepo: () -> Unit = onFetchRepoPlugins,
     onInstallAllPlugins: (plugins: List<CsPlugin>) -> Unit,
     onUpdateAllPlugins: (plugins: List<CsPlugin>) -> Unit,
     isBulkInstalling: Boolean,
@@ -103,6 +104,18 @@ internal fun CsRepoCard(
                     )
                 }
             }
+            IconButton(
+                onClick = { onRefreshRepo() },
+                modifier = Modifier.size(32.dp)
+            ) {
+                Icon(
+                    Icons.Rounded.Refresh,
+                    contentDescription = "Depoyu Yenile",
+                    tint = accentColor,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
+            Spacer(Modifier.width(4.dp))
             if (isLoading) {
                 CircularProgressIndicator(modifier = Modifier.size(18.dp), color = accentColor, strokeWidth = 2.dp)
             } else {
@@ -216,6 +229,18 @@ internal fun CsRepoCard(
                         }
                         Spacer(Modifier.width(6.dp))
                     }
+
+                    Box(
+                        modifier = Modifier
+                            .size(30.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(accentColor.copy(alpha = 0.15f))
+                            .tvClickable(shape = RoundedCornerShape(8.dp)) { onRefreshRepo() },
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Rounded.Refresh, contentDescription = "Yenile", tint = accentColor, modifier = Modifier.size(16.dp))
+                    }
+                    Spacer(Modifier.width(6.dp))
 
                     Box(
                         modifier = Modifier

@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -68,7 +69,7 @@ import kotlinx.coroutines.delay
 import kotlin.math.abs
 
 private const val HERO_BACKGROUND_PARALLAX = 0.055f
-private const val HERO_BACKGROUND_SCALE = 1.14f
+private const val HERO_BACKGROUND_SCALE = 1.0f
 private const val HERO_CONTENT_PARALLAX = 0.18f
 
 private data class HeroPageLayer(
@@ -79,6 +80,7 @@ private data class HeroPageLayer(
 
 internal data class HomeHeroLayout(
     val isTablet: Boolean,
+    val isLandscape: Boolean,
     val heroHeight: Dp,
     val contentMaxWidth: Dp,
     val contentWidthFraction: Float,
@@ -150,78 +152,85 @@ fun KitsugiHeroSection(
             }
             logoMap[item.malId] = logoUrl
         }
-        // Tüm logolar yüklendikten sonra tek seferinde state güncellemesi yap
-        // (her logo için ayrı recomposition tetiklemek yerine)
         logos = logoMap.toMap()
     }
 
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
     val screenWidthDp = configuration.screenWidthDp
     val screenHeightDp = configuration.screenHeightDp
-    val isTablet = screenWidthDp >= 600f
+    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE || screenWidthDp > screenHeightDp
+    val isTablet = if (isLandscape) screenHeightDp >= 600f else screenWidthDp >= 600f
 
     val isTvDevice = LocalIsTvDevice.current
     val isTv = isTvDevice
-    val layout = remember(screenWidthDp, screenHeightDp, isTv) {
+    val layout = remember(screenWidthDp, screenHeightDp, isTv, isLandscape, isTablet) {
         if (isTv) {
             HomeHeroLayout(
                 isTablet = true,
-                heroHeight = (screenHeightDp * 0.72f).coerceIn(400f, 500f).dp,
+                isLandscape = true,
+                heroHeight = (screenHeightDp * 0.68f).coerceIn(380f, 480f).dp,
                 contentMaxWidth = 720.dp,
                 contentWidthFraction = 0.58f,
                 contentHorizontalPadding = 48.dp,
-                contentVerticalPadding = 32.dp,
+                contentVerticalPadding = 28.dp,
                 bottomFadeHeight = 220.dp,
                 logoWidthFraction = 0.5f,
             )
-        } else if (isTablet) {
-            when {
-                screenWidthDp >= 1200f -> HomeHeroLayout(
+        } else if (isLandscape) {
+            if (isTablet) {
+                HomeHeroLayout(
                     isTablet = true,
-                    heroHeight = (screenWidthDp * 0.42f).coerceIn(360f, 440f).dp,
+                    isLandscape = true,
+                    heroHeight = (screenHeightDp * 0.48f).coerceIn(300f, 390f).dp,
                     contentMaxWidth = 640.dp,
                     contentWidthFraction = 0.56f,
-                    contentHorizontalPadding = 56.dp,
-                    contentVerticalPadding = 22.dp,
-                    bottomFadeHeight = 190.dp,
-                    logoWidthFraction = 0.58f,
-                )
-                screenWidthDp >= 840f -> HomeHeroLayout(
-                    isTablet = true,
-                    heroHeight = (screenWidthDp * 0.46f).coerceIn(340f, 420f).dp,
-                    contentMaxWidth = 560.dp,
-                    contentWidthFraction = 0.62f,
-                    contentHorizontalPadding = 40.dp,
-                    contentVerticalPadding = 20.dp,
-                    bottomFadeHeight = 180.dp,
-                    logoWidthFraction = 0.56f,
-                )
-                else -> HomeHeroLayout(
-                    isTablet = true,
-                    heroHeight = (screenWidthDp * 0.58f).coerceIn(320f, 380f).dp,
-                    contentMaxWidth = 520.dp,
-                    contentWidthFraction = 0.72f,
-                    contentHorizontalPadding = 32.dp,
+                    contentHorizontalPadding = if (screenWidthDp >= 1000f) 52.dp else 36.dp,
                     contentVerticalPadding = 18.dp,
-                    bottomFadeHeight = 170.dp,
-                    logoWidthFraction = 0.54f,
+                    bottomFadeHeight = 180.dp,
+                    logoWidthFraction = 0.52f,
+                )
+            } else {
+                // Yatay modda telefon: yukarı aşağı kısa (kompakt), sağa sola uzun, alttaki blokları açıkta bırakır
+                HomeHeroLayout(
+                    isTablet = false,
+                    isLandscape = true,
+                    heroHeight = (screenHeightDp * 0.60f).coerceIn(210f, 265f).dp,
+                    contentMaxWidth = 520.dp,
+                    contentWidthFraction = 0.56f,
+                    contentHorizontalPadding = 24.dp,
+                    contentVerticalPadding = 12.dp,
+                    bottomFadeHeight = 140.dp,
+                    logoWidthFraction = 0.48f,
                 )
             }
         } else {
-            val viewportDrivenHeight = screenHeightDp * 0.82f
-            val baseHeight = viewportDrivenHeight
-            val cappedHeight = baseHeight - 140f
-            val finalHeight = cappedHeight.coerceIn(360f, 760f).dp
-            HomeHeroLayout(
-                isTablet = false,
-                heroHeight = finalHeight,
-                contentMaxWidth = 480.dp,
-                contentWidthFraction = 1f,
-                contentHorizontalPadding = 20.dp,
-                contentVerticalPadding = 20.dp,
-                bottomFadeHeight = 220.dp,
-                logoWidthFraction = 0.62f,
-            )
+            if (isTablet) {
+                // Dikey tablet
+                HomeHeroLayout(
+                    isTablet = true,
+                    isLandscape = false,
+                    heroHeight = (screenHeightDp * 0.42f).coerceIn(400f, 500f).dp,
+                    contentMaxWidth = 560.dp,
+                    contentWidthFraction = 0.85f,
+                    contentHorizontalPadding = 32.dp,
+                    contentVerticalPadding = 20.dp,
+                    bottomFadeHeight = 200.dp,
+                    logoWidthFraction = 0.56f,
+                )
+            } else {
+                // Dikey modda telefon: yukarı aşağı uzun, sağa sola dar, görseli kesmeyen ferah oran
+                HomeHeroLayout(
+                    isTablet = false,
+                    isLandscape = false,
+                    heroHeight = (screenHeightDp * 0.50f).coerceIn(390f, 460f).dp,
+                    contentMaxWidth = 480.dp,
+                    contentWidthFraction = 1f,
+                    contentHorizontalPadding = 20.dp,
+                    contentVerticalPadding = 18.dp,
+                    bottomFadeHeight = 220.dp,
+                    logoWidthFraction = 0.62f,
+                )
+            }
         }
     }
 
@@ -306,19 +315,18 @@ fun KitsugiHeroSection(
             )
             .then(
                 if (isTv) {
-                    Modifier.border(
-                        width = 3.dp,
-                        color = if (isFocused) accentColor else androidx.compose.ui.graphics.Color.Transparent,
-                        shape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)
-                    )
+                    Modifier
+                        .border(
+                            width = 3.dp,
+                            color = if (isFocused) accentColor else androidx.compose.ui.graphics.Color.Transparent,
+                            shape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp)
+                        )
+                        .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
                 } else Modifier
             )
-            .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
-            .background(KitsugiColors.Surface)
+            .background(KitsugiColors.Background)
     ) {
         val heroWidthPx = with(LocalDensity.current) { maxWidth.toPx() }
-        // Parallax scroll efekti kaldırıldı — her px değişiminde recomposition yapıyordu.
-        // Statik scale değerleri kullanılıyor, performans önemli ölçüde arttı.
         val heroScrollScale = 1f
         val heroScrollTranslationY = 0f
 
@@ -343,15 +351,15 @@ fun KitsugiHeroSection(
                             Modifier
                         } else {
                             Modifier.tvClickable(
-                                shape = RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp),
                                 scaleOnFocus = false
                             ) { onInfoClick(item) }
                         }
                     )
             ) {
-                val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-                val heroImageModel = if (isLandscape) item.backdropUrl ?: item.imageUrl else item.imageUrl
+                // Hem dikeyde hem yatayda yüksek kaliteli backdropUrl önceliklidir (yazısız sinematik görsel)
+                val heroImageModel = item.backdropUrl?.takeIf { it.isNotBlank() } ?: item.imageUrl
                 if (!heroImageModel.isNullOrBlank()) {
+                    // 1. Ana net görsel — üstten hizalı, tam görsel kalitesi, yapay overzoom yok
                     KitsugiNsfwImage(
                         model = heroImageModel,
                         contentDescription = displayTitle,
@@ -365,8 +373,30 @@ fun KitsugiHeroSection(
                                 scaleX = HERO_BACKGROUND_SCALE * heroScrollScale
                                 scaleY = HERO_BACKGROUND_SCALE * heroScrollScale
                             },
-                        contentScale = ContentScale.Crop
+                        contentScale = ContentScale.Crop,
+                        alignment = Alignment.TopCenter
                     )
+
+                    // 2. Alt kısım hafif puslu / bulanık geçiş katmanı (NuvioTV tarzı yumuşak geçiş)
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .fillMaxHeight(0.65f)
+                            .align(Alignment.BottomCenter)
+                            .graphicsLayer {
+                                alpha = (layer.visibility * 0.88f).coerceIn(0f, 1f)
+                            }
+                            .blur(20.dp)
+                    ) {
+                        KitsugiNsfwImage(
+                            model = heroImageModel,
+                            contentDescription = displayTitle,
+                            isAdult = item.isAdult,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop,
+                            alignment = Alignment.BottomCenter
+                        )
+                    }
                 } else {
                     Box(
                         modifier = Modifier
@@ -392,21 +422,48 @@ fun KitsugiHeroSection(
             }
         }
 
+        // 1. Yatay modda sol taraf gölgelendirmesi (metinlerin okunurluğu ve sağda görselin parlaması için - NuvioTV tarzı)
+        if (layout.isLandscape || layout.isTablet) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.horizontalGradient(
+                            colorStops = arrayOf(
+                                0.0f to KitsugiColors.Background.copy(alpha = 0.95f),
+                                0.22f to KitsugiColors.Background.copy(alpha = 0.88f),
+                                0.44f to KitsugiColors.Background.copy(alpha = 0.52f),
+                                0.68f to KitsugiColors.Background.copy(alpha = 0.16f),
+                                0.88f to androidx.compose.ui.graphics.Color.Transparent,
+                                1.0f to androidx.compose.ui.graphics.Color.Transparent
+                            ),
+                            startX = 0f,
+                            endX = heroWidthPx * if (layout.isLandscape) 0.65f else 0.50f
+                        )
+                    )
+            )
+        }
+
+        // 2. Üst durum çubuğu ve genel kart ton geçişi (yukarıda hafif gölge, ortada transparan, aşağıda soluk geçiş)
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(
-                            KitsugiColors.Background.copy(alpha = 0.02f),
-                            KitsugiColors.Background.copy(alpha = 0.12f),
-                            KitsugiColors.Background.copy(alpha = 0.34f),
-                            KitsugiColors.Background.copy(alpha = 0.78f)
+                        colorStops = arrayOf(
+                            0.0f to KitsugiColors.Background.copy(alpha = 0.50f),
+                            0.18f to KitsugiColors.Background.copy(alpha = 0.15f),
+                            0.35f to androidx.compose.ui.graphics.Color.Transparent,
+                            0.55f to KitsugiColors.Background.copy(alpha = 0.30f),
+                            0.72f to KitsugiColors.Background.copy(alpha = 0.65f),
+                            0.88f to KitsugiColors.Background.copy(alpha = 0.92f),
+                            1.0f to KitsugiColors.Background
                         )
                     )
                 )
         )
 
+        // 3. Alt blokların arkasına doğru uzanan pürüzsüz dip geçiş katmanı (NuvioTV tarzı %100 kusursuz birleşme)
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -414,9 +471,11 @@ fun KitsugiHeroSection(
                 .align(Alignment.BottomCenter)
                 .background(
                     Brush.verticalGradient(
-                        colors = listOf(
-                            KitsugiColors.Background.copy(alpha = 0f),
-                            KitsugiColors.Background
+                        colorStops = arrayOf(
+                            0.0f to androidx.compose.ui.graphics.Color.Transparent,
+                            0.35f to KitsugiColors.Background.copy(alpha = 0.40f),
+                            0.70f to KitsugiColors.Background.copy(alpha = 0.85f),
+                            1.0f to KitsugiColors.Background
                         )
                     )
                 )
@@ -430,13 +489,13 @@ fun KitsugiHeroSection(
                     horizontal = layout.contentHorizontalPadding,
                     vertical = layout.contentVerticalPadding
                 ),
-            horizontalAlignment = if (layout.isTablet) Alignment.Start else Alignment.CenterHorizontally
+            horizontalAlignment = Alignment.Start
         ) {
             Box(
                 modifier = Modifier
                     .fillMaxWidth(layout.contentWidthFraction)
                     .widthIn(max = layout.contentMaxWidth),
-                contentAlignment = if (layout.isTablet) Alignment.CenterStart else Alignment.Center
+                contentAlignment = Alignment.CenterStart
             ) {
                 visiblePages.forEach { layer ->
                     val item = items[layer.page]
@@ -463,15 +522,11 @@ fun KitsugiHeroSection(
                                     ) { onInfoClick(item) }
                                 }
                             ),
-                        horizontalAlignment = if (layout.isTablet) Alignment.Start else Alignment.CenterHorizontally
+                        horizontalAlignment = Alignment.Start
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = if (layout.isTablet) {
-                                Arrangement.spacedBy(8.dp, Alignment.Start)
-                            } else {
-                                Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
-                            }
+                            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.Start)
                         ) {
                             Text(
                                 text = "ÖNE ÇIKAN",
@@ -497,7 +552,7 @@ fun KitsugiHeroSection(
                             }
                         }
 
-                        Spacer(modifier = Modifier.height(8.dp))
+                        Spacer(modifier = Modifier.height(if (layout.isLandscape) 4.dp else 8.dp))
 
                         val logoUrl = if (showAnimeLogos) logos[item.malId] else null
                         if (!logoUrl.isNullOrBlank()) {
@@ -507,11 +562,12 @@ fun KitsugiHeroSection(
                                     model = logoUrl,
                                     contentDescription = displayTitle,
                                     modifier = Modifier
-                                        .align(if (layout.isTablet) Alignment.Start else Alignment.CenterHorizontally)
-                                        .height(if (layout.isTablet) 90.dp else 70.dp)
-                                        .fillMaxWidth(0.9f)
+                                        .align(Alignment.Start)
+                                        .height(if (layout.isLandscape) 56.dp else if (layout.isTablet) 86.dp else 68.dp)
+                                        .fillMaxWidth(0.85f)
                                         .then(copyTitleGesture),
                                     contentScale = ContentScale.Fit,
+                                    alignment = Alignment.CenterStart,
                                     onError = {
                                         logoFailed = true
                                     }
@@ -520,11 +576,11 @@ fun KitsugiHeroSection(
                                 Text(
                                     text = displayTitle,
                                     color = KitsugiColors.TextPrimary,
-                                    style = MaterialTheme.typography.headlineMedium,
+                                    style = if (layout.isLandscape) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium,
                                     fontWeight = FontWeight.Black,
                                     maxLines = 2,
                                     overflow = TextOverflow.Ellipsis,
-                                    textAlign = if (layout.isTablet) TextAlign.Start else TextAlign.Center,
+                                    textAlign = TextAlign.Start,
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .then(copyTitleGesture)
@@ -534,72 +590,50 @@ fun KitsugiHeroSection(
                             Text(
                                 text = displayTitle,
                                 color = KitsugiColors.TextPrimary,
-                                style = MaterialTheme.typography.headlineMedium,
+                                style = if (layout.isLandscape) MaterialTheme.typography.titleLarge else MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.Black,
                                 maxLines = 2,
                                 overflow = TextOverflow.Ellipsis,
-                                textAlign = if (layout.isTablet) TextAlign.Start else TextAlign.Center,
+                                textAlign = TextAlign.Start,
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .then(copyTitleGesture)
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(6.dp))
+                        if (item.subtitle.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(if (layout.isLandscape) 3.dp else 6.dp))
+                            Text(
+                                text = item.subtitle,
+                                color = KitsugiColors.TextSecondary,
+                                style = MaterialTheme.typography.bodyMedium,
+                                maxLines = if (layout.isLandscape) 1 else 2,
+                                overflow = TextOverflow.Ellipsis,
+                                textAlign = TextAlign.Start,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
 
-                        Text(
-                            text = item.subtitle,
-                            color = KitsugiColors.TextSecondary,
-                            style = MaterialTheme.typography.bodyMedium,
-                            maxLines = 2,
-                            overflow = TextOverflow.Ellipsis,
-                            textAlign = if (layout.isTablet) TextAlign.Start else TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        )
-
-                        Spacer(modifier = Modifier.height(10.dp))
-
-                        Text(
-                            text = buildHeroMeta(item, scoreFormat, hideScores),
-                            color = KitsugiColors.TextMuted,
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.SemiBold,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            textAlign = if (layout.isTablet) TextAlign.Start else TextAlign.Center,
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                        val heroMeta = buildHeroMeta(item, scoreFormat, hideScores)
+                        if (heroMeta.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(if (layout.isLandscape) 4.dp else 8.dp))
+                            Text(
+                                text = heroMeta,
+                                color = KitsugiColors.TextMuted,
+                                style = MaterialTheme.typography.bodySmall,
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                textAlign = TextAlign.Start,
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
                     }
                 }
             }
 
-            if (!layout.isTablet) {
-                Spacer(modifier = Modifier.height(14.dp))
-                val currentItem = visiblePages
-                    .lastOrNull()
-                    ?.page
-                    ?.let(items::get)
-                    ?: items[currentPage]
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(40.dp))
-                        .background(KitsugiColors.TextPrimary)
-                        .tvClickable(
-                            shape = RoundedCornerShape(40.dp)
-                        ) { onInfoClick(currentItem) }
-                        .padding(horizontal = 28.dp, vertical = 12.dp)
-                ) {
-                    Text(
-                        text = "Detayları Gör",
-                        color = KitsugiColors.Background,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
             if (items.size > 1) {
-                Spacer(modifier = Modifier.height(if (layout.isTablet) 14.dp else 12.dp))
+                Spacer(modifier = Modifier.height(if (layout.isLandscape) 8.dp else 12.dp))
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
@@ -626,8 +660,8 @@ fun KitsugiHeroSection(
                                 .graphicsLayer {
                                     alpha = 0.35f + (0.57f * activeFraction)
                                 }
-                                .width(8.dp + (24.dp * activeFraction))
-                                .height(8.dp)
+                                .width(8.dp + (20.dp * activeFraction))
+                                .height(6.dp)
                         )
                     }
                 }

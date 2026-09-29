@@ -53,6 +53,11 @@ class AddonViewModel(application: Application) : AndroidViewModel(application) {
         untrustedRepoToConfirm = null
     }
 
+    var isCheckingUpdates by mutableStateOf(false)
+        private set
+    var availableUpdatesCount by mutableStateOf(0)
+        private set
+
     private val installPluginMutex = Mutex()
 
     var onShowMessage: ((String) -> Unit)? = null
@@ -174,11 +179,11 @@ class AddonViewModel(application: Application) : AndroidViewModel(application) {
             combined.contains("yts-sub")
     }
 
-    fun syncRepos(repos: List<CloudstreamRepoEntity>) {
+    fun syncRepos(repos: List<CloudstreamRepoEntity>, force: Boolean = false) {
         viewModelScope.launch {
             repos.forEach { repo ->
-                if (!repoPluginsState.containsKey(repo.repoUrl) && repoLoadingState[repo.repoUrl] != true) {
-                    fetchRepoPlugins(repo.repoUrl)
+                if (force || (!repoPluginsState.containsKey(repo.repoUrl) && repoLoadingState[repo.repoUrl] != true)) {
+                    fetchRepoPlugins(repo.repoUrl, force = force)
                 }
             }
         }
@@ -340,12 +345,129 @@ class AddonViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun fetchRepoPlugins(repoUrl: String) {
+    fun fetchRepoPlugins(repoUrl: String, force: Boolean = false) {
         viewModelScope.launch {
             repoLoadingState = repoLoadingState + (repoUrl to true)
-            val plugins = csRepoRepository.fetchPluginsForRepo(repoUrl)
+            val plugins = csRepoRepository.fetchPluginsForRepo(repoUrl, forceRefresh = force)
             repoPluginsState = repoPluginsState + (repoUrl to plugins)
             repoLoadingState = repoLoadingState + (repoUrl to false)
+            calculateAvailableUpdates()
+        }
+    }
+
+    fun calculateAvailableUpdates() {
+        viewModelScope.launch {
+            try {
+                val allPlugins = repoPluginsState.values.filterNotNull().flatten()
+                val installed = KitsugiDatabase.getDatabase(context).csPluginDao().getAllPlugins()
+                availableUpdatesCount = installed.count { inst ->
+                    val latest = allPlugins.find { it.internalName == inst.id }
+                    latest != null && latest.version > inst.version
+                }
+            } catch (_: Exception) {}
+        }
+    }
+
+    fun checkForPluginUpdates(silent: Boolean = false, onComplete: ((Int) -> Unit)? = null) {
+        viewModelScope.launch {
+            isCheckingUpdates = true
+            try {
+                val repos = KitsugiDatabase.getDatabase(context).cloudstreamRepoDao().getAllRepos()
+                val allPluginsMap = mutableMapOf<String, CsPlugin>()
+                for (repo in repos) {
+                    repoLoadingState = repoLoadingState + (repo.repoUrl to true)
+                    val plugins = csRepoRepository.fetchPluginsForRepo(repo.repoUrl, forceRefresh = true)
+                    repoPluginsState = repoPluginsState + (repo.repoUrl to plugins)
+                    repoLoadingState = repoLoadingState + (repo.repoUrl to false)
+                    if (plugins != null) {
+                        for (p in plugins) {
+                            val prev = allPluginsMap[p.internalName]
+                            if (prev == null || p.version > prev.version) {
+                                allPluginsMap[p.internalName] = p
+                            }
+                        }
+                    }
+                }
+
+                val installed = KitsugiDatabase.getDatabase(context).csPluginDao().getAllPlugins()
+                val updatable = installed.filter { inst ->
+                    val latest = allPluginsMap[inst.id]
+                    latest != null && latest.version > inst.version
+                }
+                availableUpdatesCount = updatable.size
+
+                val msg = if (updatable.isNotEmpty()) {
+                    "🎉 ${updatable.size} eklenti için güncelleme bulundu!"
+                } else {
+                    "✅ Tüm eklentiler güncel"
+                }
+                if (!silent) {
+                    onShowMessage?.invoke(msg)
+                }
+                onComplete?.invoke(updatable.size)
+            } catch (e: Exception) {
+                val err = "Eklenti güncelleme denetimi hatası: ${e.message}"
+                if (!silent) onShowMessage?.invoke(err)
+                onComplete?.invoke(0)
+            } finally {
+                isCheckingUpdates = false
+            }
+        }
+    }
+
+    fun updateAllPendingPlugins() {
+        viewModelScope.launch {
+            val allPlugins = repoPluginsState.values.filterNotNull().flatten()
+            val installed = KitsugiDatabase.getDatabase(context).csPluginDao().getAllPlugins()
+            val toUpdate = allPlugins.filter { plugin ->
+                val inst = installed.find { it.id == plugin.internalName }
+                inst != null && inst.version < plugin.version
+            }.distinctBy { it.internalName }
+
+            if (toUpdate.isEmpty()) {
+                onShowMessage?.invoke("ℹ️ Güncellenecek eklenti bulunamadı")
+                return@launch
+            }
+
+            bulkInstallRepoUrl = "ALL"
+            bulkInstallRepoName = "Tüm Eklentiler"
+            bulkInstallTotal = toUpdate.size
+            bulkInstallDone = 0
+            bulkInstallCurrentName = toUpdate.firstOrNull()?.name ?: ""
+            bulkInstallResultMessage = null
+
+            var successCount = 0
+            val updatedIds = mutableListOf<String>()
+            for ((index, plugin) in toUpdate.withIndex()) {
+                bulkInstallCurrentName = plugin.name
+                bulkInstallDone = index
+                installPluginMutex.withLock {
+                    val ok = csRepoRepository.installCsPlugin(plugin)
+                    if (ok) {
+                        successCount++
+                        updatedIds.add(plugin.internalName)
+                    }
+                }
+                bulkInstallDone = index + 1
+                kotlinx.coroutines.delay(50L)
+            }
+
+            if (updatedIds.isNotEmpty()) {
+                for (id in updatedIds) {
+                    try {
+                        com.kitsugi.animelist.data.cloudstream.CsPluginLoader.loadExtension(context, id, forceReload = true)
+                    } catch (_: Exception) {}
+                }
+            }
+
+            bulkInstallResultMessage = "✅ $successCount/${toUpdate.size} eklenti güncellendi!"
+            onShowMessage?.invoke("✅ $successCount eklenti başarıyla güncellendi!")
+            availableUpdatesCount = 0
+            bulkInstallRepoUrl = null
+            bulkInstallRepoName = null
+            bulkInstallDone = 0
+            bulkInstallTotal = 0
+            bulkInstallCurrentName = ""
         }
     }
 
@@ -360,11 +482,12 @@ class AddonViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 if (installed && !isStremio) {
                     try {
-                        com.kitsugi.animelist.data.cloudstream.CsPluginLoader.loadExtension(context, plugin.internalName)
+                        com.kitsugi.animelist.data.cloudstream.CsPluginLoader.loadExtension(context, plugin.internalName, forceReload = true)
                     } catch (e: Exception) {
                         android.util.Log.e("InstallPlugin", "Failed to load extension ${plugin.internalName}", e)
                     }
                 }
+                calculateAvailableUpdates()
                 onResult?.invoke(installed)
                 onShowMessage?.invoke(
                     if (installed) "✅ Kuruldu: ${plugin.name}"

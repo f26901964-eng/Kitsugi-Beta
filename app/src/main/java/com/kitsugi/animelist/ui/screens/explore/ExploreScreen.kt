@@ -220,16 +220,16 @@ fun ExploreScreen(
                                         blurAdultMedia = blurAdultMedia,
                                         isVisible = lazyListState.firstVisibleItemIndex == 0
                                     )
-                                    Spacer(modifier = Modifier.height(26.dp))
+                                    Spacer(modifier = Modifier.height(6.dp))
                                 }
                             } else if (viewModel.isLoading) {
                                 item {
                                     KitsugiShimmerHeroSection()
-                                    Spacer(modifier = Modifier.height(26.dp))
+                                    Spacer(modifier = Modifier.height(6.dp))
                                 }
                             } else {
                                 item {
-                                    Spacer(modifier = Modifier.height(28.dp))
+                                    Spacer(modifier = Modifier.height(20.dp))
                                 }
                             }
 

@@ -56,6 +56,11 @@ internal fun CloudstreamExtensionsTab(
     onOpenDiagnostic: (() -> Unit)? = null,
     useGithubProxy: Boolean = false,
     onUseGithubProxyChanged: (Boolean) -> Unit = {},
+    isCheckingUpdates: Boolean = false,
+    availableUpdatesCount: Int = 0,
+    onCheckForUpdates: () -> Unit = {},
+    onUpdateAllPendingPlugins: () -> Unit = {},
+    onRefreshRepo: ((String) -> Unit)? = null,
     listState: LazyListState = rememberLazyListState(),
     onExplorePlugin: ((String) -> Unit)? = null,
     onOpenPluginPicker: (() -> Unit)? = null
@@ -159,10 +164,11 @@ internal fun CloudstreamExtensionsTab(
                     .clip(RoundedCornerShape(12.dp))
                     .background(KitsugiColors.SurfaceSoft)
                     .padding(4.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalAlignment = Alignment.CenterVertically
             ) {
                 listOf(
-                    CsTabSection.REPOS to "🌐 Repolar",
+                    CsTabSection.REPOS to "🌐 Repolar (${repos.size})",
                     CsTabSection.INSTALLED to "✅ Kurulu (${csPlugins.size})"
                 ).forEach { (section, label) ->
                     Box(
@@ -185,6 +191,72 @@ internal fun CloudstreamExtensionsTab(
                             fontWeight = if (activeSection == section) FontWeight.Bold else FontWeight.Normal,
                             fontSize = 12.sp
                         )
+                    }
+                }
+
+                // Check for updates button
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(accentColor.copy(alpha = 0.15f))
+                        .border(1.dp, accentColor.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
+                        .tvClickable(shape = RoundedCornerShape(10.dp)) {
+                            onCheckForUpdates()
+                        }
+                        .padding(horizontal = 10.dp, vertical = 8.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        if (isCheckingUpdates) {
+                            CircularProgressIndicator(modifier = Modifier.size(14.dp), color = accentColor, strokeWidth = 2.dp)
+                        } else {
+                            Icon(Icons.Rounded.Refresh, contentDescription = null, tint = accentColor, modifier = Modifier.size(15.dp))
+                        }
+                        Text("Yenile", color = accentColor, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+        }
+
+        if (availableUpdatesCount > 0) {
+            item {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(KitsugiColors.AccentOrange.copy(alpha = 0.15f))
+                        .border(1.dp, KitsugiColors.AccentOrange.copy(alpha = 0.40f), RoundedCornerShape(14.dp))
+                        .padding(horizontal = 14.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(
+                        modifier = Modifier.weight(1f),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Icon(Icons.Rounded.ArrowCircleUp, contentDescription = null, tint = KitsugiColors.AccentOrange, modifier = Modifier.size(22.dp))
+                        Column {
+                            Text(
+                                "🎉 $availableUpdatesCount eklenti güncellemesi mevcut!",
+                                color = KitsugiColors.TextPrimary,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                "Tümünü tek dokunuşla güncelleyebilirsiniz.",
+                                color = KitsugiColors.TextSecondary,
+                                fontSize = 10.sp
+                            )
+                        }
+                    }
+                    Button(
+                        onClick = onUpdateAllPendingPlugins,
+                        colors = ButtonDefaults.buttonColors(containerColor = KitsugiColors.AccentOrange),
+                        shape = RoundedCornerShape(10.dp),
+                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                    ) {
+                        Text("Tümünü Güncelle", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -332,6 +404,7 @@ internal fun CloudstreamExtensionsTab(
                         accentColor = accentColor,
                         onDeleteRepo = { onDeleteRepo(repo) },
                         onFetchRepoPlugins = { onFetchRepoPlugins(repo.repoUrl) },
+                        onRefreshRepo = { if (onRefreshRepo != null) onRefreshRepo(repo.repoUrl) else onFetchRepoPlugins(repo.repoUrl) },
                         onInstallAllPlugins = { pluginsToInstall ->
                             onInstallAllPlugins(repo.repoUrl, repo.name, pluginsToInstall)
                         },
@@ -376,16 +449,30 @@ internal fun CloudstreamExtensionsTab(
                             style = MaterialTheme.typography.bodySmall
                         )
                     }
-                    if (onOpenPluginPicker != null) {
-                        Button(
-                            onClick = onOpenPluginPicker,
-                            colors = ButtonDefaults.buttonColors(containerColor = accentColor.copy(alpha = 0.15f)),
-                            shape = RoundedCornerShape(12.dp),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
-                        ) {
-                            Icon(Icons.Rounded.Extension, contentDescription = null, tint = accentColor, modifier = Modifier.size(16.dp))
-                            Spacer(Modifier.width(6.dp))
-                            Text("Eklenti Portalı", color = accentColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (availableUpdatesCount > 0) {
+                            Button(
+                                onClick = onUpdateAllPendingPlugins,
+                                colors = ButtonDefaults.buttonColors(containerColor = KitsugiColors.AccentOrange),
+                                shape = RoundedCornerShape(12.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Icon(Icons.Rounded.ArrowCircleUp, contentDescription = null, tint = Color.White, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text("Tümünü Güncelle ($availableUpdatesCount)", color = Color.White, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                        if (onOpenPluginPicker != null) {
+                            Button(
+                                onClick = onOpenPluginPicker,
+                                colors = ButtonDefaults.buttonColors(containerColor = accentColor.copy(alpha = 0.15f)),
+                                shape = RoundedCornerShape(12.dp),
+                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                            ) {
+                                Icon(Icons.Rounded.Extension, contentDescription = null, tint = accentColor, modifier = Modifier.size(16.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text("Eklenti Portalı", color = accentColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            }
                         }
                     }
                 }
@@ -406,11 +493,13 @@ internal fun CloudstreamExtensionsTab(
             } else {
                 items(csPlugins, key = { it.id }) { plugin ->
                     val reinstallState = reinstallStates[plugin.id] ?: PluginInstallState.IDLE
+                    val latestPlugin = repoPlugins.values.filterNotNull().flatten().find { it.internalName == plugin.id }
 
                     CsInstalledPluginRow(
                         plugin = plugin,
                         accentColor = accentColor,
                         reinstallState = reinstallState,
+                        latestPlugin = latestPlugin,
                         onInstallPlugin = onInstallPlugin,
                         onToggleCsPlugin = onToggleCsPlugin,
                         onUninstallCsPlugin = onUninstallCsPlugin,

@@ -709,7 +709,6 @@ class JikanSearchClient {
 
             val rawType = node.optString("media_type", "")
             val nsfw = node.optString("nsfw", "white")
-            val isAdult = nsfw != "white"
 
             val genresList = mutableListOf<String>()
             val genresArray = node.optJSONArray("genres")
@@ -720,6 +719,9 @@ class JikanSearchClient {
                     if (genreName.isNotBlank()) genresList.add(genreName)
                 }
             }
+
+            val isAdult = nsfw.equals("black", ignoreCase = true) ||
+                genresList.any { it.contains("hentai", ignoreCase = true) }
 
             val subtitleParts = buildList {
                 if (rawType.isNotBlank()) add(rawType.uppercase().toTurkishMediaTypeString())

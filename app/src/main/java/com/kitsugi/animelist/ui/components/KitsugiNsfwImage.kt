@@ -44,6 +44,7 @@ fun KitsugiNsfwImage(
     isAdult: Boolean,
     modifier: Modifier = Modifier,
     contentScale: ContentScale = ContentScale.Crop,
+    alignment: Alignment = Alignment.Center,
     blurRadius: Dp = 24.dp,
     initials: String = "",
     initialsColor: Color? = null,
@@ -68,7 +69,8 @@ fun KitsugiNsfwImage(
                 model = model,
                 contentDescription = contentDescription,
                 modifier = Modifier.fillMaxSize(),
-                contentScale = contentScale
+                contentScale = contentScale,
+                alignment = alignment
             )
         } else if (initials.isNotEmpty()) {
             Text(

@@ -86,17 +86,25 @@ class CloudstreamRepoClient {
         private const val TAG = "CloudstreamRepoClient"
     }
 
-    suspend fun fetchRepo(repoUrl: String, useGithubProxy: Boolean = false): CsRepository? = withContext(Dispatchers.IO) {
+    suspend fun fetchRepo(repoUrl: String, useGithubProxy: Boolean = false, forceRefresh: Boolean = false): CsRepository? = withContext(Dispatchers.IO) {
         val normalizedUrl = com.kitsugi.animelist.utils.CloudstreamUrlHelper.normalizeAndProxy(repoUrl, useGithubProxy)
+        val finalUrl = if (forceRefresh) com.kitsugi.animelist.utils.CloudstreamUrlHelper.withCacheBuster(normalizedUrl) else normalizedUrl
         try {
-            val request = Request.Builder()
-                .url(normalizedUrl)
+            val requestBuilder = Request.Builder()
+                .url(finalUrl)
                 .addHeader("User-Agent", "KitsugiAnimeList/1.0")
-                .build()
+
+            if (forceRefresh) {
+                requestBuilder.cacheControl(okhttp3.CacheControl.FORCE_NETWORK)
+                requestBuilder.addHeader("Cache-Control", "no-cache, no-store, must-revalidate")
+                requestBuilder.addHeader("Pragma", "no-cache")
+            }
+
+            val request = requestBuilder.build()
 
             val responseBody = client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
-                    Log.e(TAG, "fetchRepo failed (${response.code}): $normalizedUrl")
+                    Log.e(TAG, "fetchRepo failed (${response.code}): $finalUrl")
                     return@withContext null
                 }
                 response.body?.string()
@@ -117,22 +125,30 @@ class CloudstreamRepoClient {
             }
             CsRepository(name = name, description = description, pluginLists = pluginLists)
         } catch (e: Exception) {
-            Log.e(TAG, "fetchRepo exception for $normalizedUrl", e)
+            Log.e(TAG, "fetchRepo exception for $finalUrl", e)
             null
         }
     }
 
-    suspend fun fetchPlugins(pluginListUrl: String, useGithubProxy: Boolean = false): List<CsPlugin> = withContext(Dispatchers.IO) {
+    suspend fun fetchPlugins(pluginListUrl: String, useGithubProxy: Boolean = false, forceRefresh: Boolean = false): List<CsPlugin> = withContext(Dispatchers.IO) {
         val normalizedUrl = com.kitsugi.animelist.utils.CloudstreamUrlHelper.normalizeAndProxy(pluginListUrl, useGithubProxy)
+        val finalUrl = if (forceRefresh) com.kitsugi.animelist.utils.CloudstreamUrlHelper.withCacheBuster(normalizedUrl) else normalizedUrl
         try {
-            val request = Request.Builder()
-                .url(normalizedUrl)
+            val requestBuilder = Request.Builder()
+                .url(finalUrl)
                 .addHeader("User-Agent", "KitsugiAnimeList/1.0")
-                .build()
+
+            if (forceRefresh) {
+                requestBuilder.cacheControl(okhttp3.CacheControl.FORCE_NETWORK)
+                requestBuilder.addHeader("Cache-Control", "no-cache, no-store, must-revalidate")
+                requestBuilder.addHeader("Pragma", "no-cache")
+            }
+
+            val request = requestBuilder.build()
 
             val responseBody = client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
-                    Log.e(TAG, "fetchPlugins failed (${response.code}): $normalizedUrl")
+                    Log.e(TAG, "fetchPlugins failed (${response.code}): $finalUrl")
                     return@withContext emptyList()
                 }
                 response.body?.string()
@@ -188,7 +204,7 @@ class CloudstreamRepoClient {
             }
             plugins
         } catch (e: Exception) {
-            Log.e(TAG, "fetchPlugins exception for $normalizedUrl", e)
+            Log.e(TAG, "fetchPlugins exception for $finalUrl", e)
             emptyList()
         }
     }
@@ -197,12 +213,12 @@ class CloudstreamRepoClient {
      * Fetches the repo manifest and then all plugin lists it references.
      * Returns all plugins in a flat list.
      */
-    suspend fun fetchAllPlugins(repoUrl: String, useGithubProxy: Boolean = false): List<CsPlugin>? {
+    suspend fun fetchAllPlugins(repoUrl: String, useGithubProxy: Boolean = false, forceRefresh: Boolean = false): List<CsPlugin>? {
         val normalizedRepoUrl = com.kitsugi.animelist.utils.CloudstreamUrlHelper.normalizeAndProxy(repoUrl, useGithubProxy)
-        val repo = fetchRepo(normalizedRepoUrl, useGithubProxy) ?: return null
+        val repo = fetchRepo(normalizedRepoUrl, useGithubProxy, forceRefresh) ?: return null
         val all = mutableListOf<CsPlugin>()
         for (listUrl in repo.pluginLists) {
-            val plugins = fetchPlugins(listUrl, useGithubProxy)
+            val plugins = fetchPlugins(listUrl, useGithubProxy, forceRefresh)
             all.addAll(plugins.map { it.copy(repositoryUrl = it.repositoryUrl ?: normalizedRepoUrl) })
         }
         return all

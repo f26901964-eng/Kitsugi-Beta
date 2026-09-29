@@ -63,6 +63,11 @@ fun KitsugiAddonsSettingsDialog(
     onClearBulkInstallResult: () -> Unit = {},
     onToggleCsPlugin: (CsPluginEntity, Boolean) -> Unit = { _, _ -> },
     onUninstallCsPlugin: (CsPluginEntity) -> Unit = {},
+    isCheckingUpdates: Boolean = false,
+    availableUpdatesCount: Int = 0,
+    onCheckForUpdates: () -> Unit = {},
+    onUpdateAllPendingPlugins: () -> Unit = {},
+    onRefreshRepo: ((String) -> Unit)? = null,
     // Manga extensions
     mangaSources: List<MangaSource> = emptyList(),
     onInstallMangaExtension: (Uri) -> Unit = {},
@@ -299,6 +304,11 @@ fun KitsugiAddonsSettingsDialog(
                             onUninstallCsPlugin = onUninstallCsPlugin,
                             useGithubProxy = useGithubProxy,
                             onUseGithubProxyChanged = onUseGithubProxyChanged,
+                            isCheckingUpdates = isCheckingUpdates,
+                            availableUpdatesCount = availableUpdatesCount,
+                            onCheckForUpdates = onCheckForUpdates,
+                            onUpdateAllPendingPlugins = onUpdateAllPendingPlugins,
+                            onRefreshRepo = onRefreshRepo,
                             onVerifyPlugin = { pluginId, pluginName ->
                                 scope.launch(Dispatchers.IO) {
                                     val cs3File = java.io.File(context.filesDir, "cs_extensions/${pluginId}.cs3")

@@ -147,8 +147,15 @@ object CsPluginLoader {
 
     // ─── Download ─────────────────────────────────────────────────────────────
 
-    fun downloadExtension(context: Context, scraperId: String, urlString: String, expectedHash: String? = null): Boolean {
+    fun downloadExtension(
+        context: Context,
+        scraperId: String,
+        urlString: String,
+        expectedHash: String? = null,
+        forceDownload: Boolean = false
+    ): Boolean {
         val normalizedUrl = com.kitsugi.animelist.utils.CloudstreamUrlHelper.normalizeUrl(urlString)
+        val downloadUrl = if (forceDownload) com.kitsugi.animelist.utils.CloudstreamUrlHelper.withCacheBuster(normalizedUrl) else normalizedUrl
         val extensionDir = File(context.filesDir, "cs_extensions")
         if (!extensionDir.exists()) extensionDir.mkdirs()
 
@@ -156,13 +163,23 @@ object CsPluginLoader {
         val targetFile = File(extensionDir, "$scraperId.cs3")
 
         return try {
-            if (tempFile.exists()) tempFile.delete()
+            if (tempFile.exists()) {
+                try { tempFile.setWritable(true) } catch (_: Exception) {}
+                tempFile.delete()
+            }
 
-            Log.d(TAG, "Downloading plugin $scraperId from $normalizedUrl to temp file ${tempFile.name}")
-            val request = Request.Builder()
-                .url(normalizedUrl)
+            Log.d(TAG, "Downloading plugin $scraperId from $downloadUrl to temp file ${tempFile.name}")
+            val requestBuilder = Request.Builder()
+                .url(downloadUrl)
                 .header("User-Agent", "CloudStream/3")
-                .build()
+
+            if (forceDownload) {
+                requestBuilder.cacheControl(okhttp3.CacheControl.FORCE_NETWORK)
+                requestBuilder.addHeader("Cache-Control", "no-cache, no-store, must-revalidate")
+                requestBuilder.addHeader("Pragma", "no-cache")
+            }
+
+            val request = requestBuilder.build()
 
             com.kitsugi.animelist.core.network.KitsugiHttpClient.client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) throw java.io.IOException("Failed to download extension: ${response.code}")
@@ -195,12 +212,24 @@ object CsPluginLoader {
             }
 
             // Atomic move to target
-            if (targetFile.exists()) targetFile.delete()
+            if (targetFile.exists()) {
+                try { targetFile.setWritable(true) } catch (_: Exception) {}
+                targetFile.delete()
+            }
             val renameSuccess = tempFile.renameTo(targetFile)
             if (!renameSuccess) {
-                Log.e(TAG, "Failed to rename temp file to target file: $scraperId")
-                tempFile.delete()
-                return false
+                try {
+                    tempFile.inputStream().use { input ->
+                        targetFile.outputStream().use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                    tempFile.delete()
+                } catch (copyEx: Exception) {
+                    Log.e(TAG, "Failed to rename/copy temp file to target file: $scraperId", copyEx)
+                    tempFile.delete()
+                    return false
+                }
             }
 
             // MUST be read-only for Android 10+ DEX security policy
@@ -208,8 +237,11 @@ object CsPluginLoader {
             Log.d(TAG, "Plugin $scraperId downloaded, verified, and installed atomicaly OK")
             true
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to download plugin $scraperId from $normalizedUrl", e)
-            if (tempFile.exists()) tempFile.delete()
+            Log.e(TAG, "Failed to download plugin $scraperId from $downloadUrl", e)
+            if (tempFile.exists()) {
+                try { tempFile.setWritable(true) } catch (_: Exception) {}
+                tempFile.delete()
+            }
             false
         }
     }

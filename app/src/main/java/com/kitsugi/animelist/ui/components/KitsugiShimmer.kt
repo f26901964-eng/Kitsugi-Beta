@@ -186,17 +186,29 @@ fun KitsugiShimmerMediaRow(
 
 @Composable
 fun KitsugiShimmerHeroSection(
-    heroHeight: Dp = 420.dp,
+    heroHeight: Dp = Dp.Unspecified,
     modifier: Modifier = Modifier,
 ) {
+    val configuration = androidx.compose.ui.platform.LocalConfiguration.current
+    val screenWidthDp = configuration.screenWidthDp
+    val screenHeightDp = configuration.screenHeightDp
+    val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE || screenWidthDp > screenHeightDp
+
+    val finalHeight = if (heroHeight != Dp.Unspecified) {
+        heroHeight
+    } else if (isLandscape) {
+        (screenHeightDp * 0.60f).coerceIn(210f, 265f).dp
+    } else {
+        (screenHeightDp * 0.50f).coerceIn(390f, 460f).dp
+    }
+
     // LocalShimmerBrush varsa paylaş, yoksa kendi transition'unu oluştur
     val brush = LocalShimmerBrush.current ?: rememberKitsugiShimmerBrush()
 
     Box(
         modifier = modifier
             .fillMaxWidth()
-            .height(heroHeight)
-            .clip(RoundedCornerShape(bottomStart = 28.dp, bottomEnd = 28.dp))
+            .height(finalHeight)
             .background(brush),
     ) {
         // Alt köşe içerik placeholder

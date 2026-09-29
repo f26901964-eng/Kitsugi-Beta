@@ -826,6 +826,29 @@ fun SubtitleCardItem(
     }
 }
 
+private fun parseSubtitleFileInfo(nameWithoutExt: String): Triple<String?, Int?, String> {
+    // Örnek: "Solo Leveling - Bölüm 3.tr" veya "Solo Leveling - Bölüm 3.tr_Türkçe"
+    val epRegex = Regex("""^(.*?)\s*-\s*Bölüm\s*(\d+)(?:\.([a-zA-Z0-9_ -]+))?$""", RegexOption.IGNORE_CASE)
+    val epMatch = epRegex.find(nameWithoutExt)
+    if (epMatch != null) {
+        val anime = epMatch.groupValues[1].trim()
+        val ep = epMatch.groupValues[2].toIntOrNull()
+        val lang = epMatch.groupValues.getOrNull(3)?.substringBefore("_")?.trim() ?: "auto"
+        return Triple(anime, ep, lang)
+    }
+
+    // Örnek: "Spirited Away.tr"
+    val dotRegex = Regex("""^(.*?)\.([a-zA-Z0-9_ -]+)$""")
+    val dotMatch = dotRegex.find(nameWithoutExt)
+    if (dotMatch != null) {
+        val anime = dotMatch.groupValues[1].trim()
+        val lang = dotMatch.groupValues[2].substringBefore("_").trim()
+        return Triple(anime, null, lang)
+    }
+
+    return Triple(null, null, "auto")
+}
+
 /**
  * Loads all downloaded subtitles across:
  * 1. Offline media episode downloads (<cacheDir>/Kitsugi_downloads/<mediaId>/subs/)
@@ -872,16 +895,17 @@ fun loadAllDownloadedSubtitles(
         if (publicDir.exists()) {
             publicDir.listFiles()?.filter { it.isFile && it.extension.lowercase() in subExtensions }?.forEach { f ->
                 if (results.none { it.file.absolutePath == f.absolutePath }) {
+                    val (parsedAnime, parsedEp, parsedLang) = parseSubtitleFileInfo(f.nameWithoutExtension)
                     results.add(
                         DownloadedSubtitleItem(
                             title = f.nameWithoutExtension,
-                            language = "auto",
+                            language = if (parsedLang.isNotBlank() && parsedLang != "auto") parsedLang else "auto",
                             format = f.extension.uppercase(),
                             fileSizeBytes = f.length(),
                             lastModified = f.lastModified(),
                             file = f,
-                            animeTitle = null,
-                            episode = null,
+                            animeTitle = parsedAnime,
+                            episode = parsedEp,
                             isStandalone = true
                         )
                     )
@@ -896,16 +920,17 @@ fun loadAllDownloadedSubtitles(
         if (cacheSubDir.exists()) {
             cacheSubDir.listFiles()?.filter { it.isFile && it.extension.lowercase() in subExtensions }?.forEach { f ->
                 if (results.none { it.file.name == f.name }) {
+                    val (parsedAnime, parsedEp, parsedLang) = parseSubtitleFileInfo(f.nameWithoutExtension)
                     results.add(
                         DownloadedSubtitleItem(
                             title = f.nameWithoutExtension,
-                            language = "auto",
+                            language = if (parsedLang.isNotBlank() && parsedLang != "auto") parsedLang else "auto",
                             format = f.extension.uppercase(),
                             fileSizeBytes = f.length(),
                             lastModified = f.lastModified(),
                             file = f,
-                            animeTitle = null,
-                            episode = null,
+                            animeTitle = parsedAnime,
+                            episode = parsedEp,
                             isStandalone = true
                         )
                     )

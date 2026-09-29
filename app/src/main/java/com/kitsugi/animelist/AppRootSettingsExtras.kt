@@ -243,9 +243,13 @@ internal fun SettingsContext.buildSettingsParams() =
             onClearBulkInstallResult = { addonViewModel.clearBulkInstallResult() },
             csPlugins = csPluginsList,
             onToggleCsPlugin = { plugin, enabled -> onToggleCsPlugin(plugin, enabled) },
-            onUninstallCsPlugin = { addonViewModel.uninstallCsPlugin(it) },
             useGithubProxy = appSettings.useGithubProxy,
-            onUseGithubProxyChanged = { enabled -> onUseGithubProxyChanged(enabled) }
+            onUseGithubProxyChanged = { enabled -> onUseGithubProxyChanged(enabled) },
+            isCheckingUpdates = addonViewModel.isCheckingUpdates,
+            availableUpdatesCount = addonViewModel.availableUpdatesCount,
+            onCheckForUpdates = { addonViewModel.checkForPluginUpdates() },
+            onUpdateAllPendingPlugins = { addonViewModel.updateAllPendingPlugins() },
+            onRefreshRepo = { repoUrl -> addonViewModel.fetchRepoPlugins(repoUrl, force = true) }
         ),
         manga = com.kitsugi.animelist.ui.screens.settings.MangaSettings(
             mangaSources = mangaViewModel.mangaSources,
