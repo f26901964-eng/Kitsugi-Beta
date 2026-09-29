@@ -34,12 +34,25 @@ class SimklApiClient(
     suspend fun search(query: String, type: String? = null, limit: Int = 20): List<JikanSearchResult> = withContext(Dispatchers.IO) {
         val rawQuery = query.trim()
         if (rawQuery.isBlank()) return@withContext emptyList()
-        val encoded = URLEncoder.encode(rawQuery, "UTF-8")
-        val endpoint = when (type) {
+        if (type == null || type == "all") {
+            kotlinx.coroutines.coroutineScope {
+                val animeDef = kotlinx.coroutines.async { searchType(rawQuery, "anime", limit) }
+                val tvDef = kotlinx.coroutines.async { searchType(rawQuery, "tv", limit) }
+                val movieDef = kotlinx.coroutines.async { searchType(rawQuery, "movie", limit) }
+                (animeDef.await() + tvDef.await() + movieDef.await()).distinctBy { it.malId }
+            }
+        } else {
+            searchType(rawQuery, type, limit)
+        }
+    }
+
+    private fun searchType(query: String, type: String, limit: Int): List<JikanSearchResult> {
+        val encoded = URLEncoder.encode(query, "UTF-8")
+        val endpoint = when (type.lowercase()) {
             "anime" -> "anime"
             "movie", "movies" -> "movie"
             "tv", "shows", "series" -> "tv"
-            else -> "all"
+            else -> "anime"
         }
         val url = "https://api.simkl.com/search/$endpoint?q=$encoded&client_id=$clientId&limit=$limit"
         val request = Request.Builder()
@@ -47,13 +60,14 @@ class SimklApiClient(
             .header("Accept", "application/json")
             .build()
 
-        try {
+        return try {
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
                     android.util.Log.e("SimklApiClient", "search $endpoint HTTP ${response.code}")
-                    return@withContext emptyList()
+                    return emptyList()
                 }
                 val responseText = response.body?.string().orEmpty()
+                if (responseText.isBlank() || responseText.trim() == "null") return emptyList()
                 val jsonArray = JSONArray(responseText)
                 val results = mutableListOf<JikanSearchResult>()
 
@@ -70,7 +84,7 @@ class SimklApiClient(
                     val malId = ids.optInt("mal", 0)
                     val poster = obj.optString("poster", "")
                     val year = obj.optInt("year", 0)
-                    val itemType = obj.optString("type", type ?: "anime")
+                    val itemType = obj.optString("type", type)
 
                     val ratingsObj = obj.optJSONObject("ratings")
                     val simklRating = ratingsObj?.optJSONObject("simkl")?.optDouble("rating", 0.0) ?: 0.0

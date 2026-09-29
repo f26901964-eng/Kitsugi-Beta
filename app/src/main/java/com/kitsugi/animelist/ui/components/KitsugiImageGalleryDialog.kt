@@ -305,9 +305,12 @@ private fun GalleryLandscapeLayout(
     galleryItems: List<GalleryItem>
 ) {
     val scope = rememberCoroutineScope()
-    val currentItem = filteredItems.getOrNull(pagerState.currentPage)
-
-    Row(modifier = Modifier.fillMaxSize()) {
+    Row(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding()
+    ) {
 
         // ── LEFT: Vertical thumbnail rail ─────────────────────────────────────
         val thumbRailState = rememberLazyListState()
@@ -402,7 +405,7 @@ private fun GalleryLandscapeLayout(
                     LazyRow(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 8.dp, vertical = 5.dp),
+                            .padding(horizontal = 12.dp, top = 8.dp, bottom = 6.dp),
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -546,8 +549,6 @@ private fun GalleryLandscapeLayout(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .statusBarsPadding()
-                    .navigationBarsPadding()
             ) {
                 // Top action row (Download | Share | Close)
                 Row(
@@ -882,7 +883,12 @@ private fun GalleryPortraitLayout(
 ) {
     val scope = rememberCoroutineScope()
 
-    Column(modifier = Modifier.fillMaxSize()) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .statusBarsPadding()
+            .navigationBarsPadding()
+    ) {
         // Header (üst)
         KitsugiGalleryHeader(
             title = title,

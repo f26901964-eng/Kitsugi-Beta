@@ -795,13 +795,19 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
 
         // 3. Kitsu
         if (state.currentTab == KitsugiSearchTab.Kitsu || state.selectedPlatform == SearchPlatform.Kitsu) {
-            val results = KitsuExploreClient.searchAnime(queryText, state.selectedMediaType, limit = 24)
+            val results = KitsuExploreClient.searchAnime(queryText, state.selectedMediaType, limit = 20)
             return Pair(results, results.size >= 20)
         }
 
         // 4. Simkl
         if (state.currentTab == KitsugiSearchTab.Simkl || state.selectedPlatform == SearchPlatform.Simkl) {
-            val results = SimklApiClient().search(queryText, limit = 24)
+            val simklType = when (state.selectedMediaType) {
+                MediaType.Movie -> "movie"
+                MediaType.TvShow -> "tv"
+                MediaType.Anime -> "anime"
+                else -> null
+            }
+            val results = SimklApiClient().search(queryText, type = simklType, limit = 20)
             return Pair(results, results.size >= 20)
         }
 

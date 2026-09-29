@@ -42,8 +42,8 @@ object KitsuExploreClient {
                 MediaType.Anime, MediaType.Movie, MediaType.TvShow -> "anime"
                 MediaType.Manga -> "manga"
             }
-            val encoded = URLEncoder.encode(query, "UTF-8")
-            val url = "$BASE/$endpoint?filter[text]=$encoded&page[limit]=$limit"
+            val safeLimit = limit.coerceIn(1, 20)
+            val url = "$BASE/$endpoint?filter[text]=$encoded&page[limit]=$safeLimit"
             fetchList(url, mediaType)
         }
 

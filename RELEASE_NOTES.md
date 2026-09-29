@@ -2,28 +2,26 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.151)
+## 🇹🇷 Türkçe (v2.4.152)
 
-### 🖼️ İndirilenler → Resimler Sekmesi & Gelişmiş Bildirimler
+### 🔍 Kitsu & Simkl Arama Düzeltmesi, Galeri Bildirim Çubuğu Mesafesi & Performans
 
-- **İndirilenler → Resimler Sekmesi:** Galeri ekranından indirdiğiniz tüm görseller artık İndirilenler ekranında yeni **Resimler** sekmesinde listelenir.
-- **Zengin Kart Görünümü:** Her resim thumbnail önizlemesi, dosya boyutu ve indirme tarihiyle grid görünümünde sunulur.
-- **Tam Ekran Galeri Viewer:** Herhangi bir resim kartına tıklandığında dahili tam ekran galeri görüntüleyici açılır.
-- **Klasör Aç & Sil Butonları:** Her görsel kartı üzerinden doğrudan dosya sistemindeki klasörü açabilir veya resmi silebilirsiniz.
-- **Video İndirme Bildirimleri:** İndirilen animenin afişi büyük simge olarak bildirimde yer alır; indirme tamamlandığında `BigPictureStyle` genişletilmiş afiş görünümü sunulur.
-- **Resim İndirme Bildirimleri:** Resim indirme bildiriminde indirilen görselin kendisi thumbnail olarak yer alır ve dosya boyutu gösterilir.
-- **Vitrin (Hero Showcase) Performans İyileştirmesi:** Ana sayfadaki üst vitrinde kasma ve GPU yükü oluşturan blur katmanı kaldırıldı; akıcı 60/120 FPS performans sağlandı.
+- **Kitsu Arama Düzeltildi:** Kitsu API'sinin 20'den fazla sayfa boyutu isteklerinde HTTP 400 hatası vererek sonuçları boş döndürmesi sorunu giderildi. Kitsu sekmesinde artık tüm sonuçlar eksiksiz listelenir.
+- **Simkl Arama Düzeltildi:** Simkl API'sinde var olmayan genel arama yerine anime, dizi ve film uç noktaları eşzamanlı taranarak birleştirildi; artık Simkl sekmesinde hem anime hem film/dizi sonuçları anında geliyor.
+- **Galeri Butonları Bildirim Çubuğundan Uzaklaştırıldı:** Resim galerisi tam ekran görünümünde üst kategori butonlarının telefonun bildirim çubuğuna (saat, pil, Wi-Fi simgeleri) yapışarak basılmasını zorlaştırması sorunu `statusBarsPadding` ve güvenli dokunma mesafesiyle düzeltildi.
+- **Vitrin (Hero Showcase) Performansı:** Ana sayfadaki üst vitrinde kasma ve GPU yükü oluşturan blur katmanı kaldırıldı; arayüz akıcı 60/120 FPS hızına kavuştu.
+- **İndirilenler → Resimler Sekmesi:** Galeri ekranından indirilen tüm görseller İndirilenler sayfasında Resimler sekmesinde listelenir; dahili galeri görüntüleyici, klasör aç ve silme desteği mevcuttur.
+- **Zengin Bildirimler:** Video indirmelerinde anime afişi `BigPictureStyle` ile, resim indirmelerinde indirilen görselin kendisi thumbnail olarak bildirimde görünür.
 
 ---
 
-## 🇬🇧 English (v2.4.151)
+## 🇬🇧 English (v2.4.152)
 
-### 🖼️ Downloads → Images Tab & Enhanced Notifications
+### 🔍 Kitsu & Simkl Search Fix, Gallery Status Bar Insets & Performance
 
-- **Downloads → Images Tab:** All gallery downloads are now organized under a dedicated **Images** tab on the Downloads screen.
-- **Rich Card View:** Thumbnails, exact file sizes, and download dates presented in an adaptive grid.
-- **Fullscreen Gallery Viewer:** Tap any downloaded image card to open the fullscreen interactive gallery viewer.
-- **Open Folder & Delete Actions:** Dedicated buttons on each card to reveal files in storage or delete them.
-- **Rich Video Download Notifications:** Anime poster shown as large icon; `BigPictureStyle` expanded banner on completion.
-- **Rich Image Download Notifications:** Completed notification displays the downloaded image thumbnail with file size subtext.
+- **Kitsu Search Fixed:** Resolved HTTP 400 Bad Request error caused by page limit exceeding Kitsu's max limit of 20. Kitsu results now load seamlessly.
+- **Simkl Search Fixed:** Resolved empty results by querying anime, tv, and movie endpoints concurrently instead of the non-existent general endpoint.
+- **Gallery Status Bar Padding:** Added proper status bar insets and top margin to the fullscreen image gallery category chips, preventing accidental notification shade drags.
 - **Hero Showcase Performance:** Removed heavy blur layer on home screen hero carousel to eliminate UI lag and restore smooth 60/120 FPS rendering.
+- **Downloads → Images Tab:** All downloaded images organized under a dedicated Images tab with fullscreen viewer, open folder, and delete options.
+- **Rich Download Notifications:** Video downloads show anime poster with `BigPictureStyle`, image downloads display image thumbnail and file size.
