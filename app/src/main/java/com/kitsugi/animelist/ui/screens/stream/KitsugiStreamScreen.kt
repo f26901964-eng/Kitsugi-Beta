@@ -350,7 +350,10 @@ fun KitsugiStreamScreen(
                 if (isDownloadMode) {
                     com.kitsugi.animelist.data.local.AnimeDownloadManager.addDownload(
                         context = context,
-                        animeId = if (aniListId != null) aniListId.toString() else if (malId != null) malId.toString() else tmdbId?.toString() ?: "",
+                        animeId = if (aniListId != null) aniListId.toString()
+                            else if (malId != null) malId.toString()
+                            else if (tmdbId != null) tmdbId.toString()
+                            else title.lowercase().replace(Regex("[^a-z0-9]"), "_").trim('_').take(30).ifBlank { "media" },
                         animeTitle = title,
                         posterUrl = source.thumbnailUrl.takeIf { !it.isNullOrBlank() } ?: posterUrl,
                         episode = episode,
@@ -408,7 +411,10 @@ fun KitsugiStreamScreen(
 
                 com.kitsugi.animelist.data.local.AnimeDownloadManager.addDownload(
                     context = context,
-                    animeId = if (aniListId != null) aniListId.toString() else if (malId != null) malId.toString() else tmdbId?.toString() ?: "",
+                    animeId = if (aniListId != null) aniListId.toString()
+                        else if (malId != null) malId.toString()
+                        else if (tmdbId != null) tmdbId.toString()
+                        else title.lowercase().replace(Regex("[^a-z0-9]"), "_").trim('_').take(30).ifBlank { "media" },
                     animeTitle = title,
                     posterUrl = source.thumbnailUrl.takeIf { !it.isNullOrBlank() } ?: posterUrl,
                     episode = episode,

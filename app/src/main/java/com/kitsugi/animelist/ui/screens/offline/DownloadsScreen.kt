@@ -114,7 +114,10 @@ fun DownloadsScreen(
                             "Kitsugi/Subtitles"
                         ).also { it.mkdirs() }
                     } else {
-                        OfflinePlaybackHelper.getDownloadsDir(context)
+                        File(
+                            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                            "Kitsugi/Video"
+                        ).also { it.mkdirs() }
                     }
                     openFolderInFileManager(context, rootDir)
                 }
@@ -223,7 +226,10 @@ fun DownloadsScreen(
                             download = download,
                             accentColor = accentColor,
                             onPlay = {
-                                val mediaId = "${download.animeId}_ep${download.episode}"
+                                val safeAnimeId = download.animeId.ifBlank {
+                                    download.animeTitle.lowercase().replace(Regex("[^a-z0-9]"), "_").trim('_').take(30).ifBlank { "media" }
+                                }
+                                val mediaId = "${safeAnimeId}_ep${download.episode}"
                                 val localMedia = OfflinePlaybackHelper.getLocalMedia(context, mediaId)
                                 val params = localMedia?.let { OfflinePlaybackHelper.buildPlayerParams(it) }
                                 if (params != null) {
@@ -236,12 +242,28 @@ fun DownloadsScreen(
                                     )
                                 } else {
                                     download.localPath?.let { path ->
+                                        val videoFile = File(path)
+                                        val parentDir = videoFile.parentFile
+                                        val baseName = videoFile.nameWithoutExtension
+                                        val companionSubs = if (parentDir != null && parentDir.exists()) {
+                                            parentDir.listFiles()?.filter { f ->
+                                                f.isFile && f.name.startsWith(baseName) && f.extension.lowercase() in listOf("srt", "ass", "ssa", "vtt")
+                                            }?.map { subFile ->
+                                                val lang = subFile.nameWithoutExtension.removePrefix(baseName).trim('.', '_')
+                                                com.kitsugi.animelist.core.player.SubtitleInput(
+                                                    url = "file://${subFile.absolutePath}",
+                                                    name = lang.ifBlank { "Altyazı" },
+                                                    lang = lang.ifBlank { "tr" }
+                                                )
+                                            } ?: emptyList()
+                                        } else emptyList()
+
                                         KitsugiFullscreenPlayerActivity.startWithStreamUrls(
                                             context = context,
                                             videoUrl = "file://$path",
                                             title = "${download.animeTitle} - Bölüm ${download.episode}",
                                             headers = emptyMap(),
-                                            subtitles = emptyList()
+                                            subtitles = companionSubs
                                         )
                                     }
                                 }
@@ -257,8 +279,13 @@ fun DownloadsScreen(
                                 refreshSubsTrigger++
                             },
                             onOpenFolder = {
+                                val safeAnimeId = download.animeId.ifBlank {
+                                    download.animeTitle.lowercase().replace(Regex("[^a-z0-9]"), "_").trim('_').take(30).ifBlank { "media" }
+                                }
+                                val mediaId = "${safeAnimeId}_ep${download.episode}"
                                 val targetDir = download.localPath?.let { File(it).parentFile }
-                                    ?: File(OfflinePlaybackHelper.getDownloadsDir(context), "${download.animeId}_ep${download.episode}")
+                                    ?: File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "Kitsugi/Video").takeIf { it.exists() }
+                                    ?: File(OfflinePlaybackHelper.getDownloadsDir(context), mediaId)
                                 openFolderInFileManager(context, targetDir)
                             },
                             onOpenSubFolder = { subFile ->
@@ -402,9 +429,31 @@ fun DownloadItemRow(
     val context = LocalContext.current
     var isExpanded by remember { mutableStateOf(true) }
 
-    val mediaId = "${download.animeId}_ep${download.episode}"
+    val safeAnimeId = download.animeId.ifBlank {
+        download.animeTitle.lowercase().replace(Regex("[^a-z0-9]"), "_").trim('_').take(30).ifBlank { "media" }
+    }
+    val mediaId = "${safeAnimeId}_ep${download.episode}"
     val localMedia = remember(download) { OfflinePlaybackHelper.getLocalMedia(context, mediaId) }
-    val localSubs = localMedia?.subtitles ?: emptyList()
+    val companionSubs = remember(download.localPath) {
+        download.localPath?.let { path ->
+            val vFile = File(path)
+            val pDir = vFile.parentFile
+            val bName = vFile.nameWithoutExtension
+            if (pDir != null && pDir.exists()) {
+                pDir.listFiles()?.filter { f ->
+                    f.isFile && f.name.startsWith(bName) && f.extension.lowercase() in listOf("srt", "ass", "ssa", "vtt")
+                }?.map { subFile ->
+                    val lang = subFile.nameWithoutExtension.removePrefix(bName).trim('.', '_')
+                    OfflinePlaybackHelper.LocalSubtitle(
+                        language = lang.ifBlank { "tr" },
+                        label = subFile.nameWithoutExtension,
+                        uri = "file://${subFile.absolutePath}"
+                    )
+                } ?: emptyList()
+            } else emptyList()
+        } ?: emptyList()
+    }
+    val localSubs = if (localMedia?.subtitles.isNullOrEmpty()) companionSubs else localMedia?.subtitles ?: emptyList()
 
     Column(
         modifier = Modifier
@@ -886,33 +935,35 @@ fun loadAllDownloadedSubtitles(
         }
     }
 
-    // 2. Standalone subtitles in public Downloads/Kitsugi/Subtitles
-    try {
-        val publicDir = File(
-            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-            "Kitsugi/Subtitles"
-        )
-        if (publicDir.exists()) {
-            publicDir.listFiles()?.filter { it.isFile && it.extension.lowercase() in subExtensions }?.forEach { f ->
-                if (results.none { it.file.absolutePath == f.absolutePath }) {
-                    val (parsedAnime, parsedEp, parsedLang) = parseSubtitleFileInfo(f.nameWithoutExtension)
-                    results.add(
-                        DownloadedSubtitleItem(
-                            title = f.nameWithoutExtension,
-                            language = if (parsedLang.isNotBlank() && parsedLang != "auto") parsedLang else "auto",
-                            format = f.extension.uppercase(),
-                            fileSizeBytes = f.length(),
-                            lastModified = f.lastModified(),
-                            file = f,
-                            animeTitle = parsedAnime,
-                            episode = parsedEp,
-                            isStandalone = true
+    // 2. Standalone & companion subtitles in public Downloads/Kitsugi/Subtitles and Downloads/Kitsugi/Video
+    val publicDirsToScan = listOf(
+        File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "Kitsugi/Subtitles"),
+        File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "Kitsugi/Video")
+    )
+    for (publicDir in publicDirsToScan) {
+        try {
+            if (publicDir.exists()) {
+                publicDir.listFiles()?.filter { it.isFile && it.extension.lowercase() in subExtensions }?.forEach { f ->
+                    if (results.none { it.file.absolutePath == f.absolutePath }) {
+                        val (parsedAnime, parsedEp, parsedLang) = parseSubtitleFileInfo(f.nameWithoutExtension)
+                        results.add(
+                            DownloadedSubtitleItem(
+                                title = f.nameWithoutExtension,
+                                language = if (parsedLang.isNotBlank() && parsedLang != "auto") parsedLang else "auto",
+                                format = f.extension.uppercase(),
+                                fileSizeBytes = f.length(),
+                                lastModified = f.lastModified(),
+                                file = f,
+                                animeTitle = parsedAnime,
+                                episode = parsedEp,
+                                isStandalone = true
+                            )
                         )
-                    )
+                    }
                 }
             }
-        }
-    } catch (_: Exception) {}
+        } catch (_: Exception) {}
+    }
 
     // 3. App internal cache subtitles
     try {
@@ -978,28 +1029,26 @@ fun openFolderInFileManager(context: Context, targetFileOrDir: File) {
         } catch (_: Exception) {}
     }
 
-    // 2. FileProvider with resource/folder MIME
-    try {
-        val targetUri = FileProvider.getUriForFile(
-            context,
-            "com.kitsugi.animelist.fileprovider",
-            if (targetFileOrDir.exists() && targetFileOrDir.isFile) targetFileOrDir else folder
-        )
-        val intent = Intent(Intent.ACTION_VIEW).apply {
-            setDataAndType(targetUri, "resource/folder")
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        context.startActivity(Intent.createChooser(intent, "Klasörü Dosya Yöneticisi ile Aç"))
-        Toast.makeText(context, "Klasör açılıyor: ${folder.name}", Toast.LENGTH_SHORT).show()
-        return
-    } catch (_: Exception) {}
+    // 2. DownloadManager intent if inside Downloads folder
+    val publicDownloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+    if (folder.absolutePath.startsWith(publicDownloadsDir.absolutePath)) {
+        try {
+            val dlIntent = Intent(DownloadManager.ACTION_VIEW_DOWNLOADS).apply {
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            context.startActivity(dlIntent)
+            Toast.makeText(context, "İndirilenler açılıyor: ${folder.name}", Toast.LENGTH_SHORT).show()
+            return
+        } catch (_: Exception) {}
+    }
 
-    // 3. FileProvider with target file / MIME
+    // 3. FileProvider with actual FILE (NEVER with a directory! Directories cause errno=21 EISDIR in ZArchiver)
     try {
         val fileToOpen = if (targetFileOrDir.exists() && targetFileOrDir.isFile) targetFileOrDir else {
-            folder.listFiles()?.firstOrNull { it.isFile }
+            folder.listFiles()?.firstOrNull { it.isFile && it.extension.lowercase() in listOf("mp4", "mkv", "webm", "srt", "vtt", "ass") }
+                ?: folder.listFiles()?.firstOrNull { it.isFile }
         }
-        if (fileToOpen != null) {
+        if (fileToOpen != null && fileToOpen.exists()) {
             val fileUri = FileProvider.getUriForFile(
                 context,
                 "com.kitsugi.animelist.fileprovider",
@@ -1017,20 +1066,10 @@ fun openFolderInFileManager(context: Context, targetFileOrDir: File) {
                 setDataAndType(fileUri, mime)
                 addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
             }
-            context.startActivity(Intent.createChooser(intent, "Konumu Dosya Yöneticisi ile Aç"))
+            context.startActivity(Intent.createChooser(intent, "Dosyayı Aç: ${fileToOpen.name}"))
             Toast.makeText(context, "Dosya: ${fileToOpen.name}", Toast.LENGTH_SHORT).show()
             return
         }
-    } catch (_: Exception) {}
-
-    // 4. ACTION_VIEW_DOWNLOADS fallback
-    try {
-        val dlIntent = Intent(DownloadManager.ACTION_VIEW_DOWNLOADS).apply {
-            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-        }
-        context.startActivity(dlIntent)
-        Toast.makeText(context, "İndirilenler klasörü açıldı: ${folder.name}", Toast.LENGTH_SHORT).show()
-        return
     } catch (_: Exception) {}
 
     // 5. file:// URI with relaxed VmPolicy fallback
