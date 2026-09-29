@@ -305,11 +305,13 @@ private fun GalleryLandscapeLayout(
     galleryItems: List<GalleryItem>
 ) {
     val scope = rememberCoroutineScope()
+    val currentItem = filteredItems.getOrNull(pagerState.currentPage)
     Row(
         modifier = Modifier
             .fillMaxSize()
             .statusBarsPadding()
             .navigationBarsPadding()
+            .padding(top = 18.dp)
     ) {
 
         // ── LEFT: Vertical thumbnail rail ─────────────────────────────────────
@@ -405,7 +407,7 @@ private fun GalleryLandscapeLayout(
                     LazyRow(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 12.dp, top = 8.dp, bottom = 6.dp),
+                            .padding(start = 12.dp, top = 6.dp, end = 12.dp, bottom = 6.dp),
                         horizontalArrangement = Arrangement.spacedBy(6.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {

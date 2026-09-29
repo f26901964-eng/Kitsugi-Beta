@@ -3,6 +3,8 @@ package com.kitsugi.animelist.data.remote
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
 import com.kitsugi.animelist.model.MediaEntry
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
@@ -35,10 +37,10 @@ class SimklApiClient(
         val rawQuery = query.trim()
         if (rawQuery.isBlank()) return@withContext emptyList()
         if (type == null || type == "all") {
-            kotlinx.coroutines.coroutineScope {
-                val animeDef = kotlinx.coroutines.async { searchType(rawQuery, "anime", limit) }
-                val tvDef = kotlinx.coroutines.async { searchType(rawQuery, "tv", limit) }
-                val movieDef = kotlinx.coroutines.async { searchType(rawQuery, "movie", limit) }
+            coroutineScope {
+                val animeDef = async { searchType(rawQuery, "anime", limit) }
+                val tvDef = async { searchType(rawQuery, "tv", limit) }
+                val movieDef = async { searchType(rawQuery, "movie", limit) }
                 (animeDef.await() + tvDef.await() + movieDef.await()).distinctBy { it.malId }
             }
         } else {
