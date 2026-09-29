@@ -10,9 +10,13 @@ import android.os.Environment
 import android.os.StrictMode
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -24,6 +28,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
@@ -36,6 +41,9 @@ import coil3.compose.AsyncImage
 import com.kitsugi.animelist.core.player.OfflinePlaybackHelper
 import com.kitsugi.animelist.data.local.AnimeDownloadManager
 import com.kitsugi.animelist.data.model.AnimeDownload
+import com.kitsugi.animelist.data.remote.GalleryCategory
+import com.kitsugi.animelist.data.remote.GalleryItem
+import com.kitsugi.animelist.ui.components.KitsugiImageGalleryDialog
 import com.kitsugi.animelist.ui.screens.fullscreen.KitsugiFullscreenPlayerActivity
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
@@ -59,6 +67,19 @@ data class DownloadedSubtitleItem(
     val isStandalone: Boolean = false
 )
 
+/**
+ * Model representing a downloaded gallery image on disk.
+ * Images are saved by [KitsugiImageDownloadHelper] into Downloads/Kitsugi/Images.
+ */
+data class DownloadedImageItem(
+    val file: File,
+    val title: String,          // Parsed from filename (e.g. "Kitsugi_Naruto_...")
+    val fileSizeBytes: Long,
+    val lastModified: Long,
+    val width: Int = 0,
+    val height: Int = 0
+)
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DownloadsScreen(
@@ -70,9 +91,14 @@ fun DownloadsScreen(
 
     var selectedTab by remember { mutableIntStateOf(0) }
     var refreshSubsTrigger by remember { mutableIntStateOf(0) }
+    var refreshImagesTrigger by remember { mutableIntStateOf(0) }
 
     val allSubtitles = remember(downloads, refreshSubsTrigger) {
         loadAllDownloadedSubtitles(context, downloads)
+    }
+
+    val allImages = remember(refreshImagesTrigger) {
+        loadAllDownloadedImages(context)
     }
 
     Column(
@@ -108,13 +134,16 @@ fun DownloadsScreen(
             // Quick open root downloads folder
             IconButton(
                 onClick = {
-                    val rootDir = if (selectedTab == 1) {
-                        File(
+                    val rootDir = when (selectedTab) {
+                        1 -> File(
                             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
                             "Kitsugi/Subtitles"
                         ).also { it.mkdirs() }
-                    } else {
-                        File(
+                        2 -> File(
+                            Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+                            "Kitsugi/Images"
+                        ).also { it.mkdirs() }
+                        else -> File(
                             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
                             "Kitsugi/Video"
                         ).also { it.mkdirs() }
@@ -130,7 +159,7 @@ fun DownloadsScreen(
             }
         }
 
-        // Tabs: Videolar vs Altyazılar
+        // Tabs: Videolar | Altyazılar | Resimler
         TabRow(
             selectedTabIndex = selectedTab,
             containerColor = KitsugiColors.Background,
@@ -186,6 +215,28 @@ fun DownloadsScreen(
                             text = "Altyazılar (${allSubtitles.size})",
                             fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal,
                             color = if (selectedTab == 1) KitsugiColors.TextPrimary else KitsugiColors.TextMuted
+                        )
+                    }
+                }
+            )
+            Tab(
+                selected = selectedTab == 2,
+                onClick = { selectedTab = 2 },
+                text = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Image,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                            tint = if (selectedTab == 2) accentColor else KitsugiColors.TextMuted
+                        )
+                        Text(
+                            text = "Resimler (${allImages.size})",
+                            fontWeight = if (selectedTab == 2) FontWeight.Bold else FontWeight.Normal,
+                            color = if (selectedTab == 2) KitsugiColors.TextPrimary else KitsugiColors.TextMuted
                         )
                     }
                 }
@@ -295,7 +346,7 @@ fun DownloadsScreen(
                     }
                 }
             }
-        } else {
+        } else if (selectedTab == 1) {
             // ── ALTYAZILAR TAB ───────────────────────────────────────────
             Column(modifier = Modifier.fillMaxSize()) {
                 // Standalone subtitles directory banner
@@ -408,6 +459,238 @@ fun DownloadsScreen(
                                 }
                             )
                         }
+                    }
+                }
+            }
+        } else if (selectedTab == 2) {
+            // ── RESİMLER TAB ──────────────────────────────────────────────
+            DownloadedImagesTab(
+                images = allImages,
+                accentColor = accentColor,
+                onRefresh = { refreshImagesTrigger++ }
+            )
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// DOWNLOADED IMAGES TAB
+// ─────────────────────────────────────────────────────────────────────────────
+@Composable
+fun DownloadedImagesTab(
+    images: List<DownloadedImageItem>,
+    accentColor: Color,
+    onRefresh: () -> Unit
+) {
+    val context = LocalContext.current
+    var galleryInitialIndex by remember { mutableIntStateOf(0) }
+    var showGallery by remember { mutableStateOf(false) }
+
+    if (showGallery && images.isNotEmpty()) {
+        val galleryItems = remember(images) {
+            images.map { img ->
+                GalleryItem(
+                    url = "file://${img.file.absolutePath}",
+                    source = "Kitsugi",
+                    category = GalleryCategory.OTHER,
+                    description = img.title,
+                    width = img.width.takeIf { it > 0 },
+                    height = img.height.takeIf { it > 0 }
+                )
+            }
+        }
+        KitsugiImageGalleryDialog(
+            galleryItems = galleryItems,
+            initialIndex = galleryInitialIndex,
+            title = "İndirilen Resimler",
+            onDismiss = { showGallery = false }
+        )
+    }
+
+    if (images.isEmpty()) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Icon(
+                    imageVector = Icons.Rounded.ImageNotSupported,
+                    contentDescription = null,
+                    tint = KitsugiColors.TextMuted,
+                    modifier = Modifier.size(64.dp)
+                )
+                Spacer(modifier = Modifier.height(16.dp))
+                Text(
+                    text = "Henüz indirilmiş resim bulunamadı.",
+                    color = KitsugiColors.TextMuted,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Medium
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = "Galeri ekranından resimleri indirdiğinizde burada görünür.",
+                    color = KitsugiColors.TextMuted.copy(alpha = 0.7f),
+                    fontSize = 12.sp
+                )
+            }
+        }
+    } else {
+        LazyVerticalGrid(
+            columns = GridCells.Adaptive(minSize = 160.dp),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = PaddingValues(12.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            itemsIndexed(images, key = { _, img -> img.file.absolutePath }) { index, img ->
+                DownloadedImageCard(
+                    item = img,
+                    accentColor = accentColor,
+                    onClick = {
+                        galleryInitialIndex = index
+                        showGallery = true
+                    },
+                    onOpenFolder = {
+                        openFolderInFileManager(context, img.file.parentFile ?: img.file)
+                    },
+                    onDelete = {
+                        if (img.file.exists()) {
+                            img.file.delete()
+                            Toast.makeText(context, "Resim silindi: ${img.title}", Toast.LENGTH_SHORT).show()
+                            onRefresh()
+                        }
+                    }
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun DownloadedImageCard(
+    item: DownloadedImageItem,
+    accentColor: Color,
+    onClick: () -> Unit,
+    onOpenFolder: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val dateStr = remember(item.lastModified) {
+        if (item.lastModified > 0)
+            SimpleDateFormat("dd MMM yyyy", Locale.getDefault()).format(Date(item.lastModified))
+        else ""
+    }
+    val sizeStr = formatBytes(item.fileSizeBytes)
+
+    Box(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(KitsugiColors.SurfaceSoft)
+            .border(1.dp, KitsugiColors.Border.copy(alpha = 0.4f), RoundedCornerShape(14.dp))
+            .clickable(onClick = onClick)
+    ) {
+        Column {
+            // Image thumbnail
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(130.dp)
+            ) {
+                AsyncImage(
+                    model = item.file,
+                    contentDescription = item.title,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(topStart = 14.dp, topEnd = 14.dp)),
+                    contentScale = ContentScale.Crop
+                )
+                // Gradient overlay at bottom of thumb
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(50.dp)
+                        .align(Alignment.BottomCenter)
+                        .background(
+                            Brush.verticalGradient(
+                                colors = listOf(Color.Transparent, KitsugiColors.SurfaceSoft)
+                            )
+                        )
+                )
+                // Size badge
+                Box(
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(6.dp)
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(KitsugiColors.SurfaceStrong.copy(alpha = 0.82f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = sizeStr,
+                        color = KitsugiColors.TextSecondary,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            // Info row
+            Column(
+                modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
+            ) {
+                Text(
+                    text = item.title,
+                    color = KitsugiColors.TextPrimary,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    lineHeight = 16.sp
+                )
+                if (dateStr.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(2.dp))
+                    Text(
+                        text = dateStr,
+                        color = KitsugiColors.TextMuted,
+                        fontSize = 10.sp
+                    )
+                }
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Open folder
+                    Box(
+                        modifier = Modifier
+                            .size(30.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(accentColor.copy(alpha = 0.12f))
+                            .clickable(onClick = onOpenFolder),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.FolderOpen,
+                            contentDescription = "Klasörü Aç",
+                            tint = accentColor,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                    // Delete
+                    Box(
+                        modifier = Modifier
+                            .size(30.dp)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(KitsugiColors.AccentRed.copy(alpha = 0.10f))
+                            .clickable(onClick = onDelete),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Delete,
+                            contentDescription = "Sil",
+                            tint = KitsugiColors.AccentRed,
+                            modifier = Modifier.size(16.dp)
+                        )
                     }
                 }
             }
@@ -990,6 +1273,44 @@ fun loadAllDownloadedSubtitles(
         }
     } catch (_: Exception) {}
 
+    return results.sortedByDescending { it.lastModified }
+}
+
+/**
+ * Loads all images downloaded by [KitsugiImageDownloadHelper] from:
+ * - Downloads/Kitsugi/Images (new dedicated folder)
+ * - Downloads/Kitsugi (legacy flat storage)
+ */
+fun loadAllDownloadedImages(context: Context): List<DownloadedImageItem> {
+    val imageExtensions = setOf("jpg", "jpeg", "png", "webp", "gif")
+    val results = mutableListOf<DownloadedImageItem>()
+    val dirsToScan = listOf(
+        File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "Kitsugi/Images"),
+        File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "Kitsugi")   // legacy
+    )
+    for (dir in dirsToScan) {
+        try {
+            if (!dir.exists()) continue
+            dir.listFiles()?.filter { f ->
+                f.isFile &&
+                f.extension.lowercase() in imageExtensions &&
+                f.name.startsWith("Kitsugi_") &&
+                results.none { it.file.absolutePath == f.absolutePath }
+            }?.forEach { f ->
+                // Title: strip "Kitsugi_" prefix and trailing timestamp+extension
+                val rawName = f.nameWithoutExtension.removePrefix("Kitsugi_")
+                val title = rawName.replace(Regex("_\\d{13}$"), "").replace("_", " ").trim()
+                results.add(
+                    DownloadedImageItem(
+                        file = f,
+                        title = title.ifBlank { f.nameWithoutExtension },
+                        fileSizeBytes = f.length(),
+                        lastModified = f.lastModified()
+                    )
+                )
+            }
+        } catch (_: Exception) {}
+    }
     return results.sortedByDescending { it.lastModified }
 }
 

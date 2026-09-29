@@ -3,9 +3,12 @@ package com.kitsugi.animelist.core.download
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
@@ -19,6 +22,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import java.net.URL
 
 class AnimeDownloadService : Service() {
 
@@ -31,8 +35,20 @@ class AnimeDownloadService : Service() {
     private lateinit var notificationManager: NotificationManager
 
     companion object {
-        private const val CHANNEL_ID = "anime_downloads_channel"
+        private const val CHANNEL_ID    = "anime_downloads_channel"
         private const val NOTIFICATION_ID = 10002
+
+        /** Fetch the poster bitmap synchronously (call from IO thread). */
+        fun loadPosterBitmap(url: String?): Bitmap? {
+            if (url.isNullOrBlank()) return null
+            return runCatching {
+                val connection = URL(url).openConnection().also {
+                    it.connectTimeout = 5_000
+                    it.readTimeout    = 5_000
+                }
+                BitmapFactory.decodeStream(connection.inputStream)
+            }.getOrNull()
+        }
     }
 
     override fun onCreate() {
@@ -86,38 +102,46 @@ class AnimeDownloadService : Service() {
 
                     val activeJob = launch {
                         try {
+                            // Pre-fetch poster bitmap on IO thread for rich notifications
+                            val posterBitmap = loadPosterBitmap(next.posterUrl)
+
                             var lastNotificationTime = 0L
                             downloader.download(
                                 download = next,
                                 onProgress = { progress, size, duration, segmentsDownloaded ->
                                     AnimeDownloadManager.updateProgress(
-                                        animeId = next.animeId,
-                                        episode = next.episode,
-                                        progress = progress,
-                                        downloadedBytes = size,
-                                        totalBytes = duration,
+                                        animeId           = next.animeId,
+                                        episode           = next.episode,
+                                        progress          = progress,
+                                        downloadedBytes   = size,
+                                        totalBytes        = duration,
                                         downloadedSegments = segmentsDownloaded
                                     )
                                     val currentTime = System.currentTimeMillis()
                                     if (currentTime - lastNotificationTime >= 1000L || progress == 100) {
                                         lastNotificationTime = currentTime
-                                        val text = "${next.animeTitle} - Bölüm ${next.episode} (%$progress)"
-                                        notificationManager.notify(NOTIFICATION_ID, buildNotification(text, progress, false))
+                                        notificationManager.notify(
+                                            NOTIFICATION_ID,
+                                            buildNotification(
+                                                download    = next,
+                                                progress    = progress,
+                                                indeterminate = false,
+                                                posterBitmap  = posterBitmap
+                                            )
+                                        )
                                     }
                                 },
                                 onStatusChanged = { status, localPath ->
                                     AnimeDownloadManager.updateStatus(
-                                        animeId = next.animeId,
-                                        episode = next.episode,
-                                        status = status,
+                                        animeId   = next.animeId,
+                                        episode   = next.episode,
+                                        status    = status,
                                         localPath = localPath
                                     )
                                     if (status == AnimeDownload.Status.COMPLETED) {
-                                        val text = "${next.animeTitle} - Bölüm ${next.episode} indirildi"
-                                        showCompletedNotification(next, text)
+                                        showCompletedNotification(next, posterBitmap, success = true)
                                     } else if (status == AnimeDownload.Status.ERROR) {
-                                        val text = "${next.animeTitle} - Bölüm ${next.episode} indirilirken hata oluştu"
-                                        showCompletedNotification(next, text)
+                                        showCompletedNotification(next, posterBitmap, success = false)
                                     }
                                 }
                             )
@@ -150,29 +174,96 @@ class AnimeDownloadService : Service() {
         }
     }
 
-    private fun buildNotification(text: String, progress: Int, indeterminate: Boolean): Notification {
-        return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("Anime İndiriliyor")
-            .setContentText(text)
+    private fun buildNotification(
+        download: AnimeDownload? = null,
+        text: String? = null,
+        progress: Int = 0,
+        indeterminate: Boolean = true,
+        posterBitmap: Bitmap? = null
+    ): Notification {
+        val title = if (download != null)
+            "⬇️ ${download.animeTitle}"
+        else
+            "Anime İndiriliyor"
+
+        val contentText = if (download != null) {
+            val ep = "Bölüm ${download.episode}"
+            val q  = if (!download.quality.isNullOrBlank()) " • ${download.quality}" else ""
+            val pct = if (!indeterminate) " (%$progress)" else ""
+            "$ep$q$pct"
+        } else {
+            text ?: "İndirme sırası hazırlanıyor…"
+        }
+
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle(title)
+            .setContentText(contentText)
             .setSmallIcon(android.R.drawable.stat_sys_download)
             .setProgress(100, progress, indeterminate)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setPriority(NotificationCompat.PRIORITY_LOW)
-            .build()
+
+        if (posterBitmap != null) {
+            builder.setLargeIcon(posterBitmap)
+        }
+
+        if (download != null) {
+            builder.setStyle(
+                NotificationCompat.BigTextStyle()
+                    .bigText(contentText)
+                    .setBigContentTitle(title)
+                    .setSummaryText(
+                        buildString {
+                            if (!download.source.isNullOrBlank()) append(download.source)
+                            if (!download.streamTitle.isNullOrBlank()) append(" • ${download.streamTitle}")
+                        }.ifBlank { "Video İndiriliyor" }
+                    )
+            )
+        }
+
+        return builder.build()
     }
 
-    private fun showCompletedNotification(download: AnimeDownload, text: String) {
-        val completeNotification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("İndirme Tamamlandı")
-            .setContentText(text)
-            .setSmallIcon(android.R.drawable.stat_sys_download_done)
+    // Convenience overload used at service start (no download object yet)
+    private fun buildNotification(text: String, progress: Int, indeterminate: Boolean): Notification =
+        buildNotification(download = null, text = text, progress = progress, indeterminate = indeterminate)
+
+    private fun showCompletedNotification(download: AnimeDownload, posterBitmap: Bitmap?, success: Boolean) {
+        val emoji   = if (success) "✅" else "❌"
+        val verb    = if (success) "indirildi" else "indirilemedi"
+        val epInfo  = "Bölüm ${download.episode}"
+        val quality = if (!download.quality.isNullOrBlank()) " • ${download.quality}" else ""
+        val source  = if (!download.source.isNullOrBlank()) " • ${download.source}" else ""
+
+        val builder = NotificationCompat.Builder(this, CHANNEL_ID)
+            .setContentTitle("$emoji ${download.animeTitle}")
+            .setContentText("$epInfo$quality $verb")
+            .setSubText("Video İndirme")
+            .setSmallIcon(if (success) android.R.drawable.stat_sys_download_done else android.R.drawable.stat_notify_error)
             .setAutoCancel(true)
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
-            .build()
-        
+
+        if (posterBitmap != null) {
+            builder.setLargeIcon(posterBitmap)
+            if (success) {
+                builder.setStyle(
+                    NotificationCompat.BigPictureStyle()
+                        .bigPicture(posterBitmap)
+                        .bigLargeIcon(null as Bitmap?)
+                        .setSummaryText("$epInfo$quality$source")
+                )
+            }
+        } else {
+            builder.setStyle(
+                NotificationCompat.BigTextStyle()
+                    .bigText("$epInfo$quality $verb")
+                    .setSummaryText(source.trim())
+            )
+        }
+
         val notificationId = download.animeId.hashCode() + download.episode
-        notificationManager.notify(notificationId, completeNotification)
+        notificationManager.notify(notificationId, builder.build())
     }
 
     private fun createNotificationChannel() {
