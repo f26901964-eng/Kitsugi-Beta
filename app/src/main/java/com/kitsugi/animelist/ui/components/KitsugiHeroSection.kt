@@ -376,27 +376,6 @@ fun KitsugiHeroSection(
                         contentScale = ContentScale.Crop,
                         alignment = Alignment.TopCenter
                     )
-
-                    // 2. Alt kısım hafif puslu / bulanık geçiş katmanı (NuvioTV tarzı yumuşak geçiş)
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .fillMaxHeight(0.65f)
-                            .align(Alignment.BottomCenter)
-                            .graphicsLayer {
-                                alpha = (layer.visibility * 0.88f).coerceIn(0f, 1f)
-                            }
-                            .blur(20.dp)
-                    ) {
-                        KitsugiNsfwImage(
-                            model = heroImageModel,
-                            contentDescription = displayTitle,
-                            isAdult = item.isAdult,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop,
-                            alignment = Alignment.BottomCenter
-                        )
-                    }
                 } else {
                     Box(
                         modifier = Modifier
