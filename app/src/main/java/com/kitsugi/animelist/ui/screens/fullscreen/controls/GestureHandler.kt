@@ -5,7 +5,13 @@ package com.kitsugi.animelist.ui.screens.fullscreen.controls
 // Original: eu.kanade.tachiyomi.ui.player.controls.GestureHandler
 // ─────────────────────────────────────────────────────────────────────────────
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -13,17 +19,28 @@ import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.indication
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.FastForward
+import androidx.compose.material3.Icon
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.ripple
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -34,8 +51,11 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.screens.fullscreen.KitsugiPlayerViewModel
 import com.kitsugi.animelist.ui.screens.fullscreen.KitsugiSheets
 import com.kitsugi.animelist.ui.screens.fullscreen.KitsugiDialogs
@@ -98,6 +118,7 @@ fun GestureHandler(
     val currentBrightness by viewModel.currentBrightness.collectAsState()
 
     var isLongPressing by remember { mutableStateOf(false) }
+    var previousSpeed by remember { mutableFloatStateOf(1f) }
     val haptics = LocalHapticFeedback.current
 
     Box(
@@ -148,11 +169,17 @@ fun GestureHandler(
                             tryAwaitRelease()
                             if (isLongPressing) {
                                 isLongPressing = false
-                                viewModel.setPlaybackSpeed(1f)
+                                viewModel.setPlaybackSpeed(previousSpeed)
                             }
                             interactionSource.emit(PressInteraction.Release(press))
                         } else {
                             isDoubleTapSeeking = false
+                            // Always await release so long-press hold speed is reliably reverted
+                            tryAwaitRelease()
+                            if (isLongPressing) {
+                                isLongPressing = false
+                                viewModel.setPlaybackSpeed(previousSpeed)
+                            }
                         }
                     },
                     onLongPress = {
@@ -160,6 +187,8 @@ fun GestureHandler(
                         if (!isLongPressing) {
                             haptics.performHapticFeedback(HapticFeedbackType.LongPress)
                             isLongPressing = true
+                            // Save current speed BEFORE activating hold, so we can restore it on release
+                            previousSpeed = viewModel.playbackSpeed.value
                             val holdSpeed = settings.holdSpeedMultiplier
                             viewModel.setPlaybackSpeed(holdSpeed)
                         }

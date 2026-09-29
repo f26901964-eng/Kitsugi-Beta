@@ -51,7 +51,6 @@ import com.kitsugi.animelist.ui.screens.fullscreen.components.FeedbackBubble
 import com.kitsugi.animelist.ui.screens.fullscreen.components.PlayerInlineLoadingOverlay
 import com.kitsugi.animelist.ui.screens.fullscreen.components.PlayerLoadingView
 import com.kitsugi.animelist.ui.screens.fullscreen.components.PlayerErrorView
-import com.kitsugi.animelist.ui.screens.fullscreen.components.PlayerBufferingView
 import com.kitsugi.animelist.ui.screens.fullscreen.components.SubtitleStyleSettings
 import com.kitsugi.animelist.ui.screens.fullscreen.components.StreamInfoData
 import com.kitsugi.animelist.ui.screens.fullscreen.components.MetaCastMember
@@ -1047,19 +1046,7 @@ fun KitsugiFullscreenPlayerScreen(
                         PlayerInlineLoadingOverlay(message = "Kaynak Bağlantısı Çözümleniyor...")
                     }
 
-                    // Buffering overlay
-                    if (isBufferingState && isPlayingState && !isInPipMode) {
-                        PlayerBufferingView(
-                            isPlaying = isPlayingState,
-                            onPlayPauseClick = {
-                                if (playerEngine.isPlaying) {
-                                    playerEngine.pause()
-                                } else {
-                                    playerEngine.play()
-                                }
-                            }
-                        )
-                    }
+                    // Buffering is handled reactively by MiddlePlayerControls (single unified spinner)
 
                     // ── New Reactive Sheet Host (Aniyomi-style) ───────────────────────
                     PlayerSheetsHost(
