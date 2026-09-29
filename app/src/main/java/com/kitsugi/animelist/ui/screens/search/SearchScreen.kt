@@ -7,9 +7,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import android.content.res.Configuration
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -56,7 +60,16 @@ import com.kitsugi.animelist.ui.screens.search.composables.KitsugiSearchStatusCh
 import com.kitsugi.animelist.ui.screens.search.composables.KitsugiTriFilterChip
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalIsTv
+import com.kitsugi.animelist.ui.theme.LocalIsTvDevice
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.focusGroup
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.focus.focusRestorer
+import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
+import com.kitsugi.animelist.ui.components.KitsugiShimmerMediaRow
+import com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults
 import com.kitsugi.animelist.ui.utils.tvClickable
 import com.kitsugi.animelist.ui.utils.dpadVerticalFastScroll
 import com.lagradost.cloudstream3.APIHolder
@@ -606,8 +619,12 @@ fun SearchScreen(
                         results = uiState.multiResults.aniListResults,
                         isLoading = uiState.multiResults.isLoadingAniList,
                         isAlreadyInList = isAlreadyInList,
+                        getMediaEntry = getMediaEntry,
                         onItemClick = onOpenApiDetail,
-                        onSeeAllClick = { viewModel.setTab(KitsugiSearchTab.Anime) }
+                        onSeeAllClick = { viewModel.setTab(KitsugiSearchTab.Anime) },
+                        titleLanguage = titleLanguage,
+                        scoreFormat = scoreFormat,
+                        hideScores = hideScores
                     )
                 }
 
@@ -619,8 +636,12 @@ fun SearchScreen(
                         results = uiState.multiResults.malResults,
                         isLoading = uiState.multiResults.isLoadingMal,
                         isAlreadyInList = isAlreadyInList,
+                        getMediaEntry = getMediaEntry,
                         onItemClick = onOpenApiDetail,
-                        onSeeAllClick = { viewModel.setTab(KitsugiSearchTab.MAL) }
+                        onSeeAllClick = { viewModel.setTab(KitsugiSearchTab.MAL) },
+                        titleLanguage = titleLanguage,
+                        scoreFormat = scoreFormat,
+                        hideScores = hideScores
                     )
                 }
 
@@ -632,8 +653,12 @@ fun SearchScreen(
                         results = uiState.multiResults.tmdbResults,
                         isLoading = uiState.multiResults.isLoadingTmdb,
                         isAlreadyInList = isAlreadyInList,
+                        getMediaEntry = getMediaEntry,
                         onItemClick = onOpenApiDetail,
-                        onSeeAllClick = { viewModel.setTab(KitsugiSearchTab.TMDB) }
+                        onSeeAllClick = { viewModel.setTab(KitsugiSearchTab.TMDB) },
+                        titleLanguage = titleLanguage,
+                        scoreFormat = scoreFormat,
+                        hideScores = hideScores
                     )
                 }
 
@@ -645,8 +670,12 @@ fun SearchScreen(
                         results = uiState.multiResults.shikimoriResults,
                         isLoading = uiState.multiResults.isLoadingShikimori,
                         isAlreadyInList = isAlreadyInList,
+                        getMediaEntry = getMediaEntry,
                         onItemClick = onOpenApiDetail,
-                        onSeeAllClick = { viewModel.setTab(KitsugiSearchTab.Shikimori) }
+                        onSeeAllClick = { viewModel.setTab(KitsugiSearchTab.Shikimori) },
+                        titleLanguage = titleLanguage,
+                        scoreFormat = scoreFormat,
+                        hideScores = hideScores
                     )
                 }
 
@@ -658,8 +687,12 @@ fun SearchScreen(
                         results = uiState.multiResults.kitsuResults,
                         isLoading = uiState.multiResults.isLoadingKitsu,
                         isAlreadyInList = isAlreadyInList,
+                        getMediaEntry = getMediaEntry,
                         onItemClick = onOpenApiDetail,
-                        onSeeAllClick = { viewModel.setTab(KitsugiSearchTab.Kitsu) }
+                        onSeeAllClick = { viewModel.setTab(KitsugiSearchTab.Kitsu) },
+                        titleLanguage = titleLanguage,
+                        scoreFormat = scoreFormat,
+                        hideScores = hideScores
                     )
                 }
 
@@ -671,8 +704,12 @@ fun SearchScreen(
                         results = uiState.multiResults.simklResults,
                         isLoading = uiState.multiResults.isLoadingSimkl,
                         isAlreadyInList = isAlreadyInList,
+                        getMediaEntry = getMediaEntry,
                         onItemClick = onOpenApiDetail,
-                        onSeeAllClick = { viewModel.setTab(KitsugiSearchTab.Simkl) }
+                        onSeeAllClick = { viewModel.setTab(KitsugiSearchTab.Simkl) },
+                        titleLanguage = titleLanguage,
+                        scoreFormat = scoreFormat,
+                        hideScores = hideScores
                     )
                 }
             } else if (uiState.currentTab == KitsugiSearchTab.Character || uiState.currentTab == KitsugiSearchTab.Staff) {
@@ -1014,8 +1051,9 @@ fun ActiveFilterChip(
 }
 
 /**
- * All-in-One Çoklu Platform Arama Bölümü (Yatay Kart Listesi)
+ * All-in-One Çoklu Platform Arama Bölümü (Yatay Kart Listesi - Keşfet Sayfası ile Birebir Aynı Mekanik ve Görünüm)
  */
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class, androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 private fun MultiSearchSection(
     title: String,
@@ -1024,89 +1062,154 @@ private fun MultiSearchSection(
     results: List<JikanSearchResult>,
     isLoading: Boolean,
     isAlreadyInList: (JikanSearchResult) -> Boolean,
+    getMediaEntry: (JikanSearchResult) -> MediaEntry? = { null },
     onItemClick: (JikanSearchResult) -> Unit,
-    onSeeAllClick: () -> Unit
+    onSeeAllClick: () -> Unit,
+    titleLanguage: String = "ROMAJI",
+    scoreFormat: String = "POINT_10",
+    hideScores: Boolean = false,
+    blurAdultMedia: Boolean = false
 ) {
     if (results.isEmpty() && !isLoading) return
+
+    val accentColor = LocalKitsugiAccent.current
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val isTvDevice = LocalIsTvDevice.current
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 10.dp)
+            .padding(vertical = 12.dp)
     ) {
+        // Platform Badge + Title & "Tümünü Gör" Header Row
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 4.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
+                .padding(horizontal = 4.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(badgeColor.copy(alpha = 0.9f))
+                    .padding(horizontal = 7.dp, vertical = 3.dp)
             ) {
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(badgeColor.copy(alpha = 0.9f))
-                        .padding(horizontal = 7.dp, vertical = 3.dp)
-                ) {
-                    Text(
-                        text = badgeText,
-                        color = Color.White,
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
                 Text(
-                    text = title,
-                    color = KitsugiColors.TextPrimary,
-                    fontSize = 16.sp,
+                    text = badgeText,
+                    color = Color.White,
+                    fontSize = 11.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = title,
+                color = KitsugiColors.TextPrimary,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.weight(1f),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+
             if (results.isNotEmpty()) {
                 TextButton(
                     onClick = onSeeAllClick,
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                 ) {
                     Text(
-                        text = "Tümünü Gör →",
-                        color = LocalKitsugiAccent.current,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold
+                        text = "Tümünü Gör",
+                        color = accentColor,
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold
                     )
                 }
             }
         }
 
-        if (isLoading && results.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(140.dp),
-                contentAlignment = Alignment.Center
-            ) {
-                CircularProgressIndicator(
-                    color = badgeColor,
-                    modifier = Modifier.size(28.dp),
-                    strokeWidth = 2.5.dp
-                )
+        Spacer(modifier = Modifier.height(10.dp))
+
+        when {
+            isLoading && results.isEmpty() -> {
+                // Keşfet sayfası ile birebir aynı animasyonlu shimmer efekti
+                KitsugiShimmerMediaRow(cardCount = 5)
             }
-        } else {
-            LazyRow(
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                items(results, key = { "${it.source}_${it.malId}" }) { result ->
-                    Box(modifier = Modifier.width(135.dp)) {
-                        KitsugiExploreMediaCard(
-                            result = result,
-                            alreadyInList = isAlreadyInList(result),
-                            onClick = { onItemClick(result) },
-                            forceVertical = true
+
+            else -> {
+                val lazyListState = remember(title) { LazyListState() }
+                val cardWidth = if (isLandscape) 260.dp else 180.dp
+
+                if (isTvDevice) {
+                    val tvSpec = KitsugiScrollDefaults.rememberTvCenteredSpec()
+                    val lastFocusedIndex = remember(results) { mutableStateOf(0) }
+                    val focusRequesters = remember(results) { mutableMapOf<Int, FocusRequester>() }
+                    val rowFocusRequester = remember { FocusRequester() }
+                    CompositionLocalProvider(LocalBringIntoViewSpec provides tvSpec) {
+                        LazyRow(
+                            state = lazyListState,
+                            modifier = Modifier
+                                .focusRequester(rowFocusRequester)
+                                .focusRestorer {
+                                    focusRequesters[lastFocusedIndex.value] ?: FocusRequester.Default
+                                }
+                                .focusGroup(),
+                            contentPadding = PaddingValues(horizontal = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            itemsIndexed(
+                                items = results,
+                                key = { index, result -> "${result.source}_${result.malId ?: result.tmdbId ?: 0}_$index" }
+                            ) { index, result ->
+                                val requester = focusRequesters.getOrPut(index) { FocusRequester() }
+                                KitsugiExploreMediaCard(
+                                    result = result,
+                                    alreadyInList = isAlreadyInList(result),
+                                    mediaEntry = getMediaEntry(result),
+                                    modifier = Modifier
+                                        .width(cardWidth)
+                                        .focusRequester(requester)
+                                        .onFocusChanged { state ->
+                                            if (state.isFocused) {
+                                                lastFocusedIndex.value = index
+                                            }
+                                        },
+                                    onClick = { onItemClick(result) },
+                                    titleLanguage = titleLanguage,
+                                    scoreFormat = scoreFormat,
+                                    hideScores = hideScores,
+                                    blurAdultMedia = blurAdultMedia,
+                                    forceVertical = false
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    LazyRow(
+                        state = lazyListState,
+                        contentPadding = PaddingValues(horizontal = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        flingBehavior = androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior(
+                            lazyListState = lazyListState,
+                            snapPosition = androidx.compose.foundation.gestures.snapping.SnapPosition.Start
                         )
+                    ) {
+                        itemsIndexed(
+                            items = results,
+                            key = { index, result -> "${result.source}_${result.malId ?: result.tmdbId ?: 0}_$index" }
+                        ) { _, result ->
+                            KitsugiExploreMediaCard(
+                                result = result,
+                                alreadyInList = isAlreadyInList(result),
+                                mediaEntry = getMediaEntry(result),
+                                modifier = Modifier.width(cardWidth),
+                                onClick = { onItemClick(result) },
+                                titleLanguage = titleLanguage,
+                                scoreFormat = scoreFormat,
+                                hideScores = hideScores,
+                                blurAdultMedia = blurAdultMedia,
+                                forceVertical = false
+                            )
+                        }
                     }
                 }
             }
