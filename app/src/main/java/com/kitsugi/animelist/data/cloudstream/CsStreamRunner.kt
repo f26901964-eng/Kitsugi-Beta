@@ -242,6 +242,94 @@ object CsStreamRunner {
         "setplay.shop"         to "vctplay.site"
     )
 
+    /**
+     * Eklentilerin varsayılan canlı domainleri (DEX'te boş veya hatalı mainUrl olan durumlar için).
+     */
+    val BUILTIN_DEFAULT_DOMAINS = mapOf(
+        // Anime
+        "anizium"            to "https://api.anizium.co",
+        "turkanime"          to "https://www.turkanime.tv",
+        "animecix"           to "https://animecix.tv",
+        "animeler"           to "https://animeler.pw",
+        "animely"            to "https://animely.net",
+        "asyawatch"          to "https://asyawatch.com",
+        "cizgimax"           to "https://cizgimax.online",
+        "animeelysium"       to "https://animeelysium.com",
+        "tranimeci"          to "https://tranimaci.com",
+        "tranimaci"          to "https://tranimaci.com",
+        "tranimeizle"        to "https://www.tranimeizle.live",
+        "animpow"            to "https://animpow.com",
+        "asyaanimeleri"      to "https://asyaanimeleri.top",
+        "asyaanimeleri2"     to "https://asyaanimeleri.top",
+        "yoturkanime"        to "https://www.yoturkanime.com",
+        "animeizle"          to "https://www.animeizle.biz",
+        "asyafanatiklerim"   to "https://asyafanatiklerim.com",
+        "onepacetr"          to "https://www.onepacetr.net",
+        "openanime"          to "https://openani.me",
+        // Dizi
+        "dizilla"            to "https://dizilla.now",
+        "dizibox"            to "https://www.dizibox.live",
+        "dizipal"            to "https://dizipal3008.com",
+        "dizipaloriginal"    to "https://dizipal3008.com",
+        "dizipalorijinal"    to "https://dizipal3008.com",
+        "ddizi"              to "https://www.ddizi.im",
+        "diziasia"           to "https://diziasia.com",
+        "diziasya"           to "https://api.diziasya.com",
+        "dizikorea"          to "https://dizikorea3.com",
+        "dizilife"           to "https://dizi75.life",
+        "dizifilmorg"        to "https://dizifilmizle.to",
+        "dizigecesi"         to "https://dizigecesi.com",
+        "dizipod"            to "https://dizipod.com",
+        "diziyo"             to "https://www.diziyo.so",
+        "sezonlukdizi"       to "https://sezonlukdizi.cc",
+        "sinewix"            to "https://ydfvfdizipanel.ru",
+        "sinezy"             to "https://sinezy.to",
+        "dizimom"            to "https://www.dizimom.help",
+        "diziyou"            to "https://www.diziyou.one",
+        "dramadizilerim"     to "https://dramaflix.net/tr",
+        "dramaizle"          to "https://dramaflix.net/tr",
+        "turkdizileri"       to "https://turkdizileri.com",
+        // Film
+        "hdfilmcehennemi"    to "https://www.hdfilmcehennemi.nl",
+        "hdfilmdelisi"       to "https://hdfilmdelisi.one",
+        "hdfilmizle"         to "https://www.hdfilmizle.live",
+        "sinemacx"           to "https://sinemacc.com",
+        "filmmakinesi"       to "https://filmmakinesi.to",
+        "filmmodu"           to "https://www.filmmodu.one",
+        "filmbol"            to "https://filmbol.org",
+        "filmbip"            to "https://filmbip.com",
+        "filmekseni"         to "https://filmekseni.vip",
+        "filmhane"           to "https://www.filmhane.shop",
+        "filmzal"            to "https://filmzal.me",
+        "fullhdfilm"         to "https://fullhdfilm.pro",
+        "fullhdfilmizlesene" to "https://www.fullhdfilmizlesene.mx",
+        "jetfilmizle"        to "https://jetfilmizle.now",
+        "webteizle"          to "https://webteizle3.xyz",
+        "izleai"             to "https://720pizle.ai",
+        "setfilmizle"        to "https://www.setfilmizle.uk",
+        "wfilmizle"          to "https://wfilmizle.net",
+        // Diğer
+        "rectv"              to "https://m.prectv72.lol",
+        "koreanturk"         to "https://www.koreanturk.net",
+        "kultfilmler"        to "https://kultfilmler.net",
+        "belgeselx"          to "https://belgeselx.com",
+        "ginikocanli"        to "https://www.giniko.com",
+        "kicktr"             to "https://kick.com",
+        "kraptorplus"        to "https://a.111477.xyz",
+        "mirrorverse"        to "https://net77.cc",
+        "seicode"            to "https://seiwatch.net",
+        "selcukflix"         to "https://selcukflix.com",
+        "syncler"            to "https://syncler.net",
+        "torrentfilm"        to "https://torrentfilmindir.net",
+        "torrential"         to "https://api.real-debrid.com",
+        "watch2movies"       to "https://movies2watch.watch",
+        "webdramaturkey"     to "https://webdramaturkey2.com",
+        "yts"                to "https://web.yts.gg",
+        "yabancidizi"        to "https://yabancidizi.news",
+        "yenikaynak"         to "https://www.yenikaynak.com",
+        "yesilcamtv"         to "https://yesilcamtv.com"
+    )
+
     private val KNOWN_BROKEN_PLUGINS = emptySet<String>()
 
 
@@ -476,25 +564,57 @@ object CsStreamRunner {
     }
 
     /**
-     * Plugin'in mainUrl'sini bilinen eski→yeni domain eşlemeleriyle günceller.
-     * Eğer plugin zaten doğru domain'i kullanıyorsa hiçbir şey değişmez.
+     * Plugin'in çalışması için gerekli tüm hazırlıkları yapar:
+     * 1. DEX anti-tamper ve imza kontrollerini bypass ederek isAllowedVersion = true yapar.
+     * 2. RequestBlocker sayacını sıfırlar.
+     * 3. Boş veya geçersiz mainUrl'yi canlı çalışan domain ile günceller.
+     */
+    fun ensurePluginReady(api: MainAPI) {
+        try {
+            val loader = api.javaClass.classLoader
+            if (loader != null) {
+                CsPluginLoader.applyHelperPatches(loader, api.name, api.javaClass.name)
+            }
+        } catch (e: Throwable) {
+            Log.w(TAG, "[${api.name}] ensurePluginReady: Helper patch uygulanamadı: ${e.message}")
+        }
+        try {
+            applyDomainFix(api)
+        } catch (e: Throwable) {
+            Log.w(TAG, "[${api.name}] ensurePluginReady: Domain fix uygulanamadı: ${e.message}")
+        }
+    }
+
+    /**
+     * Plugin'in mainUrl'sini bilinen dinamik (GitHub) ve dahili varsayılan domainlerle günceller.
+     * Boş, "/" veya bilinen geçersiz domainleri derhal canlı çalışan URL'ye taşır.
      */
     internal fun applyDomainFix(api: MainAPI) {
         val nameKey = api.name.lowercase(Locale.ROOT)
-        val remoteUrl = dynamicDomains[nameKey]
+        val builtinFallback = BUILTIN_DEFAULT_DOMAINS[nameKey]
+            ?: BUILTIN_DEFAULT_DOMAINS.entries.firstOrNull { it.key.equals(nameKey, ignoreCase = true) }?.value
+            ?: BUILTIN_DEFAULT_DOMAINS.entries.firstOrNull { nameKey.contains(it.key) || it.key.contains(nameKey) }?.value
+
+        val remoteUrl = dynamicDomains[nameKey] ?: builtinFallback
         if (remoteUrl != null) {
             val currentUrl = api.mainUrl
             val normalize = { u: String -> u.replace("https://", "").replace("http://", "").replace("www.", "").trimEnd('/') }
-            if (normalize(currentUrl) != normalize(remoteUrl)) {
-                Log.w(TAG, "[${api.name}] Domain dinamik olarak güncellendi: $currentUrl -> $remoteUrl")
+            if (currentUrl.isBlank() || currentUrl == "/" || currentUrl.contains("x.anizium.co") || currentUrl.contains("anizium.de") || normalize(currentUrl) != normalize(remoteUrl)) {
+                Log.w(TAG, "[${api.name}] Domain güncellendi: '$currentUrl' -> '$remoteUrl'")
                 api.mainUrl = remoteUrl
                 return
             }
         }
 
         val currentUrl = api.mainUrl
-        if (currentUrl.isBlank()) return
-        
+        if (currentUrl.isBlank() || currentUrl == "/") {
+            if (builtinFallback != null) {
+                Log.w(TAG, "[${api.name}] Boş domain geri kazanıldı: '$builtinFallback'")
+                api.mainUrl = builtinFallback
+            }
+            return
+        }
+
         try {
             val uri = java.net.URI(currentUrl)
             val host = uri.host ?: ""
@@ -653,8 +773,8 @@ object CsStreamRunner {
             }
         }
 
-        // Bilinen domain değişikliklerini uygula (ör. AsyaAnimeleri .pw → .top)
-        applyDomainFix(api)
+        // Bilinen domain değişikliklerini ve DEX anti-tamper patch'lerini uygula
+        ensurePluginReady(api)
 
         // Dinamik olarak engellenmiş (ölü/bozuk) eklentileri atla
         val nameKey = api.name.lowercase(Locale.ROOT)
@@ -1441,6 +1561,7 @@ object CsStreamRunner {
             loadSemaphore.withPermit {
                 // Throttling: kısa gecikme Cloudflare tetiklenmesini önler
                 kotlinx.coroutines.delay(500)
+                ensurePluginReady(api)
                 Log.d(TAG, "[${api.name}] loadLinks çağrılıyor...")
                 
                 // Wrap the loadLinks in a timeout — CF korumalı siteler için 90s, diğerleri 25s
@@ -1675,6 +1796,7 @@ object CsStreamRunner {
         CsTitleMatcher.buildTitleVariants(main, alts, season)
 
     internal suspend fun safeSearch(api: MainAPI, query: String): List<SearchResponse> {
+        ensurePluginReady(api)
         // Session bloklist kontrolü
         if (CsPluginStatusTracker.isBlocked(api.name)) {
             Log.w(TAG, "[${api.name}] safeSearch: Engellendi — atlanıyor.")
@@ -1689,7 +1811,6 @@ object CsStreamRunner {
             Log.w(TAG, "[${api.name}] safeSearch: Domain (${api.mainUrl}) ölü domain listesinde — atlanıyor.")
             return emptyList()
         }
-        applyDomainFix(api)
         return searchSemaphore.withPermit {
             withTimeoutOrNull(15_000L) {
                 try {
@@ -2100,6 +2221,7 @@ object CsStreamRunner {
     }
 
     internal suspend fun safeLoad(api: MainAPI, url: String): LoadResponse? {
+        ensurePluginReady(api)
         // Session bloklist kontrolü
         if (CsPluginStatusTracker.isBlocked(api.name)) {
             Log.w(TAG, "[${api.name}] safeLoad: Engellendi — atlanıyor.")
@@ -2114,7 +2236,6 @@ object CsStreamRunner {
             Log.w(TAG, "[${api.name}] safeLoad: Domain (${api.mainUrl}) ölü domain listesinde — atlanıyor.")
             return null
         }
-        applyDomainFix(api)
         return loadSemaphore.withPermit {
             withTimeoutOrNull(15_000L) {
                 try {
@@ -2292,10 +2413,11 @@ object CsStreamRunner {
                 Log.e(TAG, "Failed to load extension ${plugin.name} during global search: ${e.message}")
             }
         }
-        val enabledIds = enabledPlugins.map { it.id }.toSet()
+        val enabledIds = enabledPlugins.map { it.id.lowercase(Locale.ROOT) }.toSet()
         val activeApis = com.lagradost.cloudstream3.APIHolder.allProviders.filter { api ->
-            val pluginId = java.io.File(api.sourcePlugin).nameWithoutExtension
-            enabledIds.contains(pluginId)
+            val pluginId = java.io.File(api.sourcePlugin).nameWithoutExtension.lowercase(Locale.ROOT)
+            val apiName = api.name.lowercase(Locale.ROOT)
+            enabledIds.contains(pluginId) || enabledIds.contains(apiName)
         }
         if (activeApis.isEmpty()) {
             return@withContext emptyList()
@@ -2305,6 +2427,7 @@ object CsStreamRunner {
             val jobs = activeApis.map { api ->
                 async {
                     try {
+                        ensurePluginReady(api)
                         val searchRes = safeSearch(api, query)
                         synchronized(results) {
                             searchRes.forEach { results.add(api to it) }
@@ -2333,7 +2456,7 @@ object CsStreamRunner {
         season: Int,
         episode: Int
     ): List<StreamSource> = withContext(Dispatchers.IO) {
-        applyDomainFix(api)
+        ensurePluginReady(api)
         if (api.name in KNOWN_BROKEN_PLUGINS) return@withContext emptyList()
         val searchResponse = api.newAnimeSearchResponse(
             name = api.name,

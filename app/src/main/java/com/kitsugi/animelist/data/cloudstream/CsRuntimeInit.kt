@@ -23,6 +23,95 @@ object CsRuntimeInit {
             val wrapped = com.kitsugi.animelist.KitsugiApplication.getDynamicContext(context)
             com.lagradost.api.setContext(java.lang.ref.WeakReference(wrapped))
 
+            // Pre-seed "DomainListesi" in SharedPreferences with current domains.
+            // Turkish plugins (Anizium, Animeler, DiziPal, etc.) read this SharedPreferences
+            // in their constructors. Setting last_domain_update prevents dead Kraptor123 network requests
+            // and guarantees plugins have valid domains immediately without blocking or 404s.
+            try {
+                val sp = wrapped.getSharedPreferences("DomainListesi", Context.MODE_PRIVATE)
+                val editor = sp.edit()
+                val initialDomains = mapOf(
+                    "Animeler"           to "https://animeler.pw",
+                    "Animely"            to "https://animely.net",
+                    "AnimPow"            to "https://animpow.com",
+                    "Anizium"            to "https://api.anizium.co",
+                    "AsyaFanatiklerim"   to "https://asyafanatiklerim.com",
+                    "DiziAsia"           to "https://diziasia.com",
+                    "DiziAsya"           to "https://api.diziasya.com",
+                    "DiziBox"            to "https://www.dizibox.live",
+                    "DiziFilmORG"        to "https://dizifilmizle.to",
+                    "Dizigecesi"         to "https://dizigecesi.com",
+                    "DiziGecesi"         to "https://dizigecesi.com",
+                    "DiziKorea"          to "https://dizikorea3.com",
+                    "DiziLife"           to "https://dizi75.life",
+                    "Dizilla"            to "https://dizilla.now",
+                    "DiziMom"            to "https://www.dizimom.help",
+                    "DiziPal"            to "https://dizipal3008.com",
+                    "DiziPalOriginal"    to "https://dizipal3008.com",
+                    "DiziPalOrijinal"    to "https://dizipal3008.com",
+                    "Dizipod"            to "https://dizipod.com",
+                    "DiziPod"            to "https://dizipod.com",
+                    "DiziYo"             to "https://www.diziyo.so",
+                    "DiziYou"            to "https://www.diziyou.one",
+                    "DramaDizilerim"     to "https://dramaflix.net/tr",
+                    "Dramaizle"          to "https://dramaflix.net/tr",
+                    "FilmBOL"            to "https://filmbol.org",
+                    "FilmBip"            to "https://filmbip.com",
+                    "FilmEkseni"         to "https://filmekseni.vip",
+                    "FilmHane"           to "https://www.filmhane.shop",
+                    "FilmMakinesi"       to "https://filmmakinesi.to",
+                    "FilmModu"           to "https://www.filmmodu.one",
+                    "Filmzal"            to "https://filmzal.me",
+                    "FullHDFilm"         to "https://fullhdfilm.pro",
+                    "FullHDFilmizlesene" to "https://www.fullhdfilmizlesene.mx",
+                    "GinikoCanli"        to "https://www.giniko.com",
+                    "HDFilmCehennemi"    to "https://www.hdfilmcehennemi.nl",
+                    "HDFilmDelisi"       to "https://hdfilmdelisi.one",
+                    "HDFilmIzle"         to "https://www.hdfilmizle.live",
+                    "JetFilmizle"        to "https://jetfilmizle.now",
+                    "KickTR"             to "https://kick.com",
+                    "KraptorPlus"        to "https://a.111477.xyz",
+                    "KultFilmler"        to "https://kultfilmler.net",
+                    "MirrorVerse"        to "https://net77.cc",
+                    "OnePaceTr"          to "https://www.onepacetr.net",
+                    "OnePaceTR"          to "https://www.onepacetr.net",
+                    "OpenAnime"          to "https://openani.me",
+                    "RecTV"              to "https://m.prectv72.lol",
+                    "recTV"              to "https://m.prectv72.lol/api",
+                    "SeiCode"            to "https://seiwatch.net",
+                    "SelcukFlix"         to "https://selcukflix.com",
+                    "SetFilmIzle"        to "https://www.setfilmizle.uk",
+                    "SezonlukDizi"       to "https://sezonlukdizi.cc",
+                    "SinemaCX"           to "https://sinemacc.com",
+                    "Sinewix"            to "https://ydfvfdizipanel.ru",
+                    "Sinezy"             to "https://sinezy.to",
+                    "Syncler"            to "https://syncler.net",
+                    "TorrentFilm"        to "https://torrentfilmindir.net",
+                    "Torrential"         to "https://api.real-debrid.com",
+                    "TRanimaci"          to "https://tranimaci.com",
+                    "TrAnimeIzle"        to "https://www.tranimeizle.live",
+                    "TurkAnime"          to "https://www.turkanime.tv",
+                    "Turkdizileri"       to "https://turkdizileri.com",
+                    "WFilmizle"          to "https://wfilmizle.net",
+                    "WFilmİzle"          to "https://wfilmizle.net",
+                    "WebDramaTurkey"     to "https://webdramaturkey2.com",
+                    "WebteIzle"          to "https://webteizle3.xyz",
+                    "YTS"                to "https://web.yts.gg",
+                    "YabanciDizi"        to "https://yabancidizi.news",
+                    "YeniKaynak"         to "https://www.yenikaynak.com",
+                    "YesilCamTv"         to "https://yesilcamtv.com",
+                    "Youtube"            to "https://www.youtube.com"
+                )
+                for ((k, v) in initialDomains) {
+                    editor.putString(k, v)
+                }
+                editor.putLong("last_domain_update", System.currentTimeMillis())
+                editor.apply()
+                android.util.Log.d("CsRuntimeInit", "Pre-seeded ${initialDomains.size} domains into DomainListesi SharedPreferences")
+            } catch (spEx: Exception) {
+                android.util.Log.w("CsRuntimeInit", "Failed to pre-seed DomainListesi: ${spEx.message}")
+            }
+
             // Build a standard OkHttp client with cache, timeouts and redirect handling.
             // Android 10+ already includes Conscrypt as the default TLS provider natively;
             // no separate registration needed.

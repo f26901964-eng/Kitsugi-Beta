@@ -385,7 +385,15 @@ object CsPluginLoader {
                 return@withLock emptyList()
             }
 
-            // ── Step 7: Collect registered APIs ─────────────────────────────
+            // ── Step 7: Post-load Helper Patches ────────────────────────────
+            // CRITICAL: Turkish plugins (Anizium, Animeler, DiziPal, etc.) execute
+            // their own Helper.setup(context) inside pluginInstance.load(safeCtx).
+            // That setup() method checks Cloudstream's APK signature, fails on Kitsugi,
+            // and resets isAllowedVersion to FALSE. We MUST re-apply helper patches
+            // AFTER load() so that isAllowedVersion is permanently true at runtime!
+            applyHelperPatches(loader, scraperId, pluginClassName)
+
+            // ── Step 8: Collect registered APIs ─────────────────────────────
             val allRegisteredApis = APIHolder.allProviders.filter {
                 it.sourcePlugin == cs3File.absolutePath
             }
@@ -393,81 +401,104 @@ object CsPluginLoader {
             // Fallback Recovery for Anti-Leech / Version Lock compromised mainUrl
             val DEFAULT_PLUGIN_DOMAINS = mapOf(
                 // ── Anime siteleri ────────────────────────────────────────────
-                // Kaynak: keyiflerolsun/Kekik-cloudstream/TurkAnime/TurkAnime.kt L18
+                "Anizium"            to "https://api.anizium.co",
                 "TurkAnime"          to "https://www.turkanime.tv",
-                // Kaynak: keyiflerolsun/Kekik-cloudstream/AnimeciX/AnimeciX.kt L16
-                // tanı 2026-08: animecix.tv üç repoda çalışıyor (✅ 3 stream confirmed)
                 "AnimeciX"           to "https://animecix.tv",
                 "Animeler"           to "https://animeler.pw",
+                "Animely"            to "https://animely.net",
                 "AsyaWatch"          to "https://asyawatch.com",
                 "CizgiMax"           to "https://cizgimax.online",
                 "AnimeElysium"       to "https://animeelysium.com",
                 "TrAnimeci"          to "https://tranimaci.com",
-                "TrAnimeIzle"        to "https://www.tranimeizle.io",
+                "TrAnimeIzle"        to "https://www.tranimeizle.live",
                 "AnimPow"            to "https://animpow.com",
                 "AsyaAnimeleri"      to "https://asyaanimeleri.top",
                 "AsyaAnimeleri2"     to "https://asyaanimeleri.top",
                 "YoTurkAnime"        to "https://www.yoturkanime.com",
                 "AnimeIzle"          to "https://www.animeizle.biz",
+                "AsyaFanatiklerim"   to "https://asyafanatiklerim.com",
+                "OnePaceTr"          to "https://www.onepacetr.net",
+                "OnePaceTR"          to "https://www.onepacetr.net",
+                "OpenAnime"          to "https://openani.me",
                 // ── Dizi siteleri ─────────────────────────────────────────────
-                // Kaynak: keyiflerolsun/Kekik-cloudstream/Dizilla/Dizilla.kt L16
-                "Dizilla"            to "https://dizillahd.com",
-                // Kaynak: keyiflerolsun/Kekik-cloudstream/DiziBox/DiziBox.kt L23
+                "Dizilla"            to "https://dizilla.now",
                 "DiziBox"            to "https://www.dizibox.live",
-                // Kaynak: keyiflerolsun/Kekik-cloudstream/DiziPal/DiziPal.kt L17
-                "DiziPal"            to "https://dizipal.bid",
-                "DiziPalOriginal"    to "https://dizipal.bid",
-                "DiziPalOrijinal"    to "https://dizipal1572.com",
+                "DiziPal"            to "https://dizipal3008.com",
+                "DiziPalOriginal"    to "https://dizipal3008.com",
+                "DiziPalOrijinal"    to "https://dizipal3008.com",
                 "DDizi"              to "https://www.ddizi.im",
                 "Ddizi"              to "https://www.ddizi.im",
-                // tanı 2026-08: dizikorea3.com feroxx versiyonunda çalışıyor
+                "DiziAsia"           to "https://diziasia.com",
+                "DiziAsya"           to "https://api.diziasya.com",
                 "DiziKorea"          to "https://dizikorea3.com",
-                "DizifilmORG"        to "https://dizifilm.life",
+                "DiziLife"           to "https://dizi75.life",
+                "DizifilmORG"        to "https://dizifilmizle.to",
+                "Dizigecesi"         to "https://dizigecesi.com",
+                "DiziGecesi"         to "https://dizigecesi.com",
+                "Dizipod"            to "https://dizipod.com",
+                "DiziPod"            to "https://dizipod.com",
+                "DiziYo"             to "https://www.diziyo.so",
                 "SezonlukDizi"       to "https://sezonlukdizi.cc",
-                // tanı 2026-08: ydfvfdizipanel.ru çalışıyor (sinewix.com mirror değil)
                 "SineWix"            to "https://ydfvfdizipanel.ru",
                 "Sinewix"            to "https://ydfvfdizipanel.ru",
-                // Kaynak: keyiflerolsun/Kekik-cloudstream/DiziMom/DiziMom.kt
-                "DiziMom"            to "https://www.dizimom.rest",
-                // Kaynak: keyiflerolsun/Kekik-cloudstream/DiziYou/DiziYou.kt
+                "Sinezy"             to "https://sinezy.to",
+                "DiziMom"            to "https://www.dizimom.help",
                 "DiziYou"            to "https://www.diziyou.one",
+                "DramaDizilerim"     to "https://dramaflix.net/tr",
+                "Dramaizle"          to "https://dramaflix.net/tr",
+                "Turkdizileri"       to "https://turkdizileri.com",
                 // ── Film siteleri ─────────────────────────────────────────────
-                // Kaynak: keyiflerolsun/Kekik-cloudstream/HDFilmCehennemi/HDFilmCehennemi.kt L19
                 "HDFilmCehennemi"    to "https://www.hdfilmcehennemi.nl",
-                // Kaynak: keyiflerolsun/Kekik-cloudstream/SinemaCX/SinemaCX.kt L17
-                "SinemaCX"           to "https://www.sinema.gg",
-                // Kaynak: keyiflerolsun/Kekik-cloudstream/FilmMakinesi/FilmMakinesi.kt
+                "HDFilmDelisi"       to "https://hdfilmdelisi.one",
+                "HDFilmIzle"         to "https://www.hdfilmizle.live",
+                "SinemaCX"           to "https://sinemacc.com",
                 "FilmMakinesi"       to "https://filmmakinesi.to",
-                // Kaynak: keyiflerolsun/Kekik-cloudstream/FilmModu/FilmModu.kt
                 "FilmModu"           to "https://www.filmmodu.one",
-                // Kaynak: keyiflerolsun/Kekik-cloudstream/FullHDFilm/FullHDFilm.kt
+                "FilmBOL"            to "https://filmbol.org",
+                "FilmBip"            to "https://filmbip.com",
+                "FilmEkseni"         to "https://filmekseni.vip",
+                "FilmHane"           to "https://www.filmhane.shop",
+                "Filmzal"            to "https://filmzal.me",
                 "FullHDFilm"         to "https://fullhdfilm.pro",
                 "FullHDFilmizlesene" to "https://www.fullhdfilmizlesene.mx",
-                // Kaynak: keyiflerolsun/Kekik-cloudstream/JetFilmizle/JetFilmizle.kt
                 "JetFilmizle"        to "https://jetfilmizle.now",
-                // Kaynak: keyiflerolsun/Kekik-cloudstream/WebteIzle/WebteIzle.kt
                 "WebteIzle"          to "https://webteizle3.xyz",
-                // Kaynak: keyiflerolsun/Kekik-cloudstream/IzleAI/IzleAI.kt
                 "IzleAI"             to "https://720pizle.ai",
-                // Kaynak: keyiflerolsun/Kekik-cloudstream/SetFilmIzle/SetFilmIzle.kt
                 "SetFilmIzle"        to "https://www.setfilmizle.uk",
+                "WFilmizle"          to "https://wfilmizle.net",
+                "WFilmİzle"          to "https://wfilmizle.net",
                 // ── Diğer ─────────────────────────────────────────────────────
-                // Kaynak: keyiflerolsun/Kekik-cloudstream/RecTV/RecTV.kt L17
-                // tanı 2026-08: Kraptor sürümü a.prectv70.lol/api ile 101 sonuç döndürdü
-                "RecTV"              to "https://a.prectv70.lol/api",
-                // Kaynak: keyiflerolsun/Kekik-cloudstream/KoreanTurk/KoreanTurk.kt
+                "RecTV"              to "https://m.prectv72.lol",
+                "recTV"              to "https://m.prectv72.lol/api",
                 "KoreanTurk"         to "https://www.koreanturk.net",
                 "KultFilmler"        to "https://kultfilmler.net",
                 "BelgeselX"          to "https://belgeselx.com",
-                // tanı 2026-08: Watch2Movies çalışıyor (✅ 5 stream, feroxx)
+                "GinikoCanli"        to "https://www.giniko.com",
+                "KickTR"             to "https://kick.com",
+                "KraptorPlus"        to "https://a.111477.xyz",
+                "MirrorVerse"        to "https://net77.cc",
+                "SeiCode"            to "https://seiwatch.net",
+                "SelcukFlix"         to "https://selcukflix.com",
+                "Syncler"            to "https://syncler.net",
+                "TorrentFilm"        to "https://torrentfilmindir.net",
+                "Torrential"         to "https://api.real-debrid.com",
+                "TRanimaci"          to "https://tranimaci.com",
                 "Watch2Movies"       to "https://movies2watch.watch",
+                "WebDramaTurkey"     to "https://webdramaturkey2.com",
+                "YTS"                to "https://web.yts.gg",
+                "YabanciDizi"        to "https://yabancidizi.news",
+                "YeniKaynak"         to "https://www.yenikaynak.com",
+                "YesilCamTv"         to "https://yesilcamtv.com"
             )
             allRegisteredApis.forEach { api ->
-                if (api.mainUrl.isBlank() || api.mainUrl == "/") {
-                    val defaultUrl = DEFAULT_PLUGIN_DOMAINS[api.name]
-                    if (defaultUrl != null) {
-                        api.mainUrl = defaultUrl
-                        Log.w(TAG, "[${api.name}] Anti-Leech bypass: Empty mainUrl recovered to: $defaultUrl")
+                val fallbackDomain = DEFAULT_PLUGIN_DOMAINS[api.name]
+                    ?: DEFAULT_PLUGIN_DOMAINS[scraperId]
+                    ?: DEFAULT_PLUGIN_DOMAINS.entries.firstOrNull { it.key.equals(api.name, ignoreCase = true) }?.value
+                    ?: DEFAULT_PLUGIN_DOMAINS.entries.firstOrNull { it.key.equals(scraperId, ignoreCase = true) }?.value
+                if (api.mainUrl.isBlank() || api.mainUrl == "/" || api.mainUrl.contains("x.anizium.co") || api.mainUrl.contains("anizium.de")) {
+                    if (fallbackDomain != null) {
+                        api.mainUrl = fallbackDomain
+                        Log.w(TAG, "[${api.name}] Domain recovered to: $fallbackDomain")
                     }
                 }
             }
@@ -605,7 +636,7 @@ object CsPluginLoader {
      * @param scraperId Plugin ID (ör. "Animeler", "AnimeciX")
      * @param pluginClassName Tam plugin sınıf adı (ör. "com.kraptor.AnimelerPlugin")
      */
-    private fun applyHelperPatches(loader: ClassLoader, scraperId: String, pluginClassName: String) {
+    fun applyHelperPatches(loader: ClassLoader, scraperId: String, pluginClassName: String) {
         val packageName = pluginClassName.substringBeforeLast('.')
         val baseName    = pluginClassName.substringAfterLast('.').removeSuffix("Plugin")
 
@@ -633,10 +664,17 @@ object CsPluginLoader {
             // com.kerimmkirac.* — TurkAnime, DiziBox vb.
             "com.kerimmkirac.${baseName}Helper",
             "com.kerimmkirac.${scraperId}Helper",
+            "com.kerimmkirac.AniziumHelper",
             // recloudstream.* — Xhamster, XNXX vb.
             "recloudstream.${baseName}Helper",
             "recloudstream.${scraperId}Helper",
         ).distinct()
+
+        val universalSet = object : java.util.AbstractSet<String>() {
+            override val size: Int get() = Int.MAX_VALUE
+            override fun iterator(): MutableIterator<String> = mutableListOf<String>().iterator()
+            override fun contains(element: String?): Boolean = true
+        }
 
         for (helperClassName in potentialHelperClassNames) {
             try {
@@ -666,6 +704,19 @@ object CsPluginLoader {
                 } catch (e: Exception) {
                     // Setter not found — field-only patch is enough
                 }
+
+                // 3. Patch hataliPaketAdlari & izinliImzaHashleri sets so that even if setup()
+                // runs again, it evaluates to true.
+                try {
+                    val hField = helperClass.getDeclaredField("hataliPaketAdlari")
+                    hField.isAccessible = true
+                    hField.set(null, universalSet)
+                } catch (_: Throwable) {}
+                try {
+                    val iField = helperClass.getDeclaredField("izinliImzaHashleri")
+                    iField.isAccessible = true
+                    iField.set(null, universalSet)
+                } catch (_: Throwable) {}
             } catch (e: ClassNotFoundException) {
                 // Not this plugin type — expected, ignore
             } catch (e: Exception) {

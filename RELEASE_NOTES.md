@@ -2,54 +2,22 @@
 
 ---
 
-## 🇹🇷 Türkçe
+## 🇹🇷 Türkçe (v2.4.147)
 
-### 🔍 Arama Motoru — Jikan & Kitsu Fallback Desteği
+### 🧩 Cloudstream Eklentileri & Anizium Kalıcı Çözümü
 
-- **MAL (Jikan) Fallback:** MAL araması başarısız olduğunda sistem otomatik olarak **Shikimori** API'sine geçer. Shikimori'den dönen `Double` türündeki skor değerleri, `Int` aralığına (`0–10`) dönüştürülerek tip uyumsuzluk hatası giderildi.
-- **AniList Fallback:** AniList araması başarısız olduğunda sistem otomatik olarak **Kitsu.io** API'sine geçer. `KitsuExploreClient` içine `searchAnime` fonksiyonu eklenerek Kitsu arama desteği hayata geçirildi.
-- **"Tümü" Modu Kapsamlı Fallback:** `SearchPlatform.All` (Tümü) modunda her iki kaynak için de zincirli fallback çalışır; hiçbir arama sonuçsuz kalmaz.
-
----
-
-### 🖥️ Ayarlar Sayfası — Tam Ekran Panel Geçişi
-
-Ayarlar sayfasındaki tüm alttan açılan pencereler (bottom sheet) artık **tam ekran dialog** olarak açılıyor. Önceki davranışta pencereler ekranın yalnızca %85–95'ini kaplıyor ve aşağı sürükleyerek kapatılabiliyordu; bu durum yanlışlıkla kapanmalara yol açıyordu.
-
-**Tam ekrana geçirilen paneller:**
-- 🎨 Tercihler & Tema Ayarları
-- ⚙️ Sistem & Veri Ayarları
-- 🔗 Entegrasyon Ayarları (TMDB, MDBList, AniSkip, Fanart.tv)
-- 🧩 Eklenti & Akış Ayarları (Stremio, Cloudstream, Manga)
-- 🎬 Oynatıcı Ayarları
-- 👤 Hesap Bağlantıları
-- 💬 Geri Bildirim Formu
-
-**Dokunulmayan sheet'ler** (hafif, bağlamsal): Arama filtreleri, tür seçiciler, poster seçenekleri, akış seçici vb. eskisi gibi bottom sheet olarak açılmaya devam eder.
+- **DEX Anti-Tamper & İmza Doğrulama Koruması Aşımı:** Anizium, Animeler, DiziPal, DiziBox, RecTV, FilmEkseni gibi Cloudstream Türk eklentilerinin bytecode (DEX) seviyesinde barındırdığı APK imza kontrolü (`isAllowedVersion`) kalıcı olarak bypass edildi. Eklentilerin Kitsugi imzasını geçersiz sayıp aramaları ve video bağlantılarını boş döndürmesi (`emptyList`) engellendi.
+- **Canlı Domain Ön Yüklemesi (DomainListesi):** Eklentilerin 404 veren harici domain güncelleme adresine takılıp `mainUrl` değerini boş bırakması engellendi. Uygulama başlangıcında 67+ Türk eklentisinin en güncel canlı adresleri (Anizium: `api.anizium.co`, DiziPal: `dizipal3008.com` vb.) SharedPreferences'a önceden yazılarak 0ms gecikmeyle hazır hale getirildi.
+- **Dinamik Domain Kurtarma (`ensurePluginReady`):** Arama veya video çekme öncesinde eklentilerin adresleri kontrol edilir; boş veya ölü mirror domainler otomatik olarak güncel canlı API adreslerine çekilir.
+- **Büyük/Küçük Harf Bağımsız Eklenti Eşleme:** Eklenti kimliği (`anizium` / `Anizium`) ve API sağlayıcı adları arasındaki harf duyarlılığı kaldırılarak tüm kurulu eklentilerin küresel aramada eksiksiz listelenmesi sağlandı.
 
 ---
 
-## 🇬🇧 English
+## 🇬🇧 English (v2.4.147)
 
-### 🔍 Search Engine — Jikan & Kitsu Fallback Support
+### 🧩 Cloudstream Extensions & Anizium Permanent Fix
 
-- **MAL (Jikan) Fallback:** When a MAL search fails, the system automatically falls back to the **Shikimori** API. A `Double`-to-`Int` score coercion fix (`0–10` range) was applied to resolve a type mismatch compilation error in `KitsugiShikimoriClient`.
-- **AniList Fallback:** When an AniList search fails, the system automatically falls back to **Kitsu.io**. A `searchAnime` function was added to `KitsuExploreClient` to enable Kitsu as a search source.
-- **"All" Mode Cascaded Fallback:** In `SearchPlatform.All` mode, both MAL and AniList deferred blocks now include their respective fallback sources, ensuring no search query returns empty results.
-
----
-
-### 🖥️ Settings — Full-Screen Panel Navigation
-
-All bottom sheets in the Settings section are now rendered as **full-screen Dialogs**. Previously, panels covered only 85–95% of the screen and could be accidentally dismissed by swiping down.
-
-**Panels migrated to full-screen:**
-- 🎨 Preferences & Theme Settings
-- ⚙️ System & Data Settings
-- 🔗 Integration Settings (TMDB, MDBList, AniSkip, Fanart.tv)
-- 🧩 Addons & Stream Settings (Stremio, Cloudstream, Manga)
-- 🎬 Player Settings
-- 👤 Account Connections
-- 💬 Feedback Form
-
-**Unaffected sheets** (lightweight, contextual): Search filters, genre/tag pickers, poster options, stream selector, etc. remain as bottom sheets.
+- **DEX Anti-Tamper & Signature Verification Bypass:** Resolved the runtime lockout mechanism in Cloudstream Turkish extensions (Anizium, Animeler, DiziPal, DiziBox, RecTV, FilmEkseni, etc.) where internal bytecode signature checks reset `isAllowedVersion` to `false`, causing all searches and video stream extractions to return empty results.
+- **Pre-Seeded Live Provider Domains:** Fixed extensions getting stranded with blank `mainUrl` values due to dead 404 remote domain lists. Over 67+ verified Turkish provider domains (such as `api.anizium.co`, `dizipal3008.com`) are now pre-seeded directly into SharedPreferences upon app startup.
+- **Dynamic Domain Recovery (`ensurePluginReady`):** Before executing search, details loading, or stream extraction, providers are verified and automatically repaired if their `mainUrl` is blank or pointing to an obsolete mirror.
+- **Case-Insensitive Provider Matching:** Addon discovery and global search matching now operate case-insensitively, ensuring full provider responsiveness regardless of internal ID casing.
