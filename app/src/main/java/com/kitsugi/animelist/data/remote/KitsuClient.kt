@@ -285,6 +285,12 @@ object KitsuClient {
         val imageUrl = posterObj?.optString("medium")?.takeIf { it.isNotBlank() }
             ?: posterObj?.optString("original")?.takeIf { it.isNotBlank() }
 
+        val coverObj = attributes.optJSONObject("coverImage")
+        val coverOriginal = coverObj?.optString("original")?.takeIf { it.isNotBlank() }
+            ?: coverObj?.optString("large")?.takeIf { it.isNotBlank() }
+        val posterOriginal = posterObj?.optString("original")?.takeIf { it.isNotBlank() }
+        val kitsuPictures = listOfNotNull(posterOriginal, coverOriginal).distinct()
+
         val youtubeVideoId = attributes.optString("youtubeVideoId", "")
         val trailerUrl = if (youtubeVideoId.isNotEmpty()) "https://www.youtube.com/watch?v=$youtubeVideoId" else null
 
@@ -315,7 +321,8 @@ object KitsuClient {
             members = userCount,
             favorites = favCount,
             rank = ratingRank,
-            popularityRank = popularityRank
+            popularityRank = popularityRank,
+            pictures = kitsuPictures
         )
     }
 

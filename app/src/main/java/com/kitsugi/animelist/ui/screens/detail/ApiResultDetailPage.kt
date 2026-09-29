@@ -310,6 +310,7 @@ fun ApiResultDetailPage(
     }
     var activeGalleryItems by remember { mutableStateOf<List<GalleryItem>>(emptyList()) }
     var activeGalleryIndex by remember { mutableStateOf(0) }
+    var activeGalleryCategory by remember { mutableStateOf<GalleryCategory?>(null) }
     val galleryItems by viewModel.galleryItems.collectAsState()
 
     val listState = rememberLazyListState()
@@ -408,6 +409,7 @@ fun ApiResultDetailPage(
                     onToggleFavoriteClick = onToggleFavoriteClick,
                     onReadMangaClick = onReadMangaClick,
                     onGalleryOpen = { items, idx ->
+                        activeGalleryCategory = items.getOrNull(idx)?.category ?: GalleryCategory.POSTER
                         activeGalleryItems = items
                         activeGalleryIndex = idx
                     },
@@ -466,6 +468,7 @@ fun ApiResultDetailPage(
                         onToggleFavoriteClick = onToggleFavoriteClick,
                         onReadMangaClick = onReadMangaClick,
                         onGalleryOpen = { items, idx ->
+                            activeGalleryCategory = items.getOrNull(idx)?.category ?: GalleryCategory.POSTER
                             activeGalleryItems = items
                             activeGalleryIndex = idx
                         },
@@ -548,6 +551,7 @@ fun ApiResultDetailPage(
                                     onOpenGallery = { category ->
                                         val startIndex = if (category == null) 0
                                         else galleryItems.indexOfFirst { it.category == category }.coerceAtLeast(0)
+                                        activeGalleryCategory = category
                                         activeGalleryItems = galleryItems
                                         activeGalleryIndex = startIndex
                                     }
@@ -829,8 +833,12 @@ fun ApiResultDetailPage(
         KitsugiImageGalleryDialog(
             galleryItems = activeGalleryItems,
             initialIndex = activeGalleryIndex,
+            initialCategory = activeGalleryCategory ?: activeGalleryItems.getOrNull(activeGalleryIndex)?.category,
             title = displayResult.title,
-            onDismiss = { activeGalleryItems = emptyList() }
+            onDismiss = { 
+                activeGalleryItems = emptyList()
+                activeGalleryCategory = null
+            }
         )
     }
 

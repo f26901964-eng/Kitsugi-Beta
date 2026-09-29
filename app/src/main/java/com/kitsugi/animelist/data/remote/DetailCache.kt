@@ -189,6 +189,7 @@ object DetailCache {
     }
 
     private val fanartGalleryCache = ConcurrentHashMap<String, List<GalleryItem>>()
+    private val tmdbGalleryCache = ConcurrentHashMap<String, List<GalleryItem>>()
 
     // Translations (Synopsis / Biography)
     fun getTranslation(type: String, source: String, id: Int): String? {
@@ -221,6 +222,34 @@ object DetailCache {
         fanartGalleryCache.clear()
     }
 
+    // TMDB Gallery Cache
+    fun getTmdbGallery(isMovie: Boolean, id: Int): List<GalleryItem>? {
+        val key = "${if (isMovie) "movie" else "tv"}_$id"
+        return tmdbGalleryCache[key]
+    }
+
+    fun putTmdbGallery(isMovie: Boolean, id: Int, list: List<GalleryItem>) {
+        val key = "${if (isMovie) "movie" else "tv"}_$id"
+        tmdbGalleryCache[key] = list
+    }
+
+    fun removeTmdbGallery(isMovie: Boolean, id: Int) {
+        val key = "${if (isMovie) "movie" else "tv"}_$id"
+        tmdbGalleryCache.remove(key)
+    }
+
+    fun clearTmdbGalleryCache() {
+        tmdbGalleryCache.clear()
+    }
+
+    // Shikimori Gallery Cache
+    private val shikimoriGalleryCache = ConcurrentHashMap<Int, List<GalleryItem>>()
+
+    fun getShikimoriGallery(id: Int): List<GalleryItem>? = shikimoriGalleryCache[id]
+    fun putShikimoriGallery(id: Int, list: List<GalleryItem>) { shikimoriGalleryCache[id] = list }
+    fun removeShikimoriGallery(id: Int) { shikimoriGalleryCache.remove(id) }
+    fun clearShikimoriGalleryCache() { shikimoriGalleryCache.clear() }
+
     // Clear all (called on app-level reset / force refresh from settings)
     fun clear() {
         mediaDetails.clear()
@@ -236,6 +265,8 @@ object DetailCache {
         studioDetails.clear()
         translations.clear()
         fanartGalleryCache.clear()
+        tmdbGalleryCache.clear()
+        shikimoriGalleryCache.clear()
         episodeRatingsCache.clear()
         malToTmdbCache.clear()
         tmdbToTvdbCache.clear()

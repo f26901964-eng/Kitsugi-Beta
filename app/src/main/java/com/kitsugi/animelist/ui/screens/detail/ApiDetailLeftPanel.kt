@@ -97,19 +97,50 @@ fun ApiDetailLeftPanel(
         blurAdultMedia = blurAdultMedia,
         onPosterClick = {
             val clickedUrl = displayResult.imageUrl
-            if (galleryItems.isNotEmpty()) {
+            if (!clickedUrl.isNullOrBlank()) {
                 val index = galleryItems.indexOfFirst { item ->
                     item.url == clickedUrl || 
-                    (!clickedUrl.isNullOrBlank() && item.url.substringAfterLast("/") == clickedUrl.substringAfterLast("/"))
-                }.coerceAtLeast(0)
-                onGalleryOpen(galleryItems, index)
-            } else {
-                if (!clickedUrl.isNullOrBlank()) {
-                    onGalleryOpen(listOf(GalleryItem(url = clickedUrl, category = GalleryCategory.POSTER, source = displayResult.source)), 0)
+                    item.url.substringAfterLast("/") == clickedUrl.substringAfterLast("/")
                 }
+                if (index >= 0) {
+                    onGalleryOpen(galleryItems, index)
+                } else {
+                    val coverItem = GalleryItem(
+                        url = clickedUrl,
+                        category = GalleryCategory.POSTER,
+                        source = displayResult.source
+                    )
+                    onGalleryOpen(listOf(coverItem) + galleryItems, 0)
+                }
+            } else if (galleryItems.isNotEmpty()) {
+                val posterIndex = galleryItems.indexOfFirst { it.category == GalleryCategory.POSTER }.coerceAtLeast(0)
+                onGalleryOpen(galleryItems, posterIndex)
             }
         },
-        onGalleryClick = if (galleryItems.isNotEmpty()) {{ onGalleryOpen(galleryItems, 0) }} else null,
+        onGalleryClick = if (galleryItems.isNotEmpty() || !displayResult.imageUrl.isNullOrBlank()) {
+            {
+                val clickedUrl = displayResult.imageUrl
+                val index = if (!clickedUrl.isNullOrBlank()) {
+                    galleryItems.indexOfFirst { item ->
+                        item.url == clickedUrl || 
+                        item.url.substringAfterLast("/") == clickedUrl.substringAfterLast("/")
+                    }
+                } else -1
+                if (index >= 0) {
+                    onGalleryOpen(galleryItems, index)
+                } else if (!clickedUrl.isNullOrBlank()) {
+                    val coverItem = GalleryItem(
+                        url = clickedUrl,
+                        category = GalleryCategory.POSTER,
+                        source = displayResult.source
+                    )
+                    onGalleryOpen(listOf(coverItem) + galleryItems, 0)
+                } else {
+                    val posterIndex = galleryItems.indexOfFirst { it.category == GalleryCategory.POSTER }.coerceAtLeast(0)
+                    onGalleryOpen(galleryItems, posterIndex)
+                }
+            }
+        } else null,
         scoreLabel = if (!hideScores) displayResult.getDisplayScore(scoreFormat, hideScores) else null,
         alreadyInList = existingEntry != null,
         isFavorite = isFavorite,

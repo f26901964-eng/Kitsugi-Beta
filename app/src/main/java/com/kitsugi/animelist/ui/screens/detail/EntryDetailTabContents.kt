@@ -244,10 +244,10 @@ internal fun DetailGalleryCard(
         // Mevcut kategorileri hesapla (sıralı)
         val availableCategories = remember(items) {
             val order = listOf(
+                GalleryCategory.POSTER,
+                GalleryCategory.BACKDROP,
                 GalleryCategory.LOGO,
                 GalleryCategory.CLEARART,
-                GalleryCategory.BACKDROP,
-                GalleryCategory.POSTER,
                 GalleryCategory.SQUARE,
                 GalleryCategory.CHARACTER,
                 GalleryCategory.THUMBNAIL,
@@ -370,10 +370,10 @@ internal fun DetailGalleryCard(
         Spacer(modifier = Modifier.height(6.dp))
 
         val orderedCategories = listOf(
+            GalleryCategory.POSTER,
+            GalleryCategory.BACKDROP,
             GalleryCategory.LOGO,
             GalleryCategory.CLEARART,
-            GalleryCategory.BACKDROP,
-            GalleryCategory.POSTER,
             GalleryCategory.SQUARE,
             GalleryCategory.CHARACTER,
             GalleryCategory.THUMBNAIL,

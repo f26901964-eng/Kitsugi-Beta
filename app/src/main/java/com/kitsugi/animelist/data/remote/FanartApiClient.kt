@@ -176,6 +176,13 @@ object FanartApiClient {
     private fun parseTvImages(root: JSONObject, language: String): List<GalleryItem> {
         val items = mutableListOf<GalleryItem>()
 
+        // ── POSTER ────────────────────────────────────────────────────────────
+        appendImages(items, root, "tvposter",      GalleryCategory.POSTER,    language)
+        appendImages(items, root, "seasonposter",  GalleryCategory.POSTER,    language)
+
+        // ── BACKDROP (Background + 4K Background) ─────────────────────────────
+        appendImages(items, root, "showbackground", GalleryCategory.BACKDROP,  language)
+
         // ── LOGO ──────────────────────────────────────────────────────────────
         appendImages(items, root, "hdtvlogo",      GalleryCategory.LOGO,      language)
         appendImages(items, root, "clearlogo",     GalleryCategory.LOGO,      language)
@@ -183,13 +190,6 @@ object FanartApiClient {
         // ── CLEARART (HD ClearART) ────────────────────────────────────────────
         appendImages(items, root, "hdclearart",    GalleryCategory.CLEARART,  language)
         appendImages(items, root, "clearart",      GalleryCategory.CLEARART,  language)
-
-        // ── BACKDROP (Background + 4K Background) ─────────────────────────────
-        appendImages(items, root, "showbackground", GalleryCategory.BACKDROP,  language)
-
-        // ── POSTER ────────────────────────────────────────────────────────────
-        appendImages(items, root, "tvposter",      GalleryCategory.POSTER,    language)
-        appendImages(items, root, "seasonposter",  GalleryCategory.POSTER,    language)
 
         // ── BANNER ────────────────────────────────────────────────────────────
         appendImages(items, root, "tvbanner",      GalleryCategory.BANNER,    language)
@@ -215,6 +215,12 @@ object FanartApiClient {
     private fun parseMovieImages(root: JSONObject, language: String): List<GalleryItem> {
         val items = mutableListOf<GalleryItem>()
 
+        // ── POSTER ────────────────────────────────────────────────────────────
+        appendImages(items, root, "movieposter",     GalleryCategory.POSTER,    language)
+
+        // ── BACKDROP ──────────────────────────────────────────────────────────
+        appendImages(items, root, "moviebackground", GalleryCategory.BACKDROP,  language)
+
         // ── LOGO ──────────────────────────────────────────────────────────────
         appendImages(items, root, "hdmovielogo",     GalleryCategory.LOGO,      language)
         appendImages(items, root, "movielogo",       GalleryCategory.LOGO,      language)
@@ -222,12 +228,6 @@ object FanartApiClient {
         // ── CLEARART ──────────────────────────────────────────────────────────
         appendImages(items, root, "hdmovieclearart", GalleryCategory.CLEARART,  language)
         appendImages(items, root, "movieart",        GalleryCategory.CLEARART,  language)
-
-        // ── BACKDROP ──────────────────────────────────────────────────────────
-        appendImages(items, root, "moviebackground", GalleryCategory.BACKDROP,  language)
-
-        // ── POSTER ────────────────────────────────────────────────────────────
-        appendImages(items, root, "movieposter",     GalleryCategory.POSTER,    language)
 
         // ── BANNER ────────────────────────────────────────────────────────────
         appendImages(items, root, "moviebanner",     GalleryCategory.BANNER,    language)
@@ -274,7 +274,8 @@ object FanartApiClient {
                 url = urlStr,
                 source = "Fanart.tv",
                 category = category,
-                description = extractedName
+                description = extractedName,
+                language = if (lang.isNotBlank() && lang != "00") lang else null
             )
             when {
                 lang == preferredLanguage      -> preferred.add(item)

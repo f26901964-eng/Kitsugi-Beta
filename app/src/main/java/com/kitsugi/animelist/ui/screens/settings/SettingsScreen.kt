@@ -140,7 +140,13 @@ fun SettingsScreen(
                 description = "İndirilen anime bölümlerini yönetin ve çevrimdışı oynatın",
                 icon = Icons.Rounded.Download,
                 iconColor = KitsugiColors.AccentGreen,
-                onClick = { activeDialog = SettingsDialog.Downloads }
+                onClick = {
+                    if (params.onOpenDownloads != null) {
+                        params.onOpenDownloads.invoke()
+                    } else {
+                        context.startActivity(android.content.Intent(context, com.kitsugi.animelist.ui.screens.offline.DownloadsActivity::class.java))
+                    }
+                }
             )
 
             KitsugiSettingsDivider()

@@ -65,6 +65,7 @@ import kotlin.math.abs
 fun KitsugiImageGalleryDialog(
     galleryItems: List<GalleryItem>,
     initialIndex: Int = 0,
+    initialCategory: GalleryCategory? = galleryItems.getOrNull(initialIndex)?.category,
     title: String,
     onDismiss: () -> Unit
 ) {
@@ -83,8 +84,8 @@ fun KitsugiImageGalleryDialog(
         }
     }
     
-    var selectedCategoryFilter by remember { 
-        mutableStateOf<GalleryCategory?>(galleryItems.getOrNull(initialIndex)?.category) 
+    var selectedCategoryFilter by remember(initialCategory, initialIndex) { 
+        mutableStateOf<GalleryCategory?>(initialCategory) 
     }
     
     // Filtered items based on selected category
@@ -257,7 +258,8 @@ fun KitsugiImageGalleryDialog(
                             ) {
                                 itemsIndexed(availableCategories) { _, cat ->
                                     val isSelected = selectedCategoryFilter == cat
-                                    val label = cat?.label ?: "Tümü"
+                                    val count = if (cat == null) galleryItems.size else galleryItems.count { it.category == cat }
+                                    val label = if (cat == null) "Tümü ($count)" else "${cat.label} ($count)"
                                     
                                     Box(
                                         modifier = Modifier
@@ -299,64 +301,136 @@ fun KitsugiImageGalleryDialog(
                                             imageUrl = item.url,
                                             title = title,
                                             page = page,
-                                            pagerState = pagerState,
-                                            onDismiss = { dismissWithAnimation() }
+                                            pagerState = pagerState
                                         )
                                         
-                                        // Source & Category badge overlay on the page
-                                        Row(
+                                        // Source, Category & Metadata badge overlay on the page
+                                        FlowRow(
                                             modifier = Modifier
                                                 .align(Alignment.BottomStart)
-                                                .padding(start = 24.dp, bottom = if (isLandscape) 12.dp else 24.dp)
-                                                .clip(RoundedCornerShape(12.dp))
-                                                .background(KitsugiColors.SurfaceStrong.copy(alpha = 0.85f))
-                                                .border(1.dp, KitsugiColors.Border, RoundedCornerShape(12.dp))
-                                                .padding(horizontal = 12.dp, vertical = 6.dp),
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                .padding(start = 20.dp, end = 20.dp, bottom = if (isLandscape) 12.dp else 24.dp)
+                                                .clip(RoundedCornerShape(14.dp))
+                                                .background(KitsugiColors.SurfaceStrong.copy(alpha = 0.88f))
+                                                .border(1.dp, KitsugiColors.Border.copy(alpha = 0.7f), RoundedCornerShape(14.dp))
+                                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                            verticalArrangement = Arrangement.spacedBy(6.dp)
                                         ) {
                                             val badgeBg = when (item.source.lowercase()) {
+                                                "tmdb"      -> Color(0xFF01B4E4)
                                                 "fanart.tv" -> Color(0xFF9C27B0) // Violet
-                                                "tmdb" -> Color(0xFF00C853) // Green
-                                                "jikan" -> Color(0xFF00B0FF) // Blue
-                                                "anilist" -> Color(0xFF3DB4F2) // AniList blue
-                                                "simkl" -> Color(0xFFE50914) // Simkl red
-                                                "kitsu" -> Color(0xFFFD5C63) // Kitsu reddish-orange
-                                                else -> accentColor
+                                                "anilist"   -> Color(0xFF3DB4F2) // AniList blue
+                                                "simkl"     -> Color(0xFFE50914) // Simkl red
+                                                "kitsu"     -> Color(0xFFFD5C63) // Kitsu reddish-orange
+                                                "shikimori" -> Color(0xFF4C86C8) // Shikimori mavi
+                                                "jikan", "jikan (mal)", "mal" -> Color(0xFF2E51A2) // MAL blue
+                                                else        -> accentColor
                                             }
+                                            
+                                            // 1. Kaynak Rozeti
                                             Box(
                                                 modifier = Modifier
                                                     .clip(RoundedCornerShape(6.dp))
                                                     .background(badgeBg)
-                                                    .padding(horizontal = 6.dp, vertical = 2.dp)
+                                                    .padding(horizontal = 7.dp, vertical = 3.dp)
                                             ) {
                                                 Text(
                                                     text = item.source,
                                                     color = Color.White,
-                                                    fontSize = 10.sp,
+                                                    fontSize = 11.sp,
                                                     fontWeight = FontWeight.Bold
                                                 )
                                             }
-                                            
-                                            Text(
-                                                text = item.category.label,
-                                                color = KitsugiColors.TextPrimary,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.SemiBold
-                                            )
 
-                                            if (!item.description.isNullOrBlank()) {
-                                                Spacer(
-                                                    modifier = Modifier
-                                                        .width(1.dp)
-                                                        .height(12.dp)
-                                                        .background(KitsugiColors.Border)
+                                            // 2. Kategori Rozeti
+                                            val catEmoji = when (item.category) {
+                                                GalleryCategory.POSTER    -> "📋"
+                                                GalleryCategory.BACKDROP  -> "🖼️"
+                                                GalleryCategory.LOGO      -> "🎨"
+                                                GalleryCategory.CLEARART  -> "✨"
+                                                GalleryCategory.CHARACTER -> "🎭"
+                                                GalleryCategory.THUMBNAIL -> "🌐"
+                                                GalleryCategory.BANNER    -> "🎫"
+                                                GalleryCategory.SQUARE    -> "🟩"
+                                                GalleryCategory.OTHER     -> "📁"
+                                            }
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(6.dp))
+                                                    .background(KitsugiColors.SurfaceSoft)
+                                                    .border(1.dp, KitsugiColors.Border, RoundedCornerShape(6.dp))
+                                                    .padding(horizontal = 7.dp, vertical = 3.dp)
+                                            ) {
+                                                Text(
+                                                    text = "$catEmoji ${item.category.label}",
+                                                    color = KitsugiColors.TextPrimary,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.SemiBold
                                                 )
+                                            }
+
+                                            // 3. Dil Bilgisi
+                                            val langInfo = formatLanguage(item.language)
+                                            if (langInfo != null) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(6.dp))
+                                                        .background(KitsugiColors.SurfaceSoft)
+                                                        .border(1.dp, KitsugiColors.Border, RoundedCornerShape(6.dp))
+                                                        .padding(horizontal = 7.dp, vertical = 3.dp)
+                                                ) {
+                                                    Text(
+                                                        text = "${langInfo.first} ${langInfo.second}",
+                                                        color = KitsugiColors.TextPrimary,
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.Medium
+                                                    )
+                                                }
+                                            } else if (item.language == null && (item.category == GalleryCategory.BACKDROP || item.category == GalleryCategory.LOGO || item.category == GalleryCategory.CLEARART)) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(6.dp))
+                                                        .background(KitsugiColors.SurfaceSoft.copy(alpha = 0.6f))
+                                                        .padding(horizontal = 7.dp, vertical = 3.dp)
+                                                ) {
+                                                    Text(
+                                                        text = "✨ Metinsiz",
+                                                        color = KitsugiColors.TextMuted,
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.Normal
+                                                    )
+                                                }
+                                            }
+
+                                            // 4. Çözünürlük Bilgisi
+                                            val resStr = formatResolution(item.width, item.height)
+                                            if (resStr != null) {
+                                                Box(
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(6.dp))
+                                                        .background(KitsugiColors.SurfaceSoft)
+                                                        .border(1.dp, KitsugiColors.Border, RoundedCornerShape(6.dp))
+                                                        .padding(horizontal = 7.dp, vertical = 3.dp)
+                                                ) {
+                                                    Text(
+                                                        text = "📐 $resStr",
+                                                        color = KitsugiColors.TextSecondary,
+                                                        fontSize = 11.sp,
+                                                        fontWeight = FontWeight.Medium
+                                                    )
+                                                }
+                                            }
+
+                                            // 5. Özel Açıklama (varsa)
+                                            if (!item.description.isNullOrBlank() && 
+                                                item.description != "TMDB Poster" && 
+                                                item.description != "TMDB Arka Plan" && 
+                                                item.description != "TMDB Logo") {
                                                 Text(
                                                     text = item.description,
                                                     color = KitsugiColors.TextPrimary,
                                                     fontSize = 11.sp,
-                                                    fontWeight = FontWeight.Bold,
+                                                    fontWeight = FontWeight.SemiBold,
                                                     maxLines = 1,
                                                     overflow = TextOverflow.Ellipsis
                                                 )
@@ -540,8 +614,7 @@ private fun GalleryImagePage(
     imageUrl: String,
     title: String,
     page: Int,
-    pagerState: androidx.compose.foundation.pager.PagerState,
-    onDismiss: () -> Unit
+    pagerState: androidx.compose.foundation.pager.PagerState
 ) {
     var zoomScale by remember { mutableStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
@@ -576,11 +649,6 @@ private fun GalleryImagePage(
                             } else {
                                 zoomScale = 2.5f
                                 offset = Offset.Zero
-                            }
-                        },
-                        onTap = {
-                            if (zoomScale == 1f) {
-                                onDismiss()
                             }
                         }
                     )
@@ -802,4 +870,34 @@ private fun KitsugiGalleryHeader(
             }
         }
     }
+}
+
+private fun formatLanguage(code: String?): Pair<String, String>? {
+    if (code.isNullOrBlank() || code == "00") return null
+    return when (code.lowercase()) {
+        "tr" -> Pair("🇹🇷", "Türkçe")
+        "en" -> Pair("🇬🇧", "İngilizce")
+        "ja" -> Pair("🇯🇵", "Japonca")
+        "de" -> Pair("🇩🇪", "Almanca")
+        "fr" -> Pair("🇫🇷", "Fransızca")
+        "es" -> Pair("🇪🇸", "İspanyolca")
+        "it" -> Pair("🇮🇹", "İtalyanca")
+        "ko" -> Pair("🇰🇷", "Korece")
+        "zh" -> Pair("🇨🇳", "Çince")
+        "ru" -> Pair("🇷🇺", "Rusça")
+        "pt" -> Pair("🇵🇹", "Portekizce")
+        else -> Pair("🌐", code.uppercase())
+    }
+}
+
+private fun formatResolution(width: Int?, height: Int?): String? {
+    if (width == null || height == null || width <= 0 || height <= 0) return null
+    val tag = when {
+        width >= 3840 || height >= 2160 -> "4K"
+        width >= 2560 || height >= 1440 -> "2K"
+        width >= 1920 || height >= 1080 -> "FHD"
+        width >= 1280 || height >= 720  -> "HD"
+        else -> null
+    }
+    return if (tag != null) "$width×$height ($tag)" else "$width×$height"
 }

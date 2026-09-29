@@ -638,6 +638,136 @@ object KitsugiEpisodeRatingsRepository {
     }
 
     /**
+     * TMDB ID ve medya türü (film/dizi) ile TMDB API'sinden tüm görselleri çeker.
+     * Posterler, arka planlar (backdrop) ve logolar tam çözünürlükte elde edilir.
+     */
+    suspend fun getTmdbGalleryItems(
+        tmdbId: Int,
+        isMovie: Boolean = false
+    ): List<GalleryItem> = withContext(Dispatchers.IO) {
+        if (tmdbId <= 0) return@withContext emptyList()
+
+        val cached = DetailCache.getTmdbGallery(isMovie, tmdbId)
+        if (cached != null) {
+            Log.d(TAG, "TMDB gallery memory cache hit: isMovie=$isMovie id=$tmdbId → ${cached.size} items")
+            return@withContext cached
+        }
+
+        val apiKey = TmdbApiClient.getActiveApiKey()
+        if (apiKey.isBlank()) return@withContext emptyList()
+
+        fun parseTmdbImages(responseText: String): List<GalleryItem> {
+            val json = JSONObject(responseText)
+            val list = mutableListOf<GalleryItem>()
+
+            // 1. Posterler
+            val posters = json.optJSONArray("posters")
+            if (posters != null) {
+                for (i in 0 until posters.length()) {
+                    val obj = posters.getJSONObject(i)
+                    val path = obj.optNullableString("file_path") ?: continue
+                    if (path.isBlank()) continue
+                    val lang = obj.optNullableString("iso_639_1")
+                    val width = obj.optInt("width").takeIf { it > 0 }
+                    val height = obj.optInt("height").takeIf { it > 0 }
+                    list.add(
+                        GalleryItem(
+                            url = "https://image.tmdb.org/t/p/original$path",
+                            source = "TMDB",
+                            category = GalleryCategory.POSTER,
+                            description = "TMDB Poster",
+                            language = lang?.ifBlank { null },
+                            width = width,
+                            height = height
+                        )
+                    )
+                }
+            }
+
+            // 2. Arka Planlar (Backdrops)
+            val backdrops = json.optJSONArray("backdrops")
+            if (backdrops != null) {
+                for (i in 0 until backdrops.length()) {
+                    val obj = backdrops.getJSONObject(i)
+                    val path = obj.optNullableString("file_path") ?: continue
+                    if (path.isBlank()) continue
+                    val lang = obj.optNullableString("iso_639_1")
+                    val width = obj.optInt("width").takeIf { it > 0 }
+                    val height = obj.optInt("height").takeIf { it > 0 }
+                    list.add(
+                        GalleryItem(
+                            url = "https://image.tmdb.org/t/p/original$path",
+                            source = "TMDB",
+                            category = GalleryCategory.BACKDROP,
+                            description = "TMDB Arka Plan",
+                            language = lang?.ifBlank { null },
+                            width = width,
+                            height = height
+                        )
+                    )
+                }
+            }
+
+            // 3. Logolar (Clear Logos)
+            val logos = json.optJSONArray("logos")
+            if (logos != null) {
+                for (i in 0 until logos.length()) {
+                    val obj = logos.getJSONObject(i)
+                    val path = obj.optNullableString("file_path") ?: continue
+                    if (path.isBlank()) continue
+                    val lang = obj.optNullableString("iso_639_1")
+                    val width = obj.optInt("width").takeIf { it > 0 }
+                    val height = obj.optInt("height").takeIf { it > 0 }
+                    list.add(
+                        GalleryItem(
+                            url = "https://image.tmdb.org/t/p/original$path",
+                            source = "TMDB",
+                            category = GalleryCategory.LOGO,
+                            description = "TMDB Logo",
+                            language = lang?.ifBlank { null },
+                            width = width,
+                            height = height
+                        )
+                    )
+                }
+            }
+
+            return list
+        }
+
+        val primaryType = if (isMovie) "movie" else "tv"
+        val secondaryType = if (isMovie) "tv" else "movie"
+
+        var items = runCatching {
+            val url = URL("https://api.themoviedb.org/3/$primaryType/$tmdbId/images?api_key=$apiKey")
+            val resp = KitsugiApiBase.executeGetRequest(url)
+            if (!resp.isNullOrBlank()) parseTmdbImages(resp) else emptyList()
+        }.getOrElse {
+            Log.w(TAG, "getTmdbGalleryItems primary ($primaryType) failed: ${it.message}")
+            emptyList()
+        }
+
+        // Eğer birincil türden hiç görsel gelmediyse tersini dene (ör. film TV veya tersi)
+        if (items.isEmpty()) {
+            items = runCatching {
+                val fallbackUrl = URL("https://api.themoviedb.org/3/$secondaryType/$tmdbId/images?api_key=$apiKey")
+                val fallbackResp = KitsugiApiBase.executeGetRequest(fallbackUrl)
+                if (!fallbackResp.isNullOrBlank()) parseTmdbImages(fallbackResp) else emptyList()
+            }.getOrElse {
+                Log.w(TAG, "getTmdbGalleryItems fallback ($secondaryType) failed: ${it.message}")
+                emptyList()
+            }
+        }
+
+        if (items.isNotEmpty()) {
+            DetailCache.putTmdbGallery(isMovie, tmdbId, items)
+            Log.d(TAG, "TMDB gallery memory cache write: isMovie=$isMovie id=$tmdbId → ${items.size} items")
+        }
+
+        items
+    }
+
+    /**
      * MAL ID için önbelleğe alınmış TMDB ID'yi döner.
      */
     suspend fun getResolvedTmdbIdForMal(malId: Int): Int? = mutex.withLock {
@@ -834,48 +964,65 @@ object KitsugiEpisodeRatingsRepository {
         titleEnglish: String?,
         synonyms: List<String>
     ): Int {
-        if (tmdbSeason != null && tmdbSeason > 0) return tmdbSeason
-
         val seasonPatterns = listOf(
-            Regex("""season\s+(\d+)""", RegexOption.IGNORE_CASE),
-            Regex("""s\s*(\d+)""", RegexOption.IGNORE_CASE),
-            Regex("""sezon\s+(\d+)""", RegexOption.IGNORE_CASE),
-            Regex("""(\d+)(?:st|nd|rd|th)\s+season""", RegexOption.IGNORE_CASE),
-            Regex("""(\d+)\.\s+sezon""", RegexOption.IGNORE_CASE),
-            Regex("""\b(\d+)\b(?:\s*\(.*?\))?\s*$""")
+            Regex("""\b(?:season|sezon|s)\s*[:.-]?\s*(\d{1,2})\b""", RegexOption.IGNORE_CASE),
+            Regex("""\b(\d{1,2})\s*(?:st|nd|rd|th)?\s*(?:season|sezon)\b""", RegexOption.IGNORE_CASE),
+            Regex("""\b(\d{1,2})\.\s*sezon\b""", RegexOption.IGNORE_CASE),
         )
 
-        val romanNumerals = mapOf(
-            " ii" to 2, " iii" to 3, " iv" to 4, " v" to 5, " vi" to 6, " vii" to 7, " viii" to 8, " ix" to 9, " x" to 10,
-            " ii " to 2, " iii " to 3, " iv " to 4, " v " to 5, " vi " to 6, " vii " to 7, " viii " to 8, " ix " to 9, " x " to 10
+        // Uzundan kısaya doğru Roma rakamları ("iii" önce, "ii" sonra!)
+        val romanNumerals = listOf(
+            "x" to 10,
+            "ix" to 9,
+            "viii" to 8,
+            "vii" to 7,
+            "vi" to 6,
+            "v" to 5,
+            "iv" to 4,
+            "iii" to 3,
+            "ii" to 2
         )
 
         fun parseFromText(text: String?): Int? {
             if (text.isNullOrBlank()) return null
-            val lower = text.lowercase()
+            val lower = text.lowercase().trim()
 
+            // 1. Açıkça belirtilen sezon kelimeleri (Season 3, 3. Sezon, 3rd Season, S3)
             for (pattern in seasonPatterns) {
                 val match = pattern.find(lower)
                 if (match != null) {
                     val num = match.groupValues[1].toIntOrNull()
-                    if (num != null && num > 0) return num
+                    if (num != null && num in 1..25) return num
                 }
             }
 
+            // 2. Roma rakamları (Kelime sınırları ile! "Mushoku Tensei III: ...", "Mob Psycho 100 III")
             for ((roman, num) in romanNumerals) {
-                if (lower.endsWith(roman) || lower.contains(roman)) {
+                val romanRegex = Regex("""\b$roman\b(?:\s*[:\-\(\[]|\s*$)""", RegexOption.IGNORE_CASE)
+                if (romanRegex.containsMatchIn(lower)) {
                     return num
                 }
+            }
+
+            // 3. Sondaki tek sayı (ör. "Anime 2", "Anime 3", ama 19xx/20xx gibi yıllar hariç)
+            val trailingMatch = Regex("""\b([2-9]|1[0-9])\s*(?:[:\-\(\[]|$)""").find(lower)
+            if (trailingMatch != null) {
+                val num = trailingMatch.groupValues[1].toIntOrNull()
+                if (num != null && num in 2..25) return num
             }
 
             return null
         }
 
+        // Başlıkta veya İngilizce başlıkta açıkça bir sezon belirtilmişse doğrudan onu kullan
         parseFromText(title)?.let { return it }
         parseFromText(titleEnglish)?.let { return it }
         for (syn in synonyms) {
             parseFromText(syn)?.let { return it }
         }
+
+        // Başlıkta sezon yoksa TMDB sezonunu kullan
+        if (tmdbSeason != null && tmdbSeason > 0) return tmdbSeason
 
         return 1
     }

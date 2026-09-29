@@ -86,10 +86,16 @@ fun SubtitleTracksSheet(
         },
         track = { track ->
             // "Altyazıyı Kapat" (-99) veya dahili track (-1) için indirme yok
-            // SubtitleInput listesi 0-tabanlı; player track ID'leri 1'den başlar
-            val matchedInput = if (track.id > 0) {
-                subtitleInputs.getOrNull(track.id - 1)
-                    ?.takeIf { it.url.startsWith("http", ignoreCase = true) }
+            val matchedInput = if (track.id >= 0) {
+                // 1. Önce isim ve dil eşleşmesi dene (en güvenli eşleştirme)
+                subtitleInputs.firstOrNull { sub ->
+                    sub.url.startsWith("http", ignoreCase = true) && (
+                        sub.name.equals(track.label, ignoreCase = true) ||
+                        track.label.contains(sub.name, ignoreCase = true) ||
+                        sub.name.contains(track.label, ignoreCase = true) ||
+                        (!track.language.isNullOrBlank() && sub.lang.equals(track.language, ignoreCase = true))
+                    )
+                } ?: subtitleInputs.getOrNull(track.id)?.takeIf { it.url.startsWith("http", ignoreCase = true) }
             } else null
 
             SubtitleTrackRow(

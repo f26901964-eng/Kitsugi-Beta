@@ -25,7 +25,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
-import com.kitsugi.animelist.data.local.TranslationManager
 import com.kitsugi.animelist.data.remote.JikanApiClient
 import com.kitsugi.animelist.data.remote.KitsugiActivity
 import com.kitsugi.animelist.model.MediaType
@@ -51,7 +50,6 @@ fun KitsugiAllActivitiesBottomSheet(
     val context = LocalContext.current
     val accentColor = LocalKitsugiAccent.current
     val coroutineScope = rememberCoroutineScope()
-    val translationManager = remember { TranslationManager(context) }
 
     var activitiesList by remember { mutableStateOf<List<KitsugiActivity>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
@@ -59,12 +57,7 @@ fun KitsugiAllActivitiesBottomSheet(
     var page by remember { mutableStateOf(1) }
     var hasMore by remember { mutableStateOf(true) }
 
-    // Translation states
-    var selectedLanguage by remember { mutableStateOf("original") }
-    val translatedTexts = remember { mutableStateMapOf<Int, String>() }
-
     var activeActivityIdForDetail by remember { mutableStateOf<Int?>(null) }
-
 
     val listState = rememberLazyListState()
 
@@ -114,22 +107,6 @@ fun KitsugiAllActivitiesBottomSheet(
         }
     }
 
-    // Translation orchestration
-    LaunchedEffect(selectedLanguage, activitiesList) {
-        if (selectedLanguage == "turkish") {
-            activitiesList.forEach { act ->
-                if (act.mediaTitle == null && !translatedTexts.containsKey(act.id)) {
-                    coroutineScope.launch {
-                        val tr = translationManager.translateToTurkish(act.text)
-                        if (tr.isNotBlank()) {
-                            translatedTexts[act.id] = tr
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     KitsugiSheetOrDialog(
         onDismiss = onDismiss,
         innerScrollState = listState
@@ -173,50 +150,6 @@ fun KitsugiAllActivitiesBottomSheet(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Language Switcher Pills
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                val isOrigSelected = selectedLanguage == "original"
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(if (isOrigSelected) accentColor else KitsugiColors.SurfaceStrong)
-                        .tvClickable(shape = RoundedCornerShape(12.dp)) { selectedLanguage = "original" }
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Orijinal",
-                        color = if (isOrigSelected) KitsugiColors.Background else KitsugiColors.TextPrimary,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
-                val isTrSelected = selectedLanguage == "turkish"
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(if (isTrSelected) accentColor else KitsugiColors.SurfaceStrong)
-                        .tvClickable(shape = RoundedCornerShape(12.dp)) { selectedLanguage = "turkish" }
-                        .padding(horizontal = 16.dp, vertical = 8.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = "Türkçe",
-                        color = if (isTrSelected) KitsugiColors.Background else KitsugiColors.TextPrimary,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(8.dp))
-
             if (isLoading && activitiesList.isEmpty()) {
                 Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(color = accentColor)
@@ -250,10 +183,9 @@ fun KitsugiAllActivitiesBottomSheet(
                                 ?: act.mediaTitle
                         }
                         // For ListActivities: regenerate display text with localized title
-                        val localizedDisplayText = if (act.mediaTitle != null && localizedTitle != null && localizedTitle != act.mediaTitle) {
+                        val displayText = if (act.mediaTitle != null && localizedTitle != null && localizedTitle != act.mediaTitle) {
                             act.text.replace("**${act.mediaTitle}**", "**$localizedTitle**")
                         } else act.text
-                        val displayText = if (selectedLanguage == "turkish") translatedTexts[act.id] ?: localizedDisplayText else localizedDisplayText
                         
                         // Theme-aligned Activity Card
                         Column(

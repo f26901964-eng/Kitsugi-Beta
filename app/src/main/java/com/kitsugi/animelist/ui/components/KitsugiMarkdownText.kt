@@ -26,11 +26,45 @@ import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.utils.KitsugiMarkdownUtils.formatAniListMarkdown
+import com.mikepenz.markdown.model.ImageData
+import com.mikepenz.markdown.model.ImageTransformer
 import com.mikepenz.markdown.coil3.Coil3ImageTransformerImpl
 import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.m3.markdownColor
 import com.mikepenz.markdown.m3.markdownTypography
 import kotlinx.coroutines.launch
+
+/**
+ * Clickable wrapper over Coil3ImageTransformerImpl that makes inline images and GIFs
+ * interactive: tapping opens the Kitsugi image gallery/viewer with full zoom and download support.
+ */
+private class KitsugiClickableImageTransformer(
+    private val allImages: List<String>,
+    private val onImageClicked: ((urls: List<String>, index: Int) -> Unit)?
+) : ImageTransformer by Coil3ImageTransformerImpl {
+    @Composable
+    override fun transform(link: String): ImageData {
+        val baseData = Coil3ImageTransformerImpl.transform(link)
+        if (onImageClicked == null) return baseData
+
+        val clickableModifier = Modifier
+            .clip(RoundedCornerShape(8.dp))
+            .clickable {
+                val index = allImages.indexOfFirst {
+                    it.equals(link, ignoreCase = true) || it.contains(link) || link.contains(it)
+                }.let { if (it >= 0) it else 0 }
+                val urls = if (allImages.isNotEmpty()) {
+                    if (allImages.any { it.equals(link, ignoreCase = true) }) allImages else listOf(link) + allImages
+                } else {
+                    listOf(link)
+                }
+                onImageClicked.invoke(urls, index)
+            }
+
+        val modifier = (baseData.modifier ?: Modifier).then(clickableModifier)
+        return baseData.copy(modifier = modifier)
+    }
+}
 
 /**
  * Rich markdown renderer for AniList/MAL bio and comment text.
@@ -65,6 +99,20 @@ fun KitsugiMarkdownText(
     var activeSpoiler by remember { mutableStateOf<String?>(null) }
 
     val rendered = remember(text) { text?.formatAniListMarkdown().orEmpty() }
+
+    val allImageUrls = remember(text, rendered) {
+        val fromMarkdown = Regex("""!\[.*?\]\((https?://[^\s)]+)\)""").findAll(rendered).map { it.groupValues[1].trim() }.toList()
+        val fromAniList = Regex("""img\d*%*[({\[](https?://[^\s)}\]]+)[)}\]]""").findAll(text.orEmpty()).map { it.groupValues[1].trim() }.toList()
+        val fromRaw = Regex("""https?://[^\s<>"'\)]+\.(?:jpe?g|png|gif|webp)(?:\?[^\s<>"'\)]*)?""", RegexOption.IGNORE_CASE).findAll(text.orEmpty()).map { it.value.trim() }.toList()
+        (fromMarkdown + fromAniList + fromRaw).distinct()
+    }
+
+    val imageTransformer = remember(allImageUrls, onImageGalleryRequest) {
+        KitsugiClickableImageTransformer(
+            allImages = allImageUrls,
+            onImageClicked = onImageGalleryRequest
+        )
+    }
 
     // Build our URI handler — routes spoilers to local sheet, images to gallery
     val uriHandler = remember(context, accent, onImageGalleryRequest) {
@@ -127,7 +175,7 @@ fun KitsugiMarkdownText(
                         fontStyle  = androidx.compose.ui.text.font.FontStyle.Italic,
                     ),
                 ),
-                imageTransformer = Coil3ImageTransformerImpl,
+                imageTransformer = imageTransformer,
                 modifier = modifier,
             )
         } else {
@@ -229,7 +277,7 @@ fun KitsugiMarkdownText(
                                 tableBackground  = KitsugiColors.Surface,
                             ),
                             typography = if (isCentered) centeredTypography else normalTypography,
-                            imageTransformer = Coil3ImageTransformerImpl,
+                            imageTransformer = imageTransformer,
                             modifier = if (isCentered) Modifier.fillMaxWidth() else Modifier,
                         )
                     }

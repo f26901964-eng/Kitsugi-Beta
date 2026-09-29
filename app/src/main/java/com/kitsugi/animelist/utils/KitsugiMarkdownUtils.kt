@@ -31,6 +31,9 @@ object KitsugiMarkdownUtils {
     /** Standard markdown image syntax: ![alt](url) */
     private val markdownImgRegex = Regex("""!\[.*?\]\((.*?)\)""")
 
+    /** Standalone raw image/gif URL regex */
+    private val standaloneImgRegex = Regex("""(?<![\[\(="'])(https?://[^\s<>"'\)]+\.(?:jpe?g|png|gif|webp)(?:\?[^\s<>"'\)]*)?)(?![\]\)"'])""", RegexOption.IGNORE_CASE)
+
     /** Eski spoiler formatı: > ⚠️ *Spoiler:* ... */
     private val oldSpoilerRegex = Regex(""">\s*⚠️\s*\*?Spoiler:\*?\s*(.*)""", RegexOption.IGNORE_CASE)
 
@@ -71,6 +74,7 @@ object KitsugiMarkdownUtils {
             .replace(htmlBrRegex, "\n\n")
             .replace(markdownImgRegex) { "img(${it.groupValues[1]})" }
             .replace(boldUnderscoreRegex) { "**${it.groupValues[1]}**" }
+            .replace(standaloneImgRegex) { "img(${it.groupValues[1]})" }
             .formatAniListImageTags()
 
         var previous: String

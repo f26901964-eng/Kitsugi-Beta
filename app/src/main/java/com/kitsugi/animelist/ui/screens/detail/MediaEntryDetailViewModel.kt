@@ -10,6 +10,7 @@ import com.kitsugi.animelist.data.remote.JikanApiClient
 import com.kitsugi.animelist.data.remote.KitsugiCharacter
 import com.kitsugi.animelist.data.remote.KitsugiEpisodeRatingsRepository
 import com.kitsugi.animelist.data.remote.KitsugiMediaDetail
+import com.kitsugi.animelist.data.remote.KitsugiShikimoriClient
 import com.kitsugi.animelist.data.remote.KitsugiRelation
 import com.kitsugi.animelist.data.remote.KitsugiReview
 import com.kitsugi.animelist.data.remote.KitsugiStaff
@@ -20,6 +21,8 @@ import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.data.remote.GalleryCategory
 import com.kitsugi.animelist.model.MediaType
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -338,6 +341,17 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             )
             _targetSeason.value = determinedSeason
 
+            // Detaydan gelen TMDB ID veya resimler varsa ve galeri henüz kısıtlıysa galeriyi zenginleştir
+            if (_galleryItems.value.size <= 2) {
+                viewModelScope.launch {
+                    try {
+                        fetchFanartGallery(entry)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Post-detail gallery refresh failed: ${e.message}")
+                    }
+                }
+            }
+
             // Fetch episode ratings
             fetchEpisodeRatings(entry, detail)
         }
@@ -433,7 +447,9 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
      */
     private suspend fun fetchFanartGallery(entry: MediaEntry) {
         val tmdbId = withContext(Dispatchers.IO) {
+            val detailTmdb = _detailState.value?.tmdbId
             when {
+                detailTmdb != null && detailTmdb > 0 -> detailTmdb
                 entry.tmdbId != null && entry.tmdbId > 0 -> entry.tmdbId
                 entry.source.equals("tmdb", ignoreCase = true) -> entry.malId?.takeIf { it > 0 }
                 entry.source.equals("anilist", ignoreCase = true) -> {
@@ -474,27 +490,57 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             if (m >= 300_000_000) m - 300_000_000 else null
         } else null
 
-        val fanartItems = withContext(Dispatchers.IO) {
-            KitsugiEpisodeRatingsRepository.getFanartGalleryItems(
-                tmdbId = tmdbId ?: 0,
-                isMovie = isMovie,
-                fallbackMalId = fallbackMalId,
-                fallbackAniListId = fallbackAniListId,
-                fallbackKitsuId = fallbackKitsuId
-            )
+        val (fanartItems, tmdbItems, shikimoriItems) = coroutineScope {
+            val fanartDef = async(Dispatchers.IO) {
+                KitsugiEpisodeRatingsRepository.getFanartGalleryItems(
+                    tmdbId = tmdbId ?: 0,
+                    isMovie = isMovie,
+                    fallbackMalId = fallbackMalId,
+                    fallbackAniListId = fallbackAniListId,
+                    fallbackKitsuId = fallbackKitsuId
+                )
+            }
+            val tmdbDef = async(Dispatchers.IO) {
+                if (tmdbId != null && tmdbId > 0) {
+                    KitsugiEpisodeRatingsRepository.getTmdbGalleryItems(
+                        tmdbId = tmdbId,
+                        isMovie = isMovie
+                    )
+                } else emptyList()
+            }
+            val shikimoriDef = async(Dispatchers.IO) {
+                val isAnime = entry.type == MediaType.Anime
+                val shikimoriAnimeId = when {
+                    entry.source.equals("shikimori", ignoreCase = true) -> entry.malId?.takeIf { it > 0 }
+                    entry.source.equals("anilist", ignoreCase = true) -> {
+                        val m = entry.malId ?: 0
+                        if (m > 0 && m < 100_000_000) m else _detailState.value?.realMalId
+                    }
+                    entry.source.equals("mal", ignoreCase = true) || entry.source.equals("jikan", ignoreCase = true) -> entry.malId?.takeIf { it > 0 }
+                    else -> _detailState.value?.realMalId
+                }
+                if (isAnime && shikimoriAnimeId != null && shikimoriAnimeId > 0) {
+                    KitsugiShikimoriClient.fetchScreenshots(shikimoriAnimeId)
+                } else emptyList()
+            }
+            Triple(fanartDef.await(), tmdbDef.await(), shikimoriDef.await())
         }
 
         // Mevcut TMDB/Jikan resimlerini de GalleryItem'a çevir ve birleştir
         val currentDetail = _detailState.value
+        val coverUrl = currentDetail?.imageUrl ?: entry.imageUrl
+        val entryImg = entry.imageUrl
         val existingItems = buildList {
-            val entryImageUrl = entry.imageUrl
-            if (!entryImageUrl.isNullOrBlank()) {
-                val src = determineSource(entryImageUrl, entry.source)
-                val cat = determineCategory(entryImageUrl, GalleryCategory.POSTER)
-                add(GalleryItem(url = entryImageUrl, source = src, category = cat))
+            if (!coverUrl.isNullOrBlank()) {
+                val src = determineSource(coverUrl, entry.source)
+                add(GalleryItem(url = coverUrl, source = src, category = GalleryCategory.POSTER))
+            }
+            if (!entryImg.isNullOrBlank() && entryImg != coverUrl) {
+                val src = determineSource(entryImg, entry.source)
+                add(GalleryItem(url = entryImg, source = src, category = GalleryCategory.POSTER))
             }
             currentDetail?.pictures?.forEach { url ->
-                if (url.isNotBlank()) {
+                if (url.isNotBlank() && url != coverUrl && url != entryImg) {
                     val src = determineSource(url, entry.source)
                     val cat = determineCategory(url, GalleryCategory.POSTER)
                     add(GalleryItem(url = url, source = src, category = cat))
@@ -502,10 +548,33 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             }
         }
 
-        // Fanart.tv önce (yüksek kalite), sonra mevcut kaynaklar; duplicate'leri temizle
-        val merged = (fanartItems + existingItems)
-            .distinctBy { it.url }
-        _galleryItems.value = merged
+        // TMDB, Fanart ve Shikimori öğeleri çözünürlük, dil gibi zengin meta verilere sahiptir.
+        // Önceden var olan öğeler zengin listede varsa metadata ile zenginleştirilsin.
+        val richMap = (tmdbItems + fanartItems + shikimoriItems).associateBy { it.url }
+        val enrichedExisting = existingItems.map { item ->
+            richMap[item.url] ?: item
+        }
+        val allItems = (enrichedExisting + tmdbItems + fanartItems + shikimoriItems).distinctBy { it.url }
+
+        val sortedItems = allItems.sortedWith(
+            compareBy(
+                { item ->
+                    when (item.category) {
+                        GalleryCategory.POSTER -> 0
+                        GalleryCategory.BACKDROP -> 1
+                        GalleryCategory.LOGO -> 2
+                        GalleryCategory.CLEARART -> 3
+                        GalleryCategory.THUMBNAIL -> 4
+                        GalleryCategory.CHARACTER -> 5
+                        GalleryCategory.BANNER -> 6
+                        GalleryCategory.SQUARE -> 7
+                        GalleryCategory.OTHER -> 8
+                    }
+                },
+                { item -> if (item.url == coverUrl) 0 else 1 }
+            )
+        )
+        _galleryItems.value = sortedItems
     }
 
     private fun determineSource(url: String, fallbackSource: String): String {
@@ -513,17 +582,18 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
         return when {
             lowerUrl.contains("fanart.tv") -> "Fanart.tv"
             lowerUrl.contains("image.tmdb.org") || lowerUrl.contains("tmdb.org") -> "TMDB"
+            lowerUrl.contains("shikimori.one") || lowerUrl.contains("shikimori.me") -> "Shikimori"
             lowerUrl.contains("anilist.co") -> "AniList"
             lowerUrl.contains("simkl.in") || lowerUrl.contains("simkl.com") -> "Simkl"
-            lowerUrl.contains("myanimelist.net") || lowerUrl.contains("jikan.moe") -> "Jikan"
+            lowerUrl.contains("myanimelist.net") || lowerUrl.contains("jikan.moe") -> "Jikan (MAL)"
             lowerUrl.contains("kitsu.io") -> "Kitsu"
             else -> {
                 when (fallbackSource.lowercase()) {
+                    "shikimori" -> "Shikimori"
                     "anilist" -> "AniList"
                     "tmdb" -> "TMDB"
                     "simkl" -> "Simkl"
-                    "jikan" -> "Jikan"
-                    "mal" -> "Jikan"
+                    "jikan", "mal" -> "Jikan (MAL)"
                     "kitsu" -> "Kitsu"
                     else -> fallbackSource.replaceFirstChar { if (it.isLowerCase()) it.titlecase() else it.toString() }
                 }

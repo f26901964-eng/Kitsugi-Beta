@@ -130,6 +130,7 @@ class KitsugiDetailClient {
             // 2. Primary source fetch
             val detail = when (source.lowercase()) {
                 "jikan", "mal" -> KitsugiMalDetailClient.fetchDetail(externalId, mediaType)
+                "shikimori" -> KitsugiMalDetailClient.fetchDetail(externalId, mediaType)
                 "anilist" -> KitsugiAniListDetailClient.fetchDetail(externalId, mediaType)
                 // Kitsu keşfet fallback öğeleri: stableId = kitsuId + 300_000_000
                 "kitsu" -> {

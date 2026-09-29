@@ -111,6 +111,45 @@ object KitsugiShikimoriClient {
             }
         }
 
+    /**
+     * Shikimori REST API üzerinden bir animenin ekran görüntülerini (screenshots / backdrops) çeker.
+     * Her görsel orijinal tam çözünürlüktedir.
+     */
+    suspend fun fetchScreenshots(animeId: Int): List<GalleryItem> = withContext(Dispatchers.IO) {
+        if (animeId <= 0) return@withContext emptyList()
+        val cached = DetailCache.getShikimoriGallery(animeId)
+        if (cached != null) return@withContext cached
+
+        val url = URL("$BASE_URL/animes/$animeId/screenshots")
+        val response = KitsugiApiBase.executeGetRequest(url) ?: return@withContext emptyList()
+        runCatching {
+            val array = JSONArray(response)
+            val list = mutableListOf<GalleryItem>()
+            for (i in 0 until array.length()) {
+                val obj = array.optJSONObject(i) ?: continue
+                val relOriginal = obj.optString("original", "").trim()
+                if (relOriginal.isBlank()) continue
+                val fullUrl = if (relOriginal.startsWith("http")) relOriginal else "https://shikimori.one$relOriginal"
+                list.add(
+                    GalleryItem(
+                        url = fullUrl,
+                        source = "Shikimori",
+                        category = GalleryCategory.BACKDROP,
+                        description = "Shikimori Ekran Görüntüsü",
+                        language = "ru"
+                    )
+                )
+            }
+            if (list.isNotEmpty()) {
+                DetailCache.putShikimoriGallery(animeId, list)
+            }
+            list
+        }.getOrElse {
+            Log.e(TAG, "Shikimori fetchScreenshots exception: ${it.message}", it)
+            emptyList()
+        }
+    }
+
     // ─── Karakter / Ekip fonksiyonları ────────────────────────────────────
 
     suspend fun fetchCharacters(

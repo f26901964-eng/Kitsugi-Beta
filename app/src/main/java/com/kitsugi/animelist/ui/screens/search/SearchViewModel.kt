@@ -58,20 +58,13 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
 
     private val stateCache = mutableMapOf<String, TabSearchState>()
 
-    private fun getTabKey(platform: SearchPlatform, mediaType: MediaType): String {
-        return when (platform) {
-            SearchPlatform.TMDB -> "TMDB"
-            SearchPlatform.CS3 -> "CS3"
-            else -> when (mediaType) {
-                MediaType.Manga -> "MANGA"
-                else -> "ANIME"
-            }
-        }
+    private fun getTabKey(tab: KitsugiSearchTab, platform: SearchPlatform, mediaType: MediaType): String {
+        return "${tab.name}_${platform.name}_${mediaType.name}"
     }
 
     private fun saveCurrentStateToCache() {
         val currentState = _uiState.value
-        val key = getTabKey(currentState.selectedPlatform, currentState.selectedMediaType)
+        val key = getTabKey(currentState.currentTab, currentState.selectedPlatform, currentState.selectedMediaType)
         stateCache[key] = TabSearchState(
             query = currentState.query,
             results = currentState.results,
@@ -80,8 +73,8 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         )
     }
 
-    private fun loadStateFromCache(platform: SearchPlatform, mediaType: MediaType): TabSearchState {
-        val key = getTabKey(platform, mediaType)
+    private fun loadStateFromCache(tab: KitsugiSearchTab = _uiState.value.currentTab, platform: SearchPlatform, mediaType: MediaType): TabSearchState {
+        val key = getTabKey(tab, platform, mediaType)
         return stateCache[key] ?: TabSearchState()
     }
 
@@ -123,7 +116,10 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun setTab(tab: KitsugiSearchTab) {
+        val currentQuery = _uiState.value.query.trim()
+        val currentMultiResults = _uiState.value.multiResults
         saveCurrentStateToCache()
+
         val mappedPlatform = when (tab) {
             KitsugiSearchTab.TMDB -> SearchPlatform.TMDB
             KitsugiSearchTab.MAL -> SearchPlatform.MAL
@@ -138,26 +134,47 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             KitsugiSearchTab.TMDB -> MediaType.Movie
             else -> MediaType.Anime
         }
-        val cached = loadStateFromCache(mappedPlatform, mappedMediaType)
+
+        val cached = loadStateFromCache(tab, mappedPlatform, mappedMediaType)
+
+        // Keep active query if user was actively searching!
+        val effectiveQuery = if (currentQuery.isNotBlank()) currentQuery else cached.query
+
+        // Seed immediate results from multiResults if switching from All or with active query
+        val seedResults = when {
+            cached.results.isNotEmpty() -> cached.results
+            currentQuery.isNotBlank() && tab == KitsugiSearchTab.TMDB && currentMultiResults.tmdbResults.isNotEmpty() -> currentMultiResults.tmdbResults
+            currentQuery.isNotBlank() && tab == KitsugiSearchTab.Anime && currentMultiResults.aniListResults.isNotEmpty() -> currentMultiResults.aniListResults
+            currentQuery.isNotBlank() && tab == KitsugiSearchTab.MAL && currentMultiResults.malResults.isNotEmpty() -> currentMultiResults.malResults
+            currentQuery.isNotBlank() && tab == KitsugiSearchTab.Shikimori && currentMultiResults.shikimoriResults.isNotEmpty() -> currentMultiResults.shikimoriResults
+            currentQuery.isNotBlank() && tab == KitsugiSearchTab.Kitsu && currentMultiResults.kitsuResults.isNotEmpty() -> currentMultiResults.kitsuResults
+            currentQuery.isNotBlank() && tab == KitsugiSearchTab.Simkl && currentMultiResults.simklResults.isNotEmpty() -> currentMultiResults.simklResults
+            else -> emptyList()
+        }
+
+        val hasSearched = cached.hasSearched || seedResults.isNotEmpty()
+
         _uiState.update {
             it.copy(
                 currentTab = tab,
                 selectedPlatform = mappedPlatform,
                 selectedMediaType = mappedMediaType,
-                query = cached.query,
-                results = cached.results,
+                query = effectiveQuery,
+                results = seedResults,
                 page = 1,
                 hasNextPage = true,
-                hasSearched = cached.hasSearched,
+                hasSearched = hasSearched,
                 errorMessage = cached.errorMessage
             )
         }
-        if (!cached.hasSearched && (cached.query.isNotBlank() || _uiState.value.hasFiltersApplied)) {
+
+        if (effectiveQuery.isNotBlank() || _uiState.value.hasFiltersApplied) {
             search(resetPage = true)
         }
     }
 
     fun setMediaType(value: MediaType) {
+        val currentQuery = _uiState.value.query.trim()
         saveCurrentStateToCache()
         val currentPlatform = _uiState.value.selectedPlatform
         val targetPlatform = if (value == MediaType.Manga && currentPlatform == SearchPlatform.TMDB) {
@@ -165,54 +182,59 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         } else {
             currentPlatform
         }
-        val cached = loadStateFromCache(targetPlatform, value)
+        val cached = loadStateFromCache(_uiState.value.currentTab, targetPlatform, value)
+        val effectiveQuery = if (currentQuery.isNotBlank()) currentQuery else cached.query
         _uiState.update { 
             it.copy(
                 selectedMediaType = value,
                 selectedPlatform = targetPlatform,
-                query = cached.query,
-                results = cached.results,
-                hasSearched = cached.hasSearched,
+                query = effectiveQuery,
+                results = if (currentQuery.isNotBlank() && cached.results.isEmpty()) it.results else cached.results,
+                hasSearched = cached.hasSearched || (currentQuery.isNotBlank() && it.hasSearched),
                 errorMessage = cached.errorMessage
             )
         }
-        if (!cached.hasSearched && cached.query.isNotBlank()) {
-            search()
+        if (effectiveQuery.isNotBlank() || _uiState.value.hasFiltersApplied) {
+            search(resetPage = true)
         }
     }
 
     fun setPlatform(value: SearchPlatform) {
+        val currentQuery = _uiState.value.query.trim()
         saveCurrentStateToCache()
-        val cached = loadStateFromCache(value, _uiState.value.selectedMediaType)
+        val cached = loadStateFromCache(_uiState.value.currentTab, value, _uiState.value.selectedMediaType)
+        val effectiveQuery = if (currentQuery.isNotBlank()) currentQuery else cached.query
         _uiState.update {
             it.copy(
                 selectedPlatform = value,
-                query = cached.query,
-                results = cached.results,
-                hasSearched = cached.hasSearched,
+                query = effectiveQuery,
+                results = if (currentQuery.isNotBlank() && cached.results.isEmpty()) it.results else cached.results,
+                hasSearched = cached.hasSearched || (currentQuery.isNotBlank() && it.hasSearched),
                 errorMessage = cached.errorMessage
             )
         }
-        if (!cached.hasSearched && cached.query.isNotBlank()) {
-            search()
+        if (effectiveQuery.isNotBlank() || _uiState.value.hasFiltersApplied) {
+            search(resetPage = true)
         }
     }
 
     fun setPlatformAndMediaType(platform: SearchPlatform, mediaType: MediaType) {
+        val currentQuery = _uiState.value.query.trim()
         saveCurrentStateToCache()
-        val cached = loadStateFromCache(platform, mediaType)
+        val cached = loadStateFromCache(_uiState.value.currentTab, platform, mediaType)
+        val effectiveQuery = if (currentQuery.isNotBlank()) currentQuery else cached.query
         _uiState.update {
             it.copy(
                 selectedPlatform = platform,
                 selectedMediaType = mediaType,
-                query = cached.query,
-                results = cached.results,
-                hasSearched = cached.hasSearched,
+                query = effectiveQuery,
+                results = if (currentQuery.isNotBlank() && cached.results.isEmpty()) it.results else cached.results,
+                hasSearched = cached.hasSearched || (currentQuery.isNotBlank() && it.hasSearched),
                 errorMessage = cached.errorMessage
             )
         }
-        if (!cached.hasSearched && cached.query.isNotBlank()) {
-            search()
+        if (effectiveQuery.isNotBlank() || _uiState.value.hasFiltersApplied) {
+            search(resetPage = true)
         }
     }
 
@@ -801,7 +823,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             val results = if (queryText.isBlank() && tmdbGenreId != null) {
                 TmdbApiClient().discoverByGenre(tmdbGenreId, state.selectedMediaType == MediaType.Movie)
             } else if (queryText.isNotBlank()) {
-                TmdbApiClient().search(queryText)
+                TmdbApiClient().search(queryText, page = page)
             } else {
                 emptyList()
             }
@@ -977,21 +999,23 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
      * [apiName] null ise ve [keepPlatformCs3] false ise, platform All (Tümü) olur.
      */
     fun setSelectedPlugin(apiName: String?, keepPlatformCs3: Boolean = false) {
+        val currentQuery = _uiState.value.query.trim()
         saveCurrentStateToCache()
         val targetPlatform = if (keepPlatformCs3 || apiName != null) SearchPlatform.CS3 else SearchPlatform.All
-        val cached = loadStateFromCache(targetPlatform, _uiState.value.selectedMediaType)
+        val cached = loadStateFromCache(_uiState.value.currentTab, targetPlatform, _uiState.value.selectedMediaType)
+        val effectiveQuery = if (currentQuery.isNotBlank()) currentQuery else cached.query
         _uiState.update {
             it.copy(
                 selectedPluginApiName = apiName,
                 selectedPlatform = targetPlatform,
-                query = cached.query,
-                results = cached.results,
-                hasSearched = cached.hasSearched,
+                query = effectiveQuery,
+                results = if (currentQuery.isNotBlank() && cached.results.isEmpty()) it.results else cached.results,
+                hasSearched = cached.hasSearched || (currentQuery.isNotBlank() && it.hasSearched),
                 errorMessage = cached.errorMessage
             )
         }
-        if (!cached.hasSearched && cached.query.isNotBlank()) {
-            search()
+        if (effectiveQuery.isNotBlank() || _uiState.value.hasFiltersApplied) {
+            search(resetPage = true)
         }
     }
 }

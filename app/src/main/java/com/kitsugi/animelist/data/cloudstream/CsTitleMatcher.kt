@@ -26,26 +26,57 @@ internal object CsTitleMatcher {
             val found = seasonMatch.groupValues.firstOrNull { it.toIntOrNull() != null }?.toIntOrNull()
                 ?: seasonMatch.groupValues.getOrNull(1)?.toIntOrNull()
                 ?: seasonMatch.groupValues.getOrNull(2)?.toIntOrNull()
-            if (found != null) return found
+            if (found != null && found in 1..25) return found
         }
 
-        // Trailing number fallback (e.g. "Anime Name 2" or roman numeral "Anime Name II")
-        val trailingNumMatch = Regex("\\b(\\d+)\\s*$").find(lower)
-        if (trailingNumMatch != null) {
-            val num = trailingNumMatch.groupValues[1].toInt()
-            if (num in 2..10) {
+        // Uzundan kısaya doğru Roma rakamları (kelime sınırı ve ayraçlarla: "Mushoku Tensei III: ...", "Mob Psycho 100 III")
+        val romanNumerals = listOf(
+            "x" to 10, "ix" to 9, "viii" to 8, "vii" to 7, "vi" to 6,
+            "v" to 5, "iv" to 4, "iii" to 3, "ii" to 2
+        )
+        for ((roman, num) in romanNumerals) {
+            val regex = Regex("\\b$roman\\b(?:\\s*[:\\-\\(\\[]|\\s*$)", RegexOption.IGNORE_CASE)
+            if (regex.containsMatchIn(lower)) {
                 return num
             }
-        } else if (lower.endsWith(" ii")) {
-            return 2
-        } else if (lower.endsWith(" iii")) {
-            return 3
-        } else if (lower.endsWith(" iv")) {
-            return 4
-        } else if (lower.endsWith(" v")) {
-            return 5
+        }
+
+        // Trailing number fallback (e.g. "Anime Name 2", "KonoSuba 3", excluding years)
+        val trailingNumMatch = Regex("\\b([2-9]|1[0-9])\\s*(?:[:\\-\\(\\[]|\\s*$)").find(lower)
+        if (trailingNumMatch != null) {
+            val num = trailingNumMatch.groupValues[1].toIntOrNull()
+            if (num != null && num in 2..25) {
+                return num
+            }
         }
         return null
+    }
+
+    /**
+     * Başlıktan yıl, sezon anahtar kelimeleri, Roma rakamları ve alt başlıkları temizleyerek
+     * saf anime adını çıkarır (ör. "Mushoku Tensei III: Isekai..." -> "Mushoku Tensei").
+     */
+    fun extractCleanBaseTitle(rawTitle: String): String {
+        var clean = rawTitle
+        // 1. Yıl bilgisini temizle: (2021), 2024
+        clean = clean.replace(Regex("""\s*\(?(19|20)\d{2}\)?"""), "")
+        // 2. Sezon anahtar kelimelerini temizle: Season 3, 3. Sezon, 3rd Season, S3, Part 2, Cour 2
+        clean = clean.replace(Regex("""\s*\b(?:season|sezon|s)\s*[:.-]?\s*\d+\b""", RegexOption.IGNORE_CASE), "")
+        clean = clean.replace(Regex("""\s*\b\d+\s*(?:st|nd|rd|th)?\s*(?:season|sezon)\b""", RegexOption.IGNORE_CASE), "")
+        clean = clean.replace(Regex("""\s*\b\d+\.\s*sezon\b""", RegexOption.IGNORE_CASE), "")
+        clean = clean.replace(Regex("""\s*\b(?:part|cour)\s*\d+\b""", RegexOption.IGNORE_CASE), "")
+        // 3. Roma rakamlarını temizle
+        clean = clean.replace(Regex("""\s*\b(x|ix|viii|vii|vi|v|iv|iii|ii)\b(?:\s*[:\-\(\[]|\s*$)""", RegexOption.IGNORE_CASE), "")
+        // 4. İki nokta üst üste sonrası alt başlığı temizle
+        if (clean.contains(":")) {
+            val prefix = clean.substringBefore(":").trim()
+            if (prefix.length >= 4) {
+                clean = prefix
+            }
+        }
+        // 5. Sondaki tek sayıları temizle
+        clean = clean.replace(Regex("""\s*\b\d+\s*$"""), "")
+        return clean.replace(Regex("""\s+"""), " ").trim()
     }
 
     /**
@@ -54,24 +85,26 @@ internal object CsTitleMatcher {
      */
     fun buildTitleVariants(main: String, alts: List<String>, season: Int? = null): List<String> {
         val variants = linkedSetOf<String>()
+        val romanMap = mapOf(2 to "II", 3 to "III", 4 to "IV", 5 to "V", 6 to "VI", 7 to "VII", 8 to "VIII", 9 to "IX", 10 to "X")
 
         // Prioritize season-specific queries if we are fetching a later season
         if (season != null && season > 1) {
-            val seasonSuffixes = listOf(
+            val allBases = (listOf(main) + alts)
+                .map { extractCleanBaseTitle(it) }
+                .filter { it.length >= 3 }
+                .distinct()
+
+            val seasonSuffixes = mutableListOf(
                 "$season. Sezon",
                 "Season $season",
-                "$season",
-                "S$season"
+                "S$season",
+                "$season"
             )
-            for (suffix in seasonSuffixes) {
-                val q = "$main $suffix"
-                variants.add(q)
-                variants.add(simplifyTitle(q))
-                variants.add(toAsciiTitle(q))
-            }
-            for (alt in alts) {
+            romanMap[season]?.let { seasonSuffixes.add(it) }
+
+            for (base in allBases) {
                 for (suffix in seasonSuffixes) {
-                    val q = "$alt $suffix"
+                    val q = "$base $suffix"
                     variants.add(q)
                     variants.add(simplifyTitle(q))
                     variants.add(toAsciiTitle(q))
@@ -88,8 +121,11 @@ internal object CsTitleMatcher {
         if (withoutYear != main) { variants.add(withoutYear); variants.add(toAsciiTitle(withoutYear)) }
 
         // Strip season numbers — e.g. "Boku no Hero Academia Season 4" → "Boku no Hero Academia"
-        val withoutSeason = main.replace(Regex("\\s*(Season|Sezon|Part|Cour|S)\\s*\\d+", RegexOption.IGNORE_CASE), "").trim()
-        if (withoutSeason != main) { variants.add(withoutSeason); variants.add(toAsciiTitle(withoutSeason)) }
+        val withoutSeason = extractCleanBaseTitle(main)
+        if (withoutSeason != main && withoutSeason.length >= 3) {
+            variants.add(withoutSeason)
+            variants.add(toAsciiTitle(withoutSeason))
+        }
 
         // Add first 3 words as a short variant (anime sites often search by partial name)
         val words = main.split(" ").filter { it.isNotBlank() }
@@ -185,9 +221,9 @@ internal object CsTitleMatcher {
 
             val resultNameNoSeason = resultName
                 .replace(seasonRegex, "")
-                .replace(Regex("\\b(ii|iii|iv|v)\\s*$"), "")
-                .replace(Regex("\\b(\\d+)\\s*$"), "")
-                .replace(Regex("\\s+"), " ")
+                .replace(Regex("""\b(x|ix|viii|vii|vi|v|iv|iii|ii)\b""", RegexOption.IGNORE_CASE), "")
+                .replace(Regex("""\b(\d+)\s*$"""), "")
+                .replace(Regex("""\s+"""), " ")
                 .trim()
 
             var maxSimilarity = 0.0

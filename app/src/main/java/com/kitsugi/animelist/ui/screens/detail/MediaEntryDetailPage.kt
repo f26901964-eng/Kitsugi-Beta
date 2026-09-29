@@ -249,6 +249,7 @@ fun MediaEntryDetailPage(
     // GalleryItem-based dialog state (Fanart.tv + multi-source)
     var activeGalleryItems by remember { mutableStateOf<List<GalleryItem>>(emptyList()) }
     var activeGalleryIndex by remember { mutableStateOf(0) }
+    var activeGalleryCategory by remember { mutableStateOf<GalleryCategory?>(null) }
     var activeEpisodeForOptions by remember { mutableStateOf<KitsugiStreamingEpisode?>(null) }
 
     val listState = rememberLazyListState()
@@ -341,6 +342,7 @@ fun MediaEntryDetailPage(
                     onReadMangaClick = onReadMangaClick,
                     onUnlinkMangaClick = { viewModel.deleteMangaMapping(displayEntry.id) },
                     onGalleryOpen = { items, idx ->
+                        activeGalleryCategory = items.getOrNull(idx)?.category ?: GalleryCategory.POSTER
                         activeGalleryItems = items
                         activeGalleryIndex = idx
                     },
@@ -361,10 +363,34 @@ fun MediaEntryDetailPage(
                         tint = KitsugiColors.TextSecondary
                     )
                 }
-                if (galleryItems.isNotEmpty()) {
+                if (galleryItems.isNotEmpty() || !displayEntry.imageUrl.isNullOrBlank()) {
                     IconButton(onClick = {
-                        activeGalleryItems = galleryItems
-                        activeGalleryIndex = 0
+                        val clickedUrl = displayEntry.imageUrl
+                        val index = if (!clickedUrl.isNullOrBlank()) {
+                            galleryItems.indexOfFirst { item ->
+                                item.url == clickedUrl || 
+                                item.url.substringAfterLast("/") == clickedUrl.substringAfterLast("/")
+                            }
+                        } else -1
+                        if (index >= 0) {
+                            activeGalleryCategory = GalleryCategory.POSTER
+                            activeGalleryItems = galleryItems
+                            activeGalleryIndex = index
+                        } else if (!clickedUrl.isNullOrBlank()) {
+                            val coverItem = GalleryItem(
+                                url = clickedUrl,
+                                category = GalleryCategory.POSTER,
+                                source = displayEntry.source
+                            )
+                            activeGalleryCategory = GalleryCategory.POSTER
+                            activeGalleryItems = listOf(coverItem) + galleryItems
+                            activeGalleryIndex = 0
+                        } else {
+                            val posterIndex = galleryItems.indexOfFirst { it.category == GalleryCategory.POSTER }.coerceAtLeast(0)
+                            activeGalleryCategory = GalleryCategory.POSTER
+                            activeGalleryItems = galleryItems
+                            activeGalleryIndex = posterIndex
+                        }
                     }) {
                         Icon(
                             imageVector = Icons.Rounded.Image,
@@ -404,6 +430,7 @@ fun MediaEntryDetailPage(
                         onReadMangaClick = onReadMangaClick,
                         onUnlinkMangaClick = { viewModel.deleteMangaMapping(displayEntry.id) },
                         onGalleryOpen = { items, idx ->
+                            activeGalleryCategory = items.getOrNull(idx)?.category ?: GalleryCategory.POSTER
                             activeGalleryItems = items
                             activeGalleryIndex = idx
                         },
@@ -470,6 +497,7 @@ fun MediaEntryDetailPage(
                                     onOpenGallery = { category ->
                                         val startIndex = if (category == null) 0
                                         else galleryItems.indexOfFirst { it.category == category }.coerceAtLeast(0)
+                                        activeGalleryCategory = category
                                         activeGalleryItems = galleryItems
                                         activeGalleryIndex = startIndex
                                     }
@@ -571,8 +599,12 @@ fun MediaEntryDetailPage(
             KitsugiImageGalleryDialog(
                 galleryItems = activeGalleryItems,
                 initialIndex = activeGalleryIndex,
+                initialCategory = activeGalleryCategory ?: activeGalleryItems.getOrNull(activeGalleryIndex)?.category,
                 title = displayEntry.title,
-                onDismiss = { activeGalleryItems = emptyList() }
+                onDismiss = { 
+                    activeGalleryItems = emptyList()
+                    activeGalleryCategory = null
+                }
             )
         }
 

@@ -10,17 +10,20 @@ data class GalleryItem(
     val url: String,
     val source: String,
     val category: GalleryCategory = GalleryCategory.OTHER,
-    val description: String? = null
+    val description: String? = null,
+    val language: String? = null,
+    val width: Int? = null,
+    val height: Int? = null
 )
 
 enum class GalleryCategory(val label: String) {
-    LOGO("Logo"),
-    BACKDROP("Arka Plan"),
     POSTER("Poster"),
-    CHARACTER("Karakter"),
-    THUMBNAIL("Küçük Resim"),
-    BANNER("Afiş"),
+    BACKDROP("Arka Plan"),
+    LOGO("Logo"),
     CLEARART("ClearART"),   // Fanart.tv: HD ClearART (şeffaf zemin, sanatsal kesim)
+    THUMBNAIL("Küçük Resim"),
+    CHARACTER("Karakter"),
+    BANNER("Afiş"),
     SQUARE("Kare Poster"),  // Fanart.tv: Square Poster
     OTHER("Diğer")
 }

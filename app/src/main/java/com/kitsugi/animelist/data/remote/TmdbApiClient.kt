@@ -234,10 +234,10 @@ class TmdbApiClient(
 
     // ── Arama ───────────────────────────────────────────────────────────────────
 
-    suspend fun search(query: String): List<JikanSearchResult> = withContext(Dispatchers.IO) {
+    suspend fun search(query: String, page: Int = 1): List<JikanSearchResult> = withContext(Dispatchers.IO) {
         if (!isTmdbEnabled()) return@withContext emptyList()
         val encodedQuery = java.net.URLEncoder.encode(query, "UTF-8")
-        val url = "https://api.themoviedb.org/3/search/multi?api_key=$apiKey&language=$language&query=$encodedQuery&page=1"
+        val url = "https://api.themoviedb.org/3/search/multi?api_key=$apiKey&language=$language&query=$encodedQuery&page=$page"
         try {
             val responseText = executeGet(url) ?: return@withContext emptyList()
             val root = JSONObject(responseText)
