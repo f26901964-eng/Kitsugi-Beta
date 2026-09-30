@@ -181,7 +181,7 @@ class KitsugiMediaSocialClient {
                     val allTime = r.optBoolean("allTime", false)
                     val year = r.optionalPositiveInt("year")
                     val season = r.optNullableString("season")
-                    rankingsList.add(KitsugiRanking(rank, type, context, allTime, year, season))
+                    rankingsList.add(KitsugiRanking(rank = rank, type = type, context = context, allTime = allTime, year = year, season = season))
                 }
             }
 

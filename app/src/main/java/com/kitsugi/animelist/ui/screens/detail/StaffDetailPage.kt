@@ -313,7 +313,8 @@ fun StaffDetailPage(
                                                     onGalleryClick = { items, idx ->
                                                         activeGalleryItems = items
                                                         activeGalleryIndex = idx
-                                                    }
+                                                    },
+                                                    onTranslateClick = { viewModel.translateBio() }
                                                 )
                                             }
                                             1 -> {
@@ -476,7 +477,8 @@ fun StaffDetailPage(
                                                         onGalleryClick = { items, idx ->
                                                             activeGalleryItems = items
                                                             activeGalleryIndex = idx
-                                                        }
+                                                        },
+                                                        onTranslateClick = { viewModel.translateBio() }
                                                     )
                                                 }
                                                 1 -> {

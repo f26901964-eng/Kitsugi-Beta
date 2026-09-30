@@ -658,8 +658,9 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
 
         _originalSynopsis.value = rawText
 
-        // 4. Perform auto-translation or apply rawText
-        if (autoTranslate) {
+        // 4. Perform auto-translation or apply rawText (always auto-translate Russian text)
+        val isRussian = rawText.any { it in '\u0400'..'\u04FF' }
+        if (autoTranslate || isRussian) {
             _synopsisState.value = SynopsisState.Success(rawText)
             _translatedSynopsis.value = rawText
             val tr = withContext(Dispatchers.IO) {
@@ -676,11 +677,29 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
         }
     }
 
+    fun translateSynopsis(entry: MediaEntry) {
+        val raw = _originalSynopsis.value ?: return
+        val stableId = entry.malId ?: entry.id
+        viewModelScope.launch {
+            val tr = withContext(Dispatchers.IO) {
+                translationManager.translateToTurkish(raw)
+            }
+            if (!tr.isNullOrBlank() && tr != raw) {
+                DetailCache.putTranslation("synopsis", entry.source, stableId, tr)
+                _synopsisState.value = SynopsisState.Success(tr)
+                _translatedSynopsis.value = tr
+            }
+        }
+    }
+
     /**
      * Lazy-loads tabs data when a specific tab index is selected.
      */
     fun loadTab(tabIndex: Int, entry: MediaEntry, realMalId: Int?) {
         val malId = entry.malId ?: 0
+        val effectiveRealMalId = realMalId
+            ?: _detailState.value?.realMalId
+            ?: (if (entry.source.equals("mal", true) || entry.source.equals("jikan", true) || entry.source.equals("shikimori", true)) entry.malId else null)
         val tmdbId = entry.tmdbId ?: _detailState.value?.tmdbId ?: _resolvedTmdbId.value
         viewModelScope.launch {
             try {
@@ -691,13 +710,18 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                             (currentSuccess.data.isEmpty() && DetailCache.getMediaCharacters(entry.source, malId) == null)
                         if (needsRefetch) {
                             _charactersState.value = DetailTabState.Loading
+                            val resolvedTitle = _detailState.value?.title
+                                ?: _detailState.value?.titleEnglish
+                                ?: _detailState.value?.titleRomaji
+                                ?: entry.title
                             val result = withContext(Dispatchers.IO) {
                                 apiClient.fetchCharacters(
                                     source = entry.source,
                                     externalId = entry.malId,
                                     mediaType = entry.type,
-                                    realMalId = realMalId,
-                                    tmdbId = tmdbId
+                                    realMalId = effectiveRealMalId,
+                                    tmdbId = tmdbId,
+                                    title = resolvedTitle
                                 )
                             }
                             if (result.isNotEmpty()) {
@@ -728,7 +752,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                         if (needsRefetch) {
                             _recommendationsState.value = DetailTabState.Loading
                             val result = withContext(Dispatchers.IO) {
-                                apiClient.fetchRecommendations(entry.source, entry.malId, entry.type, tmdbId = tmdbId, realMalId = realMalId)
+                                apiClient.fetchRecommendations(entry.source, entry.malId, entry.type, tmdbId = tmdbId, realMalId = realMalId, title = entry.title)
                             }
                             if (result.isNotEmpty()) {
                                 DetailCache.putMediaRecommendations(entry.source, malId, result)
@@ -743,7 +767,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                         if (needsRefetch) {
                             _relationsState.value = DetailTabState.Loading
                             val result = withContext(Dispatchers.IO) {
-                                apiClient.fetchRelations(entry.source, entry.malId, entry.type, tmdbId = tmdbId, realMalId = realMalId)
+                                apiClient.fetchRelations(entry.source, entry.malId, entry.type, tmdbId = tmdbId, realMalId = realMalId, title = entry.title)
                             }
                             if (result.isNotEmpty()) {
                                 DetailCache.putMediaRelations(entry.source, malId, result)

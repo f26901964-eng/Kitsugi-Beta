@@ -43,7 +43,79 @@ object KitsugiMarkdownUtils {
     private val emptyParensRegex    = Regex("""\(\s*\)""")
     private val emptyBracketsRegex  = Regex("""\[\s*\]""")
 
+    // Çeviri veya kaynak kaynaklı bozulmuş link regex'leri
+    private val brokenLabelRegex    = Regex("""\[([^\]\n]+)\s*\n+\s*([^\]\n]+)\]\s*\((https?://[^\s)]+)\)""")
+    private val separatedLinkRegex  = Regex("""\[([^\]]+)\]\s+\((https?://[^\s)]+)\)""")
+
+    // ── Shikimori / MAL Özel BBCode Regex Tanımları ──────────────────────────
+    private val entityTagWithTextRegex = Regex(
+        """\[\s*(?:character|karakter|персонаж|person|kisi|kişi|персона|anime|manga|ranobe|entry|club|kulup|kulüp|user|kullanici|kullanıcı|comment|yorum|topic|konu|message|mesaj|profile|profil)\b[^\]]*\](.*?)\[\s*/\s*(?:character|karakter|персонаж|person|kisi|kişi|персона|anime|manga|ranobe|entry|club|kulup|kulüp|user|kullanici|kullanıcı|comment|yorum|topic|konu|message|mesaj|profile|profil)\s*\]""",
+        setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
+    )
+
+    private val entityCardBlockRegex = Regex(
+        """\[\s*(?:characters|karakterler|персонажи|people|kisiler|kişiler|animes|animeler|mangas|mangalar)\b[^\]]*\]""",
+        RegexOption.IGNORE_CASE
+    )
+
+    private val entityTagStandaloneRegex = Regex(
+        """\[\s*(?:character|karakter|персонаж|person|kisi|kişi|персона|anime|manga|ranobe|entry|club|kulup|kulüp|user|kullanici|kullanıcı|comment|yorum|topic|konu|message|mesaj|profile|profil)\s*=[^\]]*\]""",
+        RegexOption.IGNORE_CASE
+    )
+
+    private val orphanEntityClosingTagRegex = Regex(
+        """\[\s*/\s*(?:character|karakter|персонаж|person|kisi|kişi|персона|anime|manga|ranobe|entry|club|kulup|kulüp|user|kullanici|kullanıcı|comment|yorum|topic|konu|message|mesaj|profile|profil)\s*\]""",
+        RegexOption.IGNORE_CASE
+    )
+
+    private val alignTagRegex = Regex(
+        """\[\s*(?:right|left|justify)\s*\](.*?)\[\s*/\s*(?:right|left|justify)\s*\]""",
+        setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
+    )
+
+    private val mediaStripRegex = Regex(
+        """\[\s*(?:video|audio)\b[^\]]*\](?:.*?\[\s*/\s*(?:video|audio)\s*\])?""",
+        setOf(RegexOption.IGNORE_CASE, RegexOption.DOT_MATCHES_ALL)
+    )
+
+    // Standart BBCode regex'leri
+    private val boldRegex          = Regex("\\[b\\](.*?)\\[/b\\]",          RegexOption.DOT_MATCHES_ALL)
+    private val italicRegex        = Regex("\\[i\\](.*?)\\[/i\\]",          RegexOption.DOT_MATCHES_ALL)
+    private val underlineRegex     = Regex("\\[u\\](.*?)\\[/u\\]",          RegexOption.DOT_MATCHES_ALL)
+    private val strikeRegex        = Regex("\\[s\\](.*?)\\[/s\\]",          RegexOption.DOT_MATCHES_ALL)
+    private val centerRegexBB      = Regex("\\[center\\](.*?)\\[/center\\]", RegexOption.DOT_MATCHES_ALL)
+    private val sizeRegex          = Regex("\\[size=[^\\]]*\\](.*?)\\[/size\\]", RegexOption.DOT_MATCHES_ALL)
+    private val colorRegex         = Regex("\\[color=[^\\]]*\\](.*?)\\[/color\\]", RegexOption.DOT_MATCHES_ALL)
+    private val spoilerSimpleRegex = Regex("\\[spoiler\\](.*?)\\[/spoiler\\]", RegexOption.DOT_MATCHES_ALL)
+    private val spoilerParamRegex  = Regex("\\[spoiler=[^\\]]*\\](.*?)\\[/spoiler\\]", RegexOption.DOT_MATCHES_ALL)
+    private val quoteRegex         = Regex("\\[quote\\](.*?)\\[/quote\\]",  RegexOption.DOT_MATCHES_ALL)
+    private val urlParamRegex      = Regex("\\[url=(.*?)\\](.*?)\\[/url\\]", RegexOption.DOT_MATCHES_ALL)
+    private val urlSimpleRegex     = Regex("\\[url\\](.*?)\\[/url\\]",      RegexOption.DOT_MATCHES_ALL)
+    private val imgBBRegex         = Regex("\\[img[^\\]]*\\](.*?)\\[/img\\]", RegexOption.DOT_MATCHES_ALL)
+
     // ── Public API ────────────────────────────────────────────────────────────
+
+    /**
+     * Shikimori ve MAL kaynaklı özel BBCode etiketlerini ([character=...], [anime=...], [person=...], poster kartları vb.)
+     * temizleyerek etiket içindeki düz metni çıkarır.
+     * Spoiler etiketlerini ([spoiler]) korur.
+     */
+    fun String.cleanShikimoriBbCode(): String {
+        if (isBlank()) return ""
+        var current = this
+        var previous: String
+        do {
+            previous = current
+            current = current
+                .replace(entityTagWithTextRegex) { it.groupValues[1] }
+                .replace(entityCardBlockRegex, "")
+                .replace(entityTagStandaloneRegex, "")
+                .replace(orphanEntityClosingTagRegex, "")
+                .replace(alignTagRegex) { it.groupValues[1] }
+                .replace(mediaStripRegex, "")
+        } while (current != previous)
+        return current
+    }
 
     /**
      * Kullanıcı profil/yorum metnini temizler:
@@ -72,6 +144,8 @@ object KitsugiMarkdownUtils {
         val bbConverted = cleaned.convertBBCodeToMarkdown()
         var current = bbConverted
             .replace(htmlBrRegex, "\n\n")
+            .replace(brokenLabelRegex) { "[${it.groupValues[1].trim()} ${it.groupValues[2].trim()}](${it.groupValues[3]})" }
+            .replace(separatedLinkRegex) { "[${it.groupValues[1].trim()}](${it.groupValues[2]})" }
             .replace(markdownImgRegex) { "img(${it.groupValues[1]})" }
             .replace(boldUnderscoreRegex) { "**${it.groupValues[1]}**" }
             .replace(standaloneImgRegex) { "img(${it.groupValues[1]})" }
@@ -151,30 +225,17 @@ object KitsugiMarkdownUtils {
      * Nested tag'ler için do-while döngüsü kullanır.
      */
     private fun String.convertBBCodeToMarkdown(): String {
-        var result = this
+        var result = this.cleanShikimoriBbCode()
 
         // Basit liste dönüşümleri
         result = result.replace("[list]", "").replace("[/list]", "")
         result = result.replace("[*]", "- ")
 
-        val boldRegex          = Regex("\\[b\\](.*?)\\[/b\\]",          RegexOption.DOT_MATCHES_ALL)
-        val italicRegex        = Regex("\\[i\\](.*?)\\[/i\\]",          RegexOption.DOT_MATCHES_ALL)
-        val underlineRegex     = Regex("\\[u\\](.*?)\\[/u\\]",          RegexOption.DOT_MATCHES_ALL)
-        val strikeRegex        = Regex("\\[s\\](.*?)\\[/s\\]",          RegexOption.DOT_MATCHES_ALL)
-        val centerRegexBB      = Regex("\\[center\\](.*?)\\[/center\\]", RegexOption.DOT_MATCHES_ALL)
-        val sizeRegex          = Regex("\\[size=[^\\]]*\\](.*?)\\[/size\\]", RegexOption.DOT_MATCHES_ALL)
-        val colorRegex         = Regex("\\[color=[^\\]]*\\](.*?)\\[/color\\]", RegexOption.DOT_MATCHES_ALL)
-        val spoilerSimpleRegex = Regex("\\[spoiler\\](.*?)\\[/spoiler\\]", RegexOption.DOT_MATCHES_ALL)
-        val spoilerParamRegex  = Regex("\\[spoiler=[^\\]]*\\](.*?)\\[/spoiler\\]", RegexOption.DOT_MATCHES_ALL)
-        val quoteRegex         = Regex("\\[quote\\](.*?)\\[/quote\\]",  RegexOption.DOT_MATCHES_ALL)
-        val urlParamRegex      = Regex("\\[url=(.*?)\\](.*?)\\[/url\\]", RegexOption.DOT_MATCHES_ALL)
-        val urlSimpleRegex     = Regex("\\[url\\](.*?)\\[/url\\]",      RegexOption.DOT_MATCHES_ALL)
-        val imgBBRegex         = Regex("\\[img[^\\]]*\\](.*?)\\[/img\\]", RegexOption.DOT_MATCHES_ALL)
-
         var previous: String
         do {
             previous = result
             result = result
+                .cleanShikimoriBbCode()
                 .replace(boldRegex)          { "**${it.groupValues[1]}**" }
                 .replace(italicRegex)        { "*${it.groupValues[1]}*" }
                 .replace(underlineRegex)     { "__${it.groupValues[1]}__" }
@@ -187,9 +248,14 @@ object KitsugiMarkdownUtils {
                 .replace(quoteRegex)         { "\n> ${it.groupValues[1].replace("\n", "\n> ")}\n" }
                 .replace(urlParamRegex)      { "[${it.groupValues[2]}](${it.groupValues[1]})" }
                 .replace(urlSimpleRegex)     { "[${it.groupValues[1]}](${it.groupValues[1]})" }
-                .replace(imgBBRegex)         { "img(${it.groupValues[1]})" } // → AniList img format'ına çevir, sonra formatAniListImageTags işler
+                .replace(imgBBRegex)         { "img(${it.groupValues[1]})" }
         } while (result != previous)
 
         return result
     }
 }
+
+/**
+ * Global extension for cleanShikimoriBbCode.
+ */
+fun String.cleanShikimoriBbCode(): String = KitsugiMarkdownUtils.run { this@cleanShikimoriBbCode.cleanShikimoriBbCode() }

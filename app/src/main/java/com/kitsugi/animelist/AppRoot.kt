@@ -606,6 +606,7 @@ fun AppRoot(
     val entryMap = remember(mediaEntries) {
         val mapping = mutableMapOf<String, MediaEntry>()
         mediaEntries.forEach { entry ->
+            mapping["${entry.source.lowercase()}_${entry.type.name.lowercase()}_${entry.malId}"] = entry
             mapping["${entry.source.lowercase()}_${entry.malId}"] = entry
             if (entry.tmdbId != null) {
                 mapping["tmdb_${entry.tmdbId}"] = entry
@@ -634,8 +635,9 @@ fun AppRoot(
 
     val getMediaEntryLambda: (JikanSearchResult) -> MediaEntry? = remember(entryMap) {
         { result: JikanSearchResult ->
+            val compositeKey = "${result.source.lowercase()}_${result.type.name.lowercase()}_${result.malId}"
             val directKey = "${result.source.lowercase()}_${result.malId}"
-            var found = entryMap[directKey]
+            var found = entryMap[compositeKey] ?: entryMap[directKey]
 
             if (found == null) {
                 val tmdbId = result.tmdbId ?: if (result.source.equals("tmdb", ignoreCase = true)) result.malId else null
@@ -793,7 +795,7 @@ fun AppRoot(
                 if (!isInFullScreenMode && !isLandscape) {
                     val density = LocalDensity.current
                     val bottomBarOffset by animateFloatAsState(
-                        targetValue = if (appSettings.fixedNavBar || bottomBarScrollState.isVisible) 0f else with(density) { 100.dp.toPx() },
+                        targetValue = if (appSettings.fixedNavBar || bottomBarScrollState.isVisible) 0f else with(density) { 140.dp.toPx() },
                         animationSpec = tween(durationMillis = KitsugiMotion.fastMillis + 50),
                         label = "bottom_bar_offset"
                     )

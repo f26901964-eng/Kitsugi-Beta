@@ -70,6 +70,7 @@ import com.kitsugi.animelist.utils.copyOnDoubleTap
 import com.kitsugi.animelist.utils.toFriendlySourceLabel
 import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.utils.cleanShikimoriBbCode
 import com.kitsugi.animelist.R
 
 @Composable
@@ -384,7 +385,8 @@ internal fun CharacterAboutTabContent(
     preferredTranslator: String,
     accentColor: Color,
     onGalleryClick: (List<GalleryItem>, Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onTranslateClick: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
     SelectionContainer(modifier = modifier) {
@@ -435,7 +437,7 @@ internal fun CharacterAboutTabContent(
                     }
                 }
             }
-            val displayBio = translatedBio ?: detail.biography
+            val displayBio = (translatedBio ?: detail.biography)?.cleanShikimoriBbCode()
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -457,7 +459,13 @@ internal fun CharacterAboutTabContent(
                     )
                     if (!detail.biography.isNullOrBlank()) {
                         IconButton(
-                            onClick = { context.openTranslator(detail.biography, preferredTranslator) },
+                            onClick = {
+                                if (translatedBio == null && onTranslateClick != null) {
+                                    onTranslateClick()
+                                } else {
+                                    context.openTranslator(detail.biography, preferredTranslator)
+                                }
+                            },
                             modifier = Modifier.size(36.dp)
                         ) {
                             Icon(Icons.Rounded.Translate, contentDescription = "Çevir", tint = accentColor)

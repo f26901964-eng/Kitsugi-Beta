@@ -43,6 +43,8 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
+import android.content.res.Configuration
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -434,6 +436,14 @@ fun MyListContentPage(
     val pageRefreshState = rememberPullToRefreshState()
     var pageIsRefreshing by remember { mutableStateOf(false) }
 
+    val configuration = LocalConfiguration.current
+    val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val screenWidthDp = configuration.screenWidthDp
+    val gridColumns = when {
+        isLandscape -> if (screenWidthDp >= 900) 6 else 5
+        else -> if (screenWidthDp >= 600) 4 else 3
+    }
+
     PullToRefreshBox(
         isRefreshing = pageIsRefreshing,
         onRefresh = {
@@ -534,6 +544,7 @@ fun MyListContentPage(
                         scoreFormat = appSettings.scoreFormat,
                         hideScores = appSettings.hideScores,
                         blurAdultMedia = appSettings.blurAdultMedia,
+                        gridColumns = gridColumns,
                         onEntryClick = onEntryClick,
                         onIncrementProgress = onIncrementProgress,
                         onPosterLongClick = onPosterLongClick
@@ -546,6 +557,7 @@ fun MyListContentPage(
                         scoreFormat = appSettings.scoreFormat,
                         hideScores = appSettings.hideScores,
                         blurAdultMedia = appSettings.blurAdultMedia,
+                        gridColumns = gridColumns,
                         onEntryClick = onEntryClick,
                         onIncrementProgress = onIncrementProgress,
                         onPosterLongClick = onPosterLongClick

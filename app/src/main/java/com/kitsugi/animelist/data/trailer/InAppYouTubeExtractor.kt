@@ -41,7 +41,11 @@ private data class YouTubeClient(
     val version: String,
     val userAgent: String,
     val context: Map<String, Any>,
-    val priority: Int
+    val priority: Int,
+    /** For TVHTML5_SIMPLY_EMBEDDED_PLAYER and similar — injects thirdParty.embedUrl into context. */
+    val embedUrl: String? = null,
+    /** Whether to send x-goog-visitor-id with this client's request. */
+    val needsVisitorData: Boolean = true
 )
 
 private data class WatchConfig(
@@ -83,15 +87,35 @@ private val DEFAULT_HEADERS = mapOf(
 )
 
 private val CLIENTS = listOf(
+    // TVHTML5_SIMPLY_EMBEDDED_PLAYER: login‐required‐immune, always returns OK for public videos.
+    // Highest priority so we always get at least a working HLS manifest.
+    YouTubeClient(
+        key = "tv_embedded",
+        id = "85",
+        version = "2.0",
+        userAgent = "Mozilla/5.0 (SMART-TV; LINUX; Tizen 6.0) AppleWebKit/538.1 " +
+            "(KHTML, like Gecko) Version/6.0 TV Safari/538.1",
+        context = mapOf(
+            "clientName" to "TVHTML5_SIMPLY_EMBEDDED_PLAYER",
+            "clientVersion" to "2.0",
+            "clientScreen" to "EMBED",
+            "hl" to "en",
+            "gl" to "US"
+        ),
+        priority = 0,
+        embedUrl = "https://www.youtube.com",
+        needsVisitorData = false
+    ),
+    // ANDROID_VR (Meta Quest): best source for adaptive video/audio streams.
     YouTubeClient(
         key = "android_vr",
         id = "28",
-        version = "1.56.21",
-        userAgent = "com.google.android.apps.youtube.vr.oculus/1.56.21 " +
+        version = "1.60.45",
+        userAgent = "com.google.android.apps.youtube.vr.oculus/1.60.45 " +
             "(Linux; U; Android 12; en_US; Quest 3; Build/SQ3A.220605.009.A1) gzip",
         context = mapOf(
             "clientName" to "ANDROID_VR",
-            "clientVersion" to "1.56.21",
+            "clientVersion" to "1.60.45",
             "deviceMake" to "Oculus",
             "deviceModel" to "Quest 3",
             "osName" to "Android",
@@ -101,16 +125,17 @@ private val CLIENTS = listOf(
             "hl" to "en",
             "gl" to "US"
         ),
-        priority = 0
+        priority = 1
     ),
+    // ANDROID: broad format support, updated to ~Q4 2026 version.
     YouTubeClient(
         key = "android",
         id = "3",
-        version = "20.10.35",
-        userAgent = "com.google.android.youtube/20.10.35 (Linux; U; Android 14; en_US) gzip",
+        version = "20.38.6",
+        userAgent = "com.google.android.youtube/20.38.6 (Linux; U; Android 14; en_US) gzip",
         context = mapOf(
             "clientName" to "ANDROID",
-            "clientVersion" to "20.10.35",
+            "clientVersion" to "20.38.6",
             "osName" to "Android",
             "osVersion" to "14",
             "platform" to "MOBILE",
@@ -118,24 +143,25 @@ private val CLIENTS = listOf(
             "hl" to "en",
             "gl" to "US"
         ),
-        priority = 1
+        priority = 2
     ),
+    // IOS: independent auth path, updated to ~Q4 2026 version.
     YouTubeClient(
         key = "ios",
         id = "5",
-        version = "20.10.1",
-        userAgent = "com.google.ios.youtube/20.10.1 (iPhone16,2; U; CPU iOS 17_4 like Mac OS X)",
+        version = "20.38.1",
+        userAgent = "com.google.ios.youtube/20.38.1 (iPhone16,2; U; CPU iOS 18_0 like Mac OS X)",
         context = mapOf(
             "clientName" to "IOS",
-            "clientVersion" to "20.10.1",
+            "clientVersion" to "20.38.1",
             "deviceModel" to "iPhone16,2",
             "osName" to "iPhone",
-            "osVersion" to "17.4.0.21E219",
+            "osVersion" to "18.0.0.22A3354",
             "platform" to "MOBILE",
             "hl" to "en",
             "gl" to "US"
         ),
-        priority = 2
+        priority = 3
     )
 )
 
@@ -398,11 +424,11 @@ class InAppYouTubeExtractor {
 
         }
 
-        // If all clients returned LOGIN_REQUIRED, invalidate config for next attempt
-        if (loginRequiredCount == CLIENTS.size) {
-            Log.w(TAG, "All ${CLIENTS.size} clients returned LOGIN_REQUIRED, invalidating config")
+        // tv_embedded never returns LOGIN_REQUIRED so exclude it from this count.
+        val loginSensitiveClientCount = CLIENTS.count { it.needsVisitorData }
+        if (loginRequiredCount >= loginSensitiveClientCount && loginSensitiveClientCount > 0) {
+            Log.w(TAG, "All $loginSensitiveClientCount visitor-dependent clients returned LOGIN_REQUIRED, invalidating config")
             invalidateConfig()
-            return null
         }
 
         if (manifestUrls.isEmpty() && progressive.isEmpty() && adaptiveVideo.isEmpty() && adaptiveAudio.isEmpty()) {
@@ -522,15 +548,23 @@ class InAppYouTubeExtractor {
             put("x-youtube-client-name", client.id)
             put("x-youtube-client-version", client.version)
             put("user-agent", client.userAgent)
-            if (!visitorData.isNullOrBlank()) put("x-goog-visitor-id", visitorData)
+            if (client.needsVisitorData && !visitorData.isNullOrBlank()) put("x-goog-visitor-id", visitorData)
             if (!cookieHeader.isNullOrBlank()) put("cookie", cookieHeader)
+            // tv_embedded requires a referer so YouTube serves embed-accessible formats
+            if (client.embedUrl != null) put("referer", client.embedUrl)
         }
 
         val payload = buildMap<String, Any> {
             put("videoId", videoId)
             put("contentCheckOk", true)
             put("racyCheckOk", true)
-            put("context", mapOf("client" to client.context))
+            // For embedded clients (e.g. tv_embedded), inject thirdParty.embedUrl into context
+            put("context", buildMap {
+                put("client", client.context)
+                if (client.embedUrl != null) {
+                    put("thirdParty", mapOf("embedUrl" to client.embedUrl))
+                }
+            })
             put("playbackContext", mapOf(
                 "contentPlaybackContext" to mapOf("html5Preference" to "HTML5_PREF_WANTS")
             ))

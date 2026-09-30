@@ -6,6 +6,7 @@ import com.kitsugi.animelist.data.remote.JikanSearchResult
 fun generateExploreEntryMap(currentEntries: List<MediaEntry>): Map<String, MediaEntry> {
     val mapping = mutableMapOf<String, MediaEntry>()
     currentEntries.forEach { entry ->
+        mapping["${entry.source.lowercase()}_${entry.type.name.lowercase()}_${entry.malId}"] = entry
         mapping["${entry.source.lowercase()}_${entry.malId}"] = entry
         if (entry.tmdbId != null) {
             mapping["tmdb_${entry.tmdbId}"] = entry
@@ -32,8 +33,9 @@ fun getMediaEntryFromMap(
     result: JikanSearchResult,
     entryMap: Map<String, MediaEntry>
 ): MediaEntry? {
+    val compositeKey = "${result.source.lowercase()}_${result.type.name.lowercase()}_${result.malId}"
     val directKey = "${result.source.lowercase()}_${result.malId}"
-    var found = entryMap[directKey]
+    var found = entryMap[compositeKey] ?: entryMap[directKey]
 
     if (found == null) {
         val tmdbId = result.tmdbId ?: if (result.source.equals("tmdb", ignoreCase = true)) result.malId else null

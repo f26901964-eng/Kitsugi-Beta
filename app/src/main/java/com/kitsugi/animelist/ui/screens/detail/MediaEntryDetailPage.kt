@@ -479,7 +479,8 @@ fun MediaEntryDetailPage(
                             onGalleryItemRequest = { items, index ->
                                 activeGalleryItems = items
                                 activeGalleryIndex = index
-                            }
+                            },
+                            onTranslateClick = { viewModel.translateSynopsis(displayEntry) }
                         )
                     }
                     1 -> {

@@ -39,20 +39,27 @@ internal object TmdbCreditsClient {
                     val item = castArray.getJSONObject(i)
                     val id = item.optInt("id")
                     val actorName = item.optString("name", "Bilinmeyen")
-                    val characterName = item.optString("character", "Bilinmeyen")
+                    val rawCharacterName = item.optString("character", "Bilinmeyen")
+                    val isVoiceRole = rawCharacterName.contains("(voice)", ignoreCase = true) ||
+                        rawCharacterName.contains("(uncredited voice)", ignoreCase = true)
+                    val characterName = rawCharacterName
+                        .replace(Regex("\\s*\\((?:voice|uncredited|uncredited voice)\\)", RegexOption.IGNORE_CASE), "")
+                        .trim()
                     val profilePath = item.optNullableString("profile_path")
                     val order = item.optInt("order", 999)
-                    val imageUrl = if (!profilePath.isNullOrEmpty()) "$IMG_W185$profilePath" else null
+                    val actorImageUrl = if (!profilePath.isNullOrEmpty()) "$IMG_W185$profilePath" else null
                     val va = KitsugiVoiceActor(
                         id = id, name = actorName, language = "oyuncu",
-                        imageUrl = imageUrl, source = "tmdb"
+                        imageUrl = actorImageUrl, source = "tmdb"
                     )
+                    // Fictional/voice-acted character shouldn't display actor's human photo
+                    val charImageUrl = if (isVoiceRole) null else actorImageUrl
                     charList.add(
                         KitsugiCharacter(
                             id = id,
                             name = characterName,
                             role = if (order < 5) "main".toTurkishCharacterRole() else "supporting".toTurkishCharacterRole(),
-                            imageUrl = imageUrl,
+                            imageUrl = charImageUrl,
                             voiceActors = listOf(va),
                             source = "tmdb"
                         )
@@ -133,36 +140,8 @@ internal object TmdbCreditsClient {
             }
         }
 
-        if (list.isEmpty()) {
-            val typePath = if (isMovie) "movie" else "tv"
-            val url = "https://api.themoviedb.org/3/$typePath/$tmdbId/similar?api_key=$apiKey&language=$language"
-            try {
-                val responseText = executeGet(url)
-                if (responseText != null) {
-                    val root = JSONObject(responseText)
-                    val results = root.optJSONArray("results")
-                    if (results != null) {
-                        for (i in 0 until minOf(results.length(), 20)) {
-                            val item = results.getJSONObject(i)
-                            val id = item.optInt("id")
-                            val title = if (isMovie) item.optString("title", "Bilinmeyen") else item.optString("name", "Bilinmeyen")
-                            val posterPath = item.optNullableString("poster_path") ?: ""
-                            val imageUrl = if (posterPath.isNotEmpty()) "$IMG_W185$posterPath" else null
-                            list.add(
-                                KitsugiRelation(
-                                    malId = id, title = title, relationType = "Benzer",
-                                    imageUrl = imageUrl,
-                                    mediaType = if (isMovie) MediaType.Movie else MediaType.TvShow,
-                                    source = "tmdb"
-                                )
-                            )
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error fetching TMDB similar: ${e.message}", e)
-            }
-        }
+        // NOTE: We deliberately do NOT fall back to TMDB /similar here.
+        // Relations are strictly franchise relations. TMDB /similar returns unrelated keyword matches.
         list
     }
 
@@ -182,6 +161,8 @@ internal object TmdbCreditsClient {
             val list = mutableListOf<KitsugiRelation>()
             for (i in 0 until minOf(results.length(), 20)) {
                 val item = results.getJSONObject(i)
+                val isAdult = item.optBoolean("adult", false)
+                if (isAdult) continue
                 val id = item.optInt("id")
                 val title = if (isMovie) item.optString("title", "Bilinmeyen") else item.optString("name", "Bilinmeyen")
                 val posterPath = item.optNullableString("poster_path") ?: ""
@@ -191,7 +172,7 @@ internal object TmdbCreditsClient {
                         malId = id, title = title, relationType = "Tavsiye",
                         imageUrl = imageUrl,
                         mediaType = if (isMovie) MediaType.Movie else MediaType.TvShow,
-                        source = "simkl"
+                        source = "tmdb"
                     )
                 )
             }

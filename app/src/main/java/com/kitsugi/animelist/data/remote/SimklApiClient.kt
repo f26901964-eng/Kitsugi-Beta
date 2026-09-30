@@ -113,7 +113,7 @@ class SimklApiClient(
                             imageUrl = if (poster.isNotEmpty()) "https://simkl.in/posters/${poster}_m.jpg" else null,
                             year = if (year > 0) year else null,
                             source = "simkl",
-                            realMalId = if (mediaType == MediaType.Anime && malId > 0) malId else null,
+                            realMalId = if (malId > 0) malId else null,
                             titleEnglish = title,
                             titleJapanese = null,
                             tmdbId = if (tmdbId > 0) tmdbId else null
@@ -128,9 +128,116 @@ class SimklApiClient(
         }
     }
 
+    suspend fun getTrendingPeriod(typePath: String, period: String = "today"): List<JikanSearchResult> = withContext(Dispatchers.IO) {
+        val cdnType = when (typePath.lowercase()) {
+            "movies", "movie" -> "movies"
+            "tv", "shows", "series" -> "tv"
+            "anime" -> "anime"
+            else -> "anime"
+        }
+        val periodFile = when (period.lowercase()) {
+            "week" -> "week_100.json"
+            "month" -> "month_100.json"
+            else -> "today_100.json"
+        }
+        val cdnUrl = "https://data.simkl.in/discover/trending/$cdnType/$periodFile"
+        val request = Request.Builder().url(cdnUrl).header("Accept", "application/json").build()
+        try {
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext emptyList()
+                val responseText = response.body?.string().orEmpty()
+                parseSimklArray(responseText, cdnType, 30)
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    suspend fun searchAdvanced(
+        type: String,
+        query: String = "",
+        subtype: String? = null,
+        genre: String? = null,
+        country: String? = null,
+        year: String? = null,
+        sort: String? = null,
+        limit: Int = 24
+    ): List<JikanSearchResult> = withContext(Dispatchers.IO) {
+        if (query.isNotBlank()) {
+            return@withContext search(query, type, limit)
+        }
+        val safeType = when (type.lowercase()) {
+            "movies", "movie" -> "movies"
+            "tv", "shows", "series" -> "tv"
+            else -> "anime"
+        }
+        val g = genre ?: "all"
+        val st = subtype ?: "all"
+        val c = country ?: "all"
+        val y = year ?: "all"
+        val s = sort ?: "rank"
+        val url = "https://api.simkl.com/$safeType/genres/$g/$st/$c/$y/$s?client_id=$clientId&limit=$limit"
+        val request = Request.Builder().url(url).header("Accept", "application/json").build()
+        try {
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext emptyList()
+                val responseText = response.body?.string().orEmpty()
+                parseSimklArray(responseText, safeType, limit)
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    private fun parseSimklArray(responseText: String, defaultType: String, limit: Int): List<JikanSearchResult> {
+        if (responseText.isBlank() || responseText.trim() == "null") return emptyList()
+        val jsonArray = JSONArray(responseText)
+        val results = mutableListOf<JikanSearchResult>()
+        for (i in 0 until minOf(jsonArray.length(), limit)) {
+            val obj = jsonArray.getJSONObject(i)
+            val title = obj.optString("title", "")
+            val ids = obj.optJSONObject("ids") ?: continue
+            val simklId = ids.optInt("simkl_id", 0).takeIf { it > 0 } ?: ids.optInt("simkl", 0)
+            if (simklId <= 0) continue
+            val tmdbId = ids.optInt("tmdb_id", 0).takeIf { it > 0 } ?: ids.optInt("tmdb", 0)
+            val malId = ids.optInt("mal", 0)
+            val poster = obj.optString("poster", "")
+            val year = obj.optInt("year", 0)
+            val itemType = obj.optString("type", defaultType)
+            val ratingsObj = obj.optJSONObject("ratings")
+            val simklRating = ratingsObj?.optJSONObject("simkl")?.optDouble("rating", 0.0) ?: 0.0
+            val imdbRating = ratingsObj?.optJSONObject("imdb")?.optDouble("rating", 0.0) ?: 0.0
+            val score = if (simklRating > 0.0) (simklRating * 10).toInt()
+            else if (imdbRating > 0.0) (imdbRating * 10).toInt()
+            else null
+            val mediaType = when (itemType.lowercase()) {
+                "movie", "movies" -> MediaType.Movie
+                "tv", "series", "shows" -> MediaType.TvShow
+                else -> MediaType.Anime
+            }
+            results.add(
+                JikanSearchResult(
+                    malId = simklId,
+                    title = title,
+                    subtitle = if (year > 0) year.toString() else "",
+                    type = mediaType,
+                    total = null,
+                    score = score,
+                    isAdult = false,
+                    imageUrl = if (poster.isNotEmpty()) "https://simkl.in/posters/${poster}_m.jpg" else null,
+                    year = if (year > 0) year else null,
+                    source = "simkl",
+                    realMalId = if (malId > 0) malId else null,
+                    titleEnglish = title,
+                    titleJapanese = null,
+                    tmdbId = if (tmdbId > 0) tmdbId else null
+                )
+            )
+        }
+        return results
+    }
+
     suspend fun getTrending(typePath: String): List<JikanSearchResult> = withContext(Dispatchers.IO) {
-        // NyanTV referansÄ±: api.simkl.com/trending yerine data.simkl.in CDN kullanÄ±yoruz
-        // CDN: https://data.simkl.in/discover/trending/{tv|movies|anime}/today_100.json
         val cdnType = when (typePath) {
             "movies" -> "movies"
             "tv", "shows" -> "tv"
@@ -198,7 +305,7 @@ class SimklApiClient(
                             imageUrl = if (poster.isNotEmpty()) "https://simkl.in/posters/${poster}_m.jpg" else null,
                             year = if (year > 0) year else null,
                             source = "simkl",
-                            realMalId = if (mediaType == MediaType.Anime && malId > 0) malId else null,
+                            realMalId = if (malId > 0) malId else null,
                             titleEnglish = title,
                             titleJapanese = null,
                             tmdbId = if (tmdbId > 0) tmdbId else null
@@ -316,7 +423,7 @@ class SimklApiClient(
                             imageUrl = if (poster.isNotEmpty()) "https://simkl.in/posters/${poster}_m.jpg" else null,
                             year = if (year > 0) year else null,
                             source = "simkl",
-                            realMalId = if (mediaType == MediaType.Anime) ids.optInt("mal", 0) else null,
+                            realMalId = ids.optInt("mal", 0).takeIf { it > 0 },
                             titleEnglish = title,
                             titleJapanese = null,
                             tmdbId = if (tmdbId > 0) tmdbId else null

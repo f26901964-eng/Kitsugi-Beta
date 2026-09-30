@@ -254,11 +254,19 @@ class KitsugiAiringCalendarClient {
                     media.optInt("idMal", 0).takeIf { it > 0 } else null
                 val averageScore = if (media.has("averageScore") && !media.isNull("averageScore"))
                     media.optInt("averageScore", 0).takeIf { it > 0 } else null
+                val countryOfOrigin = media.optNullableString("countryOfOrigin")
+                val isNonJapanese = countryOfOrigin != null && !countryOfOrigin.equals("JP", ignoreCase = true)
                 val titleObj = media.optJSONObject("title")
                 val romaji = titleObj?.optNullableString("romaji")
                 val english = titleObj?.optNullableString("english")
                 val native = titleObj?.optNullableString("native")
-                val title = romaji ?: english ?: native ?: continue
+                // Kore ("KR") ve Çin ("CN") yapımı anime/donghua/awe için İngilizce başlık ("Tomb Raider King")
+                // raw romanizasyon ("Dogul Wang") yerine tercih edilir.
+                val title = if (isNonJapanese && !english.isNullOrBlank()) {
+                    english
+                } else {
+                    romaji ?: english ?: native ?: continue
+                }
                 val coverUrl = media.optJSONObject("coverImage")?.optNullableString("large")
                 val dayOfWeek = Calendar.getInstance().apply {
                     timeInMillis = airingAt * 1000L
@@ -274,7 +282,8 @@ class KitsugiAiringCalendarClient {
                         episode = episode,
                         airingAt = airingAt,
                         dayOfWeek = dayOfWeek,
-                        averageScore = averageScore
+                        averageScore = averageScore,
+                        countryOfOrigin = countryOfOrigin
                     )
                 )
             }
@@ -312,6 +321,7 @@ class KitsugiAiringCalendarClient {
                   media{
                     id idMal
                     title{romaji english native}
+                    countryOfOrigin
                     coverImage{large}
                     averageScore
                   }

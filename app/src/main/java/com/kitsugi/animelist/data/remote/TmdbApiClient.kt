@@ -281,6 +281,176 @@ class TmdbApiClient(
         }
     }
 
+    suspend fun discoverAdvanced(
+        isMovie: Boolean,
+        page: Int = 1,
+        sortBy: String = "popularity.desc",
+        genres: List<Int>? = null,
+        excludedGenres: List<Int>? = null,
+        originCountry: String? = null,
+        startYear: Int? = null,
+        endYear: Int? = null,
+        minScore: Double? = null,
+        maxScore: Double? = null,
+        minVoteCount: Int? = null,
+        minRuntime: Int? = null,
+        maxRuntime: Int? = null,
+        watchProviderId: Int? = null,
+        networkId: Int? = null,
+        keyword: String? = null,
+        tvStatus: String? = null,
+        tvType: String? = null,
+        includeAdult: Boolean = false
+    ): List<JikanSearchResult> = withContext(Dispatchers.IO) {
+        if (!isTmdbEnabled()) return@withContext emptyList()
+        val endpoint = if (isMovie) "movie" else "tv"
+        val params = mutableListOf<String>()
+        params.add("api_key=$apiKey")
+        params.add("language=$language")
+        params.add("page=$page")
+        params.add("sort_by=$sortBy")
+        params.add("include_adult=$includeAdult")
+
+        if (!genres.isNullOrEmpty()) params.add("with_genres=${genres.joinToString(",")}")
+        if (!excludedGenres.isNullOrEmpty()) params.add("without_genres=${excludedGenres.joinToString(",")}")
+        if (!originCountry.isNullOrBlank()) params.add("with_origin_country=$originCountry")
+
+        if (isMovie) {
+            if (startYear != null) params.add("primary_release_date.gte=$startYear-01-01")
+            if (endYear != null) params.add("primary_release_date.lte=$endYear-12-31")
+        } else {
+            if (startYear != null) params.add("first_air_date.gte=$startYear-01-01")
+            if (endYear != null) params.add("first_air_date.lte=$endYear-12-31")
+            if (!tvStatus.isNullOrBlank()) params.add("with_status=$tvStatus")
+            if (!tvType.isNullOrBlank()) params.add("with_type=$tvType")
+            if (networkId != null) params.add("with_networks=$networkId")
+        }
+
+        if (minScore != null && minScore > 0.0) params.add("vote_average.gte=$minScore")
+        if (maxScore != null && maxScore > 0.0) params.add("vote_average.lte=$maxScore")
+        if (minVoteCount != null && minVoteCount > 0) params.add("vote_count.gte=$minVoteCount")
+        if (minRuntime != null && minRuntime > 0) params.add("with_runtime.gte=$minRuntime")
+        if (maxRuntime != null && maxRuntime > 0) params.add("with_runtime.lte=$maxRuntime")
+
+        if (watchProviderId != null && watchProviderId > 0) {
+            params.add("with_watch_providers=$watchProviderId")
+            params.add("watch_region=TR")
+        }
+        if (!keyword.isNullOrBlank()) params.add("with_keywords=$keyword")
+
+        val url = "https://api.themoviedb.org/3/discover/$endpoint?${params.joinToString("&")}"
+        try {
+            val responseText = executeGet(url) ?: return@withContext emptyList()
+            val root = JSONObject(responseText)
+            val results = root.optJSONArray("results") ?: return@withContext emptyList()
+            val list = mutableListOf<JikanSearchResult>()
+            for (i in 0 until minOf(results.length(), 24)) {
+                val item = results.getJSONObject(i)
+                val tmdbId = item.optInt("id", 0).takeIf { it > 0 } ?: continue
+                val mediaType = if (isMovie) MediaType.Movie else MediaType.TvShow
+                val title = if (isMovie) item.optString("title", "") else item.optString("name", "")
+                if (title.isBlank()) continue
+                val posterPath = item.optNullableString("poster_path") ?: ""
+                val releaseDate = if (isMovie) item.optString("release_date", "") else item.optString("first_air_date", "")
+                val year = releaseDate.take(4).toIntOrNull()
+                val rating = item.optDouble("vote_average", 0.0)
+                val score = if (rating > 0.0) (rating * 10).toInt().coerceIn(0, 100) / 10 else null
+                val imageUrl = if (posterPath.isNotEmpty()) "https://image.tmdb.org/t/p/w500$posterPath" else null
+                val subtitleParts = buildList {
+                    add(if (isMovie) "Film" else "Dizi")
+                    if (year != null && year > 0) add(year.toString())
+                }
+                list.add(
+                    JikanSearchResult(
+                        malId = tmdbId, title = title,
+                        subtitle = subtitleParts.joinToString(", "),
+                        type = mediaType, total = null, score = score,
+                        isAdult = item.optBoolean("adult", false),
+                        imageUrl = imageUrl, year = year, source = "tmdb",
+                        realMalId = null, titleEnglish = title, titleJapanese = null,
+                        tmdbId = tmdbId
+                    )
+                )
+            }
+            list
+        } catch (e: Exception) {
+            Log.e(TAG, "discoverAdvanced error: ${e.message}", e)
+            emptyList()
+        }
+    }
+
+    suspend fun searchPerson(query: String, page: Int = 1): List<JikanSearchResult> = withContext(Dispatchers.IO) {
+        if (!isTmdbEnabled()) return@withContext emptyList()
+        val url = if (query.isNotBlank()) {
+            val encodedQuery = java.net.URLEncoder.encode(query.trim(), "UTF-8")
+            "https://api.themoviedb.org/3/search/person?api_key=$apiKey&language=$language&query=$encodedQuery&page=$page"
+        } else {
+            "https://api.themoviedb.org/3/person/popular?api_key=$apiKey&language=$language&page=$page"
+        }
+        try {
+            val responseText = executeGet(url) ?: return@withContext emptyList()
+            val root = JSONObject(responseText)
+            val results = root.optJSONArray("results") ?: return@withContext emptyList()
+            val list = mutableListOf<JikanSearchResult>()
+            for (i in 0 until minOf(results.length(), 24)) {
+                val item = results.getJSONObject(i)
+                val id = item.optInt("id", 0).takeIf { it > 0 } ?: continue
+                val name = item.optString("name", "")
+                if (name.isBlank()) continue
+                val profilePath = item.optNullableString("profile_path")
+                val imageUrl = profilePath?.let { "https://image.tmdb.org/t/p/w500$it" }
+                val dept = item.optString("known_for_department", "Oyuncu / Ekip")
+                val pop = item.optDouble("popularity", 0.0)
+                list.add(
+                    JikanSearchResult(
+                        malId = id, title = name,
+                        subtitle = dept,
+                        type = MediaType.TvShow, total = null, score = null,
+                        isAdult = item.optBoolean("adult", false),
+                        imageUrl = imageUrl, year = null, source = "tmdb",
+                        favorites = pop.toInt()
+                    )
+                )
+            }
+            list
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    suspend fun searchCompany(query: String, page: Int = 1): List<JikanSearchResult> = withContext(Dispatchers.IO) {
+        if (!isTmdbEnabled() || query.isBlank()) return@withContext emptyList()
+        val encodedQuery = java.net.URLEncoder.encode(query.trim(), "UTF-8")
+        val url = "https://api.themoviedb.org/3/search/company?api_key=$apiKey&query=$encodedQuery&page=$page"
+        try {
+            val responseText = executeGet(url) ?: return@withContext emptyList()
+            val root = JSONObject(responseText)
+            val results = root.optJSONArray("results") ?: return@withContext emptyList()
+            val list = mutableListOf<JikanSearchResult>()
+            for (i in 0 until minOf(results.length(), 24)) {
+                val item = results.getJSONObject(i)
+                val id = item.optInt("id", 0).takeIf { it > 0 } ?: continue
+                val name = item.optString("name", "")
+                if (name.isBlank()) continue
+                val logoPath = item.optNullableString("logo_path")
+                val imageUrl = logoPath?.let { "https://image.tmdb.org/t/p/w500$it" }
+                val originCountry = item.optString("origin_country", "")
+                list.add(
+                    JikanSearchResult(
+                        malId = id, title = name,
+                        subtitle = if (originCountry.isNotBlank()) "Yapım Şirketi ($originCountry)" else "Yapım Şirketi",
+                        type = MediaType.Movie, total = null, score = null,
+                        isAdult = false,
+                        imageUrl = imageUrl, year = null, source = "tmdb"
+                    )
+                )
+            }
+            list
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
     // ── Ağ ─────────────────────────────────────────────────────────────────────
 
     private suspend fun executeGet(urlStr: String): String? = withContext(Dispatchers.IO) {

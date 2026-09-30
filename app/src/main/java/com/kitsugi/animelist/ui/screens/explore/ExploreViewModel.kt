@@ -570,7 +570,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                 .map { entry ->
                     JikanSearchResult(
                         malId = entry.malId!!,
-                        title = entry.title,
+                        title = entry.getDisplayTitle(),
                         subtitle = "${entry.episode}. Bölüm",
                         type = MediaType.Anime,
                         total = null,
@@ -640,7 +640,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             upcoming.filter { it.airingAt > nowSec }.sortedBy { it.airingAt }.take(15)
                 .map { e ->
                     JikanSearchResult(
-                        malId = e.malId ?: e.aniListId, title = e.title,
+                        malId = e.malId ?: e.aniListId, title = e.getDisplayTitle(),
                         subtitle = "${e.episode}. Bölüm", type = MediaType.Anime,
                         total = null, score = e.averageScore, isAdult = false,
                         imageUrl = e.coverUrl, year = null, source = "anilist",

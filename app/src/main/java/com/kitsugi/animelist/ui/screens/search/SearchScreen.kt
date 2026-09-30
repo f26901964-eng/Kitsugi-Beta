@@ -50,6 +50,7 @@ import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.components.KitsugiEmptyState
 import com.kitsugi.animelist.ui.components.KitsugiShimmerSearchResultList
+import com.kitsugi.animelist.ui.components.KitsugiShimmerMediaRow
 import com.kitsugi.animelist.ui.components.KitsugiExploreMediaCard
 import com.kitsugi.animelist.ui.screens.search.components.AddonExploreDialog
 import com.kitsugi.animelist.ui.screens.search.composables.KitsugiSearchCountryChip
@@ -165,6 +166,7 @@ fun SearchScreen(
     val entryMap = remember(currentEntries) {
         val mapping = mutableMapOf<String, MediaEntry>()
         currentEntries.forEach { entry ->
+            mapping["${entry.source.lowercase()}_${entry.type.name.lowercase()}_${entry.malId}"] = entry
             mapping["${entry.source.lowercase()}_${entry.malId}"] = entry
             if (entry.tmdbId != null) {
                 mapping["tmdb_${entry.tmdbId}"] = entry
@@ -189,8 +191,9 @@ fun SearchScreen(
 
     val getMediaEntry = remember(entryMap) {
         { result: JikanSearchResult ->
+            val compositeKey = "${result.source.lowercase()}_${result.type.name.lowercase()}_${result.malId}"
             val directKey = "${result.source.lowercase()}_${result.malId}"
-            var found = entryMap[directKey]
+            var found = entryMap[compositeKey] ?: entryMap[directKey]
 
             if (found == null) {
                 val tmdbId = result.tmdbId ?: if (result.source.equals("tmdb", ignoreCase = true)) result.malId else null
@@ -238,9 +241,11 @@ fun SearchScreen(
     val showIdleContent = !uiState.hasSearched && !uiState.isLoading
     val showFab by remember { derivedStateOf { lazyListState.firstVisibleItemIndex > 1 } }
 
-    // Constants/Options mapping
     val isTmdbPlatform = uiState.selectedPlatform == SearchPlatform.TMDB
     val currentMediaType = uiState.selectedMediaType
+
+    var showEnginePickerSheet by remember { mutableStateOf(false) }
+    var showSourceEngineFilterSheet by remember { mutableStateOf(false) }
 
     val animeFormats = listOf("TV", "MOVIE", "SPECIAL", "OVA", "ONA", "MUSIC")
     val mangaFormats = listOf("MANGA", "NOVEL", "ONE_SHOT", "DOUJIN", "MANHWA", "MANHUA")
@@ -311,13 +316,11 @@ fun SearchScreen(
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Rounded.Search,
-                                contentDescription = "Ara",
-                                tint = KitsugiColors.TextMuted,
-                                modifier = Modifier.size(20.dp)
+                            SourceEngineSelectorPill(
+                                selectedEngine = uiState.selectedEngine,
+                                onClick = { showEnginePickerSheet = true }
                             )
 
                             BasicTextField(
@@ -339,17 +342,14 @@ fun SearchScreen(
                                 ),
                                 decorationBox = { innerTextField ->
                                     if (uiState.query.isEmpty()) {
-                                        val placeholder = when (uiState.currentTab) {
-                                            KitsugiSearchTab.All -> "Tüm platformlarda ara (AniList, MAL, TMDB, Shikimori, Kitsu, Simkl)..."
-                                            KitsugiSearchTab.Anime -> "AniList'te anime ara..."
-                                            KitsugiSearchTab.Manga -> "Manga veya novel ara..."
-                                            KitsugiSearchTab.MAL -> "MyAnimeList'te ara..."
-                                            KitsugiSearchTab.Shikimori -> "Shikimori'de ara (Rusça / Japonca)..."
-                                            KitsugiSearchTab.TMDB -> "Film veya dizi ara (TMDB)..."
-                                            KitsugiSearchTab.Kitsu -> "Kitsu'da ara..."
-                                            KitsugiSearchTab.Simkl -> "Simkl'de ara..."
-                                            KitsugiSearchTab.Character -> "Karakter ara..."
-                                            KitsugiSearchTab.Staff -> "Personel veya seslendirmen ara..."
+                                        val placeholder = when (uiState.selectedEngine) {
+                                            SearchSourceEngine.ALL -> "Tüm platformlarda ara (6 motor eşzamanlı)..."
+                                            SearchSourceEngine.ANILIST -> "AniList'te ${uiState.selectedScope.label.lowercase()} ara..."
+                                            SearchSourceEngine.MAL -> "MyAnimeList'te ${uiState.selectedScope.label.lowercase()} ara..."
+                                            SearchSourceEngine.TMDB -> "TMDB'de ${uiState.selectedScope.label.lowercase()} ara..."
+                                            SearchSourceEngine.SHIKIMORI -> "Shikimori'de ${uiState.selectedScope.label.lowercase()} ara..."
+                                            SearchSourceEngine.KITSU -> "Kitsu'da ${uiState.selectedScope.label.lowercase()} ara..."
+                                            SearchSourceEngine.SIMKL -> "Simkl'de ${uiState.selectedScope.label.lowercase()} ara..."
                                         }
                                         Text(
                                             text = placeholder,
@@ -407,186 +407,24 @@ fun SearchScreen(
                 Spacer(modifier = Modifier.height(10.dp))
             }
 
-            // Search Type Selection (Anime, Manga, Karakter, Personel, TMDB, Eklentiler)
+            // ── Seçili Kaynak Motoruna Özel Alt Kapsamlar (Scope Chips) ─────
             item {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    KitsugiSearchTab.entries.forEach { tab ->
-                        SearchTypeChip(
-                            label = tab.label,
-                            selected = uiState.currentTab == tab,
-                            onClick = { viewModel.setTab(tab) }
-                        )
-                    }
-                }
-                Spacer(modifier = Modifier.height(12.dp))
+                SourceScopeChipsRow(
+                    selectedEngine = uiState.selectedEngine,
+                    selectedScope = uiState.selectedScope,
+                    onScopeSelected = { scope -> viewModel.setScope(scope) }
+                )
+                Spacer(modifier = Modifier.height(10.dp))
             }
 
-            // ── AniHyou-style Sort & Filter Control Row ────────────────────
-            if (uiState.currentTab == KitsugiSearchTab.Anime || uiState.currentTab == KitsugiSearchTab.Manga) {
-                item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        KitsugiSearchSortChip(
-                            sortSearch = uiState.sortSearch,
-                            isDescending = uiState.isSortDescending,
-                            onSortChanged = { sort, desc -> viewModel.setSort(sort, desc) }
-                        )
-
-                        val filterLabel = if (uiState.activeFilterCount > 0) "Filtreler (${uiState.activeFilterCount})" else "Filtreler"
-                        SearchFilterChip(
-                            label = filterLabel,
-                            selected = uiState.showMoreFilters || uiState.activeFilterCount > 0,
-                            onClick = { viewModel.setShowMoreFilters(!uiState.showMoreFilters) }
-                        )
-
-                        if (uiState.hasFiltersApplied) {
-                            TextButton(
-                                onClick = { viewModel.resetFilters() },
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp)
-                            ) {
-                                Text(
-                                    text = "Filtreleri Sıfırla",
-                                    color = KitsugiColors.AccentRed,
-                                    fontSize = 12.sp,
-                                    fontWeight = FontWeight.Bold
-                                )
-                            }
-                        }
-                    }
-                    Spacer(modifier = Modifier.height(6.dp))
-                }
-
-                // ── AniHyou Collapsible Filters Panel ─────────────────────────
-                item {
-                    AnimatedVisibility(
-                        visible = uiState.showMoreFilters,
-                        enter = expandVertically() + fadeIn(),
-                        exit = shrinkVertically() + fadeOut()
-                    ) {
-                        Column(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(6.dp)
-                        ) {
-                            // Row 1: Format, Status, Country, Source, Genres/Tags Sheet
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                KitsugiSearchFormatChip(
-                                    mediaType = uiState.selectedMediaType,
-                                    selectedFormats = uiState.selectedFormats,
-                                    onFormatsChanged = { viewModel.setFormats(it) }
-                                )
-                                KitsugiSearchStatusChip(
-                                    selectedStatuses = uiState.selectedStatuses,
-                                    onStatusesChanged = { viewModel.setStatuses(it) }
-                                )
-                                KitsugiSearchCountryChip(
-                                    selectedCountry = uiState.country,
-                                    onCountryChanged = { viewModel.setCountry(it) }
-                                )
-                                KitsugiSearchSourceChip(
-                                    selectedSources = uiState.selectedSources,
-                                    onSourcesChanged = { viewModel.setSources(it) }
-                                )
-                                SearchFilterChip(
-                                    label = "Türler / Etiketler",
-                                    selected = uiState.genres.isNotEmpty() || uiState.excludedGenres.isNotEmpty() || uiState.tags.isNotEmpty(),
-                                    onClick = { viewModel.setFilterSheetOpen(true) }
-                                )
-                            }
-
-                            // Row 2: Date chips & Ep/Duration chips
-                            KitsugiSearchDateChip(
-                                startYear = uiState.startYear,
-                                endYear = uiState.endYear,
-                                season = uiState.season,
-                                onStartYearChanged = { viewModel.setStartYear(it) },
-                                onEndYearChanged = { viewModel.setEndYear(it) },
-                                onSeasonChanged = { viewModel.setSeason(it) }
-                            )
-
-                            KitsugiSearchEpChDurationChip(
-                                mediaType = uiState.selectedMediaType,
-                                minEpCh = uiState.minEpCh,
-                                maxEpCh = uiState.maxEpCh,
-                                minDuration = uiState.minDuration,
-                                maxDuration = uiState.maxDuration,
-                                onEpChChanged = { viewModel.setEpCh(it) },
-                                onDurationChanged = { viewModel.setDuration(it) }
-                            )
-
-                            // Row 3: AniHyou Tri-Filter Chips (Listemde, Doujinshi, Yetişkin)
-                            Row(
-                                modifier = Modifier
-                                    .fillMaxWidth()
-                                    .horizontalScroll(rememberScrollState()),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                KitsugiTriFilterChip(
-                                    text = "Listemde",
-                                    value = uiState.onMyList,
-                                    onValueChanged = { viewModel.setOnMyList(it) }
-                                )
-                                if (uiState.currentTab == KitsugiSearchTab.Manga || uiState.selectedMediaType == MediaType.Manga) {
-                                    KitsugiTriFilterChip(
-                                        text = "Doujinshi",
-                                        value = uiState.isDoujin,
-                                        onValueChanged = { viewModel.setIsDoujin(it) }
-                                    )
-                                }
-                                KitsugiTriFilterChip(
-                                    text = "🔞 Yetişkin (+18)",
-                                    value = uiState.isAdultFilter,
-                                    onValueChanged = { viewModel.setIsAdultFilter(it) }
-                                )
-                            }
-
-                            Spacer(modifier = Modifier.height(6.dp))
-                        }
-                    }
-                }
-            } else if (uiState.currentTab == KitsugiSearchTab.TMDB) {
-                // TMDB Platform Filters
-                item {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .horizontalScroll(rememberScrollState()),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        val tmdbFormatLabel = if (currentMediaType == MediaType.Movie) "Film" else "Dizi"
-                        SearchFilterChip(
-                            label = "Tip: $tmdbFormatLabel",
-                            selected = true,
-                            onClick = { openTmdbFormatDialog = true }
-                        )
-                        val tmdbGenreLabel = uiState.genres.firstOrNull()?.let { "Tür: $it" }
-                            ?: uiState.tags.firstOrNull()?.let { "Etiket: $it" }
-                            ?: "Tür Seç"
-                        SearchFilterChip(
-                            label = tmdbGenreLabel,
-                            selected = tmdbGenreLabel != "Tür Seç",
-                            onClick = { openTmdbGenreDialog = true }
-                        )
-                    }
-                    Spacer(modifier = Modifier.height(8.dp))
-                }
+            // ── Kaynağa ve Kapsama Özel Emojili Sıralama & Filtreleme Çubuğu ──
+            item {
+                SourceSpecificFilterChipsRow(
+                    uiState = uiState,
+                    viewModel = viewModel,
+                    onOpenFullFilterSheet = { showSourceEngineFilterSheet = true }
+                )
+                Spacer(modifier = Modifier.height(12.dp))
             }
 
 
@@ -608,8 +446,39 @@ fun SearchScreen(
 
             // Shimmer Loading State
             if (uiState.isLoading) {
-                item {
-                    KitsugiShimmerSearchResultList(itemCount = 4)
+                if (uiState.currentTab == KitsugiSearchTab.All) {
+                    item {
+                        MultiSearchShelfShimmer(
+                            title = "AniList",
+                            badgeText = "AL",
+                            badgeColor = Color(0xFF02A9FF)
+                        )
+                    }
+                    item {
+                        MultiSearchShelfShimmer(
+                            title = "MyAnimeList",
+                            badgeText = "MAL",
+                            badgeColor = Color(0xFF2E51A2)
+                        )
+                    }
+                    item {
+                        MultiSearchShelfShimmer(
+                            title = "TMDB (Film & Dizi)",
+                            badgeText = "TMDB",
+                            badgeColor = Color(0xFFFFB800)
+                        )
+                    }
+                    item {
+                        MultiSearchShelfShimmer(
+                            title = "Shikimori",
+                            badgeText = "SHIKI",
+                            badgeColor = Color(0xFF4C86C8)
+                        )
+                    }
+                } else {
+                    item {
+                        KitsugiShimmerSearchResultList(itemCount = 4)
+                    }
                 }
             }
 
@@ -823,6 +692,29 @@ fun SearchScreen(
                 Icon(Icons.Default.ArrowUpward, contentDescription = "Yukarı Çık")
             }
         }
+    }
+
+    if (showEnginePickerSheet) {
+        SourceEnginePickerSheet(
+            selectedEngine = uiState.selectedEngine,
+            onSelectEngine = {
+                viewModel.setEngine(it)
+                showEnginePickerSheet = false
+            },
+            onDismiss = { showEnginePickerSheet = false }
+        )
+    }
+
+    if (showSourceEngineFilterSheet) {
+        SourceEngineFilterSheet(
+            uiState = uiState,
+            viewModel = viewModel,
+            onOpenGenresTags = {
+                showSourceEngineFilterSheet = false
+                viewModel.setFilterSheetOpen(true)
+            },
+            onDismiss = { showSourceEngineFilterSheet = false }
+        )
     }
 
     // Genres Bottom Sheet Dialog
@@ -1075,6 +967,55 @@ fun ActiveFilterChip(
                 modifier = Modifier.size(14.dp)
             )
         }
+    }
+}
+
+@Composable
+private fun MultiSearchShelfShimmer(
+    title: String,
+    badgeText: String,
+    badgeColor: Color
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 12.dp)
+    ) {
+        // Platform Rozeti + Başlık
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(badgeColor.copy(alpha = 0.9f))
+                    .padding(horizontal = 7.dp, vertical = 3.dp)
+            ) {
+                Text(
+                    text = badgeText,
+                    color = if (badgeText.equals("TMDB", ignoreCase = true) || badgeColor == Color(0xFFFFB800)) Color.Black else Color.White,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+            Spacer(modifier = Modifier.width(8.dp))
+            Text(
+                text = title,
+                color = KitsugiColors.TextPrimary,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+
+        Spacer(modifier = Modifier.height(10.dp))
+
+        // Yatay kartlar için animasyonlu shimmer efekti
+        KitsugiShimmerMediaRow(cardCount = 5)
     }
 }
 

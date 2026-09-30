@@ -24,6 +24,10 @@ object KitsugiColors {
         @Composable
         get() = LocalKitsugiColors.current.surfaceStrong
 
+    val SurfaceElevated: Color
+        @Composable
+        get() = LocalKitsugiColors.current.backgroundElevated
+
     val Accent: Color
         @Composable
         get() = LocalKitsugiAccent.current

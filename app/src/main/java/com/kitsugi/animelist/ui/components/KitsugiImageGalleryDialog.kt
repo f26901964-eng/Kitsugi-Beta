@@ -719,9 +719,9 @@ private fun GalleryLandscapeLayout(
                             val badgeBg = when (currentItem.source.lowercase()) {
                                 "tmdb"      -> Color(0xFFFFB800)
                                 "fanart.tv" -> Color(0xFF9C27B0)
-                                "anilist"   -> Color(0xFF3DB4F2)
+                                "anilist"   -> Color(0xFF02A9FF)
                                 "simkl"     -> Color(0xFFE50914)
-                                "kitsu"     -> Color(0xFFFD5C63)
+                                "kitsu"     -> Color(0xFFE35A02)
                                 "shikimori" -> Color(0xFF4C86C8)
                                 "jikan", "jikan (mal)", "mal" -> Color(0xFF2E51A2)
                                 else        -> accentColor
@@ -976,9 +976,9 @@ private fun GalleryPortraitLayout(
                             val badgeBg = when (item.source.lowercase()) {
                                 "tmdb"      -> Color(0xFFFFB800)
                                 "fanart.tv" -> Color(0xFF9C27B0)
-                                "anilist"   -> Color(0xFF3DB4F2)
+                                "anilist"   -> Color(0xFF02A9FF)
                                 "simkl"     -> Color(0xFFE50914)
-                                "kitsu"     -> Color(0xFFFD5C63)
+                                "kitsu"     -> Color(0xFFE35A02)
                                 "shikimori" -> Color(0xFF4C86C8)
                                 "jikan", "jikan (mal)", "mal" -> Color(0xFF2E51A2)
                                 else        -> accentColor

@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.screens.detail
 
+import com.kitsugi.animelist.utils.cleanShikimoriBbCode
 import androidx.compose.foundation.background
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -382,7 +383,8 @@ internal fun StaffAboutTabContent(
     preferredTranslator: String,
     accentColor: Color,
     onGalleryClick: (List<GalleryItem>, Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    onTranslateClick: (() -> Unit)? = null
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     androidx.compose.foundation.text.selection.SelectionContainer(modifier = modifier) {
@@ -437,7 +439,7 @@ internal fun StaffAboutTabContent(
                 }
             }
 
-            val displayBio = translatedBio ?: detail.biography
+            val displayBio = (translatedBio ?: detail.biography)?.cleanShikimoriBbCode()
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -460,7 +462,13 @@ internal fun StaffAboutTabContent(
 
                     if (!detail.biography.isNullOrBlank()) {
                         IconButton(
-                            onClick = { context.openTranslator(detail.biography, preferredTranslator) },
+                            onClick = {
+                                if (translatedBio == null && onTranslateClick != null) {
+                                    onTranslateClick()
+                                } else {
+                                    context.openTranslator(detail.biography, preferredTranslator)
+                                }
+                            },
                             modifier = Modifier.size(36.dp)
                         ) {
                             Icon(

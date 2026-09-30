@@ -48,6 +48,89 @@ object KitsuExploreClient {
             fetchList(url, mediaType)
         }
 
+    suspend fun searchMediaAdvanced(
+        mediaType: MediaType,
+        query: String = "",
+        page: Int = 1,
+        limit: Int = 20,
+        sort: String = "trending",
+        subtypes: List<String>? = null,
+        statuses: List<String>? = null,
+        season: String? = null,
+        seasonYear: Int? = null,
+        categories: List<String>? = null,
+        ageRating: String? = null,
+        streamers: List<String>? = null,
+        minRating: Int? = null
+    ): List<JikanSearchResult> = withContext(Dispatchers.IO) {
+        val endpoint = when (mediaType) {
+            MediaType.Anime, MediaType.Movie, MediaType.TvShow -> "anime"
+            MediaType.Manga -> "manga"
+        }
+        val safeLimit = limit.coerceIn(1, 20)
+        val offset = (page - 1) * safeLimit
+        val params = mutableListOf<String>()
+        params.add("page[limit]=$safeLimit")
+        params.add("page[offset]=$offset")
+
+        if (query.isNotBlank()) params.add("filter[text]=${java.net.URLEncoder.encode(query.trim(), "UTF-8")}")
+        if (sort != "trending") params.add("sort=$sort")
+        if (!subtypes.isNullOrEmpty()) params.add("filter[subtype]=${subtypes.joinToString(",")}")
+        if (!statuses.isNullOrEmpty()) params.add("filter[status]=${statuses.joinToString(",")}")
+        if (!season.isNullOrBlank()) params.add("filter[season]=${season.lowercase()}")
+        if (seasonYear != null) params.add("filter[seasonYear]=$seasonYear")
+        if (!categories.isNullOrEmpty()) params.add("filter[categories]=${categories.joinToString(",")}")
+        if (!ageRating.isNullOrBlank()) params.add("filter[ageRating]=$ageRating")
+        if (!streamers.isNullOrEmpty()) params.add("filter[streamers]=${streamers.joinToString(",")}")
+        if (minRating != null && minRating > 0) params.add("filter[averageRating]=$minRating..100")
+
+        val url = "$BASE/$endpoint?${params.joinToString("&")}"
+        fetchList(url, mediaType)
+    }
+
+    suspend fun searchCharacters(query: String, page: Int = 1, limit: Int = 20): List<JikanSearchResult> = withContext(Dispatchers.IO) {
+        if (query.isBlank()) return@withContext emptyList()
+        val safeLimit = limit.coerceIn(1, 20)
+        val offset = (page - 1) * safeLimit
+        val encoded = java.net.URLEncoder.encode(query.trim(), "UTF-8")
+        val url = "$BASE/characters?filter[name]=$encoded&page[limit]=$safeLimit&page[offset]=$offset"
+        val req = Request.Builder().url(url).header("Accept", "application/vnd.api+json").build()
+        try {
+            KitsugiHttpClient.client.newCall(req).execute().use { res ->
+                if (!res.isSuccessful) return@withContext emptyList()
+                val root = JSONObject(res.body?.string().orEmpty())
+                val data = root.optJSONArray("data") ?: return@withContext emptyList()
+                val list = mutableListOf<JikanSearchResult>()
+                for (i in 0 until data.length()) {
+                    val item = data.getJSONObject(i)
+                    val id = item.optInt("id", 0)
+                    if (id <= 0) continue
+                    val attrs = item.optJSONObject("attributes") ?: continue
+                    val name = attrs.optString("canonicalName", attrs.optString("name", "Karakter"))
+                    val imageObj = attrs.optJSONObject("image")
+                    val imgUrl = imageObj?.optNullableString("original") ?: imageObj?.optNullableString("medium")
+                    list.add(
+                        JikanSearchResult(
+                            malId = id,
+                            title = name,
+                            subtitle = "Karakter (Kitsu)",
+                            type = MediaType.Anime,
+                            total = null,
+                            score = null,
+                            isAdult = false,
+                            imageUrl = imgUrl,
+                            year = null,
+                            source = "kitsu"
+                        )
+                    )
+                }
+                list
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
     /** En popüler animeler (userCount'a göre sıralı) */
     suspend fun topAnime(limit: Int = 20): List<JikanSearchResult> =
         fetchAnimeList("$BASE/anime?sort=-userCount&page[limit]=$limit")

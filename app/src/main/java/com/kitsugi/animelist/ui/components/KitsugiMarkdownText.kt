@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.utils.KitsugiMarkdownUtils.formatAniListMarkdown
+import com.kitsugi.animelist.utils.cleanShikimoriBbCode
 import com.mikepenz.markdown.model.ImageData
 import com.mikepenz.markdown.model.ImageTransformer
 import com.mikepenz.markdown.model.PlaceholderConfig
@@ -336,10 +337,22 @@ fun InteractiveSpoilerSheet(
     spoilerText: String,
     onDismiss: () -> Unit,
 ) {
-    var currentText by remember(spoilerText) { mutableStateOf(spoilerText) }
+    var currentText by remember(spoilerText) { mutableStateOf(spoilerText.cleanShikimoriBbCode()) }
     var isTranslating by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
+
+    LaunchedEffect(spoilerText) {
+        if (currentText.any { it in '\u0400'..'\u04FF' }) {
+            isTranslating = true
+            val translationManager = com.kitsugi.animelist.data.local.TranslationManager(context)
+            val translated = translationManager.translate(currentText)
+            if (translated.isNotBlank()) {
+                currentText = translated.cleanShikimoriBbCode()
+            }
+            isTranslating = false
+        }
+    }
 
     KitsugiSheetOrDialog(onDismiss = onDismiss) {
         Column(
@@ -382,7 +395,7 @@ fun InteractiveSpoilerSheet(
                                 val translationManager = com.kitsugi.animelist.data.local.TranslationManager(context)
                                 val translated = translationManager.translate(currentText)
                                 if (translated.isNotBlank()) {
-                                    currentText = translated
+                                    currentText = translated.cleanShikimoriBbCode()
                                 }
                                 isTranslating = false
                             }
@@ -466,7 +479,7 @@ fun InteractiveSpoilerBox(
             if (isRevealed) {
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = spoilerText,
+                    text = spoilerText.cleanShikimoriBbCode(),
                     color = KitsugiColors.TextPrimary,
                     style = MaterialTheme.typography.bodyMedium,
                     lineHeight = 20.sp,

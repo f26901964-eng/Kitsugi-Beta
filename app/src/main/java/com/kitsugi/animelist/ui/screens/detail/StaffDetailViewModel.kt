@@ -53,6 +53,20 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
     private var lastSource: String = ""
     private var lastStaffName: String? = null
 
+    fun translateBio() {
+        val detail = (_state.value as? StaffDetailState.Success)?.detail ?: return
+        val bio = detail.biography ?: return
+        viewModelScope.launch {
+            val tr = withContext(Dispatchers.IO) {
+                translationManager.translateToTurkish(bio)
+            }
+            if (tr.isNotBlank() && tr != bio) {
+                DetailCache.putTranslation("bio_staff", lastSource, detail.id, tr)
+                _translatedBio.value = tr
+            }
+        }
+    }
+
     fun loadStaff(staffId: Int, source: String, name: String? = null) {
         val newKey = "$source:$staffId"
         if (newKey == currentFetchKey) {
@@ -140,13 +154,14 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
             // Build gallery from imageUrl + Jikan /people pictures
             buildStaffGallery(staffId, source, detail.imageUrl)
 
-            // Otomatik çeviri açıksa biyografiyi çevir (zaten Türkçeyse TranslationManager atlar)
+            // Otomatik çeviri açıksa veya metin Rusça ise biyografiyi çevir (zaten Türkçeyse TranslationManager atlar)
             val bio = detail.biography
             val autoTranslate = runCatching { settingsDataStore.settingsFlow.first() }.getOrNull()?.autoTranslateEnabled ?: false
+            val isRussian = bio?.any { it in '\u0400'..'\u04FF' } == true
             val cachedTranslation = DetailCache.getTranslation("bio_staff", source, staffId)
             if (cachedTranslation != null && !force) {
                 _translatedBio.value = cachedTranslation
-            } else if (!bio.isNullOrBlank() && autoTranslate) {
+            } else if (!bio.isNullOrBlank() && (autoTranslate || isRussian)) {
                 val tr = withContext(Dispatchers.IO) {
                     translationManager.translateToTurkish(bio)
                 }

@@ -41,8 +41,16 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.graphics.Color
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import com.kitsugi.animelist.ui.components.KITSUGI_MEDIA_GENRES
+import com.kitsugi.animelist.ui.components.KitsugiGridSortOption
+import com.kitsugi.animelist.ui.components.KitsugiMediaFilterBottomSheet
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.derivedStateOf
@@ -137,6 +145,10 @@ fun FullScreenMediaGridPage(
     var seasonalSeason by remember { mutableStateOf(currentSeasonStr) }
     var seasonalSort by remember { mutableStateOf("POPULARITY_DESC") }
     var showFilterBottomSheet by remember { mutableStateOf(false) }
+
+    var selectedGenreId by rememberSaveable { mutableStateOf("ALL") }
+    var selectedSortOption by rememberSaveable { mutableStateOf(KitsugiGridSortOption.DEFAULT) }
+    var showGeneralFilterBottomSheet by remember { mutableStateOf(false) }
 
     val dynamicTitle = remember(categoryType, title, seasonalSeason, seasonalYear) {
         if (categoryType == ExploreCategoryType.SEASONAL_ANIME) {
@@ -237,8 +249,53 @@ fun FullScreenMediaGridPage(
         }
     }
 
-    val displayedResults = remember(loadedResults, showAdultContent) {
-        loadedResults.filter { showAdultContent || !it.isAdult }
+    val displayedResults = remember(loadedResults, showAdultContent, selectedGenreId, selectedSortOption) {
+        val base = loadedResults.filter { showAdultContent || !it.isAdult }
+        val filtered = if (selectedGenreId == "ALL") {
+            base
+        } else {
+            val genreObj = KITSUGI_MEDIA_GENRES.firstOrNull { it.id == selectedGenreId }
+            if (genreObj != null) {
+                base.filter { item ->
+                    val inGenres = item.genres.any { g ->
+                        genreObj.keywords.any { kw -> g.contains(kw, ignoreCase = true) }
+                    }
+                    val inSubtitle = genreObj.keywords.any { kw ->
+                        item.subtitle.contains(kw, ignoreCase = true)
+                    }
+                    inGenres || inSubtitle
+                }
+            } else {
+                base
+            }
+        }
+
+        when (selectedSortOption) {
+            KitsugiGridSortOption.DEFAULT -> filtered
+            KitsugiGridSortOption.SCORE_DESC -> filtered.sortedByDescending {
+                it.rawScoreDouble ?: (it.score?.toDouble()?.div(10.0)) ?: 0.0
+            }
+            KitsugiGridSortOption.SCORE_ASC -> filtered.sortedWith(
+                compareBy {
+                    val s = it.rawScoreDouble ?: (it.score?.toDouble()?.div(10.0)) ?: 0.0
+                    if (s <= 0.0) 999.0 else s
+                }
+            )
+            KitsugiGridSortOption.POPULARITY_DESC -> filtered.sortedByDescending {
+                it.members ?: it.favorites ?: 0
+            }
+            KitsugiGridSortOption.YEAR_DESC -> filtered.sortedByDescending {
+                it.year ?: 0
+            }
+            KitsugiGridSortOption.YEAR_ASC -> filtered.sortedWith(
+                compareBy {
+                    val y = it.year ?: 0
+                    if (y <= 0) 9999 else y
+                }
+            )
+            KitsugiGridSortOption.TITLE_ASC -> filtered.sortedBy { it.title.lowercase() }
+            KitsugiGridSortOption.TITLE_DESC -> filtered.sortedByDescending { it.title.lowercase() }
+        }
     }
 
     // Liste scroll state + auto-load trigger
@@ -299,6 +356,7 @@ fun FullScreenMediaGridPage(
                             }
                         }
                         // Başlık + toggle + filtre
+                        val hasActiveFilter = selectedGenreId != "ALL" || selectedSortOption != KitsugiGridSortOption.DEFAULT
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -311,6 +369,26 @@ fun FullScreenMediaGridPage(
                                 fontWeight = FontWeight.Black,
                                 modifier = Modifier.weight(1f)
                             )
+                            // Filtre ve Sıralama Butonu (Her kategoride aktif)
+                            IconButton(
+                                onClick = {
+                                    if (categoryType == ExploreCategoryType.SEASONAL_ANIME) {
+                                        showFilterBottomSheet = true
+                                    } else {
+                                        showGeneralFilterBottomSheet = true
+                                    }
+                                },
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(if (hasActiveFilter) accentColor.copy(alpha = 0.25f) else KitsugiColors.Surface)
+                            ) {
+                                Icon(
+                                    Icons.Rounded.FilterList,
+                                    contentDescription = "Filtre ve Sıralama",
+                                    tint = if (hasActiveFilter) accentColor else KitsugiColors.TextPrimary
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(6.dp))
                             // Grid→Liste toggle
                             IconButton(
                                 onClick = {
@@ -327,22 +405,80 @@ fun FullScreenMediaGridPage(
                             ) {
                                 Icon(Icons.AutoMirrored.Rounded.ListAlt, contentDescription = "Liste Görünümü", tint = accentColor)
                             }
-                            if (categoryType == ExploreCategoryType.SEASONAL_ANIME) {
-                                IconButton(
-                                    onClick = { showFilterBottomSheet = true },
-                                    modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(KitsugiColors.Surface)
+                        }
+
+                        // Emojili Hızlı Tür Çipleri (Yatay Kaydırılabilir)
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 12.dp, bottom = 4.dp)
+                        ) {
+                            items(KITSUGI_MEDIA_GENRES) { genre ->
+                                val isSelected = selectedGenreId == genre.id
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(20.dp))
+                                        .background(
+                                            if (isSelected) accentColor.copy(alpha = 0.22f)
+                                            else KitsugiColors.Surface
+                                        )
+                                        .border(
+                                            width = if (isSelected) 1.5.dp else 1.dp,
+                                            color = if (isSelected) accentColor else Color.Transparent,
+                                            shape = RoundedCornerShape(20.dp)
+                                        )
+                                        .clickable {
+                                            selectedGenreId = if (isSelected && genre.id != "ALL") "ALL" else genre.id
+                                        }
+                                        .padding(horizontal = 13.dp, vertical = 7.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(Icons.Rounded.FilterList, contentDescription = "Filtre", tint = accentColor)
+                                    Text(
+                                        text = genre.displayLabel,
+                                        color = if (isSelected) accentColor else KitsugiColors.TextPrimary,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        style = MaterialTheme.typography.labelMedium
+                                    )
                                 }
                             }
                         }
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "${displayedResults.size} içerik",
-                            color = KitsugiColors.TextMuted,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold
-                        )
+
+                        val activeGenre = KITSUGI_MEDIA_GENRES.firstOrNull { it.id == selectedGenreId }
+                        val activeFilterDesc = buildString {
+                            if (activeGenre != null && activeGenre.id != "ALL") append(" • ${activeGenre.displayLabel}")
+                            if (selectedSortOption != KitsugiGridSortOption.DEFAULT) append(" • ${selectedSortOption.displayLabel}")
+                        }
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 8.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "${displayedResults.size} içerik$activeFilterDesc",
+                                color = KitsugiColors.TextMuted,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (hasActiveFilter) {
+                                Text(
+                                    text = "Temizle",
+                                    color = accentColor,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.clickable {
+                                        selectedGenreId = "ALL"
+                                        selectedSortOption = KitsugiGridSortOption.DEFAULT
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -418,6 +554,7 @@ fun FullScreenMediaGridPage(
                             }
                         }
                         // Başlık + toggle + filtre
+                        val hasActiveFilter = selectedGenreId != "ALL" || selectedSortOption != KitsugiGridSortOption.DEFAULT
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
@@ -430,6 +567,26 @@ fun FullScreenMediaGridPage(
                                 fontWeight = FontWeight.Black,
                                 modifier = Modifier.weight(1f)
                             )
+                            // Filtre ve Sıralama Butonu (Her kategoride aktif)
+                            IconButton(
+                                onClick = {
+                                    if (categoryType == ExploreCategoryType.SEASONAL_ANIME) {
+                                        showFilterBottomSheet = true
+                                    } else {
+                                        showGeneralFilterBottomSheet = true
+                                    }
+                                },
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(if (hasActiveFilter) accentColor.copy(alpha = 0.25f) else KitsugiColors.Surface)
+                            ) {
+                                Icon(
+                                    Icons.Rounded.FilterList,
+                                    contentDescription = "Filtre ve Sıralama",
+                                    tint = if (hasActiveFilter) accentColor else KitsugiColors.TextPrimary
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(6.dp))
                             // Liste→Grid toggle
                             IconButton(
                                 onClick = {
@@ -446,12 +603,41 @@ fun FullScreenMediaGridPage(
                             ) {
                                 Icon(Icons.Rounded.GridView, contentDescription = "Grid Görünümü", tint = accentColor)
                             }
-                            if (categoryType == ExploreCategoryType.SEASONAL_ANIME) {
-                                IconButton(
-                                    onClick = { showFilterBottomSheet = true },
-                                    modifier = Modifier.clip(RoundedCornerShape(12.dp)).background(KitsugiColors.Surface)
+                        }
+
+                        // Emojili Hızlı Tür Çipleri (Yatay Kaydırılabilir)
+                        LazyRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(top = 12.dp, bottom = 4.dp)
+                        ) {
+                            items(KITSUGI_MEDIA_GENRES) { genre ->
+                                val isSelected = selectedGenreId == genre.id
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(20.dp))
+                                        .background(
+                                            if (isSelected) accentColor.copy(alpha = 0.22f)
+                                            else KitsugiColors.Surface
+                                        )
+                                        .border(
+                                            width = if (isSelected) 1.5.dp else 1.dp,
+                                            color = if (isSelected) accentColor else Color.Transparent,
+                                            shape = RoundedCornerShape(20.dp)
+                                        )
+                                        .clickable {
+                                            selectedGenreId = if (isSelected && genre.id != "ALL") "ALL" else genre.id
+                                        }
+                                        .padding(horizontal = 13.dp, vertical = 7.dp),
+                                    contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(Icons.Rounded.FilterList, contentDescription = "Mevsim Filtresi", tint = accentColor)
+                                    Text(
+                                        text = genre.displayLabel,
+                                        color = if (isSelected) accentColor else KitsugiColors.TextPrimary,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        style = MaterialTheme.typography.labelMedium
+                                    )
                                 }
                             }
                         }
@@ -459,14 +645,42 @@ fun FullScreenMediaGridPage(
                 }
 
                 item(key = "list_count") {
+                    val hasActiveFilter = selectedGenreId != "ALL" || selectedSortOption != KitsugiGridSortOption.DEFAULT
+                    val activeGenre = KITSUGI_MEDIA_GENRES.firstOrNull { it.id == selectedGenreId }
+                    val activeFilterDesc = buildString {
+                        if (activeGenre != null && activeGenre.id != "ALL") append(" • ${activeGenre.displayLabel}")
+                        if (selectedSortOption != KitsugiGridSortOption.DEFAULT) append(" • ${selectedSortOption.displayLabel}")
+                    }
+
                     Column {
-                        Spacer(modifier = Modifier.height(14.dp))
-                        Text(
-                            text = "${displayedResults.size} içerik",
-                            color = KitsugiColors.TextMuted,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Spacer(modifier = Modifier.height(10.dp))
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "${displayedResults.size} içerik$activeFilterDesc",
+                                color = KitsugiColors.TextMuted,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.weight(1f)
+                            )
+                            if (hasActiveFilter) {
+                                Text(
+                                    text = "Temizle",
+                                    color = accentColor,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold,
+                                    modifier = Modifier.clickable {
+                                        selectedGenreId = "ALL"
+                                        selectedSortOption = KitsugiGridSortOption.DEFAULT
+                                    }
+                                )
+                            }
+                        }
                         Spacer(modifier = Modifier.height(12.dp))
                     }
                 }
@@ -633,6 +847,22 @@ fun FullScreenMediaGridPage(
                 initialSort = seasonalSort,
                 onDismissRequest = { showFilterBottomSheet = false },
                 onApply = { s, y, sort -> applySeasonalFilter(s, y, sort) }
+            )
+        }
+
+        if (showGeneralFilterBottomSheet) {
+            KitsugiMediaFilterBottomSheet(
+                initialGenreId = selectedGenreId,
+                initialSortOption = selectedSortOption,
+                onDismissRequest = { showGeneralFilterBottomSheet = false },
+                onApply = { genreId, sortOption ->
+                    selectedGenreId = genreId
+                    selectedSortOption = sortOption
+                },
+                onReset = {
+                    selectedGenreId = "ALL"
+                    selectedSortOption = KitsugiGridSortOption.DEFAULT
+                }
             )
         }
     }

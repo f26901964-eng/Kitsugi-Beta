@@ -54,6 +54,20 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
     private var lastSource: String = ""
     private var lastCharacterName: String? = null
 
+    fun translateBio() {
+        val detail = (_state.value as? CharacterDetailState.Success)?.detail ?: return
+        val bio = detail.biography ?: return
+        viewModelScope.launch {
+            val tr = withContext(Dispatchers.IO) {
+                translationManager.translateToTurkish(bio)
+            }
+            if (tr.isNotBlank() && tr != bio) {
+                DetailCache.putTranslation("bio_char", lastSource, detail.id, tr)
+                _translatedBio.value = tr
+            }
+        }
+    }
+
     fun loadCharacter(characterId: Int, source: String, name: String? = null) {
         val newKey = "$source:$characterId"
         if (newKey == currentFetchKey) {
@@ -141,13 +155,14 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
             // Build gallery from imageUrl + Jikan /pictures
             buildCharacterGallery(characterId, source, detail.imageUrl)
 
-            // Otomatik çeviri açıksa biyografiyi çevir (zaten Türkçeyse TranslationManager atlar)
+            // Otomatik çeviri açıksa veya metin Rusça ise biyografiyi çevir (zaten Türkçeyse TranslationManager atlar)
             val bio = detail.biography
             val autoTranslate = runCatching { settingsDataStore.settingsFlow.first() }.getOrNull()?.autoTranslateEnabled ?: false
+            val isRussian = bio?.any { it in '\u0400'..'\u04FF' } == true
             val cachedTranslation = DetailCache.getTranslation("bio_char", source, characterId)
             if (cachedTranslation != null && !force) {
                 _translatedBio.value = cachedTranslation
-            } else if (!bio.isNullOrBlank() && autoTranslate) {
+            } else if (!bio.isNullOrBlank() && (autoTranslate || isRussian)) {
                 val tr = withContext(Dispatchers.IO) {
                     translationManager.translateToTurkish(bio)
                 }

@@ -95,7 +95,8 @@ internal fun EntryDetailOverviewTab(
     onImageGalleryRequest: ((urls: List<String>, index: Int) -> Unit)? = null,
     galleryItems: List<GalleryItem> = emptyList(),
     galleryLoading: Boolean = false,
-    onGalleryItemRequest: ((items: List<GalleryItem>, index: Int) -> Unit)? = null
+    onGalleryItemRequest: ((items: List<GalleryItem>, index: Int) -> Unit)? = null,
+    onTranslateClick: (() -> Unit)? = null
 ) {
     val context = LocalContext.current
 
@@ -107,7 +108,12 @@ internal fun EntryDetailOverviewTab(
             synopsisState = synopsisState,
             originalText = originalSynopsis,
             onTranslateClick = { textToTranslate ->
-                context.openTranslator(textToTranslate, preferredTranslator)
+                val currentText = (synopsisState as? SynopsisState.Success)?.text
+                if (currentText == originalSynopsis && onTranslateClick != null) {
+                    onTranslateClick()
+                } else {
+                    context.openTranslator(textToTranslate, preferredTranslator)
+                }
             },
             onCopyClick = { textToCopy ->
                 val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
@@ -443,13 +449,14 @@ internal fun DetailGalleryCard(
                             }
 
                             val badgeBgColor = when (item.source.lowercase()) {
-                                "fanart.tv" -> Color(0xFF9C27B0)
-                                "tmdb"      -> Color(0xFFFFB800)
-                                "jikan"     -> Color(0xFF00B0FF)
-                                "anilist"   -> Color(0xFF3DB4F2)
-                                "simkl"     -> Color(0xFFE50914)
-                                "kitsu"     -> Color(0xFFFD5C63)
-                                else        -> accentColor
+                                "tmdb"                        -> Color(0xFFFFB800)
+                                "fanart.tv"                   -> Color(0xFF9C27B0)
+                                "anilist"                     -> Color(0xFF02A9FF)
+                                "simkl"                       -> Color(0xFFE50914)
+                                "kitsu"                       -> Color(0xFFE35A02)
+                                "shikimori"                   -> Color(0xFF4C86C8)
+                                "jikan", "jikan (mal)", "mal" -> Color(0xFF2E51A2)
+                                else                          -> accentColor
                             }
 
                             Box(
@@ -490,7 +497,7 @@ internal fun DetailGalleryCard(
                                 ) {
                                     Text(
                                         text = item.source,
-                                        color = if (item.source.equals("tmdb", ignoreCase = true)) Color.Black else Color.White,
+                                        color = if (item.source.equals("tmdb", ignoreCase = true) || badgeBgColor == Color(0xFFFFB800)) Color.Black else Color.White,
                                         fontSize = 8.sp,
                                         fontWeight = FontWeight.Bold
                                     )

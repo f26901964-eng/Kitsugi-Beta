@@ -262,7 +262,7 @@ private fun CompactMediaEntryCard(
                         style = MaterialTheme.typography.bodySmall
                     )
 
-                    if (!hideScores) {
+                    if (!hideScores && (entry.score ?: 0) > 0) {
                         val displayScore = entry.getDisplayScore(scoreFormat, hideScores)
                         Spacer(modifier = Modifier.width(8.dp))
                         ScorePill(
@@ -429,8 +429,9 @@ private fun ComfortableMediaEntryCard(
                         style = MaterialTheme.typography.bodySmall
                     )
 
-                    if (!hideScores) {
+                    if (!hideScores && (entry.score ?: 0) > 0) {
                         val displayScore = entry.getDisplayScore(scoreFormat, hideScores)
+                        Spacer(modifier = Modifier.width(8.dp))
                         ScorePill(
                             score = displayScore,
                             scoreFormat = scoreFormat
@@ -601,8 +602,9 @@ private fun LargeMediaEntryCard(
                                 style = MaterialTheme.typography.bodySmall
                             )
 
-                            if (!hideScores) {
+                            if (!hideScores && (entry.score ?: 0) > 0) {
                                 val displayScore = entry.getDisplayScore(scoreFormat, hideScores)
+                                Spacer(modifier = Modifier.width(8.dp))
                                 ScorePill(
                                     score = displayScore,
                                     scoreFormat = scoreFormat
@@ -721,8 +723,9 @@ private fun LargeMediaEntryCard(
                             style = MaterialTheme.typography.bodySmall
                         )
 
-                            if (!hideScores) {
+                            if (!hideScores && (entry.score ?: 0) > 0) {
                                 val displayScore = entry.getDisplayScore(scoreFormat, hideScores)
+                                Spacer(modifier = Modifier.width(8.dp))
                                 ScorePill(
                                     score = displayScore,
                                     scoreFormat = scoreFormat
@@ -938,26 +941,23 @@ private fun ScorePill(
     scoreFormat: String
 ) {
     val accentColor = LocalKitsugiAccent.current
-    val isUnrated = score == "unrated" || score == "Unrated" || score == "Puanlanmamış" || score == "Puan yok"
+    val trimmed = score.trim()
+    val isUnrated = trimmed.isEmpty() || trimmed == "—" || trimmed.equals("unrated", ignoreCase = true) ||
+            trimmed == "Puanlanmamış" || trimmed == "Puan yok" || trimmed == "null" || trimmed == "0" || trimmed == "0/10"
+    if (isUnrated) return
+
     val label = when {
-        isUnrated -> "—"
-        scoreFormat == "POINT_5" || scoreFormat == "POINT_3" -> score
-        else -> "★ $score"
+        scoreFormat == "POINT_5" || scoreFormat == "POINT_3" -> trimmed
+        trimmed.startsWith("★") -> trimmed
+        else -> "★ $trimmed"
     }
-    Box(
-        modifier = Modifier
-            .clip(RoundedCornerShape(999.dp))
-            .background(accentColor.copy(alpha = 0.14f))
-            .padding(horizontal = 8.dp, vertical = 3.dp)
-    ) {
-        Text(
-            text = label,
-            color = accentColor,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1
-        )
-    }
+    Text(
+        text = label,
+        color = accentColor,
+        style = MaterialTheme.typography.labelSmall,
+        fontWeight = FontWeight.Bold,
+        maxLines = 1
+    )
 }
 
 private fun statusColor(status: WatchStatus): Color {
@@ -1133,8 +1133,9 @@ private fun MinimalistMediaEntryCard(
                         style = MaterialTheme.typography.bodySmall
                     )
 
-                    if (!hideScores) {
+                    if (!hideScores && (entry.score ?: 0) > 0) {
                         val displayScore = entry.getDisplayScore(scoreFormat, hideScores)
+                        Spacer(modifier = Modifier.width(8.dp))
                         ScorePill(
                             score = displayScore,
                             scoreFormat = scoreFormat
@@ -1233,11 +1234,10 @@ private fun PosterGridMediaEntryCard(
                 modifier = Modifier.align(Alignment.BottomStart)
             )
 
-            // Puan rozeti — SAĞ alt köşe (gizlenmemişse)
-            if (!hideScores) {
+            // Puan rozeti — SAĞ alt köşe (gizlenmemişse ve puan varsa)
+            if (!hideScores && (entry.score ?: 0) > 0) {
                 val scoreText = entry.getDisplayScore(scoreFormat, hideScores)
-                val isUnrated = scoreText == "unrated" || scoreText == "Unrated" || scoreText == "Puanlanmamış" || scoreText == "Puan yok"
-                val badgeText = if (isUnrated) "—" else "★ $scoreText"
+                val badgeText = if (scoreText.startsWith("★")) scoreText else "★ $scoreText"
                 Box(
                     modifier = Modifier
                         .align(Alignment.BottomEnd)

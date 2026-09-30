@@ -23,7 +23,8 @@ data class AiringEntry(
      * Kullanıcının yerel saat dilimine göre hesaplanır.
      */
     val dayOfWeek: Int,
-    val averageScore: Int? = null
+    val averageScore: Int? = null,
+    val countryOfOrigin: String? = null
 ) {
     /** Yayın saatini okunabilir "HH:mm" formatında döndürür. */
     fun formattedTime(): String {
@@ -40,6 +41,21 @@ data class AiringEntry(
     /** Bölümün yayınlanıp yayınlanmadığı (şu anki zamana göre). */
     fun hasAired(): Boolean = airingAt * 1000L < System.currentTimeMillis()
 
+    /**
+     * Başlık tercihi ve yapım ülkesine göre görüntülenecek başlığı hesaplar.
+     * Kore ("KR") ve Çin ("CN") yapımı anime/donghua/awe için "Dogul Wang" gibi anlamsız
+     * harf çevirileri yerine İngilizce başlık ("Tomb Raider King") önceliklendirilir.
+     */
+    fun getDisplayTitle(titleLanguage: String = "ROMAJI"): String {
+        val isNonJapanese = countryOfOrigin != null && !countryOfOrigin.equals("JP", ignoreCase = true)
+        return when {
+            isNonJapanese && !titleEnglish.isNullOrBlank() -> titleEnglish
+            titleLanguage == "ENGLISH" -> titleEnglish?.takeIf { it.isNotBlank() } ?: title
+            titleLanguage == "NATIVE" -> titleNative?.takeIf { it.isNotBlank() } ?: title
+            else -> title
+        }
+    }
+
     fun toJikanSearchResult(preferredSource: String? = null): JikanSearchResult {
         val finalSource = when (preferredSource) {
             "jikan" -> if (malId != null) "jikan" else "anilist"
@@ -52,9 +68,15 @@ data class AiringEntry(
         } else {
             com.kitsugi.animelist.model.MediaType.Anime
         }
+        val isNonJapanese = countryOfOrigin != null && !countryOfOrigin.equals("JP", ignoreCase = true)
+        val effectiveTitle = if (isNonJapanese && !titleEnglish.isNullOrBlank()) {
+            titleEnglish
+        } else {
+            title
+        }
         return JikanSearchResult(
             malId = finalId,
-            title = title,
+            title = effectiveTitle,
             subtitle = titleEnglish ?: "",
             type = finalType,
             total = null,
@@ -63,6 +85,9 @@ data class AiringEntry(
             imageUrl = coverUrl,
             year = null,
             source = finalSource,
+            realMalId = malId,
+            titleEnglish = titleEnglish,
+            titleJapanese = titleNative,
             nextAiringEpisode = "$episode|$airingAt",
             tmdbId = if (finalSource == "tmdb") finalId else null
         )

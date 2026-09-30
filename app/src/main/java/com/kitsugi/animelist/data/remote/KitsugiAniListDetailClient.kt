@@ -24,6 +24,7 @@ internal object KitsugiAniListDetailClient {
                 Media($idFilter, type: ${'$'}type) {
                     id
                     idMal
+                    countryOfOrigin
                     description(asHtml: false)
                     genres
                     status
@@ -200,11 +201,18 @@ internal object KitsugiAniListDetailClient {
                 } else null
             } else null
 
+            val countryOfOrigin = media.optNullableString("countryOfOrigin")
+            val isNonJapanese = countryOfOrigin != null && !countryOfOrigin.equals("JP", ignoreCase = true)
             val titleObject = media.optJSONObject("title")
-            val aniListTitle = titleObject?.optNullableString("romaji")
-                ?: titleEnglish
-                ?: titleJapanese
-                ?: "Başlıksız"
+            val titleRomaji = titleObject?.optNullableString("romaji")
+            val aniListTitle = if (isNonJapanese && !titleEnglish.isNullOrBlank()) {
+                titleEnglish
+            } else {
+                titleRomaji
+                    ?: titleEnglish
+                    ?: titleJapanese
+                    ?: "Başlıksız"
+            }
 
             val imageUrl = media.optJSONObject("coverImage")?.let { cover ->
                 cover.optNullableString("extraLarge") ?: cover.optNullableString("large")
@@ -367,6 +375,8 @@ internal object KitsugiAniListDetailClient {
                 endDate = endDate,
                 titleEnglish = titleEnglish,
                 titleJapanese = titleJapanese,
+                titleRomaji = if (isNonJapanese && !titleEnglish.isNullOrBlank()) titleEnglish else titleRomaji,
+                titleNative = titleJapanese,
                 synonyms = synonyms,
                 trailerUrl = trailerUrl,
                 title = aniListTitle,

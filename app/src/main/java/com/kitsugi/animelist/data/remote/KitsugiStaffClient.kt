@@ -27,12 +27,10 @@ class KitsugiStaffClient {
                     return@withContext KitsugiShikimoriClient.fetchStaff(mediaType, externalId)
                 }
                 "simkl" -> {
-                    if (mediaType == MediaType.Anime) {
-                        val malId = realMalId ?: DetailCache.getMediaDetail("simkl", externalId)?.realMalId
-                        if (malId != null && malId > 0) {
-                            val malList = fetchStaff("jikan", malId, mediaType, null, null)
-                            if (malList.isNotEmpty()) return@withContext malList
-                        }
+                    val malId = realMalId ?: DetailCache.getMediaDetail("simkl", externalId)?.realMalId
+                    if (malId != null && malId > 0) {
+                        val malList = fetchStaff("jikan", malId, mediaType, null, null)
+                        if (malList.isNotEmpty()) return@withContext malList
                     }
                     val resolvedTmdb = tmdbId ?: run {
                         val malIdForResolve = realMalId ?: DetailCache.getMediaDetail("simkl", externalId)?.realMalId
@@ -522,6 +520,18 @@ class KitsugiStaffClient {
                     } else {
                         tmdbRes
                     }
+                }
+                "kitsu" -> {
+                    val targetName = name
+                    if (!targetName.isNullOrBlank()) {
+                        val aniStaff = fetchAniListStaffByName(targetName)
+                        if (aniStaff != null) return@withContext aniStaff
+                    }
+                    if (staffId > 0) {
+                        runCatching {
+                            fetchStaffDetail("jikan", staffId, name)
+                        }.getOrNull()
+                    } else null
                 }
                 else -> null
             }

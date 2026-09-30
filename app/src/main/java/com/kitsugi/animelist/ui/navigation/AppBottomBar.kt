@@ -42,19 +42,19 @@ import androidx.compose.material.icons.rounded.NotificationsNone
 @Composable
 fun AppBottomBar(
     selectedTab: MainTab,
-    onTabSelected: (MainTab) -> Unit
+    onTabSelected: (MainTab) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val accentColor = LocalKitsugiAccent.current
 
-    Column {
+    Column(modifier = modifier) {
         HorizontalDivider(
             color = KitsugiColors.Border.copy(alpha = 0.25f),
             thickness = 0.5.dp
         )
         NavigationBar(
             containerColor = KitsugiColors.BackgroundElevated.copy(alpha = 0.85f),
-            contentColor = KitsugiColors.TextPrimary,
-            modifier = Modifier.height(72.dp)
+            contentColor = KitsugiColors.TextPrimary
         ) {
             MainTab.entries.forEach { tab ->
                 NavigationBarItem(
@@ -69,7 +69,11 @@ fun AppBottomBar(
                         )
                     },
                     label = {
-                        Text(text = stringResource(tab.labelRes))
+                        Text(
+                            text = stringResource(tab.labelRes),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
                     },
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = KitsugiColors.Background,

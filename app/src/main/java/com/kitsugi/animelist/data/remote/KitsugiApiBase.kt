@@ -13,6 +13,7 @@ import okhttp3.Request
 import okhttp3.RequestBody
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import com.kitsugi.animelist.utils.cleanShikimoriBbCode
 
 class RateLimitException(message: String) : java.io.IOException(message)
 class ResourceNotFoundException(message: String) : java.io.IOException(message)
@@ -343,6 +344,7 @@ fun JSONObject.namesFromStringArray(key: String): List<String> {
 
 fun String.cleanApiText(): String {
     return this
+        .cleanShikimoriBbCode()
         .replace("<br>", "\n")
         .replace("<br />", "\n")
         .replace("<br/>", "\n")

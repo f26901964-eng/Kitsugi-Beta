@@ -361,67 +361,6 @@ fun DownloadsScreen(
         1 -> {
             // ── ALTYAZILAR TAB ───────────────────────────────────────────
             Column(modifier = Modifier.fillMaxSize()) {
-                // Standalone subtitles directory banner
-                Surface(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable {
-                            val subDir = File(
-                                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                                "Kitsugi/Subtitles"
-                            ).also { it.mkdirs() }
-                            openFolderInFileManager(context, subDir)
-                        },
-                    color = KitsugiColors.SurfaceSoft,
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(14.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .size(40.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(accentColor.copy(alpha = 0.15f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                imageVector = Icons.Rounded.FolderOpen,
-                                contentDescription = null,
-                                tint = accentColor,
-                                modifier = Modifier.size(24.dp)
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Column(modifier = Modifier.weight(1f)) {
-                            Text(
-                                text = "Harici Altyazı Klasörü",
-                                color = KitsugiColors.TextPrimary,
-                                fontSize = 14.sp,
-                                fontWeight = FontWeight.Bold
-                            )
-                            Text(
-                                text = "Downloads/Kitsugi/Subtitles",
-                                color = KitsugiColors.TextMuted,
-                                fontSize = 12.sp,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                        Icon(
-                            imageVector = Icons.Rounded.OpenInNew,
-                            contentDescription = "Klasörü Aç",
-                            tint = accentColor,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
-                }
-
                 if (allSubtitles.isEmpty()) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
@@ -1378,8 +1317,8 @@ fun openFolderInFileManager(context: Context, targetFileOrDir: File) {
             if (isInstalled) {
                 val directIntent = Intent(Intent.ACTION_VIEW).apply {
                     setPackage(pkg)
-                    setDataAndType(fileUri, "*/*")
-                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    setDataAndType(fileUri, "resource/folder")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
                 }
                 extraIntents.add(directIntent)
             }

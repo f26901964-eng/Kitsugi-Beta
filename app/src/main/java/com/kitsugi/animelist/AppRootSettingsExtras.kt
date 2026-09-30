@@ -438,6 +438,9 @@ internal fun SettingsContext.buildSettingsParams() =
         onOpenPluginPicker = {
             navState.navigateToDetail(DetailScreen.PluginPicker)
         },
+        onOpenAbout = {
+            onOpenAbout()
+        },
         onSubPageOpenChange = { isOpen ->
             navState.isSettingsSubPageOpen = isOpen
         }

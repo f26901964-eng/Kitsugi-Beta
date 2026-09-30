@@ -102,6 +102,10 @@ class AniListSearchClient(
         sources: List<String>? = null,
         isAdult: Boolean? = null,
         isLicensed: Boolean? = null,
+        minimumTagRank: Int? = null,
+        volumesGreater: Int? = null,
+        volumesLesser: Int? = null,
+        licensedBy: List<String>? = null,
         page: Int = 1,
         perPage: Int = 24
     ): AniListPagedResult {
@@ -113,7 +117,8 @@ class AniListSearchClient(
                 genres.isNullOrEmpty() && excludedGenres.isNullOrEmpty() && tags.isNullOrEmpty() &&
                 minYear == null && maxYear == null && minScore == null && maxScore == null &&
                 country == null && sources.isNullOrEmpty() && minEpCh == null && maxEpCh == null &&
-                minDuration == null && maxDuration == null && isAdult == null && isLicensed == null
+                minDuration == null && maxDuration == null && isAdult == null && isLicensed == null &&
+                minimumTagRank == null && volumesGreater == null && volumesLesser == null && licensedBy.isNullOrEmpty()
             ) {
                 return@withContext AniListPagedResult(emptyList(), false)
             }
@@ -142,6 +147,10 @@ class AniListSearchClient(
                 sources = sources,
                 isAdult = isAdult,
                 isLicensed = isLicensed,
+                minimumTagRank = minimumTagRank,
+                volumesGreater = volumesGreater,
+                volumesLesser = volumesLesser,
+                licensedBy = licensedBy,
                 page = page
             )
         }
@@ -150,17 +159,20 @@ class AniListSearchClient(
     suspend fun searchCharacters(
         query: String,
         page: Int = 1,
-        perPage: Int = 24
+        perPage: Int = 24,
+        sort: String = "FAVOURITES_DESC",
+        isBirthday: Boolean? = null
     ): AniListPagedResult {
         return withContext(Dispatchers.IO) {
-            if (query.isBlank()) return@withContext AniListPagedResult(emptyList(), false)
+            if (query.isBlank() && isBirthday != true) return@withContext AniListPagedResult(emptyList(), false)
+            val effectiveSort = if (query.isNotBlank() && sort == "FAVOURITES_DESC") "SEARCH_MATCH" else sort
             val q = """
-                query (${'$'}search: String, ${'$'}page: Int, ${'$'}perPage: Int) {
+                query (${'$'}search: String, ${'$'}page: Int, ${'$'}perPage: Int, ${'$'}sort: [CharacterSort], ${'$'}isBirthday: Boolean) {
                     Page(page: ${'$'}page, perPage: ${'$'}perPage) {
                         pageInfo {
                             hasNextPage
                         }
-                        characters(search: ${'$'}search, sort: SEARCH_MATCH) {
+                        characters(search: ${'$'}search, sort: ${'$'}sort, isBirthday: ${'$'}isBirthday) {
                             id
                             name {
                                 userPreferred
@@ -176,7 +188,11 @@ class AniListSearchClient(
                     }
                 }
             """.trimIndent()
-            val vars = JSONObject().put("search", query.trim()).put("page", page).put("perPage", perPage)
+            val vars = JSONObject().put("page", page).put("perPage", perPage)
+            if (query.isNotBlank()) vars.put("search", query.trim())
+            if (isBirthday == true) vars.put("isBirthday", true)
+            vars.put("sort", org.json.JSONArray().put(effectiveSort))
+
             val resp = KitsugiApiBase.executeAniListQuery(q, vars, accessToken)
                 ?: return@withContext AniListPagedResult(emptyList(), false)
             try {
@@ -221,17 +237,20 @@ class AniListSearchClient(
     suspend fun searchStaff(
         query: String,
         page: Int = 1,
-        perPage: Int = 24
+        perPage: Int = 24,
+        sort: String = "FAVOURITES_DESC",
+        isBirthday: Boolean? = null
     ): AniListPagedResult {
         return withContext(Dispatchers.IO) {
-            if (query.isBlank()) return@withContext AniListPagedResult(emptyList(), false)
+            if (query.isBlank() && isBirthday != true) return@withContext AniListPagedResult(emptyList(), false)
+            val effectiveSort = if (query.isNotBlank() && sort == "FAVOURITES_DESC") "SEARCH_MATCH" else sort
             val q = """
-                query (${'$'}search: String, ${'$'}page: Int, ${'$'}perPage: Int) {
+                query (${'$'}search: String, ${'$'}page: Int, ${'$'}perPage: Int, ${'$'}sort: [StaffSort], ${'$'}isBirthday: Boolean) {
                     Page(page: ${'$'}page, perPage: ${'$'}perPage) {
                         pageInfo {
                             hasNextPage
                         }
-                        staff(search: ${'$'}search, sort: SEARCH_MATCH) {
+                        staff(search: ${'$'}search, sort: ${'$'}sort, isBirthday: ${'$'}isBirthday) {
                             id
                             name {
                                 userPreferred
@@ -248,7 +267,11 @@ class AniListSearchClient(
                     }
                 }
             """.trimIndent()
-            val vars = JSONObject().put("search", query.trim()).put("page", page).put("perPage", perPage)
+            val vars = JSONObject().put("page", page).put("perPage", perPage)
+            if (query.isNotBlank()) vars.put("search", query.trim())
+            if (isBirthday == true) vars.put("isBirthday", true)
+            vars.put("sort", org.json.JSONArray().put(effectiveSort))
+
             val resp = KitsugiApiBase.executeAniListQuery(q, vars, accessToken)
                 ?: return@withContext AniListPagedResult(emptyList(), false)
             try {
@@ -264,17 +287,18 @@ class AniListSearchClient(
                     val nameObj = item.optJSONObject("name")
                     val name = nameObj?.optNullableString("userPreferred") ?: nameObj?.optNullableString("full") ?: "Bilinmeyen"
                     val nativeName = nameObj?.optNullableString("native")
-                    val occ = item.optJSONArray("primaryOccupations")?.let { arr ->
-                        (0 until arr.length()).mapNotNull { arr.optString(it).takeIf { s -> s.isNotBlank() } }.joinToString(", ")
-                    }
                     val imgObj = item.optJSONObject("image")
                     val imgUrl = imgObj?.optNullableString("large") ?: imgObj?.optNullableString("medium")
                     val favs = item.optInt("favourites", 0)
+                    val occupations = item.optJSONArray("primaryOccupations")
+                    val occupationText = if (occupations != null && occupations.length() > 0) {
+                        (0 until occupations.length()).map { occupations.optString(it) }.take(2).joinToString(", ")
+                    } else "Personel / Seslendirmen"
                     list.add(
                         JikanSearchResult(
                             malId = id,
                             title = name,
-                            subtitle = occ?.ifBlank { null } ?: nativeName ?: "Personel / Seslendirmen",
+                            subtitle = if (!nativeName.isNullOrBlank()) "$nativeName • $occupationText" else occupationText,
                             type = MediaType.Anime,
                             total = null,
                             score = null,
@@ -292,6 +316,70 @@ class AniListSearchClient(
             }
         }
     }
+
+    suspend fun searchStudios(
+        query: String,
+        page: Int = 1,
+        perPage: Int = 24,
+        sort: String = "FAVOURITES_DESC"
+    ): AniListPagedResult {
+        return withContext(Dispatchers.IO) {
+            val q = """
+                query (${'$'}search: String, ${'$'}page: Int, ${'$'}perPage: Int, ${'$'}sort: [StudioSort]) {
+                    Page(page: ${'$'}page, perPage: ${'$'}perPage) {
+                        pageInfo {
+                            hasNextPage
+                        }
+                        studios(search: ${'$'}search, sort: ${'$'}sort) {
+                            id
+                            name
+                            favourites
+                            isAnimationStudio
+                        }
+                    }
+                }
+            """.trimIndent()
+            val vars = JSONObject().put("page", page).put("perPage", perPage)
+            if (query.isNotBlank()) vars.put("search", query.trim())
+            vars.put("sort", org.json.JSONArray().put(sort))
+
+            val resp = KitsugiApiBase.executeAniListQuery(q, vars, accessToken)
+                ?: return@withContext AniListPagedResult(emptyList(), false)
+            try {
+                val root = JSONObject(resp)
+                val pageObj = root.optJSONObject("data")?.optJSONObject("Page")
+                val studioArray = pageObj?.optJSONArray("studios") ?: return@withContext AniListPagedResult(emptyList(), false)
+                val hasNextPage = pageObj.optJSONObject("pageInfo")?.optBoolean("hasNextPage", false) ?: (studioArray.length() >= perPage)
+                val list = mutableListOf<JikanSearchResult>()
+                for (i in 0 until studioArray.length()) {
+                    val item = studioArray.getJSONObject(i)
+                    val id = item.getInt("id")
+                    val name = item.getString("name")
+                    val favs = item.optInt("favourites", 0)
+                    val isAnim = item.optBoolean("isAnimationStudio", true)
+                    list.add(
+                        JikanSearchResult(
+                            malId = id,
+                            title = name,
+                            subtitle = if (isAnim) "Animasyon Stüdyosu" else "Yapımcı / Stüdyo",
+                            type = MediaType.Anime,
+                            total = null,
+                            score = null,
+                            isAdult = false,
+                            imageUrl = null,
+                            year = null,
+                            source = "anilist",
+                            favorites = favs
+                        )
+                    )
+                }
+                AniListPagedResult(list, hasNextPage)
+            } catch (e: Exception) {
+                AniListPagedResult(emptyList(), false)
+            }
+        }
+    }
+
 
     suspend fun aniListTopAnime(page: Int = 1, showAdultContent: Boolean = false): List<JikanSearchResult> {
         return withContext(Dispatchers.IO) {
@@ -526,7 +614,11 @@ class AniListSearchClient(
         country: String? = null,
         sources: List<String>? = null,
         isAdult: Boolean? = null,
-        isLicensed: Boolean? = null
+        isLicensed: Boolean? = null,
+        minimumTagRank: Int? = null,
+        volumesGreater: Int? = null,
+        volumesLesser: Int? = null,
+        licensedBy: List<String>? = null
     ): AniListPagedResult {
         val query = """
             query (
@@ -553,9 +645,12 @@ class AniListSearchClient(
                 ${'$'}chaptersGreater: Int,
                 ${'$'}chaptersLesser: Int,
                 ${'$'}isAdult: Boolean,
-                ${'$'}isLicensed: Boolean,
                 ${'$'}countryOfOrigin: CountryCode,
-                ${'$'}sourceIn: [MediaSource]
+                ${'$'}sourceIn: [MediaSource],
+                ${'$'}minimumTagRank: Int,
+                ${'$'}volumesGreater: Int,
+                ${'$'}volumesLesser: Int,
+                ${'$'}licensedByIn: [String]
             ) {
                 Page(page: ${'$'}page, perPage: ${'$'}perPage) {
                     pageInfo {
@@ -587,10 +682,15 @@ class AniListSearchClient(
                         isAdult: ${'$'}isAdult,
                         isLicensed: ${'$'}isLicensed,
                         countryOfOrigin: ${'$'}countryOfOrigin,
-                        source_in: ${'$'}sourceIn
+                        source_in: ${'$'}sourceIn,
+                        minimumTagRank: ${'$'}minimumTagRank,
+                        volumes_greater: ${'$'}volumesGreater,
+                        volumes_lesser: ${'$'}volumesLesser,
+                        licensedBy_in: ${'$'}licensedByIn
                     ) {
                         id
                         idMal
+                        countryOfOrigin
                         title {
                             romaji
                             english
@@ -724,6 +824,22 @@ class AniListSearchClient(
             variables.put("sourceIn", JSONArray(sources))
         }
 
+        if (minimumTagRank != null && minimumTagRank > 0) {
+            variables.put("minimumTagRank", minimumTagRank)
+        }
+
+        if (volumesGreater != null && volumesGreater > 0) {
+            variables.put("volumesGreater", volumesGreater - 1)
+        }
+
+        if (volumesLesser != null && volumesLesser > 0) {
+            variables.put("volumesLesser", volumesLesser + 1)
+        }
+
+        if (!licensedBy.isNullOrEmpty()) {
+            variables.put("licensedByIn", JSONArray(licensedBy))
+        }
+
         val responseText = KitsugiApiBase.executeAniListQuery(
             query = query,
             variables = variables,
@@ -776,13 +892,20 @@ class AniListSearchClient(
             val stableId = idMal ?: fallbackId
             if (stableId <= 0) continue
 
+            val countryOfOrigin = item.optNullableString("countryOfOrigin")
+            val isNonJapanese = countryOfOrigin != null && !countryOfOrigin.equals("JP", ignoreCase = true)
             val titleObject = item.optJSONObject("title")
             val titleEnglish = titleObject?.optNullableString("english")
             val titleJapanese = titleObject?.optNullableString("native")
-            val title = titleObject?.optNullableString("romaji")
-                ?: titleEnglish
-                ?: titleJapanese
-                ?: "Başlıksız"
+            val titleRomaji = titleObject?.optNullableString("romaji")
+            val title = if (isNonJapanese && !titleEnglish.isNullOrBlank()) {
+                titleEnglish
+            } else {
+                titleRomaji
+                    ?: titleEnglish
+                    ?: titleJapanese
+                    ?: "Başlıksız"
+            }
 
             val formatRaw = item.optNullableString("format")
             val format = if (formatRaw != null) {
@@ -863,7 +986,8 @@ class AniListSearchClient(
                         members = popularity,
                         favorites = favourites,
                         rawScoreDouble = rawScore,
-                        nextAiringEpisode = nextAiringStr
+                        nextAiringEpisode = nextAiringStr,
+                        genres = genres
                     )
                 )
             }

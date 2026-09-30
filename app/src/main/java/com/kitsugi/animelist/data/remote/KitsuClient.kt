@@ -8,6 +8,7 @@ import okhttp3.Request
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URLEncoder
+import com.kitsugi.animelist.utils.*
 
 object KitsuClient {
     private const val TAG = "KitsuClient"
@@ -40,10 +41,107 @@ object KitsuClient {
         repeat(maxPages) {
             val pageResult = fetchCharacterPage(kitsuNumericId, limit, offset)
             allCharacters.addAll(pageResult.first)
-            if (pageResult.second < limit) return@withContext allCharacters
+            if (pageResult.second < limit) return@repeat
             offset += limit
         }
-        allCharacters
+
+        // Kitsu castings endpoint'inden seslendirmenleri çek ve karakterlere bağla
+        val castingsMap = fetchKitsuCastings(kitsuNumericId)
+        if (castingsMap.isNotEmpty()) {
+            allCharacters.map { char ->
+                val vas = castingsMap[char.id]
+                if (!vas.isNullOrEmpty()) char.copy(voiceActors = vas) else char
+            }
+        } else {
+            allCharacters
+        }
+    }
+
+    private suspend fun fetchKitsuCastings(kitsuNumericId: Int): Map<Int, List<KitsugiVoiceActor>> = withContext(Dispatchers.IO) {
+        val castingsMap = mutableMapOf<Int, MutableList<KitsugiVoiceActor>>()
+        var offset = 0
+        val limit = 50
+        val maxPages = 3 // up to 150 castings
+
+        repeat(maxPages) {
+            val url = "$BASE/castings" +
+                "?filter[mediaId]=$kitsuNumericId" +
+                "&filter[isCharacter]=true" +
+                "&include=character,person" +
+                "&page[limit]=$limit&page[offset]=$offset"
+            try {
+                val request = Request.Builder()
+                    .url(url)
+                    .header("Accept", "application/vnd.api+json")
+                    .header("User-Agent", "Kitsugi/1.0 (Android)")
+                    .build()
+
+                KitsugiHttpClient.client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) return@repeat
+                    val body = response.body?.string() ?: return@repeat
+                    val root = JSONObject(body)
+                    val dataArr = root.optJSONArray("data") ?: return@repeat
+                    val includedArr = root.optJSONArray("included") ?: JSONArray()
+
+                    val peopleMap = mutableMapOf<String, Pair<String, String?>>()
+                    for (i in 0 until includedArr.length()) {
+                        val inc = includedArr.optJSONObject(i) ?: continue
+                        if (inc.optString("type") == "people") {
+                            val pid = inc.optString("id", "")
+                            val attrs = inc.optJSONObject("attributes") ?: continue
+                            val name = attrs.optString("name", "").takeIf { it.isNotBlank() } ?: continue
+                            val imgObj = attrs.optJSONObject("image")
+                            val img = imgObj?.optString("original")
+                                ?: imgObj?.optString("large")
+                                ?: imgObj?.optString("medium")
+                            peopleMap[pid] = Pair(name, img)
+                        }
+                    }
+
+                    for (i in 0 until dataArr.length()) {
+                        val item = dataArr.optJSONObject(i) ?: continue
+                        val attrs = item.optJSONObject("attributes") ?: continue
+                        val isVa = attrs.optBoolean("voiceActor", false) ||
+                            attrs.optString("role", "").equals("Voice Actor", ignoreCase = true)
+                        if (!isVa) continue
+
+                        val charIdStr = item.optJSONObject("relationships")
+                            ?.optJSONObject("character")
+                            ?.optJSONObject("data")
+                            ?.optString("id", "") ?: ""
+                        val charId = charIdStr.toIntOrNull() ?: continue
+
+                        val personIdStr = item.optJSONObject("relationships")
+                            ?.optJSONObject("person")
+                            ?.optJSONObject("data")
+                            ?.optString("id", "") ?: ""
+                        val personId = personIdStr.toIntOrNull() ?: continue
+
+                        val personInfo = peopleMap[personIdStr] ?: continue
+                        val rawLang = attrs.optString("language", "Japanese")
+                        val lang = rawLang.toTurkishLanguage()
+
+                        val va = KitsugiVoiceActor(
+                            id = personId,
+                            name = personInfo.first,
+                            language = lang,
+                            imageUrl = personInfo.second,
+                            source = "kitsu"
+                        )
+                        castingsMap.getOrPut(charId) { mutableListOf() }.add(va)
+                    }
+
+                    if (dataArr.length() < limit) return@withContext castingsMap.mapValues { entry ->
+                        entry.value.sortedByLanguagePreference()
+                    }
+                    offset += limit
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching Kitsu castings: ${e.message}", e)
+                return@repeat
+            }
+        }
+        castingsMap.mapValues { entry -> entry.value.sortedByLanguagePreference() }
     }
 
     private fun fetchCharacterPage(

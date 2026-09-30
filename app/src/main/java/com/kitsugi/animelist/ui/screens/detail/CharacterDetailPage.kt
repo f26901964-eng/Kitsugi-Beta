@@ -334,7 +334,8 @@ fun CharacterDetailPage(
                                                     onGalleryClick = { items, idx ->
                                                         activeGalleryItems = items
                                                         activeGalleryIndex = idx
-                                                    }
+                                                    },
+                                                    onTranslateClick = { viewModel.translateBio() }
                                                 )
                                             }
                                             1 -> {
@@ -489,7 +490,8 @@ fun CharacterDetailPage(
                                                         onGalleryClick = { items, idx ->
                                                             activeGalleryItems = items
                                                             activeGalleryIndex = idx
-                                                        }
+                                                        },
+                                                        onTranslateClick = { viewModel.translateBio() }
                                                     )
                                                 }
                                                 1 -> {

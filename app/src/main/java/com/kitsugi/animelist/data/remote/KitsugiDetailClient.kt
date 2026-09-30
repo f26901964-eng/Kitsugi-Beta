@@ -103,8 +103,14 @@ class KitsugiDetailClient {
         return withContext(Dispatchers.IO) {
             if (externalId == null || externalId <= 0) return@withContext null
 
-            val typeStr = if (mediaType == MediaType.Movie) "movie" else "tv"
-            val cacheKey = if (source.lowercase() == "tmdb") "tmdb_${typeStr}_$externalId" else "${source.lowercase()}_$externalId"
+            val mediaTypeStr = mediaType.name.lowercase()
+            val cacheKey = "${source.lowercase()}_${mediaTypeStr}_$externalId"
+            val legacyKey = if (source.lowercase() == "tmdb") {
+                val typeStr = if (mediaType == MediaType.Movie) "movie" else "tv"
+                "tmdb_${typeStr}_$externalId"
+            } else {
+                "${source.lowercase()}_$externalId"
+            }
             val context = com.kitsugi.animelist.KitsugiApplication.getInstance()?.applicationContext
             val db = context?.let { com.kitsugi.animelist.data.local.KitsugiDatabase.getDatabase(it) }
             val gson = com.google.gson.Gson()
@@ -112,7 +118,8 @@ class KitsugiDetailClient {
             // 1. Fresh Cache Check (Room - 24 hours threshold)
             if (db != null) {
                 try {
-                    val cached = db.persistentDetailCacheDao().getDetail(cacheKey)
+                    val cached = db.persistentDetailCacheDao().getDetail(cacheKey) 
+                        ?: db.persistentDetailCacheDao().getDetail(legacyKey)
                     if (cached != null) {
                         val isFresh = (System.currentTimeMillis() - cached.cachedAtMs) < 24 * 60 * 60 * 1000L
                         if (isFresh) {
@@ -304,14 +311,16 @@ class KitsugiDetailClient {
                 val trMeta = getTurkishMetadataFromTmdb(source, externalId, mediaType, resolvedTmdbId, effectiveRealMalId)
                 if (trMeta != null) {
                     val updatedSynopsis = if (!trMeta.synopsis.isNullOrBlank()) trMeta.synopsis else finalDetail.synopsis
-                    val updatedTitle = if (!trMeta.title.isNullOrBlank()) trMeta.title else finalDetail.title
-                    val updatedTitleEnglish = if (!trMeta.titleEnglish.isNullOrBlank()) trMeta.titleEnglish else finalDetail.titleEnglish
-                    val updatedGenres = if (trMeta.genres.isNotEmpty()) trMeta.genres else finalDetail.genres
+                    // Kaynak Otoritesi Kuralı (Source Authority Preservation):
+                    // Birincil kaynağın başlıkları, türleri, stüdyoları ve kapak görseli her zaman önceliklidir!
+                    val updatedTitle = if (!finalDetail.title.isNullOrBlank()) finalDetail.title else trMeta.title
+                    val updatedTitleEnglish = if (!finalDetail.titleEnglish.isNullOrBlank()) finalDetail.titleEnglish else trMeta.titleEnglish
+                    val updatedGenres = if (finalDetail.genres.isNotEmpty()) finalDetail.genres else trMeta.genres
                     val combinedPictures = (finalDetail.pictures.orEmpty() + trMeta.pictures.orEmpty()).distinct()
                     val mergedStudios = if (finalDetail.studios.isNotEmpty()) finalDetail.studios else trMeta.studios
                     val mergedProducers = if (finalDetail.producers.isNotEmpty()) finalDetail.producers else trMeta.producers
                     val mergedRating = if (!finalDetail.rating.isNullOrBlank()) finalDetail.rating else trMeta.rating
-                    val updatedImageUrl = if (!trMeta.imageUrl.isNullOrBlank()) trMeta.imageUrl else finalDetail.imageUrl
+                    val updatedImageUrl = if (!finalDetail.imageUrl.isNullOrBlank()) finalDetail.imageUrl else trMeta.imageUrl
                     finalDetail = finalDetail.copy(
                         synopsis = updatedSynopsis,
                         title = updatedTitle,

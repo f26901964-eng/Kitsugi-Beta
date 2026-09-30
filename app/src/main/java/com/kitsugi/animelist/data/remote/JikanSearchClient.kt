@@ -144,6 +144,228 @@ class JikanSearchClient {
         }
     }
 
+    suspend fun searchMalAdvanced(
+        query: String,
+        mediaType: MediaType,
+        showAdultContent: Boolean = false,
+        status: String? = null,
+        format: String? = null,
+        genres: List<Int>? = null,
+        excludedGenres: List<Int>? = null,
+        rating: String? = null,
+        minScore: Double? = null,
+        maxScore: Double? = null,
+        producerId: Int? = null,
+        magazineId: Int? = null,
+        letter: String? = null,
+        sort: String? = null,
+        orderBy: String? = null,
+        page: Int = 1,
+        season: String? = null,
+        seasonYear: Int? = null
+    ): List<JikanSearchResult> {
+        return withContext(Dispatchers.IO) {
+            val endpoint = when (mediaType) {
+                MediaType.Anime, MediaType.Movie, MediaType.TvShow -> "anime"
+                MediaType.Manga -> "manga"
+            }
+
+            // Boş sorgu + sezon ve yıl seçiliyse mevsimlik endpoint'i çağır
+            if (query.isBlank() && season != null && seasonYear != null && endpoint == "anime") {
+                val sUrl = URL("https://api.jikan.moe/v4/seasons/$seasonYear/${season.lowercase()}?limit=24&page=$page&sfw=${!showAdultContent}")
+                return@withContext requestAndParseWithFallback(
+                    url = sUrl,
+                    mediaType = mediaType,
+                    fallback = { emptyList() }
+                )
+            }
+
+            val queryParams = mutableListOf<String>()
+            if (query.isNotBlank()) {
+                queryParams.add("q=${URLEncoder.encode(query.trim(), "UTF-8")}")
+            }
+            queryParams.add("limit=24")
+            queryParams.add("page=$page")
+            queryParams.add("sfw=${!showAdultContent}")
+
+            if (!status.isNullOrBlank()) queryParams.add("status=$status")
+            if (!format.isNullOrBlank()) queryParams.add("type=$format")
+            if (!rating.isNullOrBlank()) queryParams.add("rating=$rating")
+            if (!letter.isNullOrBlank()) queryParams.add("letter=$letter")
+            if (producerId != null && producerId > 0) queryParams.add("producers=$producerId")
+            if (magazineId != null && magazineId > 0) queryParams.add("magazines=$magazineId")
+            if (minScore != null && minScore > 0.0) queryParams.add("min_score=$minScore")
+            if (maxScore != null && maxScore > 0.0) queryParams.add("max_score=$maxScore")
+
+            if (!genres.isNullOrEmpty()) {
+                queryParams.add("genres=${genres.joinToString(",")}")
+            }
+            if (!excludedGenres.isNullOrEmpty()) {
+                queryParams.add("genres_exclude=${excludedGenres.joinToString(",")}")
+            }
+            if (!orderBy.isNullOrBlank()) {
+                queryParams.add("order_by=$orderBy")
+                if (!sort.isNullOrBlank()) {
+                    queryParams.add("sort=$sort")
+                }
+            }
+
+            val url = URL("https://api.jikan.moe/v4/$endpoint?${queryParams.joinToString("&")}")
+
+            requestAndParseWithFallback(
+                url = url,
+                mediaType = mediaType,
+                fallback = {
+                    searchOfficialMal(query, mediaType, showAdultContent)
+                }
+            )
+        }
+    }
+
+    suspend fun searchMalCharacters(
+        query: String,
+        page: Int = 1,
+        orderBy: String = "favorites",
+        sort: String = "desc",
+        letter: String? = null
+    ): List<JikanSearchResult> {
+        return withContext(Dispatchers.IO) {
+            val qParams = mutableListOf("limit=24", "page=$page", "order_by=$orderBy", "sort=$sort")
+            if (query.isNotBlank()) qParams.add("q=${URLEncoder.encode(query.trim(), "UTF-8")}")
+            if (!letter.isNullOrBlank()) qParams.add("letter=$letter")
+            val url = URL("https://api.jikan.moe/v4/characters?${qParams.joinToString("&")}")
+            try {
+                val json = KitsugiApiBase.executeGetRequest(url) ?: return@withContext emptyList()
+                val root = JSONObject(json)
+                val data = root.optJSONArray("data") ?: return@withContext emptyList()
+                val list = mutableListOf<JikanSearchResult>()
+                for (i in 0 until data.length()) {
+                    val item = data.getJSONObject(i)
+                    val id = item.getInt("mal_id")
+                    val name = item.optString("name", "")
+                    val favs = item.optInt("favorites", 0)
+                    val imgObj = item.optJSONObject("images")?.optJSONObject("jpg")
+                    val imgUrl = imgObj?.optNullableString("image_url")
+                    list.add(
+                        JikanSearchResult(
+                            malId = id,
+                            title = name,
+                            subtitle = "Karakter (MAL)",
+                            type = MediaType.Anime,
+                            total = null,
+                            score = null,
+                            isAdult = false,
+                            imageUrl = imgUrl,
+                            year = null,
+                            source = "mal",
+                            favorites = favs
+                        )
+                    )
+                }
+                list
+            } catch (e: Exception) {
+                emptyList()
+            }
+        }
+    }
+
+    suspend fun searchMalPeople(
+        query: String,
+        page: Int = 1,
+        orderBy: String = "favorites",
+        sort: String = "desc",
+        letter: String? = null
+    ): List<JikanSearchResult> {
+        return withContext(Dispatchers.IO) {
+            val qParams = mutableListOf("limit=24", "page=$page", "order_by=$orderBy", "sort=$sort")
+            if (query.isNotBlank()) qParams.add("q=${URLEncoder.encode(query.trim(), "UTF-8")}")
+            if (!letter.isNullOrBlank()) qParams.add("letter=$letter")
+            val url = URL("https://api.jikan.moe/v4/people?${qParams.joinToString("&")}")
+            try {
+                val json = KitsugiApiBase.executeGetRequest(url) ?: return@withContext emptyList()
+                val root = JSONObject(json)
+                val data = root.optJSONArray("data") ?: return@withContext emptyList()
+                val list = mutableListOf<JikanSearchResult>()
+                for (i in 0 until data.length()) {
+                    val item = data.getJSONObject(i)
+                    val id = item.getInt("mal_id")
+                    val name = item.optString("name", "")
+                    val favs = item.optInt("favorites", 0)
+                    val birthday = item.optNullableString("birthday")
+                    val imgObj = item.optJSONObject("images")?.optJSONObject("jpg")
+                    val imgUrl = imgObj?.optNullableString("image_url")
+                    list.add(
+                        JikanSearchResult(
+                            malId = id,
+                            title = name,
+                            subtitle = if (!birthday.isNullOrBlank()) "Doğum: ${birthday.take(10)}" else "Kişi / Seiyuu (MAL)",
+                            type = MediaType.Anime,
+                            total = null,
+                            score = null,
+                            isAdult = false,
+                            imageUrl = imgUrl,
+                            year = null,
+                            source = "mal",
+                            favorites = favs
+                        )
+                    )
+                }
+                list
+            } catch (e: Exception) {
+                emptyList()
+            }
+        }
+    }
+
+    suspend fun searchMalProducers(
+        query: String,
+        page: Int = 1,
+        orderBy: String = "favorites",
+        sort: String = "desc",
+        letter: String? = null
+    ): List<JikanSearchResult> {
+        return withContext(Dispatchers.IO) {
+            val qParams = mutableListOf("limit=24", "page=$page", "order_by=$orderBy", "sort=$sort")
+            if (query.isNotBlank()) qParams.add("q=${URLEncoder.encode(query.trim(), "UTF-8")}")
+            if (!letter.isNullOrBlank()) qParams.add("letter=$letter")
+            val url = URL("https://api.jikan.moe/v4/producers?${qParams.joinToString("&")}")
+            try {
+                val json = KitsugiApiBase.executeGetRequest(url) ?: return@withContext emptyList()
+                val root = JSONObject(json)
+                val data = root.optJSONArray("data") ?: return@withContext emptyList()
+                val list = mutableListOf<JikanSearchResult>()
+                for (i in 0 until data.length()) {
+                    val item = data.getJSONObject(i)
+                    val id = item.getInt("mal_id")
+                    val titles = item.optJSONArray("titles")
+                    val name = if (titles != null && titles.length() > 0) {
+                        titles.getJSONObject(0).optString("title", item.optString("name", "Stüdyo"))
+                    } else item.optString("name", "Stüdyo")
+                    val favs = item.optInt("favorites", 0)
+                    val count = item.optInt("count", 0)
+                    list.add(
+                        JikanSearchResult(
+                            malId = id,
+                            title = name,
+                            subtitle = "Stüdyo • $count yapım",
+                            type = MediaType.Anime,
+                            total = count,
+                            score = null,
+                            isAdult = false,
+                            imageUrl = null,
+                            year = null,
+                            source = "mal",
+                            favorites = favs
+                        )
+                    )
+                }
+                list
+            } catch (e: Exception) {
+                emptyList()
+            }
+        }
+    }
+
     private fun getOfficialMalRankingOrSeason(
         urlStr: String,
         mediaType: MediaType
@@ -581,7 +803,8 @@ class JikanSearchClient {
                         rank = rankVal,
                         members = membersVal,
                         favorites = favoritesVal,
-                        rawScoreDouble = rawScore
+                        rawScoreDouble = rawScore,
+                        genres = genres + themes
                     )
                 )
             }
@@ -749,7 +972,8 @@ class JikanSearchClient {
                         year = year,
                         source = "jikan",
                         titleEnglish = titleEnglish,
-                        titleJapanese = titleJapanese
+                        titleJapanese = titleJapanese,
+                        genres = genresList
                     )
                 )
             }

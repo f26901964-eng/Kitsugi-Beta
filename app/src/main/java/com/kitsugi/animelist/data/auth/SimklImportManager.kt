@@ -148,8 +148,9 @@ object SimklImportManager {
                             else -> item.optInt("total_episodes_count", 0).takeIf { it > 0 }
                         }
 
-                        // Parse rating if present
+                        // Parse rating if present (Simkl user_rating or rating)
                         val score = item.optInt("user_rating", 0).takeIf { it > 0 }
+                            ?: item.optInt("rating", 0).takeIf { it > 0 }
 
                         entries.add(
                             MediaEntry(

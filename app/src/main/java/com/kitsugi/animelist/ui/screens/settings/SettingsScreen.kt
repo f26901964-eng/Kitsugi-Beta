@@ -262,13 +262,9 @@ fun SettingsScreen(
             }
 
             SettingsRoute.About -> {
-                SettingsSubPage(
-                    title = "Hakkında",
-                    onBack = { route = SettingsRoute.Main }
-                ) {
-                    SettingsAboutContent(
-                        onOpenAbout = params.integrations.onOpenAbout
-                    )
+                LaunchedEffect(Unit) {
+                    route = SettingsRoute.Main
+                    (params.onOpenAbout ?: { params.integrations.onOpenAbout() }).invoke()
                 }
             }
 
@@ -508,7 +504,9 @@ private fun SettingsMainPage(
                         description = "Sürüm: ${BuildConfig.VERSION_NAME} • Açık kaynak & katkıda bulunanlar",
                         icon = Icons.Rounded.Info,
                         iconColor = KitsugiColors.AccentIndigo,
-                        onClick = { onNavigate(SettingsRoute.About) }
+                        onClick = {
+                            (params.onOpenAbout ?: { params.integrations.onOpenAbout() }).invoke()
+                        }
                     )
                     KitsugiSettingsDivider()
                     KitsugiSettingsItem(
@@ -937,30 +935,6 @@ private fun SettingsIntegrationsContent(integrations: IntegrationsSettings) {
     )
 }
 
-@Composable
-private fun SettingsAboutContent(
-    onOpenAbout: (() -> Unit)?
-) {
-    val scrollState = rememberScrollState()
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .verticalScroll(scrollState)
-            .padding(horizontal = 16.dp, vertical = 12.dp)
-            .navigationBarsPadding()
-    ) {
-        SettingsNavCard {
-            KitsugiSettingsItem(
-                title = "Uygulama Bilgisi",
-                description = "Sürüm ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) • Değişiklik notları",
-                icon = Icons.Rounded.Info,
-                iconColor = KitsugiColors.AccentIndigo,
-                onClick = { onOpenAbout?.invoke() }
-            )
-        }
-        Spacer(Modifier.height(80.dp))
-    }
-}
 
 // ─── Tema seçenekleri (statik) ────────────────────────────────────────────────
 

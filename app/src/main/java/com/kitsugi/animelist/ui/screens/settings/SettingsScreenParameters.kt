@@ -19,6 +19,7 @@ class SettingsScreenParameters(
     val onOpenWatchHistory: (() -> Unit)? = null,
     val onExplorePlugin: ((String) -> Unit)? = null,
     val onOpenPluginPicker: (() -> Unit)? = null,
+    val onOpenAbout: (() -> Unit)? = null,
     val onSubPageOpenChange: ((Boolean) -> Unit)? = null
 )
 

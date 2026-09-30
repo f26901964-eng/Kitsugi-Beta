@@ -70,8 +70,8 @@
     <string name="option_layout_comfortable_desc">Standard list (default)</string>
     <string name="option_layout_large">Large Card</string>
     <string name="option_layout_large_desc">Wide poster + description</string>
-    <string name="option_layout_grid_2col">2 Column Grid</string>
-    <string name="option_layout_grid_2col_desc">Double poster grid</string>
+    <string name="option_layout_grid_2col">Poster Grid</string>
+    <string name="option_layout_grid_2col_desc">Dynamic poster grid</string>
     <string name="option_score_100">100 Points (55/100)</string>
     <string name="option_score_100_desc">Detailed scoring from 1 to 100</string>
     <string name="option_score_10_decimal">10 points decimal (5.5/10)</string>

@@ -45,113 +45,134 @@ object DetailCache {
 
     private val translations = ConcurrentHashMap<String, String>()
 
-    private fun makeKey(source: String, id: Int): String {
-        return "${source.lowercase()}_$id"
+    fun makeKey(source: String, id: Int, mediaType: String? = null): String {
+        return if (!mediaType.isNullOrBlank()) {
+            "${source.lowercase()}_${mediaType.lowercase()}_$id"
+        } else {
+            "${source.lowercase()}_$id"
+        }
     }
 
     // Media Details
-    fun getMediaDetail(source: String, id: Int): KitsugiMediaDetail? {
-        return mediaDetails[makeKey(source, id)]
+    fun getMediaDetail(source: String, id: Int, mediaType: String? = null): KitsugiMediaDetail? {
+        val composite = mediaDetails[makeKey(source, id, mediaType)]
+        return composite ?: mediaDetails[makeKey(source, id)]
     }
 
-    fun putMediaDetail(source: String, id: Int, detail: KitsugiMediaDetail) {
+    fun putMediaDetail(source: String, id: Int, detail: KitsugiMediaDetail, mediaType: String? = null) {
+        mediaDetails[makeKey(source, id, mediaType)] = detail
         mediaDetails[makeKey(source, id)] = detail
     }
 
-    fun removeMediaDetail(source: String, id: Int) {
+    fun removeMediaDetail(source: String, id: Int, mediaType: String? = null) {
+        mediaDetails.remove(makeKey(source, id, mediaType))
         mediaDetails.remove(makeKey(source, id))
     }
 
     // Characters Tab
-    fun getMediaCharacters(source: String, id: Int): List<KitsugiCharacter>? {
-        return mediaCharacters[makeKey(source, id)]
+    fun getMediaCharacters(source: String, id: Int, mediaType: String? = null): List<KitsugiCharacter>? {
+        return mediaCharacters[makeKey(source, id, mediaType)] ?: mediaCharacters[makeKey(source, id)]
     }
 
-    fun putMediaCharacters(source: String, id: Int, list: List<KitsugiCharacter>) {
+    fun putMediaCharacters(source: String, id: Int, list: List<KitsugiCharacter>, mediaType: String? = null) {
+        mediaCharacters[makeKey(source, id, mediaType)] = list
         mediaCharacters[makeKey(source, id)] = list
     }
 
     // Staff Tab
-    fun getMediaStaff(source: String, id: Int): List<KitsugiStaff>? {
-        return mediaStaff[makeKey(source, id)]
+    fun getMediaStaff(source: String, id: Int, mediaType: String? = null): List<KitsugiStaff>? {
+        return mediaStaff[makeKey(source, id, mediaType)] ?: mediaStaff[makeKey(source, id)]
     }
 
-    fun putMediaStaff(source: String, id: Int, list: List<KitsugiStaff>) {
+    fun putMediaStaff(source: String, id: Int, list: List<KitsugiStaff>, mediaType: String? = null) {
+        mediaStaff[makeKey(source, id, mediaType)] = list
         mediaStaff[makeKey(source, id)] = list
     }
 
     // Relations Tab
-    fun getMediaRelations(source: String, id: Int): List<KitsugiRelation>? {
-        return mediaRelations[makeKey(source, id)]
+    fun getMediaRelations(source: String, id: Int, mediaType: String? = null): List<KitsugiRelation>? {
+        return mediaRelations[makeKey(source, id, mediaType)] ?: mediaRelations[makeKey(source, id)]
     }
 
-    fun putMediaRelations(source: String, id: Int, list: List<KitsugiRelation>) {
+    fun putMediaRelations(source: String, id: Int, list: List<KitsugiRelation>, mediaType: String? = null) {
+        mediaRelations[makeKey(source, id, mediaType)] = list
         mediaRelations[makeKey(source, id)] = list
     }
 
     // Stats Tab
-    fun getMediaStats(source: String, id: Int): KitsugiStats? {
-        return mediaStats[makeKey(source, id)]
+    fun getMediaStats(source: String, id: Int, mediaType: String? = null): KitsugiStats? {
+        return mediaStats[makeKey(source, id, mediaType)] ?: mediaStats[makeKey(source, id)]
     }
 
-    fun putMediaStats(source: String, id: Int, stats: KitsugiStats) {
+    fun putMediaStats(source: String, id: Int, stats: KitsugiStats, mediaType: String? = null) {
+        mediaStats[makeKey(source, id, mediaType)] = stats
         mediaStats[makeKey(source, id)] = stats
     }
 
-    fun hasMediaStats(source: String, id: Int): Boolean {
-        return mediaStats.containsKey(makeKey(source, id))
+    fun hasMediaStats(source: String, id: Int, mediaType: String? = null): Boolean {
+        return mediaStats.containsKey(makeKey(source, id, mediaType)) || mediaStats.containsKey(makeKey(source, id))
     }
 
     // Reviews Tab
-    fun getMediaReviews(source: String, id: Int): List<KitsugiReview>? {
-        return mediaReviews[makeKey(source, id)]
+    fun getMediaReviews(source: String, id: Int, mediaType: String? = null): List<KitsugiReview>? {
+        return mediaReviews[makeKey(source, id, mediaType)] ?: mediaReviews[makeKey(source, id)]
     }
 
-    fun putMediaReviews(source: String, id: Int, list: List<KitsugiReview>) {
+    fun putMediaReviews(source: String, id: Int, list: List<KitsugiReview>, mediaType: String? = null) {
+        mediaReviews[makeKey(source, id, mediaType)] = list
         mediaReviews[makeKey(source, id)] = list
     }
 
-    fun removeMediaReviews(source: String, id: Int) {
+    fun removeMediaReviews(source: String, id: Int, mediaType: String? = null) {
+        mediaReviews.remove(makeKey(source, id, mediaType))
         mediaReviews.remove(makeKey(source, id))
     }
 
     // Episodes Tab
-    fun getMediaEpisodes(source: String, id: Int): List<KitsugiStreamingEpisode>? {
-        return mediaEpisodes[makeKey(source, id)]
+    fun getMediaEpisodes(source: String, id: Int, mediaType: String? = null): List<KitsugiStreamingEpisode>? {
+        return mediaEpisodes[makeKey(source, id, mediaType)] ?: mediaEpisodes[makeKey(source, id)]
     }
 
-    fun putMediaEpisodes(source: String, id: Int, list: List<KitsugiStreamingEpisode>) {
+    fun putMediaEpisodes(source: String, id: Int, list: List<KitsugiStreamingEpisode>, mediaType: String? = null) {
+        mediaEpisodes[makeKey(source, id, mediaType)] = list
         mediaEpisodes[makeKey(source, id)] = list
     }
 
-    fun removeMediaEpisodes(source: String, id: Int) {
+    fun removeMediaEpisodes(source: String, id: Int, mediaType: String? = null) {
+        mediaEpisodes.remove(makeKey(source, id, mediaType))
         mediaEpisodes.remove(makeKey(source, id))
     }
 
     // Recommendations Tab
-    fun getMediaRecommendations(source: String, id: Int): List<KitsugiRelation>? {
-        return mediaRecommendations[makeKey(source, id)]
+    fun getMediaRecommendations(source: String, id: Int, mediaType: String? = null): List<KitsugiRelation>? {
+        return mediaRecommendations[makeKey(source, id, mediaType)] ?: mediaRecommendations[makeKey(source, id)]
     }
 
-    fun putMediaRecommendations(source: String, id: Int, list: List<KitsugiRelation>) {
+    fun putMediaRecommendations(source: String, id: Int, list: List<KitsugiRelation>, mediaType: String? = null) {
+        mediaRecommendations[makeKey(source, id, mediaType)] = list
         mediaRecommendations[makeKey(source, id)] = list
     }
 
-    fun removeMediaRecommendations(source: String, id: Int) {
+    fun removeMediaRecommendations(source: String, id: Int, mediaType: String? = null) {
+        mediaRecommendations.remove(makeKey(source, id, mediaType))
         mediaRecommendations.remove(makeKey(source, id))
     }
 
-    fun removeMediaCharacters(source: String, id: Int) {
+    fun removeMediaCharacters(source: String, id: Int, mediaType: String? = null) {
+        mediaCharacters.remove(makeKey(source, id, mediaType))
         mediaCharacters.remove(makeKey(source, id))
     }
 
-    fun removeMediaStaff(source: String, id: Int) {
+    fun removeMediaStaff(source: String, id: Int, mediaType: String? = null) {
+        mediaStaff.remove(makeKey(source, id, mediaType))
         mediaStaff.remove(makeKey(source, id))
     }
 
-    fun removeMediaRelations(source: String, id: Int) {
+    fun removeMediaRelations(source: String, id: Int, mediaType: String? = null) {
+        mediaRelations.remove(makeKey(source, id, mediaType))
         mediaRelations.remove(makeKey(source, id))
     }
+
 
     // Character Detail
     fun getCharacterDetail(source: String, id: Int): KitsugiCharacterDetail? {

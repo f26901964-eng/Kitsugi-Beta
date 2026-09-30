@@ -24,7 +24,8 @@ class KitsugiCharacterClient {
         externalId: Int?,
         mediaType: MediaType,
         realMalId: Int? = null,
-        tmdbId: Int? = null
+        tmdbId: Int? = null,
+        title: String? = null
     ): List<KitsugiCharacter> {
         return withContext(Dispatchers.IO) {
             if (externalId == null || externalId <= 0) {
@@ -33,28 +34,45 @@ class KitsugiCharacterClient {
             }
 
             val srcLower = source.lowercase()
-            Log.d(TAG, "fetchCharacters başladı: source=$source, externalId=$externalId, realMalId=$realMalId, mediaType=$mediaType, tmdbId=$tmdbId")
+            Log.d(TAG, "fetchCharacters başladı: source=$source, externalId=$externalId, realMalId=$realMalId, mediaType=$mediaType, tmdbId=$tmdbId, title=$title")
 
             when (srcLower) {
                 "shikimori" -> {
-                    return@withContext KitsugiShikimoriClient.fetchCharacters(mediaType, externalId)
-                }
-                "simkl" -> {
-                    if (mediaType == MediaType.Anime) {
-                        val malId = realMalId ?: DetailCache.getMediaDetail("simkl", externalId)?.realMalId
-                        if (malId != null && malId > 0) {
-                            val malList = fetchCharacters("jikan", malId, mediaType, null, null)
-                            if (malList.isNotEmpty()) return@withContext malList
+                    val shikiChars = KitsugiShikimoriClient.fetchCharacters(mediaType, externalId)
+                    val malId = realMalId?.takeIf { it > 0 }
+                        ?: DetailCache.getMediaDetail("shikimori", externalId)?.realMalId
+                        ?: externalId.takeIf { it > 0 }
+                    if (malId != null && shikiChars.isNotEmpty() && mediaType != MediaType.Manga) {
+                        val refChars = runCatching {
+                            fetchCharacters("jikan", malId, mediaType, malId, tmdbId, title)
+                        }.getOrNull()?.takeIf { it.isNotEmpty() }
+                            ?: runCatching {
+                                fetchCharacters("anilist", malId, mediaType, malId, tmdbId, title)
+                            }.getOrNull()
+                        if (!refChars.isNullOrEmpty()) {
+                            return@withContext mergeVoiceActorsIntoCharacters(shikiChars, refChars)
                         }
                     }
+                    return@withContext shikiChars
+                }
+                "simkl" -> {
+                    val simklDetail = DetailCache.getMediaDetail("simkl", externalId)
+                    val malId = realMalId?.takeIf { it > 0 } ?: simklDetail?.realMalId
+                    if (malId != null && malId > 0) {
+                        val malList = fetchCharacters("jikan", malId, MediaType.Anime, malId, null, title)
+                        if (malList.isNotEmpty()) return@withContext malList
+                        val aniList = fetchCharacters("anilist", malId, MediaType.Anime, malId, null, title)
+                        if (aniList.isNotEmpty()) return@withContext aniList
+                    }
                     val resolvedTmdb = tmdbId ?: run {
-                        val malIdForResolve = realMalId ?: DetailCache.getMediaDetail("simkl", externalId)?.realMalId
+                        val malIdForResolve = malId ?: simklDetail?.realMalId
                         KitsugiIdResolver.resolveIds(malId = malIdForResolve, aniListId = null, tmdbId = tmdbId).tmdbId
                     }
                     if (resolvedTmdb != null && resolvedTmdb > 0) {
                         val isMovie = mediaType == MediaType.Movie
                         val (tmdbChars, _) = TmdbApiClient().fetchCredits(resolvedTmdb, isMovie)
-                        if (tmdbChars.isNotEmpty()) return@withContext tmdbChars
+                        val animeTitle = title ?: simklDetail?.title ?: simklDetail?.titleEnglish ?: simklDetail?.titleJapanese
+                        if (tmdbChars.isNotEmpty()) return@withContext enrichCharactersWithAnimeImages(tmdbChars, animeTitle, malId)
                     }
                     emptyList()
                 }
@@ -64,7 +82,17 @@ class KitsugiCharacterClient {
                     if (effectiveTmdbId > 0) {
                         val isMovie = mediaType == MediaType.Movie
                         val (tmdbChars, _) = TmdbApiClient().fetchCredits(effectiveTmdbId, isMovie)
-                        tmdbChars
+                        val mediaDetail = DetailCache.getMediaDetail("tmdb", effectiveTmdbId)
+                        val animeTitle = title
+                            ?: mediaDetail?.title
+                            ?: mediaDetail?.titleEnglish
+                            ?: mediaDetail?.titleJapanese
+                        val effectiveMalId = realMalId ?: mediaDetail?.realMalId
+                        if (tmdbChars.isNotEmpty()) {
+                            enrichCharactersWithAnimeImages(tmdbChars, animeTitle, effectiveMalId)
+                        } else {
+                            tmdbChars
+                        }
                     } else emptyList()
                 }
                 "jikan", "mal" -> {
@@ -234,15 +262,34 @@ class KitsugiCharacterClient {
                         emptyList()
                     }
 
+                    val effectiveMalId = realMalId?.takeIf { it > 0 }
+                        ?: DetailCache.getMediaDetail("kitsu", externalId)?.realMalId
+                        ?: runCatching {
+                            KitsugiIdResolver.resolveIds(malId = null, aniListId = null, kitsuId = kitsuNumericId).malId
+                        }.getOrNull()?.takeIf { it > 0 }
+
                     if (kitsuList.isNotEmpty()) {
                         Log.d(TAG, "Kitsu karakter listesi başarılı: ${kitsuList.size} karakter")
+                        if (effectiveMalId != null && kitsuList.any { it.voiceActors.isEmpty() }) {
+                            val refChars = runCatching {
+                                fetchCharacters("jikan", effectiveMalId, mediaType, effectiveMalId, tmdbId, title)
+                            }.getOrNull()?.takeIf { it.isNotEmpty() }
+                                ?: runCatching {
+                                    fetchCharacters("anilist", effectiveMalId, mediaType, effectiveMalId, tmdbId, title)
+                                }.getOrNull()
+                            if (!refChars.isNullOrEmpty()) {
+                                return@withContext mergeVoiceActorsIntoCharacters(kitsuList, refChars)
+                            }
+                        }
                         kitsuList
                     } else {
                         // Kitsu boş döndü — AniList veya Jikan fallback
-                        Log.w(TAG, "Kitsu boş döndü, AniList/Jikan fallback deneniyor (malId=$realMalId)")
-                        if (realMalId != null && realMalId > 0) {
-                            val malList = fetchCharacters("jikan", realMalId, mediaType, null)
+                        Log.w(TAG, "Kitsu boş döndü, AniList/Jikan fallback deneniyor (malId=$effectiveMalId)")
+                        if (effectiveMalId != null && effectiveMalId > 0) {
+                            val malList = fetchCharacters("jikan", effectiveMalId, mediaType, effectiveMalId, tmdbId, title)
                             if (malList.isNotEmpty()) return@withContext malList
+                            val aniList = fetchCharacters("anilist", effectiveMalId, mediaType, effectiveMalId, tmdbId, title)
+                            if (aniList.isNotEmpty()) return@withContext aniList
                         }
                         emptyList()
                     }
@@ -834,6 +881,223 @@ class KitsugiCharacterClient {
             )
         }.getOrNull()
     }
+
+    private suspend fun enrichCharactersWithAnimeImages(
+        characters: List<KitsugiCharacter>,
+        title: String?,
+        realMalId: Int?
+    ): List<KitsugiCharacter> {
+        if (characters.isEmpty()) return characters
+        val cleanTitle = title?.replace(Regex("\\s*\\(.*?\\)"), "")?.trim()
+        if (cleanTitle.isNullOrBlank() && (realMalId == null || realMalId <= 0)) {
+            return characters
+        }
+
+        return runCatching {
+            val query = """
+                query (${'$'}idMal: Int, ${'$'}search: String) {
+                    Media(idMal: ${'$'}idMal, search: ${'$'}search, type: ANIME) {
+                        characters(perPage: 50, sort: [ROLE, RELEVANCE]) {
+                            edges {
+                                role
+                                node {
+                                    id
+                                    name {
+                                        full
+                                        native
+                                        alternative
+                                    }
+                                    image {
+                                        large
+                                        medium
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            """.trimIndent()
+
+            val variables = JSONObject()
+            if (realMalId != null && realMalId > 0) {
+                variables.put("idMal", realMalId)
+            } else if (!cleanTitle.isNullOrBlank()) {
+                variables.put("search", cleanTitle)
+            }
+
+            val response = KitsugiApiBase.executeAniListQuery(query, variables)
+            val aniChars = mutableListOf<AniCharInfo>()
+
+            if (response != null) {
+                val root = JSONObject(response)
+                val edges = root.optJSONObject("data")
+                    ?.optJSONObject("Media")
+                    ?.optJSONObject("characters")
+                    ?.optJSONArray("edges")
+
+                if (edges != null) {
+                    for (i in 0 until edges.length()) {
+                        val edge = edges.optJSONObject(i) ?: continue
+                        val node = edge.optJSONObject("node") ?: continue
+                        val nameObj = node.optJSONObject("name") ?: continue
+                        val full = nameObj.optString("full", "")
+                        val native = nameObj.optNullableString("native")
+                        val altArray = nameObj.optJSONArray("alternative")
+                        val alternatives = mutableListOf<String>()
+                        if (altArray != null) {
+                            for (j in 0 until altArray.length()) {
+                                val alt = altArray.optString(j)
+                                if (alt.isNotBlank()) alternatives.add(alt)
+                            }
+                        }
+                        val imageObj = node.optJSONObject("image")
+                        val img = imageObj?.optNullableString("large")
+                            ?: imageObj?.optNullableString("medium")
+
+                        if (full.isNotBlank() && !img.isNullOrBlank()) {
+                            aniChars.add(AniCharInfo(full, native, alternatives, img))
+                        }
+                    }
+                }
+            }
+
+            fun norm(s: String) = s.lowercase()
+                .replace(Regex("\\s*\\((?:voice|uncredited|uncredited voice|child)\\)", RegexOption.IGNORE_CASE), "")
+                .replace("ou", "o").replace("oo", "o").replace("oh", "o").replace("uu", "u")
+                .replace(Regex("[^a-z0-9]"), "")
+
+            characters.map { char ->
+                val cleanName = char.name
+                    .replace(Regex("\\s*\\((?:voice|uncredited|uncredited voice|child)\\)", RegexOption.IGNORE_CASE), "")
+                    .trim()
+                val isActorImage = !char.imageUrl.isNullOrBlank() &&
+                    char.imageUrl == char.voiceActors.firstOrNull()?.imageUrl
+
+                if (!char.imageUrl.isNullOrBlank() && !isActorImage) {
+                    return@map char.copy(name = cleanName)
+                }
+
+                val targetNorm = norm(cleanName)
+                if (targetNorm.length < 2) {
+                    val finalImg = if (isActorImage) null else char.imageUrl
+                    return@map char.copy(name = cleanName, imageUrl = finalImg)
+                }
+
+                // 1. Exact match (full name or alternative names)
+                val exactMatch = aniChars.firstOrNull { ani ->
+                    norm(ani.full) == targetNorm || ani.alternatives.any { norm(it) == targetNorm }
+                }
+                if (exactMatch != null) {
+                    return@map char.copy(name = cleanName, imageUrl = exactMatch.imageUrl)
+                }
+
+                // 2. Partial containment match (e.g. "Nobita" vs "Nobita Nobi")
+                val partialMatch = aniChars.firstOrNull { ani ->
+                    val aniNorm = norm(ani.full)
+                    if (aniNorm.length >= 4 && targetNorm.length >= 4) {
+                        aniNorm.contains(targetNorm) || targetNorm.contains(aniNorm)
+                    } else false
+                }
+                if (partialMatch != null) {
+                    return@map char.copy(name = cleanName, imageUrl = partialMatch.imageUrl)
+                }
+
+                // 3. Token-based match (e.g. "Takeshi Gouda" vs "Gian")
+                val wordMatch = aniChars.firstOrNull { ani ->
+                    val aniTokens = ani.full.lowercase().split("\\s+".toRegex()).filter { it.length >= 3 }
+                    val targetTokens = cleanName.lowercase().split("\\s+".toRegex()).filter { it.length >= 3 }
+                    aniTokens.any { it in targetTokens }
+                }
+                if (wordMatch != null) {
+                    return@map char.copy(name = cleanName, imageUrl = wordMatch.imageUrl)
+                }
+
+                val finalImg = if (isActorImage) null else char.imageUrl
+                char.copy(name = cleanName, imageUrl = finalImg)
+            }
+        }.getOrElse { e ->
+            Log.e(TAG, "AniList character image enrichment error: ${e.message}", e)
+            characters
+        }
+    }
+
+    private fun mergeVoiceActorsIntoCharacters(
+        characters: List<KitsugiCharacter>,
+        referenceCharacters: List<KitsugiCharacter>
+    ): List<KitsugiCharacter> {
+        if (referenceCharacters.isEmpty()) return characters
+
+        fun norm(s: String): String = s.lowercase()
+            .replace(Regex("\\s*\\((?:voice|uncredited|uncredited voice|child)\\)", RegexOption.IGNORE_CASE), "")
+            .replace("ou", "o")
+            .replace("oo", "o")
+            .replace("oh", "o")
+            .replace("uu", "u")
+            .replace(Regex("[^a-z0-9]"), "")
+
+        fun getTokens(s: String): Set<String> = s.lowercase()
+            .replace(Regex("\\s*\\((?:voice|uncredited|uncredited voice|child)\\)", RegexOption.IGNORE_CASE), "")
+            .split(Regex("[\\s,\\-_.]+"))
+            .filter { it.length >= 3 }
+            .map { it.replace("ou", "o").replace("oo", "o").replace("oh", "o").replace("uu", "u") }
+            .toSet()
+
+        return characters.map { char ->
+            if (char.voiceActors.isNotEmpty()) return@map char
+
+            val targetNorm = norm(char.name)
+            val targetTokens = getTokens(char.name)
+
+            // 1. Match by ID (if positive and equal)
+            var matchedRef = referenceCharacters.firstOrNull { ref ->
+                char.id > 0 && ref.id > 0 && char.id == ref.id && ref.voiceActors.isNotEmpty()
+            }
+
+            // 2. Match by normalized name (exact)
+            if (matchedRef == null && targetNorm.length >= 2) {
+                matchedRef = referenceCharacters.firstOrNull { ref ->
+                    norm(ref.name) == targetNorm && ref.voiceActors.isNotEmpty()
+                }
+            }
+
+            // 3. Match by reversed name tokens (e.g. "Yoshino Himekawa" vs "Himekawa Yoshino")
+            if (matchedRef == null && targetTokens.size >= 2) {
+                matchedRef = referenceCharacters.firstOrNull { ref ->
+                    val refTokens = getTokens(ref.name)
+                    refTokens == targetTokens && ref.voiceActors.isNotEmpty()
+                }
+            }
+
+            // 4. Match by token subset / containment (e.g. "Yoshino" vs "Yoshino Himekawa")
+            if (matchedRef == null && targetTokens.isNotEmpty()) {
+                matchedRef = referenceCharacters.firstOrNull { ref ->
+                    val refTokens = getTokens(ref.name)
+                    (targetTokens.all { it in refTokens } || refTokens.all { it in targetTokens }) && ref.voiceActors.isNotEmpty()
+                }
+            }
+
+            // 5. Match by substring if name is long enough
+            if (matchedRef == null && targetNorm.length >= 4) {
+                matchedRef = referenceCharacters.firstOrNull { ref ->
+                    val refNorm = norm(ref.name)
+                    refNorm.length >= 4 && (refNorm.contains(targetNorm) || targetNorm.contains(refNorm)) && ref.voiceActors.isNotEmpty()
+                }
+            }
+
+            if (matchedRef != null) {
+                char.copy(voiceActors = matchedRef.voiceActors)
+            } else {
+                char
+            }
+        }
+    }
+
+    private data class AniCharInfo(
+        val full: String,
+        val native: String?,
+        val alternatives: List<String>,
+        val imageUrl: String
+    )
 }
 
 /** Geçici parse sonucu — fetchCharacterDetail içinde Kitsu API yanıtını taşır. */

@@ -3,6 +3,7 @@ package com.kitsugi.animelist.data.remote
 import android.util.Log
 import com.kitsugi.animelist.model.MediaType
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
@@ -116,6 +117,165 @@ object KitsugiShikimoriClient {
                 emptyList()
             }
         }
+
+    suspend fun searchMediaAdvanced(
+        mediaType: com.kitsugi.animelist.model.MediaType,
+        query: String = "",
+        page: Int = 1,
+        limit: Int = 24,
+        order: String = "popularity",
+        kinds: List<String>? = null,
+        statuses: List<String>? = null,
+        season: String? = null,
+        score: Int? = null,
+        duration: String? = null,
+        rating: String? = null,
+        genres: List<Int>? = null,
+        excludedGenres: List<Int>? = null,
+        studioId: Int? = null,
+        publisherId: Int? = null,
+        censored: Boolean = true
+    ): List<JikanSearchResult> = withContext(Dispatchers.IO) {
+        runCatching {
+            val endpoint = when (mediaType) {
+                com.kitsugi.animelist.model.MediaType.Manga -> "mangas"
+                else -> "animes"
+            }
+            val params = mutableListOf<String>()
+            params.add("limit=$limit")
+            params.add("page=$page")
+            params.add("order=$order")
+            params.add("censored=$censored")
+
+            if (query.isNotBlank()) params.add("search=${java.net.URLEncoder.encode(query.trim(), "UTF-8")}")
+            if (!kinds.isNullOrEmpty()) params.add("kind=${kinds.joinToString(",")}")
+            if (!statuses.isNullOrEmpty()) params.add("status=${statuses.joinToString(",")}")
+            if (!season.isNullOrBlank()) params.add("season=$season")
+            if (score != null && score > 0) params.add("score=$score")
+            if (!duration.isNullOrBlank()) params.add("duration=$duration")
+            if (!rating.isNullOrBlank()) params.add("rating=$rating")
+            if (studioId != null && studioId > 0) params.add("studio=$studioId")
+            if (publisherId != null && publisherId > 0) params.add("publisher=$publisherId")
+
+            val genreParts = mutableListOf<String>()
+            genres?.forEach { genreParts.add("$it") }
+            excludedGenres?.forEach { genreParts.add("!$it") }
+            if (genreParts.isNotEmpty()) {
+                params.add("genre=${genreParts.joinToString(",")}")
+            }
+
+            val url = URL("$BASE_URL/$endpoint?${params.joinToString("&")}")
+            val response = KitsugiApiBase.executeGetRequest(url) ?: return@runCatching emptyList()
+            val array = JSONArray(response)
+            val results = mutableListOf<JikanSearchResult>()
+            for (i in 0 until array.length()) {
+                val item = array.optJSONObject(i) ?: continue
+                val id = item.optInt("id")
+                if (id <= 0) continue
+                val romajiTitle = item.optString("name", "").trim()
+                val russianTitle = item.optString("russian", "").trim()
+                val title = romajiTitle.ifBlank { russianTitle }
+                val relativeImg = item.optJSONObject("image")?.optString("original")
+                val imageUrl = relativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                val kind = item.optString("kind", "tv")
+                val sc = item.optString("score", "0").toDoubleOrNull()?.toInt()?.coerceIn(0, 10)
+                val yr = item.optString("aired_on", "").take(4).toIntOrNull()
+                val episodes = item.optInt("episodes").takeIf { it > 0 }
+                val epOrCh = if (mediaType == com.kitsugi.animelist.model.MediaType.Manga) item.optInt("chapters").takeIf { it > 0 } else episodes
+                results.add(
+                    JikanSearchResult(
+                        malId = id,
+                        title = title,
+                        subtitle = kind.uppercase(),
+                        type = mediaType,
+                        total = epOrCh,
+                        score = sc,
+                        isAdult = !censored,
+                        imageUrl = imageUrl,
+                        year = yr,
+                        source = "shikimori",
+                        titleEnglish = romajiTitle.ifBlank { null }
+                    )
+                )
+            }
+            results
+        }.getOrElse { emptyList() }
+    }
+
+    suspend fun searchCharacters(query: String, page: Int = 1, limit: Int = 24): List<JikanSearchResult> = withContext(Dispatchers.IO) {
+        if (query.isBlank()) return@withContext emptyList()
+        runCatching {
+            val encoded = java.net.URLEncoder.encode(query.trim(), "UTF-8")
+            val url = URL("$BASE_URL/characters/search?search=$encoded&page=$page&limit=$limit")
+            val response = KitsugiApiBase.executeGetRequest(url) ?: return@runCatching emptyList()
+            val array = JSONArray(response)
+            val results = mutableListOf<JikanSearchResult>()
+            for (i in 0 until array.length()) {
+                val item = array.optJSONObject(i) ?: continue
+                val id = item.optInt("id")
+                if (id <= 0) continue
+                val name = item.optString("name", "").ifBlank { item.optString("russian", "Karakter") }
+                val relativeImg = item.optJSONObject("image")?.optString("original")
+                val imageUrl = relativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                results.add(
+                    JikanSearchResult(
+                        malId = id,
+                        title = name,
+                        subtitle = "Karakter (Shikimori)",
+                        type = com.kitsugi.animelist.model.MediaType.Anime,
+                        total = null,
+                        score = null,
+                        isAdult = false,
+                        imageUrl = imageUrl,
+                        year = null,
+                        source = "shikimori"
+                    )
+                )
+            }
+            results
+        }.getOrElse { emptyList() }
+    }
+
+    suspend fun searchPeople(query: String, page: Int = 1, limit: Int = 24, kind: String? = null): List<JikanSearchResult> = withContext(Dispatchers.IO) {
+        if (query.isBlank()) return@withContext emptyList()
+        runCatching {
+            val encoded = java.net.URLEncoder.encode(query.trim(), "UTF-8")
+            val kindParam = if (!kind.isNullOrBlank()) "&kind=$kind" else ""
+            val url = URL("$BASE_URL/people/search?search=$encoded&page=$page&limit=$limit$kindParam")
+            val response = KitsugiApiBase.executeGetRequest(url) ?: return@runCatching emptyList()
+            val array = JSONArray(response)
+            val results = mutableListOf<JikanSearchResult>()
+            for (i in 0 until array.length()) {
+                val item = array.optJSONObject(i) ?: continue
+                val id = item.optInt("id")
+                if (id <= 0) continue
+                val name = item.optString("name", "").ifBlank { item.optString("russian", "Kişi") }
+                val relativeImg = item.optJSONObject("image")?.optString("original")
+                val imageUrl = relativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                val role = when (kind) {
+                    "seyu" -> "Seiyuu / Seslendirmen"
+                    "mangaka" -> "Mangaka / Yazar"
+                    "producer" -> "Yapımcı / Yönetmen"
+                    else -> "Kişi / Ekip"
+                }
+                results.add(
+                    JikanSearchResult(
+                        malId = id,
+                        title = name,
+                        subtitle = "$role (Shikimori)",
+                        type = com.kitsugi.animelist.model.MediaType.Anime,
+                        total = null,
+                        score = null,
+                        isAdult = false,
+                        imageUrl = imageUrl,
+                        year = null,
+                        source = "shikimori"
+                    )
+                )
+            }
+            results
+        }.getOrElse { emptyList() }
+    }
 
     /**
      * Shikimori REST API üzerinden bir animenin ekran görüntülerini (screenshots / backdrops) çeker.
@@ -665,32 +825,37 @@ object KitsugiShikimoriClient {
         }
     }
 
-    private suspend fun translateRussianToEnglish(text: String?): String {
+    private suspend fun translateIfRussian(text: String?): String {
         if (text.isNullOrBlank()) return ""
         if (!text.any { it in '\u0400'..'\u04FF' }) return text
 
         val context = com.kitsugi.animelist.KitsugiApplication.getInstance()?.applicationContext
         return if (context != null) {
             val translationManager = com.kitsugi.animelist.data.local.TranslationManager(context)
-            translationManager.translateToEnglish(text)
+            val settings = runCatching {
+                com.kitsugi.animelist.data.settings.SettingsDataStore(context).settingsFlow.first()
+            }.getOrNull()
+            val targetLang = settings?.translateTargetLanguage?.ifBlank { "tr" } ?: "tr"
+            translationManager.translateTo(text, "auto", targetLang)
         } else {
-            directTranslateToEnglish(text)
+            directTranslate(text, "tr")
         }
     }
 
-    private fun directTranslateToEnglish(text: String): String {
+    private fun directTranslate(text: String, targetLang: String = "tr"): String {
+        val cleaned = text.cleanShikimoriBbCode()
         return try {
-            val urlStr = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=en&dt=t&q=" + 
-                    java.net.URLEncoder.encode(text, "UTF-8")
+            val urlStr = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=auto&tl=$targetLang&dt=t&q=" + 
+                    java.net.URLEncoder.encode(cleaned, "UTF-8")
             val request = okhttp3.Request.Builder()
                 .url(urlStr)
                 .header("User-Agent", "Mozilla/5.0")
                 .build()
             com.kitsugi.animelist.core.network.KitsugiHttpClient.client.newCall(request).execute().use { response ->
                 if (response.isSuccessful) {
-                    val responseText = response.body?.string() ?: return text
+                    val responseText = response.body?.string() ?: return cleaned
                     val jsonArray = org.json.JSONArray(responseText)
-                    val sentences = jsonArray.optJSONArray(0) ?: return text
+                    val sentences = jsonArray.optJSONArray(0) ?: return cleaned
                     val result = java.lang.StringBuilder()
                     for (i in 0 until sentences.length()) {
                         val sentence = sentences.optJSONArray(i)
@@ -699,22 +864,13 @@ object KitsugiShikimoriClient {
                             result.append(translatedPart)
                         }
                     }
-                    result.toString()
+                    result.toString().cleanShikimoriBbCode()
                 } else {
-                    text
+                    cleaned
                 }
             }
         } catch (e: java.lang.Exception) {
-            text
-        }
-    }
-
-    private suspend fun translateIfRussian(text: String?): String {
-        if (text.isNullOrBlank()) return ""
-        return if (text.any { it in '\u0400'..'\u04FF' }) {
-            translateRussianToEnglish(text)
-        } else {
-            text
+            cleaned
         }
     }
 }

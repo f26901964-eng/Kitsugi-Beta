@@ -138,14 +138,59 @@ class JikanApiClient(
     suspend fun searchCharacters(
         query: String,
         page: Int = 1,
-        perPage: Int = 24
-    ) = aniListSearchClient.searchCharacters(query, page, perPage)
+        perPage: Int = 24,
+        sort: String = "FAVOURITES_DESC",
+        isBirthday: Boolean? = null
+    ) = aniListSearchClient.searchCharacters(query, page, perPage, sort, isBirthday)
 
     suspend fun searchStaff(
         query: String,
         page: Int = 1,
-        perPage: Int = 24
-    ) = aniListSearchClient.searchStaff(query, page, perPage)
+        perPage: Int = 24,
+        sort: String = "FAVOURITES_DESC",
+        isBirthday: Boolean? = null
+    ) = aniListSearchClient.searchStaff(query, page, perPage, sort, isBirthday)
+
+    suspend fun searchStudios(
+        query: String,
+        page: Int = 1,
+        perPage: Int = 24,
+        sort: String = "FAVOURITES_DESC"
+    ) = aniListSearchClient.searchStudios(query, page, perPage, sort)
+
+    suspend fun searchMalAdvanced(
+        query: String,
+        mediaType: MediaType,
+        showAdultContent: Boolean = false,
+        status: String? = null,
+        format: String? = null,
+        genres: List<Int>? = null,
+        excludedGenres: List<Int>? = null,
+        rating: String? = null,
+        minScore: Double? = null,
+        maxScore: Double? = null,
+        producerId: Int? = null,
+        magazineId: Int? = null,
+        letter: String? = null,
+        sort: String? = null,
+        orderBy: String? = null,
+        page: Int = 1,
+        season: String? = null,
+        seasonYear: Int? = null
+    ) = jikanSearchClient.searchMalAdvanced(
+        query, mediaType, showAdultContent, status, format, genres, excludedGenres,
+        rating, minScore, maxScore, producerId, magazineId, letter, sort, orderBy,
+        page, season, seasonYear
+    )
+
+    suspend fun searchMalCharacters(query: String, page: Int = 1, orderBy: String = "favorites", sort: String = "desc", letter: String? = null) =
+        jikanSearchClient.searchMalCharacters(query, page, orderBy, sort, letter)
+
+    suspend fun searchMalPeople(query: String, page: Int = 1, orderBy: String = "favorites", sort: String = "desc", letter: String? = null) =
+        jikanSearchClient.searchMalPeople(query, page, orderBy, sort, letter)
+
+    suspend fun searchMalProducers(query: String, page: Int = 1, orderBy: String = "favorites", sort: String = "desc", letter: String? = null) =
+        jikanSearchClient.searchMalProducers(query, page, orderBy, sort, letter)
 
     // Top & Filters
     suspend fun topAnime(page: Int = 1, showAdultContent: Boolean = false) = jikanSearchClient.topAnime(page, showAdultContent)
@@ -197,15 +242,15 @@ class JikanApiClient(
     suspend fun fetchDetail(source: String, externalId: Int?, mediaType: MediaType, tmdbId: Int? = null, realMalId: Int? = null, title: String? = null) = detailClient.fetchDetail(source, externalId, mediaType, tmdbId, realMalId, title)
 
     // Characters & Staff
-    suspend fun fetchCharacters(source: String, externalId: Int?, mediaType: MediaType, realMalId: Int? = null, tmdbId: Int? = null) = characterClient.fetchCharacters(source, externalId, mediaType, realMalId, tmdbId)
+    suspend fun fetchCharacters(source: String, externalId: Int?, mediaType: MediaType, realMalId: Int? = null, tmdbId: Int? = null, title: String? = null) = characterClient.fetchCharacters(source, externalId, mediaType, realMalId, tmdbId, title)
     suspend fun fetchCharacterDetail(source: String, characterId: Int, name: String? = null) = characterClient.fetchCharacterDetail(source, characterId, name)
     suspend fun fetchStaff(source: String, externalId: Int?, mediaType: MediaType, tmdbId: Int? = null, realMalId: Int? = null) = staffClient.fetchStaff(source, externalId, mediaType, tmdbId, realMalId)
     suspend fun fetchStaffDetail(source: String, staffId: Int, name: String? = null) = staffClient.fetchStaffDetail(source, staffId, name)
     suspend fun fetchStudioDetail(source: String, studioId: Int, name: String? = null) = studioClient.fetchStudioDetail(source, studioId, name)
 
     // Relations, Stats, Reviews, Episodes
-    suspend fun fetchRelations(source: String, externalId: Int?, mediaType: MediaType, tmdbId: Int? = null, realMalId: Int? = null) = mediaRelationsClient.fetchRelations(source, externalId, mediaType, tmdbId, realMalId)
-    suspend fun fetchRecommendations(source: String, externalId: Int?, mediaType: MediaType, tmdbId: Int? = null, realMalId: Int? = null) = mediaRelationsClient.fetchRecommendations(source, externalId, mediaType, tmdbId, realMalId)
+    suspend fun fetchRelations(source: String, externalId: Int?, mediaType: MediaType, tmdbId: Int? = null, realMalId: Int? = null, title: String? = null) = mediaRelationsClient.fetchRelations(source, externalId, mediaType, tmdbId, realMalId, title)
+    suspend fun fetchRecommendations(source: String, externalId: Int?, mediaType: MediaType, tmdbId: Int? = null, realMalId: Int? = null, title: String? = null) = mediaRelationsClient.fetchRecommendations(source, externalId, mediaType, tmdbId, realMalId, title)
     suspend fun fetchStats(source: String, externalId: Int?, mediaType: MediaType, realMalId: Int? = null) = mediaSocialClient.fetchStats(source, externalId, mediaType, realMalId)
     suspend fun fetchReviews(source: String, externalId: Int?, mediaType: MediaType, page: Int = 1, tmdbId: Int? = null, realMalId: Int? = null) = mediaSocialClient.fetchReviews(source, externalId, mediaType, page, tmdbId, realMalId)
     suspend fun fetchEpisodes(

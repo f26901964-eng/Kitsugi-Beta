@@ -21,7 +21,7 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 /**
  * Status-grouped list content rendering for MyListScreen.
  * Renders entries grouped by watch status with section headers.
- * Supports all layout IDs including grid_2col (2-column poster grid).
+ * Supports all layout IDs including responsive dynamic poster grid.
  */
 internal fun LazyListScope.MyListGroupedContent(
     groupedEntries: List<Pair<WatchStatus, List<MediaEntry>>>,
@@ -30,6 +30,7 @@ internal fun LazyListScope.MyListGroupedContent(
     scoreFormat: String,
     hideScores: Boolean,
     blurAdultMedia: Boolean,
+    gridColumns: Int = 3,
     onEntryClick: (MediaEntry) -> Unit,
     onIncrementProgress: (MediaEntry) -> Unit,
     onPosterLongClick: (String) -> Unit
@@ -38,81 +39,81 @@ internal fun LazyListScope.MyListGroupedContent(
 
     groupedEntries.forEach { (status, itemsForStatus) ->
         item(key = "header_${status.name}") {
-                val headerTitle = when (status) {
-                    WatchStatus.Watching   -> "İzleniyor"
-                    WatchStatus.Repeating  -> "Yeniden İzleniyor"
-                    WatchStatus.Planned    -> "Planlandı"
-                    WatchStatus.Paused     -> "Durduruldu"
-                    WatchStatus.Dropped    -> "Bırakıldı"
-                    WatchStatus.Completed  -> "İzlendi"
-                }
-                Text(
-                    text = headerTitle,
-                    color = KitsugiColors.TextPrimary,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Black,
-                    modifier = Modifier.padding(start = 4.dp, top = 20.dp, bottom = 10.dp)
-                )
+            val headerTitle = when (status) {
+                WatchStatus.Watching   -> "İzleniyor"
+                WatchStatus.Repeating  -> "Yeniden İzleniyor"
+                WatchStatus.Planned    -> "Planlandı"
+                WatchStatus.Paused     -> "Durduruldu"
+                WatchStatus.Dropped    -> "Bırakıldı"
+                WatchStatus.Completed  -> "İzlendi"
             }
+            Text(
+                text = headerTitle,
+                color = KitsugiColors.TextPrimary,
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Black,
+                modifier = Modifier.padding(start = 4.dp, top = 20.dp, bottom = 10.dp)
+            )
+        }
 
-            if (isGrid) {
-                // ─── 2-sütun grid: ikişerli satırlar ──────────────────────
-                val rows = itemsForStatus.chunked(2)
-                items(
-                    items = rows,
-                    key = { row -> "grid_row_${status.name}_${row.firstOrNull()?.let { "${it.source}_${it.id}" }}" }
-                ) { row ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        row.forEach { entry ->
-                            KitsugiMediaEntryCard(
-                                entry = entry,
-                                layoutId = selectedListLayoutId,
-                                modifier = Modifier.weight(1f),
-                                onClick = { onEntryClick(entry) },
-                                titleLanguage = titleLanguage,
-                                scoreFormat = scoreFormat,
-                                hideScores = hideScores,
-                                blurAdultMedia = blurAdultMedia,
-                                onPosterLongClick = { imageUrl -> onPosterLongClick(imageUrl) }
-                            )
-                        }
-                        // Tek sayıda eleman varsa sağ hücreyi boş bırak
-                        if (row.size == 1) {
-                            androidx.compose.foundation.layout.Box(modifier = Modifier.weight(1f))
+        if (isGrid) {
+            val rows = itemsForStatus.chunked(gridColumns)
+            items(
+                items = rows,
+                key = { row -> "grid_row_${status.name}_${row.firstOrNull()?.let { "${it.source}_${it.id}" }}" }
+            ) { row ->
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    row.forEach { entry ->
+                        KitsugiMediaEntryCard(
+                            entry = entry,
+                            layoutId = selectedListLayoutId,
+                            modifier = Modifier.weight(1f),
+                            onClick = { onEntryClick(entry) },
+                            titleLanguage = titleLanguage,
+                            scoreFormat = scoreFormat,
+                            hideScores = hideScores,
+                            blurAdultMedia = blurAdultMedia,
+                            onPosterLongClick = { imageUrl -> onPosterLongClick(imageUrl) }
+                        )
+                    }
+                    if (row.size < gridColumns) {
+                        repeat(gridColumns - row.size) {
+                            Spacer(modifier = Modifier.weight(1f))
                         }
                     }
-                    Spacer(modifier = Modifier.height(8.dp))
                 }
-            } else {
-                // ─── Normal tek sütun liste ───────────────────────────────
-                items(
-                    items = itemsForStatus,
-                    key = { entry -> "${entry.source}_${entry.id}" }
-                ) { entry ->
-                    KitsugiMediaEntryCard(
-                        entry = entry,
-                        layoutId = selectedListLayoutId,
-                        onClick = { onEntryClick(entry) },
-                        onIncrementClick = { onIncrementProgress(entry) },
-                        titleLanguage = titleLanguage,
-                        scoreFormat = scoreFormat,
-                        hideScores = hideScores,
-                        blurAdultMedia = blurAdultMedia,
-                        onPosterLongClick = { imageUrl -> onPosterLongClick(imageUrl) }
-                    )
-                    Spacer(modifier = Modifier.height(cardSpacingForLayout(selectedListLayoutId)))
-                }
+                Spacer(modifier = Modifier.height(8.dp))
+            }
+        } else {
+            // ─── Normal tek sütun liste ───────────────────────────────
+            items(
+                items = itemsForStatus,
+                key = { entry -> "${entry.source}_${entry.id}" }
+            ) { entry ->
+                KitsugiMediaEntryCard(
+                    entry = entry,
+                    layoutId = selectedListLayoutId,
+                    onClick = { onEntryClick(entry) },
+                    onIncrementClick = { onIncrementProgress(entry) },
+                    titleLanguage = titleLanguage,
+                    scoreFormat = scoreFormat,
+                    hideScores = hideScores,
+                    blurAdultMedia = blurAdultMedia,
+                    onPosterLongClick = { imageUrl -> onPosterLongClick(imageUrl) }
+                )
+                Spacer(modifier = Modifier.height(cardSpacingForLayout(selectedListLayoutId)))
             }
         }
     }
+}
 
 /**
  * Flat (non-grouped) list content rendering for MyListScreen.
  * Used when the Completed filter is active.
- * Supports all layout IDs including grid_2col.
+ * Supports all layout IDs including responsive dynamic poster grid.
  */
 internal fun LazyListScope.MyListFlatContent(
     visibleEntries: List<MediaEntry>,
@@ -121,6 +122,7 @@ internal fun LazyListScope.MyListFlatContent(
     scoreFormat: String,
     hideScores: Boolean,
     blurAdultMedia: Boolean,
+    gridColumns: Int = 3,
     onEntryClick: (MediaEntry) -> Unit,
     onIncrementProgress: (MediaEntry) -> Unit,
     onPosterLongClick: (String) -> Unit
@@ -128,8 +130,7 @@ internal fun LazyListScope.MyListFlatContent(
     val isGrid = selectedListLayoutId == "grid_2col"
 
     if (isGrid) {
-        // ─── 2-sütun grid: ikişerli satırlar ──────────────────────────────
-        val rows = visibleEntries.chunked(2)
+        val rows = visibleEntries.chunked(gridColumns)
         items(
             items = rows,
             key = { row -> "flat_grid_row_${row.firstOrNull()?.let { "${it.source}_${it.id}" }}" }
@@ -151,9 +152,10 @@ internal fun LazyListScope.MyListFlatContent(
                         onPosterLongClick = { imageUrl -> onPosterLongClick(imageUrl) }
                     )
                 }
-                // Tek sayıda eleman varsa sağ hücreyi boş bırak
-                if (row.size == 1) {
-                    androidx.compose.foundation.layout.Box(modifier = Modifier.weight(1f))
+                if (row.size < gridColumns) {
+                    repeat(gridColumns - row.size) {
+                        Spacer(modifier = Modifier.weight(1f))
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(8.dp))
@@ -179,4 +181,3 @@ internal fun LazyListScope.MyListFlatContent(
         }
     }
 }
-

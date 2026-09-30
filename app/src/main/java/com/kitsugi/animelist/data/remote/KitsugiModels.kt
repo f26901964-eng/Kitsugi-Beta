@@ -28,7 +28,8 @@ data class JikanSearchResult(
     // AniList kaynaklı sonuçlar için: "episode|airingAtEpoch" formatında
     val nextAiringEpisode: String? = null,
     val cs3Url: String? = null,
-    val cs3ApiName: String? = null
+    val cs3ApiName: String? = null,
+    val genres: List<String> = emptyList()
 )
 
 data class KitsugiTheme(
@@ -36,10 +37,27 @@ data class KitsugiTheme(
     val videoUrl: String?    // animethemes.moe direkt .webm linki (yoksa null → YouTube araması)
 )
 
+enum class StudioRole {
+    STUDIO, PRODUCER, MAGAZINE, PUBLISHER, NETWORK, LICENSOR
+}
+
 data class KitsugiStudio(
     val id: Int,
     val name: String,
-    val isMain: Boolean = true
+    val isMain: Boolean = true,
+    val source: String = "anilist",
+    val role: StudioRole = StudioRole.STUDIO
+)
+
+data class KitsugiRanking(
+    val rank: Int,
+    val type: String, // RATED, POPULAR
+    val context: String = "",
+    val allTime: Boolean = false,
+    val year: Int? = null,
+    val season: String? = null,
+    val id: Int = 0,
+    val format: String = ""
 )
 
 data class KitsugiStudioDetail(
@@ -100,7 +118,25 @@ data class KitsugiMediaDetail(
     val popularityRank: Int? = null,
     val scoredBy: Int? = null,
     val members: Int? = null,
-    val isFavourite: Boolean = false
+    val isFavourite: Boolean = false,
+    val themes: List<String> = emptyList(),
+    val demographics: List<String> = emptyList(),
+    val serializations: List<KitsugiStudio> = emptyList(),
+    val networks: List<KitsugiStudio> = emptyList(),
+    val authors: List<KitsugiStaff> = emptyList(),
+    val rankings: List<KitsugiRanking> = emptyList(),
+    val format: String? = null,
+    val countryOfOrigin: String? = null,
+    val originalLanguage: String? = null,
+    val tagline: String? = null,
+    val budget: Long? = null,
+    val revenue: Long? = null,
+    val volumes: Int? = null,
+    val rawFormat: String? = null,
+    val rawStatus: String? = null,
+    val rawSourceMaterial: String? = null,
+    val rawSeason: String? = null,
+    val seasonYear: Int? = null
 )
 
 data class KitsugiStreamingEpisode(
@@ -115,7 +151,11 @@ data class KitsugiStreamingEpisode(
 data class KitsugiTag(
     val name: String,
     val rank: Int?,       // % relevance, AniList'ten gelir
-    val isSpoiler: Boolean
+    val isSpoiler: Boolean,
+    val id: Int? = null,
+    val source: String = "anilist",
+    val description: String? = null,
+    val category: String? = null
 )
 
 data class KitsugiExternalLink(
@@ -240,14 +280,7 @@ data class KitsugiScoreStat(
     val amount: Int
 )
 
-data class KitsugiRanking(
-    val rank: Int,
-    val type: String,
-    val context: String,
-    val allTime: Boolean = false,
-    val year: Int? = null,
-    val season: String? = null
-)
+
 
 data class KitsugiStats(
     val watching: Int?,

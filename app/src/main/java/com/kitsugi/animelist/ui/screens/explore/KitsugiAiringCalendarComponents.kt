@@ -493,11 +493,7 @@ internal fun AiringEntryGridCard(
     titleLanguage: String = "ROMAJI",
     onClick: () -> Unit = {}
 ) {
-    val displayTitle = when (titleLanguage) {
-        "ENGLISH" -> entry.titleEnglish ?: entry.title
-        "NATIVE"  -> entry.titleNative ?: entry.title
-        else      -> entry.title
-    }
+    val displayTitle = entry.getDisplayTitle(titleLanguage)
 
     val accentColor = if (isInWatchingList) KitsugiColors.AccentGreen else KitsugiColors.Accent
     val hasAired = entry.hasAired()
@@ -611,11 +607,7 @@ internal fun AiringEntryCard(
     titleLanguage: String = "ROMAJI",
     onClick: () -> Unit = {}
 ) {
-    val displayTitle = when (titleLanguage) {
-        "ENGLISH" -> entry.titleEnglish ?: entry.title
-        "NATIVE"  -> entry.titleNative ?: entry.title
-        else      -> entry.title
-    }
+    val displayTitle = entry.getDisplayTitle(titleLanguage)
 
     val accentColor = if (isInWatchingList) KitsugiColors.AccentGreen else KitsugiColors.Accent
     val hasAired = entry.hasAired()

@@ -299,15 +299,20 @@ object KitsugiEpisodeRatingsRepository {
         val deferred = mutex.withLock {
             logoInFlight[tmdbId] ?: scope.async {
                 try {
-                    // 1. Fanart.tv (en yüksek kalite) — TVDB ID gerektirir
+                    // 1. Fanart.tv (en yüksek kalite) — TVDB ID (TV) veya TMDB ID (Film)
                     val (fanartEnabled, fanartApiKey) = getFanartSettings()
                     val fanartLogoUrl = if (fanartEnabled) {
                         val tvdbId = resolveTvdbIdFromTmdb(tmdbId)
-                        if (tvdbId != null && tvdbId > 0) {
+                        val tvLogo = if (tvdbId != null && tvdbId > 0) {
                             runCatching {
                                 FanartApiClient.fetchBestLogo(tvdbId, fanartApiKey)
                             }.getOrNull()
                         } else null
+
+                        // TV logosu bulunamazsa veya film ise Fanart movie logo dene
+                        tvLogo ?: runCatching {
+                            FanartApiClient.fetchBestMovieLogo(tmdbId, fanartApiKey)
+                        }.getOrNull()
                     } else null
 
                     // 2. SeriesGraph fallback
@@ -588,7 +593,7 @@ object KitsugiEpisodeRatingsRepository {
             return@withContext cached
         }
 
-        val result = if (isMovie) {
+        var result = if (isMovie) {
             if (tmdbId <= 0) return@withContext emptyList()
             // Film: TMDB ID doğrudan kullanılır
             runCatching {
@@ -618,15 +623,47 @@ object KitsugiEpisodeRatingsRepository {
                 }
             }
 
-            if (tvdbId == null || tvdbId <= 0) {
-                Log.d(TAG, "No TVDB ID for tmdbId=$tmdbId — Fanart.tv TV skipped")
-                return@withContext emptyList()
-            }
-            runCatching {
-                FanartApiClient.fetchTvImages(tvdbId, fanartApiKey)
-            }.getOrElse {
-                Log.w(TAG, "getFanartGalleryItems (tv) failed: ${it.message}")
+            if (tvdbId != null && tvdbId > 0) {
+                runCatching {
+                    FanartApiClient.fetchTvImages(tvdbId, fanartApiKey)
+                }.getOrElse {
+                    Log.w(TAG, "getFanartGalleryItems (tv) failed: ${it.message}")
+                    emptyList()
+                }
+            } else {
+                Log.d(TAG, "No TVDB ID for tmdbId=$tmdbId — Fanart.tv TV skipped, will try movie fallback")
                 emptyList()
+            }
+        }
+
+        // FALLBACK: Eğer ilk deneme boş döndüyse ve tmdbId varsa, diğer endpoint'i dene
+        if (result.isEmpty() && tmdbId > 0) {
+            if (isMovie) {
+                // Film olarak arandı ama bulunamadı -> TV olarak TVDB çözüp dene
+                var fallbackTvdbId = resolveTvdbIdFromTmdb(tmdbId, fallbackMalId, fallbackAniListId, fallbackKitsuId)
+                if (fallbackTvdbId == null || fallbackTvdbId <= 0) {
+                    if (fallbackMalId != null && fallbackMalId > 0) fallbackTvdbId = resolveTvdbIdFromMal(fallbackMalId)
+                }
+                if (fallbackTvdbId == null || fallbackTvdbId <= 0) {
+                    if (fallbackAniListId != null && fallbackAniListId > 0) fallbackTvdbId = resolveTvdbIdFromAniList(fallbackAniListId)
+                }
+                if (fallbackTvdbId == null || fallbackTvdbId <= 0) {
+                    if (fallbackKitsuId != null && fallbackKitsuId > 0) fallbackTvdbId = resolveTvdbIdFromKitsu(fallbackKitsuId)
+                }
+                if (fallbackTvdbId != null && fallbackTvdbId > 0) {
+                    result = runCatching {
+                        FanartApiClient.fetchTvImages(fallbackTvdbId, fanartApiKey)
+                    }.getOrElse { emptyList() }
+                }
+            } else {
+                // TV olarak arandı ama TVDB yoktu veya TV Fanart'ta bulunamadı (Örn: Anime filmleri fanart.tv'de Film altındadır)
+                // Doğrudan TMDB ID ile Film endpoint'ini dene!
+                result = runCatching {
+                    FanartApiClient.fetchMovieImages(tmdbId, fanartApiKey)
+                }.getOrElse {
+                    Log.w(TAG, "getFanartGalleryItems (movie fallback) failed: ${it.message}")
+                    emptyList()
+                }
             }
         }
 

@@ -48,7 +48,8 @@ class KitsugiMediaRelationsClient {
         externalId: Int?,
         mediaType: MediaType,
         tmdbId: Int? = null,
-        realMalId: Int? = null
+        realMalId: Int? = null,
+        title: String? = null
     ): List<KitsugiRelation> {
         return withContext(Dispatchers.IO) {
             if (externalId == null || externalId <= 0) return@withContext emptyList()
@@ -58,7 +59,7 @@ class KitsugiMediaRelationsClient {
                     if (mediaType == MediaType.Anime) {
                         val malId = realMalId ?: DetailCache.getMediaDetail("simkl", externalId)?.realMalId
                         if (malId != null && malId > 0) {
-                            val malList = fetchRelations("jikan", malId, mediaType, null, null)
+                            val malList = fetchRelations("jikan", malId, mediaType, null, null, title)
                             if (malList.isNotEmpty()) return@withContext malList
                         }
                     }
@@ -77,7 +78,24 @@ class KitsugiMediaRelationsClient {
                     val effectiveTmdbId = tmdbId ?: externalId
                     if (effectiveTmdbId > 0) {
                         val isMovie = mediaType == MediaType.Movie
-                        TmdbApiClient().fetchRelations(effectiveTmdbId, isMovie).map { it.copy(source = "tmdb") }
+                        val tmdbRels = TmdbApiClient().fetchRelations(effectiveTmdbId, isMovie).map { it.copy(source = "tmdb") }
+                        if (tmdbRels.isNotEmpty()) return@withContext tmdbRels
+
+                        val mediaDetail = DetailCache.getMediaDetail("tmdb", effectiveTmdbId)
+                        val malId = realMalId ?: mediaDetail?.realMalId
+                        if (malId != null && malId > 0) {
+                            val malList = fetchRelations("jikan", malId, mediaType, null, null, title)
+                            if (malList.isNotEmpty()) return@withContext malList
+                        }
+
+                        val cleanTitle = (title ?: mediaDetail?.title ?: mediaDetail?.titleEnglish)
+                            ?.replace(Regex("\\s*\\(.*?\\)"), "")?.trim()
+                        if (!cleanTitle.isNullOrBlank()) {
+                            val aniRelations = fetchRelationsFromAniListBySearch(cleanTitle, mediaType)
+                            if (aniRelations.isNotEmpty()) return@withContext aniRelations
+                        }
+
+                        emptyList()
                     } else emptyList()
                 }
                 "kitsu" -> {
@@ -268,7 +286,8 @@ class KitsugiMediaRelationsClient {
         externalId: Int?,
         mediaType: MediaType,
         tmdbId: Int? = null,
-        realMalId: Int? = null
+        realMalId: Int? = null,
+        title: String? = null
     ): List<KitsugiRelation> {
         return withContext(Dispatchers.IO) {
             if (externalId == null || externalId <= 0) return@withContext emptyList()
@@ -278,7 +297,7 @@ class KitsugiMediaRelationsClient {
                     if (mediaType == MediaType.Anime) {
                         val malId = realMalId ?: DetailCache.getMediaDetail("simkl", externalId)?.realMalId
                         if (malId != null && malId > 0) {
-                            val malList = fetchRecommendations("jikan", malId, mediaType, null, null)
+                            val malList = fetchRecommendations("jikan", malId, mediaType, null, null, title)
                             if (malList.isNotEmpty()) return@withContext malList
                         }
                     }
@@ -297,6 +316,20 @@ class KitsugiMediaRelationsClient {
                     val effectiveTmdbId = tmdbId ?: externalId
                     if (effectiveTmdbId > 0) {
                         val isMovie = mediaType == MediaType.Movie
+                        val mediaDetail = DetailCache.getMediaDetail("tmdb", effectiveTmdbId)
+                        val malId = realMalId ?: mediaDetail?.realMalId
+                        if (malId != null && malId > 0) {
+                            val malList = fetchRecommendations("jikan", malId, mediaType, null, null, title)
+                            if (malList.isNotEmpty()) return@withContext malList
+                        }
+
+                        val cleanTitle = (title ?: mediaDetail?.title ?: mediaDetail?.titleEnglish)
+                            ?.replace(Regex("\\s*\\(.*?\\)"), "")?.trim()
+                        if (!cleanTitle.isNullOrBlank()) {
+                            val aniRecs = fetchRecommendationsFromAniListBySearch(cleanTitle, mediaType)
+                            if (aniRecs.isNotEmpty()) return@withContext aniRecs
+                        }
+
                         TmdbApiClient().fetchRecommendations(effectiveTmdbId, isMovie).map { it.copy(source = "tmdb") }
                     } else emptyList()
                 }
@@ -454,6 +487,147 @@ class KitsugiMediaRelationsClient {
                     titleRomaji = titleRomaji,
                     isAdult = isAdult
                 ))
+            }
+            list
+        }.getOrElse { emptyList() }
+    }
+
+    private suspend fun fetchRelationsFromAniListBySearch(
+        searchTitle: String,
+        mediaType: MediaType
+    ): List<KitsugiRelation> {
+        val query = """
+            query (${'$'}search: String, ${'$'}type: MediaType) {
+                Media(search: ${'$'}search, type: ${'$'}type) {
+                    relations {
+                        edges {
+                            relationType(version: 2)
+                            node {
+                                id
+                                idMal
+                                title { romaji english native }
+                                type
+                                coverImage { large }
+                                isAdult
+                            }
+                        }
+                    }
+                }
+            }
+        """.trimIndent()
+        val variables = JSONObject()
+            .put("search", searchTitle)
+            .put("type", if (mediaType == MediaType.Anime) "ANIME" else "MANGA")
+
+        return runCatching {
+            val response = KitsugiApiBase.executeAniListQuery(query, variables) ?: return emptyList()
+            val root = JSONObject(response)
+            val edges = root.optJSONObject("data")
+                ?.optJSONObject("Media")
+                ?.optJSONObject("relations")
+                ?.optJSONArray("edges") ?: return emptyList()
+            val list = mutableListOf<KitsugiRelation>()
+            for (i in 0 until edges.length()) {
+                val edge = edges.optJSONObject(i) ?: continue
+                val relType = edge.optNullableString("relationType") ?: "Relation"
+                val node = edge.optJSONObject("node") ?: continue
+                val nodeId = node.optInt("id")
+                val nodeIdMal = node.optionalPositiveInt("idMal")
+                val stableId = nodeIdMal ?: (100_000_000 + nodeId)
+                val titleObj = node.optJSONObject("title")
+                val titleRomaji = titleObj?.optNullableString("romaji")
+                val titleEnglish = titleObj?.optNullableString("english")
+                val titleNative = titleObj?.optNullableString("native")
+                val title = titleRomaji ?: titleEnglish ?: titleNative ?: "Bilinmeyen"
+                val nodeTypeStr = node.optNullableString("type").orEmpty()
+                val nodeType = if (nodeTypeStr.equals("manga", ignoreCase = true)) MediaType.Manga else MediaType.Anime
+                val imageUrl = node.optJSONObject("coverImage")?.optNullableString("large")
+                val isAdult = node.optBoolean("isAdult", false)
+                list.add(
+                    KitsugiRelation(
+                        malId = stableId,
+                        title = title,
+                        relationType = relType.toTurkishRelationType(),
+                        imageUrl = imageUrl,
+                        mediaType = nodeType,
+                        source = "anilist",
+                        titleEnglish = titleEnglish,
+                        titleJapanese = titleNative,
+                        titleRomaji = titleRomaji,
+                        isAdult = isAdult
+                    )
+                )
+            }
+            list
+        }.getOrElse { emptyList() }
+    }
+
+    private suspend fun fetchRecommendationsFromAniListBySearch(
+        searchTitle: String,
+        mediaType: MediaType
+    ): List<KitsugiRelation> {
+        val query = """
+            query (${'$'}search: String, ${'$'}type: MediaType) {
+                Media(search: ${'$'}search, type: ${'$'}type) {
+                    recommendations(page: 1, perPage: 20, sort: [RATING_DESC, ID]) {
+                        edges {
+                            node {
+                                mediaRecommendation {
+                                    id
+                                    idMal
+                                    title { romaji english native }
+                                    type
+                                    coverImage { large }
+                                    isAdult
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        """.trimIndent()
+        val variables = JSONObject()
+            .put("search", searchTitle)
+            .put("type", if (mediaType == MediaType.Anime) "ANIME" else "MANGA")
+
+        return runCatching {
+            val response = KitsugiApiBase.executeAniListQuery(query, variables) ?: return emptyList()
+            val root = JSONObject(response)
+            val edges = root.optJSONObject("data")
+                ?.optJSONObject("Media")
+                ?.optJSONObject("recommendations")
+                ?.optJSONArray("edges") ?: return emptyList()
+            val list = mutableListOf<KitsugiRelation>()
+            for (i in 0 until edges.length()) {
+                val edge = edges.optJSONObject(i) ?: continue
+                val node = edge.optJSONObject("node") ?: continue
+                val mediaRec = node.optJSONObject("mediaRecommendation") ?: continue
+                val nodeId = mediaRec.optInt("id")
+                val nodeIdMal = mediaRec.optionalPositiveInt("idMal")
+                val stableId = nodeIdMal ?: (100_000_000 + nodeId)
+                val titleObj = mediaRec.optJSONObject("title")
+                val titleRomaji = titleObj?.optNullableString("romaji")
+                val titleEnglish = titleObj?.optNullableString("english")
+                val titleNative = titleObj?.optNullableString("native")
+                val title = titleRomaji ?: titleEnglish ?: titleNative ?: "Bilinmeyen"
+                val nodeTypeStr = mediaRec.optNullableString("type").orEmpty()
+                val nodeType = if (nodeTypeStr.equals("manga", ignoreCase = true)) MediaType.Manga else MediaType.Anime
+                val imageUrl = mediaRec.optJSONObject("coverImage")?.optNullableString("large")
+                val isAdult = mediaRec.optBoolean("isAdult", false)
+                list.add(
+                    KitsugiRelation(
+                        malId = stableId,
+                        title = title,
+                        relationType = "Öneri",
+                        imageUrl = imageUrl,
+                        mediaType = nodeType,
+                        source = "anilist",
+                        titleEnglish = titleEnglish,
+                        titleJapanese = titleNative,
+                        titleRomaji = titleRomaji,
+                        isAdult = isAdult
+                    )
+                )
             }
             list
         }.getOrElse { emptyList() }

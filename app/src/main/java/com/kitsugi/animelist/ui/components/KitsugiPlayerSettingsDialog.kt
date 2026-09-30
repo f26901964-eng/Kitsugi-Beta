@@ -1904,17 +1904,19 @@ fun KitsugiPlayerSettingsDialog(
                 }
             }
 
-            KitsugiSettingsDivider()
+            if (!embeddedMode) {
+                KitsugiSettingsDivider()
 
-            // Footer
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.End
-            ) {
-                TextButton(onClick = onDismiss) {
-                    Text("Tamam", color = accentColor, fontWeight = FontWeight.SemiBold)
+                // Footer
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text("Tamam", color = accentColor, fontWeight = FontWeight.SemiBold)
+                    }
                 }
             }
         }

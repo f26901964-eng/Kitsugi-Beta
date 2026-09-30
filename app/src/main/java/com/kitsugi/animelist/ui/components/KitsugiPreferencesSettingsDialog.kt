@@ -238,17 +238,19 @@ fun KitsugiPreferencesSettingsDialog(
                 }
             }
 
-            // Footer
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.End
-            ) {
-                TextButton(onClick = onDismiss) {
-                    Text(stringResource(R.string.settings_ok), color = accentColor, fontWeight = FontWeight.SemiBold)
+            if (!embeddedMode) {
+                // Footer
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text(stringResource(R.string.settings_ok), color = accentColor, fontWeight = FontWeight.SemiBold)
+                    }
                 }
-        }
+            }
     }
 }
 

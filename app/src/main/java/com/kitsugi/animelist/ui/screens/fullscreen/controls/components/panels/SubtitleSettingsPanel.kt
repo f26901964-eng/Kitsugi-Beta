@@ -4,17 +4,13 @@ import android.content.res.Configuration.ORIENTATION_PORTRAIT
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.PageSize
-import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -30,10 +26,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -41,6 +33,7 @@ import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import androidx.constraintlayout.compose.ConstraintLayout
+import androidx.constraintlayout.compose.Dimension
 import com.kitsugi.animelist.ui.screens.fullscreen.components.SubtitleStyleSettings
 
 @Composable
@@ -52,7 +45,6 @@ fun SubtitleSettingsPanel(
 ) {
     BackHandler(onBack = onDismissRequest)
     val orientation = LocalConfiguration.current.orientation
-    val screenWidthDp = LocalConfiguration.current.screenWidthDp
 
     ConstraintLayout(modifier = modifier.fillMaxSize()) {
         val subSettingsCards = createRef()
@@ -65,15 +57,21 @@ fun SubtitleSettingsPanel(
             }
         }
 
-        val pagerState = rememberPagerState { 2 }
-
         if (orientation == ORIENTATION_PORTRAIT) {
             Column(
-                modifier = Modifier.constrainAs(subSettingsCards) {
-                    top.linkTo(parent.top, 32.dp)
-                    start.linkTo(parent.start)
-                },
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                modifier = Modifier
+                    .constrainAs(subSettingsCards) {
+                        top.linkTo(parent.top, 16.dp)
+                        start.linkTo(parent.start)
+                        end.linkTo(parent.end)
+                        bottom.linkTo(parent.bottom, 16.dp)
+                        width = Dimension.fillToConstraints
+                        height = Dimension.fillToConstraints
+                    }
+                    .padding(horizontal = 16.dp)
+                    .verticalScroll(rememberScrollState()),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 TopAppBar(
                     title = {
@@ -89,14 +87,9 @@ fun SubtitleSettingsPanel(
                     },
                     colors = TopAppBarDefaults.topAppBarColors().copy(containerColor = Color.Transparent),
                 )
-                HorizontalPager(
-                    state = pagerState,
-                    pageSize = PageSize.Fixed(screenWidthDp.dp * 0.9f),
-                    verticalAlignment = Alignment.Top,
-                    pageSpacing = 8.dp,
-                    contentPadding = PaddingValues(horizontal = 8.dp),
-                    beyondViewportPageCount = 1,
-                ) { page -> cards(page, Modifier.fillMaxWidth()) }
+                SubtitleTypographyCard(subtitleStyle, onStyleChange, Modifier.fillMaxWidth())
+                SubtitleMiscCard(subtitleStyle, onStyleChange, Modifier.fillMaxWidth())
+                Spacer(Modifier.height(24.dp))
             }
         } else {
             Column(
@@ -111,7 +104,7 @@ fun SubtitleSettingsPanel(
             ) {
                 Spacer(Modifier.height(16.dp))
                 Row(
-                    Modifier.width(CARDS_MAX_WIDTH),
+                    Modifier.widthIn(max = CARDS_MAX_WIDTH).fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
                     Text(
@@ -122,7 +115,7 @@ fun SubtitleSettingsPanel(
                         Icon(imageVector = Icons.Default.Close, contentDescription = null)
                     }
                 }
-                repeat(2) { cards(it, Modifier) }
+                repeat(2) { cards(it, Modifier.fillMaxWidth()) }
                 Spacer(Modifier.height(16.dp))
             }
         }
@@ -135,7 +128,7 @@ private fun SubtitleTypographyCard(
     onStyleChange: (SubtitleStyleSettings) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Card(colors = panelCardsColors(), modifier = modifier.width(CARDS_MAX_WIDTH)) {
+    Card(colors = panelCardsColors(), modifier = modifier.widthIn(max = CARDS_MAX_WIDTH)) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Yazı Tipi", style = MaterialTheme.typography.titleMedium)
 
@@ -180,7 +173,7 @@ private fun SubtitleMiscCard(
     onStyleChange: (SubtitleStyleSettings) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Card(colors = panelCardsColors(), modifier = modifier.width(CARDS_MAX_WIDTH)) {
+    Card(colors = panelCardsColors(), modifier = modifier.widthIn(max = CARDS_MAX_WIDTH)) {
         Column(modifier = Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Text("Çeşitli", style = MaterialTheme.typography.titleMedium)
 

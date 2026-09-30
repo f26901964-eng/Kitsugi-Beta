@@ -71,8 +71,8 @@
     <string name="option_layout_comfortable_desc">Standart liste (varsayılan)</string>
     <string name="option_layout_large">Büyük Kart</string>
     <string name="option_layout_large_desc">Geniş poster + özet</string>
-    <string name="option_layout_grid_2col">2 Sütun Grid</string>
-    <string name="option_layout_grid_2col_desc">İkili poster ızgarası</string>
+    <string name="option_layout_grid_2col">Poster Izgarası</string>
+    <string name="option_layout_grid_2col_desc">Dinamik poster ızgarası</string>
     <string name="option_score_100">100 Puan (55/100)</string>
     <string name="option_score_100_desc">Detaylı 1-100 arası puanlama</string>
     <string name="option_score_10_decimal">10 puan ondalık (5.5/10)</string>

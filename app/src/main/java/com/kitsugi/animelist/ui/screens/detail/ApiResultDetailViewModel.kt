@@ -105,6 +105,21 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
 
     // --- Cache / Lock Key ---
     private var currentFetchKey: String? = null
+    private var lastResult: JikanSearchResult? = null
+
+    fun translateSynopsis() {
+        val res = lastResult ?: return
+        val raw = _detailState.value?.synopsis ?: return
+        viewModelScope.launch {
+            val tr = withContext(Dispatchers.IO) {
+                translationManager.translateToTurkish(raw)
+            }
+            if (!tr.isNullOrBlank() && tr != raw) {
+                DetailCache.putTranslation("synopsis", res.source, res.malId, tr)
+                _translatedSynopsis.value = tr
+            }
+        }
+    }
 
     fun loadResult(result: JikanSearchResult, showAnimeLogos: Boolean, forceRefresh: Boolean = false) {
         if (forceRefresh) {
@@ -127,6 +142,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
 
         Log.d(TAG, "loadResult: New key=$newKey (was $currentFetchKey)")
         currentFetchKey = newKey
+        lastResult = result
         _pageResetTrigger.value += 1 // Signal UI to scroll back to first tab
 
         val cachedDetail = DetailCache.getMediaDetail(result.source, result.malId)
@@ -296,10 +312,10 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
             val rawSynopsis = detail.synopsis
             if (!rawSynopsis.isNullOrBlank()) {
                 _translatedSynopsis.value = rawSynopsis
-                // Google Translate yalnızca kullanıcı otomatik çeviri ayarını açtıysa çalışır.
-                // Jikan/MAL için Türkçe synopsis artık TMDB üzerinden (ARM ID resolve) doğrudan geliyor.
+                // Google Translate yalnızca kullanıcı otomatik çeviri ayarını açtıysa veya metin Rusça ise çalışır.
                 val autoTranslate = settings?.autoTranslateEnabled ?: false
-                if (autoTranslate) {
+                val isRussian = rawSynopsis.any { it in '\u0400'..'\u04FF' }
+                if (autoTranslate || isRussian) {
                     val cachedTr = DetailCache.getTranslation("synopsis", result.source, result.malId)
                     if (cachedTr != null) {
                         _translatedSynopsis.value = cachedTr
@@ -431,6 +447,9 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
 
     fun loadTab(tabIndex: Int, result: JikanSearchResult, realMalId: Int?) {
         val malId = result.malId
+        val effectiveRealMalId = realMalId
+            ?: _detailState.value?.realMalId
+            ?: result.realMalId
         // TMDB kaynaklı içerikte malId zaten tmdbId'dir
         val tmdbId = _detailState.value?.tmdbId
             ?: result.tmdbId
@@ -449,14 +468,19 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                             (currentSuccess.data.isEmpty() && DetailCache.getMediaCharacters(result.source, malId) == null)
                         if (needsRefetch) {
                             _charactersState.value = DetailTabState.Loading
+                            val resolvedTitle = _detailState.value?.title
+                                ?: _detailState.value?.titleEnglish
+                                ?: _detailState.value?.titleRomaji
+                                ?: result.title
                             val data = withContext(Dispatchers.IO) {
                                 apiClient.fetchCharacters(
                                     source = result.source,
                                     externalId = result.malId,
                                     mediaType = result.type,
-                                    realMalId = realMalId,
+                                    realMalId = effectiveRealMalId,
                                     // Credits devre dışıysa ya da TMDB tamamen kapalıysa tmdbId gönderme
-                                    tmdbId = if (tmdbEnabled && useCredits) tmdbId else null
+                                    tmdbId = if (tmdbEnabled && useCredits) tmdbId else null,
+                                    title = resolvedTitle
                                 )
                             }
                             if (data.isNotEmpty()) {
@@ -494,7 +518,8 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                                 apiClient.fetchRecommendations(
                                     result.source, result.malId, result.type,
                                     tmdbId = if (tmdbEnabled && useMoreLikeThis) tmdbId else null,
-                                    realMalId = realMalId
+                                    realMalId = realMalId,
+                                    title = result.title
                                 )
                             }
                             if (data.isNotEmpty()) {
@@ -513,7 +538,8 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                                 apiClient.fetchRelations(
                                     result.source, result.malId, result.type,
                                     tmdbId = if (tmdbEnabled && useMoreLikeThis) tmdbId else null,
-                                    realMalId = realMalId
+                                    realMalId = realMalId,
+                                    title = result.title
                                 )
                             }
                             if (data.isNotEmpty()) {

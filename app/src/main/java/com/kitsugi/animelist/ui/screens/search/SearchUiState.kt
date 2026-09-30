@@ -73,6 +73,18 @@ data class SearchUiState(
     val isFilterSheetOpen: Boolean = false,
     val showMoreFilters: Boolean = true,
 
+    // ── Brave-style Engine & Scope ─────────────────────────────────────────
+    val selectedEngine: SearchSourceEngine = SearchSourceEngine.ALL,
+    val selectedScope: SearchScope = SearchScope.ALL_MIXED,
+
+    // ── Source-specific filter bundles ─────────────────────────────────────
+    val aniListSpecificFilters: AniListSpecificFilters = AniListSpecificFilters(),
+    val malSpecificFilters: MalSpecificFilters = MalSpecificFilters(),
+    val tmdbSpecificFilters: TmdbSpecificFilters = TmdbSpecificFilters(),
+    val shikimoriSpecificFilters: ShikimoriSpecificFilters = ShikimoriSpecificFilters(),
+    val kitsuSpecificFilters: KitsuSpecificFilters = KitsuSpecificFilters(),
+    val simklSpecificFilters: SimklSpecificFilters = SimklSpecificFilters(),
+
     // ── Plugin Explore Mode ────────────────────────────────────────────────
     /** When non-null, the search screen shows this plugin's explore page instead of normal search */
     val selectedPluginApiName: String? = null,
@@ -115,46 +127,43 @@ data class SearchUiState(
         if (isSortDescending) sortSearch.descApiValue else sortSearch.ascApiValue
 
     /** True if any filter besides the default sort is active */
-    val hasFiltersApplied: Boolean get() =
-        genres.isNotEmpty() ||
-        excludedGenres.isNotEmpty() ||
-        tags.isNotEmpty() ||
-        selectedFormats.isNotEmpty() ||
-        selectedStatuses.isNotEmpty() ||
-        country != null ||
-        selectedSources.isNotEmpty() ||
-        startYear != null ||
-        endYear != null ||
-        season != null ||
-        minScore != null ||
-        maxScore != null ||
-        minEpCh != null ||
-        maxEpCh != null ||
-        minDuration != null ||
-        maxDuration != null ||
-        onMyList != null ||
-        isDoujin != null ||
-        isAdultFilter != null
+    val hasFiltersApplied: Boolean get() = activeFilterCount > 0
 
     val activeFilterCount: Int get() {
-        var count = 0
-        if (genres.isNotEmpty()) count += genres.size
-        if (excludedGenres.isNotEmpty()) count += excludedGenres.size
-        if (tags.isNotEmpty()) count += tags.size
-        if (selectedFormats.isNotEmpty()) count += selectedFormats.size
-        if (selectedStatuses.isNotEmpty()) count += selectedStatuses.size
-        if (country != null) count++
-        if (selectedSources.isNotEmpty()) count += selectedSources.size
-        if (startYear != null) count++
-        if (endYear != null) count++
-        if (season != null) count++
-        if (minScore != null || maxScore != null) count++
-        if (minEpCh != null || maxEpCh != null) count++
-        if (minDuration != null || maxDuration != null) count++
-        if (onMyList != null) count++
-        if (isDoujin != null) count++
-        if (isAdultFilter != null) count++
-        return count
+        return when (selectedEngine) {
+            SearchSourceEngine.ALL -> {
+                var c = 0
+                if (genres.isNotEmpty()) c += genres.size
+                if (startYear != null || endYear != null) c++
+                if (isAdultFilter != null) c++
+                c
+            }
+            SearchSourceEngine.ANILIST -> {
+                var count = 0
+                if (genres.isNotEmpty()) count += genres.size
+                if (excludedGenres.isNotEmpty()) count += excludedGenres.size
+                if (tags.isNotEmpty()) count += tags.size
+                if (selectedFormats.isNotEmpty()) count += selectedFormats.size
+                if (selectedStatuses.isNotEmpty()) count += selectedStatuses.size
+                if (country != null) count++
+                if (selectedSources.isNotEmpty()) count += selectedSources.size
+                if (startYear != null) count++
+                if (endYear != null) count++
+                if (season != null) count++
+                if (minScore != null || maxScore != null) count++
+                if (minEpCh != null || maxEpCh != null) count++
+                if (minDuration != null || maxDuration != null) count++
+                if (onMyList != null) count++
+                if (isDoujin != null) count++
+                if (isAdultFilter != null) count++
+                count + aniListSpecificFilters.activeCount
+            }
+            SearchSourceEngine.MAL -> malSpecificFilters.activeCount
+            SearchSourceEngine.TMDB -> tmdbSpecificFilters.activeCount
+            SearchSourceEngine.SHIKIMORI -> shikimoriSpecificFilters.activeCount
+            SearchSourceEngine.KITSU -> kitsuSpecificFilters.activeCount
+            SearchSourceEngine.SIMKL -> simklSpecificFilters.activeCount
+        }
     }
 
     /** Returns the legacy SearchFilters object for backward-compatible ViewModel code. */

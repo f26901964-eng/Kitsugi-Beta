@@ -106,6 +106,8 @@ object AniListImportManager {
                         progress
                         progressVolumes
                         score(format: POINT_10_DECIMAL)
+                        scoreRaw: score
+                        advancedScores
                         private
                         notes
                         repeat
@@ -207,14 +209,34 @@ object AniListImportManager {
                 val imageUrl = media.optJSONObject("coverImage")?.optNullableString("large")
                     ?: media.optJSONObject("coverImage")?.optNullableString("medium")
 
-                // K-2: AniList puanı POINT_10_DECIMAL formatında gelir (7.5, 8.3 gibi).
-                // toInt() kesme yapar (7.5 → 7), roundToInt() yuvarlama yapar (7.5 → 8).
+                // AniList puanı: POINT_10_DECIMAL (7.5), raw score veya advancedScores
                 val scoreDouble = item.optDouble("score", 0.0)
-                val score = if (scoreDouble > 0.0) {
-                    scoreDouble.toBigDecimal().setScale(0, java.math.RoundingMode.HALF_UP).toInt()
-                        .coerceIn(0, 10)
+                val scoreRaw = item.optDouble("scoreRaw", 0.0)
+                val effectiveScoreDouble = if (scoreDouble > 0.0) scoreDouble else scoreRaw
+                var score = if (effectiveScoreDouble > 0.0) {
+                    if (effectiveScoreDouble > 10.0) {
+                        (effectiveScoreDouble / 10.0).toBigDecimal().setScale(0, java.math.RoundingMode.HALF_UP).toInt().coerceIn(1, 10)
+                    } else {
+                        effectiveScoreDouble.toBigDecimal().setScale(0, java.math.RoundingMode.HALF_UP).toInt().coerceIn(1, 10)
+                    }
                 } else {
                     null
+                }
+                if (score == null) {
+                    val adv = item.optJSONObject("advancedScores")
+                    if (adv != null) {
+                        val vals = adv.keys().asSequence().mapNotNull { k ->
+                            adv.optDouble(k, 0.0).takeIf { it > 0.0 }
+                        }.toList()
+                        if (vals.isNotEmpty()) {
+                            val avg = vals.average()
+                            score = if (avg > 10.0) {
+                                (avg / 10.0).toBigDecimal().setScale(0, java.math.RoundingMode.HALF_UP).toInt().coerceIn(1, 10)
+                            } else {
+                                avg.toBigDecimal().setScale(0, java.math.RoundingMode.HALF_UP).toInt().coerceIn(1, 10)
+                            }
+                        }
+                    }
                 }
 
                 val startDate = item.optJSONObject("startedAt").toLocalDateString()

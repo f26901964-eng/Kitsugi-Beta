@@ -124,6 +124,7 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
+import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -422,6 +423,42 @@ fun ApiResultDetailPage(
                 )
             },
             floatingHeaderActions = {
+                if (galleryItems.isNotEmpty() || !displayResult.imageUrl.isNullOrBlank()) {
+                    IconButton(onClick = {
+                        val clickedUrl = displayResult.imageUrl
+                        val index = if (!clickedUrl.isNullOrBlank()) {
+                            galleryItems.indexOfFirst { item ->
+                                item.url == clickedUrl ||
+                                item.url.substringAfterLast("/") == clickedUrl.substringAfterLast("/")
+                            }
+                        } else -1
+                        if (index >= 0) {
+                            activeGalleryCategory = GalleryCategory.POSTER
+                            activeGalleryItems = galleryItems
+                            activeGalleryIndex = index
+                        } else if (!clickedUrl.isNullOrBlank()) {
+                            val coverItem = GalleryItem(
+                                url = clickedUrl,
+                                category = GalleryCategory.POSTER,
+                                source = displayResult.source
+                            )
+                            activeGalleryCategory = GalleryCategory.POSTER
+                            activeGalleryItems = listOf(coverItem) + galleryItems
+                            activeGalleryIndex = 0
+                        } else {
+                            val posterIndex = galleryItems.indexOfFirst { it.category == GalleryCategory.POSTER }.coerceAtLeast(0)
+                            activeGalleryCategory = GalleryCategory.POSTER
+                            activeGalleryItems = galleryItems
+                            activeGalleryIndex = posterIndex
+                        }
+                    }) {
+                        Icon(
+                            imageVector = Icons.Rounded.Image,
+                            contentDescription = "Galeri",
+                            tint = accentColor
+                        )
+                    }
+                }
                 IconButton(onClick = {
                     val url = buildExternalUrl(displayResult)
                     if (!url.isNullOrBlank()) {
@@ -495,8 +532,12 @@ fun ApiResultDetailPage(
                             onGenreClick = onSearchByGenre,
                             onTagClick = onSearchByTag,
                             onTranslateClick = {
-                                val raw = detailState?.synopsis
-                                if (!raw.isNullOrBlank()) context.openTranslator(raw, settingsState?.preferredTranslator ?: "DEFAULT")
+                                if (translatedSynopsis == null) {
+                                    viewModel.translateSynopsis()
+                                } else {
+                                    val raw = detailState?.synopsis
+                                    if (!raw.isNullOrBlank()) context.openTranslator(raw, settingsState?.preferredTranslator ?: "DEFAULT")
+                                }
                             },
                             onCopyClick = {
                                 val text = displaySynopsis ?: detailState?.synopsis
