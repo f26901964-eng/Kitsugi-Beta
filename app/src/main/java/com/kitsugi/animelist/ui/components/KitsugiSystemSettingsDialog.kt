@@ -52,17 +52,15 @@ fun KitsugiSystemSettingsDialog(
     onDismiss: () -> Unit
 ) {
     val accentColor = LocalKitsugiAccent.current
-    val pagerState = rememberPagerState(initialPage = initialPage, pageCount = { 3 })
+    val pagerState = rememberPagerState(initialPage = initialPage.coerceIn(0, 1), pageCount = { 2 })
     val scope = rememberCoroutineScope()
 
     val dataManagementScrollState = rememberScrollState()
     val dnsSettingsScrollState = rememberScrollState()
-    val storageSettingsScrollState = rememberScrollState()
 
     val activeScrollState = when (pagerState.currentPage) {
         0 -> dataManagementScrollState
-        1 -> dnsSettingsScrollState
-        else -> storageSettingsScrollState
+        else -> dnsSettingsScrollState
     }
 
     KitsugiSheetOrDialog(
@@ -126,19 +124,6 @@ fun KitsugiSystemSettingsDialog(
                         )
                     }
                 )
-                Tab(
-                    selected = pagerState.currentPage == 2,
-                    onClick = {
-                        scope.launch { pagerState.animateScrollToPage(2) }
-                    },
-                    text = {
-                        Text(
-                            "İndirmeler",
-                            fontWeight = if (pagerState.currentPage == 2) FontWeight.Bold else FontWeight.Normal,
-                            fontSize = 13.sp
-                        )
-                    }
-                )
             }
         }
 
@@ -164,11 +149,6 @@ fun KitsugiSystemSettingsDialog(
                     onDnsChoiceSelected = onDnsChoiceSelected,
                     accentColor = accentColor,
                     scrollState = dnsSettingsScrollState
-                )
-                2 -> StorageSettingsTab(
-                    download = download,
-                    accentColor = accentColor,
-                    scrollState = storageSettingsScrollState
                 )
             }
         }
@@ -362,7 +342,7 @@ private fun DnsSettingsTab(
 }
 
 @Composable
-private fun StorageSettingsTab(
+fun StorageSettingsTab(
     download: com.kitsugi.animelist.ui.screens.settings.DownloadSettings,
     accentColor: Color,
     scrollState: ScrollState = rememberScrollState()

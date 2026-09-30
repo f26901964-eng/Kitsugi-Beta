@@ -18,6 +18,8 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -47,6 +49,7 @@ import com.kitsugi.animelist.ui.components.KitsugiImageGalleryDialog
 import com.kitsugi.animelist.ui.screens.fullscreen.KitsugiFullscreenPlayerActivity
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
+import kotlinx.coroutines.launch
 import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -89,7 +92,8 @@ fun DownloadsScreen(
     val accentColor = LocalKitsugiAccent.current
     val downloads by AnimeDownloadManager.downloads.collectAsState()
 
-    var selectedTab by remember { mutableIntStateOf(0) }
+    val pagerState = rememberPagerState(initialPage = 0, pageCount = { 3 })
+    val scope = rememberCoroutineScope()
     var refreshSubsTrigger by remember { mutableIntStateOf(0) }
     var refreshImagesTrigger by remember { mutableIntStateOf(0) }
 
@@ -134,7 +138,7 @@ fun DownloadsScreen(
             // Quick open root downloads folder
             IconButton(
                 onClick = {
-                    val rootDir = when (selectedTab) {
+                    val rootDir = when (pagerState.currentPage) {
                         1 -> File(
                             Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
                             "Kitsugi/Subtitles"
@@ -161,12 +165,12 @@ fun DownloadsScreen(
 
         // Tabs: Videolar | Altyazılar | Resimler
         TabRow(
-            selectedTabIndex = selectedTab,
+            selectedTabIndex = pagerState.currentPage,
             containerColor = KitsugiColors.Background,
             contentColor = KitsugiColors.TextPrimary,
             indicator = { tabPositions ->
                 TabRowDefaults.SecondaryIndicator(
-                    modifier = Modifier.tabIndicatorOffset(tabPositions[selectedTab]),
+                    modifier = Modifier.tabIndicatorOffset(tabPositions[pagerState.currentPage]),
                     color = accentColor,
                     height = 3.dp
                 )
@@ -176,8 +180,8 @@ fun DownloadsScreen(
             }
         ) {
             Tab(
-                selected = selectedTab == 0,
-                onClick = { selectedTab = 0 },
+                selected = pagerState.currentPage == 0,
+                onClick = { scope.launch { pagerState.animateScrollToPage(0) } },
                 text = {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -187,19 +191,19 @@ fun DownloadsScreen(
                             imageVector = Icons.Rounded.VideoLibrary,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp),
-                            tint = if (selectedTab == 0) accentColor else KitsugiColors.TextMuted
+                            tint = if (pagerState.currentPage == 0) accentColor else KitsugiColors.TextMuted
                         )
                         Text(
                             text = "Videolar (${downloads.size})",
-                            fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal,
-                            color = if (selectedTab == 0) KitsugiColors.TextPrimary else KitsugiColors.TextMuted
+                            fontWeight = if (pagerState.currentPage == 0) FontWeight.Bold else FontWeight.Normal,
+                            color = if (pagerState.currentPage == 0) KitsugiColors.TextPrimary else KitsugiColors.TextMuted
                         )
                     }
                 }
             )
             Tab(
-                selected = selectedTab == 1,
-                onClick = { selectedTab = 1 },
+                selected = pagerState.currentPage == 1,
+                onClick = { scope.launch { pagerState.animateScrollToPage(1) } },
                 text = {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -209,19 +213,19 @@ fun DownloadsScreen(
                             imageVector = Icons.Rounded.Subtitles,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp),
-                            tint = if (selectedTab == 1) accentColor else KitsugiColors.TextMuted
+                            tint = if (pagerState.currentPage == 1) accentColor else KitsugiColors.TextMuted
                         )
                         Text(
                             text = "Altyazılar (${allSubtitles.size})",
-                            fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal,
-                            color = if (selectedTab == 1) KitsugiColors.TextPrimary else KitsugiColors.TextMuted
+                            fontWeight = if (pagerState.currentPage == 1) FontWeight.Bold else FontWeight.Normal,
+                            color = if (pagerState.currentPage == 1) KitsugiColors.TextPrimary else KitsugiColors.TextMuted
                         )
                     }
                 }
             )
             Tab(
-                selected = selectedTab == 2,
-                onClick = { selectedTab = 2 },
+                selected = pagerState.currentPage == 2,
+                onClick = { scope.launch { pagerState.animateScrollToPage(2) } },
                 text = {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -231,12 +235,12 @@ fun DownloadsScreen(
                             imageVector = Icons.Rounded.Image,
                             contentDescription = null,
                             modifier = Modifier.size(18.dp),
-                            tint = if (selectedTab == 2) accentColor else KitsugiColors.TextMuted
+                            tint = if (pagerState.currentPage == 2) accentColor else KitsugiColors.TextMuted
                         )
                         Text(
                             text = "Resimler (${allImages.size})",
-                            fontWeight = if (selectedTab == 2) FontWeight.Bold else FontWeight.Normal,
-                            color = if (selectedTab == 2) KitsugiColors.TextPrimary else KitsugiColors.TextMuted
+                            fontWeight = if (pagerState.currentPage == 2) FontWeight.Bold else FontWeight.Normal,
+                            color = if (pagerState.currentPage == 2) KitsugiColors.TextPrimary else KitsugiColors.TextMuted
                         )
                     }
                 }
@@ -244,9 +248,16 @@ fun DownloadsScreen(
         }
 
         // Content
-        if (selectedTab == 0) {
-            // ── VIDEOLAR TAB ──────────────────────────────────────────────
-            if (downloads.isEmpty()) {
+        HorizontalPager(
+            state = pagerState,
+            modifier = Modifier
+                .fillMaxWidth()
+                .weight(1f)
+        ) { page ->
+            when (page) {
+                0 -> {
+                    // ── VIDEOLAR TAB ──────────────────────────────────────────────
+                    if (downloads.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -346,7 +357,8 @@ fun DownloadsScreen(
                     }
                 }
             }
-        } else if (selectedTab == 1) {
+        }
+        1 -> {
             // ── ALTYAZILAR TAB ───────────────────────────────────────────
             Column(modifier = Modifier.fillMaxSize()) {
                 // Standalone subtitles directory banner
@@ -462,13 +474,16 @@ fun DownloadsScreen(
                     }
                 }
             }
-        } else if (selectedTab == 2) {
+        }
+        2 -> {
             // ── RESİMLER TAB ──────────────────────────────────────────────
-            DownloadedImagesTab(
-                images = allImages,
-                accentColor = accentColor,
-                onRefresh = { refreshImagesTrigger++ }
-            )
+                    DownloadedImagesTab(
+                        images = allImages,
+                        accentColor = accentColor,
+                        onRefresh = { refreshImagesTrigger++ }
+                    )
+                }
+            }
         }
     }
 }

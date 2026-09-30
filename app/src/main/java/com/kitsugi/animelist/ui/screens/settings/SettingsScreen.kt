@@ -238,17 +238,12 @@ fun SettingsScreen(
                     title = "İndirme Ayarları",
                     onBack = { route = SettingsRoute.Main }
                 ) {
-                    KitsugiSystemSettingsDialog(
-                        embeddedMode = true,
-                        totalEntryCount = params.profile.totalEntryCount,
-                        onExportFileClick = params.profile.onExportBackupFileClick,
-                        onImportFileClick = params.profile.onImportBackupFileClick,
-                        onDeleteAllClick = { showDeleteAllConfirm = true },
-                        dnsChoice = params.integrations.dnsChoice,
-                        onDnsChoiceSelected = params.integrations.onDnsChoiceSelected,
+                    val accentColor = com.kitsugi.animelist.ui.theme.LocalKitsugiAccent.current
+                    val storageSettingsScrollState = rememberScrollState()
+                    com.kitsugi.animelist.ui.components.StorageSettingsTab(
                         download = params.download,
-                        initialPage = 2,
-                        onDismiss = { route = SettingsRoute.Main }
+                        accentColor = accentColor,
+                        scrollState = storageSettingsScrollState
                     )
                 }
             }
@@ -456,15 +451,23 @@ private fun SettingsMainPage(
                 SettingsNavCard {
                     KitsugiSettingsItem(
                         title = "Veri & Yedekleme",
-                        description = "Yedek al/geri yükle, DoH (DNS) ve liste yönetimi",
+                        description = "Yedek al/geri yükle ve DoH (DNS) yönetimi",
                         icon = Icons.Rounded.Storage,
                         iconColor = KitsugiColors.AccentGreen,
                         onClick = { onNavigate(SettingsRoute.DataBackup) }
                     )
                     KitsugiSettingsDivider()
                     KitsugiSettingsItem(
+                        title = "İndirme Ayarları",
+                        description = "İndirme konumları, Wi-Fi ve harici indirici ayarları",
+                        icon = Icons.Rounded.Tune,
+                        iconColor = KitsugiColors.AccentGreen,
+                        onClick = { onNavigate(SettingsRoute.Downloads) }
+                    )
+                    KitsugiSettingsDivider()
+                    KitsugiSettingsItem(
                         title = "İndirmeler",
-                        description = "İndirme konumu, otomatik indirme ve çevrimdışı oynatma",
+                        description = "İndirilen videolar, altyazılar ve resimler",
                         icon = Icons.Rounded.Download,
                         iconColor = KitsugiColors.AccentGreen,
                         onClick = {
