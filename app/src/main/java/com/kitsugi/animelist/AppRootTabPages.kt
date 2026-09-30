@@ -255,6 +255,8 @@ private fun SearchTabPage(ctx: TabPagesContext) {
         titleLanguage = ctx.appSettings.titleLanguage,
         scoreFormat = ctx.appSettings.scoreFormat,
         hideScores = ctx.appSettings.hideScores,
+        isBottomBarVisible = ctx.isBottomBarVisible,
+        onScrollReset = ctx.onScrollReset,
         onSeeAllAddonSection = { apiName, title, mainPageData, horizontalImages, initialItems ->
             ctx.navState.addonFullScreenGridState = com.kitsugi.animelist.ui.app.AddonFullScreenGridState(
                 title = title,

@@ -3,6 +3,8 @@
 package com.kitsugi.animelist.ui.screens.search
 
 import androidx.compose.animation.*
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.horizontalScroll
@@ -96,7 +98,9 @@ fun SearchScreen(
     onOpenAddonExplore: (String) -> Unit = {},
     // AniHyou Karakter ve Personel detay yönlendirmeleri
     onOpenCharacterDetail: ((characterId: Int, name: String?, imageUrl: String?) -> Unit)? = null,
-    onOpenStaffDetail: ((staffId: Int, name: String?, imageUrl: String?) -> Unit)? = null
+    onOpenStaffDetail: ((staffId: Int, name: String?, imageUrl: String?) -> Unit)? = null,
+    isBottomBarVisible: Boolean = true,
+    onScrollReset: (() -> Unit)? = null
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val accentColor = LocalKitsugiAccent.current
@@ -105,6 +109,29 @@ fun SearchScreen(
     val scope = rememberCoroutineScope()
     val keyboardController = LocalSoftwareKeyboardController.current
     val context = androidx.compose.ui.platform.LocalContext.current
+
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val navigationBarsPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val fabBottomPadding by animateDpAsState(
+        targetValue = if (isLandscape) {
+            16.dp
+        } else if (isBottomBarVisible) {
+            80.dp + navigationBarsPadding
+        } else {
+            16.dp + navigationBarsPadding
+        },
+        animationSpec = tween(durationMillis = 200),
+        label = "search_fab_bottom_padding"
+    )
+
+    LaunchedEffect(lazyListState) {
+        snapshotFlow { lazyListState.firstVisibleItemIndex to lazyListState.firstVisibleItemScrollOffset }
+            .collect { (firstIndex, scrollOffset) ->
+                if (firstIndex == 0 && scrollOffset == 0) {
+                    onScrollReset?.invoke()
+                }
+            }
+    }
 
     // AniHyou Infinite Scroll (OnBottomReached)
     val shouldLoadMore by remember {
@@ -779,10 +806,11 @@ fun SearchScreen(
             exit = fadeOut() + scaleOut(),
             modifier = Modifier
                 .align(Alignment.BottomEnd)
-                .padding(end = 24.dp, bottom = 24.dp)
+                .padding(end = 20.dp, bottom = fabBottomPadding)
         ) {
             FloatingActionButton(
                 onClick = {
+                    onScrollReset?.invoke()
                     scope.launch {
                         lazyListState.animateScrollToItem(0)
                     }
@@ -790,7 +818,7 @@ fun SearchScreen(
                 containerColor = accentColor,
                 contentColor = Color.White,
                 shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.size(54.dp)
+                modifier = Modifier.size(52.dp)
             ) {
                 Icon(Icons.Default.ArrowUpward, contentDescription = "Yukarı Çık")
             }
