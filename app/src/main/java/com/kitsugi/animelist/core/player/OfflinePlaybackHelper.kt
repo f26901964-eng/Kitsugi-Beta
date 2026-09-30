@@ -77,7 +77,19 @@ object OfflinePlaybackHelper {
      * Dizin yoksa oluşturulur.
      */
     fun getDownloadsDir(context: Context): File {
-        return File(context.cacheDir, DOWNLOADS_DIR).also { it.mkdirs() }
+        val publicDir = File(
+            android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS),
+            "Kitsugi/Video"
+        )
+        if (publicDir.exists() || publicDir.mkdirs()) {
+            return publicDir
+        }
+        val extDir = context.getExternalFilesDir(android.os.Environment.DIRECTORY_DOWNLOADS)
+        if (extDir != null) {
+            val fallback = File(extDir, "Kitsugi/Video").also { it.mkdirs() }
+            if (fallback.exists()) return fallback
+        }
+        return File(context.filesDir, DOWNLOADS_DIR).also { it.mkdirs() }
     }
 
     /**
@@ -85,14 +97,16 @@ object OfflinePlaybackHelper {
      * Bozuk veya eksik video dosyaları silindi/geçersiz olduğunda atlanır.
      */
     fun listDownloadedMedia(context: Context): List<LocalMedia> {
-        val root = getDownloadsDir(context)
-        if (!root.exists()) return emptyList()
+        val primaryRoot = getDownloadsDir(context)
+        val legacyCacheRoot = File(context.cacheDir, DOWNLOADS_DIR)
 
-        return root.listFiles()
-            ?.filter { it.isDirectory }
-            ?.mapNotNull { dir -> readLocalMedia(dir) }
-            ?.sortedByDescending { it.downloadedAtMs }
-            ?: emptyList()
+        val primaryDirs = if (primaryRoot.exists()) primaryRoot.listFiles()?.filter { it.isDirectory }.orEmpty() else emptyList()
+        val legacyDirs = if (legacyCacheRoot.exists()) legacyCacheRoot.listFiles()?.filter { it.isDirectory }.orEmpty() else emptyList()
+
+        val allDirs = (primaryDirs + legacyDirs).distinctBy { it.name }
+        return allDirs
+            .mapNotNull { dir -> readLocalMedia(dir) }
+            .sortedByDescending { it.downloadedAtMs }
     }
 
     /**
@@ -100,9 +114,13 @@ object OfflinePlaybackHelper {
      * Dosya yoksa `null` döner.
      */
     fun getLocalMedia(context: Context, mediaId: String): LocalMedia? {
-        val dir = File(getDownloadsDir(context), mediaId)
-        if (!dir.exists()) return null
-        return readLocalMedia(dir)
+        val primaryDir = File(getDownloadsDir(context), mediaId)
+        if (primaryDir.exists()) return readLocalMedia(primaryDir)
+
+        val legacyDir = File(File(context.cacheDir, DOWNLOADS_DIR), mediaId)
+        if (legacyDir.exists()) return readLocalMedia(legacyDir)
+
+        return null
     }
 
     /**

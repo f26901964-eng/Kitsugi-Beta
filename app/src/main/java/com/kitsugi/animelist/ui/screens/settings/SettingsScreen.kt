@@ -254,8 +254,7 @@ fun SettingsScreen(
                     onBack = { route = SettingsRoute.Main }
                 ) {
                     SettingsAboutContent(
-                        onOpenAbout = params.integrations.onOpenAbout,
-                        onNavigateToFeedback = { route = SettingsRoute.Feedback }
+                        onOpenAbout = params.integrations.onOpenAbout
                     )
                 }
             }
@@ -263,11 +262,11 @@ fun SettingsScreen(
             SettingsRoute.Feedback -> {
                 SettingsSubPage(
                     title = "Geri Bildirim",
-                    onBack = { route = SettingsRoute.About }
+                    onBack = { route = SettingsRoute.Main }
                 ) {
                     com.kitsugi.animelist.ui.screens.more.FeedbackDialog(
                         embeddedMode = true,
-                        onDismiss = { route = SettingsRoute.About },
+                        onDismiss = { route = SettingsRoute.Main },
                         onSubmit = { title, type, description ->
                             val intent = android.content.Intent(android.content.Intent.ACTION_SENDTO).apply {
                                 data = android.net.Uri.parse("mailto:")
@@ -924,8 +923,7 @@ private fun SettingsIntegrationsContent(integrations: IntegrationsSettings) {
 
 @Composable
 private fun SettingsAboutContent(
-    onOpenAbout: (() -> Unit)?,
-    onNavigateToFeedback: () -> Unit
+    onOpenAbout: (() -> Unit)?
 ) {
     val scrollState = rememberScrollState()
     Column(
@@ -942,14 +940,6 @@ private fun SettingsAboutContent(
                 icon = Icons.Rounded.Info,
                 iconColor = KitsugiColors.AccentIndigo,
                 onClick = { onOpenAbout?.invoke() }
-            )
-            KitsugiSettingsDivider()
-            KitsugiSettingsItem(
-                title = "Geri Bildirim Gönder",
-                description = "Hata bildirin veya önerilerinizi paylaşın",
-                icon = Icons.Rounded.Feedback,
-                iconColor = KitsugiColors.AccentBlue,
-                onClick = onNavigateToFeedback
             )
         }
         Spacer(Modifier.height(80.dp))

@@ -66,6 +66,7 @@ class MainActivity : AppCompatActivity() {
                 customAccentColor = appSettings.customAccentColor,
                 isTv = formFactor == DeviceFormFactor.TV
             ) {
+                KitsugiPermissionRequester()
                 when (formFactor) {
                     DeviceFormFactor.TV -> {
                         KitsugiTvTheme {
@@ -157,5 +158,39 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         )
+    }
+}
+
+@androidx.compose.runtime.Composable
+private fun KitsugiPermissionRequester() {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val permissionsToRequest = androidx.compose.runtime.remember {
+        buildList {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                // Android 13+
+                add(android.Manifest.permission.POST_NOTIFICATIONS)
+                add(android.Manifest.permission.READ_MEDIA_IMAGES)
+                add(android.Manifest.permission.READ_MEDIA_VIDEO)
+                add(android.Manifest.permission.READ_MEDIA_AUDIO)
+            } else {
+                // Android 12 and below
+                add(android.Manifest.permission.READ_EXTERNAL_STORAGE)
+                if (android.os.Build.VERSION.SDK_INT <= android.os.Build.VERSION_CODES.P) {
+                    add(android.Manifest.permission.WRITE_EXTERNAL_STORAGE)
+                }
+            }
+        }.filter {
+            androidx.core.content.ContextCompat.checkSelfPermission(context, it) != android.content.pm.PackageManager.PERMISSION_GRANTED
+        }.toTypedArray()
+    }
+
+    val launcher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions()
+    ) { _ -> }
+
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        if (permissionsToRequest.isNotEmpty()) {
+            launcher.launch(permissionsToRequest)
+        }
     }
 }

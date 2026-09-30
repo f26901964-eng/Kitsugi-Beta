@@ -1346,83 +1346,107 @@ fun openFolderInFileManager(context: Context, targetFileOrDir: File) {
         clipboard?.setPrimaryClip(clip)
     }
 
-    val extStorage = Environment.getExternalStorageDirectory()
-    val isExternal = folder.absolutePath.startsWith(extStorage.absolutePath)
+    val pm = context.packageManager
+    val extraIntents = mutableListOf<Intent>()
 
-    // 1. Android SAF / DocumentsContract directory intent for external storage (e.g. Downloads folder)
-    if (isExternal) {
-        try {
+    val oldPolicy = StrictMode.getVmPolicy()
+    StrictMode.setVmPolicy(StrictMode.VmPolicy.Builder().build())
+
+    try {
+        val fileUri = Uri.fromFile(folder)
+
+        // 1. Direct explicit package intents for popular file managers (ZArchiver, MiXplorer, Solid, etc.)
+        val knownFileManagerPkgs = listOf(
+            "ru.zdevs.zarchiver",
+            "ru.zdevs.zarchiver.pro",
+            "com.mixplorer",
+            "com.mixplorer.silver",
+            "pl.solidexplorer2",
+            "com.sec.android.app.myfiles",
+            "com.mi.android.globalFileexplorer",
+            "com.google.android.apps.nbu.files",
+            "com.estrongs.android.pop",
+            "com.alphainventor.filemanager"
+        )
+
+        for (pkg in knownFileManagerPkgs) {
+            val isInstalled = runCatching {
+                pm.getPackageInfo(pkg, 0)
+                true
+            }.getOrDefault(false)
+
+            if (isInstalled) {
+                val directIntent = Intent(Intent.ACTION_VIEW).apply {
+                    setPackage(pkg)
+                    setDataAndType(fileUri, "*/*")
+                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                }
+                extraIntents.add(directIntent)
+            }
+        }
+
+        // 2. Intent with resource/folder (widely supported by Android file explorers)
+        val genericFolderIntent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(fileUri, "resource/folder")
+            addCategory(Intent.CATEGORY_DEFAULT)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+
+        // 3. Intent with vnd.android.cursor.dir/*
+        val cursorDirIntent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(fileUri, "vnd.android.cursor.dir/*")
+            addCategory(Intent.CATEGORY_DEFAULT)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        extraIntents.add(cursorDirIntent)
+
+        // 4. FileProvider intent
+        val contentUri = runCatching {
+            FileProvider.getUriForFile(context, "com.kitsugi.animelist.fileprovider", folder)
+        }.getOrNull()
+        if (contentUri != null) {
+            val fpIntent = Intent(Intent.ACTION_VIEW).apply {
+                setDataAndType(contentUri, "resource/folder")
+                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+            extraIntents.add(fpIntent)
+        }
+
+        // 5. Android SAF DocumentsContract intent (for system "Dosyalar" / DocumentsUI)
+        val extStorage = Environment.getExternalStorageDirectory()
+        if (folder.absolutePath.startsWith(extStorage.absolutePath)) {
             val relPath = folder.absolutePath.removePrefix(extStorage.absolutePath).trimStart('/', '\\')
             val encoded = Uri.encode(relPath)
             val docUri = Uri.parse("content://com.android.externalstorage.documents/document/primary%3A$encoded")
-            val intent = Intent(Intent.ACTION_VIEW).apply {
+            val safIntent = Intent(Intent.ACTION_VIEW).apply {
                 setDataAndType(docUri, "vnd.android.document/directory")
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_GRANT_READ_URI_PERMISSION)
             }
-            context.startActivity(Intent.createChooser(intent, "Klasörü Dosya Yöneticisinde Aç"))
-            Toast.makeText(context, "Klasör konumu: ${folder.name}", Toast.LENGTH_SHORT).show()
-            return
-        } catch (_: Exception) {}
-    }
+            extraIntents.add(safIntent)
+        }
 
-    // 2. DownloadManager intent if inside Downloads folder
-    val publicDownloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
-    if (folder.absolutePath.startsWith(publicDownloadsDir.absolutePath)) {
-        try {
+        // 6. DownloadManager intent if inside Downloads folder
+        val publicDownloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS)
+        if (folder.absolutePath.startsWith(publicDownloadsDir.absolutePath)) {
             val dlIntent = Intent(DownloadManager.ACTION_VIEW_DOWNLOADS).apply {
                 addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
-            context.startActivity(dlIntent)
-            Toast.makeText(context, "İndirilenler açılıyor: ${folder.name}", Toast.LENGTH_SHORT).show()
-            return
-        } catch (_: Exception) {}
+            extraIntents.add(dlIntent)
+        }
+
+        val chooser = Intent.createChooser(genericFolderIntent, "Klasörü Dosya Yöneticisi ile Aç").apply {
+            if (extraIntents.isNotEmpty()) {
+                putExtra(Intent.EXTRA_INITIAL_INTENTS, extraIntents.toTypedArray())
+            }
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        context.startActivity(chooser)
+        Toast.makeText(context, "Klasör açılıyor: ${folder.name}", Toast.LENGTH_SHORT).show()
+        return
+    } catch (_: Exception) {}
+    finally {
+        StrictMode.setVmPolicy(oldPolicy)
     }
-
-    // 3. FileProvider with actual FILE (NEVER with a directory! Directories cause errno=21 EISDIR in ZArchiver)
-    try {
-        val fileToOpen = if (targetFileOrDir.exists() && targetFileOrDir.isFile) targetFileOrDir else {
-            folder.listFiles()?.firstOrNull { it.isFile && it.extension.lowercase() in listOf("mp4", "mkv", "webm", "srt", "vtt", "ass") }
-                ?: folder.listFiles()?.firstOrNull { it.isFile }
-        }
-        if (fileToOpen != null && fileToOpen.exists()) {
-            val fileUri = FileProvider.getUriForFile(
-                context,
-                "com.kitsugi.animelist.fileprovider",
-                fileToOpen
-            )
-            val mime = when (fileToOpen.extension.lowercase()) {
-                "mp4" -> "video/mp4"
-                "mkv" -> "video/x-matroska"
-                "srt" -> "application/x-subrip"
-                "ass", "ssa" -> "text/x-ass"
-                "vtt" -> "text/vtt"
-                else -> "*/*"
-            }
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(fileUri, mime)
-                addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            context.startActivity(Intent.createChooser(intent, "Dosyayı Aç: ${fileToOpen.name}"))
-            Toast.makeText(context, "Dosya: ${fileToOpen.name}", Toast.LENGTH_SHORT).show()
-            return
-        }
-    } catch (_: Exception) {}
-
-    // 5. file:// URI with relaxed VmPolicy fallback
-    try {
-        val oldPolicy = StrictMode.getVmPolicy()
-        StrictMode.setVmPolicy(StrictMode.VmPolicy.Builder().build())
-        try {
-            val intent = Intent(Intent.ACTION_VIEW).apply {
-                setDataAndType(Uri.fromFile(folder), "resource/folder")
-                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-            }
-            context.startActivity(Intent.createChooser(intent, "Klasörü Aç"))
-            return
-        } finally {
-            StrictMode.setVmPolicy(oldPolicy)
-        }
-    } catch (_: Exception) {}
 
     Toast.makeText(context, "Klasör konumu: ${folder.absolutePath}", Toast.LENGTH_LONG).show()
 }

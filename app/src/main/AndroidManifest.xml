@@ -6,6 +6,8 @@
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
     <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
     <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
@@ -37,6 +39,17 @@
         <package android:name="idm.internet.download.manager.plus" />
         <package android:name="com.dv.adm" />
         <package android:name="com.dv.adm.pay" />
+        <!-- File managers for opening download folders -->
+        <package android:name="ru.zdevs.zarchiver" />
+        <package android:name="ru.zdevs.zarchiver.pro" />
+        <package android:name="com.mixplorer" />
+        <package android:name="com.mixplorer.silver" />
+        <package android:name="pl.solidexplorer2" />
+        <package android:name="com.sec.android.app.myfiles" />
+        <package android:name="com.mi.android.globalFileexplorer" />
+        <package android:name="com.google.android.apps.nbu.files" />
+        <package android:name="com.estrongs.android.pop" />
+        <package android:name="com.alphainventor.filemanager" />
         <intent>
             <action android:name="android.intent.action.VIEW" />
             <category android:name="android.intent.category.DEFAULT" />
