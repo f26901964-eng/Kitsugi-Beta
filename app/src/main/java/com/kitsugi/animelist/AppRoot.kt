@@ -755,7 +755,14 @@ fun AppRoot(
         }
     }
 
-    val isInFullScreenMode = navState.fullScreenGridState != null || navState.addonFullScreenGridState != null || navState.detailBackStack.isNotEmpty() || navState.mangaBrowseOpen || navState.mangaDetailNavState != null || navState.mangaReaderNavState != null || navState.mangaSourceHealthOpen
+    val isInFullScreenMode = navState.fullScreenGridState != null ||
+            navState.addonFullScreenGridState != null ||
+            navState.detailBackStack.isNotEmpty() ||
+            navState.mangaBrowseOpen ||
+            navState.mangaDetailNavState != null ||
+            navState.mangaReaderNavState != null ||
+            navState.mangaSourceHealthOpen ||
+            navState.isSettingsSubPageOpen
 
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -766,7 +773,7 @@ fun AppRoot(
     ) {
         Scaffold(
             containerColor = KitsugiColors.Background,
-            modifier = Modifier.nestedScroll(bottomBarScrollConnection),
+            modifier = if (isInFullScreenMode) Modifier else Modifier.nestedScroll(bottomBarScrollConnection),
             snackbarHost = {
                 SnackbarHost(
                     hostState = snackbarHostState,

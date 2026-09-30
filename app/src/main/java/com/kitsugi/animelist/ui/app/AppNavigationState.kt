@@ -55,6 +55,8 @@ class AppNavigationState(
      * AnimatedContent geçişleri sırasında yerel remember state sıfırlandığından
      * bu değer navState'te tutulur — tam ekran grid kapandığında dialog geri gelir. */
     var addonExploreOpen by mutableStateOf(false)
+    /** Ayarlar alt sayfalarında (Oynatıcı Ayarları vb.) alt barın tamamen gizlenmesi için tutulur. */
+    var isSettingsSubPageOpen by mutableStateOf(false)
     var previousBackStack by mutableStateOf<List<DetailScreen>>(emptyList())
 
     fun popDetailStack() {

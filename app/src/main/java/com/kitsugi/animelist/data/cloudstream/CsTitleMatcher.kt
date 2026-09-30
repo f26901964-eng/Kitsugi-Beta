@@ -57,25 +57,39 @@ internal object CsTitleMatcher {
      * saf anime adını çıkarır (ör. "Mushoku Tensei III: Isekai..." -> "Mushoku Tensei").
      */
     fun extractCleanBaseTitle(rawTitle: String): String {
-        var clean = rawTitle
-        // 1. Yıl bilgisini temizle: (2021), 2024
+        var clean = rawTitle.trim()
+
+        // 1. İki nokta üst üste ve tire sonrası alt başlıkları temizle (Franchise adı iki noktadan öncedir)
+        // ör. "Mushoku Tensei III: Isekai Ittara Honki Dasu" -> "Mushoku Tensei III"
+        // ör. "Mushoku Tensei: Jobless Reincarnation" -> "Mushoku Tensei"
+        if (clean.contains(":")) {
+            val prefix = clean.substringBefore(":").trim()
+            if (prefix.length >= 3) {
+                clean = prefix
+            }
+        }
+        if (clean.contains(" - ")) {
+            val prefix = clean.substringBefore(" - ").trim()
+            if (prefix.length >= 3) {
+                clean = prefix
+            }
+        }
+
+        // 2. Yıl bilgisini temizle: (2021), 2024
         clean = clean.replace(Regex("""\s*\(?(19|20)\d{2}\)?"""), "")
-        // 2. Sezon anahtar kelimelerini temizle: Season 3, 3. Sezon, 3rd Season, S3, Part 2, Cour 2
+
+        // 3. Sezon anahtar kelimelerini temizle: Season 3, 3. Sezon, 3rd Season, S3, Part 2, Cour 2
         clean = clean.replace(Regex("""\s*\b(?:season|sezon|s)\s*[:.-]?\s*\d+\b""", RegexOption.IGNORE_CASE), "")
         clean = clean.replace(Regex("""\s*\b\d+\s*(?:st|nd|rd|th)?\s*(?:season|sezon)\b""", RegexOption.IGNORE_CASE), "")
         clean = clean.replace(Regex("""\s*\b\d+\.\s*sezon\b""", RegexOption.IGNORE_CASE), "")
         clean = clean.replace(Regex("""\s*\b(?:part|cour)\s*\d+\b""", RegexOption.IGNORE_CASE), "")
-        // 3. Roma rakamlarını temizle
-        clean = clean.replace(Regex("""\s*\b(x|ix|viii|vii|vi|v|iv|iii|ii)\b(?:\s*[:\-\(\[]|\s*$)""", RegexOption.IGNORE_CASE), "")
-        // 4. İki nokta üst üste sonrası alt başlığı temizle
-        if (clean.contains(":")) {
-            val prefix = clean.substringBefore(":").trim()
-            if (prefix.length >= 4) {
-                clean = prefix
-            }
-        }
-        // 5. Sondaki tek sayıları temizle
-        clean = clean.replace(Regex("""\s*\b\d+\s*$"""), "")
+
+        // 4. Roma rakamlarını temizle (II, III, IV, V, VI, VII, VIII, IX, X)
+        clean = clean.replace(Regex("""\s*\b(x|ix|viii|vii|vi|v|iv|iii|ii)\b""", RegexOption.IGNORE_CASE), "")
+
+        // 5. Sondaki tek basamaklı veya sezon sayılarını temizle (örn. "Mushoku Tensei 2" -> "Mushoku Tensei")
+        clean = clean.replace(Regex("""\s*\b(?:[2-9]|1[0-9])\b\s*$"""), "")
+
         return clean.replace(Regex("""\s+"""), " ").trim()
     }
 
@@ -87,11 +101,35 @@ internal object CsTitleMatcher {
         val variants = linkedSetOf<String>()
         val romanMap = mapOf(2 to "II", 3 to "III", 4 to "IV", 5 to "V", 6 to "VI", 7 to "VII", 8 to "VIII", 9 to "IX", 10 to "X")
 
-        // Prioritize season-specific queries if we are fetching a later season
+        val cleanMain = extractCleanBaseTitle(main)
+
+        // 1. Temiz ana başlığı ve orijinal ana başlığı önceliklendir
+        if (cleanMain.isNotBlank() && cleanMain.length >= 3 && cleanMain != main) {
+            variants.add(cleanMain)
+            variants.add(simplifyTitle(cleanMain))
+            variants.add(toAsciiTitle(cleanMain))
+        }
+
+        variants.add(main)
+        variants.add(simplifyTitle(main))
+        variants.add(toAsciiTitle(main))
+
+        // 2. Alternatif başlıkların temiz franchise adlarını ve tam hallerini ekle
+        for (alt in alts) {
+            val cleanAlt = extractCleanBaseTitle(alt)
+            if (cleanAlt.isNotBlank() && cleanAlt.length >= 3 && cleanAlt != alt) {
+                variants.add(cleanAlt)
+                variants.add(toAsciiTitle(cleanAlt))
+            }
+            variants.add(alt)
+            variants.add(simplifyTitle(alt))
+            variants.add(toAsciiTitle(alt))
+        }
+
+        // 3. İleri sezon aramasında sezon eki eklenmiş varyantları üret
         if (season != null && season > 1) {
-            val allBases = (listOf(main) + alts)
-                .map { extractCleanBaseTitle(it) }
-                .filter { it.length >= 3 }
+            val allBases = (listOf(main, cleanMain) + alts.flatMap { listOf(it, extractCleanBaseTitle(it)) })
+                .filter { it.isNotBlank() && it.length >= 3 }
                 .distinct()
 
             val seasonSuffixes = mutableListOf(
@@ -111,10 +149,6 @@ internal object CsTitleMatcher {
                 }
             }
         }
-
-        variants.add(main)
-        variants.add(simplifyTitle(main))
-        variants.add(toAsciiTitle(main))
 
         // Strip season/year suffix — e.g. "Naruto: Shippuden (2007)" → "Naruto: Shippuden"
         val withoutYear = main.replace(Regex("\\s*\\(?(19|20)\\d{2}\\)?"), "").trim()
@@ -298,14 +332,19 @@ internal object CsTitleMatcher {
                         Log.d(TAG, "  -> Farklı Sezon Uyuşmazlığı: '${result.name}' (Bulunan: $foundSeason, Aranan: $targetSeason) -0.60")
                     }
                 } else {
-                    // Implicit season 1 (no season mentioned in result)
+                    // Implicit season (no season mentioned in result)
                     // If targetSeason is 1, and no other season is specified in query, we match Season 1.
                     val expectsHigherSeason = targetSeason > 1 || querySeasons.any { it > 1 }
                     if (!expectsHigherSeason) {
                         score += 0.10
                     } else {
-                        score -= 0.70 // Penalty because we wanted a higher season but this result has no season (implicit season 1)
-                        Log.d(TAG, "  -> İmzasız Sezon Uyuşmazlığı (Sezon 1 varsayıldı): '${result.name}' (Aranan: $targetSeason, querySeasons: $querySeasons) -0.70")
+                        // Birçok Türkçe anime sağlayıcısı (Anizium, TrAnimeİzle, TürkAnime vb.) tüm sezonları
+                        // tek bir ana dizi başlığı altında (konteyner) toplar (örn. "Mushoku Tensei: Jobless Reincarnation").
+                        // Eğer açıkça "3. Sezon" adayı varsa o kazansın (+0.35 ödülü var), ancak konteyner adayı da
+                        // elenmesin diye ceza sadece -0.15 olarak verilir. Böylece 0.20 eşiğini rahatça aşar ve
+                        // safeLoad() çağrıldığında findEpisodeData hedef sezonu ve bölümü bulur.
+                        score -= 0.15
+                        Log.d(TAG, "  -> Sezonsuz Dizi Başlığı (Konteyner adayı, Aranan: $targetSeason): '${result.name}' -0.15")
                     }
                 }
             }

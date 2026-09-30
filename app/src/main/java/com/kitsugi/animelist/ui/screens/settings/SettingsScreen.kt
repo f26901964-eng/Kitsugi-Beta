@@ -36,6 +36,8 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -95,6 +97,17 @@ fun SettingsScreen(
     // Geri tuşu — Main'de değilsek Main'e dön
     BackHandler(enabled = route != SettingsRoute.Main) {
         route = SettingsRoute.Main
+    }
+
+    // Alt sayfa açıldığında veya Main'e dönüldüğünde alt bar durumunu navState'e bildir
+    LaunchedEffect(route) {
+        params.onSubPageOpenChange?.invoke(route != SettingsRoute.Main)
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            params.onSubPageOpenChange?.invoke(false)
+        }
     }
 
     val isGoingForward = route != SettingsRoute.Main

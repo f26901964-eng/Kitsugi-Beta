@@ -10,6 +10,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.activity.compose.BackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.SizeTransform
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
@@ -290,9 +297,22 @@ fun KitsugiPlayerSettingsDialog(
 
             KitsugiSettingsDivider()
 
-            // Sub-screen Selector / Body Content
-            Box(modifier = Modifier.weight(1f)) {
-                when (activeSubScreen) {
+            // Sub-screen Selector / Body Content with slide & fade transitions
+            AnimatedContent(
+                targetState = activeSubScreen,
+                modifier = Modifier.weight(1f),
+                transitionSpec = {
+                    if (targetState != PlayerSettingsSubScreen.Main) {
+                        (slideInHorizontally { it } + fadeIn()) togetherWith
+                                (slideOutHorizontally { -it / 3 } + fadeOut())
+                    } else {
+                        (slideInHorizontally { -it / 3 } + fadeIn()) togetherWith
+                                (slideOutHorizontally { it } + fadeOut())
+                    } using SizeTransform(clip = false)
+                },
+                label = "player_settings_subscreen"
+            ) { screen ->
+                when (screen) {
                     PlayerSettingsSubScreen.Main -> {
                         LazyColumn(
                             state = mainMenuScrollState,
