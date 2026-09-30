@@ -228,7 +228,9 @@ fun ApiResultDetailPage(
         val detail = detailState
         if (detail != null) {
             result.copy(
-                title = if (result.title.isBlank() || result.title == "Yükleniyor...") (detail.title ?: result.title) else result.title,
+                title = detail.titleRomaji ?: (if (result.title.isBlank() || result.title == "Yükleniyor...") (detail.title ?: result.title) else result.title),
+                titleEnglish = detail.titleEnglish ?: result.titleEnglish,
+                titleJapanese = (detail.titleJapanese ?: detail.titleNative) ?: result.titleJapanese,
                 imageUrl = if (!detail.imageUrl.isNullOrBlank()) detail.imageUrl else result.imageUrl,
                 score = result.score ?: detail.score,
                 year = result.year ?: detail.year,
@@ -639,14 +641,14 @@ fun ApiResultDetailPage(
                             targetSeason = targetSeason,
                             totalSeasons = detailState?.totalSeasons,
                             resolvedTmdbId = detailState?.tmdbId,
-                            displayTitle = displayResult.title,
+                            displayTitle = displayResult.getDisplayTitle(titleLanguage),
                             displaySource = displayResult.source,
                             displayMalId = displayResult.malId,
                             displayRealMalId = displayResult.realMalId,
                             displayImageUrl = displayResult.imageUrl,
-                            displayTitleEnglish = displayResult.titleEnglish,
-                            displayTitleRomaji = detailState?.titleRomaji,
-                            displayTitleNative = detailState?.titleNative,
+                            displayTitleEnglish = displayResult.titleEnglish ?: detailState?.titleEnglish,
+                            displayTitleRomaji = detailState?.titleRomaji ?: displayResult.title,
+                            displayTitleNative = detailState?.titleNative ?: detailState?.titleJapanese ?: displayResult.titleJapanese,
                             displayYear = displayResult.year,
                             isMovie = displayResult.type == MediaType.Movie,
                             onSeasonSelected = { newSeason ->
@@ -667,7 +669,7 @@ fun ApiResultDetailPage(
         val resultAniListId = if (displayResult.source.lowercase() == "anilist") displayResult.malId else null
         val resultTmdbId = detailState?.tmdbId ?: resolvedTmdbId
         KitsugiEpisodeOptionsDialog(
-            animeTitle = displayResult.title,
+            animeTitle = displayResult.getDisplayTitle(titleLanguage),
             episodeNumber = ep.episodeNumber,
             episodeTitle = ep.title,
             originalUrl = ep.url,

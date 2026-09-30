@@ -556,23 +556,15 @@ private fun AppearanceTab(
         // AÇILIŞ EKRANI
         KitsugiSettingsSection(title = stringResource(R.string.settings_splash_screen)) {
             KitsugiSettingsSwitchItem(
-                title = stringResource(R.string.settings_splash_animation),
-                description = if (splashAnimationEnabled) stringResource(R.string.settings_splash_animation_enabled) else stringResource(R.string.settings_splash_animation_disabled),
+                title = stringResource(R.string.settings_splash_animation_and_sound),
+                description = if (splashAnimationEnabled) stringResource(R.string.settings_splash_animation_and_sound_enabled) else stringResource(R.string.settings_splash_animation_and_sound_disabled),
                 icon = Icons.Rounded.Palette,
                 iconColor = accentColor,
                 checked = splashAnimationEnabled,
-                onCheckedChange = onSplashAnimationEnabledChanged
-            )
-
-            KitsugiSettingsDivider()
-
-            KitsugiSettingsSwitchItem(
-                title = stringResource(R.string.settings_splash_sound),
-                description = if (splashSoundEnabled) stringResource(R.string.settings_splash_sound_enabled) else stringResource(R.string.settings_splash_sound_disabled),
-                icon = Icons.Rounded.Settings,
-                iconColor = accentColor,
-                checked = splashSoundEnabled,
-                onCheckedChange = onSplashSoundEnabledChanged
+                onCheckedChange = { enabled ->
+                    onSplashAnimationEnabledChanged(enabled)
+                    onSplashSoundEnabledChanged(enabled)
+                }
             )
         }
     }

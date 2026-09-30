@@ -452,6 +452,7 @@ fun TvRootScreen(
                         TvDetailScreen(
                             result = mediaResult,
                             existingEntry = existingApiEntry,
+                            titleLanguage = settingsState.titleLanguage,
                             onBackClick = { navigationState.pop() },
                             onPlayEpisodeClick = { episode, season ->
                                 val streamMalId = if (mediaResult.source.lowercase() == "anilist") {
@@ -667,6 +668,7 @@ fun TvRootScreen(
                         )
                         TvDestination.SEARCH   -> TvSearchScreen(
                             searchViewModel = searchViewModel,
+                            titleLanguage = settingsState.titleLanguage,
                             onNavigateToDetail = { navigationState.navigateToDetail(it) }
                         )
                         TvDestination.LIBRARY  -> TvLibraryScreen(

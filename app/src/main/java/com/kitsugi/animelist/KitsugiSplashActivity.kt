@@ -14,10 +14,9 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import com.kitsugi.animelist.data.settings.AppSettings
 import com.kitsugi.animelist.data.settings.SettingsDataStore
 import com.kitsugi.animelist.ui.screens.explore.ExploreViewModel
@@ -71,16 +70,21 @@ class KitsugiSplashActivity : AppCompatActivity() {
         )
 
         // Ayarları DataStore'dan oku, sonra UI'yı başlat
-        // lifecycleScope.launch zaten Main thread'de çalışır — withContext gereksiz
         lifecycleScope.launch {
             val dataStore = SettingsDataStore(applicationContext)
-            val settings = dataStore.settingsFlow.firstOrDefault()
+            val settings = try {
+                withTimeoutOrNull(1000L) {
+                    dataStore.settingsFlow.first()
+                } ?: AppSettings()
+            } catch (_: Exception) {
+                AppSettings()
+            }
 
             if (settings.splashAnimationEnabled) {
                 startAnimatedSplash(settings)
             } else {
-                // Animasyon kapalı → direkt geç
-                navigateToMain()
+                // Animasyon ve ses kapalı → direkt ana sayfaya geç
+                navigateToMain(instant = true)
             }
         }
     }
@@ -188,7 +192,7 @@ class KitsugiSplashActivity : AppCompatActivity() {
     // Geçiş
     // ─────────────────────────────────────────────────────────────────────────
 
-    private fun navigateToMain() {
+    private fun navigateToMain(instant: Boolean = false) {
         if (transitionStarted) return
         transitionStarted = true
 
@@ -196,11 +200,16 @@ class KitsugiSplashActivity : AppCompatActivity() {
 
         // Prefetch arka planda devam eder — bitmesini BEKLEME.
         // ExploreViewModel init'i cache'den okur; cache dolmadıysa kendi fetch'ini başlatır.
-        val intent = Intent(this@KitsugiSplashActivity, MainActivity::class.java)
-        intent.flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        val intent = Intent(this@KitsugiSplashActivity, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
         startActivity(intent)
 
-        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+        if (instant) {
+            overridePendingTransition(0, 0)
+        } else {
+            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+        }
         finish()
     }
 
@@ -229,28 +238,5 @@ class KitsugiSplashActivity : AppCompatActivity() {
     @Suppress("DEPRECATION")
     override fun onBackPressed() {
         // Splash sırasında geri tuşu devre dışı
-    }
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Extension
-// ─────────────────────────────────────────────────────────────────────────────
-
-/**
- * Coroutine içinden Flow'un ilk değerini al.
- * Maksimum 2 saniye bekler; zaman aşımında varsayılan AppSettings döner.
- */
-private suspend fun Flow<AppSettings>.firstOrDefault(): AppSettings {
-    return try {
-        withTimeout(2_000L) {
-            var result: AppSettings? = null
-            collect { value ->
-                result = value
-                throw CancellationException("got first value")
-            }
-            result ?: AppSettings()
-        }
-    } catch (_: Exception) {
-        AppSettings()
     }
 }

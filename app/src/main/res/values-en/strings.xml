@@ -100,6 +100,9 @@
     <string name="settings_splash_sound">Splash Sound</string>
     <string name="settings_splash_sound_enabled">Kitsugi startup chord enabled</string>
     <string name="settings_splash_sound_disabled">Sound disabled</string>
+    <string name="settings_splash_animation_and_sound">Splash Animation and Sound</string>
+    <string name="settings_splash_animation_and_sound_enabled">Torii gate animation and sound enabled</string>
+    <string name="settings_splash_animation_and_sound_disabled">Animation and sound disabled — fast startup</string>
     <string name="settings_airing_notifications">Airing Notifications</string>
     <string name="settings_airing_notifications_desc_enabled">Receive notifications when new episodes of watching anime air</string>
     <string name="settings_airing_notifications_desc_disabled">Episode notifications for watching anime are disabled</string>

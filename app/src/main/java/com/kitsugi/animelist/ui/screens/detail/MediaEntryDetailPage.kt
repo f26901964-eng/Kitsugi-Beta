@@ -216,7 +216,9 @@ fun MediaEntryDetailPage(
         val detail = detailState
         if (detail != null) {
             entry.copy(
-                title = if (entry.title.isBlank() || entry.title == "Yükleniyor...") (detail.title ?: entry.title) else entry.title,
+                title = detail.titleRomaji ?: (if (entry.title.isBlank() || entry.title == "Yükleniyor...") (detail.title ?: entry.title) else entry.title),
+                titleEnglish = detail.titleEnglish ?: entry.titleEnglish,
+                titleJapanese = (detail.titleJapanese ?: detail.titleNative) ?: entry.titleJapanese,
                 imageUrl = if (!detail.imageUrl.isNullOrBlank()) detail.imageUrl else entry.imageUrl,
                 total = entry.total ?: detail.total,
                 isAdult = entry.isAdult || detail.isAdult,

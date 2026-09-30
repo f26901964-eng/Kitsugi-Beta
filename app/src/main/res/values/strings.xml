@@ -101,6 +101,9 @@
     <string name="settings_splash_sound">Açılış Sesi</string>
     <string name="settings_splash_sound_enabled">Kitsugi açılış kordası aktif</string>
     <string name="settings_splash_sound_disabled">Ses kapalı</string>
+    <string name="settings_splash_animation_and_sound">Açılış Animasyonu ve Sesi</string>
+    <string name="settings_splash_animation_and_sound_enabled">Açılışta neon animasyon ve ses oynatılır</string>
+    <string name="settings_splash_animation_and_sound_disabled">Animasyon ve ses devre dışı — hızlı başlangıç</string>
     <string name="settings_airing_notifications">Yayın Bildirimleri</string>
     <string name="settings_airing_notifications_desc_enabled">İzlediğiniz animelerin yeni bölümleri yayınlandığında bildirim alırsınız</string>
     <string name="settings_airing_notifications_desc_disabled">İzlediğiniz animelerin bölüm bildirimleri kapalı</string>

@@ -32,7 +32,9 @@ object KitsugiShikimoriClient {
                     val item = array.optJSONObject(i) ?: continue
                     val id = item.optInt("id")
                     if (id <= 0) continue
-                    val title = item.optString("russian").ifBlank { item.optString("name", "") }
+                    val romajiTitle = item.optString("name", "").trim()
+                    val russianTitle = item.optString("russian", "").trim()
+                    val title = romajiTitle.ifBlank { russianTitle }
                     val relativeImg = item.optJSONObject("image")?.optString("original")
                     val imageUrl = relativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
                     val kind = item.optString("kind", "tv")
@@ -55,7 +57,8 @@ object KitsugiShikimoriClient {
                             isAdult = false,
                             imageUrl = imageUrl,
                             year = year,
-                            source = "shikimori"
+                            source = "shikimori",
+                            titleEnglish = romajiTitle.ifBlank { null }
                         )
                     )
                 }
@@ -82,7 +85,9 @@ object KitsugiShikimoriClient {
                     val item = array.optJSONObject(i) ?: continue
                     val id = item.optInt("id")
                     if (id <= 0) continue
-                    val title = item.optString("russian").ifBlank { item.optString("name", "") }
+                    val romajiTitle = item.optString("name", "").trim()
+                    val russianTitle = item.optString("russian", "").trim()
+                    val title = romajiTitle.ifBlank { russianTitle }
                     val relativeImg = item.optJSONObject("image")?.optString("original")
                     val imageUrl = relativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
                     val kind = item.optString("kind", "manga")
@@ -100,7 +105,8 @@ object KitsugiShikimoriClient {
                             isAdult = false,
                             imageUrl = imageUrl,
                             year = year,
-                            source = "shikimori"
+                            source = "shikimori",
+                            titleEnglish = romajiTitle.ifBlank { null }
                         )
                     )
                 }
@@ -174,7 +180,7 @@ object KitsugiShikimoriClient {
                     val romajiTitle = data.optString("name").takeIf { it.isNotBlank() }
                     val engTitle = data.optJSONArray("english")?.optString(0)?.takeIf { it.isNotBlank() }
                     val japTitle = data.optJSONArray("japanese")?.optString(0)?.takeIf { it.isNotBlank() }
-                    val mainTitle = russianTitle ?: romajiTitle ?: engTitle ?: "Bilinmeyen"
+                    val mainTitle = romajiTitle ?: engTitle ?: russianTitle ?: "Bilinmeyen"
 
                     val relativeImg = data.optJSONObject("image")?.optString("original")
                     val imageUrl = relativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
@@ -265,7 +271,7 @@ object KitsugiShikimoriClient {
                         episodeDuration = data.optInt("duration").takeIf { it > 0 }?.let { "$it dk" },
                         startDate = data.optNullableString("aired_on"),
                         endDate = data.optNullableString("released_on"),
-                        titleEnglish = engTitle,
+                        titleEnglish = engTitle ?: romajiTitle,
                         titleJapanese = japTitle,
                         titleRomaji = romajiTitle,
                         titleNative = japTitle,

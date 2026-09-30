@@ -666,22 +666,14 @@ fun TvSettingsScreen(
 
                         item {
                             TvSettingsToggleRow(
-                                title = "Açılış Animasyonu",
-                                description = "Uygulama başlatılırken gösterilen açılış animasyonunu etkinleştirir.",
+                                title = "Açılış Animasyonu ve Sesi",
+                                description = if (settings.splashAnimationEnabled) "Uygulama başlatılırken neon animasyon ve başlangıç sesi oynatılır." else "Animasyon ve ses devre dışı — hızlı başlangıç.",
                                 checked = settings.splashAnimationEnabled,
                                 onCheckedChange = { checked ->
-                                    scope.launch { settingsDataStore.setSplashAnimationEnabled(checked) }
-                                }
-                            )
-                        }
-
-                        item {
-                            TvSettingsToggleRow(
-                                title = "Açılış Sesi",
-                                description = "Animasyon etkinken uygulama başlangıç sesi çalar.",
-                                checked = settings.splashSoundEnabled,
-                                onCheckedChange = { checked ->
-                                    scope.launch { settingsDataStore.setSplashSoundEnabled(checked) }
+                                    scope.launch {
+                                        settingsDataStore.setSplashAnimationEnabled(checked)
+                                        settingsDataStore.setSplashSoundEnabled(checked)
+                                    }
                                 }
                             )
                         }

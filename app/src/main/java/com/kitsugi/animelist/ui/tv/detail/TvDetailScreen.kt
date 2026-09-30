@@ -98,6 +98,7 @@ fun TvDetailScreen(
     onNavigateToRelationDetail: (JikanSearchResult) -> Unit,
     onCharacterClick: (characterId: Int, source: String, name: String?, imageUrl: String?) -> Unit,
     onStaffClick: (staffId: Int, source: String, name: String?, imageUrl: String?) -> Unit,
+    titleLanguage: String = "ROMAJI",
     viewModel: ApiResultDetailViewModel = viewModel()
 ) {
     val accentColor = LocalKitsugiAccent.current
@@ -134,7 +135,9 @@ fun TvDetailScreen(
         val detail = detailState
         if (detail != null) {
             result.copy(
-                title = if (result.title == "Yükleniyor..." || result.title == "Loading...") (detail.title ?: result.title) else result.title,
+                title = detail.titleRomaji ?: (if (result.title == "Yükleniyor..." || result.title == "Loading...") (detail.title ?: result.title) else result.title),
+                titleEnglish = detail.titleEnglish ?: result.titleEnglish,
+                titleJapanese = (detail.titleJapanese ?: detail.titleNative) ?: result.titleJapanese,
                 imageUrl = result.imageUrl ?: detail.imageUrl,
                 score = result.score ?: detail.score,
                 year = result.year ?: detail.year,
@@ -147,7 +150,7 @@ fun TvDetailScreen(
         }
     }
 
-    val displayTitle = displayResult.getDisplayTitle("ROMAJI")
+    val displayTitle = displayResult.getDisplayTitle(titleLanguage)
     val displaySynopsis = translatedSynopsis ?: detailState?.synopsis ?: ""
     val isMovie = displayResult.type == MediaType.Movie
 
@@ -907,7 +910,7 @@ fun TvDetailScreen(
                             externalId = displayResult.malId ?: 0,
                             mediaType = displayResult.type,
                             apiClient = apiClient,
-                            titleLanguage = "ROMAJI",
+                            titleLanguage = titleLanguage,
                             focusRequester = reviewsRowFocusRequester,
                             focusUp = when {
                                 hasStatsRow     -> statsRowFocusRequester

@@ -69,6 +69,7 @@ import androidx.tv.material3.Text
 import coil3.compose.AsyncImage
 import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.model.MediaType
+import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
 import com.kitsugi.animelist.ui.screens.search.SearchHistoryItem
 import com.kitsugi.animelist.ui.screens.search.SearchPlatform
 import com.kitsugi.animelist.ui.screens.search.SearchViewModel
@@ -90,6 +91,7 @@ private val TvChipShape = RoundedCornerShape(20.dp)
 @Composable
 fun TvSearchScreen(
     searchViewModel: SearchViewModel = viewModel(),
+    titleLanguage: String = "ROMAJI",
     onNavigateToDetail: (JikanSearchResult) -> Unit = {}
 ) {
     val state by searchViewModel.uiState.collectAsStateWithLifecycle()
@@ -195,6 +197,7 @@ fun TvSearchScreen(
                         items(state.results, key = { "${it.source}_${it.malId}" }) { result ->
                             TvSearchResultCard(
                                 item = result,
+                                titleLanguage = titleLanguage,
                                 onClick = { onNavigateToDetail(result) }
                             )
                         }
@@ -420,7 +423,11 @@ private fun TvFilterChip(
 
 @OptIn(ExperimentalTvMaterial3Api::class)
 @Composable
-private fun TvSearchResultCard(item: JikanSearchResult, onClick: () -> Unit) {
+private fun TvSearchResultCard(
+    item: JikanSearchResult,
+    titleLanguage: String = "ROMAJI",
+    onClick: () -> Unit
+) {
     var isFocused by remember { mutableStateOf(false) }
 
     Column(
@@ -495,8 +502,9 @@ private fun TvSearchResultCard(item: JikanSearchResult, onClick: () -> Unit) {
         }
 
         // Marquee başlık
+        val displayTitle = item.getDisplayTitle(titleLanguage)
         FocusMarqueeText(
-            text = item.title,
+            text = displayTitle,
             focused = isFocused,
             style = MaterialTheme.typography.bodySmall,
             color = Color.White,
