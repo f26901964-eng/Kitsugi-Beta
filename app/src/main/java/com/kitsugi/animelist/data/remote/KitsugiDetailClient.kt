@@ -103,7 +103,8 @@ class KitsugiDetailClient {
         return withContext(Dispatchers.IO) {
             if (externalId == null || externalId <= 0) return@withContext null
 
-            val cacheKey = "${source.lowercase()}_$externalId"
+            val typeStr = if (mediaType == MediaType.Movie) "movie" else "tv"
+            val cacheKey = if (source.lowercase() == "tmdb") "tmdb_${typeStr}_$externalId" else "${source.lowercase()}_$externalId"
             val context = com.kitsugi.animelist.KitsugiApplication.getInstance()?.applicationContext
             val db = context?.let { com.kitsugi.animelist.data.local.KitsugiDatabase.getDatabase(it) }
             val gson = com.google.gson.Gson()
@@ -128,8 +129,24 @@ class KitsugiDetailClient {
                                 } else {
                                     detail
                                 }
-                                android.util.Log.d("KitsugiDetailClient", "Serving fresh detail from Room cache for $cacheKey")
-                                return@withContext cleanDetail
+
+                                if (!title.isNullOrBlank() && !detail.title.isNullOrBlank() && source.lowercase() == "tmdb") {
+                                    val orig = title.trim().lowercase()
+                                    val dTitle = detail.title?.trim()?.lowercase().orEmpty()
+                                    val dEnTitle = detail.titleEnglish?.trim()?.lowercase().orEmpty()
+                                    val matches = dTitle.contains(orig) || orig.contains(dTitle) || dEnTitle.contains(orig) || orig.contains(dEnTitle)
+                                    if (!matches) {
+                                        android.util.Log.w("KitsugiDetailClient", "Cached TMDB detail title mismatch: expected '$title', got '${detail.title}'. Invalidating cache.")
+                                        db.persistentDetailCacheDao().deleteDetail(cacheKey)
+                                        db.persistentDetailCacheDao().deleteDetail("tmdb_$externalId")
+                                    } else {
+                                        android.util.Log.d("KitsugiDetailClient", "Serving fresh detail from Room cache for $cacheKey")
+                                        return@withContext cleanDetail
+                                    }
+                                } else {
+                                    android.util.Log.d("KitsugiDetailClient", "Serving fresh detail from Room cache for $cacheKey")
+                                    return@withContext cleanDetail
+                                }
                             }
                         }
                     }
@@ -169,7 +186,23 @@ class KitsugiDetailClient {
                     val effectiveTmdbId = tmdbId ?: externalId
                     if (effectiveTmdbId > 0) {
                         val isMovie = mediaType == MediaType.Movie
-                        TmdbApiClient().fetchMediaDetail(effectiveTmdbId, isMovie)
+                        val firstTry = TmdbApiClient().fetchMediaDetail(effectiveTmdbId, isMovie)
+                        if (firstTry != null && !title.isNullOrBlank()) {
+                            val originalTitle = title.trim().lowercase()
+                            val fetchedTitle = firstTry.title?.trim()?.lowercase().orEmpty()
+                            val fetchedEnTitle = firstTry.titleEnglish?.trim()?.lowercase().orEmpty()
+                            val matches = fetchedTitle.contains(originalTitle) || originalTitle.contains(fetchedTitle) ||
+                                          fetchedEnTitle.contains(originalTitle) || originalTitle.contains(fetchedEnTitle)
+                            if (matches) {
+                                firstTry
+                            } else {
+                                android.util.Log.w("KitsugiDetailClient", "TMDB detail title mismatch: expected '$title', got '$fetchedTitle'. Trying alternative type (!isMovie)...")
+                                val secondTry = TmdbApiClient().fetchMediaDetail(effectiveTmdbId, !isMovie)
+                                secondTry ?: firstTry
+                            }
+                        } else {
+                            firstTry ?: TmdbApiClient().fetchMediaDetail(effectiveTmdbId, !isMovie)
+                        }
                     } else null
                 }
                 "simkl" -> {

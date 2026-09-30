@@ -2,26 +2,20 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.152)
+## 🇹🇷 Türkçe (v2.4.153)
 
-### 🔍 Kitsu & Simkl Arama Düzeltmesi, Galeri Bildirim Çubuğu Mesafesi & Performans
+### 🎬 TMDB Film/Dizi ID Eşleme Düzeltmesi & Yorumlardaki Resim Büyüme Sorunu Çözüldü
 
-- **Kitsu Arama Düzeltildi:** Kitsu API'sinin 20'den fazla sayfa boyutu isteklerinde HTTP 400 hatası vererek sonuçları boş döndürmesi sorunu giderildi. Kitsu sekmesinde artık tüm sonuçlar eksiksiz listelenir.
-- **Simkl Arama Düzeltildi:** Simkl API'sinde var olmayan genel arama yerine anime, dizi ve film uç noktaları eşzamanlı taranarak birleştirildi; artık Simkl sekmesinde hem anime hem film/dizi sonuçları anında geliyor.
-- **Galeri Butonları Bildirim Çubuğundan Uzaklaştırıldı:** Resim galerisi tam ekran görünümünde üst kategori butonlarının telefonun bildirim çubuğuna (saat, pil, Wi-Fi simgeleri) yapışarak basılmasını zorlaştırması sorunu `statusBarsPadding` ve güvenli dokunma mesafesiyle düzeltildi.
-- **Vitrin (Hero Showcase) Performansı:** Ana sayfadaki üst vitrinde kasma ve GPU yükü oluşturan blur katmanı kaldırıldı; arayüz akıcı 60/120 FPS hızına kavuştu.
-- **İndirilenler → Resimler Sekmesi:** Galeri ekranından indirilen tüm görseller İndirilenler sayfasında Resimler sekmesinde listelenir; dahili galeri görüntüleyici, klasör aç ve silme desteği mevcuttur.
-- **Zengin Bildirimler:** Video indirmelerinde anime afişi `BigPictureStyle` ile, resim indirmelerinde indirilen görselin kendisi thumbnail olarak bildirimde görünür.
+- **TMDB Anime Filmleri Diziyle Karışma Sorunu Düzeltildi:** TMDB keşfet sayfalarında "Howl's Moving Castle" (Yürüyen Şato) gibi anime filmlerine tıklandığında film yerine aynı TMDB ID numarasına sahip "Roar" adlı TV dizisinin açılması sorunu giderildi. TMDB anime filmlerinin türü doğru şekilde `MediaType.Movie` olarak belirlendi, başlık doğrulaması eklendi ve önbellek film/dizi ayrımıyla güçlendirildi.
+- **Yorumlar & Tartışmalardaki Resimlerin Yavaşça Büyümesi Düzeltildi:** Konu detayı ve yorumlarda paylaşılan görsellerin ve GIF'lerin sayfa açıldıkça veya render edildikçe yavaşça kendi kendine büyüyüp genişlemesi (Compose `animateContentSize` döngüsü) durduruldu. Görseller artık anında sabit orantıyla yüklenir, maksimum yükseklik sınırı (240dp) ile kart düzenini bozmaz ve tıklandığında tam ekran galeri açılır.
+- **Kitsu & Simkl Arama Entegrasyonu:** Önceki sürümdeki tüm arama iyileştirmeleri ve hızlandırmalar korundu.
 
 ---
 
-## 🇬🇧 English (v2.4.152)
+## 🇬🇧 English (v2.4.153)
 
-### 🔍 Kitsu & Simkl Search Fix, Gallery Status Bar Insets & Performance
+### 🎬 TMDB Movie/TV ID Mapping Fix & Comment Image Auto-Expansion Resolved
 
-- **Kitsu Search Fixed:** Resolved HTTP 400 Bad Request error caused by page limit exceeding Kitsu's max limit of 20. Kitsu results now load seamlessly.
-- **Simkl Search Fixed:** Resolved empty results by querying anime, tv, and movie endpoints concurrently instead of the non-existent general endpoint.
-- **Gallery Status Bar Padding:** Added proper status bar insets and top margin to the fullscreen image gallery category chips, preventing accidental notification shade drags.
-- **Hero Showcase Performance:** Removed heavy blur layer on home screen hero carousel to eliminate UI lag and restore smooth 60/120 FPS rendering.
-- **Downloads → Images Tab:** All downloaded images organized under a dedicated Images tab with fullscreen viewer, open folder, and delete options.
-- **Rich Download Notifications:** Video downloads show anime poster with `BigPictureStyle`, image downloads display image thumbnail and file size.
+- **TMDB Anime Movie/TV Confusion Resolved:** Fixed an issue where clicking anime movies on TMDB explore (such as *Howl's Moving Castle*) opened a TV show (*Roar*) with the same TMDB ID. Anime movies are now accurately typed as `MediaType.Movie`, verified by title matching, and differentiated in Room cache.
+- **Forum & Comment Image Auto-Growing Fixed:** Fixed the issue where inline images and GIFs in discussion threads and comments slowly expanded on their own due to Compose `animateContentSize` layout passes. Inline images now display immediately with fixed bounds (max 240dp height), preserving clean comment layouts.
+- **Kitsu & Simkl Search Enhancements:** All search fixes and optimizations from v2.4.152 retained.

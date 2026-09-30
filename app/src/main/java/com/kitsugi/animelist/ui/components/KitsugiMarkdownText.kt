@@ -22,12 +22,17 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.utils.KitsugiMarkdownUtils.formatAniListMarkdown
 import com.mikepenz.markdown.model.ImageData
 import com.mikepenz.markdown.model.ImageTransformer
+import com.mikepenz.markdown.model.PlaceholderConfig
+import com.mikepenz.markdown.model.markdownAnimations
 import com.mikepenz.markdown.coil3.Coil3ImageTransformerImpl
 import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.m3.markdownColor
@@ -45,24 +50,44 @@ private class KitsugiClickableImageTransformer(
     @Composable
     override fun transform(link: String): ImageData {
         val baseData = Coil3ImageTransformerImpl.transform(link)
-        if (onImageClicked == null) return baseData
-
         val clickableModifier = Modifier
             .clip(RoundedCornerShape(8.dp))
-            .clickable {
-                val index = allImages.indexOfFirst {
-                    it.equals(link, ignoreCase = true) || it.contains(link) || link.contains(it)
-                }.let { if (it >= 0) it else 0 }
-                val urls = if (allImages.isNotEmpty()) {
-                    if (allImages.any { it.equals(link, ignoreCase = true) }) allImages else listOf(link) + allImages
-                } else {
-                    listOf(link)
-                }
-                onImageClicked.invoke(urls, index)
+            .heightIn(max = 240.dp)
+            .let { m ->
+                if (onImageClicked != null) {
+                    m.clickable {
+                        val index = allImages.indexOfFirst {
+                            it.equals(link, ignoreCase = true) || it.contains(link) || link.contains(it)
+                        }.let { if (it >= 0) it else 0 }
+                        val urls = if (allImages.isNotEmpty()) {
+                            if (allImages.any { it.equals(link, ignoreCase = true) }) allImages else listOf(link) + allImages
+                        } else {
+                            listOf(link)
+                        }
+                        onImageClicked.invoke(urls, index)
+                    }
+                } else m
             }
 
         val modifier = (baseData.modifier ?: Modifier).then(clickableModifier)
-        return baseData.copy(modifier = modifier)
+        return baseData.copy(modifier = modifier, contentScale = ContentScale.Fit)
+    }
+
+    override fun placeholderConfig(
+        density: Density,
+        containerSize: Size,
+        intrinsicImageSize: Size
+    ): PlaceholderConfig {
+        val baseConfig = Coil3ImageTransformerImpl.placeholderConfig(
+            density, containerSize, intrinsicImageSize
+        )
+        // Inline görsel yer tutucusunun boyunu makul bir üst sınırda tut (240dp),
+        // böylece yer tutucu devasa boyutlara fırlayıp yavaşça büyüme efektine yol açmaz.
+        val maxHeightDp = 240f
+        val cappedHeight = minOf(baseConfig.size.height, maxHeightDp)
+        val ratio = if (baseConfig.size.height > 0) cappedHeight / baseConfig.size.height else 1f
+        val cappedWidth = baseConfig.size.width * ratio
+        return baseConfig.copy(size = Size(cappedWidth, cappedHeight))
     }
 }
 
@@ -176,6 +201,7 @@ fun KitsugiMarkdownText(
                     ),
                 ),
                 imageTransformer = imageTransformer,
+                animations = markdownAnimations(animateTextSize = { this }),
                 modifier = modifier,
             )
         } else {
@@ -278,6 +304,7 @@ fun KitsugiMarkdownText(
                             ),
                             typography = if (isCentered) centeredTypography else normalTypography,
                             imageTransformer = imageTransformer,
+                            animations = markdownAnimations(animateTextSize = { this }),
                             modifier = if (isCentered) Modifier.fillMaxWidth() else Modifier,
                         )
                     }

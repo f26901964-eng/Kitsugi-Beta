@@ -390,7 +390,7 @@ internal object TmdbDiscoverClient {
                 val rating = item.optDouble("vote_average", 0.0)
                 val score = if (rating > 0.0) (rating * 10).toInt().coerceIn(0, 100) / 10 else null
                 val imageUrl = if (posterPath.isNotEmpty()) "https://image.tmdb.org/t/p/w500$posterPath" else null
-                val actualType = if (mediaType == MediaType.Anime) MediaType.Anime else if (isMovie) MediaType.Movie else MediaType.TvShow
+                val actualType = if (isMovie) MediaType.Movie else if (mediaType == MediaType.Anime) MediaType.Anime else MediaType.TvShow
                 val subtitleParts = buildList {
                     if (mediaType == MediaType.Anime) {
                         add("Anime")
