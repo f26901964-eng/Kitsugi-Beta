@@ -251,8 +251,8 @@ fun TvSettingsScreen(
                                 else -> "Romaji"
                             }
                             TvSettingsActionRow(
-                                title = "Tercih Edilen Başlık Dili",
-                                description = "Medya başlıklarının hangi dilde gösterileceğini ayarlar. Şu anki: $langText",
+                                title = "Anime & Manga Başlık Dili",
+                                description = "Shikimori, AniList, MAL ve Kitsu içeriklerinde arama, ana sayfa ve detay başlık dili. Şu anki: $langText",
                                 actionText = "Değiştir",
                                 onClick = {
                                     val nextLang = when (settings.titleLanguage) {
@@ -262,6 +262,28 @@ fun TvSettingsScreen(
                                         else -> "ROMAJI"
                                     }
                                     scope.launch { settingsDataStore.setTitleLanguage(nextLang) }
+                                }
+                            )
+                        }
+
+                        item {
+                            val tmdbLangText = when (settings.tmdbLanguage.lowercase()) {
+                                "tr" -> "Türkçe"
+                                "en" -> "English"
+                                "ja" -> "日本語"
+                                else -> settings.tmdbLanguage.uppercase()
+                            }
+                            TvSettingsActionRow(
+                                title = "Dizi & Film Başlık Dili",
+                                description = "TMDB ve Simkl dizi/film içeriklerinin başlık ve açıklama dili. Şu anki: $tmdbLangText",
+                                actionText = "Değiştir",
+                                onClick = {
+                                    val nextLang = when (settings.tmdbLanguage.lowercase()) {
+                                        "tr" -> "en"
+                                        "en" -> "ja"
+                                        else -> "tr"
+                                    }
+                                    scope.launch { settingsDataStore.setTmdbLanguage(nextLang) }
                                 }
                             )
                         }

@@ -18,6 +18,8 @@ import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Translate
 import androidx.compose.material.icons.rounded.Tablet
+import androidx.compose.material.icons.rounded.Movie
+import androidx.compose.material.icons.rounded.ViewList
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -77,6 +79,7 @@ fun KitsugiPreferencesSettingsDialog(
     onSearchHistoryEnabledChanged: (Boolean) -> Unit = {},
     onSplashAnimationEnabledChanged: (Boolean) -> Unit = {},
     onSplashSoundEnabledChanged: (Boolean) -> Unit = {},
+    onTmdbLanguageChanged: (String) -> Unit = {},
     // ─── T1-07 – Manga Okuyucu Varsayılan Ayarları ───────────────────────
     onMangaReadingModeSelected: (String) -> Unit = {},
     onMangaColorFilterSelected: (String) -> Unit = {},
@@ -207,6 +210,7 @@ fun KitsugiPreferencesSettingsDialog(
                         appSettings = appSettings,
                         onListLayoutSelected = onListLayoutSelected,
                         onTitleLanguageSelected = onTitleLanguageSelected,
+                        onTmdbLanguageChanged = onTmdbLanguageChanged,
                         onScoreFormatSelected = onScoreFormatSelected,
                         onHideScoresChanged = onHideScoresChanged,
                         onAutoTranslateEnabledChanged = onAutoTranslateEnabledChanged,
@@ -589,6 +593,7 @@ private fun ListScoreTab(
     appSettings: com.kitsugi.animelist.data.settings.AppSettings,
     onListLayoutSelected: (String) -> Unit,
     onTitleLanguageSelected: (String) -> Unit,
+    onTmdbLanguageChanged: (String) -> Unit = {},
     onScoreFormatSelected: (String) -> Unit,
     onHideScoresChanged: (Boolean) -> Unit,
     onAutoTranslateEnabledChanged: (Boolean) -> Unit,
@@ -607,6 +612,7 @@ private fun ListScoreTab(
     val KitsugiColors = LocalKitsugiColors.current
     val selectedListLayoutId = appSettings.selectedListLayoutId
     val titleLanguage = appSettings.titleLanguage
+    val tmdbLanguage = appSettings.tmdbLanguage
     val scoreFormat = appSettings.scoreFormat
     val hideScores = appSettings.hideScores
     val autoTranslateEnabled = appSettings.autoTranslateEnabled
@@ -637,6 +643,8 @@ private fun ListScoreTab(
     val context = LocalContext.current
 
     var showTitleLanguageMenu by remember { mutableStateOf(false) }
+    var showTmdbLanguageMenu by remember { mutableStateOf(false) }
+    var showListLayoutMenu by remember { mutableStateOf(false) }
     var showScoreFormatMenu by remember { mutableStateOf(false) }
 
     // ─── T1-15: POST_NOTIFICATIONS – Android 13+ için bildirim izni ────────────────
@@ -755,11 +763,13 @@ private fun ListScoreTab(
             .padding(vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        KitsugiSettingsSection(title = "Liste Görünümü") {
+        // BAŞLIK DİLLERİ & MEDYA GÖRÜNÜMÜ
+        KitsugiSettingsSection(title = stringResource(R.string.settings_section_title_languages)) {
+            // Anime & Manga Başlık Dili
             Box {
                 KitsugiSettingsListItem(
-                    title = stringResource(R.string.settings_title_language),
-                    description = "Medyaların gösterileceği başlık dilini seçin",
+                    title = stringResource(R.string.settings_anime_title_language),
+                    description = stringResource(R.string.settings_anime_title_language_desc),
                     value = titleLanguageOptions.find { it.id == titleLanguage }?.title ?: "",
                     icon = Icons.Rounded.Translate,
                     iconColor = accentColor,
@@ -773,6 +783,59 @@ private fun ListScoreTab(
                             onClick = {
                                 onTitleLanguageSelected(opt.id)
                                 showTitleLanguageMenu = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            KitsugiSettingsDivider()
+
+            // Dizi & Film Başlık Dili
+            Box {
+                val currentTmdbLang = AVAILABLE_TMDB_LANGUAGES.find { it.code == tmdbLanguage }?.displayName ?: tmdbLanguage.uppercase()
+                KitsugiSettingsListItem(
+                    title = stringResource(R.string.settings_movies_title_language),
+                    description = stringResource(R.string.settings_movies_title_language_desc),
+                    value = currentTmdbLang,
+                    icon = Icons.Rounded.Movie,
+                    iconColor = accentColor,
+                    onClick = { showTmdbLanguageMenu = true }
+                )
+                KitsugiDropdownMenu(expanded = showTmdbLanguageMenu, onDismissRequest = { showTmdbLanguageMenu = false }) {
+                    AVAILABLE_TMDB_LANGUAGES.forEach { lang ->
+                        KitsugiDropdownItem(
+                            text = lang.displayName,
+                            selected = lang.code == tmdbLanguage,
+                            onClick = {
+                                onTmdbLanguageChanged(lang.code)
+                                showTmdbLanguageMenu = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            KitsugiSettingsDivider()
+
+            // Liste Düzeni
+            Box {
+                KitsugiSettingsListItem(
+                    title = stringResource(R.string.settings_list_layout),
+                    description = stringResource(R.string.settings_list_layout_desc),
+                    value = listLayoutOptions.find { it.id == selectedListLayoutId }?.title ?: "",
+                    icon = Icons.Rounded.ViewList,
+                    iconColor = accentColor,
+                    onClick = { showListLayoutMenu = true }
+                )
+                KitsugiDropdownMenu(expanded = showListLayoutMenu, onDismissRequest = { showListLayoutMenu = false }) {
+                    listLayoutOptions.forEach { opt ->
+                        KitsugiDropdownItem(
+                            text = opt.title,
+                            selected = opt.id == selectedListLayoutId,
+                            onClick = {
+                                onListLayoutSelected(opt.id)
+                                showListLayoutMenu = false
                             }
                         )
                     }

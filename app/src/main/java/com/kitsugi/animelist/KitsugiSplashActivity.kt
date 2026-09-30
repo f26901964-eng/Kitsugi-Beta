@@ -69,15 +69,39 @@ class KitsugiSplashActivity : AppCompatActivity() {
             or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
         )
 
+        // Hızlı SharedPreferences kontrolü — DataStore disk I/O ve coroutine gecikmesini sıfıra indirir.
+        // Kullanıcı açılış animasyonunu kapattıysa beklemeden anında MainActivity'ye atar!
+        val splashPrefs = getSharedPreferences("kitsugi_splash_cache", MODE_PRIVATE)
+        val hasCached = splashPrefs.contains("splash_animation_enabled")
+        val fastAnimationEnabled = splashPrefs.getBoolean("splash_animation_enabled", true)
+
+        if (hasCached && !fastAnimationEnabled) {
+            navigateToMain(instant = true)
+            return
+        }
+
         // Ayarları DataStore'dan oku, sonra UI'yı başlat
         lifecycleScope.launch {
             val dataStore = SettingsDataStore(applicationContext)
             val settings = try {
-                withTimeoutOrNull(1000L) {
+                withTimeoutOrNull(800L) {
                     dataStore.settingsFlow.first()
-                } ?: AppSettings()
+                } ?: run {
+                    val anim = splashPrefs.getBoolean("splash_animation_enabled", true)
+                    val sound = splashPrefs.getBoolean("splash_sound_enabled", true)
+                    AppSettings(splashAnimationEnabled = anim, splashSoundEnabled = sound)
+                }
             } catch (_: Exception) {
-                AppSettings()
+                val anim = splashPrefs.getBoolean("splash_animation_enabled", true)
+                val sound = splashPrefs.getBoolean("splash_sound_enabled", true)
+                AppSettings(splashAnimationEnabled = anim, splashSoundEnabled = sound)
+            }
+
+            runCatching {
+                splashPrefs.edit()
+                    .putBoolean("splash_animation_enabled", settings.splashAnimationEnabled)
+                    .putBoolean("splash_sound_enabled", settings.splashSoundEnabled)
+                    .apply()
             }
 
             if (settings.splashAnimationEnabled) {

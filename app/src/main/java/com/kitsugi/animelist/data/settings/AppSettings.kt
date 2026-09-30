@@ -55,7 +55,7 @@ data class AppSettings(
     val tmdbUserApiKey: String = "",
     val tmdbModernHomeEnabled: Boolean = true,
     val tmdbEnrichContinueWatching: Boolean = true,
-    val tmdbLanguage: String = "en",
+    val tmdbLanguage: String = "tr",
     val tmdbUseArtwork: Boolean = true,
     val tmdbUseBasicInfo: Boolean = true,
     val tmdbUseDetails: Boolean = true,

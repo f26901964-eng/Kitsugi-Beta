@@ -44,6 +44,11 @@
     <string name="settings_list_layout">List View</string>
     <string name="settings_list_layout_desc">Select the card view style on the My List page.</string>
     <string name="settings_title_language">Title Language</string>
+    <string name="settings_section_title_languages">Title Languages &amp; Media View</string>
+    <string name="settings_anime_title_language">Anime &amp; Manga Title Language</string>
+    <string name="settings_anime_title_language_desc">Title language for Shikimori, AniList, MAL, and Kitsu (Search, Explore, Detail, List).</string>
+    <string name="settings_movies_title_language">Movies &amp; Series Title Language</string>
+    <string name="settings_movies_title_language_desc">Title and overview language for TMDB and Simkl (Search, Explore, Detail).</string>
     <string name="settings_score_format">Score Format</string>
     <string name="settings_score_format_desc">Choose the format in which media scores will be displayed and saved.</string>
     <string name="settings_hide_scores">Hide Scores</string>

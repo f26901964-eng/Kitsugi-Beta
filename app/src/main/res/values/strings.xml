@@ -45,6 +45,11 @@
     <string name="settings_list_layout">Liste Görünümü</string>
     <string name="settings_list_layout_desc">Listem sayfasındaki kart görünümünü seçin.</string>
     <string name="settings_title_language">Başlık Dili</string>
+    <string name="settings_section_title_languages">Başlık Dilleri &amp; Medya Görünümü</string>
+    <string name="settings_anime_title_language">Anime &amp; Manga Başlık Dili</string>
+    <string name="settings_anime_title_language_desc">Shikimori, AniList, MAL ve Kitsu içeriklerinde başlık dili (Arama, Keşfet, Detay, Listem).</string>
+    <string name="settings_movies_title_language">Dizi &amp; Film Başlık Dili</string>
+    <string name="settings_movies_title_language_desc">TMDB ve Simkl dizi/film içeriklerinde başlık ve açıklama dili (Arama, Keşfet, Detay).</string>
     <string name="settings_score_format">Puan Formatı</string>
     <string name="settings_score_format_desc">Medya puanlarının hangi formatta gösterileceğini ve kaydedileceğini seçin.</string>
     <string name="settings_hide_scores">Puanları Gizle</string>

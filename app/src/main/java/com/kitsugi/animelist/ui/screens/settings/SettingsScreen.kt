@@ -608,7 +608,8 @@ private fun SettingsPreferencesContent(
         integrations.translateSourceLanguage, integrations.translateTargetLanguage, general.appLanguage, general.fixedNavBar,
         general.airingNotificationsEnabled, general.splashAnimationEnabled, general.splashSoundEnabled,
         general.mangaReadingMode, general.mangaColorFilter, general.mangaFitMode, general.mangaBrightness,
-        general.aniListNotificationsEnabled, general.malNotificationsEnabled, general.simklNotificationsEnabled, general.notificationInterval
+        general.aniListNotificationsEnabled, general.malNotificationsEnabled, general.simklNotificationsEnabled, general.notificationInterval,
+        integrations.tmdbLanguage
     ) {
         com.kitsugi.animelist.data.settings.AppSettings(
             selectedThemeId = general.selectedThemeId,
@@ -622,6 +623,7 @@ private fun SettingsPreferencesContent(
             selectedListLayoutId = general.selectedListLayoutId,
             selectedHomeLayoutId = general.selectedHomeLayoutId,
             titleLanguage = general.titleLanguage,
+            tmdbLanguage = integrations.tmdbLanguage,
             scoreFormat = general.scoreFormat,
             hideScores = general.hideScores,
             autoTranslateEnabled = integrations.autoTranslateEnabled,
@@ -673,6 +675,7 @@ private fun SettingsPreferencesContent(
         onNotificationIntervalChanged = general.onNotificationIntervalChanged,
         onSplashAnimationEnabledChanged = general.onSplashAnimationEnabledChanged,
         onSplashSoundEnabledChanged = general.onSplashSoundEnabledChanged,
+        onTmdbLanguageChanged = integrations.onTmdbLanguageChanged,
         onSearchHistoryEnabledChanged = general.onSearchHistoryEnabledChanged,
         onMangaReadingModeSelected = general.onMangaReadingModeSelected,
         onMangaColorFilterSelected = general.onMangaColorFilterSelected,

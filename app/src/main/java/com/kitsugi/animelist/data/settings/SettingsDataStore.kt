@@ -11,6 +11,7 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.first
 import com.kitsugi.animelist.ui.screens.search.SearchHistoryItem
 import com.kitsugi.animelist.ui.screens.search.SearchPlatform
 import com.kitsugi.animelist.model.MediaType
@@ -241,6 +242,15 @@ class SettingsDataStore(
 
     val settingsFlow: Flow<AppSettings> = kotlinx.coroutines.flow.flow {
         context.settingsDataStore.data.collect { preferences ->
+            runCatching {
+                val anim = preferences[Keys.SplashAnimationEnabled] ?: true
+                val sound = preferences[Keys.SplashSoundEnabled] ?: true
+                context.getSharedPreferences("kitsugi_splash_cache", android.content.Context.MODE_PRIVATE)
+                    .edit()
+                    .putBoolean("splash_animation_enabled", anim)
+                    .putBoolean("splash_sound_enabled", sound)
+                    .apply()
+            }
             emit(
                 AppSettings(
                     selectedThemeId = preferences[Keys.SelectedThemeId] ?: "mint",
@@ -289,7 +299,7 @@ class SettingsDataStore(
                     tmdbUserApiKey = preferences[Keys.TmdbUserApiKey] ?: "",
                     tmdbModernHomeEnabled = preferences[Keys.TmdbModernHomeEnabled] ?: true,
                     tmdbEnrichContinueWatching = preferences[Keys.TmdbEnrichContinueWatching] ?: true,
-                    tmdbLanguage = preferences[Keys.TmdbLanguage] ?: "en",
+                    tmdbLanguage = preferences[Keys.TmdbLanguage] ?: "tr",
                     tmdbUseArtwork = preferences[Keys.TmdbUseArtwork] ?: true,
                     tmdbUseBasicInfo = preferences[Keys.TmdbUseBasicInfo] ?: true,
                     tmdbUseDetails = preferences[Keys.TmdbUseDetails] ?: true,
@@ -864,6 +874,10 @@ class SettingsDataStore(
 
     suspend fun setTmdbLanguage(lang: String) {
         context.settingsDataStore.edit { it[Keys.TmdbLanguage] = lang }
+        runCatching {
+            val userApiKey = context.settingsDataStore.data.first()[Keys.TmdbUserApiKey] ?: ""
+            com.kitsugi.animelist.data.remote.TmdbApiClient.updateCache(userApiKey, lang)
+        }
     }
 
     suspend fun setTmdbUseArtwork(use: Boolean) {
@@ -1146,10 +1160,18 @@ class SettingsDataStore(
 
     suspend fun setSplashAnimationEnabled(enabled: Boolean) {
         context.settingsDataStore.edit { it[Keys.SplashAnimationEnabled] = enabled }
+        runCatching {
+            context.getSharedPreferences("kitsugi_splash_cache", android.content.Context.MODE_PRIVATE)
+                .edit().putBoolean("splash_animation_enabled", enabled).apply()
+        }
     }
 
     suspend fun setSplashSoundEnabled(enabled: Boolean) {
         context.settingsDataStore.edit { it[Keys.SplashSoundEnabled] = enabled }
+        runCatching {
+            context.getSharedPreferences("kitsugi_splash_cache", android.content.Context.MODE_PRIVATE)
+                .edit().putBoolean("splash_sound_enabled", enabled).apply()
+        }
     }
 
     suspend fun setLiveHelperEnabled(enabled: Boolean) {
