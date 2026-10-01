@@ -13,32 +13,52 @@ import java.util.Locale
 import java.util.TimeZone
 
 class KitsugiUpdateRepository(
-    private val repoOwner: String = "KitsugiBeta-dev",
-    private val repoName: String = "Kitsugi-Beta"
+    private val codebergOwner: String = "BlackDamage",
+    private val codebergRepo: String = "Kitsugi-Beta",
+    private val githubOwner: String = "KitsugiBeta-dev",
+    private val githubRepo: String = "Kitsugi-Beta"
 ) {
 
     companion object {
         private const val TAG = "KitsugiUpdateRepo"
+        private const val CODEBERG_RELEASES_API = "https://codeberg.org/api/v1/repos/%s/%s/releases/latest"
         private const val GITHUB_RELEASES_API = "https://api.github.com/repos/%s/%s/releases/latest"
     }
 
     suspend fun checkForUpdate(): Result<AppRelease?> = withContext(Dispatchers.IO) {
         runCatching {
-            val url = String.format(GITHUB_RELEASES_API, repoOwner, repoName)
-            val request = Request.Builder()
-                .url(url)
-                .header("User-Agent", "KitsugiApp/${BuildConfig.VERSION_NAME}")
-                .header("Accept", "application/vnd.github.v3+json")
-                .build()
+            val endpoints = listOf(
+                String.format(CODEBERG_RELEASES_API, codebergOwner, codebergRepo),
+                String.format(GITHUB_RELEASES_API, githubOwner, githubRepo)
+            )
 
-            val response = KitsugiHttpClient.client.newCall(request).execute()
-            if (!response.isSuccessful) {
-                Log.w(TAG, "Update check failed HTTP code: ${response.code}")
-                return@runCatching null
+            var releaseJson: JSONObject? = null
+
+            for (url in endpoints) {
+                try {
+                    val request = Request.Builder()
+                        .url(url)
+                        .header("User-Agent", "KitsugiApp/${BuildConfig.VERSION_NAME}")
+                        .header("Accept", "application/json")
+                        .build()
+
+                    val response = KitsugiHttpClient.client.newCall(request).execute()
+                    if (response.isSuccessful) {
+                        val bodyString = response.body?.string()
+                        if (!bodyString.isNullOrBlank()) {
+                            releaseJson = JSONObject(bodyString)
+                            Log.d(TAG, "Successfully fetched update release info from: $url")
+                            break
+                        }
+                    } else {
+                        Log.w(TAG, "Update check failed for $url with code: ${response.code}")
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Error checking update from $url: ${e.message}")
+                }
             }
 
-            val bodyString = response.body?.string() ?: return@runCatching null
-            val json = JSONObject(bodyString)
+            val json = releaseJson ?: return@runCatching null
 
             val tagName = json.optString("tag_name", "").trim()
             val releaseTitle = json.optString("name", tagName).ifEmpty { "Yeni Güncelleme" }
@@ -114,14 +134,21 @@ class KitsugiUpdateRepository(
     private fun formatReleaseDate(isoDate: String): String {
         if (isoDate.isBlank()) return ""
         return try {
-            val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
-            inputFormat.timeZone = TimeZone.getTimeZone("UTC")
-            val date = inputFormat.parse(isoDate) ?: return ""
-            val outputFormat = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale("tr", "TR"))
-            outputFormat.timeZone = TimeZone.getTimeZone("Europe/Istanbul")
-            outputFormat.format(date)
+            val parsed = java.time.OffsetDateTime.parse(isoDate)
+            val trZone = java.time.ZoneId.of("Europe/Istanbul")
+            val formatter = java.time.format.DateTimeFormatter.ofPattern("dd MMM yyyy, HH:mm", Locale("tr", "TR"))
+            parsed.atZoneSameInstant(trZone).format(formatter)
         } catch (e: Exception) {
-            isoDate
+            try {
+                val inputFormat = SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'", Locale.US)
+                inputFormat.timeZone = TimeZone.getTimeZone("UTC")
+                val date = inputFormat.parse(isoDate) ?: return isoDate
+                val outputFormat = SimpleDateFormat("dd MMM yyyy, HH:mm", Locale("tr", "TR"))
+                outputFormat.timeZone = TimeZone.getTimeZone("Europe/Istanbul")
+                outputFormat.format(date)
+            } catch (e2: Exception) {
+                isoDate
+            }
         }
     }
 
