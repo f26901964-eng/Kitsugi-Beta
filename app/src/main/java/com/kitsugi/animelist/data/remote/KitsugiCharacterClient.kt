@@ -620,17 +620,28 @@ class KitsugiCharacterClient {
                     }.getOrNull()
                 }
                 "tmdb" -> {
-                    val tmdbRes = TmdbApiClient().fetchPersonCharacterDetail(characterId)
-                    if (tmdbRes != null && KitsugiApplication.getInstance()?.let { com.kitsugi.animelist.data.auth.ExternalAuthManager.getAniListToken(it) } != null) {
-                        val aniListDetail = fetchAniListCharacterByName(tmdbRes.name)
-                        if (aniListDetail != null) {
-                            tmdbRes.copy(isFavourite = aniListDetail.isFavourite, aniListId = aniListDetail.id)
-                        } else {
-                            tmdbRes
+                    // Kurgusal/anime karakteri ise (name parametresi varsa) seslendirmen biyografisi yerine
+                    // AniList veya Jikan üzerinden gerçek karakter profilini yükle
+                    val cleanCharName = name?.replace(Regex("\\s*\\((?:voice|uncredited|uncredited voice|child)\\)", RegexOption.IGNORE_CASE), "")?.trim()
+                    if (!cleanCharName.isNullOrBlank()) {
+                        val aniDetail = fetchAniListCharacterByName(cleanCharName)
+                        if (aniDetail != null) {
+                            return@withContext aniDetail
                         }
-                    } else {
-                        tmdbRes
+                        val jikanDetail = runCatching {
+                            val jikanSearch = JikanApiClient().searchMalCharacters(cleanCharName, page = 1)
+                            val firstMalId = jikanSearch.firstOrNull()?.malId
+                            if (firstMalId != null && firstMalId > 0) {
+                                fetchCharacterDetail("jikan", firstMalId, cleanCharName)
+                            } else null
+                        }.getOrNull()
+                        if (jikanDetail != null) {
+                            return@withContext jikanDetail
+                        }
                     }
+
+                    // Anime/kurgusal karakter bulunamazsa (veya canlı çekim film ise) TMDB person detayına düş
+                    TmdbApiClient().fetchPersonCharacterDetail(characterId)
                 }
                 "kitsu" -> {
                     val kitsuDetail = runCatching {
@@ -954,8 +965,9 @@ class KitsugiCharacterClient {
                         val img = imageObj?.optNullableString("large")
                             ?: imageObj?.optNullableString("medium")
 
+                        val id = node.optInt("id", 0)
                         if (full.isNotBlank() && !img.isNullOrBlank()) {
-                            aniChars.add(AniCharInfo(full, native, alternatives, img))
+                            aniChars.add(AniCharInfo(id, full, native, alternatives, img))
                         }
                     }
                 }
@@ -965,6 +977,15 @@ class KitsugiCharacterClient {
                 .replace(Regex("\\s*\\((?:voice|uncredited|uncredited voice|child)\\)", RegexOption.IGNORE_CASE), "")
                 .replace("ou", "o").replace("oo", "o").replace("oh", "o").replace("uu", "u")
                 .replace(Regex("[^a-z0-9]"), "")
+
+            fun getTokens(s: String): List<String> = s.lowercase()
+                .replace(Regex("\\s*\\((?:voice|uncredited|uncredited voice|child)\\)", RegexOption.IGNORE_CASE), "")
+                .replace("'", "")
+                .replace("’", "")
+                .split(Regex("[^a-z0-9]+"))
+                .filter { it.isNotBlank() }
+
+            val modifiers = setOf("former", "self", "child", "young", "older", "future", "past", "baby", "shadow", "clone", "alter", "dark", "fake")
 
             characters.map { char ->
                 val cleanName = char.name
@@ -983,33 +1004,85 @@ class KitsugiCharacterClient {
                     return@map char.copy(name = cleanName, imageUrl = finalImg)
                 }
 
-                // 1. Exact match (full name or alternative names)
+                val targetTokens = getTokens(cleanName)
+                val targetMods = targetTokens.filter { it in modifiers }.toSet()
+
+                // 1. Birebir tam eşleşme (Tam ad veya alternatif isimler)
                 val exactMatch = aniChars.firstOrNull { ani ->
+                    val aniMods = getTokens(ani.full).filter { it in modifiers }.toSet()
+                    if (targetMods != aniMods) return@firstOrNull false
                     norm(ani.full) == targetNorm || ani.alternatives.any { norm(it) == targetNorm }
                 }
                 if (exactMatch != null) {
-                    return@map char.copy(name = cleanName, imageUrl = exactMatch.imageUrl)
+                    return@map char.copy(
+                        id = if (exactMatch.id > 0) exactMatch.id else char.id,
+                        name = cleanName,
+                        imageUrl = exactMatch.imageUrl,
+                        source = if (exactMatch.id > 0) "anilist" else char.source
+                    )
                 }
 
-                // 2. Partial containment match (e.g. "Nobita" vs "Nobita Nobi")
-                val partialMatch = aniChars.firstOrNull { ani ->
-                    val aniNorm = norm(ani.full)
-                    if (aniNorm.length >= 4 && targetNorm.length >= 4) {
-                        aniNorm.contains(targetNorm) || targetNorm.contains(aniNorm)
-                    } else false
+                // 2. Token seti eşleşmesi (Japonca/Batı isim sırası tersliği: "Takeshi Gouda" vs "Gouda Takeshi")
+                val tokenSetMatch = aniChars.firstOrNull { ani ->
+                    val aniTokens = getTokens(ani.full)
+                    val aniMods = aniTokens.filter { it in modifiers }.toSet()
+                    if (targetMods != aniMods) return@firstOrNull false
+                    aniTokens.toSet() == targetTokens.toSet()
                 }
-                if (partialMatch != null) {
-                    return@map char.copy(name = cleanName, imageUrl = partialMatch.imageUrl)
+                if (tokenSetMatch != null) {
+                    return@map char.copy(
+                        id = if (tokenSetMatch.id > 0) tokenSetMatch.id else char.id,
+                        name = cleanName,
+                        imageUrl = tokenSetMatch.imageUrl,
+                        source = if (tokenSetMatch.id > 0) "anilist" else char.source
+                    )
                 }
 
-                // 3. Token-based match (e.g. "Takeshi Gouda" vs "Gian")
-                val wordMatch = aniChars.firstOrNull { ani ->
-                    val aniTokens = ani.full.lowercase().split("\\s+".toRegex()).filter { it.length >= 3 }
-                    val targetTokens = cleanName.lowercase().split("\\s+".toRegex()).filter { it.length >= 3 }
-                    aniTokens.any { it in targetTokens }
+                // 3. İsim altkümesi eşleşmesi (Örn. "Eris Boreas Greyrat" vs "Eris Greyrat" veya "Nobita" vs "Nobita Nobi")
+                // KRİTİK KORUMA: Karakterler mutlaka ayırt edici İLK/ÖZ İSMİ paylaşmalıdır.
+                // Sadece soyadı ("Greyrat") ortaklığı ASLA eşleşme kabul edilmez!
+                val subsetMatch = aniChars.firstOrNull { ani ->
+                    val aniTokens = getTokens(ani.full)
+                    val aniMods = aniTokens.filter { it in modifiers }.toSet()
+                    if (targetMods != aniMods) return@firstOrNull false
+                    if (aniTokens.isEmpty() || targetTokens.isEmpty()) return@firstOrNull false
+
+                    val firstA = aniTokens.first()
+                    val firstT = targetTokens.first()
+                    val sharesGivenName = (firstA in targetTokens) || (firstT in aniTokens)
+                    if (!sharesGivenName) return@firstOrNull false
+
+                    val intersection = aniTokens.toSet().intersect(targetTokens.toSet())
+                    val union = aniTokens.toSet().union(targetTokens.toSet())
+                    if (union.isEmpty()) return@firstOrNull false
+                    val jaccard = intersection.size.toDouble() / union.size.toDouble()
+                    jaccard >= 0.5
                 }
-                if (wordMatch != null) {
-                    return@map char.copy(name = cleanName, imageUrl = wordMatch.imageUrl)
+                if (subsetMatch != null) {
+                    return@map char.copy(
+                        id = if (subsetMatch.id > 0) subsetMatch.id else char.id,
+                        name = cleanName,
+                        imageUrl = subsetMatch.imageUrl,
+                        source = if (subsetMatch.id > 0) "anilist" else char.source
+                    )
+                }
+
+                // 4. Alternatif isimler (takma ad / alias) eşleşmesi (Örn. "Gian" -> "Takeshi Gouda")
+                val aliasMatch = aniChars.firstOrNull { ani ->
+                    val aniTokens = getTokens(ani.full)
+                    val aniMods = aniTokens.filter { it in modifiers }.toSet()
+                    if (targetMods != aniMods) return@firstOrNull false
+                    ani.alternatives.any { alt ->
+                        norm(alt) == targetNorm || getTokens(alt).toSet() == targetTokens.toSet()
+                    }
+                }
+                if (aliasMatch != null) {
+                    return@map char.copy(
+                        id = if (aliasMatch.id > 0) aliasMatch.id else char.id,
+                        name = cleanName,
+                        imageUrl = aliasMatch.imageUrl,
+                        source = if (aliasMatch.id > 0) "anilist" else char.source
+                    )
                 }
 
                 val finalImg = if (isActorImage) null else char.imageUrl
@@ -1093,6 +1166,7 @@ class KitsugiCharacterClient {
     }
 
     private data class AniCharInfo(
+        val id: Int,
         val full: String,
         val native: String?,
         val alternatives: List<String>,

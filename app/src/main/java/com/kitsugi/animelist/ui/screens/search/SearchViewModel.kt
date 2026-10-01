@@ -1249,6 +1249,18 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
 
         // 0. Seçenek C: "Tümü (All-in-One Çoklu Platform Arama)"
         if (state.currentTab == KitsugiSearchTab.All) {
+            _uiState.update {
+                it.copy(
+                    multiResults = it.multiResults.copy(
+                        isLoadingAniList = true,
+                        isLoadingMal = true,
+                        isLoadingTmdb = true,
+                        isLoadingShikimori = true,
+                        isLoadingKitsu = true,
+                        isLoadingSimkl = true
+                    )
+                )
+            }
             return coroutineScope {
                 val aniListDef = async(Dispatchers.IO) {
                     runCatching {
@@ -1306,7 +1318,13 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                             tmdbResults = tmdbRes,
                             shikimoriResults = shikimoriRes,
                             kitsuResults = kitsuRes,
-                            simklResults = simklRes
+                            simklResults = simklRes,
+                            isLoadingAniList = false,
+                            isLoadingMal = false,
+                            isLoadingTmdb = false,
+                            isLoadingShikimori = false,
+                            isLoadingKitsu = false,
+                            isLoadingSimkl = false
                         )
                     )
                 }

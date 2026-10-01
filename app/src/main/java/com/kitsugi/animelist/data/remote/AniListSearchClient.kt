@@ -645,6 +645,7 @@ class AniListSearchClient(
                 ${'$'}chaptersGreater: Int,
                 ${'$'}chaptersLesser: Int,
                 ${'$'}isAdult: Boolean,
+                ${'$'}isLicensed: Boolean,
                 ${'$'}countryOfOrigin: CountryCode,
                 ${'$'}sourceIn: [MediaSource],
                 ${'$'}minimumTagRank: Int,

@@ -605,23 +605,13 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
 
     private suspend fun loadAniListData(): ExplorePayload = supervisorScope {
         val showAdult = showAdultContentState
-        val context = getApplication<Application>().applicationContext
-        val hasToken = !ExternalAuthManager.getAniListToken(context).isNullOrBlank()
-
-        if (!hasToken) {
-            // Token yok → AniList isteği yapma, Kitsu ile doldur
-            android.util.Log.d("ExploreViewModel", "AniList token yok → Kitsu keşfet")
-            return@supervisorScope loadKitsuData()
-        }
-
-        // Token var → AniList, ama ServiceDown exception alırsak Kitsu'ya düş
         val serviceError = java.util.concurrent.atomic.AtomicReference<Throwable?>(null)
         fun <T> Result<T>.orDefaultTracking(d: T): T {
             exceptionOrNull()?.let { ex ->
                 if (ex is com.kitsugi.animelist.data.remote.AniListServiceDownException)
                     serviceError.compareAndSet(null, ex)
             }
-            return getOrDefault(d)!!
+            return getOrDefault(d) ?: d
         }
 
         val topAnimeDeferred = async { apiClient.aniListTopAnime(showAdultContent = showAdult) }
@@ -661,18 +651,29 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         val newlyAddedManga = runCatching { newlyAddedMangaDeferred.await() }.orDefaultTracking(emptyList())
         val airingSoon      = runCatching { airingSoonDeferred.await() }.getOrDefault(emptyList())
 
-        // AniList servis kesintisi tespit edildiyse Kitsu fallback
-        serviceError.get()?.let {
-            android.util.Log.w("ExploreViewModel", "AniList kapalı → Kitsu fallback: ${it.message}")
+        // AniList veri vermezse veya servis hatası tespit edildiyse Kitsu tam fallback
+        val isAniListEmpty = topAnime.isEmpty() && airingAnime.isEmpty() && upcomingAnime.isEmpty()
+        if (serviceError.get() != null || isAniListEmpty) {
+            android.util.Log.w("ExploreViewModel", "AniList veri vermedi veya servis hatası (boş=$isAniListEmpty) → Kitsu fallback")
             return@supervisorScope loadKitsuData()
         }
 
+        // Kısmi boşlukları Kitsu ile tamamla
+        val needsKitsuFill = topAnime.isEmpty() || airingAnime.isEmpty() || upcomingAnime.isEmpty() ||
+            topManga.isEmpty() || publishingManga.isEmpty() || trendingManga.isEmpty()
+        val kitsuFill = if (needsKitsuFill) runCatching { loadKitsuData() }.getOrNull() else null
+
         ExplorePayload(
-            topAnime = topAnime, airingAnime = airingAnime, upcomingAnime = upcomingAnime,
-            topManga = topManga, publishingManga = publishingManga, trendingManga = trendingManga,
-            newlyAddedAnime = newlyAddedAnime, newlyAddedManga = newlyAddedManga,
-            trendingAnime = emptyList(), movieAnime = emptyList(), seasonalAnime = emptyList(),
-            airingSoonAnime = airingSoon
+            topAnime = topAnime.ifEmpty { kitsuFill?.topAnime ?: emptyList() },
+            airingAnime = airingAnime.ifEmpty { kitsuFill?.airingAnime ?: emptyList() },
+            upcomingAnime = upcomingAnime.ifEmpty { kitsuFill?.upcomingAnime ?: emptyList() },
+            topManga = topManga.ifEmpty { kitsuFill?.topManga ?: emptyList() },
+            publishingManga = publishingManga.ifEmpty { kitsuFill?.publishingManga ?: emptyList() },
+            trendingManga = trendingManga.ifEmpty { kitsuFill?.trendingManga ?: emptyList() },
+            newlyAddedAnime = newlyAddedAnime.ifEmpty { kitsuFill?.newlyAddedAnime ?: emptyList() },
+            newlyAddedManga = newlyAddedManga.ifEmpty { kitsuFill?.newlyAddedManga ?: emptyList() },
+            trendingAnime = emptyList(), movieAnime = kitsuFill?.movieAnime ?: emptyList(),
+            seasonalAnime = emptyList(), airingSoonAnime = airingSoon
         )
     }
 

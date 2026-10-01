@@ -69,7 +69,11 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
     }
 
     fun loadCharacter(characterId: Int, source: String, name: String? = null) {
-        val newKey = "$source:$characterId"
+        val newKey = if (source.equals("tmdb", ignoreCase = true) && !name.isNullOrBlank()) {
+            "$source:${name.trim().lowercase()}"
+        } else {
+            "$source:$characterId"
+        }
         if (newKey == currentFetchKey) {
             Log.d(TAG, "loadCharacter: Cache hit for key=$newKey — skipping")
             return
