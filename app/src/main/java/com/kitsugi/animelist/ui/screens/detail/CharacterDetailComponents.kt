@@ -391,28 +391,7 @@ internal fun CharacterAboutTabContent(
     val context = LocalContext.current
     SelectionContainer(modifier = modifier) {
         Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-            if (detail.alternativeNames.isNotEmpty()) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(KitsugiColors.Surface)
-                        .padding(16.dp)
-                ) {
-                    Text(
-                        text = stringResource(R.string.section_alternative_names),
-                        color = KitsugiColors.TextPrimary,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        text = detail.alternativeNames.joinToString(", "),
-                        color = KitsugiColors.TextSecondary,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            }
+            AlternativeNamesSection(alternativeNames = detail.alternativeNames)
             val (formattedBirthday, calculatedAge) = androidx.compose.runtime.remember(detail.birthday, detail.age) {
                 com.kitsugi.animelist.utils.KitsugiDateUtils.formatBirthdayAndCalculateAge(detail.birthday, detail.age)
             }

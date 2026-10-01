@@ -129,7 +129,8 @@ fun KitsugiHeroSection(
             val stableId = item.malId
             val logoUrl = when {
                 item.source.equals("tmdb", ignoreCase = true) -> {
-                    if (stableId > 0) KitsugiEpisodeRatingsRepository.getLogoUrl(stableId) else null
+                    val tmdbId = item.tmdbId ?: if (stableId > 0) stableId else null
+                    if (tmdbId != null && tmdbId > 0) KitsugiEpisodeRatingsRepository.getLogoUrl(tmdbId) else null
                 }
                 item.source.equals("anilist", ignoreCase = true) -> {
                     if (stableId >= 100_000_000) {
@@ -142,13 +143,36 @@ fun KitsugiHeroSection(
                         KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId)
                     }
                 }
-                else -> {
+                item.source.equals("kitsu", ignoreCase = true) -> {
+                    val kitsuId = if (stableId >= 300_000_000) stableId - 300_000_000 else stableId
+                    KitsugiEpisodeRatingsRepository.getLogoUrlByKitsuId(kitsuId)
+                }
+                item.source.equals("simkl", ignoreCase = true) -> {
+                    val realMalId = item.realMalId
+                    val tmdbId = item.tmdbId
+                    when {
+                        realMalId != null && realMalId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(realMalId)
+                        tmdbId != null && tmdbId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrl(tmdbId)
+                        else -> null
+                    }
+                }
+                item.source.equals("jikan", ignoreCase = true) ||
+                item.source.equals("mal", ignoreCase = true) ||
+                item.source.equals("shikimori", ignoreCase = true) -> {
                     val aniListFallback = if (stableId >= 100_000_000) stableId - 100_000_000 else null
                     KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(
                         malId = stableId,
                         fallbackAniListId = aniListFallback
                     )
                 }
+                stableId > 0 && !item.source.equals("simkl", ignoreCase = true) -> {
+                    val aniListFallback = if (stableId >= 100_000_000) stableId - 100_000_000 else null
+                    KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(
+                        malId = stableId,
+                        fallbackAniListId = aniListFallback
+                    )
+                }
+                else -> null
             }
             logoMap[item.malId] = logoUrl
         }

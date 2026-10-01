@@ -22,3 +22,9 @@ fun Modifier.copyOnDoubleTap(context: Context, text: String): Modifier =
             }
         )
     }
+
+fun copyToClipboard(context: Context, text: String, label: String = "Kitsugi_copy") {
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    clipboard.setPrimaryClip(ClipData.newPlainText(label, text))
+    Toast.makeText(context, "Kopyalandı: $text", Toast.LENGTH_SHORT).show()
+}

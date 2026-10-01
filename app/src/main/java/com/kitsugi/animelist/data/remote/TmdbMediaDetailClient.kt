@@ -37,19 +37,37 @@ internal object TmdbMediaDetailClient {
             val trResponse = executeGet(trUrl)
             val trJson = trResponse?.let { JSONObject(it) }
 
+            val enResponse = if (lang.startsWith("en", ignoreCase = true)) trResponse else executeGet(enUrl)
+            val enJson = if (lang.startsWith("en", ignoreCase = true)) trJson else enResponse?.let { JSONObject(it) }
+
             val trOverview = trJson?.optString("overview", "")
             val finalOverview = if (trOverview.isNullOrBlank()) {
-                val enResponse = executeGet(enUrl)
-                val enJson = enResponse?.let { JSONObject(it) }
                 enJson?.optString("overview", "").orEmpty()
             } else {
                 trOverview
             }
 
-            val finalJson = trJson ?: JSONObject(executeGet(enUrl) ?: return null)
+            val finalJson = trJson ?: enJson ?: return null
 
-            val title = if (isMovie) finalJson.optString("title", "") else finalJson.optString("name", "")
+            val rawTrTitle = if (isMovie) trJson?.optString("title", "") else trJson?.optString("name", "")
+            val rawEnTitle = if (isMovie) enJson?.optString("title", "") else enJson?.optString("name", "")
             val originalTitle = if (isMovie) finalJson.optString("original_title", "") else finalJson.optString("original_name", "")
+            val originalLang = finalJson.optString("original_language", "")
+
+            // Türkçe başlık yoksa veya Japonca/CJK karakter gelmişse İngilizce başlığa düş
+            val hasCjkInTr = com.kitsugi.animelist.utils.PreferenceHelpers.hasCjkCharacters(rawTrTitle)
+            val finalTitle = when {
+                !rawTrTitle.isNullOrBlank() && !hasCjkInTr -> rawTrTitle
+                !rawEnTitle.isNullOrBlank() -> rawEnTitle
+                !rawTrTitle.isNullOrBlank() -> rawTrTitle
+                else -> originalTitle
+            }
+
+            val titleEnglish = rawEnTitle?.takeIf { it.isNotBlank() } ?: finalTitle
+            val isJapanese = originalLang.equals("ja", ignoreCase = true) || com.kitsugi.animelist.utils.PreferenceHelpers.hasCjkCharacters(originalTitle)
+            val titleJapanese = if (isJapanese) originalTitle.takeIf { it.isNotBlank() } else null
+            val titleRomaji = rawEnTitle?.takeIf { it.isNotBlank() } ?: finalTitle
+
             val posterPath = finalJson.optNullableString("poster_path") ?: ""
             val genresArray = finalJson.optJSONArray("genres")
             val genresList = mutableListOf<String>()
@@ -130,15 +148,15 @@ internal object TmdbMediaDetailClient {
                 episodeDuration = durationVal,
                 startDate = releaseDate,
                 endDate = endDateVal,
-                titleEnglish = title,
-                titleJapanese = null,
-                titleRomaji = title,
+                titleEnglish = titleEnglish,
+                titleJapanese = titleJapanese,
+                titleRomaji = titleRomaji,
                 titleNative = originalTitle,
                 synonyms = emptyList(),
                 openings = videoThemes,
                 endings = emptyList(),
                 trailerUrl = trailer,
-                title = title,
+                title = finalTitle,
                 imageUrl = if (posterPath.isNotEmpty()) "$IMG_W500$posterPath" else null,
                 score = (rating).toInt().coerceIn(0, 10),
                 year = year,

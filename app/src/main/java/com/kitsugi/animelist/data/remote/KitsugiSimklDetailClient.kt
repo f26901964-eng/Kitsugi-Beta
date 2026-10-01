@@ -75,15 +75,18 @@ internal object KitsugiSimklDetailClient {
                     episodeDuration = if (runtime > 0) "$runtime min".toTurkishDuration() else null,
                     startDate = null,
                     endDate = null,
-                    titleEnglish = title,
-                    titleJapanese = null,
-                    titleRomaji = title,
-                    titleNative = null,
+                    titleEnglish = obj.optString("en_title", "").takeIf { it.isNotBlank() } ?: title,
+                    titleJapanese = obj.optString("ja_title", "").takeIf { it.isNotBlank() } ?: obj.optString("title_japanese", "").takeIf { it.isNotBlank() },
+                    titleRomaji = obj.optString("en_title", "").takeIf { it.isNotBlank() } ?: title,
+                    titleNative = obj.optString("ja_title", "").takeIf { it.isNotBlank() },
                     synonyms = emptyList(),
                     openings = emptyList(),
                     endings = emptyList(),
                     trailerUrl = null,
-                    title = title,
+                    title = run {
+                        val enT = obj.optString("en_title", "").takeIf { it.isNotBlank() }
+                        if (PreferenceHelpers.hasCjkCharacters(title) && enT != null && !PreferenceHelpers.hasCjkCharacters(enT)) enT else title
+                    },
                     imageUrl = if (poster.isNotEmpty()) "https://simkl.in/posters/${poster}_m.jpg" else null,
                     score = if (ratingScore > 0.0) (ratingScore * 10).toInt() else null,
                     year = if (year > 0) year else null,

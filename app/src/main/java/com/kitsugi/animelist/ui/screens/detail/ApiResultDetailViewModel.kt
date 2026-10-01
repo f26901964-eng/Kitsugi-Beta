@@ -334,6 +334,20 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
             // Fetch episode ratings
             fetchEpisodeRatings(result, detail)
 
+            // Logo güncelle — Simkl gibi kaynaklarda detaydan realMalId veya tmdbId geldiğinde logo çekilebilir
+            if (_logoUrl.value == null) {
+                val showLogos = settings?.showAnimeLogos ?: true
+                if (showLogos) {
+                    viewModelScope.launch {
+                        try {
+                            fetchLogo(result.copy(realMalId = detail.realMalId ?: result.realMalId, tmdbId = detail.tmdbId ?: result.tmdbId), showLogos)
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Post-detail logo fetch failed: ${e.message}")
+                        }
+                    }
+                }
+            }
+
             // Detail yüklendi → eğer TvShow/Anime ise ve episode state'i boş/loading ise,
             // artık tmdbId biliniyor — episode'ları otomatik olarak yeniden çek.
             val hasTvEps = result.type == com.kitsugi.animelist.model.MediaType.Anime ||
@@ -424,21 +438,38 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         val logo = withContext(Dispatchers.IO) {
             when {
                 result.source.equals("tmdb", ignoreCase = true) -> {
-                    if (stableId > 0) KitsugiEpisodeRatingsRepository.getLogoUrl(stableId) else null
+                    val tmdbId = result.tmdbId ?: if (stableId > 0) stableId else null
+                    if (tmdbId != null && tmdbId > 0) KitsugiEpisodeRatingsRepository.getLogoUrl(tmdbId) else null
                 }
                 result.source.equals("anilist", ignoreCase = true) -> {
                     if (stableId >= 100_000_000) {
                         val aniListId = stableId - 100_000_000
-                        KitsugiEpisodeRatingsRepository.getLogoUrlByAniListId(aniListId)
+                        KitsugiEpisodeRatingsRepository.getLogoUrlByAniListId(aniListId, fallbackMalId = result.realMalId)
                     } else {
                         KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId)
                     }
                 }
                 result.source.equals("kitsu", ignoreCase = true) -> {
-                    val kitsuId = stableId - 300_000_000
+                    val kitsuId = if (stableId >= 300_000_000) stableId - 300_000_000 else stableId
                     KitsugiEpisodeRatingsRepository.getLogoUrlByKitsuId(kitsuId)
                 }
-                stableId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId)
+                result.source.equals("simkl", ignoreCase = true) -> {
+                    val realMal = result.realMalId ?: _detailState.value?.realMalId
+                    val tmdb = result.tmdbId ?: _detailState.value?.tmdbId
+                    when {
+                        realMal != null && realMal > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(realMal)
+                        tmdb != null && tmdb > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrl(tmdb)
+                        else -> null
+                    }
+                }
+                result.source.equals("jikan", ignoreCase = true) ||
+                result.source.equals("mal", ignoreCase = true) ||
+                result.source.equals("shikimori", ignoreCase = true) -> {
+                    if (stableId > 0) KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId) else null
+                }
+                stableId > 0 && !result.source.equals("simkl", ignoreCase = true) -> {
+                    KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId)
+                }
                 else -> null
             }
         }

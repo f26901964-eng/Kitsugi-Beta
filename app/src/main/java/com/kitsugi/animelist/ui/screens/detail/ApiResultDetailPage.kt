@@ -63,6 +63,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.runtime.remember
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import com.kitsugi.animelist.utils.parseToMediaType
+import com.kitsugi.animelist.utils.PreferenceHelpers
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.platform.LocalDensity
@@ -228,16 +229,28 @@ fun ApiResultDetailPage(
     val displayResult = remember(result, detailState) {
         val detail = detailState
         if (detail != null) {
+            val effTitleEnglish = detail.titleEnglish?.takeIf { it.isNotBlank() } ?: result.titleEnglish
+            val effTitleJapanese = (detail.titleJapanese ?: detail.titleNative)?.takeIf { it.isNotBlank() } ?: result.titleJapanese
+            val effTitleRomaji = detail.titleRomaji?.takeIf { it.isNotBlank() }
+            val rawTitle = if (result.title.isBlank() || result.title == "Yükleniyor...") (detail.title ?: result.title) else result.title
+            val chosenTitle = when {
+                !effTitleRomaji.isNullOrBlank() && !PreferenceHelpers.hasCjkCharacters(effTitleRomaji) -> effTitleRomaji
+                !PreferenceHelpers.hasCjkCharacters(rawTitle) -> rawTitle
+                !effTitleEnglish.isNullOrBlank() -> effTitleEnglish
+                else -> rawTitle
+            }
+
             result.copy(
-                title = detail.titleRomaji ?: (if (result.title.isBlank() || result.title == "Yükleniyor...") (detail.title ?: result.title) else result.title),
-                titleEnglish = detail.titleEnglish ?: result.titleEnglish,
-                titleJapanese = (detail.titleJapanese ?: detail.titleNative) ?: result.titleJapanese,
+                title = chosenTitle,
+                titleEnglish = effTitleEnglish,
+                titleJapanese = effTitleJapanese,
                 imageUrl = if (!detail.imageUrl.isNullOrBlank()) detail.imageUrl else result.imageUrl,
                 score = result.score ?: detail.score,
                 year = result.year ?: detail.year,
                 total = result.total ?: detail.total,
                 isAdult = result.isAdult || detail.isAdult,
-                realMalId = result.realMalId ?: detail.realMalId
+                realMalId = result.realMalId ?: detail.realMalId,
+                tmdbId = result.tmdbId ?: detail.tmdbId
             )
         } else {
             result
