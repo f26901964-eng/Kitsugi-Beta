@@ -30,9 +30,10 @@ class MangaSearchCoordinator(
                 available
                     .filter {
                         val policy = TurkishSourceRegistry.policyFor(it)
-                        !policy.isTurkishPreferred && policy.isTrusted && !policy.isFallbackOnly
+                        !policy.isTurkishPreferred && policy.isTrusted && (it.isGlobalCatalog || !policy.isFallbackOnly)
                     }
-                    .take(2)
+                    .sortedByDescending { TurkishSourceRegistry.policyFor(it).priority }
+                    .take(4)
             } else {
                 emptyList()
             }

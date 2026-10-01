@@ -110,7 +110,7 @@ class MangaDetailViewModel(
                 try {
                     val mangaUrl = _uiState.value.details.url
                     val chapters = withContext(Dispatchers.IO) {
-                        kotlinx.coroutines.withTimeout(30_000L) {
+                        kotlinx.coroutines.withTimeout(45_000L) {
                             source.fetchChapterList(mangaUrl)
                         }
                     }

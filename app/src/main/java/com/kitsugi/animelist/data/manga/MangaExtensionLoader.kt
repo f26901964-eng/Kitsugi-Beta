@@ -500,6 +500,10 @@ object MangaExtensionLoader {
                     "MangaThemesia" in dexStr ->
                         ExtensionEngine.THEMESIA
 
+                    // Keiyoushi — Modern KeiSource / Keiyoushi core mimarisi
+                    "keiyoushi" in dexStr || "KeiSource" in dexStr ->
+                        ExtensionEngine.KEI_SOURCE
+
                     // Diğer tüm HTML tabanlı extensionlar
                     else -> ExtensionEngine.CUSTOM_HTML
                 }

@@ -32,7 +32,7 @@ object SourceFailureClassifier {
         return when (classifyCategory(error)) {
             SourceErrorCategory.RateLimited -> SourceHealthStatus.RateLimited
             SourceErrorCategory.Captcha -> SourceHealthStatus.CaptchaRequired
-            SourceErrorCategory.NotFound -> SourceHealthStatus.Broken
+            SourceErrorCategory.NotFound,
             SourceErrorCategory.Timeout,
             SourceErrorCategory.Network,
             SourceErrorCategory.Auth,

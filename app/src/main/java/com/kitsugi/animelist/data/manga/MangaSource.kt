@@ -17,6 +17,7 @@ enum class ExtensionEngine {
     THEMESIA,
     SVELTE,
     INERTIA,
+    KEI_SOURCE,
     CUSTOM_HTML,
     UNKNOWN
 }
@@ -131,3 +132,10 @@ class CaptchaRequiredException(
     val sourceName: String,
     override val message: String = "Captcha gerekli"
 ) : Exception(message)
+
+/**
+ * Dil bagimsiz cok dilli / global katalog kaynaklari (MangaDex, Comick, NamiComi vb.)
+ */
+val MangaSource.isGlobalCatalog: Boolean
+    get() = lang.equals("all", ignoreCase = true) || lang.equals("multi", ignoreCase = true)
+

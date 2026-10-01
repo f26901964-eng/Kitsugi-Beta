@@ -69,7 +69,7 @@ object MangaExtensionAutoUpdater {
 
         Log.i(TAG, "${installedPackages.size} yüklü APK paketi bulundu.")
 
-        // Keiyoushi index'ini çek
+        // Keiyoushi V2 index.json'u cek (index.min.json artik decoy -- MangaRepoClient bunu otomatik atlayarak V2'ye gecer)
         val client = MangaRepoClient(context)
         val repoExtensions = client.fetchExtensionsAutoDetect(MangaRepoClient.KEIYOUSHI_INDEX_URL)
 

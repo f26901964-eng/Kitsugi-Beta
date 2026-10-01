@@ -178,13 +178,17 @@ class MihonSourceWrapper(
         val t0 = System.currentTimeMillis()
         return try {
             withRecovery {
-                val src = httpSource ?: run {
-                    Log.w(TAG, "${mihonSource.name}: HttpSource değil, detay çekilemiyor")
-                    return@withRecovery MangaDetails(url = mangaUrl, title = mangaUrl)
+                // extensionLib 1.6+: getMangaUpdate (suspend API) — KeiSource/Madara/Themesia'nın tek desteklediği yol.
+                // extensionLib 1.4: getMangaUpdate'in CatalogueSource varsayılan impl'i fetchMangaDetails().awaitSingle()'a köprüler.
+                val update = kotlinx.coroutines.withTimeout(20_000L) {
+                    mihonSource.getMangaUpdate(
+                        manga        = stub,
+                        chapters     = emptyList(),
+                        fetchDetails = true,
+                        fetchChapters = false
+                    )
                 }
-                val details = kotlinx.coroutines.withTimeout(20_000L) {
-                    src.fetchMangaDetails(stub).awaitSingle().toMangaDetails()
-                }
+                val details = update.manga.toMangaDetails()
                 MangaLogger.logMangaDetails(context, mihonSource.name, mangaUrl, success = true)
                 details
             }
@@ -217,23 +221,22 @@ class MihonSourceWrapper(
         val t0 = System.currentTimeMillis()
         return try {
             withRecovery {
-                val src = httpSource ?: run {
-                    Log.w(TAG, "${mihonSource.name}: HttpSource değil, bölüm listesi çekilemiyor")
-                    return@withRecovery emptyList()
-                }
-                val chapterStub = SManga.create().apply { url = mangaUrl; title = "" }
+                val stub = SManga.create().apply { url = mangaUrl; title = "" }
 
-                // Manga başlığını ChapterRecognition için çekmeye çalış.
-                val mangaTitle = try {
-                    val detailStub = SManga.create().apply { url = mangaUrl; title = "" }
-                    kotlinx.coroutines.withTimeout(10_000L) {
-                        src.fetchMangaDetails(detailStub).awaitSingle().title
-                    }.takeIf { it.isNotBlank() && !it.startsWith("/") } ?: ""
-                } catch (_: Exception) { "" }
-
-                val rawChapters = kotlinx.coroutines.withTimeout(45_000L) {
-                    src.fetchChapterList(chapterStub).awaitSingle()
+                // extensionLib 1.6+: getMangaUpdate ile hem detay hem bölüm tek seferde.
+                // fetchDetails=true alarak mangaTitle'ı da çekiyoruz (ChapterRecognition için).
+                val update = kotlinx.coroutines.withTimeout(45_000L) {
+                    mihonSource.getMangaUpdate(
+                        manga         = stub,
+                        chapters      = emptyList(),
+                        fetchDetails  = true,
+                        fetchChapters = true
+                    )
                 }
+
+                val mangaTitle = update.manga.title.takeIf { it.isNotBlank() && !it.startsWith("/") } ?: ""
+                val rawChapters = update.chapters
+
                 Log.d(TAG, "${mihonSource.name}: ${rawChapters.size} bölüm alındı — $mangaUrl")
                 val mapped = rawChapters.map { it.toMangaChapter(mangaUrl, mangaTitle) }
                     .sortedWith(

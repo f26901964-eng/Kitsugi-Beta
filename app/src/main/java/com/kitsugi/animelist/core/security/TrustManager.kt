@@ -12,7 +12,8 @@ object TrustManager {
     // Keiyoushi and Tachiyomi official signing certificate SHA-256 hashes
     private val trustedSignatures = setOf(
         "55c304f5d95f606028f8bc9d79c8ca7356e9bc6a41b9e5d129994c379a2cf505", // Legacy Tachiyomi Extensions
-        "c65538561d2d0b671a5a041f021703cf9203a7a9cc5f6d7be761c566fb5eb4d7"  // Keiyoushi Extensions
+        "c65538561d2d0b671a5a041f021703cf9203a7a9cc5f6d7be761c566fb5eb4d7", // Keiyoushi Extensions (pre-2026)
+        "9add655a78e96c4ec7a53ef89dccb557cb5d767489fac5e785d671a5a75d4da2", // Keiyoushi Extensions (2026, extensionLib 1.6+)
     )
 
     fun getApkSignatureHash(context: Context, file: File): String? {
@@ -61,5 +62,25 @@ object TrustManager {
         val userTrusted = (prefs.getStringSet("trusted_signatures", emptySet()) ?: emptySet()).toMutableSet()
         userTrusted.add(signatureHash.lowercase())
         prefs.edit().putStringSet("trusted_signatures", userTrusted).apply()
+    }
+
+    /**
+     * Keiyoushi repo.json'daki meta.signingKeyFingerprint degerini dinamik olarak guven listesine ekler.
+     * Bu sayede Keiyoushi imza anahtarini rotasyona ugratirsa uygulama otomatik uyum saglar.
+     *
+     * @param repoMeta MangaRepoClient.fetchRepoMeta() ile cekilen JSONObject
+     */
+    fun trustRepoSigningKey(context: Context, repoMeta: org.json.JSONObject) {
+        try {
+            val meta = repoMeta.optJSONObject("meta") ?: return
+            val fingerprint = meta.optString("signingKeyFingerprint", "").trim()
+            if (fingerprint.isBlank()) return
+            if (!isSignatureTrusted(context, fingerprint)) {
+                Log.i(TAG, "Repo'dan yeni imza anahtari guvenildi: $fingerprint")
+                trustSignature(context, fingerprint)
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "trustRepoSigningKey hata: ${e.message}")
+        }
     }
 }

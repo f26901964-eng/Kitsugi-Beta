@@ -640,8 +640,36 @@ class KitsugiCharacterClient {
                         }
                     }
 
-                    // Anime/kurgusal karakter bulunamazsa (veya canlı çekim film ise) TMDB person detayına düş
-                    TmdbApiClient().fetchPersonCharacterDetail(characterId)
+                    // Anime/kurgusal karakter harici kaynaklarda bulunamazsa (veya özel isimli ise)
+                    // Seslendirmenin biyografisini doğrudan karakter yapmak yerine, karakteri koruyup seslendirmeni voiceActor olarak iliştir
+                    val personDetail = TmdbApiClient().fetchPersonCharacterDetail(characterId)
+                    if (personDetail != null) {
+                        if (!cleanCharName.isNullOrBlank()) {
+                            val va = KitsugiVoiceActor(
+                                id = characterId,
+                                name = personDetail.name,
+                                language = "Japonca",
+                                imageUrl = personDetail.imageUrl,
+                                source = "tmdb"
+                            )
+                            KitsugiCharacterDetail(
+                                id = characterId,
+                                name = cleanCharName,
+                                nativeName = null,
+                                alternativeNames = emptyList(),
+                                imageUrl = null,
+                                gender = personDetail.gender,
+                                age = null,
+                                birthday = null,
+                                bloodType = null,
+                                biography = "Bu kurgusal karakter için ek biyografi bilgisi bulunmuyor.",
+                                voiceActors = listOf(va),
+                                mediaAppearances = personDetail.mediaAppearances
+                            )
+                        } else {
+                            personDetail
+                        }
+                    } else null
                 }
                 "kitsu" -> {
                     val kitsuDetail = runCatching {

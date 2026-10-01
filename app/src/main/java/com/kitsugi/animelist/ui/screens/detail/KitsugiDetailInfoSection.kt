@@ -816,7 +816,7 @@ internal fun EntryInfoSection(
                 if (!detail.endDate.isNullOrBlank()) add("Bitiş" to detail.endDate)
                 if (!detail.sourceMaterial.isNullOrBlank()) add("Kaynak" to detail.sourceMaterial)
                 if (mediaType == MediaType.Anime) {
-                    if (detail.studios.isNotEmpty()) add("Stüdyo" to detail.studios.joinToString(", "))
+                    if (detail.studios.isNotEmpty()) add("Stüdyo" to detail.studios.joinToString(", ") { it.name })
                     if (!detail.episodeDuration.isNullOrBlank()) add("Süre" to detail.episodeDuration)
                     if (!detail.broadcast.isNullOrBlank()) add("Yayın" to detail.broadcast)
                     if (!detail.rating.isNullOrBlank()) add("Yaş Sınırı" to detail.rating)

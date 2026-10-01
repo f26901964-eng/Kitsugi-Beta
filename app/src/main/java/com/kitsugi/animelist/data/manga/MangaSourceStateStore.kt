@@ -233,7 +233,11 @@ class MangaSourceStateStore(context: Context) {
         return when {
             message.contains("cloudflare") || message.contains("captcha") -> SourceHealthStatus.CaptchaRequired
             message.contains("429") || message.contains("too many requests") -> SourceHealthStatus.RateLimited
-            message.contains("404") || message.contains("not found") || message.contains("unable to resolve host") -> SourceHealthStatus.Broken
+            message.contains("unable to resolve host") ||
+                message.contains("failed to connect") ||
+                message.contains("timeout") ||
+                message.contains("connection reset") -> SourceHealthStatus.Degraded
+            message.contains("404") || message.contains("not found") -> SourceHealthStatus.Degraded
             message.isBlank() -> SourceHealthStatus.Degraded
             else -> SourceHealthStatus.Degraded
         }

@@ -9,6 +9,8 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.material3.Surface
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
@@ -89,6 +91,10 @@ fun EpisodesTabContent(
         }
         is DetailTabState.Success -> {
             val episodes = state.data
+            val downloadMap = remember(downloads, animeId) {
+                downloads.filter { it.animeId == animeId }
+                    .associateBy { (it.season to it.episode) }
+            }
 
             // Eğer birden fazla sezon varsa → Accordion görünüm
             if (totalSeasons != null && totalSeasons > 1) {
@@ -103,36 +109,20 @@ fun EpisodesTabContent(
                     onRatingClick = onRatingClick,
                     accentColor = accentColor,
                     animeId = animeId,
-                    downloads = downloads
+                    downloadMap = downloadMap
                 )
             } else {
-                // Tek sezon → Düz liste
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (episodes.isEmpty()) {
-                        EmptyEpisodesMessage()
-                    } else {
-                        episodes.forEachIndexed { index, episode ->
-                            val rating = resolveRating(episode, targetSeason, episodeRatings)
-                            val download = downloads.find {
-                                it.animeId == animeId &&
-                                it.episode == episode.episodeNumber &&
-                                (it.season == (targetSeason ?: 1) || it.season == (episode.seasonNumber ?: 1))
-                            }
-                            EpisodeRow(
-                                episode = episode,
-                                index = index,
-                                accentColor = accentColor,
-                                imdbRating = rating,
-                                download = download,
-                                onClick = { onEpisodeClick(episode) },
-                                onRatingClick = if (onRatingClick != null && episode.episodeNumber != null) {
-                                    { onRatingClick(targetSeason ?: episode.seasonNumber ?: 1, episode.episodeNumber) }
-                                } else null,
-                                onDownloadClick = { onDownloadClick(episode) }
-                            )
-                        }
-                    }
-                }
+                // Tek sezon → Sayfalı/parçalı liste (Doraemon/One Piece gibi 1000+ bölümlü dizilerde donma ve ANR'yi önler)
+                PaginatedEpisodesList(
+                    episodes = episodes,
+                    targetSeason = targetSeason,
+                    episodeRatings = episodeRatings,
+                    accentColor = accentColor,
+                    downloadMap = downloadMap,
+                    onEpisodeClick = onEpisodeClick,
+                    onDownloadClick = onDownloadClick,
+                    onRatingClick = onRatingClick
+                )
             }
         }
         is DetailTabState.Error -> {
@@ -169,7 +159,7 @@ private fun SeasonAccordion(
     onRatingClick: ((season: Int, episode: Int) -> Unit)?,
     accentColor: Color,
     animeId: String,
-    downloads: List<com.kitsugi.animelist.data.model.AnimeDownload>
+    downloadMap: Map<Pair<Int, Int>, com.kitsugi.animelist.data.model.AnimeDownload>
 ) {
     // Hangi sezon açık? Başlangıçta aktif sezon (targetSeason) açık gelsin
     var expandedSeason by remember(targetSeason) {
@@ -202,7 +192,7 @@ private fun SeasonAccordion(
                 onDownloadClick = onDownloadClick,
                 onRatingClick = onRatingClick,
                 animeId = animeId,
-                downloads = downloads
+                downloadMap = downloadMap
             )
         }
     }
@@ -221,7 +211,7 @@ private fun SeasonAccordionItem(
     onDownloadClick: (KitsugiStreamingEpisode) -> Unit,
     onRatingClick: ((season: Int, episode: Int) -> Unit)?,
     animeId: String,
-    downloads: List<com.kitsugi.animelist.data.model.AnimeDownload>
+    downloadMap: Map<Pair<Int, Int>, com.kitsugi.animelist.data.model.AnimeDownload>
 ) {
     val arrowRotation by animateFloatAsState(
         targetValue = if (isExpanded) 180f else 0f,
@@ -303,48 +293,109 @@ private fun SeasonAccordionItem(
             enter = expandVertically(animationSpec = tween(300)) + fadeIn(animationSpec = tween(300)),
             exit = shrinkVertically(animationSpec = tween(250)) + fadeOut(animationSpec = tween(200))
         ) {
-            Column(
+            Box(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(start = 12.dp, end = 12.dp, bottom = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
+                    .padding(start = 12.dp, end = 12.dp, bottom = 12.dp)
             ) {
-                if (episodes.isEmpty()) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 16.dp),
-                        contentAlignment = Alignment.Center
+                PaginatedEpisodesList(
+                    episodes = episodes,
+                    targetSeason = targetSeason,
+                    episodeRatings = episodeRatings,
+                    accentColor = accentColor,
+                    downloadMap = downloadMap,
+                    onEpisodeClick = onEpisodeClick,
+                    onDownloadClick = onDownloadClick,
+                    onRatingClick = onRatingClick
+                )
+            }
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+//  Sayfalı/Parçalı Bölüm Listesi (Büyük listelerde ANR ve donmayı önler)
+// ---------------------------------------------------------------------------
+
+@Composable
+private fun PaginatedEpisodesList(
+    episodes: List<KitsugiStreamingEpisode>,
+    targetSeason: Int?,
+    episodeRatings: Map<Pair<Int, Int>, Double>,
+    accentColor: Color,
+    downloadMap: Map<Pair<Int, Int>, com.kitsugi.animelist.data.model.AnimeDownload>,
+    onEpisodeClick: (KitsugiStreamingEpisode) -> Unit,
+    onDownloadClick: (KitsugiStreamingEpisode) -> Unit,
+    onRatingClick: ((season: Int, episode: Int) -> Unit)?
+) {
+    if (episodes.isEmpty()) {
+        EmptyEpisodesMessage()
+        return
+    }
+
+    val CHUNK_SIZE = 50
+    val totalChunks = (episodes.size + CHUNK_SIZE - 1) / CHUNK_SIZE
+    var selectedChunkIndex by remember(episodes.size) { mutableStateOf(0) }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        if (totalChunks > 1) {
+            LazyRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                items(totalChunks) { chunkIdx ->
+                    val start = chunkIdx * CHUNK_SIZE + 1
+                    val end = minOf((chunkIdx + 1) * CHUNK_SIZE, episodes.size)
+                    val isSelected = selectedChunkIndex == chunkIdx
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = if (isSelected) accentColor else KitsugiColors.SurfaceStrong,
+                        border = BorderStroke(
+                            1.dp,
+                            if (isSelected) accentColor else KitsugiColors.SurfaceSoft
+                        ),
+                        modifier = Modifier.tvClickable(shape = RoundedCornerShape(10.dp)) {
+                            selectedChunkIndex = chunkIdx
+                        }
                     ) {
                         Text(
-                            text = "Bu sezon için bölüm bilgisi bulunamadı",
-                            color = KitsugiColors.TextMuted,
-                            style = MaterialTheme.typography.bodySmall
-                        )
-                    }
-                } else {
-                    episodes.forEachIndexed { index, episode ->
-                        val rating = resolveRating(episode, targetSeason, episodeRatings)
-                        val download = downloads.find {
-                            it.animeId == animeId &&
-                            it.episode == episode.episodeNumber &&
-                            (it.season == (targetSeason) || it.season == (episode.seasonNumber ?: 1))
-                        }
-                        EpisodeRow(
-                            episode = episode,
-                            index = index,
-                            accentColor = accentColor,
-                            imdbRating = rating,
-                            download = download,
-                            onClick = { onEpisodeClick(episode) },
-                            onRatingClick = if (onRatingClick != null && episode.episodeNumber != null) {
-                                { onRatingClick(targetSeason, episode.episodeNumber) }
-                            } else null,
-                            onDownloadClick = { onDownloadClick(episode) }
+                            text = "$start - $end",
+                            color = if (isSelected) Color.White else KitsugiColors.TextSecondary,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                         )
                     }
                 }
             }
+        }
+
+        val safeChunkIndex = selectedChunkIndex.coerceIn(0, (totalChunks - 1).coerceAtLeast(0))
+        val startIndex = safeChunkIndex * CHUNK_SIZE
+        val endIndex = minOf(startIndex + CHUNK_SIZE, episodes.size)
+        val visibleEpisodes = if (startIndex < episodes.size) episodes.subList(startIndex, endIndex) else emptyList()
+
+        visibleEpisodes.forEachIndexed { i, episode ->
+            val index = startIndex + i
+            val rating = resolveRating(episode, targetSeason, episodeRatings)
+            val seasonKey = targetSeason ?: episode.seasonNumber ?: 1
+            val epNum = episode.episodeNumber ?: (index + 1)
+            val download = downloadMap[seasonKey to epNum]
+
+            EpisodeRow(
+                episode = episode,
+                index = index,
+                accentColor = accentColor,
+                imdbRating = rating,
+                download = download,
+                onClick = { onEpisodeClick(episode) },
+                onRatingClick = if (onRatingClick != null && episode.episodeNumber != null) {
+                    { onRatingClick(targetSeason ?: episode.seasonNumber ?: 1, episode.episodeNumber) }
+                } else null,
+                onDownloadClick = { onDownloadClick(episode) }
+            )
         }
     }
 }

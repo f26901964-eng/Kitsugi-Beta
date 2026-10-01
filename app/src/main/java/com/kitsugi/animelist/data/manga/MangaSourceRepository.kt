@@ -241,9 +241,10 @@ class MangaSourceRepository(private val context: Context) {
                             ExtensionEngine.MADARA,
                             ExtensionEngine.THEMESIA,
                             ExtensionEngine.SVELTE,
-                            ExtensionEngine.INERTIA
+                            ExtensionEngine.INERTIA,
+                            ExtensionEngine.KEI_SOURCE
                         )
-                        val timeoutMs = if (isFastEngine) 25_000L else 12_000L
+                        val timeoutMs = 25_000L
                         try {
                             kotlinx.coroutines.withTimeoutOrNull(timeoutMs) {
                                 val result = source.fetchSearchManga(page, query)
@@ -308,15 +309,7 @@ class MangaSourceRepository(private val context: Context) {
 
     fun recordSearchFailure(source: MangaSource, error: Throwable?, elapsedMs: Long? = null) {
         val message = error?.message.orEmpty()
-        val status = when {
-            message.contains("cloudflare", ignoreCase = true) ||
-                message.contains("captcha", ignoreCase = true) -> SourceHealthStatus.CaptchaRequired
-            message.contains("429", ignoreCase = true) ||
-                message.contains("too many requests", ignoreCase = true) -> SourceHealthStatus.RateLimited
-            message.contains("404", ignoreCase = true) ||
-                message.contains("not found", ignoreCase = true) -> SourceHealthStatus.Broken
-            else -> SourceHealthStatus.Degraded
-        }
+        val status = SourceFailureClassifier.classifyStatus(error)
         sourceStateStore.recordOperationFailure(
             source = source,
             operation = "search",

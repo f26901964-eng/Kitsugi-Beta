@@ -43,7 +43,7 @@ import java.util.concurrent.ConcurrentHashMap
  */
 class MangaPageLoaderV2(
     private val context: Context,
-    private val source: MangaSource,
+    val source: MangaSource,
     val cache: MangaCache,
     private val imageLoader: ImageLoader = coil3.SingletonImageLoader.get(context),
     var preloadAhead: Int = 3,
@@ -181,32 +181,45 @@ class MangaPageLoaderV2(
                         return@withTimeout
                     }
 
-                    // 3. Coil ile indir (memory + disk cache'e yazar)
+                    // 3. İndir: Birincil yol eklentinin kendi source.getImage'idir
+                    // (Referer, custom user-agent, Cloudflare çerezleri ve interceptor'ları içerir).
+                    // Hotlink korumalı CDN'ler (manga-tr, trmanga, webtoonhatti vb.) için bu zorunludur.
                     page.status = MangaPageStatus.DownloadImage
                     notifyChanged()
 
-                    val coilRequest = ImageRequest.Builder(context)
-                        .data(imageUrl)
-                        .build()
+                    var downloaded = false
+                    try {
+                        source.getImage(page).use { stream ->
+                            cache.putImageToCache(imageUrl, stream)
+                        }
+                        val checkFile = cache.getImageFile(imageUrl)
+                        if (checkFile.exists() && checkFile.length() > 0L) {
+                            downloaded = true
+                        }
+                    } catch (e: Exception) {
+                        Log.w(TAG, "source.getImage [${page.index}] başarısız, Coil deneniyor: ${e.message}")
+                    }
 
-                    val result = imageLoader.execute(coilRequest)
-                    if (result is SuccessResult) {
-                        // Coil kendi cache'ine yazdı; ayrıca MangaCache'e de yaz
-                        try {
-                            source.getImage(page).use { stream ->
-                                cache.putImageToCache(imageUrl, stream)
-                            }
-                        } catch (_: Exception) {
-                            // getImage opsiyonel — Coil cache yeterli
+                    if (!downloaded) {
+                        // Fallback: Coil ile dene
+                        val coilRequest = ImageRequest.Builder(context)
+                            .data(imageUrl)
+                            .build()
+                        val result = imageLoader.execute(coilRequest)
+                        if (result is SuccessResult) {
+                            try {
+                                source.getImage(page).use { stream ->
+                                    cache.putImageToCache(imageUrl, stream)
+                                }
+                            } catch (_: Exception) {}
+                        } else {
+                            throw Exception("Görsel indirme başarısız: $imageUrl")
                         }
-                        page.stream = {
-                            val file = cache.getImageFile(imageUrl)
-                            if (file.exists()) {
-                                file.inputStream()
-                            } else {
-                                throw java.io.IOException("Cache file not found for $imageUrl")
-                            }
-                        }
+                    }
+
+                    val file = cache.getImageFile(imageUrl)
+                    if (file.exists() && file.length() > 0L) {
+                        page.stream = { file.inputStream() }
                         page.status = MangaPageStatus.Ready
                         notifyChanged()
 
@@ -214,7 +227,7 @@ class MangaPageLoaderV2(
                         sourceStateStore.recordOperationSuccess(source, "image", elapsed)
                         Log.v(TAG, "Sayfa hazır [${page.index}] (${elapsed}ms): $imageUrl")
                     } else {
-                        throw Exception("Coil yükleme başarısız: ${result.javaClass.simpleName}")
+                        throw java.io.IOException("Cache file not found or empty for $imageUrl")
                     }
                 }
             } catch (e: kotlinx.coroutines.TimeoutCancellationException) {

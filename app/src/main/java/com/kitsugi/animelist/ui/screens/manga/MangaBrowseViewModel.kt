@@ -3,9 +3,11 @@ package com.kitsugi.animelist.ui.screens.manga
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import com.kitsugi.animelist.data.manga.CanonicalMangaResolver
 import com.kitsugi.animelist.data.manga.MangaDetails
 import com.kitsugi.animelist.data.manga.MangaSource
 import com.kitsugi.animelist.data.manga.MangaSourceRepository
+import com.kitsugi.animelist.data.manga.MangaSourceResult
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -15,6 +17,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 
 // ─── Per-source fetch state ───────────────────────────────────────────────────
@@ -119,20 +123,58 @@ class MangaBrowseViewModel(private val repository: MangaSourceRepository) : View
         }
     }
 
+    private val searchGate = Semaphore(6)
+
+    private suspend fun searchSourceWithFallback(source: MangaSource, query: String, page: Int = 1): MangaSourceResult {
+        val initial = source.fetchSearchManga(page, query)
+        if (initial.mangas.isNotEmpty()) return initial
+
+        // Fallback: If 0 results on page 1, try canonical core query if different from raw
+        if (page == 1) {
+            val canonical = CanonicalMangaResolver.resolve(query)
+            val fallbackQuery = when {
+                canonical.core.isNotBlank() && !canonical.core.equals(query, ignoreCase = true) -> canonical.core
+                canonical.ascii.isNotBlank() && !canonical.ascii.equals(query, ignoreCase = true) -> canonical.ascii
+                else -> null
+            }
+            if (!fallbackQuery.isNullOrBlank() && fallbackQuery.length >= 2) {
+                return runCatching { source.fetchSearchManga(1, fallbackQuery) }.getOrDefault(initial)
+            }
+        }
+        return initial
+    }
+
+    private fun filterResultsTwoPass(source: MangaSource, query: String, mangas: List<MangaDetails>): List<MangaDetails> {
+        val strict = repository.postProcessSearchResults(source, query, mangas, relaxScoring = false)
+        return if (strict.isNotEmpty()) {
+            strict
+        } else {
+            repository.postProcessSearchResults(source, query, mangas, relaxScoring = true)
+                .filterNot { manga ->
+                    val lower = manga.title.lowercase()
+                    !query.contains("dj", ignoreCase = true) &&
+                    !query.contains("doujin", ignoreCase = true) &&
+                    (lower.contains("dj") || lower.contains("doujinshi") || lower.contains("fan comic"))
+                }
+        }
+    }
+
     private suspend fun parallelSearch(query: String) {
         val sources = repository.getSearchCandidateSources(includeTrustedFallbacks = true)
         _ui.update { it.copy(sourceStates = sources.map { s -> MangaSourceFetchState(s, isLoading = true) }, selectedSourceFilter = null) }
         supervisorScope {
             sources.forEach { src ->
                 launch {
-                    try {
-                        val result = withContext(Dispatchers.IO) { src.fetchSearchManga(1, query) }
-                        repository.recordSearchSuccess(src)
-                        val matched = repository.postProcessSearchResults(src, query, result.mangas, relaxScoring = true)
-                        patchState(src.name, false, matched, null, page = 1, hasNext = result.hasNextPage)
-                    } catch (e: Exception) {
-                        repository.recordSearchFailure(src, e)
-                        patchState(src.name, false, emptyList(), e.message ?: "Hata", page = 1, hasNext = false)
+                    searchGate.withPermit {
+                        try {
+                            val result = withContext(Dispatchers.IO) { searchSourceWithFallback(src, query, 1) }
+                            repository.recordSearchSuccess(src)
+                            val matched = filterResultsTwoPass(src, query, result.mangas)
+                            patchState(src.name, false, matched, null, page = 1, hasNext = result.hasNextPage)
+                        } catch (e: Exception) {
+                            repository.recordSearchFailure(src, e)
+                            patchState(src.name, false, emptyList(), e.message ?: "Hata", page = 1, hasNext = false)
+                        }
                     }
                 }
             }
@@ -173,9 +215,9 @@ class MangaBrowseViewModel(private val repository: MangaSourceRepository) : View
                 })
             }
             try {
-                val result = withContext(Dispatchers.IO) { source.fetchSearchManga(page, query) }
+                val result = withContext(Dispatchers.IO) { searchSourceWithFallback(source, query, page) }
                 repository.recordSearchSuccess(source)
-                val matched = repository.postProcessSearchResults(source, query, result.mangas, relaxScoring = true)
+                val matched = filterResultsTwoPass(source, query, result.mangas)
                 _ui.update { s ->
                     s.copy(sourceStates = s.sourceStates.map {
                         if (it.source.name == source.name) {

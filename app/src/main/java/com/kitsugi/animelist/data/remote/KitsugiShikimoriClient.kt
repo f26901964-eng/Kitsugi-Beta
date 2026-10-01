@@ -404,6 +404,27 @@ object KitsugiShikimoriClient {
                         }
                     }
 
+                    val realMalId = data.optInt("myanimelist_id").takeIf { it > 0 } ?: externalId
+
+                    // Shikimori ekstra videolar (PV, Teaser, Karakter tanıtımları, OP, ED)
+                    val shikiVideos = if (mediaType != MediaType.Manga) {
+                        fetchShikimoriVideos(externalId)
+                    } else emptyList()
+
+                    // Shikimori harici ve yayın linkleri
+                    val shikiLinks = if (mediaType != MediaType.Manga) {
+                        fetchShikimoriExternalLinks(externalId)
+                    } else emptyList()
+
+                    // AnimeThemes entegrasyonu (MyAnimeList ID üzerinden)
+                    val (themeOps, themeEds) = if (mediaType != MediaType.Manga && realMalId > 0) {
+                        try {
+                            KitsugiAnimeThemesClient.fetchAnimeThemes(realMalId, "MyAnimeList")
+                        } catch (e: Exception) {
+                            Pair(emptyList(), emptyList())
+                        }
+                    } else Pair(emptyList(), emptyList())
+
                     // Fragman (PV)
                     var trailerUrl: String? = null
                     val videosArr = data.optJSONArray("videos")
@@ -417,10 +438,24 @@ object KitsugiShikimoriClient {
                             }
                         }
                     }
+                    if (trailerUrl.isNullOrBlank()) {
+                        trailerUrl = shikiVideos.firstOrNull { it.first == "pv" }?.second?.videoUrl
+                            ?: shikiVideos.firstOrNull()?.second?.videoUrl
+                    }
+
+                    // Açılış müzikleri & ekstra tanıtım videoları
+                    val extraVideosAsThemes = shikiVideos.filter { it.first != "ed" }.map { it.second }
+                    val finalOpenings = (themeOps + extraVideosAsThemes).distinctBy { it.videoUrl ?: it.label }
+
+                    // Kapanış müzikleri & ED videoları
+                    val extraEdsAsThemes = shikiVideos.filter { it.first == "ed" }.map { it.second }
+                    val finalEndings = (themeEds + extraEdsAsThemes).distinctBy { it.videoUrl ?: it.label }
+
+                    val streamingSites = setOf("Crunchyroll", "Netflix", "HIDIVE", "Disney+", "Amazon Prime")
+                    val streamingLinks = shikiLinks.filter { link -> streamingSites.any { link.site.contains(it, ignoreCase = true) } }
 
                     val rawDesc = data.optNullableString("description")?.cleanApiText()
                     val synopsis = translateIfRussian(rawDesc)
-                    val realMalId = data.optInt("myanimelist_id").takeIf { it > 0 } ?: externalId
 
                     KitsugiMediaDetail(
                         synopsis = synopsis,
@@ -443,7 +478,11 @@ object KitsugiShikimoriClient {
                         year = year,
                         total = total,
                         isAdult = isAdult,
-                        realMalId = realMalId
+                        realMalId = realMalId,
+                        openings = finalOpenings,
+                        endings = finalEndings,
+                        externalLinks = shikiLinks,
+                        streamingLinks = streamingLinks
                     )
                 }
             }.getOrElse { err ->
@@ -451,6 +490,65 @@ object KitsugiShikimoriClient {
                 null
             }
         }
+
+    suspend fun fetchShikimoriVideos(animeId: Int): List<Pair<String, KitsugiTheme>> = withContext(Dispatchers.IO) {
+        if (animeId <= 0) return@withContext emptyList()
+        val url = runCatching { URL("$BASE_URL/animes/$animeId/videos") }.getOrNull() ?: return@withContext emptyList()
+        runCatching {
+            val response = KitsugiApiBase.executeGetRequest(url) ?: return@runCatching emptyList()
+            val array = JSONArray(response)
+            val list = mutableListOf<Pair<String, KitsugiTheme>>()
+            for (i in 0 until array.length()) {
+                val item = array.optJSONObject(i) ?: continue
+                val vUrl = item.optString("url")
+                if (vUrl.isBlank() || (!vUrl.contains("youtube.com") && !vUrl.contains("youtu.be"))) continue
+                val rawName = item.optString("name", "").trim()
+                val kind = item.optString("kind", "pv").lowercase()
+                val kindTr = when (kind) {
+                    "pv" -> "PV / Tanıtım"
+                    "character_trailer" -> "Karakter Tanıtımı"
+                    "op" -> "Açılış (OP)"
+                    "ed" -> "Kapanış (ED)"
+                    "cm" -> "Ticari Reklam (CM)"
+                    "clip" -> "Klip"
+                    else -> "Video"
+                }
+                val label = if (rawName.isNotBlank()) "$kindTr - $rawName" else kindTr
+                list.add(Pair(kind, KitsugiTheme(label = label, videoUrl = vUrl)))
+            }
+            list
+        }.getOrElse { emptyList() }
+    }
+
+    suspend fun fetchShikimoriExternalLinks(animeId: Int): List<KitsugiExternalLink> = withContext(Dispatchers.IO) {
+        if (animeId <= 0) return@withContext emptyList()
+        val url = runCatching { URL("$BASE_URL/animes/$animeId/external_links") }.getOrNull() ?: return@withContext emptyList()
+        runCatching {
+            val response = KitsugiApiBase.executeGetRequest(url) ?: return@runCatching emptyList()
+            val array = JSONArray(response)
+            val list = mutableListOf<KitsugiExternalLink>()
+            for (i in 0 until array.length()) {
+                val item = array.optJSONObject(i) ?: continue
+                val lUrl = item.optString("url")
+                if (lUrl.isBlank()) continue
+                val kind = item.optString("kind", "official_site")
+                val siteName = when (kind.lowercase()) {
+                    "official_site" -> "Resmi Web Sitesi"
+                    "wikipedia" -> "Vikipedi"
+                    "crunchyroll" -> "Crunchyroll"
+                    "twitter" -> "X (Twitter)"
+                    "youtube" -> "YouTube"
+                    "netflix" -> "Netflix"
+                    "hidive" -> "HIDIVE"
+                    "animenewsnetwork" -> "Anime News Network"
+                    "myanimelist" -> "MyAnimeList"
+                    else -> kind.replace("_", " ").replaceFirstChar { it.uppercase() }
+                }
+                list.add(KitsugiExternalLink(site = siteName, url = lUrl))
+            }
+            list
+        }.getOrElse { emptyList() }
+    }
 
     // ─── Karakter / Ekip fonksiyonları ────────────────────────────────────
 
