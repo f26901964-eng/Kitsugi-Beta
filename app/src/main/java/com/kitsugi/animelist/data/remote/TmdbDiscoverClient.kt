@@ -414,14 +414,27 @@ internal object TmdbDiscoverClient {
                 } catch (e: Exception) {
                     null
                 }
+                val originalTitle = if (isMovie) item.optString("original_title", "") else item.optString("original_name", "")
+                val originalLang = item.optString("original_language", "")
+                val hasCjk = PreferenceHelpers.hasCjkCharacters(title)
+                val resolvedTitleEnglish = if (originalLang.equals("en", ignoreCase = true)) {
+                    originalTitle
+                } else if (!hasCjk) {
+                    title
+                } else null
+                val resolvedTitleJapanese = if (hasCjk || originalLang == "ja") {
+                    originalTitle.ifBlank { title }
+                } else null
+                val finalTitle = if (hasCjk && !resolvedTitleEnglish.isNullOrBlank()) resolvedTitleEnglish else title
+
                 list.add(
                     JikanSearchResult(
-                        malId = tmdbId, title = title,
+                        malId = tmdbId, title = finalTitle,
                         subtitle = subtitleParts.joinToString(", "),
                         type = actualType, total = null, score = score,
                         isAdult = item.optBoolean("adult", false),
                         imageUrl = imageUrl, year = year, source = "tmdb",
-                        realMalId = null, titleEnglish = title, titleJapanese = null,
+                        realMalId = null, titleEnglish = resolvedTitleEnglish, titleJapanese = resolvedTitleJapanese,
                         tmdbId = tmdbId, backdropUrl = backdropUrl,
                         nextAiringEpisode = nextAiringEpisode
                     )
@@ -477,14 +490,27 @@ internal object TmdbDiscoverClient {
                 } catch (e: Exception) {
                     null
                 }
+                val originalTitle = if (isMovie) item.optString("original_title", "") else item.optString("original_name", "")
+                val originalLang = item.optString("original_language", "")
+                val hasCjk = PreferenceHelpers.hasCjkCharacters(title)
+                val resolvedTitleEnglish = if (originalLang.equals("en", ignoreCase = true)) {
+                    originalTitle
+                } else if (!hasCjk) {
+                    title
+                } else null
+                val resolvedTitleJapanese = if (hasCjk || originalLang == "ja") {
+                    originalTitle.ifBlank { title }
+                } else null
+                val finalTitle = if (hasCjk && !resolvedTitleEnglish.isNullOrBlank()) resolvedTitleEnglish else title
+
                 list.add(
                     JikanSearchResult(
-                        malId = tmdbId, title = title,
+                        malId = tmdbId, title = finalTitle,
                         subtitle = subtitleParts.joinToString(", "),
                         type = mediaType, total = null, score = score,
                         isAdult = item.optBoolean("adult", false),
                         imageUrl = imageUrl, year = year, source = "tmdb",
-                        realMalId = null, titleEnglish = title, titleJapanese = null,
+                        realMalId = null, titleEnglish = resolvedTitleEnglish, titleJapanese = resolvedTitleJapanese,
                         tmdbId = tmdbId, backdropUrl = backdropUrl,
                         nextAiringEpisode = nextAiringEpisode
                     )

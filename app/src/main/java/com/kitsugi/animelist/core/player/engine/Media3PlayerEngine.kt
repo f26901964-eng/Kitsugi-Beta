@@ -141,6 +141,8 @@ class Media3PlayerEngine(
      * false = henüz yapılmadı (bir sonraki onTracksChanged'de çalışacak)
      */
     private var initialSelectionDone: Boolean = false
+    private var initialAudioSelectionDone: Boolean = false
+    private var userSelectedAudioTrack: Boolean = false
 
     override val activeStreamInfo: StreamInfoData
         get() = StreamInfoData(
@@ -283,19 +285,21 @@ class Media3PlayerEngine(
                 }
             }
 
-            // ── Otomatik parça seçimi — yalnızca ilk yükleme için (kullanıcı değişikliklerini ezmez) ──
-            if (!initialSelectionDone) {
-                initialSelectionDone = true
-                val preferredLangs = settings.preferredSubtitleLanguages
-                    .split(",").map { it.trim().lowercase() }.filter { it.isNotEmpty() }
-
-                // ── Ses parçası: Türkçe önce, sonra tercih listesi ─────────────────────
+            // ── Ses parçası seçimi (Türkçe önce, sonra tercih listesi, boşsa ilk ses) ──────────────
+            // HLS veya çok dilli akışlarda audio parçaları DEFAULT=NO ile gelebilir (örn. Vidmixi/Dosyaload).
+            // Hiçbir parça seçili değilse player sessiz oynar! Bu durumda her zaman geçerli bir ses seçilmelidir.
+            if (audioOptions.isNotEmpty()) {
                 val currentlySelectedAudio = audioOptions.firstOrNull { it.isSelected }
                 val isSelectedAudioTurkish = currentlySelectedAudio != null && run {
                     val format = currentlySelectedAudio.group.getTrackFormat(currentlySelectedAudio.trackIndex)
                     com.kitsugi.animelist.core.player.PlayerSubtitleUtils.isTurkish(format.language, format.label)
                 }
-                if (!isSelectedAudioTurkish && audioOptions.isNotEmpty()) {
+
+                // Hiçbir ses seçili değilse VEYA (kullanıcı henüz elle seçmediyse ve Türkçe ses bulunabilir durumdaysa):
+                if (currentlySelectedAudio == null || (!userSelectedAudioTrack && !initialAudioSelectionDone && !isSelectedAudioTurkish)) {
+                    val preferredLangs = settings.preferredSubtitleLanguages
+                        .split(",").map { it.trim().lowercase() }.filter { it.isNotEmpty() }
+
                     val preferredAudio = audioOptions.find { opt ->
                         val format = opt.group.getTrackFormat(opt.trackIndex)
                         com.kitsugi.animelist.core.player.PlayerSubtitleUtils.isTurkish(format.language, format.label)
@@ -310,13 +314,22 @@ class Media3PlayerEngine(
                         }
                         found ?: audioOptions.firstOrNull()
                     }
+
                     preferredAudio?.let {
                         if (currentlySelectedAudio != it) {
-                            Log.i(TAG, "Auto-selecting audio track: ${it.label}")
+                            Log.i(TAG, "Auto-selecting audio track (current=${currentlySelectedAudio?.label}): ${it.label}")
                             selectTrack(it)
                         }
                     }
+                    initialAudioSelectionDone = true
                 }
+            }
+
+            // ── Otomatik altyazı seçimi — yalnızca ilk yükleme için (kullanıcı değişikliklerini ezmez) ──
+            if (!initialSelectionDone) {
+                initialSelectionDone = true
+                val preferredLangs = settings.preferredSubtitleLanguages
+                    .split(",").map { it.trim().lowercase() }.filter { it.isNotEmpty() }
 
                 // ── Altyazı: Kesin Öncelik Hiyerarşisi ──────────────────────────────────
                 // 1. Dahili / site kaynaklı Türkçe altyazı (isExternal = false)
@@ -594,6 +607,8 @@ class Media3PlayerEngine(
         // Yeni ortam için otomatik parça seçimini sıfırla
         this.preparedSubtitles = subtitles
         this.initialSelectionDone = false
+        this.initialAudioSelectionDone = false
+        this.userSelectedAudioTrack = false
 
         // ── T1.13: Start diagnostics & analytics session ──────────────────────
         val sessionId = java.util.UUID.randomUUID().toString().take(8)
@@ -702,11 +717,7 @@ class Media3PlayerEngine(
 
             // ── MediaItem ────────────────────────────────────────────────────────
             val videoUri = Uri.parse(videoUrl)
-            val isM3u8 = videoUrl.contains(".m3u8", ignoreCase = true) || 
-                         videoUrl.contains("m3u8", ignoreCase = true) ||
-                         videoUrl.contains("/hls/", ignoreCase = true) ||
-                         videoUrl.contains("master.txt", ignoreCase = true) ||
-                         videoUrl.contains("playlist.txt", ignoreCase = true)
+            val isM3u8 = PlayerMediaSourceFactory.isHlsUrl(videoUrl)
             val isDash = videoUrl.contains(".mpd", ignoreCase = true) || videoUrl.contains("mpd", ignoreCase = true)
             val isSs = videoUrl.contains(".ism", ignoreCase = true)
 
@@ -876,6 +887,9 @@ class Media3PlayerEngine(
             val player = exoPlayer ?: return@runOnMainThread
             val isSubtitle = trackOption.group.type == C.TRACK_TYPE_TEXT
             val type = if (isSubtitle) C.TRACK_TYPE_TEXT else C.TRACK_TYPE_AUDIO
+            if (type == C.TRACK_TYPE_AUDIO) {
+                userSelectedAudioTrack = true
+            }
             player.trackSelectionParameters = player.trackSelectionParameters
                 .buildUpon()
                 .setTrackTypeDisabled(type, false)

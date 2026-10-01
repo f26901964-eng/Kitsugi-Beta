@@ -429,23 +429,28 @@ object KitsugiEpisodeRatingsRepository {
             val logos = json.optJSONArray("logos")
             if (logos == null || logos.length() == 0) return null
 
-            // Prefer English logos first, then any logo
-            var bestLogoPath: String? = null
+            // Clearlogo dil önceliği: tr -> en -> neutral -> latin -> cjk
+            var trLogo: String? = null
+            var enLogo: String? = null
+            var neutralLogo: String? = null
+            var otherLatinLogo: String? = null
+            var cjkLogo: String? = null
+
             for (i in 0 until logos.length()) {
                 val logoObj = logos.getJSONObject(i)
-                val lang = logoObj.optNullableString("iso_639_1").orEmpty()
+                val lang = logoObj.optNullableString("iso_639_1").orEmpty().lowercase()
                 val path = logoObj.optNullableString("file_path")
                 if (!path.isNullOrBlank()) {
-                    if (lang == "en") {
-                        bestLogoPath = path
-                        break
-                    }
-                    if (bestLogoPath == null) {
-                        bestLogoPath = path
+                    when (lang) {
+                        "tr" -> if (trLogo == null) trLogo = path
+                        "en" -> if (enLogo == null) enLogo = path
+                        "", "null" -> if (neutralLogo == null) neutralLogo = path
+                        "ja", "ko", "zh" -> if (cjkLogo == null) cjkLogo = path
+                        else -> if (otherLatinLogo == null) otherLatinLogo = path
                     }
                 }
             }
-            bestLogoPath
+            trLogo ?: enLogo ?: neutralLogo ?: otherLatinLogo ?: cjkLogo
         }.getOrNull()
     }
 

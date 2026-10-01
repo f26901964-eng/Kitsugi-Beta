@@ -3,6 +3,7 @@ package com.kitsugi.animelist.data.remote
 import android.util.Log
 import com.kitsugi.animelist.model.MediaType
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.first
@@ -237,9 +238,42 @@ class TmdbApiClient(
     suspend fun search(query: String, page: Int = 1): List<JikanSearchResult> = withContext(Dispatchers.IO) {
         if (!isTmdbEnabled()) return@withContext emptyList()
         val encodedQuery = java.net.URLEncoder.encode(query, "UTF-8")
-        val url = "https://api.themoviedb.org/3/search/multi?api_key=$apiKey&language=$language&query=$encodedQuery&page=$page"
+        val isTurkish = language.startsWith("tr", ignoreCase = true)
+        val trUrl = "https://api.themoviedb.org/3/search/multi?api_key=$apiKey&language=$language&query=$encodedQuery&page=$page"
+        val enUrl = if (isTurkish) {
+            "https://api.themoviedb.org/3/search/multi?api_key=$apiKey&language=en-US&query=$encodedQuery&page=$page"
+        } else null
+
         try {
-            val responseText = executeGet(url) ?: return@withContext emptyList()
+            val deferredTr = async { executeGet(trUrl) }
+            val deferredEn = if (enUrl != null) async { executeGet(enUrl) } else null
+
+            val responseText = deferredTr.await() ?: return@withContext emptyList()
+            val enResponseText = deferredEn?.await()
+
+            // en-US sonuçlarından id -> title / name haritası çıkar
+            val enTitlesMap = mutableMapOf<Int, String>()
+            if (!enResponseText.isNullOrBlank()) {
+                runCatching {
+                    val enRoot = JSONObject(enResponseText)
+                    val enResults = enRoot.optJSONArray("results")
+                    if (enResults != null) {
+                        for (j in 0 until enResults.length()) {
+                            val enItem = enResults.getJSONObject(j)
+                            val enId = enItem.optInt("id", 0)
+                            val enName = if (enItem.optString("media_type") == "tv") {
+                                enItem.optString("name", "")
+                            } else {
+                                enItem.optString("title", "")
+                            }
+                            if (enId > 0 && enName.isNotBlank()) {
+                                enTitlesMap[enId] = enName
+                            }
+                        }
+                    }
+                }
+            }
+
             val root = JSONObject(responseText)
             val results = root.optJSONArray("results") ?: return@withContext emptyList()
             val list = mutableListOf<JikanSearchResult>()
@@ -250,8 +284,27 @@ class TmdbApiClient(
                 if (mediaTypeStr == "person") continue
                 val isMovie = mediaTypeStr == "movie"
                 val mediaType = if (isMovie) MediaType.Movie else MediaType.TvShow
-                val title = if (isMovie) item.optString("title", "") else item.optString("name", "")
-                if (title.isBlank()) continue
+                val rawTitle = if (isMovie) item.optString("title", "") else item.optString("name", "")
+                if (rawTitle.isBlank()) continue
+
+                val originalTitle = if (isMovie) item.optString("original_title", "") else item.optString("original_name", "")
+                val originalLang = item.optString("original_language", "")
+                val enTitle = enTitlesMap[tmdbId]?.takeIf { it.isNotBlank() }
+                    ?: if (originalLang.equals("en", ignoreCase = true)) originalTitle else null
+
+                // Türkçe istendiğinde eğer TMDB Türkçe başlık sunmamış ve doğrudan Japonca/CJK orijinal başlığı dönmüşse,
+                // veya başlık CJK karakterler içeriyorsa, otomatik olarak İngilizce başlığı tercih et.
+                val hasCjk = PreferenceHelpers.hasCjkCharacters(rawTitle)
+                val finalTitle = if (hasCjk && !enTitle.isNullOrBlank() && !PreferenceHelpers.hasCjkCharacters(enTitle)) {
+                    enTitle
+                } else {
+                    rawTitle
+                }
+                val resolvedTitleEnglish = enTitle ?: if (!hasCjk) rawTitle else null
+                val resolvedTitleJapanese = if (hasCjk || originalLang == "ja") {
+                    originalTitle.ifBlank { rawTitle }
+                } else null
+
                 val posterPath = item.optNullableString("poster_path") ?: ""
                 val releaseDate = if (isMovie) item.optString("release_date", "") else item.optString("first_air_date", "")
                 val year = releaseDate.take(4).toIntOrNull()
@@ -264,12 +317,19 @@ class TmdbApiClient(
                 }
                 list.add(
                     JikanSearchResult(
-                        malId = tmdbId, title = title,
+                        malId = tmdbId,
+                        title = finalTitle,
                         subtitle = subtitleParts.joinToString(", "),
-                        type = mediaType, total = null, score = score,
+                        type = mediaType,
+                        total = null,
+                        score = score,
                         isAdult = item.optBoolean("adult", false),
-                        imageUrl = imageUrl, year = year, source = "tmdb",
-                        realMalId = null, titleEnglish = title, titleJapanese = null,
+                        imageUrl = imageUrl,
+                        year = year,
+                        source = "tmdb",
+                        realMalId = null,
+                        titleEnglish = resolvedTitleEnglish,
+                        titleJapanese = resolvedTitleJapanese,
                         tmdbId = tmdbId
                     )
                 )

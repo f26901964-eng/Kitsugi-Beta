@@ -83,33 +83,8 @@ class PlayerMediaSourceFactory(
 
     // ── MediaItem ─────────────────────────────────────────────────────────────
 
-    private fun isHlsUrl(videoUrl: String): Boolean {
-        if (videoUrl.isBlank()) return false
-        val clean = videoUrl.lowercase(Locale.ROOT)
-        if (clean.contains(".mp4") || clean.contains(".mkv") || clean.contains(".webm") || clean.contains(".avi")) {
-            return clean.contains(".m3u8") || clean.contains("m3u8")
-        }
-        return clean.contains(".m3u8") || 
-               clean.contains("m3u8") ||
-               clean.contains("/hls/") ||
-               clean.contains("/hls") ||
-               clean.contains("master.txt") ||
-               clean.contains("playlist.txt") ||
-               clean.contains("index-v") ||
-               clean.contains("index-a") ||
-               clean.contains("imgsapi") ||
-               clean.contains("molystream") ||
-               clean.contains("macellan") ||
-               clean.contains("vmeas") ||
-               clean.contains("vidpapi") ||
-               clean.contains("hdplayersystem") ||
-               clean.contains("imagestoo") ||
-               clean.contains("pichive") ||
-               clean.contains("dizilla") ||
-               clean.contains("/stream/") ||
-               clean.contains("/player/") ||
-               clean.contains("/embed/")
-    }
+    fun isHls(videoUrl: String): Boolean = isHlsUrl(videoUrl)
+
 
     /**
      * Constructs a [MediaItem] for [videoUrl] with optional subtitle configurations.
@@ -198,10 +173,13 @@ class PlayerMediaSourceFactory(
         }.getOrNull()
 
         val effectiveHeaders = headers.toMutableMap()
+        val videoHost = runCatching { Uri.parse(videoUrl).host }.getOrNull()
         if (!effectiveHeaders.keys.any { it.equals("referer", ignoreCase = true) }) {
-            val videoHost = runCatching { Uri.parse(videoUrl).host }.getOrNull()
             val fallbackRef = if (!videoHost.isNullOrBlank()) "https://$videoHost/" else provider?.mainUrl ?: "https://google.com"
             effectiveHeaders["Referer"] = fallbackRef
+        }
+        if (!effectiveHeaders.keys.any { it.equals("origin", ignoreCase = true) } && !videoHost.isNullOrBlank()) {
+            effectiveHeaders["Origin"] = "https://$videoHost"
         }
         if (!effectiveHeaders.keys.any { it.equals("user-agent", ignoreCase = true) }) {
             effectiveHeaders["User-Agent"] = com.lagradost.cloudstream3.network.CloudflareKiller.UNIFIED_USER_AGENT
@@ -313,6 +291,56 @@ class PlayerMediaSourceFactory(
                     || path.endsWith(".ssa", ignoreCase = true)              -> MimeTypes.TEXT_SSA
                 else                                                          -> MimeTypes.APPLICATION_SUBRIP
             }
+        }
+    }
+
+    companion object {
+        private const val TAG = "PlayerMediaSourceFactory"
+
+        /**
+         * Belirtilen URL'nin bir HLS (.m3u8, master playlist veya HLS text manifest)
+         * akışı olup olmadığını tespit eder. Dosya yolunda '.mp4' geçse bile (örn: FilmMakinesi / CloseLoad
+         * 'hls/...mp4/master.txt' yapısı veya Vidmixi /list/ manifestleri) kesin HLS belirteçleri
+         * varsa true döner. Bu sayede ExoPlayer akışı progressive MP4 olarak indirip Range parçalaması yapmaz,
+         * HlsMediaSource ile video + ses parçalarını kusursuz oynatır.
+         */
+        fun isHlsUrl(videoUrl: String): Boolean {
+            if (videoUrl.isBlank()) return false
+            val clean = videoUrl.lowercase(Locale.ROOT)
+
+            // Kesin HLS belirteçleri — URL yolunda .mp4 bulunsa dahi önceliklidir!
+            if (clean.contains(".m3u8") || clean.contains("m3u8") ||
+                clean.contains("/hls/") || clean.contains("/hls") ||
+                clean.contains("master.txt") || clean.contains("playlist.txt") ||
+                clean.contains("video.txt") || clean.contains("tracks.txt") ||
+                clean.contains("vidmixi.com/list") || clean.contains("vidmixi.com/m3u") ||
+                clean.contains("vidmixi") || clean.contains("dosyaload") ||
+                clean.contains("playmix.uno") || clean.contains("playmix") ||
+                clean.contains("closeload") || clean.contains("rapidrame") ||
+                clean.contains("rplayer") || clean.contains("hdfilmcehennemi") ||
+                clean.contains("filmmakinesi") || clean.contains("index-v") ||
+                clean.contains("index-a") || clean.contains("imgsapi") ||
+                clean.contains("molystream") || clean.contains("macellan") ||
+                clean.contains("vmeas") || clean.contains("vidpapi") ||
+                clean.contains("hdplayersystem") || clean.contains("imagestoo") ||
+                clean.contains("pichive") || clean.contains("dizilla") ||
+                clean.contains("/m3u8/") || clean.contains("/playlist/") ||
+                clean.contains("/hls-vod/")) {
+                return true
+            }
+
+            // Doğrudan progressive video dosyası son ekleri
+            if (clean.endsWith(".mp4") || clean.contains(".mp4?") ||
+                clean.endsWith(".mkv") || clean.contains(".mkv?") ||
+                clean.endsWith(".webm") || clean.contains(".webm?") ||
+                clean.endsWith(".avi") || clean.contains(".avi?")) {
+                return false
+            }
+
+            // Olası akış yolları
+            return clean.contains("/stream/") ||
+                   clean.contains("/player/") ||
+                   clean.contains("/embed/")
         }
     }
 }
