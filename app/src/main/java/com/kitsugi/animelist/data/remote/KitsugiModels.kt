@@ -2,7 +2,9 @@ package com.kitsugi.animelist.data.remote
 
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.MediaEntry
+import com.kitsugi.animelist.utils.KitsugiDateUtils
 import com.kitsugi.animelist.utils.sortedByLanguagePreference
+import com.kitsugi.animelist.utils.toTurkishStaffRole
 
 data class JikanSearchResult(
     val malId: Int,
@@ -514,13 +516,22 @@ fun KitsugiCharacterDetail.mergeWith(other: KitsugiCharacterDetail): KitsugiChar
             group.firstOrNull { !it.imageUrl.isNullOrBlank() } ?: group.first()
         }
 
+    val mergedBirthdayRaw = this.birthday.takeIf { !it.isNullOrBlank() && it != "null" && !it.startsWith("{") }
+        ?: other.birthday.takeIf { !it.isNullOrBlank() && it != "null" && !it.startsWith("{") }
+        ?: this.birthday ?: other.birthday
+    val mergedAgeRaw = this.age.takeIf { !it.isNullOrBlank() && it != "null" } ?: other.age
+    val (mergedBirthday, mergedAge) = KitsugiDateUtils.formatBirthdayAndCalculateAge(
+        mergedBirthdayRaw,
+        mergedAgeRaw
+    )
+
     return this.copy(
         nativeName = this.nativeName.takeIf { !it.isNullOrBlank() && it != "null" } ?: other.nativeName,
         alternativeNames = mergedAlternativeNames,
         imageUrl = this.imageUrl.takeIf { !it.isNullOrBlank() && it != "null" } ?: other.imageUrl,
         gender = this.gender.takeIf { !it.isNullOrBlank() && it != "null" } ?: other.gender,
-        age = this.age.takeIf { !it.isNullOrBlank() && it != "null" } ?: other.age,
-        birthday = this.birthday.takeIf { !it.isNullOrBlank() && it != "null" } ?: other.birthday,
+        age = mergedAge,
+        birthday = mergedBirthday,
         bloodType = this.bloodType.takeIf { !it.isNullOrBlank() && it != "null" } ?: other.bloodType,
         biography = this.biography.takeIf { !it.isNullOrBlank() && it != "null" } ?: other.biography,
         voiceActors = mergedVoiceActors,
@@ -548,14 +559,26 @@ fun KitsugiStaffDetail.mergeWith(other: KitsugiStaffDetail): KitsugiStaffDetail 
             group.firstOrNull { !it.mediaImageUrl.isNullOrBlank() } ?: group.first()
         }
 
+    val mergedBirthdayRaw = this.birthday.takeIf { !it.isNullOrBlank() && it != "null" && !it.startsWith("{") }
+        ?: other.birthday.takeIf { !it.isNullOrBlank() && it != "null" && !it.startsWith("{") }
+        ?: this.birthday ?: other.birthday
+    val mergedAgeRaw = this.age.takeIf { !it.isNullOrBlank() && it != "null" } ?: other.age
+    val (mergedBirthday, mergedAge) = KitsugiDateUtils.formatBirthdayAndCalculateAge(
+        mergedBirthdayRaw,
+        mergedAgeRaw
+    )
+
+    val mergedOccupation = (this.occupation.takeIf { !it.isNullOrBlank() && it != "null" } ?: other.occupation)
+        ?.toTurkishStaffRole()
+
     return this.copy(
         nativeName = this.nativeName.takeIf { !it.isNullOrBlank() && it != "null" } ?: other.nativeName,
         alternativeNames = mergedAlternativeNames,
         imageUrl = this.imageUrl.takeIf { !it.isNullOrBlank() && it != "null" } ?: other.imageUrl,
         biography = this.biography.takeIf { !it.isNullOrBlank() && it != "null" } ?: other.biography,
-        occupation = this.occupation.takeIf { !it.isNullOrBlank() && it != "null" } ?: other.occupation,
-        birthday = this.birthday.takeIf { !it.isNullOrBlank() && it != "null" } ?: other.birthday,
-        age = this.age.takeIf { !it.isNullOrBlank() && it != "null" } ?: other.age,
+        occupation = mergedOccupation,
+        birthday = mergedBirthday,
+        age = mergedAge,
         gender = this.gender.takeIf { !it.isNullOrBlank() && it != "null" } ?: other.gender,
         homeTown = this.homeTown.takeIf { !it.isNullOrBlank() && it != "null" } ?: other.homeTown,
         characterRoles = mergedCharacterRoles,

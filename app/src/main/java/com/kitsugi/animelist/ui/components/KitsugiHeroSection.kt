@@ -356,10 +356,14 @@ fun KitsugiHeroSection(
                         }
                     )
             ) {
-                // Hem dikeyde hem yatayda yüksek kaliteli backdropUrl önceliklidir (yazısız sinematik görsel)
-                val heroImageModel = item.backdropUrl?.takeIf { it.isNotBlank() } ?: item.imageUrl
+                // Dikey moddayken dikey poster görseli (imageUrl), yatay moddayken yatay arka plan (backdropUrl) önceliklidir
+                val heroImageModel = if (layout.isLandscape) {
+                    item.backdropUrl?.takeIf { it.isNotBlank() } ?: item.imageUrl
+                } else {
+                    item.imageUrl?.takeIf { it.isNotBlank() } ?: item.backdropUrl
+                }
                 if (!heroImageModel.isNullOrBlank()) {
-                    // 1. Ana net görsel — üstten hizalı, tam görsel kalitesi, yapay overzoom yok
+                    // 1. Ana net görsel — dikeyde üstten hizalı poster, yatayda ortalanmış sinematik görsel
                     KitsugiNsfwImage(
                         model = heroImageModel,
                         contentDescription = displayTitle,
@@ -374,7 +378,7 @@ fun KitsugiHeroSection(
                                 scaleY = HERO_BACKGROUND_SCALE * heroScrollScale
                             },
                         contentScale = ContentScale.Crop,
-                        alignment = Alignment.TopCenter
+                        alignment = if (layout.isLandscape) Alignment.Center else Alignment.TopCenter
                     )
                 } else {
                     Box(

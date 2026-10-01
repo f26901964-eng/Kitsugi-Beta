@@ -413,7 +413,10 @@ internal fun CharacterAboutTabContent(
                     )
                 }
             }
-            val hasDemographics = detail.gender != null || detail.age != null || detail.birthday != null || detail.bloodType != null
+            val (formattedBirthday, calculatedAge) = androidx.compose.runtime.remember(detail.birthday, detail.age) {
+                com.kitsugi.animelist.utils.KitsugiDateUtils.formatBirthdayAndCalculateAge(detail.birthday, detail.age)
+            }
+            val hasDemographics = detail.gender != null || calculatedAge != null || formattedBirthday != null || detail.bloodType != null
             if (hasDemographics) {
                 Column(
                     modifier = Modifier
@@ -431,8 +434,8 @@ internal fun CharacterAboutTabContent(
                     Spacer(modifier = Modifier.height(12.dp))
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (detail.gender != null) InfoRow(label = stringResource(R.string.info_label_gender), value = detail.gender)
-                        if (detail.age != null) InfoRow(label = stringResource(R.string.info_label_age), value = detail.age)
-                        if (detail.birthday != null) InfoRow(label = stringResource(R.string.info_label_birthday), value = detail.birthday)
+                        if (calculatedAge != null) InfoRow(label = stringResource(R.string.info_label_age), value = calculatedAge)
+                        if (formattedBirthday != null) InfoRow(label = stringResource(R.string.info_label_birthday), value = formattedBirthday)
                         if (detail.bloodType != null) InfoRow(label = stringResource(R.string.info_label_blood_type), value = detail.bloodType)
                     }
                 }

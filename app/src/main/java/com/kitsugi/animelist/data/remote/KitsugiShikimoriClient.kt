@@ -728,11 +728,25 @@ object KitsugiShikimoriClient {
                     val alternativeNames = mutableListOf<String>()
                     val biography = translateIfRussian(data.optNullableString("biography")?.cleanApiText())
 
-                    val birthday = data.optNullableString("birth_on")
-                    val homeTown = data.optNullableString("birth_place")
+                    val rawBirthdayObj = data.opt("birth_on")
+                    val rawBirthday = when (rawBirthdayObj) {
+                        is JSONObject -> {
+                            val d = rawBirthdayObj.optInt("day", 0).takeIf { it > 0 }
+                            val m = rawBirthdayObj.optInt("month", 0).takeIf { it in 1..12 }
+                            val y = rawBirthdayObj.optInt("year", 0).takeIf { it > 0 }
+                            if (d != null && m != null && y != null) "$d.$m.$y"
+                            else if (m != null && y != null) "$m.$y"
+                            else if (y != null) "$y"
+                            else null
+                        }
+                        is String -> rawBirthdayObj.takeIf { it.isNotBlank() && it != "null" }
+                        else -> null
+                    }
+                    val (birthday, age) = com.kitsugi.animelist.utils.KitsugiDateUtils.formatBirthdayAndCalculateAge(rawBirthday, null)
+                    val homeTown = translateIfRussian(data.optNullableString("birth_place"))
                     val gender = null
-                    val age = null
-                    val occupation = data.optNullableString("job_title")
+                    val rawOccupation = data.optNullableString("job_title")
+                    val occupation = rawOccupation?.let { translateIfRussian(it).toTurkishStaffRole() }
 
                     val relativeImg = data.optJSONObject("image")?.optString("original")
                     val imageUrl = relativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }

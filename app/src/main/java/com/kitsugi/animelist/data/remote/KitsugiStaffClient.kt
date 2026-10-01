@@ -209,7 +209,8 @@ class KitsugiStaffClient {
                             val imageUrl = data.optJSONObject("images")?.optJSONObject("jpg")?.optNullableString("image_url")
                             val biography = data.optNullableString("about")?.cleanApiText()?.takeIf { it.isNotBlank() }
 
-                            val birthday = data.optNullableString("birthday")
+                            val rawBirthday = data.optNullableString("birthday")
+                            val (birthday, age) = com.kitsugi.animelist.utils.KitsugiDateUtils.formatBirthdayAndCalculateAge(rawBirthday, null)
 
                             val characterRoles = mutableListOf<KitsugiStaffCharacterRole>()
                             val voicesArray = data.optJSONArray("voices")
@@ -275,7 +276,7 @@ class KitsugiStaffClient {
                                 biography = biography,
                                 occupation = null,
                                 birthday = birthday,
-                                age = null,
+                                age = age,
                                 gender = null,
                                 homeTown = null,
                                 characterRoles = characterRoles,
