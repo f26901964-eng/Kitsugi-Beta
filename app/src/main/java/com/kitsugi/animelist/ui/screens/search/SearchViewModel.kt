@@ -18,6 +18,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -1248,10 +1250,10 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         }
 
         // 0. Seçenek C: "Tümü (All-in-One Çoklu Platform Arama)"
-        if (state.currentTab == KitsugiSearchTab.All) {
+        if (state.currentTab == KitsugiSearchTab.All || engine == SearchSourceEngine.ALL) {
             _uiState.update {
                 it.copy(
-                    multiResults = it.multiResults.copy(
+                    multiResults = MultiPlatformResults(
                         isLoadingAniList = true,
                         isLoadingMal = true,
                         isLoadingTmdb = true,
@@ -1261,54 +1263,104 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                     )
                 )
             }
-            return coroutineScope {
-                val aniListDef = async(Dispatchers.IO) {
-                    runCatching {
-                        apiClient.searchAniListPaged(
-                            query = queryText,
-                            mediaType = MediaType.Anime,
-                            showAdultContent = showAdult,
-                            page = 1,
-                            perPage = 10
-                        ).results
-                    }.getOrElse { emptyList() }
-                }
-                val malDef = async(Dispatchers.IO) {
-                    runCatching {
-                        apiClient.searchMALOnly(
-                            query = queryText,
-                            mediaType = MediaType.Anime,
-                            showAdultContent = showAdult
-                        ).take(10)
-                    }.getOrElse { emptyList() }
-                }
-                val tmdbDef = async(Dispatchers.IO) {
-                    runCatching {
-                        TmdbApiClient().search(queryText).take(10)
-                    }.getOrElse { emptyList() }
-                }
-                val shikimoriDef = async(Dispatchers.IO) {
-                    runCatching {
-                        KitsugiShikimoriClient.searchAnime(queryText, limit = 10)
-                    }.getOrElse { emptyList() }
-                }
-                val kitsuDef = async(Dispatchers.IO) {
-                    runCatching {
-                        KitsuExploreClient.searchAnime(queryText, MediaType.Anime, limit = 10)
-                    }.getOrElse { emptyList() }
-                }
-                val simklDef = async(Dispatchers.IO) {
-                    runCatching {
-                        SimklApiClient().search(queryText, limit = 10)
-                    }.getOrElse { emptyList() }
+            return supervisorScope {
+                val resultsLock = Any()
+                val combinedResults = mutableListOf<JikanSearchResult>()
+
+                fun onPlatformCompleted(platformResults: List<JikanSearchResult>, updater: (MultiPlatformResults) -> MultiPlatformResults) {
+                    _uiState.update { current ->
+                        val newMulti = updater(current.multiResults)
+                        val merged = synchronized(resultsLock) {
+                            combinedResults.addAll(platformResults)
+                            combinedResults.distinctBy { "${it.source}_${it.malId}" }
+                        }
+                        current.copy(
+                            multiResults = newMulti,
+                            results = merged,
+                            hasSearched = true
+                        )
+                    }
                 }
 
-                val aniListRes = aniListDef.await()
-                val malRes = malDef.await()
-                val tmdbRes = tmdbDef.await()
-                val shikimoriRes = shikimoriDef.await()
-                val kitsuRes = kitsuDef.await()
-                val simklRes = simklDef.await()
+                val aniListDef = async(Dispatchers.IO) {
+                    val res = withTimeoutOrNull(7000L) {
+                        runCatching {
+                            apiClient.searchAniListPaged(
+                                query = queryText,
+                                mediaType = MediaType.Anime,
+                                showAdultContent = showAdult,
+                                page = 1,
+                                perPage = 10
+                            ).results
+                        }.getOrDefault(emptyList())
+                    } ?: emptyList()
+                    onPlatformCompleted(res) { it.copy(aniListResults = res, isLoadingAniList = false) }
+                    res
+                }
+
+                val malDef = async(Dispatchers.IO) {
+                    val res = withTimeoutOrNull(7000L) {
+                        runCatching {
+                            apiClient.searchMALOnly(
+                                query = queryText,
+                                mediaType = MediaType.Anime,
+                                showAdultContent = showAdult
+                            ).take(10)
+                        }.getOrDefault(emptyList())
+                    } ?: emptyList()
+                    onPlatformCompleted(res) { it.copy(malResults = res, isLoadingMal = false) }
+                    res
+                }
+
+                val tmdbDef = async(Dispatchers.IO) {
+                    val res = withTimeoutOrNull(7000L) {
+                        runCatching {
+                            TmdbApiClient().search(queryText).take(10)
+                        }.getOrDefault(emptyList())
+                    } ?: emptyList()
+                    onPlatformCompleted(res) { it.copy(tmdbResults = res, isLoadingTmdb = false) }
+                    res
+                }
+
+                val shikimoriDef = async(Dispatchers.IO) {
+                    val res = withTimeoutOrNull(7000L) {
+                        runCatching {
+                            KitsugiShikimoriClient.searchAnime(queryText, limit = 10)
+                        }.getOrDefault(emptyList())
+                    } ?: emptyList()
+                    onPlatformCompleted(res) { it.copy(shikimoriResults = res, isLoadingShikimori = false) }
+                    res
+                }
+
+                val kitsuDef = async(Dispatchers.IO) {
+                    val res = withTimeoutOrNull(7000L) {
+                        runCatching {
+                            KitsuExploreClient.searchAnime(queryText, MediaType.Anime, limit = 10)
+                        }.getOrDefault(emptyList())
+                    } ?: emptyList()
+                    onPlatformCompleted(res) { it.copy(kitsuResults = res, isLoadingKitsu = false) }
+                    res
+                }
+
+                val simklDef = async(Dispatchers.IO) {
+                    val res = withTimeoutOrNull(7000L) {
+                        runCatching {
+                            SimklApiClient().search(queryText, limit = 10)
+                        }.getOrDefault(emptyList())
+                    } ?: emptyList()
+                    onPlatformCompleted(res) { it.copy(simklResults = res, isLoadingSimkl = false) }
+                    res
+                }
+
+                val aniListRes = runCatching { aniListDef.await() }.getOrDefault(emptyList())
+                val malRes = runCatching { malDef.await() }.getOrDefault(emptyList())
+                val tmdbRes = runCatching { tmdbDef.await() }.getOrDefault(emptyList())
+                val shikimoriRes = runCatching { shikimoriDef.await() }.getOrDefault(emptyList())
+                val kitsuRes = runCatching { kitsuDef.await() }.getOrDefault(emptyList())
+                val simklRes = runCatching { simklDef.await() }.getOrDefault(emptyList())
+
+                val finalCombined = (aniListRes + malRes + tmdbRes + shikimoriRes + kitsuRes + simklRes)
+                    .distinctBy { "${it.source}_${it.malId}" }
 
                 _uiState.update {
                     it.copy(
@@ -1325,13 +1377,12 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                             isLoadingShikimori = false,
                             isLoadingKitsu = false,
                             isLoadingSimkl = false
-                        )
+                        ),
+                        results = finalCombined
                     )
                 }
 
-                val combined = (aniListRes + malRes + tmdbRes + shikimoriRes + kitsuRes + simklRes)
-                    .distinctBy { "${it.source}_${it.malId}" }
-                Pair(combined, false)
+                Pair(finalCombined, false)
             }
         }
 

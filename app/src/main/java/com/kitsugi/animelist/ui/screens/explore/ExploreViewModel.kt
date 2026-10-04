@@ -715,14 +715,17 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
 
     private suspend fun loadMalData(): ExplorePayload = supervisorScope {
         val showAdult = showAdultContentState
-        val topAnimeDeferred = async { apiClient.topAnime(showAdultContent = showAdult) }
-        val airingAnimeDeferred = async { apiClient.airingAnime(showAdultContent = showAdult) }
-        val upcomingAnimeDeferred = async { apiClient.upcomingAnime(showAdultContent = showAdult) }
-        val topMangaDeferred = async { apiClient.topManga(showAdultContent = showAdult) }
-        val publishingMangaDeferred = async { apiClient.publishingManga(showAdultContent = showAdult) }
-        val trendingMangaDeferred = async { apiClient.trendingManga(showAdultContent = showAdult) }
-        val newlyAddedAnimeDeferred = async { apiClient.newlyAddedAnime(showAdultContent = showAdult) }
-        val newlyAddedMangaDeferred = async { apiClient.newlyAddedManga(showAdultContent = showAdult) }
+        val topAnimeDeferred = async { withTimeoutOrNull(5000L) { runCatching { apiClient.topAnime(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
+        val airingAnimeDeferred = async { withTimeoutOrNull(5000L) { runCatching { apiClient.airingAnime(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
+        val upcomingAnimeDeferred = async { withTimeoutOrNull(5000L) { runCatching { apiClient.upcomingAnime(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
+        val trendingAnimeDeferred = async { withTimeoutOrNull(5000L) { runCatching { apiClient.trendingAnime(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
+        val movieAnimeDeferred = async { withTimeoutOrNull(5000L) { runCatching { apiClient.movieAnime(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
+        val seasonalAnimeDeferred = async { withTimeoutOrNull(5000L) { runCatching { apiClient.seasonalAnime(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
+        val topMangaDeferred = async { withTimeoutOrNull(5000L) { runCatching { apiClient.topManga(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
+        val publishingMangaDeferred = async { withTimeoutOrNull(5000L) { runCatching { apiClient.publishingManga(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
+        val trendingMangaDeferred = async { withTimeoutOrNull(5000L) { runCatching { apiClient.trendingManga(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
+        val newlyAddedAnimeDeferred = async { withTimeoutOrNull(5000L) { runCatching { apiClient.newlyAddedAnime(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
+        val newlyAddedMangaDeferred = async { withTimeoutOrNull(5000L) { runCatching { apiClient.newlyAddedManga(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
 
         val rawTopAnime = runCatching { topAnimeDeferred.await() }.getOrDefault(emptyList())
 
@@ -763,7 +766,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                         isAdult = false,
                         imageUrl = entry.coverUrl,
                         year = null,
-                        source = "jikan",
+                        source = "mal",
                         realMalId = entry.malId,
                         titleEnglish = entry.titleEnglish,
                         titleJapanese = entry.titleNative,
@@ -781,9 +784,9 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             trendingManga = runCatching { trendingMangaDeferred.await() }.getOrDefault(emptyList()),
             newlyAddedAnime = runCatching { newlyAddedAnimeDeferred.await() }.getOrDefault(emptyList()),
             newlyAddedManga = runCatching { newlyAddedMangaDeferred.await() }.getOrDefault(emptyList()),
-            trendingAnime = emptyList(),
-            movieAnime = emptyList(),
-            seasonalAnime = emptyList(),
+            trendingAnime = runCatching { trendingAnimeDeferred.await() }.getOrDefault(emptyList()),
+            movieAnime = runCatching { movieAnimeDeferred.await() }.getOrDefault(emptyList()),
+            seasonalAnime = runCatching { seasonalAnimeDeferred.await() }.getOrDefault(emptyList()),
             airingSoonAnime = runCatching { airingSoonDeferred.await() }.getOrDefault(emptyList())
         )
     }
