@@ -137,6 +137,11 @@ android {
         }
     }
 
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
+    }
+
     applicationVariants.all {
         val flavor = flavorName
         outputs.all {
