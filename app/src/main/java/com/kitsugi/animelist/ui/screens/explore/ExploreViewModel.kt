@@ -542,7 +542,19 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private suspend fun loadKitsuData(): ExplorePayload = supervisorScope {
+        val cal = java.util.Calendar.getInstance()
+        val month = cal.get(java.util.Calendar.MONTH)
+        val year = cal.get(java.util.Calendar.YEAR)
+        val currentSeason = when (month) {
+            0, 1, 11 -> "winter"
+            2, 3, 4 -> "spring"
+            5, 6, 7 -> "summer"
+            else -> "fall"
+        }
+
         val topAnimeDeferred = async { runCatching { com.kitsugi.animelist.data.remote.KitsuExploreClient.topAnime(20) }.getOrDefault(emptyList()) }
+        val trendingAnimeDeferred = async { runCatching { com.kitsugi.animelist.data.remote.KitsuExploreClient.trendingAnime(20) }.getOrDefault(emptyList()) }
+        val seasonalAnimeDeferred = async { runCatching { com.kitsugi.animelist.data.remote.KitsuExploreClient.seasonalAnime(currentSeason, year, 20) }.getOrDefault(emptyList()) }
         val airingAnimeDeferred = async { runCatching { com.kitsugi.animelist.data.remote.KitsuExploreClient.airingAnime(20) }.getOrDefault(emptyList()) }
         val upcomingAnimeDeferred = async { runCatching { com.kitsugi.animelist.data.remote.KitsuExploreClient.upcomingAnime(20) }.getOrDefault(emptyList()) }
         val newlyAddedAnimeDeferred = async { runCatching { com.kitsugi.animelist.data.remote.KitsuExploreClient.newlyAddedAnime(20) }.getOrDefault(emptyList()) }
@@ -552,8 +564,26 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         val trendingMangaDeferred = async { runCatching { com.kitsugi.animelist.data.remote.KitsuExploreClient.trendingManga(20) }.getOrDefault(emptyList()) }
         val newlyAddedMangaDeferred = async { runCatching { com.kitsugi.animelist.data.remote.KitsuExploreClient.newlyAddedManga(20) }.getOrDefault(emptyList()) }
 
+        val rawTopAnime = runCatching { topAnimeDeferred.await() }.getOrDefault(emptyList())
+        val enrichedTopAnime = if (rawTopAnime.isNotEmpty() && tmdbEnabledState) {
+            val heroCount = minOf(rawTopAnime.size, 5)
+            val backdropJobs = (0 until heroCount).map { index ->
+                val item = rawTopAnime[index]
+                async {
+                    val backdrop = tmdbApiClient.fetchBackdropByTitle(item.title)
+                    if (backdrop != null) item.copy(backdropUrl = backdrop) else item
+                }
+            }
+            val enrichedHeroes = backdropJobs.mapIndexed { index, job ->
+                runCatching { job.await() }.getOrDefault(rawTopAnime[index])
+            }
+            enrichedHeroes + rawTopAnime.drop(heroCount)
+        } else {
+            rawTopAnime
+        }
+
         ExplorePayload(
-            topAnime = topAnimeDeferred.await(),
+            topAnime = enrichedTopAnime,
             airingAnime = airingAnimeDeferred.await(),
             upcomingAnime = upcomingAnimeDeferred.await(),
             topManga = topMangaDeferred.await(),
@@ -561,30 +591,47 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             trendingManga = trendingMangaDeferred.await(),
             newlyAddedAnime = newlyAddedAnimeDeferred.await(),
             newlyAddedManga = newlyAddedMangaDeferred.await(),
-            trendingAnime = emptyList(),
+            trendingAnime = trendingAnimeDeferred.await(),
             movieAnime = movieAnimeDeferred.await(),
-            seasonalAnime = emptyList()
+            seasonalAnime = seasonalAnimeDeferred.await()
         )
     }
 
     private suspend fun loadShikimoriData(): ExplorePayload = supervisorScope {
+        val cal = java.util.Calendar.getInstance()
+        val month = cal.get(java.util.Calendar.MONTH)
+        val year = cal.get(java.util.Calendar.YEAR)
+        val seasonPrefix = when (month) {
+            0, 1, 11 -> "winter"
+            2, 3, 4 -> "spring"
+            5, 6, 7 -> "summer"
+            else -> "fall"
+        }
+        val currentShikiSeason = "${seasonPrefix}_${year}"
+
         val topAnimeDeferred = async {
             runCatching {
-                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(
-                    com.kitsugi.animelist.model.MediaType.Anime,
-                    order = "ranked",
-                    limit = 20
-                )
+                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.topAnime(limit = 20)
+            }.getOrDefault(emptyList())
+        }
+        val trendingAnimeDeferred = async {
+            runCatching {
+                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.trendingAnime(limit = 20)
+            }.getOrDefault(emptyList())
+        }
+        val seasonalAnimeDeferred = async {
+            runCatching {
+                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.seasonalAnime(season = currentShikiSeason, limit = 20)
+            }.getOrDefault(emptyList())
+        }
+        val movieAnimeDeferred = async {
+            runCatching {
+                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.movieAnime(limit = 20)
             }.getOrDefault(emptyList())
         }
         val airingAnimeDeferred = async {
             runCatching {
-                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(
-                    com.kitsugi.animelist.model.MediaType.Anime,
-                    statuses = listOf("ongoing"),
-                    order = "popularity",
-                    limit = 20
-                )
+                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.airingAnime(limit = 20)
             }.getOrDefault(emptyList())
         }
         val upcomingAnimeDeferred = async {
@@ -597,32 +644,14 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                 )
             }.getOrDefault(emptyList())
         }
-        val trendingAnimeDeferred = async {
-            runCatching {
-                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(
-                    com.kitsugi.animelist.model.MediaType.Anime,
-                    order = "popularity",
-                    limit = 20
-                )
-            }.getOrDefault(emptyList())
-        }
         val topMangaDeferred = async {
             runCatching {
-                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(
-                    com.kitsugi.animelist.model.MediaType.Manga,
-                    order = "ranked",
-                    limit = 20
-                )
+                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.topManga(limit = 20)
             }.getOrDefault(emptyList())
         }
         val publishingMangaDeferred = async {
             runCatching {
-                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(
-                    com.kitsugi.animelist.model.MediaType.Manga,
-                    statuses = listOf("ongoing"),
-                    order = "popularity",
-                    limit = 20
-                )
+                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.publishingManga(limit = 20)
             }.getOrDefault(emptyList())
         }
         val trendingMangaDeferred = async {
@@ -635,16 +664,34 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             }.getOrDefault(emptyList())
         }
 
+        val rawTopAnime = runCatching { topAnimeDeferred.await() }.getOrDefault(emptyList())
+        val enrichedTopAnime = if (rawTopAnime.isNotEmpty() && tmdbEnabledState) {
+            val heroCount = minOf(rawTopAnime.size, 5)
+            val backdropJobs = (0 until heroCount).map { index ->
+                val item = rawTopAnime[index]
+                async {
+                    val backdrop = tmdbApiClient.fetchBackdropByTitle(item.title)
+                    if (backdrop != null) item.copy(backdropUrl = backdrop) else item
+                }
+            }
+            val enrichedHeroes = backdropJobs.mapIndexed { index, job ->
+                runCatching { job.await() }.getOrDefault(rawTopAnime[index])
+            }
+            enrichedHeroes + rawTopAnime.drop(heroCount)
+        } else {
+            rawTopAnime
+        }
+
         ExplorePayload(
-            topAnime = topAnimeDeferred.await(),
+            topAnime = enrichedTopAnime,
             airingAnime = airingAnimeDeferred.await(),
             upcomingAnime = upcomingAnimeDeferred.await(),
             topManga = topMangaDeferred.await(),
             publishingManga = publishingMangaDeferred.await(),
             trendingManga = trendingMangaDeferred.await(),
             trendingAnime = trendingAnimeDeferred.await(),
-            movieAnime = emptyList(),
-            seasonalAnime = emptyList()
+            movieAnime = movieAnimeDeferred.await(),
+            seasonalAnime = seasonalAnimeDeferred.await()
         )
     }
 

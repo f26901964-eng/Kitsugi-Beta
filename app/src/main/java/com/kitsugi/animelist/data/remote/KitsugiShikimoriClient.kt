@@ -202,6 +202,34 @@ object KitsugiShikimoriClient {
         }.getOrElse { emptyList() }
     }
 
+    /** Shikimori Popüler / Trend Animeler */
+    suspend fun trendingAnime(limit: Int = 20, page: Int = 1): List<JikanSearchResult> =
+        searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Anime, order = "popularity", limit = limit, page = page)
+
+    /** Shikimori Sezonluk Animeler (örn: "spring_2025", "winter_2025") */
+    suspend fun seasonalAnime(season: String, limit: Int = 20, page: Int = 1): List<JikanSearchResult> =
+        searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Anime, season = season, order = "popularity", limit = limit, page = page)
+
+    /** Shikimori Film Formatındaki Animeler */
+    suspend fun movieAnime(limit: Int = 20, page: Int = 1): List<JikanSearchResult> =
+        searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Anime, kinds = listOf("movie"), order = "popularity", limit = limit, page = page)
+
+    /** Shikimori En Yüksek Puanlı Animeler */
+    suspend fun topAnime(limit: Int = 20, page: Int = 1): List<JikanSearchResult> =
+        searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Anime, order = "ranked", limit = limit, page = page)
+
+    /** Shikimori Yayında Olan Animeler */
+    suspend fun airingAnime(limit: Int = 20, page: Int = 1): List<JikanSearchResult> =
+        searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Anime, statuses = listOf("ongoing"), order = "popularity", limit = limit, page = page)
+
+    /** Shikimori En Popüler Mangalar */
+    suspend fun topManga(limit: Int = 20, page: Int = 1): List<JikanSearchResult> =
+        searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Manga, order = "ranked", limit = limit, page = page)
+
+    /** Shikimori Yayında Olan Mangalar */
+    suspend fun publishingManga(limit: Int = 20, page: Int = 1): List<JikanSearchResult> =
+        searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Manga, statuses = listOf("ongoing"), order = "popularity", limit = limit, page = page)
+
     suspend fun searchCharacters(query: String, page: Int = 1, limit: Int = 24): List<JikanSearchResult> = withContext(Dispatchers.IO) {
         if (query.isBlank()) return@withContext emptyList()
         runCatching {

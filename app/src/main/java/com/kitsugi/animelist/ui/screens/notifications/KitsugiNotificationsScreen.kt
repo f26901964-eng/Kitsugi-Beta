@@ -50,10 +50,12 @@ import kotlinx.coroutines.launch
 
 // ─── Platform seçimi ──────────────────────────────────────────────────────────
 
-private enum class NotifPlatform(val label: String) {
-    ANILIST("AniList"),
-    MAL("MAL"),
-    TMDB_SIMKL("TMDB & Simkl")
+private enum class NotifPlatform(val label: String, val logoId: String) {
+    ANILIST("AniList", "anilist"),
+    MAL("MAL", "mal"),
+    TMDB_SIMKL("TMDB & Simkl", "simkl"),
+    KITSU("Kitsu", "kitsu"),
+    SHIKIMORI("Shikimori", "shikimori")
 }
 
 // ─── Ana Ekran ────────────────────────────────────────────────────────────────
@@ -65,6 +67,8 @@ fun KitsugiNotificationsScreen(
     isAniListConnected: Boolean,
     isMalConnected: Boolean,
     isSimklConnected: Boolean,
+    isKitsuConnected: Boolean = false,
+    isShikimoriConnected: Boolean = false,
     onBack: () -> Unit,
     onOpenApiDetail: ((mediaId: Int, source: String, mediaType: String?) -> Unit)? = null,
     onUserProfileClick: ((userId: Int, username: String, avatarUrl: String?) -> Unit)? = null,
@@ -78,18 +82,22 @@ fun KitsugiNotificationsScreen(
     var activeActivityIdForDetail by remember { mutableStateOf<Int?>(null) }
 
     // ── ViewModel state'lerini topla ──
-    val malState    by viewModel.mal.collectAsState()
-    val simklState  by viewModel.tmdbSimkl.collectAsState()
+    val malState       by viewModel.mal.collectAsState()
+    val simklState     by viewModel.tmdbSimkl.collectAsState()
+    val kitsuState     by viewModel.kitsu.collectAsState()
+    val shikimoriState by viewModel.shikimori.collectAsState()
 
     // ── Sayfa + filtre state ──
     val pagerState = rememberPagerState(
         initialPage = when {
-            isAniListConnected -> 0
-            isMalConnected     -> 1
-            isSimklConnected   -> 2
-            else               -> 0
+            isAniListConnected   -> 0
+            isMalConnected       -> 1
+            isSimklConnected     -> 2
+            isKitsuConnected     -> 3
+            isShikimoriConnected -> 4
+            else                 -> 0
         },
-        pageCount = { 3 }
+        pageCount = { 5 }
     )
 
     val aniListPagerState = rememberPagerState(
@@ -108,11 +116,15 @@ fun KitsugiNotificationsScreen(
             )
             1 -> if (isMalConnected) viewModel.loadMal(mediaEntries)
             2 -> if (isSimklConnected) viewModel.loadTmdbSimkl(mediaEntries)
+            3 -> if (isKitsuConnected) viewModel.loadKitsu(mediaEntries)
+            4 -> if (isShikimoriConnected) viewModel.loadShikimori(mediaEntries)
         }
     }
 
-    val malListState      = rememberLazyListState()
+    val malListState       = rememberLazyListState()
     val tmdbSimklListState = rememberLazyListState()
+    val kitsuListState     = rememberLazyListState()
+    val shikimoriListState = rememberLazyListState()
 
     val configuration = LocalConfiguration.current
     val isLandscape   = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -156,6 +168,8 @@ fun KitsugiNotificationsScreen(
                     0 -> viewModel.loadAniList(currentAniListFilter, resetPage = true, mediaEntries)
                     1 -> viewModel.loadMal(mediaEntries)
                     2 -> viewModel.loadTmdbSimkl(mediaEntries)
+                    3 -> viewModel.loadKitsu(mediaEntries)
+                    4 -> viewModel.loadShikimori(mediaEntries)
                 }
             }) {
                 Icon(
@@ -170,15 +184,17 @@ fun KitsugiNotificationsScreen(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = if (isLandscape) 18.dp else 16.dp, vertical = 12.dp),
+                .padding(horizontal = if (isLandscape) 18.dp else 16.dp, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             Row(
                 modifier = Modifier
-                    .weight(1f)
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
                     .clip(RoundedCornerShape(22.dp))
-                    .background(KitsugiColors.Surface),
-                horizontalArrangement = Arrangement.spacedBy(0.dp)
+                    .background(KitsugiColors.Surface)
+                    .padding(3.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 NotifPlatform.entries.forEachIndexed { index, platform ->
                     val active  = pagerState.currentPage == index
@@ -186,29 +202,32 @@ fun KitsugiNotificationsScreen(
                         NotifPlatform.ANILIST    -> isAniListConnected
                         NotifPlatform.MAL        -> isMalConnected
                         NotifPlatform.TMDB_SIMKL -> isSimklConnected || true
+                        NotifPlatform.KITSU      -> isKitsuConnected || true
+                        NotifPlatform.SHIKIMORI  -> isShikimoriConnected || true
+                    }
+                    val isConnected = when (platform) {
+                        NotifPlatform.ANILIST    -> isAniListConnected
+                        NotifPlatform.MAL        -> isMalConnected
+                        NotifPlatform.TMDB_SIMKL -> isSimklConnected
+                        NotifPlatform.KITSU      -> isKitsuConnected
+                        NotifPlatform.SHIKIMORI  -> isShikimoriConnected
                     }
                     Box(
                         modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(22.dp))
-                            .background(if (active) accentColor else KitsugiColors.Surface)
-                            .tvClickable(shape = RoundedCornerShape(22.dp), enabled = enabled) {
+                            .clip(RoundedCornerShape(18.dp))
+                            .background(if (active) accentColor else Color.Transparent)
+                            .tvClickable(shape = RoundedCornerShape(18.dp), enabled = enabled) {
                                 scope.launch { pagerState.animateScrollToPage(index) }
                             }
-                            .padding(vertical = 10.dp),
+                            .padding(horizontal = 14.dp, vertical = 8.dp),
                         contentAlignment = Alignment.Center
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.Center
                         ) {
-                            val logoId = when (platform) {
-                                NotifPlatform.ANILIST -> "anilist"
-                                NotifPlatform.MAL -> "mal"
-                                NotifPlatform.TMDB_SIMKL -> "simkl"
-                            }
                             KitsugiPlatformLogo(
-                                platformId = logoId,
+                                platformId = platform.logoId,
                                 size = 16.dp,
                                 modifier = Modifier.padding(end = 6.dp)
                             )
@@ -220,8 +239,8 @@ fun KitsugiNotificationsScreen(
                                 fontSize = 13.sp,
                                 fontWeight = if (active) FontWeight.Black else FontWeight.Medium
                             )
-                            if (enabled) {
-                                Spacer(modifier = Modifier.width(4.dp))
+                            if (isConnected) {
+                                Spacer(modifier = Modifier.width(5.dp))
                                 Box(
                                     modifier = Modifier
                                         .size(6.dp)
@@ -416,6 +435,80 @@ fun KitsugiNotificationsScreen(
                                             onUserProfileClick = onUserProfileClick,
                                             onClick = {
                                                 notif.mediaId?.let { id -> onOpenApiDetail?.invoke(id, "simkl", notif.mediaType) }
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ──────────────── Page 3: Kitsu ────────────────
+                3 -> {
+                    if (!isKitsuConnected && kitsuState.items.isEmpty()) {
+                        CenteredEmptyState("Kitsu hesabınız bağlı değil. Ayarlar > Platformlar üzerinden Kitsu hesabınızı bağlayabilirsiniz.")
+                    } else {
+                        LazyColumn(
+                            state = kitsuListState,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 80.dp)
+                        ) {
+                            when {
+                                kitsuState.isLoading && kitsuState.items.isEmpty() -> {
+                                    item { LoadingState(accentColor) }
+                                }
+                                kitsuState.error != null && kitsuState.items.isEmpty() -> {
+                                    item { CenteredEmptyState(kitsuState.error!!) }
+                                }
+                                kitsuState.items.isEmpty() -> {
+                                    item { CenteredEmptyState("Kitsu bildirimi veya izleme güncellemesi bulunamadı.") }
+                                }
+                                else -> {
+                                    items(kitsuState.items, key = { it.id }) { notif ->
+                                        NotifItemRow(
+                                            notif = notif,
+                                            accentColor = accentColor,
+                                            onUserProfileClick = onUserProfileClick,
+                                            onClick = {
+                                                notif.mediaId?.let { id -> onOpenApiDetail?.invoke(id, "kitsu", notif.mediaType) }
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // ──────────────── Page 4: Shikimori ────────────────
+                4 -> {
+                    if (!isShikimoriConnected && shikimoriState.items.isEmpty()) {
+                        CenteredEmptyState("Shikimori hesabınız bağlı değil. Ayarlar > Platformlar üzerinden Shikimori hesabınızı bağlayabilirsiniz.")
+                    } else {
+                        LazyColumn(
+                            state = shikimoriListState,
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(bottom = 80.dp)
+                        ) {
+                            when {
+                                shikimoriState.isLoading && shikimoriState.items.isEmpty() -> {
+                                    item { LoadingState(accentColor) }
+                                }
+                                shikimoriState.error != null && shikimoriState.items.isEmpty() -> {
+                                    item { CenteredEmptyState(shikimoriState.error!!) }
+                                }
+                                shikimoriState.items.isEmpty() -> {
+                                    item { CenteredEmptyState("Shikimori hareket geçmişi bulunamadı.") }
+                                }
+                                else -> {
+                                    items(shikimoriState.items, key = { it.id }) { notif ->
+                                        NotifItemRow(
+                                            notif = notif,
+                                            accentColor = accentColor,
+                                            onUserProfileClick = onUserProfileClick,
+                                            onClick = {
+                                                notif.mediaId?.let { id -> onOpenApiDetail?.invoke(id, "shikimori", notif.mediaType) }
                                             }
                                         )
                                     }

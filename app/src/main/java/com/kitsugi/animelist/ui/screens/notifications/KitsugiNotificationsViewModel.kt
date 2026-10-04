@@ -79,6 +79,14 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
     private val _tmdbSimkl = MutableStateFlow(NotifUiState())
     val tmdbSimkl: StateFlow<NotifUiState> = _tmdbSimkl.asStateFlow()
 
+    // ── Kitsu ──
+    private val _kitsu = MutableStateFlow(NotifUiState())
+    val kitsu: StateFlow<NotifUiState> = _kitsu.asStateFlow()
+
+    // ── Shikimori ──
+    private val _shikimori = MutableStateFlow(NotifUiState())
+    val shikimori: StateFlow<NotifUiState> = _shikimori.asStateFlow()
+
     // ─── AniList Yükleyici ────────────────────────────────────────────────────
 
     fun loadAniList(
@@ -272,6 +280,131 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                 _tmdbSimkl.value = NotifUiState(
                     isLoading = false,
                     error = ctx.getString(R.string.notif_error_load, e.message ?: "")
+                )
+            }
+        }
+    }
+
+    // ─── Kitsu Yükleyici ──────────────────────────────────────────────────────
+
+    fun loadKitsu(mediaEntries: List<MediaEntry> = emptyList()) {
+        if (_kitsu.value.isLoading) return
+        viewModelScope.launch {
+            _kitsu.value = NotifUiState(isLoading = true)
+            try {
+                val token = ExternalAuthManager.getKitsuToken(ctx)
+                val userId = ExternalAuthManager.getKitsuUserId(ctx)
+                val items = mutableListOf<NotifItem>()
+
+                if (!token.isNullOrBlank() && !userId.isNullOrBlank()) {
+                    val entries = com.kitsugi.animelist.data.auth.KitsuApiClient.fetchAllLibraryEntries(token, userId)
+                    val activeEntries = entries.filter {
+                        it.status.equals("current", true) || it.status.equals("watching", true)
+                    }
+                    activeEntries.take(30).forEach { entry ->
+                        items.add(
+                            NotifItem(
+                                id = "kitsu_${entry.id}",
+                                imageUrl = entry.imageUrl,
+                                title = entry.title,
+                                body = if (entry.progress > 0) "Kitsu İzleme Listesi • ${entry.progress}. Bölüm" else "Kitsu İzleme Listesinde",
+                                dateText = null,
+                                mediaId = entry.animeId,
+                                mediaType = "anime",
+                                source = "Kitsu"
+                            )
+                        )
+                    }
+                }
+
+                if (items.isEmpty()) {
+                    val kitsuEntries = mediaEntries.filter {
+                        it.source.equals("kitsu", ignoreCase = true) &&
+                        (it.status == WatchStatus.Watching || it.status == WatchStatus.Repeating)
+                    }
+                    kitsuEntries.forEach { me ->
+                        items.add(
+                            NotifItem(
+                                id = "kitsu_local_${me.id}",
+                                imageUrl = me.imageUrl,
+                                title = me.title,
+                                body = "Kitsu Takip Edilen Anime • İzleniyor",
+                                dateText = null,
+                                mediaId = me.malId ?: me.id,
+                                mediaType = "anime",
+                                source = "Kitsu"
+                            )
+                        )
+                    }
+                }
+
+                _kitsu.value = NotifUiState(items = items, isLoading = false, hasMore = false)
+            } catch (e: Exception) {
+                android.util.Log.e("KitsugiNotif", "Kitsu load failed: ${e.message}")
+                _kitsu.value = NotifUiState(
+                    isLoading = false,
+                    error = "Kitsu bildirimleri yüklenirken hata oluştu: ${e.message}"
+                )
+            }
+        }
+    }
+
+    // ─── Shikimori Yükleyici ──────────────────────────────────────────────────
+
+    fun loadShikimori(mediaEntries: List<MediaEntry> = emptyList()) {
+        if (_shikimori.value.isLoading) return
+        viewModelScope.launch {
+            _shikimori.value = NotifUiState(isLoading = true)
+            try {
+                val token = ExternalAuthManager.getShikimoriToken(ctx)
+                val userId = ExternalAuthManager.getShikimoriUserId(ctx)
+                val items = mutableListOf<NotifItem>()
+
+                if (!token.isNullOrBlank() && userId != null) {
+                    val history = com.kitsugi.animelist.data.auth.ShikimoriApiClient.fetchUserHistory(token, userId, limit = 40)
+                    history.forEach { h ->
+                        items.add(
+                            NotifItem(
+                                id = "shikimori_${h.id}",
+                                imageUrl = h.targetImageUrl,
+                                title = h.targetTitle,
+                                body = h.description.ifBlank { "Shikimori aktivitesi" },
+                                dateText = h.createdAt.take(10),
+                                mediaId = h.targetId?.toInt(),
+                                mediaType = h.targetType ?: "anime",
+                                source = "Shikimori"
+                            )
+                        )
+                    }
+                }
+
+                if (items.isEmpty()) {
+                    val shikiEntries = mediaEntries.filter {
+                        it.source.equals("shikimori", ignoreCase = true) &&
+                        (it.status == WatchStatus.Watching || it.status == WatchStatus.Repeating)
+                    }
+                    shikiEntries.forEach { me ->
+                        items.add(
+                            NotifItem(
+                                id = "shiki_local_${me.id}",
+                                imageUrl = me.imageUrl,
+                                title = me.title,
+                                body = "Shikimori Takip Edilen Anime • İzleniyor",
+                                dateText = null,
+                                mediaId = me.malId ?: me.id,
+                                mediaType = "anime",
+                                source = "Shikimori"
+                            )
+                        )
+                    }
+                }
+
+                _shikimori.value = NotifUiState(items = items, isLoading = false, hasMore = false)
+            } catch (e: Exception) {
+                android.util.Log.e("KitsugiNotif", "Shikimori load failed: ${e.message}")
+                _shikimori.value = NotifUiState(
+                    isLoading = false,
+                    error = "Shikimori hareketleri yüklenirken hata oluştu: ${e.message}"
                 )
             }
         }

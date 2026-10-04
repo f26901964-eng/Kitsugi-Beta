@@ -4,7 +4,7 @@ setlocal enabledelayedexpansion
 set "PATH=C:\Program Files\Git\cmd;C:\Program Files\GitHub CLI;%PATH%"
 
 echo =================================================================
-echo   Kitsugi-Beta - Otomatik GitHub Release Yukleyici (FOSS + GMS)
+echo   Kitsugi-Beta - Otomatik GitHub Release Yukleyici (FOSS)
 echo =================================================================
 echo.
 
@@ -32,17 +32,17 @@ echo [+] 1. Kod degisiklikleri GitHub'a gonderiliyor...
 "%GIT_EXE%" push -u origin main
 
 echo.
-echo [+] 2. FOSS ve GMS APK'lari Derleniyor (Lutfen bekleyin)...
-call gradlew.bat assembleFossRelease assembleGmsRelease --parallel --build-cache --configuration-cache
+echo [+] 2. FOSS APK Derleniyor (Lutfen bekleyin)...
+call gradlew.bat assembleFossRelease --parallel --build-cache --configuration-cache
 if %ERRORLEVEL% NEQ 0 (
     echo.
     echo [!] Hizli derleme basarisiz. Configuration cache temizlenip tekrar deneniyor...
     call gradlew.bat --stop >nul 2>&1
-    call gradlew.bat assembleFossRelease assembleGmsRelease --parallel --build-cache --no-configuration-cache
+    call gradlew.bat assembleFossRelease --parallel --build-cache --no-configuration-cache
     if %ERRORLEVEL% NEQ 0 (
         echo.
         echo [!] Ikinci deneme de basarisiz. Clean build baslatiliyor - en guvenli yol...
-        call gradlew.bat clean assembleFossRelease assembleGmsRelease
+        call gradlew.bat clean assembleFossRelease
     )
 )
 
@@ -58,19 +58,6 @@ for %%F in ("app\build\outputs\apk\foss\release\*.apk") do (
     )
     copy /Y "%%F" "!TARGET_FILE!" >nul
     echo [+] Hazirlanan FOSS APK: !TARGET_FILE!
-    set "UPLOAD_ASSETS=!UPLOAD_ASSETS! "!TARGET_FILE!""
-)
-
-for %%F in ("app\build\outputs\apk\gms\release\*.apk") do (
-    set "FILENAME=%%~nxF"
-    set "TARGET_FILE=app\build\outputs\apk\Kitsugi-Beta-v!APP_VER!-gms.apk"
-    if NOT "!FILENAME!"=="!FILENAME:arm64=!" (
-        set "TARGET_FILE=app\build\outputs\apk\Kitsugi-Beta-v!APP_VER!-gms-arm64-v8a.apk"
-    ) else if NOT "!FILENAME!"=="!FILENAME:v7a=!" (
-        set "TARGET_FILE=app\build\outputs\apk\Kitsugi-Beta-v!APP_VER!-gms-armeabi-v7a.apk"
-    )
-    copy /Y "%%F" "!TARGET_FILE!" >nul
-    echo [+] Hazirlanan GMS APK: !TARGET_FILE!
     set "UPLOAD_ASSETS=!UPLOAD_ASSETS! "!TARGET_FILE!""
 )
 

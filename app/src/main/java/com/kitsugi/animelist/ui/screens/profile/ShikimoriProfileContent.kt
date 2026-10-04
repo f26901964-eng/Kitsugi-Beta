@@ -33,6 +33,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
+import com.kitsugi.animelist.data.auth.ShikimoriApiClient.ShikimoriHistoryItem
 import com.kitsugi.animelist.data.settings.AppSettings
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
@@ -265,14 +266,25 @@ fun ShikimoriProfileContent(
                     }
             ) { page ->
                 when (page) {
-                    0 -> ShikimoriAboutTab(state = state, accentColor = accentColor)
+                    0 -> ShikimoriAboutTab(
+                        state = state,
+                        accentColor = accentColor,
+                        onFavoriteMediaClick = onFavoriteMediaClick,
+                        onOpenFavoriteSheet = onOpenFavoriteSheet
+                    )
                     1 -> ShikimoriStatsTab(state = state, accentColor = accentColor)
                     2 -> ShikimoriRatesTab(
+                        history = state.history,
                         entries = state.recentRates,
                         accentColor = accentColor,
                         onEntryClick = { item ->
                             val idInt = item.id.toIntOrNull() ?: 0
                             onFavoriteMediaClick(idInt, MediaType.Anime, "mal", item.title, item.imageUrl)
+                        },
+                        onHistoryClick = { hist ->
+                            val idInt = hist.targetId?.toInt() ?: 0
+                            val type = if (hist.targetType?.contains("manga", ignoreCase = true) == true) MediaType.Manga else MediaType.Anime
+                            onFavoriteMediaClick(idInt, type, "mal", hist.targetTitle ?: "", hist.targetImage)
                         }
                     )
                 }
@@ -284,7 +296,9 @@ fun ShikimoriProfileContent(
 @Composable
 private fun ShikimoriAboutTab(
     state: ShikimoriProfileState,
-    accentColor: Color
+    accentColor: Color,
+    onFavoriteMediaClick: (mediaId: Int, mediaType: MediaType, source: String, title: String, imageUrl: String?) -> Unit,
+    onOpenFavoriteSheet: (title: String, items: List<ProfileFavoriteItem>, onClick: (ProfileFavoriteItem) -> Unit) -> Unit
 ) {
     val context = LocalContext.current
 
@@ -372,6 +386,24 @@ private fun ShikimoriAboutTab(
             )
         }
 
+        // Favorites Horizontal Section
+        if (state.favorites.isNotEmpty()) {
+            FavoritesHorizontalSection(
+                title = "Favoriler",
+                items = state.favorites,
+                onSeeAllClick = {
+                    onOpenFavoriteSheet("Shikimori Favoriler", state.favorites) { item ->
+                        val idInt = item.id.toIntOrNull() ?: 0
+                        onFavoriteMediaClick(idInt, MediaType.Anime, "mal", item.title, item.imageUrl)
+                    }
+                },
+                onItemClick = { item ->
+                    val idInt = item.id.toIntOrNull() ?: 0
+                    onFavoriteMediaClick(idInt, MediaType.Anime, "mal", item.title, item.imageUrl)
+                }
+            )
+        }
+
         // Account Attributes Card
         Card(
             shape = RoundedCornerShape(18.dp),
@@ -420,6 +452,71 @@ private fun ShikimoriStatsTab(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // Score Distribution Card
+        val hasAnimeScores = state.animeScoreDist.isNotEmpty()
+        val hasMangaScores = state.mangaScoreDist.isNotEmpty()
+        if (hasAnimeScores || hasMangaScores) {
+            var selectedDistType by remember { mutableIntStateOf(if (hasAnimeScores) 0 else 1) }
+            val currentDist = if (selectedDistType == 0) state.animeScoreDist else state.mangaScoreDist
+            val scoreStats = (1..10).map { score ->
+                score.toString() to (currentDist[score]?.toFloat() ?: 0f)
+            }
+
+            Card(
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = KitsugiColors.Surface),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(
+                    modifier = Modifier.padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Puan Dağılımı",
+                            color = KitsugiColors.TextPrimary,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
+                        )
+                        if (hasAnimeScores && hasMangaScores) {
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                                FilterChip(
+                                    selected = selectedDistType == 0,
+                                    onClick = { selectedDistType = 0 },
+                                    label = { Text("Anime", fontSize = 12.sp) }
+                                )
+                                FilterChip(
+                                    selected = selectedDistType == 1,
+                                    onClick = { selectedDistType = 1 },
+                                    label = { Text("Manga", fontSize = 12.sp) }
+                                )
+                            }
+                        }
+                    }
+
+                    VerticalStatsBar(
+                        stats = scoreStats,
+                        accentColor = accentColor,
+                        maxHeightDp = 80,
+                        mapColorTo = { scoreStr ->
+                            when (scoreStr.toIntOrNull() ?: 0) {
+                                in 1..3 -> Color(0xFFE57373)
+                                in 4..5 -> Color(0xFFFFB74D)
+                                in 6..7 -> Color(0xFFFFD54F)
+                                in 8..9 -> Color(0xFF81C784)
+                                10      -> Color(0xFF4FC3F7)
+                                else    -> accentColor
+                            }
+                        }
+                    )
+                }
+            }
+        }
+
         // Anime Status Breakdown
         val totalAnime = (state.watchingAnime + state.completedAnime + state.plannedAnime + state.onHoldAnime + state.droppedAnime).coerceAtLeast(1)
         Card(
@@ -502,76 +599,179 @@ private fun ShikimoriStatsTab(
 
 @Composable
 private fun ShikimoriRatesTab(
+    history: List<ShikimoriHistoryItem>,
     entries: List<ProfileFavoriteItem>,
     accentColor: Color,
-    onEntryClick: (ProfileFavoriteItem) -> Unit
+    onEntryClick: (ProfileFavoriteItem) -> Unit,
+    onHistoryClick: (ShikimoriHistoryItem) -> Unit
 ) {
-    if (entries.isEmpty()) {
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 48.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Icon(
-                    imageVector = Icons.Rounded.Bookmarks,
-                    contentDescription = null,
-                    tint = KitsugiColors.TextMuted,
-                    modifier = Modifier.size(48.dp)
+    var selectedSubTab by rememberSaveable { mutableIntStateOf(if (history.isNotEmpty()) 0 else 1) }
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        if (history.isNotEmpty() && entries.isNotEmpty()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilterChip(
+                    selected = selectedSubTab == 0,
+                    onClick = { selectedSubTab = 0 },
+                    label = { Text("Aktivite Geçmişi (${history.size})", fontSize = 12.sp) }
                 )
-                Spacer(modifier = Modifier.height(12.dp))
-                Text(
-                    text = "Shikimori listesinde kayıt bulunamadı.",
-                    color = KitsugiColors.TextMuted,
-                    fontSize = 14.sp
+                FilterChip(
+                    selected = selectedSubTab == 1,
+                    onClick = { selectedSubTab = 1 },
+                    label = { Text("Kayıtlar (${entries.size})", fontSize = 12.sp) }
                 )
             }
         }
-    } else {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            entries.forEach { item ->
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(KitsugiColors.Surface)
-                        .clickable { onEntryClick(item) }
-                        .padding(8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    if (!item.imageUrl.isNullOrBlank()) {
-                        AsyncImage(
-                            model = item.imageUrl,
-                            contentDescription = item.title,
+
+        if (selectedSubTab == 0 && history.isNotEmpty()) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                history.forEach { item ->
+                    Card(
+                        shape = RoundedCornerShape(14.dp),
+                        colors = CardDefaults.cardColors(containerColor = KitsugiColors.Surface),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onHistoryClick(item) }
+                    ) {
+                        Row(
                             modifier = Modifier
-                                .size(44.dp, 60.dp)
-                                .clip(RoundedCornerShape(8.dp)),
-                            contentScale = ContentScale.Crop
-                        )
-                    } else {
-                        Box(
-                            modifier = Modifier
-                                .size(44.dp, 60.dp)
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(KitsugiColors.SurfaceStrong),
-                            contentAlignment = Alignment.Center
+                                .fillMaxWidth()
+                                .padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Icon(Icons.Rounded.Movie, contentDescription = null, tint = KitsugiColors.TextMuted)
+                            if (!item.targetImage.isNullOrBlank()) {
+                                AsyncImage(
+                                    model = item.targetImage,
+                                    contentDescription = item.targetTitle,
+                                    modifier = Modifier
+                                        .size(44.dp, 60.dp)
+                                        .clip(RoundedCornerShape(8.dp)),
+                                    contentScale = ContentScale.Crop
+                                )
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .size(44.dp, 60.dp)
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(KitsugiColors.SurfaceStrong),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(Icons.Rounded.History, contentDescription = null, tint = KitsugiColors.TextMuted)
+                                }
+                            }
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = item.targetTitle ?: "Başlık",
+                                    color = KitsugiColors.TextPrimary,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Text(
+                                    text = item.description,
+                                    color = accentColor,
+                                    fontSize = 12.sp,
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                                if (item.createdAt.isNotBlank()) {
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(
+                                        text = item.createdAt.take(16).replace("T", " "),
+                                        color = KitsugiColors.TextMuted,
+                                        fontSize = 11.sp
+                                    )
+                                }
+                            }
+                            Icon(
+                                imageVector = Icons.Rounded.ChevronRight,
+                                contentDescription = null,
+                                tint = KitsugiColors.TextMuted,
+                                modifier = Modifier.size(18.dp)
+                            )
                         }
                     }
-                    Spacer(modifier = Modifier.width(12.dp))
+                }
+            }
+        } else if (entries.isNotEmpty()) {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                entries.forEach { item ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(KitsugiColors.Surface)
+                            .clickable { onEntryClick(item) }
+                            .padding(8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        if (!item.imageUrl.isNullOrBlank()) {
+                            AsyncImage(
+                                model = item.imageUrl,
+                                contentDescription = item.title,
+                                modifier = Modifier
+                                    .size(44.dp, 60.dp)
+                                    .clip(RoundedCornerShape(8.dp)),
+                                contentScale = ContentScale.Crop
+                            )
+                        } else {
+                            Box(
+                                modifier = Modifier
+                                    .size(44.dp, 60.dp)
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(KitsugiColors.SurfaceStrong),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Icon(Icons.Rounded.Movie, contentDescription = null, tint = KitsugiColors.TextMuted)
+                            }
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = item.title,
+                            color = KitsugiColors.TextPrimary,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
+                }
+            }
+        } else {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 48.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    Icon(
+                        imageVector = Icons.Rounded.Bookmarks,
+                        contentDescription = null,
+                        tint = KitsugiColors.TextMuted,
+                        modifier = Modifier.size(48.dp)
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
                     Text(
-                        text = item.title,
-                        color = KitsugiColors.TextPrimary,
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        maxLines = 2,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.weight(1f)
+                        text = "Shikimori listesinde kayıt veya aktivite bulunamadı.",
+                        color = KitsugiColors.TextMuted,
+                        fontSize = 14.sp
                     )
                 }
             }

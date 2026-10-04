@@ -65,9 +65,13 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
         // Initialize custom FileLoggingTree
         com.kitsugi.animelist.core.diagnostics.FileLoggingTree.init(this)
 
+        // KitsugiCrashLogger'a başlatma zamanını bildir
+        com.kitsugi.animelist.core.diagnostics.KitsugiCrashLogger.KitsugiApplication_LaunchTime = APP_LAUNCH_TIME
+
         // Catch and log uncaught exceptions so they are recorded in crash_log.txt and logcat
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
             val stackTraceStr = android.util.Log.getStackTraceString(throwable)
+            val isForeground  = thread.name == "main" || thread.name.startsWith("main")
 
             // ── 1. Plugin Hataları: Asla Tüm Uygulamayı Çökertme ───────────────────────────
             val isFromPlugin = stackTraceStr.contains("BotKontrol") ||
@@ -86,6 +90,11 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
                 android.util.Log.e("KitsugiApplication",
                     "Eklenti / Cloudstream hatası bastırıldı — uygulama çökmesi önlendi: " +
                     "${throwable.javaClass.simpleName}: ${throwable.message}")
+                // Plugin hatalarını da geçmişe yaz, görünür olsun
+                try {
+                    com.kitsugi.animelist.core.diagnostics.KitsugiCrashLogger
+                        .writeCrashReport(this@KitsugiApplication, thread, throwable, isForeground = false)
+                } catch (_: Exception) {}
                 return@setDefaultUncaughtExceptionHandler
             }
 
@@ -133,38 +142,53 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
             val isOom = generateSequence(throwable as Throwable?) { it.cause }
                 .any { it is OutOfMemoryError }
             if (isOom) {
-                android.util.Log.e("KitsugiApplication", "Bellek yetersizliği (OOM) bastırıldı, önbellekler temizleniyor...")
-                try {
-                    coil3.SingletonImageLoader.get(this).memoryCache?.clear()
-                } catch (_: Throwable) {}
+                android.util.Log.e("KitsugiApplication", "Bellek yetersizliği (OOM) — önbellekler temizleniyor ve kaydediliyor...")
+                try { coil3.SingletonImageLoader.get(this).memoryCache?.clear() } catch (_: Throwable) {}
                 System.gc()
+                // OOM'u da kaydet ama uygulamayı kapatma
+                try {
+                    com.kitsugi.animelist.core.diagnostics.KitsugiCrashLogger
+                        .writeCrashReport(this@KitsugiApplication, thread, throwable, isForeground)
+                } catch (_: Exception) {}
                 return@setDefaultUncaughtExceptionHandler
             }
 
             // ── 6. Arka Plan İş Parçacığı İstisnaları ──────────────────────────────────────
-            val isBackgroundThread = thread.name != "main" && !thread.name.startsWith("main")
-            if (isBackgroundThread) {
+            // ÖNEMLI: Eskiden bu hatalar sessizce yutuluyor, artık KAYIT ALTINA ALINIYORLAR!
+            if (!isForeground) {
                 android.util.Log.e("KitsugiApplication",
-                    "Arka plan iş parçacığı hatası bastırıldı (${thread.name}): ${throwable.javaClass.simpleName}: ${throwable.message}", throwable)
+                    "ARKA PLAN ÇÖKMESI (${thread.name}): ${throwable.javaClass.simpleName}: ${throwable.message}", throwable)
+                // Geçmişe kaydet — kullanıcı "Geçmiş Çökmeler" ekranında görebilecek
+                try {
+                    com.kitsugi.animelist.core.diagnostics.KitsugiCrashLogger
+                        .writeCrashReport(this@KitsugiApplication, thread, throwable, isForeground = false)
+                } catch (_: Exception) {}
                 return@setDefaultUncaughtExceptionHandler
             }
 
-            val crashReport = buildString {
-                append("Thread: ${thread.name}\n")
-                append("Zaman: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())}\n")
-                append("Cihaz Markası: ${android.os.Build.BRAND}\n")
-                append("Cihaz Modeli: ${android.os.Build.MODEL}\n")
-                append("Android Sürümü: ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT})\n")
-                append("Hata: ${throwable.javaClass.name}: ${throwable.message}\n")
-                append("Stacktrace:\n$stackTraceStr")
-            }
+            // ── 7. FOREGROUND (Ana Thread) Çökmesi — Tam Rapor + Crash Screen ───────────────
+            android.util.Log.e("KitsugiApplication",
+                "KRİTİK HATA — Ana thread çöktü: ${throwable.javaClass.simpleName}: ${throwable.message}", throwable)
 
+            // Çökme anında logcat'i SENKRON yakala (process ölmeden önce)
             try {
-                val file = java.io.File(filesDir, "crash_log.txt")
-                file.writeText(crashReport)
+                com.kitsugi.animelist.core.diagnostics.KitsugiCrashLogger
+                    .captureLogcatSync(this@KitsugiApplication)
             } catch (_: Exception) {}
 
-            android.util.Log.e("KitsugiApplication", "KRİTİK HATA - Uncaught exception on thread ${thread.name}: ${throwable.message}", throwable)
+            // Zenginleştirilmiş crash raporu yaz
+            val crashReport = try {
+                com.kitsugi.animelist.core.diagnostics.KitsugiCrashLogger
+                    .writeCrashReport(this@KitsugiApplication, thread, throwable, isForeground = true)
+            } catch (_: Exception) {
+                // Fallback — basit rapor
+                buildString {
+                    append("Thread: ${thread.name}\n")
+                    append("Zaman: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())}\n")
+                    append("Hata: ${throwable.javaClass.name}: ${throwable.message}\n")
+                    append("Stacktrace:\n$stackTraceStr")
+                }
+            }
 
             try {
                 val intent = android.content.Intent(this@KitsugiApplication, com.kitsugi.animelist.ui.screens.crash.KitsugiCrashActivity::class.java).apply {
@@ -181,26 +205,33 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
         }
 
         // Ana UI iş parçacığında geçici çökmeleri önlemek için Cockroach Looper koruyucusu
+        // NOT: Sadece gerçekten kurtarılabilir (plugin/pencere) hatalar bastırılır.
+        //      NullPointer, IndexOutOfBounds gibi uygulama hataları artık yutulmuyor!
         android.os.Handler(android.os.Looper.getMainLooper()).post {
             while (true) {
                 try {
                     android.os.Looper.loop()
                 } catch (t: Throwable) {
                     val trace = android.util.Log.getStackTraceString(t)
-                    val isRecoverable = trace.contains("com.lagradost.cloudstream3") ||
+                    val isPluginOrWindowError =
+                        trace.contains("com.lagradost.cloudstream3") ||
                         trace.contains("CsStreamRunner") ||
                         trace.contains("CsPluginLoader") ||
                         trace.contains("BadTokenException") ||
                         trace.contains("not attached to window manager") ||
                         trace.contains("has already been added") ||
-                        t is java.io.IOException ||
-                        t is ClassCastException ||
-                        t is NullPointerException ||
-                        t is IndexOutOfBoundsException ||
                         t is kotlinx.coroutines.CancellationException
-                    if (isRecoverable) {
-                        android.util.Log.e("KitsugiApplication", "Ana döngüde kurtarılabilir hata yakalandı, çalışmaya devam ediliyor: ${t.javaClass.simpleName}: ${t.message}", t)
+
+                    if (isPluginOrWindowError) {
+                        android.util.Log.e("KitsugiApplication",
+                            "Cockroach: Kurtarılabilir hata bastırıldı — ${t.javaClass.simpleName}: ${t.message}", t)
+                        // Kurtarılabilir hataları da geçmişe kaydet
+                        try {
+                            com.kitsugi.animelist.core.diagnostics.KitsugiCrashLogger
+                                .writeCrashReport(this@KitsugiApplication, Thread.currentThread(), t, isForeground = false)
+                        } catch (_: Exception) {}
                     } else {
+                        // Gerçek uygulama hatası — yukarıdaki UncaughtExceptionHandler'a ilet
                         throw t
                     }
                 }

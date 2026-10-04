@@ -152,9 +152,14 @@ object SimklImportManager {
                         val score = item.optInt("user_rating", 0).takeIf { it > 0 }
                             ?: item.optInt("rating", 0).takeIf { it > 0 }
 
+                        // malId SADECE ve SADECE Simkl API'sinin gerçekten 'mal' olarak döndüğü gerçek MAL ID'dir.
+                        // Asla simklId veya uydurma ID malId yerine konulmaz! Aksi halde CrossSync rastgele MAL animeleriyle eşleştirir!
+                        val realMalId = if (mediaType == MediaType.Anime && malId != null && malId > 0 && malId < 100_000_000) malId else null
+                        val stableDbId = if (simklId != null) 150_000_000 + (simklId % 100_000_000) else (150_000_000 + i)
+
                         entries.add(
                             MediaEntry(
-                                id = 0,
+                                id = stableDbId,
                                 title = title,
                                 subtitle = when (mediaType) {
                                     MediaType.Movie -> "Film"
@@ -172,7 +177,7 @@ object SimklImportManager {
                                 isFavorite = false,
                                 isAdult = false,
                                 source = "simkl",
-                                malId = malId ?: simklId ?: (150_000_000 + i), // fallback stable id
+                                malId = realMalId,
                                 imageUrl = imageUrl,
                                 year = year,
                                 synopsis = null,

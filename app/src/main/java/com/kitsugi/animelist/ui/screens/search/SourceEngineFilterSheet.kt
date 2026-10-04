@@ -6,6 +6,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -282,7 +284,156 @@ private fun MalFullFiltersContent(uiState: SearchUiState, viewModel: SearchViewM
     val filters = uiState.malSpecificFilters
     val accentColor = LocalKitsugiAccent.current
 
-    // Min Puan (0..10)
+    // 1. Format / Tip (Type)
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("🎬 Format:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        val types = listOf(
+            null to "Tümü",
+            "tv" to "TV Dizisi",
+            "movie" to "Film",
+            "ova" to "OVA",
+            "special" to "Özel Bölüm",
+            "ona" to "ONA (Web)",
+            "music" to "Müzik Videosu"
+        )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            types.forEach { (typeCode, label) ->
+                val isSelected = filters.type == typeCode
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isSelected) accentColor.copy(alpha = 0.2f) else KitsugiColors.SurfaceElevated)
+                        .border(1.dp, if (isSelected) accentColor else Color.Transparent, RoundedCornerShape(10.dp))
+                        .clickable { viewModel.updateMalFilters(filters.copy(type = typeCode)) }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                }
+            }
+        }
+    }
+
+    // 2. Yayın Durumu (Status)
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("📡 Durum:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        val statuses = listOf(
+            null to "Tümü",
+            "airing" to "Yayınlanıyor",
+            "complete" to "Tamamlandı",
+            "upcoming" to "Yakında"
+        )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            statuses.forEach { (statusCode, label) ->
+                val isSelected = filters.status == statusCode
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isSelected) accentColor.copy(alpha = 0.2f) else KitsugiColors.SurfaceElevated)
+                        .border(1.dp, if (isSelected) accentColor else Color.Transparent, RoundedCornerShape(10.dp))
+                        .clickable { viewModel.updateMalFilters(filters.copy(status = statusCode)) }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                }
+            }
+        }
+    }
+
+    // 3. Sıralama Ölçütü (Order By)
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("📊 Sıralama:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        val orderOptions = listOf(
+            "popularity" to "🔥 Popülerlik",
+            "score" to "⭐ Puan",
+            "rank" to "🏆 Sıralama",
+            "favorites" to "❤️ Favoriler",
+            "start_date" to "📅 Çıkış Tarihi",
+            "title" to "🔤 Başlık"
+        )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            orderOptions.forEach { (orderCode, label) ->
+                val isSelected = filters.orderBy == orderCode
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isSelected) accentColor.copy(alpha = 0.2f) else KitsugiColors.SurfaceElevated)
+                        .border(1.dp, if (isSelected) accentColor else Color.Transparent, RoundedCornerShape(10.dp))
+                        .clickable { viewModel.updateMalFilters(filters.copy(orderBy = orderCode)) }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                }
+            }
+        }
+    }
+
+    // 4. Sıralama Yönü (Sort Direction)
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("↕️ Sıralama Yönü:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        val sortDirs = listOf("desc" to "⬇️ Azalan (Yüksekten Düşüğe)", "asc" to "⬆️ Artan (Düşükten Yükseğe)")
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            sortDirs.forEach { (dir, label) ->
+                val isSelected = filters.sortDirection == dir
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isSelected) accentColor.copy(alpha = 0.2f) else KitsugiColors.SurfaceElevated)
+                        .border(1.dp, if (isSelected) accentColor else Color.Transparent, RoundedCornerShape(10.dp))
+                        .clickable { viewModel.updateMalFilters(filters.copy(sortDirection = dir)) }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                }
+            }
+        }
+    }
+
+    // 5. Yaş Sınırı / Derecelendirme (Rating)
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("🔞 Yaş Sınırı:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        val ratings = listOf(
+            null to "Tümü",
+            "g" to "Genel (G)",
+            "pg" to "Çocuk (PG)",
+            "pg13" to "Genç (PG-13)",
+            "r17" to "17+ (R)",
+            "r" to "R+ (Hafif Çıplaklık)",
+            "rx" to "Rx (Hentai)"
+        )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            ratings.forEach { (code, label) ->
+                val isSelected = filters.rating == code
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isSelected) accentColor.copy(alpha = 0.2f) else KitsugiColors.SurfaceElevated)
+                        .border(1.dp, if (isSelected) accentColor else Color.Transparent, RoundedCornerShape(10.dp))
+                        .clickable { viewModel.updateMalFilters(filters.copy(rating = code)) }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                }
+            }
+        }
+    }
+
+    // 6. Min Puan (0..9)
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         val minScore = filters.minScore ?: 0.0
         Text(
@@ -301,31 +452,46 @@ private fun MalFullFiltersContent(uiState: SearchUiState, viewModel: SearchViewM
         )
     }
 
-    // Alfabe Harf Filtresi
+    // 7. Alfabe Harf Filtresi
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text("🔤 Baş Harfe Göre Filtrele:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 4.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp)
+        val letters = listOf("A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "R", "S", "T", "U", "V", "W", "Y", "Z")
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            val letters = listOf("A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M")
             letters.forEach { l ->
                 val isSelected = filters.letter == l
                 Box(
                     modifier = Modifier
-                        .weight(1f)
                         .clip(RoundedCornerShape(6.dp))
                         .background(if (isSelected) accentColor else KitsugiColors.SurfaceElevated)
                         .clickable { viewModel.updateMalFilters(filters.copy(letter = if (isSelected) null else l)) }
-                        .padding(vertical = 4.dp),
+                        .padding(horizontal = 8.dp, vertical = 4.dp),
                     contentAlignment = Alignment.Center
                 ) {
                     Text(l, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) Color.White else KitsugiColors.TextSecondary))
                 }
             }
         }
+    }
+
+    // 8. Güvenli İçerik / SFW
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column {
+            Text("🛡️ Güvenli İçerik (SFW)", style = MaterialTheme.typography.bodyMedium.copy(color = KitsugiColors.TextPrimary))
+            Text("18+ yetişkin yapımları filtrele", style = MaterialTheme.typography.bodySmall.copy(color = KitsugiColors.TextMuted))
+        }
+        Switch(
+            checked = filters.sfw,
+            onCheckedChange = { viewModel.updateMalFilters(filters.copy(sfw = it)) },
+            colors = SwitchDefaults.colors(checkedThumbColor = accentColor, checkedTrackColor = accentColor.copy(alpha = 0.5f))
+        )
     }
 }
 
@@ -397,11 +563,192 @@ private fun TmdbFullFiltersContent(uiState: SearchUiState, viewModel: SearchView
 // SHIKIMORI, KITSU, SIMKL, ALL İÇERİKLERİ
 // ─────────────────────────────────────────────────────────────────────────────
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun ShikimoriFullFiltersContent(uiState: SearchUiState, viewModel: SearchViewModel) {
     val filters = uiState.shikimoriSpecificFilters
     val accentColor = LocalKitsugiAccent.current
 
+    // 1. Format / Medya Türü
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("🎬 Format / Medya Türü:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        val kinds = listOf(
+            "tv" to "TV", "movie" to "Film", "ova" to "OVA", "ona" to "ONA",
+            "special" to "Özel", "music" to "Müzik", "manga" to "Manga",
+            "manhwa" to "Manhwa", "manhua" to "Manhua", "novel" to "Light Novel"
+        )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            kinds.forEach { (code, label) ->
+                val isSelected = filters.kinds.contains(code)
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isSelected) accentColor.copy(alpha = 0.2f) else KitsugiColors.SurfaceElevated)
+                        .border(1.dp, if (isSelected) accentColor else Color.Transparent, RoundedCornerShape(10.dp))
+                        .clickable {
+                            val newKinds = if (isSelected) filters.kinds - code else filters.kinds + code
+                            viewModel.updateShikimoriFilters(filters.copy(kinds = newKinds))
+                        }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                }
+            }
+        }
+    }
+
+    // 2. Yayın Durumu
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("📡 Yayın Durumu:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        val statuses = listOf(
+            null to "Tümü",
+            "ongoing" to "Yayında (Ongoing)",
+            "released" to "Tamamlandı (Released)",
+            "anons" to "Yakında (Anons)"
+        )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            statuses.forEach { (code, label) ->
+                val isSelected = if (code == null) filters.statuses.isEmpty() else filters.statuses.contains(code)
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isSelected) accentColor.copy(alpha = 0.2f) else KitsugiColors.SurfaceElevated)
+                        .border(1.dp, if (isSelected) accentColor else Color.Transparent, RoundedCornerShape(10.dp))
+                        .clickable {
+                            val newStatuses = if (code == null) emptyList() else if (filters.statuses.contains(code)) emptyList() else listOf(code)
+                            viewModel.updateShikimoriFilters(filters.copy(statuses = newStatuses))
+                        }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                }
+            }
+        }
+    }
+
+    // 3. Sıralama Ölçütü
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("📊 Sıralama Ölçütü:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        val orders = listOf(
+            "popularity" to "🔥 Popülerlik",
+            "ranked" to "⭐ Puan/Sıralama",
+            "name" to "🔤 İsim",
+            "aired_on" to "📅 Yayın Tarihi",
+            "episodes" to "🔢 Bölüm Sayısı",
+            "random" to "🎲 Rastgele"
+        )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            orders.forEach { (code, label) ->
+                val isSelected = filters.order == code
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isSelected) accentColor.copy(alpha = 0.2f) else KitsugiColors.SurfaceElevated)
+                        .border(1.dp, if (isSelected) accentColor else Color.Transparent, RoundedCornerShape(10.dp))
+                        .clickable { viewModel.updateShikimoriFilters(filters.copy(order = code)) }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                }
+            }
+        }
+    }
+
+    // 4. Yaş Sınırı (Rating)
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("🔞 Yaş Sınırı:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        val ratings = listOf(
+            null to "Tümü",
+            "g" to "Genel (G)",
+            "pg" to "Çocuk (PG)",
+            "pg_13" to "Genç (PG-13)",
+            "r" to "17+ (R)",
+            "r_plus" to "R+ (Hafif Çıplaklık)",
+            "rx" to "Rx (Hentai)"
+        )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            ratings.forEach { (code, label) ->
+                val isSelected = filters.rating == code
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isSelected) accentColor.copy(alpha = 0.2f) else KitsugiColors.SurfaceElevated)
+                        .border(1.dp, if (isSelected) accentColor else Color.Transparent, RoundedCornerShape(10.dp))
+                        .clickable { viewModel.updateShikimoriFilters(filters.copy(rating = code)) }
+                        .padding(horizontal = 8.dp, vertical = 5.dp)
+                ) {
+                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                }
+            }
+        }
+    }
+
+    // 5. Süre (Duration)
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("⏱️ Süre:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        val durations = listOf(
+            null to "Tümü",
+            "S" to "Kısa (< 10 dk)",
+            "D" to "Standart (10-30 dk)",
+            "F" to "Uzun (> 30 dk / Film)"
+        )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            durations.forEach { (code, label) ->
+                val isSelected = filters.duration == code
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isSelected) accentColor.copy(alpha = 0.2f) else KitsugiColors.SurfaceElevated)
+                        .border(1.dp, if (isSelected) accentColor else Color.Transparent, RoundedCornerShape(10.dp))
+                        .clickable { viewModel.updateShikimoriFilters(filters.copy(duration = code)) }
+                        .padding(horizontal = 8.dp, vertical = 5.dp)
+                ) {
+                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                }
+            }
+        }
+    }
+
+    // 6. Minimum Puan
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        val currentScore = filters.minScore ?: 0
+        Text(
+            text = "⭐ Minimum Shikimori Puanı: ${if (currentScore > 0) "$currentScore+" else "Tümü"}",
+            style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary)
+        )
+        Slider(
+            value = currentScore.toFloat(),
+            onValueChange = {
+                val sc = it.toInt()
+                viewModel.updateShikimoriFilters(filters.copy(minScore = if (sc == 0) null else sc))
+            },
+            valueRange = 0f..9f,
+            steps = 8,
+            colors = SliderDefaults.colors(thumbColor = accentColor, activeTrackColor = accentColor)
+        )
+    }
+
+    // 7. Sansür Switch
     Row(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.SpaceBetween,
@@ -409,7 +756,7 @@ private fun ShikimoriFullFiltersContent(uiState: SearchUiState, viewModel: Searc
     ) {
         Column {
             Text("🛡️ Güvenli İçerik / Sansür", style = MaterialTheme.typography.bodyMedium.copy(color = KitsugiColors.TextPrimary))
-            Text("18+ içerikleri filtrele", style = MaterialTheme.typography.bodySmall.copy(color = KitsugiColors.TextMuted))
+            Text("18+ yetişkin yapımları filtrele", style = MaterialTheme.typography.bodySmall.copy(color = KitsugiColors.TextMuted))
         }
         Switch(
             checked = filters.censored,
@@ -419,15 +766,125 @@ private fun ShikimoriFullFiltersContent(uiState: SearchUiState, viewModel: Searc
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun KitsuFullFiltersContent(uiState: SearchUiState, viewModel: SearchViewModel) {
     val filters = uiState.kitsuSpecificFilters
     val accentColor = LocalKitsugiAccent.current
 
+    // 1. Format / Alt Tür (Subtypes)
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("🎬 Format / Alt Tür:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        val subtypes = listOf(
+            "tv" to "TV", "movie" to "Film", "ova" to "OVA", "ona" to "ONA",
+            "special" to "Özel", "manga" to "Manga", "manhwa" to "Manhwa",
+            "manhua" to "Manhua", "novel" to "Novel"
+        )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            subtypes.forEach { (code, label) ->
+                val isSelected = filters.subtypes.contains(code)
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isSelected) accentColor.copy(alpha = 0.2f) else KitsugiColors.SurfaceElevated)
+                        .border(1.dp, if (isSelected) accentColor else Color.Transparent, RoundedCornerShape(10.dp))
+                        .clickable {
+                            val newSubs = if (isSelected) filters.subtypes - code else filters.subtypes + code
+                            viewModel.updateKitsuFilters(filters.copy(subtypes = newSubs))
+                        }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                }
+            }
+        }
+    }
+
+    // 2. Yayın Durumu (Status)
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("📡 Yayın Durumu:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        val statuses = listOf(
+            null to "Tümü",
+            "current" to "Devam Eden",
+            "finished" to "Tamamlandı",
+            "upcoming" to "Yakında",
+            "unreleased" to "Duyurulmadı"
+        )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            statuses.forEach { (code, label) ->
+                val isSelected = if (code == null) filters.statuses.isEmpty() else filters.statuses.contains(code)
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isSelected) accentColor.copy(alpha = 0.2f) else KitsugiColors.SurfaceElevated)
+                        .border(1.dp, if (isSelected) accentColor else Color.Transparent, RoundedCornerShape(10.dp))
+                        .clickable {
+                            val newSt = if (code == null) emptyList() else if (filters.statuses.contains(code)) emptyList() else listOf(code)
+                            viewModel.updateKitsuFilters(filters.copy(statuses = newSt))
+                        }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                }
+            }
+        }
+    }
+
+    // 3. Sıralama (Sort)
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("📊 Sıralama Ölçütü:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        val sorts = listOf(
+            "trending" to "🔥 Trend",
+            "-userCount" to "👥 Popülerlik",
+            "-averageRating" to "⭐ Puan",
+            "-startDate" to "🆕 En Yeni",
+            "startDate" to "⏳ En Eski",
+            "-createdAt" to "✨ Son Eklenen"
+        )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            sorts.forEach { (code, label) ->
+                val isSelected = filters.sort == code
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isSelected) accentColor.copy(alpha = 0.2f) else KitsugiColors.SurfaceElevated)
+                        .border(1.dp, if (isSelected) accentColor else Color.Transparent, RoundedCornerShape(10.dp))
+                        .clickable { viewModel.updateKitsuFilters(filters.copy(sort = code)) }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                }
+            }
+        }
+    }
+
+    // 4. Yaş Sınırı (Age Rating)
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text("🏷️ Yaş Sınırı (Age Rating):", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
-        val ratings = listOf(null to "Tümü", "G" to "Genel (G)", "PG" to "Rehberlik (PG)", "R" to "17+ (R)", "R18" to "18+ (R18)")
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        val ratings = listOf(
+            null to "Tümü",
+            "G" to "Genel (G)",
+            "PG" to "Rehberlik (PG)",
+            "R" to "17+ (R)",
+            "R18" to "18+ (R18)"
+        )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
             ratings.forEach { (code, label) ->
                 val isSelected = filters.ageRating == code
                 Box(
@@ -443,6 +900,59 @@ private fun KitsuFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
             }
         }
     }
+
+    // 5. Yayın Platformu (Streamers)
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("📺 Resmi Yayın Platformu:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        val streamers = listOf("Crunchyroll", "Netflix", "Hulu", "HIDIVE", "Funimation")
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            streamers.forEach { name ->
+                val isSelected = filters.streamers.contains(name)
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isSelected) accentColor.copy(alpha = 0.2f) else KitsugiColors.SurfaceElevated)
+                        .border(1.dp, if (isSelected) accentColor else Color.Transparent, RoundedCornerShape(10.dp))
+                        .clickable {
+                            val newSt = if (isSelected) filters.streamers - name else filters.streamers + name
+                            viewModel.updateKitsuFilters(filters.copy(streamers = newSt))
+                        }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(name, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                }
+            }
+        }
+    }
+
+    // 6. Minimum Ortalama Puan (minRating 0..100)
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("⭐ Minimum Ortalama Puan:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        val scoreSteps = listOf(null to "Tümü", 50 to "%50+", 60 to "%60+", 70 to "%70+", 80 to "%80+", 90 to "%90+")
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            scoreSteps.forEach { (sc, label) ->
+                val isSelected = filters.minRating == sc
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isSelected) accentColor.copy(alpha = 0.2f) else KitsugiColors.SurfaceElevated)
+                        .border(1.dp, if (isSelected) accentColor else Color.Transparent, RoundedCornerShape(10.dp))
+                        .clickable { viewModel.updateKitsuFilters(filters.copy(minRating = sc)) }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                }
+            }
+        }
+    }
 }
 
 @Composable
@@ -450,6 +960,7 @@ private fun SimklFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
     val filters = uiState.simklSpecificFilters
     val accentColor = LocalKitsugiAccent.current
 
+    // 1. Trend Dönemi
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text("📅 Trend Dönemi:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val periods = listOf("today" to "🔥 Bugün", "week" to "📅 Bu Hafta", "month" to "🗓️ Bu Ay")
@@ -463,6 +974,176 @@ private fun SimklFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
                         .border(1.dp, if (isSelected) accentColor else Color.Transparent, RoundedCornerShape(10.dp))
                         .clickable { viewModel.updateSimklFilters(filters.copy(trendingPeriod = p)) }
                         .padding(horizontal = 12.dp, vertical = 7.dp)
+                ) {
+                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                }
+            }
+        }
+    }
+
+    // 2. Format / Alt Tür (Subtype)
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("🎬 Format / Tür:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        val subtypes = listOf(
+            null to "Tümü",
+            "tv" to "TV / Dizi",
+            "movies" to "Film",
+            "ovas" to "OVA",
+            "onas" to "ONA (Web)",
+            "specials" to "Özel Bölüm"
+        )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            subtypes.forEach { (st, label) ->
+                val isSelected = filters.subtype == st
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isSelected) accentColor.copy(alpha = 0.2f) else KitsugiColors.SurfaceElevated)
+                        .border(1.dp, if (isSelected) accentColor else Color.Transparent, RoundedCornerShape(10.dp))
+                        .clickable { viewModel.updateSimklFilters(filters.copy(subtype = st)) }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                }
+            }
+        }
+    }
+
+    // 3. Sıralama Ölçütü (Sort)
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("📊 Sıralama:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        val sorts = listOf(
+            "rank" to "🏆 Sıralama",
+            "popular-today" to "🔥 Bugünün Popüleri",
+            "popular-this-week" to "📅 Haftanın Popüleri",
+            "votes" to "🗳️ Oy Sayısı",
+            "release-date" to "🗓️ Yayın Tarihi",
+            "a-z" to "🔤 A-Z"
+        )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            sorts.forEach { (sortCode, label) ->
+                val isSelected = filters.sort == sortCode
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isSelected) accentColor.copy(alpha = 0.2f) else KitsugiColors.SurfaceElevated)
+                        .border(1.dp, if (isSelected) accentColor else Color.Transparent, RoundedCornerShape(10.dp))
+                        .clickable { viewModel.updateSimklFilters(filters.copy(sort = sortCode)) }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                }
+            }
+        }
+    }
+
+    // 4. Kategori / Tür (Genre)
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("🏷️ Kategori / Tür:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        val genres = listOf(
+            null to "Tümü",
+            "action" to "Aksiyon",
+            "comedy" to "Komedi",
+            "drama" to "Dram",
+            "fantasy" to "Fantastik",
+            "sci-fi" to "Bilim Kurgu",
+            "romance" to "Romantik",
+            "supernatural" to "Doğaüstü",
+            "adventure" to "Macera",
+            "mystery" to "Gizem",
+            "horror" to "Korku",
+            "sports" to "Spor",
+            "slice-of-life" to "Yaşamdan Kesitler"
+        )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            genres.forEach { (genreCode, label) ->
+                val isSelected = filters.genre == genreCode
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isSelected) accentColor.copy(alpha = 0.2f) else KitsugiColors.SurfaceElevated)
+                        .border(1.dp, if (isSelected) accentColor else Color.Transparent, RoundedCornerShape(10.dp))
+                        .clickable { viewModel.updateSimklFilters(filters.copy(genre = genreCode)) }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                }
+            }
+        }
+    }
+
+    // 5. Yayın Yılı (Year)
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("🗓️ Yayın Yılı:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        val years = listOf(
+            null to "Tümü",
+            "2026" to "2026",
+            "2025" to "2025",
+            "2024" to "2024",
+            "2023" to "2023",
+            "2022" to "2022",
+            "2020s" to "2020'ler",
+            "2010s" to "2010'lar",
+            "2000s" to "2000'ler",
+            "1990s" to "1990'lar"
+        )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            years.forEach { (yearCode, label) ->
+                val isSelected = filters.year == yearCode
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isSelected) accentColor.copy(alpha = 0.2f) else KitsugiColors.SurfaceElevated)
+                        .border(1.dp, if (isSelected) accentColor else Color.Transparent, RoundedCornerShape(10.dp))
+                        .clickable { viewModel.updateSimklFilters(filters.copy(year = yearCode)) }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
+                }
+            }
+        }
+    }
+
+    // 6. Menşei Ülke (Country)
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text("🌍 Menşei Ülke:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        val countries = listOf(
+            null to "Tümü",
+            "jp" to "🇯🇵 Japonya",
+            "kr" to "🇰🇷 Güney Kore",
+            "cn" to "🇨🇳 Çin",
+            "us" to "🇺🇸 ABD"
+        )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            countries.forEach { (cCode, label) ->
+                val isSelected = filters.country == cCode
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(if (isSelected) accentColor.copy(alpha = 0.2f) else KitsugiColors.SurfaceElevated)
+                        .border(1.dp, if (isSelected) accentColor else Color.Transparent, RoundedCornerShape(10.dp))
+                        .clickable { viewModel.updateSimklFilters(filters.copy(country = cCode)) }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
                 ) {
                     Text(label, style = MaterialTheme.typography.labelSmall.copy(color = if (isSelected) accentColor else KitsugiColors.TextSecondary))
                 }

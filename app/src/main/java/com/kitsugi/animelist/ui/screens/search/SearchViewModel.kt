@@ -1178,7 +1178,8 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                         SearchScope.ANIME -> "anime"
                         else -> "anime"
                     }
-                    val res = if (queryText.isBlank() && f.trendingPeriod.isNotBlank()) {
+                    val hasCustomFilters = f.subtype != null || f.genre != null || f.country != null || f.year != null
+                    val res = if (queryText.isBlank() && !hasCustomFilters && f.trendingPeriod.isNotBlank()) {
                         SimklApiClient().getTrendingPeriod(simklType, f.trendingPeriod)
                     } else {
                         SimklApiClient().searchAdvanced(
@@ -1398,17 +1399,67 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
 
         // 2. Shikimori (Rusya / Shikimori.one)
         if (state.currentTab == KitsugiSearchTab.Shikimori || state.selectedPlatform == SearchPlatform.Shikimori) {
-            val results = if (state.selectedMediaType == MediaType.Manga) {
-                KitsugiShikimoriClient.searchManga(queryText, limit = 24)
-            } else {
-                KitsugiShikimoriClient.searchAnime(queryText, limit = 24)
+            val f = state.shikimoriSpecificFilters
+            val results = when (state.selectedScope) {
+                SearchScope.CHARACTER -> KitsugiShikimoriClient.searchCharacters(queryText, page = page, limit = 24)
+                SearchScope.STAFF -> KitsugiShikimoriClient.searchPeople(queryText, page = page, limit = 24, kind = f.peopleKind)
+                else -> {
+                    val targetType = if (state.selectedScope in listOf(SearchScope.MANGA, SearchScope.MANHWA, SearchScope.MANHUA, SearchScope.LIGHT_NOVEL) || state.selectedMediaType == MediaType.Manga) {
+                        MediaType.Manga
+                    } else {
+                        MediaType.Anime
+                    }
+                    KitsugiShikimoriClient.searchMediaAdvanced(
+                        mediaType = targetType,
+                        query = queryText,
+                        page = page,
+                        limit = 24,
+                        order = f.order,
+                        kinds = f.kinds.takeIf { it.isNotEmpty() },
+                        statuses = f.statuses.takeIf { it.isNotEmpty() },
+                        season = f.season,
+                        score = f.minScore,
+                        duration = f.duration,
+                        rating = f.rating,
+                        genres = f.genres.takeIf { it.isNotEmpty() },
+                        excludedGenres = f.excludedGenres.takeIf { it.isNotEmpty() },
+                        studioId = f.studioId,
+                        publisherId = f.publisherId,
+                        censored = f.censored
+                    )
+                }
             }
             return Pair(results, results.size >= 20)
         }
 
         // 3. Kitsu
         if (state.currentTab == KitsugiSearchTab.Kitsu || state.selectedPlatform == SearchPlatform.Kitsu) {
-            val results = KitsuExploreClient.searchAnime(queryText, state.selectedMediaType, limit = 20)
+            val f = state.kitsuSpecificFilters
+            val results = when (state.selectedScope) {
+                SearchScope.CHARACTER -> KitsuExploreClient.searchCharacters(queryText, page = page, limit = 20)
+                else -> {
+                    val targetType = if (state.selectedScope in listOf(SearchScope.MANGA, SearchScope.MANHWA, SearchScope.MANHUA, SearchScope.LIGHT_NOVEL) || state.selectedMediaType == MediaType.Manga) {
+                        MediaType.Manga
+                    } else {
+                        MediaType.Anime
+                    }
+                    KitsuExploreClient.searchMediaAdvanced(
+                        mediaType = targetType,
+                        query = queryText,
+                        page = page,
+                        limit = 20,
+                        sort = f.sort,
+                        subtypes = f.subtypes.takeIf { it.isNotEmpty() },
+                        statuses = f.statuses.takeIf { it.isNotEmpty() },
+                        season = f.season,
+                        seasonYear = f.seasonYear,
+                        categories = f.categories.takeIf { it.isNotEmpty() },
+                        ageRating = f.ageRating,
+                        streamers = f.streamers.takeIf { it.isNotEmpty() },
+                        minRating = f.minRating
+                    )
+                }
+            }
             return Pair(results, results.size >= 20)
         }
 

@@ -131,6 +131,18 @@ object KitsuExploreClient {
         }
     }
 
+    /** Trend animeler (Kitsu trending endpoint) */
+    suspend fun trendingAnime(limit: Int = 20): List<JikanSearchResult> =
+        fetchAnimeList("$BASE/trending/anime?limit=$limit")
+
+    /** Sezonluk animeler (belirtilen mevsim ve yıl) */
+    suspend fun seasonalAnime(season: String, year: Int, limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
+        fetchAnimeList("$BASE/anime?filter[season]=${season.lowercase()}&filter[seasonYear]=$year&sort=-userCount&page[limit]=$limit&page[offset]=$offset")
+
+    /** En yüksek puanlı animeler */
+    suspend fun topRatedAnime(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
+        fetchAnimeList("$BASE/anime?sort=-averageRating&page[limit]=$limit&page[offset]=$offset")
+
     /** En popüler animeler (userCount'a göre sıralı) */
     suspend fun topAnime(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
         fetchAnimeList("$BASE/anime?sort=-userCount&page[limit]=$limit&page[offset]=$offset")

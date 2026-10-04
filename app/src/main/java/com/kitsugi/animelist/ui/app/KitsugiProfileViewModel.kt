@@ -15,6 +15,7 @@ import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -1623,7 +1624,14 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
             try {
                 val fullProfile = com.kitsugi.animelist.data.auth.KitsuApiClient.fetchFullUserProfile(token)
                 val targetUserId = userId ?: fullProfile.id
-                val entries = com.kitsugi.animelist.data.auth.KitsuApiClient.fetchAllLibraryEntries(token, targetUserId)
+                
+                val entriesDeferred = async { com.kitsugi.animelist.data.auth.KitsuApiClient.fetchAllLibraryEntries(token, targetUserId) }
+                val statsDeferred = async { com.kitsugi.animelist.data.auth.KitsuApiClient.fetchUserStats(targetUserId) }
+                val favsDeferred = async { com.kitsugi.animelist.data.auth.KitsuApiClient.fetchUserFavorites(targetUserId) }
+
+                val entries = entriesDeferred.await()
+                val userStats = statsDeferred.await()
+                val favorites = favsDeferred.await()
 
                 var totalAnime = 0
                 var totalManga = 0
@@ -1665,6 +1673,14 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
 
                 val avgScore = if (scores.isNotEmpty()) scores.average() else 0.0
 
+                val timeConsumedSeconds = userStats?.timeConsumedSeconds ?: 0L
+                val timeSpentStr = if (timeConsumedSeconds > 0) {
+                    val days = timeConsumedSeconds / 86400
+                    val hours = (timeConsumedSeconds % 86400) / 3600
+                    if (days > 0) "$days gün, $hours saat" else "$hours saat"
+                } else null
+                val episodesCount = userStats?.episodesWatched?.takeIf { it > 0 }
+
                 _kitsuState.update {
                     it.copy(
                         isConnected = true,
@@ -1692,6 +1708,9 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                         paused = paused,
                         dropped = dropped,
                         avgScore = avgScore,
+                        timeSpentDaysHours = timeSpentStr,
+                        episodesWatched = episodesCount,
+                        favorites = favorites,
                         libraryEntries = favList
                     )
                 }
@@ -1726,7 +1745,14 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
         viewModelScope.launch {
             try {
                 val fullProfile = com.kitsugi.animelist.data.auth.ShikimoriApiClient.fetchFullUserProfile(token, userId)
-                val rates = com.kitsugi.animelist.data.auth.ShikimoriApiClient.fetchAllUserRates(token, userId)
+                
+                val ratesDeferred = async { com.kitsugi.animelist.data.auth.ShikimoriApiClient.fetchAllUserRates(token, userId) }
+                val favsDeferred = async { com.kitsugi.animelist.data.auth.ShikimoriApiClient.fetchUserFavorites(token, userId) }
+                val historyDeferred = async { com.kitsugi.animelist.data.auth.ShikimoriApiClient.fetchUserHistory(token, userId) }
+
+                val rates = ratesDeferred.await()
+                val favorites = favsDeferred.await()
+                val history = historyDeferred.await()
 
                 val favList = mutableListOf<ProfileFavoriteItem>()
                 val scores = mutableListOf<Int>()
@@ -1774,6 +1800,8 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                         animeScoreDist = fullProfile.animeScoreDist,
                         mangaScoreDist = fullProfile.mangaScoreDist,
                         avgScore = avgScore,
+                        favorites = favorites,
+                        history = history,
                         recentRates = favList
                     )
                 }
@@ -2071,6 +2099,9 @@ data class KitsuProfileState(
     val paused: Int = 0,
     val dropped: Int = 0,
     val avgScore: Double = 0.0,
+    val timeSpentDaysHours: String? = null,
+    val episodesWatched: Int? = null,
+    val favorites: List<ProfileFavoriteItem> = emptyList(),
     val libraryEntries: List<ProfileFavoriteItem> = emptyList()
 )
 
@@ -2101,6 +2132,8 @@ data class ShikimoriProfileState(
     val animeScoreDist: Map<Int, Int> = emptyMap(),
     val mangaScoreDist: Map<Int, Int> = emptyMap(),
     val avgScore: Double = 0.0,
+    val favorites: List<ProfileFavoriteItem> = emptyList(),
+    val history: List<com.kitsugi.animelist.data.auth.ShikimoriApiClient.ShikimoriHistoryItem> = emptyList(),
     val recentRates: List<ProfileFavoriteItem> = emptyList()
 )
 

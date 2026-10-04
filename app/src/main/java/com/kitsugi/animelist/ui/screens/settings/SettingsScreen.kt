@@ -64,11 +64,17 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 
 // ─── Settings Nav Routes ────────────────────────────────────────────────────
 
-private enum class SettingsRoute {
+internal enum class SettingsRoute {
     // Ana menü
     Main,
     // Alt sayfalar
     AccountConnections,
+    AniListSettings,
+    MalSettings,
+    SimklSettings,
+    KitsuSettings,
+    ShikimoriSettings,
+    CrossSyncSettings,
     AppearancePreferences,
     PlayerSettings,
     AddonsExtensions,
@@ -94,9 +100,18 @@ fun SettingsScreen(
     var showDeleteAllConfirm by rememberSaveable { mutableStateOf(false) }
     var systemSettingsInitialPage by rememberSaveable { mutableStateOf(0) }
 
-    // Geri tuşu — Main'de değilsek Main'e dön
+    // Geri tuşu — hiyerarşik geri navigasyon
     BackHandler(enabled = route != SettingsRoute.Main) {
-        route = SettingsRoute.Main
+        route = when (route) {
+            SettingsRoute.PluginDiagnostic -> SettingsRoute.AddonsExtensions
+            SettingsRoute.AniListSettings,
+            SettingsRoute.MalSettings,
+            SettingsRoute.SimklSettings,
+            SettingsRoute.KitsuSettings,
+            SettingsRoute.ShikimoriSettings,
+            SettingsRoute.CrossSyncSettings -> SettingsRoute.AccountConnections
+            else -> SettingsRoute.Main
+        }
     }
 
     // Alt sayfa açıldığında veya Main'e dönüldüğünde alt bar durumunu navState'e bildir
@@ -140,51 +155,64 @@ fun SettingsScreen(
                     title = "Hesap Bağlantıları",
                     onBack = { route = SettingsRoute.Main }
                 ) {
-                    KitsugiAccountConnectionsDialog(
-                        embeddedMode = true,
-                        isAniListConnected = params.profile.isAniListConnected,
-                        anilistUsername = params.profile.anilistUsername,
-                        isAniListImportRunning = params.profile.isAniListImportRunning,
-                        onAniListImportClick = params.profile.onAniListImportClick,
-                        onAniListAuthClick = params.profile.onAniListAuthClick,
-                        isMalConnected = params.profile.isMalConnected,
-                        malUsername = params.profile.malUsername,
-                        isMalImportRunning = params.profile.isMalImportRunning,
-                        onMalImportClick = params.profile.onMalImportClick,
-                        onMalAuthClick = params.profile.onMalAuthClick,
-                        isSimklConnected = params.profile.isSimklConnected,
-                        simklUsername = params.profile.simklUsername,
-                        isSimklImportRunning = params.profile.isSimklImportRunning,
-                        isSimklSessionExpired = params.profile.isSimklSessionExpired,
-                        onSimklImportClick = params.profile.onSimklImportClick,
-                        onSimklAuthClick = params.profile.onSimklAuthClick,
-                        isCrossSyncRunning = params.profile.isCrossSyncRunning,
-                        crossSyncState = params.profile.crossSyncState,
-                        onCrossSyncClick = params.profile.onCrossSyncClick,
-                        syncEnabledAnilist = params.profile.syncEnabledAnilist,
-                        onSyncEnabledAnilistChanged = params.profile.onSyncEnabledAnilistChanged,
-                        syncEnabledMal = params.profile.syncEnabledMal,
-                        onSyncEnabledMalChanged = params.profile.onSyncEnabledMalChanged,
-                        syncEnabledSimkl = params.profile.syncEnabledSimkl,
-                        onSyncEnabledSimklChanged = params.profile.onSyncEnabledSimklChanged,
-                        isKitsuConnected = params.profile.isKitsuConnected,
-                        kitsuUsername = params.profile.kitsuUsername,
-                        isKitsuImportRunning = params.profile.isKitsuImportRunning,
-                        onKitsuImportClick = params.profile.onKitsuImportClick,
-                        onKitsuAuthClick = params.profile.onKitsuAuthClick,
-                        syncEnabledKitsu = params.profile.syncEnabledKitsu,
-                        onSyncEnabledKitsuChanged = params.profile.onSyncEnabledKitsuChanged,
-                        onLoginKitsu = params.profile.onLoginKitsu,
-                        isShikimoriConnected = params.profile.isShikimoriConnected,
-                        shikimoriUsername = params.profile.shikimoriUsername,
-                        isShikimoriImportRunning = params.profile.isShikimoriImportRunning,
-                        onShikimoriImportClick = params.profile.onShikimoriImportClick,
-                        onShikimoriAuthClick = params.profile.onShikimoriAuthClick,
-                        syncEnabledShikimori = params.profile.syncEnabledShikimori,
-                        onSyncEnabledShikimoriChanged = params.profile.onSyncEnabledShikimoriChanged,
-                        onLoginShikimori = params.profile.onLoginShikimori,
-                        onDismiss = { route = SettingsRoute.Main }
+                    AccountConnectionsHubContent(
+                        profile = params.profile,
+                        onNavigate = { route = it }
                     )
+                }
+            }
+
+            SettingsRoute.AniListSettings -> {
+                SettingsSubPage(
+                    title = "AniList",
+                    onBack = { route = SettingsRoute.AccountConnections }
+                ) {
+                    AniListSettingsContent(profile = params.profile)
+                }
+            }
+
+            SettingsRoute.MalSettings -> {
+                SettingsSubPage(
+                    title = "MyAnimeList",
+                    onBack = { route = SettingsRoute.AccountConnections }
+                ) {
+                    MalSettingsContent(profile = params.profile)
+                }
+            }
+
+            SettingsRoute.SimklSettings -> {
+                SettingsSubPage(
+                    title = "Simkl",
+                    onBack = { route = SettingsRoute.AccountConnections }
+                ) {
+                    SimklSettingsContent(profile = params.profile)
+                }
+            }
+
+            SettingsRoute.KitsuSettings -> {
+                SettingsSubPage(
+                    title = "Kitsu",
+                    onBack = { route = SettingsRoute.AccountConnections }
+                ) {
+                    KitsuSettingsContent(profile = params.profile)
+                }
+            }
+
+            SettingsRoute.ShikimoriSettings -> {
+                SettingsSubPage(
+                    title = "Shikimori",
+                    onBack = { route = SettingsRoute.AccountConnections }
+                ) {
+                    ShikimoriSettingsContent(profile = params.profile)
+                }
+            }
+
+            SettingsRoute.CrossSyncSettings -> {
+                SettingsSubPage(
+                    title = "Çapraz Eşitleme (Cross-Sync)",
+                    onBack = { route = SettingsRoute.AccountConnections }
+                ) {
+                    CrossSyncSettingsContent(profile = params.profile)
                 }
             }
 
@@ -409,7 +437,7 @@ private fun SettingsMainPage(
                 SettingsNavCard {
                     KitsugiSettingsItem(
                         title = "Hesap Bağlantıları",
-                        description = "AniList, MyAnimeList ve Simkl hesap eşitlemeleri",
+                        description = "AniList, MyAnimeList, Simkl, Kitsu ve Shikimori hesap eşitlemeleri",
                         icon = Icons.Rounded.Person,
                         iconColor = KitsugiColors.AccentBlue,
                         onClick = { onNavigate(SettingsRoute.AccountConnections) }
@@ -586,7 +614,7 @@ private fun SettingsSubPage(
 // ─── Yardımcı bileşenler ──────────────────────────────────────────────────────
 
 @Composable
-private fun SectionHeader(text: String) {
+internal fun SectionHeader(text: String) {
     Text(
         text = text.uppercase(),
         style = MaterialTheme.typography.labelMedium,
@@ -597,7 +625,7 @@ private fun SectionHeader(text: String) {
 }
 
 @Composable
-private fun SettingsNavCard(content: @Composable () -> Unit) {
+internal fun SettingsNavCard(content: @Composable () -> Unit) {
     androidx.compose.material3.Card(
         modifier = Modifier
             .fillMaxWidth()

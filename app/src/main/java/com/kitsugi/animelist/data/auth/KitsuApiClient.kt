@@ -443,4 +443,97 @@ object KitsuApiClient {
             }
         }.getOrNull()
     }
+
+    data class KitsuUserStats(
+        val timeConsumedSeconds: Long = 0L,
+        val episodesWatched: Int = 0,
+        val completedCount: Int = 0,
+        val mediaCount: Int = 0
+    )
+
+    /**
+     * Kitsu kullanıcısının detaylı izleme tüketim istatistiklerini çeker.
+     * /users/{id}/stats uç noktasından 'anime-amount-consumed' verisini okur.
+     */
+    suspend fun fetchUserStats(userId: String): KitsuUserStats? = withContext(Dispatchers.IO) {
+        val url = "$BASE_URL/users/$userId/stats"
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("Accept", "application/vnd.api+json")
+            .addHeader("User-Agent", "KitsugiApp/2.4")
+            .get()
+            .build()
+
+        runCatching {
+            KitsugiHttpClient.client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@use null
+                val body = response.body?.string().orEmpty()
+                val json = JSONObject(body)
+                val data = json.optJSONArray("data") ?: return@use null
+
+                for (i in 0 until data.length()) {
+                    val item = data.getJSONObject(i)
+                    val attrs = item.optJSONObject("attributes") ?: continue
+                    val kind = attrs.optString("kind", "")
+                    if (kind == "anime-amount-consumed") {
+                        val statsData = attrs.optJSONObject("statsData") ?: continue
+                        val time = statsData.optLong("time", 0L)
+                        val units = statsData.optInt("units", 0)
+                        val completed = statsData.optInt("completed", 0)
+                        val media = statsData.optInt("media", 0)
+                        return@use KitsuUserStats(
+                            timeConsumedSeconds = time,
+                            episodesWatched = units,
+                            completedCount = completed,
+                            mediaCount = media
+                        )
+                    }
+                }
+                null
+            }
+        }.getOrNull()
+    }
+
+    /**
+     * Kitsu kullanıcısının favorilerini (anime, manga, karakter) çeker.
+     */
+    suspend fun fetchUserFavorites(userId: String, limit: Int = 30): List<com.kitsugi.animelist.ui.app.ProfileFavoriteItem> = withContext(Dispatchers.IO) {
+        val url = "$BASE_URL/users/$userId/favorites?include=item&page[limit]=$limit"
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("Accept", "application/vnd.api+json")
+            .addHeader("User-Agent", "KitsugiApp/2.4")
+            .get()
+            .build()
+
+        runCatching {
+            KitsugiHttpClient.client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@use emptyList()
+                val body = response.body?.string().orEmpty()
+                val json = JSONObject(body)
+                val included = json.optJSONArray("included") ?: org.json.JSONArray()
+                val results = mutableListOf<com.kitsugi.animelist.ui.app.ProfileFavoriteItem>()
+
+                for (i in 0 until included.length()) {
+                    val inc = included.getJSONObject(i)
+                    val id = inc.optString("id", "")
+                    val attrs = inc.optJSONObject("attributes") ?: continue
+                    val title = attrs.optString("canonicalTitle", attrs.optString("name", "Favori"))
+                    val poster = attrs.optJSONObject("posterImage") ?: attrs.optJSONObject("image")
+                    val img = poster?.optString("medium") ?: poster?.optString("original")
+
+                    if (id.isNotBlank() && title.isNotBlank()) {
+                        results.add(
+                            com.kitsugi.animelist.ui.app.ProfileFavoriteItem(
+                                id = id,
+                                title = title,
+                                imageUrl = img ?: ""
+                            )
+                        )
+                    }
+                }
+                results
+            }
+        }.getOrDefault(emptyList())
+    }
 }

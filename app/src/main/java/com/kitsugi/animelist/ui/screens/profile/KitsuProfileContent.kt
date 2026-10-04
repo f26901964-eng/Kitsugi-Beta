@@ -277,7 +277,12 @@ fun KitsuProfileContent(
                     }
             ) { page ->
                 when (page) {
-                    0 -> KitsuAboutTab(state = state, accentColor = accentColor)
+                    0 -> KitsuAboutTab(
+                        state = state,
+                        accentColor = accentColor,
+                        onFavoriteMediaClick = onFavoriteMediaClick,
+                        onOpenFavoriteSheet = onOpenFavoriteSheet
+                    )
                     1 -> KitsuStatsTab(state = state, accentColor = accentColor)
                     2 -> KitsuLibraryTab(
                         entries = state.libraryEntries,
@@ -296,7 +301,9 @@ fun KitsuProfileContent(
 @Composable
 private fun KitsuAboutTab(
     state: KitsuProfileState,
-    accentColor: Color
+    accentColor: Color,
+    onFavoriteMediaClick: (mediaId: Int, mediaType: MediaType, source: String, title: String, imageUrl: String?) -> Unit,
+    onOpenFavoriteSheet: (title: String, items: List<ProfileFavoriteItem>, onClick: (ProfileFavoriteItem) -> Unit) -> Unit
 ) {
     val context = LocalContext.current
 
@@ -381,6 +388,94 @@ private fun KitsuAboutTab(
             )
         }
 
+        // Watch Time & Episodes Card (if available)
+        if (!state.timeSpentDaysHours.isNullOrBlank() || (state.episodesWatched != null && state.episodesWatched > 0)) {
+            Card(
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = KitsugiColors.Surface),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (!state.timeSpentDaysHours.isNullOrBlank()) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Rounded.Schedule,
+                                contentDescription = null,
+                                tint = Color(0xFFFD755C),
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = state.timeSpentDaysHours,
+                                color = KitsugiColors.TextPrimary,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "İzleme Süresi",
+                                color = KitsugiColors.TextMuted,
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+                    if (state.episodesWatched != null && state.episodesWatched > 0) {
+                        if (!state.timeSpentDaysHours.isNullOrBlank()) {
+                            Box(
+                                modifier = Modifier
+                                    .width(1.dp)
+                                    .height(36.dp)
+                                    .background(KitsugiColors.SurfaceStrong)
+                            )
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Rounded.PlayCircle,
+                                contentDescription = null,
+                                tint = accentColor,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "${state.episodesWatched} Bölüm",
+                                color = KitsugiColors.TextPrimary,
+                                fontSize = 14.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "İzlenen Bölümler",
+                                color = KitsugiColors.TextMuted,
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        // Favorites Horizontal Section
+        if (state.favorites.isNotEmpty()) {
+            FavoritesHorizontalSection(
+                title = "Favoriler",
+                items = state.favorites,
+                onSeeAllClick = {
+                    onOpenFavoriteSheet("Kitsu Favoriler", state.favorites) { item ->
+                        val idInt = item.id.toIntOrNull() ?: 0
+                        onFavoriteMediaClick(idInt, MediaType.Anime, "kitsu", item.title, item.imageUrl)
+                    }
+                },
+                onItemClick = { item ->
+                    val idInt = item.id.toIntOrNull() ?: 0
+                    onFavoriteMediaClick(idInt, MediaType.Anime, "kitsu", item.title, item.imageUrl)
+                }
+            )
+        }
+
         // Detailed User Attributes Card
         Card(
             shape = RoundedCornerShape(18.dp),
@@ -430,6 +525,76 @@ private fun KitsuStatsTab(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
+        // Watch Time & Episodes Card (if available)
+        if (!state.timeSpentDaysHours.isNullOrBlank() || (state.episodesWatched != null && state.episodesWatched > 0)) {
+            Card(
+                shape = RoundedCornerShape(18.dp),
+                colors = CardDefaults.cardColors(containerColor = KitsugiColors.Surface),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(16.dp),
+                    horizontalArrangement = Arrangement.SpaceEvenly,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (!state.timeSpentDaysHours.isNullOrBlank()) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Rounded.Schedule,
+                                contentDescription = null,
+                                tint = Color(0xFFFD755C),
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = state.timeSpentDaysHours,
+                                color = KitsugiColors.TextPrimary,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "İzleme Süresi",
+                                color = KitsugiColors.TextMuted,
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+                    if (state.episodesWatched != null && state.episodesWatched > 0) {
+                        if (!state.timeSpentDaysHours.isNullOrBlank()) {
+                            Box(
+                                modifier = Modifier
+                                    .width(1.dp)
+                                    .height(40.dp)
+                                    .background(KitsugiColors.SurfaceStrong)
+                            )
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                imageVector = Icons.Rounded.PlayCircle,
+                                contentDescription = null,
+                                tint = accentColor,
+                                modifier = Modifier.size(24.dp)
+                            )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "${state.episodesWatched} Bölüm",
+                                color = KitsugiColors.TextPrimary,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "İzlenen Bölümler",
+                                color = KitsugiColors.TextMuted,
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
         // Status Distribution
         Card(
             shape = RoundedCornerShape(18.dp),

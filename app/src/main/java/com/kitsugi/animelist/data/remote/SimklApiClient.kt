@@ -702,12 +702,20 @@ class SimklApiClient(
         type: String,
         status: String,
         malId: Int? = null,
-        tmdbId: Int? = null
+        tmdbId: Int? = null,
+        aniListId: Int? = null,
+        kitsuId: Int? = null
     ): Boolean = withContext(Dispatchers.IO) {
-        val mediaKey = when (type.lowercase()) { "movies", "movie" -> "movies"; else -> "shows" }
+        val mediaKey = when (type.lowercase()) {
+            "movies", "movie" -> "movies"
+            "anime" -> "anime"
+            else -> "shows"
+        }
         val idObj = JSONObject().apply {
             if (simklId > 0) put("simkl", simklId)
             if (malId != null && malId > 0 && malId < 100_000_000) put("mal", malId)
+            if (aniListId != null && aniListId > 0) put("anilist", aniListId)
+            if (kitsuId != null && kitsuId > 0) put("kitsu", kitsuId)
             if (tmdbId != null && tmdbId > 0) put("tmdb", tmdbId)
         }
         val itemObj = JSONObject().put("to", status).put("ids", idObj)
@@ -716,6 +724,76 @@ class SimklApiClient(
         val request = Request.Builder()
             .url("https://api.simkl.com/sync/add-to-list")
             .post(payload.toRequestBody("application/json".toMediaTypeOrNull()))
+            .header("Authorization", "Bearer $token")
+            .header("simkl-api-key", clientId)
+            .header("Content-Type", "application/json")
+            .header("User-Agent", "KitsugiApp/2.4")
+            .build()
+
+        try {
+            client.newCall(request).execute().use { response ->
+                checkResponseAndThrow(response)
+                response.isSuccessful
+            }
+        } catch (e: com.kitsugi.animelist.data.repository.SimklAuthException) {
+            throw e
+        } catch (e: Exception) {
+            false
+        }
+    }
+
+    data class SimklBatchEntry(
+        val type: String, // "anime", "movies", "shows"
+        val status: String,
+        val simklId: Int = 0,
+        val malId: Int? = null,
+        val tmdbId: Int? = null,
+        val aniListId: Int? = null,
+        val kitsuId: Int? = null
+    )
+
+    /**
+     * Simkl toplu senkronizasyon (POST /sync/add-to-list).
+     * Simkl API'si tek seferde 50 öğeye kadar toplu eklemeyi destekler.
+     * Bu sayede 700+ öğelik kütüphaneler rate limit (1 req/sn) aşılmadan saniyeler içinde senkronize edilir.
+     */
+    suspend fun addToListBatch(
+        token: String,
+        entries: List<SimklBatchEntry>
+    ): Boolean = withContext(Dispatchers.IO) {
+        if (entries.isEmpty()) return@withContext true
+        val animeArray = JSONArray()
+        val showsArray = JSONArray()
+        val moviesArray = JSONArray()
+
+        entries.forEach { entry ->
+            val idObj = JSONObject().apply {
+                if (entry.simklId > 0) put("simkl", entry.simklId)
+                if (entry.malId != null && entry.malId > 0 && entry.malId < 100_000_000) put("mal", entry.malId)
+                if (entry.aniListId != null && entry.aniListId > 0) put("anilist", entry.aniListId)
+                if (entry.kitsuId != null && entry.kitsuId > 0) put("kitsu", entry.kitsuId)
+                if (entry.tmdbId != null && entry.tmdbId > 0) put("tmdb", entry.tmdbId)
+            }
+            if (idObj.length() > 0) {
+                val itemObj = JSONObject().put("to", entry.status).put("ids", idObj)
+                when (entry.type.lowercase()) {
+                    "movies", "movie" -> moviesArray.put(itemObj)
+                    "anime" -> animeArray.put(itemObj)
+                    else -> showsArray.put(itemObj)
+                }
+            }
+        }
+
+        val payloadObj = JSONObject()
+        if (animeArray.length() > 0) payloadObj.put("anime", animeArray)
+        if (showsArray.length() > 0) payloadObj.put("shows", showsArray)
+        if (moviesArray.length() > 0) payloadObj.put("movies", moviesArray)
+
+        if (payloadObj.length() == 0) return@withContext true
+
+        val request = Request.Builder()
+            .url("https://api.simkl.com/sync/add-to-list")
+            .post(payloadObj.toString().toRequestBody("application/json".toMediaTypeOrNull()))
             .header("Authorization", "Bearer $token")
             .header("simkl-api-key", clientId)
             .header("Content-Type", "application/json")
@@ -743,12 +821,20 @@ class SimklApiClient(
         simklId: Int,
         type: String,
         malId: Int? = null,
-        tmdbId: Int? = null
+        tmdbId: Int? = null,
+        aniListId: Int? = null,
+        kitsuId: Int? = null
     ): Boolean = withContext(Dispatchers.IO) {
-        val mediaKey = when (type.lowercase()) { "movies", "movie" -> "movies"; else -> "shows" }
+        val mediaKey = when (type.lowercase()) {
+            "movies", "movie" -> "movies"
+            "anime" -> "anime"
+            else -> "shows"
+        }
         val idObj = JSONObject().apply {
             if (simklId > 0) put("simkl", simklId)
             if (malId != null && malId > 0 && malId < 100_000_000) put("mal", malId)
+            if (aniListId != null && aniListId > 0) put("anilist", aniListId)
+            if (kitsuId != null && kitsuId > 0) put("kitsu", kitsuId)
             if (tmdbId != null && tmdbId > 0) put("tmdb", tmdbId)
         }
         val itemObj = JSONObject().put("ids", idObj)
@@ -1047,10 +1133,16 @@ class SimklApiClient(
                     else -> "anime"
                 }
                 val results = search(query = title, type = searchType, limit = 5)
-                val matched = if (year != null && year > 0) {
-                    results.firstOrNull { it.year == year } ?: results.firstOrNull()
-                } else {
-                    results.firstOrNull()
+                fun clean(s: String?) = s?.lowercase()?.replace(Regex("[^a-z0-9]"), "") ?: ""
+                val cTarget = clean(title)
+
+                val matched = results.firstOrNull { res ->
+                    if (res.isAdult) return@firstOrNull false
+                    val cRes = clean(res.title)
+                    val cResEng = clean(res.titleEnglish)
+                    val isTitleMatch = (cTarget.isNotEmpty() && (cTarget == cRes || (cResEng.isNotEmpty() && cTarget == cResEng)))
+                    val isYearMatch = year == null || res.year == null || kotlin.math.abs(year - res.year) <= 1
+                    isTitleMatch && isYearMatch
                 }
                 val foundSimklId = matched?.malId?.takeIf { it > 0 }
                 if (foundSimklId != null) return@withContext foundSimklId

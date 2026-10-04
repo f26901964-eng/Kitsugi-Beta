@@ -328,8 +328,8 @@ object ShikimoriApiClient {
                         "watching", "reading" -> readingManga = size
                         "completed" -> completedManga = size
                         "on_hold" -> onHoldManga = size
-                        "dropped" -> droppedAnime = size
-                        "planned" -> plannedAnime = size
+                        "dropped" -> droppedManga = size
+                        "planned" -> plannedManga = size
                     }
                 }
             }
@@ -542,5 +542,117 @@ object ShikimoriApiClient {
         KitsugiHttpClient.client.newCall(request).execute().use { response ->
             response.isSuccessful
         }
+    }
+
+    data class ShikimoriHistoryItem(
+        val id: Long,
+        val createdAt: String,
+        val description: String,
+        val targetTitle: String,
+        val targetImageUrl: String?,
+        val targetScore: String?,
+        val targetId: Long? = null,
+        val targetType: String? = null
+    ) {
+        val targetImage: String? get() = targetImageUrl
+    }
+
+    /**
+     * Shikimori kullanıcısının geçmiş hareketlerini (izlenen/okunan/puanlanan kayıtlar) çeker.
+     */
+    suspend fun fetchUserHistory(token: String, userId: Int, limit: Int = 30): List<ShikimoriHistoryItem> = withContext(Dispatchers.IO) {
+        val url = "$BASE_URL/api/users/$userId/history?limit=$limit"
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("User-Agent", USER_AGENT)
+            .addHeader("Authorization", "Bearer $token")
+            .get()
+            .build()
+
+        runCatching {
+            KitsugiHttpClient.client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@use emptyList()
+                val body = response.body?.string().orEmpty()
+                val array = JSONArray(body)
+                val list = mutableListOf<ShikimoriHistoryItem>()
+                for (i in 0 until array.length()) {
+                    val item = array.getJSONObject(i)
+                    val id = item.optLong("id", 0L)
+                    val createdAt = item.optString("created_at", "")
+                    val description = item.optString("description", "")
+                    val target = item.optJSONObject("target")
+                    val targetId = target?.optLong("id", 0L)?.takeIf { it > 0 }
+                    val targetType = target?.optString("target_type")?.ifBlank { null }
+                        ?: target?.optString("kind")?.ifBlank { null }
+                    val targetTitle = target?.optString("name", "")?.ifBlank { target.optString("russian", "") } ?: "Kayıt"
+                    val imgObj = target?.optJSONObject("image")
+                    val rawImg = imgObj?.optString("original") ?: imgObj?.optString("preview")
+                    val imgUrl = if (!rawImg.isNullOrBlank()) {
+                        if (rawImg.startsWith("http")) rawImg else "$BASE_URL$rawImg"
+                    } else null
+                    val score = target?.optString("score")
+                    list.add(
+                        ShikimoriHistoryItem(
+                            id = id,
+                            createdAt = createdAt,
+                            description = description,
+                            targetTitle = targetTitle,
+                            targetImageUrl = imgUrl,
+                            targetScore = score,
+                            targetId = targetId,
+                            targetType = targetType
+                        )
+                    )
+                }
+                list
+            }
+        }.getOrDefault(emptyList())
+    }
+
+    /**
+     * Shikimori kullanıcısının favorilerini (anime, manga, karakterler) çeker.
+     */
+    suspend fun fetchUserFavorites(token: String, userId: Int): List<com.kitsugi.animelist.ui.app.ProfileFavoriteItem> = withContext(Dispatchers.IO) {
+        val url = "$BASE_URL/api/users/$userId/favourites"
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("User-Agent", USER_AGENT)
+            .addHeader("Authorization", "Bearer $token")
+            .get()
+            .build()
+
+        runCatching {
+            KitsugiHttpClient.client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@use emptyList()
+                val body = response.body?.string().orEmpty()
+                val json = JSONObject(body)
+                val list = mutableListOf<com.kitsugi.animelist.ui.app.ProfileFavoriteItem>()
+
+                val arrayKeys = listOf("animes", "mangas", "characters")
+                for (key in arrayKeys) {
+                    val arr = json.optJSONArray(key) ?: continue
+                    for (i in 0 until arr.length()) {
+                        val item = arr.getJSONObject(i)
+                        val id = item.optString("id", "")
+                        val title = item.optString("name", "").ifBlank { item.optString("russian", "Favori") }
+                        val imgObj = item.optJSONObject("image")
+                        val rawImg = imgObj?.optString("original") ?: imgObj?.optString("preview") ?: item.optString("image", "")
+                        val imgUrl = if (rawImg.isNotBlank()) {
+                            if (rawImg.startsWith("http")) rawImg else "$BASE_URL$rawImg"
+                        } else null
+                        if (id.isNotBlank() && title.isNotBlank()) {
+                            list.add(
+                                com.kitsugi.animelist.ui.app.ProfileFavoriteItem(
+                                    id = id,
+                                    title = title,
+                                    imageUrl = imgUrl ?: ""
+                                )
+                            )
+                        }
+                    }
+                }
+                list
+            }
+        }.getOrDefault(emptyList())
     }
 }

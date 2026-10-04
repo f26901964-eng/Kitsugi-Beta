@@ -48,11 +48,80 @@ object SimklSyncManager {
     }
 
     /** MediaType'a göre Simkl API tipini döner */
-    private fun mediaTypeToSimklType(mediaType: MediaType): String = when (mediaType) {
+    fun mediaTypeToSimklType(mediaType: MediaType): String = when (mediaType) {
         MediaType.Movie  -> "movies"
         MediaType.TvShow -> "shows"
-        MediaType.Anime  -> "shows" // Simkl animeleri de shows olarak yönetir
+        MediaType.Anime  -> "anime" // Simkl API'sinde animeler 'anime' anahtarı altındadır!
         else             -> "shows"
+    }
+
+    // ── Toplu Senkronizasyon (Batch Sync) ──────────────────────────────────────────
+
+    /**
+     * Çoklu MediaEntry listesini Simkl API'sine tek veya az sayıda toplu istek ile gönderir.
+     * Simkl'in 1 istek / saniye rate limit'ine ve 50 öğe / istek limitine tam uyumludur.
+     */
+    suspend fun syncBatchToSimkl(
+        context: Context,
+        entries: List<MediaEntry>
+    ): SyncResult = withContext(Dispatchers.IO) {
+        val token = ExternalAuthManager.getSimklToken(context)
+        if (token.isNullOrBlank()) {
+            return@withContext SyncResult(messages = emptyList(), errors = listOf("Simkl hesabı bağlı değil"))
+        }
+        if (entries.isEmpty()) {
+            return@withContext SyncResult(messages = emptyList(), errors = emptyList())
+        }
+
+        val batchItems = entries.mapNotNull { entry ->
+            val realMalId = entry.malId?.takeIf { it > 0 && it < 100_000_000 }
+            val aniListId = if (entry.source == "anilist" && entry.malId != null && entry.malId >= 100_000_000 && entry.malId < 300_000_000) {
+                entry.malId - 100_000_000
+            } else null
+            val rawKitsuId = if (entry.source == "kitsu" || (entry.malId != null && entry.malId >= 300_000_000)) {
+                if (entry.malId != null && entry.malId >= 300_000_000) entry.malId - 300_000_000 else entry.malId
+            } else null
+            val simklId = entry.simklId?.takeIf { it > 0 } ?: 0
+
+            // En az bir geçerli ID olmalı (simklId, malId, anilist, kitsu veya tmdb)
+            if (simklId == 0 && realMalId == null && (entry.tmdbId == null || entry.tmdbId <= 0) && aniListId == null) {
+                null
+            } else {
+                SimklApiClient.SimklBatchEntry(
+                    type = mediaTypeToSimklType(entry.type),
+                    status = watchStatusToSimkl(entry.status),
+                    simklId = simklId,
+                    malId = realMalId,
+                    tmdbId = entry.tmdbId,
+                    aniListId = aniListId,
+                    kitsuId = rawKitsuId
+                )
+            }
+        }
+
+        val messages = mutableListOf<String>()
+        val errors = mutableListOf<String>()
+
+        // 35'lik parçalar halinde gönder (Simkl limiti 50)
+        val chunks = batchItems.chunked(35)
+        for ((idx, chunk) in chunks.withIndex()) {
+            try {
+                val ok = simklApiClient.addToListBatch(token, chunk)
+                if (ok) {
+                    messages.add("Simkl grubu ${idx + 1}/${chunks.size} başarıyla senkronize edildi (${chunk.size} öğe).")
+                } else {
+                    errors.add("Simkl grubu ${idx + 1} gönderilemedi.")
+                }
+            } catch (e: Exception) {
+                errors.add("Simkl grup ${idx + 1} hatası: ${e.message}")
+            }
+            if (idx < chunks.size - 1) {
+                // Rate limit (1 req/sn) aşmamak için bekle
+                kotlinx.coroutines.delay(1100L)
+            }
+        }
+
+        SyncResult(messages = messages, errors = errors)
     }
 
     // ── Tek Entry Senkronizasyonu ─────────────────────────────────────────────────
@@ -75,6 +144,9 @@ object SimklSyncManager {
         val realMalId = entry.malId?.takeIf { it > 0 && it < 100_000_000 }
         val aniListId = if (entry.source == "anilist" && entry.malId != null && entry.malId >= 100_000_000 && entry.malId < 300_000_000) {
             entry.malId - 100_000_000
+        } else null
+        val rawKitsuId = if (entry.source == "kitsu" || (entry.malId != null && entry.malId >= 300_000_000)) {
+            if (entry.malId != null && entry.malId >= 300_000_000) entry.malId - 300_000_000 else entry.malId
         } else null
 
         // Simkl ID yoksa ve malId/tmdbId de yoksa o zaman başlığa göre Simkl ID çözümlenir
@@ -116,7 +188,9 @@ object SimklSyncManager {
                 type = type,
                 status = simklStatus,
                 malId = realMalId,
-                tmdbId = entry.tmdbId
+                tmdbId = entry.tmdbId,
+                aniListId = aniListId,
+                kitsuId = rawKitsuId
             )
         }.onSuccess { success ->
             if (success) messages.add("Simkl listesi güncellendi (${entry.title})")
@@ -210,13 +284,19 @@ object SimklSyncManager {
         val messages = mutableListOf<String>()
         val errors = mutableListOf<String>()
 
+        val rawKitsuId = if (entry.source == "kitsu" || (entry.malId != null && entry.malId >= 300_000_000)) {
+            if (entry.malId != null && entry.malId >= 300_000_000) entry.malId - 300_000_000 else entry.malId
+        } else null
+
         runCatching {
             simklApiClient.removeFromList(
                 token = token,
                 simklId = simklId,
                 type = type,
                 malId = realMalId,
-                tmdbId = entry.tmdbId
+                tmdbId = entry.tmdbId,
+                aniListId = aniListId,
+                kitsuId = rawKitsuId
             )
         }.onSuccess { success ->
             if (success) messages.add("Simkl listesinden silindi (${entry.title})")

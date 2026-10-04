@@ -9,20 +9,24 @@ import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.BugReport
-import androidx.compose.material.icons.rounded.ContentCopy
-import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.automirrored.rounded.Send
-import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,14 +36,16 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.BuildConfig
+import com.kitsugi.animelist.core.diagnostics.KitsugiCrashLogger
 import com.kitsugi.animelist.data.settings.AppSettings
 import com.kitsugi.animelist.data.settings.SettingsDataStore
-import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
-import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.KitsugiAccentForThemeId
+import com.kitsugi.animelist.ui.theme.KitsugiColors
+import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -54,81 +60,168 @@ class KitsugiCrashActivity : ComponentActivity() {
         enableEdgeToEdge()
 
         val intentCrashReport = intent.getStringExtra("crash_report")
-        
+
         setContent {
             val context = LocalContext.current
             val scope = rememberCoroutineScope()
-            
-            val settingsDataStore = remember {
-                SettingsDataStore(context.applicationContext)
-            }
-            val appSettings by settingsDataStore.settingsFlow.collectAsState(
-                initial = AppSettings()
-            )
+
+            val settingsDataStore = remember { SettingsDataStore(context.applicationContext) }
+            val appSettings by settingsDataStore.settingsFlow.collectAsState(initial = AppSettings())
             val activeAccentColor = KitsugiAccentForThemeId(appSettings.selectedThemeId)
 
+            // Son çökme raporu
             val crashReport = remember {
-                if (!intentCrashReport.isNullOrBlank()) {
-                    intentCrashReport
-                } else {
-                    val file = File(context.filesDir, "crash_log.txt")
-                    if (file.exists()) file.readText() else "Hiçbir hata detayına ulaşılamadı."
-                }
+                if (!intentCrashReport.isNullOrBlank()) intentCrashReport
+                else KitsugiCrashLogger.readCrashLog(context)
             }
 
-            CompositionLocalProvider(
-                LocalKitsugiAccent provides activeAccentColor
-            ) {
-                Scaffold(
-                    containerColor = KitsugiColors.Background
-                ) { innerPadding ->
+            // Geçmiş çökme sayısı (yaklaşık — newline sayısından)
+            val historyExists = remember { KitsugiCrashLogger.crashHistoryExists(context) }
+            val historySizeKb = remember { KitsugiCrashLogger.crashHistorySizeKb(context) }
+
+            // Sekme: 0 = Son Çökme, 1 = Geçmiş
+            var selectedTab by remember { mutableIntStateOf(0) }
+            var historyText by remember { mutableStateOf<String?>(null) }
+
+            CompositionLocalProvider(LocalKitsugiAccent provides activeAccentColor) {
+                Scaffold(containerColor = KitsugiColors.Background) { innerPadding ->
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
                             .padding(innerPadding)
-                            .padding(20.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                            .padding(horizontal = 20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        Spacer(modifier = Modifier.height(20.dp))
+                        Spacer(Modifier.height(20.dp))
 
-                        // Warning Icon
+                        // ── İkon + Başlık ─────────────────────────────────────────────────
                         Surface(
-                            shape = RoundedCornerShape(16.dp),
+                            shape = RoundedCornerShape(18.dp),
                             color = KitsugiColors.SurfaceSoft,
-                            border = BorderStroke(1.dp, activeAccentColor.copy(alpha = 0.5f)),
+                            border = BorderStroke(1.dp, KitsugiColors.AccentRed.copy(alpha = 0.5f)),
                             modifier = Modifier.size(72.dp)
                         ) {
-                            Box(
-                                contentAlignment = Alignment.Center,
-                                modifier = Modifier.fillMaxSize()
-                            ) {
+                            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                                 Icon(
-                                    imageVector = Icons.Rounded.BugReport,
-                                    contentDescription = "Hata",
+                                    Icons.Rounded.BugReport,
+                                    contentDescription = null,
                                     tint = KitsugiColors.AccentRed,
                                     modifier = Modifier.size(38.dp)
                                 )
                             }
                         }
 
-                        // Header Text
+                        Spacer(Modifier.height(12.dp))
+
                         Text(
-                            text = "Eyvah! Bir Hata Oluştu",
+                            "Eyvah! Bir Şeyler Patladı 💥",
                             color = KitsugiColors.TextPrimary,
-                            fontSize = 24.sp,
-                            fontWeight = FontWeight.Bold
+                            fontSize = 22.sp,
+                            fontWeight = FontWeight.Bold,
+                            textAlign = TextAlign.Center
                         )
-
                         Text(
-                            text = "Kitsugi beklenmedik bir şekilde durduruldu. Hata detaylarını aşağıda görebilir, kopyalayabilir veya geliştiriciye gönderebilirsiniz.",
+                            "Kitsugi beklenmedik şekilde durdu. Aşağıdaki hata detaylarını kopyalayabilir, paylaşabilir veya bana gönderebilirsin.",
                             color = KitsugiColors.TextSecondary,
-                            fontSize = 14.sp,
-                            fontWeight = FontWeight.Normal,
-                            modifier = Modifier.padding(horizontal = 8.dp)
+                            fontSize = 13.sp,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 6.dp)
                         )
 
-                        // Console Terminal for Trace details
+                        // ── Uygulama Bilgi Etiketi ────────────────────────────────────────
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(KitsugiColors.SurfaceSoft)
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Icon(Icons.Rounded.Info, null, tint = activeAccentColor, modifier = Modifier.size(14.dp))
+                            Text(
+                                "v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) · ${BuildConfig.BUILD_TYPE}",
+                                color = KitsugiColors.TextSecondary,
+                                fontSize = 11.sp
+                            )
+                            if (historyExists) {
+                                Spacer(Modifier.width(4.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(KitsugiColors.AccentRed)
+                                )
+                                Text(
+                                    "Geçmiş: ${historySizeKb}KB",
+                                    color = KitsugiColors.AccentRed,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        Spacer(Modifier.height(12.dp))
+
+                        // ── Sekme Başlıkları ──────────────────────────────────────────────
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(KitsugiColors.Surface)
+                                .padding(3.dp),
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            listOf("Son Çökme", "Çökme Geçmişi").forEachIndexed { idx, label ->
+                                val active = selectedTab == idx
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .clip(RoundedCornerShape(11.dp))
+                                        .background(if (active) activeAccentColor else Color.Transparent)
+                                        .clickable {
+                                            selectedTab = idx
+                                            if (idx == 1 && historyText == null) {
+                                                historyText = KitsugiCrashLogger.readCrashHistory(context)
+                                            }
+                                        }
+                                        .padding(vertical = 8.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.Center
+                                    ) {
+                                        if (idx == 1 && historyExists) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .size(6.dp)
+                                                    .clip(CircleShape)
+                                                    .background(
+                                                        if (active) KitsugiColors.Background
+                                                        else KitsugiColors.AccentRed
+                                                    )
+                                            )
+                                            Spacer(Modifier.width(5.dp))
+                                        }
+                                        Text(
+                                            label,
+                                            color = if (active) KitsugiColors.Background else KitsugiColors.TextSecondary,
+                                            fontSize = 13.sp,
+                                            fontWeight = if (active) FontWeight.Bold else FontWeight.Normal
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(Modifier.height(10.dp))
+
+                        // ── Rapor Metin Alanı ─────────────────────────────────────────────
+                        val displayText = when (selectedTab) {
+                            1 -> historyText ?: "Geçmiş yükleniyor..."
+                            else -> crashReport
+                        }
+
                         Surface(
                             modifier = Modifier
                                 .weight(1f)
@@ -137,172 +230,144 @@ class KitsugiCrashActivity : ComponentActivity() {
                                 .border(1.dp, KitsugiColors.Border, RoundedCornerShape(14.dp)),
                             color = KitsugiColors.Surface
                         ) {
-                            Column(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .padding(12.dp)
-                            ) {
-                                // Monospace text inside scroll view
-                                val scrollState = rememberScrollState()
-                                SelectionContainer {
-                                    Text(
-                                        text = crashReport,
-                                        color = KitsugiColors.TextSecondary,
-                                        fontFamily = FontFamily.Monospace,
-                                        fontSize = 11.sp,
-                                        lineHeight = 16.sp,
-                                        modifier = Modifier
-                                            .fillMaxSize()
-                                            .verticalScroll(scrollState)
-                                    )
-                                }
+                            SelectionContainer {
+                                Text(
+                                    text = displayText,
+                                    color = if (selectedTab == 0) KitsugiColors.AccentRed.copy(alpha = 0.85f)
+                                            else KitsugiColors.TextSecondary,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 10.5.sp,
+                                    lineHeight = 15.sp,
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .verticalScroll(rememberScrollState())
+                                        .padding(12.dp)
+                                )
                             }
                         }
 
-                        // Action Buttons
+                        Spacer(Modifier.height(12.dp))
+
+                        // ── Butonlar ──────────────────────────────────────────────────────
                         Column(
                             modifier = Modifier.fillMaxWidth(),
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
+                            // Satır 1: Kopyala + Paylaş
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(10.dp)
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                // Copy Button
-                                Button(
+                                OutlinedButton(
                                     onClick = {
                                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                        val clip = ClipData.newPlainText("Kitsugi Crash Report", crashReport)
-                                        clipboard.setPrimaryClip(clip)
-                                        Toast.makeText(context, "Hata raporu kopyalandı", Toast.LENGTH_SHORT).show()
+                                        clipboard.setPrimaryClip(ClipData.newPlainText("Kitsugi Crash", displayText))
+                                        Toast.makeText(context, "Rapor kopyalandı ✓", Toast.LENGTH_SHORT).show()
                                     },
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = KitsugiColors.SurfaceSoft,
-                                        contentColor = KitsugiColors.TextPrimary
-                                    ),
                                     shape = RoundedCornerShape(12.dp),
                                     border = BorderStroke(1.dp, KitsugiColors.Border),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = KitsugiColors.TextPrimary),
                                     modifier = Modifier.weight(1f)
                                 ) {
-                                    Icon(Icons.Rounded.ContentCopy, contentDescription = "Kopyala", modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Kopyala", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                    Icon(Icons.Rounded.ContentCopy, null, modifier = Modifier.size(15.dp))
+                                    Spacer(Modifier.width(5.dp))
+                                    Text("Kopyala", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                                 }
 
-                                // Share Button
-                                Button(
+                                OutlinedButton(
                                     onClick = {
                                         val shareIntent = Intent(Intent.ACTION_SEND).apply {
                                             type = "text/plain"
-                                            putExtra(Intent.EXTRA_TEXT, crashReport)
+                                            putExtra(Intent.EXTRA_TEXT, displayText)
+                                            putExtra(Intent.EXTRA_SUBJECT, "Kitsugi Hata Raporu v${BuildConfig.VERSION_NAME}")
                                         }
-                                        context.startActivity(Intent.createChooser(shareIntent, "Hata Raporunu Paylaş"))
+                                        context.startActivity(Intent.createChooser(shareIntent, "Raporu Paylaş"))
                                     },
-                                    colors = ButtonDefaults.buttonColors(
-                                        containerColor = KitsugiColors.SurfaceSoft,
-                                        contentColor = KitsugiColors.TextPrimary
-                                    ),
                                     shape = RoundedCornerShape(12.dp),
                                     border = BorderStroke(1.dp, KitsugiColors.Border),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = KitsugiColors.TextPrimary),
                                     modifier = Modifier.weight(1f)
                                 ) {
-                                    Icon(Icons.Rounded.Share, contentDescription = "Paylaş", modifier = Modifier.size(16.dp))
-                                    Spacer(modifier = Modifier.width(6.dp))
-                                    Text("Paylaş", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                    Icon(Icons.Rounded.Share, null, modifier = Modifier.size(15.dp))
+                                    Spacer(Modifier.width(5.dp))
+                                    Text("Paylaş", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                                 }
                             }
 
-                            // Send to Developer Button
+                            // Satır 2: Geliştiriciye Gönder (tüm dosyalar)
                             Button(
                                 onClick = {
                                     scope.launch {
                                         try {
                                             val filesToShare = ArrayList<android.net.Uri>()
 
-                                            // 1. Cihaz Bilgisi
-                                            val infoFile = File(context.filesDir, "device_info.txt")
-                                            val infoText = buildString {
-                                                append("Uygulama Sürümü: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})\n")
-                                                append("Cihaz Markası: ${android.os.Build.BRAND}\n")
-                                                append("Cihaz Modeli: ${android.os.Build.MODEL}\n")
-                                                append("Android Sürümü: ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT})\n")
-                                                append("Üretici: ${android.os.Build.MANUFACTURER}\n")
-                                                append("Zaman Dilimi: ${java.util.TimeZone.getDefault().id}\n")
-                                                append("Yerel Saat: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())}\n")
-                                            }
-                                            infoFile.writeText(infoText)
-                                            val infoUri = androidx.core.content.FileProvider.getUriForFile(
-                                                context,
-                                                "com.kitsugi.animelist.fileprovider",
-                                                infoFile
-                                            )
-                                            filesToShare.add(infoUri)
-
-                                            // 2. Çökme Raporu
-                                            val crashFile = File(context.filesDir, "crash_log.txt")
-                                            if (crashFile.exists()) {
-                                                val crashUri = androidx.core.content.FileProvider.getUriForFile(
-                                                    context,
-                                                    "com.kitsugi.animelist.fileprovider",
-                                                    crashFile
-                                                )
-                                                filesToShare.add(crashUri)
-                                            }
-
-                                            // 3. Arka Plan Günlükleri
-                                            val logFiles = listOf("app_logs.txt", "app_logs.txt.1", "app_logs.txt.2")
-                                            for (fileName in logFiles) {
-                                                val logFile = File(context.filesDir, fileName)
-                                                if (logFile.exists() && logFile.length() > 0) {
-                                                    val logUri = androidx.core.content.FileProvider.getUriForFile(
-                                                        context,
-                                                        "com.kitsugi.animelist.fileprovider",
-                                                        logFile
-                                                    )
-                                                    filesToShare.add(logUri)
+                                            suspend fun addFileIfExists(file: File) {
+                                                if (file.exists() && file.length() > 0) {
+                                                    try {
+                                                        val uri = androidx.core.content.FileProvider.getUriForFile(
+                                                            context, "com.kitsugi.animelist.fileprovider", file
+                                                        )
+                                                        filesToShare.add(uri)
+                                                    } catch (_: Exception) {}
                                                 }
                                             }
 
-                                            // 4. Canlı Logcat Dökümü
-                                            val currentLogcatFile = File(context.filesDir, "current_logcat.txt")
+                                            // 1. Cihaz bilgisi dosyası (anlık oluştur)
+                                            val infoFile = File(context.filesDir, "device_info.txt")
+                                            infoFile.writeText(buildString {
+                                                appendLine("=== Kitsugi Cihaz Bilgisi ===")
+                                                appendLine("Uygulama : v${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) [${BuildConfig.BUILD_TYPE}]")
+                                                appendLine("Marka    : ${android.os.Build.BRAND}")
+                                                appendLine("Model    : ${android.os.Build.MODEL}")
+                                                appendLine("Android  : ${android.os.Build.VERSION.RELEASE} (API ${android.os.Build.VERSION.SDK_INT})")
+                                                appendLine("ABI      : ${android.os.Build.SUPPORTED_ABIS.joinToString()}")
+                                                appendLine("Üretici  : ${android.os.Build.MANUFACTURER}")
+                                                appendLine("Bellek   : ${Runtime.getRuntime().let { "${(it.totalMemory() - it.freeMemory()) / 1024 / 1024}MB / ${it.maxMemory() / 1024 / 1024}MB" }}")
+                                                appendLine("Saat     : ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())}")
+                                            })
+                                            addFileIfExists(infoFile)
+
+                                            // 2. Son çökme raporu
+                                            addFileIfExists(KitsugiCrashLogger.getCrashLogFile(context))
+
+                                            // 3. Çökme geçmişi
+                                            addFileIfExists(KitsugiCrashLogger.getCrashHistoryFile(context))
+
+                                            // 4. Çökme anı logcat
+                                            addFileIfExists(KitsugiCrashLogger.getLogcatCrashFile(context))
+
+                                            // 5. FileLoggingTree debug log
+                                            addFileIfExists(com.kitsugi.animelist.core.diagnostics.FileLoggingTree.getLogFile(context))
+
+                                            // 6. Anlık logcat dökümü (şimdiki)
+                                            val liveLogcatFile = File(context.filesDir, "live_logcat_report.txt")
                                             withContext(Dispatchers.IO) {
                                                 try {
-                                                    val process = Runtime.getRuntime().exec(arrayOf("logcat", "-d", "-v", "time", "*:D"))
-                                                    val reader = BufferedReader(InputStreamReader(process.inputStream))
-                                                    val writer = currentLogcatFile.bufferedWriter()
-                                                    var line: String?
-                                                    while (reader.readLine().also { line = it } != null) {
-                                                        writer.write(line)
-                                                        writer.newLine()
+                                                    val process = Runtime.getRuntime().exec(arrayOf("logcat", "-d", "-t", "400", "-v", "time", "*:W"))
+                                                    val sb = StringBuilder("=== Anlık Logcat (Son 400 satır) ===\n")
+                                                    BufferedReader(InputStreamReader(process.inputStream)).useLines { lines ->
+                                                        lines.forEach { sb.appendLine(it) }
                                                     }
-                                                    writer.close()
-                                                    reader.close()
-                                                } catch (e: Exception) {
-                                                    currentLogcatFile.writeText("Anlık log alınamadı: ${e.localizedMessage}")
-                                                }
+                                                    process.waitFor()
+                                                    liveLogcatFile.writeText(sb.toString())
+                                                } catch (_: Exception) {}
                                             }
-                                            if (currentLogcatFile.exists() && currentLogcatFile.length() > 0) {
-                                                val currentUri = androidx.core.content.FileProvider.getUriForFile(
-                                                    context,
-                                                    "com.kitsugi.animelist.fileprovider",
-                                                    currentLogcatFile
-                                                )
-                                                filesToShare.add(currentUri)
-                                            }
+                                            addFileIfExists(liveLogcatFile)
 
                                             if (filesToShare.isNotEmpty()) {
                                                 val shareIntent = Intent().apply {
                                                     action = Intent.ACTION_SEND_MULTIPLE
                                                     type = "text/plain"
                                                     putParcelableArrayListExtra(Intent.EXTRA_STREAM, filesToShare)
+                                                    putExtra(Intent.EXTRA_SUBJECT, "Kitsugi Crash Report v${BuildConfig.VERSION_NAME}")
                                                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                                 }
-                                                context.startActivity(Intent.createChooser(shareIntent, "Hata Raporunu Geliştiriciye Gönder"))
+                                                context.startActivity(Intent.createChooser(shareIntent, "Geliştiriciye Gönder — ${filesToShare.size} Dosya"))
                                             } else {
-                                                Toast.makeText(context, "Paylaşılacak log dosyası bulunamadı", Toast.LENGTH_SHORT).show()
+                                                Toast.makeText(context, "Paylaşılacak dosya bulunamadı", Toast.LENGTH_SHORT).show()
                                             }
                                         } catch (e: Exception) {
-                                            Toast.makeText(context, "Paylaşım Hatası: ${e.localizedMessage}", Toast.LENGTH_SHORT).show()
+                                            Toast.makeText(context, "Hata: ${e.message}", Toast.LENGTH_LONG).show()
                                         }
                                     }
                                 },
@@ -311,39 +376,61 @@ class KitsugiCrashActivity : ComponentActivity() {
                                     contentColor = activeAccentColor
                                 ),
                                 shape = RoundedCornerShape(12.dp),
-                                border = BorderStroke(1.dp, activeAccentColor.copy(alpha = 0.5f)),
+                                border = BorderStroke(1.dp, activeAccentColor.copy(alpha = 0.4f)),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Icon(Icons.AutoMirrored.Rounded.Send, contentDescription = "Geliştiriciye Gönder", modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Geliştiriciye Gönder", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                Icon(Icons.AutoMirrored.Rounded.Send, null, modifier = Modifier.size(15.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text("Geliştiriciye Gönder (Tüm Dosyalar)", fontSize = 13.sp, fontWeight = FontWeight.Bold)
                             }
 
-                            // Restart Button
-                            Button(
-                                onClick = {
-                                    val restartIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
-                                    if (restartIntent != null) {
-                                        restartIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
-                                        context.startActivity(restartIntent)
-                                    }
-                                    finish()
-                                    android.os.Process.killProcess(android.os.Process.myPid())
-                                    System.exit(0)
-                                },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = activeAccentColor,
-                                    contentColor = KitsugiColors.Background
-                                ),
-                                shape = RoundedCornerShape(12.dp),
-                                modifier = Modifier.fillMaxWidth()
+                            // Satır 3: Geçmişi Temizle + Yeniden Başlat
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Icon(Icons.Rounded.Refresh, contentDescription = "Yeniden Başlat", modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Uygulamayı Yeniden Başlat", fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                if (historyExists) {
+                                    OutlinedButton(
+                                        onClick = {
+                                            KitsugiCrashLogger.clearHistory(context)
+                                            historyText = "Geçmiş temizlendi."
+                                            Toast.makeText(context, "Çökme geçmişi temizlendi", Toast.LENGTH_SHORT).show()
+                                        },
+                                        shape = RoundedCornerShape(12.dp),
+                                        border = BorderStroke(1.dp, KitsugiColors.AccentRed.copy(alpha = 0.4f)),
+                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = KitsugiColors.AccentRed),
+                                        modifier = Modifier.weight(1f)
+                                    ) {
+                                        Icon(Icons.Rounded.DeleteSweep, null, modifier = Modifier.size(15.dp))
+                                        Spacer(Modifier.width(5.dp))
+                                        Text("Geçmişi Temizle", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                    }
+                                }
+
+                                Button(
+                                    onClick = {
+                                        val restartIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
+                                        restartIntent?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                                        if (restartIntent != null) context.startActivity(restartIntent)
+                                        finish()
+                                        android.os.Process.killProcess(android.os.Process.myPid())
+                                        System.exit(0)
+                                    },
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = activeAccentColor,
+                                        contentColor = KitsugiColors.Background
+                                    ),
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = if (historyExists) Modifier.weight(1f) else Modifier.fillMaxWidth()
+                                ) {
+                                    Icon(Icons.Rounded.RestartAlt, null, modifier = Modifier.size(15.dp))
+                                    Spacer(Modifier.width(5.dp))
+                                    Text("Yeniden Başlat", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                }
                             }
                         }
-                        Spacer(modifier = Modifier.height(10.dp))
+
+                        Spacer(Modifier.height(16.dp))
                     }
                 }
             }

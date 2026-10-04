@@ -548,6 +548,8 @@ fun AppRootDetailPages(
                     isAniListConnected = authViewModel.isAniListConnected,
                     isMalConnected = authViewModel.isMalConnected,
                     isSimklConnected = authViewModel.isSimklConnected,
+                    isKitsuConnected = authViewModel.isKitsuConnected,
+                    isShikimoriConnected = authViewModel.isShikimoriConnected,
                     onBack = { navState.popDetailStack() },
                     onUserProfileClick = { userId, username, avatarUrl ->
                         navState.navigateToDetail(DetailScreen.UserProfile(userId, username, avatarUrl))
