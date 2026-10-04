@@ -289,7 +289,7 @@ internal fun CloudstreamExtensionsTab(
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         val predefinedRepos = listOf(
-                            Triple("⚡ Kitsugi Eklentileri (Önerilen)", "DiziPal, RecTV, DDizi, Dizilla vb. derlenmiş ve güncel Türkçe eklenti deposu.", "https://raw.githubusercontent.com/KitsugiBeta-dev/Kitsugi-Plugins/builds/repo.json"),
+                            Triple("⚡ Kitsugi Eklentileri (Önerilen)", "DiziPal, RecTV, DDizi, Dizilla vb. derlenmiş ve güncel Türkçe eklenti deposu.", "https://codeberg.org/BlackDamage/KitsugiPlugins/raw/branch/builds/repo.json"),
                             Triple("⚡ Kekik (feroxx)", "Aktif Kekik eklenti deposu derlemeleri (builds) ve Türkçe topluluk havuzu.", "https://raw.githubusercontent.com/feroxx/Kekik-cloudstream/refs/heads/builds/repo.json"),
                             Triple("⚡ Kraptor (Kraptor123)", "AnimeciX, Animeler, AnimeElysium eklentilerini içeren dizi/film ve anime deposu.", "https://raw.githubusercontent.com/Kraptor123/cs-kraptor/refs/heads/master/repo.json"),
                             Triple("⚡ CS-Karma (Kraptor123)", "Kraptor'un alternatif Karma Türkçe eklenti deposu.", "https://raw.githubusercontent.com/Kraptor123/Cs-Karma/refs/heads/master/repo.json"),

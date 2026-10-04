@@ -46,7 +46,7 @@ class CloudstreamRepoRepository(private val context: Context) {
     suspend fun seedDefaultRepoIfEmpty() = withContext(Dispatchers.IO) {
         try {
             val allRepos = repoDao.getAllRepos()
-            val defaultUrl = "https://raw.githubusercontent.com/KitsugiBeta-dev/Kitsugi-Plugins/builds/repo.json"
+            val defaultUrl = "https://codeberg.org/BlackDamage/KitsugiPlugins/raw/branch/builds/repo.json"
 
             // Migrate any old repos immediately
             for (repo in allRepos) {

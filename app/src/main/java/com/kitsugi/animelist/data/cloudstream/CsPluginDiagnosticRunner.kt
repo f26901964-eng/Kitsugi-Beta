@@ -39,7 +39,7 @@ object CsPluginDiagnosticRunner {
 
     /** Türkçe CS eklenti depoları */
     val REPOS = listOf(
-        "https://raw.githubusercontent.com/gameras1010-afk/Kitsugi-Plugins/builds/repo.json",
+        "https://codeberg.org/BlackDamage/KitsugiPlugins/raw/branch/builds/repo.json",
         "https://raw.githubusercontent.com/feroxx/Kekik-cloudstream/refs/heads/builds/repo.json",
         "https://raw.githubusercontent.com/Kraptor123/cs-kraptor/refs/heads/master/repo.json",
         "https://raw.githubusercontent.com/Kraptor123/Cs-Karma/refs/heads/master/repo.json",
