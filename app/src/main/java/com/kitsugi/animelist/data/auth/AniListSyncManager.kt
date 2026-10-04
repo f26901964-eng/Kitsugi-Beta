@@ -248,51 +248,126 @@ object AniListSyncManager {
         token: String,
         entry: MediaEntry
     ): Int? {
-        val externalId = entry.malId ?: return null
+        val externalId = entry.malId
 
-        if (entry.source == "anilist" && externalId >= ANILIST_SYNTHETIC_ID_OFFSET) {
+        // 1. AniList sentetik ID'si ise doğrudan çöz
+        if (entry.source == "anilist" && externalId != null && externalId >= ANILIST_SYNTHETIC_ID_OFFSET) {
             return externalId - ANILIST_SYNTHETIC_ID_OFFSET
         }
 
-        if (!externalId.isRealMalId()) {
-            return null
+        val mediaTypeGql = when (entry.type) {
+            MediaType.Anime, MediaType.Movie, MediaType.TvShow -> "ANIME"
+            MediaType.Manga -> "MANGA"
         }
 
+        // 2. Gerçek MAL ID ile AniList'ten eşleşen media ID'yi sorgula
+        if (externalId != null && externalId.isRealMalId()) {
+            val query = """
+                query (${'$'}idMal: Int, ${'$'}type: MediaType) {
+                    Media(idMal: ${'$'}idMal, type: ${'$'}type) {
+                        id
+                    }
+                }
+            """.trimIndent()
+
+            val variables = JSONObject()
+                .put("idMal", externalId)
+                .put("type", mediaTypeGql)
+
+            val resolved = runCatching {
+                val response = postAniList(
+                    token = token,
+                    query = query,
+                    variables = variables
+                )
+                JSONObject(response)
+                    .optJSONObject("data")
+                    ?.optJSONObject("Media")
+                    ?.optInt("id", 0)
+                    ?.takeIf { it > 0 }
+            }.getOrNull()
+
+            if (resolved != null && resolved > 0) return resolved
+        }
+
+        // 3. ARM (Anime Relations Mapping) üzerinden AniList ID'sini bul
+        val rawKitsuId = if (entry.source == "kitsu" || (entry.malId != null && entry.malId >= 300_000_000)) {
+            if (entry.malId != null && entry.malId >= 300_000_000) entry.malId - 300_000_000 else entry.malId
+        } else null
+
+        val armId = runCatching {
+            kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
+                com.kitsugi.animelist.data.remote.KitsugiIdResolver.resolveIds(
+                    malId = externalId?.takeIf { it.isRealMalId() },
+                    aniListId = null,
+                    tmdbId = entry.tmdbId,
+                    mediaType = entry.type,
+                    kitsuId = rawKitsuId
+                ).aniListId
+            }
+        }.getOrNull()
+        if (armId != null && armId > 0) return armId
+
+        // 4. Başlık araması ile AniList'ten çöz (Title search fallback)
+        val searchTitle = entry.titleEnglish?.takeIf { it.isNotBlank() }
+            ?: entry.title.takeIf { it.isNotBlank() }
+            ?: entry.titleJapanese?.takeIf { it.isNotBlank() }
+
+        if (!searchTitle.isNullOrBlank()) {
+            val query = """
+                query (${'$'}search: String, ${'$'}type: MediaType) {
+                    Media(search: ${'$'}search, type: ${'$'}type) {
+                        id
+                    }
+                }
+            """.trimIndent()
+
+            val variables = JSONObject()
+                .put("search", searchTitle)
+                .put("type", mediaTypeGql)
+
+            val resolvedByTitle = runCatching {
+                val response = postAniList(
+                    token = token,
+                    query = query,
+                    variables = variables
+                )
+                JSONObject(response)
+                    .optJSONObject("data")
+                    ?.optJSONObject("Media")
+                    ?.optInt("id", 0)
+                    ?.takeIf { it > 0 }
+            }.getOrNull()
+
+            if (resolvedByTitle != null && resolvedByTitle > 0) return resolvedByTitle
+        }
+
+        return null
+    }
+
+    /**
+     * AniList Media ID'sinden gerçek MAL ID'yi sorgular.
+     */
+    fun resolveMalIdFromAniList(
+        token: String?,
+        aniListId: Int
+    ): Int? {
         val query = """
-            query (
-                ${'$'}idMal: Int,
-                ${'$'}type: MediaType
-            ) {
-                Media(
-                    idMal: ${'$'}idMal,
-                    type: ${'$'}type
-                ) {
-                    id
+            query (${'$'}id: Int) {
+                Media(id: ${'$'}id) {
+                    idMal
                 }
             }
         """.trimIndent()
-
-        val variables = JSONObject()
-            .put("idMal", externalId)
-            .put(
-                "type",
-                when (entry.type) {
-                    MediaType.Anime, MediaType.Movie, MediaType.TvShow -> "ANIME"
-                    MediaType.Manga -> "MANGA"
-                }
-            )
-
-        val response = postAniList(
-            token = token,
-            query = query,
-            variables = variables
-        )
-
-        return JSONObject(response)
-            .optJSONObject("data")
-            ?.optJSONObject("Media")
-            ?.optInt("id", 0)
-            ?.takeIf { it > 0 }
+        val variables = JSONObject().put("id", aniListId)
+        return runCatching {
+            val response = postAniList(token = token, query = query, variables = variables)
+            JSONObject(response)
+                .optJSONObject("data")
+                ?.optJSONObject("Media")
+                ?.optInt("idMal", 0)
+                ?.takeIf { it > 0 }
+        }.getOrNull()
     }
 
     fun fetchAniListUserId(
@@ -532,7 +607,7 @@ object AniListSyncManager {
     }
 
     private fun postAniList(
-        token: String,
+        token: String?,
         query: String,
         variables: JSONObject
     ): String {
@@ -541,13 +616,17 @@ object AniListSyncManager {
             .put("variables", variables)
             .toString()
 
-        val request = Request.Builder()
+        val requestBuilder = Request.Builder()
             .url("https://graphql.anilist.co")
             .post(payload.toRequestBody("application/json; charset=utf-8".toMediaTypeOrNull()))
             .header("Content-Type", "application/json")
             .header("Accept", "application/json")
-            .header("Authorization", "Bearer $token")
-            .build()
+
+        if (!token.isNullOrBlank()) {
+            requestBuilder.header("Authorization", "Bearer $token")
+        }
+
+        val request = requestBuilder.build()
 
         try {
             com.kitsugi.animelist.core.network.KitsugiHttpClient.client.newCall(request).execute().use { response ->

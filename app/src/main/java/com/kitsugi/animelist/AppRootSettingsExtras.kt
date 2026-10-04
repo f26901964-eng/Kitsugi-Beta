@@ -126,8 +126,41 @@ internal fun SettingsContext.buildSettingsParams() =
             onImportTextChange = { appViewModel.updateImportText(it) },
             syncEnabledAnilist = appSettings.syncEnabledAnilist,
             syncEnabledMal = appSettings.syncEnabledMal,
+            syncEnabledSimkl = appSettings.syncEnabledSimkl,
             onSyncEnabledAnilistChanged = { onSyncEnabledAnilistChanged(it) },
-            onSyncEnabledMalChanged = { onSyncEnabledMalChanged(it) }
+            onSyncEnabledMalChanged = { onSyncEnabledMalChanged(it) },
+            onSyncEnabledSimklChanged = { onSyncEnabledSimklChanged(it) },
+            isKitsuConnected = authViewModel.isKitsuConnected,
+            kitsuUsername = appSettings.kitsuUsername,
+            isKitsuImportRunning = authViewModel.isKitsuImportRunning,
+            onKitsuAuthClick = { authViewModel.disconnectExternalAccount("kitsu") },
+            onKitsuImportClick = { authViewModel.importKitsuList(mediaEntries, mediaRepository) },
+            syncEnabledKitsu = appSettings.syncEnabledKitsu,
+            onSyncEnabledKitsuChanged = { onSyncEnabledKitsuChanged(it) },
+            onLoginKitsu = { username, password, onComplete ->
+                authViewModel.loginKitsu(
+                    username = username,
+                    password = password,
+                    onSuccess = { onComplete(true, null) },
+                    onError = { onComplete(false, it) }
+                )
+            },
+            isShikimoriConnected = authViewModel.isShikimoriConnected,
+            shikimoriUsername = appSettings.shikimoriUsername,
+            isShikimoriImportRunning = authViewModel.isShikimoriImportRunning,
+            onShikimoriAuthClick = { authViewModel.disconnectExternalAccount("shikimori") },
+            onShikimoriImportClick = { authViewModel.importShikimoriList(mediaEntries, mediaRepository) },
+            syncEnabledShikimori = appSettings.syncEnabledShikimori,
+            onSyncEnabledShikimoriChanged = { onSyncEnabledShikimoriChanged(it) },
+            onLoginShikimori = { clientId, clientSecret, authCode, onComplete ->
+                authViewModel.loginShikimori(
+                    clientId = clientId,
+                    clientSecret = clientSecret,
+                    authCode = authCode,
+                    onSuccess = { onComplete(true, null) },
+                    onError = { onComplete(false, it) }
+                )
+            }
         ),
         player = com.kitsugi.animelist.ui.screens.settings.PlayerSettings(
             playerPreference = appSettings.playerPreference,
@@ -927,6 +960,27 @@ internal fun SettingsContext.onSyncEnabledMalChanged(enabled: Boolean) {
     coroutineScope.launch {
         settingsDataStore.setSyncEnabledMal(enabled)
         appViewModel.showSnackbarMessage(if (enabled) "MyAnimeList eşitlemesi açıldı" else "MyAnimeList eşitlemesi kapatıldı")
+    }
+}
+
+internal fun SettingsContext.onSyncEnabledSimklChanged(enabled: Boolean) {
+    coroutineScope.launch {
+        settingsDataStore.setSyncEnabledSimkl(enabled)
+        appViewModel.showSnackbarMessage(if (enabled) "Simkl eşitlemesi açıldı" else "Simkl eşitlemesi kapatıldı")
+    }
+}
+
+internal fun SettingsContext.onSyncEnabledKitsuChanged(enabled: Boolean) {
+    coroutineScope.launch {
+        settingsDataStore.setSyncEnabledKitsu(enabled)
+        appViewModel.showSnackbarMessage(if (enabled) "Kitsu eşitlemesi açıldı" else "Kitsu eşitlemesi kapatıldı")
+    }
+}
+
+internal fun SettingsContext.onSyncEnabledShikimoriChanged(enabled: Boolean) {
+    coroutineScope.launch {
+        settingsDataStore.setSyncEnabledShikimori(enabled)
+        appViewModel.showSnackbarMessage(if (enabled) "Shikimori eşitlemesi açıldı" else "Shikimori eşitlemesi kapatıldı")
     }
 }
 

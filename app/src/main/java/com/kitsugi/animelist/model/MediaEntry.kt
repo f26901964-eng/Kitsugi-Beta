@@ -21,7 +21,7 @@ enum class WatchStatus(
 data class MediaEntry(
     val id: Int,
     val title: String,
-    val subtitle: String,
+    val subtitle: String = "",
     val type: MediaType,
     val status: WatchStatus,
     val score: Int?,

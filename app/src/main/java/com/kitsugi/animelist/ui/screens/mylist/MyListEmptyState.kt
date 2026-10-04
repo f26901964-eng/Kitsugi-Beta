@@ -23,21 +23,27 @@ internal fun MyListNotConnectedState(
     val title = when (selectedTabIndex) {
         0 -> "AniList Bağlı Değil"
         1 -> "MyAnimeList Bağlı Değil"
-        else -> {
+        2 -> {
             if (isSimklSessionExpired) "Simkl Oturum Süresi Doldu"
             else "Simkl Bağlı Değil"
         }
+        3 -> "Kitsu Bağlı Değil"
+        4 -> "Shikimori Bağlı Değil"
+        else -> "Hesap Bağlı Değil"
     }
 
     val subtitle = when (selectedTabIndex) {
         0 -> "AniList kütüphanenizi görüntülemek için hesabınızı bağlayın."
         1 -> "MyAnimeList kütüphanenizi görüntülemek için hesabınızı bağlayın."
-        else -> {
+        2 -> {
             if (isSimklSessionExpired)
                 "Simkl oturum süresi doldu. Senkronizasyonu sürdürmek için tekrar bağlayın."
             else
                 "Simkl kütüphanenizi görüntülemek için hesabınızı bağlayın."
         }
+        3 -> "Kitsu kütüphanenizi görüntülemek için hesabınızı bağlayın."
+        4 -> "Shikimori kütüphanenizi görüntülemek için hesabınızı bağlayın."
+        else -> "Kütüphanenizi görüntülemek için hesabınızı bağlayın."
     }
 
     val actionText = if (isSimklSessionExpired && selectedTabIndex == 2) "Yeniden Bağlan" else "Hesabı Bağla"

@@ -2,10 +2,12 @@ package com.kitsugi.animelist.data.auth
 
 import android.content.Context
 import com.kitsugi.animelist.model.MediaEntry
+import com.kitsugi.animelist.model.MediaType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.first
 import com.kitsugi.animelist.data.settings.SettingsDataStore
+import com.kitsugi.animelist.data.local.toEntity
 
 object ExternalListSyncManager {
     private const val ANILIST_SYNTHETIC_ID_OFFSET = 100_000_000
@@ -24,57 +26,130 @@ object ExternalListSyncManager {
             val settings = runCatching { SettingsDataStore(context).settingsFlow.first() }.getOrNull()
             val syncEnabledAniList = settings?.syncEnabledAnilist ?: true
             val syncEnabledMal = settings?.syncEnabledMal ?: true
+            val syncEnabledSimkl = settings?.syncEnabledSimkl ?: true
+            val syncEnabledKitsu = settings?.syncEnabledKitsu ?: true
+            val syncEnabledShikimori = settings?.syncEnabledShikimori ?: true
 
             val aniListToken = ExternalAuthManager.getAniListToken(context)
             val malToken = ExternalAuthManager.getOrRefreshMalToken(context)
             val simklToken = ExternalAuthManager.getSimklToken(context)
+            val kitsuToken = ExternalAuthManager.getKitsuToken(context)
+            val shikimoriToken = ExternalAuthManager.getOrRefreshShikimoriToken(context)
 
-            val realMalId = entry.malId?.takeIf { it.isRealMalId() }
+            var realMalId = entry.malId?.takeIf { it.isRealMalId() }
 
-            // Unified sync: her servis kendi token + ayar + ID varlığına göre bağımsız değerlendirilir.
-            // entry.source artık kısıtlayıcı filtre olarak kullanılmaz; birden fazla servise aynı anda sync yapılabilir.
-            val shouldSyncAniList = syncEnabledAniList && !aniListToken.isNullOrBlank() &&
-                (entry.aniListEntryId != null || realMalId != null || entry.source == "anilist")
-            val shouldSyncMal = syncEnabledMal && !malToken.isNullOrBlank() && realMalId != null
-            val shouldSyncSimkl = !simklToken.isNullOrBlank() &&
-                ((entry.simklId != null && entry.simklId > 0) || entry.malId != null || entry.tmdbId != null)
+            // 1. Gerçek MAL ID eksikse ancak anime/manga ise çözmeyi dene (AniList -> MAL / Simkl -> MAL eşitlemesi için)
+            val isAnimeOrManga = entry.type == MediaType.Anime || entry.type == MediaType.Manga
+            if (realMalId == null && isAnimeOrManga) {
+                val rawAniListId = if (entry.source == "anilist" && entry.malId != null && entry.malId >= ANILIST_SYNTHETIC_ID_OFFSET) {
+                    entry.malId - ANILIST_SYNTHETIC_ID_OFFSET
+                } else null
 
-            if (shouldSyncAniList) {
-                runCatching {
-                    AniListSyncManager.updateAniListEntry(
-                        token = aniListToken!!,
-                        entry = entry,
-                        advancedScores = advancedScores
-                    )
-                }.onSuccess { remoteId ->
-                    if (remoteId != null) resolvedAniListEntryId = remoteId
-                    syncedSources.add("AniList")
-                }.onFailure { error ->
-                    errors.add("AniList: ${error.message}")
+                val rawKitsuId = if (entry.source == "kitsu" || (entry.malId != null && entry.malId >= 300_000_000)) {
+                    if (entry.malId != null && entry.malId >= 300_000_000) entry.malId - 300_000_000 else entry.malId
+                } else null
+
+                if (rawAniListId != null) {
+                    val resolvedMal = runCatching {
+                        AniListSyncManager.resolveMalIdFromAniList(token = aniListToken, aniListId = rawAniListId)
+                    }.getOrNull()
+                    if (resolvedMal != null && resolvedMal.isRealMalId()) {
+                        realMalId = resolvedMal
+                    }
                 }
-            }
 
-            // AniList bağlıysa favori durumunu senkronize et (Toggle-flip'i önlemek için güncel durumu kontrol ederiz)
-            if (syncEnabledAniList && !aniListToken.isNullOrBlank()) {
-                val malIdVal = entry.malId
-                if (entry.source == "anilist" || (malIdVal != null && malIdVal.isRealMalId())) {
-                    runCatching {
-                        val remoteFav = AniListSyncManager.getAniListMediaFavoriteStatus(aniListToken, entry)
-                        if (remoteFav != null && remoteFav != entry.isFavorite) {
-                            AniListSyncManager.toggleAniListFavourite(aniListToken, entry)
-                            if (entry.source != "anilist" && !syncedSources.contains("AniList")) {
-                                syncedSources.add("AniList")
-                            }
+                if (realMalId == null) {
+                    val armMal = runCatching {
+                        com.kitsugi.animelist.data.remote.KitsugiIdResolver.resolveIds(
+                            malId = null,
+                            aniListId = rawAniListId,
+                            tmdbId = entry.tmdbId,
+                            mediaType = entry.type,
+                            kitsuId = rawKitsuId
+                        ).malId
+                    }.getOrNull()
+                    if (armMal != null && armMal.isRealMalId()) {
+                        realMalId = armMal
+                    }
+                }
+
+                if (realMalId == null) {
+                    val searchTitle = entry.titleEnglish?.takeIf { it.isNotBlank() } ?: entry.title.takeIf { it.isNotBlank() }
+                    if (!searchTitle.isNullOrBlank()) {
+                        val jikanResults = runCatching {
+                            com.kitsugi.animelist.data.remote.JikanSearchClient().searchMALOnly(
+                                query = searchTitle,
+                                mediaType = entry.type
+                            )
+                        }.getOrNull()
+                        val jikanMal = jikanResults?.firstOrNull()?.let { res -> (res.realMalId ?: res.malId).takeIf { it.isRealMalId() } }
+                        if (jikanMal != null) {
+                            realMalId = jikanMal
                         }
                     }
                 }
             }
 
+            // Eğer gerçek MAL ID yeni çözüldüyse yerel veritabanına da kaydet
+            val effectiveEntry = if (realMalId != null && realMalId != entry.malId) {
+                val updated = entry.copy(malId = realMalId)
+                runCatching {
+                    val dao = com.kitsugi.animelist.data.local.KitsugiDatabase.getDatabase(context).mediaEntryDao()
+                    dao.update(updated.toEntity())
+                }
+                updated
+            } else {
+                entry
+            }
+
+            // ── AniList Senkronizasyonu (Anime & Manga) ──────────────────────────
+            val shouldSyncAniList = syncEnabledAniList && !aniListToken.isNullOrBlank() && isAnimeOrManga
+
+            if (shouldSyncAniList) {
+                runCatching {
+                    AniListSyncManager.updateAniListEntry(
+                        token = aniListToken!!,
+                        entry = effectiveEntry,
+                        advancedScores = advancedScores
+                    )
+                }.onSuccess { remoteId ->
+                    if (remoteId != null && remoteId > 0) {
+                        resolvedAniListEntryId = remoteId
+                        syncedSources.add("AniList")
+                        // Yeni dönen aniListEntryId'yi yerel DB'ye yaz
+                        if (effectiveEntry.aniListEntryId != remoteId) {
+                            runCatching {
+                                val dao = com.kitsugi.animelist.data.local.KitsugiDatabase.getDatabase(context).mediaEntryDao()
+                                dao.update(effectiveEntry.copy(aniListEntryId = remoteId).toEntity())
+                            }
+                        }
+                    }
+                }.onFailure { error ->
+                    errors.add("AniList: ${error.message}")
+                }
+            }
+
+            // AniList favori durumu senkronizasyonu
+            if (syncEnabledAniList && !aniListToken.isNullOrBlank() && isAnimeOrManga) {
+                runCatching {
+                    val remoteFav = AniListSyncManager.getAniListMediaFavoriteStatus(aniListToken, effectiveEntry)
+                    if (remoteFav != null && remoteFav != effectiveEntry.isFavorite) {
+                        AniListSyncManager.toggleAniListFavourite(aniListToken, effectiveEntry)
+                        if (!syncedSources.contains("AniList")) {
+                            syncedSources.add("AniList")
+                        }
+                    }
+                }
+            }
+
+            // ── MyAnimeList (MAL) Senkronizasyonu (Anime & Manga) ────────────────
+            val shouldSyncMal = syncEnabledMal && !malToken.isNullOrBlank() && realMalId != null && isAnimeOrManga
+
             if (shouldSyncMal && realMalId != null) {
                 runCatching {
                     MalSyncManager.updateMalEntry(
                         token = malToken!!,
-                        entry = entry
+                        entry = effectiveEntry
                     )
                 }.onSuccess {
                     syncedSources.add("MyAnimeList")
@@ -83,17 +158,54 @@ object ExternalListSyncManager {
                 }
             }
 
+            // ── Simkl Senkronizasyonu (Anime, Film, Dizi — Tümü) ──────────────────
+            val shouldSyncSimkl = syncEnabledSimkl && !simklToken.isNullOrBlank()
+
             if (shouldSyncSimkl) {
                 runCatching {
-                    SimklSyncManager.syncEntryToSimkl(context, entry)
+                    SimklSyncManager.syncEntryToSimkl(context, effectiveEntry)
                 }.onSuccess { simklResult ->
-                    if (simklResult.errors.isEmpty()) {
+                    if (simklResult.isSuccess) {
                         syncedSources.add("Simkl")
                     } else {
                         errors.addAll(simklResult.errors)
                     }
                 }.onFailure { error ->
                     errors.add("Simkl: ${error.message}")
+                }
+            }
+
+            // ── Kitsu Senkronizasyonu (Anime & Manga) ───────────────────────────
+            val shouldSyncKitsu = syncEnabledKitsu && !kitsuToken.isNullOrBlank() && isAnimeOrManga
+
+            if (shouldSyncKitsu) {
+                runCatching {
+                    KitsuSyncManager.syncEntryToKitsu(context, effectiveEntry)
+                }.onSuccess { kitsuResult ->
+                    if (kitsuResult.errors.isEmpty()) {
+                        syncedSources.add("Kitsu")
+                    } else {
+                        errors.addAll(kitsuResult.errors)
+                    }
+                }.onFailure { error ->
+                    errors.add("Kitsu: ${error.message}")
+                }
+            }
+
+            // ── Shikimori Senkronizasyonu (Anime & Manga) ────────────────────────
+            val shouldSyncShikimori = syncEnabledShikimori && !shikimoriToken.isNullOrBlank() && isAnimeOrManga
+
+            if (shouldSyncShikimori) {
+                runCatching {
+                    ShikimoriSyncManager.syncEntryToShikimori(context, effectiveEntry)
+                }.onSuccess { shikiResult ->
+                    if (shikiResult.errors.isEmpty()) {
+                        syncedSources.add("Shikimori")
+                    } else {
+                        errors.addAll(shikiResult.errors)
+                    }
+                }.onFailure { error ->
+                    errors.add("Shikimori: ${error.message}")
                 }
             }
 
@@ -122,19 +234,24 @@ object ExternalListSyncManager {
             val settings = runCatching { SettingsDataStore(context).settingsFlow.first() }.getOrNull()
             val syncEnabledAniList = settings?.syncEnabledAnilist ?: true
             val syncEnabledMal = settings?.syncEnabledMal ?: true
+            val syncEnabledSimkl = settings?.syncEnabledSimkl ?: true
+            val syncEnabledKitsu = settings?.syncEnabledKitsu ?: true
+            val syncEnabledShikimori = settings?.syncEnabledShikimori ?: true
 
             val aniListToken = ExternalAuthManager.getAniListToken(context)
             val malToken = ExternalAuthManager.getOrRefreshMalToken(context)
             val simklToken = ExternalAuthManager.getSimklToken(context)
+            val kitsuToken = ExternalAuthManager.getKitsuToken(context)
+            val shikimoriToken = ExternalAuthManager.getOrRefreshShikimoriToken(context)
 
             val realMalId = entry.malId?.takeIf { it.isRealMalId() }
+            val isAnimeOrManga = entry.type == MediaType.Anime || entry.type == MediaType.Manga
 
-            // Unified delete: her servis kendi token + ayar + ID varlığına göre bağımsız değerlendirilir.
-            val shouldDeleteAniList = syncEnabledAniList && !aniListToken.isNullOrBlank() &&
-                (entry.aniListEntryId != null || realMalId != null || entry.source == "anilist")
-            val shouldDeleteMal = syncEnabledMal && !malToken.isNullOrBlank() && realMalId != null
-            val shouldDeleteSimkl = !simklToken.isNullOrBlank() &&
-                ((entry.simklId != null && entry.simklId > 0) || entry.malId != null || entry.tmdbId != null)
+            val shouldDeleteAniList = syncEnabledAniList && !aniListToken.isNullOrBlank() && isAnimeOrManga
+            val shouldDeleteMal = syncEnabledMal && !malToken.isNullOrBlank() && realMalId != null && isAnimeOrManga
+            val shouldDeleteSimkl = syncEnabledSimkl && !simklToken.isNullOrBlank()
+            val shouldDeleteKitsu = syncEnabledKitsu && !kitsuToken.isNullOrBlank() && isAnimeOrManga
+            val shouldDeleteShikimori = syncEnabledShikimori && !shikimoriToken.isNullOrBlank() && isAnimeOrManga
 
             if (shouldDeleteAniList) {
                 runCatching {
@@ -166,13 +283,41 @@ object ExternalListSyncManager {
                 runCatching {
                     SimklSyncManager.deleteEntryFromSimkl(context, entry)
                 }.onSuccess { simklResult ->
-                    if (simklResult.errors.isEmpty()) {
+                    if (simklResult.isSuccess) {
                         deletedSources.add("Simkl")
                     } else {
                         errors.addAll(simklResult.errors)
                     }
                 }.onFailure { error ->
                     errors.add("Simkl silme: ${error.message}")
+                }
+            }
+
+            if (shouldDeleteKitsu) {
+                runCatching {
+                    KitsuSyncManager.deleteEntryFromKitsu(context, entry)
+                }.onSuccess { kitsuResult ->
+                    if (kitsuResult.errors.isEmpty()) {
+                        deletedSources.add("Kitsu")
+                    } else {
+                        errors.addAll(kitsuResult.errors)
+                    }
+                }.onFailure { error ->
+                    errors.add("Kitsu silme: ${error.message}")
+                }
+            }
+
+            if (shouldDeleteShikimori) {
+                runCatching {
+                    ShikimoriSyncManager.deleteEntryFromShikimori(context, entry)
+                }.onSuccess { shikiResult ->
+                    if (shikiResult.errors.isEmpty()) {
+                        deletedSources.add("Shikimori")
+                    } else {
+                        errors.addAll(shikiResult.errors)
+                    }
+                }.onFailure { error ->
+                    errors.add("Shikimori silme: ${error.message}")
                 }
             }
 

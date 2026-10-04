@@ -382,6 +382,9 @@ class AppViewModel : ViewModel() {
                     com.kitsugi.animelist.data.remote.SimklApiClient().lookupSimklId(
                         malId = finalMalId,
                         tmdbId = finalTmdbId,
+                        aniListId = rawAniListId ?: resolvedIds?.aniListId,
+                        title = result.titleEnglish ?: result.title,
+                        year = result.year,
                         mediaType = result.type
                     )
                 }.getOrNull()

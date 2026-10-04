@@ -39,12 +39,30 @@ fun KitsugiAccountConnectionsDialog(
     isSimklSessionExpired: Boolean = false,
     onSimklImportClick: () -> Unit = {},
     onSimklAuthClick: () -> Unit = {},
+    isKitsuConnected: Boolean = false,
+    kitsuUsername: String = "",
+    isKitsuImportRunning: Boolean = false,
+    onKitsuImportClick: () -> Unit = {},
+    onKitsuAuthClick: () -> Unit = {},
+    syncEnabledKitsu: Boolean = false,
+    onSyncEnabledKitsuChanged: (Boolean) -> Unit = {},
+    onLoginKitsu: (username: String, password: String, onComplete: (Boolean, String?) -> Unit) -> Unit = { _, _, _ -> },
+    isShikimoriConnected: Boolean = false,
+    shikimoriUsername: String = "",
+    isShikimoriImportRunning: Boolean = false,
+    onShikimoriImportClick: () -> Unit = {},
+    onShikimoriAuthClick: () -> Unit = {},
+    syncEnabledShikimori: Boolean = false,
+    onSyncEnabledShikimoriChanged: (Boolean) -> Unit = {},
+    onLoginShikimori: (clientId: String, clientSecret: String, authCode: String, onComplete: (Boolean, String?) -> Unit) -> Unit = { _, _, _, _ -> },
     isCrossSyncRunning: Boolean = false,
     onCrossSyncClick: () -> Unit = {},
     syncEnabledAnilist: Boolean = false,
     onSyncEnabledAnilistChanged: (Boolean) -> Unit = {},
     syncEnabledMal: Boolean = false,
     onSyncEnabledMalChanged: (Boolean) -> Unit = {},
+    syncEnabledSimkl: Boolean = false,
+    onSyncEnabledSimklChanged: (Boolean) -> Unit = {},
     embeddedMode: Boolean = false,
     onDismiss: () -> Unit
 ) {
@@ -106,12 +124,30 @@ fun KitsugiAccountConnectionsDialog(
                 isSimklSessionExpired = isSimklSessionExpired,
                 onSimklImportClick = onSimklImportClick,
                 onSimklAuthClick = onSimklAuthClick,
+                isKitsuConnected = isKitsuConnected,
+                kitsuUsername = kitsuUsername,
+                isKitsuImportRunning = isKitsuImportRunning,
+                onKitsuImportClick = onKitsuImportClick,
+                onKitsuAuthClick = onKitsuAuthClick,
+                syncEnabledKitsu = syncEnabledKitsu,
+                onSyncEnabledKitsuChanged = onSyncEnabledKitsuChanged,
+                onLoginKitsu = onLoginKitsu,
+                isShikimoriConnected = isShikimoriConnected,
+                shikimoriUsername = shikimoriUsername,
+                isShikimoriImportRunning = isShikimoriImportRunning,
+                onShikimoriImportClick = onShikimoriImportClick,
+                onShikimoriAuthClick = onShikimoriAuthClick,
+                syncEnabledShikimori = syncEnabledShikimori,
+                onSyncEnabledShikimoriChanged = onSyncEnabledShikimoriChanged,
+                onLoginShikimori = onLoginShikimori,
                 isCrossSyncRunning = isCrossSyncRunning,
                 onCrossSyncClick = onCrossSyncClick,
                 syncEnabledAnilist = syncEnabledAnilist,
                 onSyncEnabledAnilistChanged = onSyncEnabledAnilistChanged,
                 syncEnabledMal = syncEnabledMal,
                 onSyncEnabledMalChanged = onSyncEnabledMalChanged,
+                syncEnabledSimkl = syncEnabledSimkl,
+                onSyncEnabledSimklChanged = onSyncEnabledSimklChanged,
                 accentColor = accentColor,
                 scrollState = scrollState
             )
@@ -151,17 +187,37 @@ private fun AccountConnectionsTab(
     isSimklSessionExpired: Boolean,
     onSimklImportClick: () -> Unit,
     onSimklAuthClick: () -> Unit,
+    isKitsuConnected: Boolean,
+    kitsuUsername: String,
+    isKitsuImportRunning: Boolean,
+    onKitsuImportClick: () -> Unit,
+    onKitsuAuthClick: () -> Unit,
+    syncEnabledKitsu: Boolean,
+    onSyncEnabledKitsuChanged: (Boolean) -> Unit,
+    onLoginKitsu: (username: String, password: String, onComplete: (Boolean, String?) -> Unit) -> Unit,
+    isShikimoriConnected: Boolean,
+    shikimoriUsername: String,
+    isShikimoriImportRunning: Boolean,
+    onShikimoriImportClick: () -> Unit,
+    onShikimoriAuthClick: () -> Unit,
+    syncEnabledShikimori: Boolean,
+    onSyncEnabledShikimoriChanged: (Boolean) -> Unit,
+    onLoginShikimori: (clientId: String, clientSecret: String, authCode: String, onComplete: (Boolean, String?) -> Unit) -> Unit,
     isCrossSyncRunning: Boolean,
     onCrossSyncClick: () -> Unit,
     syncEnabledAnilist: Boolean,
     onSyncEnabledAnilistChanged: (Boolean) -> Unit,
     syncEnabledMal: Boolean,
     onSyncEnabledMalChanged: (Boolean) -> Unit,
+    syncEnabledSimkl: Boolean,
+    onSyncEnabledSimklChanged: (Boolean) -> Unit,
     accentColor: Color,
     scrollState: androidx.compose.foundation.ScrollState
 ) {
     val isTv = LocalIsTv.current
     var showTvQrDialog by remember { mutableStateOf(false) }
+    var showKitsuLoginDialog by remember { mutableStateOf(false) }
+    var showShikimoriLoginDialog by remember { mutableStateOf(false) }
 
     Column(
         modifier = Modifier
@@ -280,6 +336,15 @@ private fun AccountConnectionsTab(
                         onClick = { if (!isSimklImportRunning) onSimklImportClick() }
                     )
                     KitsugiSettingsDivider()
+                    KitsugiSettingsSwitchItem(
+                        title = "Otomatik Eşitleme",
+                        description = "Kitsugi'deki değişiklikleri Simkl'e otomatik yansıt",
+                        icon = Icons.Rounded.CloudSync,
+                        iconColor = KitsugiColors.AccentBlue,
+                        checked = syncEnabledSimkl,
+                        onCheckedChange = onSyncEnabledSimklChanged
+                    )
+                    KitsugiSettingsDivider()
                     KitsugiSettingsItem(
                         title = "Simkl Bağlantısını Kes",
                         description = "Hesabınızı uygulamadan kaldırır",
@@ -313,17 +378,121 @@ private fun AccountConnectionsTab(
             }
         }
 
-        // Çift Yönlü Eşitleme
-        if (isAniListConnected && isMalConnected) {
-            KitsugiSettingsSection(title = "Eşitleme") {
+        // Kitsu
+        val kitsuColor = Color(0xFFFD755C)
+        KitsugiSettingsSection(title = "Kitsu Hesabı") {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
+            ) {
+                if (isKitsuConnected) {
+                    KitsugiSettingsItem(
+                        title = "Kitsu Hesabı ($kitsuUsername)",
+                        description = if (isKitsuImportRunning) "Senkronize ediliyor..." else "Listenizi Kitsu'dan içe aktarın",
+                        icon = Icons.Rounded.Sync,
+                        iconColor = KitsugiColors.AccentGreen,
+                        onClick = { if (!isKitsuImportRunning) onKitsuImportClick() }
+                    )
+                    KitsugiSettingsDivider()
+                    KitsugiSettingsSwitchItem(
+                        title = "Otomatik Eşitleme",
+                        description = "Kitsugi'deki değişiklikleri Kitsu'ya otomatik yansıt",
+                        icon = Icons.Rounded.CloudSync,
+                        iconColor = kitsuColor,
+                        checked = syncEnabledKitsu,
+                        onCheckedChange = onSyncEnabledKitsuChanged
+                    )
+                    KitsugiSettingsDivider()
+                    KitsugiSettingsItem(
+                        title = "Kitsu Bağlantısını Kes",
+                        description = "Hesabınızı uygulamadan kaldırır",
+                        icon = Icons.Rounded.LinkOff,
+                        iconColor = KitsugiColors.AccentRed,
+                        onClick = onKitsuAuthClick
+                    )
+                } else {
+                    KitsugiSettingsItem(
+                        title = "Kitsu Hesabını Bağla",
+                        description = "Kullanıcı adı ve şifrenizle giriş yapıp listenizi eşitleyin",
+                        icon = Icons.Rounded.Link,
+                        iconColor = kitsuColor,
+                        onClick = { showKitsuLoginDialog = true }
+                    )
+                }
+            }
+        }
+
+        // Shikimori
+        val shikimoriColor = Color(0xFF8E44AD)
+        KitsugiSettingsSection(title = "Shikimori Hesabı") {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(8.dp)
+            ) {
+                if (isShikimoriConnected) {
+                    KitsugiSettingsItem(
+                        title = "Shikimori Hesabı ($shikimoriUsername)",
+                        description = if (isShikimoriImportRunning) "Senkronize ediliyor..." else "Listenizi Shikimori'den içe aktarın",
+                        icon = Icons.Rounded.Sync,
+                        iconColor = KitsugiColors.AccentGreen,
+                        onClick = { if (!isShikimoriImportRunning) onShikimoriImportClick() }
+                    )
+                    KitsugiSettingsDivider()
+                    KitsugiSettingsSwitchItem(
+                        title = "Otomatik Eşitleme",
+                        description = "Kitsugi'deki değişiklikleri Shikimori'ye otomatik yansıt",
+                        icon = Icons.Rounded.CloudSync,
+                        iconColor = shikimoriColor,
+                        checked = syncEnabledShikimori,
+                        onCheckedChange = onSyncEnabledShikimoriChanged
+                    )
+                    KitsugiSettingsDivider()
+                    KitsugiSettingsItem(
+                        title = "Shikimori Bağlantısını Kes",
+                        description = "Hesabınızı uygulamadan kaldırır",
+                        icon = Icons.Rounded.LinkOff,
+                        iconColor = KitsugiColors.AccentRed,
+                        onClick = onShikimoriAuthClick
+                    )
+                } else {
+                    KitsugiSettingsItem(
+                        title = "Shikimori Hesabını Bağla",
+                        description = "OAuth2 yetkilendirme ile Shikimori listenizi eşitleyin",
+                        icon = Icons.Rounded.Link,
+                        iconColor = shikimoriColor,
+                        onClick = { showShikimoriLoginDialog = true }
+                    )
+                }
+            }
+        }
+
+        // Çok Yönlü Eşitleme (En az 2 hesap bağlıysa göster)
+        val connectedCount = (if (isAniListConnected) 1 else 0) +
+                (if (isMalConnected) 1 else 0) +
+                (if (isSimklConnected) 1 else 0) +
+                (if (isKitsuConnected) 1 else 0) +
+                (if (isShikimoriConnected) 1 else 0)
+
+        if (connectedCount >= 2) {
+            val connectedNames = mutableListOf<String>().apply {
+                if (isAniListConnected) add("AniList")
+                if (isMalConnected) add("MyAnimeList")
+                if (isSimklConnected) add("Simkl")
+                if (isKitsuConnected) add("Kitsu")
+                if (isShikimoriConnected) add("Shikimori")
+            }.joinToString(", ")
+
+            KitsugiSettingsSection(title = "Çok Yönlü Eşitleme") {
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(8.dp)
                 ) {
                     KitsugiSettingsItem(
-                        title = "Hesapları Birbiriyle Eşitle",
-                        description = if (isCrossSyncRunning) "Eşitleme yapılıyor..." else "AniList ve MyAnimeList verilerini karşılıklı güncelleyin",
+                        title = "Tüm Hesapları Birbiriyle Eşitle ($connectedCount/5)",
+                        description = if (isCrossSyncRunning) "Eşitleme yapılıyor..." else "$connectedNames verilerini karşılıklı güncelleyin",
                         icon = Icons.Rounded.Cached,
                         iconColor = KitsugiColors.AccentOrange,
                         onClick = { if (!isCrossSyncRunning) onCrossSyncClick() }
@@ -336,6 +505,20 @@ private fun AccountConnectionsTab(
     if (showTvQrDialog) {
         KitsugiTvQrLoginDialog(
             onDismiss = { showTvQrDialog = false }
+        )
+    }
+
+    if (showKitsuLoginDialog) {
+        KitsugiKitsuLoginDialog(
+            onDismiss = { showKitsuLoginDialog = false },
+            onLogin = onLoginKitsu
+        )
+    }
+
+    if (showShikimoriLoginDialog) {
+        KitsugiShikimoriLoginDialog(
+            onDismiss = { showShikimoriLoginDialog = false },
+            onLogin = onLoginShikimori
         )
     }
 }

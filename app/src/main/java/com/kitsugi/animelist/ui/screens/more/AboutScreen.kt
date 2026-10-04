@@ -57,7 +57,7 @@ fun AboutScreen(
 
     val version = BuildConfig.VERSION_NAME
     val developer = "Kitsugi Team"
-    val githubRepo = "https://github.com/KitsugiBeta-dev/Kitsugi-Beta"
+    val projectRepo = "https://codeberg.org/BlackDamage/Kitsugi-Beta"
 
     var showDeveloperLogs by remember { mutableStateOf(false) }
 
@@ -194,7 +194,7 @@ fun AboutScreen(
                         )
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
-                            text = "Kitsugi, anime ve manga listelerinizi en popüler platformlar (AniList, MAL, Simkl) ile gerçek zamanlı eşitleyen, entegre medya oynatıcı ve manga okuyucusu barındıran üst düzey bir takip uygulamasıdır.",
+                            text = "Kitsugi, anime ve manga listelerinizi en popüler platformlar (AniList, MAL, Simkl, Kitsu, Shikimori) ile gerçek zamanlı eşitleyen, entegre medya oynatıcı ve manga okuyucusu barındıran üst düzey bir takip uygulamasıdır.",
                             color = KitsugiColors.textSecondary,
                             style = MaterialTheme.typography.bodyMedium,
                             lineHeight = androidx.compose.ui.unit.TextUnit.Unspecified
@@ -210,7 +210,7 @@ fun AboutScreen(
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .clip(RoundedCornerShape(12.dp))
-                                .tvClickable { openUrl(githubRepo) }
+                                .tvClickable { openUrl(projectRepo) }
                                 .padding(8.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
@@ -223,7 +223,7 @@ fun AboutScreen(
                             Spacer(modifier = Modifier.width(12.dp))
                             Column {
                                 Text(
-                                    text = "GitHub Repository",
+                                    text = "Codeberg Repository",
                                     color = KitsugiColors.textPrimary,
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Bold

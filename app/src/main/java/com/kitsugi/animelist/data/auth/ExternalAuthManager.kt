@@ -48,6 +48,19 @@ object ExternalAuthManager {
     private const val KEY_SIMKL_TOKEN = "simkl_access_token"
     private const val KEY_SIMKL_CODE_VERIFIER = "simkl_code_verifier"
 
+    private const val KEY_KITSU_TOKEN = "kitsu_access_token"
+    private const val KEY_KITSU_REFRESH_TOKEN = "kitsu_refresh_token"
+    private const val KEY_KITSU_USER_ID = "kitsu_user_id"
+    private const val KEY_KITSU_USERNAME = "kitsu_username"
+
+    private const val KEY_SHIKIMORI_TOKEN = "shikimori_access_token"
+    private const val KEY_SHIKIMORI_REFRESH_TOKEN = "shikimori_refresh_token"
+    private const val KEY_SHIKIMORI_TOKEN_EXPIRES_AT = "shikimori_token_expires_at"
+    private const val KEY_SHIKIMORI_USER_ID = "shikimori_user_id"
+    private const val KEY_SHIKIMORI_USERNAME = "shikimori_username"
+    private const val KEY_SHIKIMORI_CLIENT_ID = "shikimori_client_id"
+    private const val KEY_SHIKIMORI_CLIENT_SECRET = "shikimori_client_secret"
+
     private const val REDIRECT_URI = "malapp://auth"
 
     private val _authEvents = MutableSharedFlow<AuthEvent>(
@@ -59,7 +72,9 @@ object ExternalAuthManager {
     data class AuthState(
         val isAniListConnected: Boolean,
         val isMalConnected: Boolean,
-        val isSimklConnected: Boolean
+        val isSimklConnected: Boolean,
+        val isKitsuConnected: Boolean = false,
+        val isShikimoriConnected: Boolean = false
     )
 
     sealed class AuthEvent {
@@ -82,7 +97,9 @@ object ExternalAuthManager {
         return AuthState(
             isAniListConnected = prefs.getString(KEY_ANILIST_TOKEN, null) != null,
             isMalConnected = prefs.getString(KEY_MAL_TOKEN, null) != null,
-            isSimklConnected = prefs.getString(KEY_SIMKL_TOKEN, null) != null
+            isSimklConnected = prefs.getString(KEY_SIMKL_TOKEN, null) != null,
+            isKitsuConnected = prefs.getString(KEY_KITSU_TOKEN, null) != null,
+            isShikimoriConnected = prefs.getString(KEY_SHIKIMORI_TOKEN, null) != null
         )
     }
 
@@ -96,6 +113,107 @@ object ExternalAuthManager {
 
     fun getSimklToken(context: Context): String? {
         return prefs(context).getString(KEY_SIMKL_TOKEN, null)
+    }
+
+    fun getKitsuToken(context: Context): String? = prefs(context).getString(KEY_KITSU_TOKEN, null)
+    fun getKitsuUserId(context: Context): String? = prefs(context).getString(KEY_KITSU_USER_ID, null)
+    fun getKitsuUsername(context: Context): String? = prefs(context).getString(KEY_KITSU_USERNAME, null)
+
+    fun saveKitsuAuth(context: Context, token: String, refreshToken: String, userId: String, username: String) {
+        prefs(context).edit()
+            .putString(KEY_KITSU_TOKEN, token)
+            .putString(KEY_KITSU_REFRESH_TOKEN, refreshToken)
+            .putString(KEY_KITSU_USER_ID, userId)
+            .putString(KEY_KITSU_USERNAME, username)
+            .apply()
+        _authEvents.tryEmit(AuthEvent.Success("kitsu"))
+    }
+
+    fun saveKitsuLibraryEntryId(context: Context, mediaId: Int, isAnime: Boolean, entryId: String) {
+        val key = "kitsu_entry_${if (isAnime) "a" else "m"}_$mediaId"
+        prefs(context).edit().putString(key, entryId).apply()
+    }
+
+    fun getKitsuLibraryEntryId(context: Context, mediaId: Int, isAnime: Boolean): String? {
+        val key = "kitsu_entry_${if (isAnime) "a" else "m"}_$mediaId"
+        return prefs(context).getString(key, null)
+    }
+
+    fun removeKitsuLibraryEntryId(context: Context, mediaId: Int, isAnime: Boolean) {
+        val key = "kitsu_entry_${if (isAnime) "a" else "m"}_$mediaId"
+        prefs(context).edit().remove(key).apply()
+    }
+
+    fun getShikimoriToken(context: Context): String? = prefs(context).getString(KEY_SHIKIMORI_TOKEN, null)
+    fun getShikimoriUserId(context: Context): Int? {
+        val id = prefs(context).getInt(KEY_SHIKIMORI_USER_ID, 0)
+        return if (id > 0) id else null
+    }
+    fun getShikimoriUsername(context: Context): String? = prefs(context).getString(KEY_SHIKIMORI_USERNAME, null)
+
+    fun getShikimoriClientId(context: Context): String {
+        return prefs(context).getString(KEY_SHIKIMORI_CLIENT_ID, null)?.takeIf { it.isNotBlank() } ?: ""
+    }
+
+    fun getShikimoriClientSecret(context: Context): String {
+        return prefs(context).getString(KEY_SHIKIMORI_CLIENT_SECRET, null)?.takeIf { it.isNotBlank() } ?: ""
+    }
+
+    fun saveShikimoriCredentials(context: Context, clientId: String, clientSecret: String) {
+        prefs(context).edit()
+            .putString(KEY_SHIKIMORI_CLIENT_ID, clientId.trim())
+            .putString(KEY_SHIKIMORI_CLIENT_SECRET, clientSecret.trim())
+            .apply()
+    }
+
+    fun saveShikimoriAuth(context: Context, token: String, refreshToken: String, expiresInSeconds: Long, userId: Int, username: String) {
+        val expiresAt = System.currentTimeMillis() + (expiresInSeconds * 1000L)
+        prefs(context).edit()
+            .putString(KEY_SHIKIMORI_TOKEN, token)
+            .putString(KEY_SHIKIMORI_REFRESH_TOKEN, refreshToken)
+            .putLong(KEY_SHIKIMORI_TOKEN_EXPIRES_AT, expiresAt)
+            .putInt(KEY_SHIKIMORI_USER_ID, userId)
+            .putString(KEY_SHIKIMORI_USERNAME, username)
+            .apply()
+        _authEvents.tryEmit(AuthEvent.Success("shikimori"))
+    }
+
+    suspend fun getOrRefreshShikimoriToken(context: Context): String? = withContext(Dispatchers.IO) {
+        val p = prefs(context)
+        val token = p.getString(KEY_SHIKIMORI_TOKEN, null) ?: return@withContext null
+        val expiresAt = p.getLong(KEY_SHIKIMORI_TOKEN_EXPIRES_AT, 0L)
+        val refreshToken = p.getString(KEY_SHIKIMORI_REFRESH_TOKEN, null)
+
+        if (System.currentTimeMillis() + 60_000 >= expiresAt && !refreshToken.isNullOrBlank()) {
+            val clientId = getShikimoriClientId(context)
+            val clientSecret = getShikimoriClientSecret(context)
+            if (clientId.isNotBlank() && clientSecret.isNotBlank()) {
+                val refreshResult = runCatching {
+                    ShikimoriApiClient.refreshToken(clientId, clientSecret, refreshToken)
+                }.getOrNull()
+                if (refreshResult != null) {
+                    saveShikimoriAuth(context, refreshResult.accessToken, refreshResult.refreshToken, refreshResult.expiresIn, p.getInt(KEY_SHIKIMORI_USER_ID, 0), p.getString(KEY_SHIKIMORI_USERNAME, "Shikimori") ?: "Shikimori")
+                    return@withContext refreshResult.accessToken
+                }
+            }
+        }
+        token
+    }
+
+    fun saveShikimoriRateId(context: Context, malId: Int, targetType: String, rateId: Int) {
+        val key = "shikimori_rate_${targetType.lowercase()}_$malId"
+        prefs(context).edit().putInt(key, rateId).apply()
+    }
+
+    fun getShikimoriRateId(context: Context, malId: Int, targetType: String): Int? {
+        val key = "shikimori_rate_${targetType.lowercase()}_$malId"
+        val id = prefs(context).getInt(key, 0)
+        return if (id > 0) id else null
+    }
+
+    fun removeShikimoriRateId(context: Context, malId: Int, targetType: String) {
+        val key = "shikimori_rate_${targetType.lowercase()}_$malId"
+        prefs(context).edit().remove(key).apply()
     }
 
     fun getAuthUrlAndPrepare(context: Context, serviceName: String): String {
@@ -326,15 +444,31 @@ object ExternalAuthManager {
         context: Context,
         serviceName: String
     ) {
-        val keyToRemove = when (serviceName) {
-            "anilist" -> KEY_ANILIST_TOKEN
-            "simkl" -> KEY_SIMKL_TOKEN
-            else -> KEY_MAL_TOKEN
-        }
-
-        val editor = prefs(context).edit().remove(keyToRemove)
-        if (serviceName == "simkl") {
-            editor.remove("simkl_session_expired")
+        val editor = prefs(context).edit()
+        when (serviceName.lowercase()) {
+            "anilist" -> editor.remove(KEY_ANILIST_TOKEN)
+            "simkl" -> {
+                editor.remove(KEY_SIMKL_TOKEN)
+                editor.remove("simkl_session_expired")
+            }
+            "kitsu" -> {
+                editor.remove(KEY_KITSU_TOKEN)
+                editor.remove(KEY_KITSU_REFRESH_TOKEN)
+                editor.remove(KEY_KITSU_USER_ID)
+                editor.remove(KEY_KITSU_USERNAME)
+            }
+            "shikimori" -> {
+                editor.remove(KEY_SHIKIMORI_TOKEN)
+                editor.remove(KEY_SHIKIMORI_REFRESH_TOKEN)
+                editor.remove(KEY_SHIKIMORI_TOKEN_EXPIRES_AT)
+                editor.remove(KEY_SHIKIMORI_USER_ID)
+                editor.remove(KEY_SHIKIMORI_USERNAME)
+            }
+            else -> {
+                editor.remove(KEY_MAL_TOKEN)
+                editor.remove(KEY_MAL_REFRESH_TOKEN)
+                editor.remove(KEY_MAL_TOKEN_EXPIRES_AT)
+            }
         }
         editor.apply()
     }

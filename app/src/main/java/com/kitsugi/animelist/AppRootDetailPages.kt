@@ -287,10 +287,13 @@ fun AppRootDetailPages(
                                 isFavorite = true,
                                 isAdult = result.isAdult,
                                 source = result.source,
-                                malId = result.malId,
+                                malId = result.realMalId ?: result.malId,
                                 imageUrl = result.imageUrl,
                                 year = result.year,
-                                synopsis = selection.synopsis
+                                synopsis = selection.synopsis,
+                                tmdbId = result.tmdbId,
+                                titleEnglish = result.titleEnglish,
+                                titleJapanese = result.titleJapanese
                             )
                             coroutineScope.launch {
                                 mediaRepository.insert(newEntry)

@@ -282,22 +282,33 @@ class CloudstreamRepoRepository(private val context: Context) {
 
     suspend fun installCsPlugin(plugin: CsPlugin): Boolean = withContext(Dispatchers.IO) {
         try {
-            val downloadSuccess = com.kitsugi.animelist.data.cloudstream.CsPluginLoader.downloadExtension(
+            val normalizedUrl = com.kitsugi.animelist.utils.CloudstreamUrlHelper.normalizeUrl(plugin.url)
+            var downloadSuccess = com.kitsugi.animelist.data.cloudstream.CsPluginLoader.downloadExtension(
                 context,
                 plugin.internalName,
-                plugin.url,
+                normalizedUrl,
                 plugin.fileHash,
                 forceDownload = true
             )
             if (!downloadSuccess) {
-                Log.e(TAG, "Failed to download CS plugin: ${plugin.name}")
+                // Retry once without cache buster in case CDN/origin proxy rejected extra query param
+                downloadSuccess = com.kitsugi.animelist.data.cloudstream.CsPluginLoader.downloadExtension(
+                    context,
+                    plugin.internalName,
+                    normalizedUrl,
+                    plugin.fileHash,
+                    forceDownload = false
+                )
+            }
+            if (!downloadSuccess) {
+                Log.e(TAG, "Failed to download CS plugin: ${plugin.name} (url: $normalizedUrl)")
                 return@withContext false
             }
 
             val entity = com.kitsugi.animelist.data.local.CsPluginEntity(
                 id = plugin.internalName,
                 name = plugin.name,
-                downloadUrl = plugin.url,
+                downloadUrl = normalizedUrl,
                 tvTypes = com.google.gson.Gson().toJson(plugin.tvTypes ?: emptyList<String>()),
                 iconUrl = plugin.iconUrl,
                 version = plugin.version,

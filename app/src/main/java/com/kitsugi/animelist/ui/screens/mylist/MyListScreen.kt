@@ -71,7 +71,8 @@ import com.kitsugi.animelist.ui.components.KitsugiConfirmDialog
 import com.kitsugi.animelist.ui.components.KitsugiInfoDialog
 import com.kitsugi.animelist.ui.components.KitsugiImagePreviewDialog
 import com.kitsugi.animelist.ui.components.KitsugiMediaEntryEditorDialog
-import com.kitsugi.animelist.ui.components.KitsugiProfileHeaderCard
+import com.kitsugi.animelist.ui.components.KitsugiKitsuLoginDialog
+import com.kitsugi.animelist.ui.components.KitsugiShikimoriLoginDialog
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiColors
@@ -112,12 +113,20 @@ fun MyListScreen(
     isMalConnected: Boolean,
     isSimklConnected: Boolean,
     isSimklSessionExpired: Boolean,
+    isKitsuConnected: Boolean = false,
+    isShikimoriConnected: Boolean = false,
     onLoginAniList: () -> Unit,
     onLoginMal: () -> Unit,
     onLoginSimkl: () -> Unit,
+    onLoginKitsu: () -> Unit = {},
+    onLoginShikimori: () -> Unit = {},
     onSyncAniList: () -> Unit,
     onSyncMal: () -> Unit,
     onSyncSimkl: () -> Unit,
+    onSyncKitsu: () -> Unit = {},
+    onSyncShikimori: () -> Unit = {},
+    onKitsuAuthSubmit: (username: String, password: String, onComplete: (Boolean, String?) -> Unit) -> Unit = { _, _, _ -> },
+    onShikimoriAuthSubmit: (clientId: String, clientSecret: String, authCode: String, onComplete: (Boolean, String?) -> Unit) -> Unit = { _, _, _, _ -> },
     onEntryClick: (MediaEntry) -> Unit,
     onSettingsClick: () -> Unit,
     isBottomBarVisible: Boolean = true,
@@ -154,13 +163,15 @@ fun MyListScreen(
     var showStatusBottomSheet by rememberSaveable { mutableStateOf(false) }
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
     var showApiSearchDialog by rememberSaveable { mutableStateOf(false) }
+    var showKitsuLoginDialog by rememberSaveable { mutableStateOf(false) }
+    var showShikimoriLoginDialog by rememberSaveable { mutableStateOf(false) }
     var activeZoomImageUrl by rememberSaveable { mutableStateOf<String?>(null) }
     var activeZoomTitle by rememberSaveable { mutableStateOf("") }
 
-    // Pager state for AniList / MAL / Simkl tabs (3 tabs)
+    // Pager state for AniList / MAL / Simkl / Kitsu / Shikimori tabs (5 tabs)
     val tabPagerState = rememberPagerState(
-        initialPage = selectedTabIndex.coerceIn(0, 2),
-        pageCount = { 3 }
+        initialPage = selectedTabIndex.coerceIn(0, 4),
+        pageCount = { 5 }
     )
 
     // Pager page change -> notify parent
@@ -173,7 +184,7 @@ fun MyListScreen(
     // Parent tab change (chip click) -> animate pager
     LaunchedEffect(selectedTabIndex) {
         if (tabPagerState.currentPage != selectedTabIndex) {
-            tabPagerState.animateScrollToPage(selectedTabIndex.coerceIn(0, 2))
+            tabPagerState.animateScrollToPage(selectedTabIndex.coerceIn(0, 4))
         }
     }
 
@@ -210,7 +221,10 @@ fun MyListScreen(
                 when (selectedTabIndex) {
                     0 -> src == "anilist"
                     1 -> src == "mal" || src == "jikan" || src == "myanimelist"
-                    else -> src == "simkl"
+                    2 -> src == "simkl"
+                    3 -> src == "kitsu"
+                    4 -> src == "shikimori"
+                    else -> src == "anilist"
                 }
             }
         }
@@ -340,8 +354,8 @@ fun MyListScreen(
 
 
     // Per-tab scroll states — declared at top level so FAB can reference them
-    val tabScrollStates = remember { List(3) { androidx.compose.foundation.lazy.LazyListState() } }
-    val activeTabScrollState = tabScrollStates[selectedTabIndex.coerceIn(0, 2)]
+    val tabScrollStates = remember { List(5) { androidx.compose.foundation.lazy.LazyListState() } }
+    val activeTabScrollState = tabScrollStates[selectedTabIndex.coerceIn(0, 4)]
 
     Column(
         modifier = Modifier
@@ -404,6 +418,17 @@ fun MyListScreen(
                 selectedTabIndex = selectedTabIndex,
                 onTabIndexChange = onTabIndexChange,
                 visibleEntries = visibleEntries,
+                allEntries = entriesAfterAdultFilter,
+                isAniListConnected = isAniListConnected,
+                isMalConnected = isMalConnected,
+                isSimklConnected = isSimklConnected,
+                isKitsuConnected = isKitsuConnected,
+                isShikimoriConnected = isShikimoriConnected,
+                anilistUsername = appSettings.anilistUsername,
+                malUsername = appSettings.malUsername,
+                simklUsername = appSettings.simklUsername,
+                kitsuUsername = appSettings.kitsuUsername,
+                shikimoriUsername = appSettings.shikimoriUsername,
                 onEntryClick = onEntryClick,
                 onExternalSyncMessage = onExternalSyncMessage,
                 accentColor = accentColor,
@@ -467,7 +492,10 @@ fun MyListScreen(
                 val pageIsConnected = when (pageTabIndex) {
                     0 -> isAniListConnected
                     1 -> isMalConnected
-                    else -> isSimklConnected
+                    2 -> isSimklConnected
+                    3 -> isKitsuConnected
+                    4 -> isShikimoriConnected
+                    else -> false
                 }
                 val pageScrollState = tabScrollStates[pageTabIndex]
                 val pageEntries = remember(entriesAfterAdultFilter, pageTabIndex) {
@@ -476,7 +504,10 @@ fun MyListScreen(
                         when (pageTabIndex) {
                             0 -> src == "anilist"
                             1 -> src == "mal" || src == "jikan" || src == "myanimelist"
-                            else -> src == "simkl"
+                            2 -> src == "simkl"
+                            3 -> src == "kitsu"
+                            4 -> src == "shikimori"
+                            else -> src == "anilist"
                         }
                     }
                 }
@@ -498,14 +529,24 @@ fun MyListScreen(
                         when (pageTabIndex) {
                             0 -> onLoginAniList()
                             1 -> onLoginMal()
-                            else -> onLoginSimkl()
+                            2 -> onLoginSimkl()
+                            3 -> {
+                                if (isKitsuConnected) onLoginKitsu()
+                                else showKitsuLoginDialog = true
+                            }
+                            4 -> {
+                                if (isShikimoriConnected) onLoginShikimori()
+                                else showShikimoriLoginDialog = true
+                            }
                         }
                     },
                     onRefresh = {
                         when (pageTabIndex) {
                             0 -> onSyncAniList()
                             1 -> onSyncMal()
-                            else -> onSyncSimkl()
+                            2 -> onSyncSimkl()
+                            3 -> onSyncKitsu()
+                            4 -> onSyncShikimori()
                         }
                     },
                     onEntryClick = onEntryClick,
@@ -843,6 +884,34 @@ fun MyListScreen(
             onDismiss = {
                 activeZoomImageUrl = null
                 activeZoomTitle = ""
+            }
+        )
+    }
+
+    if (showKitsuLoginDialog) {
+        KitsugiKitsuLoginDialog(
+            onDismiss = { showKitsuLoginDialog = false },
+            onLogin = { username, password, onComplete ->
+                onKitsuAuthSubmit(username, password) { success, error ->
+                    onComplete(success, error)
+                    if (success) {
+                        onSyncKitsu()
+                    }
+                }
+            }
+        )
+    }
+
+    if (showShikimoriLoginDialog) {
+        KitsugiShikimoriLoginDialog(
+            onDismiss = { showShikimoriLoginDialog = false },
+            onLogin = { clientId, clientSecret, authCode, onComplete ->
+                onShikimoriAuthSubmit(clientId, clientSecret, authCode) { success, error ->
+                    onComplete(success, error)
+                    if (success) {
+                        onSyncShikimori()
+                    }
+                }
             }
         )
     }

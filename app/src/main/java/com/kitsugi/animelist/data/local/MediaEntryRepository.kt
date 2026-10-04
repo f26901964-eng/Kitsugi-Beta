@@ -60,17 +60,17 @@ class MediaEntryRepository(
         // Yerel DB'deki mevcut kayıtları al (sadece ilgili source)
         val existing = dao.getAll()
             .filter { it.source.equals(source, ignoreCase = true) }
-            .associateBy { it.malId }
+            .associateBy { it.toDomain().importKey() }
 
-        val importedByMalId = importedEntries
-            .filter { it.malId != null }
-            .associateBy { it.malId!! }
+        val importedByKey = importedEntries
+            .associateBy { it.importKey() }
 
         val toInsert = mutableListOf<MediaEntryEntity>()
         val toUpdate = mutableListOf<MediaEntryEntity>()
 
         for (imported in importedEntries) {
-            val existingEntity = existing[imported.malId]
+            val key = imported.importKey()
+            val existingEntity = existing[key]
             val importTime = if (imported.updatedAt > 0L) imported.updatedAt else (System.currentTimeMillis() / 1000L)
             val finalImported = imported.copy(updatedAt = importTime)
             if (existingEntity == null) {
@@ -84,13 +84,23 @@ class MediaEntryRepository(
         }
 
         // Uzak listede artık olmayan kayıtları sil
-        val importedMalIds = importedByMalId.keys
+        val importedKeys = importedByKey.keys
         val toDeleteIds = existing.values
-            .filter { it.malId == null || it.malId !in importedMalIds }
+            .filter { it.toDomain().importKey() !in importedKeys }
             .map { it.id }
 
         // Tek atomik transaction → Flow 1 kez tetiklenir
         dao.smartImportTransaction(toInsert, toUpdate, toDeleteIds)
+    }
+
+    private fun MediaEntry.importKey(): String {
+        return when {
+            simklId != null && simklId > 0 -> "simkl_$simklId"
+            malId != null && malId > 0 -> "mal_$malId"
+            aniListEntryId != null && aniListEntryId > 0 -> "al_$aniListEntryId"
+            tmdbId != null && tmdbId > 0 -> "tmdb_$tmdbId"
+            else -> "title_${title.trim().lowercase()}_${type.name}"
+        }
     }
 
     /**
@@ -172,7 +182,9 @@ class MediaEntryRepository(
         val hasAniListLink = entry.aniListEntryId != null || entry.source == "anilist"
         val hasMalLink = entry.malId != null
         val hasSimklLink = entry.simklId != null && entry.simklId > 0
-        if (!hasAniListLink && !hasMalLink && !hasSimklLink) return
+        val hasTmdbLink = entry.tmdbId != null && entry.tmdbId > 0
+        val hasTitle = entry.title.isNotBlank() || !entry.titleEnglish.isNullOrBlank()
+        if (!hasAniListLink && !hasMalLink && !hasSimklLink && !hasTmdbLink && !hasTitle) return
 
         val result = runCatching {
             ExternalListSyncManager.syncEntry(
@@ -217,7 +229,9 @@ class MediaEntryRepository(
         val hasAniListLink = entry.aniListEntryId != null || entry.source == "anilist"
         val hasMalLink = entry.malId != null
         val hasSimklLink = entry.simklId != null && entry.simklId > 0
-        if (!hasAniListLink && !hasMalLink && !hasSimklLink) return
+        val hasTmdbLink = entry.tmdbId != null && entry.tmdbId > 0
+        val hasTitle = entry.title.isNotBlank() || !entry.titleEnglish.isNullOrBlank()
+        if (!hasAniListLink && !hasMalLink && !hasSimklLink && !hasTmdbLink && !hasTitle) return
 
         val result = runCatching {
             ExternalListSyncManager.deleteEntry(

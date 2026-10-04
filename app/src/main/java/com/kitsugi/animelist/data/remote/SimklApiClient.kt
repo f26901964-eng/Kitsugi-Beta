@@ -625,9 +625,20 @@ class SimklApiClient(
      * status: "watching", "plantowatch", "completed", "hold", "dropped"
      * NyanTV referans: POST /sync/add-to-list
      */
-    suspend fun addToList(token: String, simklId: Int, type: String, status: String): Boolean = withContext(Dispatchers.IO) {
-        val mediaKey = when (type) { "movies" -> "movies"; else -> "shows" }
-        val idObj = JSONObject().put("simkl", simklId)
+    suspend fun addToList(
+        token: String,
+        simklId: Int,
+        type: String,
+        status: String,
+        malId: Int? = null,
+        tmdbId: Int? = null
+    ): Boolean = withContext(Dispatchers.IO) {
+        val mediaKey = when (type.lowercase()) { "movies", "movie" -> "movies"; else -> "shows" }
+        val idObj = JSONObject().apply {
+            if (simklId > 0) put("simkl", simklId)
+            if (malId != null && malId > 0 && malId < 100_000_000) put("mal", malId)
+            if (tmdbId != null && tmdbId > 0) put("tmdb", tmdbId)
+        }
         val itemObj = JSONObject().put("to", status).put("ids", idObj)
         val payload = JSONObject().put(mediaKey, JSONArray().put(itemObj)).toString()
 
@@ -636,6 +647,8 @@ class SimklApiClient(
             .post(payload.toRequestBody("application/json".toMediaTypeOrNull()))
             .header("Authorization", "Bearer $token")
             .header("simkl-api-key", clientId)
+            .header("Content-Type", "application/json")
+            .header("User-Agent", "KitsugiApp/2.4")
             .build()
 
         try {
@@ -651,12 +664,22 @@ class SimklApiClient(
     }
 
     /**
-     * Listeden iÃ§eriÄŸi siler.
+     * Listeden içeriği siler.
      * NyanTV referans: POST /sync/history/remove
      */
-    suspend fun removeFromList(token: String, simklId: Int, type: String): Boolean = withContext(Dispatchers.IO) {
-        val mediaKey = when (type) { "movies" -> "movies"; else -> "shows" }
-        val idObj = JSONObject().put("simkl", simklId)
+    suspend fun removeFromList(
+        token: String,
+        simklId: Int,
+        type: String,
+        malId: Int? = null,
+        tmdbId: Int? = null
+    ): Boolean = withContext(Dispatchers.IO) {
+        val mediaKey = when (type.lowercase()) { "movies", "movie" -> "movies"; else -> "shows" }
+        val idObj = JSONObject().apply {
+            if (simklId > 0) put("simkl", simklId)
+            if (malId != null && malId > 0 && malId < 100_000_000) put("mal", malId)
+            if (tmdbId != null && tmdbId > 0) put("tmdb", tmdbId)
+        }
         val itemObj = JSONObject().put("ids", idObj)
         val payload = JSONObject().put(mediaKey, JSONArray().put(itemObj)).toString()
 
@@ -665,6 +688,8 @@ class SimklApiClient(
             .post(payload.toRequestBody("application/json".toMediaTypeOrNull()))
             .header("Authorization", "Bearer $token")
             .header("simkl-api-key", clientId)
+            .header("Content-Type", "application/json")
+            .header("User-Agent", "KitsugiApp/2.4")
             .build()
 
         try {
@@ -908,61 +933,88 @@ class SimklApiClient(
     }
 
     /**
-     * Simkl /search/lookup API'sini kullanarak MAL ID veya TMDB ID'den Simkl ID'sini çözer.
-     * Unified ekleme akışında, Simkl hesabı bağlıyken doğru simklId'yi bulmak için kullanılır.
+     * Simkl /search/id ve /search API'lerini kullanarak MAL ID, AniList ID, TMDB ID veya başlık üzerinden Simkl ID'sini çözer.
+     * Unified senkronizasyon ve ekleme akışında, doğru simklId'yi bulmak için kullanılır.
      *
      * @param malId MyAnimeList media ID (anime için)
      * @param tmdbId TMDB media ID (dizi/film için)
+     * @param aniListId AniList media ID
+     * @param title Başlık (fuzzy arama için fallback)
+     * @param year Yapım yılı (eşleştirme doğrulaması için)
      * @param mediaType Medya tipi (Anime, TvShow, Movie)
      * @return Çözümlenen Simkl ID veya null
      */
     suspend fun lookupSimklId(
         malId: Int? = null,
         tmdbId: Int? = null,
+        aniListId: Int? = null,
+        title: String? = null,
+        year: Int? = null,
         mediaType: MediaType? = null
     ): Int? = withContext(Dispatchers.IO) {
         try {
-            // MAL ID'yi önce dene (anime için en doğrudan eşleşme)
+            // 1. MAL ID ile dene (anime için doğrudan eşleşme)
             if (malId != null && malId > 0 && malId < 100_000_000) {
-                val result = lookupBySource("mal", malId)
-                if (result != null) return@withContext result
+                val result = lookupByIdParam("mal", malId)
+                if (result != null && result > 0) return@withContext result
             }
-            // TMDB ID ile dene (dizi/film için)
+            // 2. AniList ID ile dene
+            if (aniListId != null && aniListId > 0) {
+                val result = lookupByIdParam("anilist", aniListId)
+                if (result != null && result > 0) return@withContext result
+            }
+            // 3. TMDB ID ile dene (film / dizi / anime)
             if (tmdbId != null && tmdbId > 0) {
-                val tmdbType = when (mediaType) {
+                val result = lookupByIdParam("tmdb", tmdbId)
+                if (result != null && result > 0) return@withContext result
+            }
+            // 4. Başlık ile Simkl'de fuzzy ara
+            if (!title.isNullOrBlank()) {
+                val searchType = when (mediaType) {
                     MediaType.Movie -> "movie"
-                    else -> "show"
+                    MediaType.TvShow -> "tv"
+                    else -> "anime"
                 }
-                val result = lookupBySource("tmdb-$tmdbType", tmdbId)
-                if (result != null) return@withContext result
+                val results = search(query = title, type = searchType, limit = 5)
+                val matched = if (year != null && year > 0) {
+                    results.firstOrNull { it.year == year } ?: results.firstOrNull()
+                } else {
+                    results.firstOrNull()
+                }
+                val foundSimklId = matched?.malId?.takeIf { it > 0 }
+                if (foundSimklId != null) return@withContext foundSimklId
             }
             null
         } catch (e: Exception) {
-            android.util.Log.w("SimklApiClient", "lookupSimklId failed malId=$malId tmdbId=$tmdbId: ${e.message}")
+            android.util.Log.w("SimklApiClient", "lookupSimklId failed malId=$malId tmdbId=$tmdbId aniListId=$aniListId: ${e.message}")
             null
         }
     }
 
-    /** /search/lookup için yardımcı: belirtilen kaynak+ID'den Simkl ID'sini döndürür. */
-    private fun lookupBySource(source: String, id: Int): Int? {
-        val url = "https://api.simkl.com/search/lookup?source=$source&id=$id&client_id=$clientId"
+    /** Simkl /search/id endpoint'i ile belirtilen parametre ve ID'den Simkl ID'sini çözer. */
+    private fun lookupByIdParam(param: String, id: Int): Int? {
+        val url = "https://api.simkl.com/search/id?$param=$id&client_id=$clientId"
         val request = Request.Builder()
             .url(url)
             .header("Accept", "application/json")
+            .header("simkl-api-key", clientId)
+            .header("User-Agent", "KitsugiApp/2.4")
             .build()
         return try {
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) return null
-                val text = response.body?.string() ?: return null
+                val text = response.body?.string().orEmpty()
+                if (text.isBlank() || text.trim() == "null") return null
                 val arr = JSONArray(text)
                 if (arr.length() == 0) return null
                 val obj = arr.optJSONObject(0) ?: return null
                 val ids = obj.optJSONObject("ids") ?: return null
-                val simklId = ids.optInt("simkl", 0)
-                if (simklId > 0) simklId else null
+                val simklId = ids.optInt("simkl_id", 0).takeIf { it > 0 }
+                    ?: ids.optInt("simkl", 0).takeIf { it > 0 }
+                simklId
             }
         } catch (e: Exception) {
-            android.util.Log.w("SimklApiClient", "lookupBySource source=$source id=$id failed: ${e.message}")
+            android.util.Log.w("SimklApiClient", "lookupByIdParam $param=$id failed: ${e.message}")
             null
         }
     }

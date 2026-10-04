@@ -135,8 +135,26 @@ data class ProfileSettings(
     val onImportTextChange: (String) -> Unit,
     val syncEnabledAnilist: Boolean = false,
     val syncEnabledMal: Boolean = false,
+    val syncEnabledSimkl: Boolean = false,
     val onSyncEnabledAnilistChanged: (Boolean) -> Unit = {},
-    val onSyncEnabledMalChanged: (Boolean) -> Unit = {}
+    val onSyncEnabledMalChanged: (Boolean) -> Unit = {},
+    val onSyncEnabledSimklChanged: (Boolean) -> Unit = {},
+    val isKitsuConnected: Boolean = false,
+    val kitsuUsername: String = "",
+    val isKitsuImportRunning: Boolean = false,
+    val onKitsuAuthClick: () -> Unit = {},
+    val onKitsuImportClick: () -> Unit = {},
+    val syncEnabledKitsu: Boolean = false,
+    val onSyncEnabledKitsuChanged: (Boolean) -> Unit = {},
+    val onLoginKitsu: (username: String, password: String, onComplete: (Boolean, String?) -> Unit) -> Unit = { _, _, _ -> },
+    val isShikimoriConnected: Boolean = false,
+    val shikimoriUsername: String = "",
+    val isShikimoriImportRunning: Boolean = false,
+    val onShikimoriAuthClick: () -> Unit = {},
+    val onShikimoriImportClick: () -> Unit = {},
+    val syncEnabledShikimori: Boolean = false,
+    val onSyncEnabledShikimoriChanged: (Boolean) -> Unit = {},
+    val onLoginShikimori: (clientId: String, clientSecret: String, authCode: String, onComplete: (Boolean, String?) -> Unit) -> Unit = { _, _, _, _ -> }
 )
 
 data class PlayerSettings(

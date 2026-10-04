@@ -1,0 +1,68 @@
+package com.kitsugi.animelist.data.auth
+
+import android.content.Context
+import com.kitsugi.animelist.model.MediaEntry
+import com.kitsugi.animelist.model.MediaType
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+
+/**
+ * Kitsu kütüphanesini içe aktarma yöneticisi.
+ */
+object KitsuImportManager {
+    private const val KITSU_OFFSET = 300_000_000
+
+    data class KitsuUserProfile(
+        val name: String,
+        val avatarUrl: String?
+    )
+
+    suspend fun fetchUserProfile(token: String): KitsuUserProfile {
+        return withContext(Dispatchers.IO) {
+            val user = KitsuApiClient.getCurrentUser(token)
+            KitsuUserProfile(name = user.name, avatarUrl = user.avatarUrl)
+        }
+    }
+
+    suspend fun fetchAllLists(context: Context, token: String, userId: String): List<MediaEntry> {
+        return withContext(Dispatchers.IO) {
+            val entries = KitsuApiClient.fetchAllLibraryEntries(token, userId)
+            val result = mutableListOf<MediaEntry>()
+
+            for (entry in entries) {
+                val isManga = entry.mangaId != null
+                val mediaId = (if (isManga) entry.mangaId else entry.animeId) ?: continue
+                val isAnime = !isManga
+
+                // Cache entry ID for later updates/deletes
+                ExternalAuthManager.saveKitsuLibraryEntryId(context, mediaId, isAnime, entry.id)
+
+                val stableId = KITSU_OFFSET + mediaId
+                val status = KitsuSyncManager.kitsuStatusToWatchStatus(entry.status)
+                val score = entry.ratingTwenty?.let { kotlin.math.round(it / 2.0).toInt().coerceIn(1, 10) }
+
+                result.add(
+                    MediaEntry(
+                        id = 0,
+                        title = entry.title,
+                        subtitle = "",
+                        titleEnglish = entry.titleEnglish,
+                        titleJapanese = null,
+                        imageUrl = entry.imageUrl ?: "",
+                        type = if (isManga) MediaType.Manga else MediaType.Anime,
+                        status = status,
+                        progress = entry.progress,
+                        total = entry.total,
+                        score = score,
+                        isAdult = false,
+                        malId = stableId,
+                        aniListEntryId = null,
+                        source = "kitsu",
+                        updatedAt = entry.updatedAt
+                    )
+                )
+            }
+            result
+        }
+    }
+}

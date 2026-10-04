@@ -382,12 +382,33 @@ private fun MyListTabPageWrapper(
         isMalConnected = authViewModel.isMalConnected,
         isSimklConnected = authViewModel.isSimklConnected,
         isSimklSessionExpired = authViewModel.isSimklSessionExpired,
+        isKitsuConnected = authViewModel.isKitsuConnected,
+        isShikimoriConnected = authViewModel.isShikimoriConnected,
         onLoginAniList = { authViewModel.startExternalAuth("anilist") },
         onLoginMal = { authViewModel.startExternalAuth("mal") },
         onLoginSimkl = { authViewModel.startExternalAuth("simkl") },
         onSyncAniList = { authViewModel.importAniListAnimeList(mediaEntries, mediaRepository) },
         onSyncMal = { authViewModel.importMalAnimeList(mediaEntries, mediaRepository) },
         onSyncSimkl = { authViewModel.importSimklList(mediaEntries, mediaRepository) },
+        onSyncKitsu = { authViewModel.importKitsuList(mediaEntries, mediaRepository) },
+        onSyncShikimori = { authViewModel.importShikimoriList(mediaEntries, mediaRepository) },
+        onKitsuAuthSubmit = { username, password, onComplete ->
+            authViewModel.loginKitsu(
+                username = username,
+                password = password,
+                onSuccess = { onComplete(true, null) },
+                onError = { onComplete(false, it) }
+            )
+        },
+        onShikimoriAuthSubmit = { clientId, clientSecret, authCode, onComplete ->
+            authViewModel.loginShikimori(
+                clientId = clientId,
+                clientSecret = clientSecret,
+                authCode = authCode,
+                onSuccess = { onComplete(true, null) },
+                onError = { onComplete(false, it) }
+            )
+        },
         onEntryClick = { entry ->
             navState.navigateToDetail(DetailScreen.MediaDetail(entry.id))
         },

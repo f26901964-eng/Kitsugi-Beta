@@ -72,10 +72,18 @@ object SimklSyncManager {
         }
 
         var simklId = entry.simklId
+        val realMalId = entry.malId?.takeIf { it > 0 && it < 100_000_000 }
+        val aniListId = if (entry.source == "anilist" && entry.malId != null && entry.malId >= 100_000_000 && entry.malId < 300_000_000) {
+            entry.malId - 100_000_000
+        } else null
+
         if (simklId == null || simklId <= 0) {
             val resolvedId = simklApiClient.lookupSimklId(
-                malId = entry.malId,
+                malId = realMalId,
                 tmdbId = entry.tmdbId,
+                aniListId = aniListId,
+                title = entry.titleEnglish ?: entry.title,
+                year = entry.year,
                 mediaType = entry.type
             )
             if (resolvedId != null && resolvedId > 0) {
@@ -96,9 +104,16 @@ object SimklSyncManager {
         val messages = mutableListOf<String>()
         val errors = mutableListOf<String>()
 
-        // 1. Listeye ekle / durumu güncelle (NyanTV: POST /sync/add-to-list)
+        // 1. Listeye ekle / durumu güncelle (POST /sync/add-to-list)
         runCatching {
-            simklApiClient.addToList(token, simklId, type, simklStatus)
+            simklApiClient.addToList(
+                token = token,
+                simklId = simklId,
+                type = type,
+                status = simklStatus,
+                malId = realMalId,
+                tmdbId = entry.tmdbId
+            )
         }.onSuccess { success ->
             if (success) messages.add("Simkl listesi güncellendi (${entry.title})")
             else errors.add("Simkl listesi güncellenemedi (${entry.title})")
@@ -107,8 +122,8 @@ object SimklSyncManager {
             Log.e(TAG, "syncEntryToSimkl addToList hatası", e)
         }
 
-        // 2. Bölüm ilerlemesini güncelle — sadece dizi/anime için (Scrob referans)
-        val progress = entry.progress ?: 0
+        // 2. Bölüm ilerlemesini güncelle — sadece dizi/anime için
+        val progress = entry.progress
         if (progress > 0 && entry.type != MediaType.Movie) {
             runCatching {
                 simklApiClient.updateEpisodeProgress(token, simklId, season = 1, episode = progress)
@@ -124,10 +139,15 @@ object SimklSyncManager {
         // 3. Puanı Simkl'e yaz (POST /sync/ratings)
         val score = entry.score
         if (score != null && score > 0) {
+            val normalizedRating = if (score > 10) {
+                kotlin.math.round(score / 10.0).toInt().coerceIn(1, 10)
+            } else {
+                score.coerceIn(1, 10)
+            }
             runCatching {
-                simklApiClient.setRating(token, simklId, entry.type, score)
+                simklApiClient.setRating(token, simklId, entry.type, normalizedRating)
             }.onSuccess { success ->
-                if (success) messages.add("Simkl puanı güncellendi: $score/10")
+                if (success) messages.add("Simkl puanı güncellendi: $normalizedRating/10")
                 else errors.add("Simkl puanı güncellenemedi")
             }.onFailure { e ->
                 errors.add("Simkl puan hatası: ${e.message}")
@@ -159,10 +179,18 @@ object SimklSyncManager {
         }
 
         var simklId = entry.simklId
+        val realMalId = entry.malId?.takeIf { it > 0 && it < 100_000_000 }
+        val aniListId = if (entry.source == "anilist" && entry.malId != null && entry.malId >= 100_000_000 && entry.malId < 300_000_000) {
+            entry.malId - 100_000_000
+        } else null
+
         if (simklId == null || simklId <= 0) {
             val resolvedId = simklApiClient.lookupSimklId(
-                malId = entry.malId,
+                malId = realMalId,
                 tmdbId = entry.tmdbId,
+                aniListId = aniListId,
+                title = entry.titleEnglish ?: entry.title,
+                year = entry.year,
                 mediaType = entry.type
             )
             if (resolvedId != null && resolvedId > 0) {
@@ -179,7 +207,13 @@ object SimklSyncManager {
         val errors = mutableListOf<String>()
 
         runCatching {
-            simklApiClient.removeFromList(token, simklId, type)
+            simklApiClient.removeFromList(
+                token = token,
+                simklId = simklId,
+                type = type,
+                malId = realMalId,
+                tmdbId = entry.tmdbId
+            )
         }.onSuccess { success ->
             if (success) messages.add("Simkl listesinden silindi (${entry.title})")
             else errors.add("Simkl listesinden silinemedi")

@@ -32,11 +32,15 @@ object KitsugiHttpClient {
             .addInterceptor(RetryInterceptor(maxRetries = 2))
             .addInterceptor(
                 Interceptor { chain ->
-                    val req = chain.request().newBuilder()
-                        .header("User-Agent", NuvioOkHttpProvider.USER_AGENT)
-                        .header("Accept-Language", "tr-TR,tr;q=0.9,en;q=0.8")
-                        .build()
-                    chain.proceed(req)
+                    val original = chain.request()
+                    val reqBuilder = original.newBuilder()
+                    if (original.header("User-Agent") == null) {
+                        reqBuilder.header("User-Agent", NuvioOkHttpProvider.USER_AGENT)
+                    }
+                    if (original.header("Accept-Language") == null) {
+                        reqBuilder.header("Accept-Language", "tr-TR,tr;q=0.9,en;q=0.8")
+                    }
+                    chain.proceed(reqBuilder.build())
                 }
             )
             .build()

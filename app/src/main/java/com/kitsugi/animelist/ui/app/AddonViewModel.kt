@@ -547,10 +547,13 @@ class AddonViewModel(application: Application) : AndroidViewModel(application) {
                         if (!isStremio) installedIds.add(plugin.internalName)
                     } else {
                         failedNames.add(plugin.name)
+                        android.util.Log.w("BulkInstall", "Failed to install plugin: ${plugin.name} (${plugin.url})")
+                        // Extra cool down delay when a failure occurs to avoid Codeberg 429 flood
+                        kotlinx.coroutines.delay(200L)
                     }
                 }
                 bulkInstallDone = index + 1
-                kotlinx.coroutines.delay(50L)
+                kotlinx.coroutines.delay(100L)
             }
 
             // Eklentileri toplu yükleme — UI bloke etmeden arkaplanda

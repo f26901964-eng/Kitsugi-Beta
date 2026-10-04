@@ -18,6 +18,10 @@ data class AppSettings(
     val simklUsername: String = "",
     val simklProfileImageUri: String = "",
     val simklBannerImageUri: String = "",
+    val kitsuUsername: String = "",
+    val kitsuProfileImageUri: String = "",
+    val shikimoriUsername: String = "",
+    val shikimoriProfileImageUri: String = "",
     val profileImageUri: String = "",
     val bannerImageUri: String = "",
     // AniHyou'dan: Başlık dili tercihi (Romaji / İngilizce / Japonca)
@@ -181,6 +185,9 @@ data class AppSettings(
     val downloaderPreference: String = "INTERNAL",
     val syncEnabledAnilist: Boolean = false,
     val syncEnabledMal: Boolean = false,
+    val syncEnabledSimkl: Boolean = false,
+    val syncEnabledKitsu: Boolean = false,
+    val syncEnabledShikimori: Boolean = false,
     // ─── MPV Gelişmiş Oynatıcı Ayarları (Aniyomi'den uyarlama) ───────────────
     /** MPV GPU render backend: "gpu" (varsayılan) veya "gpu-next" */
     val mpvGpuRenderer: String = "gpu",

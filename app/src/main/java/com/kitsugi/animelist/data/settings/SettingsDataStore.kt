@@ -180,6 +180,13 @@ class SettingsDataStore(
         val DownloaderPreference = stringPreferencesKey("downloader_preference")
         val SyncEnabledAnilist = booleanPreferencesKey("sync_enabled_anilist")
         val SyncEnabledMal = booleanPreferencesKey("sync_enabled_mal")
+        val SyncEnabledSimkl = booleanPreferencesKey("sync_enabled_simkl")
+        val SyncEnabledKitsu = booleanPreferencesKey("sync_enabled_kitsu")
+        val SyncEnabledShikimori = booleanPreferencesKey("sync_enabled_shikimori")
+        val KitsuUsername = stringPreferencesKey("kitsu_username")
+        val KitsuProfileImageUri = stringPreferencesKey("kitsu_profile_image_uri")
+        val ShikimoriUsername = stringPreferencesKey("shikimori_username")
+        val ShikimoriProfileImageUri = stringPreferencesKey("shikimori_profile_image_uri")
         // ─── MPV Gelişmiş Oynatıcı Ayarları ───────────────────────────────────────
         val MpvGpuRenderer = stringPreferencesKey("mpv_gpu_renderer")
         val MpvHwdecMode = stringPreferencesKey("mpv_hwdec_mode")
@@ -268,6 +275,10 @@ class SettingsDataStore(
                     simklUsername = preferences[Keys.SimklUsername] ?: "",
                     simklProfileImageUri = preferences[Keys.SimklProfileImageUri] ?: "",
                     simklBannerImageUri = preferences[Keys.SimklBannerImageUri] ?: "",
+                    kitsuUsername = preferences[Keys.KitsuUsername] ?: "",
+                    kitsuProfileImageUri = preferences[Keys.KitsuProfileImageUri] ?: "",
+                    shikimoriUsername = preferences[Keys.ShikimoriUsername] ?: "",
+                    shikimoriProfileImageUri = preferences[Keys.ShikimoriProfileImageUri] ?: "",
                     profileImageUri = preferences[Keys.ProfileImageUri] ?: "",
                     bannerImageUri = preferences[Keys.BannerImageUri] ?: "",
                     titleLanguage = preferences[Keys.TitleLanguage] ?: "ROMAJI",
@@ -397,6 +408,9 @@ class SettingsDataStore(
                     downloaderPreference = preferences[Keys.DownloaderPreference] ?: "INTERNAL",
                     syncEnabledAnilist = preferences[Keys.SyncEnabledAnilist] ?: true,
                     syncEnabledMal = preferences[Keys.SyncEnabledMal] ?: true,
+                    syncEnabledSimkl = preferences[Keys.SyncEnabledSimkl] ?: true,
+                    syncEnabledKitsu = preferences[Keys.SyncEnabledKitsu] ?: true,
+                    syncEnabledShikimori = preferences[Keys.SyncEnabledShikimori] ?: true,
                     // ─── MPV Gelişmiş Ayarları
                     mpvGpuRenderer = preferences[Keys.MpvGpuRenderer] ?: "gpu",
                     mpvHwdecMode = preferences[Keys.MpvHwdecMode] ?: "auto-safe",
@@ -1188,6 +1202,46 @@ class SettingsDataStore(
 
     suspend fun setSyncEnabledMal(enabled: Boolean) {
         context.settingsDataStore.edit { it[Keys.SyncEnabledMal] = enabled }
+    }
+
+    suspend fun setSyncEnabledSimkl(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.SyncEnabledSimkl] = enabled }
+    }
+
+    suspend fun setSyncEnabledKitsu(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.SyncEnabledKitsu] = enabled }
+    }
+
+    suspend fun setSyncEnabledShikimori(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.SyncEnabledShikimori] = enabled }
+    }
+
+    suspend fun saveKitsuProfileInfo(username: String, avatarUrl: String? = null) {
+        context.settingsDataStore.edit {
+            it[Keys.KitsuUsername] = username
+            if (avatarUrl != null) it[Keys.KitsuProfileImageUri] = avatarUrl
+        }
+    }
+
+    suspend fun clearKitsuProfileInfo() {
+        context.settingsDataStore.edit {
+            it.remove(Keys.KitsuUsername)
+            it.remove(Keys.KitsuProfileImageUri)
+        }
+    }
+
+    suspend fun saveShikimoriProfileInfo(username: String, avatarUrl: String? = null) {
+        context.settingsDataStore.edit {
+            it[Keys.ShikimoriUsername] = username
+            if (avatarUrl != null) it[Keys.ShikimoriProfileImageUri] = avatarUrl
+        }
+    }
+
+    suspend fun clearShikimoriProfileInfo() {
+        context.settingsDataStore.edit {
+            it.remove(Keys.ShikimoriUsername)
+            it.remove(Keys.ShikimoriProfileImageUri)
+        }
     }
 
     // ─── MPV Gelişmiş Oynatıcı Ayarları ─────────────────────────────────────
