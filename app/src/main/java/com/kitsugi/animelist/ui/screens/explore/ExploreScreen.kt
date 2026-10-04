@@ -335,15 +335,6 @@ fun ExploreScreen(
                                                 }
                                             }
                                         }
-
-                                        Spacer(modifier = Modifier.height(8.dp))
-
-                                        // 6 Kaynaklı Hızlı Yatay Çip Çubuğu
-                                        ExploreSourceChipRow(
-                                            selectedPlatform = viewModel.selectedPlatform,
-                                            onPlatformSelected = { platform -> viewModel.selectPlatform(platform) },
-                                            modifier = Modifier.fillMaxWidth()
-                                        )
                                     }
                                 }
                             }

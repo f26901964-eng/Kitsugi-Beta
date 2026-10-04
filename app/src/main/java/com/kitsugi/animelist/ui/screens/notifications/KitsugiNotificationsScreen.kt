@@ -71,6 +71,10 @@ fun KitsugiNotificationsScreen(
 ) {
     val accentColor = LocalKitsugiAccent.current
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val aniListToken = remember { com.kitsugi.animelist.data.auth.ExternalAuthManager.getAniListToken(context) }
+    val apiClient = remember(aniListToken) { com.kitsugi.animelist.data.remote.JikanApiClient(aniListToken) }
+    var activeActivityIdForDetail by remember { mutableStateOf<Int?>(null) }
 
     // ── ViewModel state'lerini topla ──
     val malState    by viewModel.mal.collectAsState()
@@ -304,7 +308,9 @@ fun KitsugiNotificationsScreen(
                                                     accentColor = accentColor,
                                                     onUserProfileClick = onUserProfileClick,
                                                     onClick = {
-                                                        if (notif.mediaId != null) {
+                                                        if (notif.activityId != null && notif.activityId > 0) {
+                                                            activeActivityIdForDetail = notif.activityId
+                                                        } else if (notif.mediaId != null) {
                                                             onOpenApiDetail?.invoke(notif.mediaId, "anilist", notif.mediaType)
                                                         } else if (notif.userId != null && notif.userName != null) {
                                                             onUserProfileClick?.invoke(notif.userId, notif.userName, notif.userAvatarUrl)
@@ -409,6 +415,22 @@ fun KitsugiNotificationsScreen(
                 }
             }
         }
+    }
+
+    if (activeActivityIdForDetail != null) {
+        com.kitsugi.animelist.ui.components.KitsugiActivityDetailBottomSheet(
+            activityId = activeActivityIdForDetail!!,
+            apiClient = apiClient,
+            onUserProfileClick = { uid, uname, uavatar ->
+                if (uid != null) {
+                    onUserProfileClick?.invoke(uid, uname, uavatar)
+                }
+            },
+            onMediaClick = { mediaId, type, source ->
+                onOpenApiDetail?.invoke(mediaId, source, type.name)
+            },
+            onDismiss = { activeActivityIdForDetail = null }
+        )
     }
 }
 

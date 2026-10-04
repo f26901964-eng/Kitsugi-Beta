@@ -39,9 +39,10 @@ fun KitsugiShikimoriLoginDialog(
     val clipboard = LocalClipboardManager.current
     val shikimoriBrandColor = Color(0xFF8E44AD)
 
-    var clientId by remember { mutableStateOf("") }
-    var clientSecret by remember { mutableStateOf("") }
+    var clientId by remember { mutableStateOf(ShikimoriApiClient.DEFAULT_CLIENT_ID) }
+    var clientSecret by remember { mutableStateOf(ShikimoriApiClient.DEFAULT_CLIENT_SECRET) }
     var authCode by remember { mutableStateOf("") }
+    var showAdvanced by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val scrollState = rememberScrollState()
@@ -53,7 +54,7 @@ fun KitsugiShikimoriLoginDialog(
         Surface(
             modifier = Modifier
                 .fillMaxWidth(0.94f)
-                .fillMaxHeight(0.85f)
+                .wrapContentHeight()
                 .clip(RoundedCornerShape(24.dp))
                 .border(1.dp, shikimoriBrandColor.copy(alpha = 0.3f), RoundedCornerShape(24.dp)),
             color = KitsugiColors.Surface,
@@ -61,7 +62,7 @@ fun KitsugiShikimoriLoginDialog(
         ) {
             Column(
                 modifier = Modifier
-                    .fillMaxSize()
+                    .fillMaxWidth()
                     .padding(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
@@ -88,7 +89,7 @@ fun KitsugiShikimoriLoginDialog(
                 )
 
                 Text(
-                    text = "Shikimori OAuth2 entegrasyonu ile anime ve manga listenizi senkronize edin.",
+                    text = "Shikimori hesabınızdaki anime ve manga listesini Kitsugi ile senkronize edin.",
                     style = MaterialTheme.typography.bodySmall.copy(
                         color = KitsugiColors.TextSecondary,
                         textAlign = TextAlign.Center
@@ -96,12 +97,12 @@ fun KitsugiShikimoriLoginDialog(
                     modifier = Modifier.padding(top = 4.dp, bottom = 12.dp)
                 )
 
-                // Scrollable content
+                // Content
                 Column(
                     modifier = Modifier
-                        .weight(1f)
+                        .fillMaxWidth()
                         .verticalScroll(scrollState),
-                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     if (errorMessage != null) {
                         Surface(
@@ -131,16 +132,16 @@ fun KitsugiShikimoriLoginDialog(
                         }
                     }
 
-                    // Step 1: Guide Card
+                    // Step 1: Open Shikimori in browser
                     Surface(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
                         color = KitsugiColors.SurfaceElevated.copy(alpha = 0.5f),
-                        border = androidx.compose.foundation.BorderStroke(1.dp, KitsugiColors.Border)
+                        border = androidx.compose.foundation.BorderStroke(1.dp, shikimoriBrandColor.copy(alpha = 0.25f))
                     ) {
-                        Column(modifier = Modifier.padding(12.dp)) {
+                        Column(modifier = Modifier.padding(14.dp)) {
                             Text(
-                                text = "1. Adım: Shikimori'de Uygulama Açın",
+                                text = "1. Adım: Shikimori'de Yetkilendirin",
                                 style = MaterialTheme.typography.labelLarge.copy(
                                     fontWeight = FontWeight.Bold,
                                     color = shikimoriBrandColor
@@ -148,142 +149,148 @@ fun KitsugiShikimoriLoginDialog(
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Redirect URI: urn:ietf:wg:oauth:2.0:oob\nKapsam (Scope): user_rates",
+                                text = "Aşağıdaki butona dokunarak Shikimori'yi açın, giriş yapıp onay verin. Açılan ekrandaki kodu kopyalayın.",
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     color = KitsugiColors.TextSecondary,
-                                    fontSize = 11.sp
+                                    fontSize = 12.sp
                                 )
                             )
-                            Spacer(modifier = Modifier.height(8.dp))
-                            FilledTonalButton(
+                            Spacer(modifier = Modifier.height(10.dp))
+                            Button(
                                 onClick = {
-                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://shikimori.one/oauth/applications"))
+                                    val authUrl = ShikimoriApiClient.buildAuthorizeUrl(clientId)
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(authUrl))
                                     context.startActivity(intent)
                                 },
                                 shape = RoundedCornerShape(10.dp),
                                 modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.filledTonalButtonColors(
-                                    containerColor = shikimoriBrandColor.copy(alpha = 0.15f),
-                                    contentColor = shikimoriBrandColor
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = shikimoriBrandColor,
+                                    contentColor = Color.White
                                 )
                             ) {
-                                Icon(Icons.Rounded.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text("Shikimori OAuth Sayfasını Aç", style = MaterialTheme.typography.labelMedium)
+                                Icon(Icons.Rounded.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Shikimori Sayfasını Aç ve İzin Ver", style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.SemiBold)
                             }
                         }
                     }
 
-                    // Step 2: Client ID
-                    OutlinedTextField(
-                        value = clientId,
-                        onValueChange = {
-                            clientId = it.trim()
-                            errorMessage = null
-                        },
-                        label = { Text("Client ID (Uygulama Kimliği)") },
-                        leadingIcon = {
-                            Icon(Icons.Rounded.VpnKey, contentDescription = null, tint = shikimoriBrandColor)
-                        },
-                        singleLine = true,
-                        enabled = !isLoading,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = shikimoriBrandColor,
-                            focusedLabelColor = shikimoriBrandColor,
-                            cursorColor = shikimoriBrandColor,
-                            unfocusedBorderColor = KitsugiColors.Border
-                        ),
+                    // Step 2: Paste Authorization Code
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    // Client Secret
-                    OutlinedTextField(
-                        value = clientSecret,
-                        onValueChange = {
-                            clientSecret = it.trim()
-                            errorMessage = null
-                        },
-                        label = { Text("Client Secret (Gizli Anahtar)") },
-                        leadingIcon = {
-                            Icon(Icons.Rounded.Lock, contentDescription = null, tint = shikimoriBrandColor)
-                        },
-                        singleLine = true,
-                        enabled = !isLoading,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = shikimoriBrandColor,
-                            focusedLabelColor = shikimoriBrandColor,
-                            cursorColor = shikimoriBrandColor,
-                            unfocusedBorderColor = KitsugiColors.Border
-                        ),
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-
-                    // Step 3: Authorization button
-                    if (clientId.isNotBlank()) {
-                        FilledTonalButton(
-                            onClick = {
-                                val authUrl = ShikimoriApiClient.buildAuthorizeUrl(clientId)
-                                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(authUrl))
-                                context.startActivity(intent)
-                            },
-                            shape = RoundedCornerShape(10.dp),
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.filledTonalButtonColors(
-                                containerColor = shikimoriBrandColor.copy(alpha = 0.2f),
-                                contentColor = shikimoriBrandColor
-                            )
-                        ) {
-                            Icon(Icons.Rounded.Launch, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Yetkilendirme Kodunu Al (Tarayıcıda Onayla)", style = MaterialTheme.typography.labelMedium)
-                        }
-                    }
-
-                    // Authorization Code
-                    OutlinedTextField(
-                        value = authCode,
-                        onValueChange = {
-                            authCode = it.trim()
-                            errorMessage = null
-                        },
-                        label = { Text("Yetkilendirme Kodu (Code)") },
-                        leadingIcon = {
-                            Icon(Icons.Rounded.Password, contentDescription = null, tint = shikimoriBrandColor)
-                        },
-                        trailingIcon = {
-                            IconButton(onClick = {
-                                val text = clipboard.getText()?.text.orEmpty().trim()
-                                if (text.isNotBlank()) {
-                                    authCode = text
-                                    errorMessage = null
-                                }
-                            }) {
-                                Icon(
-                                    Icons.Rounded.ContentPaste,
-                                    contentDescription = "Yapıştır",
-                                    tint = shikimoriBrandColor
+                        color = KitsugiColors.SurfaceElevated.copy(alpha = 0.5f),
+                        border = androidx.compose.foundation.BorderStroke(1.dp, KitsugiColors.Border)
+                    ) {
+                        Column(modifier = Modifier.padding(14.dp)) {
+                            Text(
+                                text = "2. Adım: Verilen Kodu Yapıştırın",
+                                style = MaterialTheme.typography.labelLarge.copy(
+                                    fontWeight = FontWeight.Bold,
+                                    color = KitsugiColors.TextPrimary
                                 )
-                            }
-                        },
-                        singleLine = true,
-                        enabled = !isLoading,
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = shikimoriBrandColor,
-                            focusedLabelColor = shikimoriBrandColor,
-                            cursorColor = shikimoriBrandColor,
-                            unfocusedBorderColor = KitsugiColors.Border
-                        ),
-                        shape = RoundedCornerShape(14.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            OutlinedTextField(
+                                value = authCode,
+                                onValueChange = {
+                                    authCode = it.trim()
+                                    errorMessage = null
+                                },
+                                label = { Text("Yetkilendirme Kodu (Code)") },
+                                placeholder = { Text("Kodu buraya yapıştırın") },
+                                leadingIcon = {
+                                    Icon(Icons.Rounded.VpnKey, contentDescription = null, tint = shikimoriBrandColor)
+                                },
+                                trailingIcon = {
+                                    FilledTonalButton(
+                                        onClick = {
+                                            val text = clipboard.getText()?.text.orEmpty().trim()
+                                            if (text.isNotBlank()) {
+                                                authCode = text
+                                                errorMessage = null
+                                            }
+                                        },
+                                        shape = RoundedCornerShape(8.dp),
+                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
+                                        colors = ButtonDefaults.filledTonalButtonColors(
+                                            containerColor = shikimoriBrandColor.copy(alpha = 0.2f),
+                                            contentColor = shikimoriBrandColor
+                                        ),
+                                        modifier = Modifier.padding(end = 4.dp)
+                                    ) {
+                                        Icon(Icons.Rounded.ContentPaste, contentDescription = null, modifier = Modifier.size(14.dp))
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text("Yapıştır", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                                    }
+                                },
+                                singleLine = true,
+                                enabled = !isLoading,
+                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = shikimoriBrandColor,
+                                    focusedLabelColor = shikimoriBrandColor,
+                                    cursorColor = shikimoriBrandColor,
+                                    unfocusedBorderColor = KitsugiColors.Border
+                                ),
+                                shape = RoundedCornerShape(12.dp),
+                                modifier = Modifier.fillMaxWidth()
+                            )
+                        }
+                    }
+
+                    // Optional Advanced settings toggle
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Gelişmiş Seçenekler (Özel API Anahtarı)",
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = KitsugiColors.TextSecondary,
+                                fontSize = 11.sp
+                            )
+                        )
+                        IconButton(
+                            onClick = { showAdvanced = !showAdvanced },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                if (showAdvanced) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
+                                contentDescription = null,
+                                tint = KitsugiColors.TextSecondary,
+                                modifier = Modifier.size(18.dp)
+                            )
+                        }
+                    }
+
+                    if (showAdvanced) {
+                        OutlinedTextField(
+                            value = clientId,
+                            onValueChange = { clientId = it.trim() },
+                            label = { Text("Client ID (Varsayılan hazır)") },
+                            singleLine = true,
+                            enabled = !isLoading,
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                        OutlinedTextField(
+                            value = clientSecret,
+                            onValueChange = { clientSecret = it.trim() },
+                            label = { Text("Client Secret (Varsayılan hazır)") },
+                            singleLine = true,
+                            enabled = !isLoading,
+                            shape = RoundedCornerShape(10.dp),
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(16.dp))
 
                 // Actions
                 Row(
@@ -304,13 +311,15 @@ fun KitsugiShikimoriLoginDialog(
 
                     Button(
                         onClick = {
-                            if (clientId.isBlank() || clientSecret.isBlank() || authCode.isBlank()) {
-                                errorMessage = "Lütfen Client ID, Secret ve Kodu girin."
+                            if (authCode.isBlank()) {
+                                errorMessage = "Lütfen Shikimori'den aldığınız kodu yapıştırın."
                                 return@Button
                             }
                             isLoading = true
                             errorMessage = null
-                            onLogin(clientId, clientSecret, authCode) { success, error ->
+                            val effectiveClientId = clientId.ifBlank { ShikimoriApiClient.DEFAULT_CLIENT_ID }
+                            val effectiveSecret = clientSecret.ifBlank { ShikimoriApiClient.DEFAULT_CLIENT_SECRET }
+                            onLogin(effectiveClientId, effectiveSecret, authCode) { success, error ->
                                 isLoading = false
                                 if (success) {
                                     onDismiss()
@@ -319,7 +328,7 @@ fun KitsugiShikimoriLoginDialog(
                                 }
                             }
                         },
-                        enabled = !isLoading && clientId.isNotBlank() && clientSecret.isNotBlank() && authCode.isNotBlank(),
+                        enabled = !isLoading && authCode.isNotBlank(),
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(

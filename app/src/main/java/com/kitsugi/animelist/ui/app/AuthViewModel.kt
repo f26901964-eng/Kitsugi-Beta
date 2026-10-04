@@ -400,25 +400,70 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     finalEntries.add(newest)
                 }
 
-                // Yerel veritabanını güncelle
+                // Yerel veritabanını güncelle: Bağlı tüm hesaplara uyumlu tüm dizi/film/anime kayıtlarını senkronize et
                 if (!aniListToken.isNullOrBlank()) {
-                    repository.smartImport("anilist", finalEntries.filter { it.source == "anilist" })
+                    val aniListSynced = finalEntries
+                        .filter { it.type == MediaType.Anime || it.type == MediaType.Manga }
+                        .map { entry ->
+                            if (entry.source == "anilist") entry
+                            else entry.copy(
+                                id = entry.malId?.takeIf { it > 0 && it < 100_000_000 } ?: entry.id,
+                                source = "anilist"
+                            )
+                        }
+                    repository.smartImport("anilist", aniListSynced)
                 }
                 if (!malToken.isNullOrBlank()) {
-                    repository.smartImport("mal", finalEntries.filter { it.source == "mal" || it.source == "jikan" })
+                    val malSynced = finalEntries
+                        .filter { (it.type == MediaType.Anime || it.type == MediaType.Manga) && (it.malId != null && it.malId > 0 && it.malId < 100_000_000) }
+                        .map { entry ->
+                            if (entry.source == "mal" || entry.source == "jikan") entry
+                            else entry.copy(
+                                id = entry.malId!!,
+                                source = "mal"
+                            )
+                        }
+                    repository.smartImport("mal", malSynced)
                 }
                 if (!simklToken.isNullOrBlank()) {
-                    repository.smartImport("simkl", finalEntries.filter { it.source == "simkl" })
+                    val simklSynced = finalEntries
+                        .filter { it.type == MediaType.Anime || it.type == MediaType.TvShow || it.type == MediaType.Movie }
+                        .map { entry ->
+                            if (entry.source == "simkl") entry
+                            else entry.copy(
+                                id = entry.simklId?.takeIf { it > 0 } ?: entry.malId?.takeIf { it > 0 } ?: entry.id,
+                                source = "simkl"
+                            )
+                        }
+                    repository.smartImport("simkl", simklSynced)
                 }
-                if (!kitsuToken.isNullOrBlank()) {
-                    repository.smartImport("kitsu", finalEntries.filter { it.source == "kitsu" })
+                if (!kitsuToken.isNullOrBlank() && !kitsuUserId.isNullOrBlank()) {
+                    val kitsuSynced = finalEntries
+                        .filter { it.type == MediaType.Anime || it.type == MediaType.Manga }
+                        .map { entry ->
+                            if (entry.source == "kitsu") entry
+                            else entry.copy(
+                                id = entry.malId?.takeIf { it > 0 && it < 100_000_000 } ?: entry.id,
+                                source = "kitsu"
+                            )
+                        }
+                    repository.smartImport("kitsu", kitsuSynced)
                 }
-                if (!shikimoriToken.isNullOrBlank()) {
-                    repository.smartImport("shikimori", finalEntries.filter { it.source == "shikimori" })
+                if (!shikimoriToken.isNullOrBlank() && shikimoriUserId != null) {
+                    val shikimoriSynced = finalEntries
+                        .filter { (it.type == MediaType.Anime || it.type == MediaType.Manga) && (it.malId != null && it.malId > 0 && it.malId < 100_000_000) }
+                        .map { entry ->
+                            if (entry.source == "shikimori") entry
+                            else entry.copy(
+                                id = entry.malId!!,
+                                source = "shikimori"
+                            )
+                        }
+                    repository.smartImport("shikimori", shikimoriSynced)
                 }
 
                 val platformsStr = connectedPlatforms.joinToString(", ")
-                onShowMessage?.invoke("$syncCount içerik $platformsStr arasında başarıyla eşitlendi!")
+                onShowMessage?.invoke("${finalEntries.size} içerik $platformsStr hesapları arasında eşitlendi!")
             }.onFailure { error ->
                 onShowMessage?.invoke("Eşitleme sırasında hata oluştu: ${error.message}")
             }

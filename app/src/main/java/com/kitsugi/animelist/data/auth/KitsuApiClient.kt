@@ -22,8 +22,8 @@ object KitsuApiClient {
     private const val TAG = "KitsuApiClient"
 
     // Açık kaynak standart Kitsu OAuth kimlik bilgileri (Tachiyomi / Aniyomi referansı)
-    const val DEFAULT_CLIENT_ID = "dd031b32d2f41c994359346ff4f823d7f5493d15162f224e2dd51e600e657b0b"
-    const val DEFAULT_CLIENT_SECRET = "d5d440749a45fe40c4c07e410e302714f48b8c61e234379658360965e1525580"
+    const val DEFAULT_CLIENT_ID = "dd031b32d2f56c990b1425efe6c42ad847e7fe3ab46bf1299f05ecd856bdb7dd"
+    const val DEFAULT_CLIENT_SECRET = "54d7307928f63414defd96399fc31ba847961ceaecef3a5fd93144e960c0e151"
 
     private const val OAUTH_URL = "https://kitsu.app/api/oauth/token"
     private const val BASE_URL = "https://kitsu.app/api/edge"
@@ -64,27 +64,35 @@ object KitsuApiClient {
         clientId: String = DEFAULT_CLIENT_ID,
         clientSecret: String = DEFAULT_CLIENT_SECRET
     ): KitsuTokenResponse = withContext(Dispatchers.IO) {
-        val jsonBody = JSONObject().apply {
-            put("grant_type", "password")
-            put("client_id", clientId)
-            put("client_secret", clientSecret)
-            put("username", username.trim())
-            put("password", password)
-        }
+        val formBody = okhttp3.FormBody.Builder()
+            .add("grant_type", "password")
+            .add("client_id", clientId)
+            .add("client_secret", clientSecret)
+            .add("username", username.trim())
+            .add("password", password)
+            .build()
 
         val request = Request.Builder()
             .url(OAUTH_URL)
             .addHeader("Accept", "application/json")
-            .addHeader("Content-Type", "application/json")
             .addHeader("User-Agent", "KitsugiApp/2.4")
-            .post(jsonBody.toString().toRequestBody("application/json".toMediaTypeOrNull()))
+            .post(formBody)
             .build()
 
         KitsugiHttpClient.client.newCall(request).execute().use { response ->
             val body = response.body?.string().orEmpty()
             if (!response.isSuccessful) {
-                val errorMsg = runCatching { JSONObject(body).optString("error_description", "Giriş başarısız (${response.code})") }.getOrDefault("Giriş başarısız (${response.code})")
-                throw Exception(errorMsg)
+                val errorType = runCatching { JSONObject(body).optString("error", "") }.getOrDefault("")
+                val errorDesc = runCatching { JSONObject(body).optString("error_description", "") }.getOrDefault("")
+                val localizedMsg = when {
+                    errorType == "invalid_grant" || errorDesc.contains("authorization grant is invalid", ignoreCase = true) ->
+                        "E-posta veya şifre hatalı. Lütfen bilgilerinizi kontrol edip tekrar deneyin."
+                    errorType == "invalid_client" ->
+                        "Kitsu sunucu bağlantı hatası. Lütfen daha sonra tekrar deneyin."
+                    errorDesc.isNotBlank() -> errorDesc
+                    else -> "Kitsu girişi başarısız oldu (${response.code})"
+                }
+                throw Exception(localizedMsg)
             }
             val json = JSONObject(body)
             KitsuTokenResponse(

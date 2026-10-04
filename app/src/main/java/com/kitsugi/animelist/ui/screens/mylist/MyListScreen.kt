@@ -572,11 +572,11 @@ fun MyListScreen(
             targetValue = if (isLandscape) {
                 16.dp
             } else if (isBottomBarVisible) {
-                64.dp + navigationBarsPadding
+                96.dp + navigationBarsPadding
             } else {
                 16.dp + navigationBarsPadding
             },
-            animationSpec = tween(durationMillis = KitsugiMotion.fastMillis + 50),
+            animationSpec = tween(durationMillis = 200),
             label = "fab_bottom_padding"
         )
 
@@ -585,9 +585,9 @@ fun MyListScreen(
         ) {
             // Tümü (Kategori) button on the Bottom-Start (Bottom-Left)
             AnimatedVisibility(
-                visible = isFabVisible && isBottomBarVisible,
-                enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-                exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+                visible = isFabVisible,
+                enter = fadeIn() + scaleIn(),
+                exit = fadeOut() + scaleOut(),
                 modifier = Modifier
                     .align(Alignment.BottomStart)
                     .padding(

@@ -77,7 +77,8 @@ object SimklSyncManager {
             entry.malId - 100_000_000
         } else null
 
-        if (simklId == null || simklId <= 0) {
+        // Simkl ID yoksa ve malId/tmdbId de yoksa o zaman başlığa göre Simkl ID çözümlenir
+        if ((simklId == null || simklId <= 0) && realMalId == null && entry.tmdbId == null) {
             val resolvedId = simklApiClient.lookupSimklId(
                 malId = realMalId,
                 tmdbId = entry.tmdbId,
@@ -95,9 +96,12 @@ object SimklSyncManager {
             }
         }
 
-        if (simklId == null || simklId <= 0) {
-            return@withContext SyncResult(messages = emptyList(), errors = listOf("Simkl ID bulunamadı: ${entry.title}"))
+        // Eğer simklId, malId ve tmdbId'nin hiçbiri yoksa senkronize edilemez
+        if ((simklId == null || simklId <= 0) && realMalId == null && (entry.tmdbId == null || entry.tmdbId <= 0)) {
+            return@withContext SyncResult(messages = emptyList(), errors = listOf("Simkl/MAL/TMDB ID bulunamadı: ${entry.title}"))
         }
+
+        val effectiveSimklId = simklId ?: 0
 
         val type = mediaTypeToSimklType(entry.type)
         val simklStatus = watchStatusToSimkl(entry.status)
@@ -108,7 +112,7 @@ object SimklSyncManager {
         runCatching {
             simklApiClient.addToList(
                 token = token,
-                simklId = simklId,
+                simklId = effectiveSimklId,
                 type = type,
                 status = simklStatus,
                 malId = realMalId,
@@ -122,11 +126,11 @@ object SimklSyncManager {
             Log.e(TAG, "syncEntryToSimkl addToList hatası", e)
         }
 
-        // 2. Bölüm ilerlemesini güncelle — sadece dizi/anime için
+        // 2. Bölüm ilerlemesini güncelle — sadece dizi/anime için ve geçerli simklId varsa
         val progress = entry.progress
-        if (progress > 0 && entry.type != MediaType.Movie) {
+        if (progress > 0 && entry.type != MediaType.Movie && effectiveSimklId > 0) {
             runCatching {
-                simklApiClient.updateEpisodeProgress(token, simklId, season = 1, episode = progress)
+                simklApiClient.updateEpisodeProgress(token, effectiveSimklId, season = 1, episode = progress)
             }.onSuccess { success ->
                 if (success) messages.add("Simkl bölüm ilerlemesi güncellendi: Bölüm $progress")
                 else errors.add("Bölüm ilerlemesi güncellenemedi")
@@ -138,14 +142,14 @@ object SimklSyncManager {
 
         // 3. Puanı Simkl'e yaz (POST /sync/ratings)
         val score = entry.score
-        if (score != null && score > 0) {
+        if (score != null && score > 0 && effectiveSimklId > 0) {
             val normalizedRating = if (score > 10) {
                 kotlin.math.round(score / 10.0).toInt().coerceIn(1, 10)
             } else {
                 score.coerceIn(1, 10)
             }
             runCatching {
-                simklApiClient.setRating(token, simklId, entry.type, normalizedRating)
+                simklApiClient.setRating(token, effectiveSimklId, entry.type, normalizedRating)
             }.onSuccess { success ->
                 if (success) messages.add("Simkl puanı güncellendi: $normalizedRating/10")
                 else errors.add("Simkl puanı güncellenemedi")
@@ -153,10 +157,10 @@ object SimklSyncManager {
                 errors.add("Simkl puan hatası: ${e.message}")
                 Log.e(TAG, "syncEntryToSimkl setRating hatası", e)
             }
-        } else if (score == null || score == 0) {
+        } else if ((score == null || score == 0) && effectiveSimklId > 0) {
             // Puan silinmişse kaldır
             runCatching {
-                simklApiClient.removeRating(token, simklId, entry.type)
+                simklApiClient.removeRating(token, effectiveSimklId, entry.type)
             }.onFailure { e ->
                 Log.w(TAG, "Simkl removeRating uyarısı: ${e.message}")
             }
