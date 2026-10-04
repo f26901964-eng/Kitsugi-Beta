@@ -45,23 +45,32 @@ class CloudstreamRepoRepository(private val context: Context) {
 
     suspend fun seedDefaultRepoIfEmpty() = withContext(Dispatchers.IO) {
         try {
-            val allRepos = repoDao.getAllRepos()
             val defaultUrl = "https://codeberg.org/BlackDamage/KitsugiPlugins/raw/branch/builds/repo.json"
+            com.kitsugi.animelist.core.security.RepoVerifier.trustRepo(context, defaultUrl)
+            com.kitsugi.animelist.core.security.RepoVerifier.trustRepo(context, "https://codeberg.org")
 
-            // Migrate any old repos immediately
+            val allRepos = repoDao.getAllRepos()
+            val seenUrls = mutableSetOf<String>()
+
+            // Migrate, clean up, and deduplicate any old or malformed repos
             for (repo in allRepos) {
                 val normalized = com.kitsugi.animelist.utils.CloudstreamUrlHelper.normalizeUrl(repo.repoUrl)
-                if (!normalized.equals(repo.repoUrl, ignoreCase = true)) {
-                    Log.d(TAG, "Migrating repo on seed: ${repo.repoUrl} -> $normalized")
+                if (!normalized.equals(repo.repoUrl, ignoreCase = true) || seenUrls.contains(normalized.lowercase())) {
+                    Log.d(TAG, "Migrating/deduplicating repo on seed: ${repo.repoUrl} -> $normalized")
                     repoDao.deleteRepo(repo)
-                    repoDao.insertRepo(
-                        CloudstreamRepoEntity(
-                            repoUrl = normalized,
-                            name = if (repo.name.contains("gameras", ignoreCase = true) || repo.name.contains("keyifler", ignoreCase = true)) "Kitsugi Plugins (Önerilen)" else repo.name,
-                            description = repo.description,
-                            addedAt = repo.addedAt
+                    if (!seenUrls.contains(normalized.lowercase())) {
+                        seenUrls.add(normalized.lowercase())
+                        repoDao.insertRepo(
+                            CloudstreamRepoEntity(
+                                repoUrl = normalized,
+                                name = if (repo.name.contains("gameras", ignoreCase = true) || repo.name.contains("keyifler", ignoreCase = true) || repo.name.contains("kekik", ignoreCase = true) || repo.name.contains("bilinmeyen", ignoreCase = true)) "Kitsugi Plugins (Önerilen)" else repo.name,
+                                description = repo.description,
+                                addedAt = repo.addedAt
+                            )
                         )
-                    )
+                    }
+                } else {
+                    seenUrls.add(normalized.lowercase())
                 }
             }
 
@@ -123,8 +132,14 @@ class CloudstreamRepoRepository(private val context: Context) {
             }
 
             val normalizedUrl = normalizeRepoUrl(inputUrl)
-            val fetched = client.fetchRepo(normalizedUrl)
-                ?: return@withContext Result.failure(Exception("Repo manifest alınamadı. URL'yi kontrol edin."))
+            com.kitsugi.animelist.core.security.RepoVerifier.trustRepo(context, normalizedUrl)
+            var fetched = client.fetchRepo(normalizedUrl)
+            if (fetched == null && normalizedUrl.contains("raw.githubusercontent.com", ignoreCase = true)) {
+                fetched = client.fetchRepo(normalizedUrl, useGithubProxy = true)
+            }
+            if (fetched == null) {
+                return@withContext Result.failure(Exception("Repo manifest alınamadı. URL'yi kontrol edin."))
+            }
 
             val entity = CloudstreamRepoEntity(
                 repoUrl = normalizedUrl,
@@ -181,7 +196,11 @@ class CloudstreamRepoRepository(private val context: Context) {
 
     suspend fun fetchPluginsForRepo(repoUrl: String, forceRefresh: Boolean = false): List<CsPlugin>? = withContext(Dispatchers.IO) {
         val normalizedUrl = normalizeRepoUrl(repoUrl)
-        client.fetchAllPlugins(normalizedUrl, forceRefresh = forceRefresh)
+        var result = client.fetchAllPlugins(normalizedUrl, forceRefresh = forceRefresh)
+        if (result == null && repoUrl.contains("raw.githubusercontent.com", ignoreCase = true)) {
+            result = client.fetchAllPlugins(normalizedUrl, useGithubProxy = true, forceRefresh = forceRefresh)
+        }
+        result
     }
 
     /**

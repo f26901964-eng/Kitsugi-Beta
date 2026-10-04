@@ -182,7 +182,8 @@ class AddonViewModel(application: Application) : AndroidViewModel(application) {
     fun syncRepos(repos: List<CloudstreamRepoEntity>, force: Boolean = false) {
         viewModelScope.launch {
             repos.forEach { repo ->
-                if (force || (!repoPluginsState.containsKey(repo.repoUrl) && repoLoadingState[repo.repoUrl] != true)) {
+                val current = repoPluginsState[repo.repoUrl]
+                if (force || (current == null && repoLoadingState[repo.repoUrl] != true)) {
                     fetchRepoPlugins(repo.repoUrl, force = force)
                 }
             }
@@ -348,7 +349,10 @@ class AddonViewModel(application: Application) : AndroidViewModel(application) {
     fun fetchRepoPlugins(repoUrl: String, force: Boolean = false) {
         viewModelScope.launch {
             repoLoadingState = repoLoadingState + (repoUrl to true)
-            val plugins = csRepoRepository.fetchPluginsForRepo(repoUrl, forceRefresh = force)
+            var plugins = csRepoRepository.fetchPluginsForRepo(repoUrl, forceRefresh = force)
+            if (plugins == null && !force) {
+                plugins = csRepoRepository.fetchPluginsForRepo(repoUrl, forceRefresh = true)
+            }
             repoPluginsState = repoPluginsState + (repoUrl to plugins)
             repoLoadingState = repoLoadingState + (repoUrl to false)
             calculateAvailableUpdates()

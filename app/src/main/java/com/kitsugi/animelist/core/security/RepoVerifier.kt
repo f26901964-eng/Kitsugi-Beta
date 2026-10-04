@@ -4,6 +4,9 @@ import android.content.Context
 
 object RepoVerifier {
     private val trustedDomains = listOf(
+        "codeberg.org",
+        "codeberg.page",
+        "cdn.jsdelivr.net",
         "github.com",
         "githubusercontent.com",
         "raw.githubusercontent.com",
@@ -15,8 +18,13 @@ object RepoVerifier {
     )
 
     fun isUrlTrusted(context: Context, url: String): Boolean {
+        val trimmed = url.trim()
+        if (com.kitsugi.animelist.utils.CloudstreamUrlHelper.isShortCode(trimmed)) {
+            return true
+        }
+        val normalized = com.kitsugi.animelist.utils.CloudstreamUrlHelper.normalizeUrl(trimmed)
         val host = try {
-            android.net.Uri.parse(url).host
+            android.net.Uri.parse(normalized).host
         } catch (_: Exception) { null } ?: return false
 
         // Check if host matches any trusted domains
@@ -31,8 +39,10 @@ object RepoVerifier {
     }
 
     fun trustRepo(context: Context, url: String) {
+        val trimmed = url.trim()
+        val normalized = com.kitsugi.animelist.utils.CloudstreamUrlHelper.normalizeUrl(trimmed)
         val host = try {
-            android.net.Uri.parse(url).host
+            android.net.Uri.parse(normalized).host
         } catch (_: Exception) { null } ?: return
         val prefs = context.getSharedPreferences("security_trust", Context.MODE_PRIVATE)
         val userTrusted = (prefs.getStringSet("trusted_repos", emptySet()) ?: emptySet()).toMutableSet()

@@ -78,8 +78,8 @@ class CloudstreamRepoClient {
 
     private val client = OkHttpClient.Builder()
         .dns(com.kitsugi.animelist.core.network.IPv4FirstDns())
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
+        .connectTimeout(30, TimeUnit.SECONDS)
+        .readTimeout(30, TimeUnit.SECONDS)
         .build()
 
     companion object {
@@ -92,7 +92,8 @@ class CloudstreamRepoClient {
         try {
             val requestBuilder = Request.Builder()
                 .url(finalUrl)
-                .addHeader("User-Agent", "KitsugiAnimeList/1.0")
+                .addHeader("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36 Kitsugi/2.4")
+                .addHeader("Accept", "application/json, text/plain, */*")
 
             if (forceRefresh) {
                 requestBuilder.cacheControl(okhttp3.CacheControl.FORCE_NETWORK)
@@ -105,10 +106,19 @@ class CloudstreamRepoClient {
             val responseBody = client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
                     Log.e(TAG, "fetchRepo failed (${response.code}): $finalUrl")
-                    return@withContext null
+                    null
+                } else {
+                    response.body?.string()
                 }
-                response.body?.string()
-            } ?: return@withContext null
+            }
+
+            if (responseBody == null) {
+                if (!useGithubProxy && repoUrl.contains("raw.githubusercontent.com", ignoreCase = true)) {
+                    Log.i(TAG, "Direct GitHub fetch failed for $repoUrl, automatically retrying with jsDelivr GitHub proxy...")
+                    return@withContext fetchRepo(repoUrl, useGithubProxy = true, forceRefresh = forceRefresh)
+                }
+                return@withContext null
+            }
 
             val json = org.json.JSONObject(responseBody)
             val name = json.optString("name", "Bilinmeyen Repo")
@@ -126,6 +136,10 @@ class CloudstreamRepoClient {
             CsRepository(name = name, description = description, pluginLists = pluginLists)
         } catch (e: Exception) {
             Log.e(TAG, "fetchRepo exception for $finalUrl", e)
+            if (!useGithubProxy && repoUrl.contains("raw.githubusercontent.com", ignoreCase = true)) {
+                Log.i(TAG, "Direct GitHub fetch exception for $repoUrl, automatically retrying with jsDelivr proxy...")
+                return@withContext fetchRepo(repoUrl, useGithubProxy = true, forceRefresh = forceRefresh)
+            }
             null
         }
     }
@@ -136,7 +150,8 @@ class CloudstreamRepoClient {
         try {
             val requestBuilder = Request.Builder()
                 .url(finalUrl)
-                .addHeader("User-Agent", "KitsugiAnimeList/1.0")
+                .addHeader("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36 Kitsugi/2.4")
+                .addHeader("Accept", "application/json, text/plain, */*")
 
             if (forceRefresh) {
                 requestBuilder.cacheControl(okhttp3.CacheControl.FORCE_NETWORK)
@@ -149,10 +164,19 @@ class CloudstreamRepoClient {
             val responseBody = client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
                     Log.e(TAG, "fetchPlugins failed (${response.code}): $finalUrl")
-                    return@withContext emptyList()
+                    null
+                } else {
+                    response.body?.string()
                 }
-                response.body?.string()
-            } ?: return@withContext emptyList()
+            }
+
+            if (responseBody == null) {
+                if (!useGithubProxy && pluginListUrl.contains("raw.githubusercontent.com", ignoreCase = true)) {
+                    Log.i(TAG, "Direct GitHub pluginList fetch failed for $pluginListUrl, retrying with jsDelivr proxy...")
+                    return@withContext fetchPlugins(pluginListUrl, useGithubProxy = true, forceRefresh = forceRefresh)
+                }
+                return@withContext emptyList()
+            }
 
             val arr = org.json.JSONArray(responseBody)
             val plugins = mutableListOf<CsPlugin>()
@@ -205,6 +229,10 @@ class CloudstreamRepoClient {
             plugins
         } catch (e: Exception) {
             Log.e(TAG, "fetchPlugins exception for $finalUrl", e)
+            if (!useGithubProxy && pluginListUrl.contains("raw.githubusercontent.com", ignoreCase = true)) {
+                Log.i(TAG, "Direct GitHub pluginList exception for $pluginListUrl, retrying with jsDelivr proxy...")
+                return@withContext fetchPlugins(pluginListUrl, useGithubProxy = true, forceRefresh = forceRefresh)
+            }
             emptyList()
         }
     }
@@ -215,10 +243,17 @@ class CloudstreamRepoClient {
      */
     suspend fun fetchAllPlugins(repoUrl: String, useGithubProxy: Boolean = false, forceRefresh: Boolean = false): List<CsPlugin>? {
         val normalizedRepoUrl = com.kitsugi.animelist.utils.CloudstreamUrlHelper.normalizeAndProxy(repoUrl, useGithubProxy)
-        val repo = fetchRepo(normalizedRepoUrl, useGithubProxy, forceRefresh) ?: return null
+        var repo = fetchRepo(normalizedRepoUrl, useGithubProxy, forceRefresh)
+        if (repo == null && !useGithubProxy && repoUrl.contains("raw.githubusercontent.com", ignoreCase = true)) {
+            repo = fetchRepo(repoUrl, useGithubProxy = true, forceRefresh = forceRefresh)
+        }
+        if (repo == null) return null
         val all = mutableListOf<CsPlugin>()
         for (listUrl in repo.pluginLists) {
-            val plugins = fetchPlugins(listUrl, useGithubProxy, forceRefresh)
+            var plugins = fetchPlugins(listUrl, useGithubProxy, forceRefresh)
+            if (plugins.isEmpty() && !useGithubProxy && listUrl.contains("raw.githubusercontent.com", ignoreCase = true)) {
+                plugins = fetchPlugins(listUrl, useGithubProxy = true, forceRefresh = forceRefresh)
+            }
             all.addAll(plugins.map { it.copy(repositoryUrl = it.repositoryUrl ?: normalizedRepoUrl) })
         }
         return all

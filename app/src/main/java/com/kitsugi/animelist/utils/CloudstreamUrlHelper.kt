@@ -43,28 +43,44 @@ object CloudstreamUrlHelper {
             url = if (realUrl.startsWith("http")) realUrl else "https://$realUrl"
         }
 
-        // Direct Codeberg KitsugiPlugins URLs should not be altered
-        if (url.startsWith("https://codeberg.org/BlackDamage/KitsugiPlugins/raw/branch/builds/", ignoreCase = true)) {
-            return url
+        // Remove trailing slashes and common wrappers
+        val cleanUrl = url.trim().removeSuffix("/")
+
+        // Check for our KitsugiPlugins repo or legacy repositories that migrated to KitsugiPlugins
+        val isOurRepoOrLegacy = cleanUrl.contains("KitsugiPlugins", ignoreCase = true) ||
+            cleanUrl.contains("Kitsugi-Plugins", ignoreCase = true) ||
+            cleanUrl.contains("gameras1010-afk", ignoreCase = true) ||
+            cleanUrl.contains("keyiflerolsun/Kekik-cloudstream", ignoreCase = true) ||
+            cleanUrl.contains("maarrem/cs-Kekik", ignoreCase = true)
+
+        if (isOurRepoOrLegacy) {
+            val cleanPath = cleanUrl.substringBefore("?").substringBefore("#")
+            return when {
+                cleanPath.endsWith(".cs3", ignoreCase = true) -> {
+                    val fileName = cleanPath.substringAfterLast("/")
+                    "https://codeberg.org/BlackDamage/KitsugiPlugins/raw/branch/builds/$fileName"
+                }
+                cleanPath.endsWith("plugins.json", ignoreCase = true) -> {
+                    "https://codeberg.org/BlackDamage/KitsugiPlugins/raw/branch/builds/plugins.json"
+                }
+                else -> {
+                    // Any other URL: repo root, .git, repo.json, main branch, raw builds, etc.
+                    // All resolve to the canonical repo manifest!
+                    "https://codeberg.org/BlackDamage/KitsugiPlugins/raw/branch/builds/repo.json"
+                }
+            }
         }
 
-        // Dead legacy repositories and old GitHub accounts are automatically redirected to Codeberg KitsugiPlugins
-        if (url.contains("KitsugiPlugins", ignoreCase = true) ||
-            url.contains("Kitsugi-Plugins", ignoreCase = true) ||
-            url.contains("gameras1010-afk/Kitsugi-Plugins", ignoreCase = true) ||
-            url.contains("keyiflerolsun/Kekik-cloudstream", ignoreCase = true) ||
-            url.contains("maarrem/cs-Kekik", ignoreCase = true)) {
-            val fileName = url.substringAfterLast("/")
-            url = "https://codeberg.org/BlackDamage/KitsugiPlugins/raw/branch/builds/$fileName"
-        }
-
-        if (url.equals("https://raw.githubusercontent.com/keyiflerolsun/Kekik-cloudstream/master/repo.json", ignoreCase = true) ||
-            url.equals("https://raw.githubusercontent.com/maarrem/cs-Kekik/master/repo.json", ignoreCase = true) ||
-            url.equals("https://raw.githubusercontent.com/maarrem/cs-Kekik/builds/repo.json", ignoreCase = true) ||
-            url.equals("https://raw.githubusercontent.com/gameras1010-afk/Kitsugi-Plugins/builds/repo.json", ignoreCase = true) ||
-            url.equals("https://raw.githubusercontent.com/KitsugiBeta-dev/Kitsugi-Plugins/builds/repo.json", ignoreCase = true) ||
-            url.contains("BlackDamage/Kitsugi-Plugins/raw/branch/builds/repo.json", ignoreCase = true)) {
-            url = "https://codeberg.org/BlackDamage/KitsugiPlugins/raw/branch/builds/repo.json"
+        // Handle general GitHub raw/web URLs
+        if (url.startsWith("https://github.com/", ignoreCase = true)) {
+            val withoutPrefix = url.removePrefix("https://github.com/")
+            if (withoutPrefix.contains("/blob/") || withoutPrefix.contains("/raw/")) {
+                val converted = withoutPrefix.replaceFirst("/blob/", "/").replaceFirst("/raw/", "/")
+                return "https://raw.githubusercontent.com/$converted"
+            }
+            if (withoutPrefix.split("/").size == 2 && !withoutPrefix.endsWith(".json")) {
+                return "https://raw.githubusercontent.com/$withoutPrefix/master/repo.json"
+            }
         }
 
         return url

@@ -10,9 +10,9 @@ object KitsugiHttpClient {
     val client: OkHttpClient by lazy {
         OkHttpClient.Builder()
             .dns(IPv4FirstDns())
-            .connectTimeout(8, TimeUnit.SECONDS)
-            .readTimeout(15, TimeUnit.SECONDS)
-            .writeTimeout(15, TimeUnit.SECONDS)
+            .connectTimeout(25, TimeUnit.SECONDS)
+            .readTimeout(30, TimeUnit.SECONDS)
+            .writeTimeout(30, TimeUnit.SECONDS)
             .connectionPool(
                 ConnectionPool(
                     maxIdleConnections = 10,
