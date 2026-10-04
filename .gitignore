@@ -1,0 +1,37 @@
+*.iml
+.gradle
+.kotlin/
+/local.properties
+.idea/
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+/app/build/
+/app/release/
+*.apk
+*.log
+logcat*.txt
+build_*.txt
+
+# API Keyleri — ASLA public repoya gitmesin!
+scripts/openrouter_keys.txt
+api_keys.txt
+*.key
+*.secret
+
+# Kök dizinde birikmiş geçici dosyalar
+/*.py
+/*.class
+/*.jar
+/*.zip
+/read_log.ps1
+/__pycache__/
+/.rclone/
+/debug_crash_analysis*.txt
+/logdump*.txt
+/all_files*.txt
+/compile_*.txt
+/archive_contents.txt

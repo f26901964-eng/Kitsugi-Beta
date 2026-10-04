@@ -1,0 +1,283 @@
+package com.kitsugi.animelist.data.remote
+
+import android.util.Log
+import org.json.JSONObject
+import java.net.URL
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import com.kitsugi.animelist.model.MediaType
+
+/**
+ * Holds all resolved external IDs for a given anime entry.
+ */
+data class ResolvedIds(
+    val imdbId: String? = null,
+    val kitsuId: Int? = null,
+    val tmdbId: Int? = null,
+    val aniListId: Int? = null,
+    val malId: Int? = null,
+    val tvdbId: Int? = null,
+    val wikidataId: String? = null
+)
+
+object KitsugiIdResolver {
+    private const val TAG = "KitsugiIdResolver"
+
+    /**
+     * Resolves both IMDb ID and Kitsu ID in a single ARM API call.
+     * Falls back to TMDB for the IMDb ID if ARM doesn't have one.
+     */
+    suspend fun resolveIds(
+        malId: Int?,
+        aniListId: Int?,
+        tmdbId: Int? = null,
+        mediaType: MediaType? = null,
+        kitsuId: Int? = null
+    ): ResolvedIds = withContext(Dispatchers.IO) {
+        Log.d(TAG, "Starting ID resolution: malParam=$malId, aniListParam=$aniListId, tmdbParam=$tmdbId, mediaType=$mediaType, kitsuParam=$kitsuId")
+        
+        var armJson: JSONObject? = null
+        val isNonAnime = mediaType == MediaType.Movie || mediaType == MediaType.TvShow
+        
+        if (kitsuId != null && kitsuId > 0) {
+            armJson = fetchArmJson("kitsu", kitsuId)
+            if (armJson != null) {
+                Log.d(TAG, "Kitsu mapping prioritized: Successfully fetched ARM JSON for kitsu: $kitsuId -> $armJson")
+            }
+        }
+        
+        if (armJson == null) {
+            if (isNonAnime) {
+                armJson = fetchArmJson("themoviedb", tmdbId)
+                if (armJson != null) {
+                    Log.d(TAG, "Non-anime mapping prioritized: Successfully fetched ARM JSON for themoviedb: $tmdbId -> $armJson")
+                } else {
+                    armJson = fetchArmJson("myanimelist", malId)
+                    if (armJson != null) {
+                        Log.d(TAG, "Successfully fetched ARM JSON for myanimelist: $malId -> $armJson")
+                    } else {
+                        armJson = fetchArmJson("anilist", aniListId)
+                        if (armJson != null) {
+                            Log.d(TAG, "Successfully fetched ARM JSON for anilist: $aniListId -> $armJson")
+                        } else {
+                            Log.w(TAG, "ARM lookup failed for all sources (tmdbId=$tmdbId, malId=$malId, aniListId=$aniListId)")
+                        }
+                    }
+                }
+            } else {
+                armJson = fetchArmJson("myanimelist", malId)
+                if (armJson != null) {
+                    Log.d(TAG, "Successfully fetched ARM JSON for myanimelist: $malId -> $armJson")
+                } else {
+                    armJson = fetchArmJson("anilist", aniListId)
+                    if (armJson != null) {
+                        Log.d(TAG, "Successfully fetched ARM JSON for anilist: $aniListId -> $armJson")
+                    } else {
+                        armJson = fetchArmJson("themoviedb", tmdbId)
+                        if (armJson != null) {
+                            Log.d(TAG, "Successfully fetched ARM JSON for themoviedb: $tmdbId -> $armJson")
+                        } else {
+                            Log.w(TAG, "ARM lookup failed for all sources (malId=$malId, aniListId=$aniListId, tmdbId=$tmdbId)")
+                        }
+                    }
+                }
+            }
+        }
+
+        val imdbFromArm = armJson?.optNullableString("imdb")
+        val kitsuFromArm = armJson?.let {
+            val v = it.optInt("kitsu", -1)
+            if (v > 0) v else null
+        }
+        val tmdbFromArm = armJson?.let {
+            val v = it.optInt("themoviedb", -1)
+            if (v > 0) v else null
+        }
+        val aniListFromArm = armJson?.let {
+            val v = it.optInt("anilist", -1)
+            if (v > 0) v else null
+        }
+        val malFromArm = armJson?.let {
+            val v = it.optInt("myanimelist", -1)
+            if (v > 0) v else null
+        }
+        val tvdbFromArm = armJson?.let {
+            val v = it.optInt("thetvdb", -1)
+            if (v > 0) v else null
+        }
+        val wikidataFromArm = armJson?.optNullableString("wikidata")
+
+        // Use provided tmdbId directly if ARM didn't find one
+        val finalTmdbId = tmdbFromArm ?: tmdbId ?: resolveTmdbId(malId, aniListId, kitsuId)
+
+        // If ARM didn't give us an IMDb ID, fall back through TMDB
+        var finalImdb = if (!imdbFromArm.isNullOrBlank()) imdbFromArm else null
+        var finalTvdb = tvdbFromArm
+        var finalWikidata = wikidataFromArm
+
+        if (finalTmdbId != null && finalTmdbId > 0) {
+            val isTv = mediaType == MediaType.TvShow || (mediaType != MediaType.Movie && !isNonAnime)
+            var extIds = fetchExternalIdsFromTmdb(finalTmdbId, isTv)
+            if (extIds.imdbId.isNullOrBlank() && extIds.tvdbId == null && extIds.wikidataId.isNullOrBlank()) {
+                // Try the other type just in case
+                extIds = fetchExternalIdsFromTmdb(finalTmdbId, !isTv)
+            }
+            if (!extIds.imdbId.isNullOrBlank()) {
+                finalImdb = extIds.imdbId
+            }
+            if (extIds.tvdbId != null && extIds.tvdbId > 0) {
+                finalTvdb = extIds.tvdbId
+            }
+            if (!extIds.wikidataId.isNullOrBlank()) {
+                finalWikidata = extIds.wikidataId
+            }
+        }
+
+        val finalAniList = aniListFromArm ?: aniListId
+        val finalMal = malFromArm ?: malId
+
+        Log.d(TAG, "resolveIds complete → imdb=$finalImdb kitsu=$kitsuFromArm tmdb=$finalTmdbId anilist=$finalAniList mal=$finalMal tvdb=$finalTvdb wikidata=$finalWikidata")
+        ResolvedIds(
+            imdbId = finalImdb,
+            kitsuId = kitsuFromArm ?: kitsuId,
+            tmdbId = finalTmdbId,
+            aniListId = finalAniList,
+            malId = finalMal,
+            tvdbId = finalTvdb,
+            wikidataId = finalWikidata
+        )
+    }
+
+    /**
+     * Resolves the IMDb ID for a media entry, using either MAL ID or AniList ID.
+     */
+    suspend fun getImdbId(malId: Int?, aniListId: Int?): String? =
+        resolveIds(malId, aniListId).imdbId
+
+    /** Fetches the raw ARM JSON for a given source+id pair. Returns null on failure or missing id. */
+    private fun fetchArmJson(source: String, id: Int?): JSONObject? {
+        if (id == null || id <= 0) return null
+        val url = runCatching {
+            URL("https://arm.haglund.dev/api/v2/ids?source=$source&id=$id")
+        }.getOrNull()
+        if (url == null) {
+            Log.e(TAG, "fetchArmJson: Invalid URL construction for source=$source id=$id")
+            return null
+        }
+        return try {
+            val response = KitsugiApiBase.executeGetRequest(url)
+            if (response == null) {
+                Log.w(TAG, "fetchArmJson: Network failure or empty response for URL: $url")
+                return null
+            }
+            val trimmed = response.trim()
+            if (trimmed == "null" || trimmed == "[]" || trimmed.isEmpty()) {
+                Log.d(TAG, "fetchArmJson: Valid empty response (media not mapped/obscure) for URL: $url")
+                return null
+            }
+            // ARM may return an array with one element — unwrap it
+            if (trimmed.startsWith("[")) {
+                val arr = org.json.JSONArray(trimmed)
+                if (arr.length() == 0) {
+                    Log.d(TAG, "fetchArmJson: Empty array returned for URL: $url")
+                    return null
+                }
+                arr.optJSONObject(0)
+            } else {
+                JSONObject(trimmed)
+            }
+        } catch (e: Exception) {
+            Log.e(TAG, "fetchArmJson: Exception occurred during fetch for source=$source ID=$id: ${e.message}", e)
+            null
+        }
+    }
+
+    private suspend fun resolveTmdbId(malId: Int?, aniListId: Int?, kitsuId: Int? = null): Int? = withContext(Dispatchers.IO) {
+        val kitsuJson = if (kitsuId != null && kitsuId > 0) fetchArmJson("kitsu", kitsuId) else null
+        val kitsuTmdbVal = kitsuJson?.optInt("themoviedb", -1)
+        if (kitsuTmdbVal != null && kitsuTmdbVal > 0) {
+            return@withContext kitsuTmdbVal
+        }
+
+        val malJson = if (malId != null && malId > 0) fetchArmJson("myanimelist", malId) else null
+        val malTmdbVal = malJson?.optInt("themoviedb", -1)
+        if (malTmdbVal != null && malTmdbVal > 0) {
+            return@withContext malTmdbVal
+        }
+
+        val aniJson = if (aniListId != null && aniListId > 0) fetchArmJson("anilist", aniListId) else null
+        val aniTmdbVal = aniJson?.optInt("themoviedb", -1)
+        if (aniTmdbVal != null && aniTmdbVal > 0) {
+            return@withContext aniTmdbVal
+        }
+        null
+    }
+
+    private fun fetchImdbFromTmdb(tmdbId: Int): String? {
+        val apiKey = TmdbApiClient.getActiveApiKey()
+
+        // Probe TV external IDs first
+        try {
+            val tvUrl = URL("https://api.themoviedb.org/3/tv/$tmdbId/external_ids?api_key=$apiKey")
+            val tvResponse = KitsugiApiBase.executeGetRequest(tvUrl)
+            if (tvResponse != null) {
+                val json = JSONObject(tvResponse)
+                val imdbId = json.optNullableString("imdb_id")
+                if (!imdbId.isNullOrBlank()) return imdbId
+            }
+        } catch (e: Exception) {
+            // Ignore and try movie
+        }
+
+        // Try movie details
+        try {
+            val movieUrl = URL("https://api.themoviedb.org/3/movie/$tmdbId?api_key=$apiKey")
+            val movieResponse = KitsugiApiBase.executeGetRequest(movieUrl)
+            if (movieResponse != null) {
+                val json = JSONObject(movieResponse)
+                val imdbId = json.optNullableString("imdb_id")
+                if (!imdbId.isNullOrBlank()) return imdbId
+            }
+        } catch (e: Exception) {
+            // Ignore
+        }
+
+        return null
+    }
+
+    data class TmdbExternalIds(
+        val imdbId: String? = null,
+        val tvdbId: Int? = null,
+        val wikidataId: String? = null
+    )
+
+    private fun fetchExternalIdsFromTmdb(tmdbId: Int, isTv: Boolean): TmdbExternalIds {
+        val apiKey = TmdbApiClient.getActiveApiKey()
+        val typePath = if (isTv) "tv" else "movie"
+        return try {
+            val url = URL("https://api.themoviedb.org/3/$typePath/$tmdbId/external_ids?api_key=$apiKey")
+            val response = KitsugiApiBase.executeGetRequest(url) ?: return TmdbExternalIds()
+            val json = JSONObject(response)
+            val imdbId = json.optNullableString("imdb_id")
+            val tvdbId = json.optInt("tvdb_id", -1).takeIf { it > 0 }
+            val wikidataId = json.optNullableString("wikidata_id")
+            TmdbExternalIds(imdbId = imdbId, tvdbId = tvdbId, wikidataId = wikidataId)
+        } catch (e: Exception) {
+            Log.w(TAG, "fetchExternalIdsFromTmdb failed for tmdbId=$tmdbId isTv=$isTv: ${e.message}")
+            TmdbExternalIds()
+        }
+    }
+
+    /**
+     * KitsugiEpisodeRatingsRepository gibi dış sınıflar için TMDB external_ids erişimi.
+     * isTv=true → /tv/{id}/external_ids, isTv=false → /movie/{id}/external_ids
+     */
+    fun fetchExternalIds(tmdbId: Int, isTv: Boolean): TmdbExternalIds =
+        fetchExternalIdsFromTmdb(tmdbId, isTv)
+
+    // JSON Helper
+    private fun JSONObject.optNullableString(key: String): String? {
+        if (isNull(key)) return null
+        return optString(key)
+    }
+}

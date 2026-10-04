@@ -1,0 +1,1112 @@
+package com.kitsugi.animelist.ui.screens.explore
+
+import android.app.Application
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
+import com.kitsugi.animelist.data.auth.ExternalAuthManager
+import com.kitsugi.animelist.data.auth.SimklSyncManager
+import com.kitsugi.animelist.data.remote.JikanApiClient
+import com.kitsugi.animelist.data.remote.JikanSearchResult
+// SimklApiClient: discovery için artık kullanılmıyor; sadece SimklSyncManager üzerinden watchlist sync'te kullanılır
+import com.kitsugi.animelist.data.remote.TmdbApiClient
+import com.kitsugi.animelist.data.settings.SettingsDataStore
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.firstOrNull
+import com.kitsugi.animelist.model.MediaType
+
+// Keşfet sayfasında seçili platform: AniList, MAL (Jikan), TMDB, Simkl, Kitsu veya Shikimori
+enum class ExplorePlatform(
+    val label: String,
+    val emoji: String = "⚡",
+    val shortName: String = label,
+    val description: String = ""
+) {
+    AniList("AniList", "⚡", "AniList", "Trend, popüler ve güncel sezon anime & mangaları"),
+    MAL("MyAnimeList", "🏆", "MAL", "En yüksek puanlı, yaklaşan ve klasik MyAnimeList arşivi"),
+    TMDB("TMDB", "🎬", "TMDB", "Trend filmler, popüler diziler ve vizyondaki yapımlar"),
+    SIMKL("Simkl", "📺", "Simkl", "Simkl en iyiler, TV dizileri ve anime listeleri"),
+    KITSU("Kitsu", "🦊", "Kitsu", "Kitsu popüler, trend ve en sevilen içerikleri"),
+    SHIKIMORI("Shikimori", "🌸", "Shikimori", "Shikimori güncel anime ve manga sıralamaları")
+}
+
+/**
+ * Keşfet hatalarının türünü belirler — UI'da platforma özgü aksiyon butonları göstermek için.
+ * - [TmdbError]: TMDB API anahtarı geçersiz veya eksik → Ayarlara yönlendir
+ * - [AniListError]: AniList servis hatası veya token sorunları → Giriş yap
+ * - [MalError]: MAL/Jikan servis hatası → Giriş yap
+ * - [None]: Hata yok
+ */
+enum class ExploreErrorType { None, TmdbError, AniListError, MalError }
+
+class ExploreViewModel(application: Application) : AndroidViewModel(application) {
+
+    private val apiClient = JikanApiClient(
+        aniListToken = ExternalAuthManager.getAniListToken(application)
+    )
+    // simklApiClient: discovery/trending için KALDIRILDI — sadece SimklSyncManager üzerinden watchlist sync
+    // tmdbApiClient: settings'ten tmdbUserApiKey yüklenince rebuild edilir
+    private var tmdbApiClient = TmdbApiClient()
+    private val settingsDataStore = SettingsDataStore(application)
+    private var tmdbUserApiKeyState = ""
+
+    // Her platform için ayrı cache — platform geçişinde yeniden fetch yapılmaz
+    private val platformCache = Companion.platformCache
+    // Başarıyla yüklenen platformların seti — boş veri dönsün, takılmaması için
+    private val loadedPlatforms = Companion.loadedPlatforms
+
+    private var isFallbackInProgress = false
+    private var isFirstLoad = true
+    private var showAdultContentState = false
+    private var loadJob: Job? = null
+
+    var selectedPlatform by mutableStateOf(ExplorePlatform.TMDB)
+        private set
+
+    var isLoading by mutableStateOf(false)
+        private set
+
+    var errorMessage by mutableStateOf<String?>(null)
+        private set
+
+    /** Hatanın kaynağını belirtir — UI'da platforma özgü yönlendirme butonu göstermek için */
+    var exploreErrorType by mutableStateOf(ExploreErrorType.None)
+        private set
+
+    var isShowingCachedData by mutableStateOf(false)
+        private set
+
+    // TMDB entegrasyon durumu — settingsFlow'dan reaktif olarak güncellenir
+    private var tmdbEnabledState = true
+    private var tmdbModernHomeEnabledState = false
+    private var tmdbEnrichContinueWatchingState = true
+
+    private val initialPayload = platformCache[ExplorePlatform.TMDB]
+
+    var topAnime by mutableStateOf<List<JikanSearchResult>>(initialPayload?.topAnime ?: emptyList())
+        private set
+
+    var airingAnime by mutableStateOf<List<JikanSearchResult>>(initialPayload?.airingAnime ?: emptyList())
+        private set
+
+    var upcomingAnime by mutableStateOf<List<JikanSearchResult>>(initialPayload?.upcomingAnime ?: emptyList())
+        private set
+
+    var topManga by mutableStateOf<List<JikanSearchResult>>(initialPayload?.topManga ?: emptyList())
+        private set
+
+    var publishingManga by mutableStateOf<List<JikanSearchResult>>(initialPayload?.publishingManga ?: emptyList())
+        private set
+
+    var trendingAnime by mutableStateOf<List<JikanSearchResult>>(initialPayload?.trendingAnime ?: emptyList())
+        private set
+
+    var movieAnime by mutableStateOf<List<JikanSearchResult>>(initialPayload?.movieAnime ?: emptyList())
+        private set
+
+    var seasonalAnime by mutableStateOf<List<JikanSearchResult>>(initialPayload?.seasonalAnime ?: emptyList())
+        private set
+
+    var airingSoonAnime by mutableStateOf<List<JikanSearchResult>>(initialPayload?.airingSoonAnime ?: emptyList())
+        private set
+
+    var trendingManga by mutableStateOf<List<JikanSearchResult>>(initialPayload?.trendingManga ?: emptyList())
+        private set
+
+    var newlyAddedAnime by mutableStateOf<List<JikanSearchResult>>(initialPayload?.newlyAddedAnime ?: emptyList())
+        private set
+
+    var newlyAddedManga by mutableStateOf<List<JikanSearchResult>>(initialPayload?.newlyAddedManga ?: emptyList())
+        private set
+
+    /** TMDB'ye özgü "Yakında Yayında" içerikleri — ExploreCategoryType.UPCOMING_MEDIA_TMDB ile sayfalanır */
+    var upcomingMediaTmdb by mutableStateOf<List<JikanSearchResult>>(initialPayload?.upcomingMediaTmdb ?: emptyList())
+        private set
+
+    var heroIndex by mutableIntStateOf(0)
+
+    // ── Simkl Kullanıcı Listeleri (NyanTV HomeSections.kt referans) ──────────────
+    /** İzlemeye devam et — filmler (Simkl status=watching, isMovie=true) */
+    var simklContinueMovies by mutableStateOf<List<JikanSearchResult>>(initialPayload?.simklContinueMovies ?: emptyList())
+        private set
+
+    /** Planladıklarım — filmler (Simkl status=plantowatch, isMovie=true) */
+    var simklPlannedMovies by mutableStateOf<List<JikanSearchResult>>(initialPayload?.simklPlannedMovies ?: emptyList())
+        private set
+
+    /** İzlemeye devam et — diziler/anime (Simkl status=watching, isMovie=false) */
+    var simklContinueSeries by mutableStateOf<List<JikanSearchResult>>(initialPayload?.simklContinueSeries ?: emptyList())
+        private set
+
+    /** Planladıklarım — diziler/anime (Simkl status=plantowatch, isMovie=false) */
+    var simklPlannedSeries by mutableStateOf<List<JikanSearchResult>>(initialPayload?.simklPlannedSeries ?: emptyList())
+        private set
+
+    val isDataLoaded: Boolean
+        get() = selectedPlatform in loadedPlatforms ||
+                topAnime.isNotEmpty() || airingAnime.isNotEmpty() || trendingAnime.isNotEmpty()
+
+    init {
+        viewModelScope.launch {
+            settingsDataStore.settingsFlow.collect { settings ->
+                val adultChanged = showAdultContentState != settings.showAdultContent
+                showAdultContentState = settings.showAdultContent
+
+                // TMDB toggle değişiklikleri
+                val userKey = settings.tmdbUserApiKey
+                val tmdbChanged = tmdbEnabledState != settings.tmdbEnabled ||
+                    tmdbModernHomeEnabledState != settings.tmdbModernHomeEnabled ||
+                    tmdbEnrichContinueWatchingState != settings.tmdbEnrichContinueWatching ||
+                    userKey != tmdbUserApiKeyState
+                tmdbEnabledState = settings.tmdbEnabled
+                tmdbModernHomeEnabledState = settings.tmdbModernHomeEnabled
+                tmdbEnrichContinueWatchingState = settings.tmdbEnrichContinueWatching
+
+                // tmdbUserApiKey değişince TmdbApiClient'i yeniden oluştur
+                if (userKey != tmdbUserApiKeyState) {
+                    tmdbUserApiKeyState = userKey
+                    tmdbApiClient = TmdbApiClient(userApiKey = userKey)
+                }
+
+                if (adultChanged || tmdbChanged || isFirstLoad) {
+                    val wasFirstLoad = isFirstLoad
+                    isFirstLoad = false
+                    
+                    if (wasFirstLoad) {
+                        // Prefetch işlemi arka planda devam ediyorsa bitmesini bekle
+                        Companion.prefetchJob?.join()
+
+                        val cached = platformCache[selectedPlatform]
+                        if (cached != null) {
+                            // Cache hit — hemen uygula, loading state'i kısa tut
+                            isLoading = true
+                            applyPayload(cached)
+                            loadedPlatforms.add(selectedPlatform)
+                            isLoading = false
+                        } else {
+                            // Cache miss — loadData() kendi finally bloğuyla isLoading'i yönetir
+                            errorMessage = null
+                            loadData(forceRefresh = true)
+                        }
+                    } else {
+                        platformCache.clear()
+                        loadedPlatforms.clear()
+                        loadData(forceRefresh = true)
+                    }
+                }
+            }
+        }
+    }
+
+    fun selectPlatform(platform: ExplorePlatform, isFallback: Boolean = false) {
+        if (selectedPlatform == platform) return
+        if (!isFallback) {
+            isFallbackInProgress = false
+        }
+        selectedPlatform = platform
+
+        // Stale veriyi hemen temizle — eski platformun verisi yeni platformda gözükmesin
+        clearPayload()
+
+        // Cache'de varsa anında yükle, yoksa fetch et
+        val cached = platformCache[platform]
+        if (cached != null) {
+            applyPayload(cached)
+            // Cache'den yüklenen platformu da "loaded" say
+            loadedPlatforms.add(platform)
+        } else {
+            loadData(forceRefresh = true)
+        }
+    }
+
+    private fun applyPayload(payload: ExplorePayload) {
+        topAnime = payload.topAnime
+        airingAnime = payload.airingAnime
+        upcomingAnime = payload.upcomingAnime
+        topManga = payload.topManga
+        publishingManga = payload.publishingManga
+        trendingAnime = payload.trendingAnime
+        movieAnime = payload.movieAnime
+        seasonalAnime = payload.seasonalAnime
+        airingSoonAnime = payload.airingSoonAnime
+        trendingManga = payload.trendingManga
+        newlyAddedAnime = payload.newlyAddedAnime
+        newlyAddedManga = payload.newlyAddedManga
+        upcomingMediaTmdb = payload.upcomingMediaTmdb
+        heroIndex = 0
+
+        simklContinueMovies = payload.simklContinueMovies
+        simklPlannedMovies = payload.simklPlannedMovies
+        simklContinueSeries = payload.simklContinueSeries
+        simklPlannedSeries = payload.simklPlannedSeries
+    }
+
+    /** Platform değişiminde UI'daki eski veriyi siler, loading skeleton gösterilir. */
+    private fun clearPayload() {
+        topAnime = emptyList()
+        airingAnime = emptyList()
+        upcomingAnime = emptyList()
+        topManga = emptyList()
+        publishingManga = emptyList()
+        trendingAnime = emptyList()
+        movieAnime = emptyList()
+        seasonalAnime = emptyList()
+        airingSoonAnime = emptyList()
+        trendingManga = emptyList()
+        newlyAddedAnime = emptyList()
+        newlyAddedManga = emptyList()
+        upcomingMediaTmdb = emptyList()
+        // Simkl kullanıcı şeritlerini temizleme — platform değişiminde de gözüksün
+        heroIndex = 0
+        errorMessage = null
+        exploreErrorType = ExploreErrorType.None
+    }
+
+    fun loadData(forceRefresh: Boolean = false) {
+        // Eğer forceRefresh değilse ve zaten data yüklüyse veya yükleniyorsa bir şey yapma
+        if (!forceRefresh && (isDataLoaded || isLoading)) return
+
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
+            isLoading = true
+            errorMessage = null
+            exploreErrorType = ExploreErrorType.None
+
+            val platformSnapshot = selectedPlatform
+
+            try {
+                val payload = when (platformSnapshot) {
+                    ExplorePlatform.MAL -> loadMalData()
+                    ExplorePlatform.AniList -> loadAniListData()
+                    ExplorePlatform.TMDB -> loadTmdbData()
+                    ExplorePlatform.SIMKL -> loadSimklData()
+                    ExplorePlatform.KITSU -> loadKitsuData()
+                    ExplorePlatform.SHIKIMORI -> loadShikimoriData()
+                }
+
+                if (selectedPlatform == platformSnapshot) {
+                    platformCache[platformSnapshot] = payload
+                    loadedPlatforms.add(platformSnapshot)
+                    applyPayload(payload)
+                    isFallbackInProgress = false
+                    isShowingCachedData = false
+                    exploreErrorType = ExploreErrorType.None
+
+                    // Cache successfully loaded payload in database
+                    viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                        runCatching {
+                            val db = com.kitsugi.animelist.data.local.KitsugiDatabase.getDatabase(getApplication())
+                            val gson = com.google.gson.Gson()
+                            val json = gson.toJson(payload)
+                            db.exploreCacheDao().insertCategory(
+                                com.kitsugi.animelist.data.local.ExploreCacheEntity(
+                                    categoryKey = "explore_platform_${platformSnapshot.name}",
+                                    payloadJson = json,
+                                    cachedAtMs = System.currentTimeMillis()
+                                )
+                            )
+                        }
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                if (selectedPlatform == platformSnapshot) {
+                    // Try to fall back to local offline database cache
+                    val db = com.kitsugi.animelist.data.local.KitsugiDatabase.getDatabase(getApplication())
+                    val cached = runCatching { db.exploreCacheDao().getCategory("explore_platform_${platformSnapshot.name}") }.getOrNull()
+                    if (cached != null) {
+                        val gson = com.google.gson.Gson()
+                        val payload = runCatching { gson.fromJson(cached.payloadJson, ExplorePayload::class.java) }.getOrNull()
+                        if (payload != null) {
+                            android.util.Log.d("ExploreViewModel", "Serving offline explore cache for ${platformSnapshot.name}")
+                            isShowingCachedData = true
+                            platformCache[platformSnapshot] = payload
+                            loadedPlatforms.add(platformSnapshot)
+                            applyPayload(payload)
+                            isFallbackInProgress = false
+                            isLoading = false
+                            return@launch
+                        }
+                    }
+
+                    errorMessage = e.message ?: "Keşfet verileri alınamadı."
+                    if (!isFallbackInProgress) {
+                        isFallbackInProgress = true
+                        val nextPlatform = if (platformSnapshot == ExplorePlatform.AniList) {
+                            ExplorePlatform.MAL
+                        } else if (platformSnapshot == ExplorePlatform.TMDB) {
+                            ExplorePlatform.AniList
+                        } else {
+                            ExplorePlatform.AniList
+                        }
+                        selectPlatform(nextPlatform, isFallback = true)
+                    } else {
+                        // Tüm fallback'ler tükendi — platforma özgü hata tipini belirt
+                        isFallbackInProgress = false
+                        exploreErrorType = when (platformSnapshot) {
+                            ExplorePlatform.TMDB      -> ExploreErrorType.TmdbError
+                            ExplorePlatform.AniList   -> ExploreErrorType.AniListError
+                            ExplorePlatform.MAL       -> ExploreErrorType.MalError
+                            ExplorePlatform.SIMKL     -> ExploreErrorType.None
+                            ExplorePlatform.KITSU     -> ExploreErrorType.None
+                            ExplorePlatform.SHIKIMORI -> ExploreErrorType.None
+                        }
+                    }
+                }
+            } finally {
+                if (coroutineContext[Job] == loadJob) {
+                    isLoading = false
+                }
+            }
+        }
+    }
+
+    /**
+     * enrichWithTmdb: Sadece source="simkl" olan öğeler için (kullanıcı watchlist'i)
+     * TMDB'den zenginleştirilmiş poster/puan çeker.
+     * TMDB trending öğeleri zaten doğru veriye sahip olduğu için burada işleme alınmaz.
+     */
+    private suspend fun enrichWithTmdb(item: JikanSearchResult): JikanSearchResult {
+        // TMDB kaynaklı öğeler zaten tam veriye sahip — tekrar TMDB'ye gitme
+        if (item.source == "tmdb") return item
+        val tmdbId = item.tmdbId ?: return item
+        val isMovie = item.type == com.kitsugi.animelist.model.MediaType.Movie
+        val details = tmdbApiClient.fetchMediaDetail(tmdbId, isMovie) ?: return item
+
+        val typeStr = when (item.type) {
+            com.kitsugi.animelist.model.MediaType.Movie -> "Film"
+            com.kitsugi.animelist.model.MediaType.TvShow -> "Dizi"
+            com.kitsugi.animelist.model.MediaType.Anime -> "Anime"
+            else -> "Anime"
+        }
+
+        val subtitleParts = buildList {
+            add(typeStr)
+            val yearVal = item.year ?: details.year
+            if (yearVal != null && yearVal > 0) add(yearVal.toString())
+            addAll(details.genres.take(3))
+        }
+        val richSubtitle = subtitleParts.joinToString(", ")
+
+        val ratingInt = (details.score ?: 0) / 10
+        val finalScore = if (ratingInt > 0) ratingInt else null
+
+        val backdropUrl = details.pictures.firstOrNull { it.contains("/w1280/") } ?: item.backdropUrl
+
+        return item.copy(
+            title = details.title?.takeIf { it.isNotBlank() } ?: item.title,
+            subtitle = richSubtitle,
+            score = finalScore ?: item.score,
+            year = details.year ?: item.year,
+            imageUrl = details.imageUrl ?: item.imageUrl,
+            backdropUrl = backdropUrl
+        )
+    }
+
+    /**
+     * TMDB tab için veri kaynağı — TMDB trending/popular içerikleri çeker.
+     * Simkl API'si yalnızca giriş yapmış kullanıcının watchlist'ini çekmek için
+     * (SimklSyncManager) çağrılır. Unauthenticated discovery tamamen TMDB'ye taşındı.
+     */
+    private suspend fun loadTmdbData(): ExplorePayload = supervisorScope {
+        val context = getApplication<Application>().applicationContext
+        val simklToken = ExternalAuthManager.getSimklToken(context)
+
+        // ── TMDB Discovery: her zaman aktif ──────────────────────────────────────
+        val trendingMoviesDeferred = async { runCatching { tmdbApiClient.getTrendingMovies() }.getOrDefault(emptyList()) }
+        val trendingShowsDeferred  = async { runCatching { tmdbApiClient.getTrendingShows() }.getOrDefault(emptyList()) }
+        val popularMoviesDeferred  = async { runCatching { tmdbApiClient.getPopularMovies() }.getOrDefault(emptyList()) }
+        val trendingAllDeferred    = async { runCatching { tmdbApiClient.getTrendingAll() }.getOrDefault(emptyList()) }
+        val popularShowsDeferred   = async { runCatching { tmdbApiClient.getPopularShows() }.getOrDefault(emptyList()) }
+        val topRatedMoviesDeferred = async { runCatching { tmdbApiClient.getTopRatedMovies() }.getOrDefault(emptyList()) }
+        val topRatedShowsDeferred  = async { runCatching { tmdbApiClient.getTopRatedShows() }.getOrDefault(emptyList()) }
+
+        val trendingMediaDeferred  = async { runCatching { tmdbApiClient.getTrendingMedia() }.getOrDefault(emptyList()) }
+        val popularMediaDeferred   = async { runCatching { tmdbApiClient.getPopularMedia() }.getOrDefault(emptyList()) }
+        val upcomingMediaDeferred  = async { runCatching { tmdbApiClient.getUpcomingMedia() }.getOrDefault(emptyList()) }
+        val topRatedAnimeDeferred  = async { runCatching { tmdbApiClient.getTopRatedAnime() }.getOrDefault(emptyList()) }
+        val airingSoonDeferred = async {
+            val calendarClient = com.kitsugi.animelist.data.remote.KitsugiAiringCalendarClient()
+            val upcoming = runCatching { calendarClient.fetchUpcomingSchedule(limit = 40, preferredSource = "tmdb") }.getOrNull() ?: emptyList()
+            val nowSeconds = System.currentTimeMillis() / 1000L
+            upcoming
+                .filter { it.airingAt > nowSeconds }
+                .sortedBy { it.airingAt }
+                .take(15)
+                .map { entry ->
+                    val finalType = if (entry.episode == 0) MediaType.Movie else MediaType.TvShow
+                    JikanSearchResult(
+                        malId = entry.aniListId,
+                        title = entry.title,
+                        subtitle = if (entry.episode == 0) "Film" else "${entry.episode}. Bölüm",
+                        type = finalType,
+                        total = null,
+                        score = entry.averageScore,
+                        isAdult = false,
+                        imageUrl = entry.coverUrl,
+                        year = null,
+                        source = "tmdb",
+                        realMalId = null,
+                        titleEnglish = entry.titleEnglish,
+                        titleJapanese = entry.titleNative,
+                        nextAiringEpisode = "${entry.episode}|${entry.airingAt}",
+                        tmdbId = entry.aniListId
+                    )
+                }
+        }
+
+        val moviesList    = trendingMoviesDeferred.await()
+        val showsList     = trendingShowsDeferred.await()
+        val popularMovies = popularMoviesDeferred.await()
+        val allTrending   = trendingAllDeferred.await()
+        val popularShows  = popularShowsDeferred.await()
+        val topRatedMovies = topRatedMoviesDeferred.await()
+        val topRatedShows  = topRatedShowsDeferred.await()
+
+        val trendingMediaList = trendingMediaDeferred.await()
+        val popularMediaList  = popularMediaDeferred.await()
+        val upcomingMediaList = upcomingMediaDeferred.await()
+        val topRatedAnimeList = topRatedAnimeDeferred.await()
+        val airingSoonList    = airingSoonDeferred.await()
+
+        // ── Authenticated: Simkl watchlist (sadece giriş yapılmışsa) ────────────────
+        val userMoviesDeferred = if (!simklToken.isNullOrBlank()) {
+            async { SimklSyncManager.fetchSimklWatchlist(context, "movies") }
+        } else null
+        val userShowsDeferred = if (!simklToken.isNullOrBlank()) {
+            async { SimklSyncManager.fetchSimklWatchlist(context, "shows") }
+        } else null
+
+        // Kullanıcı listelerini filtrele
+        val userMovies = userMoviesDeferred?.let { runCatching { it.await() }.getOrDefault(emptyList()) } ?: emptyList()
+        val userShows  = userShowsDeferred?.let { runCatching { it.await() }.getOrDefault(emptyList()) } ?: emptyList()
+
+        var continueMovies = userMovies.filter { it.subtitle.contains("İzleniyor") }
+        var plannedMovies  = userMovies.filter { it.subtitle.contains("Planlandı") }
+        var continueSeries = userShows.filter { it.subtitle.contains("İzleniyor") }
+        var plannedSeries  = userShows.filter { it.subtitle.contains("Planlandı") }
+
+        if (tmdbEnabledState && tmdbEnrichContinueWatchingState) {
+            // Sadece "İzlemeye Devam Et" listelerini paralel olarak zenginleştir (maksimum ilk 8 öğe)
+            val moviesToEnrich = continueMovies.take(8)
+            val seriesToEnrich = continueSeries.take(8)
+            val movieJobs = moviesToEnrich.map { item ->
+                async { enrichWithTmdb(item) }
+            }
+            val seriesJobs = seriesToEnrich.map { item ->
+                async { enrichWithTmdb(item) }
+            }
+            val enrichedMovies = movieJobs.mapIndexed { idx, job ->
+                runCatching { job.await() }.getOrDefault(moviesToEnrich[idx])
+            }
+            val enrichedSeries = seriesJobs.mapIndexed { idx, job ->
+                runCatching { job.await() }.getOrDefault(seriesToEnrich[idx])
+            }
+            continueMovies = enrichedMovies + continueMovies.drop(8)
+            continueSeries = enrichedSeries + continueSeries.drop(8)
+        }
+
+        simklContinueMovies  = continueMovies
+        simklPlannedMovies   = plannedMovies
+        simklContinueSeries  = continueSeries
+        simklPlannedSeries   = plannedSeries
+
+        ExplorePayload(
+            topAnime      = allTrending,       // Trend Her Şey (film + dizi karışık)
+            airingAnime   = showsList,          // Trend Diziler
+            upcomingAnime = popularMovies,      // Popüler Filmler
+            topManga      = popularShows,       // Popüler Diziler
+            publishingManga = topRatedMovies,   // En Yüksek Puanlı Filmler
+            trendingAnime = trendingMediaList,  // Trend Animeler
+            movieAnime    = moviesList,         // Trend Filmler
+            seasonalAnime = topRatedShows,      // En Yüksek Puanlı Diziler
+            newlyAddedAnime = popularMediaList, // Popüler Animeler
+            trendingManga = topRatedAnimeList,  // En Yüksek Puanlı Animeler
+            upcomingMediaTmdb = upcomingMediaList, // Yakında Yayında (Medya) — ayrı field
+            simklContinueMovies = continueMovies,
+            simklPlannedMovies = plannedMovies,
+            simklContinueSeries = continueSeries,
+            simklPlannedSeries = plannedSeries,
+            airingSoonAnime = airingSoonList
+        )
+    }
+
+    private suspend fun loadKitsuData(): ExplorePayload = supervisorScope {
+        val topAnimeDeferred = async { runCatching { com.kitsugi.animelist.data.remote.KitsuExploreClient.topAnime(20) }.getOrDefault(emptyList()) }
+        val airingAnimeDeferred = async { runCatching { com.kitsugi.animelist.data.remote.KitsuExploreClient.airingAnime(20) }.getOrDefault(emptyList()) }
+        val upcomingAnimeDeferred = async { runCatching { com.kitsugi.animelist.data.remote.KitsuExploreClient.upcomingAnime(20) }.getOrDefault(emptyList()) }
+        val newlyAddedAnimeDeferred = async { runCatching { com.kitsugi.animelist.data.remote.KitsuExploreClient.newlyAddedAnime(20) }.getOrDefault(emptyList()) }
+        val movieAnimeDeferred = async { runCatching { com.kitsugi.animelist.data.remote.KitsuExploreClient.movieAnime(20) }.getOrDefault(emptyList()) }
+        val topMangaDeferred = async { runCatching { com.kitsugi.animelist.data.remote.KitsuExploreClient.topManga(20) }.getOrDefault(emptyList()) }
+        val publishingMangaDeferred = async { runCatching { com.kitsugi.animelist.data.remote.KitsuExploreClient.publishingManga(20) }.getOrDefault(emptyList()) }
+        val trendingMangaDeferred = async { runCatching { com.kitsugi.animelist.data.remote.KitsuExploreClient.trendingManga(20) }.getOrDefault(emptyList()) }
+        val newlyAddedMangaDeferred = async { runCatching { com.kitsugi.animelist.data.remote.KitsuExploreClient.newlyAddedManga(20) }.getOrDefault(emptyList()) }
+
+        ExplorePayload(
+            topAnime = topAnimeDeferred.await(),
+            airingAnime = airingAnimeDeferred.await(),
+            upcomingAnime = upcomingAnimeDeferred.await(),
+            topManga = topMangaDeferred.await(),
+            publishingManga = publishingMangaDeferred.await(),
+            trendingManga = trendingMangaDeferred.await(),
+            newlyAddedAnime = newlyAddedAnimeDeferred.await(),
+            newlyAddedManga = newlyAddedMangaDeferred.await(),
+            trendingAnime = emptyList(),
+            movieAnime = movieAnimeDeferred.await(),
+            seasonalAnime = emptyList()
+        )
+    }
+
+    private suspend fun loadShikimoriData(): ExplorePayload = supervisorScope {
+        val topAnimeDeferred = async {
+            runCatching {
+                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(
+                    com.kitsugi.animelist.model.MediaType.Anime,
+                    order = "ranked",
+                    limit = 20
+                )
+            }.getOrDefault(emptyList())
+        }
+        val airingAnimeDeferred = async {
+            runCatching {
+                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(
+                    com.kitsugi.animelist.model.MediaType.Anime,
+                    statuses = listOf("ongoing"),
+                    order = "popularity",
+                    limit = 20
+                )
+            }.getOrDefault(emptyList())
+        }
+        val upcomingAnimeDeferred = async {
+            runCatching {
+                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(
+                    com.kitsugi.animelist.model.MediaType.Anime,
+                    statuses = listOf("anons"),
+                    order = "popularity",
+                    limit = 20
+                )
+            }.getOrDefault(emptyList())
+        }
+        val trendingAnimeDeferred = async {
+            runCatching {
+                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(
+                    com.kitsugi.animelist.model.MediaType.Anime,
+                    order = "popularity",
+                    limit = 20
+                )
+            }.getOrDefault(emptyList())
+        }
+        val topMangaDeferred = async {
+            runCatching {
+                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(
+                    com.kitsugi.animelist.model.MediaType.Manga,
+                    order = "ranked",
+                    limit = 20
+                )
+            }.getOrDefault(emptyList())
+        }
+        val publishingMangaDeferred = async {
+            runCatching {
+                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(
+                    com.kitsugi.animelist.model.MediaType.Manga,
+                    statuses = listOf("ongoing"),
+                    order = "popularity",
+                    limit = 20
+                )
+            }.getOrDefault(emptyList())
+        }
+        val trendingMangaDeferred = async {
+            runCatching {
+                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(
+                    com.kitsugi.animelist.model.MediaType.Manga,
+                    order = "popularity",
+                    limit = 20
+                )
+            }.getOrDefault(emptyList())
+        }
+
+        ExplorePayload(
+            topAnime = topAnimeDeferred.await(),
+            airingAnime = airingAnimeDeferred.await(),
+            upcomingAnime = upcomingAnimeDeferred.await(),
+            topManga = topMangaDeferred.await(),
+            publishingManga = publishingMangaDeferred.await(),
+            trendingManga = trendingMangaDeferred.await(),
+            trendingAnime = trendingAnimeDeferred.await(),
+            movieAnime = emptyList(),
+            seasonalAnime = emptyList()
+        )
+    }
+
+    private suspend fun loadSimklData(): ExplorePayload = supervisorScope {
+        val context = getApplication<Application>().applicationContext
+        val simkl = com.kitsugi.animelist.data.remote.SimklApiClient()
+
+        val allTrendingDeferred = async { runCatching { simkl.getBestMedia("tv/trending", com.kitsugi.animelist.model.MediaType.TvShow, 20) }.getOrDefault(emptyList()) }
+        val airingTvDeferred = async { runCatching { simkl.getBestMedia("tv/best/airing", com.kitsugi.animelist.model.MediaType.TvShow, 20) }.getOrDefault(emptyList()) }
+        val trendingMoviesDeferred = async { runCatching { simkl.getBestMedia("movies/trending", com.kitsugi.animelist.model.MediaType.Movie, 20) }.getOrDefault(emptyList()) }
+        val topTvDeferred = async { runCatching { simkl.getBestMedia("tv/best/all-time", com.kitsugi.animelist.model.MediaType.TvShow, 20) }.getOrDefault(emptyList()) }
+        val popularMoviesDeferred = async { runCatching { simkl.getBestMedia("movies/recent", com.kitsugi.animelist.model.MediaType.Movie, 20) }.getOrDefault(emptyList()) }
+        val trendingAnimeDeferred = async { runCatching { simkl.getBestMedia("anime/trending", com.kitsugi.animelist.model.MediaType.Anime, 20) }.getOrDefault(emptyList()) }
+        val topAnimeDeferred = async { runCatching { simkl.getBestMedia("anime/best/all-time", com.kitsugi.animelist.model.MediaType.Anime, 20) }.getOrDefault(emptyList()) }
+        val airingAnimeDeferred = async { runCatching { simkl.getBestMedia("anime/best/airing", com.kitsugi.animelist.model.MediaType.Anime, 20) }.getOrDefault(emptyList()) }
+        val upcomingAnimeDeferred = async { runCatching { simkl.getBestMedia("anime/best/upcoming", com.kitsugi.animelist.model.MediaType.Anime, 20) }.getOrDefault(emptyList()) }
+
+        val simklToken = ExternalAuthManager.getSimklToken(context)
+        val userMoviesDeferred = if (!simklToken.isNullOrBlank()) {
+            async { SimklSyncManager.fetchSimklWatchlist(context, "movies") }
+        } else null
+        val userShowsDeferred = if (!simklToken.isNullOrBlank()) {
+            async { SimklSyncManager.fetchSimklWatchlist(context, "shows") }
+        } else null
+
+        val userMovies = userMoviesDeferred?.let { runCatching { it.await() }.getOrDefault(emptyList()) } ?: emptyList()
+        val userShows  = userShowsDeferred?.let { runCatching { it.await() }.getOrDefault(emptyList()) } ?: emptyList()
+
+        val continueMovies = userMovies.filter { it.subtitle.contains("İzleniyor") }
+        val plannedMovies  = userMovies.filter { it.subtitle.contains("Planlandı") }
+        val continueSeries = userShows.filter { it.subtitle.contains("İzleniyor") }
+        val plannedSeries  = userShows.filter { it.subtitle.contains("Planlandı") }
+
+        simklContinueMovies  = continueMovies
+        simklPlannedMovies   = plannedMovies
+        simklContinueSeries  = continueSeries
+        simklPlannedSeries   = plannedSeries
+
+        val topAnimeList = topAnimeDeferred.await()
+        val airingAnimeList = airingAnimeDeferred.await()
+        val upcomingAnimeList = upcomingAnimeDeferred.await()
+        val trendingAnimeList = trendingAnimeDeferred.await()
+        val allTrendingList = allTrendingDeferred.await()
+        val airingTvList = airingTvDeferred.await()
+        val trendingMoviesList = trendingMoviesDeferred.await()
+        val topTvList = topTvDeferred.await()
+        val popularMoviesList = popularMoviesDeferred.await()
+
+        ExplorePayload(
+            topAnime = allTrendingList,            // Trend Her Şey
+            airingAnime = airingTvList,            // Trend Diziler
+            upcomingAnime = popularMoviesList,     // Popüler Filmler
+            topManga = topTvList,                  // Popüler Diziler
+            publishingManga = trendingMoviesList,  // En Yüksek Puanlı / Trend Filmler
+            trendingAnime = trendingAnimeList,     // Trend Animeler
+            movieAnime = trendingMoviesList,       // Trend Filmler
+            seasonalAnime = topTvList,             // En Yüksek Puanlı Diziler
+            newlyAddedAnime = topAnimeList,        // Popüler Animeler
+            trendingManga = airingAnimeList,       // En Yüksek Puanlı Animeler
+            upcomingMediaTmdb = upcomingAnimeList, // Yakında Yayında
+            simklContinueMovies = continueMovies,
+            simklPlannedMovies = plannedMovies,
+            simklContinueSeries = continueSeries,
+            simklPlannedSeries = plannedSeries,
+            airingSoonAnime = upcomingAnimeList
+        )
+    }
+
+    private suspend fun loadMalData(): ExplorePayload = supervisorScope {
+        val showAdult = showAdultContentState
+        val topAnimeDeferred = async { apiClient.topAnime(showAdultContent = showAdult) }
+        val airingAnimeDeferred = async { apiClient.airingAnime(showAdultContent = showAdult) }
+        val upcomingAnimeDeferred = async { apiClient.upcomingAnime(showAdultContent = showAdult) }
+        val topMangaDeferred = async { apiClient.topManga(showAdultContent = showAdult) }
+        val publishingMangaDeferred = async { apiClient.publishingManga(showAdultContent = showAdult) }
+        val trendingMangaDeferred = async { apiClient.trendingManga(showAdultContent = showAdult) }
+        val newlyAddedAnimeDeferred = async { apiClient.newlyAddedAnime(showAdultContent = showAdult) }
+        val newlyAddedMangaDeferred = async { apiClient.newlyAddedManga(showAdultContent = showAdult) }
+
+        val rawTopAnime = runCatching { topAnimeDeferred.await() }.getOrDefault(emptyList())
+
+        // İlk 5 vitrin öğesini paralel olarak TMDB'den yatay backdrop resmi ile zenrichleştir
+        val enrichedTopAnime = if (rawTopAnime.isNotEmpty() && tmdbEnabledState) {
+            val heroCount = minOf(rawTopAnime.size, 5)
+            val backdropJobs = (0 until heroCount).map { index ->
+                val item = rawTopAnime[index]
+                async {
+                    val backdrop = tmdbApiClient.fetchBackdropByTitle(item.title)
+                    if (backdrop != null) item.copy(backdropUrl = backdrop) else item
+                }
+            }
+            val enrichedHeroes = backdropJobs.mapIndexed { index, job ->
+                runCatching { job.await() }.getOrDefault(rawTopAnime[index])
+            }
+            enrichedHeroes + rawTopAnime.drop(heroCount)
+        } else {
+            rawTopAnime
+        }
+
+        val airingSoonDeferred = async {
+            val calendarClient = com.kitsugi.animelist.data.remote.KitsugiAiringCalendarClient()
+            val upcoming = runCatching { calendarClient.fetchUpcomingSchedule(limit = 40) }.getOrNull() ?: emptyList()
+            val nowSeconds = System.currentTimeMillis() / 1000L
+            upcoming
+                .filter { it.airingAt > nowSeconds && it.malId != null }
+                .sortedBy { it.airingAt }
+                .take(15)
+                .map { entry ->
+                    JikanSearchResult(
+                        malId = entry.malId!!,
+                        title = entry.getDisplayTitle(),
+                        subtitle = "${entry.episode}. Bölüm",
+                        type = MediaType.Anime,
+                        total = null,
+                        score = entry.averageScore,
+                        isAdult = false,
+                        imageUrl = entry.coverUrl,
+                        year = null,
+                        source = "jikan",
+                        realMalId = entry.malId,
+                        titleEnglish = entry.titleEnglish,
+                        titleJapanese = entry.titleNative,
+                        nextAiringEpisode = "${entry.episode}|${entry.airingAt}"
+                    )
+                }
+        }
+
+        ExplorePayload(
+            topAnime = enrichedTopAnime,
+            airingAnime = runCatching { airingAnimeDeferred.await() }.getOrDefault(emptyList()),
+            upcomingAnime = runCatching { upcomingAnimeDeferred.await() }.getOrDefault(emptyList()),
+            topManga = runCatching { topMangaDeferred.await() }.getOrDefault(emptyList()),
+            publishingManga = runCatching { publishingMangaDeferred.await() }.getOrDefault(emptyList()),
+            trendingManga = runCatching { trendingMangaDeferred.await() }.getOrDefault(emptyList()),
+            newlyAddedAnime = runCatching { newlyAddedAnimeDeferred.await() }.getOrDefault(emptyList()),
+            newlyAddedManga = runCatching { newlyAddedMangaDeferred.await() }.getOrDefault(emptyList()),
+            trendingAnime = emptyList(),
+            movieAnime = emptyList(),
+            seasonalAnime = emptyList(),
+            airingSoonAnime = runCatching { airingSoonDeferred.await() }.getOrDefault(emptyList())
+        )
+    }
+
+    private suspend fun loadAniListData(): ExplorePayload = supervisorScope {
+        val showAdult = showAdultContentState
+        val serviceError = java.util.concurrent.atomic.AtomicReference<Throwable?>(null)
+        fun <T> Result<T>.orDefaultTracking(d: T): T {
+            exceptionOrNull()?.let { ex ->
+                if (ex is com.kitsugi.animelist.data.remote.AniListServiceDownException)
+                    serviceError.compareAndSet(null, ex)
+            }
+            return getOrDefault(d) ?: d
+        }
+
+        val topAnimeDeferred = async { apiClient.aniListTopAnime(showAdultContent = showAdult) }
+        val airingAnimeDeferred = async { apiClient.aniListAiringAnime(showAdultContent = showAdult) }
+        val upcomingAnimeDeferred = async { apiClient.aniListUpcomingAnime(showAdultContent = showAdult) }
+        val topMangaDeferred = async { apiClient.aniListTopManga(showAdultContent = showAdult) }
+        val publishingMangaDeferred = async { apiClient.aniListPublishingManga(showAdultContent = showAdult) }
+        val trendingMangaDeferred = async { apiClient.aniListTrendingManga(showAdultContent = showAdult) }
+        val newlyAddedAnimeDeferred = async { apiClient.aniListNewlyAddedAnime(showAdultContent = showAdult) }
+        val newlyAddedMangaDeferred = async { apiClient.aniListNewlyAddedManga(showAdultContent = showAdult) }
+
+        val airingSoonDeferred = async {
+            val cal = com.kitsugi.animelist.data.remote.KitsugiAiringCalendarClient()
+            val upcoming = runCatching { cal.fetchUpcomingSchedule(limit = 15) }.getOrNull() ?: emptyList()
+            val nowSec = System.currentTimeMillis() / 1000L
+            upcoming.filter { it.airingAt > nowSec }.sortedBy { it.airingAt }.take(15)
+                .map { e ->
+                    JikanSearchResult(
+                        malId = e.malId ?: e.aniListId, title = e.getDisplayTitle(),
+                        subtitle = "${e.episode}. Bölüm", type = MediaType.Anime,
+                        total = null, score = e.averageScore, isAdult = false,
+                        imageUrl = e.coverUrl, year = null, source = "anilist",
+                        realMalId = e.malId, titleEnglish = e.titleEnglish,
+                        titleJapanese = e.titleNative,
+                        nextAiringEpisode = "${e.episode}|${e.airingAt}"
+                    )
+                }
+        }
+
+        val topAnime        = runCatching { topAnimeDeferred.await() }.orDefaultTracking(emptyList())
+        val airingAnime     = runCatching { airingAnimeDeferred.await() }.orDefaultTracking(emptyList())
+        val upcomingAnime   = runCatching { upcomingAnimeDeferred.await() }.orDefaultTracking(emptyList())
+        val topManga        = runCatching { topMangaDeferred.await() }.orDefaultTracking(emptyList())
+        val publishingManga = runCatching { publishingMangaDeferred.await() }.orDefaultTracking(emptyList())
+        val trendingManga   = runCatching { trendingMangaDeferred.await() }.orDefaultTracking(emptyList())
+        val newlyAddedAnime = runCatching { newlyAddedAnimeDeferred.await() }.orDefaultTracking(emptyList())
+        val newlyAddedManga = runCatching { newlyAddedMangaDeferred.await() }.orDefaultTracking(emptyList())
+        val airingSoon      = runCatching { airingSoonDeferred.await() }.getOrDefault(emptyList())
+
+        // AniList veri vermezse veya servis hatası tespit edildiyse Kitsu tam fallback
+        val isAniListEmpty = topAnime.isEmpty() && airingAnime.isEmpty() && upcomingAnime.isEmpty()
+        if (serviceError.get() != null || isAniListEmpty) {
+            android.util.Log.w("ExploreViewModel", "AniList veri vermedi veya servis hatası (boş=$isAniListEmpty) → Kitsu fallback")
+            return@supervisorScope loadKitsuData()
+        }
+
+        // Kısmi boşlukları Kitsu ile tamamla
+        val needsKitsuFill = topAnime.isEmpty() || airingAnime.isEmpty() || upcomingAnime.isEmpty() ||
+            topManga.isEmpty() || publishingManga.isEmpty() || trendingManga.isEmpty()
+        val kitsuFill = if (needsKitsuFill) runCatching { loadKitsuData() }.getOrNull() else null
+
+        ExplorePayload(
+            topAnime = topAnime.ifEmpty { kitsuFill?.topAnime ?: emptyList() },
+            airingAnime = airingAnime.ifEmpty { kitsuFill?.airingAnime ?: emptyList() },
+            upcomingAnime = upcomingAnime.ifEmpty { kitsuFill?.upcomingAnime ?: emptyList() },
+            topManga = topManga.ifEmpty { kitsuFill?.topManga ?: emptyList() },
+            publishingManga = publishingManga.ifEmpty { kitsuFill?.publishingManga ?: emptyList() },
+            trendingManga = trendingManga.ifEmpty { kitsuFill?.trendingManga ?: emptyList() },
+            newlyAddedAnime = newlyAddedAnime.ifEmpty { kitsuFill?.newlyAddedAnime ?: emptyList() },
+            newlyAddedManga = newlyAddedManga.ifEmpty { kitsuFill?.newlyAddedManga ?: emptyList() },
+            trendingAnime = emptyList(), movieAnime = kitsuFill?.movieAnime ?: emptyList(),
+            seasonalAnime = emptyList(), airingSoonAnime = airingSoon
+        )
+    }
+
+
+
+    fun nextHero(heroCount: Int) {
+        if (heroCount == 0) return
+        heroIndex = if (heroIndex >= heroCount - 1) 0 else heroIndex + 1
+    }
+
+    fun previousHero(heroCount: Int) {
+        if (heroCount == 0) return
+        heroIndex = if (heroIndex <= 0) heroCount - 1 else heroIndex - 1
+    }
+
+    companion object {
+        val platformCache = java.util.concurrent.ConcurrentHashMap<ExplorePlatform, ExplorePayload>()
+        val loadedPlatforms = java.util.Collections.synchronizedSet(mutableSetOf<ExplorePlatform>())
+        
+        private val isPrefetchStarted = java.util.concurrent.atomic.AtomicBoolean(false)
+        @Volatile
+        var prefetchJob: kotlinx.coroutines.Job? = null
+
+        fun prefetch(context: android.content.Context) {
+            if (!isPrefetchStarted.compareAndSet(false, true)) return
+            
+            val app = context.applicationContext as android.app.Application
+            
+            prefetchJob = kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO + kotlinx.coroutines.SupervisorJob()).launch {
+                try {
+                    val settingsDataStore = SettingsDataStore(app)
+                    val settings = settingsDataStore.settingsFlow.first()
+                    
+                    val showAdult = settings.showAdultContent
+                    val tmdbEnabled = settings.tmdbEnabled
+                    val tmdbEnrich = settings.tmdbEnrichContinueWatching
+                    val simklToken = ExternalAuthManager.getSimklToken(app)
+                    
+                    val tmdbApiClient = TmdbApiClient(userApiKey = settings.tmdbUserApiKey)
+                    
+                    supervisorScope {
+                        // Startup prefetch only fetches TMDB (default platform) to minimize latency and bandwidth
+                        val tmdbPayload = runCatching {
+                            val trendingMoviesDeferred = async { runCatching { tmdbApiClient.getTrendingMovies() }.getOrDefault(emptyList()) }
+                            val trendingShowsDeferred  = async { runCatching { tmdbApiClient.getTrendingShows() }.getOrDefault(emptyList()) }
+                            val popularMoviesDeferred  = async { runCatching { tmdbApiClient.getPopularMovies() }.getOrDefault(emptyList()) }
+                            val trendingAllDeferred    = async { runCatching { tmdbApiClient.getTrendingAll() }.getOrDefault(emptyList()) }
+                            val popularShowsDeferred   = async { runCatching { tmdbApiClient.getPopularShows() }.getOrDefault(emptyList()) }
+                            val topRatedMoviesDeferred = async { runCatching { tmdbApiClient.getTopRatedMovies() }.getOrDefault(emptyList()) }
+                            val topRatedShowsDeferred  = async { runCatching { tmdbApiClient.getTopRatedShows() }.getOrDefault(emptyList()) }
+                            val trendingMediaDeferred  = async { runCatching { tmdbApiClient.getTrendingMedia() }.getOrDefault(emptyList()) }
+                            val popularMediaDeferred   = async { runCatching { tmdbApiClient.getPopularMedia() }.getOrDefault(emptyList()) }
+                            val upcomingMediaDeferred  = async { runCatching { tmdbApiClient.getUpcomingMedia() }.getOrDefault(emptyList()) }
+                            val topRatedAnimeDeferred  = async { runCatching { tmdbApiClient.getTopRatedAnime() }.getOrDefault(emptyList()) }
+                            val airingSoonDeferred = async {
+                                val calendarClient = com.kitsugi.animelist.data.remote.KitsugiAiringCalendarClient()
+                                val upcoming = runCatching { calendarClient.fetchUpcomingSchedule(limit = 40, preferredSource = "tmdb") }.getOrNull() ?: emptyList()
+                                val nowSeconds = System.currentTimeMillis() / 1000L
+                                upcoming
+                                    .filter { it.airingAt > nowSeconds }
+                                    .sortedBy { it.airingAt }
+                                    .take(15)
+                                    .map { entry ->
+                                        val finalType = if (entry.episode == 0) MediaType.Movie else MediaType.TvShow
+                                        JikanSearchResult(
+                                            malId = entry.aniListId,
+                                            title = entry.title,
+                                            subtitle = if (entry.episode == 0) "Film" else "${entry.episode}. Bölüm",
+                                            type = finalType,
+                                            total = null,
+                                            score = entry.averageScore,
+                                            isAdult = false,
+                                            imageUrl = entry.coverUrl,
+                                            year = null,
+                                            source = "tmdb",
+                                            realMalId = null,
+                                            titleEnglish = entry.titleEnglish,
+                                            titleJapanese = entry.titleNative,
+                                            nextAiringEpisode = "${entry.episode}|${entry.airingAt}",
+                                            tmdbId = entry.aniListId
+                                        )
+                                    }
+                            }
+
+                            val moviesList    = trendingMoviesDeferred.await()
+                            val showsList     = trendingShowsDeferred.await()
+                            val popularMovies = popularMoviesDeferred.await()
+                            val allTrending   = trendingAllDeferred.await()
+                            val popularShows  = popularShowsDeferred.await()
+                            val topRatedMovies = topRatedMoviesDeferred.await()
+                            val topRatedShows  = topRatedShowsDeferred.await()
+                            val trendingMediaList = trendingMediaDeferred.await()
+                            val popularMediaList  = popularMediaDeferred.await()
+                            val upcomingMediaList = upcomingMediaDeferred.await()
+                            val topRatedAnimeList = topRatedAnimeDeferred.await()
+                            val airingSoonList    = airingSoonDeferred.await()
+
+                            val userMoviesDeferred = if (!simklToken.isNullOrBlank()) {
+                                async { SimklSyncManager.fetchSimklWatchlist(app, "movies") }
+                            } else null
+                            val userShowsDeferred = if (!simklToken.isNullOrBlank()) {
+                                async { SimklSyncManager.fetchSimklWatchlist(app, "shows") }
+                            } else null
+
+                            val userMovies = userMoviesDeferred?.let { runCatching { it.await() }.getOrDefault(emptyList()) } ?: emptyList()
+                            val userShows  = userShowsDeferred?.let { runCatching { it.await() }.getOrDefault(emptyList()) } ?: emptyList()
+
+                            var continueMovies = userMovies.filter { it.subtitle.contains("İzleniyor") }
+                            val plannedMovies  = userMovies.filter { it.subtitle.contains("Planlandı") }
+                            var continueSeries = userShows.filter { it.subtitle.contains("İzleniyor") }
+                            val plannedSeries  = userShows.filter { it.subtitle.contains("Planlandı") }
+
+                            if (tmdbEnabled && tmdbEnrich) {
+                                val moviesToEnrich = continueMovies.take(8)
+                                val seriesToEnrich = continueSeries.take(8)
+                                val movieJobs = moviesToEnrich.map { item ->
+                                    async {
+                                        if (item.source != "tmdb") {
+                                            val tmdbId = item.tmdbId
+                                            if (tmdbId != null) {
+                                                val isMovie = item.type == MediaType.Movie
+                                                val details = tmdbApiClient.fetchMediaDetail(tmdbId, isMovie)
+                                                if (details != null) {
+                                                    val typeStr = when (item.type) {
+                                                        MediaType.Movie -> "Film"
+                                                        MediaType.TvShow -> "Dizi"
+                                                        MediaType.Anime -> "Anime"
+                                                        else -> "Anime"
+                                                    }
+                                                    val subtitleParts = buildList {
+                                                        add(typeStr)
+                                                        val yearVal = item.year ?: details.year
+                                                        if (yearVal != null && yearVal > 0) add(yearVal.toString())
+                                                        addAll(details.genres.take(3))
+                                                    }
+                                                    val ratingInt = (details.score ?: 0) / 10
+                                                    val finalScore = if (ratingInt > 0) ratingInt else null
+                                                    val backdropUrl = details.pictures.firstOrNull { it.contains("/w1280/") } ?: item.backdropUrl
+                                                    item.copy(
+                                                        title = details.title?.takeIf { it.isNotBlank() } ?: item.title,
+                                                        subtitle = subtitleParts.joinToString(", "),
+                                                        score = finalScore ?: item.score,
+                                                        year = details.year ?: item.year,
+                                                        imageUrl = details.imageUrl ?: item.imageUrl,
+                                                        backdropUrl = backdropUrl
+                                                    )
+                                                } else item
+                                            } else item
+                                        } else item
+                                    }
+                                }
+                                val seriesJobs = seriesToEnrich.map { item ->
+                                    async {
+                                        if (item.source != "tmdb") {
+                                            val tmdbId = item.tmdbId
+                                            if (tmdbId != null) {
+                                                val isMovie = item.type == MediaType.Movie
+                                                val details = tmdbApiClient.fetchMediaDetail(tmdbId, isMovie)
+                                                if (details != null) {
+                                                    val typeStr = when (item.type) {
+                                                        MediaType.Movie -> "Film"
+                                                        MediaType.TvShow -> "Dizi"
+                                                        MediaType.Anime -> "Anime"
+                                                        else -> "Anime"
+                                                    }
+                                                    val subtitleParts = buildList {
+                                                        add(typeStr)
+                                                        val yearVal = item.year ?: details.year
+                                                        if (yearVal != null && yearVal > 0) add(yearVal.toString())
+                                                        addAll(details.genres.take(3))
+                                                    }
+                                                    val ratingInt = (details.score ?: 0) / 10
+                                                    val finalScore = if (ratingInt > 0) ratingInt else null
+                                                    val backdropUrl = details.pictures.firstOrNull { it.contains("/w1280/") } ?: item.backdropUrl
+                                                    item.copy(
+                                                        title = details.title?.takeIf { it.isNotBlank() } ?: item.title,
+                                                        subtitle = subtitleParts.joinToString(", "),
+                                                        score = finalScore ?: item.score,
+                                                        year = details.year ?: item.year,
+                                                        imageUrl = details.imageUrl ?: item.imageUrl,
+                                                        backdropUrl = backdropUrl
+                                                    )
+                                                } else item
+                                            } else item
+                                        } else item
+                                    }
+                                }
+                                continueMovies = movieJobs.mapIndexed { idx, job ->
+                                    runCatching { job.await() }.getOrDefault(moviesToEnrich[idx])
+                                }
+                                continueSeries = seriesJobs.mapIndexed { idx, job ->
+                                    runCatching { job.await() }.getOrDefault(seriesToEnrich[idx])
+                                }
+                                continueMovies = continueMovies + userMovies.filter { it.subtitle.contains("İzleniyor") }.drop(8)
+                                continueSeries = continueSeries + userShows.filter { it.subtitle.contains("İzleniyor") }.drop(8)
+                            }
+
+                            ExplorePayload(
+                                topAnime      = allTrending,
+                                airingAnime   = showsList,
+                                upcomingAnime = popularMovies,
+                                topManga      = popularShows,
+                                publishingManga = topRatedMovies,
+                                trendingAnime = trendingMediaList,
+                                movieAnime    = moviesList,
+                                seasonalAnime = topRatedShows,
+                                newlyAddedAnime = popularMediaList,
+                                trendingManga = topRatedAnimeList,
+                                upcomingMediaTmdb = upcomingMediaList, // Yakında Yayında (Medya)
+                                simklContinueMovies = continueMovies,
+                                simklPlannedMovies = plannedMovies,
+                                simklContinueSeries = continueSeries,
+                                simklPlannedSeries = plannedSeries,
+                                airingSoonAnime = airingSoonList
+                            )
+                        }.getOrNull()
+
+                        if (tmdbPayload != null) {
+                            platformCache[ExplorePlatform.TMDB] = tmdbPayload
+                            loadedPlatforms.add(ExplorePlatform.TMDB)
+                        }
+                    }
+                } catch (e: Exception) {
+                    android.util.Log.e("ExplorePrefetch", "Prefetch failed", e)
+                }
+            }
+        }
+    }
+}
+
+data class ExplorePayload(
+    val topAnime: List<JikanSearchResult>,
+    val airingAnime: List<JikanSearchResult>,
+    val upcomingAnime: List<JikanSearchResult>,
+    val topManga: List<JikanSearchResult>,
+    val publishingManga: List<JikanSearchResult>,
+    val trendingAnime: List<JikanSearchResult>,
+    val movieAnime: List<JikanSearchResult>,
+    val seasonalAnime: List<JikanSearchResult>,
+    val simklContinueMovies: List<JikanSearchResult> = emptyList(),
+    val simklPlannedMovies: List<JikanSearchResult> = emptyList(),
+    val simklContinueSeries: List<JikanSearchResult> = emptyList(),
+    val simklPlannedSeries: List<JikanSearchResult> = emptyList(),
+    val airingSoonAnime: List<JikanSearchResult> = emptyList(),
+    val trendingManga: List<JikanSearchResult> = emptyList(),
+    val newlyAddedAnime: List<JikanSearchResult> = emptyList(),
+    val newlyAddedManga: List<JikanSearchResult> = emptyList(),
+    /** TMDB'ye özgü upcoming medya listesi — trendingManga'dan bağımsız */
+    val upcomingMediaTmdb: List<JikanSearchResult> = emptyList()
+)
+

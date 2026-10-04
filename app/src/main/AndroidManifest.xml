@@ -1,0 +1,276 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
+    <uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />
+    <uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+    <!-- T3.3: Yayın bildirimleri -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <!-- Application In-App Update Package Installation -->
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
+
+    <!-- TV features -->
+    <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
+    <uses-feature android:name="android.hardware.faketouch" android:required="false" />
+    <uses-feature android:name="android.software.leanback" android:required="false" />
+    <uses-feature android:name="android.hardware.microphone" android:required="false" />
+
+    <!-- T2.5: External Player queries for package visibility -->
+    <queries>
+        <package android:name="just.player" />
+        <package android:name="org.videolan.vlc" />
+        <package android:name="com.mxtech.videoplayer.ad" />
+        <package android:name="com.mxtech.videoplayer.pro" />
+        <package android:name="is.xyz.mpv" />
+        <package android:name="org.courville.nova" />
+        <package android:name="net.gtvbox.videoplayer" />
+        <!-- External downloaders for EXTERNAL_1DM / EXTERNAL_ADM preference -->
+        <package android:name="idm.internet.download.manager" />
+        <package android:name="idm.internet.download.manager.plus" />
+        <package android:name="com.dv.adm" />
+        <package android:name="com.dv.adm.pay" />
+        <!-- File managers for opening download folders -->
+        <package android:name="ru.zdevs.zarchiver" />
+        <package android:name="ru.zdevs.zarchiver.pro" />
+        <package android:name="com.mixplorer" />
+        <package android:name="com.mixplorer.silver" />
+        <package android:name="pl.solidexplorer2" />
+        <package android:name="com.sec.android.app.myfiles" />
+        <package android:name="com.mi.android.globalFileexplorer" />
+        <package android:name="com.google.android.apps.nbu.files" />
+        <package android:name="com.estrongs.android.pop" />
+        <package android:name="com.alphainventor.filemanager" />
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <category android:name="android.intent.category.DEFAULT" />
+            <data android:mimeType="video/*" />
+        </intent>
+    </queries>
+
+    <application
+        android:name=".KitsugiApplication"
+        android:allowBackup="true"
+        android:hardwareAccelerated="true"
+        android:largeHeap="true"
+        android:icon="@mipmap/ic_launcher"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:banner="@drawable/tv_banner"
+        android:label="@string/app_name"
+        android:supportsRtl="true"
+        android:usesCleartextTraffic="false"
+        android:networkSecurityConfig="@xml/network_security_config"
+        android:theme="@style/Theme.KitsugiAnimeList">
+
+        <!-- ══ SPLASH EKRANI: Uygulama başlangıç animasyonu ══ -->
+        <activity
+            android:name=".KitsugiSplashActivity"
+            android:exported="true"
+            android:launchMode="singleTop"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|density|uiMode"
+            android:theme="@style/Theme.KitsugiAnimeList.Splash">
+
+            <!-- Telefon launcher -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!-- TV launcher -->
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
+            </intent-filter>
+
+        </activity>
+
+        <!-- ══ ANA EKRAN ══ -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|density|uiMode|keyboard|keyboardHidden|navigation|layoutDirection|fontScale|locale"
+            android:theme="@style/Theme.KitsugiAnimeList">
+
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="malapp"
+                    android:host="auth" />
+            </intent-filter>
+
+            <!-- TV approval deep link -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="Kitsugianimelist"
+                    android:host="tv-login" />
+            </intent-filter>
+
+            <!-- B1.1: Versioned typed deep links (v1) — detail / play / manga -->
+            <!-- Kitsugianimelist://v1/detail/{source}/{mediaId}                  -->
+            <!-- Kitsugianimelist://v1/play/{source}/{mediaId}?season=1&episode=7 -->
+            <!-- Kitsugianimelist://v1/manga/{sourceKey}/{mangaId}?chapter={id}   -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="Kitsugianimelist"
+                    android:host="v1" />
+            </intent-filter>
+
+            <!-- ══ WEB APP LINKS (Varsayılan olarak aç / Open supported links) ══ -->
+            <!-- AniList, MyAnimeList, TMDB, Simkl -->
+            <intent-filter android:autoVerify="true">
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="http" />
+                <data android:scheme="https" />
+
+                <data android:host="anilist.co" />
+                <data android:host="www.anilist.co" />
+
+                <data android:host="myanimelist.net" />
+                <data android:host="www.myanimelist.net" />
+
+                <data android:host="themoviedb.org" />
+                <data android:host="www.themoviedb.org" />
+                <data android:host="tmdb.org" />
+                <data android:host="www.tmdb.org" />
+
+                <data android:host="simkl.com" />
+                <data android:host="www.simkl.com" />
+
+                <data android:pathPrefix="/anime/" />
+                <data android:pathPrefix="/manga/" />
+                <data android:pathPrefix="/character/" />
+                <data android:pathPrefix="/staff/" />
+                <data android:pathPrefix="/people/" />
+                <data android:pathPrefix="/studio/" />
+                <data android:pathPrefix="/user/" />
+                <data android:pathPrefix="/profile/" />
+                <data android:pathPrefix="/tv/" />
+                <data android:pathPrefix="/movie/" />
+                <data android:pathPrefix="/person/" />
+                <data android:pathPrefix="/shows/" />
+                <data android:pathPrefix="/movies/" />
+            </intent-filter>
+
+        </activity>
+
+        <activity
+            android:name=".ui.screens.fullscreen.KitsugiFullscreenPlayerActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:screenOrientation="fullSensor"
+            android:supportsPictureInPicture="true"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|colorMode|density|keyboard|keyboardHidden|navigation|uiMode|fontScale"
+            android:theme="@style/Theme.KitsugiAnimeList" />
+
+        <activity
+            android:name=".ui.tv.player.TvPlayerActivity"
+            android:exported="false"
+            android:screenOrientation="landscape"
+            android:launchMode="singleTop"
+            android:configChanges="orientation|screenSize|smallestScreenSize|screenLayout|keyboard|keyboardHidden|navigation"
+            android:resizeableActivity="false"
+            android:theme="@style/Theme.KitsugiAnimeList" />
+
+        <activity
+            android:name=".ui.screens.stream.KitsugiStreamActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|density|keyboard|keyboardHidden|navigation"
+            android:theme="@style/Theme.KitsugiAnimeList" />
+
+        <activity
+            android:name=".ui.screens.offline.DownloadedPlayerActivity"
+            android:exported="true"
+            android:launchMode="singleTask"
+            android:theme="@style/Theme.KitsugiAnimeList">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="video/*" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".ui.screens.crash.KitsugiCrashActivity"
+            android:process=":crash"
+            android:exported="false"
+            android:launchMode="singleInstance"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|density"
+            android:theme="@style/Theme.KitsugiAnimeList" />
+
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="com.kitsugi.animelist.fileprovider"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data
+                android:name="android.support.FILE_PROVIDER_PATHS"
+                android:resource="@xml/file_paths" />
+        </provider>
+        <!-- T1.8: KeepAliveService for external playback -->
+        <service
+            android:name=".core.player.KeepAliveService"
+            android:foregroundServiceType="mediaPlayback"
+            android:exported="false" />
+
+        <!-- AnimeDownloadService for background downloading -->
+        <service
+            android:name=".core.download.AnimeDownloadService"
+            android:foregroundServiceType="dataSync"
+            android:exported="false" />
+
+        <!-- WatchHistoryActivity: Standalone screen for browsing watch history -->
+        <activity
+            android:name=".ui.screens.stream.WatchHistoryActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|density"
+            android:theme="@style/Theme.KitsugiAnimeList" />
+
+        <!-- DownloadsActivity: Standalone screen for browsing downloads -->
+        <activity
+            android:name=".ui.screens.offline.DownloadsActivity"
+            android:exported="false"
+            android:launchMode="singleTop"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|density"
+            android:theme="@style/Theme.KitsugiAnimeList" />
+
+        <!-- B1.10: TV Channel refresh background job (15dk periyodik + anlik) -->
+        <service
+            android:name=".core.recommendations.TvChannelRefreshJobService"
+            android:exported="false"
+            android:permission="android.permission.BIND_JOB_SERVICE" />
+
+        <!-- B1.10: Boot ve INITIALIZE_PROGRAMS receiver -->
+        <receiver
+            android:name=".core.recommendations.TvChannelBootReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="androidx.tvprovider.media.tv.action.INITIALIZE_PROGRAMS" />
+            </intent-filter>
+        </receiver>
+    </application>
+
+</manifest>

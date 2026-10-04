@@ -1,0 +1,8 @@
+{
+  "name": "Kitsugi Eklenti Deposu",
+  "description": "Kitsugi uygulaması için güncel Türkçe eklenti havuzu",
+  "manifestVersion": 1,
+  "pluginLists": [
+    "https://codeberg.org/BlackDamage/KitsugiPlugins/raw/branch/builds/plugins.json"
+  ]
+}

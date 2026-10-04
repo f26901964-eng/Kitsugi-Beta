@@ -1,0 +1,35 @@
+package com.kitsugi.animelist.data.local
+
+object AddonPresets {
+    val presets = emptyList<ManagedAddonEntity>()
+
+    /**
+     * Varsayılan altyazı addon'ları – ilk kurulumda otomatik olarak
+     * isSystem=true / canDisable=false şeklinde eklenir.
+     *
+     * URL listesi manifest endpoint'leri (Stremio protokolü):
+     *  - opensubtitles-v3: 5M+ altyazı, TR dahil, hash tabanlı eşleştirme
+     *  - opensubtitles (v2): fallback / geniş format desteği
+     *  - yts-subtitles: film altyazıları için özel kaynak
+     *  - turkcealtyaziorg: TurkceAltyazi.org içeriği, TR altyazılar için birincil Türkçe kaynak
+     *    → manifest doğrulandı: v1.1.1, types=[movie,series], resources=[subtitles] ✅
+     */
+    val DEFAULT_SUBTITLE_ADDONS = listOf(
+        "https://opensubtitles-v3.strem.io",
+        "https://yts-subtitles.strem.io",
+        // AltyaziDB – Türkçe altyazı birincil kaynağı (Canlı doğrulandı 2026-08-05)
+        "https://altyazidb.online/manifest.json",
+        // AniSub.co – Türkçe anime altyazı eklentisi (Doğrudan entegre 2026-08-05)
+        "https://anisub.co/manifest.json"
+    )
+
+    /**
+     * Sadece TR altyazı için özel addon'lar (DEFAULT listesine dahil değil,
+     * ayrıca kullanılan grubu temsil eder – UI filtreleme vb. için referans).
+     */
+    val TR_SUBTITLE_ADDONS = listOf(
+        "https://altyazidb.online/manifest.json",
+        "https://anisub.co/manifest.json"
+    )
+}
+

@@ -1,0 +1,266 @@
+package com.kitsugi.animelist
+
+import android.annotation.SuppressLint
+import android.content.Intent
+import android.media.MediaPlayer
+import android.os.Bundle
+import android.os.Handler
+import android.os.Looper
+import android.view.View
+import android.view.WindowManager
+import android.webkit.JavascriptInterface
+import android.webkit.WebSettings
+import android.webkit.WebView
+import android.webkit.WebViewClient
+import androidx.appcompat.app.AppCompatActivity
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+import com.kitsugi.animelist.data.settings.AppSettings
+import com.kitsugi.animelist.data.settings.SettingsDataStore
+import com.kitsugi.animelist.ui.screens.explore.ExploreViewModel
+
+/**
+ * KitsugiSplashActivity — WebView tabanlı açılış ekranı
+ *
+ * assets/kitsugi_splash.html içindeki neon torii animasyonunu
+ * tam ekran WebView'da oynatır. Animasyon bitince MainActivity'ye
+ * crossfade ile geçer.
+ *
+ * Ayarlar:
+ *  - splashAnimationEnabled: false ise animasyon atlanır, direkt MainActivity açılır
+ *  - splashSoundEnabled:     true ise raw/kitsugi_splash_sound.wav çalınır
+ *
+ * Güvenlik: WebView sadece local assets yükler, internet erişimi kapalı.
+ */
+@SuppressLint("CustomSplashScreen")
+class KitsugiSplashActivity : AppCompatActivity() {
+
+    private lateinit var webView: WebView
+    private var transitionStarted = false
+    private var mediaPlayer: MediaPlayer? = null
+
+    /** JavaScript → Kotlin köprüsü */
+    inner class SplashInterface {
+        @JavascriptInterface
+        fun onAnimationComplete() {
+            runOnUiThread { navigateToMain() }
+        }
+    }
+
+    override fun onCreate(savedInstanceState: Bundle?) {
+        // Prefetch Discovery data in parallel immediately at startup
+        ExploreViewModel.prefetch(applicationContext)
+
+        super.onCreate(savedInstanceState)
+
+        // Tam ekran — status bar ve navigation bar gizli
+        window.setFlags(
+            WindowManager.LayoutParams.FLAG_FULLSCREEN,
+            WindowManager.LayoutParams.FLAG_FULLSCREEN
+        )
+        @Suppress("DEPRECATION")
+        window.decorView.systemUiVisibility = (
+            View.SYSTEM_UI_FLAG_FULLSCREEN
+            or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
+            or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY
+            or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
+            or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
+        )
+
+        // Hızlı SharedPreferences kontrolü — DataStore disk I/O ve coroutine gecikmesini sıfıra indirir.
+        // Kullanıcı açılış animasyonunu kapattıysa beklemeden anında MainActivity'ye atar!
+        val splashPrefs = getSharedPreferences("kitsugi_splash_cache", MODE_PRIVATE)
+        val hasCached = splashPrefs.contains("splash_animation_enabled")
+        val fastAnimationEnabled = splashPrefs.getBoolean("splash_animation_enabled", true)
+
+        if (hasCached && !fastAnimationEnabled) {
+            navigateToMain(instant = true)
+            return
+        }
+
+        // Ayarları DataStore'dan oku, sonra UI'yı başlat
+        lifecycleScope.launch {
+            val dataStore = SettingsDataStore(applicationContext)
+            val settings = try {
+                withTimeoutOrNull(800L) {
+                    dataStore.settingsFlow.first()
+                } ?: run {
+                    val anim = splashPrefs.getBoolean("splash_animation_enabled", true)
+                    val sound = splashPrefs.getBoolean("splash_sound_enabled", true)
+                    AppSettings(splashAnimationEnabled = anim, splashSoundEnabled = sound)
+                }
+            } catch (_: Exception) {
+                val anim = splashPrefs.getBoolean("splash_animation_enabled", true)
+                val sound = splashPrefs.getBoolean("splash_sound_enabled", true)
+                AppSettings(splashAnimationEnabled = anim, splashSoundEnabled = sound)
+            }
+
+            runCatching {
+                splashPrefs.edit()
+                    .putBoolean("splash_animation_enabled", settings.splashAnimationEnabled)
+                    .putBoolean("splash_sound_enabled", settings.splashSoundEnabled)
+                    .apply()
+            }
+
+            if (settings.splashAnimationEnabled) {
+                startAnimatedSplash(settings)
+            } else {
+                // Animasyon ve ses kapalı → direkt ana sayfaya geç
+                navigateToMain(instant = true)
+            }
+        }
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Splash başlatma
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private fun startAnimatedSplash(settings: AppSettings) {
+        // WebView oluştur
+        webView = WebView(this).apply {
+            setBackgroundColor(0xFF050510.toInt())
+        }
+        setContentView(webView)
+        setupWebView()
+        loadSplash()
+
+        // Açılış sesini çal (eğer aktifse)
+        if (settings.splashSoundEnabled) {
+            playSplashSound()
+        }
+
+        // Fallback: HTML sinyali gelmezse 5 saniye sonra geç
+        Handler(Looper.getMainLooper()).postDelayed({
+            navigateToMain()
+        }, 5000L)
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Ses
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private fun playSplashSound() {
+        try {
+            val resId = resources.getIdentifier("kitsugi_splash_sound", "raw", packageName)
+            if (resId == 0) return  // ses dosyası yoksa sessiz devam et
+            mediaPlayer = MediaPlayer.create(this, resId)?.apply {
+                setVolume(0.85f, 0.85f)
+                isLooping = false
+                setOnCompletionListener { release() }
+                start()
+            }
+        } catch (_: Exception) {
+            // Ses hatası kritik değil — yoksay
+        }
+    }
+
+    private fun releaseSoundPlayer() {
+        mediaPlayer?.let {
+            try {
+                if (it.isPlaying) it.stop()
+                it.release()
+            } catch (_: Exception) {}
+        }
+        mediaPlayer = null
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // WebView
+    // ─────────────────────────────────────────────────────────────────────────
+
+    @SuppressLint("SetJavaScriptEnabled")
+    private fun setupWebView() {
+        webView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            allowFileAccess = true
+            allowContentAccess = false
+            setRenderPriority(WebSettings.RenderPriority.HIGH)
+            cacheMode = WebSettings.LOAD_NO_CACHE
+            mediaPlaybackRequiresUserGesture = false
+        }
+        webView.addJavascriptInterface(SplashInterface(), "KitsugiSplash")
+        webView.webViewClient = object : WebViewClient() {
+            override fun onPageFinished(view: WebView?, url: String?) {}
+
+            @Suppress("DEPRECATION")
+            override fun onReceivedError(view: WebView?, errorCode: Int, description: String?, failingUrl: String?) {
+                runOnUiThread { navigateToMain() }
+            }
+
+            override fun onReceivedError(
+                view: WebView?,
+                request: android.webkit.WebResourceRequest?,
+                error: android.webkit.WebResourceError?
+            ) {
+                runOnUiThread { navigateToMain() }
+            }
+
+            override fun onReceivedHttpError(
+                view: WebView?,
+                request: android.webkit.WebResourceRequest?,
+                errorResponse: android.webkit.WebResourceResponse?
+            ) {
+                runOnUiThread { navigateToMain() }
+            }
+        }
+    }
+
+    private fun loadSplash() {
+        webView.loadUrl("file:///android_asset/kitsugi_splash.html")
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Geçiş
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private fun navigateToMain(instant: Boolean = false) {
+        if (transitionStarted) return
+        transitionStarted = true
+
+        releaseSoundPlayer()
+
+        // Prefetch arka planda devam eder — bitmesini BEKLEME.
+        // ExploreViewModel init'i cache'den okur; cache dolmadıysa kendi fetch'ini başlatır.
+        val intent = Intent(this@KitsugiSplashActivity, MainActivity::class.java).apply {
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP
+        }
+        startActivity(intent)
+
+        if (instant) {
+            overridePendingTransition(0, 0)
+        } else {
+            overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out)
+        }
+        finish()
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Lifecycle
+    // ─────────────────────────────────────────────────────────────────────────
+
+    override fun onPause() {
+        super.onPause()
+        mediaPlayer?.takeIf { it.isPlaying }?.pause()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        if (!transitionStarted) {
+            mediaPlayer?.takeIf { !it.isPlaying }?.start()
+        }
+    }
+
+    override fun onDestroy() {
+        releaseSoundPlayer()
+        if (::webView.isInitialized) webView.destroy()
+        super.onDestroy()
+    }
+
+    @Suppress("DEPRECATION")
+    override fun onBackPressed() {
+        // Splash sırasında geri tuşu devre dışı
+    }
+}

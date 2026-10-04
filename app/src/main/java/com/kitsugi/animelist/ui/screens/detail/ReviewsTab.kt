@@ -1,0 +1,787 @@
+package com.kitsugi.animelist.ui.screens.detail
+
+import android.content.Context
+import android.widget.Toast
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import com.kitsugi.animelist.ui.utils.tvClickable
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.List
+import androidx.compose.material.icons.rounded.*
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import coil3.compose.AsyncImage
+import com.kitsugi.animelist.data.remote.JikanApiClient
+import com.kitsugi.animelist.data.remote.KitsugiActivity
+import com.kitsugi.animelist.data.remote.KitsugiForumTopic
+import com.kitsugi.animelist.data.remote.KitsugiReview
+import com.kitsugi.animelist.model.MediaType
+import com.kitsugi.animelist.ui.components.KitsugiActivityDetailBottomSheet
+import com.kitsugi.animelist.ui.components.KitsugiAllActivitiesBottomSheet
+import com.kitsugi.animelist.ui.components.KitsugiAllReviewsBottomSheet
+import com.kitsugi.animelist.ui.components.KitsugiAllTopicsBottomSheet
+import com.kitsugi.animelist.ui.components.KitsugiMarkdownText
+import com.kitsugi.animelist.ui.components.KitsugiReviewDetailBottomSheet
+import com.kitsugi.animelist.ui.components.KitsugiTopicDetailBottomSheet
+import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
+import com.kitsugi.animelist.ui.theme.KitsugiColors
+import com.kitsugi.animelist.ui.components.KitsugiShimmerSearchResultList
+import androidx.compose.foundation.clickable
+import com.kitsugi.animelist.utils.ShareUtils
+import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
+import kotlinx.coroutines.launch
+
+
+@Composable
+fun ReviewsTabContent(
+    state: DetailTabState<List<KitsugiReview>>,
+    source: String,
+    externalId: Int,
+    mediaType: MediaType,
+    apiClient: JikanApiClient,
+    titleLanguage: String = "ROMAJI",
+    preferredTranslator: String = "DEFAULT",
+    onUserProfileClick: (userId: Int, username: String, avatarUrl: String?) -> Unit,
+    onImageGalleryRequest: ((urls: List<String>, index: Int) -> Unit)? = null
+) {
+    val coroutineScope = rememberCoroutineScope()
+    val context = LocalContext.current
+    var activeReviewForDetail by remember { mutableStateOf<KitsugiReview?>(null) }
+    var activeTopicForDetail by remember { mutableStateOf<KitsugiForumTopic?>(null) }
+    var activeActivityIdForDetail by remember { mutableStateOf<Int?>(null) }
+
+    val handleUserProfileClick: (userId: Int?, username: String, avatarUrl: String?) -> Unit = { userId, username, avatarUrl ->
+        if (source.lowercase() == "anilist" && userId != null) {
+            onUserProfileClick(userId, username, avatarUrl)
+        } else {
+            try {
+                val url = ShareUtils.buildProfileUrl(source, username)
+                val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
+                context.startActivity(intent)
+            } catch (e: Exception) {
+                Toast.makeText(context, "Profil linki açılamadı", Toast.LENGTH_SHORT).show()
+            }
+        }
+    }
+
+    var showAllTopicsSheet by remember { mutableStateOf(false) }
+    var showAllActivitiesSheet by remember { mutableStateOf(false) }
+    var showAllReviewsSheet by remember { mutableStateOf(false) }
+
+    val isTmdbOrSimkl = source.equals("tmdb", ignoreCase = true) || source.equals("simkl", ignoreCase = true)
+
+    var forumTopics by remember { mutableStateOf<List<KitsugiForumTopic>>(emptyList()) }
+    var activitiesList by remember { mutableStateOf<List<KitsugiActivity>>(emptyList()) }
+
+    // TMDB / Simkl kaynakları için forum/aktivite desteği yok — API çağrısını atla
+    LaunchedEffect(source, externalId, mediaType) {
+        if (!isTmdbOrSimkl) {
+            coroutineScope.launch {
+                runCatching {
+                    forumTopics = apiClient.fetchForumTopics(source, externalId, mediaType)
+                }
+            }
+            coroutineScope.launch {
+                runCatching {
+                    activitiesList = apiClient.fetchActivities(source, externalId, mediaType = mediaType)
+                }
+            }
+        }
+    }
+
+    var reviewsList by remember(state) {
+        mutableStateOf(if (state is DetailTabState.Success) state.data else emptyList())
+    }
+
+    val topicsListState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val activitiesListState = androidx.compose.foundation.lazy.rememberLazyListState()
+    val reviewsListState = androidx.compose.foundation.lazy.rememberLazyListState()
+
+    Column(
+        verticalArrangement = Arrangement.spacedBy(20.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        // --- 1. FORUM TOPICS SECTION ---
+        if (forumTopics.isNotEmpty()) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(KitsugiColors.Surface)
+                    .border(1.dp, KitsugiColors.Border.copy(alpha = 0.3f), RoundedCornerShape(18.dp))
+                    .padding(vertical = 12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Tartışma Konuları",
+                        color = KitsugiColors.TextPrimary,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Black
+                    )
+
+                    IconButton(
+                        onClick = { showAllTopicsSheet = true },
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = KitsugiColors.SurfaceStrong
+                        ),
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.List,
+                            contentDescription = "Tümünü Gör",
+                            tint = KitsugiColors.TextPrimary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+
+                LazyRow(
+                    state = topicsListState,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    flingBehavior = androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior(
+                        lazyListState = topicsListState,
+                        snapPosition = androidx.compose.foundation.gestures.snapping.SnapPosition.Start
+                    )
+                ) {
+                    items(forumTopics) { topic ->
+                        TopicCard(
+                            topic = topic,
+                            onUserProfileClick = handleUserProfileClick,
+                            onClick = {
+                                Toast.makeText(context, "Yükleniyor...", Toast.LENGTH_SHORT).show()
+                                activeTopicForDetail = topic
+                            },
+                            backgroundColor = KitsugiColors.SurfaceSoft,
+                            onLikeClick = if (source.lowercase() != "jikan" && source.lowercase() != "mal") {
+                                {
+                                    coroutineScope.launch {
+                                        val success = apiClient.toggleLike(topic.id, "THREAD")
+                                        if (success) {
+                                            forumTopics = forumTopics.map {
+                                                if (it.id == topic.id) {
+                                                    val newLiked = !it.isLiked
+                                                    val newCount = if (newLiked) it.likeCount + 1 else it.likeCount - 1
+                                                    it.copy(isLiked = newLiked, likeCount = newCount)
+                                                } else {
+                                                    it
+                                                }
+                                            }
+                                        } else {
+                                            Toast.makeText(context, "Lütfen önce giriş yapın", Toast.LENGTH_SHORT).show()
+                                        }
+                                    }
+                                }
+                            } else null
+                        )
+                    }
+                }
+            }
+        }
+
+        // --- 2. ACTIVITIES SECTION ---
+        if (activitiesList.isNotEmpty()) {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(18.dp))
+                    .background(KitsugiColors.Surface)
+                    .border(1.dp, KitsugiColors.Border.copy(alpha = 0.3f), RoundedCornerShape(18.dp))
+                    .padding(vertical = 12.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "Aktiviteler",
+                        color = KitsugiColors.TextPrimary,
+                        fontSize = 15.sp,
+                        fontWeight = FontWeight.Black
+                    )
+
+                    IconButton(
+                        onClick = { showAllActivitiesSheet = true },
+                        colors = IconButtonDefaults.iconButtonColors(
+                            containerColor = KitsugiColors.SurfaceStrong
+                        ),
+                        modifier = Modifier.size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.List,
+                            contentDescription = "Tümünü Gör",
+                            tint = KitsugiColors.TextPrimary,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                }
+
+                LazyRow(
+                    state = activitiesListState,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(horizontal = 14.dp),
+                    modifier = Modifier.fillMaxWidth(),
+                    flingBehavior = androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior(
+                        lazyListState = activitiesListState,
+                        snapPosition = androidx.compose.foundation.gestures.snapping.SnapPosition.Start
+                    )
+                ) {
+                    items(activitiesList) { activity ->
+                        ActivityCard(
+                            activity = activity,
+                            titleLanguage = titleLanguage,
+                            onUserProfileClick = handleUserProfileClick,
+                            onClick = {
+                                Toast.makeText(context, "Yükleniyor...", Toast.LENGTH_SHORT).show()
+                                activeActivityIdForDetail = activity.id
+                            },
+                            backgroundColor = KitsugiColors.SurfaceSoft,
+                            onLikeClick = {
+                                if (source.lowercase() == "jikan" || source.lowercase() == "mal") {
+                                    Toast.makeText(context, "Beğeni özelliği MAL kaynağı için desteklenmemektedir.", Toast.LENGTH_SHORT).show()
+                                    return@ActivityCard
+                                }
+                                coroutineScope.launch {
+                                    val success = apiClient.toggleLike(activity.id, "ACTIVITY")
+                                    if (success) {
+                                        activitiesList = activitiesList.map {
+                                            if (it.id == activity.id) {
+                                                val newLiked = !it.isLiked
+                                                val newCount = if (newLiked) it.likeCount + 1 else it.likeCount - 1
+                                                it.copy(isLiked = newLiked, likeCount = newCount)
+                                            } else {
+                                                it
+                                            }
+                                        }
+                                    } else {
+                                        Toast.makeText(context, "Lütfen önce giriş yapın", Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            }
+                        )
+                    }
+                }
+            }
+        }
+
+        // --- 3. REVIEWS SECTION ---
+        Column(
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(18.dp))
+                .background(KitsugiColors.Surface)
+                .border(1.dp, KitsugiColors.Border.copy(alpha = 0.3f), RoundedCornerShape(18.dp))
+                .padding(vertical = 12.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 14.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "İncelemeler",
+                    color = KitsugiColors.TextPrimary,
+                    fontSize = 15.sp,
+                    fontWeight = FontWeight.Black
+                )
+
+                IconButton(
+                    onClick = { showAllReviewsSheet = true },
+                    colors = IconButtonDefaults.iconButtonColors(
+                        containerColor = KitsugiColors.SurfaceStrong
+                    ),
+                    modifier = Modifier.size(32.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Rounded.List,
+                        contentDescription = "Tümünü Gör",
+                        tint = KitsugiColors.TextPrimary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+
+            when (state) {
+                is DetailTabState.Loading -> {
+                    Box(modifier = Modifier.padding(horizontal = 14.dp)) {
+                        KitsugiShimmerSearchResultList(itemCount = 2)
+                    }
+                }
+                is DetailTabState.Error -> {
+                    Text(
+                        text = "İncelemeler yüklenirken hata oluştu.",
+                        color = KitsugiColors.AccentRed,
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.padding(vertical = 16.dp, horizontal = 14.dp)
+                    )
+                }
+                is DetailTabState.Success -> {
+                    if (reviewsList.isEmpty()) {
+                        Text(
+                            text = "Henüz inceleme yazılmamış.",
+                            color = KitsugiColors.TextSecondary,
+                            style = MaterialTheme.typography.bodyMedium,
+                            modifier = Modifier.padding(vertical = 16.dp, horizontal = 14.dp)
+                        )
+                    } else {
+                        LazyRow(
+                            state = reviewsListState,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            contentPadding = PaddingValues(horizontal = 14.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                            flingBehavior = androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior(
+                                lazyListState = reviewsListState,
+                                snapPosition = androidx.compose.foundation.gestures.snapping.SnapPosition.Start
+                            )
+                        ) {
+                            items(reviewsList) { rev ->
+                                KitsugiReviewCard(
+                                    rev = rev,
+                                    modifier = Modifier.width(280.dp),
+                                    preferredTranslator = preferredTranslator,
+                                    backgroundColor = KitsugiColors.SurfaceSoft,
+                                    onUserProfileClick = handleUserProfileClick,
+                                    onClick = { activeReviewForDetail = rev },
+                                    onHelpfulClick = {
+                                        if (rev.id == null) {
+                                            Toast.makeText(context, "Beğeni özelliği MAL kaynağı için desteklenmemektedir.", Toast.LENGTH_SHORT).show()
+                                            return@KitsugiReviewCard
+                                        }
+                                        coroutineScope.launch {
+                                            val currentRating = rev.userRating
+                                            val newRating = if (currentRating == "UP_VOTE") "NO_RATING" else "UP_VOTE"
+                                            val success = apiClient.rateReview(rev.id, newRating)
+                                            if (success) {
+                                                reviewsList = reviewsList.map {
+                                                    if (it.id == rev.id) {
+                                                        val diff = if (newRating == "UP_VOTE") 1 else -1
+                                                        val oldCount = it.helpfulCount ?: 0
+                                                        it.copy(
+                                                            userRating = newRating,
+                                                            helpfulCount = (oldCount + diff).coerceAtLeast(0)
+                                                        )
+                                                    } else {
+                                                        it
+                                                    }
+                                                }
+                                            } else {
+                                                Toast.makeText(context, "Lütfen önce giriş yapın", Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    },
+                                    onImageGalleryRequest = onImageGalleryRequest
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    // --- BOTTOM SHEETS TRIGGERS ---
+    if (showAllTopicsSheet) {
+        KitsugiAllTopicsBottomSheet(
+            source = source,
+            externalId = externalId,
+            mediaType = mediaType,
+            apiClient = apiClient,
+            onUserProfileClick = handleUserProfileClick,
+            onDismiss = { showAllTopicsSheet = false }
+        )
+    }
+
+    if (showAllActivitiesSheet) {
+        KitsugiAllActivitiesBottomSheet(
+            source = source,
+            externalId = externalId,
+            mediaType = mediaType,
+            apiClient = apiClient,
+            titleLanguage = titleLanguage,
+            onUserProfileClick = handleUserProfileClick,
+            onDismiss = { showAllActivitiesSheet = false }
+        )
+    }
+
+    if (showAllReviewsSheet) {
+        KitsugiAllReviewsBottomSheet(
+            source = source,
+            externalId = externalId,
+            mediaType = mediaType,
+            apiClient = apiClient,
+            onUserProfileClick = handleUserProfileClick,
+            onDismiss = { showAllReviewsSheet = false }
+        )
+    }
+
+    if (activeReviewForDetail != null) {
+        KitsugiReviewDetailBottomSheet(
+            review = activeReviewForDetail!!,
+            apiClient = apiClient,
+            onUserProfileClick = handleUserProfileClick,
+            onDismiss = { activeReviewForDetail = null }
+        )
+    }
+
+    if (activeTopicForDetail != null) {
+        KitsugiTopicDetailBottomSheet(
+            topic = activeTopicForDetail!!,
+            source = source,
+            apiClient = apiClient,
+            onUserProfileClick = handleUserProfileClick,
+            onDismiss = { activeTopicForDetail = null }
+        )
+    }
+
+    if (activeActivityIdForDetail != null) {
+        KitsugiActivityDetailBottomSheet(
+            activityId = activeActivityIdForDetail!!,
+            apiClient = apiClient,
+            titleLanguage = titleLanguage,
+            onUserProfileClick = handleUserProfileClick,
+            onDismiss = { activeActivityIdForDetail = null }
+        )
+    }
+}
+
+@Composable
+private fun TopicCard(
+    topic: KitsugiForumTopic,
+    onUserProfileClick: ((userId: Int?, username: String, avatarUrl: String?) -> Unit)? = null,
+    onClick: () -> Unit,
+    onLikeClick: (() -> Unit)? = null,
+    backgroundColor: androidx.compose.ui.graphics.Color = KitsugiColors.Surface
+) {
+    val accentColor = LocalKitsugiAccent.current
+
+    Column(
+        modifier = Modifier
+            .width(280.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(backgroundColor)
+            .tvClickable(shape = RoundedCornerShape(16.dp), onClick = onClick)
+            .padding(16.dp)
+            .height(144.dp),
+        verticalArrangement = Arrangement.SpaceBetween
+    ) {
+        // Center-aligned italicized title
+        Text(
+            text = topic.title.replace(Regex("[*_`~]"), ""),
+            color = KitsugiColors.TextPrimary,
+            fontSize = 13.sp,
+            fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+            fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            maxLines = 3,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth()
+        )
+
+        // Bottom row containing stats & author profile info
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Stats (Likes, Comments, Views)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                if (onLikeClick != null) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(3.dp),
+                        modifier = Modifier.tvClickable(shape = RoundedCornerShape(8.dp), onClick = onLikeClick)
+                    ) {
+                        Icon(
+                            imageVector = if (topic.isLiked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                            contentDescription = null,
+                            tint = if (topic.isLiked) accentColor else KitsugiColors.TextMuted,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Text(
+                            text = topic.likeCount.toString(),
+                            color = if (topic.isLiked) accentColor else KitsugiColors.TextMuted,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(3.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.ChatBubbleOutline,
+                        contentDescription = null,
+                        tint = KitsugiColors.TextMuted,
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Text(
+                        text = topic.commentCount.toString(),
+                        color = KitsugiColors.TextMuted,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                if (topic.viewCount > 0) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(3.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Visibility,
+                            contentDescription = null,
+                            tint = KitsugiColors.TextMuted,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Text(
+                            text = topic.viewCount.toString(),
+                            color = KitsugiColors.TextMuted,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            // Author Profile Clickable
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = if (onUserProfileClick != null) {
+                    Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { onUserProfileClick(topic.userId, topic.username, topic.avatarUrl) }
+                        .padding(4.dp)
+                } else Modifier
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(KitsugiColors.SurfaceSoft)
+                ) {
+                    if (!topic.avatarUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            model = topic.avatarUrl,
+                            contentDescription = topic.username,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(
+                                text = topic.username.take(1).uppercase(),
+                                color = KitsugiColors.TextMuted,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = topic.username,
+                    color = KitsugiColors.TextPrimary,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.widthIn(max = 80.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun ActivityCard(
+    activity: KitsugiActivity,
+    titleLanguage: String = "ROMAJI",
+    onUserProfileClick: ((userId: Int?, username: String, avatarUrl: String?) -> Unit)? = null,
+    onClick: () -> Unit,
+    onLikeClick: () -> Unit,
+    backgroundColor: androidx.compose.ui.graphics.Color = KitsugiColors.Surface
+) {
+    val accentColor = LocalKitsugiAccent.current
+
+    // Resolve localized title for ListActivity entries
+    val localizedTitle = when (titleLanguage) {
+        "ENGLISH" -> activity.mediaTitleEnglish?.takeIf { it.isNotBlank() }
+            ?: activity.mediaTitleRomaji
+            ?: activity.mediaTitleNative
+            ?: activity.mediaTitle
+        "NATIVE", "JAPANESE_STAFF" -> activity.mediaTitleNative?.takeIf { it.isNotBlank() }
+            ?: activity.mediaTitleRomaji
+            ?: activity.mediaTitleEnglish
+            ?: activity.mediaTitle
+        else -> activity.mediaTitleRomaji
+            ?: activity.mediaTitleEnglish
+            ?: activity.mediaTitleNative
+            ?: activity.mediaTitle
+    }
+    val displayText = if (activity.mediaTitle != null && localizedTitle != null && localizedTitle != activity.mediaTitle) {
+        activity.text.replace("**${activity.mediaTitle}**", localizedTitle)
+    } else activity.text
+
+    val cleanText = displayText.replace(Regex("[*_`~]"), "")
+
+    Column(
+        modifier = Modifier
+            .width(280.dp)
+            .clip(RoundedCornerShape(16.dp))
+            .background(backgroundColor)
+            .tvClickable(shape = RoundedCornerShape(16.dp), onClick = onClick)
+            .padding(16.dp)
+            .height(144.dp),
+        verticalArrangement = Arrangement.SpaceBetween
+    ) {
+        // Centered italicized text body with media cover if present
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text(
+                text = cleanText,
+                color = KitsugiColors.TextPrimary,
+                fontSize = 13.sp,
+                fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
+                fontWeight = androidx.compose.ui.text.font.FontWeight.SemiBold,
+                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+
+            if (!activity.mediaCoverUrl.isNullOrBlank()) {
+                Spacer(modifier = Modifier.width(8.dp))
+                AsyncImage(
+                    model = activity.mediaCoverUrl,
+                    contentDescription = activity.mediaTitle,
+                    modifier = Modifier
+                        .size(width = 36.dp, height = 50.dp)
+                        .clip(RoundedCornerShape(6.dp)),
+                    contentScale = ContentScale.Crop
+                )
+            }
+        }
+
+        // Bottom row containing stats & author profile info
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            // Stats (Likes, Date)
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(3.dp),
+                    modifier = Modifier.tvClickable(shape = RoundedCornerShape(8.dp), onClick = onLikeClick)
+                ) {
+                    Icon(
+                        imageVector = if (activity.isLiked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                        contentDescription = null,
+                        tint = if (activity.isLiked) accentColor else KitsugiColors.TextMuted,
+                        modifier = Modifier.size(12.dp)
+                    )
+                    Text(
+                        text = activity.likeCount.toString(),
+                        color = if (activity.isLiked) accentColor else KitsugiColors.TextMuted,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                if (!activity.dateText.isNullOrBlank()) {
+                    Text(
+                        text = activity.dateText.take(11),
+                        color = KitsugiColors.TextMuted,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            // Author Profile Clickable
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = if (onUserProfileClick != null) {
+                    Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable { onUserProfileClick(activity.userId, activity.username, activity.avatarUrl) }
+                        .padding(4.dp)
+                } else Modifier
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(24.dp)
+                        .clip(CircleShape)
+                        .background(KitsugiColors.SurfaceSoft)
+                ) {
+                    if (!activity.avatarUrl.isNullOrBlank()) {
+                        AsyncImage(
+                            model = activity.avatarUrl,
+                            contentDescription = activity.username,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Crop
+                        )
+                    } else {
+                        Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                            Text(
+                                text = activity.username.take(1).uppercase(),
+                                color = KitsugiColors.TextMuted,
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 11.sp
+                            )
+                        }
+                    }
+                }
+                Spacer(modifier = Modifier.width(6.dp))
+                Text(
+                    text = activity.username,
+                    color = KitsugiColors.TextPrimary,
+                    fontSize = 12.sp,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.widthIn(max = 80.dp)
+                )
+            }
+        }
+    }
+}
