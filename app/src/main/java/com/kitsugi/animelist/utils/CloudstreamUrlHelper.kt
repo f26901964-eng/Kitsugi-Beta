@@ -43,6 +43,11 @@ object CloudstreamUrlHelper {
             url = if (realUrl.startsWith("http")) realUrl else "https://$realUrl"
         }
 
+        // Direct Codeberg KitsugiPlugins URLs should not be altered
+        if (url.startsWith("https://codeberg.org/BlackDamage/KitsugiPlugins/raw/branch/builds/", ignoreCase = true)) {
+            return url
+        }
+
         // Dead legacy repositories and old GitHub accounts are automatically redirected to Codeberg KitsugiPlugins
         if (url.contains("KitsugiPlugins", ignoreCase = true) ||
             url.contains("Kitsugi-Plugins", ignoreCase = true) ||
