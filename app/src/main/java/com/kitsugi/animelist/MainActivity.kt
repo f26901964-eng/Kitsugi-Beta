@@ -140,9 +140,10 @@ class MainActivity : AppCompatActivity() {
                     Toast.makeText(
                         this,
                         when (serviceName) {
-                            "anilist" -> "AniList bağlantısı başarılı."
-                            "simkl"   -> "Simkl bağlantısı başarılı."
-                            else      -> "MyAnimeList bağlantısı başarılı."
+                            "anilist"   -> "AniList bağlantısı başarılı."
+                            "simkl"     -> "Simkl bağlantısı başarılı."
+                            "shikimori" -> "Shikimori bağlantısı başarılı."
+                            else        -> "MyAnimeList bağlantısı başarılı."
                         },
                         Toast.LENGTH_SHORT
                     ).show()

@@ -75,9 +75,23 @@ object ShikimoriApiClient {
     const val DEFAULT_CLIENT_ID = "aOAYRqOLwxpA8skpcQIXetNy4cw2rn2fRzScawlcQ5U"
     const val DEFAULT_CLIENT_SECRET = "jqjmORn6bh2046ulkm4lHEwJ3OA1RmO3FD2sR9f6Clw"
     const val DEFAULT_REDIRECT_URI = "urn:ietf:wg:oauth:2.0:oob"
+    const val DEEP_LINK_REDIRECT_URI = "aniyomi://shikimori-auth"
+    private const val OAUTH_TOKEN_URL = "https://shikimori.io/oauth/token"
 
     /**
-     * Shikimori üzerinde önceden doldurulmuş yeni OAuth uygulama oluşturma URL'si.
+     * Kullanıcının yapıştırdığı metinden (örn. URL veya query parametresi) auth code'u ayıklar.
+     */
+    fun sanitizeAuthCode(rawInput: String): String {
+        val trimmed = rawInput.trim()
+        if (trimmed.contains("code=")) {
+            val extracted = trimmed.substringAfter("code=").substringBefore("&").substringBefore("#").trim()
+            if (extracted.isNotBlank()) return extracted
+        }
+        return trimmed
+    }
+
+    /**
+     * Shikimori üzerinde önceden doldurulmuş yeni OAuth uygulama oluşturma URL'si (gelişmiş kullanıcılar için).
      */
     fun buildNewApplicationUrl(): String {
         val encodedUri = java.net.URLEncoder.encode(DEFAULT_REDIRECT_URI, "UTF-8")
@@ -87,83 +101,137 @@ object ShikimoriApiClient {
     /**
      * OAuth2 yetkilendirme URL'sini üretir.
      */
-    fun buildAuthorizeUrl(clientId: String, redirectUri: String = DEFAULT_REDIRECT_URI): String {
+    fun buildAuthorizeUrl(clientId: String = DEFAULT_CLIENT_ID, redirectUri: String = DEFAULT_REDIRECT_URI): String {
+        val effectiveClientId = clientId.trim().ifBlank { DEFAULT_CLIENT_ID }
         val encodedUri = java.net.URLEncoder.encode(redirectUri, "UTF-8")
-        return "$BASE_URL/oauth/authorize?client_id=${clientId.trim()}&redirect_uri=$encodedUri&response_type=code&scope=user_rates"
+        return "$BASE_URL/oauth/authorize?client_id=$effectiveClientId&redirect_uri=$encodedUri&response_type=code&scope=user_rates"
     }
 
     /**
      * OAuth yetki kodunu (authorization code) access token ile takas eder.
+     * Hem doğrudan oob hem de deep-link (aniyomi://) redirect URI uyumluluğunu dener.
      */
     suspend fun exchangeCodeForToken(
+        clientId: String = DEFAULT_CLIENT_ID,
+        clientSecret: String = DEFAULT_CLIENT_SECRET,
+        code: String,
+        redirectUri: String = DEFAULT_REDIRECT_URI
+    ): ShikimoriTokenResponse = withContext(Dispatchers.IO) {
+        val cleanCode = sanitizeAuthCode(code)
+        val targetClientId = clientId.trim().ifBlank { DEFAULT_CLIENT_ID }
+        val targetSecret = clientSecret.trim().ifBlank { DEFAULT_CLIENT_SECRET }
+
+        val urisToTry = if (redirectUri == DEEP_LINK_REDIRECT_URI) {
+            listOf(DEEP_LINK_REDIRECT_URI, DEFAULT_REDIRECT_URI)
+        } else {
+            listOf(DEFAULT_REDIRECT_URI, DEEP_LINK_REDIRECT_URI)
+        }
+
+        var lastException: Exception? = null
+        for (uri in urisToTry) {
+            try {
+                return@withContext executeTokenRequest(
+                    clientId = targetClientId,
+                    clientSecret = targetSecret,
+                    code = cleanCode,
+                    redirectUri = uri
+                )
+            } catch (e: Exception) {
+                lastException = e
+            }
+        }
+        throw lastException ?: Exception("Shikimori token alınamadı.")
+    }
+
+    private fun executeTokenRequest(
         clientId: String,
         clientSecret: String,
         code: String,
-        redirectUri: String = "urn:ietf:wg:oauth:2.0:oob"
-    ): ShikimoriTokenResponse = withContext(Dispatchers.IO) {
+        redirectUri: String
+    ): ShikimoriTokenResponse {
         val formBody = FormBody.Builder()
             .add("grant_type", "authorization_code")
             .add("client_id", clientId)
             .add("client_secret", clientSecret)
-            .add("code", code.trim())
+            .add("code", code)
             .add("redirect_uri", redirectUri)
             .build()
 
-        val request = Request.Builder()
-            .url("$BASE_URL/oauth/token")
-            .addHeader("User-Agent", USER_AGENT)
-            .addHeader("Accept", "application/json")
-            .post(formBody)
-            .build()
+        val urlsToTry = listOf(OAUTH_TOKEN_URL, "$BASE_URL/oauth/token")
+        var lastErr: Exception? = null
 
-        KitsugiHttpClient.client.newCall(request).execute().use { response ->
-            val body = response.body?.string().orEmpty()
-            if (!response.isSuccessful) {
-                throw Exception("Shikimori token alınamadı (${response.code}): $body")
+        for (tokenUrl in urlsToTry) {
+            try {
+                val request = Request.Builder()
+                    .url(tokenUrl)
+                    .addHeader("User-Agent", USER_AGENT)
+                    .addHeader("Accept", "application/json")
+                    .post(formBody)
+                    .build()
+
+                KitsugiHttpClient.client.newCall(request).execute().use { response ->
+                    val body = response.body?.string().orEmpty()
+                    if (!response.isSuccessful) {
+                        throw Exception("Shikimori token alınamadı (${response.code}): $body")
+                    }
+                    val json = JSONObject(body)
+                    return ShikimoriTokenResponse(
+                        accessToken = json.getString("access_token"),
+                        refreshToken = json.optString("refresh_token", ""),
+                        expiresIn = json.optLong("expires_in", 2592000L)
+                    )
+                }
+            } catch (e: Exception) {
+                lastErr = e
             }
-            val json = JSONObject(body)
-            ShikimoriTokenResponse(
-                accessToken = json.getString("access_token"),
-                refreshToken = json.optString("refresh_token", ""),
-                expiresIn = json.optLong("expires_in", 2592000L)
-            )
         }
+        throw lastErr ?: Exception("Shikimori token isteği başarısız oldu.")
     }
 
     /**
      * Refresh token ile token yeniler.
      */
     suspend fun refreshToken(
-        clientId: String,
-        clientSecret: String,
+        clientId: String = DEFAULT_CLIENT_ID,
+        clientSecret: String = DEFAULT_CLIENT_SECRET,
         refreshToken: String
     ): ShikimoriTokenResponse = withContext(Dispatchers.IO) {
         val formBody = FormBody.Builder()
             .add("grant_type", "refresh_token")
-            .add("client_id", clientId)
-            .add("client_secret", clientSecret)
+            .add("client_id", clientId.trim().ifBlank { DEFAULT_CLIENT_ID })
+            .add("client_secret", clientSecret.trim().ifBlank { DEFAULT_CLIENT_SECRET })
             .add("refresh_token", refreshToken)
             .build()
 
-        val request = Request.Builder()
-            .url("$BASE_URL/oauth/token")
-            .addHeader("User-Agent", USER_AGENT)
-            .addHeader("Accept", "application/json")
-            .post(formBody)
-            .build()
+        val urlsToTry = listOf(OAUTH_TOKEN_URL, "$BASE_URL/oauth/token")
+        var lastErr: Exception? = null
 
-        KitsugiHttpClient.client.newCall(request).execute().use { response ->
-            val body = response.body?.string().orEmpty()
-            if (!response.isSuccessful) {
-                throw Exception("Shikimori token yenilenemedi (${response.code}): $body")
+        for (tokenUrl in urlsToTry) {
+            try {
+                val request = Request.Builder()
+                    .url(tokenUrl)
+                    .addHeader("User-Agent", USER_AGENT)
+                    .addHeader("Accept", "application/json")
+                    .post(formBody)
+                    .build()
+
+                KitsugiHttpClient.client.newCall(request).execute().use { response ->
+                    val body = response.body?.string().orEmpty()
+                    if (!response.isSuccessful) {
+                        throw Exception("Shikimori token yenilenemedi (${response.code}): $body")
+                    }
+                    val json = JSONObject(body)
+                    return@withContext ShikimoriTokenResponse(
+                        accessToken = json.getString("access_token"),
+                        refreshToken = json.optString("refresh_token", refreshToken),
+                        expiresIn = json.optLong("expires_in", 2592000L)
+                    )
+                }
+            } catch (e: Exception) {
+                lastErr = e
             }
-            val json = JSONObject(body)
-            ShikimoriTokenResponse(
-                accessToken = json.getString("access_token"),
-                refreshToken = json.optString("refresh_token", refreshToken),
-                expiresIn = json.optLong("expires_in", 2592000L)
-            )
         }
+        throw lastErr ?: Exception("Shikimori token yenileme isteği başarısız oldu.")
     }
 
     /**

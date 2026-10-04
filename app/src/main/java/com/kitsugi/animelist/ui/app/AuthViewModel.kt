@@ -895,16 +895,20 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun loginShikimori(
-        clientId: String,
-        clientSecret: String,
+        clientId: String = ShikimoriApiClient.DEFAULT_CLIENT_ID,
+        clientSecret: String = ShikimoriApiClient.DEFAULT_CLIENT_SECRET,
         authCode: String,
         onSuccess: () -> Unit = {},
         onError: (String) -> Unit = {}
     ) {
+        val effectiveClientId = clientId.trim().ifBlank { ShikimoriApiClient.DEFAULT_CLIENT_ID }
+        val effectiveClientSecret = clientSecret.trim().ifBlank { ShikimoriApiClient.DEFAULT_CLIENT_SECRET }
+        val cleanCode = ShikimoriApiClient.sanitizeAuthCode(authCode)
+
         viewModelScope.launch(Dispatchers.IO) {
             runCatching {
-                ExternalAuthManager.saveShikimoriCredentials(context, clientId, clientSecret)
-                val tokenResp = ShikimoriApiClient.exchangeCodeForToken(clientId, clientSecret, authCode)
+                ExternalAuthManager.saveShikimoriCredentials(context, effectiveClientId, effectiveClientSecret)
+                val tokenResp = ShikimoriApiClient.exchangeCodeForToken(effectiveClientId, effectiveClientSecret, cleanCode)
                 val user = ShikimoriApiClient.getCurrentUser(tokenResp.accessToken)
                 ExternalAuthManager.saveShikimoriAuth(
                     context = context,

@@ -24,6 +24,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.CoroutineScope
 import org.json.JSONObject
+import com.kitsugi.animelist.data.settings.SettingsDataStore
 
 object ExternalAuthManager {
     private const val PREFS_NAME = "MyWebViewPrefs"
@@ -152,11 +153,13 @@ object ExternalAuthManager {
     fun getShikimoriUsername(context: Context): String? = prefs(context).getString(KEY_SHIKIMORI_USERNAME, null)
 
     fun getShikimoriClientId(context: Context): String {
-        return prefs(context).getString(KEY_SHIKIMORI_CLIENT_ID, null)?.takeIf { it.isNotBlank() } ?: ""
+        return prefs(context).getString(KEY_SHIKIMORI_CLIENT_ID, null)?.takeIf { it.isNotBlank() }
+            ?: ShikimoriApiClient.DEFAULT_CLIENT_ID
     }
 
     fun getShikimoriClientSecret(context: Context): String {
-        return prefs(context).getString(KEY_SHIKIMORI_CLIENT_SECRET, null)?.takeIf { it.isNotBlank() } ?: ""
+        return prefs(context).getString(KEY_SHIKIMORI_CLIENT_SECRET, null)?.takeIf { it.isNotBlank() }
+            ?: ShikimoriApiClient.DEFAULT_CLIENT_SECRET
     }
 
     fun saveShikimoriCredentials(context: Context, clientId: String, clientSecret: String) {
@@ -344,8 +347,22 @@ object ExternalAuthManager {
         onError: (String) -> Unit
     ) {
         val uri = intent?.data
-        if (intent?.action != Intent.ACTION_VIEW || uri == null ||
-            uri.scheme != "malapp" || uri.host != "auth") return
+        if (intent?.action != Intent.ACTION_VIEW || uri == null) return
+
+        // Shikimori deep link (aniyomi://shikimori-auth veya kitsugi://shikimori-auth)
+        if ((uri.scheme == "aniyomi" || uri.scheme == "kitsugi") && uri.host == "shikimori-auth") {
+            val code = uri.getQueryParameter("code")
+            if (code == null) {
+                val error = uri.getQueryParameter("error") ?: "Shikimori yetkilendirme iptal edildi"
+                onError(error)
+                _authEvents.tryEmit(AuthEvent.Error(error))
+                return
+            }
+            exchangeShikimoriCode(context, code, onSuccess, onError)
+            return
+        }
+
+        if (uri.scheme != "malapp" || uri.host != "auth") return
 
         val code = uri.getQueryParameter("code")
         if (code == null) {
@@ -396,9 +413,51 @@ object ExternalAuthManager {
                 }
             )
             else -> {
-                val message = "Kod alÄ±ndÄ± ancak servis iÃ§in code_verifier bulunamadÄ±."
+                val message = "Kod alındı ancak servis için code_verifier bulunamadı."
                 onError(message)
                 _authEvents.tryEmit(AuthEvent.Error(message))
+            }
+        }
+    }
+
+    fun exchangeShikimoriCode(
+        context: Context,
+        code: String,
+        onSuccess: (serviceName: String) -> Unit,
+        onError: (String) -> Unit
+    ) {
+        val clientId = getShikimoriClientId(context)
+        val clientSecret = getShikimoriClientSecret(context)
+        CoroutineScope(Dispatchers.IO).launch {
+            runCatching {
+                val tokenResp = ShikimoriApiClient.exchangeCodeForToken(
+                    clientId = clientId,
+                    clientSecret = clientSecret,
+                    code = code,
+                    redirectUri = ShikimoriApiClient.DEEP_LINK_REDIRECT_URI
+                )
+                val user = ShikimoriApiClient.getCurrentUser(tokenResp.accessToken)
+                saveShikimoriAuth(
+                    context = context,
+                    token = tokenResp.accessToken,
+                    refreshToken = tokenResp.refreshToken,
+                    expiresInSeconds = tokenResp.expiresIn,
+                    userId = user.id,
+                    username = user.nickname
+                )
+                val settings = SettingsDataStore(context)
+                settings.saveShikimoriProfileInfo(user.nickname, user.avatarUrl)
+                user.nickname
+            }.onSuccess {
+                withContext(Dispatchers.Main) {
+                    onSuccess("shikimori")
+                }
+            }.onFailure { err ->
+                val msg = err.message ?: "Shikimori token değişimi başarısız"
+                withContext(Dispatchers.Main) {
+                    onError(msg)
+                    _authEvents.tryEmit(AuthEvent.Error(msg))
+                }
             }
         }
     }

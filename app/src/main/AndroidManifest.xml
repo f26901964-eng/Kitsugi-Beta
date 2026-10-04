@@ -110,6 +110,24 @@
                     android:host="auth" />
             </intent-filter>
 
+            <!-- Shikimori OAuth Callback deep links -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="aniyomi"
+                    android:host="shikimori-auth" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="kitsugi"
+                    android:host="shikimori-auth" />
+            </intent-filter>
+
             <!-- TV approval deep link -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
