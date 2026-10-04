@@ -515,15 +515,34 @@ object CsStreamRunner {
     private suspend fun fetchRemoteDomains() = withContext(Dispatchers.IO) {
         if (isDomainListFetched.getAndSet(true)) return@withContext
         try {
-            Log.d(TAG, "Fetching remote domain list from GitHub (KitsugiBeta-dev/Kitsugi-Beta)...")
-            val request = okhttp3.Request.Builder()
-                .url("https://raw.githubusercontent.com/KitsugiBeta-dev/Kitsugi-Beta/main/domain_fixes.json")
-                .header("Cache-Control", "no-cache")
-                .build()
-            val json = com.kitsugi.animelist.core.network.KitsugiHttpClient.client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) throw java.io.IOException("HTTP ${response.code}")
-                response.body?.string() ?: ""
+            Log.d(TAG, "Fetching remote domain list from Codeberg (BlackDamage/Kitsugi-Beta)...")
+            val endpoints = listOf(
+                "https://codeberg.org/BlackDamage/Kitsugi-Beta/raw/branch/main/domain_fixes.json",
+                "https://raw.githubusercontent.com/KitsugiBeta-dev/Kitsugi-Beta/main/domain_fixes.json"
+            )
+
+            var jsonBody = ""
+            for (endpoint in endpoints) {
+                try {
+                    val request = okhttp3.Request.Builder()
+                        .url(endpoint)
+                        .header("Cache-Control", "no-cache")
+                        .build()
+                    val response = com.kitsugi.animelist.core.network.KitsugiHttpClient.client.newCall(request).execute()
+                    if (response.isSuccessful) {
+                        val body = response.body?.string()
+                        if (!body.isNullOrBlank()) {
+                            jsonBody = body
+                            Log.d(TAG, "Successfully loaded domain_fixes.json from $endpoint")
+                            break
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "Failed to load domain fixes from $endpoint: ${e.message}")
+                }
             }
+
+            val json = jsonBody.ifEmpty { throw java.io.IOException("Unable to fetch domain_fixes.json from all endpoints") }
 
             // Parse JSON: { "domains": { "eklentiadi": "https://..." } }
             val jsonObj = org.json.JSONObject(json)
