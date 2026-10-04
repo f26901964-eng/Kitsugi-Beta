@@ -121,6 +121,7 @@ fun KitsugiRankingBottomSheet(
                             else -> initialResults
                         }
                     }
+                    else -> initialResults
                 }
                 if (newItems.isNotEmpty()) {
                     resultsList = newItems

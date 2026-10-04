@@ -150,6 +150,7 @@ fun ExploreScreen(
 
     var activeRankingSheetData by remember { mutableStateOf<Triple<String, MediaType, List<JikanSearchResult>>?>(null) }
     var isCategoriesExpanded by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(true) }
+    var showSourceSheet by remember { mutableStateOf(false) }
 
     LaunchedEffect(lazyListState) {
         snapshotFlow {
@@ -239,14 +240,16 @@ fun ExploreScreen(
                                     modifier = Modifier.fillMaxWidth(),
                                     color = KitsugiColors.Background.copy(alpha = 0.95f)
                                 ) {
-                                    Box(
+                                    Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
-                                            .padding(horizontal = 20.dp, vertical = 8.dp)
+                                            .padding(top = 8.dp, bottom = 6.dp)
                                     ) {
                                         if (isTvDevice) {
                                             Row(
-                                                modifier = Modifier.fillMaxWidth(),
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 20.dp),
                                                 horizontalArrangement = Arrangement.SpaceBetween,
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
@@ -256,21 +259,22 @@ fun ExploreScreen(
                                                     fontWeight = FontWeight.Black,
                                                     color = KitsugiColors.TextPrimary
                                                 )
-                                                ExplorePlatformToggle(
+                                                ExploreSourceEngineSelectorPill(
                                                     selectedPlatform = viewModel.selectedPlatform,
-                                                    onPlatformSelected = { platform -> viewModel.selectPlatform(platform) },
-                                                    modifier = Modifier.width(300.dp)
+                                                    onClick = { showSourceSheet = true }
                                                 )
                                             }
                                         } else {
                                             Row(
-                                                modifier = Modifier.fillMaxWidth(),
+                                                modifier = Modifier
+                                                    .fillMaxWidth()
+                                                    .padding(horizontal = 20.dp),
                                                 verticalAlignment = Alignment.CenterVertically,
                                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                                             ) {
-                                                ExplorePlatformToggle(
+                                                ExploreSourceEngineSelectorPill(
                                                     selectedPlatform = viewModel.selectedPlatform,
-                                                    onPlatformSelected = { platform -> viewModel.selectPlatform(platform) },
+                                                    onClick = { showSourceSheet = true },
                                                     modifier = Modifier.weight(1f)
                                                 )
 
@@ -278,9 +282,10 @@ fun ExploreScreen(
                                                     // 🔔 Bildirim butonu
                                                     Box(
                                                         modifier = Modifier
-                                                            .size(36.dp)
+                                                            .size(38.dp)
                                                             .clip(RoundedCornerShape(12.dp))
-                                                            .background(KitsugiColors.Surface)
+                                                            .background(KitsugiColors.SurfaceElevated)
+                                                            .border(1.dp, KitsugiColors.SurfaceElevated.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
                                                             .tvClickable(shape = RoundedCornerShape(12.dp)) {
                                                                 onOpenNotifications()
                                                             },
@@ -297,9 +302,10 @@ fun ExploreScreen(
                                                     // 🎲 Rastgele keşfet butonu
                                                     Box(
                                                         modifier = Modifier
-                                                            .size(36.dp)
+                                                            .size(38.dp)
                                                             .clip(RoundedCornerShape(12.dp))
-                                                            .background(KitsugiColors.Surface)
+                                                            .background(KitsugiColors.SurfaceElevated)
+                                                            .border(1.dp, KitsugiColors.SurfaceElevated.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
                                                             .tvClickable(shape = RoundedCornerShape(12.dp)) {
                                                                 val randomPool = mutableListOf<JikanSearchResult>()
                                                                 randomPool.addAll(filteredTopAnime)
@@ -329,6 +335,15 @@ fun ExploreScreen(
                                                 }
                                             }
                                         }
+
+                                        Spacer(modifier = Modifier.height(8.dp))
+
+                                        // 6 Kaynaklı Hızlı Yatay Çip Çubuğu
+                                        ExploreSourceChipRow(
+                                            selectedPlatform = viewModel.selectedPlatform,
+                                            onPlatformSelected = { platform -> viewModel.selectPlatform(platform) },
+                                            modifier = Modifier.fillMaxWidth()
+                                        )
                                     }
                                 }
                             }
@@ -585,6 +600,14 @@ fun ExploreScreen(
             showAdultContent = showAdultContent,
             blurAdultMedia = blurAdultMedia,
             getMediaEntry = getMediaEntry
+        )
+    }
+
+    if (showSourceSheet) {
+        ExploreSourcePickerSheet(
+            selectedPlatform = viewModel.selectedPlatform,
+            onSelectPlatform = { platform -> viewModel.selectPlatform(platform) },
+            onDismiss = { showSourceSheet = false }
         )
     }
 }

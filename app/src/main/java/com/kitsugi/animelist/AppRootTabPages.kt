@@ -210,6 +210,9 @@ private fun ExploreTabPage(ctx: TabPagesContext) {
                 com.kitsugi.animelist.ui.screens.explore.ExplorePlatform.MAL -> "jikan"
                 com.kitsugi.animelist.ui.screens.explore.ExplorePlatform.AniList -> "anilist"
                 com.kitsugi.animelist.ui.screens.explore.ExplorePlatform.TMDB -> "tmdb"
+                com.kitsugi.animelist.ui.screens.explore.ExplorePlatform.KITSU -> "kitsu"
+                com.kitsugi.animelist.ui.screens.explore.ExplorePlatform.SHIKIMORI -> "shikimori"
+                com.kitsugi.animelist.ui.screens.explore.ExplorePlatform.SIMKL -> "simkl"
             }
             ctx.navState.navigateToDetail(DetailScreen.AiringCalendar(preferredSource))
         },

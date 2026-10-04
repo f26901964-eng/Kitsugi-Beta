@@ -132,40 +132,40 @@ object KitsuExploreClient {
     }
 
     /** En popüler animeler (userCount'a göre sıralı) */
-    suspend fun topAnime(limit: Int = 20): List<JikanSearchResult> =
-        fetchAnimeList("$BASE/anime?sort=-userCount&page[limit]=$limit")
+    suspend fun topAnime(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
+        fetchAnimeList("$BASE/anime?sort=-userCount&page[limit]=$limit&page[offset]=$offset")
 
     /** Yayında olan animeler */
-    suspend fun airingAnime(limit: Int = 20): List<JikanSearchResult> =
-        fetchAnimeList("$BASE/anime?filter[status]=current&sort=-userCount&page[limit]=$limit")
+    suspend fun airingAnime(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
+        fetchAnimeList("$BASE/anime?filter[status]=current&sort=-userCount&page[limit]=$limit&page[offset]=$offset")
 
     /** Yakında yayınlanacak animeler */
-    suspend fun upcomingAnime(limit: Int = 20): List<JikanSearchResult> =
-        fetchAnimeList("$BASE/anime?filter[status]=upcoming&sort=-userCount&page[limit]=$limit")
+    suspend fun upcomingAnime(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
+        fetchAnimeList("$BASE/anime?filter[status]=upcoming&sort=-userCount&page[limit]=$limit&page[offset]=$offset")
 
     /** Yakın zamanda eklenen animeler */
-    suspend fun newlyAddedAnime(limit: Int = 20): List<JikanSearchResult> =
-        fetchAnimeList("$BASE/anime?sort=-createdAt&page[limit]=$limit")
+    suspend fun newlyAddedAnime(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
+        fetchAnimeList("$BASE/anime?sort=-createdAt&page[limit]=$limit&page[offset]=$offset")
 
     /** Film formatındaki animeler */
-    suspend fun movieAnime(limit: Int = 20): List<JikanSearchResult> =
-        fetchAnimeList("$BASE/anime?filter[subtype]=movie&sort=-userCount&page[limit]=$limit")
+    suspend fun movieAnime(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
+        fetchAnimeList("$BASE/anime?filter[subtype]=movie&sort=-userCount&page[limit]=$limit&page[offset]=$offset")
 
     /** En popüler mangalar */
-    suspend fun topManga(limit: Int = 20): List<JikanSearchResult> =
-        fetchMangaList("$BASE/manga?sort=-userCount&page[limit]=$limit")
+    suspend fun topManga(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
+        fetchMangaList("$BASE/manga?sort=-userCount&page[limit]=$limit&page[offset]=$offset")
 
     /** Yayında olan mangalar */
-    suspend fun publishingManga(limit: Int = 20): List<JikanSearchResult> =
-        fetchMangaList("$BASE/manga?filter[status]=current&sort=-userCount&page[limit]=$limit")
+    suspend fun publishingManga(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
+        fetchMangaList("$BASE/manga?filter[status]=current&sort=-userCount&page[limit]=$limit&page[offset]=$offset")
 
     /** Trend mangalar (favoritesCount sırası) */
-    suspend fun trendingManga(limit: Int = 20): List<JikanSearchResult> =
-        fetchMangaList("$BASE/manga?sort=-favoritesCount&page[limit]=$limit")
+    suspend fun trendingManga(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
+        fetchMangaList("$BASE/manga?sort=-favoritesCount&page[limit]=$limit&page[offset]=$offset")
 
     /** Yakın zamanda eklenen mangalar */
-    suspend fun newlyAddedManga(limit: Int = 20): List<JikanSearchResult> =
-        fetchMangaList("$BASE/manga?sort=-createdAt&page[limit]=$limit")
+    suspend fun newlyAddedManga(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
+        fetchMangaList("$BASE/manga?sort=-createdAt&page[limit]=$limit&page[offset]=$offset")
 
     // ── Internal HTTP ─────────────────────────────────────────────────────────
 

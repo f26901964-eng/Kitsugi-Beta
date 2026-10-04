@@ -1,27 +1,263 @@
 package com.kitsugi.animelist.ui.screens.explore
 
 import androidx.compose.foundation.background
-import com.kitsugi.animelist.ui.utils.tvClickable
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.ArrowDropDown
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Text
+import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
+import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
+import com.kitsugi.animelist.ui.utils.tvClickable
 
 /**
- * MAL | AniList platform seçici toggle.
- * AniHyou'nun ExploreSearchBar yaklaşımından ilham alınarak Kitsugi tasarım diline uyarlanmıştır.
+ * Keşfet Sayfası için Brave-Tarzı Kaynak Motoru Seçici Hap Buton.
+ * Tıklandığında [ExploreSourcePickerSheet] açılır ve 6 kaynak (AniList, MAL/Jikan, TMDB, Simkl, Kitsu, Shikimori) listelenir.
+ */
+@Composable
+fun ExploreSourceEngineSelectorPill(
+    selectedPlatform: ExplorePlatform,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val accentColor = LocalKitsugiAccent.current
+
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(14.dp))
+            .background(KitsugiColors.SurfaceElevated)
+            .border(
+                width = 1.dp,
+                color = accentColor.copy(alpha = 0.35f),
+                shape = RoundedCornerShape(14.dp)
+            )
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = selectedPlatform.emoji,
+            fontSize = 16.sp
+        )
+        Column(modifier = Modifier.weight(1f, fill = false)) {
+            Text(
+                text = selectedPlatform.label,
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = KitsugiColors.TextPrimary
+                ),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        }
+        Icon(
+            imageVector = Icons.Rounded.ArrowDropDown,
+            contentDescription = "Platform Seç",
+            tint = accentColor,
+            modifier = Modifier.size(18.dp)
+        )
+    }
+}
+
+/**
+ * 6 Platformlu Keşfet Kaynak Seçim Bottom Sheet Diyalogu.
+ * Arama sayfasındaki kaynak seçici tarzında: AniList, MAL/Jikan, TMDB, Simkl, Kitsu ve Shikimori'yi
+ * detaylı açıklamaları ve simgeleriyle gösterir.
+ */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun ExploreSourcePickerSheet(
+    selectedPlatform: ExplorePlatform,
+    onSelectPlatform: (ExplorePlatform) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val accentColor = LocalKitsugiAccent.current
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = KitsugiColors.Surface,
+        dragHandle = {
+            Box(
+                modifier = Modifier
+                    .padding(vertical = 10.dp)
+                    .width(36.dp)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(KitsugiColors.TextMuted.copy(alpha = 0.4f))
+            )
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp)
+        ) {
+            Text(
+                text = "Keşfet Kaynağı Seç",
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = KitsugiColors.TextPrimary
+                )
+            )
+            Text(
+                text = "Ana sayfada hangi platformun içeriklerini keşfetmek istiyorsun?",
+                style = MaterialTheme.typography.bodySmall.copy(
+                    color = KitsugiColors.TextMuted
+                ),
+                modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
+            )
+
+            ExplorePlatform.entries.forEach { platform ->
+                val isSelected = platform == selectedPlatform
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(
+                            if (isSelected) accentColor.copy(alpha = 0.12f)
+                            else KitsugiColors.SurfaceElevated.copy(alpha = 0.5f)
+                        )
+                        .border(
+                            width = if (isSelected) 1.5.dp else 1.dp,
+                            color = if (isSelected) accentColor else Color.Transparent,
+                            shape = RoundedCornerShape(14.dp)
+                        )
+                        .clickable {
+                            onSelectPlatform(platform)
+                            onDismiss()
+                        }
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = platform.emoji,
+                        fontSize = 24.sp,
+                        modifier = Modifier.padding(end = 12.dp)
+                    )
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = platform.label,
+                            style = MaterialTheme.typography.bodyLarge.copy(
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                color = if (isSelected) accentColor else KitsugiColors.TextPrimary
+                            )
+                        )
+                        Text(
+                            text = platform.description,
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = KitsugiColors.TextMuted
+                            )
+                        )
+                    }
+
+                    if (isSelected) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Icon(
+                            imageVector = Icons.Rounded.Check,
+                            contentDescription = "Seçili",
+                            tint = accentColor,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * 6 Kaynaklı Hızlı Yatay Çip Çubuğu.
+ * Kullanıcının tek dokunuşla kaydırarak platformlar arasında hızlıca geçiş yapmasını sağlar.
+ */
+@Composable
+fun ExploreSourceChipRow(
+    selectedPlatform: ExplorePlatform,
+    onPlatformSelected: (ExplorePlatform) -> Unit,
+    modifier: Modifier = Modifier,
+    contentPadding: PaddingValues = PaddingValues(horizontal = 20.dp)
+) {
+    val accentColor = LocalKitsugiAccent.current
+
+    LazyRow(
+        modifier = modifier,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        contentPadding = contentPadding
+    ) {
+        items(ExplorePlatform.entries) { platform ->
+            val isSelected = platform == selectedPlatform
+
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(12.dp))
+                    .background(if (isSelected) accentColor else KitsugiColors.SurfaceElevated)
+                    .border(
+                        width = 1.dp,
+                        color = if (isSelected) accentColor else KitsugiColors.SurfaceElevated.copy(alpha = 0.6f),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    .tvClickable(shape = RoundedCornerShape(12.dp)) { onPlatformSelected(platform) }
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Text(
+                        text = platform.emoji,
+                        fontSize = 13.sp
+                    )
+                    Text(
+                        text = platform.shortName,
+                        color = if (isSelected) KitsugiColors.Background else KitsugiColors.TextSecondary,
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = if (isSelected) FontWeight.Black else FontWeight.SemiBold
+                    )
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Geriye dönük uyumluluk için ExplorePlatformToggle.
+ * TV veya eski çağrılar için yatay çip dizilimini veya açılır menüyü sunar.
  */
 @Composable
 fun ExplorePlatformToggle(
@@ -30,15 +266,14 @@ fun ExplorePlatformToggle(
     modifier: Modifier = Modifier,
     isVertical: Boolean = false
 ) {
-    val accentColor = LocalKitsugiAccent.current
-
     if (isVertical) {
-        androidx.compose.foundation.layout.Column(
+        Column(
             modifier = modifier
                 .clip(RoundedCornerShape(22.dp))
                 .background(KitsugiColors.Surface)
         ) {
-            ExplorePlatform.entries.reversed().forEach { platform ->
+            val accentColor = LocalKitsugiAccent.current
+            ExplorePlatform.entries.forEach { platform ->
                 val isSelected = selectedPlatform == platform
 
                 Box(
@@ -51,7 +286,7 @@ fun ExplorePlatformToggle(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = platform.label,
+                        text = "${platform.emoji} ${platform.label}",
                         color = if (isSelected) KitsugiColors.Background else KitsugiColors.TextMuted,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = if (isSelected) FontWeight.Black else FontWeight.Medium
@@ -60,31 +295,11 @@ fun ExplorePlatformToggle(
             }
         }
     } else {
-        Row(
-            modifier = modifier
-                .clip(RoundedCornerShape(22.dp))
-                .background(KitsugiColors.Surface)
-        ) {
-            ExplorePlatform.entries.reversed().forEach { platform ->
-                val isSelected = selectedPlatform == platform
-
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(22.dp))
-                        .background(if (isSelected) accentColor else KitsugiColors.Surface)
-                        .tvClickable(shape = RoundedCornerShape(22.dp)) { onPlatformSelected(platform) }
-                        .padding(vertical = 6.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        text = platform.label,
-                        color = if (isSelected) KitsugiColors.Background else KitsugiColors.TextMuted,
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = if (isSelected) FontWeight.Black else FontWeight.Medium
-                    )
-                }
-            }
-        }
+        ExploreSourceChipRow(
+            selectedPlatform = selectedPlatform,
+            onPlatformSelected = onPlatformSelected,
+            modifier = modifier,
+            contentPadding = PaddingValues(0.dp)
+        )
     }
 }

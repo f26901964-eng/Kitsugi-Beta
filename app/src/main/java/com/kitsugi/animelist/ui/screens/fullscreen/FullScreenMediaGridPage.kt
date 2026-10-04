@@ -217,8 +217,33 @@ fun FullScreenMediaGridPage(
                             else -> emptyList()
                         }
                     }
-
-
+                    ExplorePlatform.KITSU -> when (categoryType) {
+                        ExploreCategoryType.TOP_ANIME -> com.kitsugi.animelist.data.remote.KitsuExploreClient.topAnime(20, offset = (np - 1) * 20)
+                        ExploreCategoryType.AIRING_ANIME -> com.kitsugi.animelist.data.remote.KitsuExploreClient.airingAnime(20, offset = (np - 1) * 20)
+                        ExploreCategoryType.UPCOMING_ANIME -> com.kitsugi.animelist.data.remote.KitsuExploreClient.upcomingAnime(20, offset = (np - 1) * 20)
+                        ExploreCategoryType.TOP_MANGA -> com.kitsugi.animelist.data.remote.KitsuExploreClient.topManga(20, offset = (np - 1) * 20)
+                        ExploreCategoryType.PUBLISHING_MANGA -> com.kitsugi.animelist.data.remote.KitsuExploreClient.publishingManga(20, offset = (np - 1) * 20)
+                        ExploreCategoryType.TRENDING_MANGA -> com.kitsugi.animelist.data.remote.KitsuExploreClient.trendingManga(20, offset = (np - 1) * 20)
+                        ExploreCategoryType.NEWLY_ADDED_ANIME -> com.kitsugi.animelist.data.remote.KitsuExploreClient.newlyAddedAnime(20, offset = (np - 1) * 20)
+                        ExploreCategoryType.NEWLY_ADDED_MANGA -> com.kitsugi.animelist.data.remote.KitsuExploreClient.newlyAddedManga(20, offset = (np - 1) * 20)
+                        else -> emptyList()
+                    }
+                    ExplorePlatform.SHIKIMORI -> when (categoryType) {
+                        ExploreCategoryType.TOP_ANIME -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Anime, order = "ranked", page = np, limit = 20)
+                        ExploreCategoryType.AIRING_ANIME -> com.kitsugi.animelist.data.remote.KitsuExploreClient.airingAnime(20, offset = (np - 1) * 20)
+                        ExploreCategoryType.UPCOMING_ANIME -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Anime, statuses = listOf("anons"), order = "popularity", page = np, limit = 20)
+                        ExploreCategoryType.TOP_MANGA -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Manga, order = "ranked", page = np, limit = 20)
+                        ExploreCategoryType.PUBLISHING_MANGA -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Manga, statuses = listOf("ongoing"), order = "popularity", page = np, limit = 20)
+                        else -> emptyList()
+                    }
+                    ExplorePlatform.SIMKL -> when (categoryType) {
+                        ExploreCategoryType.TOP_ANIME -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("anime/best/all-time", com.kitsugi.animelist.model.MediaType.Anime, 20)
+                        ExploreCategoryType.AIRING_ANIME -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("anime/best/airing", com.kitsugi.animelist.model.MediaType.Anime, 20)
+                        ExploreCategoryType.UPCOMING_ANIME -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("anime/best/upcoming", com.kitsugi.animelist.model.MediaType.Anime, 20)
+                        ExploreCategoryType.TRENDING_ANIME -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("tv/best/all-time", com.kitsugi.animelist.model.MediaType.TvShow, 20)
+                        else -> emptyList()
+                    }
+                    else -> emptyList()
                 }
                 if (newItems.isNotEmpty()) { loadedResults = loadedResults + newItems; currentPage = np }
                 else hasMorePages = false

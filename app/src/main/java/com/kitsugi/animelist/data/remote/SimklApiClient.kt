@@ -620,6 +620,59 @@ class SimklApiClient(
     }
 
     /**
+     * Simkl Keşfet / En İyiler listesini çeker (Örn. anime/best/all-time, tv/best/all-time).
+     */
+    suspend fun getBestMedia(endpoint: String, defaultType: MediaType, limit: Int = 20): List<JikanSearchResult> = withContext(Dispatchers.IO) {
+        val url = "https://api.simkl.com/$endpoint?client_id=$clientId&limit=$limit"
+        val request = Request.Builder()
+            .url(url)
+            .header("Accept", "application/json")
+            .build()
+        try {
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext emptyList()
+                val responseText = response.body?.string().orEmpty()
+                if (responseText.isBlank()) return@withContext emptyList()
+                val array = JSONArray(responseText)
+                val results = mutableListOf<JikanSearchResult>()
+                for (i in 0 until minOf(array.length(), limit)) {
+                    val obj = array.optJSONObject(i) ?: continue
+                    val title = obj.optString("title", "")
+                    if (title.isBlank()) continue
+                    val ids = obj.optJSONObject("ids")
+                    val simklId = ids?.optInt("simkl_id", 0)?.takeIf { it > 0 } ?: (i + 1)
+                    val poster = obj.optString("poster", "")
+                    val imageUrl = if (poster.isNotBlank()) "https://simkl.in/posters/${poster}_m.webp" else null
+                    val year = obj.optInt("year", 0).takeIf { it > 0 }
+                    val ratings = obj.optJSONObject("ratings")
+                    val ratingDouble = ratings?.optJSONObject("simkl")?.optDouble("rating", 0.0) ?: ratings?.optJSONObject("mal")?.optDouble("rating", 0.0) ?: 0.0
+                    val score = if (ratingDouble > 0.0) (ratingDouble * 10).toInt() else null
+
+                    results.add(
+                        JikanSearchResult(
+                            malId = simklId,
+                            title = title,
+                            subtitle = if (year != null) "$year" else "Simkl",
+                            type = defaultType,
+                            total = null,
+                            score = score,
+                            isAdult = false,
+                            imageUrl = imageUrl,
+                            year = year,
+                            source = "simkl",
+                            realMalId = ids?.optInt("mal", 0)?.takeIf { it > 0 }
+                        )
+                    )
+                }
+                results
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("SimklApiClient", "getBestMedia $endpoint failed", e)
+            emptyList()
+        }
+    }
+
+    /**
      * Listeye iÃ§erik ekler veya durumunu gÃ¼nceller.
      * type: "shows" veya "movies" veya "anime"
      * status: "watching", "plantowatch", "completed", "hold", "dropped"
