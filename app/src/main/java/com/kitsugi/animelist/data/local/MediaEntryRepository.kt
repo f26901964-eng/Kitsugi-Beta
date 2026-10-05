@@ -51,9 +51,15 @@ class MediaEntryRepository(
      * @param source  "anilist", "mal", "simkl" vb.
      * @param importedEntries  Uzak API'dan gelen güncel liste
      */
-    suspend fun smartImport(source: String, importedEntries: List<MediaEntry>) {
+    suspend fun smartImport(
+        source: String,
+        importedEntries: List<MediaEntry>,
+        allowDelete: Boolean = true
+    ) {
         if (importedEntries.isEmpty()) {
-            dao.deleteBySource(source)
+            if (allowDelete) {
+                dao.deleteBySource(source)
+            }
             return
         }
 
@@ -83,11 +89,15 @@ class MediaEntryRepository(
             // Değişmemiş kayıt → atla (Flow tetiklememe)
         }
 
-        // Uzak listede artık olmayan kayıtları sil
-        val importedKeys = importedByKey.keys
-        val toDeleteIds = existing.values
-            .filter { it.toDomain().importKey() !in importedKeys }
-            .map { it.id }
+        // Uzak listede artık olmayan kayıtları sadece allowDelete true ise sil
+        val toDeleteIds = if (allowDelete) {
+            val importedKeys = importedByKey.keys
+            existing.values
+                .filter { it.toDomain().importKey() !in importedKeys }
+                .map { it.id }
+        } else {
+            emptyList()
+        }
 
         // Tek atomik transaction → Flow 1 kez tetiklenir
         dao.smartImportTransaction(toInsert, toUpdate, toDeleteIds)

@@ -25,6 +25,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.first
 import android.util.Log
 import com.kitsugi.animelist.core.player.SubtitleInput
@@ -222,30 +223,8 @@ fun KitsugiStreamScreen(
                 )
             )
 
-            if (engine == "exoplayer") {
-                KitsugiFullscreenPlayerActivity.startWithStreamUrls(
-                    context = context, videoUrl = resolvedUrl,
-                    title = "$title - Bölüm $episode", headers = source.requestHeaders,
-                    subtitles = source.subtitles, allSources = allStreams,
-                    currentSourceIndex = allStreams.indexOf(source),
-                    malId = malId, aniListId = aniListId, tmdbId = tmdbId, season = season, episode = episode,
-                    animeTitle = title, posterUrl = posterUrl,
-                    titleEnglish = titleEnglish, titleRomaji = titleRomaji, titleNative = titleNative,
-                    startYear = startYear, description = description, cast = castList,
-                    isMovie = isMovie,
-                    cs3Url = cs3Url,
-                    cs3ApiName = cs3ApiName,
-                    resumePositionMs = resumePositionMs
-                )
-            } else {
-                if (onLaunchExternalPlayer != null) {
-                    val input = ExternalPlayerLauncher.createInput(
-                        url = resolvedUrl, title = "$title - Bölüm $episode",
-                        headers = source.requestHeaders, resumePositionMs = resumePositionMs,
-                        subtitles = source.subtitles
-                    )
-                    onLaunchExternalPlayer(input, streamKey)
-                } else {
+            try {
+                if (engine == "exoplayer") {
                     KitsugiFullscreenPlayerActivity.startWithStreamUrls(
                         context = context, videoUrl = resolvedUrl,
                         title = "$title - Bölüm $episode", headers = source.requestHeaders,
@@ -260,7 +239,34 @@ fun KitsugiStreamScreen(
                         cs3ApiName = cs3ApiName,
                         resumePositionMs = resumePositionMs
                     )
+                } else {
+                    if (onLaunchExternalPlayer != null) {
+                        val input = ExternalPlayerLauncher.createInput(
+                            url = resolvedUrl, title = "$title - Bölüm $episode",
+                            headers = source.requestHeaders, resumePositionMs = resumePositionMs,
+                            subtitles = source.subtitles
+                        )
+                        onLaunchExternalPlayer(input, streamKey)
+                    } else {
+                        KitsugiFullscreenPlayerActivity.startWithStreamUrls(
+                            context = context, videoUrl = resolvedUrl,
+                            title = "$title - Bölüm $episode", headers = source.requestHeaders,
+                            subtitles = source.subtitles, allSources = allStreams,
+                            currentSourceIndex = allStreams.indexOf(source),
+                            malId = malId, aniListId = aniListId, tmdbId = tmdbId, season = season, episode = episode,
+                            animeTitle = title, posterUrl = posterUrl,
+                            titleEnglish = titleEnglish, titleRomaji = titleRomaji, titleNative = titleNative,
+                            startYear = startYear, description = description, cast = castList,
+                            isMovie = isMovie,
+                            cs3Url = cs3Url,
+                            cs3ApiName = cs3ApiName,
+                            resumePositionMs = resumePositionMs
+                        )
+                    }
                 }
+            } catch (e: Exception) {
+                Log.e("KitsugiStreamScreen", "Oynatıcı başlatılamadı: ${e.message}", e)
+                android.widget.Toast.makeText(context, "Oynatıcı başlatılamadı: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
             }
         }
     }
@@ -282,7 +288,7 @@ fun KitsugiStreamScreen(
         }
     }
 
-    // T1.8 – Autoplay Selection Logic
+    // T1.8 – Autoplay Selection Logic (with Consent Guard)
     LaunchedEffect(allStreams, isAnyLoading) {
         if (isAutoplay && !isAnyLoading && allStreams.isNotEmpty() && !isAutoplayAttempted) {
             isAutoplayAttempted = true
@@ -293,11 +299,24 @@ fun KitsugiStreamScreen(
                 nextEpisodeStreams = allStreams
             )
             if (bestSource != null) {
-                resolvingSource = bestSource
-                val resolvedUrl = repository.resolveStreamUrl(bestSource)
-                resolvingSource = null
-                if (resolvedUrl != null) {
-                    handlePlayStream(bestSource, resolvedUrl)
+                val isTorrent = bestSource.isTorrent
+                val hasDebrid = !DebridResolver(context).getApiKey().isNullOrBlank()
+                val p2pAllowed = com.kitsugi.animelist.core.p2p.P2pSettingsRepository.isP2pEnabled() &&
+                    com.kitsugi.animelist.core.p2p.P2pSettingsRepository.isConsentGranted()
+
+                if (!isTorrent || hasDebrid || p2pAllowed) {
+                    resolvingSource = bestSource
+                    val resolvedUrl = try {
+                        withContext(Dispatchers.IO) {
+                            repository.resolveStreamUrl(bestSource)
+                        }
+                    } catch (e: Exception) {
+                        null
+                    }
+                    resolvingSource = null
+                    if (resolvedUrl != null) {
+                        handlePlayStream(bestSource, resolvedUrl)
+                    }
                 }
             }
         }
@@ -329,11 +348,11 @@ fun KitsugiStreamScreen(
 
             val job = scope.launch {
                 val resolvedUrl = try {
-                    kotlinx.coroutines.withTimeoutOrNull(35000L) {
-                        kotlinx.coroutines.withContext(Dispatchers.IO) {
-                            repository.resolveStreamUrl(source)
-                        }
+                    withContext(Dispatchers.IO) {
+                        repository.resolveStreamUrl(source)
                     }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     Log.e("KitsugiStreamScreen", "Akış çözümlenirken hata oluştu", e)
                     null
@@ -346,6 +365,13 @@ fun KitsugiStreamScreen(
                 }
 
                 if (isDl) {
+                    val isEphemeralLocalUrl = resolvedUrl.startsWith("http://127.0.0.1", ignoreCase = true) ||
+                        resolvedUrl.startsWith("http://localhost", ignoreCase = true)
+                    if (isEphemeralLocalUrl) {
+                        resolvingError = "P2P akışları doğrudan indirilemez. Bu bölümü indirmek için Ayarlar > Debrid menüsünden Debrid hesabı ekleyebilirsiniz."
+                        return@launch
+                    }
+
                     com.kitsugi.animelist.data.local.AnimeDownloadManager.addDownload(
                         context = context,
                         animeId = if (aniListId != null) aniListId.toString()

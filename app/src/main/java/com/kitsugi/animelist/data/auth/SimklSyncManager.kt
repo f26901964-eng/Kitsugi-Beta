@@ -104,6 +104,8 @@ object SimklSyncManager {
 
         val messages = mutableListOf<String>()
         val errors = mutableListOf<String>()
+        var totalAdded = 0
+        var totalNotFound = 0
 
         // 35'lik parçalar halinde gönder (Simkl limiti 50)
         val chunks = batchItems.chunked(35)
@@ -111,6 +113,8 @@ object SimklSyncManager {
             try {
                 val batchRes = simklApiClient.addToListBatchDetailed(token, chunk)
                 if (batchRes.isSuccess) {
+                    totalAdded += batchRes.addedCount
+                    totalNotFound += batchRes.notFoundCount
                     messages.add("Simkl grubu ${idx + 1}/${chunks.size} senkronize edildi (${batchRes.addedCount} eklendi${if (batchRes.notFoundCount > 0) ", ${batchRes.notFoundCount} eşleşmedi" else ""}).")
                 } else {
                     errors.add("Simkl grubu ${idx + 1} gönderilemedi: ${batchRes.errorMessage ?: "Bilinmeyen hata"}")
@@ -120,11 +124,11 @@ object SimklSyncManager {
             }
             if (idx < chunks.size - 1) {
                 // Rate limit (1 req/sn) aşmamak için bekle
-                kotlinx.coroutines.delay(1100L)
+                kotlinx.coroutines.delay(1200L)
             }
         }
 
-        SyncResult(messages = messages, errors = errors)
+        SyncResult(messages = messages, errors = errors, addedCount = totalAdded, notFoundCount = totalNotFound)
     }
 
     // ── Tek Entry Senkronizasyonu ─────────────────────────────────────────────────
@@ -366,7 +370,9 @@ object SimklSyncManager {
 
     data class SyncResult(
         val messages: List<String>,
-        val errors: List<String> = emptyList()
+        val errors: List<String> = emptyList(),
+        val addedCount: Int = 0,
+        val notFoundCount: Int = 0
     ) {
         val isSuccess: Boolean get() = errors.isEmpty()
         val hasWarnings: Boolean get() = messages.isNotEmpty() && errors.isNotEmpty()

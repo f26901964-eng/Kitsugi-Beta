@@ -650,16 +650,20 @@ fun KitsugiFullscreenPlayerScreen(
                     Log.d("KitsugiPlayerDebug", "UI State: playbackSource=${playbackSource != null}, isLoading=$isLoading, hasError=$hasError, isAutoSwitching=$isAutoSwitching")
                 }
 
-                // ─── Buffering Watchdog (12s Timeout) ──────────────────────────────────
+                // ─── Buffering Watchdog (12s Timeout / 60s for local P2P) ─────────────
                 var bufferingWatchdogJob by remember { mutableStateOf<Job?>(null) }
                 LaunchedEffect(isBufferingState, activeEngineType, currentVideoUrl) {
                     if (isBufferingState) {
                         bufferingWatchdogJob?.cancel()
+                        val isLocalP2p = currentVideoUrl?.let {
+                            it.contains("127.0.0.1") || it.contains("localhost")
+                        } == true
+                        val timeoutMs = if (isLocalP2p) 60_000L else 12_000L
                         bufferingWatchdogJob = scope.launch {
-                            delay(12_000L)
+                            delay(timeoutMs)
                             if (isBufferingState) {
-                                Log.w("KitsugiPlayerDebug", "Buffering watchdog: Stream stuck buffering for 12s. Delegating to errorRecovery.")
-                                viewModel.orchestrator.errorRecovery.onPlaybackError(5004, "Arabelleğe alma zaman aşımına uğradı (12sn)")
+                                Log.w("KitsugiPlayerDebug", "Buffering watchdog: Stream stuck buffering for ${timeoutMs / 1000}s. Delegating to errorRecovery.")
+                                viewModel.orchestrator.errorRecovery.onPlaybackError(5004, "Arabelleğe alma zaman aşımına uğradı (${timeoutMs / 1000}sn)")
                             }
                         }
                     } else {
@@ -1116,10 +1120,14 @@ fun KitsugiFullscreenPlayerScreen(
                             viewModel.isResolvingStream = true
                             scope.launch {
                                 val repo = AddonStreamRepository(context)
-                                val resolvedUrl = kotlinx.coroutines.withTimeoutOrNull(30_000L) {
+                                val resolvedUrl = try {
                                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                                         repo.resolveStreamUrl(src)
                                     }
+                                } catch (e: kotlinx.coroutines.CancellationException) {
+                                    throw e
+                                } catch (e: Exception) {
+                                    null
                                 }
                                 viewModel.isResolvingStream = false
                                 if (resolvedUrl != null) {

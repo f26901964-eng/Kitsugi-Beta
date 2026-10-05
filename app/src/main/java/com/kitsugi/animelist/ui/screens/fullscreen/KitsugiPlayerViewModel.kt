@@ -982,11 +982,11 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
 
                 _isResolvingStream.value = true
                 val resolvedUrl = try {
-                    kotlinx.coroutines.withTimeoutOrNull(30000L) {
-                        withContext(kotlinx.coroutines.Dispatchers.IO) {
-                            repository.resolveStreamUrl(targetStream)
-                        }
+                    withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        repository.resolveStreamUrl(targetStream)
                     }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     Log.e("KitsugiPlayerViewModel", "playEpisode: akış çözümleme hatası", e)
                     null
@@ -1093,12 +1093,24 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
             try {
                 val target = sources[nextIndex]
                 val repository = AddonStreamRepository(context)
+
+                // Consent & Debrid guard for automatic source switching
+                val hasDebrid = !repository.getDebridApiKey().isNullOrBlank()
+                val p2pAllowed = com.kitsugi.animelist.core.p2p.P2pSettingsRepository.isP2pEnabled() &&
+                    com.kitsugi.animelist.core.p2p.P2pSettingsRepository.isConsentGranted()
+                if (target.isTorrent && !hasDebrid && !p2pAllowed) {
+                    Log.w("KitsugiPlayerViewModel", "tryNextSource: torrent kaynağı atlanıyor (rıza yok)")
+                    _currentSourceIndex.value = nextIndex
+                    tryNextSource(activity, onSwitched)
+                    return@launch
+                }
+
                 val resolvedUrl = try {
-                    kotlinx.coroutines.withTimeoutOrNull(30000L) {
-                        withContext(kotlinx.coroutines.Dispatchers.IO) {
-                            repository.resolveStreamUrl(target)
-                        }
+                    withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        repository.resolveStreamUrl(target)
                     }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     Log.e("KitsugiPlayerViewModel", "tryNextSource: çözümleme hatası: ${e.message}")
                     null

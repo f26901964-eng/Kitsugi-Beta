@@ -132,46 +132,40 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
             tempStreamSources = allSources
             tempCast = cast
 
-            context.startActivity(
-                Intent(context, KitsugiFullscreenPlayerActivity::class.java).apply {
-                    putExtra(EXTRA_VIDEO_URL, videoUrl)
-                    putExtra(EXTRA_AUDIO_URL, audioUrl)
-                    putExtra(EXTRA_TITLE, title)
-                    cs3Url?.let { putExtra(EXTRA_CS3_URL, it) }
-                    cs3ApiName?.let { putExtra(EXTRA_CS3_API_NAME, it) }
-                    if (!headers.isNullOrEmpty()) {
-                        val bundle = android.os.Bundle()
-                        headers.forEach { (k, v) -> bundle.putString(k, v) }
-                        putExtra(EXTRA_HEADERS, bundle)
+            try {
+                context.startActivity(
+                    Intent(context, KitsugiFullscreenPlayerActivity::class.java).apply {
+                        putExtra(EXTRA_VIDEO_URL, videoUrl)
+                        putExtra(EXTRA_AUDIO_URL, audioUrl)
+                        putExtra(EXTRA_TITLE, title)
+                        cs3Url?.let { putExtra(EXTRA_CS3_URL, it) }
+                        cs3ApiName?.let { putExtra(EXTRA_CS3_API_NAME, it) }
+                        if (!headers.isNullOrEmpty()) {
+                            val bundle = android.os.Bundle()
+                            headers.forEach { (k, v) -> bundle.putString(k, v) }
+                            putExtra(EXTRA_HEADERS, bundle)
+                        }
+                        putExtra(EXTRA_CURRENT_INDEX, currentSourceIndex)
+                        malId?.let { putExtra(EXTRA_MAL_ID, it) }
+                        aniListId?.let { putExtra(EXTRA_ANILIST_ID, it) }
+                        tmdbId?.let { putExtra(EXTRA_TMDB_ID, it) }
+                        putExtra(EXTRA_SEASON, season)
+                        putExtra(EXTRA_EPISODE, episode)
+                        putExtra(EXTRA_ANIME_TITLE, animeTitle)
+                        putExtra(EXTRA_POSTER_URL, posterUrl)
+                        putExtra(EXTRA_TITLE_ENGLISH, titleEnglish)
+                        putExtra(EXTRA_TITLE_ROMAJI, titleRomaji)
+                        putExtra(EXTRA_TITLE_NATIVE, titleNative)
+                        startYear?.let { putExtra(EXTRA_START_YEAR, it) }
+                        description?.let { putExtra(EXTRA_DESCRIPTION, it) }
+                        putExtra(EXTRA_IS_MOVIE, isMovie)
+                        putExtra(EXTRA_RESUME_POSITION, resumePositionMs)
                     }
-                    putExtra(EXTRA_CURRENT_INDEX, currentSourceIndex)
-                    malId?.let { putExtra(EXTRA_MAL_ID, it) }
-                    aniListId?.let { putExtra(EXTRA_ANILIST_ID, it) }
-                    tmdbId?.let { putExtra(EXTRA_TMDB_ID, it) }
-                    putExtra(EXTRA_SEASON, season)
-                    putExtra(EXTRA_EPISODE, episode)
-                    putExtra(EXTRA_ANIME_TITLE, animeTitle)
-                    putExtra(EXTRA_POSTER_URL, posterUrl)
-                    putExtra(EXTRA_TITLE_ENGLISH, titleEnglish)
-                    putExtra(EXTRA_TITLE_ROMAJI, titleRomaji)
-                    putExtra(EXTRA_TITLE_NATIVE, titleNative)
-                    startYear?.let { putExtra(EXTRA_START_YEAR, it) }
-                    description?.let { putExtra(EXTRA_DESCRIPTION, it) }
-                    putExtra(EXTRA_IS_MOVIE, isMovie)
-                    putExtra(EXTRA_RESUME_POSITION, resumePositionMs)
-                    
-                    val gson = com.google.gson.Gson()
-                    if (subtitles.isNotEmpty()) {
-                        putExtra(EXTRA_SUBTITLES_JSON, gson.toJson(subtitles))
-                    }
-                    if (allSources.isNotEmpty()) {
-                        putExtra(EXTRA_STREAM_LIST_JSON, gson.toJson(allSources))
-                    }
-                    if (cast.isNotEmpty()) {
-                        putExtra(EXTRA_CAST_JSON, gson.toJson(cast))
-                    }
-                }
-            )
+                )
+            } catch (e: Exception) {
+                android.util.Log.e("KitsugiPlayer", "Oynatıcı başlatılırken hata oluştu: ${e.message}", e)
+                android.widget.Toast.makeText(context, "Oynatıcı başlatılamadı: ${e.message}", android.widget.Toast.LENGTH_LONG).show()
+            }
         }
 
         fun launchExternalPlayer(

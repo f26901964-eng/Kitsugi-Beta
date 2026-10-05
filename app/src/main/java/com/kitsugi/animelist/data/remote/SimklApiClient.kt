@@ -789,10 +789,18 @@ class SimklApiClient(
         entries.forEach { entry ->
             val idObj = JSONObject().apply {
                 if (entry.simklId > 0) put("simkl", entry.simklId)
-                if (entry.malId != null && entry.malId > 0 && entry.malId < 100_000_000) put("mal", entry.malId)
-                if (entry.aniListId != null && entry.aniListId > 0) put("anilist", entry.aniListId)
-                if (entry.kitsuId != null && entry.kitsuId > 0) put("kitsu", entry.kitsuId)
-                if (entry.tmdbId != null && entry.tmdbId > 0) put("tmdb", entry.tmdbId)
+                if (entry.malId != null && entry.malId > 0 && entry.malId < 100_000_000) {
+                    put("mal", entry.malId.toString())
+                }
+                if (entry.aniListId != null && entry.aniListId > 0) {
+                    put("anilist", entry.aniListId.toString())
+                }
+                if (entry.kitsuId != null && entry.kitsuId > 0) {
+                    put("kitsu", entry.kitsuId.toString())
+                }
+                if (entry.tmdbId != null && entry.tmdbId > 0) {
+                    put("tmdb", entry.tmdbId.toString())
+                }
             }
             val itemObj = JSONObject().put("to", entry.status)
             if (idObj.length() > 0) {
@@ -820,55 +828,94 @@ class SimklApiClient(
 
         if (payloadObj.length() == 0) return@withContext SimklBatchResponse(isSuccess = true)
 
-        val request = Request.Builder()
-            .url("https://api.simkl.com/sync/add-to-list?client_id=$clientId")
-            .post(payloadObj.toString().toRequestBody("application/json".toMediaTypeOrNull()))
-            .header("Authorization", "Bearer $token")
-            .header("simkl-api-key", clientId)
-            .header("Content-Type", "application/json")
-            .header("User-Agent", "KitsugiApp/2.4")
-            .build()
+        var attempt = 0
+        while (attempt < 3) {
+            attempt++
+            val request = Request.Builder()
+                .url("https://api.simkl.com/sync/add-to-list?client_id=$clientId")
+                .post(payloadObj.toString().toRequestBody("application/json".toMediaTypeOrNull()))
+                .header("Authorization", "Bearer $token")
+                .header("simkl-api-key", clientId)
+                .header("Content-Type", "application/json")
+                .header("User-Agent", "KitsugiApp/2.4")
+                .build()
 
-        try {
-            client.newCall(request).execute().use { response ->
-                checkResponseAndThrow(response)
-                if (!response.isSuccessful) {
-                    return@withContext SimklBatchResponse(
-                        isSuccess = false,
-                        errorMessage = "HTTP ${response.code}"
-                    )
-                }
-                val bodyStr = response.body?.string().orEmpty()
-                var added = 0
-                var notFound = 0
-                if (bodyStr.isNotBlank() && bodyStr.trim() != "null") {
-                    runCatching {
-                        val json = JSONObject(bodyStr)
-                        val addedObj = json.optJSONObject("added")
-                        if (addedObj != null) {
-                            added += addedObj.optInt("movies", 0)
-                            added += addedObj.optInt("shows", 0)
-                            added += addedObj.optInt("anime", 0)
-                        }
-                        val notFoundObj = json.optJSONObject("not_found")
-                        if (notFoundObj != null) {
-                            notFound += notFoundObj.optJSONArray("movies")?.length() ?: 0
-                            notFound += notFoundObj.optJSONArray("shows")?.length() ?: 0
-                            notFound += notFoundObj.optJSONArray("anime")?.length() ?: 0
+            try {
+                val callResult = client.newCall(request).execute().use { response ->
+                    checkResponseAndThrow(response)
+                    if (response.code == 429) {
+                        android.util.Log.w("SimklApiClient", "Simkl addToListBatch rate limited (429), waiting 2.5s and retrying (deneme $attempt/3)...")
+                        return@use Pair(true, SimklBatchResponse(isSuccess = false, errorMessage = "HTTP 429 Rate Limit"))
+                    }
+                    if (!response.isSuccessful) {
+                        return@use Pair(false, SimklBatchResponse(
+                            isSuccess = false,
+                            errorMessage = "HTTP ${response.code}"
+                        ))
+                    }
+                    val bodyStr = response.body?.string().orEmpty()
+                    android.util.Log.d("SimklApiClient", "addToListBatchDetailed response: $bodyStr")
+                    var added = 0
+                    var notFound = 0
+                    if (bodyStr.isNotBlank() && bodyStr.trim() != "null") {
+                        runCatching {
+                            val json = JSONObject(bodyStr)
+                            val addedObj = json.optJSONObject("added")
+                            if (addedObj != null) {
+                                fun parseCount(key: String): Int {
+                                    val arr = addedObj.optJSONArray(key)
+                                    if (arr != null) return arr.length()
+                                    return addedObj.optInt(key, 0)
+                                }
+                                added += parseCount("movies")
+                                added += parseCount("shows")
+                                added += parseCount("anime")
+                            } else {
+                                val addedArr = json.optJSONArray("added")
+                                if (addedArr != null) {
+                                    added = addedArr.length()
+                                }
+                            }
+                            val notFoundObj = json.optJSONObject("not_found")
+                            if (notFoundObj != null) {
+                                fun parseNotFound(key: String): Int {
+                                    val arr = notFoundObj.optJSONArray(key)
+                                    if (arr != null) return arr.length()
+                                    return notFoundObj.optInt(key, 0)
+                                }
+                                notFound += parseNotFound("movies")
+                                notFound += parseNotFound("shows")
+                                notFound += parseNotFound("anime")
+                            } else {
+                                val notFoundArr = json.optJSONArray("not_found")
+                                if (notFoundArr != null) {
+                                    notFound = notFoundArr.length()
+                                }
+                            }
                         }
                     }
+                    Pair(false, SimklBatchResponse(
+                        isSuccess = true,
+                        addedCount = added,
+                        notFoundCount = notFound
+                    ))
                 }
-                SimklBatchResponse(
-                    isSuccess = true,
-                    addedCount = added,
-                    notFoundCount = notFound
-                )
+
+                if (!callResult.first) {
+                    return@withContext callResult.second
+                }
+                kotlinx.coroutines.delay(2500L)
+            } catch (e: com.kitsugi.animelist.data.repository.SimklAuthException) {
+                throw e
+            } catch (e: Exception) {
+                android.util.Log.e("SimklApiClient", "addToListBatchDetailed exception", e)
+                if (attempt >= 3) {
+                    return@withContext SimklBatchResponse(isSuccess = false, errorMessage = e.message)
+                }
+                kotlinx.coroutines.delay(1500L)
             }
-        } catch (e: com.kitsugi.animelist.data.repository.SimklAuthException) {
-            throw e
-        } catch (e: Exception) {
-            SimklBatchResponse(isSuccess = false, errorMessage = e.message)
         }
+        SimklBatchResponse(isSuccess = false, errorMessage = "Simkl isteği başarısız oldu (deneme sınırı aşıldı)")
     }
 
     suspend fun addToListBatch(

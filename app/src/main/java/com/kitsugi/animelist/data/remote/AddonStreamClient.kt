@@ -654,11 +654,34 @@ data class StreamResponseItem(
     val title: String?,
     val url: String?,
     val infoHash: String?,
-    val fileIndex: Int?,
+    /**
+     * Stremio addon protocol uses "fileIdx".
+     * SerializedName ensures Gson correctly parses fileIdx into this field.
+     */
+    @com.google.gson.annotations.SerializedName("fileIdx")
+    val fileIdx: Int? = null,
+    /**
+     * Stremio "sources" array containing tracker and peer addresses (e.g. tracker:udp://...).
+     */
+    val sources: List<String>? = null,
     val behaviorHints: StreamBehaviorHintsDto?,
     /** Episode/stream thumbnail URL returned by some addons (e.g. Cloudstream, Torrentio) */
     val thumbnail: String? = null
-)
+) {
+    /** Backward compatibility property for existing references */
+    val fileIndex: Int? get() = fileIdx
+
+    /** Clean tracker URLs extracted from "tracker:" prefixed entries in sources */
+    val trackers: List<String>
+        get() = sources
+            ?.asSequence()
+            ?.filter { it.startsWith("tracker:", ignoreCase = true) }
+            ?.map { it.removePrefix("tracker:").removePrefix("tracker:").trim() }
+            ?.filter { it.isNotEmpty() }
+            ?.distinct()
+            ?.toList()
+            ?: emptyList()
+}
 
 /**
  * Top-level `behaviorHints` object from a Stremio stream response.

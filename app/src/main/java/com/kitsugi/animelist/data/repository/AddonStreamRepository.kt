@@ -134,7 +134,8 @@ class AddonStreamRepository(private val context: Context) {
                         title     = titleText,
                         url       = responseItem.url,
                         infoHash  = responseItem.infoHash,
-                        fileIndex = responseItem.fileIndex,
+                        fileIndex = responseItem.fileIdx ?: responseItem.fileIndex,
+                        trackers  = responseItem.trackers,
                         requestHeaders = responseItem.behaviorHints?.proxyHeaders?.request,
                         quality   = parsedQuality,
                         qualityValue = parsedQualityValue,
@@ -190,20 +191,29 @@ class AddonStreamRepository(private val context: Context) {
         val hash = source.p2pHash
         if (!hash.isNullOrBlank()) {
             val fileIndex = source.fileIndex ?: rawUrl.extractTorrentSchemeFileIdx()
-            val trackers = extractTrackersFromMagnet(rawUrl)
+            val trackers = (source.trackers + extractTrackersFromMagnet(rawUrl)).distinct()
 
             // 2a. Debrid API anahtarı varsa öncelikle Debrid üzerinden çözmeyi dene
             if (!debridResolver.getApiKey().isNullOrBlank()) {
-                val debridUrl = debridResolver.resolveHash(hash, fileIndex)
+                val debridUrl = try {
+                    kotlinx.coroutines.withTimeoutOrNull(15_000L) {
+                        debridResolver.resolveHash(hash, fileIndex, source.title)
+                    }
+                } catch (e: Exception) {
+                    Log.w("AddonStreamRepository", "Debrid çözümleme hatası: ${e.message}")
+                    null
+                }
                 if (!debridUrl.isNullOrBlank()) {
                     return debridUrl
                 }
             }
 
             // 2b. Debrid yoksa veya çözülemediyse ve P2P etkinse -> Dahili Nuvio P2P Motoru ile stream et
-            if (com.kitsugi.animelist.core.p2p.P2pSettingsRepository.isP2pEnabled()) {
-                try {
-                    return com.kitsugi.animelist.core.p2p.P2pStreamingEngine.startStream(
+            if (com.kitsugi.animelist.core.p2p.P2pSettingsRepository.isP2pEnabled() &&
+                com.kitsugi.animelist.core.p2p.P2pSettingsRepository.isConsentGranted()
+            ) {
+                return try {
+                    com.kitsugi.animelist.core.p2p.P2pStreamingEngine.startStream(
                         com.kitsugi.animelist.core.p2p.P2pStreamRequest(
                             infoHash = hash,
                             fileIdx = fileIndex,
@@ -211,9 +221,11 @@ class AddonStreamRepository(private val context: Context) {
                             trackers = trackers
                         )
                     )
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     android.util.Log.e("AddonStreamRepository", "P2P akış başlatma hatası: ${e.message}", e)
-                    throw e
+                    null
                 }
             }
         }
@@ -234,6 +246,8 @@ data class StreamSource(
     val url: String?,
     val infoHash: String?,
     val fileIndex: Int?,
+    /** Addon sources[] trackers */
+    val trackers: List<String> = emptyList(),
     /** HTTP request headers to attach when playing the stream (from behaviorHints.proxyHeaders.request). */
     val requestHeaders: Map<String, String>? = null,
     val isCS: Boolean = false,
@@ -254,9 +268,11 @@ data class StreamSource(
         get() = !infoHash.isNullOrBlank() || url.isMagnetLink() || url.isTorrentSchemeUrl()
 
     val p2pHash: String?
-        get() = infoHash?.trim()?.takeIf { it.isNotEmpty() }
-            ?: url.extractBtihInfoHash()
-            ?: url.extractTorrentSchemeInfoHash()
+        get() = com.kitsugi.animelist.core.p2p.normalizeInfoHashToHex(
+            infoHash
+                ?: url.extractBtihInfoHash()
+                ?: url.extractTorrentSchemeInfoHash()
+        )
 }
 
 fun String?.isMagnetLink(): Boolean =

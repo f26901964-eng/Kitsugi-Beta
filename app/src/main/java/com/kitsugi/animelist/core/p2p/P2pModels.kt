@@ -109,13 +109,58 @@ val P2pStreamingState.bufferProgress: Float
 
 class P2pStreamingException(message: String) : Exception(message)
 
-fun canonicalP2pInfoHash(infoHash: String): String {
-    val canonical = infoHash.trim().lowercase()
-    require((canonical.length == 40 || canonical.length == 64) &&
-            canonical.all { it in '0'..'9' || it in 'a'..'f' }) {
-        "Torrent info hash 40 veya 64 karakterli onaltılık (hex) dize olmalıdır: $infoHash"
+private const val BASE32_ALPHABET = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
+private const val HEX_DIGITS_LOWER = "0123456789abcdef"
+
+/**
+ * Normalizes a raw info hash (40-char hex, 64-char hex v2, or 32-char base32)
+ * into a canonical lowercase hex string accepted by BitTorrent engines.
+ *
+ * @return normalized lowercase hex hash, or null if invalid.
+ */
+fun normalizeInfoHashToHex(raw: String?): String? {
+    val value = raw?.trim().orEmpty()
+    if (value.isEmpty()) return null
+    val lower = value.lowercase()
+
+    // 40 or 64 char hex
+    if ((lower.length == 40 || lower.length == 64) &&
+        lower.all { it in '0'..'9' || it in 'a'..'f' }
+    ) {
+        return lower
     }
-    return canonical
+
+    // 32 char base32 (RFC 4648) -> 20 bytes -> 40 char hex
+    if (value.length == 32 && value.uppercase().all { it in BASE32_ALPHABET }) {
+        return base32ToHex(value.uppercase())
+    }
+
+    return null
+}
+
+/** RFC 4648 base32 -> lowercase hex */
+private fun base32ToHex(base32: String): String? = runCatching {
+    var buffer = 0
+    var bitsLeft = 0
+    val out = StringBuilder(40)
+    for (ch in base32) {
+        val value = BASE32_ALPHABET.indexOf(ch)
+        if (value < 0) return@runCatching null
+        buffer = (buffer shl 5) or value
+        bitsLeft += 5
+        if (bitsLeft >= 8) {
+            bitsLeft -= 8
+            val byteVal = (buffer shr bitsLeft) and 0xff
+            out.append(HEX_DIGITS_LOWER[(byteVal shr 4) and 0x0f])
+            out.append(HEX_DIGITS_LOWER[byteVal and 0x0f])
+        }
+    }
+    out.toString().takeIf { it.length == 40 }
+}.getOrNull()
+
+fun canonicalP2pInfoHash(infoHash: String): String {
+    return normalizeInfoHashToHex(infoHash)
+        ?: throw P2pStreamingException("Torrent info hash 40 veya 64 karakterli onaltılık (hex) dize veya 32 karakterli base32 olmalıdır: $infoHash")
 }
 
 fun buildP2pMagnetUri(infoHash: String, trackers: List<String>): String {

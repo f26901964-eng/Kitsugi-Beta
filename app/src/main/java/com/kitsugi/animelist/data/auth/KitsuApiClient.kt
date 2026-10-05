@@ -340,24 +340,34 @@ object KitsuApiClient {
             })
         }
 
-        val request = Request.Builder()
-            .url("$BASE_URL/library-entries")
-            .addHeader("Accept", "application/vnd.api+json")
-            .addHeader("Content-Type", "application/vnd.api+json")
-            .addHeader("Authorization", "Bearer $token")
-            .addHeader("User-Agent", "KitsugiApp/2.4")
-            .post(payload.toString().toRequestBody(JSON_MEDIA_TYPE))
-            .build()
+        var attempt = 0
+        while (attempt < 3) {
+            attempt++
+            val request = Request.Builder()
+                .url("$BASE_URL/library-entries")
+                .addHeader("Accept", "application/vnd.api+json")
+                .addHeader("Content-Type", "application/vnd.api+json")
+                .addHeader("Authorization", "Bearer $token")
+                .addHeader("User-Agent", "KitsugiApp/2.4")
+                .post(payload.toString().toRequestBody(JSON_MEDIA_TYPE))
+                .build()
 
-        KitsugiHttpClient.client.newCall(request).execute().use { response ->
-            val body = response.body?.string().orEmpty()
-            if (response.isSuccessful) {
-                JSONObject(body).optJSONObject("data")?.optString("id")
-            } else {
-                Log.e(TAG, "createLibraryEntry failed: ${response.code} $body")
-                null
+            val (shouldRetry, newId) = KitsugiHttpClient.client.newCall(request).execute().use { response ->
+                val body = response.body?.string().orEmpty()
+                if (response.code == 429) {
+                    Log.w(TAG, "Kitsu createLibraryEntry rate limited (429), waiting 2s and retrying (deneme $attempt/3)...")
+                    Pair(true, null)
+                } else if (response.isSuccessful) {
+                    Pair(false, JSONObject(body).optJSONObject("data")?.optString("id"))
+                } else {
+                    Log.e(TAG, "createLibraryEntry failed: ${response.code} $body")
+                    Pair(false, null)
+                }
             }
+            if (!shouldRetry) return@withContext newId
+            kotlinx.coroutines.delay(2000L)
         }
+        null
     }
 
     /**
@@ -386,18 +396,30 @@ object KitsuApiClient {
             })
         }
 
-        val request = Request.Builder()
-            .url("$BASE_URL/library-entries/$entryId")
-            .addHeader("Accept", "application/vnd.api+json")
-            .addHeader("Content-Type", "application/vnd.api+json")
-            .addHeader("Authorization", "Bearer $token")
-            .addHeader("User-Agent", "KitsugiApp/2.4")
-            .patch(payload.toString().toRequestBody(JSON_MEDIA_TYPE))
-            .build()
+        var attempt = 0
+        while (attempt < 3) {
+            attempt++
+            val request = Request.Builder()
+                .url("$BASE_URL/library-entries/$entryId")
+                .addHeader("Accept", "application/vnd.api+json")
+                .addHeader("Content-Type", "application/vnd.api+json")
+                .addHeader("Authorization", "Bearer $token")
+                .addHeader("User-Agent", "KitsugiApp/2.4")
+                .patch(payload.toString().toRequestBody(JSON_MEDIA_TYPE))
+                .build()
 
-        KitsugiHttpClient.client.newCall(request).execute().use { response ->
-            response.isSuccessful
+            val (shouldRetry, success) = KitsugiHttpClient.client.newCall(request).execute().use { response ->
+                if (response.code == 429) {
+                    Log.w(TAG, "Kitsu updateLibraryEntry rate limited (429), waiting 2s and retrying (deneme $attempt/3)...")
+                    Pair(true, false)
+                } else {
+                    Pair(false, response.isSuccessful)
+                }
+            }
+            if (!shouldRetry) return@withContext success
+            kotlinx.coroutines.delay(2000L)
         }
+        false
     }
 
     /**

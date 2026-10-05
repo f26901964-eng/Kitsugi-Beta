@@ -74,7 +74,9 @@ object SimklImportManager {
     suspend fun fetchAllLists(token: String): List<MediaEntry> {
         return withContext(Dispatchers.IO) {
             val movies = fetchList(token, "movies")
+            kotlinx.coroutines.delay(1200L)
             val shows = fetchList(token, "shows")
+            kotlinx.coroutines.delay(1200L)
             val anime = fetchList(token, "anime")
             movies + shows + anime
         }
@@ -82,34 +84,43 @@ object SimklImportManager {
 
     private suspend fun fetchList(token: String, type: String): List<MediaEntry> {
         return withContext(Dispatchers.IO) {
-            val request = Request.Builder()
-                .url("https://api.simkl.com/sync/all-items/$type")
-                .header("Authorization", "Bearer $token")
-                .header("simkl-api-key", CLIENT_ID)
-                .build()
+            var attempt = 0
+            while (attempt < 3) {
+                attempt++
+                val request = Request.Builder()
+                    .url("https://api.simkl.com/sync/all-items/$type")
+                    .header("Authorization", "Bearer $token")
+                    .header("simkl-api-key", CLIENT_ID)
+                    .header("User-Agent", "KitsugiApp/2.4")
+                    .build()
 
-            val entries = mutableListOf<MediaEntry>()
+                val entries = mutableListOf<MediaEntry>()
 
-            try {
-                client.newCall(request).execute().use { response ->
-                    if (response.code == 401) {
-                        val context = com.kitsugi.animelist.KitsugiApplication.getInstance()?.applicationContext
-                        if (context != null) {
-                            com.kitsugi.animelist.data.auth.ExternalAuthManager.handleSimkl401(context)
+                try {
+                    val (shouldRetry, parsedEntries) = client.newCall(request).execute().use { response ->
+                        if (response.code == 401) {
+                            val context = com.kitsugi.animelist.KitsugiApplication.getInstance()?.applicationContext
+                            if (context != null) {
+                                com.kitsugi.animelist.data.auth.ExternalAuthManager.handleSimkl401(context)
+                            }
+                            throw com.kitsugi.animelist.data.repository.SimklAuthException("Simkl yetkilendirme hatası: 401")
                         }
-                        throw com.kitsugi.animelist.data.repository.SimklAuthException("Simkl yetkilendirme hatası: 401")
-                    }
-                    if (!response.isSuccessful) {
-                        return@withContext emptyList()
-                    }
-                    val responseText = response.body?.string().orEmpty()
-                    val root = JSONObject(responseText)
-                    val arrayKey = when (type) {
-                        "movies" -> "movies"
-                        "shows" -> "shows"
-                        else -> "anime"
-                    }
-                    val jsonArray = root.optJSONArray(arrayKey) ?: return@withContext emptyList()
+                        if (response.code == 429) {
+                            android.util.Log.w("SimklImportManager", "Simkl fetchList [$type] 429 rate limit, waiting 2.5s and retrying (deneme $attempt/3)...")
+                            return@use Pair(true, emptyList<MediaEntry>())
+                        }
+                        if (!response.isSuccessful) {
+                            android.util.Log.e("SimklImportManager", "Simkl fetchList [$type] failed: HTTP ${response.code}")
+                            return@use Pair(false, emptyList<MediaEntry>())
+                        }
+                        val responseText = response.body?.string().orEmpty()
+                        val root = JSONObject(responseText)
+                        val arrayKey = when (type) {
+                            "movies" -> "movies"
+                            "shows" -> "shows"
+                            else -> "anime"
+                        }
+                        val jsonArray = root.optJSONArray(arrayKey) ?: return@use Pair(false, emptyList<MediaEntry>())
 
                     for (i in 0 until jsonArray.length()) {
                         val item = jsonArray.getJSONObject(i)
@@ -186,16 +197,23 @@ object SimklImportManager {
                             )
                         )
                     }
+                    Pair(false, entries)
                 }
+                if (!shouldRetry) {
+                    return@withContext parsedEntries
+                }
+                kotlinx.coroutines.delay(2500L)
             } catch (e: com.kitsugi.animelist.data.repository.SimklAuthException) {
                 throw e
             } catch (e: Exception) {
-                // T3-05: printStackTrace → Log.e
                 android.util.Log.e("SimklImportManager", "fetchList [$type] failed: ${e.message}", e)
+                if (attempt >= 3) return@withContext emptyList()
+                kotlinx.coroutines.delay(1500L)
             }
-            entries
         }
+        emptyList()
     }
+}
 
     private fun mapSimklStatus(status: String?): WatchStatus {
         return when (status?.lowercase()) {

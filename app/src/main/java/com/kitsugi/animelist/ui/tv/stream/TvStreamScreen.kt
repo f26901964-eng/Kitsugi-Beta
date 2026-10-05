@@ -374,11 +374,11 @@ fun TvStreamScreen(
                                             resolvingError = null
                                             scope.launch {
                                                 val resolvedUrl = try {
-                                                    kotlinx.coroutines.withTimeoutOrNull(30000L) {
-                                                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                                            repository.resolveStreamUrl(stream)
-                                                        }
+                                                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                                        repository.resolveStreamUrl(stream)
                                                     }
+                                                } catch (e: kotlinx.coroutines.CancellationException) {
+                                                    throw e
                                                 } catch (e: Exception) {
                                                     null
                                                 }

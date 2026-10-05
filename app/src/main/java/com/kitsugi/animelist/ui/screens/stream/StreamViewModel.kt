@@ -388,7 +388,8 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                                 title        = titleText,
                                 url          = item.url,
                                 infoHash     = item.infoHash,
-                                fileIndex    = item.fileIndex,
+                                fileIndex    = item.fileIdx ?: item.fileIndex,
+                                trackers     = item.trackers,
                                 requestHeaders = item.behaviorHints?.proxyHeaders?.request,
                                 quality      = parsedQuality,
                                 qualityValue = StreamSorter.parseQualityValue(parsedQuality)

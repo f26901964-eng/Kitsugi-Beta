@@ -49,6 +49,7 @@ import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.components.KitsugiEmptyState
+import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.ui.components.KitsugiShimmerSearchResultList
 import com.kitsugi.animelist.ui.components.KitsugiShimmerMediaRow
 import com.kitsugi.animelist.ui.components.KitsugiExploreMediaCard
@@ -450,29 +451,25 @@ fun SearchScreen(
                     item {
                         MultiSearchShelfShimmer(
                             title = "AniList",
-                            badgeText = "AL",
-                            badgeColor = Color(0xFF02A9FF)
+                            platformId = "anilist"
                         )
                     }
                     item {
                         MultiSearchShelfShimmer(
                             title = "MyAnimeList",
-                            badgeText = "MAL",
-                            badgeColor = Color(0xFF2E51A2)
+                            platformId = "mal"
                         )
                     }
                     item {
                         MultiSearchShelfShimmer(
                             title = "TMDB (Film & Dizi)",
-                            badgeText = "TMDB",
-                            badgeColor = Color(0xFFFFB800)
+                            platformId = "tmdb"
                         )
                     }
                     item {
                         MultiSearchShelfShimmer(
                             title = "Shikimori",
-                            badgeText = "SHIKI",
-                            badgeColor = Color(0xFF4C86C8)
+                            platformId = "shikimori"
                         )
                     }
                 } else {
@@ -510,8 +507,7 @@ fun SearchScreen(
                 item {
                     MultiSearchSection(
                         title = "AniList",
-                        badgeText = "AL",
-                        badgeColor = Color(0xFF02A9FF),
+                        platformId = "anilist",
                         results = uiState.multiResults.aniListResults,
                         isLoading = uiState.multiResults.isLoadingAniList,
                         isAlreadyInList = isAlreadyInList,
@@ -527,8 +523,7 @@ fun SearchScreen(
                 item {
                     MultiSearchSection(
                         title = "MyAnimeList",
-                        badgeText = "MAL",
-                        badgeColor = Color(0xFF2E51A2),
+                        platformId = "mal",
                         results = uiState.multiResults.malResults,
                         isLoading = uiState.multiResults.isLoadingMal,
                         isAlreadyInList = isAlreadyInList,
@@ -544,8 +539,7 @@ fun SearchScreen(
                 item {
                     MultiSearchSection(
                         title = "Film & Dizi (TMDB)",
-                        badgeText = "TMDB",
-                        badgeColor = Color(0xFFFFB800),
+                        platformId = "tmdb",
                         results = uiState.multiResults.tmdbResults,
                         isLoading = uiState.multiResults.isLoadingTmdb,
                         isAlreadyInList = isAlreadyInList,
@@ -561,8 +555,7 @@ fun SearchScreen(
                 item {
                     MultiSearchSection(
                         title = "Shikimori (Rusça Kaynak / Anime & Manga)",
-                        badgeText = "SHI",
-                        badgeColor = Color(0xFF4C86C8),
+                        platformId = "shikimori",
                         results = uiState.multiResults.shikimoriResults,
                         isLoading = uiState.multiResults.isLoadingShikimori,
                         isAlreadyInList = isAlreadyInList,
@@ -578,8 +571,7 @@ fun SearchScreen(
                 item {
                     MultiSearchSection(
                         title = "Kitsu",
-                        badgeText = "KT",
-                        badgeColor = Color(0xFFE35A02),
+                        platformId = "kitsu",
                         results = uiState.multiResults.kitsuResults,
                         isLoading = uiState.multiResults.isLoadingKitsu,
                         isAlreadyInList = isAlreadyInList,
@@ -595,8 +587,7 @@ fun SearchScreen(
                 item {
                     MultiSearchSection(
                         title = "Simkl",
-                        badgeText = "SK",
-                        badgeColor = Color(0xFF1F1F1F),
+                        platformId = "simkl",
                         results = uiState.multiResults.simklResults,
                         isLoading = uiState.multiResults.isLoadingSimkl,
                         isAlreadyInList = isAlreadyInList,
@@ -973,15 +964,15 @@ fun ActiveFilterChip(
 @Composable
 private fun MultiSearchShelfShimmer(
     title: String,
-    badgeText: String,
-    badgeColor: Color
+    platformId: String
 ) {
+    val bgColor = platformBgColor(platformId)
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 12.dp)
     ) {
-        // Platform Rozeti + Başlık
+        // Platform Logo Rozeti + Başlık
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -990,15 +981,14 @@ private fun MultiSearchShelfShimmer(
         ) {
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(badgeColor.copy(alpha = 0.9f))
-                    .padding(horizontal = 7.dp, vertical = 3.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(bgColor.copy(alpha = 0.9f))
+                    .padding(5.dp)
             ) {
-                Text(
-                    text = badgeText,
-                    color = if (badgeText.equals("TMDB", ignoreCase = true) || badgeColor == Color(0xFFFFB800)) Color.Black else Color.White,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
+                KitsugiPlatformLogo(
+                    platformId = platformId,
+                    size = 20.dp,
+                    cornerRadius = 3.dp
                 )
             }
             Spacer(modifier = Modifier.width(8.dp))
@@ -1022,12 +1012,22 @@ private fun MultiSearchShelfShimmer(
 /**
  * All-in-One Çoklu Platform Arama Bölümü (Yatay Kart Listesi - Keşfet Sayfası ile Birebir Aynı Mekanik ve Görünüm)
  */
+/** Verilen platform kimliği için arka plan marka rengini döndürür. */
+private fun platformBgColor(platformId: String): Color = when (platformId.lowercase()) {
+    "anilist"              -> Color(0xFF02A9FF)
+    "mal", "jikan"         -> Color(0xFF2E51A2)
+    "tmdb", "themoviedb"   -> Color(0xFF032541)
+    "simkl"                -> Color(0xFF1A1A1A)
+    "kitsu"                -> Color(0xFFE35A02)
+    "shikimori", "shiki"   -> Color(0xFF4C86C8)
+    else                   -> Color(0xFF2A2A2A)
+}
+
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class, androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 private fun MultiSearchSection(
     title: String,
-    badgeText: String,
-    badgeColor: Color,
+    platformId: String,
     results: List<JikanSearchResult>,
     isLoading: Boolean,
     isAlreadyInList: (JikanSearchResult) -> Boolean,
@@ -1044,13 +1044,14 @@ private fun MultiSearchSection(
     val accentColor = LocalKitsugiAccent.current
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val isTvDevice = LocalIsTvDevice.current
+    val bgColor = platformBgColor(platformId)
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 12.dp)
     ) {
-        // Platform Badge + Title & "Tümünü Gör" Header Row
+        // Platform Logo Rozeti + Başlık & "Tümünü Gör" Header Row
         Row(
             modifier = Modifier
                 .fillMaxWidth()
@@ -1059,15 +1060,14 @@ private fun MultiSearchSection(
         ) {
             Box(
                 modifier = Modifier
-                    .clip(RoundedCornerShape(6.dp))
-                    .background(badgeColor.copy(alpha = 0.9f))
-                    .padding(horizontal = 7.dp, vertical = 3.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(bgColor.copy(alpha = 0.9f))
+                    .padding(5.dp)
             ) {
-                Text(
-                    text = badgeText,
-                    color = if (badgeText.equals("TMDB", ignoreCase = true) || badgeColor == Color(0xFFFFB800)) Color.Black else Color.White,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold
+                KitsugiPlatformLogo(
+                    platformId = platformId,
+                    size = 20.dp,
+                    cornerRadius = 3.dp
                 )
             }
             Spacer(modifier = Modifier.width(8.dp))

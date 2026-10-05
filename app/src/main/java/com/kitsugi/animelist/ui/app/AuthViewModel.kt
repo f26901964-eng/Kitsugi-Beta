@@ -189,7 +189,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 AniListImportManager.fetchAllLists(token)
             }.onSuccess { importedEntries ->
-                repository.smartImport("anilist", importedEntries)
+                repository.smartImport("anilist", importedEntries, allowDelete = false)
 
                 onShowMessage?.invoke(
                     "${importedEntries.size} AniList kaydı başarıyla aktarıldı"
@@ -239,7 +239,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 val showAdult = settingsDataStore.settingsFlow.first().showAdultContent
                 MalImportManager.fetchAllLists(token, showAdult)
             }.onSuccess { importedEntries ->
-                repository.smartImport("mal", importedEntries)
+                repository.smartImport("mal", importedEntries, allowDelete = false)
 
                 onShowMessage?.invoke(
                     "${importedEntries.size} MyAnimeList kaydı başarıyla aktarıldı"
@@ -759,17 +759,23 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         updateProgress("Simkl kütüphanesi eşitleniyor...", progressText)
                         val syncRes = SimklSyncManager.syncBatchToSimkl(context, chunk)
                         if (syncRes.errors.isEmpty()) {
-                            simklAdded += chunk.size
-                            logEvent("Simkl", "[Simkl] Grup ${idx + 1}/${chunks.size} eşitlendi (${chunk.size} içerik)", isAddition = true)
+                            val count = if (syncRes.addedCount > 0) syncRes.addedCount else chunk.size
+                            simklAdded += count
+                            logEvent("Simkl", "[Simkl] Grup ${idx + 1}/${chunks.size} eşitlendi ($count eklendi${if (syncRes.notFoundCount > 0) ", ${syncRes.notFoundCount} eşleşmedi" else ""})", isAddition = true)
                         } else {
                             simklErrors += chunk.size
                             logEvent("Simkl", "[Simkl] Grup ${idx + 1}/${chunks.size} hata: ${syncRes.errors.firstOrNull()}", isError = true)
                         }
+                        if (idx < chunks.size - 1) {
+                            // Simkl API 1 istek/saniye kuralına tam uyum
+                            kotlinx.coroutines.delay(1200L)
+                        }
                     }
                     statsMap["Simkl"] = statsMap["Simkl"]!!.let { it.copy(addedCount = it.addedCount + simklAdded, errorCount = it.errorCount + simklErrors) }
+                    kotlinx.coroutines.delay(1500L)
                 }
 
-                // ── FAZ 4: Yerel Veritabanını Güncelle ─────────────────────────────
+                // ── FAZ 4: Yerel Veritabanını Güncelle (Sıfır Veri Kaybı Garantisi) ──
                 updateProgress("Yerel veritabanı güncelleniyor...", "Kitsugi listeleri yenileniyor...")
 
                 if (isAniList) {
@@ -782,19 +788,20 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                 source = "anilist"
                             )
                         }
-                    repository.smartImport("anilist", aniListSynced)
+                    repository.smartImport("anilist", aniListSynced, allowDelete = false)
                 }
                 if (isMal) {
                     val malSynced = finalEntries
-                        .filter { (it.type == MediaType.Anime || it.type == MediaType.Manga) && (it.malId != null && it.malId.isRealMalId()) }
+                        .filter { it.type == MediaType.Anime || it.type == MediaType.Manga }
                         .map { entry ->
+                            val targetId = entry.malId?.takeIf { it.isRealMalId() } ?: entry.id
                             if (entry.source == "mal" || entry.source == "jikan") entry
                             else entry.copy(
-                                id = entry.malId!!,
+                                id = targetId,
                                 source = "mal"
                             )
                         }
-                    repository.smartImport("mal", malSynced)
+                    repository.smartImport("mal", malSynced, allowDelete = false)
                 }
                 if (isSimkl) {
                     updateProgress("Simkl listesi yenileniyor...", "Simkl kütüphanesi senkronize ediliyor...")
@@ -803,20 +810,24 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         runCatching { SimklImportManager.fetchAllLists(simklToken) }.getOrNull()
                     } else null
 
-                    if (!freshSimklList.isNullOrEmpty()) {
-                        repository.smartImport("simkl", freshSimklList)
-                    } else {
-                        val simklSynced = finalEntries
-                            .filter { (it.type == MediaType.Anime || it.type == MediaType.TvShow || it.type == MediaType.Movie) && ((it.simklId ?: 0) > 0) }
-                            .map { entry ->
-                                entry.copy(
-                                    id = entry.simklId!!,
-                                    source = "simkl"
-                                )
-                            }
-                        if (simklSynced.isNotEmpty()) {
-                            repository.smartImport("simkl", simklSynced)
+                    val simklBaseEntries = finalEntries
+                        .filter { it.type == MediaType.Anime || it.type == MediaType.TvShow || it.type == MediaType.Movie }
+                        .map { entry ->
+                            entry.copy(
+                                id = entry.simklId?.takeIf { it > 0 } ?: entry.id,
+                                source = "simkl"
+                            )
                         }
+                    val combinedSimklList = if (!freshSimklList.isNullOrEmpty()) {
+                        val freshByKey = freshSimklList.associateBy { it.title.trim().lowercase() }
+                        simklBaseEntries.map { base ->
+                            freshByKey[base.title.trim().lowercase()] ?: base
+                        } + freshSimklList.filter { fresh -> simklBaseEntries.none { it.title.equals(fresh.title, ignoreCase = true) } }
+                    } else {
+                        simklBaseEntries
+                    }
+                    if (combinedSimklList.isNotEmpty()) {
+                        repository.smartImport("simkl", combinedSimklList, allowDelete = false)
                     }
                 }
                 if (isKitsu) {
@@ -829,19 +840,20 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                 source = "kitsu"
                             )
                         }
-                    repository.smartImport("kitsu", kitsuSynced)
+                    repository.smartImport("kitsu", kitsuSynced, allowDelete = false)
                 }
                 if (isShikimori) {
                     val shikimoriSynced = finalEntries
-                        .filter { (it.type == MediaType.Anime || it.type == MediaType.Manga) && (it.malId != null && it.malId.isRealMalId()) }
+                        .filter { it.type == MediaType.Anime || it.type == MediaType.Manga }
                         .map { entry ->
+                            val targetId = entry.malId?.takeIf { it.isRealMalId() } ?: entry.id
                             if (entry.source == "shikimori") entry
                             else entry.copy(
-                                id = entry.malId!!,
+                                id = targetId,
                                 source = "shikimori"
                             )
                         }
-                    repository.smartImport("shikimori", shikimoriSynced)
+                    repository.smartImport("shikimori", shikimoriSynced, allowDelete = false)
                 }
 
                 logEvent("Tamamlandı", "Tüm hesaplar başarıyla senkronize edildi. Hiçbir içerik silinmedi.", isAddition = true)
@@ -976,7 +988,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 KitsuImportManager.fetchAllLists(context, token, userId)
             }.onSuccess { importedEntries ->
-                repository.smartImport("kitsu", importedEntries)
+                repository.smartImport("kitsu", importedEntries, allowDelete = false)
                 onShowMessage?.invoke("${importedEntries.size} Kitsu kaydı başarıyla aktarıldı")
             }.onFailure { error ->
                 onShowMessage?.invoke(error.message ?: "Kitsu içe aktarma başarısız")
@@ -1008,7 +1020,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 ShikimoriImportManager.fetchAllLists(context, token, userId)
             }.onSuccess { importedEntries ->
-                repository.smartImport("shikimori", importedEntries)
+                repository.smartImport("shikimori", importedEntries, allowDelete = false)
                 onShowMessage?.invoke("${importedEntries.size} Shikimori kaydı başarıyla aktarıldı")
             }.onFailure { error ->
                 onShowMessage?.invoke(error.message ?: "Shikimori içe aktarma başarısız")
@@ -1061,7 +1073,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 SimklImportManager.fetchAllLists(token)
             }.onSuccess { importedEntries ->
-                repository.smartImport("simkl", importedEntries)
+                repository.smartImport("simkl", importedEntries, allowDelete = false)
 
                 onShowMessage?.invoke(
                     "${importedEntries.size} Simkl kaydı başarıyla aktarıldı"

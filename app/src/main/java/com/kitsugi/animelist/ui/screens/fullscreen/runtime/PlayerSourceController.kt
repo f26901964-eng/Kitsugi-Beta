@@ -113,12 +113,24 @@ class PlayerSourceController(
             try {
                 val target = sources[nextIndex]
                 val repository = AddonStreamRepository(context)
+
+                // Consent & Debrid guard
+                val hasDebrid = !repository.getDebridApiKey().isNullOrBlank()
+                val p2pAllowed = com.kitsugi.animelist.core.p2p.P2pSettingsRepository.isP2pEnabled() &&
+                    com.kitsugi.animelist.core.p2p.P2pSettingsRepository.isConsentGranted()
+                if (target.isTorrent && !hasDebrid && !p2pAllowed) {
+                    Log.w(TAG, "tryNextSource: torrent kaynağı atlanıyor (rıza yok)")
+                    currentSourceIndex = nextIndex
+                    tryNextSource(activity, currentTitle, onSwitched)
+                    return@launch
+                }
+
                 val resolvedUrl = try {
-                    kotlinx.coroutines.withTimeoutOrNull(30000L) {
-                        withContext(kotlinx.coroutines.Dispatchers.IO) {
-                            repository.resolveStreamUrl(target)
-                        }
+                    withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        repository.resolveStreamUrl(target)
                     }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     Log.e(TAG, "tryNextSource: çözümleme hatası: ${e.message}")
                     null

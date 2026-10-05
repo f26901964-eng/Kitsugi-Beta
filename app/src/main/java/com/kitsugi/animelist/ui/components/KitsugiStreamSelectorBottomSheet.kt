@@ -107,11 +107,11 @@ fun KitsugiStreamSelectorBottomSheet(
             resolvingSource = stream
             coroutineScope.launch {
                 val resolvedUrl = try {
-                    kotlinx.coroutines.withTimeoutOrNull(35000L) {
-                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                            repository.resolveStreamUrl(stream)
-                        }
+                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        repository.resolveStreamUrl(stream)
                     }
+                } catch (e: kotlinx.coroutines.CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     null
                 }
