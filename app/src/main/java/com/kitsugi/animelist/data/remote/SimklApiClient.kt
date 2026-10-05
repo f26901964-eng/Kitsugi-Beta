@@ -790,16 +790,10 @@ class SimklApiClient(
             val idObj = JSONObject().apply {
                 if (entry.simklId > 0) put("simkl", entry.simklId)
                 if (entry.malId != null && entry.malId > 0 && entry.malId < 100_000_000) {
-                    put("mal", entry.malId.toString())
-                }
-                if (entry.aniListId != null && entry.aniListId > 0) {
-                    put("anilist", entry.aniListId.toString())
-                }
-                if (entry.kitsuId != null && entry.kitsuId > 0) {
-                    put("kitsu", entry.kitsuId.toString())
+                    put("mal", entry.malId)
                 }
                 if (entry.tmdbId != null && entry.tmdbId > 0) {
-                    put("tmdb", entry.tmdbId.toString())
+                    put("tmdb", entry.tmdbId)
                 }
             }
             val itemObj = JSONObject().put("to", entry.status)

@@ -37,7 +37,10 @@ object KitsuImportManager {
                 // Cache entry ID for later updates/deletes
                 ExternalAuthManager.saveKitsuLibraryEntryId(context, mediaId, isAnime, entry.id)
 
-                val stableId = KITSU_OFFSET + mediaId
+                val kitsuStableId = KITSU_OFFSET + mediaId
+                // Gerçek MAL ID biliniyorsa onu kullan (clustering doğru çalışır),
+                // bilinmiyorsa offset'li fake ID saklarız (yine tanımlanabilir)
+                val malIdToStore = entry.realMalId?.takeIf { it in 1..99_999_999 } ?: kitsuStableId
                 val status = KitsuSyncManager.kitsuStatusToWatchStatus(entry.status)
                 val score = entry.ratingTwenty?.let { kotlin.math.round(it / 2.0).toInt().coerceIn(1, 10) }
 
@@ -47,7 +50,7 @@ object KitsuImportManager {
                         title = entry.title,
                         subtitle = "",
                         titleEnglish = entry.titleEnglish,
-                        titleJapanese = null,
+                        titleJapanese = entry.titleJapanese,
                         imageUrl = entry.imageUrl ?: "",
                         type = if (isManga) MediaType.Manga else MediaType.Anime,
                         status = status,
@@ -55,7 +58,7 @@ object KitsuImportManager {
                         total = entry.total,
                         score = score,
                         isAdult = false,
-                        malId = stableId,
+                        malId = malIdToStore,
                         aniListEntryId = null,
                         source = "kitsu",
                         updatedAt = entry.updatedAt

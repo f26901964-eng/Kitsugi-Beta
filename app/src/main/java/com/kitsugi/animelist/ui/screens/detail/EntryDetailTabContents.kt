@@ -21,6 +21,8 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.PhotoLibrary
+import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
+import com.kitsugi.animelist.ui.components.KitsugiPlatformLogos
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -492,20 +494,32 @@ internal fun DetailGalleryCard(
                                         )
                                 )
 
-                                Box(
-                                    modifier = Modifier
-                                        .align(Alignment.BottomStart)
-                                        .padding(6.dp)
-                                        .clip(RoundedCornerShape(5.dp))
-                                        .background(badgeBgColor)
-                                        .padding(horizontal = 5.dp, vertical = 2.dp)
-                                ) {
-                                    Text(
-                                        text = item.source,
-                                        color = if (item.source.equals("tmdb", ignoreCase = true) || badgeBgColor == Color(0xFFFFB800)) Color.Black else Color.White,
-                                        fontSize = 8.sp,
-                                        fontWeight = FontWeight.Bold
+                                val logoRes = KitsugiPlatformLogos.resFor(item.source)
+                                if (logoRes != null) {
+                                    KitsugiPlatformLogo(
+                                        platformId = item.source,
+                                        size = 20.dp,
+                                        cornerRadius = 4.dp,
+                                        modifier = Modifier
+                                            .align(Alignment.BottomStart)
+                                            .padding(6.dp)
                                     )
+                                } else {
+                                    Box(
+                                        modifier = Modifier
+                                            .align(Alignment.BottomStart)
+                                            .padding(6.dp)
+                                            .clip(RoundedCornerShape(5.dp))
+                                            .background(badgeBgColor)
+                                            .padding(horizontal = 5.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            text = item.source,
+                                            color = if (item.source.equals("tmdb", ignoreCase = true) || badgeBgColor == Color(0xFFFFB800)) Color.Black else Color.White,
+                                            fontSize = 8.sp,
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
                                 }
 
                                 if (!item.description.isNullOrBlank()) {

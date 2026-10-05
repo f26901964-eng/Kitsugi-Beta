@@ -732,18 +732,27 @@ private fun GalleryLandscapeLayout(
                                     label = "Kaynak",
                                     value = null,
                                     badge = {
-                                        Box(
-                                            modifier = Modifier
-                                                .clip(RoundedCornerShape(5.dp))
-                                                .background(badgeBg)
-                                                .padding(horizontal = 8.dp, vertical = 3.dp)
-                                        ) {
-                                            Text(
-                                                text = currentItem.source,
-                                                color = if (currentItem.source.equals("tmdb", ignoreCase = true)) Color.Black else Color.White,
-                                                fontSize = 11.sp,
-                                                fontWeight = FontWeight.Bold
+                                        val logoRes = KitsugiPlatformLogos.resFor(currentItem.source)
+                                        if (logoRes != null) {
+                                            KitsugiPlatformLogo(
+                                                platformId = currentItem.source,
+                                                size = 28.dp,
+                                                cornerRadius = 6.dp
                                             )
+                                        } else {
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(5.dp))
+                                                    .background(badgeBg)
+                                                    .padding(horizontal = 8.dp, vertical = 3.dp)
+                                            ) {
+                                                Text(
+                                                    text = currentItem.source,
+                                                    color = if (currentItem.source.equals("tmdb", ignoreCase = true)) Color.Black else Color.White,
+                                                    fontSize = 11.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
                                         }
                                     }
                                 )
@@ -986,18 +995,27 @@ private fun GalleryPortraitLayout(
                             }
 
                             // 1. Kaynak Rozeti
-                            Box(
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(6.dp))
-                                    .background(badgeBg)
-                                    .padding(horizontal = 7.dp, vertical = 3.dp)
-                            ) {
-                                Text(
-                                    text = item.source,
-                                    color = if (item.source.equals("tmdb", ignoreCase = true)) Color.Black else Color.White,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold
+                            val logoRes = KitsugiPlatformLogos.resFor(item.source)
+                            if (logoRes != null) {
+                                KitsugiPlatformLogo(
+                                    platformId = item.source,
+                                    size = 22.dp,
+                                    cornerRadius = 5.dp
                                 )
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(badgeBg)
+                                        .padding(horizontal = 7.dp, vertical = 3.dp)
+                                ) {
+                                    Text(
+                                        text = item.source,
+                                        color = if (item.source.equals("tmdb", ignoreCase = true)) Color.Black else Color.White,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
                             }
 
                             // 2. Kategori Rozeti

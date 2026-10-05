@@ -966,31 +966,23 @@ private fun MultiSearchShelfShimmer(
     title: String,
     platformId: String
 ) {
-    val bgColor = platformBgColor(platformId)
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 12.dp)
     ) {
-        // Platform Logo Rozeti + Başlık
+        // Platform Logosu + Başlık
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 4.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(bgColor.copy(alpha = 0.9f))
-                    .padding(5.dp)
-            ) {
-                KitsugiPlatformLogo(
-                    platformId = platformId,
-                    size = 20.dp,
-                    cornerRadius = 3.dp
-                )
-            }
+            KitsugiPlatformLogo(
+                platformId = platformId,
+                size = 24.dp,
+                cornerRadius = 6.dp
+            )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = title,
@@ -1012,17 +1004,6 @@ private fun MultiSearchShelfShimmer(
 /**
  * All-in-One Çoklu Platform Arama Bölümü (Yatay Kart Listesi - Keşfet Sayfası ile Birebir Aynı Mekanik ve Görünüm)
  */
-/** Verilen platform kimliği için arka plan marka rengini döndürür. */
-private fun platformBgColor(platformId: String): Color = when (platformId.lowercase()) {
-    "anilist"              -> Color(0xFF02A9FF)
-    "mal", "jikan"         -> Color(0xFF2E51A2)
-    "tmdb", "themoviedb"   -> Color(0xFF032541)
-    "simkl"                -> Color(0xFF1A1A1A)
-    "kitsu"                -> Color(0xFFE35A02)
-    "shikimori", "shiki"   -> Color(0xFF4C86C8)
-    else                   -> Color(0xFF2A2A2A)
-}
-
 @OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class, androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
 private fun MultiSearchSection(
@@ -1044,32 +1025,24 @@ private fun MultiSearchSection(
     val accentColor = LocalKitsugiAccent.current
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val isTvDevice = LocalIsTvDevice.current
-    val bgColor = platformBgColor(platformId)
 
     Column(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 12.dp)
     ) {
-        // Platform Logo Rozeti + Başlık & "Tümünü Gör" Header Row
+        // Platform Logosu + Başlık & "Tümünü Gör" Header Row
         Row(
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 4.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(
-                modifier = Modifier
-                    .clip(RoundedCornerShape(8.dp))
-                    .background(bgColor.copy(alpha = 0.9f))
-                    .padding(5.dp)
-            ) {
-                KitsugiPlatformLogo(
-                    platformId = platformId,
-                    size = 20.dp,
-                    cornerRadius = 3.dp
-                )
-            }
+            KitsugiPlatformLogo(
+                platformId = platformId,
+                size = 24.dp,
+                cornerRadius = 6.dp
+            )
             Spacer(modifier = Modifier.width(8.dp))
             Text(
                 text = title,

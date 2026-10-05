@@ -68,8 +68,11 @@ object KitsuApiClient {
         val updatedAt: Long,
         val title: String = "",
         val titleEnglish: String? = null,
+        val titleJapanese: String? = null,
         val imageUrl: String? = null,
-        val total: Int? = null
+        val total: Int? = null,
+        /** Kitsu mappings'ten çözümlenen gerçek MAL ID (null olabilir) */
+        val realMalId: Int? = null
     )
 
     /**
@@ -214,7 +217,7 @@ object KitsuApiClient {
         val limit = 500
 
         while (true) {
-            val url = "$BASE_URL/library-entries?filter[userId]=$userId&page[limit]=$limit&page[offset]=$offset&include=anime,manga"
+            val url = "$BASE_URL/library-entries?filter[userId]=$userId&page[limit]=$limit&page[offset]=$offset&include=anime,manga,anime.mappings,manga.mappings"
             val request = Request.Builder()
                 .url(url)
                 .addHeader("Accept", "application/vnd.api+json")
@@ -230,25 +233,75 @@ object KitsuApiClient {
                 val data = json.optJSONArray("data") ?: JSONArray()
 
                 val included = json.optJSONArray("included") ?: JSONArray()
-                val mediaInfoMap = mutableMapOf<String, Triple<String, String?, String?>>() // key -> (title, titleEn, imageUrl)
+                data class KitsuMediaInfo(
+                    val title: String,
+                    val titleEn: String?,
+                    val titleJp: String?,
+                    val imageUrl: String?,
+                    val mappingIds: List<String> = emptyList()
+                )
+                val mediaInfoMap = mutableMapOf<String, KitsuMediaInfo>()
                 val totalMap = mutableMapOf<String, Int?>()
+                // mapping id -> externalId ("myanimelist/anime" veya "myanimelist/manga" namespace için)
+                val mappingMalMap = mutableMapOf<String, Int>() // mappingId -> realMalId
 
+                // İlk geçişte tüm mapping objelerini çöz
                 for (j in 0 until included.length()) {
                     val inc = included.getJSONObject(j)
                     val incType = inc.optString("type")
+                    if (incType == "mappings") {
+                        val mappingId = inc.optString("id")
+                        val mappingAttrs = inc.optJSONObject("attributes") ?: continue
+                        val externalSite = mappingAttrs.optString("externalSite", "")
+                        val externalId = mappingAttrs.optString("externalId", "")
+                        if ((externalSite == "myanimelist/anime" || externalSite == "myanimelist/manga") && externalId.isNotBlank()) {
+                            externalId.toIntOrNull()?.let { malId ->
+                                if (malId in 1..99_999_999) mappingMalMap[mappingId] = malId
+                            }
+                        }
+                    }
+                }
+
+                // İkinci geçişte anime/manga objelerini işle
+                for (j in 0 until included.length()) {
+                    val inc = included.getJSONObject(j)
+                    val incType = inc.optString("type")
+                    if (incType != "anime" && incType != "manga") continue
                     val incId = inc.optString("id")
                     val incAttrs = inc.optJSONObject("attributes") ?: JSONObject()
-                    val title = incAttrs.optString("canonicalTitle", "")
+                    val canonical = incAttrs.optString("canonicalTitle", "")
                     val titlesObj = incAttrs.optJSONObject("titles")
                     val titleEn = titlesObj?.optString("en")?.takeIf { it.isNotBlank() }
-                        ?: titlesObj?.optString("en_jp")?.takeIf { it.isNotBlank() }
+                    val titleRomaji = titlesObj?.optString("en_jp")?.takeIf { it.isNotBlank() }
+                    val titleJp = titlesObj?.optString("ja_jp")?.takeIf { it.isNotBlank() }
+
+                    val mainTitle = titleRomaji ?: canonical
+                    val effectiveEn = titleEn ?: if (canonical != mainTitle) canonical else null
+
                     val poster = incAttrs.optJSONObject("posterImage")
                     val img = poster?.optString("medium") ?: poster?.optString("original")
                     val total = if (incType == "anime") incAttrs.optInt("episodeCount", 0).takeIf { it > 0 }
                     else incAttrs.optInt("chapterCount", 0).takeIf { it > 0 }
 
+                    // mappings ilişkisinden bağlantılı mapping ID'lerini topla
+                    val mappingRels = inc.optJSONObject("relationships")
+                        ?.optJSONObject("mappings")
+                        ?.optJSONArray("data")
+                    val mappingIds = mutableListOf<String>()
+                    if (mappingRels != null) {
+                        for (m in 0 until mappingRels.length()) {
+                            mappingRels.optJSONObject(m)?.optString("id")?.let { mappingIds.add(it) }
+                        }
+                    }
+
                     val key = "${incType}_$incId"
-                    mediaInfoMap[key] = Triple(title, titleEn, img)
+                    mediaInfoMap[key] = KitsuMediaInfo(
+                        title = mainTitle,
+                        titleEn = effectiveEn,
+                        titleJp = titleJp,
+                        imageUrl = img,
+                        mappingIds = mappingIds
+                    )
                     totalMap[key] = total
                 }
 
@@ -274,6 +327,9 @@ object KitsuApiClient {
                     val mediaKey = if (animeId != null) "anime_$animeId" else if (mangaId != null) "manga_$mangaId" else ""
                     val info = mediaInfoMap[mediaKey]
 
+                    // Bu media'nın mapping'lerinden MAL ID çöz
+                    val realMalId = info?.mappingIds?.firstNotNullOfOrNull { mappingMalMap[it] }
+
                     result.add(
                         KitsuLibraryEntry(
                             id = entryId,
@@ -283,10 +339,12 @@ object KitsuApiClient {
                             animeId = animeId,
                             mangaId = mangaId,
                             updatedAt = updatedAt,
-                            title = info?.first ?: if (animeId != null) "Kitsu Anime #$animeId" else "Kitsu Manga #$mangaId",
-                            titleEnglish = info?.second,
-                            imageUrl = info?.third,
-                            total = totalMap[mediaKey]
+                            title = info?.title ?: if (animeId != null) "Kitsu Anime #$animeId" else "Kitsu Manga #$mangaId",
+                            titleEnglish = info?.titleEn,
+                            titleJapanese = info?.titleJp,
+                            imageUrl = info?.imageUrl,
+                            total = totalMap[mediaKey],
+                            realMalId = realMalId
                         )
                     )
                 }
@@ -298,6 +356,36 @@ object KitsuApiClient {
         }
 
         result
+    }
+
+    /**
+     * Kullanıcının kütüphanesinde belirli bir medya için mevcut kaydı arar.
+     */
+    suspend fun findLibraryEntryId(
+        token: String,
+        userId: String,
+        kitsuMediaId: Int,
+        isAnime: Boolean
+    ): String? = withContext(Dispatchers.IO) {
+        val relKey = if (isAnime) "animeId" else "mangaId"
+        val url = "$BASE_URL/library-entries?filter[userId]=$userId&filter[$relKey]=$kitsuMediaId&page[limit]=1"
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("Accept", "application/vnd.api+json")
+            .addHeader("Authorization", "Bearer $token")
+            .addHeader("User-Agent", "KitsugiApp/2.4")
+            .get()
+            .build()
+        runCatching {
+            KitsugiHttpClient.client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@use null
+                val body = response.body?.string().orEmpty()
+                val data = JSONObject(body).optJSONArray("data")
+                if (data != null && data.length() > 0) {
+                    data.getJSONObject(0).optString("id")
+                } else null
+            }
+        }.getOrNull()
     }
 
     /**

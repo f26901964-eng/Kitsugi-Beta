@@ -273,7 +273,17 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun normalizeSyncTitle(title: String, type: MediaType): String {
-        val clean = title.lowercase().replace(Regex("[^a-z0-9]"), "")
+        val clean = title.lowercase()
+            .replace("2nd season", "season2")
+            .replace("3rd season", "season3")
+            .replace("4th season", "season4")
+            .replace("5th season", "season5")
+            .replace("the final season", "finalseason")
+            .replace("final season", "finalseason")
+            .replace("part 1", "part1")
+            .replace("part 2", "part2")
+            .replace("part 3", "part3")
+            .replace(Regex("[^a-z0-9]"), "")
         return "${clean}_${type.name}"
     }
 
@@ -465,7 +475,10 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 val malIdIndex = mutableMapOf<Int, UnifiedSyncItem>()
                 val simklIdIndex = mutableMapOf<Int, UnifiedSyncItem>()
                 val tmdbIdIndex = mutableMapOf<Int, UnifiedSyncItem>()
+                val kitsuIdIndex = mutableMapOf<Int, UnifiedSyncItem>() // Kitsu native ID (300M offset olmadan)
                 val titleIndex = mutableMapOf<String, UnifiedSyncItem>()
+                // Her unified item için Kitsu native media ID'sini sakla (FAZ 4'te kullanılır)
+                val unifiedItemKitsuMediaId = mutableMapOf<UnifiedSyncItem, Int>()
 
                 fun registerUnifiedItemKeys(item: UnifiedSyncItem, entry: MediaEntry) {
                     val realMal = entry.malId?.takeIf { it.isRealMalId() }
@@ -477,6 +490,10 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     val tmdbId = entry.tmdbId?.takeIf { it > 0 }
                     if (tmdbId != null) tmdbIdIndex[tmdbId] = item
 
+                    // Extract Kitsu native ID from 300M+ offset
+                    val rawKitsu = entry.malId?.takeIf { it >= 300_000_000 }?.let { it - 300_000_000 }
+                    if (rawKitsu != null && rawKitsu > 0) kitsuIdIndex[rawKitsu] = item
+
                     val titleKey = normalizeSyncTitle(entry.title, entry.type)
                     if (titleKey.isNotBlank()) titleIndex[titleKey] = item
 
@@ -485,20 +502,30 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         val engKey = normalizeSyncTitle(engTitle, entry.type)
                         if (engKey.isNotBlank()) titleIndex[engKey] = item
                     }
+
+                    val jpTitle = entry.titleJapanese?.takeIf { it.isNotBlank() }
+                    if (jpTitle != null) {
+                        val jpKey = normalizeSyncTitle(jpTitle, entry.type)
+                        if (jpKey.isNotBlank()) titleIndex[jpKey] = item
+                    }
                 }
 
                 fun clusterEntry(entry: MediaEntry, assignToPlatform: (UnifiedSyncItem) -> Unit) {
                     val realMal = entry.malId?.takeIf { it.isRealMalId() }
                     val simklId = entry.simklId?.takeIf { it > 0 }
                     val tmdbId = entry.tmdbId?.takeIf { it > 0 }
+                    val rawKitsu = entry.malId?.takeIf { it >= 300_000_000 }?.let { it - 300_000_000 }
                     val titleKey = normalizeSyncTitle(entry.title, entry.type)
                     val engKey = entry.titleEnglish?.takeIf { it.isNotBlank() }?.let { normalizeSyncTitle(it, entry.type) }
+                    val jpKey = entry.titleJapanese?.takeIf { it.isNotBlank() }?.let { normalizeSyncTitle(it, entry.type) }
 
                     val existing = (if (realMal != null) malIdIndex[realMal] else null)
                         ?: (if (simklId != null) simklIdIndex[simklId] else null)
                         ?: (if (tmdbId != null) tmdbIdIndex[tmdbId] else null)
+                        ?: (if (rawKitsu != null && rawKitsu > 0) kitsuIdIndex[rawKitsu] else null)
                         ?: titleIndex[titleKey]
                         ?: (if (engKey != null) titleIndex[engKey] else null)
+                        ?: (if (jpKey != null) titleIndex[jpKey] else null)
 
                     val targetItem = if (existing != null) {
                         existing
@@ -515,7 +542,16 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 aniListEntries.forEach { e -> clusterEntry(e) { it.aniList = e } }
                 malEntries.forEach { e -> clusterEntry(e) { it.mal = e } }
                 simklEntries.forEach { e -> clusterEntry(e) { it.simkl = e } }
-                kitsuEntries.forEach { e -> clusterEntry(e) { it.kitsu = e } }
+                kitsuEntries.forEach { e ->
+                    clusterEntry(e) { item ->
+                        item.kitsu = e
+                        // Kitsu media native ID'sini sakla (malId >= 300M ise offset'i çıkar)
+                        val rawKitsuId = e.malId?.takeIf { it >= 300_000_000 }?.let { it - 300_000_000 }
+                        if (rawKitsuId != null && rawKitsuId > 0) {
+                            unifiedItemKitsuMediaId[item] = rawKitsuId
+                        }
+                    }
+                }
                 shikimoriEntries.forEach { e -> clusterEntry(e) { it.shikimori = e } }
 
                 logEvent("Analiz", "Toplam ${unifiedItems.size} tekil içerik tespit edildi. Eşitleme başlatılıyor...")
@@ -673,9 +709,10 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     // ── 4. Kitsu Eşitleme (Anime & Manga) ──
                     if (isKitsu && isAnimeOrManga) {
                         val current = item.kitsu
+                        val knownKitsuId = current?.malId?.takeIf { it >= 300_000_000 }?.let { it - 300_000_000 }
                         if (current == null) {
                             // Kitsu'da eksik -> EKLE!
-                            val res = runCatching { KitsuSyncManager.syncEntryToKitsu(context, mergedEntry) }.getOrNull()
+                            val res = runCatching { KitsuSyncManager.syncEntryToKitsu(context, mergedEntry, knownKitsuMediaId = null) }.getOrNull()
                             if (res != null && res.errors.isEmpty()) {
                                 statsMap["Kitsu"] = statsMap["Kitsu"]!!.let { it.copy(addedCount = it.addedCount + 1) }
                                 logEvent("Kitsu", "[Kitsu] + Eklendi: ${mergedEntry.title} (${bestStatus.label})", isAddition = true)
@@ -690,7 +727,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                     (current.progress < maxProgress) ||
                                     (current.score == null && bestScore != null)
                             if (needsUpdate) {
-                                val res = runCatching { KitsuSyncManager.syncEntryToKitsu(context, mergedEntry) }.getOrNull()
+                                val res = runCatching { KitsuSyncManager.syncEntryToKitsu(context, mergedEntry, knownKitsuMediaId = knownKitsuId) }.getOrNull()
                                 if (res != null && res.errors.isEmpty()) {
                                     statsMap["Kitsu"] = statsMap["Kitsu"]!!.let { it.copy(updatedCount = it.updatedCount + 1) }
                                     logEvent("Kitsu", "[Kitsu] ~ Güncellendi: ${mergedEntry.title}", isUpdate = true)
@@ -819,10 +856,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                             )
                         }
                     val combinedSimklList = if (!freshSimklList.isNullOrEmpty()) {
-                        val freshByKey = freshSimklList.associateBy { it.title.trim().lowercase() }
-                        simklBaseEntries.map { base ->
-                            freshByKey[base.title.trim().lowercase()] ?: base
-                        } + freshSimklList.filter { fresh -> simklBaseEntries.none { it.title.equals(fresh.title, ignoreCase = true) } }
+                        val freshNormalized = freshSimklList.map { normalizeSyncTitle(it.title, it.type) }.toSet()
+                        val missing = simklBaseEntries.filter { normalizeSyncTitle(it.title, it.type) !in freshNormalized }
+                        freshSimklList + missing
                     } else {
                         simklBaseEntries
                     }
@@ -831,16 +867,32 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
                 if (isKitsu) {
+                    // Her finalEntry için hangi unifiedItem'a ait olduğunu bul ve Kitsu native ID'sini aktar
                     val kitsuSynced = finalEntries
                         .filter { it.type == MediaType.Anime || it.type == MediaType.Manga }
-                        .map { entry ->
-                            if (entry.source == "kitsu") entry
-                            else entry.copy(
-                                id = entry.malId?.takeIf { it.isRealMalId() } ?: entry.id,
+                        .mapNotNull { entry ->
+                            // Bu entry'nin ait olduğu UnifiedSyncItem'i bul (malId veya title eşleşmesi ile)
+                             val matchedItem = unifiedItems.firstOrNull { uItem ->
+                                 uItem.candidates.any { c ->
+                                     (entry.malId != null && entry.malId == c.malId) ||
+                                     normalizeSyncTitle(c.title, c.type) == normalizeSyncTitle(entry.title, entry.type)
+                                 }
+                             }
+                            // Kitsu native ID: önce map'ten al, yoksa mevcut kitsu kaydından çıkar
+                            val kitsuNativeId = (if (matchedItem != null) unifiedItemKitsuMediaId[matchedItem] else null)
+                                ?: matchedItem?.kitsu?.malId?.takeIf { it >= 300_000_000 }?.let { it - 300_000_000 }
+                            val kitsuMalId = if (kitsuNativeId != null) 300_000_000 + kitsuNativeId
+                                            else entry.malId?.takeIf { it >= 300_000_000 } // zaten offset'liyse koru
+                             val targetId = kitsuMalId ?: (entry.malId?.takeIf { it in 1..99_999_999 } ?: entry.id)
+                            entry.copy(
+                                id = targetId,
+                                malId = kitsuMalId ?: entry.malId,
                                 source = "kitsu"
                             )
                         }
-                    repository.smartImport("kitsu", kitsuSynced, allowDelete = false)
+                    if (kitsuSynced.isNotEmpty()) {
+                        repository.smartImport("kitsu", kitsuSynced, allowDelete = false)
+                    }
                 }
                 if (isShikimori) {
                     val shikimoriSynced = finalEntries

@@ -13,6 +13,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.Dp
@@ -30,7 +31,7 @@ object KitsugiPlatformLogos {
     @DrawableRes
     fun resFor(platformId: String?): Int? = when (platformId?.trim()?.lowercase()) {
         "anilist", "al" -> R.drawable.ic_logo_anilist
-        "mal", "myanimelist", "jikan" -> R.drawable.ic_logo_mal
+        "mal", "myanimelist", "jikan", "jikan (mal)", "mal (jikan)" -> R.drawable.ic_logo_mal
         "tmdb", "themoviedb" -> R.drawable.ic_logo_tmdb
         "simkl" -> R.drawable.ic_logo_simkl
         "kitsu" -> R.drawable.ic_logo_kitsu
@@ -45,6 +46,7 @@ fun KitsugiPlatformLogo(
     modifier: Modifier = Modifier,
     size: Dp = 24.dp,
     cornerRadius: Dp = size * 0.22f,
+    shape: Shape = RoundedCornerShape(cornerRadius),
     fallbackTint: Color = Color.White
 ) {
     val res = KitsugiPlatformLogos.resFor(platformId)
@@ -55,10 +57,10 @@ fun KitsugiPlatformLogo(
             contentScale = ContentScale.Crop,
             modifier = modifier
                 .size(size)
-                .clip(RoundedCornerShape(cornerRadius))
+                .clip(shape)
         )
     } else {
-        Box(modifier = modifier.size(size), contentAlignment = Alignment.Center) {
+        Box(modifier = modifier.size(size).clip(shape), contentAlignment = Alignment.Center) {
             Icon(
                 imageVector = Icons.Rounded.Public,
                 contentDescription = platformId,

@@ -3,6 +3,7 @@ package com.kitsugi.animelist.data.local
 import android.content.Context
 import com.kitsugi.animelist.data.auth.ExternalListSyncManager
 import com.kitsugi.animelist.model.MediaEntry
+import com.kitsugi.animelist.model.MediaType
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 
@@ -51,6 +52,11 @@ class MediaEntryRepository(
      * @param source  "anilist", "mal", "simkl" vb.
      * @param importedEntries  Uzak API'dan gelen güncel liste
      */
+    private fun normalizeTitleKey(title: String, type: MediaType): String {
+        val clean = title.lowercase().replace(Regex("[^a-z0-9]"), "")
+        return "${clean}_${type.name}"
+    }
+
     suspend fun smartImport(
         source: String,
         importedEntries: List<MediaEntry>,
@@ -64,52 +70,92 @@ class MediaEntryRepository(
         }
 
         // Yerel DB'deki mevcut kayıtları al (sadece ilgili source)
-        val existing = dao.getAll()
+        val allExistingEntities = dao.getAll()
             .filter { it.source.equals(source, ignoreCase = true) }
-            .associateBy { it.toDomain().importKey() }
 
-        val importedByKey = importedEntries
-            .associateBy { it.importKey() }
+        // Veritabanındaki yinelenen (duplicate) kayıtları tespit et ve temizle (örn. Kitsu 1400 kayıt sorunu)
+        val duplicateDeleteIds = mutableListOf<Int>()
+        val uniqueExistingEntities = mutableListOf<MediaEntryEntity>()
+        val seenTitleKeys = mutableSetOf<String>()
+
+        for (entity in allExistingEntities.sortedByDescending { it.updatedAt }) {
+            val domain = entity.toDomain()
+            val titleKey = normalizeTitleKey(domain.title, domain.type)
+            if (titleKey.isNotBlank() && !seenTitleKeys.add(titleKey)) {
+                // Bu başlık ve türde zaten daha güncel bir kayıt listeye alındı -> fazlalığı sil
+                duplicateDeleteIds.add(entity.id)
+            } else {
+                uniqueExistingEntities.add(entity)
+            }
+        }
+
+        val existingByKey = uniqueExistingEntities.associateBy { it.toDomain().importKey() }
+        val existingByTitle = uniqueExistingEntities.associateBy { normalizeTitleKey(it.title, it.toDomain().type) }
+
+        val importedByKey = importedEntries.associateBy { it.importKey() }
 
         val toInsert = mutableListOf<MediaEntryEntity>()
         val toUpdate = mutableListOf<MediaEntryEntity>()
+        val matchedExistingIds = mutableSetOf<Int>()
 
         for (imported in importedEntries) {
             val key = imported.importKey()
-            val existingEntity = existing[key]
+            val titleKey = normalizeTitleKey(imported.title, imported.type)
+            val engTitleKey = imported.titleEnglish?.takeIf { it.isNotBlank() }?.let { normalizeTitleKey(it, imported.type) }
+
+            // Öncelik: 1. Doğrudan ID anahtarı -> 2. Orijinal Başlık -> 3. İngilizce Başlık
+            val existingEntity = existingByKey[key]
+                ?: existingByTitle[titleKey]
+                ?: (if (engTitleKey != null) existingByTitle[engTitleKey] else null)
+
             val importTime = if (imported.updatedAt > 0L) imported.updatedAt else (System.currentTimeMillis() / 1000L)
             val finalImported = imported.copy(updatedAt = importTime)
+
             if (existingEntity == null) {
                 // Yeni kayıt → insert
                 toInsert.add(finalImported.copy(id = 0).toEntity())
-            } else if (hasChanged(existingEntity.toDomain(), finalImported)) {
-                // Değişmiş kayıt → id'yi koruyarak güncelle
-                toUpdate.add(finalImported.copy(id = existingEntity.id).toEntity())
+            } else {
+                matchedExistingIds.add(existingEntity.id)
+                if (hasChanged(existingEntity.toDomain(), finalImported)) {
+                    // Değişmiş kayıt → id'yi koruyarak güncelle
+                    toUpdate.add(finalImported.copy(id = existingEntity.id).toEntity())
+                }
             }
-            // Değişmemiş kayıt → atla (Flow tetiklememe)
         }
 
-        // Uzak listede artık olmayan kayıtları sadece allowDelete true ise sil
-        val toDeleteIds = if (allowDelete) {
+        // Uzak listede artık olmayan kayıtları sil (ve önceden tespit edilen dublikatları daima sil)
+        val toDeleteIds = mutableListOf<Int>()
+        toDeleteIds.addAll(duplicateDeleteIds)
+
+        if (allowDelete) {
             val importedKeys = importedByKey.keys
-            existing.values
-                .filter { it.toDomain().importKey() !in importedKeys }
-                .map { it.id }
-        } else {
-            emptyList()
+            for (entity in uniqueExistingEntities) {
+                val domain = entity.toDomain()
+                val k = domain.importKey()
+                val tk = normalizeTitleKey(domain.title, domain.type)
+                val isMatched = entity.id in matchedExistingIds || k in importedKeys || existingByTitle[tk]?.id in matchedExistingIds
+                if (!isMatched) {
+                    toDeleteIds.add(entity.id)
+                }
+            }
         }
 
         // Tek atomik transaction → Flow 1 kez tetiklenir
-        dao.smartImportTransaction(toInsert, toUpdate, toDeleteIds)
+        dao.smartImportTransaction(toInsert, toUpdate, toDeleteIds.distinct())
     }
 
     private fun MediaEntry.importKey(): String {
         return when {
+            // Kitsu kayd\u0131 - gerçek MAL ID biliniyor (mappings'ten)
+            source.equals("kitsu", ignoreCase = true) && malId != null && malId in 1..99_999_999 -> "kitsu_mal_$malId"
+            // Kitsu kayd\u0131 - offset'li fake ID
+            source.equals("kitsu", ignoreCase = true) && malId != null && malId >= 300_000_000 -> "kitsu_${malId - 300_000_000}"
+            source.equals("shikimori", ignoreCase = true) && malId != null && malId >= 400_000_000 -> "shiki_${malId - 400_000_000}"
             simklId != null && simklId > 0 -> "simkl_$simklId"
-            malId != null && malId > 0 -> "mal_$malId"
+            malId != null && malId in 1..99_999_999 -> "mal_$malId"
             aniListEntryId != null && aniListEntryId > 0 -> "al_$aniListEntryId"
             tmdbId != null && tmdbId > 0 -> "tmdb_$tmdbId"
-            else -> "title_${title.trim().lowercase()}_${type.name}"
+            else -> "title_${normalizeTitleKey(title, type)}"
         }
     }
 
