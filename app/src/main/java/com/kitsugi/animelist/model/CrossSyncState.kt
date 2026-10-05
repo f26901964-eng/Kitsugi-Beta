@@ -5,7 +5,8 @@ data class CrossPlatformStats(
     val initialCount: Int = 0,
     val addedCount: Int = 0,
     val updatedCount: Int = 0,
-    val errorCount: Int = 0
+    val errorCount: Int = 0,
+    val skippedCount: Int = 0
 )
 
 data class CrossSyncLogEntry(

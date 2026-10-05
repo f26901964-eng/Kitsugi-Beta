@@ -630,6 +630,12 @@ object AniListSyncManager {
 
         try {
             com.kitsugi.animelist.core.network.KitsugiHttpClient.client.newCall(request).execute().use { response ->
+                if (response.code == 429) {
+                    val retrySec = response.header("Retry-After")?.toLongOrNull() ?: 5L
+                    kotlinx.coroutines.runBlocking {
+                        PlatformRateLimiter.notifyRateLimited("anilist", retrySec)
+                    }
+                }
                 if (!response.isSuccessful) {
                     val errorText = response.body?.string().orEmpty()
                     throw IllegalStateException("AniList API hatası: ${response.code} $errorText")

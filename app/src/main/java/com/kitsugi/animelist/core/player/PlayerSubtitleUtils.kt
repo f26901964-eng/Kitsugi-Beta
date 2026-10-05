@@ -103,12 +103,44 @@ object PlayerSubtitleUtils {
 
     /**
      * KitsugiPlayerViewModel'ın aradığı özel tipteki (SubtitleInput) sıralama metodu.
+     * Türkçe altyazılar en başa alınır; aynı dilde ise videonun kendi altyazısı (!isExternal)
+     * harici eklentilerden (isExternal) kesinlikle önce gelir.
      */
     fun sortSubtitlesByPreference(
         subtitles: List<SubtitleInput>,
         preferredLangs: List<String>
     ): List<SubtitleInput> {
-        return sortByPreference(subtitles, preferredLangs) { it.lang ?: "" }
+        val effectiveLangs = if (preferredLangs.any { matchesLanguageCode(it, "tr") }) {
+            preferredLangs
+        } else {
+            listOf("tr") + preferredLangs
+        }
+        return subtitles.sortedWith(Comparator { a, b ->
+            // 1. Türkçe kontrolü: Türkçe olan her zaman yabancı dillerden önce gelir
+            val aIsTurkish = isTurkish(a.lang, a.name)
+            val bIsTurkish = isTurkish(b.lang, b.name)
+            if (aIsTurkish && !bIsTurkish) return@Comparator -1
+            if (!aIsTurkish && bIsTurkish) return@Comparator 1
+
+            // 2. İkisi de Türkçe ise: Videonun kendi altyazısı (!isExternal) HER ZAMAN harici eklentilerden (isExternal) önce gelir!
+            if (aIsTurkish && bIsTurkish) {
+                if (!a.isExternal && b.isExternal) return@Comparator -1
+                if (a.isExternal && !b.isExternal) return@Comparator 1
+            }
+
+            // 3. Tercih edilen dil sırası
+            val aIdx = effectiveLangs.indexOfFirst { matchesTrackLanguage(a.lang, a.name, it) }
+                .let { if (it == -1) Int.MAX_VALUE else it }
+            val bIdx = effectiveLangs.indexOfFirst { matchesTrackLanguage(b.lang, b.name, it) }
+                .let { if (it == -1) Int.MAX_VALUE else it }
+            val langComp = aIdx.compareTo(bIdx)
+            if (langComp != 0) return@Comparator langComp
+
+            // 4. Aynı dilde: Videonun kendi altyazısı (!isExternal) önce gelir
+            if (!a.isExternal && b.isExternal) -1
+            else if (a.isExternal && !b.isExternal) 1
+            else 0
+        })
     }
 
     /**

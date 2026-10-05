@@ -76,13 +76,6 @@ fun RecommendationsTabContent(
                         .padding(vertical = 8.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Text(
-                        text = "Buna Benzer Yapımlar (${list.size})",
-                        color = KitsugiColors.TextPrimary,
-                        style = MaterialTheme.typography.titleMedium,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier.padding(bottom = 4.dp)
-                    )
                     list.forEach { rel ->
                         RecommendationCard(rel, titleLanguage, blurAdultMedia, onRecommendationClick)
                     }

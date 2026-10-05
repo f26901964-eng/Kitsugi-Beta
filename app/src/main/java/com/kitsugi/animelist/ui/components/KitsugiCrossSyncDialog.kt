@@ -413,6 +413,14 @@ private fun PlatformMiniCard(
                 )
             }
 
+            if (stats.skippedCount > 0) {
+                Text(
+                    text = "-${stats.skippedCount} atlandı",
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 9.5.sp, fontWeight = FontWeight.Bold),
+                    color = Color(0xFFFFA726)
+                )
+            }
+
             if (stats.errorCount > 0) {
                 Text(
                     text = "!${stats.errorCount} hata",

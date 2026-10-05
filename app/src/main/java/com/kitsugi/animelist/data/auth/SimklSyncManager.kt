@@ -97,7 +97,9 @@ object SimklSyncManager {
                     aniListId = aniListId,
                     kitsuId = rawKitsuId,
                     title = effectiveTitle,
-                    year = entry.year
+                    year = entry.year,
+                    progress = entry.progress,
+                    score = entry.score
                 )
             }
         }
@@ -116,6 +118,20 @@ object SimklSyncManager {
                     totalAdded += batchRes.addedCount
                     totalNotFound += batchRes.notFoundCount
                     messages.add("Simkl grubu ${idx + 1}/${chunks.size} senkronize edildi (${batchRes.addedCount} eklendi${if (batchRes.notFoundCount > 0) ", ${batchRes.notFoundCount} eşleşmedi" else ""}).")
+
+                    // İzlenen bölüm ilerlemelerini Simkl'e aktar (/sync/history)
+                    val withProgress = chunk.filter { it.progress > 0 }
+                    if (withProgress.isNotEmpty()) {
+                        kotlinx.coroutines.delay(1200L)
+                        simklApiClient.historyBatchDetailed(token, withProgress)
+                    }
+
+                    // Puanları Simkl'e aktar (/sync/ratings)
+                    val withScore = chunk.filter { it.score != null && it.score > 0 }
+                    if (withScore.isNotEmpty()) {
+                        kotlinx.coroutines.delay(1200L)
+                        simklApiClient.ratingsBatchDetailed(token, withScore)
+                    }
                 } else {
                     errors.add("Simkl grubu ${idx + 1} gönderilemedi: ${batchRes.errorMessage ?: "Bilinmeyen hata"}")
                 }

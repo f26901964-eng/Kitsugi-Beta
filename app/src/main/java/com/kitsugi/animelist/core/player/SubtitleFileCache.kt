@@ -80,16 +80,20 @@ object SubtitleFileCache {
         null
     }
 
-    private fun guessExtension(url: String, contentType: String?): String {
-        val lowerUrl = url.lowercase()
+    fun guessExtension(url: String, contentType: String? = null): String {
+        val path = url.substringBefore('?').substringBefore('#').lowercase()
+        val cType = contentType?.lowercase() ?: ""
         return when {
-            lowerUrl.endsWith(".ass") || lowerUrl.endsWith(".ssa") -> "ass"
-            lowerUrl.endsWith(".vtt") -> "vtt"
-            lowerUrl.endsWith(".ttml") -> "ttml"
-            lowerUrl.endsWith(".dfxp") -> "dfxp"
-            contentType?.contains("ass", ignoreCase = true) == true -> "ass"
-            contentType?.contains("vtt", ignoreCase = true) == true -> "vtt"
-            contentType?.contains("ttml", ignoreCase = true) == true -> "ttml"
+            path.endsWith(".ass") || path.endsWith(".ssa") || cType.contains("ass") || cType.contains("ssa") -> "ass"
+            path.endsWith(".vtt") || cType.contains("vtt") -> "vtt"
+            path.endsWith(".srt") || cType.contains("subrip") || cType.contains("srt") -> "srt"
+            path.endsWith(".ttml") || cType.contains("ttml") -> "ttml"
+            path.endsWith(".dfxp") || cType.contains("dfxp") -> "dfxp"
+            path.endsWith(".sub")  || cType.contains("sub") -> "sub"
+            path.endsWith(".txt") -> "txt"
+            url.contains(".ass", ignoreCase = true) || url.contains(".ssa", ignoreCase = true) -> "ass"
+            url.contains(".vtt", ignoreCase = true) -> "vtt"
+            url.contains(".srt", ignoreCase = true) -> "srt"
             else -> "srt"
         }
     }

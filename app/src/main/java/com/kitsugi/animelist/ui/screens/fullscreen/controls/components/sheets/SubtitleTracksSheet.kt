@@ -85,17 +85,37 @@ fun SubtitleTracksSheet(
             AddTrackRow(title = "Harici Altyazı Ekle", onClick = onAddSubtitleFile)
         },
         track = { track ->
-            // "Altyazıyı Kapat" (-99) veya dahili track (-1) için indirme yok
+            // "Altyazıyı Kapat" (-99) veya negatif track için indirme yok
             val matchedInput = if (track.id >= 0) {
-                // 1. Önce isim ve dil eşleşmesi dene (en güvenli eşleştirme)
+                val cleanLabel = track.label.replace(Regex("""^\d+\.\s*"""), "").trim()
+                // 1. İsim birebir eşleşmesi (yerel dosya, http/https, file:// tüm formatlar desteklenir)
                 subtitleInputs.firstOrNull { sub ->
-                    sub.url.startsWith("http", ignoreCase = true) && (
-                        sub.name.equals(track.label, ignoreCase = true) ||
-                        track.label.contains(sub.name, ignoreCase = true) ||
-                        sub.name.contains(track.label, ignoreCase = true) ||
-                        (!track.language.isNullOrBlank() && sub.lang.equals(track.language, ignoreCase = true))
+                    sub.url.isNotBlank() && (
+                        sub.name.trim().equals(cleanLabel, ignoreCase = true) ||
+                        sub.name.trim().equals(track.label.trim(), ignoreCase = true)
                     )
-                } ?: subtitleInputs.getOrNull(track.id)?.takeIf { it.url.startsWith("http", ignoreCase = true) }
+                } ?:
+                // 2. İsim içerme eşleşmesi (örn: "Türkçe (OpenSubtitles v3)" vs "Türkçe")
+                subtitleInputs.firstOrNull { sub ->
+                    sub.url.isNotBlank() && (
+                        cleanLabel.contains(sub.name.trim(), ignoreCase = true) ||
+                        sub.name.trim().contains(cleanLabel, ignoreCase = true)
+                    )
+                } ?:
+                // 3. İndeks bazlı doğrudan eşleşme
+                subtitleInputs.getOrNull(track.id)?.takeIf { it.url.isNotBlank() } ?:
+                // 4. Dil kodu eşleşmesi
+                (if (!track.language.isNullOrBlank()) {
+                    subtitleInputs.firstOrNull { sub ->
+                        sub.url.isNotBlank() && sub.lang.equals(track.language, ignoreCase = true)
+                    }
+                } else null) ?:
+                // 5. Türkçe anahtar kelime eşleşmesi
+                (if (com.kitsugi.animelist.core.player.PlayerSubtitleUtils.isTurkish(track.language, track.label)) {
+                    subtitleInputs.firstOrNull { sub ->
+                        sub.url.isNotBlank() && com.kitsugi.animelist.core.player.PlayerSubtitleUtils.isTurkish(sub.lang, sub.name)
+                    }
+                } else null)
             } else null
 
             SubtitleTrackRow(

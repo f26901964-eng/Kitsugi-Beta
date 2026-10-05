@@ -73,24 +73,68 @@ class MediaEntryRepository(
         val allExistingEntities = dao.getAll()
             .filter { it.source.equals(source, ignoreCase = true) }
 
-        // Veritabanındaki yinelenen (duplicate) kayıtları tespit et ve temizle (örn. Kitsu 1400 kayıt sorunu)
+        // Veritabanındaki yinelenen (duplicate) kayıtları tespit et ve temizle (örn. Kitsu 1400 çift kayıt sorunu)
         val duplicateDeleteIds = mutableListOf<Int>()
         val uniqueExistingEntities = mutableListOf<MediaEntryEntity>()
         val seenTitleKeys = mutableSetOf<String>()
+        val seenMalIds = mutableSetOf<Int>()
+        val seenSimklIds = mutableSetOf<Int>()
+        val seenKitsuMediaIds = mutableSetOf<Int>()
 
         for (entity in allExistingEntities.sortedByDescending { it.updatedAt }) {
             val domain = entity.toDomain()
             val titleKey = normalizeTitleKey(domain.title, domain.type)
-            if (titleKey.isNotBlank() && !seenTitleKeys.add(titleKey)) {
-                // Bu başlık ve türde zaten daha güncel bir kayıt listeye alındı -> fazlalığı sil
+            val engKey = domain.titleEnglish?.takeIf { it.isNotBlank() }?.let { normalizeTitleKey(it, domain.type) }
+            val jpKey = domain.titleJapanese?.takeIf { it.isNotBlank() }?.let { normalizeTitleKey(it, domain.type) }
+            val realMal = domain.malId?.takeIf { it in 1..99_999_999 }
+            val simkl = domain.simklId?.takeIf { it > 0 }
+            val kitsuNative = domain.malId?.takeIf { it >= 300_000_000 }?.let { it - 300_000_000 }
+
+            val isDuplicate = (realMal != null && realMal in seenMalIds) ||
+                    (simkl != null && simkl in seenSimklIds) ||
+                    (kitsuNative != null && kitsuNative in seenKitsuMediaIds) ||
+                    (titleKey.isNotBlank() && titleKey in seenTitleKeys) ||
+                    (engKey != null && engKey in seenTitleKeys) ||
+                    (jpKey != null && jpKey in seenTitleKeys)
+
+            if (isDuplicate) {
                 duplicateDeleteIds.add(entity.id)
             } else {
                 uniqueExistingEntities.add(entity)
+                if (titleKey.isNotBlank()) seenTitleKeys.add(titleKey)
+                if (engKey != null) seenTitleKeys.add(engKey)
+                if (jpKey != null) seenTitleKeys.add(jpKey)
+                if (realMal != null) seenMalIds.add(realMal)
+                if (simkl != null) seenSimklIds.add(simkl)
+                if (kitsuNative != null) seenKitsuMediaIds.add(kitsuNative)
             }
         }
 
         val existingByKey = uniqueExistingEntities.associateBy { it.toDomain().importKey() }
-        val existingByTitle = uniqueExistingEntities.associateBy { normalizeTitleKey(it.title, it.toDomain().type) }
+        val existingByMalId = uniqueExistingEntities
+            .mapNotNull { e -> e.malId?.takeIf { it in 1..99_999_999 }?.let { it to e } }
+            .toMap()
+        val existingBySimklId = uniqueExistingEntities
+            .mapNotNull { e -> e.simklId?.takeIf { it > 0 }?.let { it to e } }
+            .toMap()
+        val existingByKitsuId = uniqueExistingEntities
+            .mapNotNull { e -> e.malId?.takeIf { it >= 300_000_000 }?.let { (it - 300_000_000) to e } }
+            .toMap()
+
+        val existingByAllTitles = mutableMapOf<String, MediaEntryEntity>()
+        for (entity in uniqueExistingEntities) {
+            val d = entity.toDomain()
+            val tk = normalizeTitleKey(d.title, d.type)
+            if (tk.isNotBlank() && tk !in existingByAllTitles) existingByAllTitles[tk] = entity
+            d.titleEnglish?.takeIf { it.isNotBlank() }?.let {
+                val etk = normalizeTitleKey(it, d.type)
+                if (etk.isNotBlank() && etk !in existingByAllTitles) existingByAllTitles[etk] = entity
+            }
+            d.titleJapanese?.takeIf { it.isNotBlank() }?.let {
+                val jtk = normalizeTitleKey(it, d.type)
+                if (jtk.isNotBlank() && jtk !in existingByAllTitles) existingByAllTitles[jtk] = entity
+            }
+        }
 
         val importedByKey = importedEntries.associateBy { it.importKey() }
 
@@ -102,11 +146,19 @@ class MediaEntryRepository(
             val key = imported.importKey()
             val titleKey = normalizeTitleKey(imported.title, imported.type)
             val engTitleKey = imported.titleEnglish?.takeIf { it.isNotBlank() }?.let { normalizeTitleKey(it, imported.type) }
+            val jpTitleKey = imported.titleJapanese?.takeIf { it.isNotBlank() }?.let { normalizeTitleKey(it, imported.type) }
+            val realMal = imported.malId?.takeIf { it in 1..99_999_999 }
+            val simkl = imported.simklId?.takeIf { it > 0 }
+            val kitsuNative = imported.malId?.takeIf { it >= 300_000_000 }?.let { it - 300_000_000 }
 
-            // Öncelik: 1. Doğrudan ID anahtarı -> 2. Orijinal Başlık -> 3. İngilizce Başlık
+            // Öncelik: 1. Doğrudan key -> 2. Gerçek MAL ID -> 3. Simkl ID -> 4. Kitsu ID -> 5. Orijinal/İng/Jap Başlıklar
             val existingEntity = existingByKey[key]
-                ?: existingByTitle[titleKey]
-                ?: (if (engTitleKey != null) existingByTitle[engTitleKey] else null)
+                ?: (if (realMal != null) existingByMalId[realMal] else null)
+                ?: (if (simkl != null) existingBySimklId[simkl] else null)
+                ?: (if (kitsuNative != null) existingByKitsuId[kitsuNative] else null)
+                ?: existingByAllTitles[titleKey]
+                ?: (if (engTitleKey != null) existingByAllTitles[engTitleKey] else null)
+                ?: (if (jpTitleKey != null) existingByAllTitles[jpTitleKey] else null)
 
             val importTime = if (imported.updatedAt > 0L) imported.updatedAt else (System.currentTimeMillis() / 1000L)
             val finalImported = imported.copy(updatedAt = importTime)
@@ -133,7 +185,7 @@ class MediaEntryRepository(
                 val domain = entity.toDomain()
                 val k = domain.importKey()
                 val tk = normalizeTitleKey(domain.title, domain.type)
-                val isMatched = entity.id in matchedExistingIds || k in importedKeys || existingByTitle[tk]?.id in matchedExistingIds
+                val isMatched = entity.id in matchedExistingIds || k in importedKeys || existingByAllTitles[tk]?.id in matchedExistingIds
                 if (!isMatched) {
                     toDeleteIds.add(entity.id)
                 }

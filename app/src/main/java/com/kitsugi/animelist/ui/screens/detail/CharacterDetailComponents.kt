@@ -351,20 +351,11 @@ internal fun CharacterDetailLeftPanel(
                 }
             }
         }
-        // İsim + native name + pill
+        // İsim + native name + platform logosu
         Column(modifier = Modifier.padding(16.dp)) {
-            val badgeColor = when (source.lowercase().trim()) {
-                "kitsu" -> Color(0xFFFD755C)
-                "anilist" -> Color(0xFF02A9FF)
-                "mal", "jikan" -> Color(0xFF2E51A2)
-                "shikimori" -> Color(0xFF8E44AD)
-                "simkl" -> Color(0xFFE21926)
-                "tmdb" -> Color(0xFFFFB800)
-                else -> accentColor
-            }
-            DetailPill(
-                text = source.toFriendlySourceLabel().uppercase(),
-                color = badgeColor
+            DetailPlatformBadge(
+                source = source,
+                size = 24.dp
             )
             Spacer(modifier = Modifier.height(8.dp))
             Text(
@@ -660,20 +651,11 @@ internal fun CharacterPortraitHeroSection(
                 }
             }
         }
-        // Name + native name + pill
+        // Name + native name + platform logosu
         Column(modifier = androidx.compose.ui.Modifier.align(Alignment.BottomStart).padding(20.dp)) {
-            val badgeColor = when (source.lowercase().trim()) {
-                "kitsu" -> Color(0xFFFD755C)
-                "anilist" -> Color(0xFF02A9FF)
-                "mal", "jikan" -> Color(0xFF2E51A2)
-                "shikimori" -> Color(0xFF8E44AD)
-                "simkl" -> Color(0xFFE21926)
-                "tmdb" -> Color(0xFFFFB800)
-                else -> accentColor
-            }
-            DetailPill(
-                text = source.toFriendlySourceLabel().uppercase(),
-                color = badgeColor
+            DetailPlatformBadge(
+                source = source,
+                size = 28.dp
             )
             Spacer(modifier = androidx.compose.ui.Modifier.height(10.dp))
             Text(

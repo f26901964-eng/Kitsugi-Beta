@@ -2110,7 +2110,11 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                 }
 
                 // 2. Hedef dosya adını video ve bölüm ismini içerecek şekilde oluştur
-                val ext = cachedFile.extension.ifBlank { "srt" }
+                val ext = when {
+                    cachedFile.extension.isNotBlank() && cachedFile.extension.lowercase() in listOf("srt", "vtt", "ass", "ssa", "sub", "ttml", "dfxp", "txt") ->
+                        cachedFile.extension.lowercase()
+                    else -> com.kitsugi.animelist.core.player.SubtitleFileCache.guessExtension(subtitle.url)
+                }
 
                 val rawTitle = when {
                     animeTitle.isNotBlank() -> animeTitle.trim()
@@ -2159,10 +2163,11 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                 // 3. Android 10+ MediaStore API ile Downloads/Kitsugi/Subtitles/ klasörüne yaz
                 val savedPath: String? = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.Q) {
                     val mimeType = when (ext.lowercase()) {
-                        "ass", "ssa" -> "text/x-ass"
-                        "vtt"        -> "text/vtt"
+                        "ass", "ssa"   -> "text/x-ass"
+                        "vtt"          -> "text/vtt"
                         "ttml", "dfxp" -> "application/ttml+xml"
-                        else         -> "application/x-subrip"  // srt
+                        "sub", "txt"   -> "text/plain"
+                        else           -> "application/x-subrip"  // srt
                     }
                     val values = android.content.ContentValues().apply {
                         put(android.provider.MediaStore.Downloads.DISPLAY_NAME, fileName)
@@ -2202,7 +2207,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                     if (savedPath != null) {
                         Toast.makeText(
                             context,
-                            "✅ Altyazı kaydedildi\n$savedPath",
+                            "✅ Altyazı kaydedildi [${ext.uppercase()}]\n$savedPath",
                             Toast.LENGTH_LONG
                         ).show()
                     } else {

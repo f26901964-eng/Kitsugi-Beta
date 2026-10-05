@@ -528,12 +528,14 @@ object KitsuApiClient {
     }
 
     /**
-     * Başlık veya MAL ID ile Kitsu medya numeric ID'sini arar.
+     * Başlık veya yıl ile Kitsu medya numeric ID'sini doğrulamalı olarak arar.
      */
-    suspend fun lookupKitsuId(title: String, isAnime: Boolean): Int? = withContext(Dispatchers.IO) {
+    suspend fun lookupKitsuId(title: String, isAnime: Boolean, expectedYear: Int? = null): Int? = withContext(Dispatchers.IO) {
+        if (title.isBlank()) return@withContext null
+        PlatformRateLimiter.acquire("kitsu")
         val endpoint = if (isAnime) "anime" else "manga"
         val encoded = java.net.URLEncoder.encode(title.trim(), "UTF-8")
-        val url = "$BASE_URL/$endpoint?filter[text]=$encoded&page[limit]=1"
+        val url = "$BASE_URL/$endpoint?filter[text]=$encoded&page[limit]=5"
 
         val request = Request.Builder()
             .url(url)
@@ -544,12 +546,64 @@ object KitsuApiClient {
 
         runCatching {
             KitsugiHttpClient.client.newCall(request).execute().use { response ->
+                if (response.code == 429) {
+                    PlatformRateLimiter.notifyRateLimited("kitsu")
+                    return@use null
+                }
                 if (!response.isSuccessful) return@use null
                 val body = response.body?.string().orEmpty()
                 val data = JSONObject(body).optJSONArray("data") ?: return@use null
-                if (data.length() > 0) {
-                    data.getJSONObject(0).optString("id").toIntOrNull()
-                } else null
+                if (data.length() == 0) return@use null
+
+                val cleanTarget = title.lowercase().filter { it.isLetterOrDigit() }
+                var bestId: Int? = null
+                var bestMatchScore = -1
+
+                for (i in 0 until data.length()) {
+                    val item = data.getJSONObject(i)
+                    val id = item.optString("id").toIntOrNull() ?: continue
+                    val attrs = item.optJSONObject("attributes") ?: continue
+                    val titlesObj = attrs.optJSONObject("titles")
+                    val canonicalTitle = attrs.optString("canonicalTitle", "")
+                    val startDate = attrs.optString("startDate", "")
+                    val itemYear = startDate.take(4).toIntOrNull()
+
+                    val candidateTitles = buildList {
+                        if (canonicalTitle.isNotBlank()) add(canonicalTitle)
+                        if (titlesObj != null) {
+                            val keys = titlesObj.keys()
+                            while (keys.hasNext()) {
+                                val t = titlesObj.optString(keys.next(), "")
+                                if (t.isNotBlank()) add(t)
+                            }
+                        }
+                    }
+
+                    var matchScore = 0
+                    for (cand in candidateTitles) {
+                        val cleanCand = cand.lowercase().filter { it.isLetterOrDigit() }
+                        if (cleanCand == cleanTarget) {
+                            matchScore = maxOf(matchScore, 100)
+                        } else if (cleanCand.contains(cleanTarget) || cleanTarget.contains(cleanCand)) {
+                            matchScore = maxOf(matchScore, 60)
+                        }
+                    }
+
+                    if (expectedYear != null && itemYear != null) {
+                        if (expectedYear == itemYear) {
+                            matchScore += 20
+                        } else if (kotlin.math.abs(expectedYear - itemYear) > 1 && matchScore < 100) {
+                            matchScore -= 40
+                        }
+                    }
+
+                    if (matchScore > bestMatchScore && matchScore >= 50) {
+                        bestMatchScore = matchScore
+                        bestId = id
+                    }
+                }
+
+                bestId ?: if (data.length() == 1) data.getJSONObject(0).optString("id").toIntOrNull() else null
             }
         }.getOrNull()
     }

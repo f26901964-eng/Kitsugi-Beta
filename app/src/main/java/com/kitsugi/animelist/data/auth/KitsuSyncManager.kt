@@ -84,9 +84,9 @@ object KitsuSyncManager {
 
         if (kitsuMediaId == null) {
             val searchTitle = entry.titleEnglish?.takeIf { it.isNotBlank() } ?: entry.title
-            kitsuMediaId = KitsuApiClient.lookupKitsuId(searchTitle, isAnime = isAnime)
+            kitsuMediaId = KitsuApiClient.lookupKitsuId(searchTitle, isAnime = isAnime, expectedYear = entry.year)
             if (kitsuMediaId == null && !entry.titleEnglish.isNullOrBlank() && entry.title.isNotBlank()) {
-                kitsuMediaId = KitsuApiClient.lookupKitsuId(entry.title, isAnime = isAnime)
+                kitsuMediaId = KitsuApiClient.lookupKitsuId(entry.title, isAnime = isAnime, expectedYear = entry.year)
             }
         }
 

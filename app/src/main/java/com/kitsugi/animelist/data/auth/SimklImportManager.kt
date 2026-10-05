@@ -74,9 +74,9 @@ object SimklImportManager {
     suspend fun fetchAllLists(token: String): List<MediaEntry> {
         return withContext(Dispatchers.IO) {
             val movies = fetchList(token, "movies")
-            kotlinx.coroutines.delay(1200L)
+            kotlinx.coroutines.delay(1500L)
             val shows = fetchList(token, "shows")
-            kotlinx.coroutines.delay(1200L)
+            kotlinx.coroutines.delay(1500L)
             val anime = fetchList(token, "anime")
             movies + shows + anime
         }
@@ -85,7 +85,7 @@ object SimklImportManager {
     private suspend fun fetchList(token: String, type: String): List<MediaEntry> {
         return withContext(Dispatchers.IO) {
             var attempt = 0
-            while (attempt < 3) {
+            while (attempt < 4) {
                 attempt++
                 val request = Request.Builder()
                     .url("https://api.simkl.com/sync/all-items/$type")
@@ -97,7 +97,7 @@ object SimklImportManager {
                 val entries = mutableListOf<MediaEntry>()
 
                 try {
-                    val (shouldRetry, parsedEntries) = client.newCall(request).execute().use { response ->
+                    val (retryWaitMs, parsedEntries) = client.newCall(request).execute().use { response ->
                         if (response.code == 401) {
                             val context = com.kitsugi.animelist.KitsugiApplication.getInstance()?.applicationContext
                             if (context != null) {
@@ -106,12 +106,14 @@ object SimklImportManager {
                             throw com.kitsugi.animelist.data.repository.SimklAuthException("Simkl yetkilendirme hatası: 401")
                         }
                         if (response.code == 429) {
-                            android.util.Log.w("SimklImportManager", "Simkl fetchList [$type] 429 rate limit, waiting 2.5s and retrying (deneme $attempt/3)...")
-                            return@use Pair(true, emptyList<MediaEntry>())
+                            val retryHeader = response.header("Retry-After")?.toLongOrNull() ?: (2L * attempt)
+                            val waitMs = maxOf(retryHeader * 1000L, 2500L * attempt)
+                            android.util.Log.w("SimklImportManager", "Simkl fetchList [$type] 429 rate limit, waiting ${waitMs}ms and retrying (deneme $attempt/4)...")
+                            return@use Pair(waitMs, emptyList<MediaEntry>())
                         }
                         if (!response.isSuccessful) {
                             android.util.Log.e("SimklImportManager", "Simkl fetchList [$type] failed: HTTP ${response.code}")
-                            return@use Pair(false, emptyList<MediaEntry>())
+                            return@use Pair(0L, emptyList<MediaEntry>())
                         }
                         val responseText = response.body?.string().orEmpty()
                         val root = JSONObject(responseText)
@@ -120,7 +122,7 @@ object SimklImportManager {
                             "shows" -> "shows"
                             else -> "anime"
                         }
-                        val jsonArray = root.optJSONArray(arrayKey) ?: return@use Pair(false, emptyList<MediaEntry>())
+                        val jsonArray = root.optJSONArray(arrayKey) ?: return@use Pair(0L, emptyList<MediaEntry>())
 
                     for (i in 0 until jsonArray.length()) {
                         val item = jsonArray.getJSONObject(i)
@@ -197,18 +199,18 @@ object SimklImportManager {
                             )
                         )
                     }
-                    Pair(false, entries)
+                    Pair(0L, entries)
                 }
-                if (!shouldRetry) {
+                if (retryWaitMs == 0L) {
                     return@withContext parsedEntries
                 }
-                kotlinx.coroutines.delay(2500L)
+                kotlinx.coroutines.delay(retryWaitMs)
             } catch (e: com.kitsugi.animelist.data.repository.SimklAuthException) {
                 throw e
             } catch (e: Exception) {
                 android.util.Log.e("SimklImportManager", "fetchList [$type] failed: ${e.message}", e)
-                if (attempt >= 3) return@withContext emptyList()
-                kotlinx.coroutines.delay(1500L)
+                if (attempt >= 4) return@withContext emptyList()
+                kotlinx.coroutines.delay(2000L * attempt)
             }
         }
         emptyList()

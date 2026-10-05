@@ -762,7 +762,9 @@ class SimklApiClient(
         val aniListId: Int? = null,
         val kitsuId: Int? = null,
         val title: String? = null,
-        val year: Int? = null
+        val year: Int? = null,
+        val progress: Int = 0,
+        val score: Int? = null
     )
 
     data class SimklBatchResponse(
@@ -916,6 +918,161 @@ class SimklApiClient(
         token: String,
         entries: List<SimklBatchEntry>
     ): Boolean = addToListBatchDetailed(token, entries).isSuccess
+
+    /**
+     * Simkl toplu izleme geçmişi / bölüm ilerlemesi (POST /sync/history).
+     */
+    suspend fun historyBatchDetailed(
+        token: String,
+        entries: List<SimklBatchEntry>
+    ): Boolean = withContext(Dispatchers.IO) {
+        val filtered = entries.filter { it.progress > 0 }
+        if (filtered.isEmpty()) return@withContext true
+
+        val animeArray = JSONArray()
+        val showsArray = JSONArray()
+
+        filtered.forEach { entry ->
+            val idObj = JSONObject().apply {
+                if (entry.simklId > 0) put("simkl", entry.simklId)
+                if (entry.malId != null && entry.malId > 0 && entry.malId < 100_000_000) {
+                    put("mal", entry.malId)
+                }
+                if (entry.tmdbId != null && entry.tmdbId > 0) {
+                    put("tmdb", entry.tmdbId)
+                }
+            }
+            if (idObj.length() == 0 && entry.title.isNullOrBlank()) return@forEach
+
+            val isAnime = entry.type.lowercase() == "anime"
+            val epObj = JSONObject().apply {
+                put("number", entry.progress)
+            }
+            val epsArray = JSONArray().put(epObj)
+
+            if (isAnime) {
+                val item = JSONObject().apply {
+                    put("ids", idObj)
+                    put("episodes", epsArray)
+                    if (!entry.title.isNullOrBlank()) put("title", entry.title)
+                    if (entry.year != null && entry.year > 1900) put("year", entry.year)
+                }
+                animeArray.put(item)
+            } else {
+                val seasonObj = JSONObject().apply {
+                    put("number", 1)
+                    put("episodes", epsArray)
+                }
+                val item = JSONObject().apply {
+                    put("ids", idObj)
+                    put("seasons", JSONArray().put(seasonObj))
+                    if (!entry.title.isNullOrBlank()) put("title", entry.title)
+                    if (entry.year != null && entry.year > 1900) put("year", entry.year)
+                }
+                showsArray.put(item)
+            }
+        }
+
+        val payload = JSONObject()
+        if (animeArray.length() > 0) payload.put("anime", animeArray)
+        if (showsArray.length() > 0) payload.put("shows", showsArray)
+
+        if (payload.length() == 0) return@withContext true
+
+        val request = Request.Builder()
+            .url("https://api.simkl.com/sync/history")
+            .post(payload.toString().toRequestBody("application/json".toMediaTypeOrNull()))
+            .header("Authorization", "Bearer $token")
+            .header("simkl-api-key", clientId)
+            .header("Content-Type", "application/json")
+            .header("User-Agent", "KitsugiApp/2.4")
+            .build()
+
+        try {
+            client.newCall(request).execute().use { response ->
+                checkResponseAndThrow(response)
+                response.isSuccessful
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("SimklApiClient", "historyBatchDetailed error: ${e.message}", e)
+            false
+        }
+    }
+
+    /**
+     * Simkl toplu puanlama (POST /sync/ratings).
+     * Puanlar 1–10 arasına normalize edilir.
+     */
+    suspend fun ratingsBatchDetailed(
+        token: String,
+        entries: List<SimklBatchEntry>
+    ): Boolean = withContext(Dispatchers.IO) {
+        val filtered = entries.filter { it.score != null && it.score > 0 }
+        if (filtered.isEmpty()) return@withContext true
+
+        val animeArray = JSONArray()
+        val showsArray = JSONArray()
+        val moviesArray = JSONArray()
+
+        filtered.forEach { entry ->
+            val scoreVal = entry.score ?: return@forEach
+            val normalizedRating = if (scoreVal > 10) {
+                kotlin.math.round(scoreVal / 10.0).toInt().coerceIn(1, 10)
+            } else {
+                scoreVal.coerceIn(1, 10)
+            }
+
+            val idObj = JSONObject().apply {
+                if (entry.simklId > 0) put("simkl", entry.simklId)
+                if (entry.malId != null && entry.malId > 0 && entry.malId < 100_000_000) {
+                    put("mal", entry.malId)
+                }
+                if (entry.tmdbId != null && entry.tmdbId > 0) {
+                    put("tmdb", entry.tmdbId)
+                }
+            }
+            if (idObj.length() == 0 && entry.title.isNullOrBlank()) return@forEach
+
+            val item = JSONObject().apply {
+                put("ids", idObj)
+                put("rating", normalizedRating)
+                if (!entry.title.isNullOrBlank()) put("title", entry.title)
+                if (entry.year != null && entry.year > 1900) put("year", entry.year)
+            }
+
+            when (entry.type.lowercase()) {
+                "movies", "movie" -> moviesArray.put(item)
+                "anime" -> animeArray.put(item)
+                else -> showsArray.put(item)
+            }
+        }
+
+        val payload = JSONObject()
+        if (animeArray.length() > 0) payload.put("anime", animeArray)
+        if (showsArray.length() > 0) payload.put("shows", showsArray)
+        if (moviesArray.length() > 0) payload.put("movies", moviesArray)
+
+        if (payload.length() == 0) return@withContext true
+
+        val request = Request.Builder()
+            .url("https://api.simkl.com/sync/ratings")
+            .post(payload.toString().toRequestBody("application/json".toMediaTypeOrNull()))
+            .header("Authorization", "Bearer $token")
+            .header("simkl-api-key", clientId)
+            .header("Content-Type", "application/json")
+            .header("User-Agent", "KitsugiApp/2.4")
+            .build()
+
+        try {
+            client.newCall(request).execute().use { response ->
+                checkResponseAndThrow(response)
+                response.isSuccessful
+            }
+        } catch (e: Exception) {
+            android.util.Log.e("SimklApiClient", "ratingsBatchDetailed error: ${e.message}", e)
+            false
+        }
+    }
 
     /**
      * Listeden içeriği siler.

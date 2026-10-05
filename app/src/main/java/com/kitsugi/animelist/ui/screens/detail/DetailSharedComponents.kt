@@ -46,6 +46,12 @@ import com.kitsugi.animelist.ui.components.KitsugiIntegrationsSettingsDialog
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
+import androidx.compose.ui.unit.Dp
+import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
+import com.kitsugi.animelist.ui.components.KitsugiPlatformLogos
+import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
+import com.kitsugi.animelist.utils.toFriendlySourceLabel
+
 /**
  * Shared pill/chip composable used across all detail pages within this package.
  * Consolidates the previously duplicated private definitions in StaffDetailComponents,
@@ -54,10 +60,11 @@ import kotlinx.coroutines.launch
 @Composable
 internal fun DetailPill(
     text: String,
-    color: Color
+    color: Color,
+    modifier: Modifier = Modifier
 ) {
     Box(
-        modifier = Modifier
+        modifier = modifier
             .clip(RoundedCornerShape(999.dp))
             .background(color.copy(alpha = 0.15f))
             .padding(horizontal = 12.dp, vertical = 6.dp),
@@ -68,6 +75,51 @@ internal fun DetailPill(
             color = color,
             style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.Black
+        )
+    }
+}
+
+/**
+ * Platform logo rozeti — Karakter, Seslendirmen ve Detay sayfalarında
+ * kaynak platformun resmi orijinal logosunu gösterir.
+ */
+@Composable
+internal fun DetailPlatformBadge(
+    source: String,
+    modifier: Modifier = Modifier,
+    size: Dp = 26.dp
+) {
+    val logoRes = KitsugiPlatformLogos.resFor(source)
+    if (logoRes != null) {
+        val badgeColor = when (source.lowercase().trim()) {
+            "kitsu" -> Color(0xFFFD755C)
+            "anilist" -> Color(0xFF02A9FF)
+            "mal", "jikan" -> Color(0xFF2E51A2)
+            "shikimori" -> Color(0xFF8E44AD)
+            "simkl" -> Color(0xFFE21926)
+            "tmdb" -> Color(0xFFFFB800)
+            else -> KitsugiColors.SurfaceSoft
+        }
+        Box(
+            modifier = modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(badgeColor.copy(alpha = 0.18f))
+                .border(1.dp, badgeColor.copy(alpha = 0.40f), RoundedCornerShape(8.dp))
+                .padding(horizontal = 6.dp, vertical = 4.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            KitsugiPlatformLogo(
+                platformId = source,
+                size = size,
+                cornerRadius = 4.dp
+            )
+        }
+    } else {
+        val accentColor = LocalKitsugiAccent.current
+        DetailPill(
+            text = source.toFriendlySourceLabel().uppercase(),
+            color = accentColor,
+            modifier = modifier
         )
     }
 }
