@@ -153,19 +153,44 @@ object ExternalAuthManager {
     fun getShikimoriUsername(context: Context): String? = prefs(context).getString(KEY_SHIKIMORI_USERNAME, null)
 
     fun getShikimoriClientId(context: Context): String {
-        return prefs(context).getString(KEY_SHIKIMORI_CLIENT_ID, null)?.takeIf { it.isNotBlank() }
-            ?: ShikimoriApiClient.DEFAULT_CLIENT_ID
+        val saved = prefs(context).getString(KEY_SHIKIMORI_CLIENT_ID, null)?.trim()
+        if (saved.isNullOrBlank() || (saved.startsWith("aOAY", ignoreCase = true) && saved != ShikimoriApiClient.DEFAULT_CLIENT_ID)) {
+            // Corrupted or legacy typo'd client ID detected - reset to valid default
+            prefs(context).edit().remove(KEY_SHIKIMORI_CLIENT_ID).apply()
+            return ShikimoriApiClient.DEFAULT_CLIENT_ID
+        }
+        return saved
     }
 
     fun getShikimoriClientSecret(context: Context): String {
-        return prefs(context).getString(KEY_SHIKIMORI_CLIENT_SECRET, null)?.takeIf { it.isNotBlank() }
-            ?: ShikimoriApiClient.DEFAULT_CLIENT_SECRET
+        val saved = prefs(context).getString(KEY_SHIKIMORI_CLIENT_SECRET, null)?.trim()
+        if (saved.isNullOrBlank() || (saved.startsWith("jqjm", ignoreCase = true) && saved != ShikimoriApiClient.DEFAULT_CLIENT_SECRET)) {
+            prefs(context).edit().remove(KEY_SHIKIMORI_CLIENT_SECRET).apply()
+            return ShikimoriApiClient.DEFAULT_CLIENT_SECRET
+        }
+        return saved
     }
 
     fun saveShikimoriCredentials(context: Context, clientId: String, clientSecret: String) {
+        val cleanId = clientId.trim()
+        val cleanSecret = clientSecret.trim()
+        if (cleanId == ShikimoriApiClient.DEFAULT_CLIENT_ID && cleanSecret == ShikimoriApiClient.DEFAULT_CLIENT_SECRET) {
+            prefs(context).edit()
+                .remove(KEY_SHIKIMORI_CLIENT_ID)
+                .remove(KEY_SHIKIMORI_CLIENT_SECRET)
+                .apply()
+        } else {
+            prefs(context).edit()
+                .putString(KEY_SHIKIMORI_CLIENT_ID, cleanId)
+                .putString(KEY_SHIKIMORI_CLIENT_SECRET, cleanSecret)
+                .apply()
+        }
+    }
+
+    fun resetShikimoriCredentials(context: Context) {
         prefs(context).edit()
-            .putString(KEY_SHIKIMORI_CLIENT_ID, clientId.trim())
-            .putString(KEY_SHIKIMORI_CLIENT_SECRET, clientSecret.trim())
+            .remove(KEY_SHIKIMORI_CLIENT_ID)
+            .remove(KEY_SHIKIMORI_CLIENT_SECRET)
             .apply()
     }
 

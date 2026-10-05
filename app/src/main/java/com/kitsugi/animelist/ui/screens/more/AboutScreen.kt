@@ -14,6 +14,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.Code
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Public
+import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -24,6 +25,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -420,6 +422,23 @@ fun AboutScreen(
                             modifier = Modifier.fillMaxWidth()
                         ) {
                             Text("Geliştirici Günlüklerini Gör", color = KitsugiColors.background, fontWeight = FontWeight.Bold)
+                        }
+
+                        val errorColor = Color(0xFFEF5350)
+                        OutlinedButton(
+                            onClick = {
+                                val intent = Intent(context, com.kitsugi.animelist.ui.screens.crash.KitsugiCrashActivity::class.java).apply {
+                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                }
+                                context.startActivity(intent)
+                            },
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = errorColor),
+                            border = androidx.compose.foundation.BorderStroke(1.dp, errorColor.copy(alpha = 0.5f)),
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            Icon(Icons.Rounded.Warning, contentDescription = null, tint = errorColor, modifier = Modifier.size(18.dp))
+                            Spacer(Modifier.width(8.dp))
+                            Text("Çökme & Hata Teşhis Raporu", color = errorColor, fontWeight = FontWeight.Bold)
                         }
 
                         OutlinedButton(

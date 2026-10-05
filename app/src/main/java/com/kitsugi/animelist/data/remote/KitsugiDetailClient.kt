@@ -173,7 +173,11 @@ class KitsugiDetailClient {
                     val kitsuDetail = KitsuExploreClient.fetchDetailByStableId(externalId, mediaType)
                     // AnimeThemes entegrasyonu: Kitsu ID'si ile tema müziklerini çek
                     if (kitsuDetail != null && mediaType != MediaType.Manga) {
-                        val kitsuNumericId = externalId - KitsuExploreClient.ID_OFFSET
+                        val kitsuNumericId = if (externalId >= KitsuExploreClient.ID_OFFSET) {
+                            externalId - KitsuExploreClient.ID_OFFSET
+                        } else {
+                            externalId
+                        }
                         if (kitsuNumericId > 0) {
                             try {
                                 val themes = KitsugiAnimeThemesClient.fetchAnimeThemes(kitsuNumericId, "Kitsu")

@@ -46,8 +46,24 @@ fun KitsugiShikimoriLoginDialog(
     val clipboard = LocalClipboardManager.current
     val shikimoriBrandColor = Color(0xFF8E44AD)
 
-    var clientId by remember { mutableStateOf(ExternalAuthManager.getShikimoriClientId(context)) }
-    var clientSecret by remember { mutableStateOf(ExternalAuthManager.getShikimoriClientSecret(context)) }
+    var clientId by remember {
+        mutableStateOf(
+            ExternalAuthManager.getShikimoriClientId(context).let {
+                if (it.isBlank() || (it.startsWith("aOAY", ignoreCase = true) && it != ShikimoriApiClient.DEFAULT_CLIENT_ID)) {
+                    ShikimoriApiClient.DEFAULT_CLIENT_ID
+                } else it
+            }
+        )
+    }
+    var clientSecret by remember {
+        mutableStateOf(
+            ExternalAuthManager.getShikimoriClientSecret(context).let {
+                if (it.isBlank() || (it.startsWith("jqjm", ignoreCase = true) && it != ShikimoriApiClient.DEFAULT_CLIENT_SECRET)) {
+                    ShikimoriApiClient.DEFAULT_CLIENT_SECRET
+                } else it
+            }
+        )
+    }
     var authCode by remember { mutableStateOf("") }
     var showAdvanced by remember { mutableStateOf(false) }
     var isLoading by remember { mutableStateOf(false) }
@@ -175,7 +191,7 @@ fun KitsugiShikimoriLoginDialog(
                             }
                             Spacer(modifier = Modifier.height(6.dp))
                             Text(
-                                text = "Aşağıdaki butona dokunun. Açılan sayfada Shikimori hesabınızla oturum açıp 'Разрешить (İzin Ver)' butonuna basın.",
+                                text = "Aşağıdaki '1-Tık Otomatik Giriş' butonuna dokunun. Tarayıcıda Shikimori hesabınızla oturum açıp 'Разрешить (İzin Ver)' butonuna bastığınızda uygulama otomatik olarak bağlanır.",
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     color = KitsugiColors.TextSecondary,
                                     fontSize = 12.sp,
@@ -183,10 +199,16 @@ fun KitsugiShikimoriLoginDialog(
                                 )
                             )
                             Spacer(modifier = Modifier.height(10.dp))
+
+                            // 1-Tık Otomatik Giriş (Deep Link)
                             Button(
                                 onClick = {
-                                    val targetId = clientId.trim().ifBlank { ShikimoriApiClient.DEFAULT_CLIENT_ID }
-                                    val authUrl = ShikimoriApiClient.buildAuthorizeUrl(targetId, ShikimoriApiClient.DEFAULT_REDIRECT_URI)
+                                    val targetId = clientId.trim().let {
+                                        if (it.isBlank() || (it.startsWith("aOAY", ignoreCase = true) && it != ShikimoriApiClient.DEFAULT_CLIENT_ID)) {
+                                            ShikimoriApiClient.DEFAULT_CLIENT_ID
+                                        } else it
+                                    }
+                                    val authUrl = ShikimoriApiClient.buildAuthorizeUrl(targetId, ShikimoriApiClient.DEEP_LINK_REDIRECT_URI)
                                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(authUrl))
                                     context.startActivity(intent)
                                 },
@@ -197,12 +219,42 @@ fun KitsugiShikimoriLoginDialog(
                                     contentColor = Color.White
                                 )
                             ) {
+                                Icon(Icons.Rounded.Bolt, contentDescription = null, modifier = Modifier.size(18.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
+                                Text(
+                                    text = "1-Tık Otomatik Giriş (Önerilen)",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            Spacer(modifier = Modifier.height(6.dp))
+
+                            // Alternatif: Kod Gösterimi (oob)
+                            FilledTonalButton(
+                                onClick = {
+                                    val targetId = clientId.trim().let {
+                                        if (it.isBlank() || (it.startsWith("aOAY", ignoreCase = true) && it != ShikimoriApiClient.DEFAULT_CLIENT_ID)) {
+                                            ShikimoriApiClient.DEFAULT_CLIENT_ID
+                                        } else it
+                                    }
+                                    val authUrl = ShikimoriApiClient.buildAuthorizeUrl(targetId, ShikimoriApiClient.DEFAULT_REDIRECT_URI)
+                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(authUrl))
+                                    context.startActivity(intent)
+                                },
+                                shape = RoundedCornerShape(10.dp),
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = ButtonDefaults.filledTonalButtonColors(
+                                    containerColor = shikimoriBrandColor.copy(alpha = 0.15f),
+                                    contentColor = shikimoriBrandColor
+                                )
+                            ) {
                                 Icon(Icons.Rounded.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "Shikimori'de Oturum Aç ve Yetki Ver",
+                                    text = "Tarayıcıda Aç (Kodu Manuel Al)",
                                     style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = FontWeight.Bold
+                                    fontWeight = FontWeight.SemiBold
                                 )
                             }
                         }
@@ -357,6 +409,19 @@ fun KitsugiShikimoriLoginDialog(
                                     shape = RoundedCornerShape(8.dp),
                                     modifier = Modifier.fillMaxWidth()
                                 )
+
+                                TextButton(
+                                    onClick = {
+                                        ExternalAuthManager.resetShikimoriCredentials(context)
+                                        clientId = ShikimoriApiClient.DEFAULT_CLIENT_ID
+                                        clientSecret = ShikimoriApiClient.DEFAULT_CLIENT_SECRET
+                                    },
+                                    modifier = Modifier.align(Alignment.End)
+                                ) {
+                                    Icon(Icons.Rounded.RestartAlt, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    Text("Varsayılan Anahtarları Geri Yükle", fontSize = 11.sp)
+                                }
                             }
                         }
                     }

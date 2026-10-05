@@ -66,8 +66,8 @@ fun KitsugiCrossSyncDialog(
     val accentColor = LocalKitsugiAccent.current
     val logsListState = rememberLazyListState()
 
-    // Otomatik en son loga kaydır
-    LaunchedEffect(state.logs.size) {
+    // Otomatik en son loga kaydır (Her yeni işlem kaydında en alta kaydır)
+    LaunchedEffect(state.logs.size, state.logs.lastOrNull()?.id) {
         if (state.logs.isNotEmpty()) {
             logsListState.scrollToItem(state.logs.size - 1)
         }

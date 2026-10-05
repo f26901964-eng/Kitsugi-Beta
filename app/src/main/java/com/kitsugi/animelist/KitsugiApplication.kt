@@ -53,6 +53,25 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
     }
 
     override fun onCreate() {
+        // ── 0. :crash Süreci Koruması ────────────────────────────────────────────────
+        // Eğer bu süreç çökme ekranı (:crash) için başlatılmışsa, arka plan işçilerini,
+        // WorkManager'ı ve Room veritabanı senkronizasyonunu çalıştırma!
+        val isCrashProcess = runCatching {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                Application.getProcessName().endsWith(":crash")
+            } else {
+                val pid = android.os.Process.myPid()
+                val am = getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
+                am?.runningAppProcesses?.firstOrNull { it.pid == pid }?.processName?.endsWith(":crash") == true
+            }
+        }.getOrDefault(false)
+
+        if (isCrashProcess) {
+            instance = this
+            super.onCreate()
+            return
+        }
+
         instance = this
         super.onCreate()
 
@@ -138,37 +157,11 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
                 return@setDefaultUncaughtExceptionHandler
             }
 
-            // ── 5. Bellek Yetersizliği (OOM) ────────────────────────────────────────────────
-            val isOom = generateSequence(throwable as Throwable?) { it.cause }
-                .any { it is OutOfMemoryError }
-            if (isOom) {
-                android.util.Log.e("KitsugiApplication", "Bellek yetersizliği (OOM) — önbellekler temizleniyor ve kaydediliyor...")
-                try { coil3.SingletonImageLoader.get(this).memoryCache?.clear() } catch (_: Throwable) {}
-                System.gc()
-                // OOM'u da kaydet ama uygulamayı kapatma
-                try {
-                    com.kitsugi.animelist.core.diagnostics.KitsugiCrashLogger
-                        .writeCrashReport(this@KitsugiApplication, thread, throwable, isForeground)
-                } catch (_: Exception) {}
-                return@setDefaultUncaughtExceptionHandler
-            }
-
-            // ── 6. Arka Plan İş Parçacığı İstisnaları ──────────────────────────────────────
-            // ÖNEMLI: Eskiden bu hatalar sessizce yutuluyor, artık KAYIT ALTINA ALINIYORLAR!
-            if (!isForeground) {
-                android.util.Log.e("KitsugiApplication",
-                    "ARKA PLAN ÇÖKMESI (${thread.name}): ${throwable.javaClass.simpleName}: ${throwable.message}", throwable)
-                // Geçmişe kaydet — kullanıcı "Geçmiş Çökmeler" ekranında görebilecek
-                try {
-                    com.kitsugi.animelist.core.diagnostics.KitsugiCrashLogger
-                        .writeCrashReport(this@KitsugiApplication, thread, throwable, isForeground = false)
-                } catch (_: Exception) {}
-                return@setDefaultUncaughtExceptionHandler
-            }
-
-            // ── 7. FOREGROUND (Ana Thread) Çökmesi — Tam Rapor + Crash Screen ───────────────
+            // ── 5. FATAL ÇÖKME (Ana Thread, Arka Plan veya Bellek Hatası) ─────────────────
+            // Bu aşamaya ulaşıldıysa kurtarılamaz bir hata oluşmuştur.
+            // Kullanıcıya mutlaka zengin hata raporlama ekranını (KitsugiCrashActivity) göster!
             android.util.Log.e("KitsugiApplication",
-                "KRİTİK HATA — Ana thread çöktü: ${throwable.javaClass.simpleName}: ${throwable.message}", throwable)
+                "FATAL ÇÖKME (${thread.name}, foreground=$isForeground): ${throwable.javaClass.simpleName}: ${throwable.message}", throwable)
 
             // Çökme anında logcat'i SENKRON yakala (process ölmeden önce)
             try {
@@ -176,29 +169,39 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
                     .captureLogcatSync(this@KitsugiApplication)
             } catch (_: Exception) {}
 
-            // Zenginleştirilmiş crash raporu yaz
+            // Zenginleştirilmiş crash raporunu senkron olarak crash_log.txt ve crash_history.txt'ye yaz
             val crashReport = try {
                 com.kitsugi.animelist.core.diagnostics.KitsugiCrashLogger
-                    .writeCrashReport(this@KitsugiApplication, thread, throwable, isForeground = true)
+                    .writeCrashReport(this@KitsugiApplication, thread, throwable, isForeground = isForeground)
             } catch (_: Exception) {
                 // Fallback — basit rapor
                 buildString {
-                    append("Thread: ${thread.name}\n")
+                    append("Thread: ${thread.name} (Foreground: $isForeground)\n")
                     append("Zaman: ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date())}\n")
                     append("Hata: ${throwable.javaClass.name}: ${throwable.message}\n")
                     append("Stacktrace:\n$stackTraceStr")
                 }
             }
 
+            // Ayrı bir süreçte (:crash) çalışan KitsugiCrashActivity'yi başlat
             try {
                 val intent = android.content.Intent(this@KitsugiApplication, com.kitsugi.animelist.ui.screens.crash.KitsugiCrashActivity::class.java).apply {
                     putExtra("crash_report", crashReport)
-                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK)
+                    addFlags(
+                        android.content.Intent.FLAG_ACTIVITY_NEW_TASK or
+                        android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK or
+                        android.content.Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    )
                 }
                 startActivity(intent)
             } catch (e: Exception) {
                 android.util.Log.e("KitsugiApplication", "Hata ekranı başlatılamadı", e)
             }
+
+            // Android ATMS / system_server Binder IPC işlemlerinin tamamlanması için bekle
+            try {
+                Thread.sleep(600)
+            } catch (_: InterruptedException) {}
 
             android.os.Process.killProcess(android.os.Process.myPid())
             java.lang.System.exit(10)

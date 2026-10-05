@@ -554,11 +554,12 @@ fun AppRootDetailPages(
                     onUserProfileClick = { userId, username, avatarUrl ->
                         navState.navigateToDetail(DetailScreen.UserProfile(userId, username, avatarUrl))
                     },
-                    onOpenApiDetail = { mediaId, source, mediaTypeStr ->
-                        val stableId = if (source.equals("anilist", ignoreCase = true) && mediaId < 100_000_000) {
-                            mediaId + 100_000_000
-                        } else {
-                            mediaId
+                    onOpenApiDetail = { mediaId, source, mediaTypeStr, title, imageUrl ->
+                        val stableId = when {
+                            source.equals("anilist", ignoreCase = true) && mediaId < 100_000_000 -> mediaId + 100_000_000
+                            source.equals("kitsu", ignoreCase = true) && mediaId < com.kitsugi.animelist.data.remote.KitsuExploreClient.ID_OFFSET ->
+                                mediaId + com.kitsugi.animelist.data.remote.KitsuExploreClient.ID_OFFSET
+                            else -> mediaId
                         }
                         val existingEntry = mediaEntries.firstMatching(
                             mediaId = stableId,
@@ -578,13 +579,13 @@ fun AppRootDetailPages(
                             }
                             val searchResult = JikanSearchResult(
                                 malId = stableId,
-                                title = "Yükleniyor...",
+                                title = title?.takeIf { it.isNotBlank() } ?: "Yükleniyor...",
                                 subtitle = "",
                                 type = mediaType,
                                 total = null,
                                 score = null,
                                 isAdult = false,
-                                imageUrl = null,
+                                imageUrl = imageUrl,
                                 year = null,
                                 source = source
                             )

@@ -390,7 +390,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     isError = isError
                 )
                 recentLogs.add(entry)
-                if (recentLogs.size > 200) recentLogs.removeAt(0)
+                if (recentLogs.size > 500) recentLogs.removeAt(0)
             }
 
             fun updateProgress(

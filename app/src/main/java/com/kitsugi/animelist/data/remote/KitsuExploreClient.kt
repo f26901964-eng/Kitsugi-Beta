@@ -328,11 +328,15 @@ object KitsuExploreClient {
     // ── Detail yardımcısı (KitsugiDetailClient tarafından çağrılır) ───────────
 
     /**
-     * stableId'den Kitsu numeric ID'yi çıkar ve detay çek.
-     * stableId = kitsuId + 300_000_000
+     * stableId veya doğrudan Kitsu numeric ID'den detay çeker.
+     * stableId = kitsuId + 300_000_000 veya doğrudan kitsuId
      */
     suspend fun fetchDetailByStableId(stableId: Int, mediaType: MediaType): KitsugiMediaDetail? {
-        val kitsuNumericId = stableId - KITSU_ID_OFFSET
+        val kitsuNumericId = if (stableId >= KITSU_ID_OFFSET) {
+            stableId - KITSU_ID_OFFSET
+        } else {
+            stableId
+        }
         if (kitsuNumericId <= 0) return null
         return when (mediaType) {
             MediaType.Anime, MediaType.Movie, MediaType.TvShow ->

@@ -70,7 +70,7 @@ fun KitsugiNotificationsScreen(
     isKitsuConnected: Boolean = false,
     isShikimoriConnected: Boolean = false,
     onBack: () -> Unit,
-    onOpenApiDetail: ((mediaId: Int, source: String, mediaType: String?) -> Unit)? = null,
+    onOpenApiDetail: ((mediaId: Int, source: String, mediaType: String?, title: String?, imageUrl: String?) -> Unit)? = null,
     onUserProfileClick: ((userId: Int, username: String, avatarUrl: String?) -> Unit)? = null,
     viewModel: KitsugiNotificationsViewModel = viewModel()
 ) {
@@ -341,7 +341,7 @@ fun KitsugiNotificationsScreen(
                                                         if (notif.activityId != null && notif.activityId > 0) {
                                                             activeActivityIdForDetail = notif.activityId
                                                         } else if (notif.mediaId != null) {
-                                                            onOpenApiDetail?.invoke(notif.mediaId, "anilist", notif.mediaType)
+                                                            onOpenApiDetail?.invoke(notif.mediaId, "anilist", notif.mediaType, notif.title, notif.imageUrl)
                                                         } else if (notif.userId != null && notif.userName != null) {
                                                             onUserProfileClick?.invoke(notif.userId, notif.userName, notif.userAvatarUrl)
                                                         }
@@ -397,7 +397,7 @@ fun KitsugiNotificationsScreen(
                                             accentColor = accentColor,
                                             onUserProfileClick = onUserProfileClick,
                                             onClick = {
-                                                notif.mediaId?.let { id -> onOpenApiDetail?.invoke(id, "jikan", notif.mediaType) }
+                                                notif.mediaId?.let { id -> onOpenApiDetail?.invoke(id, "jikan", notif.mediaType, notif.title, notif.imageUrl) }
                                             }
                                         )
                                     }
@@ -434,7 +434,7 @@ fun KitsugiNotificationsScreen(
                                             accentColor = accentColor,
                                             onUserProfileClick = onUserProfileClick,
                                             onClick = {
-                                                notif.mediaId?.let { id -> onOpenApiDetail?.invoke(id, "simkl", notif.mediaType) }
+                                                notif.mediaId?.let { id -> onOpenApiDetail?.invoke(id, "simkl", notif.mediaType, notif.title, notif.imageUrl) }
                                             }
                                         )
                                     }
@@ -471,7 +471,7 @@ fun KitsugiNotificationsScreen(
                                             accentColor = accentColor,
                                             onUserProfileClick = onUserProfileClick,
                                             onClick = {
-                                                notif.mediaId?.let { id -> onOpenApiDetail?.invoke(id, "kitsu", notif.mediaType) }
+                                                notif.mediaId?.let { id -> onOpenApiDetail?.invoke(id, "kitsu", notif.mediaType, notif.title, notif.imageUrl) }
                                             }
                                         )
                                     }
@@ -508,7 +508,7 @@ fun KitsugiNotificationsScreen(
                                             accentColor = accentColor,
                                             onUserProfileClick = onUserProfileClick,
                                             onClick = {
-                                                notif.mediaId?.let { id -> onOpenApiDetail?.invoke(id, "shikimori", notif.mediaType) }
+                                                notif.mediaId?.let { id -> onOpenApiDetail?.invoke(id, "shikimori", notif.mediaType, notif.title, notif.imageUrl) }
                                             }
                                         )
                                     }
@@ -531,7 +531,7 @@ fun KitsugiNotificationsScreen(
                 }
             },
             onMediaClick = { mediaId, type, source ->
-                onOpenApiDetail?.invoke(mediaId, source, type.name)
+                onOpenApiDetail?.invoke(mediaId, source, type.name, null, null)
             },
             onDismiss = { activeActivityIdForDetail = null }
         )
