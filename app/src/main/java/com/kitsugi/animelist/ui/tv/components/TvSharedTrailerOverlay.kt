@@ -25,6 +25,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -208,7 +209,7 @@ fun TvSharedTrailerOverlay(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = Color.White)
+                    KitsugiPlasmaLoader(size = 52.dp)
                 }
             }
 

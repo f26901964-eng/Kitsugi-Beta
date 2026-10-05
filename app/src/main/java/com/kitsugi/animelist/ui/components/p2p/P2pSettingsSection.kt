@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.components.p2p
+﻿package com.kitsugi.animelist.ui.components.p2p
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -365,7 +366,7 @@ fun P2pSettingsSection(
                         )
                     }
 
-                    Button(
+                    KitsugiButton(
                         onClick = {
                             scope.launch {
                                 try {
@@ -385,11 +386,7 @@ fun P2pSettingsSection(
                             }
                         },
                         enabled = !cacheState.isClearing,
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = KitsugiColors.Surface,
-                            contentColor = KitsugiColors.AccentRed
-                        )
+                        shape = RoundedCornerShape(12.dp)
                     ) {
                         if (cacheState.isClearing) {
                             CircularProgressIndicator(modifier = Modifier.size(16.dp), color = KitsugiColors.AccentRed, strokeWidth = 2.dp)

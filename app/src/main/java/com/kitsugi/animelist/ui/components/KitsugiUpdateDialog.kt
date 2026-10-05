@@ -1,4 +1,4 @@
-package com.kitsugi.animelist.ui.components
+﻿package com.kitsugi.animelist.ui.components
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -32,7 +32,6 @@ import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.SystemUpdate
 import androidx.compose.material.icons.rounded.Warning
 import androidx.compose.material.icons.rounded.AccessTime
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
@@ -314,28 +313,21 @@ private fun ColumnScope.UpdateAvailableBottomSheetContent(
             Text("Daha Sonra", fontWeight = FontWeight.SemiBold)
         }
 
-        Button(
+        KitsugiUiverseGlowButton(
             onClick = onUpdateClick,
             modifier = Modifier
                 .weight(1.4f)
                 .height(50.dp),
             shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = accentColor,
-                contentColor = KitsugiColors.Background
-            )
+            contentPadding = 0.dp
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Download,
-                    contentDescription = null,
-                    modifier = Modifier.size(20.dp)
-                )
-                Text("Şimdi Güncelle", fontWeight = FontWeight.Bold)
-            }
+            Icon(
+                imageVector = Icons.Rounded.Download,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(20.dp)
+            )
+            Text("Şimdi Güncelle", color = Color.White, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -455,24 +447,16 @@ private fun ReadyToInstallBottomSheetContent(
 
         Spacer(modifier = Modifier.height(24.dp))
 
-        Button(
+        KitsugiUiverseGlowButton(
             onClick = onRetryInstallClick,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(50.dp),
             shape = RoundedCornerShape(14.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = accentColor,
-                contentColor = KitsugiColors.Background
-            )
+            contentPadding = 0.dp
         ) {
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Icon(Icons.Rounded.SystemUpdate, contentDescription = null, modifier = Modifier.size(20.dp))
-                Text("Kurulumu Başlat", fontWeight = FontWeight.Bold)
-            }
+            Icon(Icons.Rounded.SystemUpdate, contentDescription = null, tint = Color.White, modifier = Modifier.size(20.dp))
+            Text("Kurulumu Başlat", color = Color.White, fontWeight = FontWeight.Bold)
         }
     }
 }
@@ -538,24 +522,16 @@ private fun FailedBottomSheetContent(
                 Text("Kapat")
             }
 
-            Button(
+            KitsugiUiverseGlowButton(
                 onClick = onUpdateClick,
                 modifier = Modifier
                     .weight(1f)
                     .height(50.dp),
                 shape = RoundedCornerShape(14.dp),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = accentColor,
-                    contentColor = KitsugiColors.Background
-                )
+                contentPadding = 0.dp
             ) {
-                Row(
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Text("Tekrar Dene", fontWeight = FontWeight.Bold)
-                }
+                Icon(Icons.Rounded.Refresh, contentDescription = null, tint = Color.White, modifier = Modifier.size(18.dp))
+                Text("Tekrar Dene", color = Color.White, fontWeight = FontWeight.Bold)
             }
         }
     }

@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.components.addons
+﻿package com.kitsugi.animelist.ui.components.addons
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -350,16 +351,14 @@ internal fun CsInstalledPluginRow(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 if (latestPlugin != null && latestPlugin.version > plugin.version) {
-                    Button(
+                    KitsugiButton(
                         onClick = {
                             onStartReinstall()
                             onInstallPlugin(latestPlugin) { success ->
                                 onReinstallResult(success)
                             }
                         },
-                        colors = ButtonDefaults.buttonColors(containerColor = KitsugiColors.AccentOrange),
                         shape = RoundedCornerShape(8.dp),
-                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                         modifier = Modifier.height(30.dp)
                     ) {
                         if (reinstallState == PluginInstallState.LOADING) {
@@ -391,7 +390,6 @@ internal fun CsInstalledPluginRow(
                         )
                         onInstallPlugin(csPlugin, null)
                     },
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                     modifier = Modifier.height(32.dp)
                 ) {
                     Icon(Icons.Rounded.Refresh, contentDescription = null, tint = KitsugiColors.TextSecondary, modifier = Modifier.size(16.dp))
@@ -434,7 +432,6 @@ internal fun CsInstalledPluginRow(
                                 }
                             }
                         },
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                         modifier = Modifier.height(32.dp)
                     ) {
                         Icon(Icons.Rounded.Settings, contentDescription = null, tint = accentColor, modifier = Modifier.size(16.dp))
@@ -446,7 +443,6 @@ internal fun CsInstalledPluginRow(
                 if (plugin.enabled && onExplorePlugin != null) {
                     TextButton(
                         onClick = { onExplorePlugin(plugin.name) },
-                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                         modifier = Modifier.height(32.dp)
                     ) {
                         Icon(Icons.Rounded.Explore, contentDescription = null, tint = accentColor, modifier = Modifier.size(16.dp))
@@ -458,7 +454,6 @@ internal fun CsInstalledPluginRow(
 
                 TextButton(
                     onClick = { onVerifyPlugin(plugin.id, plugin.name) },
-                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp),
                     modifier = Modifier.height(32.dp)
                 ) {
                     Icon(Icons.Rounded.OpenInBrowser, contentDescription = null, tint = KitsugiColors.TextSecondary, modifier = Modifier.size(16.dp))

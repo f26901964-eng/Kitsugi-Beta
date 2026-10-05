@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.CircularProgressIndicator
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -803,11 +804,7 @@ private fun TvExtRepoCard(
             }
             // Durum göstergesi
             when {
-                isLoading -> CircularProgressIndicator(
-                    color = KitsugiColors.AccentBlue,
-                    modifier = Modifier.size(20.dp),
-                    strokeWidth = 2.dp
-                )
+                isLoading -> KitsugiPlasmaLoader(size = 20.dp)
                 repoPlugins == null -> Icon(
                     Icons.Rounded.Refresh,
                     null,

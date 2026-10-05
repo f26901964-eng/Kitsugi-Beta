@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.components.addons
+﻿package com.kitsugi.animelist.ui.components.addons
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -250,7 +251,7 @@ internal fun CloudstreamExtensionsTab(
                             )
                         }
                     }
-                    Button(
+                    KitsugiButton(
                         onClick = onUpdateAllPendingPlugins,
                         colors = ButtonDefaults.buttonColors(containerColor = KitsugiColors.AccentOrange),
                         shape = RoundedCornerShape(10.dp),
@@ -350,7 +351,7 @@ internal fun CloudstreamExtensionsTab(
                             focusedIndicatorColor = accentColor, unfocusedIndicatorColor = Color.Transparent, cursorColor = accentColor
                         )
                     )
-                    Button(
+                    KitsugiButton(
                         onClick = {
                             if (newRepoUrl.isNotBlank()) {
                                 newRepoUrl.lines()
@@ -447,7 +448,7 @@ internal fun CloudstreamExtensionsTab(
                     }
                     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (availableUpdatesCount > 0) {
-                            Button(
+                            KitsugiButton(
                                 onClick = onUpdateAllPendingPlugins,
                                 colors = ButtonDefaults.buttonColors(containerColor = KitsugiColors.AccentOrange),
                                 shape = RoundedCornerShape(12.dp),
@@ -459,7 +460,7 @@ internal fun CloudstreamExtensionsTab(
                             }
                         }
                         if (onOpenPluginPicker != null) {
-                            Button(
+                            KitsugiButton(
                                 onClick = onOpenPluginPicker,
                                 colors = ButtonDefaults.buttonColors(containerColor = accentColor.copy(alpha = 0.15f)),
                                 shape = RoundedCornerShape(12.dp),

@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.screens.fullscreen.components
+﻿package com.kitsugi.animelist.ui.screens.fullscreen.components
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -134,7 +135,7 @@ fun PlayerErrorView(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
                 maxItemsInEachRow = 3
             ) {
-                Button(
+                KitsugiButton(
                     onClick = onBack,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color.White.copy(alpha = 0.2f)
@@ -145,7 +146,7 @@ fun PlayerErrorView(
                 }
                 
                 if (onRetry != null) {
-                    Button(
+                    KitsugiButton(
                         onClick = onRetry,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.primary
@@ -157,7 +158,7 @@ fun PlayerErrorView(
                 }
 
                 if (onSwitchSource != null) {
-                    Button(
+                    KitsugiButton(
                         onClick = onSwitchSource,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = MaterialTheme.colorScheme.secondary
@@ -169,7 +170,7 @@ fun PlayerErrorView(
                 }
 
                 if (canOpenExternal) {
-                    Button(
+                    KitsugiButton(
                         onClick = onOpenExternal,
                         shape = RoundedCornerShape(10.dp),
                         colors = ButtonDefaults.buttonColors(

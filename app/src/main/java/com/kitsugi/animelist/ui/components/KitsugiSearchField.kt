@@ -1,18 +1,15 @@
 package com.kitsugi.animelist.ui.components
 
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
-import com.kitsugi.animelist.ui.theme.KitsugiColors
 
+/**
+ * Kitsugi genel arama alanı bileşeni.
+ * Uiverse (Lakshay-art) Cosmic Arama Barına bağlanarak tüm arama alanlarında
+ * dönen konik degrade ışık huzmelerini ve dokunmatik uyumlu siber estetiği sunar.
+ */
 @Composable
 fun KitsugiSearchField(
     value: String,
@@ -20,50 +17,13 @@ fun KitsugiSearchField(
     placeholder: String,
     modifier: Modifier = Modifier
 ) {
-    val accentColor = LocalKitsugiAccent.current
-
-    TextField(
-        value = value,
-        onValueChange = onValueChange,
-        modifier = modifier.fillMaxWidth(),
-        singleLine = true,
-        shape = RoundedCornerShape(22.dp),
-        leadingIcon = {
-            Text(
-                text = "⌕",
-                color = KitsugiColors.TextSecondary,
-                style = MaterialTheme.typography.titleMedium
-            )
-        },
-        trailingIcon = {
-            if (value.isNotBlank()) {
-                TextButton(
-                    onClick = {
-                        onValueChange("")
-                    }
-                ) {
-                    Text(
-                        text = "Sil",
-                        color = accentColor,
-                        style = MaterialTheme.typography.labelMedium
-                    )
-                }
-            }
-        },
-        placeholder = {
-            Text(
-                text = placeholder,
-                color = KitsugiColors.TextMuted
-            )
-        },
-        colors = TextFieldDefaults.colors(
-            focusedTextColor = KitsugiColors.TextPrimary,
-            unfocusedTextColor = KitsugiColors.TextPrimary,
-            focusedContainerColor = KitsugiColors.Surface,
-            unfocusedContainerColor = KitsugiColors.Surface,
-            focusedIndicatorColor = accentColor,
-            unfocusedIndicatorColor = KitsugiColors.Border,
-            cursorColor = accentColor
-        )
+    KitsugiCosmicSearchBar(
+        query = value,
+        onQueryChange = onValueChange,
+        onSearch = {},
+        onClearQuery = { onValueChange("") },
+        placeholder = placeholder,
+        height = 52.dp,
+        modifier = modifier.fillMaxWidth()
     )
 }

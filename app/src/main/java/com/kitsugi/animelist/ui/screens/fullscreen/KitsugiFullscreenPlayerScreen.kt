@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.screens.fullscreen
+﻿package com.kitsugi.animelist.ui.screens.fullscreen
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.Context
 import android.content.pm.ActivityInfo
@@ -1286,7 +1287,7 @@ fun PlaybackEndedOverlay(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 // Replay button
-                Button(
+                KitsugiButton(
                     onClick = onReplay,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color.White.copy(alpha = 0.2f),
@@ -1305,7 +1306,7 @@ fun PlaybackEndedOverlay(
 
                 // Next Episode button
                 if (hasNextEpisode) {
-                    Button(
+                    KitsugiButton(
                         onClick = onPlayNext,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = KitsugiColors.Accent,

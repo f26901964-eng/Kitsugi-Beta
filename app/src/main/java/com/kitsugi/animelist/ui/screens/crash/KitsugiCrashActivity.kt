@@ -1,4 +1,6 @@
 package com.kitsugi.animelist.ui.screens.crash
+import com.kitsugi.animelist.ui.components.KitsugiButton
+import com.kitsugi.animelist.ui.components.KitsugiTonalButton
 
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -97,7 +99,6 @@ class KitsugiCrashActivity : ComponentActivity() {
                         Surface(
                             shape = RoundedCornerShape(18.dp),
                             color = KitsugiColors.SurfaceSoft,
-                            border = BorderStroke(1.dp, KitsugiColors.AccentRed.copy(alpha = 0.5f)),
                             modifier = Modifier.size(72.dp)
                         ) {
                             Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
@@ -257,15 +258,13 @@ class KitsugiCrashActivity : ComponentActivity() {
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                OutlinedButton(
+                                KitsugiTonalButton(
                                     onClick = {
                                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                         clipboard.setPrimaryClip(ClipData.newPlainText("Kitsugi Crash", displayText))
                                         Toast.makeText(context, "Rapor kopyalandı ✓", Toast.LENGTH_SHORT).show()
                                     },
                                     shape = RoundedCornerShape(12.dp),
-                                    border = BorderStroke(1.dp, KitsugiColors.Border),
-                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = KitsugiColors.TextPrimary),
                                     modifier = Modifier.weight(1f)
                                 ) {
                                     Icon(Icons.Rounded.ContentCopy, null, modifier = Modifier.size(15.dp))
@@ -273,7 +272,7 @@ class KitsugiCrashActivity : ComponentActivity() {
                                     Text("Kopyala", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                                 }
 
-                                OutlinedButton(
+                                KitsugiTonalButton(
                                     onClick = {
                                         val shareIntent = Intent(Intent.ACTION_SEND).apply {
                                             type = "text/plain"
@@ -283,8 +282,6 @@ class KitsugiCrashActivity : ComponentActivity() {
                                         context.startActivity(Intent.createChooser(shareIntent, "Raporu Paylaş"))
                                     },
                                     shape = RoundedCornerShape(12.dp),
-                                    border = BorderStroke(1.dp, KitsugiColors.Border),
-                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = KitsugiColors.TextPrimary),
                                     modifier = Modifier.weight(1f)
                                 ) {
                                     Icon(Icons.Rounded.Share, null, modifier = Modifier.size(15.dp))
@@ -294,7 +291,7 @@ class KitsugiCrashActivity : ComponentActivity() {
                             }
 
                             // Satır 1.5: Dosya Olarak İndirilenler Klasörüne Kaydet
-                            OutlinedButton(
+                            KitsugiTonalButton(
                                 onClick = {
                                     val exported = KitsugiCrashLogger.exportReportToDownloads(context)
                                     if (exported != null) {
@@ -304,8 +301,6 @@ class KitsugiCrashActivity : ComponentActivity() {
                                     }
                                 },
                                 shape = RoundedCornerShape(12.dp),
-                                border = BorderStroke(1.dp, activeAccentColor.copy(alpha = 0.5f)),
-                                colors = ButtonDefaults.outlinedButtonColors(contentColor = activeAccentColor),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Icon(Icons.Rounded.Download, null, modifier = Modifier.size(15.dp))
@@ -314,7 +309,7 @@ class KitsugiCrashActivity : ComponentActivity() {
                             }
 
                             // Satır 2: Geliştiriciye Gönder (tüm dosyalar)
-                            Button(
+                            KitsugiButton(
                                 onClick = {
                                     scope.launch {
                                         try {
@@ -390,12 +385,7 @@ class KitsugiCrashActivity : ComponentActivity() {
                                         }
                                     }
                                 },
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = KitsugiColors.SurfaceSoft,
-                                    contentColor = activeAccentColor
-                                ),
                                 shape = RoundedCornerShape(12.dp),
-                                border = BorderStroke(1.dp, activeAccentColor.copy(alpha = 0.4f)),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 Icon(Icons.AutoMirrored.Rounded.Send, null, modifier = Modifier.size(15.dp))
@@ -409,15 +399,13 @@ class KitsugiCrashActivity : ComponentActivity() {
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 if (historyExists) {
-                                    OutlinedButton(
+                                    KitsugiTonalButton(
                                         onClick = {
                                             KitsugiCrashLogger.clearHistory(context)
                                             historyText = "Geçmiş temizlendi."
                                             Toast.makeText(context, "Çökme geçmişi temizlendi", Toast.LENGTH_SHORT).show()
                                         },
                                         shape = RoundedCornerShape(12.dp),
-                                        border = BorderStroke(1.dp, KitsugiColors.AccentRed.copy(alpha = 0.4f)),
-                                        colors = ButtonDefaults.outlinedButtonColors(contentColor = KitsugiColors.AccentRed),
                                         modifier = Modifier.weight(1f)
                                     ) {
                                         Icon(Icons.Rounded.DeleteSweep, null, modifier = Modifier.size(15.dp))
@@ -426,7 +414,7 @@ class KitsugiCrashActivity : ComponentActivity() {
                                     }
                                 }
 
-                                Button(
+                                KitsugiButton(
                                     onClick = {
                                         KitsugiCrashLogger.markCrashAsRead(context)
                                         val restartIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)

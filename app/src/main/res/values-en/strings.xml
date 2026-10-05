@@ -4,6 +4,8 @@
     <string name="action_see_all">See All</string>
     <string name="action_yes">Yes</string>
     <string name="action_no">No</string>
+    <string name="action_delete">Delete</string>
+    <string name="action_send">Send</string>
     <string name="loading">Loading...</string>
     <string name="continue_watching">Continue Watching</string>
     <string name="empty_state_title">No Content Found</string>

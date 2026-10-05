@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.components
+﻿package com.kitsugi.animelist.ui.components
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.Intent
 import android.net.Uri
@@ -125,11 +126,7 @@ fun KitsugiSimklLoginDialog(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.Center
                     ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            color = KitsugiColors.Accent,
-                            strokeWidth = 2.dp
-                        )
+                        KitsugiPlasmaLoader(size = 18.dp)
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "Doğrulama bekleniyor...",
@@ -141,17 +138,14 @@ fun KitsugiSimklLoginDialog(
                 }
 
                 // Open browser button
-                androidx.compose.material3.Button(
+                KitsugiButton(
                     onClick = {
                         clipboard.setText(AnnotatedString(pinCode))
                         val intent = Intent(Intent.ACTION_VIEW, Uri.parse(verificationUrl))
                         context.startActivity(intent)
                     },
                     modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                        containerColor = KitsugiColors.Accent
-                    )
+                    shape = RoundedCornerShape(12.dp)
                 ) {
                     Text(
                         text = "Kodu Kopyala & Tarayıcıyı Aç",

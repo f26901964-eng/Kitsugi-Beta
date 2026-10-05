@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.components
+﻿package com.kitsugi.animelist.ui.components
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.Context
 import android.widget.Toast
@@ -456,7 +457,7 @@ fun KitsugiTopicDetailBottomSheet(
                 if (isLoading && commentsList.isEmpty()) {
                     item {
                         Box(modifier = Modifier.fillMaxWidth().padding(vertical = 40.dp), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = accentColor)
+                            KitsugiPlasmaLoader(size = 46.dp)
                         }
                     }
                 } else if (commentsList.isEmpty()) {
@@ -497,7 +498,7 @@ fun KitsugiTopicDetailBottomSheet(
                     if (isLoadingMore) {
                         item {
                             Box(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator(color = accentColor, modifier = Modifier.size(24.dp))
+                                KitsugiPlasmaLoader(size = 26.dp)
                             }
                         }
                     }
@@ -507,9 +508,8 @@ fun KitsugiTopicDetailBottomSheet(
             Spacer(modifier = Modifier.height(16.dp))
 
             if (source.lowercase() != "jikan" && source.lowercase() != "mal") {
-                Button(
+                KitsugiButton(
                     onClick = { showReplyEditor = true },
-                    colors = ButtonDefaults.buttonColors(containerColor = accentColor),
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {

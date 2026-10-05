@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.screens.manga
+﻿package com.kitsugi.animelist.ui.screens.manga
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.res.Configuration
 import androidx.compose.animation.core.*
@@ -39,6 +40,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.kitsugi.animelist.ui.app.AddonViewModel
 import com.kitsugi.animelist.ui.app.MangaViewModel
 import com.kitsugi.animelist.ui.components.KitsugiAddonsSettingsDialog
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
@@ -309,7 +311,6 @@ fun MangaBrowseScreen(
                         loading && mergedMangas.isEmpty() -> {
                             LazyVerticalGrid(
                                 columns = GridCells.Fixed(cols),
-                                contentPadding = PaddingValues(12.dp),
                                 verticalArrangement   = Arrangement.spacedBy(12.dp),
                                 horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 modifier = Modifier.fillMaxSize()
@@ -332,7 +333,6 @@ fun MangaBrowseScreen(
                             }
                         else -> LazyVerticalGrid(
                             columns = GridCells.Fixed(cols),
-                            contentPadding = PaddingValues(12.dp),
                             verticalArrangement   = Arrangement.spacedBy(12.dp),
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
@@ -365,7 +365,7 @@ fun MangaBrowseScreen(
                                     LaunchedEffect(mergedMangas.size) { vm.loadNextPage() }
                                     androidx.compose.animation.AnimatedVisibility(visible = hasNextPageToShow) {
                                         Box(Modifier.fillMaxWidth().height(64.dp), Alignment.Center) {
-                                            CircularProgressIndicator(color = accentColor, modifier = Modifier.size(30.dp))
+                                            KitsugiPlasmaLoader(size = 32.dp)
                                         }
                                     }
                                 }
@@ -558,12 +558,8 @@ private fun EmptySourcesHint(onOpenSettings: () -> Unit) {
         Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(12.dp)) {
             Icon(Icons.Rounded.Extension, null, tint = KitsugiColors.TextMuted, modifier = Modifier.size(56.dp))
             Text("Henüz manga eklentisi yüklü değil.", color = KitsugiColors.TextSecondary, fontWeight = FontWeight.Medium)
-            Button(
+            KitsugiButton(
                 onClick = onOpenSettings,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = LocalKitsugiAccent.current,
-                    contentColor = KitsugiColors.Background
-                ),
                 shape = RoundedCornerShape(10.dp)
             ) {
                 Text("Eklentileri Düzenle", fontWeight = FontWeight.Bold)

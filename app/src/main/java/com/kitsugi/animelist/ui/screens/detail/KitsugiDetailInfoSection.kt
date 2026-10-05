@@ -50,6 +50,8 @@ import com.kitsugi.animelist.data.remote.KitsugiMediaDetail
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.components.KitsugiMarkdownText
+import com.kitsugi.animelist.ui.components.KitsugiDetailActionButton
+import com.kitsugi.animelist.ui.components.UiverseButtonPalette
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.data.local.MangaMappingEntity
@@ -85,72 +87,31 @@ internal fun QuickActions(
 
     // Anime, Dizi ve Film ise İzle butonunu öne çıkar
     if (isWatchable && onWatchClick != null) {
-        val accentColor = LocalKitsugiAccent.current
-        Box(
+        KitsugiDetailActionButton(
+            text = "İzle",
+            icon = Icons.Rounded.PlayArrow,
+            onClick = onWatchClick,
+            palette = UiverseButtonPalette.Default,
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(18.dp))
-                .background(accentColor)
                 .then(if (primaryFocusRequester != null) Modifier.focusRequester(primaryFocusRequester) else Modifier)
                 .then(if (tabBarFocusRequester != null) Modifier.focusProperties { right = tabBarFocusRequester } else Modifier)
-                .tvClickable(shape = RoundedCornerShape(18.dp), onClick = onWatchClick)
-                .padding(vertical = 14.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.PlayArrow,
-                    contentDescription = null,
-                    tint = KitsugiColors.Background,
-                    modifier = Modifier.padding(0.dp)
-                )
-                Text(
-                    text = "İzle",
-                    color = KitsugiColors.Background,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 16.sp
-                )
-            }
-        }
-        Spacer(modifier = Modifier.height(4.dp))
+        )
+        Spacer(modifier = Modifier.height(6.dp))
     }
 
     // Manga ise Oku butonunu öne çıkar
     if (entry.type == MediaType.Manga && onReadClick != null) {
-        val accentColor = LocalKitsugiAccent.current
-        Box(
+        KitsugiDetailActionButton(
+            text = if (mangaMapping != null) "Oku (${mangaMapping.mangaTitle})" else "Oku",
+            icon = Icons.Default.AutoStories,
+            onClick = onReadClick,
+            palette = UiverseButtonPalette.Default,
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(18.dp))
-                .background(accentColor)
                 .then(if (primaryFocusRequester != null) Modifier.focusRequester(primaryFocusRequester) else Modifier)
                 .then(if (tabBarFocusRequester != null) Modifier.focusProperties { right = tabBarFocusRequester } else Modifier)
-                .tvClickable(shape = RoundedCornerShape(18.dp), onClick = onReadClick)
-                .padding(vertical = 14.dp),
-            contentAlignment = Alignment.Center
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.AutoStories,
-                    contentDescription = null,
-                    tint = KitsugiColors.Background
-                )
-                Text(
-                    text = if (mangaMapping != null) "Oku (${mangaMapping.mangaTitle})" else "Oku",
-                    color = KitsugiColors.Background,
-                    fontWeight = FontWeight.Black,
-                    fontSize = 16.sp,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
+        )
         Spacer(modifier = Modifier.height(8.dp))
 
         if (mangaMapping != null) {

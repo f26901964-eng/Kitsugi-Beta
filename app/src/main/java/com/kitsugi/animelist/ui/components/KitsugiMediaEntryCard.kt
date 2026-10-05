@@ -143,11 +143,13 @@ private fun CompactMediaEntryCard(
 ) {
     val statusColor = statusColor(entry.status)
 
+    val shape = RoundedCornerShape(20.dp)
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .tvClickable(shape = RoundedCornerShape(20.dp), scaleFocused = 1.08f, onClick = onClick),
-        shape = RoundedCornerShape(20.dp),
+            .kitsugiNeonGlow(shape)
+            .tvClickable(shape = shape, scaleFocused = 1.08f, onClick = onClick),
+        shape = shape,
         colors = CardDefaults.cardColors(
             containerColor = KitsugiColors.Surface
         )
@@ -299,11 +301,13 @@ private fun ComfortableMediaEntryCard(
 ) {
     val statusColor = statusColor(entry.status)
 
+    val shape = RoundedCornerShape(24.dp)
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .tvClickable(shape = RoundedCornerShape(24.dp), scaleFocused = 1.08f, onClick = onClick),
-        shape = RoundedCornerShape(24.dp),
+            .kitsugiNeonGlow(shape)
+            .tvClickable(shape = shape, scaleFocused = 1.08f, onClick = onClick),
+        shape = shape,
         colors = CardDefaults.cardColors(
             containerColor = KitsugiColors.Surface
         )
@@ -467,11 +471,13 @@ private fun LargeMediaEntryCard(
     val statusColor = statusColor(entry.status)
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
+    val shape = RoundedCornerShape(28.dp)
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .tvClickable(shape = RoundedCornerShape(28.dp), scaleFocused = 1.08f, onClick = onClick),
-        shape = RoundedCornerShape(28.dp),
+            .kitsugiNeonGlow(shape)
+            .tvClickable(shape = shape, scaleFocused = 1.08f, onClick = onClick),
+        shape = shape,
         colors = CardDefaults.cardColors(
             containerColor = KitsugiColors.Surface
         )
@@ -1024,11 +1030,13 @@ private fun MinimalistMediaEntryCard(
 ) {
     val statusColor = statusColor(entry.status)
 
+    val shape = RoundedCornerShape(24.dp)
     Card(
         modifier = modifier
             .fillMaxWidth()
-            .tvClickable(shape = RoundedCornerShape(24.dp), scaleFocused = 1.08f, onClick = onClick),
-        shape = RoundedCornerShape(24.dp),
+            .kitsugiNeonGlow(shape)
+            .tvClickable(shape = shape, scaleFocused = 1.08f, onClick = onClick),
+        shape = shape,
         colors = CardDefaults.cardColors(
             containerColor = KitsugiColors.Surface
         )

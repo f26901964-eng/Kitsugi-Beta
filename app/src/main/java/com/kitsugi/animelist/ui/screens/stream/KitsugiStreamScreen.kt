@@ -20,6 +20,7 @@ import com.kitsugi.animelist.ui.components.KitsugiWebViewDialog
 import kotlinx.coroutines.launch
 import com.kitsugi.animelist.ui.app.AddonViewModel
 import com.kitsugi.animelist.ui.components.KitsugiAddonsSettingsDialog
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import com.kitsugi.animelist.data.remote.DebridResolver
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -528,7 +529,7 @@ fun KitsugiStreamScreen(
 
                     if (isSearching) {
                         Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = accentColor)
+                            KitsugiPlasmaLoader(size = 36.dp)
                         }
                     } else if (searchResults.isEmpty()) {
                         Box(modifier = Modifier.fillMaxWidth().height(100.dp), contentAlignment = Alignment.Center) {

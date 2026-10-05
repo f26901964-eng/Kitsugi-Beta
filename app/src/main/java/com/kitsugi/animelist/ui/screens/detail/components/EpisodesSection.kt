@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.screens.detail.components
+﻿package com.kitsugi.animelist.ui.screens.detail.components
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
@@ -37,7 +38,7 @@ fun EpisodesSection(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 for (i in 1..minOf(episodeCount, 4)) {
-                    Button(onClick = { onEpisodeClick(i) }) {
+                    KitsugiButton(onClick = { onEpisodeClick(i) }) {
                         Text("Bölüm $i")
                     }
                 }

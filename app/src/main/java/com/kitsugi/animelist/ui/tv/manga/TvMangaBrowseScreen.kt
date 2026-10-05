@@ -31,6 +31,7 @@ import androidx.compose.material.icons.rounded.Extension
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.TravelExplore
 import androidx.compose.material3.CircularProgressIndicator
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -360,10 +361,7 @@ fun TvMangaBrowseScreen(
                                 item(span = { androidx.compose.foundation.lazy.grid.GridItemSpan(5) }) {
                                     LaunchedEffect(mergedMangas.size) { vm.loadNextPage() }
                                     Box(Modifier.fillMaxWidth().height(64.dp), contentAlignment = Alignment.Center) {
-                                        CircularProgressIndicator(
-                                            color = KitsugiColors.AccentBlue,
-                                            modifier = Modifier.size(28.dp)
-                                        )
+                                        KitsugiPlasmaLoader(size = 32.dp)
                                     }
                                 }
                             }
@@ -494,11 +492,7 @@ private fun TvMangaSourceChip(
         horizontalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         when {
-            isLoading -> CircularProgressIndicator(
-                Modifier.size(10.dp),
-                color = KitsugiColors.AccentBlue,
-                strokeWidth = 1.5.dp
-            )
+            isLoading -> KitsugiPlasmaLoader(size = 14.dp)
             count > 0 -> Box(
                 Modifier
                     .size(7.dp)

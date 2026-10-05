@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.screens.more
+﻿package com.kitsugi.animelist.ui.screens.more
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -15,6 +16,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.ui.components.KitsugiSheetOrDialog
+import com.kitsugi.animelist.ui.components.KitsugiFlySendButton
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.LocalKitsugiColors
 import com.kitsugi.animelist.ui.utils.tvClickable
@@ -172,8 +174,8 @@ fun FeedbackDialog(
 
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Action Buttons
-            Button(
+            // Action KitsugiButton(Animated Uiverse Fly Send)
+            KitsugiFlySendButton(
                 onClick = {
                     if (feedbackTitle.isNotBlank() && feedbackDescription.isNotBlank()) {
                         onSubmit(feedbackTitle, feedbackTypes[selectedTypeIndex], feedbackDescription)
@@ -181,19 +183,8 @@ fun FeedbackDialog(
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = accentColor,
-                    disabledContainerColor = accentColor.copy(alpha = 0.5f)
-                ),
-                shape = RoundedCornerShape(16.dp),
                 enabled = feedbackTitle.isNotBlank() && feedbackDescription.isNotBlank()
-            ) {
-                Text(
-                    text = "Gönder",
-                    color = KitsugiColors.background,
-                    fontWeight = FontWeight.Bold
-                )
-            }
+            )
 
             Spacer(modifier = Modifier.height(16.dp))
         }

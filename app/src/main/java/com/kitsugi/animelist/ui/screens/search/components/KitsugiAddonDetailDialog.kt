@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.screens.search.components
+﻿package com.kitsugi.animelist.ui.screens.search.components
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.Context
 import android.util.Log
@@ -38,6 +39,7 @@ import com.kitsugi.animelist.data.cloudstream.CsEpisodeMatcher
 import com.kitsugi.animelist.data.cloudstream.CsStreamRunner
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import com.lagradost.cloudstream3.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -102,8 +104,8 @@ fun KitsugiAddonDetailDialog(
                 if (loadState is DetailLoadState.Loading) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            CircularProgressIndicator(color = accentColor)
-                            Spacer(Modifier.height(12.dp))
+                            KitsugiPlasmaLoader(size = 50.dp)
+                            Spacer(Modifier.height(16.dp))
                             Text("Yükleniyor...", color = KitsugiColors.TextMuted, fontSize = 14.sp)
                         }
                     }
@@ -118,9 +120,8 @@ fun KitsugiAddonDetailDialog(
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             Text(err.message, color = KitsugiColors.TextMuted)
-                            Button(
-                                onClick = { loadDetail() },
-                                colors = ButtonDefaults.buttonColors(containerColor = accentColor)
+                            KitsugiButton(
+                                onClick = { loadDetail() }
                             ) {
                                 Text("Tekrar Dene", color = Color.White)
                             }
@@ -237,8 +238,7 @@ private fun DetailContent(
         }
 
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(top = 64.dp, bottom = 48.dp)
+            modifier = Modifier.fillMaxSize()
         ) {
             // ── Hero Section (Poster + Title + Metadata) ─────────────────────
             item {
@@ -439,7 +439,7 @@ private fun DetailContent(
                             .padding(horizontal = 16.dp, vertical = 24.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        Button(
+                        KitsugiButton(
                             onClick = {
                                 com.kitsugi.animelist.ui.screens.stream.KitsugiStreamActivity.start(
                                     context = context,
@@ -455,7 +455,6 @@ private fun DetailContent(
                                 )
                                 // Dialog'u kapatma — stream'den geri gelince bilgi sayfası açık kalsın
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = accentColor),
                             shape = RoundedCornerShape(8.dp),
                             modifier = Modifier.fillMaxWidth().height(50.dp)
                         ) {

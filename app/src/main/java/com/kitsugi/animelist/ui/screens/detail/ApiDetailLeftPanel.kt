@@ -33,6 +33,7 @@ import com.kitsugi.animelist.ui.screens.stream.KitsugiStreamActivity
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.utils.tvClickable
+import com.kitsugi.animelist.ui.components.KitsugiDetailActionButton
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayScore
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
 
@@ -162,63 +163,49 @@ fun ApiDetailLeftPanel(
         ) {
             // ── İzle butonu ──
             if (displayResult.type == MediaType.Anime || displayResult.type == MediaType.TvShow || displayResult.type == MediaType.Movie) {
-                Box(
+                KitsugiDetailActionButton(
+                    text = "İzle",
+                    icon = Icons.Rounded.PlayArrow,
+                    onClick = {
+                        val streamMalId = if (displayResult.source.lowercase() == "anilist") displayResult.realMalId else displayResult.malId
+                        val rawStableId = if (displayResult.source.lowercase() == "anilist") displayResult.malId else null
+                        val streamAniListId = rawStableId?.let { if (it >= 100_000_000) it - 100_000_000 else it }
+                        KitsugiStreamActivity.start(
+                            context = context,
+                            malId = streamMalId,
+                            aniListId = streamAniListId,
+                            tmdbId = detailState?.tmdbId ?: resolvedTmdbId,
+                            episode = 1,
+                            isMovie = displayResult.type == MediaType.Movie,
+                            season = targetSeason,
+                            title = displayResult.title,
+                            posterUrl = displayResult.imageUrl,
+                            titleEnglish = displayResult.titleEnglish,
+                            titleRomaji = detailState?.titleRomaji,
+                            titleNative = detailState?.titleNative,
+                            startYear = displayResult.year
+                        )
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(accentColor)
                         .focusRequester(leftPanelFocusRequester)
                         .focusProperties { right = tabBarFocusRequester }
-                        .tvClickable(shape = RoundedCornerShape(18.dp)) {
-                            val streamMalId = if (displayResult.source.lowercase() == "anilist") displayResult.realMalId else displayResult.malId
-                            val rawStableId = if (displayResult.source.lowercase() == "anilist") displayResult.malId else null
-                            val streamAniListId = rawStableId?.let { if (it >= 100_000_000) it - 100_000_000 else it }
-                            KitsugiStreamActivity.start(
-                                context = context,
-                                malId = streamMalId,
-                                aniListId = streamAniListId,
-                                tmdbId = detailState?.tmdbId ?: resolvedTmdbId,
-                                episode = 1,
-                                isMovie = displayResult.type == MediaType.Movie,
-                                season = targetSeason,
-                                title = displayResult.title,
-                                posterUrl = displayResult.imageUrl,
-                                titleEnglish = displayResult.titleEnglish,
-                                titleRomaji = detailState?.titleRomaji,
-                                titleNative = detailState?.titleNative,
-                                startYear = displayResult.year
-                            )
-                        }
-                        .padding(vertical = 14.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(imageVector = Icons.Rounded.PlayArrow, contentDescription = null, tint = KitsugiColors.Background)
-                        Text(text = "İzle", color = KitsugiColors.Background, fontWeight = FontWeight.Black, fontSize = 16.sp)
-                    }
-                }
-                Spacer(modifier = Modifier.height(4.dp))
+                )
+                Spacer(modifier = Modifier.height(6.dp))
             }
 
             // ── Oku butonu (Manga) ──
             if (displayResult.type == MediaType.Manga && onReadMangaClick != null) {
-                Box(
+                KitsugiDetailActionButton(
+                    text = "Oku",
+                    icon = Icons.Default.AutoStories,
+                    onClick = onReadMangaClick,
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(18.dp))
-                        .background(accentColor)
                         .focusRequester(leftPanelFocusRequester)
                         .focusProperties { right = tabBarFocusRequester }
-                        .tvClickable(shape = RoundedCornerShape(18.dp), onClick = onReadMangaClick)
-                        .padding(vertical = 14.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Icon(imageVector = Icons.Default.AutoStories, contentDescription = null, tint = KitsugiColors.Background)
-                        Text(text = "Oku", color = KitsugiColors.Background, fontWeight = FontWeight.Black, fontSize = 16.sp)
-                    }
-                }
-                Spacer(modifier = Modifier.height(4.dp))
+                )
+                Spacer(modifier = Modifier.height(6.dp))
             }
 
             val fallbackFocusMod = if (

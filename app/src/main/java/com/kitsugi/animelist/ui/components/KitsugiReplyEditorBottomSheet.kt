@@ -95,11 +95,11 @@ fun KitsugiReplyEditorBottomSheet(
                     fontWeight = FontWeight.Bold
                 )
 
-                Button(
+                KitsugiFlySendButton(
                     onClick = {
                         if (textValue.text.isBlank()) {
                             Toast.makeText(context, "Metin boş olamaz", Toast.LENGTH_SHORT).show()
-                            return@Button
+                            return@KitsugiFlySendButton
                         }
                         isPublishing = true
                         coroutineScope.launch {
@@ -113,26 +113,12 @@ fun KitsugiReplyEditorBottomSheet(
                             }
                         }
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = accentColor),
-                    shape = RoundedCornerShape(12.dp),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp),
-                    enabled = !isPublishing
-                ) {
-                    if (isPublishing) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(18.dp),
-                            color = KitsugiColors.Background,
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Text(
-                            text = "Yayınla",
-                            color = KitsugiColors.Background,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 14.sp
-                        )
-                    }
-                }
+                    text = "Yayınla",
+                    isLoading = isPublishing,
+                    enabled = !isPublishing,
+                    height = 38.dp,
+                    shape = RoundedCornerShape(12.dp)
+                )
             }
 
             Spacer(modifier = Modifier.height(16.dp))

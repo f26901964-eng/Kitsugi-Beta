@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.screens.stream
+﻿package com.kitsugi.animelist.ui.screens.stream
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.SharedPreferences
 import android.content.res.Configuration
@@ -405,7 +406,7 @@ private fun FilteredEmptyState(
                 textAlign = TextAlign.Center
             )
             Spacer(Modifier.height(4.dp))
-            Button(
+            KitsugiButton(
                 onClick = onClearFilters,
                 colors = ButtonDefaults.buttonColors(containerColor = accentColor.copy(alpha = 0.2f), contentColor = accentColor),
                 shape = RoundedCornerShape(12.dp)

@@ -1,4 +1,6 @@
 package com.kitsugi.animelist.ui.components
+import com.kitsugi.animelist.ui.components.KitsugiTonalButton
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.Intent
 import android.net.Uri
@@ -201,7 +203,7 @@ fun KitsugiShikimoriLoginDialog(
                             Spacer(modifier = Modifier.height(10.dp))
 
                             // 1-Tık Otomatik Giriş (Deep Link)
-                            Button(
+                            KitsugiButton(
                                 onClick = {
                                     val targetId = clientId.trim().let {
                                         if (it.isBlank() || (it.startsWith("aOAY", ignoreCase = true) && it != ShikimoriApiClient.DEFAULT_CLIENT_ID)) {
@@ -213,11 +215,7 @@ fun KitsugiShikimoriLoginDialog(
                                     context.startActivity(intent)
                                 },
                                 shape = RoundedCornerShape(10.dp),
-                                modifier = Modifier.fillMaxWidth(),
-                                colors = ButtonDefaults.buttonColors(
-                                    containerColor = shikimoriBrandColor,
-                                    contentColor = Color.White
-                                )
+                                modifier = Modifier.fillMaxWidth()
                             ) {
                                 Icon(Icons.Rounded.Bolt, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -231,7 +229,7 @@ fun KitsugiShikimoriLoginDialog(
                             Spacer(modifier = Modifier.height(6.dp))
 
                             // Alternatif: Kod Gösterimi (oob)
-                            FilledTonalButton(
+                            KitsugiTonalButton(
                                 onClick = {
                                     val targetId = clientId.trim().let {
                                         if (it.isBlank() || (it.startsWith("aOAY", ignoreCase = true) && it != ShikimoriApiClient.DEFAULT_CLIENT_ID)) {
@@ -304,7 +302,7 @@ fun KitsugiShikimoriLoginDialog(
                                 label = { Text("Yetkilendirme Kodu (Code)") },
                                 placeholder = { Text("Tarayıcıdan aldığınız kod") },
                                 trailingIcon = {
-                                    FilledTonalButton(
+                                    KitsugiTonalButton(
                                         onClick = {
                                             val text = clipboard.getText()?.text.orEmpty().trim()
                                             if (text.isNotBlank()) {
@@ -313,7 +311,6 @@ fun KitsugiShikimoriLoginDialog(
                                             }
                                         },
                                         shape = RoundedCornerShape(8.dp),
-                                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
                                         modifier = Modifier.padding(end = 6.dp)
                                     ) {
                                         Icon(Icons.Rounded.ContentPaste, contentDescription = null, modifier = Modifier.size(14.dp))
@@ -446,41 +443,33 @@ fun KitsugiShikimoriLoginDialog(
                         Text("İptal")
                     }
 
-                    Button(
+                    KitsugiButton(
                         onClick = {
                             val cleanCode = ShikimoriApiClient.sanitizeAuthCode(authCode)
                             if (cleanCode.isBlank()) {
                                 errorMessage = "Lütfen tarayıcıdan aldığınız yetkilendirme kodunu girin."
-                                return@Button
-                            }
-                            isLoading = true
-                            errorMessage = null
-                            val targetId = clientId.trim().ifBlank { ShikimoriApiClient.DEFAULT_CLIENT_ID }
-                            val targetSecret = clientSecret.trim().ifBlank { ShikimoriApiClient.DEFAULT_CLIENT_SECRET }
+                            } else {
+                                isLoading = true
+                                errorMessage = null
+                                val targetId = clientId.trim().ifBlank { ShikimoriApiClient.DEFAULT_CLIENT_ID }
+                                val targetSecret = clientSecret.trim().ifBlank { ShikimoriApiClient.DEFAULT_CLIENT_SECRET }
 
-                            onLogin(targetId, targetSecret, cleanCode) { success, error ->
-                                isLoading = false
-                                if (success) {
-                                    onDismiss()
-                                } else {
-                                    errorMessage = error ?: "Shikimori bağlantısı başarısız oldu."
+                                onLogin(targetId, targetSecret, cleanCode) { success, error ->
+                                    isLoading = false
+                                    if (success) {
+                                        onDismiss()
+                                    } else {
+                                        errorMessage = error ?: "Shikimori bağlantısı başarısız oldu."
+                                    }
                                 }
                             }
                         },
                         enabled = !isLoading && authCode.isNotBlank(),
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = shikimoriBrandColor,
-                            contentColor = Color.White
-                        )
+                        shape = RoundedCornerShape(12.dp)
                     ) {
                         if (isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                color = Color.White,
-                                strokeWidth = 2.dp
-                            )
+                            KitsugiPlasmaLoader(size = 18.dp)
                         } else {
                             Text("Bağlan", fontWeight = FontWeight.Bold)
                         }

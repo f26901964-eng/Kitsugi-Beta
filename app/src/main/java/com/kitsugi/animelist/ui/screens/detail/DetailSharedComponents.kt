@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.screens.detail
+﻿package com.kitsugi.animelist.ui.screens.detail
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -34,8 +35,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -356,14 +355,9 @@ internal fun DataUnavailableScreen(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Premium Kitsugi Button
-            Button(
+            KitsugiButton(
                 onClick = onRetryClick,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = KitsugiColors.Accent,
-                    contentColor = KitsugiColors.Background
-                ),
-                shape = RoundedCornerShape(14.dp),
-                contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
+                shape = RoundedCornerShape(14.dp)
             ) {
                 Text(
                     text = "Tekrar Dene",

@@ -30,6 +30,7 @@ import com.kitsugi.animelist.data.local.TranslationManager
 import com.kitsugi.animelist.data.remote.JikanApiClient
 import com.kitsugi.animelist.data.remote.KitsugiReview
 import com.kitsugi.animelist.ui.components.KitsugiImageGalleryDialog
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.utils.tvClickable
@@ -293,7 +294,7 @@ fun TvReviewDetailDialog(
                             modifier = Modifier.fillMaxSize(),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator(color = accentColor)
+                            KitsugiPlasmaLoader(size = 48.dp)
                         }
                     } else {
                         val displayText = if (selectedLanguage == "turkish") (translatedText ?: review.fullText) else review.fullText

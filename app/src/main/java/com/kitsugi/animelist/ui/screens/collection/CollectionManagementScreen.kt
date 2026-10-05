@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.screens.collection
+﻿package com.kitsugi.animelist.ui.screens.collection
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -84,7 +85,6 @@ fun CollectionManagementScreen(
                 modifier = Modifier
                     .fillMaxSize()
                     .padding(paddingValues),
-                contentPadding = PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 item {
@@ -114,9 +114,8 @@ fun CollectionManagementScreen(
             title = { Text("Koleksiyonu Sil") },
             text = { Text("\"${folder.emoji} ${folder.name}\" koleksiyonu kalıcı olarak silinecek. İçindeki ${folder.itemCount} öğe listeden çıkarılacak.") },
             confirmButton = {
-                Button(
-                    onClick = { onDeleteFolder(folder); showDeleteDialog = null },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.error)
+                KitsugiButton(
+                    onClick = { onDeleteFolder(folder); showDeleteDialog = null }
                 ) { Text("Sil") }
             },
             dismissButton = {

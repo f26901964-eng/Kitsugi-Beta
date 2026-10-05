@@ -4,6 +4,8 @@
     <string name="action_see_all">Tümünü Gör</string>
     <string name="action_yes">Evet</string>
     <string name="action_no">Hayır</string>
+    <string name="action_delete">Sil</string>
+    <string name="action_send">Gönder</string>
     <string name="loading">Yükleniyor...</string>
     <string name="continue_watching">İzlemeye Devam Et</string>
     <string name="empty_state_title">İçerik Bulunamadı</string>

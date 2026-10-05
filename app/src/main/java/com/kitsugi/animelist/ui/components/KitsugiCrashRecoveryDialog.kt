@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.components
+﻿package com.kitsugi.animelist.ui.components
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -136,7 +137,7 @@ fun KitsugiCrashRecoveryDialog(
                             Text("Kopyala", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                         }
 
-                        Button(
+                        KitsugiButton(
                             onClick = {
                                 val shareIntent = Intent(Intent.ACTION_SEND).apply {
                                     type = "text/plain"
@@ -148,7 +149,6 @@ fun KitsugiCrashRecoveryDialog(
                                 onDismiss()
                             },
                             shape = RoundedCornerShape(12.dp),
-                            colors = ButtonDefaults.buttonColors(containerColor = KitsugiColors.AccentRed),
                             modifier = Modifier.weight(1f)
                         ) {
                             Icon(Icons.Rounded.Share, null, modifier = Modifier.size(15.dp))

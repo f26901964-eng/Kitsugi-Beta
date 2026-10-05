@@ -300,8 +300,8 @@ fun KitsugiStreamSelectorBottomSheet(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center
                             ) {
-                                CircularProgressIndicator(color = LocalKitsugiAccent.current)
-                                Spacer(modifier = Modifier.height(12.dp))
+                                KitsugiPlasmaLoader(size = 44.dp)
+                                Spacer(modifier = Modifier.height(16.dp))
                                 Text(
                                     text = "Eklentiler taranıyor...",
                                     color = KitsugiColors.TextSecondary,
@@ -335,8 +335,8 @@ fun KitsugiStreamSelectorBottomSheet(
                                 horizontalAlignment = Alignment.CenterHorizontally,
                                 verticalArrangement = Arrangement.Center
                             ) {
-                                CircularProgressIndicator(color = KitsugiColors.AccentOrange)
-                                Spacer(modifier = Modifier.height(12.dp))
+                                KitsugiPlasmaLoader(size = 46.dp)
+                                Spacer(modifier = Modifier.height(16.dp))
                                 Text(
                                     text = "Link Çözümleniyor...",
                                     color = KitsugiColors.TextPrimary,
@@ -429,8 +429,8 @@ fun KitsugiStreamSelectorBottomSheet(
                             .padding(vertical = 40.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        CircularProgressIndicator(color = LocalKitsugiAccent.current)
-                        Spacer(modifier = Modifier.height(16.dp))
+                        KitsugiPlasmaLoader(size = 50.dp)
+                        Spacer(modifier = Modifier.height(18.dp))
                         Text(
                             text = "Eklentiler taranıyor, akışlar aranıyor...",
                             color = KitsugiColors.TextSecondary,
@@ -461,8 +461,8 @@ fun KitsugiStreamSelectorBottomSheet(
                             .padding(vertical = 40.dp),
                         horizontalAlignment = Alignment.CenterHorizontally
                     ) {
-                        CircularProgressIndicator(color = KitsugiColors.AccentOrange)
-                        Spacer(modifier = Modifier.height(16.dp))
+                        KitsugiPlasmaLoader(size = 52.dp)
+                        Spacer(modifier = Modifier.height(18.dp))
                         Text(
                             text = "Link Çözümleniyor...",
                             color = KitsugiColors.TextPrimary,

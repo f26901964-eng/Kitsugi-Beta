@@ -33,6 +33,7 @@ import com.kitsugi.animelist.data.remote.KitsugiActivity
 import com.kitsugi.animelist.data.remote.KitsugiActivityReply
 import com.kitsugi.animelist.ui.components.KitsugiImageGalleryDialog
 import com.kitsugi.animelist.ui.components.KitsugiMarkdownText
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.utils.tvClickable
@@ -304,7 +305,7 @@ fun TvActivityDetailDialog(
                 ) {
                     if (isLoading) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = accentColor)
+                            KitsugiPlasmaLoader(size = 48.dp)
                         }
                     } else if (activityDetails == null) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

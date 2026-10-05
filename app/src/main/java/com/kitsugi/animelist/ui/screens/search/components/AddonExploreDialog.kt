@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.*
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -180,8 +181,8 @@ fun AddonExplorePage(
                         // Initial loading spinner
                         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                CircularProgressIndicator(color = accentColor)
-                                Spacer(Modifier.height(12.dp))
+                                KitsugiPlasmaLoader(size = 48.dp)
+                                Spacer(Modifier.height(16.dp))
                                 Text("${api.name} yükleniyor...", color = KitsugiColors.TextMuted, fontSize = 14.sp)
                             }
                         }
@@ -194,7 +195,7 @@ fun AddonExplorePage(
                                 Box(
                                     Modifier.fillMaxSize().padding(top = 88.dp),
                                     contentAlignment = Alignment.Center
-                                ) { CircularProgressIndicator(color = accentColor) }
+                                ) { KitsugiPlasmaLoader(size = 48.dp) }
                             }
                             searchResults.isEmpty() -> {
                                 Box(

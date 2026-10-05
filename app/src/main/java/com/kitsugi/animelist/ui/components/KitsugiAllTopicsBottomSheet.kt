@@ -217,7 +217,7 @@ fun KitsugiAllTopicsBottomSheet(
 
             if (isLoading && topicsList.isEmpty()) {
                 Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = accentColor)
+                    KitsugiPlasmaLoader(size = 46.dp)
                 }
             } else if (topicsList.isEmpty()) {
                 Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
@@ -424,7 +424,7 @@ fun KitsugiAllTopicsBottomSheet(
                     if (isLoadingMore) {
                         item {
                             Box(modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp), contentAlignment = Alignment.Center) {
-                                CircularProgressIndicator(color = accentColor, modifier = Modifier.size(24.dp))
+                                KitsugiPlasmaLoader(size = 26.dp)
                             }
                         }
                     }

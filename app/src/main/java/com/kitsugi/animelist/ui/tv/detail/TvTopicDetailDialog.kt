@@ -32,6 +32,7 @@ import com.kitsugi.animelist.data.remote.KitsugiForumReply
 import com.kitsugi.animelist.data.remote.KitsugiForumTopic
 import com.kitsugi.animelist.ui.components.KitsugiImageGalleryDialog
 import com.kitsugi.animelist.ui.components.KitsugiMarkdownText
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.utils.tvClickable
@@ -379,7 +380,7 @@ fun TvTopicDetailDialog(
                 ) {
                     if (isLoading && commentsList.isEmpty()) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = accentColor)
+                            KitsugiPlasmaLoader(size = 48.dp)
                         }
                     } else if (commentsList.isEmpty()) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -430,7 +431,7 @@ fun TvTopicDetailDialog(
                                         contentAlignment = Alignment.Center
                                     ) {
                                         if (isLoadingMore) {
-                                            CircularProgressIndicator(color = accentColor, modifier = Modifier.size(20.dp))
+                                            KitsugiPlasmaLoader(size = 22.dp)
                                         } else {
                                             Text(
                                                 text = "Daha Fazla Yükle",

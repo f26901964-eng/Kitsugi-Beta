@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.components.p2p
+﻿package com.kitsugi.animelist.ui.components.p2p
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -143,18 +144,14 @@ fun P2pConsentDialog(
                         Text("Vazgeç", fontWeight = FontWeight.SemiBold)
                     }
 
-                    Button(
+                    KitsugiButton(
                         onClick = {
                             P2pSettingsRepository.setConsentGranted(true)
                             P2pSettingsRepository.setP2pEnabled(true)
                             onConsentApproved()
                         },
                         modifier = Modifier.weight(1.3f),
-                        shape = RoundedCornerShape(14.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = accentColor,
-                            contentColor = Color.White
-                        )
+                        shape = RoundedCornerShape(14.dp)
                     ) {
                         Text("Onayla ve Etkinleştir", fontWeight = FontWeight.Bold)
                     }

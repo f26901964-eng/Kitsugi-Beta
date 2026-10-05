@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.components
+﻿package com.kitsugi.animelist.ui.components
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.Context
 import android.content.Intent
@@ -312,7 +313,7 @@ fun KitsugiReviewDetailBottomSheet(
                             .padding(vertical = 60.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(color = accentColor)
+                        KitsugiPlasmaLoader(size = 46.dp)
                     }
                 } else {
                     val displayText = if (selectedLanguage == "turkish") (translatedText ?: review.fullText) else review.fullText
@@ -408,13 +409,12 @@ fun KitsugiReviewDetailBottomSheet(
             ) {
                 val displayText = if (selectedLanguage == "turkish") (translatedText ?: review.fullText) else review.fullText
                 
-                Button(
+                KitsugiButton(
                     onClick = {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                         clipboard.setPrimaryClip(android.content.ClipData.newPlainText("review", displayText))
                         Toast.makeText(context, "Yorum kopyalandı", Toast.LENGTH_SHORT).show()
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = KitsugiColors.SurfaceStrong),
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier.weight(1f)
                 ) {
@@ -428,7 +428,7 @@ fun KitsugiReviewDetailBottomSheet(
                     Text("Kopyala", color = KitsugiColors.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
 
-                Button(
+                KitsugiButton(
                     onClick = {
                         val shareIntent = Intent(Intent.ACTION_SEND).apply {
                             type = "text/plain"
@@ -436,7 +436,6 @@ fun KitsugiReviewDetailBottomSheet(
                         }
                         context.startActivity(Intent.createChooser(shareIntent, "Yorumu Paylaş"))
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = accentColor),
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier.weight(1f)
                 ) {

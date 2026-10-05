@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.screens.fullscreen.controls.components
+﻿package com.kitsugi.animelist.ui.screens.fullscreen.controls.components
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ControlsButton — Aniyomi-derived, Kitsugi-themed
@@ -12,8 +13,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -117,12 +116,8 @@ fun FilledControlsButton(
     val clickEvent = LocalPlayerButtonsClickEvent.current
 
     Box(modifier = modifier.padding(end = 8.dp)) {
-        Button(
-            onClick = {},
-            colors = ButtonDefaults.buttonColors(
-                containerColor = KitsugiColors.Accent,
-                contentColor = Color.White
-            )
+        KitsugiButton(
+            onClick = {}
         ) {
             Text(text = text, color = Color.White)
         }

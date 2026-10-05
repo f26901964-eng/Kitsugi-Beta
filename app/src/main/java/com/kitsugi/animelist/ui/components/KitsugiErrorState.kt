@@ -1,4 +1,4 @@
-package com.kitsugi.animelist.ui.components
+﻿package com.kitsugi.animelist.ui.components
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -10,8 +10,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ErrorOutline
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -69,18 +68,11 @@ fun KitsugiErrorState(
 
         if (onRetryClick != null) {
             Spacer(modifier = Modifier.height(24.dp))
-            Button(
-                onClick = onRetryClick,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = accentColor,
-                    contentColor = KitsugiColors.TextPrimary
-                )
-            ) {
-                Text(
-                    text = "Tekrar Dene",
-                    fontWeight = FontWeight.SemiBold
-                )
-            }
+            KitsugiDetailActionButton(
+                text = "Tekrar Dene",
+                icon = androidx.compose.material.icons.Icons.Rounded.Refresh,
+                onClick = onRetryClick
+            )
         }
         if (actionButton != null) {
             Spacer(modifier = Modifier.height(12.dp))

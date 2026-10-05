@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.screens.manga
+﻿package com.kitsugi.animelist.ui.screens.manga
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.foundation.background
 import com.kitsugi.animelist.ui.utils.tvClickable
@@ -25,9 +26,9 @@ import androidx.compose.material.icons.automirrored.rounded.MenuBook
 import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
+import com.kitsugi.animelist.ui.components.KitsugiDetailActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
@@ -86,8 +87,7 @@ fun MangaDetailScreen(
             .background(KitsugiColors.Background)
     ) {
         LazyColumn(
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(bottom = 32.dp)
+            modifier = Modifier.fillMaxSize()
         ) {
             // ─── Hero / Kapak Başlık ───────────────────────────────────────────
             item {
@@ -98,40 +98,21 @@ fun MangaDetailScreen(
             item {
                 val resume = uiState.resumeChapter
                 val canRead = uiState.chapters.isNotEmpty()
-                Button(
+                KitsugiDetailActionButton(
+                    text = when {
+                        resume != null -> "Devam Et: ${resume.name}"
+                        else -> "Baştan Oku"
+                    },
+                    icon = if (resume != null) Icons.Rounded.PlayArrow else Icons.AutoMirrored.Rounded.MenuBook,
                     onClick = {
                         viewModel.chapterToOpen()?.let(onOpenChapter)
                     },
                     enabled = canRead,
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = accent,
-                        contentColor = Color.Black,
-                        disabledContainerColor = KitsugiColors.SurfaceStrong,
-                        disabledContentColor = KitsugiColors.TextMuted
-                    ),
-                    shape = RoundedCornerShape(14.dp),
+                    shape = RoundedCornerShape(16.dp),
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 12.dp)
-                        .height(52.dp)
-                ) {
-                    Icon(
-                        imageVector = if (resume != null) Icons.Rounded.PlayArrow else Icons.AutoMirrored.Rounded.MenuBook,
-                        contentDescription = null,
-                        modifier = Modifier.size(22.dp)
-                    )
-                    Spacer(Modifier.width(8.dp))
-                    Text(
-                        text = when {
-                            resume != null -> "Devam Et: ${resume.name}"
-                            else -> "Baştan Oku"
-                        },
-                        fontSize = 15.sp,
-                        fontWeight = FontWeight.Bold,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
-                }
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                )
             }
 
             // ─── Açıklama ──────────────────────────────────────────────────────
@@ -181,7 +162,7 @@ fun MangaDetailScreen(
                             .padding(32.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(color = accent, strokeWidth = 3.dp)
+                        KitsugiPlasmaLoader(size = 46.dp)
                     }
                 }
 
@@ -198,9 +179,8 @@ fun MangaDetailScreen(
                             fontSize = 13.sp
                         )
                         Spacer(Modifier.height(12.dp))
-                        Button(
-                            onClick = { viewModel.loadChapters() },
-                            colors = ButtonDefaults.buttonColors(containerColor = accent, contentColor = Color.Black)
+                        KitsugiButton(
+                            onClick = { viewModel.loadChapters() }
                         ) {
                             Text("Tekrar Dene", fontWeight = FontWeight.Bold)
                         }

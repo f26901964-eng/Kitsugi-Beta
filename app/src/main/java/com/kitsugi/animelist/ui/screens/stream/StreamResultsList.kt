@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.screens.stream
+﻿package com.kitsugi.animelist.ui.screens.stream
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
@@ -150,7 +151,7 @@ private fun StreamErrorCard(
 
             if (onVerify != null) {
                 Spacer(modifier = Modifier.height(2.dp))
-                Button(
+                KitsugiButton(
                     onClick = onVerify,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = accentColor.copy(alpha = 0.2f),

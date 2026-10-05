@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.screens.detail.components
+﻿package com.kitsugi.animelist.ui.screens.detail.components
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.net.Uri
 import androidx.annotation.OptIn
@@ -266,7 +267,7 @@ fun SharedTrailerOverlay(
                         fontWeight = FontWeight.Medium
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Button(
+                        KitsugiButton(
                             onClick = { retryToken++ },
                             colors = ButtonDefaults.buttonColors(
                                 containerColor = Color.White.copy(alpha = 0.20f)

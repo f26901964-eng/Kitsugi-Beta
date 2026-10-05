@@ -63,14 +63,16 @@ fun KitsugiRankingMediaCard(
     val accentColor = LocalKitsugiAccent.current
     val displayTitle = result.getDisplayTitle(titleLanguage)
 
+    val shape = RoundedCornerShape(20.dp)
     Card(
         modifier = modifier
             .fillMaxWidth()
+            .kitsugiNeonGlow(shape)
             .tvClickable(
-                shape = RoundedCornerShape(20.dp),
+                shape = shape,
                 onClick = onClick
             ),
-        shape = RoundedCornerShape(20.dp),
+        shape = shape,
         colors = CardDefaults.cardColors(
             containerColor = KitsugiColors.Surface
         )

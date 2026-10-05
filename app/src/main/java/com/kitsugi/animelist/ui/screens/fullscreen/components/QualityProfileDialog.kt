@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.screens.fullscreen.components
+﻿package com.kitsugi.animelist.ui.screens.fullscreen.components
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.tween
@@ -222,7 +223,7 @@ fun QualityProfileDialog(
                     ) {
                         Text("İptal", color = KitsugiColors.TextSecondary)
                     }
-                    Button(
+                    KitsugiButton(
                         onClick = {
                             val profile = QualityProfile(
                                 preference     = selectedPreference,
@@ -232,8 +233,7 @@ fun QualityProfileDialog(
                             onDismiss()
                         },
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = accentColor)
+                        shape = RoundedCornerShape(12.dp)
                     ) {
                         Text("Uygula", color = Color.White, fontWeight = FontWeight.SemiBold)
                     }

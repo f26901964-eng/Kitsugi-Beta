@@ -43,6 +43,7 @@ import coil3.compose.AsyncImage
 import com.kitsugi.animelist.data.remote.KitsugiAniListNotificationClient
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.utils.tvClickable
@@ -355,10 +356,7 @@ fun KitsugiNotificationsScreen(
                                                         Modifier.fillMaxWidth().padding(16.dp),
                                                         contentAlignment = Alignment.Center
                                                     ) {
-                                                        CircularProgressIndicator(
-                                                            color = accentColor,
-                                                            modifier = Modifier.size(24.dp)
-                                                        )
+                                                        KitsugiPlasmaLoader(size = 26.dp)
                                                     }
                                                 }
                                             }
@@ -716,8 +714,8 @@ private fun LoadingState(accentColor: Color) {
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            CircularProgressIndicator(color = accentColor)
-            Spacer(Modifier.height(12.dp))
+            KitsugiPlasmaLoader(size = 48.dp)
+            Spacer(Modifier.height(16.dp))
             Text(stringResource(R.string.loading), color = KitsugiColors.TextMuted, fontSize = 14.sp)
         }
     }

@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.components.addons
+﻿package com.kitsugi.animelist.ui.components.addons
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.Context
 import androidx.compose.foundation.background
@@ -188,11 +189,9 @@ internal fun StremioTab(
                         focusedIndicatorColor = accentColor, unfocusedIndicatorColor = KitsugiColors.Border, cursorColor = accentColor
                     )
                 )
-                Button(
+                KitsugiButton(
                     onClick = { if (newManifestUrl.isNotBlank()) { onAddAddon(newManifestUrl.trim()); newManifestUrl = "" } },
-                    shape = RoundedCornerShape(18.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = accentColor),
-                    contentPadding = PaddingValues(16.dp)
+                    shape = RoundedCornerShape(18.dp)
                 ) { Icon(Icons.Rounded.Add, contentDescription = "Ekle", tint = KitsugiColors.Surface) }
             }
         }

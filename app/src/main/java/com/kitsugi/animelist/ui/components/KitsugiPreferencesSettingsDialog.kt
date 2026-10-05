@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -14,6 +15,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.DarkMode
+import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Translate
@@ -338,6 +341,28 @@ private fun AppearanceTab(
     ) {
         // TEMA & RENKLER
         KitsugiSettingsSection(title = "Tema & Görünüm") {
+            val isDarkThemeActive = when (themeMode) {
+                "LIGHT" -> false
+                "DARK" -> true
+                else -> isSystemInDarkTheme()
+            }
+
+            // Uiverse (Galahhad) Sun/Moon animasyonlu tema geçiş butonu
+            KitsugiThemeModeSwitchItem(
+                title = "Karanlık Tema",
+                description = if (themeMode == "DARK") "Gece modu devrede (Ay & Yıldızlar)"
+                else if (themeMode == "LIGHT") "Gündüz modu devrede (Güneş & Bulutlar)"
+                else "Sistem teması takip ediliyor",
+                icon = if (isDarkThemeActive) Icons.Rounded.DarkMode else Icons.Rounded.LightMode,
+                iconColor = accentColor,
+                checked = isDarkThemeActive,
+                onCheckedChange = { isDark ->
+                    onThemeModeSelected(if (isDark) "DARK" else "LIGHT")
+                }
+            )
+
+            KitsugiSettingsDivider()
+
             Box {
                 KitsugiSettingsListItem(
                     title = stringResource(R.string.settings_theme_mode),

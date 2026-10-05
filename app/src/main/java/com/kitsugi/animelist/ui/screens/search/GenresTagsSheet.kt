@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.screens.search
+﻿package com.kitsugi.animelist.ui.screens.search
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -281,7 +282,7 @@ fun GenresTagsSheet(
                     Text("Sıfırla", fontSize = 14.sp)
                 }
 
-                Button(
+                KitsugiButton(
                     onClick = {
                         onApplyFilters(
                             currentFilters.copy(
@@ -293,8 +294,7 @@ fun GenresTagsSheet(
                         onDismiss()
                     },
                     modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(14.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = accentColor)
+                    shape = RoundedCornerShape(14.dp)
                 ) {
                     Text("Uygula", color = Color.White, fontSize = 14.sp)
                 }

@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.screens.detail
+﻿package com.kitsugi.animelist.ui.screens.detail
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.net.Uri
 import android.util.Log
@@ -319,13 +320,13 @@ fun ThemePlayerContainer(
                         style = MaterialTheme.typography.bodySmall
                     )
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(
+                        KitsugiButton(
                             onClick = { retryTrigger++ },
                             colors = ButtonDefaults.buttonColors(containerColor = accentColor)
                         ) {
                             Text("Tekrar Dene", color = KitsugiColors.Background)
                         }
-                        Button(
+                        KitsugiButton(
                             onClick = {
                                 val q = java.net.URLEncoder.encode(url, "UTF-8")
                                 runCatching { uriHandler.openUri("https://www.youtube.com/results?search_query=$q") }

@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.CircularProgressIndicator
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.*
@@ -392,11 +393,7 @@ private fun TvHealthSourceRow(
             )
         }
         if (isChecking) {
-            CircularProgressIndicator(
-                color = KitsugiColors.AccentBlue,
-                modifier = Modifier.size(14.dp),
-                strokeWidth = 2.dp
-            )
+            KitsugiPlasmaLoader(size = 16.dp)
         } else {
             val (label, color) = healthLabel(health)
             Box(
@@ -478,11 +475,7 @@ private fun TvHealthDetailPanel(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
-                        CircularProgressIndicator(
-                            color = KitsugiColors.AccentBlue,
-                            modifier = Modifier.size(14.dp),
-                            strokeWidth = 2.dp
-                        )
+                        KitsugiPlasmaLoader(size = 16.dp)
                         Text("Kontrol ediliyor...", color = KitsugiColors.AccentBlue, fontSize = 11.sp)
                     }
                 } else {

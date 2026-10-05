@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.components
+﻿package com.kitsugi.animelist.ui.components
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.view.ViewGroup
 import android.webkit.CookieManager
@@ -190,13 +191,12 @@ fun KitsugiWebViewDialog(
                         .padding(16.dp),
                     horizontalArrangement = Arrangement.End
                 ) {
-                    Button(
+                    KitsugiButton(
                         onClick = {
                             CookieManager.getInstance().flush()
                             onDismiss()
                         },
-                        shape = RoundedCornerShape(16.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = accentColor)
+                        shape = RoundedCornerShape(16.dp)
                     ) {
                         Text("Tamamlandı", color = KitsugiColors.Surface, fontWeight = FontWeight.Bold)
                     }

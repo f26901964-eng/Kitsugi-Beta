@@ -80,6 +80,7 @@ fun KitsugiExploreMediaCard(
     Card(
         modifier = modifier
             .fillMaxWidth()
+            .kitsugiNeonGlow(cardShape)
             .tvClickable(
                 shape = cardShape,
                 scaleFocused = focusScale,

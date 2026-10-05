@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.components
+﻿package com.kitsugi.animelist.ui.components
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.foundation.background
 import com.kitsugi.animelist.ui.utils.tvClickable
@@ -552,7 +553,7 @@ internal fun KitsugiManualMediaEntryEditorSheet(
                     onSwitchCheckedChange = { isAdult = it }
                 )
 
-                // 6. Delete Button (Sil) if in editing mode
+                // 6. Delete KitsugiButton(Sil) if in editing mode
                 if (isEditing && onDeleteClick != null) {
                     Spacer(modifier = Modifier.height(16.dp))
                     HorizontalDivider(color = KitsugiColors.Border, modifier = Modifier.padding(horizontal = 16.dp))

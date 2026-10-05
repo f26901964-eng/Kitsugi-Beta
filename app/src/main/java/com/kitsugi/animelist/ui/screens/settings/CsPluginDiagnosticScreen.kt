@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.screens.settings
+﻿package com.kitsugi.animelist.ui.screens.settings
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.Intent
 import androidx.compose.animation.*
@@ -113,7 +114,6 @@ fun CsPluginDiagnosticScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f),
-                    contentPadding = PaddingValues(16.dp),
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     // ── Toggle Option ────────────────────────────────────────
@@ -199,10 +199,9 @@ fun CsPluginDiagnosticScreen(
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     if (!isRunning) {
-                        Button(
+                        KitsugiButton(
                             onClick = { vm.startDiagnostic(context) },
                             modifier = Modifier.fillMaxWidth(),
-                            colors = ButtonDefaults.buttonColors(containerColor = accent),
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Icon(Icons.Rounded.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))

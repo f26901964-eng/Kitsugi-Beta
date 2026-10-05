@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.components
+﻿package com.kitsugi.animelist.ui.components
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.Intent
 import android.net.Uri
@@ -212,27 +213,24 @@ private fun DataManagementTab(
                 
                 Spacer(modifier = Modifier.height(8.dp))
                 
-                Button(
+                KitsugiButton(
                     enabled = totalEntryCount > 0,
                     onClick = onExportFileClick,
-                    colors = ButtonDefaults.buttonColors(containerColor = accentColor),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("JSON Dosyası Olarak Dışa Aktar", color = KitsugiColors.Background, fontWeight = FontWeight.Bold)
                 }
                 
-                Button(
+                KitsugiButton(
                     onClick = onImportFileClick,
-                    colors = ButtonDefaults.buttonColors(containerColor = accentColor),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("JSON Dosyasından İçe Aktar", color = KitsugiColors.Background, fontWeight = FontWeight.Bold)
                 }
                 
-                Button(
+                KitsugiButton(
                     enabled = totalEntryCount > 0,
                     onClick = onDeleteAllClick,
-                    colors = ButtonDefaults.buttonColors(containerColor = KitsugiColors.AccentRed),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Tüm Listeyi Sil", color = Color.White, fontWeight = FontWeight.Bold)
@@ -252,9 +250,8 @@ private fun DataManagementTab(
                     color = KitsugiColors.TextSecondary,
                     style = MaterialTheme.typography.bodyMedium
                 )
-                Button(
+                KitsugiButton(
                     onClick = { showDeveloperLogs = true },
-                    colors = ButtonDefaults.buttonColors(containerColor = accentColor),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text("Logcat Görüntüle", color = KitsugiColors.Background, fontWeight = FontWeight.Bold)

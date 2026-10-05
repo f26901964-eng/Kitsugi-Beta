@@ -12,6 +12,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BrokenImage
 import androidx.compose.material.icons.filled.HourglassBottom
 import androidx.compose.material3.CircularProgressIndicator
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -213,10 +214,7 @@ private fun LoadingPageContent(page: MangaPage) {
         when (page.status) {
             MangaPageStatus.DownloadImage,
             MangaPageStatus.LoadPage -> {
-                CircularProgressIndicator(
-                    color    = Color(0xFF7C4DFF),
-                    modifier = Modifier.size(48.dp)
-                )
+                KitsugiPlasmaLoader(size = 46.dp)
             }
             MangaPageStatus.Queue -> {
                 Icon(

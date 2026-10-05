@@ -1,9 +1,10 @@
-@file:OptIn(
+﻿@file:OptIn(
     androidx.compose.foundation.ExperimentalFoundationApi::class,
     androidx.compose.material3.ExperimentalMaterial3Api::class
 )
 
 package com.kitsugi.animelist.ui.screens.detail
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.Intent
 import android.net.Uri
@@ -127,8 +128,6 @@ import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
@@ -797,7 +796,7 @@ fun ApiResultDetailPage(
             },
             confirmButton = {
                 val epNum = watchEpisodeInput.toIntOrNull()
-                Button(
+                KitsugiButton(
                     onClick = {
                         if (epNum != null && epNum > 0) {
                             showWatchDialog = false
@@ -828,8 +827,7 @@ fun ApiResultDetailPage(
                             )
                         }
                     },
-                    enabled = (epNum ?: 0) > 0,
-                    colors = ButtonDefaults.buttonColors(containerColor = accentColor)
+                    enabled = (epNum ?: 0) > 0
                 ) {
                     androidx.compose.material3.Text("İzle", color = KitsugiColors.Background, fontWeight = FontWeight.Bold)
                 }
@@ -860,15 +858,11 @@ fun ApiResultDetailPage(
                 )
             },
             confirmButton = {
-                Button(
+                KitsugiButton(
                     onClick = {
                         showAuthWarningDialog = false
                         if (isSourceAniList) onLoginAniList() else onLoginMal()
-                    },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = accentColor,
-                        contentColor = KitsugiColors.Background
-                    )
+                    }
                 ) {
                     Text("Bağlan", fontWeight = FontWeight.Bold)
                 }

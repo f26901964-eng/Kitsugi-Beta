@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.components
+﻿package com.kitsugi.animelist.ui.components
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.graphics.Bitmap
 import android.graphics.Color as AndroidColor
@@ -22,8 +23,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -326,8 +325,8 @@ fun KitsugiTvQrLoginDialog(
             ) {
                 when {
                     isLoading -> {
-                        CircularProgressIndicator(color = accentColor)
-                        Spacer(Modifier.height(12.dp))
+                        KitsugiPlasmaLoader(size = 48.dp)
+                        Spacer(Modifier.height(16.dp))
                         Text(
                             text = "Hazırlanıyor...",
                             color = KitsugiColors.TextSecondary,
@@ -369,7 +368,7 @@ fun KitsugiTvQrLoginDialog(
                                         textAlign = TextAlign.Center
                                     )
                                 } else {
-                                    Button(
+                                    KitsugiButton(
                                         onClick = {
                                             val svcName = when (service) {
                                                 QrAuthService.AniList -> "anilist"
@@ -386,10 +385,6 @@ fun KitsugiTvQrLoginDialog(
                                                 }
                                             }
                                         },
-                                        colors = ButtonDefaults.buttonColors(
-                                            containerColor = serviceColor,
-                                            contentColor = Color.White
-                                        ),
                                         modifier = Modifier.padding(bottom = 12.dp)
                                     ) {
                                         Text(

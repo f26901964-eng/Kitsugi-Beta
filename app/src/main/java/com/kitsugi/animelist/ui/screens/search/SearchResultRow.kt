@@ -37,6 +37,7 @@ import com.kitsugi.animelist.ui.theme.LocalIsTv
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.KitsugiTvTokens
+import com.kitsugi.animelist.ui.components.kitsugiNeonGlow
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayScore
 import com.kitsugi.animelist.utils.toFriendlySourceLabel
@@ -71,6 +72,7 @@ fun SearchResultRow(
     Row(
         modifier = modifier
             .fillMaxWidth()
+            .kitsugiNeonGlow(rowShape)
             .clip(rowShape)
             .background(KitsugiColors.Surface)
             .tvClickable(shape = rowShape, onClick = onItemClick)

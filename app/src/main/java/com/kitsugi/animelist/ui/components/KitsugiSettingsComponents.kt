@@ -2,6 +2,7 @@ package com.kitsugi.animelist.ui.components
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.Arrangement
@@ -243,6 +244,66 @@ fun KitsugiSettingsSwitchItem(
         )
     }
 }
+
+/**
+ * Uiverse (Galahhad) Sun/Moon animasyonlu tema geçiş butonu ile donatılmış ayar satırı.
+ */
+@Composable
+fun KitsugiThemeModeSwitchItem(
+    title: String,
+    description: String,
+    icon: ImageVector,
+    iconColor: Color,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clickable(enabled = enabled) { onCheckedChange(!checked) }
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        val finalIconColor = if (enabled) iconColor else KitsugiColors.TextMuted
+        SettingsIcon(
+            icon = icon,
+            color = finalIconColor
+        )
+
+        Spacer(modifier = Modifier.width(14.dp))
+
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(
+                text = title,
+                color = if (enabled) KitsugiColors.TextPrimary else KitsugiColors.TextMuted,
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.SemiBold
+            )
+
+            Spacer(modifier = Modifier.height(3.dp))
+
+            Text(
+                text = description,
+                color = if (enabled) KitsugiColors.TextSecondary else KitsugiColors.TextMuted,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+
+        Spacer(modifier = Modifier.width(10.dp))
+
+        KitsugiThemeSwitch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            enabled = enabled
+        )
+    }
+}
+
 
 @Composable
 fun KitsugiSettingsListItem(

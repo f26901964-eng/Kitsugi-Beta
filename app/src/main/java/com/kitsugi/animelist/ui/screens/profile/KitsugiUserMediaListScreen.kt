@@ -38,6 +38,7 @@ import androidx.compose.material.icons.rounded.Schedule
 import androidx.compose.material.icons.rounded.PauseCircle
 import androidx.compose.material.icons.rounded.StopCircle
 import com.kitsugi.animelist.ui.components.KitsugiSheetOrDialog
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -391,7 +392,7 @@ fun KitsugiUserMediaListScreen(
         ) {
             if (state.isLoading && state.items.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = accentColor)
+                    KitsugiPlasmaLoader(size = 48.dp)
                 }
             } else if (state.error != null && state.items.isEmpty()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {

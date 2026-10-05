@@ -580,25 +580,12 @@ private fun GalleryLandscapeLayout(
                         )
                     }
 
-                    // Share
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .background(
-                                color = accentColor.copy(alpha = 0.12f),
-                                shape = RoundedCornerShape(10.dp)
-                            )
-                            .border(1.dp, accentColor.copy(alpha = 0.35f), RoundedCornerShape(10.dp))
-                            .tvClickable(shape = RoundedCornerShape(10.dp), onClick = onShare),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Share,
-                            contentDescription = "Paylaş",
-                            tint = accentColor,
-                            modifier = Modifier.size(18.dp)
-                        )
-                    }
+                    // Share / Send (Animated Fly)
+                    KitsugiFlySendIconButton(
+                        onClick = onShare,
+                        size = 36.dp,
+                        contentDescription = "Paylaş"
+                    )
 
                     Spacer(modifier = Modifier.weight(1f))
 
@@ -1527,28 +1514,12 @@ private fun KitsugiGalleryHeader(
                     }
 
                     // Paylaşım Butonu — accent dokunuşlu glassmorphism
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .background(
-                                color = accentColor.copy(alpha = 0.12f),
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                            .border(
-                                width = 1.dp,
-                                color = accentColor.copy(alpha = 0.35f),
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                            .tvClickable(shape = RoundedCornerShape(12.dp), onClick = onShare),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Share,
-                            contentDescription = "Paylaş",
-                            tint = accentColor,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
+                    // Share / Send (Animated Fly)
+                    KitsugiFlySendIconButton(
+                        onClick = onShare,
+                        size = 40.dp,
+                        contentDescription = "Paylaş"
+                    )
 
                     // Kapatma Butonu — nötr, SurfaceSoft tabanlı
                     Box(

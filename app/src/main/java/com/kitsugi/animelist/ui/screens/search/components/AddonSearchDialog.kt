@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material3.*
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -266,7 +267,7 @@ fun AddonSearchDialog(
                             .weight(1f),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(color = accentColor)
+                        KitsugiPlasmaLoader(size = 48.dp)
                     }
                 } else {
                     // Content Area

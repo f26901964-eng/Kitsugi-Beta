@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.screens.search
+﻿package com.kitsugi.animelist.ui.screens.search
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -24,7 +25,6 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Done
 import androidx.compose.material.icons.filled.Remove
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -408,7 +408,7 @@ fun SearchFilterSheet(
                     Text("İptal", fontWeight = FontWeight.SemiBold)
                 }
 
-                Button(
+                KitsugiButton(
                     onClick = {
                         onApplyFilters(tempFilters)
                         onDismiss()
@@ -416,11 +416,7 @@ fun SearchFilterSheet(
                     shape = RoundedCornerShape(14.dp),
                     modifier = Modifier
                         .weight(1.5f)
-                        .height(48.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = accentColor,
-                        contentColor = Color.White
-                    )
+                        .height(48.dp)
                 ) {
                     Icon(Icons.Default.Done, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(6.dp))

@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.screens.fullscreen.controls.components.panels
+﻿package com.kitsugi.animelist.ui.screens.fullscreen.controls.components.panels
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
@@ -116,7 +117,7 @@ fun DelayCard(
                         "Duyulan ses" to "Görülen metin"
                     }
 
-                    Button(
+                    KitsugiButton(
                         onClick = {
                             isDirectionPositive = if (isDirectionPositive == null) delayType == DelayType.Audio else null
                         },
@@ -132,7 +133,7 @@ fun DelayCard(
                         Text(labelA, fontWeight = FontWeight.Bold, color = Color.White)
                     }
 
-                    Button(
+                    KitsugiButton(
                         onClick = {
                             isDirectionPositive = if (isDirectionPositive == null) delayType != DelayType.Audio else null
                         },
@@ -150,7 +151,7 @@ fun DelayCard(
                 }
 
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Button(
+                    KitsugiButton(
                         onClick = onApply,
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(50),

@@ -46,6 +46,7 @@ import com.kitsugi.animelist.data.model.AnimeDownload
 import com.kitsugi.animelist.data.remote.GalleryCategory
 import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.ui.components.KitsugiImageGalleryDialog
+import com.kitsugi.animelist.ui.components.KitsugiAnimatedDeleteButton
 import com.kitsugi.animelist.ui.screens.fullscreen.KitsugiFullscreenPlayerActivity
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
@@ -630,22 +631,11 @@ fun DownloadedImageCard(
                             modifier = Modifier.size(16.dp)
                         )
                     }
-                    // Delete
-                    Box(
-                        modifier = Modifier
-                            .size(30.dp)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(KitsugiColors.AccentRed.copy(alpha = 0.10f))
-                            .clickable(onClick = onDelete),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Delete,
-                            contentDescription = "Sil",
-                            tint = KitsugiColors.AccentRed,
-                            modifier = Modifier.size(16.dp)
-                        )
-                    }
+                    // Delete (Animated Uiverse)
+                    KitsugiAnimatedDeleteButton(
+                        onDelete = onDelete,
+                        size = 30.dp
+                    )
                 }
             }
         }
@@ -871,9 +861,10 @@ fun DownloadItemRow(
                     }
                 }
 
-                IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
-                    Icon(Icons.Rounded.Delete, contentDescription = "Sil", tint = KitsugiColors.AccentRed, modifier = Modifier.size(20.dp))
-                }
+                KitsugiAnimatedDeleteButton(
+                    onDelete = onDelete,
+                    size = 36.dp
+                )
             }
         }
 
@@ -1096,17 +1087,11 @@ fun SubtitleCardItem(
                     )
                 }
 
-                IconButton(
-                    onClick = onDelete,
-                    modifier = Modifier.size(36.dp)
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Delete,
-                        contentDescription = "Altyazıyı Sil",
-                        tint = KitsugiColors.AccentRed,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
+                KitsugiAnimatedDeleteButton(
+                    onDelete = onDelete,
+                    size = 34.dp,
+                    contentDescription = "Altyazıyı Sil"
+                )
             }
         }
     }

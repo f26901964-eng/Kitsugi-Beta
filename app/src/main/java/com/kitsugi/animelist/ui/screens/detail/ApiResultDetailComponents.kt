@@ -57,6 +57,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.data.remote.KitsugiMediaDetail
 import com.kitsugi.animelist.model.MediaType
@@ -1017,11 +1018,7 @@ internal fun ApiMdbListRatingCard(
                 verticalAlignment = Alignment.CenterVertically,
                 modifier = Modifier.padding(vertical = 4.dp)
             ) {
-                CircularProgressIndicator(
-                    modifier = Modifier.size(14.dp),
-                    color = accentColor,
-                    strokeWidth = 1.5.dp
-                )
+                KitsugiPlasmaLoader(size = 18.dp)
                 Text(
                     text = "Puanlar yükleniyor...",
                     color = KitsugiColors.TextMuted,

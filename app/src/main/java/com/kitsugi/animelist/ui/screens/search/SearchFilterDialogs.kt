@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.screens.search
+﻿package com.kitsugi.animelist.ui.screens.search
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -115,12 +116,11 @@ fun <T> DialogWithRadioSelection(
                             Text(text = "İptal", color = KitsugiColors.TextMuted)
                         }
                         Spacer(modifier = Modifier.width(8.dp))
-                        Button(
+                        KitsugiButton(
                             onClick = {
                                 onOptionSelected(tempSelection)
                                 onDismiss()
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = accentColor),
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Text(text = "Uygula", color = Color.White)
@@ -318,14 +318,13 @@ fun DialogWithYearSeasonSelection(
                             Text(text = "İptal", color = KitsugiColors.TextMuted)
                         }
                         Spacer(modifier = Modifier.width(8.dp))
-                        Button(
+                        KitsugiButton(
                             onClick = {
                                 onStartYearSelected(tempStartYear)
                                 onEndYearSelected(tempEndYear)
                                 onSeasonSelected(tempSeason)
                                 onDismiss()
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = accentColor),
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Text(text = "Uygula", color = Color.White)
@@ -420,7 +419,7 @@ fun DialogWithScoreRangeSelection(
                             Text(text = "İptal", color = KitsugiColors.TextMuted)
                         }
                         Spacer(modifier = Modifier.width(8.dp))
-                        Button(
+                        KitsugiButton(
                             onClick = {
                                 val min = sliderStart.roundToInt()
                                 val max = sliderEnd.roundToInt()
@@ -431,7 +430,6 @@ fun DialogWithScoreRangeSelection(
                                 }
                                 onDismiss()
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = accentColor),
                             shape = RoundedCornerShape(12.dp)
                         ) {
                             Text(text = "Uygula", color = Color.White)

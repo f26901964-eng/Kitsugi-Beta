@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.screens.collection
+﻿package com.kitsugi.animelist.ui.screens.collection
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -89,7 +90,6 @@ fun FolderDetailScreen(
             LazyVerticalGrid(
                 columns = GridCells.Fixed(3),
                 modifier = Modifier.fillMaxSize().padding(paddingValues),
-                contentPadding = PaddingValues(12.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -111,7 +111,7 @@ fun FolderDetailScreen(
             title = { Text("Koleksiyondan Çıkar") },
             text = { Text("\"${item.title}\" bu koleksiyondan kaldırılsın mı?") },
             confirmButton = {
-                Button(onClick = { onRemoveItem(item); itemToRemove = null }) { Text("Çıkar") }
+                KitsugiButton(onClick = { onRemoveItem(item); itemToRemove = null }) { Text("Çıkar") }
             },
             dismissButton = {
                 OutlinedButton(onClick = { itemToRemove = null }) { Text("İptal") }

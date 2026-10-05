@@ -1,6 +1,7 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+﻿@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 
 package com.kitsugi.animelist.ui.components
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -25,8 +26,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.FilterAlt
 import androidx.compose.material.icons.rounded.Sort
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -142,17 +141,12 @@ fun KitsugiMediaFilterBottomSheet(
                     fontWeight = FontWeight.Bold
                 )
 
-                Button(
+                KitsugiButton(
                     onClick = {
                         onApply(selectedGenreId, selectedSortOption)
                         onDismissRequest()
                     },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = accentColor,
-                        contentColor = Color.White
-                    ),
-                    shape = RoundedCornerShape(24.dp),
-                    contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp)
+                    shape = RoundedCornerShape(24.dp)
                 ) {
                     Text(
                         text = "Uygula",

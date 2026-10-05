@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.screens.detail
+﻿package com.kitsugi.animelist.ui.screens.detail
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.net.Uri
 import android.util.Log
@@ -25,9 +26,8 @@ import androidx.compose.material.icons.rounded.FastRewind
 import androidx.compose.material.icons.rounded.Fullscreen
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -118,7 +118,7 @@ fun KitsugiYouTubePlayer(
             modifier = modifier.background(Color.Black),
             contentAlignment = Alignment.Center
         ) {
-            CircularProgressIndicator(color = LocalKitsugiAccent.current)
+            KitsugiPlasmaLoader(size = 46.dp)
         }
     } else if (hasError || playbackSource == null) {
         Box(
@@ -137,13 +137,12 @@ fun KitsugiYouTubePlayer(
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold
                 )
-                Button(
+                KitsugiButton(
                     onClick = {
                         runCatching {
                             uriHandler.openUri("https://www.youtube.com/watch?v=$videoId")
                         }
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = LocalKitsugiAccent.current)
+                    }
                 ) {
                     Text("Tarayıcıda Aç", color = KitsugiColors.Background)
                 }

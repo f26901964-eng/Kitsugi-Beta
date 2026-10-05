@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.screens.manga
+﻿package com.kitsugi.animelist.ui.screens.manga
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -8,8 +9,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AutoStories
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -62,14 +61,11 @@ fun MangaScreen(
         Spacer(modifier = Modifier.height(18.dp))
 
         // ── Manga Okuyucu Giriş Butonu ──────────────────────────────────────
-        Button(
+        KitsugiButton(
             onClick = onOpenMangaReader,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp),
-            colors = ButtonDefaults.buttonColors(
-                containerColor = accentColor
-            ),
             shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp)
         ) {
             Icon(

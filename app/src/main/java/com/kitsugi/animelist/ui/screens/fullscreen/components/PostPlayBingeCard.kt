@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.screens.fullscreen.components
+﻿package com.kitsugi.animelist.ui.screens.fullscreen.components
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.animation.*
 import androidx.compose.foundation.background
@@ -137,7 +138,7 @@ fun PostPlayBingeCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Button(
+                    KitsugiButton(
                         onClick = onCancel,
                         modifier = Modifier.weight(1f),
                         shape = RoundedCornerShape(8.dp),
@@ -148,7 +149,7 @@ fun PostPlayBingeCard(
                     ) {
                         Text("İptal", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
-                    Button(
+                    KitsugiButton(
                         onClick = onPlayNext,
                         modifier = Modifier.weight(1.2f),
                         shape = RoundedCornerShape(8.dp),

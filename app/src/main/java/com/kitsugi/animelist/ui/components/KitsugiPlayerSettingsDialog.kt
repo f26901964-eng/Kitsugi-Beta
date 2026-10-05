@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.components
+﻿package com.kitsugi.animelist.ui.components
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.Context
 import androidx.compose.foundation.background
@@ -1566,7 +1567,7 @@ fun KitsugiPlayerSettingsDialog(
                                 .fillMaxSize()
                                 .padding(16.dp)
                         ) {
-                            Button(
+                            KitsugiButton(
                                 onClick = { showButtonAddDialog = true },
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -1683,7 +1684,7 @@ fun KitsugiPlayerSettingsDialog(
                                     .padding(bottom = 12.dp),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
-                                Button(
+                                KitsugiButton(
                                     onClick = { scriptFolderState = "scripts" },
                                     modifier = Modifier.weight(1f),
                                     colors = ButtonDefaults.buttonColors(
@@ -1695,7 +1696,7 @@ fun KitsugiPlayerSettingsDialog(
                                         color = if (scriptFolderState == "scripts") Color.White else KitsugiColors.TextPrimary
                                     )
                                 }
-                                Button(
+                                KitsugiButton(
                                     onClick = { scriptFolderState = "script-opts" },
                                     modifier = Modifier.weight(1f),
                                     colors = ButtonDefaults.buttonColors(
@@ -1709,7 +1710,7 @@ fun KitsugiPlayerSettingsDialog(
                                 }
                             }
 
-                            Button(
+                            KitsugiButton(
                                 onClick = { showCreateFileDialog = true },
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -1951,7 +1952,7 @@ fun KitsugiPlayerSettingsDialog(
                                 Text("İptal", color = KitsugiColors.TextSecondary)
                             }
                             Spacer(modifier = Modifier.width(8.dp))
-                            Button(
+                            KitsugiButton(
                                 onClick = {
                                     editingFile?.writeText(fileContentText)
                                     editingFile = null

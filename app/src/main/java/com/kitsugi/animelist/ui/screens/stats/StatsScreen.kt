@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.model.WatchStatus
 import com.kitsugi.animelist.ui.components.KitsugiEmptyState
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import com.kitsugi.animelist.ui.components.stats.DonutSegment
 import com.kitsugi.animelist.ui.components.stats.KitsugiDonutChart
 import com.kitsugi.animelist.ui.components.stats.KitsugiHorizontalStatsBar
@@ -258,9 +259,8 @@ fun StatsScreen(
                 .height(300.dp),
             contentAlignment = Alignment.Center
         ) {
-            CircularProgressIndicator(
-                color = accentColor,
-                strokeWidth = 3.dp
+            KitsugiPlasmaLoader(
+                size = 52.dp
             )
         }
     }

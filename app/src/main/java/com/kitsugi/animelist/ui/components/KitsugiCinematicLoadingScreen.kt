@@ -190,23 +190,11 @@ fun KitsugiCinematicLoadingScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(52.dp)
-                        .clip(CircleShape)
-                        .background(KitsugiColors.Surface.copy(alpha = 0.6f))
-                        .padding(10.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.fillMaxSize(),
-                        color = accentColor,
-                        strokeWidth = 3.dp,
-                        trackColor = KitsugiColors.Border.copy(alpha = 0.3f)
-                    )
-                }
+                KitsugiPlasmaLoader(
+                    size = 52.dp
+                )
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(18.dp))
 
                 Text(
                     text = "Yükleniyor...",

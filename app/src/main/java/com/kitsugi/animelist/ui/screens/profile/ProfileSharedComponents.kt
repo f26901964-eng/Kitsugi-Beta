@@ -1,9 +1,10 @@
-@file:OptIn(
+﻿@file:OptIn(
     androidx.compose.foundation.ExperimentalFoundationApi::class,
     androidx.compose.material3.ExperimentalMaterial3Api::class
 )
 
 package com.kitsugi.animelist.ui.screens.profile
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -81,9 +82,8 @@ fun ExternalProfileWrapper(
                         modifier = Modifier.padding(horizontal = 16.dp)
                     )
                     Spacer(modifier = Modifier.height(24.dp))
-                    Button(
-                        onClick = onConnectClick,
-                        colors = ButtonDefaults.buttonColors(containerColor = accentColor)
+                    KitsugiButton(
+                        onClick = onConnectClick
                     ) {
                         Text(text = "Hesabı Bağla", color = KitsugiColors.Background, fontWeight = FontWeight.Bold)
                     }

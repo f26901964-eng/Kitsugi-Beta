@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.Extension
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.SearchOff
 import androidx.compose.material3.CircularProgressIndicator
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -308,7 +309,7 @@ fun AddonFullScreenGridPage(
                             .fillMaxWidth()
                             .padding(vertical = 16.dp),
                         contentAlignment = Alignment.Center
-                    ) { CircularProgressIndicator(color = accentColor) }
+                    ) { KitsugiPlasmaLoader(size = 46.dp) }
                 }
             }
 

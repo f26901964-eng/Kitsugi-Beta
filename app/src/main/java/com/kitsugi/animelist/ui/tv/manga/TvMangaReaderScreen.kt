@@ -37,6 +37,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.Icon
 import androidx.tv.material3.IconButton
@@ -229,12 +230,9 @@ fun TvMangaReaderScreen(
         if (uiState.isLoadingPages) {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator(
-                        color = MaterialTheme.colorScheme.primary,
-                        strokeWidth = 3.dp
-                    )
-                    Spacer(Modifier.height(16.dp))
-                    Text("Bölüm sayfaları yükleniyor...", color = Color.White.copy(0.6f), fontSize = 13.sp)
+                    KitsugiPlasmaLoader(size = 52.dp)
+                    Spacer(Modifier.height(18.dp))
+                    Text("Bölüm sayfaları yükleniyor...", color = Color.White.copy(0.7f), fontSize = 13.sp)
                 }
             }
         } else if (uiState.pagesError != null) {

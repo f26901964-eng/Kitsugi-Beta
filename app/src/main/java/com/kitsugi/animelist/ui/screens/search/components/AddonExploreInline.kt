@@ -33,6 +33,7 @@ import com.kitsugi.animelist.data.cloudstream.CsPluginStatusTracker
 import com.kitsugi.animelist.data.cloudstream.CsStreamRunner
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import com.lagradost.cloudstream3.HomePageList
 import com.lagradost.cloudstream3.MainAPI
 import com.lagradost.cloudstream3.MainPageRequest
@@ -177,8 +178,8 @@ fun LazyListScope.addonExploreInlineSections(
                 contentAlignment = Alignment.Center
             ) {
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CircularProgressIndicator(color = accentColor)
-                    Spacer(Modifier.height(12.dp))
+                    KitsugiPlasmaLoader(size = 48.dp)
+                    Spacer(Modifier.height(16.dp))
                     Text("${api.name} yükleniyor...", color = KitsugiColors.TextMuted, fontSize = 14.sp)
                 }
             }

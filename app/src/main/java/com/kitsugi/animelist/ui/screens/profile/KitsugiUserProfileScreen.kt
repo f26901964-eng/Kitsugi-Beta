@@ -42,6 +42,7 @@ import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.app.ProfileFavoriteItem
 import com.kitsugi.animelist.ui.components.KitsugiActivityDetailBottomSheet
 import com.kitsugi.animelist.ui.components.KitsugiImageGalleryDialog
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.utils.ShareUtils
@@ -152,7 +153,7 @@ fun KitsugiUserProfileScreen(
         ) {
             if (state.isLoading && state.name.isBlank()) {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = resolvedAccent)
+                    KitsugiPlasmaLoader(size = 50.dp)
                 }
             } else {
                 val username = state.name.ifBlank { fallbackUsername ?: "Kullanıcı" }

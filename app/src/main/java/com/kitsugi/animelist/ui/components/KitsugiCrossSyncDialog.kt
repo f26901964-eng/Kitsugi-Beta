@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.components
+﻿package com.kitsugi.animelist.ui.components
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -31,8 +32,6 @@ import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.ErrorOutline
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Sync
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
@@ -351,12 +350,11 @@ fun KitsugiCrossSyncDialog(
                     Text("Arka Planda Devam Et")
                 }
             } else {
-                Button(
+                KitsugiButton(
                     onClick = onDismiss,
                     modifier = Modifier
                         .fillMaxWidth()
                         .height(44.dp),
-                    colors = ButtonDefaults.buttonColors(containerColor = accentColor),
                     shape = RoundedCornerShape(10.dp)
                 ) {
                     Text(if (state.isCompleted) "Tamamlandı • Kapat" else "Kapat")

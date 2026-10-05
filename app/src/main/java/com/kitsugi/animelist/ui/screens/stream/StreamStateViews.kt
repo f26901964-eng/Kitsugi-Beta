@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.screens.stream
+﻿package com.kitsugi.animelist.ui.screens.stream
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -17,6 +18,8 @@ import com.kitsugi.animelist.ui.components.KitsugiErrorState
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
+
 /** Shows a pulsing spinner while the IMDb ID is being resolved. */
 @Composable
 fun ResolvingIdState() {
@@ -25,7 +28,7 @@ fun ResolvingIdState() {
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        CircularProgressIndicator(color = LocalKitsugiAccent.current, strokeWidth = 3.dp)
+        KitsugiPlasmaLoader(size = 46.dp)
         Text("IMDb ID çözümleniyor...", color = KitsugiColors.TextSecondary)
     }
 }
@@ -55,12 +58,8 @@ fun NoAddonsState(onOpenSettings: (() -> Unit)? = null) {
         )
         if (onOpenSettings != null) {
             Spacer(modifier = Modifier.height(16.dp))
-            Button(
+            KitsugiButton(
                 onClick = onOpenSettings,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = LocalKitsugiAccent.current,
-                    contentColor = KitsugiColors.Background
-                ),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Icon(Icons.Rounded.Settings, contentDescription = null, modifier = Modifier.size(18.dp))
@@ -86,12 +85,8 @@ fun EmptyStreamsState(onOpenSettings: (() -> Unit)? = null) {
         )
         if (onOpenSettings != null) {
             Spacer(modifier = Modifier.height(16.dp))
-            Button(
+            KitsugiButton(
                 onClick = onOpenSettings,
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = LocalKitsugiAccent.current,
-                    contentColor = KitsugiColors.Background
-                ),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Icon(Icons.Rounded.Extension, contentDescription = null, modifier = Modifier.size(18.dp))

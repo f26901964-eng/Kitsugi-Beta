@@ -25,6 +25,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.kitsugi.animelist.ui.components.KitsugiWebViewDialog
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -319,7 +320,7 @@ fun TvStreamScreen(
                 ) {
                     if (isResolvingId) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                            CircularProgressIndicator(color = accentColor)
+                            KitsugiPlasmaLoader(size = 50.dp)
                         }
                     } else if (filteredStreams.isEmpty() && !isAnyLoading && !hasErrors) {
                         Column(
@@ -417,7 +418,7 @@ fun TvStreamScreen(
                                                 .padding(16.dp),
                                             contentAlignment = Alignment.Center
                                         ) {
-                                            CircularProgressIndicator(color = accentColor, modifier = Modifier.size(24.dp))
+                                            KitsugiPlasmaLoader(size = 26.dp)
                                         }
                                     }
                                 }
@@ -446,7 +447,7 @@ fun TvStreamScreen(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
-                        CircularProgressIndicator(color = accentColor)
+                        KitsugiPlasmaLoader(size = 48.dp)
                         Text(
                             text = "Link Çözümleniyor...",
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),

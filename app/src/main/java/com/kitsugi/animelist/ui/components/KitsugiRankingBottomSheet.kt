@@ -185,7 +185,7 @@ fun KitsugiRankingBottomSheet(
                         .weight(1f),
                     contentAlignment = Alignment.Center
                 ) {
-                    CircularProgressIndicator(color = accentColor)
+                    KitsugiPlasmaLoader(size = 46.dp)
                 }
             } else if (resultsList.isEmpty()) {
                 Box(

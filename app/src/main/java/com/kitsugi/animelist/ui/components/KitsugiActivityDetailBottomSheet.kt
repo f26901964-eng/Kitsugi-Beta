@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.components
+﻿package com.kitsugi.animelist.ui.components
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.Context
 import android.widget.Toast
@@ -594,7 +595,7 @@ fun KitsugiActivityDetailBottomSheet(
                     var actLikesState by remember { mutableStateOf(act.likeCount) }
 
                     // Activity Like
-                    Button(
+                    KitsugiButton(
                         onClick = {
                             coroutineScope.launch {
                                 val success = apiClient.toggleLike(act.id, "ACTIVITY")
@@ -626,7 +627,7 @@ fun KitsugiActivityDetailBottomSheet(
                     }
 
                     // Activity Reply
-                    Button(
+                    KitsugiButton(
                         onClick = { showReplyEditor = true },
                         colors = ButtonDefaults.buttonColors(containerColor = accentColor),
                         shape = RoundedCornerShape(14.dp),

@@ -1,4 +1,5 @@
 package com.kitsugi.animelist.ui.components
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -207,37 +208,29 @@ fun KitsugiKitsuLoginDialog(
                         Text("İptal")
                     }
 
-                    Button(
+                    KitsugiButton(
                         onClick = {
                             if (username.isBlank() || password.isBlank()) {
                                 errorMessage = "Lütfen tüm alanları doldurun."
-                                return@Button
-                            }
-                            isLoading = true
-                            errorMessage = null
-                            onLogin(username, password) { success, error ->
-                                isLoading = false
-                                if (success) {
-                                    onDismiss()
-                                } else {
-                                    errorMessage = error ?: "Giriş yapılamadı"
+                            } else {
+                                isLoading = true
+                                errorMessage = null
+                                onLogin(username, password) { success, error ->
+                                    isLoading = false
+                                    if (success) {
+                                        onDismiss()
+                                    } else {
+                                        errorMessage = error ?: "Giriş yapılamadı"
+                                    }
                                 }
                             }
                         },
                         enabled = !isLoading && username.isNotBlank() && password.isNotBlank(),
                         modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(
-                            containerColor = kitsuBrandColor,
-                            contentColor = Color.White
-                        )
+                        shape = RoundedCornerShape(12.dp)
                     ) {
                         if (isLoading) {
-                            CircularProgressIndicator(
-                                modifier = Modifier.size(18.dp),
-                                color = Color.White,
-                                strokeWidth = 2.dp
-                            )
+                            KitsugiPlasmaLoader(size = 18.dp)
                         } else {
                             Text("Giriş Yap", fontWeight = FontWeight.Bold)
                         }

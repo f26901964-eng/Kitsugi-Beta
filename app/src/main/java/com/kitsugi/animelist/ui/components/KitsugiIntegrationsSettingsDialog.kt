@@ -927,28 +927,24 @@ private fun MdbListApiKeyValidationDialog(
             }
         },
         confirmButton = {
-            Button(
+            KitsugiButton(
                 onClick = {
                     if (value.isBlank()) {
                         onSave("")
-                        return@Button
-                    }
-                    validating = true
-                    scope.launch {
-                        val valid = com.kitsugi.animelist.data.remote.MdbListClient.validateApiKey(value)
-                        validating = false
-                        if (valid) {
-                            onSave(value)
-                            android.widget.Toast.makeText(context, context.getString(R.string.api_key_validated), android.widget.Toast.LENGTH_SHORT).show()
-                        } else {
-                            android.widget.Toast.makeText(context, context.getString(R.string.api_key_invalid), android.widget.Toast.LENGTH_SHORT).show()
+                    } else {
+                        validating = true
+                        scope.launch {
+                            val valid = com.kitsugi.animelist.data.remote.MdbListClient.validateApiKey(value)
+                            validating = false
+                            if (valid) {
+                                onSave(value)
+                                android.widget.Toast.makeText(context, context.getString(R.string.api_key_validated), android.widget.Toast.LENGTH_SHORT).show()
+                            } else {
+                                android.widget.Toast.makeText(context, context.getString(R.string.api_key_invalid), android.widget.Toast.LENGTH_SHORT).show()
+                            }
                         }
                     }
                 },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = accentColor,
-                    contentColor = Color.White
-                ),
                 enabled = !validating
             ) {
                 if (validating) {
@@ -956,11 +952,7 @@ private fun MdbListApiKeyValidationDialog(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            color = Color.White,
-                            strokeWidth = 2.dp
-                        )
+                        KitsugiPlasmaLoader(size = 18.dp)
                         Text(stringResource(R.string.action_validating))
                     }
                 } else {
@@ -1043,28 +1035,24 @@ private fun AnimeSkipClientIdValidationDialog(
             }
         },
         confirmButton = {
-            Button(
+            KitsugiButton(
                 onClick = {
                     if (value.isBlank()) {
                         onSave("")
-                        return@Button
-                    }
-                    validating = true
-                    scope.launch {
-                        val valid = com.kitsugi.animelist.data.remote.AnimeSkipClient.validateClientId(value)
-                        validating = false
-                        if (valid) {
-                            onSave(value)
-                            android.widget.Toast.makeText(context, context.getString(R.string.client_id_validated), android.widget.Toast.LENGTH_SHORT).show()
-                        } else {
-                            android.widget.Toast.makeText(context, context.getString(R.string.client_id_invalid), android.widget.Toast.LENGTH_SHORT).show()
+                    } else {
+                        validating = true
+                        scope.launch {
+                            val valid = com.kitsugi.animelist.data.remote.AnimeSkipClient.validateClientId(value)
+                            validating = false
+                            if (valid) {
+                                onSave(value)
+                                android.widget.Toast.makeText(context, context.getString(R.string.client_id_validated), android.widget.Toast.LENGTH_SHORT).show()
+                            } else {
+                                android.widget.Toast.makeText(context, context.getString(R.string.client_id_invalid), android.widget.Toast.LENGTH_SHORT).show()
+                            }
                         }
                     }
                 },
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = accentColor,
-                    contentColor = Color.White
-                ),
                 enabled = !validating
             ) {
                 if (validating) {
@@ -1072,11 +1060,7 @@ private fun AnimeSkipClientIdValidationDialog(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        CircularProgressIndicator(
-                            modifier = Modifier.size(16.dp),
-                            color = Color.White,
-                            strokeWidth = 2.dp
-                        )
+                        KitsugiPlasmaLoader(size = 18.dp)
                         Text(stringResource(R.string.action_validating))
                     }
                 } else {

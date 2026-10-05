@@ -53,6 +53,10 @@ import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.ui.components.KitsugiShimmerSearchResultList
 import com.kitsugi.animelist.ui.components.KitsugiShimmerMediaRow
 import com.kitsugi.animelist.ui.components.KitsugiExploreMediaCard
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
+import com.kitsugi.animelist.ui.components.KitsugiCosmicSearchBar
+import com.kitsugi.animelist.ui.components.CosmicCompanionButton
+import com.kitsugi.animelist.ui.components.CyberMatrixGridCanvas
 import com.kitsugi.animelist.ui.screens.search.components.AddonExploreDialog
 import com.kitsugi.animelist.ui.screens.search.composables.KitsugiSearchCountryChip
 import com.kitsugi.animelist.ui.screens.search.composables.KitsugiSearchDateChip
@@ -274,6 +278,15 @@ fun SearchScreen(
             .background(KitsugiColors.Background),
         contentAlignment = Alignment.TopCenter
     ) {
+        // Uiverse Lakshay-art .grid: Arka planda hafif siber matris ızgarası
+        CyberMatrixGridCanvas(
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(300.dp),
+            lineSpacing = 16.dp,
+            lineColor = Color(0xFF161426).copy(alpha = 0.40f)
+        )
+
         LazyColumn(
             state = lazyListState,
             modifier = Modifier
@@ -292,118 +305,59 @@ fun SearchScreen(
                 )
                 Spacer(modifier = Modifier.height(18.dp))
 
-                // Premium Search Bar (inspired by AniHyou)
-                var isFocused by remember { mutableStateOf(false) }
+                val placeholder = when (uiState.selectedEngine) {
+                    SearchSourceEngine.ALL -> "Tüm platformlarda ara (6 motor eşzamanlı)..."
+                    SearchSourceEngine.ANILIST -> "AniList'te ${uiState.selectedScope.label.lowercase()} ara..."
+                    SearchSourceEngine.MAL -> "MyAnimeList'te ${uiState.selectedScope.label.lowercase()} ara..."
+                    SearchSourceEngine.TMDB -> "TMDB'de ${uiState.selectedScope.label.lowercase()} ara..."
+                    SearchSourceEngine.SHIKIMORI -> "Shikimori'de ${uiState.selectedScope.label.lowercase()} ara..."
+                    SearchSourceEngine.KITSU -> "Kitsu'da ${uiState.selectedScope.label.lowercase()} ara..."
+                    SearchSourceEngine.SIMKL -> "Simkl'de ${uiState.selectedScope.label.lowercase()} ara..."
+                }
+
+                // Uiverse Lakshay-art Cosmic Search Bar & Companion Button
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .height(56.dp)
-                            .clip(RoundedCornerShape(22.dp))
-                            .onFocusChanged { isFocused = it.hasFocus }
-                            .border(
-                                width = if (isFocused) 1.5.dp else 1.dp,
-                                color = if (isFocused) accentColor else KitsugiColors.Border,
-                                shape = RoundedCornerShape(22.dp)
-                            )
-                            .background(KitsugiColors.Surface)
-                            .padding(horizontal = 16.dp),
-                        contentAlignment = Alignment.CenterStart
-                    ) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
-                        ) {
+                    KitsugiCosmicSearchBar(
+                        query = uiState.query,
+                        onQueryChange = viewModel::setQuery,
+                        onSearch = {
+                            viewModel.search()
+                            keyboardController?.hide()
+                        },
+                        onClearQuery = {
+                            viewModel.clearQuery()
+                            keyboardController?.hide()
+                        },
+                        placeholder = placeholder,
+                        leadingContent = {
                             SourceEngineSelectorPill(
                                 selectedEngine = uiState.selectedEngine,
                                 onClick = { showEnginePickerSheet = true }
                             )
+                        },
+                        onFilterClick = {
+                            showSourceEngineFilterSheet = true
+                        },
+                        isFilterActive = uiState.hasFiltersApplied,
+                        modifier = Modifier.weight(1f)
+                    )
 
-                            BasicTextField(
-                                value = uiState.query,
-                                onValueChange = viewModel::setQuery,
-                                modifier = Modifier.weight(1f),
-                                singleLine = true,
-                                cursorBrush = SolidColor(accentColor),
-                                textStyle = MaterialTheme.typography.bodyMedium.copy(
-                                    color = KitsugiColors.TextPrimary,
-                                    fontWeight = FontWeight.Normal
-                                ),
-                                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                                keyboardActions = KeyboardActions(
-                                    onSearch = {
-                                        viewModel.search()
-                                        keyboardController?.hide()
-                                    }
-                                ),
-                                decorationBox = { innerTextField ->
-                                    if (uiState.query.isEmpty()) {
-                                        val placeholder = when (uiState.selectedEngine) {
-                                            SearchSourceEngine.ALL -> "Tüm platformlarda ara (6 motor eşzamanlı)..."
-                                            SearchSourceEngine.ANILIST -> "AniList'te ${uiState.selectedScope.label.lowercase()} ara..."
-                                            SearchSourceEngine.MAL -> "MyAnimeList'te ${uiState.selectedScope.label.lowercase()} ara..."
-                                            SearchSourceEngine.TMDB -> "TMDB'de ${uiState.selectedScope.label.lowercase()} ara..."
-                                            SearchSourceEngine.SHIKIMORI -> "Shikimori'de ${uiState.selectedScope.label.lowercase()} ara..."
-                                            SearchSourceEngine.KITSU -> "Kitsu'da ${uiState.selectedScope.label.lowercase()} ara..."
-                                            SearchSourceEngine.SIMKL -> "Simkl'de ${uiState.selectedScope.label.lowercase()} ara..."
-                                        }
-                                        Text(
-                                            text = placeholder,
-                                            color = KitsugiColors.TextMuted,
-                                            style = MaterialTheme.typography.bodyMedium
-                                        )
-                                    }
-                                    innerTextField()
-                                }
-                            )
-
-                            AnimatedVisibility(
-                                visible = uiState.query.isNotEmpty(),
-                                enter = fadeIn() + scaleIn(),
-                                exit = fadeOut() + scaleOut()
-                            ) {
-                                IconButton(
-                                    onClick = {
-                                        viewModel.clearQuery()
-                                        keyboardController?.hide()
-                                    },
-                                    modifier = Modifier.size(36.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = Icons.Default.Close,
-                                        contentDescription = "Temizle",
-                                        tint = KitsugiColors.TextMuted,
-                                        modifier = Modifier.size(18.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-
-                    // Eklenti Portalı butonu
-                    IconButton(
+                    // Eklenti Portalı butonu (Uiverse cosmic companion button)
+                    CosmicCompanionButton(
                         onClick = { onOpenPluginPicker() },
-                        modifier = Modifier
-                            .size(56.dp)
-                            .clip(RoundedCornerShape(22.dp))
-                            .background(KitsugiColors.Surface)
-                            .border(
-                                width = 1.dp,
-                                color = KitsugiColors.Border,
-                                shape = RoundedCornerShape(22.dp)
+                        icon = {
+                            Icon(
+                                imageVector = Icons.Default.Extension,
+                                contentDescription = "Eklenti Portalı",
+                                tint = KitsugiColors.TextMuted,
+                                modifier = Modifier.size(22.dp)
                             )
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Extension,
-                            contentDescription = "Eklenti Portalı",
-                            tint = KitsugiColors.TextMuted
-                        )
-                    }
+                        }
+                    )
                 }
                 Spacer(modifier = Modifier.height(10.dp))
             }
@@ -647,10 +601,8 @@ fun SearchScreen(
                             .padding(vertical = 16.dp),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(
-                            color = accentColor,
-                            modifier = Modifier.size(32.dp),
-                            strokeWidth = 2.5.dp
+                        KitsugiPlasmaLoader(
+                            size = 32.dp
                         )
                     }
                 }

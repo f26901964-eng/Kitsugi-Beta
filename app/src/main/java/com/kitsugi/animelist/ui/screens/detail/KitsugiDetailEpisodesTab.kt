@@ -31,6 +31,7 @@ import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.PlayCircle
 import androidx.compose.material3.CircularProgressIndicator
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -86,7 +87,7 @@ fun EpisodesTabContent(
                     .height(200.dp),
                 contentAlignment = Alignment.Center
             ) {
-                CircularProgressIndicator(color = accentColor)
+                KitsugiPlasmaLoader(size = 48.dp)
             }
         }
         is DetailTabState.Success -> {

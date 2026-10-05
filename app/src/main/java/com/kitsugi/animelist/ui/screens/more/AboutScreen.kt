@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.screens.more
+﻿package com.kitsugi.animelist.ui.screens.more
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.Intent
 import android.net.Uri
@@ -337,7 +338,7 @@ fun AboutScreen(
                                 )
                             }
 
-                            Button(
+                            KitsugiButton(
                                 onClick = onCheckForUpdatesClick,
                                 colors = ButtonDefaults.buttonColors(containerColor = accentColor),
                                 shape = RoundedCornerShape(12.dp),
@@ -374,7 +375,7 @@ fun AboutScreen(
                                         style = MaterialTheme.typography.labelSmall
                                     )
                                 }
-                                Button(
+                                KitsugiButton(
                                     onClick = onCheckForPluginUpdatesClick,
                                     colors = ButtonDefaults.buttonColors(containerColor = accentColor.copy(alpha = 0.2f)),
                                     shape = RoundedCornerShape(12.dp),
@@ -416,7 +417,7 @@ fun AboutScreen(
                             fontWeight = FontWeight.Bold
                         )
 
-                        Button(
+                        KitsugiButton(
                             onClick = { showDeveloperLogs = true },
                             colors = ButtonDefaults.buttonColors(containerColor = accentColor),
                             modifier = Modifier.fillMaxWidth()

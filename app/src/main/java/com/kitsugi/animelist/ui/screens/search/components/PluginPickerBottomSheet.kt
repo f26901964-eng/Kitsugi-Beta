@@ -42,6 +42,7 @@ import com.kitsugi.animelist.data.cloudstream.CsPluginLoader
 import com.kitsugi.animelist.data.cloudstream.CsStreamRunner
 import com.kitsugi.animelist.data.local.KitsugiDatabase
 import com.kitsugi.animelist.ui.components.KitsugiSheetOrDialog
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.lagradost.cloudstream3.APIHolder
@@ -335,7 +336,7 @@ fun PluginPickerBottomSheet(
                                 .weight(1f),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator(color = accentColor, strokeWidth = 2.dp)
+                            KitsugiPlasmaLoader(size = 46.dp)
                         }
                     }
                     filteredApis.isEmpty() -> {
@@ -399,7 +400,7 @@ fun PluginPickerBottomSheet(
                                 .weight(1f),
                             contentAlignment = Alignment.Center
                         ) {
-                            CircularProgressIndicator(color = accentColor, strokeWidth = 2.dp)
+                            KitsugiPlasmaLoader(size = 46.dp)
                         }
                     }
                     searchResults.isEmpty() && hasSearched -> {

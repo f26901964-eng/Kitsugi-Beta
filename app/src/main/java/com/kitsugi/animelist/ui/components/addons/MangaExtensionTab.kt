@@ -1,4 +1,6 @@
-package com.kitsugi.animelist.ui.components.addons
+﻿package com.kitsugi.animelist.ui.components.addons
+import com.kitsugi.animelist.ui.components.KitsugiTonalButton
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -35,6 +37,7 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalIsTv
 import com.kitsugi.animelist.ui.tv.components.TvDialog
 import androidx.compose.ui.platform.LocalClipboardManager
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 
 private enum class MangaTabSection { REPOS, INSTALLED }
 private enum class MangaInstallState { IDLE, LOADING, SUCCESS, FAILURE }
@@ -126,7 +129,6 @@ internal fun MangaExtensionsTab(
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         // Bölüm Başlık Sekmesi
@@ -493,7 +495,7 @@ internal fun MangaExtensionsTab(
                                     fontWeight = if (installedCount == totalCount && totalCount > 0) FontWeight.Bold else FontWeight.Normal
                                 )
                             }
-                            if (isLoading) CircularProgressIndicator(color = accentColor, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                            if (isLoading) KitsugiPlasmaLoader(size = 18.dp)
                             else if (repoPlugins == null) {
                                 Icon(Icons.Rounded.Refresh, null, tint = accentColor, modifier = Modifier.size(18.dp).tvClickable(shape = RoundedCornerShape(999.dp)) { onFetchRepo(repoUrl) })
                             } else {
@@ -660,7 +662,7 @@ internal fun MangaExtensionsTab(
                                         Text("v${ext.version} · ${if (ext.lang == "all") "Global" else ext.lang.uppercase()}", color = KitsugiColors.TextMuted, fontSize = 10.sp)
                                     }
                                     when (installState) {
-                                        MangaInstallState.LOADING -> CircularProgressIndicator(color = accentColor, modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                                        MangaInstallState.LOADING -> KitsugiPlasmaLoader(size = 20.dp)
                                         MangaInstallState.SUCCESS -> Icon(Icons.Rounded.CheckCircle, null, tint = Color(0xFF4CAF50), modifier = Modifier.size(20.dp))
                                         MangaInstallState.FAILURE -> Icon(Icons.Rounded.Error, null, tint = KitsugiColors.AccentRed, modifier = Modifier.size(20.dp))
                                         MangaInstallState.IDLE -> {
@@ -757,7 +759,7 @@ internal fun MangaExtensionsTab(
                             contentAlignment = Alignment.Center
                         ) {
                             if (autoUpdateRunning) {
-                                CircularProgressIndicator(color = accentColor, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                                KitsugiPlasmaLoader(size = 18.dp)
                             } else {
                                 Icon(Icons.Rounded.CloudSync, null, tint = accentColor, modifier = Modifier.size(18.dp))
                             }
@@ -779,7 +781,7 @@ internal fun MangaExtensionsTab(
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
-                        Button(
+                        KitsugiButton(
                             onClick = {
                                 if (!autoUpdateRunning) {
                                     autoUpdateRunning = true
@@ -790,9 +792,7 @@ internal fun MangaExtensionsTab(
                                     }
                                 }
                             },
-                            enabled = !autoUpdateRunning,
-                            colors = ButtonDefaults.buttonColors(containerColor = accentColor),
-                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
+                            enabled = !autoUpdateRunning
                         ) {
                             Text(
                                 if (autoUpdateRunning) "Kontrol..." else "Şimdi Güncelle",
@@ -870,7 +870,7 @@ internal fun MangaExtensionsTab(
                         }
                     }
                     if (isBusy) {
-                        CircularProgressIndicator(color = accentColor, modifier = Modifier.size(18.dp), strokeWidth = 2.dp)
+                        KitsugiPlasmaLoader(size = 18.dp)
                     }
                     Box(
                         modifier = Modifier.clip(RoundedCornerShape(6.dp)).background(KitsugiColors.SurfaceStrong).padding(horizontal = 6.dp, vertical = 3.dp)
@@ -1090,8 +1090,8 @@ internal fun MangaExtensionsTab(
                     }
 
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilledTonalButton(onClick = { onQuickCheckSource(src) }, enabled = !isBusy) { Text("Sağlık testi") }
-                        FilledTonalButton(onClick = { onRefreshSourceMirror(src) }, enabled = !isBusy) { Text("Mirror bul") }
+                        KitsugiTonalButton(onClick = { onQuickCheckSource(src) }, enabled = !isBusy) { Text("Sağlık testi") }
+                        KitsugiTonalButton(onClick = { onRefreshSourceMirror(src) }, enabled = !isBusy) { Text("Mirror bul") }
                         TextButton(onClick = {
                             editedDomain = ""
                             onClearSourceMirror(src)
@@ -1115,14 +1115,13 @@ internal fun MangaExtensionsTab(
                             Text("Sıfırla", color = KitsugiColors.AccentRed)
                         }
                         Spacer(Modifier.width(8.dp))
-                        Button(
+                        KitsugiButton(
                             onClick = {
                                 onSetSourceDomain(src, editedDomain.ifBlank { null })
                                 onSetSourceUserAgent(src, editedUserAgent.ifBlank { null })
                                 manageTarget = null
                             },
-                            enabled = canSave,
-                            colors = ButtonDefaults.buttonColors(containerColor = accentColor)
+                            enabled = canSave
                         ) {
                             Text("Kaydet", color = Color.White, fontWeight = FontWeight.Bold)
                         }
@@ -1203,8 +1202,8 @@ internal fun MangaExtensionsTab(
                         }
 
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            FilledTonalButton(onClick = { onQuickCheckSource(src) }, enabled = !isBusy) { Text("Sağlık testi") }
-                            FilledTonalButton(onClick = { onRefreshSourceMirror(src) }, enabled = !isBusy) { Text("Mirror bul") }
+                            KitsugiTonalButton(onClick = { onQuickCheckSource(src) }, enabled = !isBusy) { Text("Sağlık testi") }
+                            KitsugiTonalButton(onClick = { onRefreshSourceMirror(src) }, enabled = !isBusy) { Text("Mirror bul") }
                             TextButton(onClick = {
                                 editedDomain = ""
                                 onClearSourceMirror(src)
@@ -1259,9 +1258,8 @@ internal fun MangaExtensionsTab(
                         Text("İptal", color = KitsugiColors.TextSecondary)
                     }
                     Spacer(Modifier.width(8.dp))
-                    Button(
-                        onClick = { onDeleteExtension(src); deleteTarget = null },
-                        colors = ButtonDefaults.buttonColors(containerColor = KitsugiColors.AccentRed)
+                    KitsugiButton(
+                        onClick = { onDeleteExtension(src); deleteTarget = null }
                     ) {
                         Text("Sil", color = Color.White, fontWeight = FontWeight.Bold)
                     }

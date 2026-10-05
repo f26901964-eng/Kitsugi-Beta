@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.screens.fullscreen.controls
+﻿package com.kitsugi.animelist.ui.screens.fullscreen.controls
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -24,7 +25,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Lock
 import androidx.compose.material.icons.filled.SkipNext
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -578,7 +578,7 @@ fun PlayerControls(
                             Text("İptal")
                         }
                         Spacer(modifier = Modifier.width(8.dp))
-                        Button(onClick = {
+                        KitsugiButton(onClick = {
                             viewModel.playNextEpisode(
                                 activity              = null,
                                 onAlternativeRequired = {},

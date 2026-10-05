@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.screens.manga
+﻿package com.kitsugi.animelist.ui.screens.manga
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
@@ -181,7 +182,7 @@ fun MangaReaderScreen(
                         textAlign = androidx.compose.ui.text.style.TextAlign.Center
                     )
                     Spacer(Modifier.height(24.dp))
-                    Button(
+                    KitsugiButton(
                         onClick = { viewModel.retryLoadPages() },
                         colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF7C4DFF))
                     ) {

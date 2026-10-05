@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.screens.search
+﻿package com.kitsugi.animelist.ui.screens.search
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -21,8 +22,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -130,7 +129,7 @@ fun SourceEngineFilterSheet(
             Spacer(modifier = Modifier.height(8.dp))
 
             // Uygula Butonu
-            Button(
+            KitsugiButton(
                 onClick = {
                     viewModel.search()
                     onDismiss()
@@ -138,8 +137,7 @@ fun SourceEngineFilterSheet(
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(50.dp),
-                shape = RoundedCornerShape(16.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = accentColor)
+                shape = RoundedCornerShape(16.dp)
             ) {
                 Text(
                     text = "Sonuçları Göster",

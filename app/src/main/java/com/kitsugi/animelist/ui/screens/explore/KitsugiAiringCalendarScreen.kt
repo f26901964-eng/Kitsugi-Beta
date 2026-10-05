@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.CircularProgressIndicator
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -124,7 +125,7 @@ fun KitsugiAiringCalendarScreen(
         when {
             viewModel.isLoading && viewModel.weekSchedule.isEmpty() -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = accentColor)
+                    KitsugiPlasmaLoader(size = 50.dp)
                 }
             }
             viewModel.errorMessage != null && viewModel.weekSchedule.isEmpty() -> {

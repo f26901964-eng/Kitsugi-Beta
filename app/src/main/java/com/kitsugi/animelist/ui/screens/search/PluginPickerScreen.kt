@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.data.cloudstream.CsPluginLoader
 import com.kitsugi.animelist.data.local.KitsugiDatabase
 import com.kitsugi.animelist.data.remote.JikanSearchResult
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import com.kitsugi.animelist.ui.app.AppNavigationState
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
@@ -390,7 +391,7 @@ fun PluginPickerScreen(
                             .weight(1f),
                         contentAlignment = Alignment.Center
                     ) {
-                        CircularProgressIndicator(color = accentColor, strokeWidth = 2.dp)
+                        KitsugiPlasmaLoader(size = 46.dp)
                     }
                 }
                 filteredApis.isEmpty() -> {

@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.screens.fullscreen.controls.components.sheets
+﻿package com.kitsugi.animelist.ui.screens.fullscreen.controls.components.sheets
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -14,7 +15,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.RestartAlt
-import androidx.compose.material3.Button
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
@@ -113,7 +113,7 @@ fun PlaybackSpeedSheet(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Button(
+                KitsugiButton(
                     modifier = Modifier.weight(1f),
                     onClick = { onSetAsDefault(speed) },
                 ) { Text("Varsayılan Yap") }

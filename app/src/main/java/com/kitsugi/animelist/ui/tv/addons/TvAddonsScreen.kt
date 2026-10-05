@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.CircularProgressIndicator
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -543,7 +544,7 @@ private fun TvRepoCard(
             contentAlignment = Alignment.Center
         ) {
             if (isLoading) {
-                CircularProgressIndicator(modifier = Modifier.size(20.dp), color = Color(0xFF42A5F5), strokeWidth = 2.dp)
+                KitsugiPlasmaLoader(size = 20.dp)
             } else {
                 Icon(Icons.Default.Folder, contentDescription = null, tint = Color(0xFF42A5F5), modifier = Modifier.size(20.dp))
             }

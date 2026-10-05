@@ -1,4 +1,5 @@
-package com.kitsugi.animelist.ui.screens.manga.components
+﻿package com.kitsugi.animelist.ui.screens.manga.components
+import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
@@ -136,7 +137,7 @@ private fun ChapterTransitionFooter(
                     fontSize = 13.sp
                 )
                 Spacer(Modifier.height(12.dp))
-                Button(
+                KitsugiButton(
                     onClick = onGoToNextChapter,
                     colors = ButtonDefaults.buttonColors(
                         containerColor = Color(0xFF7C4DFF),

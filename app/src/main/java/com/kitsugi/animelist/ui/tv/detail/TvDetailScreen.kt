@@ -23,6 +23,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.kitsugi.animelist.ui.components.KitsugiShimmerAvatarRow
 import com.kitsugi.animelist.ui.components.KitsugiShimmerMediaRow
 import com.kitsugi.animelist.ui.components.KitsugiShimmerSearchResultList
+import com.kitsugi.animelist.ui.components.KitsugiUiverseGlowButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -987,6 +988,31 @@ private fun TvActionButton(
     modifier: Modifier = Modifier
 ) {
     var isFocused by remember { mutableStateOf(false) }
+    val isPrimary = backgroundColor != KitsugiColors.SurfaceStrong
+
+    if (isPrimary) {
+        KitsugiUiverseGlowButton(
+            onClick = onClick,
+            shape = RoundedCornerShape(12.dp),
+            contentPadding = 12.dp,
+            modifier = modifier
+                .focusRequester(focusRequester)
+                .onFocusChanged { isFocused = it.isFocused }
+        ) {
+            Icon(
+                imageVector = icon,
+                contentDescription = null,
+                tint = Color.White,
+                modifier = Modifier.size(20.dp)
+            )
+            Text(
+                text = text,
+                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
+                color = Color.White
+            )
+        }
+        return
+    }
 
     Box(
         modifier = modifier
