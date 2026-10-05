@@ -59,19 +59,18 @@ class KitsugiCrashActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
 
-        val intentCrashReport = intent.getStringExtra("crash_report")
+        val intentCrashReport = intent.getStringExtra("crash_report") ?: intent.getStringExtra("crash_summary")
 
         setContent {
             val context = LocalContext.current
             val scope = rememberCoroutineScope()
 
-            val settingsDataStore = remember { SettingsDataStore(context.applicationContext) }
-            val appSettings by settingsDataStore.settingsFlow.collectAsState(initial = AppSettings())
-            val activeAccentColor = KitsugiAccentForThemeId(appSettings.selectedThemeId)
+            // Güvenli bağımsız renk — :crash sürecinde DataStore dosya kilidi hatası oluşmaması için DataStore çağrılmaz
+            val activeAccentColor = KitsugiColors.AccentTeal
 
             // Son çökme raporu
             val crashReport = remember {
-                if (!intentCrashReport.isNullOrBlank()) intentCrashReport
+                if (!intentCrashReport.isNullOrBlank() && intentCrashReport.length > 500) intentCrashReport
                 else KitsugiCrashLogger.readCrashLog(context)
             }
 
@@ -294,6 +293,26 @@ class KitsugiCrashActivity : ComponentActivity() {
                                 }
                             }
 
+                            // Satır 1.5: Dosya Olarak İndirilenler Klasörüne Kaydet
+                            OutlinedButton(
+                                onClick = {
+                                    val exported = KitsugiCrashLogger.exportReportToDownloads(context)
+                                    if (exported != null) {
+                                        Toast.makeText(context, "Rapor İndirilenler klasörüne kaydedildi:\n${exported.name} ✓", Toast.LENGTH_LONG).show()
+                                    } else {
+                                        Toast.makeText(context, "İndirilenler klasörüne yazılamadı", Toast.LENGTH_SHORT).show()
+                                    }
+                                },
+                                shape = RoundedCornerShape(12.dp),
+                                border = BorderStroke(1.dp, activeAccentColor.copy(alpha = 0.5f)),
+                                colors = ButtonDefaults.outlinedButtonColors(contentColor = activeAccentColor),
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(Icons.Rounded.Download, null, modifier = Modifier.size(15.dp))
+                                Spacer(Modifier.width(6.dp))
+                                Text("Dosyayı İndirilenler Klasörüne Kaydet (.txt)", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                            }
+
                             // Satır 2: Geliştiriciye Gönder (tüm dosyalar)
                             Button(
                                 onClick = {
@@ -409,6 +428,7 @@ class KitsugiCrashActivity : ComponentActivity() {
 
                                 Button(
                                     onClick = {
+                                        KitsugiCrashLogger.markCrashAsRead(context)
                                         val restartIntent = context.packageManager.getLaunchIntentForPackage(context.packageName)
                                         restartIntent?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK)
                                         if (restartIntent != null) context.startActivity(restartIntent)

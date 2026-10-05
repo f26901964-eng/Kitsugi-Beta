@@ -49,28 +49,58 @@ object CloudstreamUrlHelper {
         // Check for our KitsugiPlugins repo or legacy repositories that migrated to KitsugiPlugins
         val isOurRepoOrLegacy = cleanUrl.contains("KitsugiPlugins", ignoreCase = true) ||
             cleanUrl.contains("Kitsugi-Plugins", ignoreCase = true) ||
-            cleanUrl.contains("f26901964-eng", ignoreCase = true) ||
+            cleanUrl.contains("f26901964-eng/Kitsugi-Plugins", ignoreCase = true) ||
             cleanUrl.contains("KitsugiBeta-dev", ignoreCase = true) ||
-            cleanUrl.contains("gameras1010-afk", ignoreCase = true) ||
-            cleanUrl.contains("keyiflerolsun/Kekik-cloudstream", ignoreCase = true) ||
-            cleanUrl.contains("maarrem/cs-Kekik", ignoreCase = true)
+            cleanUrl.contains("gameras1010-afk/Kitsugi-Plugins", ignoreCase = true)
 
         if (isOurRepoOrLegacy) {
             val cleanPath = cleanUrl.substringBefore("?").substringBefore("#")
             return when {
                 cleanPath.endsWith(".cs3", ignoreCase = true) -> {
                     val fileName = cleanPath.substringAfterLast("/")
-                    "https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Plugins/builds/$fileName"
+                    "https://raw.githubusercontent.com/gameras1010-afk/Kitsugi-Plugins/builds/$fileName"
                 }
                 cleanPath.endsWith("plugins.json", ignoreCase = true) -> {
-                    "https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Plugins/builds/plugins.json"
+                    "https://raw.githubusercontent.com/gameras1010-afk/Kitsugi-Plugins/builds/plugins.json"
                 }
                 else -> {
-                    // Any other URL: repo root, .git, repo.json, main branch, raw builds, etc.
-                    // All resolve to the canonical repo manifest!
-                    "https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Plugins/builds/repo.json"
+                    // Canonical repo manifest (verified 200 OK)
+                    "https://raw.githubusercontent.com/gameras1010-afk/Kitsugi-Plugins/builds/repo.json"
                 }
             }
+        }
+
+        // Kraptor123 cs-kraptor only serves builds/plugins.json (no repo.json)
+        if (cleanUrl.contains("Kraptor123/cs-kraptor", ignoreCase = true)) {
+            val cleanPath = cleanUrl.substringBefore("?").substringBefore("#")
+            if (cleanPath.endsWith(".cs3", ignoreCase = true)) {
+                val fileName = cleanPath.substringAfterLast("/")
+                return "https://raw.githubusercontent.com/Kraptor123/cs-kraptor/builds/$fileName"
+            }
+            return "https://raw.githubusercontent.com/Kraptor123/cs-kraptor/builds/plugins.json"
+        }
+
+        // Hexated cloudstream-extensions-hexated serves builds/plugins.json
+        if (cleanUrl.contains("hexated/cloudstream-extensions-hexated", ignoreCase = true)) {
+            val cleanPath = cleanUrl.substringBefore("?").substringBefore("#")
+            if (cleanPath.endsWith(".cs3", ignoreCase = true)) {
+                val fileName = cleanPath.substringAfterLast("/")
+                return "https://raw.githubusercontent.com/hexated/cloudstream-extensions-hexated/builds/$fileName"
+            }
+            return "https://raw.githubusercontent.com/hexated/cloudstream-extensions-hexated/builds/plugins.json"
+        }
+
+        // Kekik feroxx repository
+        if (cleanUrl.contains("feroxx/Kekik-cloudstream", ignoreCase = true) || cleanUrl.contains("keyiflerolsun/Kekik-cloudstream", ignoreCase = true)) {
+            val cleanPath = cleanUrl.substringBefore("?").substringBefore("#")
+            if (cleanPath.endsWith(".cs3", ignoreCase = true)) {
+                val fileName = cleanPath.substringAfterLast("/")
+                return "https://raw.githubusercontent.com/feroxx/Kekik-cloudstream/builds/$fileName"
+            }
+            if (cleanPath.endsWith("plugins.json", ignoreCase = true)) {
+                return "https://raw.githubusercontent.com/feroxx/Kekik-cloudstream/builds/plugins.json"
+            }
+            return "https://raw.githubusercontent.com/feroxx/Kekik-cloudstream/refs/heads/builds/repo.json"
         }
 
         // Handle general GitHub raw/web URLs
@@ -86,6 +116,47 @@ object CloudstreamUrlHelper {
         }
 
         return url
+    }
+
+    /**
+     * İndirme bağlantısı için alternatif ayna (mirror) ve vekil sunucu URL adayları üretir.
+     * Bir bağlantı 404, DNS hatası veya ISS engeline takıldığında sırayla diğer adaylar denenir.
+     */
+    fun getCandidateDownloadUrls(scraperId: String, rawUrl: String): List<String> {
+        val candidates = linkedSetOf<String>()
+        val normalized = normalizeUrl(rawUrl)
+        candidates.add(normalized)
+
+        // 1. jsDelivr proxy alternatifi
+        val proxyUrl = applyGithubProxy(normalized)
+        if (proxyUrl != normalized) {
+            candidates.add(proxyUrl)
+        }
+
+        // 2. Kitsugi havuzu aynaları
+        if (normalized.contains("Kitsugi-Plugins", ignoreCase = true) ||
+            normalized.contains("KitsugiPlugins", ignoreCase = true) ||
+            normalized.contains("gameras1010-afk", ignoreCase = true) ||
+            normalized.contains("f26901964-eng", ignoreCase = true)) {
+            candidates.add("https://raw.githubusercontent.com/gameras1010-afk/Kitsugi-Plugins/builds/$scraperId.cs3")
+            candidates.add("https://cdn.jsdelivr.net/gh/gameras1010-afk/Kitsugi-Plugins@builds/$scraperId.cs3")
+            candidates.add("https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Plugins/builds/prebuilt/$scraperId.cs3")
+            candidates.add("https://cdn.jsdelivr.net/gh/f26901964-eng/Kitsugi-Plugins@builds/prebuilt/$scraperId.cs3")
+        }
+
+        // 3. Kraptor havuzu aynaları
+        if (normalized.contains("cs-kraptor", ignoreCase = true) || normalized.contains("Kraptor123", ignoreCase = true)) {
+            candidates.add("https://raw.githubusercontent.com/Kraptor123/cs-kraptor/builds/$scraperId.cs3")
+            candidates.add("https://cdn.jsdelivr.net/gh/Kraptor123/cs-kraptor@builds/$scraperId.cs3")
+        }
+
+        // 4. Kekik feroxx aynaları
+        if (normalized.contains("Kekik-cloudstream", ignoreCase = true) || normalized.contains("feroxx", ignoreCase = true)) {
+            candidates.add("https://raw.githubusercontent.com/feroxx/Kekik-cloudstream/builds/$scraperId.cs3")
+            candidates.add("https://cdn.jsdelivr.net/gh/feroxx/Kekik-cloudstream@builds/$scraperId.cs3")
+        }
+
+        return candidates.toList()
     }
 
     /**

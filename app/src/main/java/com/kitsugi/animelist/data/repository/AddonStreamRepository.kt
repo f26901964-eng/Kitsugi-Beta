@@ -174,15 +174,37 @@ class AddonStreamRepository(private val context: Context) {
     }
 
     /**
-     * Resolves a torrent stream via Debrid if it's not a direct HTTP link.
+     * Resolves a torrent stream via Debrid or local P2P engine if it's not a direct HTTP link.
      */
     suspend fun resolveStreamUrl(source: StreamSource): String? {
         if (!source.url.isNullOrBlank()) {
-            return source.url // Direct link, no debrid required
+            return source.url // Direct link, no debrid or P2P required
         }
         val hash = source.infoHash
         if (!hash.isNullOrBlank()) {
-            return debridResolver.resolveHash(hash, source.fileIndex)
+            // 1. Önce Debrid API anahtarı varsa Debrid üzerinden çözmeyi dene
+            if (!debridResolver.getApiKey().isNullOrBlank()) {
+                val debridUrl = debridResolver.resolveHash(hash, source.fileIndex)
+                if (!debridUrl.isNullOrBlank()) {
+                    return debridUrl
+                }
+            }
+
+            // 2. Debrid yoksa veya çözülemediyse ve P2P etkinse -> Dahili P2P Motoru ile stream et
+            if (com.kitsugi.animelist.core.p2p.P2pSettingsRepository.isP2pEnabled()) {
+                try {
+                    return com.kitsugi.animelist.core.p2p.P2pStreamingEngine.startStream(
+                        com.kitsugi.animelist.core.p2p.P2pStreamRequest(
+                            infoHash = hash,
+                            fileIdx = source.fileIndex,
+                            filename = source.title
+                        )
+                    )
+                } catch (e: Exception) {
+                    android.util.Log.e("AddonStreamRepository", "P2P akış başlatma hatası: ${e.message}", e)
+                    throw e
+                }
+            }
         }
         return null
     }

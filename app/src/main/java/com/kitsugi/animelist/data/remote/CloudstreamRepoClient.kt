@@ -143,14 +143,14 @@ class CloudstreamRepoClient(private val context: android.content.Context? = null
                     Log.i(TAG, "Direct GitHub fetch failed for $repoUrl, automatically retrying with jsDelivr GitHub proxy...")
                     return@withContext fetchRepo(repoUrl, useGithubProxy = true, forceRefresh = forceRefresh)
                 }
-                if (repoUrl.contains("codeberg.org", ignoreCase = true) || repoUrl.contains("KitsugiPlugins", ignoreCase = true)) {
+                if (repoUrl.contains("codeberg.org", ignoreCase = true) || repoUrl.contains("KitsugiPlugins", ignoreCase = true) || repoUrl.contains("Kitsugi-Plugins", ignoreCase = true)) {
                     Log.i(TAG, "Primary Codeberg fetch failed, trying Codeberg API fallback endpoint...")
                     val apiResult = runCatching {
                         val apiReq = Request.Builder().url(CODEBERG_API_REPO_FALLBACK).build()
                         client.newCall(apiReq).execute().use { resp -> if (resp.isSuccessful) resp.body?.string() else null }
                     }.getOrNull()
                     if (apiResult != null) {
-                        return@withContext parseRepoJson(apiResult, useGithubProxy)
+                        return@withContext parseRepoJson(apiResult, finalUrl, useGithubProxy)
                     }
                     Log.i(TAG, "Codeberg remote endpoints failed, falling back to bundled assets repo...")
                     return@withContext fetchRepoFromAssets()
@@ -158,23 +158,33 @@ class CloudstreamRepoClient(private val context: android.content.Context? = null
                 return@withContext null
             }
 
-            parseRepoJson(responseBody, useGithubProxy)
+            parseRepoJson(responseBody, finalUrl, useGithubProxy)
         } catch (e: Exception) {
             Log.e(TAG, "fetchRepo exception for $finalUrl", e)
             if (!useGithubProxy && repoUrl.contains("raw.githubusercontent.com", ignoreCase = true)) {
                 Log.i(TAG, "Direct GitHub fetch exception for $repoUrl, automatically retrying with jsDelivr proxy...")
                 return@withContext fetchRepo(repoUrl, useGithubProxy = true, forceRefresh = forceRefresh)
             }
-            if (repoUrl.contains("codeberg.org", ignoreCase = true) || repoUrl.contains("KitsugiPlugins", ignoreCase = true)) {
+            if (repoUrl.contains("codeberg.org", ignoreCase = true) || repoUrl.contains("KitsugiPlugins", ignoreCase = true) || repoUrl.contains("Kitsugi-Plugins", ignoreCase = true)) {
                 return@withContext fetchRepoFromAssets()
             }
             null
         }
     }
 
-    private fun parseRepoJson(responseBody: String, useGithubProxy: Boolean): CsRepository {
+    private fun parseRepoJson(responseBody: String, requestUrl: String, useGithubProxy: Boolean): CsRepository {
+        val trimmed = responseBody.trim()
+        if (trimmed.startsWith("[")) {
+            // Direct plugins.json URL (e.g. Kraptor, Hexated, or direct plugins array)
+            val repoName = deriveRepoNameFromUrl(requestUrl)
+            return CsRepository(
+                name = repoName,
+                description = "Eklenti Deposu ($repoName)",
+                pluginLists = listOf(requestUrl)
+            )
+        }
         val json = org.json.JSONObject(responseBody)
-        val name = json.optString("name", "Bilinmeyen Repo")
+        val name = json.optString("name", deriveRepoNameFromUrl(requestUrl))
         val description = json.optString("description").takeIf { it.isNotBlank() }
         val pluginLists = mutableListOf<String>()
         val arr = json.optJSONArray("pluginLists")
@@ -187,6 +197,13 @@ class CloudstreamRepoClient(private val context: android.content.Context? = null
             }
         }
         return CsRepository(name = name, description = description, pluginLists = pluginLists)
+    }
+
+    private fun deriveRepoNameFromUrl(url: String): String {
+        val clean = url.substringBefore("?").substringBefore("#").removeSuffix("/")
+        val parts = clean.split("/")
+        val nameCandidate = parts.findLast { it.isNotBlank() && !it.endsWith(".json") && !it.equals("builds", true) && !it.equals("master", true) && !it.equals("main", true) }
+        return nameCandidate?.replace("-", " ")?.replace("_", " ")?.capitalize(java.util.Locale.ROOT) ?: "Eklenti Havuzu"
     }
 
     suspend fun fetchPlugins(pluginListUrl: String, useGithubProxy: Boolean = false, forceRefresh: Boolean = false): List<CsPlugin> = withContext(Dispatchers.IO) {
@@ -306,11 +323,23 @@ class CloudstreamRepoClient(private val context: android.content.Context? = null
      */
     suspend fun fetchAllPlugins(repoUrl: String, useGithubProxy: Boolean = false, forceRefresh: Boolean = false): List<CsPlugin>? {
         val normalizedRepoUrl = com.kitsugi.animelist.utils.CloudstreamUrlHelper.normalizeAndProxy(repoUrl, useGithubProxy)
+        
+        // Doğrudan plugins.json URL'si girilmişse manifest aramadan direkt eklentileri çek
+        if (normalizedRepoUrl.endsWith("plugins.json", ignoreCase = true)) {
+            var directPlugins = fetchPlugins(normalizedRepoUrl, useGithubProxy, forceRefresh)
+            if (directPlugins.isEmpty() && !useGithubProxy && repoUrl.contains("raw.githubusercontent.com", ignoreCase = true)) {
+                directPlugins = fetchPlugins(repoUrl, useGithubProxy = true, forceRefresh = forceRefresh)
+            }
+            if (directPlugins.isNotEmpty()) {
+                return directPlugins.map { it.copy(repositoryUrl = it.repositoryUrl ?: normalizedRepoUrl) }
+            }
+        }
+
         var repo = fetchRepo(normalizedRepoUrl, useGithubProxy, forceRefresh)
         if (repo == null && !useGithubProxy && repoUrl.contains("raw.githubusercontent.com", ignoreCase = true)) {
             repo = fetchRepo(repoUrl, useGithubProxy = true, forceRefresh = forceRefresh)
         }
-        if (repo == null && (normalizedRepoUrl.contains("KitsugiPlugins", ignoreCase = true) || normalizedRepoUrl.contains("codeberg.org", ignoreCase = true))) {
+        if (repo == null && (normalizedRepoUrl.contains("KitsugiPlugins", ignoreCase = true) || normalizedRepoUrl.contains("Kitsugi-Plugins", ignoreCase = true) || normalizedRepoUrl.contains("codeberg.org", ignoreCase = true))) {
             repo = fetchRepoFromAssets()
         }
         if (repo == null) return null
@@ -320,7 +349,7 @@ class CloudstreamRepoClient(private val context: android.content.Context? = null
             if (plugins.isEmpty() && !useGithubProxy && listUrl.contains("raw.githubusercontent.com", ignoreCase = true)) {
                 plugins = fetchPlugins(listUrl, useGithubProxy = true, forceRefresh = forceRefresh)
             }
-            if (plugins.isEmpty() && (listUrl.contains("KitsugiPlugins", ignoreCase = true) || listUrl.contains("codeberg.org", ignoreCase = true))) {
+            if (plugins.isEmpty() && (listUrl.contains("KitsugiPlugins", ignoreCase = true) || listUrl.contains("Kitsugi-Plugins", ignoreCase = true) || listUrl.contains("codeberg.org", ignoreCase = true))) {
                 plugins = fetchPluginsFromAssets()
             }
             all.addAll(plugins.map { it.copy(repositoryUrl = it.repositoryUrl ?: normalizedRepoUrl) })

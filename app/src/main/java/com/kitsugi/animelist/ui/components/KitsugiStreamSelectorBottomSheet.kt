@@ -86,6 +86,61 @@ fun KitsugiStreamSelectorBottomSheet(
     var streams by remember { mutableStateOf<List<StreamSource>>(emptyList()) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var resolvingSource by remember { mutableStateOf<StreamSource?>(null) }
+    var showP2pConsentDialog by remember { mutableStateOf(false) }
+    var pendingP2pStream by remember { mutableStateOf<StreamSource?>(null) }
+
+    val resolveAndSelectStream: (StreamSource) -> Unit = { stream ->
+        val isTorrent = !stream.infoHash.isNullOrBlank() || stream.url?.startsWith("magnet:") == true
+        val hasDebrid = !DebridResolver(context).getApiKey().isNullOrBlank()
+        val p2pEnabled = com.kitsugi.animelist.core.p2p.P2pSettingsRepository.isP2pEnabled()
+
+        if (isTorrent && !hasDebrid && !p2pEnabled) {
+            if (!com.kitsugi.animelist.core.p2p.P2pSettingsRepository.isConsentGranted()) {
+                pendingP2pStream = stream
+                showP2pConsentDialog = true
+            } else {
+                com.kitsugi.animelist.core.p2p.P2pSettingsRepository.setP2pEnabled(true)
+            }
+        }
+
+        if (!isTorrent || hasDebrid || com.kitsugi.animelist.core.p2p.P2pSettingsRepository.isP2pEnabled()) {
+            resolvingSource = stream
+            coroutineScope.launch {
+                val resolvedUrl = try {
+                    kotlinx.coroutines.withTimeoutOrNull(35000L) {
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            repository.resolveStreamUrl(stream)
+                        }
+                    }
+                } catch (e: Exception) {
+                    null
+                }
+                resolvingSource = null
+                if (resolvedUrl != null) {
+                    onStreamSelected(resolvedUrl, stream.title, stream)
+                } else {
+                    errorMessage = "Akış linki çözümlenemedi."
+                }
+            }
+        }
+    }
+
+    if (showP2pConsentDialog) {
+        com.kitsugi.animelist.ui.components.p2p.P2pConsentDialog(
+            onDismiss = {
+                showP2pConsentDialog = false
+                pendingP2pStream = null
+            },
+            onConsentApproved = {
+                showP2pConsentDialog = false
+                val pending = pendingP2pStream
+                pendingP2pStream = null
+                if (pending != null) {
+                    resolveAndSelectStream(pending)
+                }
+            }
+        )
+    }
 
     // Fetch streams
     LaunchedEffect(malId, aniListId, season, episodeNumber) {
@@ -313,31 +368,7 @@ fun KitsugiStreamSelectorBottomSheet(
                                 items(filteredStreamsR) { stream ->
                                     StreamItemRow(
                                         stream = stream,
-                                        onClick = {
-                                            val isTorrent = !stream.infoHash.isNullOrBlank() || stream.url?.startsWith("magnet:") == true
-                                            if (isTorrent && DebridResolver(context).getApiKey().isNullOrBlank()) {
-                                                errorMessage = "Debrid API anahtarı gerekli."
-                                                return@StreamItemRow
-                                            }
-                                            resolvingSource = stream
-                                            coroutineScope.launch {
-                                                val resolvedUrl = try {
-                                                    kotlinx.coroutines.withTimeoutOrNull(30000L) {
-                                                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                                            repository.resolveStreamUrl(stream)
-                                                        }
-                                                    }
-                                                } catch (e: Exception) {
-                                                    null
-                                                }
-                                                resolvingSource = null
-                                                if (resolvedUrl != null) {
-                                                    onStreamSelected(resolvedUrl, stream.title, stream)
-                                                } else {
-                                                    errorMessage = "Akış linki çözümlenemedi (Debrid hatası veya yetkisiz token)."
-                                                }
-                                            }
-                                        }
+                                        onClick = { resolveAndSelectStream(stream) }
                                     )
                                 }
                             }
@@ -514,31 +545,7 @@ fun KitsugiStreamSelectorBottomSheet(
                         items(filteredStreams) { stream ->
                             StreamItemRow(
                                 stream = stream,
-                                onClick = {
-                                    val isTorrent = !stream.infoHash.isNullOrBlank() || stream.url?.startsWith("magnet:") == true
-                                    if (isTorrent && DebridResolver(context).getApiKey().isNullOrBlank()) {
-                                        errorMessage = "Debrid API anahtarı gerekli."
-                                        return@StreamItemRow
-                                    }
-                                    resolvingSource = stream
-                                    coroutineScope.launch {
-                                        val resolvedUrl = try {
-                                            kotlinx.coroutines.withTimeoutOrNull(30000L) {
-                                                kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                                    repository.resolveStreamUrl(stream)
-                                                }
-                                            }
-                                        } catch (e: Exception) {
-                                            null
-                                        }
-                                        resolvingSource = null
-                                        if (resolvedUrl != null) {
-                                            onStreamSelected(resolvedUrl, stream.title, stream)
-                                        } else {
-                                            errorMessage = "Akış linki çözümlenemedi (Debrid hatası veya yetkisiz token)."
-                                        }
-                                    }
-                                }
+                                onClick = { resolveAndSelectStream(stream) }
                             )
                         }
                     }

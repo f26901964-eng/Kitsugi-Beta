@@ -704,7 +704,9 @@ class SimklApiClient(
         malId: Int? = null,
         tmdbId: Int? = null,
         aniListId: Int? = null,
-        kitsuId: Int? = null
+        kitsuId: Int? = null,
+        title: String? = null,
+        year: Int? = null
     ): Boolean = withContext(Dispatchers.IO) {
         val mediaKey = when (type.lowercase()) {
             "movies", "movie" -> "movies"
@@ -718,11 +720,20 @@ class SimklApiClient(
             if (kitsuId != null && kitsuId > 0) put("kitsu", kitsuId)
             if (tmdbId != null && tmdbId > 0) put("tmdb", tmdbId)
         }
-        val itemObj = JSONObject().put("to", status).put("ids", idObj)
+        val itemObj = JSONObject().put("to", status)
+        if (idObj.length() > 0) {
+            itemObj.put("ids", idObj)
+        }
+        if (!title.isNullOrBlank()) {
+            itemObj.put("title", title)
+        }
+        if (year != null && year > 1900) {
+            itemObj.put("year", year)
+        }
         val payload = JSONObject().put(mediaKey, JSONArray().put(itemObj)).toString()
 
         val request = Request.Builder()
-            .url("https://api.simkl.com/sync/add-to-list")
+            .url("https://api.simkl.com/sync/add-to-list?client_id=$clientId")
             .post(payload.toRequestBody("application/json".toMediaTypeOrNull()))
             .header("Authorization", "Bearer $token")
             .header("simkl-api-key", clientId)
@@ -749,7 +760,16 @@ class SimklApiClient(
         val malId: Int? = null,
         val tmdbId: Int? = null,
         val aniListId: Int? = null,
-        val kitsuId: Int? = null
+        val kitsuId: Int? = null,
+        val title: String? = null,
+        val year: Int? = null
+    )
+
+    data class SimklBatchResponse(
+        val isSuccess: Boolean,
+        val addedCount: Int = 0,
+        val notFoundCount: Int = 0,
+        val errorMessage: String? = null
     )
 
     /**
@@ -757,11 +777,11 @@ class SimklApiClient(
      * Simkl API'si tek seferde 50 öğeye kadar toplu eklemeyi destekler.
      * Bu sayede 700+ öğelik kütüphaneler rate limit (1 req/sn) aşılmadan saniyeler içinde senkronize edilir.
      */
-    suspend fun addToListBatch(
+    suspend fun addToListBatchDetailed(
         token: String,
         entries: List<SimklBatchEntry>
-    ): Boolean = withContext(Dispatchers.IO) {
-        if (entries.isEmpty()) return@withContext true
+    ): SimklBatchResponse = withContext(Dispatchers.IO) {
+        if (entries.isEmpty()) return@withContext SimklBatchResponse(isSuccess = true)
         val animeArray = JSONArray()
         val showsArray = JSONArray()
         val moviesArray = JSONArray()
@@ -774,8 +794,17 @@ class SimklApiClient(
                 if (entry.kitsuId != null && entry.kitsuId > 0) put("kitsu", entry.kitsuId)
                 if (entry.tmdbId != null && entry.tmdbId > 0) put("tmdb", entry.tmdbId)
             }
+            val itemObj = JSONObject().put("to", entry.status)
             if (idObj.length() > 0) {
-                val itemObj = JSONObject().put("to", entry.status).put("ids", idObj)
+                itemObj.put("ids", idObj)
+            }
+            if (!entry.title.isNullOrBlank()) {
+                itemObj.put("title", entry.title)
+            }
+            if (entry.year != null && entry.year > 1900) {
+                itemObj.put("year", entry.year)
+            }
+            if (idObj.length() > 0 || !entry.title.isNullOrBlank()) {
                 when (entry.type.lowercase()) {
                     "movies", "movie" -> moviesArray.put(itemObj)
                     "anime" -> animeArray.put(itemObj)
@@ -789,10 +818,10 @@ class SimklApiClient(
         if (showsArray.length() > 0) payloadObj.put("shows", showsArray)
         if (moviesArray.length() > 0) payloadObj.put("movies", moviesArray)
 
-        if (payloadObj.length() == 0) return@withContext true
+        if (payloadObj.length() == 0) return@withContext SimklBatchResponse(isSuccess = true)
 
         val request = Request.Builder()
-            .url("https://api.simkl.com/sync/add-to-list")
+            .url("https://api.simkl.com/sync/add-to-list?client_id=$clientId")
             .post(payloadObj.toString().toRequestBody("application/json".toMediaTypeOrNull()))
             .header("Authorization", "Bearer $token")
             .header("simkl-api-key", clientId)
@@ -803,14 +832,49 @@ class SimklApiClient(
         try {
             client.newCall(request).execute().use { response ->
                 checkResponseAndThrow(response)
-                response.isSuccessful
+                if (!response.isSuccessful) {
+                    return@withContext SimklBatchResponse(
+                        isSuccess = false,
+                        errorMessage = "HTTP ${response.code}"
+                    )
+                }
+                val bodyStr = response.body?.string().orEmpty()
+                var added = 0
+                var notFound = 0
+                if (bodyStr.isNotBlank() && bodyStr.trim() != "null") {
+                    runCatching {
+                        val json = JSONObject(bodyStr)
+                        val addedObj = json.optJSONObject("added")
+                        if (addedObj != null) {
+                            added += addedObj.optInt("movies", 0)
+                            added += addedObj.optInt("shows", 0)
+                            added += addedObj.optInt("anime", 0)
+                        }
+                        val notFoundObj = json.optJSONObject("not_found")
+                        if (notFoundObj != null) {
+                            notFound += notFoundObj.optJSONArray("movies")?.length() ?: 0
+                            notFound += notFoundObj.optJSONArray("shows")?.length() ?: 0
+                            notFound += notFoundObj.optJSONArray("anime")?.length() ?: 0
+                        }
+                    }
+                }
+                SimklBatchResponse(
+                    isSuccess = true,
+                    addedCount = added,
+                    notFoundCount = notFound
+                )
             }
         } catch (e: com.kitsugi.animelist.data.repository.SimklAuthException) {
             throw e
         } catch (e: Exception) {
-            false
+            SimklBatchResponse(isSuccess = false, errorMessage = e.message)
         }
     }
+
+    suspend fun addToListBatch(
+        token: String,
+        entries: List<SimklBatchEntry>
+    ): Boolean = addToListBatchDetailed(token, entries).isSuccess
 
     /**
      * Listeden içeriği siler.

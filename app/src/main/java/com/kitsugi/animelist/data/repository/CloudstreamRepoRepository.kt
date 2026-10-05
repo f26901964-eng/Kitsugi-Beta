@@ -45,7 +45,7 @@ class CloudstreamRepoRepository(private val context: Context) {
 
     suspend fun seedDefaultRepoIfEmpty() = withContext(Dispatchers.IO) {
         try {
-            val defaultUrl = "https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Plugins/builds/repo.json"
+            val defaultUrl = "https://raw.githubusercontent.com/gameras1010-afk/Kitsugi-Plugins/builds/repo.json"
             com.kitsugi.animelist.core.security.RepoVerifier.trustRepo(context, defaultUrl)
             com.kitsugi.animelist.core.security.RepoVerifier.trustRepo(context, "https://raw.githubusercontent.com")
             com.kitsugi.animelist.core.security.RepoVerifier.trustRepo(context, "https://codeberg.org/BlackDamage/KitsugiPlugins/raw/branch/builds/repo.json")

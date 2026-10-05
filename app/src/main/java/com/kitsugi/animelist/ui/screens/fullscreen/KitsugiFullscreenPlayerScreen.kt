@@ -56,6 +56,15 @@ import com.kitsugi.animelist.ui.screens.fullscreen.components.StreamInfoData
 import com.kitsugi.animelist.ui.screens.fullscreen.components.MetaCastMember
 import com.kitsugi.animelist.ui.screens.fullscreen.components.TorrentOverlay
 import com.kitsugi.animelist.ui.screens.fullscreen.components.TrackOption
+import com.kitsugi.animelist.core.p2p.P2pStreamingEngine
+import com.kitsugi.animelist.core.p2p.P2pSettingsRepository
+import com.kitsugi.animelist.core.p2p.P2pStreamingState
+import com.kitsugi.animelist.core.p2p.isStreaming
+import com.kitsugi.animelist.core.p2p.downloadSpeed
+import com.kitsugi.animelist.core.p2p.uploadSpeed
+import com.kitsugi.animelist.core.p2p.peers
+import com.kitsugi.animelist.core.p2p.seeds
+import com.kitsugi.animelist.core.p2p.bufferProgress
 import com.kitsugi.animelist.ui.screens.fullscreen.controls.PlayerControls
 import com.kitsugi.animelist.ui.screens.fullscreen.controls.PlayerSheetsHost
 import com.kitsugi.animelist.ui.screens.fullscreen.controls.PlayerPanelsHost
@@ -272,6 +281,16 @@ fun KitsugiFullscreenPlayerScreen(
     val hasError by viewModel.hasError.collectAsState()
     val errorDetails by viewModel.errorDetails.collectAsState()
     val isAutoSwitching by viewModel.isAutoSwitching.collectAsState()
+
+    // P2P Torrent state
+    val p2pSettings by P2pSettingsRepository.uiState.collectAsState()
+    val p2pStreamingState by P2pStreamingEngine.state.collectAsState()
+
+    DisposableEffect(Unit) {
+        onDispose {
+            P2pStreamingEngine.stopStream()
+        }
+    }
 
     // AniSkip state
     val skipIntervals by viewModel.skipIntervals.collectAsState()
@@ -619,10 +638,16 @@ fun KitsugiFullscreenPlayerScreen(
 
                 val shouldShowBingeCard = showBingeCard && !isInPipMode
 
-                val isTorrentStream = remember(currentSourceIndex, currentStreamSources) {
+                val isTorrentStream = remember(currentSourceIndex, currentStreamSources, p2pStreamingState) {
                     val currentSource = currentStreamSources.getOrNull(currentSourceIndex)
-                    currentSource?.infoHash != null || currentSource?.url?.contains("magnet") == true
+                    currentSource?.infoHash != null ||
+                        currentSource?.url?.contains("magnet") == true ||
+                        p2pStreamingState.isStreaming
                 }
+                val showTorrentOverlay = isTorrentStream &&
+                    !p2pSettings.hideTorrentStats &&
+                    !isInPipMode &&
+                    p2pStreamingState.isStreaming
 
                 LaunchedEffect(playerEngine, audioBoostLevel) {
                     playerEngine.setVolume(1.0f + audioBoostLevel)
@@ -1023,14 +1048,14 @@ fun KitsugiFullscreenPlayerScreen(
                         modifier = Modifier.align(Alignment.Center)
                     )
 
-                    // TorrentOverlay
+                    // TorrentOverlay (P2P live stats)
                     TorrentOverlay(
-                        visible = isTorrentStream && !isInPipMode,
-                        downloadSpeedBytes = 2_450_000L,
-                        uploadSpeedBytes = 120_000L,
-                        seeders = 42,
-                        peers = 128,
-                        bufferPercent = 100,
+                        visible = showTorrentOverlay,
+                        downloadSpeedBytes = p2pStreamingState.downloadSpeed,
+                        uploadSpeedBytes = p2pStreamingState.uploadSpeed,
+                        seeders = p2pStreamingState.seeds,
+                        peers = p2pStreamingState.peers,
+                        bufferPercent = (p2pStreamingState.bufferProgress * 100).toInt().coerceIn(0, 100),
                         modifier = Modifier
                             .align(Alignment.TopStart)
                             .padding(top = 70.dp, start = 24.dp)

@@ -279,7 +279,11 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
     }
 
     private suspend fun fetchDetail(entry: MediaEntry) {
-        val stableId = entry.malId ?: 0
+        val effectiveExternalId = when (entry.source.lowercase()) {
+            "simkl" -> entry.simklId?.takeIf { it > 0 } ?: (if (entry.id > 0) entry.id else (entry.malId ?: 0))
+            else -> entry.malId ?: entry.id
+        }
+        val stableId = effectiveExternalId
         val cached = DetailCache.getMediaDetail(entry.source, stableId)
         val detail = if (cached != null) {
             cached
@@ -289,7 +293,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                 withContext(Dispatchers.IO) {
                     apiClient.fetchDetail(
                         source = entry.source,
-                        externalId = entry.malId,
+                        externalId = effectiveExternalId,
                         mediaType = entry.type,
                         // TMDB zenginleştirmesi için entry'deki ID'leri ilet
                         tmdbId = entry.tmdbId,
@@ -730,7 +734,11 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
      * Lazy-loads tabs data when a specific tab index is selected.
      */
     fun loadTab(tabIndex: Int, entry: MediaEntry, realMalId: Int?) {
-        val malId = entry.malId ?: 0
+        val effectiveExternalId = when (entry.source.lowercase()) {
+            "simkl" -> entry.simklId?.takeIf { it > 0 } ?: (if (entry.id > 0) entry.id else (entry.malId ?: 0))
+            else -> entry.malId ?: entry.id
+        }
+        val malId = effectiveExternalId
         val effectiveRealMalId = realMalId
             ?: _detailState.value?.realMalId
             ?: (if (entry.source.equals("mal", true) || entry.source.equals("jikan", true) || entry.source.equals("shikimori", true)) entry.malId else null)
@@ -754,7 +762,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                             val result = withContext(Dispatchers.IO) {
                                 apiClient.fetchCharacters(
                                     source = entry.source,
-                                    externalId = entry.malId,
+                                    externalId = effectiveExternalId,
                                     mediaType = entry.type,
                                     realMalId = effectiveRealMalId,
                                     tmdbId = tmdbId,
@@ -774,7 +782,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                         if (needsRefetch) {
                             _staffState.value = DetailTabState.Loading
                             val result = withContext(Dispatchers.IO) {
-                                apiClient.fetchStaff(entry.source, entry.malId, entry.type, tmdbId = tmdbId, realMalId = realMalId)
+                                apiClient.fetchStaff(entry.source, effectiveExternalId, entry.type, tmdbId = tmdbId, realMalId = realMalId)
                             }
                             if (result.isNotEmpty()) {
                                 DetailCache.putMediaStaff(entry.source, malId, result)
@@ -789,7 +797,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                         if (needsRefetch) {
                             _recommendationsState.value = DetailTabState.Loading
                             val result = withContext(Dispatchers.IO) {
-                                apiClient.fetchRecommendations(entry.source, entry.malId, entry.type, tmdbId = tmdbId, realMalId = realMalId, title = entry.title)
+                                apiClient.fetchRecommendations(entry.source, effectiveExternalId, entry.type, tmdbId = tmdbId, realMalId = realMalId, title = entry.title)
                             }
                             if (result.isNotEmpty()) {
                                 DetailCache.putMediaRecommendations(entry.source, malId, result)
@@ -804,7 +812,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                         if (needsRefetch) {
                             _relationsState.value = DetailTabState.Loading
                             val result = withContext(Dispatchers.IO) {
-                                apiClient.fetchRelations(entry.source, entry.malId, entry.type, tmdbId = tmdbId, realMalId = realMalId, title = entry.title)
+                                apiClient.fetchRelations(entry.source, effectiveExternalId, entry.type, tmdbId = tmdbId, realMalId = realMalId, title = entry.title)
                             }
                             if (result.isNotEmpty()) {
                                 DetailCache.putMediaRelations(entry.source, malId, result)
@@ -816,7 +824,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                         if (_statsState.value !is DetailTabState.Success) {
                             _statsState.value = DetailTabState.Loading
                             val result = withContext(Dispatchers.IO) {
-                                apiClient.fetchStats(entry.source, entry.malId, entry.type, realMalId = realMalId)
+                                apiClient.fetchStats(entry.source, effectiveExternalId, entry.type, realMalId = realMalId)
                             }
                             if (result != null) {
                                 DetailCache.putMediaStats(entry.source, malId, result)
@@ -833,7 +841,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                         if (needsRefetch) {
                             _reviewsState.value = DetailTabState.Loading
                             val result = withContext(Dispatchers.IO) {
-                                apiClient.fetchReviews(entry.source, entry.malId, entry.type, tmdbId = tmdbId, realMalId = realMalId)
+                                apiClient.fetchReviews(entry.source, effectiveExternalId, entry.type, tmdbId = tmdbId, realMalId = realMalId)
                             }
                             if (result.isNotEmpty()) {
                                 DetailCache.putMediaReviews(entry.source, malId, result)
@@ -850,7 +858,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                             val result = withContext(Dispatchers.IO) {
                                 apiClient.fetchEpisodes(
                                     source = entry.source,
-                                    externalId = entry.malId,
+                                    externalId = effectiveExternalId,
                                     mediaType = entry.type,
                                     realMalId = realMalId,
                                     totalEpisodes = maxOf(entry.total ?: _detailState.value?.total ?: 0, entry.progress),

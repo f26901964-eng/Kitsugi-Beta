@@ -41,6 +41,14 @@ internal fun StremioTab(
 ) {
     var newManifestUrl by rememberSaveable { mutableStateOf("") }
     var debridToken by rememberSaveable(initialDebridToken) { mutableStateOf(initialDebridToken) }
+    var showP2pConsentDialog by remember { mutableStateOf(false) }
+
+    if (showP2pConsentDialog) {
+        com.kitsugi.animelist.ui.components.p2p.P2pConsentDialog(
+            onDismiss = { showP2pConsentDialog = false },
+            onConsentApproved = { showP2pConsentDialog = false }
+        )
+    }
 
     LazyColumn(
         state = listState,
@@ -74,6 +82,15 @@ internal fun StremioTab(
                 color = KitsugiColors.TextMuted,
                 style = MaterialTheme.typography.bodySmall,
                 modifier = Modifier.padding(top = 4.dp)
+            )
+        }
+
+        // P2P Torrent Akışı
+        item {
+            HorizontalDivider(color = KitsugiColors.Border)
+            Spacer(Modifier.height(8.dp))
+            com.kitsugi.animelist.ui.components.p2p.P2pSettingsSection(
+                onShowConsentDialog = { showP2pConsentDialog = true }
             )
         }
 

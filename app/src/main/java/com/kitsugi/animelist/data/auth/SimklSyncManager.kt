@@ -82,9 +82,10 @@ object SimklSyncManager {
                 if (entry.malId != null && entry.malId >= 300_000_000) entry.malId - 300_000_000 else entry.malId
             } else null
             val simklId = entry.simklId?.takeIf { it > 0 } ?: 0
+            val effectiveTitle = entry.titleEnglish?.takeIf { it.isNotBlank() } ?: entry.title
 
-            // En az bir geçerli ID olmalı (simklId, malId, anilist, kitsu veya tmdb)
-            if (simklId == 0 && realMalId == null && (entry.tmdbId == null || entry.tmdbId <= 0) && aniListId == null) {
+            // En az bir geçerli ID olmalı veya geçerli bir başlık olmalı
+            if (simklId == 0 && realMalId == null && (entry.tmdbId == null || entry.tmdbId <= 0) && aniListId == null && effectiveTitle.isBlank()) {
                 null
             } else {
                 SimklApiClient.SimklBatchEntry(
@@ -94,7 +95,9 @@ object SimklSyncManager {
                     malId = realMalId,
                     tmdbId = entry.tmdbId,
                     aniListId = aniListId,
-                    kitsuId = rawKitsuId
+                    kitsuId = rawKitsuId,
+                    title = effectiveTitle,
+                    year = entry.year
                 )
             }
         }
@@ -106,11 +109,11 @@ object SimklSyncManager {
         val chunks = batchItems.chunked(35)
         for ((idx, chunk) in chunks.withIndex()) {
             try {
-                val ok = simklApiClient.addToListBatch(token, chunk)
-                if (ok) {
-                    messages.add("Simkl grubu ${idx + 1}/${chunks.size} başarıyla senkronize edildi (${chunk.size} öğe).")
+                val batchRes = simklApiClient.addToListBatchDetailed(token, chunk)
+                if (batchRes.isSuccess) {
+                    messages.add("Simkl grubu ${idx + 1}/${chunks.size} senkronize edildi (${batchRes.addedCount} eklendi${if (batchRes.notFoundCount > 0) ", ${batchRes.notFoundCount} eşleşmedi" else ""}).")
                 } else {
-                    errors.add("Simkl grubu ${idx + 1} gönderilemedi.")
+                    errors.add("Simkl grubu ${idx + 1} gönderilemedi: ${batchRes.errorMessage ?: "Bilinmeyen hata"}")
                 }
             } catch (e: Exception) {
                 errors.add("Simkl grup ${idx + 1} hatası: ${e.message}")
@@ -190,7 +193,9 @@ object SimklSyncManager {
                 malId = realMalId,
                 tmdbId = entry.tmdbId,
                 aniListId = aniListId,
-                kitsuId = rawKitsuId
+                kitsuId = rawKitsuId,
+                title = entry.titleEnglish?.takeIf { it.isNotBlank() } ?: entry.title,
+                year = entry.year
             )
         }.onSuccess { success ->
             if (success) messages.add("Simkl listesi güncellendi (${entry.title})")

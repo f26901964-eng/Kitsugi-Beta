@@ -289,19 +289,15 @@ internal fun CloudstreamExtensionsTab(
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         val predefinedRepos = listOf(
-                            Triple("⚡ Kitsugi Eklentileri (Önerilen)", "DiziPal, RecTV, DDizi, Dizilla vb. derlenmiş ve güncel Türkçe eklenti deposu.", "https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Plugins/builds/repo.json"),
+                            Triple("⚡ Kitsugi Eklentileri (Önerilen)", "DiziPal, RecTV, DDizi, Dizilla vb. 290+ derlenmiş ve güncel Türkçe eklenti deposu.", "https://raw.githubusercontent.com/gameras1010-afk/Kitsugi-Plugins/builds/repo.json"),
+                            Triple("⚡ Kraptor (Kraptor123)", "AnimeciX, Animeler, AnimeElysium eklentilerini içeren dizi/film ve anime deposu.", "https://raw.githubusercontent.com/Kraptor123/cs-kraptor/builds/plugins.json"),
                             Triple("⚡ Kekik (feroxx)", "Aktif Kekik eklenti deposu derlemeleri (builds) ve Türkçe topluluk havuzu.", "https://raw.githubusercontent.com/feroxx/Kekik-cloudstream/refs/heads/builds/repo.json"),
-                            Triple("⚡ Kraptor (Kraptor123)", "AnimeciX, Animeler, AnimeElysium eklentilerini içeren dizi/film ve anime deposu.", "https://raw.githubusercontent.com/Kraptor123/cs-kraptor/refs/heads/master/repo.json"),
-                            Triple("⚡ CS-Karma (Kraptor123)", "Kraptor'un alternatif Karma Türkçe eklenti deposu.", "https://raw.githubusercontent.com/Kraptor123/Cs-Karma/refs/heads/master/repo.json"),
+                            Triple("⚡ CS-Karma (Kraptor123)", "Kraptor'un alternatif Karma Türkçe eklenti deposu.", "https://raw.githubusercontent.com/Kraptor123/Cs-Karma/builds/plugins.json"),
+                            Triple("⚡ KerimmKirac (cs-kekikanime)", "TurkAnime eklentisi ve Kraptor ortaklığındaki Türkçe anime/dizi deposu.", "https://raw.githubusercontent.com/Kraptor123/cs-kekikanime/builds/plugins.json"),
                             Triple("⚡ Nikyokki (nik-cloudstream)", "AnimPow, AsyaAnimeleri eklentilerini içeren Türkçe eklenti deposu.", "https://raw.githubusercontent.com/nikyokki/nik-cloudstream/master/repo.json"),
-                            Triple("⚡ ByAyzen (AyzenCS3)", "ByAyzen'in dizi/film sağlayıcı eklentileri (FilmBOL, Koredizi, M3UPlayer vb.) [Beta/Builds].", "https://raw.githubusercontent.com/ByAyzen/AyzenCS3/refs/heads/builds/repo.json"),
-                            Triple("⚡ KerimmKirac (cs-kekikanime)", "TurkAnime eklentisi ve Kraptor ortaklığındaki Türkçe anime/dizi deposu.", "https://raw.githubusercontent.com/Kraptor123/cs-kekikanime/master/repo.json"),
-                            Triple("⚡ Pitipitii (sarapcanagii)", "Pitipitii dizi/anime sağlayıcı eklentileri.", "https://raw.githubusercontent.com/sarapcanagii/Pitipitii/master/repo.json"),
-                            Triple("⚡ Gizli-Keyif (Kraptor123)", "Dizi/film ve anime içerikleri barındıran Gizli Keyif Türkçe deposu.", "https://raw.githubusercontent.com/Kraptor123/Cs-GizliKeyif/refs/heads/master/repo.json"),
                             Triple("⚡ Makoto2 (Sertel392)", "Makoto2 geçici Türkçe dizi/film eklenti deposu.", "https://raw.githubusercontent.com/Sertel392/Makotogecici/main/repo.json"),
-                            Triple("⚡ Cağatay Repo (caca1403)", "Cağatay Türkçe dizi/film eklenti deposu.", "https://raw.githubusercontent.com/caca1403/cloudstream-cagi-eklenti/main/repo.json"),
-                            Triple("🌍 ReCloudStream Eklentileri", "Uluslararası içerikler için resmi CloudStream eklentileri deposu.", "https://raw.githubusercontent.com/recloudstream/extensions/master/repo.json"),
-                            Triple("🔗 CS3 Hexated (Stremio Bridge)", "Stremio köprüsü eklentilerini içeren Hexated deposu.", "https://raw.githubusercontent.com/hexated/cloudstream-extensions-hexated/builds/repo.json")
+                            Triple("🔗 CS3 Hexated (Stremio Bridge)", "Stremio köprüsü ve uluslararası sağlayıcıları içeren Hexated deposu.", "https://raw.githubusercontent.com/hexated/cloudstream-extensions-hexated/builds/plugins.json"),
+                            Triple("🌍 ReCloudStream Eklentileri", "Uluslararası içerikler için resmi CloudStream eklentileri deposu.", "https://raw.githubusercontent.com/recloudstream/extensions/master/repo.json")
                         )
                         predefinedRepos.forEach { (name, desc, url) ->
                             val isAdded = repos.any { it.repoUrl.trim().lowercase() == url.trim().lowercase() }

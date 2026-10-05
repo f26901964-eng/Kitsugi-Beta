@@ -13,6 +13,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import com.kitsugi.animelist.core.deeplink.DeepLinkHandler
 import com.kitsugi.animelist.core.recommendations.TvChannelSyncService
 import com.kitsugi.animelist.data.auth.ExternalAuthManager
@@ -67,6 +68,19 @@ class MainActivity : AppCompatActivity() {
                 isTv = formFactor == DeviceFormFactor.TV
             ) {
                 KitsugiPermissionRequester()
+
+                var showCrashRecovery by androidx.compose.runtime.remember {
+                    androidx.compose.runtime.mutableStateOf(
+                        com.kitsugi.animelist.core.diagnostics.KitsugiCrashLogger.hasUnreadCrash(applicationContext)
+                    )
+                }
+
+                if (showCrashRecovery) {
+                    com.kitsugi.animelist.ui.components.KitsugiCrashRecoveryDialog(
+                        onDismiss = { showCrashRecovery = false }
+                    )
+                }
+
                 when (formFactor) {
                     DeviceFormFactor.TV -> {
                         KitsugiTvTheme {

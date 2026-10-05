@@ -360,9 +360,15 @@ fun TvStreamScreen(
                                         accentColor = accentColor,
                                         onClick = {
                                             val isTorrent = !stream.infoHash.isNullOrBlank() || stream.url?.startsWith("magnet:") == true
-                                            if (isTorrent && DebridResolver(context).getApiKey().isNullOrBlank()) {
-                                                resolvingError = "Debrid API anahtarı gerekli."
-                                                return@TvStreamRowItem
+                                            val hasDebrid = !DebridResolver(context).getApiKey().isNullOrBlank()
+                                            val p2pEnabled = com.kitsugi.animelist.core.p2p.P2pSettingsRepository.isP2pEnabled()
+                                            if (isTorrent && !hasDebrid && !p2pEnabled) {
+                                                if (!com.kitsugi.animelist.core.p2p.P2pSettingsRepository.isConsentGranted()) {
+                                                    resolvingError = "Torrent akışları için Debrid hesabı veya Ayarlar'dan P2P izni gereklidir."
+                                                    return@TvStreamRowItem
+                                                } else {
+                                                    com.kitsugi.animelist.core.p2p.P2pSettingsRepository.setP2pEnabled(true)
+                                                }
                                             }
                                             resolvingSource = stream
                                             resolvingError = null

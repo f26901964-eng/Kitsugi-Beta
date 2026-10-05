@@ -303,35 +303,33 @@ fun KitsugiStreamScreen(
         }
     }
 
-    BackHandler { onBack() }
+    var showP2pConsentDialog by remember { mutableStateOf(false) }
+    var pendingP2pSource by remember { mutableStateOf<StreamSource?>(null) }
+    var pendingIsDownload by remember { mutableStateOf(false) }
 
-    // ── Main content ──────────────────────────────────────────────────────────
-    StreamScreenContent(
-        title = title, posterUrl = posterUrl, episode = episode, season = season, isMovie = isMovie,
-        isDownloadMode = isDownloadMode,
-        imdbId = imdbId, accentColor = accentColor,
-        addonStates = addonStates, allStreams = allStreams,
-        isResolvingId = isResolvingId, idResolveFailed = idResolveFailed,
-        isAnyLoading = isAnyLoading, selectedAddonFilter = selectedAddonFilter,
-        onAddonFilterChange = { selectedAddonFilter = it },
-        onStreamSelected = { source ->
-            streamPrefs.edit().putString("last_addon_name", source.addonName).apply()
-            val isTorrent = !source.infoHash.isNullOrBlank() || source.url?.startsWith("magnet:") == true
-            if (isTorrent && DebridResolver(context).getApiKey().isNullOrBlank()) {
-                resolvingError = "Debrid API anahtarı gerekli."
-                return@StreamScreenContent
+    val executeStreamResolution = { source: StreamSource, isDl: Boolean ->
+        val isTorrent = !source.infoHash.isNullOrBlank() || source.url?.startsWith("magnet:") == true
+        val hasDebrid = !DebridResolver(context).getApiKey().isNullOrBlank()
+        val p2pEnabled = com.kitsugi.animelist.core.p2p.P2pSettingsRepository.isP2pEnabled()
+
+        if (isTorrent && !hasDebrid && !p2pEnabled) {
+            if (!com.kitsugi.animelist.core.p2p.P2pSettingsRepository.isConsentGranted()) {
+                pendingP2pSource = source
+                pendingIsDownload = isDl
+                showP2pConsentDialog = true
+            } else {
+                com.kitsugi.animelist.core.p2p.P2pSettingsRepository.setP2pEnabled(true)
             }
+        }
 
-            // Önceki işlemi iptal et (ikinci video tıklamasında crash'i önler)
+        if (!isTorrent || hasDebrid || com.kitsugi.animelist.core.p2p.P2pSettingsRepository.isP2pEnabled()) {
             activeStreamJob?.cancel()
-
-            // Tüm kaynaklar için çözümleme overlay'i gösterilerek UI kilitlenmesi önlenir
             resolvingSource = source
             resolvingError = null
 
             val job = scope.launch {
                 val resolvedUrl = try {
-                    kotlinx.coroutines.withTimeoutOrNull(30000L) {
+                    kotlinx.coroutines.withTimeoutOrNull(35000L) {
                         kotlinx.coroutines.withContext(Dispatchers.IO) {
                             repository.resolveStreamUrl(source)
                         }
@@ -347,13 +345,13 @@ fun KitsugiStreamScreen(
                     return@launch
                 }
 
-                if (isDownloadMode) {
+                if (isDl) {
                     com.kitsugi.animelist.data.local.AnimeDownloadManager.addDownload(
                         context = context,
                         animeId = if (aniListId != null) aniListId.toString()
-                            else if (malId != null) malId.toString()
-                            else if (tmdbId != null) tmdbId.toString()
-                            else title.lowercase().replace(Regex("[^a-z0-9]"), "_").trim('_').take(30).ifBlank { "media" },
+                        else if (malId != null) malId.toString()
+                        else if (tmdbId != null) tmdbId.toString()
+                        else title.lowercase().replace(Regex("[^a-z0-9]"), "_").trim('_').take(30).ifBlank { "media" },
                         animeTitle = title,
                         posterUrl = source.thumbnailUrl.takeIf { !it.isNullOrBlank() } ?: posterUrl,
                         episode = episode,
@@ -378,64 +376,45 @@ fun KitsugiStreamScreen(
                 }
             }
             activeStreamJob = job
+        }
+    }
+
+    if (showP2pConsentDialog) {
+        com.kitsugi.animelist.ui.components.p2p.P2pConsentDialog(
+            onDismiss = {
+                showP2pConsentDialog = false
+                pendingP2pSource = null
+            },
+            onConsentApproved = {
+                showP2pConsentDialog = false
+                val pending = pendingP2pSource
+                val isDl = pendingIsDownload
+                pendingP2pSource = null
+                if (pending != null) {
+                    executeStreamResolution(pending, isDl)
+                }
+            }
+        )
+    }
+
+    BackHandler { onBack() }
+
+    // ── Main content ──────────────────────────────────────────────────────────
+    StreamScreenContent(
+        title = title, posterUrl = posterUrl, episode = episode, season = season, isMovie = isMovie,
+        isDownloadMode = isDownloadMode,
+        imdbId = imdbId, accentColor = accentColor,
+        addonStates = addonStates, allStreams = allStreams,
+        isResolvingId = isResolvingId, idResolveFailed = idResolveFailed,
+        isAnyLoading = isAnyLoading, selectedAddonFilter = selectedAddonFilter,
+        onAddonFilterChange = { selectedAddonFilter = it },
+        onStreamSelected = { source ->
+            streamPrefs.edit().putString("last_addon_name", source.addonName).apply()
+            executeStreamResolution(source, isDownloadMode)
         },
         onDownloadSelected = { source ->
             streamPrefs.edit().putString("last_addon_name", source.addonName).apply()
-            val isTorrent = !source.infoHash.isNullOrBlank() || source.url?.startsWith("magnet:") == true
-            if (isTorrent && DebridResolver(context).getApiKey().isNullOrBlank()) {
-                resolvingError = "Debrid API anahtarı gerekli."
-                return@StreamScreenContent
-            }
-
-            activeStreamJob?.cancel()
-            resolvingSource = source
-            resolvingError = null
-
-            val job = scope.launch {
-                val resolvedUrl = try {
-                    kotlinx.coroutines.withTimeoutOrNull(30000L) {
-                        kotlinx.coroutines.withContext(Dispatchers.IO) {
-                            repository.resolveStreamUrl(source)
-                        }
-                    }
-                } catch (e: Exception) {
-                    Log.e("KitsugiStreamScreen", "Akış çözümlenirken hata oluştu", e)
-                    null
-                }
-
-                resolvingSource = null
-                if (resolvedUrl == null) {
-                    resolvingError = "Akış linki çözümlenemedi."
-                    return@launch
-                }
-
-                com.kitsugi.animelist.data.local.AnimeDownloadManager.addDownload(
-                    context = context,
-                    animeId = if (aniListId != null) aniListId.toString()
-                        else if (malId != null) malId.toString()
-                        else if (tmdbId != null) tmdbId.toString()
-                        else title.lowercase().replace(Regex("[^a-z0-9]"), "_").trim('_').take(30).ifBlank { "media" },
-                    animeTitle = title,
-                    posterUrl = source.thumbnailUrl.takeIf { !it.isNullOrBlank() } ?: posterUrl,
-                    episode = episode,
-                    season = season,
-                    url = resolvedUrl,
-                    quality = source.quality ?: "Bilinmeyen",
-                    requestHeaders = source.requestHeaders ?: emptyMap(),
-                    subtitles = source.subtitles,
-                    malId = malId,
-                    aniListId = aniListId,
-                    tmdbId = tmdbId,
-                    source = source.addonName,
-                    streamTitle = source.title,
-                    streamName = source.name
-                )
-                android.widget.Toast.makeText(context, "İndirme kuyruğa eklendi", android.widget.Toast.LENGTH_SHORT).show()
-                context.startActivity(
-                    android.content.Intent(context, com.kitsugi.animelist.ui.screens.offline.DownloadsActivity::class.java)
-                )
-            }
-            activeStreamJob = job
+            executeStreamResolution(source, true)
         },
         onBack = onBack,
         resolvingSource = resolvingSource, resolvingError = resolvingError,

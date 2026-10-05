@@ -522,6 +522,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 updateProgress("Eşitleme başlatılıyor...", "Toplam ${unifiedItems.size} içerik eşitlenecek", processed = 0, total = unifiedItems.size)
 
                 val finalEntries = mutableListOf<MediaEntry>()
+                val simklEntriesToSync = mutableListOf<MediaEntry>()
 
                 // ── FAZ 3: Eksikleri Tamamlama ve Alan Senkronizasyonu (Asla Silme Yok) ──
                 for ((index, item) in unifiedItems.withIndex()) {
@@ -655,32 +656,16 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     }
 
                     // ── 3. Simkl Eşitleme (Anime, Dizi, Film — Tümü) ──
-                    if (isSimkl) {
+                    if (isSimkl && (mergedEntry.type == MediaType.Anime || mergedEntry.type == MediaType.TvShow || mergedEntry.type == MediaType.Movie)) {
                         val current = item.simkl
                         if (current == null) {
-                            // Simkl'de eksik -> EKLE!
-                            val res = runCatching { SimklSyncManager.syncEntryToSimkl(context, mergedEntry) }.getOrNull()
-                            if (res != null && res.errors.isEmpty()) {
-                                statsMap["Simkl"] = statsMap["Simkl"]!!.let { it.copy(addedCount = it.addedCount + 1) }
-                                logEvent("Simkl", "[Simkl] + Eklendi: ${mergedEntry.title} (${bestStatus.label})", isAddition = true)
-                            } else {
-                                val errMsg = res?.errors?.firstOrNull() ?: "Bilinmeyen hata"
-                                statsMap["Simkl"] = statsMap["Simkl"]!!.let { it.copy(errorCount = it.errorCount + 1) }
-                                logEvent("Simkl", "[Simkl] ! Hata: ${mergedEntry.title} ($errMsg)", isError = true)
-                            }
-                            rateLimitNeeded = true
+                            simklEntriesToSync.add(mergedEntry)
                         } else {
                             val needsUpdate = (current.status != bestStatus) ||
                                     (current.progress < maxProgress) ||
                                     (current.score == null && bestScore != null)
                             if (needsUpdate) {
-                                val target = mergedEntry.copy(simklId = current.simklId)
-                                val res = runCatching { SimklSyncManager.syncEntryToSimkl(context, target) }.getOrNull()
-                                if (res != null && res.errors.isEmpty()) {
-                                    statsMap["Simkl"] = statsMap["Simkl"]!!.let { it.copy(updatedCount = it.updatedCount + 1) }
-                                    logEvent("Simkl", "[Simkl] ~ Güncellendi: ${mergedEntry.title}", isUpdate = true)
-                                }
-                                rateLimitNeeded = true
+                                simklEntriesToSync.add(mergedEntry.copy(simklId = current.simklId))
                             }
                         }
                     }
@@ -763,6 +748,27 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     }
                 }
 
+                // ── Simkl Toplu Senkronizasyonu (1 req/sn rate limit'e tam uyumlu batch) ──
+                if (isSimkl && simklEntriesToSync.isNotEmpty()) {
+                    updateProgress("Simkl kütüphanesi eşitleniyor...", "0 / ${simklEntriesToSync.size}")
+                    val chunks = simklEntriesToSync.chunked(35)
+                    var simklAdded = 0
+                    var simklErrors = 0
+                    for ((idx, chunk) in chunks.withIndex()) {
+                        val progressText = "${minOf((idx + 1) * 35, simklEntriesToSync.size)} / ${simklEntriesToSync.size} (%${(((idx + 1).toFloat() / chunks.size) * 100).toInt()})"
+                        updateProgress("Simkl kütüphanesi eşitleniyor...", progressText)
+                        val syncRes = SimklSyncManager.syncBatchToSimkl(context, chunk)
+                        if (syncRes.errors.isEmpty()) {
+                            simklAdded += chunk.size
+                            logEvent("Simkl", "[Simkl] Grup ${idx + 1}/${chunks.size} eşitlendi (${chunk.size} içerik)", isAddition = true)
+                        } else {
+                            simklErrors += chunk.size
+                            logEvent("Simkl", "[Simkl] Grup ${idx + 1}/${chunks.size} hata: ${syncRes.errors.firstOrNull()}", isError = true)
+                        }
+                    }
+                    statsMap["Simkl"] = statsMap["Simkl"]!!.let { it.copy(addedCount = it.addedCount + simklAdded, errorCount = it.errorCount + simklErrors) }
+                }
+
                 // ── FAZ 4: Yerel Veritabanını Güncelle ─────────────────────────────
                 updateProgress("Yerel veritabanı güncelleniyor...", "Kitsugi listeleri yenileniyor...")
 
@@ -791,16 +797,27 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     repository.smartImport("mal", malSynced)
                 }
                 if (isSimkl) {
-                    val simklSynced = finalEntries
-                        .filter { it.type == MediaType.Anime || it.type == MediaType.TvShow || it.type == MediaType.Movie }
-                        .map { entry ->
-                            if (entry.source == "simkl") entry
-                            else entry.copy(
-                                id = entry.simklId?.takeIf { it > 0 } ?: entry.malId?.takeIf { it > 0 } ?: entry.id,
-                                source = "simkl"
-                            )
+                    updateProgress("Simkl listesi yenileniyor...", "Simkl kütüphanesi senkronize ediliyor...")
+                    val simklToken = ExternalAuthManager.getSimklToken(context)
+                    val freshSimklList = if (!simklToken.isNullOrBlank()) {
+                        runCatching { SimklImportManager.fetchAllLists(simklToken) }.getOrNull()
+                    } else null
+
+                    if (!freshSimklList.isNullOrEmpty()) {
+                        repository.smartImport("simkl", freshSimklList)
+                    } else {
+                        val simklSynced = finalEntries
+                            .filter { (it.type == MediaType.Anime || it.type == MediaType.TvShow || it.type == MediaType.Movie) && ((it.simklId ?: 0) > 0) }
+                            .map { entry ->
+                                entry.copy(
+                                    id = entry.simklId!!,
+                                    source = "simkl"
+                                )
+                            }
+                        if (simklSynced.isNotEmpty()) {
+                            repository.smartImport("simkl", simklSynced)
                         }
-                    repository.smartImport("simkl", simklSynced)
+                    }
                 }
                 if (isKitsu) {
                     val kitsuSynced = finalEntries

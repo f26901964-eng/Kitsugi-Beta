@@ -154,95 +154,122 @@ object CsPluginLoader {
         expectedHash: String? = null,
         forceDownload: Boolean = false
     ): Boolean {
-        val normalizedUrl = com.kitsugi.animelist.utils.CloudstreamUrlHelper.normalizeUrl(urlString)
-        val downloadUrl = if (forceDownload) com.kitsugi.animelist.utils.CloudstreamUrlHelper.withCacheBuster(normalizedUrl) else normalizedUrl
         val extensionDir = File(context.filesDir, "cs_extensions")
         if (!extensionDir.exists()) extensionDir.mkdirs()
 
         val tempFile = File(extensionDir, "$scraperId.cs3.tmp")
         val targetFile = File(extensionDir, "$scraperId.cs3")
 
-        return try {
-            if (tempFile.exists()) {
-                try { tempFile.setWritable(true) } catch (_: Exception) {}
-                tempFile.delete()
-            }
+        val candidateUrls = com.kitsugi.animelist.utils.CloudstreamUrlHelper.getCandidateDownloadUrls(scraperId, urlString)
 
-            Log.d(TAG, "Downloading plugin $scraperId from $downloadUrl to temp file ${tempFile.name}")
-            val requestBuilder = Request.Builder()
-                .url(downloadUrl)
-                .header("User-Agent", "CloudStream/3")
+        for ((index, candidate) in candidateUrls.withIndex() ) {
+            val downloadUrl = if (forceDownload) com.kitsugi.animelist.utils.CloudstreamUrlHelper.withCacheBuster(candidate) else candidate
+            Log.d(TAG, "Attempting plugin download ($scraperId) [${index + 1}/${candidateUrls.size}] from: $downloadUrl")
 
-            if (forceDownload) {
-                requestBuilder.cacheControl(okhttp3.CacheControl.FORCE_NETWORK)
-                requestBuilder.addHeader("Cache-Control", "no-cache, no-store, must-revalidate")
-                requestBuilder.addHeader("Pragma", "no-cache")
-            }
-
-            val request = requestBuilder.build()
-
-            com.kitsugi.animelist.core.network.KitsugiHttpClient.client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) throw java.io.IOException("Failed to download extension: ${response.code}")
-                response.body?.byteStream()?.use { input ->
-                    FileOutputStream(tempFile).use { output ->
-                        input.copyTo(output)
-                    }
+            try {
+                if (tempFile.exists()) {
+                    try { tempFile.setWritable(true) } catch (_: Exception) {}
+                    tempFile.delete()
                 }
-            }
-            Log.d(TAG, "Downloaded ${tempFile.length()} bytes to temp file")
 
-            // Verify SHA-256 hash if expected (warning only, ZIP verification ensures file validity)
-            if (expectedHash != null) {
-                val calculatedHash = tempFile.sha256()
-                val cleanExpected = expectedHash.trim().removePrefix("sha256-").removePrefix("SHA256-")
-                if (!calculatedHash.equals(cleanExpected, ignoreCase = true)) {
-                    Log.w(TAG, "Hash verification mismatch for $scraperId. Expected: $expectedHash, got: $calculatedHash (continuing to ZIP validation)")
-                } else {
-                    Log.d(TAG, "Hash verification passed for $scraperId")
+                val requestBuilder = Request.Builder()
+                    .url(downloadUrl)
+                    .header("User-Agent", "Mozilla/5.0 (Linux; Android 14; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Mobile Safari/537.36 Kitsugi/2.4")
+                    .header("Accept", "*/*")
+
+                if (forceDownload) {
+                    requestBuilder.cacheControl(okhttp3.CacheControl.FORCE_NETWORK)
+                    requestBuilder.addHeader("Cache-Control", "no-cache, no-store, must-revalidate")
+                    requestBuilder.addHeader("Pragma", "no-cache")
                 }
-            }
 
-            // Verify it is a valid ZIP (cs3 = ZIP-wrapped DEX)
-            val isValidZip = try { ZipFile(tempFile).use { true } } catch (_: Exception) { false }
-            if (!isValidZip) {
-                Log.e(TAG, "Downloaded file is NOT a valid ZIP/CS3: $scraperId — aborting")
-                tempFile.delete()
-                return false
-            }
+                val request = requestBuilder.build()
 
-            // Atomic move to target
-            if (targetFile.exists()) {
-                try { targetFile.setWritable(true) } catch (_: Exception) {}
-                targetFile.delete()
-            }
-            val renameSuccess = tempFile.renameTo(targetFile)
-            if (!renameSuccess) {
-                try {
-                    tempFile.inputStream().use { input ->
-                        targetFile.outputStream().use { output ->
-                            input.copyTo(output)
+                val callSuccess = com.kitsugi.animelist.core.network.KitsugiHttpClient.client.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        Log.w(TAG, "Download attempt failed with HTTP ${response.code} for $downloadUrl")
+                        false
+                    } else {
+                        response.body?.byteStream()?.use { input ->
+                            FileOutputStream(tempFile).use { output ->
+                                input.copyTo(output)
+                            }
                         }
+                        tempFile.exists() && tempFile.length() > 0
                     }
+                }
+
+                if (!callSuccess) {
+                    if (tempFile.exists()) {
+                        try { tempFile.setWritable(true) } catch (_: Exception) {}
+                        tempFile.delete()
+                    }
+                    continue
+                }
+
+                Log.d(TAG, "Downloaded ${tempFile.length()} bytes to temp file from candidate: $downloadUrl")
+
+                // Verify SHA-256 hash if expected (warning only, ZIP verification ensures file validity)
+                if (expectedHash != null) {
+                    val calculatedHash = tempFile.sha256()
+                    val cleanExpected = expectedHash.trim().removePrefix("sha256-").removePrefix("SHA256-")
+                    if (!calculatedHash.equals(cleanExpected, ignoreCase = true)) {
+                        Log.w(TAG, "Hash verification mismatch for $scraperId. Expected: $expectedHash, got: $calculatedHash (continuing to ZIP validation)")
+                    } else {
+                        Log.d(TAG, "Hash verification passed for $scraperId")
+                    }
+                }
+
+                // Verify it is a valid ZIP (cs3 = ZIP-wrapped DEX)
+                val isValidZip = try { ZipFile(tempFile).use { true } } catch (_: Exception) { false }
+                if (!isValidZip) {
+                    Log.w(TAG, "Downloaded file is NOT a valid ZIP/CS3 from $downloadUrl: $scraperId — trying next candidate")
+                    if (tempFile.exists()) {
+                        try { tempFile.setWritable(true) } catch (_: Exception) {}
+                        tempFile.delete()
+                    }
+                    continue
+                }
+
+                // Atomic move to target
+                if (targetFile.exists()) {
+                    try { targetFile.setWritable(true) } catch (_: Exception) {}
+                    targetFile.delete()
+                }
+                val renameSuccess = tempFile.renameTo(targetFile)
+                if (!renameSuccess) {
+                    try {
+                        tempFile.inputStream().use { input ->
+                            targetFile.outputStream().use { output ->
+                                input.copyTo(output)
+                            }
+                        }
+                        tempFile.delete()
+                    } catch (copyEx: Exception) {
+                        Log.e(TAG, "Failed to copy temp file to target file: $scraperId", copyEx)
+                        if (tempFile.exists()) {
+                            try { tempFile.setWritable(true) } catch (_: Exception) {}
+                            tempFile.delete()
+                        }
+                        continue
+                    }
+                }
+
+                // MUST be read-only for Android 10+ DEX security policy
+                targetFile.setReadOnly()
+                Log.d(TAG, "Plugin $scraperId downloaded, verified, and installed atomicaly OK from $downloadUrl")
+                return true
+            } catch (e: Exception) {
+                Log.w(TAG, "Exception downloading candidate $downloadUrl for $scraperId: ${e.message}")
+                if (tempFile.exists()) {
+                    try { tempFile.setWritable(true) } catch (_: Exception) {}
                     tempFile.delete()
-                } catch (copyEx: Exception) {
-                    Log.e(TAG, "Failed to rename/copy temp file to target file: $scraperId", copyEx)
-                    tempFile.delete()
-                    return false
                 }
             }
-
-            // MUST be read-only for Android 10+ DEX security policy
-            targetFile.setReadOnly()
-            Log.d(TAG, "Plugin $scraperId downloaded, verified, and installed atomicaly OK")
-            true
-        } catch (e: Exception) {
-            Log.e(TAG, "Failed to download plugin $scraperId from $downloadUrl", e)
-            if (tempFile.exists()) {
-                try { tempFile.setWritable(true) } catch (_: Exception) {}
-                tempFile.delete()
-            }
-            false
         }
+
+        Log.e(TAG, "All ${candidateUrls.size} candidate download URLs failed for plugin $scraperId (original: $urlString)")
+        return false
     }
 
     // ─── Load ─────────────────────────────────────────────────────────────────

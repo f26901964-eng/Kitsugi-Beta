@@ -126,6 +126,7 @@ object KitsugiCrashLogger {
     /**
      * Çökme raporunu `crash_log.txt` ve `crash_history.txt` dosyalarına SENKRON yazar.
      * Bu metot, process kill edilmeden hemen önce çağrılmalıdır.
+     * Hem dahili hem de harici erişilebilir dizinlere yazar, çökme bayrağını işaretler.
      */
     fun writeCrashReport(
         context: Context,
@@ -135,13 +136,45 @@ object KitsugiCrashLogger {
     ): String {
         val report = buildCrashReport(thread, throwable, isForeground)
 
-        // 1. Ana crash_log.txt (son çökme — her zaman üzerine yazılır)
+        // 1. Ana dahili crash_log.txt
         try {
             File(context.filesDir, CRASH_LOG_FILE).writeText(report)
         } catch (_: Exception) {}
 
-        // 2. crash_history.txt (geçmiş tüm çökmeler — ekleme modunda)
+        // 2. Harici uygulama dizini (kullanıcının dosya yöneticisiyle / PC bağlantısıyla görebileceği yer)
+        try {
+            context.getExternalFilesDir(null)?.let { extDir ->
+                File(extDir, CRASH_LOG_FILE).writeText(report)
+            }
+        } catch (_: Exception) {}
+
+        // 3. Harici önbellek dizini
+        try {
+            context.externalCacheDir?.let { cacheDir ->
+                File(cacheDir, CRASH_LOG_FILE).writeText(report)
+            }
+        } catch (_: Exception) {}
+
+        // 4. Genel İndirilenler klasörüne doğrudan kaydetmeyi dene
+        try {
+            val pubDownload = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+            if (pubDownload.exists() || pubDownload.mkdirs()) {
+                File(pubDownload, "Kitsugi_Crash_Report.txt").writeText(report)
+            }
+        } catch (_: Exception) {}
+
+        // 5. crash_history.txt (geçmiş tüm çökmeler — ekleme modunda)
         appendToHistory(context, report, isForeground)
+
+        // 6. Bir sonraki açılışta kullanıcının karşısına anında uyarı ve paylaşım paneli çıkarmak için bayrak yaz
+        try {
+            context.getSharedPreferences("kitsugi_crash_prefs", Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean("has_unread_crash", true)
+                .putLong("last_crash_time", System.currentTimeMillis())
+                .putString("last_crash_title", "${throwable.javaClass.simpleName}: ${throwable.message}")
+                .commit()
+        } catch (_: Exception) {}
 
         return report
     }
@@ -166,7 +199,7 @@ object KitsugiCrashLogger {
 
     /**
      * Çökme anında logcat anlık görüntüsünü yakalar ve dosyaya yazar.
-     * Bu metot BLOCKING çalışır — kısa tutulması için satır sınırı uygulanır.
+     * Kısa bir zaman aşımıyla çalıştırılır ki çökme aktivitesinin açılmasını geciktirmesin.
      */
     fun captureLogcatSync(context: Context) {
         try {
@@ -175,10 +208,18 @@ object KitsugiCrashLogger {
             )
             val output = StringBuilder()
             output.appendLine("=== Çökme Anı Logcat (Son $MAX_LOGCAT_LINES Satır) — ${dateFmt.format(Date())} ===")
-            BufferedReader(InputStreamReader(process.inputStream)).useLines { lines ->
-                lines.forEach { output.appendLine(it) }
+            
+            val readerThread = Thread {
+                try {
+                    BufferedReader(InputStreamReader(process.inputStream)).useLines { lines ->
+                        lines.forEach { output.appendLine(it) }
+                    }
+                } catch (_: Exception) {}
             }
-            process.waitFor()
+            readerThread.start()
+            readerThread.join(350)
+            process.destroy()
+
             File(context.filesDir, LOGCAT_CRASH_FILE).writeText(output.toString())
         } catch (_: Exception) {}
     }
@@ -187,9 +228,16 @@ object KitsugiCrashLogger {
 
     fun readCrashLog(context: Context): String {
         return try {
-            File(context.filesDir, CRASH_LOG_FILE).let {
-                if (it.exists()) it.readText() else "Henüz çökme kaydı yok."
-            }
+            val primary = File(context.filesDir, CRASH_LOG_FILE)
+            if (primary.exists() && primary.length() > 0) return primary.readText()
+
+            val ext = context.getExternalFilesDir(null)?.let { File(it, CRASH_LOG_FILE) }
+            if (ext != null && ext.exists() && ext.length() > 0) return ext.readText()
+
+            val cache = context.externalCacheDir?.let { File(it, CRASH_LOG_FILE) }
+            if (cache != null && cache.exists() && cache.length() > 0) return cache.readText()
+
+            "Henüz çökme kaydı bulunamadı."
         } catch (_: Exception) { "Crash log okunamadı." }
     }
 
@@ -211,6 +259,43 @@ object KitsugiCrashLogger {
         try { File(context.filesDir, CRASH_HISTORY_FILE).delete() } catch (_: Exception) {}
         try { File(context.filesDir, CRASH_LOG_FILE).delete() } catch (_: Exception) {}
         try { File(context.filesDir, LOGCAT_CRASH_FILE).delete() } catch (_: Exception) {}
+        try { context.getExternalFilesDir(null)?.let { File(it, CRASH_LOG_FILE).delete() } } catch (_: Exception) {}
+        try {
+            context.getSharedPreferences("kitsugi_crash_prefs", Context.MODE_PRIVATE)
+                .edit().putBoolean("has_unread_crash", false).apply()
+        } catch (_: Exception) {}
+    }
+
+    /**
+     * Raporu kullanıcının doğrudan erişebileceği genel Downloads (İndirilenler) klasörüne yazar.
+     */
+    fun exportReportToDownloads(context: Context): File? {
+        return try {
+            val report = readCrashLog(context)
+            val downloadDir = android.os.Environment.getExternalStoragePublicDirectory(android.os.Environment.DIRECTORY_DOWNLOADS)
+            if (!downloadDir.exists()) downloadDir.mkdirs()
+            val target = File(downloadDir, "Kitsugi_Crash_Report.txt")
+            target.writeText(report)
+            target
+        } catch (_: Exception) { null }
+    }
+
+    fun hasUnreadCrash(context: Context): Boolean {
+        return try {
+            val prefs = context.getSharedPreferences("kitsugi_crash_prefs", Context.MODE_PRIVATE)
+            val unread = prefs.getBoolean("has_unread_crash", false)
+            val time = prefs.getLong("last_crash_time", 0L)
+            unread && (System.currentTimeMillis() - time < 24 * 60 * 60 * 1000L)
+        } catch (_: Exception) { false }
+    }
+
+    fun markCrashAsRead(context: Context) {
+        try {
+            context.getSharedPreferences("kitsugi_crash_prefs", Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean("has_unread_crash", false)
+                .apply()
+        } catch (_: Exception) {}
     }
 
     fun getLogcatCrashFile(context: Context): File = File(context.filesDir, LOGCAT_CRASH_FILE)
