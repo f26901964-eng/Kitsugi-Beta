@@ -58,14 +58,14 @@ object CloudstreamUrlHelper {
             return when {
                 cleanPath.endsWith(".cs3", ignoreCase = true) -> {
                     val fileName = cleanPath.substringAfterLast("/")
-                    "https://raw.githubusercontent.com/gameras1010-afk/Kitsugi-Plugins/builds/$fileName"
+                    "https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Plugins/builds/$fileName"
                 }
                 cleanPath.endsWith("plugins.json", ignoreCase = true) -> {
-                    "https://raw.githubusercontent.com/gameras1010-afk/Kitsugi-Plugins/builds/plugins.json"
+                    "https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Plugins/builds/plugins.json"
                 }
                 else -> {
                     // Canonical repo manifest (verified 200 OK)
-                    "https://raw.githubusercontent.com/gameras1010-afk/Kitsugi-Plugins/builds/repo.json"
+                    "https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Plugins/builds/repo.json"
                 }
             }
         }

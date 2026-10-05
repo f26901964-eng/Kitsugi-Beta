@@ -58,7 +58,7 @@ fun getCacheState(stream: StreamSource): DebridCacheState {
         nameLower.contains("[rd~]") || nameLower.contains("download") ||
         titleLower.contains("[rd~]") || titleLower.contains("download") -> DebridCacheState.NOT_CACHED
         
-        stream.infoHash != null && stream.url == null -> DebridCacheState.P2P
+        stream.isTorrent && (stream.url == null || stream.url.startsWith("magnet:", ignoreCase = true) || stream.url.startsWith("torrent://", ignoreCase = true)) -> DebridCacheState.P2P
         
         else -> DebridCacheState.CACHED
     }
@@ -90,7 +90,7 @@ fun KitsugiStreamSelectorBottomSheet(
     var pendingP2pStream by remember { mutableStateOf<StreamSource?>(null) }
 
     val resolveAndSelectStream: (StreamSource) -> Unit = { stream ->
-        val isTorrent = !stream.infoHash.isNullOrBlank() || stream.url?.startsWith("magnet:") == true
+        val isTorrent = stream.isTorrent
         val hasDebrid = !DebridResolver(context).getApiKey().isNullOrBlank()
         val p2pEnabled = com.kitsugi.animelist.core.p2p.P2pSettingsRepository.isP2pEnabled()
 
@@ -116,10 +116,10 @@ fun KitsugiStreamSelectorBottomSheet(
                     null
                 }
                 resolvingSource = null
-                if (resolvedUrl != null) {
+                if (resolvedUrl != null && !resolvedUrl.startsWith("magnet:", ignoreCase = true) && !resolvedUrl.startsWith("torrent://", ignoreCase = true)) {
                     onStreamSelected(resolvedUrl, stream.title, stream)
                 } else {
-                    errorMessage = "Akış linki çözümlenemedi."
+                    errorMessage = if (isTorrent) "P2P akış motoru başlatılamadı veya torrent çözümlenemedi." else "Akış linki çözümlenemedi."
                 }
             }
         }

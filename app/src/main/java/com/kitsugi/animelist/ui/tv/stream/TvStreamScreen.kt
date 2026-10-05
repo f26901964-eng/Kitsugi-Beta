@@ -359,7 +359,7 @@ fun TvStreamScreen(
                                         index = index,
                                         accentColor = accentColor,
                                         onClick = {
-                                            val isTorrent = !stream.infoHash.isNullOrBlank() || stream.url?.startsWith("magnet:") == true
+                                            val isTorrent = stream.isTorrent
                                             val hasDebrid = !DebridResolver(context).getApiKey().isNullOrBlank()
                                             val p2pEnabled = com.kitsugi.animelist.core.p2p.P2pSettingsRepository.isP2pEnabled()
                                             if (isTorrent && !hasDebrid && !p2pEnabled) {
@@ -383,8 +383,8 @@ fun TvStreamScreen(
                                                     null
                                                 }
                                                 resolvingSource = null
-                                                if (resolvedUrl == null) {
-                                                    resolvingError = "Akış linki çözümlenemedi."
+                                                if (resolvedUrl == null || resolvedUrl.startsWith("magnet:", ignoreCase = true) || resolvedUrl.startsWith("torrent://", ignoreCase = true)) {
+                                                    resolvingError = if (isTorrent) "P2P akış motoru başlatılamadı veya torrent çözümlenemedi." else "Akış linki çözümlenemedi."
                                                     return@launch
                                                 }
                                                 handlePlayStream(stream, resolvedUrl)

@@ -288,6 +288,14 @@ class CloudstreamRepoClient(private val context: android.content.Context? = null
                 (0 until tvTypesArr.length()).mapNotNull { tvTypesArr.optString(it).takeIf { s -> s.isNotBlank() } }
             } else null
 
+            // +18 / Adult / NSFW eklentileri genel eklenti havuzuna asla ekleme
+            val isAdult = com.kitsugi.animelist.data.cloudstream.CsStreamRunner.ADULT_PLUGINS_SET.any { it.equals(name, ignoreCase = true) } ||
+                tvTypes?.any { it.equals("NSFW", ignoreCase = true) || it.equals("Adult", ignoreCase = true) } == true
+            if (isAdult) {
+                Log.d(TAG, "Skipping adult/NSFW plugin from catalog: $name")
+                continue
+            }
+
             val authorsArr = obj.optJSONArray("authors")
             val authors = if (authorsArr != null) {
                 (0 until authorsArr.length()).mapNotNull { authorsArr.optString(it).takeIf { s -> s.isNotBlank() } }

@@ -733,6 +733,14 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
             return
         }
 
+        if (url.contains("127.0.0.1") || url.contains("localhost")) {
+            Log.d("KitsugiPlayerViewModel", "AFR preflight skipped for local P2P stream: $url")
+            _detectedFrameRateRaw.value = 0f
+            _detectedFrameRate.value = 0f
+            _afrProbeRunning.value = false
+            return
+        }
+
         if (activity == null) {
             Log.w("KitsugiPlayerViewModel", "AFR preflight skipped: host activity unavailable")
             return

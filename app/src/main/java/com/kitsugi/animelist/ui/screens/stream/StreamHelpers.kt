@@ -52,7 +52,7 @@ fun getCacheState(stream: StreamSource): DebridCacheState {
         nameLower.contains("[rd~]") || nameLower.contains("download") ||
         titleLower.contains("[rd~]") || titleLower.contains("download") -> DebridCacheState.NOT_CACHED
 
-        stream.infoHash != null && stream.url == null -> DebridCacheState.P2P
+        stream.isTorrent && (stream.url == null || stream.url.startsWith("magnet:", ignoreCase = true) || stream.url.startsWith("torrent://", ignoreCase = true)) -> DebridCacheState.P2P
 
         else -> DebridCacheState.CACHED
     }
@@ -134,12 +134,12 @@ fun parseStreamTitle(title: String): Pair<String, String> {
  */
 fun getCleanVideoSourceLabel(stream: StreamSource): String {
     // 1. Torrent / Magnet
-    val isTorrent = !stream.infoHash.isNullOrBlank() || stream.url?.startsWith("magnet:", ignoreCase = true) == true
+    val isTorrent = stream.isTorrent
     if (isTorrent) {
         if (!stream.title.isNullOrBlank()) {
             return stream.title.trim()
         }
-        return "Torrent: ${stream.infoHash?.take(8) ?: "Magnet"}"
+        return "Torrent: ${stream.p2pHash?.take(8) ?: "Magnet"}"
     }
 
     // 2. Direct or Embed HTTP Link

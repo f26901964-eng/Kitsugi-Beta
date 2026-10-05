@@ -193,8 +193,9 @@ class PlayerMediaSourceFactory(
         val base = DefaultDataSource.Factory(context, OkHttpDataSource.Factory(okHttpClient))
 
         val isHlsOrDash = isHlsUrl(videoUrl) || videoUrl.contains(".mpd", ignoreCase = true)
+        val isLocalP2p = videoUrl.contains("127.0.0.1") || videoUrl.contains("localhost")
 
-        return if (settings.parallelRangeEnabled && !isHlsOrDash) {
+        return if (settings.parallelRangeEnabled && !isHlsOrDash && !isLocalP2p) {
             Log.d(TAG, "ParallelRangeDataSource enabled (${ParallelRangeDataSource.DEFAULT_PARALLEL_CONNECTIONS} connections)")
             ParallelRangeDataSource.Factory(
                 upstreamFactory    = base,

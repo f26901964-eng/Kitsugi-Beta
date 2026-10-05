@@ -282,10 +282,7 @@ fun KitsugiFullscreenPlayerScreen(
     val errorDetails by viewModel.errorDetails.collectAsState()
     val isAutoSwitching by viewModel.isAutoSwitching.collectAsState()
 
-    // P2P Torrent state
-    val p2pSettings by P2pSettingsRepository.uiState.collectAsState()
-    val p2pStreamingState by P2pStreamingEngine.state.collectAsState()
-
+    // P2P Torrent lifecycle
     DisposableEffect(Unit) {
         onDispose {
             P2pStreamingEngine.stopStream()
@@ -638,16 +635,12 @@ fun KitsugiFullscreenPlayerScreen(
 
                 val shouldShowBingeCard = showBingeCard && !isInPipMode
 
-                val isTorrentStream = remember(currentSourceIndex, currentStreamSources, p2pStreamingState) {
+                val isTorrentStream = remember(currentSourceIndex, currentStreamSources, currentVideoUrl) {
                     val currentSource = currentStreamSources.getOrNull(currentSourceIndex)
-                    currentSource?.infoHash != null ||
-                        currentSource?.url?.contains("magnet") == true ||
-                        p2pStreamingState.isStreaming
+                    currentSource?.isTorrent == true ||
+                        currentVideoUrl?.contains("127.0.0.1") == true ||
+                        currentVideoUrl?.contains("localhost") == true
                 }
-                val showTorrentOverlay = isTorrentStream &&
-                    !p2pSettings.hideTorrentStats &&
-                    !isInPipMode &&
-                    p2pStreamingState.isStreaming
 
                 LaunchedEffect(playerEngine, audioBoostLevel) {
                     playerEngine.setVolume(1.0f + audioBoostLevel)
@@ -1048,14 +1041,10 @@ fun KitsugiFullscreenPlayerScreen(
                         modifier = Modifier.align(Alignment.Center)
                     )
 
-                    // TorrentOverlay (P2P live stats)
-                    TorrentOverlay(
-                        visible = showTorrentOverlay,
-                        downloadSpeedBytes = p2pStreamingState.downloadSpeed,
-                        uploadSpeedBytes = p2pStreamingState.uploadSpeed,
-                        seeders = p2pStreamingState.seeds,
-                        peers = p2pStreamingState.peers,
-                        bufferPercent = (p2pStreamingState.bufferProgress * 100).toInt().coerceIn(0, 100),
+                    // TorrentOverlay (P2P live stats isolated host)
+                    P2pTorrentStatsOverlayHost(
+                        isTorrentStream = isTorrentStream,
+                        isInPipMode = isInPipMode,
                         modifier = Modifier
                             .align(Alignment.TopStart)
                             .padding(top = 70.dp, start = 24.dp)
@@ -1328,4 +1317,29 @@ fun PlaybackEndedOverlay(
             }
         }
     }
+}
+
+@Composable
+private fun P2pTorrentStatsOverlayHost(
+    isTorrentStream: Boolean,
+    isInPipMode: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val p2pSettings by P2pSettingsRepository.uiState.collectAsState()
+    val p2pStreamingState by P2pStreamingEngine.state.collectAsState()
+    val isStreaming = p2pStreamingState.isStreaming
+    val showTorrentOverlay = (isTorrentStream || isStreaming) &&
+        !p2pSettings.hideTorrentStats &&
+        !isInPipMode &&
+        isStreaming
+
+    TorrentOverlay(
+        visible = showTorrentOverlay,
+        downloadSpeedBytes = p2pStreamingState.downloadSpeed,
+        uploadSpeedBytes = p2pStreamingState.uploadSpeed,
+        seeders = p2pStreamingState.seeds,
+        peers = p2pStreamingState.peers,
+        bufferPercent = (p2pStreamingState.bufferProgress * 100).toInt().coerceIn(0, 100),
+        modifier = modifier
+    )
 }

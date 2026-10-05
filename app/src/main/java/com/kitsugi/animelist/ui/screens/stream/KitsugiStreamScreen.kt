@@ -308,7 +308,7 @@ fun KitsugiStreamScreen(
     var pendingIsDownload by remember { mutableStateOf(false) }
 
     val executeStreamResolution = { source: StreamSource, isDl: Boolean ->
-        val isTorrent = !source.infoHash.isNullOrBlank() || source.url?.startsWith("magnet:") == true
+        val isTorrent = source.isTorrent
         val hasDebrid = !DebridResolver(context).getApiKey().isNullOrBlank()
         val p2pEnabled = com.kitsugi.animelist.core.p2p.P2pSettingsRepository.isP2pEnabled()
 
@@ -340,8 +340,8 @@ fun KitsugiStreamScreen(
                 }
 
                 resolvingSource = null
-                if (resolvedUrl == null) {
-                    resolvingError = "Akış linki çözümlenemedi."
+                if (resolvedUrl == null || resolvedUrl.startsWith("magnet:", ignoreCase = true) || resolvedUrl.startsWith("torrent://", ignoreCase = true)) {
+                    resolvingError = if (isTorrent) "P2P akış motoru başlatılamadı veya torrent çözümlenemedi." else "Akış linki çözümlenemedi."
                     return@launch
                 }
 

@@ -229,14 +229,6 @@
             </intent-filter>
         </activity>
 
-        <activity
-            android:name=".ui.screens.crash.KitsugiCrashActivity"
-            android:process=":crash"
-            android:exported="false"
-            android:launchMode="singleInstance"
-            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|density"
-            android:theme="@style/Theme.KitsugiAnimeList" />
-
         <provider
             android:name="androidx.core.content.FileProvider"
             android:authorities="com.kitsugi.animelist.fileprovider"
@@ -272,6 +264,15 @@
             android:exported="false"
             android:launchMode="singleTop"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|density"
+            android:theme="@style/Theme.KitsugiAnimeList" />
+
+        <!-- KitsugiCrashActivity: Standalone crash & diagnostics activity running in isolated :crash process -->
+        <activity
+            android:name=".ui.screens.crash.KitsugiCrashActivity"
+            android:process=":crash"
+            android:exported="false"
+            android:launchMode="singleTask"
+            android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|density|uiMode"
             android:theme="@style/Theme.KitsugiAnimeList" />
 
         <!-- B1.10: TV Channel refresh background job (15dk periyodik + anlik) -->

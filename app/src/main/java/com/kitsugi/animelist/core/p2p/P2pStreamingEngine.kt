@@ -487,7 +487,7 @@ object P2pStreamingEngine {
                         )
                     }
                 }
-                delay(250L)
+                delay(DIAGNOSTIC_SAMPLE_INTERVAL_MS)
             }
         }
     }

@@ -162,7 +162,7 @@ fun StreamCard(
                         )
 
                         // Only show Cache State badge if it is a torrent/debrid stream (saves space!)
-                        val isTorrent = !source.infoHash.isNullOrBlank() || source.url?.startsWith("magnet:") == true
+                        val isTorrent = source.isTorrent
                         if (isTorrent) {
                             val (cacheText, cacheColor) = when (cacheState) {
                                 DebridCacheState.CACHED     -> "Önbellekte"    to KitsugiColors.AccentGreen

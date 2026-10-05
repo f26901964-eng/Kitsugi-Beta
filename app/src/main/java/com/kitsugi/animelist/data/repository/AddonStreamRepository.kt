@@ -177,27 +177,38 @@ class AddonStreamRepository(private val context: Context) {
      * Resolves a torrent stream via Debrid or local P2P engine if it's not a direct HTTP link.
      */
     suspend fun resolveStreamUrl(source: StreamSource): String? {
-        if (!source.url.isNullOrBlank()) {
-            return source.url // Direct link, no debrid or P2P required
+        val rawUrl = source.url?.trim()
+        val isMagnet = rawUrl.isMagnetLink()
+        val isTorrentScheme = rawUrl.isTorrentSchemeUrl()
+
+        // 1. Doğrudan oynatılabilir HTTP/HTTPS linki (magnet veya torrent linki değil)
+        if (!rawUrl.isNullOrBlank() && !isMagnet && !isTorrentScheme) {
+            return rawUrl
         }
-        val hash = source.infoHash
+
+        // 2. Torrent veya Magnet akışı -> Hash ve tracker'ları çıkar
+        val hash = source.p2pHash
         if (!hash.isNullOrBlank()) {
-            // 1. Önce Debrid API anahtarı varsa Debrid üzerinden çözmeyi dene
+            val fileIndex = source.fileIndex ?: rawUrl.extractTorrentSchemeFileIdx()
+            val trackers = extractTrackersFromMagnet(rawUrl)
+
+            // 2a. Debrid API anahtarı varsa öncelikle Debrid üzerinden çözmeyi dene
             if (!debridResolver.getApiKey().isNullOrBlank()) {
-                val debridUrl = debridResolver.resolveHash(hash, source.fileIndex)
+                val debridUrl = debridResolver.resolveHash(hash, fileIndex)
                 if (!debridUrl.isNullOrBlank()) {
                     return debridUrl
                 }
             }
 
-            // 2. Debrid yoksa veya çözülemediyse ve P2P etkinse -> Dahili P2P Motoru ile stream et
+            // 2b. Debrid yoksa veya çözülemediyse ve P2P etkinse -> Dahili Nuvio P2P Motoru ile stream et
             if (com.kitsugi.animelist.core.p2p.P2pSettingsRepository.isP2pEnabled()) {
                 try {
                     return com.kitsugi.animelist.core.p2p.P2pStreamingEngine.startStream(
                         com.kitsugi.animelist.core.p2p.P2pStreamRequest(
                             infoHash = hash,
-                            fileIdx = source.fileIndex,
-                            filename = source.title
+                            fileIdx = fileIndex,
+                            filename = source.title,
+                            trackers = trackers
                         )
                     )
                 } catch (e: Exception) {
@@ -238,7 +249,62 @@ data class StreamSource(
      * `showAdultContent = true` iken bile blur uygulaması bu flag ile kontrol edilir.
      */
     val isAdultContent: Boolean = false
-) : java.io.Serializable
+) : java.io.Serializable {
+    val isTorrent: Boolean
+        get() = !infoHash.isNullOrBlank() || url.isMagnetLink() || url.isTorrentSchemeUrl()
+
+    val p2pHash: String?
+        get() = infoHash?.trim()?.takeIf { it.isNotEmpty() }
+            ?: url.extractBtihInfoHash()
+            ?: url.extractTorrentSchemeInfoHash()
+}
+
+fun String?.isMagnetLink(): Boolean =
+    this?.trimStart()?.startsWith("magnet:", ignoreCase = true) == true
+
+fun String?.isTorrentSchemeUrl(): Boolean =
+    this?.trimStart()?.startsWith("torrent://", ignoreCase = true) == true
+
+fun String?.extractBtihInfoHash(): String? {
+    val raw = this?.trim()?.takeIf { it.startsWith("magnet:", ignoreCase = true) } ?: return null
+    val marker = "btih:"
+    val markerIndex = raw.indexOf(marker, ignoreCase = true)
+    if (markerIndex < 0) return null
+    val start = markerIndex + marker.length
+    val end = raw.indexOf('&', start).takeIf { it >= 0 } ?: raw.length
+    return raw.substring(start, end)
+        .trim()
+        .takeIf { it.isNotEmpty() }
+}
+
+fun String?.extractTorrentSchemeInfoHash(): String? {
+    val raw = this?.trimStart()?.takeIf { it.isTorrentSchemeUrl() } ?: return null
+    return raw.removeRange(0, "torrent://".length)
+        .substringBefore('/')
+        .substringBefore('?')
+        .trim()
+        .takeIf { it.isNotEmpty() }
+}
+
+fun String?.extractTorrentSchemeFileIdx(): Int? {
+    val raw = this?.trimStart()?.takeIf { it.isTorrentSchemeUrl() } ?: return null
+    val path = raw.removeRange(0, "torrent://".length).substringBefore('?')
+    if ('/' !in path) return null
+    return path.substringAfter('/')
+        .trim()
+        .takeIf { segment -> segment.isNotEmpty() && segment.all { it.isDigit() } }
+        ?.toIntOrNull()
+}
+
+fun extractTrackersFromMagnet(magnetUri: String?): List<String> {
+    if (magnetUri.isNullOrBlank() || !magnetUri.startsWith("magnet:", ignoreCase = true)) return emptyList()
+    return try {
+        val uri = android.net.Uri.parse(magnetUri)
+        uri.getQueryParameters("tr") ?: emptyList()
+    } catch (_: Exception) {
+        emptyList()
+    }
+}
 
 /**
  * Checks whether this addon can serve streams for [type] and [videoId].
