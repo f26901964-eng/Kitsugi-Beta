@@ -1,4 +1,4 @@
-﻿package com.kitsugi.animelist.ui.screens.fullscreen
+package com.kitsugi.animelist.ui.screens.fullscreen
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.Context
@@ -1048,6 +1048,7 @@ fun KitsugiFullscreenPlayerScreen(
 
                     // TorrentOverlay (P2P live stats isolated host)
                     P2pTorrentStatsOverlayHost(
+                        viewModel = viewModel,
                         isTorrentStream = isTorrentStream,
                         isInPipMode = isInPipMode,
                         modifier = Modifier
@@ -1330,17 +1331,38 @@ fun PlaybackEndedOverlay(
 
 @Composable
 private fun P2pTorrentStatsOverlayHost(
+    viewModel: KitsugiPlayerViewModel,
     isTorrentStream: Boolean,
     isInPipMode: Boolean,
     modifier: Modifier = Modifier
 ) {
     val p2pSettings by P2pSettingsRepository.uiState.collectAsState()
     val p2pStreamingState by P2pStreamingEngine.state.collectAsState()
+    val controlsShown by viewModel.controlsShown.collectAsState()
+    val areControlsLocked by viewModel.areControlsLocked.collectAsState()
+    val sheetShown by viewModel.sheetShown.collectAsState()
+    val panelShown by viewModel.panelShown.collectAsState()
+    val dialogShown by viewModel.dialogShown.collectAsState()
+
+    var isSessionDismissed by remember { mutableStateOf(false) }
+
     val isStreaming = p2pStreamingState.isStreaming
+    LaunchedEffect(isStreaming) {
+        if (isStreaming) isSessionDismissed = false
+    }
+
+    val isAnyMenuShown = sheetShown != KitsugiSheets.None ||
+            panelShown != com.kitsugi.animelist.ui.screens.fullscreen.KitsugiPanels.None ||
+            dialogShown != KitsugiDialogs.None
+
+    val areControlsVisible = controlsShown && !areControlsLocked && !isAnyMenuShown
+
     val showTorrentOverlay = (isTorrentStream || isStreaming) &&
         !p2pSettings.hideTorrentStats &&
+        !isSessionDismissed &&
         !isInPipMode &&
-        isStreaming
+        isStreaming &&
+        areControlsVisible
 
     TorrentOverlay(
         visible = showTorrentOverlay,
@@ -1349,6 +1371,12 @@ private fun P2pTorrentStatsOverlayHost(
         seeders = p2pStreamingState.seeds,
         peers = p2pStreamingState.peers,
         bufferPercent = (p2pStreamingState.bufferProgress * 100).toInt().coerceIn(0, 100),
+        onDismiss = {
+            isSessionDismissed = true
+        },
+        onInteraction = {
+            viewModel.showControls()
+        },
         modifier = modifier
     )
 }
