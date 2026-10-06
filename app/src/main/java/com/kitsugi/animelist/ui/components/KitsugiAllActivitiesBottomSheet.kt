@@ -167,21 +167,14 @@ fun KitsugiAllActivitiesBottomSheet(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(activitiesList, key = { it.id }) { act ->
-                        // Resolve title according to user's titleLanguage preference
-                        val localizedTitle = when (titleLanguage) {
-                            "ENGLISH" -> act.mediaTitleEnglish?.takeIf { it.isNotBlank() }
-                                ?: act.mediaTitleRomaji
-                                ?: act.mediaTitleNative
-                                ?: act.mediaTitle
-                            "NATIVE", "JAPANESE_STAFF" -> act.mediaTitleNative?.takeIf { it.isNotBlank() }
-                                ?: act.mediaTitleRomaji
-                                ?: act.mediaTitleEnglish
-                                ?: act.mediaTitle
-                            else -> act.mediaTitleRomaji
-                                ?: act.mediaTitleEnglish
-                                ?: act.mediaTitleNative
-                                ?: act.mediaTitle
-                        }
+                        // Merkezi zincir: kullanıcının başlık dili tercihine göre çözümlenir.
+                        // Japonca/Çince seçilmedikçe Latin alternatifi varken CJK gösterilmez.
+                        val localizedTitle = com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle(
+                            title = act.mediaTitleRomaji?.takeIf { it.isNotBlank() } ?: act.mediaTitle,
+                            titleEnglish = act.mediaTitleEnglish,
+                            titleJapanese = act.mediaTitleNative,
+                            titleLanguage = titleLanguage
+                        )
                         // For ListActivities: regenerate display text with localized title
                         val displayText = if (act.mediaTitle != null && localizedTitle != null && localizedTitle != act.mediaTitle) {
                             act.text.replace("**${act.mediaTitle}**", "**$localizedTitle**")

@@ -1,4 +1,4 @@
-﻿package com.kitsugi.animelist.ui.components
+package com.kitsugi.animelist.ui.components
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.Context
@@ -319,20 +319,14 @@ fun KitsugiActivityDetailBottomSheet(
                                 }
                             }
 
-                            val localizedTitle = when (titleLanguage) {
-                                "ENGLISH" -> act.mediaTitleEnglish?.takeIf { it.isNotBlank() }
-                                    ?: act.mediaTitleRomaji
-                                    ?: act.mediaTitleNative
-                                    ?: act.mediaTitle
-                                "NATIVE", "JAPANESE_STAFF" -> act.mediaTitleNative?.takeIf { it.isNotBlank() }
-                                    ?: act.mediaTitleRomaji
-                                    ?: act.mediaTitleEnglish
-                                    ?: act.mediaTitle
-                                else -> act.mediaTitleRomaji
-                                    ?: act.mediaTitleEnglish
-                                    ?: act.mediaTitleNative
-                                    ?: act.mediaTitle
-                            }
+                            // Merkezi zincir: kullanıcının başlık dili tercihine göre çözümlenir.
+                            // Japonca/Çince seçilmedikçe Latin alternatifi varken CJK gösterilmez.
+                            val localizedTitle = com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle(
+                                title = act.mediaTitleRomaji?.takeIf { it.isNotBlank() } ?: act.mediaTitle,
+                                titleEnglish = act.mediaTitleEnglish,
+                                titleJapanese = act.mediaTitleNative,
+                                titleLanguage = titleLanguage
+                            )
                             val localizedDisplayText = if (act.mediaTitle != null && localizedTitle != null && localizedTitle != act.mediaTitle) {
                                 act.text.replace("**${act.mediaTitle}**", "**$localizedTitle**")
                             } else act.text

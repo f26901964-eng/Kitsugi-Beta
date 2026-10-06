@@ -399,6 +399,7 @@ internal object TmdbDiscoverClient {
         mediaType: MediaType,
         executeGet: suspend (String) -> String?
     ): List<JikanSearchResult> = withContext(Dispatchers.IO) {
+        val requestedLanguage = Regex("language=([^&]+)").find(url)?.groupValues?.getOrNull(1) ?: "tr-TR"
         try {
             val responseText = executeGet(url) ?: return@withContext emptyList()
             val root = JSONObject(responseText)
@@ -463,19 +464,18 @@ internal object TmdbDiscoverClient {
                 }
                 val originalTitle = if (isMovie) item.optString("original_title", "") else item.optString("original_name", "")
                 val originalLang = item.optString("original_language", "")
-                val hasCjk = PreferenceHelpers.hasCjkCharacters(title)
                 val enFallback = enTitlesMap?.get(tmdbId)?.takeIf { it.isNotBlank() && !PreferenceHelpers.hasCjkCharacters(it) }
-                val resolvedTitleEnglish = if (originalLang.equals("en", ignoreCase = true)) {
-                    originalTitle
-                } else if (!enFallback.isNullOrBlank()) {
-                    enFallback
-                } else if (!hasCjk) {
-                    title
-                } else null
-                val resolvedTitleJapanese = if (hasCjk || originalLang == "ja") {
-                    originalTitle.ifBlank { title }
-                } else null
-                val finalTitle = if (hasCjk && !resolvedTitleEnglish.isNullOrBlank()) resolvedTitleEnglish else title
+                // Merkezi zincir: istenen dil (TR) → İngilizce → orijinal (Latin öncelikli).
+                val resolved = PreferenceHelpers.resolveTmdbTitles(
+                    localizedTitle = title,
+                    englishTitle = enFallback,
+                    originalTitle = originalTitle,
+                    originalLanguage = originalLang,
+                    requestedLanguage = requestedLanguage
+                )
+                val finalTitle = resolved.displayTitle.ifBlank { title }
+                val resolvedTitleEnglish = resolved.titleEnglish
+                val resolvedTitleJapanese = resolved.titleJapanese
 
                 list.add(
                     JikanSearchResult(
@@ -501,6 +501,7 @@ internal object TmdbDiscoverClient {
         url: String,
         executeGet: suspend (String) -> String?
     ): List<JikanSearchResult> = withContext(Dispatchers.IO) {
+        val requestedLanguage = Regex("language=([^&]+)").find(url)?.groupValues?.getOrNull(1) ?: "tr-TR"
         try {
             val responseText = executeGet(url) ?: return@withContext emptyList()
             val root = JSONObject(responseText)
@@ -561,19 +562,18 @@ internal object TmdbDiscoverClient {
                 }
                 val originalTitle = if (isMovie) item.optString("original_title", "") else item.optString("original_name", "")
                 val originalLang = item.optString("original_language", "")
-                val hasCjk = PreferenceHelpers.hasCjkCharacters(title)
                 val enFallback = enTitlesMap?.get(tmdbId)?.takeIf { it.isNotBlank() && !PreferenceHelpers.hasCjkCharacters(it) }
-                val resolvedTitleEnglish = if (originalLang.equals("en", ignoreCase = true)) {
-                    originalTitle
-                } else if (!enFallback.isNullOrBlank()) {
-                    enFallback
-                } else if (!hasCjk) {
-                    title
-                } else null
-                val resolvedTitleJapanese = if (hasCjk || originalLang == "ja") {
-                    originalTitle.ifBlank { title }
-                } else null
-                val finalTitle = if (hasCjk && !resolvedTitleEnglish.isNullOrBlank()) resolvedTitleEnglish else title
+                // Merkezi zincir: istenen dil (TR) → İngilizce → orijinal (Latin öncelikli).
+                val resolved = PreferenceHelpers.resolveTmdbTitles(
+                    localizedTitle = title,
+                    englishTitle = enFallback,
+                    originalTitle = originalTitle,
+                    originalLanguage = originalLang,
+                    requestedLanguage = requestedLanguage
+                )
+                val finalTitle = resolved.displayTitle.ifBlank { title }
+                val resolvedTitleEnglish = resolved.titleEnglish
+                val resolvedTitleJapanese = resolved.titleJapanese
 
                 list.add(
                     JikanSearchResult(

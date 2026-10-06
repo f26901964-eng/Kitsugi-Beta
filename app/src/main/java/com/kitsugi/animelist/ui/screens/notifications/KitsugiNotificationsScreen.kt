@@ -386,7 +386,7 @@ fun KitsugiNotificationsScreen(
                                     item { CenteredEmptyState(malState.error!!) }
                                 }
                                 malState.items.isEmpty() -> {
-                                    item { CenteredEmptyState(stringResource(R.string.notif_empty_list_mal)) }
+                                    item { CenteredEmptyState(malState.emptyHint ?: stringResource(R.string.notif_empty_list_mal)) }
                                 }
                                 else -> {
                                     items(malState.items, key = { it.id }) { notif ->
@@ -395,7 +395,7 @@ fun KitsugiNotificationsScreen(
                                             accentColor = accentColor,
                                             onUserProfileClick = onUserProfileClick,
                                             onClick = {
-                                                notif.mediaId?.let { id -> onOpenApiDetail?.invoke(id, "jikan", notif.mediaType, notif.title, notif.imageUrl) }
+                                                notif.mediaId?.let { id -> onOpenApiDetail?.invoke(id, notif.apiSource ?: "jikan", notif.mediaType, notif.title, notif.imageUrl) }
                                             }
                                         )
                                     }

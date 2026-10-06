@@ -54,19 +54,20 @@ internal object TmdbMediaDetailClient {
             val originalTitle = if (isMovie) finalJson.optString("original_title", "") else finalJson.optString("original_name", "")
             val originalLang = finalJson.optString("original_language", "")
 
-            // Türkçe başlık yoksa veya Japonca/CJK karakter gelmişse İngilizce başlığa düş
-            val hasCjkInTr = com.kitsugi.animelist.utils.PreferenceHelpers.hasCjkCharacters(rawTrTitle)
-            val finalTitle = when {
-                !rawTrTitle.isNullOrBlank() && !hasCjkInTr -> rawTrTitle
-                !rawEnTitle.isNullOrBlank() -> rawEnTitle
-                !rawTrTitle.isNullOrBlank() -> rawTrTitle
-                else -> originalTitle
-            }
+            // Merkezi zincir: istenen dil (TR) → İngilizce → orijinal (Latin öncelikli).
+            // Japonca/Çince açıkça seçilmedikçe CJK ancak son çare olarak gösterilir.
+            val resolved = com.kitsugi.animelist.utils.PreferenceHelpers.resolveTmdbTitles(
+                localizedTitle = rawTrTitle,
+                englishTitle = rawEnTitle,
+                originalTitle = originalTitle,
+                originalLanguage = originalLang,
+                requestedLanguage = lang
+            )
+            val finalTitle = resolved.displayTitle.ifBlank { originalTitle.ifBlank { rawTrTitle.orEmpty() } }
 
-            val titleEnglish = rawEnTitle?.takeIf { it.isNotBlank() } ?: finalTitle
-            val isJapanese = originalLang.equals("ja", ignoreCase = true) || com.kitsugi.animelist.utils.PreferenceHelpers.hasCjkCharacters(originalTitle)
-            val titleJapanese = if (isJapanese) originalTitle.takeIf { it.isNotBlank() } else null
-            val titleRomaji = rawEnTitle?.takeIf { it.isNotBlank() } ?: finalTitle
+            val titleEnglish = resolved.titleEnglish ?: finalTitle.takeIf { it.isNotBlank() }
+            val titleJapanese = resolved.titleJapanese
+            val titleRomaji = resolved.titleEnglish ?: finalTitle.takeIf { it.isNotBlank() }
 
             val posterPath = finalJson.optNullableString("poster_path") ?: ""
             val genresArray = finalJson.optJSONArray("genres")

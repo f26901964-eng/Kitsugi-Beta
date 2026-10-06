@@ -45,15 +45,18 @@ data class AiringEntry(
      * Başlık tercihi ve yapım ülkesine göre görüntülenecek başlığı hesaplar.
      * Kore ("KR") ve Çin ("CN") yapımı anime/donghua/awe için "Dogul Wang" gibi anlamsız
      * harf çevirileri yerine İngilizce başlık ("Tomb Raider King") önceliklendirilir.
+     * Japonca/Çince açıkça seçilmedikçe Latin alternatifi varken CJK gösterilmez.
      */
     fun getDisplayTitle(titleLanguage: String = "ROMAJI"): String {
         val isNonJapanese = countryOfOrigin != null && !countryOfOrigin.equals("JP", ignoreCase = true)
-        return when {
-            isNonJapanese && !titleEnglish.isNullOrBlank() -> titleEnglish
-            titleLanguage == "ENGLISH" -> titleEnglish?.takeIf { it.isNotBlank() } ?: title
-            titleLanguage == "NATIVE" -> titleNative?.takeIf { it.isNotBlank() } ?: title
-            else -> title
-        }
+        // Non-JP içeriklerde ham romaji yerine İngilizceyi baz al (Latin garantili zincir).
+        val baseTitle = if (isNonJapanese && !titleEnglish.isNullOrBlank()) titleEnglish else title
+        return com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle(
+            title = baseTitle,
+            titleEnglish = titleEnglish,
+            titleJapanese = titleNative,
+            titleLanguage = titleLanguage
+        )
     }
 
     fun toJikanSearchResult(preferredSource: String? = null): JikanSearchResult {

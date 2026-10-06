@@ -782,7 +782,11 @@ fun MyListScreen(
                     year = result.year,
                     synopsis = selection.synopsis,
                     startDate = null,
-                    endDate = null
+                    endDate = null,
+                    // Başlık dili zincirinin (TR → EN → Romaji) kayıtlı öğelerde de
+                    // çalışması için varyantlar korunur.
+                    titleEnglish = result.titleEnglish,
+                    titleJapanese = result.titleJapanese
                 )
 
                 viewModel.insertEntry(newEntry)

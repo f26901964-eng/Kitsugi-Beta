@@ -5,6 +5,7 @@ import android.app.NotificationManager
 import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.os.Build
 import android.util.Log
 import androidx.core.app.NotificationCompat
@@ -53,7 +54,14 @@ class AiringNotificationWorker(
             return Result.success()
         }
 
+        // Sistem bildirimi izni yoksa API çağrılarıyla vakit kaybetme.
+        if (!NotificationManagerCompat.from(context).areNotificationsEnabled()) {
+            Log.w(TAG, "POST_NOTIFICATIONS izni kapalı — bildirim kontrolü atlandı. Ayarlar > Bildirimler üzerinden izin verilmeli.")
+            return Result.success()
+        }
+
         val sharedPrefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+        val titleLanguage = settings.titleLanguage
 
         // 1. Fetch watching entries from DB
         val db = KitsugiDatabase.getDatabase(context)
@@ -75,11 +83,11 @@ class AiringNotificationWorker(
                 try {
                     val client = KitsugiAniListNotificationClient()
                     val page = client.fetchNotifications(aniListToken, page = 1, perPage = 25)
-                    val notifiedIds = sharedPrefs.getStringSet(KEY_NOTIFIED_ANILIST, emptySet())?.toMutableSet() ?: mutableSetOf()
+                    val notifiedIds = loadTimestampedKeys(sharedPrefs, KEY_NOTIFIED_ANILIST)
 
                     for (notif in page.notifications) {
                         val notifIdStr = notif.id.toString()
-                        if (!notifiedIds.contains(notifIdStr)) {
+                        if (!notifiedIds.containsKey(notifIdStr)) {
                             val title = notif.mediaTitle ?: notif.userName ?: notif.threadTitle ?: "AniList"
                             val body = formatAniListBody(notif)
                             val isMedia = notif.type in listOf("AIRING", "RELATED_MEDIA_ADDITION", "MEDIA_DATA_CHANGE", "MEDIA_MERGE")
@@ -94,11 +102,10 @@ class AiringNotificationWorker(
                                 isMedia = isMedia,
                                 mediaId = notif.mediaId
                             )
-                            notifiedIds.add(notifIdStr)
+                            notifiedIds[notifIdStr] = System.currentTimeMillis()
                         }
                     }
-                    val keptIds = notifiedIds.toList().takeLast(200).toSet()
-                    sharedPrefs.edit().putStringSet(KEY_NOTIFIED_ANILIST, keptIds).apply()
+                    saveTimestampedKeys(sharedPrefs, KEY_NOTIFIED_ANILIST, notifiedIds)
                 } catch (e: Exception) {
                     Log.e(TAG, "AniList notifications fetch failed: ${e.message}", e)
                 }
@@ -108,46 +115,59 @@ class AiringNotificationWorker(
         // 3. MyAnimeList (Airing Calendar) Polling
         if (isMalEnabled || isAiringEnabled) {
             try {
+                // Hafta sınırına takılmayan pencere: son 2 gün (varsayılan 180 dk aralığın
+                // kat kat üstünde güvenli pay + Pazartesi günü Pazar bölümlerini yakalar).
                 val calendarClient = KitsugiAiringCalendarClient()
-                val weekSchedule = calendarClient.fetchWeeklySchedule()
+                val window = calendarClient.fetchAiringWindow(daysBack = 2, daysForward = 0)
                 val now = System.currentTimeMillis()
-                val allEntries = weekSchedule.values.flatten()
 
-                val matched = allEntries.filter { entry ->
-                    watchingEntries.any { me ->
-                        (entry.malId != null && me.malId == entry.malId) ||
-                        (me.source == "anilist" && me.malId == 100_000_000 + entry.aniListId)
-                    }
+                // Tüm kaynaklardaki izlenmekte animeler + yerel MAL aynası boşsa MAL API yedeği.
+                val targets = com.kitsugi.animelist.data.remote.AiringNotificationMatcher
+                    .allWatchTargets(watchingEntries).toMutableList()
+                val hasLocalMalAnime = watchingEntries.any { me ->
+                    (me.source.equals("mal", ignoreCase = true) ||
+                        me.source.equals("jikan", ignoreCase = true) ||
+                        me.source.equals("myanimelist", ignoreCase = true)) &&
+                    com.kitsugi.animelist.data.remote.AiringNotificationMatcher.run { me.isTrackableForAiring() }
+                }
+                if (!hasLocalMalAnime) {
+                    targets += com.kitsugi.animelist.data.remote.AiringNotificationMatcher
+                        .resolveMalWatchTargets(context, watchingEntries)
+                }
+                if (targets.isEmpty()) {
+                    Log.d(TAG, "MAL/yayın bildirimi için izlenmekte anime yok — atlandı.")
                 }
 
-                val notifiedMalKeys = sharedPrefs.getStringSet(KEY_NOTIFIED_MAL, emptySet())?.toMutableSet() ?: mutableSetOf()
+                val notifiedMalKeys = loadTimestampedKeys(sharedPrefs, KEY_NOTIFIED_MAL)
 
-                for (entry in matched) {
+                for (entry in window) {
                     val triggerMs = entry.airingAt * 1000L
-                    // Recently aired (within past 24 hours)
-                    if (triggerMs <= now && triggerMs > now - 24 * 60 * 60 * 1000L) {
-                        val malKey = "${entry.malId}_${entry.episode}"
-                        if (!notifiedMalKeys.contains(malKey)) {
-                            val title = entry.title
-                            val body = "Bölüm ${entry.episode} artık yayında! 🎬"
-                            val malId = entry.malId ?: 0
-                            val notifId = (malId * 1000 + entry.episode) and Int.MAX_VALUE
+                    // Son 24 saat içinde yayınlanan bölümler
+                    if (triggerMs > now || triggerMs <= now - 24 * 60 * 60 * 1000L) continue
+                    val target = targets.firstOrNull { t ->
+                        com.kitsugi.animelist.data.remote.AiringNotificationMatcher.matches(entry, t)
+                    } ?: continue
+                    // Kullanıcı bu bölümü zaten izlemişse push atma.
+                    if (target.progress > 0 && entry.episode > 0 && target.progress >= entry.episode) continue
 
-                            showNotification(
-                                id = notifId,
-                                title = title,
-                                bodyText = body,
-                                source = "MyAnimeList",
-                                imageUrl = entry.coverUrl,
-                                isMedia = true,
-                                mediaId = malId
-                            )
-                            notifiedMalKeys.add(malKey)
-                        }
-                    }
+                    val malKey = "mal_${entry.malId ?: "al${entry.aniListId}"}_${entry.episode}"
+                    if (notifiedMalKeys.containsKey(malKey)) continue
+
+                    // Çakışmasız bildirim id'si (eski `malId * 1000 + episode` formülü
+                    // malId'siz kayıtlarda çakışıyordu).
+                    val notifId = malKey.hashCode() and 0x7fffffff
+                    showNotification(
+                        id = notifId,
+                        title = entry.getDisplayTitle(titleLanguage),
+                        bodyText = "Bölüm ${entry.episode} artık yayında! 🎬",
+                        source = "MyAnimeList",
+                        imageUrl = entry.coverUrl,
+                        isMedia = true,
+                        mediaId = entry.malId ?: entry.aniListId
+                    )
+                    notifiedMalKeys[malKey] = System.currentTimeMillis()
                 }
-                val keptMalKeys = notifiedMalKeys.toList().takeLast(200).toSet()
-                sharedPrefs.edit().putStringSet(KEY_NOTIFIED_MAL, keptMalKeys).apply()
+                saveTimestampedKeys(sharedPrefs, KEY_NOTIFIED_MAL, notifiedMalKeys)
             } catch (e: Exception) {
                 Log.e(TAG, "MAL Airing Calendar fetch failed: ${e.message}", e)
             }
@@ -208,6 +228,51 @@ class AiringNotificationWorker(
         }
 
         return Result.success()
+    }
+
+    /**
+     * Bildirimi atılmış anahtarları zaman damgasıyla yükler.
+     * Eski sürümün `takeLast(200)` budaması sırasız kümede rastgele eleme yapıp
+     * aynı bildirimin tekrar atılmasına yol açıyordu; bu yapı en yeni kayıtları korur.
+     *
+     * @return anahtar → ilk bildirim zamanı (epoch ms) haritası
+     */
+    private fun loadTimestampedKeys(
+        prefs: SharedPreferences,
+        key: String,
+        maxAgeDays: Int = 60
+    ): MutableMap<String, Long> {
+        val raw = prefs.getStringSet(key, emptySet()) ?: emptySet()
+        val cutoff = System.currentTimeMillis() - maxAgeDays * 24 * 60 * 60 * 1000L
+        val out = mutableMapOf<String, Long>()
+        for (item in raw) {
+            val sep = item.lastIndexOf('|')
+            if (sep == -1) {
+                // Eski formatsız anahtar (geriye uyumluluk): bugünün damgasıyla koru.
+                out[item] = System.currentTimeMillis()
+                continue
+            }
+            val ts = item.substring(sep + 1).toLongOrNull() ?: continue
+            if (ts >= cutoff) {
+                out[item.substring(0, sep)] = ts
+            }
+        }
+        return out
+    }
+
+    /** Zaman damgalı anahtarları kaydeder: en yeni [maxKeep] kayıt tutulur. */
+    private fun saveTimestampedKeys(
+        prefs: SharedPreferences,
+        key: String,
+        keys: Map<String, Long>,
+        maxKeep: Int = 400
+    ) {
+        val stamped = keys.entries
+            .sortedByDescending { it.value }
+            .take(maxKeep)
+            .map { "${it.key}|${it.value}" }
+            .toSet()
+        prefs.edit().putStringSet(key, stamped).apply()
     }
 
     private fun formatAniListBody(notif: KitsugiAniListNotificationClient.KitsugiNotification): String {

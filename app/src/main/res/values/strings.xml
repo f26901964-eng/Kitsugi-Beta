@@ -391,12 +391,14 @@
 
     <string name="notif_error_load">Bildirimler yüklenemedi: %1$s</string>
     <string name="notif_mal_episode_released">Bölüm %1$d yayınlandı 🎬</string>
+    <string name="notif_mal_episode_upcoming">Bölüm %1$d • %2$s yayınlanacak 🕒</string>
     <string name="notif_simkl_new_content">Yeni içerik mevcut 🎬</string>
     
     <string name="notif_login_required_anilist">AniList\'e giriş yapmanız gerekiyor</string>
     <string name="notif_login_required_mal">MAL\'a giriş yapmanız gerekiyor</string>
     <string name="notif_login_required_simkl">Simkl\'e giriş yapmanız gerekiyor</string>
     <string name="notif_empty_list_mal">İzleme listenizdeki animeler için yeni bölüm bulunamadı</string>
+    <string name="notif_empty_list_mal_no_watching">MAL listenizde izlenmekte olan anime yok — izlemeye başladığınız animelerin yeni ve yaklaşan bölümleri burada görünecek</string>
     <string name="notif_empty_list_simkl">İzleme listenizdeki içerikler için yeni bildirim yok</string>
     <string name="notif_empty_no_notifications">Yeni bildirim yok</string>
 

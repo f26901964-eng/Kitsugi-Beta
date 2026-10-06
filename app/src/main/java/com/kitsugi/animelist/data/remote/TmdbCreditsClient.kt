@@ -19,6 +19,56 @@ internal object TmdbCreditsClient {
     private const val IMG_W185 = "https://image.tmdb.org/t/p/w185"
     private const val IMG_W300 = "https://image.tmdb.org/t/p/w300"
 
+    /**
+     * Verilen TMDB liste URL'sinin en-US karşılığından id → İngilizce başlık haritası çıkarır.
+     * Sadece Latin (CJK içermeyen) başlıklar haritaya alınır.
+     */
+    private suspend fun fetchEnglishTitlesMap(
+        url: String,
+        executeGet: suspend (String) -> String?,
+        arrayKeys: List<String> = listOf("results", "parts", "cast", "crew")
+    ): Map<Int, String> {
+        if (url.contains("language=en-US")) return emptyMap()
+        val enUrl = url.replace(Regex("language=[^&]+"), "language=en-US")
+        if (enUrl == url) return emptyMap()
+        return try {
+            val responseText = executeGet(enUrl) ?: return emptyMap()
+            val root = JSONObject(responseText)
+            val map = mutableMapOf<Int, String>()
+            for (key in arrayKeys) {
+                val arr = root.optJSONArray(key) ?: continue
+                for (i in 0 until arr.length()) {
+                    val item = arr.optJSONObject(i) ?: continue
+                    val id = item.optInt("id", 0)
+                    if (id <= 0 || map.containsKey(id)) continue
+                    val enTitle = item.optString("title", "").takeIf { it.isNotBlank() }
+                        ?: item.optString("name", "").takeIf { it.isNotBlank() }
+                        ?: continue
+                    if (!PreferenceHelpers.hasCjkCharacters(enTitle)) {
+                        map[id] = enTitle
+                    }
+                }
+            }
+            map
+        } catch (e: Exception) {
+            Log.e(TAG, "fetchEnglishTitlesMap error: ${e.message}")
+            emptyMap()
+        }
+    }
+
+    /** Listedeki herhangi bir öğe için İngilizce yedek gerekip gerekmediğini belirler. */
+    private fun needsEnglishFallback(items: List<JSONObject>, isMovieResolver: (JSONObject) -> Boolean): Boolean {
+        for (item in items) {
+            val isMovie = isMovieResolver(item)
+            val rawTitle = if (isMovie) item.optString("title", "") else item.optString("name", "")
+            val origLang = item.optString("original_language", "")
+            if (PreferenceHelpers.hasCjkCharacters(rawTitle) || origLang in listOf("ja", "ko", "zh")) {
+                return true
+            }
+        }
+        return false
+    }
+
     suspend fun fetchCredits(
         tmdbId: Int,
         isMovie: Boolean,
@@ -114,11 +164,24 @@ internal object TmdbCreditsClient {
                                 val collJson = JSONObject(collectionResp)
                                 val parts = collJson.optJSONArray("parts")
                                 if (parts != null) {
-                                    for (i in 0 until parts.length()) {
-                                        val part = parts.getJSONObject(i)
+                                    val partItems = (0 until parts.length()).mapNotNull { parts.optJSONObject(it) }
+                                    val enMap = if (needsEnglishFallback(partItems) { true }) {
+                                        fetchEnglishTitlesMap(collectionUrl, executeGet, listOf("parts"))
+                                    } else emptyMap()
+                                    for (part in partItems) {
                                         val partId = part.optInt("id")
                                         if (partId == tmdbId) continue
-                                        val partTitle = part.optString("title", "Bilinmeyen")
+                                        val rawTitle = part.optString("title", "")
+                                        val origTitle = part.optString("original_title", "")
+                                        val origLang = part.optString("original_language", "")
+                                        val resolved = PreferenceHelpers.resolveTmdbTitles(
+                                            localizedTitle = rawTitle,
+                                            englishTitle = enMap[partId],
+                                            originalTitle = origTitle,
+                                            originalLanguage = origLang,
+                                            requestedLanguage = language
+                                        )
+                                        val partTitle = resolved.displayTitle.ifBlank { rawTitle.ifBlank { "Bilinmeyen" } }
                                         val posterPath = part.optNullableString("poster_path") ?: ""
                                         val imageUrl = if (posterPath.isNotEmpty()) "$IMG_W185$posterPath" else null
                                         list.add(
@@ -126,7 +189,10 @@ internal object TmdbCreditsClient {
                                                 malId = partId, title = partTitle, relationType = "Seri",
                                                 imageUrl = imageUrl,
                                                 mediaType = MediaType.Movie,
-                                                source = "tmdb"
+                                                source = "tmdb",
+                                                titleEnglish = resolved.titleEnglish,
+                                                titleJapanese = resolved.titleJapanese,
+                                                titleRomaji = resolved.titleEnglish ?: partTitle
                                             )
                                         )
                                     }
@@ -158,13 +224,26 @@ internal object TmdbCreditsClient {
             val responseText = executeGet(url) ?: return@withContext emptyList()
             val root = JSONObject(responseText)
             val results = root.optJSONArray("results") ?: return@withContext emptyList()
+            val resultItems = (0 until minOf(results.length(), 20)).mapNotNull { results.optJSONObject(it) }
+            val enMap = if (needsEnglishFallback(resultItems) { isMovie }) {
+                fetchEnglishTitlesMap(url, executeGet, listOf("results"))
+            } else emptyMap()
             val list = mutableListOf<KitsugiRelation>()
-            for (i in 0 until minOf(results.length(), 20)) {
-                val item = results.getJSONObject(i)
+            for (item in resultItems) {
                 val isAdult = item.optBoolean("adult", false)
                 if (isAdult) continue
                 val id = item.optInt("id")
-                val title = if (isMovie) item.optString("title", "Bilinmeyen") else item.optString("name", "Bilinmeyen")
+                val rawTitle = if (isMovie) item.optString("title", "") else item.optString("name", "")
+                val origTitle = if (isMovie) item.optString("original_title", "") else item.optString("original_name", "")
+                val origLang = item.optString("original_language", "")
+                val resolved = PreferenceHelpers.resolveTmdbTitles(
+                    localizedTitle = rawTitle,
+                    englishTitle = enMap[id],
+                    originalTitle = origTitle,
+                    originalLanguage = origLang,
+                    requestedLanguage = language
+                )
+                val title = resolved.displayTitle.ifBlank { rawTitle.ifBlank { "Bilinmeyen" } }
                 val posterPath = item.optNullableString("poster_path") ?: ""
                 val imageUrl = if (posterPath.isNotEmpty()) "$IMG_W185$posterPath" else null
                 list.add(
@@ -172,7 +251,10 @@ internal object TmdbCreditsClient {
                         malId = id, title = title, relationType = "Tavsiye",
                         imageUrl = imageUrl,
                         mediaType = if (isMovie) MediaType.Movie else MediaType.TvShow,
-                        source = "tmdb"
+                        source = "tmdb",
+                        titleEnglish = resolved.titleEnglish,
+                        titleJapanese = resolved.titleJapanese,
+                        titleRomaji = resolved.titleEnglish ?: title
                     )
                 )
             }
@@ -283,12 +365,25 @@ internal object TmdbCreditsClient {
             val responseText = executeGet(url) ?: return emptyList()
             val root = JSONObject(responseText)
             val castArray = root.optJSONArray("cast") ?: return emptyList()
+            val castItems = (0 until minOf(castArray.length(), 20)).mapNotNull { castArray.optJSONObject(it) }
+            val enMap = if (needsEnglishFallback(castItems) { it.optString("media_type") == "movie" }) {
+                fetchEnglishTitlesMap(url, executeGet, listOf("cast", "crew"))
+            } else emptyMap()
             val list = mutableListOf<KitsugiCharacterMediaAppearance>()
-            for (i in 0 until minOf(castArray.length(), 20)) {
-                val item = castArray.getJSONObject(i)
+            for (item in castItems) {
                 val id = item.optInt("id")
                 val isMovie = item.optString("media_type") == "movie"
-                val title = if (isMovie) item.optString("title", "Bilinmeyen") else item.optString("name", "Bilinmeyen")
+                val rawTitle = if (isMovie) item.optString("title", "") else item.optString("name", "")
+                val origTitle = if (isMovie) item.optString("original_title", "") else item.optString("original_name", "")
+                val origLang = item.optString("original_language", "")
+                val resolved = PreferenceHelpers.resolveTmdbTitles(
+                    localizedTitle = rawTitle,
+                    englishTitle = enMap[id],
+                    originalTitle = origTitle,
+                    originalLanguage = origLang,
+                    requestedLanguage = language
+                )
+                val title = resolved.displayTitle.ifBlank { rawTitle.ifBlank { "Bilinmeyen" } }
                 val character = item.optString("character", "Bilinmeyen")
                 val posterPath = item.optNullableString("poster_path") ?: ""
                 val imageUrl = if (posterPath.isNotEmpty()) "$IMG_W185$posterPath" else null
@@ -296,7 +391,10 @@ internal object TmdbCreditsClient {
                     KitsugiCharacterMediaAppearance(
                         mediaId = id, title = title, imageUrl = imageUrl,
                         mediaType = if (isMovie) "movie".toTurkishMediaTypeString() else "tv".toTurkishMediaTypeString(),
-                        characterRole = character, source = "tmdb"
+                        characterRole = character, source = "tmdb",
+                        titleEnglish = resolved.titleEnglish,
+                        titleJapanese = resolved.titleJapanese,
+                        titleRomaji = resolved.titleEnglish ?: title
                     )
                 )
             }
@@ -361,12 +459,25 @@ internal object TmdbCreditsClient {
             val responseText = executeGet(url) ?: return emptyList()
             val root = JSONObject(responseText)
             val crewArray = root.optJSONArray("crew") ?: return emptyList()
+            val crewItems = (0 until minOf(crewArray.length(), 20)).mapNotNull { crewArray.optJSONObject(it) }
+            val enMap = if (needsEnglishFallback(crewItems) { it.optString("media_type") == "movie" }) {
+                fetchEnglishTitlesMap(url, executeGet, listOf("cast", "crew"))
+            } else emptyMap()
             val list = mutableListOf<KitsugiStaffMediaWork>()
-            for (i in 0 until minOf(crewArray.length(), 20)) {
-                val item = crewArray.getJSONObject(i)
+            for (item in crewItems) {
                 val id = item.optInt("id")
                 val isMovie = item.optString("media_type") == "movie"
-                val title = if (isMovie) item.optString("title", "Bilinmeyen") else item.optString("name", "Bilinmeyen")
+                val rawTitle = if (isMovie) item.optString("title", "") else item.optString("name", "")
+                val origTitle = if (isMovie) item.optString("original_title", "") else item.optString("original_name", "")
+                val origLang = item.optString("original_language", "")
+                val resolved = PreferenceHelpers.resolveTmdbTitles(
+                    localizedTitle = rawTitle,
+                    englishTitle = enMap[id],
+                    originalTitle = origTitle,
+                    originalLanguage = origLang,
+                    requestedLanguage = language
+                )
+                val title = resolved.displayTitle.ifBlank { rawTitle.ifBlank { "Bilinmeyen" } }
                 val job = item.optString("job", "Ekip Üyesi")
                 val posterPath = item.optNullableString("poster_path") ?: ""
                 val imageUrl = if (posterPath.isNotEmpty()) "$IMG_W185$posterPath" else null
@@ -374,7 +485,10 @@ internal object TmdbCreditsClient {
                     KitsugiStaffMediaWork(
                         mediaId = id, mediaTitle = title, mediaImageUrl = imageUrl,
                         mediaType = if (isMovie) "movie".toTurkishMediaTypeString() else "tv".toTurkishMediaTypeString(),
-                        staffRole = job.toTurkishStaffRole(), source = "tmdb"
+                        staffRole = job.toTurkishStaffRole(), source = "tmdb",
+                        titleEnglish = resolved.titleEnglish,
+                        titleJapanese = resolved.titleJapanese,
+                        titleRomaji = resolved.titleEnglish ?: title
                     )
                 )
             }
@@ -399,13 +513,25 @@ internal object TmdbCreditsClient {
             val list = mutableListOf<KitsugiStaffCharacterRole>()
             // Sort by popularity descending and take top 30
             val sorted = (0 until castArray.length())
-                .map { castArray.getJSONObject(it) }
+                .mapNotNull { castArray.optJSONObject(it) }
                 .sortedByDescending { it.optDouble("popularity", 0.0) }
                 .take(30)
+            val enMap = if (needsEnglishFallback(sorted) { it.optString("media_type") == "movie" }) {
+                fetchEnglishTitlesMap(url, executeGet, listOf("cast", "crew"))
+            } else emptyMap()
             for (item in sorted) {
                 val mediaId = item.optInt("id")
                 val isMovie = item.optString("media_type") == "movie"
-                val mediaTitle = if (isMovie) item.optString("title", "Bilinmeyen") else item.optString("name", "Bilinmeyen")
+                val rawMediaTitle = if (isMovie) item.optString("title", "") else item.optString("name", "")
+                val origMediaTitle = if (isMovie) item.optString("original_title", "") else item.optString("original_name", "")
+                val origMediaLang = item.optString("original_language", "")
+                val mediaTitle = PreferenceHelpers.resolveTmdbTitles(
+                    localizedTitle = rawMediaTitle,
+                    englishTitle = enMap[mediaId],
+                    originalTitle = origMediaTitle,
+                    originalLanguage = origMediaLang,
+                    requestedLanguage = language
+                ).displayTitle.ifBlank { rawMediaTitle.ifBlank { "Bilinmeyen" } }
                 val characterName = item.optString("character", "").ifBlank { "Bilinmeyen" }
                 val posterPath = item.optNullableString("poster_path") ?: ""
                 val mediaImageUrl = if (posterPath.isNotEmpty()) "$IMG_W185$posterPath" else null

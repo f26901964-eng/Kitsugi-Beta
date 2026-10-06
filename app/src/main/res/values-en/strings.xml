@@ -390,12 +390,14 @@
 
     <string name="notif_error_load">Failed to load notifications: %1$s</string>
     <string name="notif_mal_episode_released">Episode %1$d released 🎬</string>
+    <string name="notif_mal_episode_upcoming">Episode %1$d • airs %2$s 🕒</string>
     <string name="notif_simkl_new_content">New content available 🎬</string>
     
     <string name="notif_login_required_anilist">You need to log in to AniList</string>
     <string name="notif_login_required_mal">You need to log in to MAL</string>
     <string name="notif_login_required_simkl">You need to log in to Simkl</string>
     <string name="notif_empty_list_mal">No new episodes found for anime in your watch list</string>
+    <string name="notif_empty_list_mal_no_watching">No watching anime in your MAL list — new and upcoming episodes will appear here once you start watching</string>
     <string name="notif_empty_list_simkl">No new notifications for content in your watch list</string>
     <string name="notif_empty_no_notifications">No new notifications</string>
 

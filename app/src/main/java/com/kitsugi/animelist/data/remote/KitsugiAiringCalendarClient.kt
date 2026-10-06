@@ -204,15 +204,41 @@ class KitsugiAiringCalendarClient {
             .take(limit)
     }
 
+    /**
+     * Bildirim eşleştirme için hafta sınırına takılmayan esnek pencere çeker.
+     * [fetchWeeklySchedule] yalnızca içinde bulunulan Pazartesi–Pazar aralığını döndürdüğü
+     * için (örn. Salı günü geçen haftaki bölümler görünmez), bildirimler için bu
+     * pencere kullanılmalıdır.
+     *
+     * @param daysBack geçmişe kaç gün bakılacağı (yayınlanan bölümler)
+     * @param daysForward geleceğe kaç gün bakılacağı (yaklaşan bölümler)
+     */
+    suspend fun fetchAiringWindow(
+        daysBack: Int = 7,
+        daysForward: Int = 7,
+        accessToken: String? = null,
+        maxPages: Int = 16
+    ): List<AiringEntry> {
+        return withContext(Dispatchers.IO) {
+            val nowSeconds = System.currentTimeMillis() / 1000L
+            val start = nowSeconds - daysBack.coerceAtLeast(0) * 24 * 3600L
+            val end = nowSeconds + daysForward.coerceAtLeast(0) * 24 * 3600L
+            fetchAiringSchedule(start, end, accessToken, maxPages)
+                .filter { it.airingAt in start..end }
+                .sortedBy { it.airingAt }
+        }
+    }
+
     private suspend fun fetchAiringSchedule(
         airingAtGreater: Long,
         airingAtLesser: Long,
-        accessToken: String?
+        accessToken: String?,
+        maxPages: Int = 10
     ): List<AiringEntry> {
         val allEntries = mutableListOf<AiringEntry>()
         var page = 1
         var hasNextPage = true
-        while (hasNextPage && page <= 10) {
+        while (hasNextPage && page <= maxPages) {
             val variables = JSONObject()
                 .put("page", page)
                 .put("perPage", 50)

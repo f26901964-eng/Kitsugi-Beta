@@ -14,6 +14,7 @@ import com.kitsugi.animelist.model.WatchStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -46,7 +47,9 @@ data class NotifItem(
     val userId: Int? = null,
     val userName: String? = null,
     val userAvatarUrl: String? = null,
-    val source: String = "AniList"
+    val source: String = "AniList",
+    /** Detay açarken kullanılacak API kaynağı (örn. MAL id yoksa "anilist"). Null ise sekme varsayılanı. */
+    val apiSource: String? = null
 )
 
 // ─── UI State ─────────────────────────────────────────────────────────────────
@@ -56,7 +59,9 @@ data class NotifUiState(
     val isLoading: Boolean = false,
     val error: String? = null,
     val hasMore: Boolean = true,
-    val page: Int = 1
+    val page: Int = 1,
+    /** Liste boşken gösterilecek özel ipucu (null ise sekme varsayılan metni). */
+    val emptyHint: String? = null
 )
 
 // ─── ViewModel ───────────────────────────────────────────────────────────────
@@ -194,36 +199,74 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
         viewModelScope.launch {
             _mal.value = NotifUiState(isLoading = true)
             try {
-                val calendarClient = KitsugiAiringCalendarClient()
-                val schedule = calendarClient.fetchWeeklySchedule()
-                val allEntries = schedule.values.flatten()
-                val now = System.currentTimeMillis()
-                val malEntries = mediaEntries.filter {
-                    (it.source.equals("jikan", ignoreCase = true) || it.source.equals("mal", ignoreCase = true)) &&
-                    (it.status == WatchStatus.Watching || it.status == WatchStatus.Repeating)
-                }
-                val matched = allEntries
-                    .filter { entry -> malEntries.any { me -> me.malId == entry.malId } }
-                    .filter { entry ->
-                        val triggerMs = entry.airingAt * 1000L
-                        triggerMs <= now && triggerMs > now - 7 * 24 * 60 * 60 * 1000L
-                    }
-                val items = matched.map { entry ->
-                    val dateText = SimpleDateFormat("dd MMM HH:mm", Locale.getDefault())
-                        .format(Date(entry.airingAt * 1000L))
-                    NotifItem(
-                        id = "mal_${entry.malId}_${entry.episode}",
-                        imageUrl = entry.coverUrl,
-                        title = entry.title,
-                        body = ctx.getString(R.string.notif_mal_episode_released, entry.episode),
-                        dateText = dateText,
-                        mediaId = entry.malId,
-                        mediaType = "anime",
-                        source = "MyAnimeList"
+                // 1. İzleme hedefleri: yerel MAL aynası boşsa MAL API'den doğrudan çekilir.
+                val targets = com.kitsugi.animelist.data.remote.AiringNotificationMatcher
+                    .resolveMalWatchTargets(ctx, mediaEntries)
+                if (targets.isEmpty()) {
+                    _mal.value = NotifUiState(
+                        items = emptyList(),
+                        isLoading = false,
+                        hasMore = false,
+                        emptyHint = ctx.getString(R.string.notif_empty_list_mal_no_watching)
                     )
-                }.sortedByDescending { it.id }
+                    return@launch
+                }
 
-                _mal.value = NotifUiState(items = items, isLoading = false, hasMore = false)
+                // 2. Hafta sınırına takılmayan pencere: son 7 gün + gelecek 7 gün.
+                val calendarClient = KitsugiAiringCalendarClient()
+                val window = calendarClient.fetchAiringWindow(daysBack = 7, daysForward = 7)
+                val now = System.currentTimeMillis()
+
+                // 3. Ortak eşleştirici: MAL id → AniList id → başlık benzerliği.
+                val matched = window
+                    .distinctBy { Triple(it.aniListId, it.malId, it.episode) }
+                    .filter { entry ->
+                        targets.any { target ->
+                            com.kitsugi.animelist.data.remote.AiringNotificationMatcher.matches(entry, target)
+                        }
+                    }
+
+                val titleLanguage = runCatching {
+                    com.kitsugi.animelist.data.settings.SettingsDataStore(ctx)
+                        .settingsFlow.first().titleLanguage
+                }.getOrDefault("ROMAJI")
+
+                val dateFmt = SimpleDateFormat("dd MMM HH:mm", Locale.getDefault())
+                fun toItem(entry: com.kitsugi.animelist.data.remote.AiringEntry, upcoming: Boolean): NotifItem {
+                    val dateText = dateFmt.format(Date(entry.airingAt * 1000L))
+                    val keyId = entry.malId?.toString() ?: "al${entry.aniListId}"
+                    return NotifItem(
+                        id = if (upcoming) "mal_up_${keyId}_${entry.episode}" else "mal_${keyId}_${entry.episode}",
+                        imageUrl = entry.coverUrl,
+                        title = entry.getDisplayTitle(titleLanguage),
+                        body = if (upcoming) {
+                            ctx.getString(R.string.notif_mal_episode_upcoming, entry.episode, dateText)
+                        } else {
+                            ctx.getString(R.string.notif_mal_episode_released, entry.episode)
+                        },
+                        dateText = dateText,
+                        mediaId = entry.malId ?: entry.aniListId,
+                        mediaType = "anime",
+                        source = "MyAnimeList",
+                        apiSource = if (entry.malId != null) "jikan" else "anilist"
+                    )
+                }
+
+                // Önce yakın zamanda yayınlananlar (yeniden eskiye), sonra yaklaşanlar (yakından uzağa).
+                val recentItems = matched
+                    .filter { it.airingAt * 1000L <= now }
+                    .sortedByDescending { it.airingAt }
+                    .map { toItem(it, upcoming = false) }
+                val upcomingItems = matched
+                    .filter { it.airingAt * 1000L > now }
+                    .sortedBy { it.airingAt }
+                    .map { toItem(it, upcoming = true) }
+
+                _mal.value = NotifUiState(
+                    items = recentItems + upcomingItems,
+                    isLoading = false,
+                    hasMore = false
+                )
             } catch (e: Exception) {
                 android.util.Log.e("KitsugiNotif", "MAL load failed: ${e.message}")
                 _mal.value = NotifUiState(
