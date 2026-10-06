@@ -23,6 +23,7 @@ api_keys.txt
 *.secret
 *.keystore
 *.jks
+keystores*
 
 # Kök dizinde birikmiş geçici dosyalar
 /*.py

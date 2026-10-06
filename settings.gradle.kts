@@ -24,6 +24,10 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         mavenLocal()
+        maven {
+            name = "ProjectLocalRepo"
+            url = uri("${rootDir}/repo")
+        }
         maven { url = uri("https://jitpack.io") }
     }
 }
