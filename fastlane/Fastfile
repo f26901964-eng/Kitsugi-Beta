@@ -1,7 +1,20 @@
 default_platform(:android)
 
+def release_signing_properties
+  required = %w[KEYSTORE_FILE KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD]
+  missing = required.select { |name| ENV[name].to_s.empty? }
+  UI.user_error!("Missing Android signing inputs: #{missing.join(', ')}") unless missing.empty?
+
+  {
+    "android.injected.signing.store.file" => ENV.fetch("KEYSTORE_FILE"),
+    "android.injected.signing.store.password" => ENV.fetch("KEYSTORE_PASSWORD"),
+    "android.injected.signing.key.alias" => ENV.fetch("KEY_ALIAS"),
+    "android.injected.signing.key.password" => ENV.fetch("KEY_PASSWORD"),
+  }
+end
+
 platform :android do
-  desc "Build and sign FOSS Debug APK"
+  desc "Build FOSS Debug APK"
   lane :internal do
     gradle(
       task: "assemble",
@@ -18,12 +31,7 @@ platform :android do
       flavor: "foss",
       build_type: "release",
       print_command: false,
-      properties: {
-        "android.injected.signing.store.file" => ENV["KEYSTORE_FILE"],
-        "android.injected.signing.store.password" => ENV["KEYSTORE_PASSWORD"],
-        "android.injected.signing.key.alias" => ENV["KEY_ALIAS"],
-        "android.injected.signing.key.password" => ENV["KEY_PASSWORD"],
-      }
+      properties: release_signing_properties
     )
   end
 
@@ -34,12 +42,7 @@ platform :android do
       flavor: "gms",
       build_type: "release",
       print_command: false,
-      properties: {
-        "android.injected.signing.store.file" => ENV["KEYSTORE_FILE"],
-        "android.injected.signing.store.password" => ENV["KEYSTORE_PASSWORD"],
-        "android.injected.signing.key.alias" => ENV["KEY_ALIAS"],
-        "android.injected.signing.key.password" => ENV["KEY_PASSWORD"],
-      }
+      properties: release_signing_properties
     )
   end
 
