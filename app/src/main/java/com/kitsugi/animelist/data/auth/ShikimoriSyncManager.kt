@@ -20,6 +20,7 @@ object ShikimoriSyncManager {
 
     fun watchStatusToShikimori(status: WatchStatus?): String = when (status) {
         WatchStatus.Watching  -> "watching"
+        WatchStatus.Repeating -> "rewatching"
         WatchStatus.Completed -> "completed"
         WatchStatus.Paused    -> "on_hold"
         WatchStatus.Dropped   -> "dropped"
@@ -28,12 +29,13 @@ object ShikimoriSyncManager {
     }
 
     fun shikimoriStatusToWatchStatus(status: String?): WatchStatus = when (status?.lowercase()) {
-        "watching"  -> WatchStatus.Watching
-        "completed" -> WatchStatus.Completed
-        "on_hold"   -> WatchStatus.Paused
-        "dropped"   -> WatchStatus.Dropped
-        "planned"   -> WatchStatus.Planned
-        else        -> WatchStatus.Planned
+        "watching"   -> WatchStatus.Watching
+        "rewatching" -> WatchStatus.Repeating
+        "completed"  -> WatchStatus.Completed
+        "on_hold"    -> WatchStatus.Paused
+        "dropped"    -> WatchStatus.Dropped
+        "planned"    -> WatchStatus.Planned
+        else         -> WatchStatus.Planned
     }
 
     /**

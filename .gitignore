@@ -21,6 +21,8 @@ scripts/openrouter_keys.txt
 api_keys.txt
 *.key
 *.secret
+*.keystore
+*.jks
 
 # Kök dizinde birikmiş geçici dosyalar
 /*.py

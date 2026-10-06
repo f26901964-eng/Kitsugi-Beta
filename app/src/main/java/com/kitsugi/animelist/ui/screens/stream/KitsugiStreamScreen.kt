@@ -289,37 +289,12 @@ fun KitsugiStreamScreen(
         }
     }
 
-    // T1.8 – Autoplay Selection Logic (with Consent Guard)
-    LaunchedEffect(allStreams, isAnyLoading) {
-        if (isAutoplay && !isAnyLoading && allStreams.isNotEmpty() && !isAutoplayAttempted) {
-            isAutoplayAttempted = true
-            val lastAddonName = streamPrefs.getString("last_addon_name", null)
-            val bestSource = com.kitsugi.animelist.core.player.StreamAutoPlaySelector.selectBestStream(
-                currentAddonName = lastAddonName,
-                currentStreamSource = null,
-                nextEpisodeStreams = allStreams
-            )
-            if (bestSource != null) {
-                val isTorrent = bestSource.isTorrent
-                val hasDebrid = !DebridResolver(context).getApiKey().isNullOrBlank()
-                val p2pAllowed = com.kitsugi.animelist.core.p2p.P2pSettingsRepository.isP2pEnabled() &&
-                    com.kitsugi.animelist.core.p2p.P2pSettingsRepository.isConsentGranted()
-
-                if (!isTorrent || hasDebrid || p2pAllowed) {
-                    resolvingSource = bestSource
-                    val resolvedUrl = try {
-                        withContext(Dispatchers.IO) {
-                            repository.resolveStreamUrl(bestSource)
-                        }
-                    } catch (e: Exception) {
-                        null
-                    }
-                    resolvingSource = null
-                    if (resolvedUrl != null) {
-                        handlePlayStream(bestSource, resolvedUrl)
-                    }
-                }
-            }
+    val onCancelResolving = remember {
+        {
+            activeStreamJob?.cancel()
+            activeStreamJob = null
+            resolvingSource = null
+            resolvingError = null
         }
     }
 
@@ -406,6 +381,29 @@ fun KitsugiStreamScreen(
         }
     }
 
+    // T1.8 – Autoplay Selection Logic (with Consent Guard)
+    LaunchedEffect(allStreams, isAnyLoading) {
+        if (isAutoplay && !isAnyLoading && allStreams.isNotEmpty() && !isAutoplayAttempted) {
+            isAutoplayAttempted = true
+            val lastAddonName = streamPrefs.getString("last_addon_name", null)
+            val bestSource = com.kitsugi.animelist.core.player.StreamAutoPlaySelector.selectBestStream(
+                currentAddonName = lastAddonName,
+                currentStreamSource = null,
+                nextEpisodeStreams = allStreams
+            )
+            if (bestSource != null) {
+                val isTorrent = bestSource.isTorrent
+                val hasDebrid = !DebridResolver(context).getApiKey().isNullOrBlank()
+                val p2pAllowed = com.kitsugi.animelist.core.p2p.P2pSettingsRepository.isP2pEnabled() &&
+                    com.kitsugi.animelist.core.p2p.P2pSettingsRepository.isConsentGranted()
+
+                if (!isTorrent || hasDebrid || p2pAllowed) {
+                    executeStreamResolution(bestSource, false)
+                }
+            }
+        }
+    }
+
     if (showP2pConsentDialog) {
         com.kitsugi.animelist.ui.components.p2p.P2pConsentDialog(
             onDismiss = {
@@ -424,7 +422,13 @@ fun KitsugiStreamScreen(
         )
     }
 
-    BackHandler { onBack() }
+    BackHandler {
+        if (resolvingSource != null) {
+            onCancelResolving()
+        } else {
+            onBack()
+        }
+    }
 
     // ── Main content ──────────────────────────────────────────────────────────
     StreamScreenContent(
@@ -446,6 +450,7 @@ fun KitsugiStreamScreen(
         onBack = onBack,
         resolvingSource = resolvingSource, resolvingError = resolvingError,
         onResolvingErrorDismiss = { resolvingError = null },
+        onCancelResolving = onCancelResolving,
         pendingPlayAction = pendingPlayAction,
         onPendingDismiss = { pendingPlayAction = null },
         playerPrefs = playerPrefs, launchPlayer = launchPlayer,

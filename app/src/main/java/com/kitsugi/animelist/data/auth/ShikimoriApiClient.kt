@@ -72,10 +72,11 @@ object ShikimoriApiClient {
         val total: Int? = null
     )
 
-    const val DEFAULT_CLIENT_ID = "aOAYRqOLwxpA8skpcQIXetNy4cw2rn2fRzScawlcQ5U"
-    const val DEFAULT_CLIENT_SECRET = "jqjmORn6bh2046ulkm4lHEwJ3OA1RmO3FD2sR9f6Clw"
+    const val DEFAULT_CLIENT_ID = "poB5DHHfiPP-DiphGJoelAnUeQ3PNkhPXwuUgXusl20"
+    const val DEFAULT_CLIENT_SECRET = "ZkmIi8ysb-lDe1RRewUTeEN46Ef6iziPcpJPAnbsAEs"
     const val DEFAULT_REDIRECT_URI = "urn:ietf:wg:oauth:2.0:oob"
-    const val DEEP_LINK_REDIRECT_URI = "aniyomi://shikimori-auth"
+    const val DEEP_LINK_REDIRECT_URI = "kitsugi://shikimori-auth"
+    const val FALLBACK_DEEP_LINK_REDIRECT_URI = "aniyomi://shikimori-auth"
     private const val OAUTH_TOKEN_URL = "https://shikimori.io/oauth/token"
 
     /**
@@ -94,22 +95,27 @@ object ShikimoriApiClient {
      * Shikimori üzerinde önceden doldurulmuş yeni OAuth uygulama oluşturma URL'si (gelişmiş kullanıcılar için).
      */
     fun buildNewApplicationUrl(): String {
-        val encodedUri = java.net.URLEncoder.encode(DEFAULT_REDIRECT_URI, "UTF-8")
-        return "$BASE_URL/oauth/applications/new?application%5Bname%5D=Kitsugi&application%5Bredirect_uri%5D=$encodedUri&application%5Bscopes%5D=user_rates"
+        val encodedUri = java.net.URLEncoder.encode(DEEP_LINK_REDIRECT_URI, "UTF-8")
+        return "$BASE_URL/oauth/applications/new?application%5Bname%5D=Kitsugi&application%5Bredirect_uri%5D=$encodedUri&application%5Bscopes%5D=user_rates+comments+topics"
     }
 
     /**
      * OAuth2 yetkilendirme URL'sini üretir.
      */
-    fun buildAuthorizeUrl(clientId: String = DEFAULT_CLIENT_ID, redirectUri: String = DEFAULT_REDIRECT_URI): String {
+    fun buildAuthorizeUrl(
+        clientId: String = DEFAULT_CLIENT_ID,
+        redirectUri: String = DEEP_LINK_REDIRECT_URI,
+        scopes: String = "user_rates+comments+topics"
+    ): String {
         val effectiveClientId = clientId.trim().ifBlank { DEFAULT_CLIENT_ID }
         val encodedUri = java.net.URLEncoder.encode(redirectUri, "UTF-8")
-        return "$BASE_URL/oauth/authorize?client_id=$effectiveClientId&redirect_uri=$encodedUri&response_type=code&scope=user_rates"
+        val effectiveScope = if (effectiveClientId == DEFAULT_CLIENT_ID) scopes else "user_rates"
+        return "$BASE_URL/oauth/authorize?client_id=$effectiveClientId&redirect_uri=$encodedUri&response_type=code&scope=$effectiveScope"
     }
 
     /**
      * OAuth yetki kodunu (authorization code) access token ile takas eder.
-     * Hem doğrudan oob hem de deep-link (aniyomi://) redirect URI uyumluluğunu dener.
+     * Hem Kitsugi deep-link (kitsugi://), hem eski deep-link (aniyomi://) hem de doğrudan oob uyumluluğunu dener.
      */
     suspend fun exchangeCodeForToken(
         clientId: String = DEFAULT_CLIENT_ID,
@@ -121,10 +127,10 @@ object ShikimoriApiClient {
         val targetClientId = clientId.trim().ifBlank { DEFAULT_CLIENT_ID }
         val targetSecret = clientSecret.trim().ifBlank { DEFAULT_CLIENT_SECRET }
 
-        val urisToTry = if (redirectUri == DEEP_LINK_REDIRECT_URI) {
-            listOf(DEEP_LINK_REDIRECT_URI, DEFAULT_REDIRECT_URI)
-        } else {
-            listOf(DEFAULT_REDIRECT_URI, DEEP_LINK_REDIRECT_URI)
+        val urisToTry = when (redirectUri) {
+            DEEP_LINK_REDIRECT_URI -> listOf(DEEP_LINK_REDIRECT_URI, FALLBACK_DEEP_LINK_REDIRECT_URI, DEFAULT_REDIRECT_URI)
+            FALLBACK_DEEP_LINK_REDIRECT_URI -> listOf(FALLBACK_DEEP_LINK_REDIRECT_URI, DEEP_LINK_REDIRECT_URI, DEFAULT_REDIRECT_URI)
+            else -> listOf(DEFAULT_REDIRECT_URI, DEEP_LINK_REDIRECT_URI, FALLBACK_DEEP_LINK_REDIRECT_URI)
         }
 
         var lastException: Exception? = null
@@ -397,52 +403,65 @@ object ShikimoriApiClient {
                     .get()
                     .build()
 
-                val count = KitsugiHttpClient.client.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) return@use 0
-                    val body = response.body?.string().orEmpty()
-                    val array = JSONArray(body)
-                    for (i in 0 until array.length()) {
-                        val item = array.getJSONObject(i)
-                        val rateId = item.getInt("id")
-                        val status = item.optString("status", "planned")
-                        val score = item.optInt("score", 0)
-                        val episodes = item.optInt("episodes", 0)
-                        val chapters = item.optInt("chapters", 0)
-                        val updatedAtStr = item.optString("updated_at", "")
-                        val updatedAt = runCatching {
-                            java.time.Instant.parse(updatedAtStr).epochSecond
-                        }.getOrDefault(System.currentTimeMillis() / 1000L)
+                val count = try {
+                    KitsugiHttpClient.client.newCall(request).execute().use { response ->
+                        if (!response.isSuccessful) {
+                            Log.w(TAG, "fetchAllUserRates HTTP ${response.code} for $ep page $page")
+                            return@use 0
+                        }
+                        val body = response.body?.string().orEmpty()
+                        if (!body.trim().startsWith("[")) {
+                            Log.w(TAG, "fetchAllUserRates non-array response: $body")
+                            return@use 0
+                        }
+                        val array = JSONArray(body)
+                        for (i in 0 until array.length()) {
+                            val item = array.getJSONObject(i)
+                            val rateId = item.getInt("id")
+                            val status = item.optString("status", "planned")
+                            val score = item.optInt("score", 0)
+                            val episodes = item.optInt("episodes", 0)
+                            val chapters = item.optInt("chapters", 0)
+                            val updatedAtStr = item.optString("updated_at", "")
+                            val updatedAt = runCatching {
+                                java.time.Instant.parse(updatedAtStr).epochSecond
+                            }.getOrDefault(System.currentTimeMillis() / 1000L)
 
-                        val mediaObj = if (targetType == "Anime") item.optJSONObject("anime") else item.optJSONObject("manga")
-                        val targetId = mediaObj?.optInt("id", 0)?.takeIf { it > 0 } ?: item.optInt("target_id", 0)
-                        if (targetId <= 0) continue
+                            val mediaObj = if (targetType == "Anime") item.optJSONObject("anime") else item.optJSONObject("manga")
+                            val targetId = mediaObj?.optInt("id", 0)?.takeIf { it > 0 } ?: item.optInt("target_id", 0)
+                            if (targetId <= 0) continue
 
-                        val title = mediaObj?.optString("name") ?: "Shikimori #$targetId"
-                        val imageObj = mediaObj?.optJSONObject("image")
-                        val rawImg = imageObj?.optString("original") ?: imageObj?.optString("preview")
-                        val imgUrl = if (!rawImg.isNullOrBlank()) {
-                            if (rawImg.startsWith("http")) rawImg else "$BASE_URL$rawImg"
-                        } else null
-                        val total = if (targetType == "Anime") mediaObj?.optInt("episodes", 0)?.takeIf { it > 0 }
-                        else mediaObj?.optInt("chapters", 0)?.takeIf { it > 0 }
+                            val title = mediaObj?.optString("name")?.ifBlank { mediaObj.optString("russian") }
+                                ?: "Shikimori #$targetId"
+                            val imageObj = mediaObj?.optJSONObject("image")
+                            val rawImg = imageObj?.optString("original") ?: imageObj?.optString("preview")
+                            val imgUrl = if (!rawImg.isNullOrBlank()) {
+                                if (rawImg.startsWith("http")) rawImg else "$BASE_URL$rawImg"
+                            } else null
+                            val total = if (targetType == "Anime") mediaObj?.optInt("episodes", 0)?.takeIf { it > 0 }
+                            else mediaObj?.optInt("chapters", 0)?.takeIf { it > 0 }
 
-                        rates.add(
-                            ShikimoriRate(
-                                id = rateId,
-                                targetId = targetId,
-                                targetType = targetType,
-                                status = status,
-                                score = score,
-                                episodes = episodes,
-                                chapters = chapters,
-                                updatedAt = updatedAt,
-                                title = title,
-                                imageUrl = imgUrl,
-                                total = total
+                            rates.add(
+                                ShikimoriRate(
+                                    id = rateId,
+                                    targetId = targetId,
+                                    targetType = targetType,
+                                    status = status,
+                                    score = score,
+                                    episodes = episodes,
+                                    chapters = chapters,
+                                    updatedAt = updatedAt,
+                                    title = title,
+                                    imageUrl = imgUrl,
+                                    total = total
+                                )
                             )
-                        )
+                        }
+                        array.length()
                     }
-                    array.length()
+                } catch (e: Exception) {
+                    Log.e(TAG, "fetchAllUserRates error on $ep page $page", e)
+                    0
                 }
 
                 if (count < limit) break

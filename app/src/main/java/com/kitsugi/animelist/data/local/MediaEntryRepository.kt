@@ -53,8 +53,9 @@ class MediaEntryRepository(
      * @param importedEntries  Uzak API'dan gelen güncel liste
      */
     private fun normalizeTitleKey(title: String, type: MediaType): String {
-        val clean = title.lowercase().replace(Regex("[^a-z0-9]"), "")
-        return "${clean}_${type.name}"
+        val normalized = java.text.Normalizer.normalize(title.lowercase(), java.text.Normalizer.Form.NFKC)
+        val clean = normalized.replace(Regex("[^\\p{L}\\p{N}]"), "")
+        return if (clean.length >= 2) "${clean}_${type.name}" else ""
     }
 
     suspend fun smartImport(
@@ -84,8 +85,8 @@ class MediaEntryRepository(
         for (entity in allExistingEntities.sortedByDescending { it.updatedAt }) {
             val domain = entity.toDomain()
             val titleKey = normalizeTitleKey(domain.title, domain.type)
-            val engKey = domain.titleEnglish?.takeIf { it.isNotBlank() }?.let { normalizeTitleKey(it, domain.type) }
-            val jpKey = domain.titleJapanese?.takeIf { it.isNotBlank() }?.let { normalizeTitleKey(it, domain.type) }
+            val engKey = domain.titleEnglish?.takeIf { it.isNotBlank() }?.let { normalizeTitleKey(it, domain.type) }?.takeIf { it.isNotBlank() }
+            val jpKey = domain.titleJapanese?.takeIf { it.isNotBlank() }?.let { normalizeTitleKey(it, domain.type) }?.takeIf { it.isNotBlank() }
             val realMal = domain.malId?.takeIf { it in 1..99_999_999 }
             val simkl = domain.simklId?.takeIf { it > 0 }
             val kitsuNative = domain.malId?.takeIf { it >= 300_000_000 }?.let { it - 300_000_000 }
@@ -94,16 +95,16 @@ class MediaEntryRepository(
                     (simkl != null && simkl in seenSimklIds) ||
                     (kitsuNative != null && kitsuNative in seenKitsuMediaIds) ||
                     (titleKey.isNotBlank() && titleKey in seenTitleKeys) ||
-                    (engKey != null && engKey in seenTitleKeys) ||
-                    (jpKey != null && jpKey in seenTitleKeys)
+                    (engKey != null && engKey.isNotBlank() && engKey in seenTitleKeys) ||
+                    (jpKey != null && jpKey.isNotBlank() && jpKey in seenTitleKeys)
 
             if (isDuplicate) {
                 duplicateDeleteIds.add(entity.id)
             } else {
                 uniqueExistingEntities.add(entity)
                 if (titleKey.isNotBlank()) seenTitleKeys.add(titleKey)
-                if (engKey != null) seenTitleKeys.add(engKey)
-                if (jpKey != null) seenTitleKeys.add(jpKey)
+                if (engKey != null && engKey.isNotBlank()) seenTitleKeys.add(engKey)
+                if (jpKey != null && jpKey.isNotBlank()) seenTitleKeys.add(jpKey)
                 if (realMal != null) seenMalIds.add(realMal)
                 if (simkl != null) seenSimklIds.add(simkl)
                 if (kitsuNative != null) seenKitsuMediaIds.add(kitsuNative)
@@ -156,9 +157,9 @@ class MediaEntryRepository(
                 ?: (if (realMal != null) existingByMalId[realMal] else null)
                 ?: (if (simkl != null) existingBySimklId[simkl] else null)
                 ?: (if (kitsuNative != null) existingByKitsuId[kitsuNative] else null)
-                ?: existingByAllTitles[titleKey]
-                ?: (if (engTitleKey != null) existingByAllTitles[engTitleKey] else null)
-                ?: (if (jpTitleKey != null) existingByAllTitles[jpTitleKey] else null)
+                ?: (if (titleKey.isNotBlank()) existingByAllTitles[titleKey] else null)
+                ?: (if (engTitleKey != null && engTitleKey.isNotBlank()) existingByAllTitles[engTitleKey] else null)
+                ?: (if (jpTitleKey != null && jpTitleKey.isNotBlank()) existingByAllTitles[jpTitleKey] else null)
 
             val importTime = if (imported.updatedAt > 0L) imported.updatedAt else (System.currentTimeMillis() / 1000L)
             val finalImported = imported.copy(updatedAt = importTime)
@@ -185,7 +186,7 @@ class MediaEntryRepository(
                 val domain = entity.toDomain()
                 val k = domain.importKey()
                 val tk = normalizeTitleKey(domain.title, domain.type)
-                val isMatched = entity.id in matchedExistingIds || k in importedKeys || existingByAllTitles[tk]?.id in matchedExistingIds
+                val isMatched = entity.id in matchedExistingIds || k in importedKeys || (tk.isNotBlank() && existingByAllTitles[tk]?.id in matchedExistingIds)
                 if (!isMatched) {
                     toDeleteIds.add(entity.id)
                 }
@@ -198,16 +199,19 @@ class MediaEntryRepository(
 
     private fun MediaEntry.importKey(): String {
         return when {
-            // Kitsu kayd\u0131 - gerçek MAL ID biliniyor (mappings'ten)
+            // Kitsu kaydı - gerçek MAL ID biliniyor (mappings'ten)
             source.equals("kitsu", ignoreCase = true) && malId != null && malId in 1..99_999_999 -> "kitsu_mal_$malId"
-            // Kitsu kayd\u0131 - offset'li fake ID
+            // Kitsu kaydı - offset'li fake ID
             source.equals("kitsu", ignoreCase = true) && malId != null && malId >= 300_000_000 -> "kitsu_${malId - 300_000_000}"
             source.equals("shikimori", ignoreCase = true) && malId != null && malId >= 400_000_000 -> "shiki_${malId - 400_000_000}"
             simklId != null && simklId > 0 -> "simkl_$simklId"
             malId != null && malId in 1..99_999_999 -> "mal_$malId"
             aniListEntryId != null && aniListEntryId > 0 -> "al_$aniListEntryId"
             tmdbId != null && tmdbId > 0 -> "tmdb_$tmdbId"
-            else -> "title_${normalizeTitleKey(title, type)}"
+            else -> {
+                val tk = normalizeTitleKey(title, type)
+                if (tk.isNotBlank()) "title_$tk" else "title_raw_${title.hashCode().toUInt()}_${type.name}"
+            }
         }
     }
 

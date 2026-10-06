@@ -774,6 +774,24 @@ class SimklApiClient(
         val errorMessage: String? = null
     )
 
+    private fun buildSimklIds(entry: SimklBatchEntry): JSONObject {
+        return JSONObject().apply {
+            if (entry.simklId > 0) put("simkl", entry.simklId)
+            if (entry.malId != null && entry.malId > 0 && entry.malId < 100_000_000) {
+                put("mal", entry.malId)
+            }
+            if (entry.tmdbId != null && entry.tmdbId > 0) {
+                put("tmdb", entry.tmdbId)
+            }
+            if (entry.aniListId != null && entry.aniListId > 0) {
+                put("anilist", entry.aniListId)
+            }
+            if (entry.kitsuId != null && entry.kitsuId > 0) {
+                put("kitsu", entry.kitsuId)
+            }
+        }
+    }
+
     /**
      * Simkl toplu senkronizasyon (POST /sync/add-to-list).
      * Simkl API'si tek seferde 50 öğeye kadar toplu eklemeyi destekler.
@@ -789,15 +807,7 @@ class SimklApiClient(
         val moviesArray = JSONArray()
 
         entries.forEach { entry ->
-            val idObj = JSONObject().apply {
-                if (entry.simklId > 0) put("simkl", entry.simklId)
-                if (entry.malId != null && entry.malId > 0 && entry.malId < 100_000_000) {
-                    put("mal", entry.malId)
-                }
-                if (entry.tmdbId != null && entry.tmdbId > 0) {
-                    put("tmdb", entry.tmdbId)
-                }
-            }
+            val idObj = buildSimklIds(entry)
             val itemObj = JSONObject().put("to", entry.status)
             if (idObj.length() > 0) {
                 itemObj.put("ids", idObj)
@@ -828,7 +838,7 @@ class SimklApiClient(
         while (attempt < 3) {
             attempt++
             val request = Request.Builder()
-                .url("https://api.simkl.com/sync/add-to-list?client_id=$clientId")
+                .url("https://api.simkl.com/sync/add-to-list?client_id=$clientId&app-name=Kitsugi&app-version=2.4")
                 .post(payloadObj.toString().toRequestBody("application/json".toMediaTypeOrNull()))
                 .header("Authorization", "Bearer $token")
                 .header("simkl-api-key", clientId)
@@ -933,15 +943,7 @@ class SimklApiClient(
         val showsArray = JSONArray()
 
         filtered.forEach { entry ->
-            val idObj = JSONObject().apply {
-                if (entry.simklId > 0) put("simkl", entry.simklId)
-                if (entry.malId != null && entry.malId > 0 && entry.malId < 100_000_000) {
-                    put("mal", entry.malId)
-                }
-                if (entry.tmdbId != null && entry.tmdbId > 0) {
-                    put("tmdb", entry.tmdbId)
-                }
-            }
+            val idObj = buildSimklIds(entry)
             if (idObj.length() == 0 && entry.title.isNullOrBlank()) return@forEach
 
             val isAnime = entry.type.lowercase() == "anime"
@@ -949,26 +951,20 @@ class SimklApiClient(
                 put("number", entry.progress)
             }
             val epsArray = JSONArray().put(epObj)
+            val seasonObj = JSONObject().apply {
+                put("number", 1)
+                put("episodes", epsArray)
+            }
+            val item = JSONObject().apply {
+                put("ids", idObj)
+                put("seasons", JSONArray().put(seasonObj))
+                if (!entry.title.isNullOrBlank()) put("title", entry.title)
+                if (entry.year != null && entry.year > 1900) put("year", entry.year)
+            }
 
             if (isAnime) {
-                val item = JSONObject().apply {
-                    put("ids", idObj)
-                    put("episodes", epsArray)
-                    if (!entry.title.isNullOrBlank()) put("title", entry.title)
-                    if (entry.year != null && entry.year > 1900) put("year", entry.year)
-                }
                 animeArray.put(item)
             } else {
-                val seasonObj = JSONObject().apply {
-                    put("number", 1)
-                    put("episodes", epsArray)
-                }
-                val item = JSONObject().apply {
-                    put("ids", idObj)
-                    put("seasons", JSONArray().put(seasonObj))
-                    if (!entry.title.isNullOrBlank()) put("title", entry.title)
-                    if (entry.year != null && entry.year > 1900) put("year", entry.year)
-                }
                 showsArray.put(item)
             }
         }
@@ -980,7 +976,7 @@ class SimklApiClient(
         if (payload.length() == 0) return@withContext true
 
         val request = Request.Builder()
-            .url("https://api.simkl.com/sync/history")
+            .url("https://api.simkl.com/sync/history?client_id=$clientId&app-name=Kitsugi&app-version=2.4")
             .post(payload.toString().toRequestBody("application/json".toMediaTypeOrNull()))
             .header("Authorization", "Bearer $token")
             .header("simkl-api-key", clientId)
@@ -1022,15 +1018,7 @@ class SimklApiClient(
                 scoreVal.coerceIn(1, 10)
             }
 
-            val idObj = JSONObject().apply {
-                if (entry.simklId > 0) put("simkl", entry.simklId)
-                if (entry.malId != null && entry.malId > 0 && entry.malId < 100_000_000) {
-                    put("mal", entry.malId)
-                }
-                if (entry.tmdbId != null && entry.tmdbId > 0) {
-                    put("tmdb", entry.tmdbId)
-                }
-            }
+            val idObj = buildSimklIds(entry)
             if (idObj.length() == 0 && entry.title.isNullOrBlank()) return@forEach
 
             val item = JSONObject().apply {
@@ -1055,7 +1043,7 @@ class SimklApiClient(
         if (payload.length() == 0) return@withContext true
 
         val request = Request.Builder()
-            .url("https://api.simkl.com/sync/ratings")
+            .url("https://api.simkl.com/sync/ratings?client_id=$clientId&app-name=Kitsugi&app-version=2.4")
             .post(payload.toString().toRequestBody("application/json".toMediaTypeOrNull()))
             .header("Authorization", "Bearer $token")
             .header("simkl-api-key", clientId)

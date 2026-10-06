@@ -21,7 +21,7 @@ object KitsuSyncManager {
     )
 
     fun watchStatusToKitsu(status: WatchStatus?): String = when (status) {
-        WatchStatus.Watching  -> "current"
+        WatchStatus.Watching, WatchStatus.Repeating -> "current"
         WatchStatus.Completed -> "completed"
         WatchStatus.Paused    -> "on_hold"
         WatchStatus.Dropped   -> "dropped"

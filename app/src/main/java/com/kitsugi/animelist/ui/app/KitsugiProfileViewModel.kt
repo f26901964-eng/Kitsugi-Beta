@@ -1744,11 +1744,12 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
 
         viewModelScope.launch {
             try {
-                val fullProfile = com.kitsugi.animelist.data.auth.ShikimoriApiClient.fetchFullUserProfile(token, userId)
+                val validToken = ExternalAuthManager.getOrRefreshShikimoriToken(context) ?: token
+                val fullProfile = com.kitsugi.animelist.data.auth.ShikimoriApiClient.fetchFullUserProfile(validToken, userId)
                 
-                val ratesDeferred = async { com.kitsugi.animelist.data.auth.ShikimoriApiClient.fetchAllUserRates(token, userId) }
-                val favsDeferred = async { com.kitsugi.animelist.data.auth.ShikimoriApiClient.fetchUserFavorites(token, userId) }
-                val historyDeferred = async { com.kitsugi.animelist.data.auth.ShikimoriApiClient.fetchUserHistory(token, userId) }
+                val ratesDeferred = async { com.kitsugi.animelist.data.auth.ShikimoriApiClient.fetchAllUserRates(validToken, userId) }
+                val favsDeferred = async { com.kitsugi.animelist.data.auth.ShikimoriApiClient.fetchUserFavorites(validToken, userId) }
+                val historyDeferred = async { com.kitsugi.animelist.data.auth.ShikimoriApiClient.fetchUserHistory(validToken, userId) }
 
                 val rates = ratesDeferred.await()
                 val favorites = favsDeferred.await()

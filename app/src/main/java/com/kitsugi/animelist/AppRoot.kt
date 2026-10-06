@@ -510,16 +510,20 @@ fun AppRoot(
 
                     appViewModel.showSnackbarMessage(
                         when (event.serviceName) {
-                            "anilist" -> "AniList bağlantısı başarılı, liste aktarılıyor..."
-                            "simkl"  -> "Simkl bağlantısı başarılı, liste aktarılıyor..."
-                            else     -> "MyAnimeList bağlantısı başarılı, liste aktarılıyor..."
+                            "anilist"   -> "AniList bağlantısı başarılı, liste aktarılıyor..."
+                            "simkl"     -> "Simkl bağlantısı başarılı, liste aktarılıyor..."
+                            "kitsu"     -> "Kitsu bağlantısı başarılı, liste aktarılıyor..."
+                            "shikimori" -> "Shikimori bağlantısı başarılı, liste aktarılıyor..."
+                            else        -> "MyAnimeList bağlantısı başarılı, liste aktarılıyor..."
                         }
                     )
 
                     when (event.serviceName) {
-                        "anilist" -> authViewModel.importAniListAnimeList(latestMediaEntries, mediaRepository)
-                        "simkl"  -> authViewModel.importSimklList(latestMediaEntries, mediaRepository)
-                        else     -> authViewModel.importMalAnimeList(latestMediaEntries, mediaRepository)
+                        "anilist"   -> authViewModel.importAniListAnimeList(latestMediaEntries, mediaRepository)
+                        "simkl"     -> authViewModel.importSimklList(latestMediaEntries, mediaRepository)
+                        "kitsu"     -> authViewModel.importKitsuList(latestMediaEntries, mediaRepository)
+                        "shikimori" -> authViewModel.importShikimoriList(latestMediaEntries, mediaRepository)
+                        else        -> authViewModel.importMalAnimeList(latestMediaEntries, mediaRepository)
                     }
 
                     launch {

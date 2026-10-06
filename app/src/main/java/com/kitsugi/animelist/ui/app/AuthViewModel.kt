@@ -273,7 +273,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     private fun normalizeSyncTitle(title: String, type: MediaType): String {
-        val clean = title.lowercase()
+        val folded = java.text.Normalizer.normalize(title, java.text.Normalizer.Form.NFKC)
+            .lowercase()
             .replace("2nd season", "season2")
             .replace("3rd season", "season3")
             .replace("4th season", "season4")
@@ -283,8 +284,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             .replace("part 1", "part1")
             .replace("part 2", "part2")
             .replace("part 3", "part3")
-            .replace(Regex("[^a-z0-9]"), "")
-        return "${clean}_${type.name}"
+            .replace(Regex("[^\\p{L}\\p{N}]"), "")
+        if (folded.length < 2) return ""
+        return "${folded}_${type.name}"
     }
 
     private fun Int.isRealMalId(): Boolean = this in 1..99_999_999
@@ -547,9 +549,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         ?: (if (rawKitsu != null && rawKitsu > 0) kitsuIdIndex[rawKitsu] else null)
                         ?: (if (titleYearKey != null) titleYearIndex[titleYearKey] else null)
                         ?: (if (engYearKey != null) titleYearIndex[engYearKey] else null)
-                        ?: titleIndex[titleKey]
-                        ?: (if (engKey != null) titleIndex[engKey] else null)
-                        ?: (if (jpKey != null) titleIndex[jpKey] else null)
+                        ?: (if (titleKey.isNotBlank()) titleIndex[titleKey] else null)
+                        ?: (if (engKey != null && engKey.isNotBlank()) titleIndex[engKey] else null)
+                        ?: (if (jpKey != null && jpKey.isNotBlank()) titleIndex[jpKey] else null)
 
                     val targetItem = if (existing != null) {
                         existing
@@ -839,11 +841,11 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         updateProgress("Simkl kütüphanesi eşitleniyor...", progressText)
                         val syncRes = SimklSyncManager.syncBatchToSimkl(context, chunk)
                         if (syncRes.errors.isEmpty()) {
-                            val count = if (syncRes.addedCount > 0) syncRes.addedCount else chunk.size
+                            val count = syncRes.addedCount
                             simklAdded += count
                             val notFound = syncRes.notFoundCount
                             if (notFound > 0) simklSkipped += notFound
-                            logEvent("Simkl", "[Simkl] Grup ${idx + 1}/${chunks.size} eşitlendi ($count eklendi${if (notFound > 0) ", $notFound eşleşmedi" else ""})", isAddition = true)
+                            logEvent("Simkl", "[Simkl] Grup ${idx + 1}/${chunks.size} eşitlendi ($count eklendi${if (notFound > 0) ", $notFound eşleşmedi" else ""})", isAddition = count > 0)
                         } else {
                             simklErrors += chunk.size
                             logEvent("Simkl", "[Simkl] Grup ${idx + 1}/${chunks.size} hata: ${syncRes.errors.firstOrNull()}", isError = true)
@@ -925,9 +927,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                             )
                         }
                     val combinedSimklList = if (!freshSimklList.isNullOrEmpty()) {
-                        val freshNormalized = freshSimklList.map { normalizeSyncTitle(it.title, it.type) }.toSet()
-                        val missing = simklBaseEntries.filter { normalizeSyncTitle(it.title, it.type) !in freshNormalized }
-                        freshSimklList + missing
+                        freshSimklList
                     } else {
                         simklBaseEntries
                     }

@@ -49,22 +49,10 @@ fun KitsugiShikimoriLoginDialog(
     val shikimoriBrandColor = Color(0xFF8E44AD)
 
     var clientId by remember {
-        mutableStateOf(
-            ExternalAuthManager.getShikimoriClientId(context).let {
-                if (it.isBlank() || (it.startsWith("aOAY", ignoreCase = true) && it != ShikimoriApiClient.DEFAULT_CLIENT_ID)) {
-                    ShikimoriApiClient.DEFAULT_CLIENT_ID
-                } else it
-            }
-        )
+        mutableStateOf(ExternalAuthManager.getShikimoriClientId(context))
     }
     var clientSecret by remember {
-        mutableStateOf(
-            ExternalAuthManager.getShikimoriClientSecret(context).let {
-                if (it.isBlank() || (it.startsWith("jqjm", ignoreCase = true) && it != ShikimoriApiClient.DEFAULT_CLIENT_SECRET)) {
-                    ShikimoriApiClient.DEFAULT_CLIENT_SECRET
-                } else it
-            }
-        )
+        mutableStateOf(ExternalAuthManager.getShikimoriClientSecret(context))
     }
     var authCode by remember { mutableStateOf("") }
     var showAdvanced by remember { mutableStateOf(false) }
@@ -205,11 +193,7 @@ fun KitsugiShikimoriLoginDialog(
                             // 1-Tık Otomatik Giriş (Deep Link)
                             KitsugiButton(
                                 onClick = {
-                                    val targetId = clientId.trim().let {
-                                        if (it.isBlank() || (it.startsWith("aOAY", ignoreCase = true) && it != ShikimoriApiClient.DEFAULT_CLIENT_ID)) {
-                                            ShikimoriApiClient.DEFAULT_CLIENT_ID
-                                        } else it
-                                    }
+                                    val targetId = clientId.trim().ifBlank { ShikimoriApiClient.DEFAULT_CLIENT_ID }
                                     val authUrl = ShikimoriApiClient.buildAuthorizeUrl(targetId, ShikimoriApiClient.DEEP_LINK_REDIRECT_URI)
                                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(authUrl))
                                     context.startActivity(intent)
@@ -231,11 +215,7 @@ fun KitsugiShikimoriLoginDialog(
                             // Alternatif: Kod Gösterimi (oob)
                             KitsugiTonalButton(
                                 onClick = {
-                                    val targetId = clientId.trim().let {
-                                        if (it.isBlank() || (it.startsWith("aOAY", ignoreCase = true) && it != ShikimoriApiClient.DEFAULT_CLIENT_ID)) {
-                                            ShikimoriApiClient.DEFAULT_CLIENT_ID
-                                        } else it
-                                    }
+                                    val targetId = clientId.trim().ifBlank { ShikimoriApiClient.DEFAULT_CLIENT_ID }
                                     val authUrl = ShikimoriApiClient.buildAuthorizeUrl(targetId, ShikimoriApiClient.DEFAULT_REDIRECT_URI)
                                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(authUrl))
                                     context.startActivity(intent)

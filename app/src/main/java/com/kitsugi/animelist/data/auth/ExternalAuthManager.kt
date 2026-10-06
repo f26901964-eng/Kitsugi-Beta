@@ -154,7 +154,7 @@ object ExternalAuthManager {
 
     fun getShikimoriClientId(context: Context): String {
         val saved = prefs(context).getString(KEY_SHIKIMORI_CLIENT_ID, null)?.trim()
-        if (saved.isNullOrBlank() || (saved.startsWith("aOAY", ignoreCase = true) && saved != ShikimoriApiClient.DEFAULT_CLIENT_ID)) {
+        if (saved.isNullOrBlank() || saved.startsWith("aOAY", ignoreCase = true) || saved == "aOAYRqOLwxpA8skpcQIXetNy4cw2rn2fRzScawlcQ5U") {
             // Corrupted or legacy typo'd client ID detected - reset to valid default
             prefs(context).edit().remove(KEY_SHIKIMORI_CLIENT_ID).apply()
             return ShikimoriApiClient.DEFAULT_CLIENT_ID
@@ -164,7 +164,7 @@ object ExternalAuthManager {
 
     fun getShikimoriClientSecret(context: Context): String {
         val saved = prefs(context).getString(KEY_SHIKIMORI_CLIENT_SECRET, null)?.trim()
-        if (saved.isNullOrBlank() || (saved.startsWith("jqjm", ignoreCase = true) && saved != ShikimoriApiClient.DEFAULT_CLIENT_SECRET)) {
+        if (saved.isNullOrBlank() || saved.startsWith("jqjm", ignoreCase = true) || saved == "jqjmORn6bh2046ulkm4lHEwJ3OA1RmO3FD2sR9f6Clw") {
             prefs(context).edit().remove(KEY_SHIKIMORI_CLIENT_SECRET).apply()
             return ShikimoriApiClient.DEFAULT_CLIENT_SECRET
         }
@@ -383,7 +383,12 @@ object ExternalAuthManager {
                 _authEvents.tryEmit(AuthEvent.Error(error))
                 return
             }
-            exchangeShikimoriCode(context, code, onSuccess, onError)
+            val redirectUriUsed = if (uri.scheme == "kitsugi") {
+                ShikimoriApiClient.DEEP_LINK_REDIRECT_URI
+            } else {
+                ShikimoriApiClient.FALLBACK_DEEP_LINK_REDIRECT_URI
+            }
+            exchangeShikimoriCode(context, code, redirectUriUsed, onSuccess, onError)
             return
         }
 
@@ -448,6 +453,7 @@ object ExternalAuthManager {
     fun exchangeShikimoriCode(
         context: Context,
         code: String,
+        redirectUri: String = ShikimoriApiClient.DEEP_LINK_REDIRECT_URI,
         onSuccess: (serviceName: String) -> Unit,
         onError: (String) -> Unit
     ) {
@@ -459,7 +465,7 @@ object ExternalAuthManager {
                     clientId = clientId,
                     clientSecret = clientSecret,
                     code = code,
-                    redirectUri = ShikimoriApiClient.DEEP_LINK_REDIRECT_URI
+                    redirectUri = redirectUri
                 )
                 val user = ShikimoriApiClient.getCurrentUser(tokenResp.accessToken)
                 saveShikimoriAuth(

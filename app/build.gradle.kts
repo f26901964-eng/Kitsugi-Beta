@@ -78,10 +78,22 @@ android {
         buildConfig = true
     }
 
+    signingConfigs {
+        getByName("debug") {
+            val repoKeystore = rootProject.file("signing/debug.keystore")
+            if (repoKeystore.exists()) {
+                storeFile = repoKeystore
+                storePassword = "android"
+                keyAlias = "androiddebugkey"
+                keyPassword = "android"
+            }
+        }
+    }
+
     buildTypes {
         debug {
             buildConfigField("String", "BUILD_TYPE_LABEL", "\"Debug\"")
-            // Debug'ta minify kapalÄ± â€” hÄ±zlÄ± iterasyon
+            // Debug'ta minify kapalı — hızlı iterasyon
             isMinifyEnabled = false
         }
 

@@ -108,6 +108,17 @@ fun TvStreamScreen(
     var selectedAddonFilter by remember { mutableStateOf<String?>(null) }
     var resolvingSource by remember { mutableStateOf<StreamSource?>(null) }
     var resolvingError by remember { mutableStateOf<String?>(null) }
+    var activeStreamJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    val cancelResolving = {
+        activeStreamJob?.cancel()
+        activeStreamJob = null
+        resolvingSource = null
+        resolvingError = null
+    }
+
+    BackHandler(enabled = resolvingSource != null) {
+        cancelResolving()
+    }
 
     val allStreams = remember(addonStates, appSettings.qualityProfileJson) {
         val rawList = addonStates.flatMap { it.streams }
@@ -371,9 +382,10 @@ fun TvStreamScreen(
                                                     com.kitsugi.animelist.core.p2p.P2pSettingsRepository.setP2pEnabled(true)
                                                 }
                                             }
+                                            activeStreamJob?.cancel()
                                             resolvingSource = stream
                                             resolvingError = null
-                                            scope.launch {
+                                            activeStreamJob = scope.launch {
                                                 val resolvedUrl = try {
                                                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                                                         repository.resolveStreamUrl(stream)
@@ -432,12 +444,12 @@ fun TvStreamScreen(
         // Resolving Overlay Dialog
         resolvingSource?.let { source ->
             Dialog(
-                onDismissRequest = {},
-                properties = DialogProperties(dismissOnBackPress = false, dismissOnClickOutside = false)
+                onDismissRequest = cancelResolving,
+                properties = DialogProperties(dismissOnBackPress = true, dismissOnClickOutside = true)
             ) {
                 Box(
                     modifier = Modifier
-                        .size(260.dp, 160.dp)
+                        .size(280.dp, 200.dp)
                         .clip(KitsugiTvTokens.Shapes.dialog as RoundedCornerShape)
                         .background(KitsugiColors.BackgroundElevated)
                         .padding(16.dp),
@@ -445,9 +457,9 @@ fun TvStreamScreen(
                 ) {
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        KitsugiPlasmaLoader(size = 48.dp)
+                        KitsugiPlasmaLoader(size = 40.dp)
                         Text(
                             text = "Link Çözümleniyor...",
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
@@ -460,6 +472,15 @@ fun TvStreamScreen(
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis
                         )
+                        OutlinedButton(
+                            onClick = cancelResolving,
+                            shape = RoundedCornerShape(10.dp),
+                            border = BorderStroke(1.dp, KitsugiColors.SurfaceStrong),
+                            colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
+                            modifier = Modifier.padding(top = 4.dp).height(36.dp)
+                        ) {
+                            Text("İptal", style = MaterialTheme.typography.labelMedium)
+                        }
                     }
                 }
             }

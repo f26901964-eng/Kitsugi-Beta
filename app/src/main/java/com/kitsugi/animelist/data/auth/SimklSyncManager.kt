@@ -38,13 +38,25 @@ object SimklSyncManager {
     }
 
     /** Uygulama WatchStatus'unu Simkl status string'ine çevirir (NyanTV alStatusToSimkl referans) */
-    fun watchStatusToSimkl(status: WatchStatus?): String = when (status) {
-        WatchStatus.Watching   -> "watching"
-        WatchStatus.Completed  -> "completed"
-        WatchStatus.Paused     -> "hold"
-        WatchStatus.Dropped    -> "dropped"
-        WatchStatus.Planned    -> "plantowatch"
-        else                   -> "plantowatch"
+    fun watchStatusToSimkl(status: WatchStatus?, mediaType: MediaType? = null): String {
+        val s = when (status) {
+            WatchStatus.Watching, WatchStatus.Repeating -> "watching"
+            WatchStatus.Completed -> "completed"
+            WatchStatus.Paused    -> "hold"
+            WatchStatus.Dropped   -> "dropped"
+            WatchStatus.Planned   -> "plantowatch"
+            else                  -> "plantowatch"
+        }
+        return if (mediaType == MediaType.Movie) {
+            when (s) {
+                "watching", "completed" -> "completed"
+                "hold", "plantowatch"   -> "plantowatch"
+                "dropped"               -> "dropped"
+                else                    -> "plantowatch"
+            }
+        } else {
+            s
+        }
     }
 
     /** MediaType'a göre Simkl API tipini döner */
@@ -90,7 +102,7 @@ object SimklSyncManager {
             } else {
                 SimklApiClient.SimklBatchEntry(
                     type = mediaTypeToSimklType(entry.type),
-                    status = watchStatusToSimkl(entry.status),
+                    status = watchStatusToSimkl(entry.status, entry.type),
                     simklId = simklId,
                     malId = realMalId,
                     tmdbId = entry.tmdbId,
@@ -199,7 +211,7 @@ object SimklSyncManager {
         val effectiveSimklId = simklId ?: 0
 
         val type = mediaTypeToSimklType(entry.type)
-        val simklStatus = watchStatusToSimkl(entry.status)
+        val simklStatus = watchStatusToSimkl(entry.status, entry.type)
         val messages = mutableListOf<String>()
         val errors = mutableListOf<String>()
 

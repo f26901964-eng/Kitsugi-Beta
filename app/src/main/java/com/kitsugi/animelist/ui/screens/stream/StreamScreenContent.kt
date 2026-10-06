@@ -1,8 +1,9 @@
-﻿package com.kitsugi.animelist.ui.screens.stream
+package com.kitsugi.animelist.ui.screens.stream
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.SharedPreferences
 import android.content.res.Configuration
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.RepeatMode
@@ -14,6 +15,9 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -73,6 +77,7 @@ fun StreamScreenContent(
     resolvingSource: StreamSource?,
     resolvingError: String?,
     onResolvingErrorDismiss: () -> Unit,
+    onCancelResolving: () -> Unit = {},
     pendingPlayAction: PendingPlayAction?,
     onPendingDismiss: () -> Unit,
     playerPrefs: SharedPreferences,
@@ -193,14 +198,105 @@ fun StreamScreenContent(
 
         // Resolving overlay
         if (resolvingSource != null) {
-            Box(modifier = Modifier.fillMaxSize().background(Color.Black.copy(alpha = 0.75f)).tvClickable(enabled = false) {}, contentAlignment = Alignment.Center) {
-                Card(shape = RoundedCornerShape(16.dp), colors = CardDefaults.cardColors(containerColor = KitsugiColors.Surface), modifier = Modifier.padding(32.dp)) {
-                    Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                        CircularProgressIndicator(color = accentColor, strokeWidth = 3.dp)
+            BackHandler(enabled = true) {
+                onCancelResolving()
+            }
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = 0.75f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null
+                    ) { onCancelResolving() },
+                contentAlignment = Alignment.Center
+            ) {
+                Card(
+                    shape = RoundedCornerShape(20.dp),
+                    colors = CardDefaults.cardColors(containerColor = KitsugiColors.Surface),
+                    modifier = Modifier
+                        .fillMaxWidth(0.9f)
+                        .widthIn(max = 420.dp)
+                        .padding(24.dp)
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null
+                        ) { /* Consume clicks inside card */ }
+                ) {
+                    Column(
+                        modifier = Modifier.padding(20.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(14.dp)
+                    ) {
+                        Box(modifier = Modifier.fillMaxWidth()) {
+                            IconButton(
+                                onClick = onCancelResolving,
+                                modifier = Modifier
+                                    .align(Alignment.TopEnd)
+                                    .size(32.dp)
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.Close,
+                                    contentDescription = "Kapat",
+                                    tint = KitsugiColors.TextSecondary,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                            }
+                            CircularProgressIndicator(
+                                color = accentColor,
+                                strokeWidth = 3.dp,
+                                modifier = Modifier
+                                    .size(40.dp)
+                                    .align(Alignment.Center)
+                            )
+                        }
+
                         val isDebrid = resolvingSource.infoHash != null || resolvingSource.url?.contains("magnet") == true
                         val message = if (isDebrid) "Debrid Üzerinden Çözümleniyor..." else "Akış Bağlantısı Çözülüyor..."
-                        Text(message, color = KitsugiColors.TextPrimary, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                        Text(resolvingSource.title, color = KitsugiColors.TextSecondary, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(
+                            text = message,
+                            color = KitsugiColors.TextPrimary,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 16.sp,
+                            textAlign = TextAlign.Center
+                        )
+                        Text(
+                            text = resolvingSource.title,
+                            color = KitsugiColors.TextSecondary,
+                            fontSize = 12.sp,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            textAlign = TextAlign.Center
+                        )
+
+                        Spacer(Modifier.height(4.dp))
+
+                        OutlinedButton(
+                            onClick = onCancelResolving,
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, KitsugiColors.SurfaceStrong),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = KitsugiColors.TextPrimary
+                            ),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(42.dp)
+                                .tvClickable(shape = RoundedCornerShape(12.dp)) { onCancelResolving() }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Close,
+                                contentDescription = null,
+                                modifier = Modifier.size(16.dp),
+                                tint = KitsugiColors.TextSecondary
+                            )
+                            Spacer(Modifier.width(6.dp))
+                            Text(
+                                text = "İptal",
+                                color = KitsugiColors.TextPrimary,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                        }
                     }
                 }
             }

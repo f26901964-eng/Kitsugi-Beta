@@ -1,5 +1,8 @@
 package com.kitsugi.animelist.ui.components
 
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
+
 import android.content.Context
 import android.content.res.Configuration
 import androidx.compose.foundation.background
@@ -86,6 +89,16 @@ fun KitsugiStreamSelectorBottomSheet(
     var streams by remember { mutableStateOf<List<StreamSource>>(emptyList()) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var resolvingSource by remember { mutableStateOf<StreamSource?>(null) }
+    var activeStreamJob by remember { mutableStateOf<kotlinx.coroutines.Job?>(null) }
+    val cancelResolving = {
+        activeStreamJob?.cancel()
+        activeStreamJob = null
+        resolvingSource = null
+    }
+
+    BackHandler(enabled = resolvingSource != null) {
+        cancelResolving()
+    }
     var showP2pConsentDialog by remember { mutableStateOf(false) }
     var pendingP2pStream by remember { mutableStateOf<StreamSource?>(null) }
 
@@ -104,8 +117,9 @@ fun KitsugiStreamSelectorBottomSheet(
         }
 
         if (!isTorrent || hasDebrid || com.kitsugi.animelist.core.p2p.P2pSettingsRepository.isP2pEnabled()) {
+            activeStreamJob?.cancel()
             resolvingSource = stream
-            coroutineScope.launch {
+            activeStreamJob = coroutineScope.launch {
                 val resolvedUrl = try {
                     kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                         repository.resolveStreamUrl(stream)
@@ -475,6 +489,19 @@ fun KitsugiStreamSelectorBottomSheet(
                             fontSize = 13.sp,
                             modifier = Modifier.padding(top = 4.dp)
                         )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        OutlinedButton(
+                            onClick = cancelResolving,
+                            shape = RoundedCornerShape(12.dp),
+                            border = BorderStroke(1.dp, KitsugiColors.SurfaceStrong),
+                            colors = ButtonDefaults.outlinedButtonColors(
+                                contentColor = KitsugiColors.TextPrimary
+                            )
+                        ) {
+                            Icon(Icons.Rounded.Close, contentDescription = null, modifier = Modifier.size(16.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text("İptal", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                        }
                     }
                 } else {
                     val addonNames = remember(streams) {
