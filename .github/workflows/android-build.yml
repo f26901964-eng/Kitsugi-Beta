@@ -1,0 +1,73 @@
+name: 🏗️ Android Debug Build
+
+# Derleme doğrulaması: her push/PR'de debug APK derler (foss + gms).
+# Amaç: Kotlin derleme hatalarını cihaza gerek kalmadan GitHub'da yakalamak.
+
+on:
+  push:
+    branches: ['**']
+    paths:
+      - 'app/**'
+      - 'gradle/**'
+      - 'build.gradle.kts'
+      - 'settings.gradle.kts'
+      - 'gradle.properties'
+      - '.github/workflows/android-build.yml'
+  pull_request:
+    branches: ['**']
+  workflow_dispatch:
+
+concurrency:
+  group: android-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build-debug:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+
+    steps:
+      - name: 📥 Repo klonla
+        uses: actions/checkout@v4
+
+      - name: ☕ JDK 17 kur
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: 🤖 Gradle kur + önbellek
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: 📦 Eksik SDK paketlerini yükle (cmake 3.22.1, android-36)
+        run: |
+          yes | sdkmanager --licenses > /dev/null 2>&1 || true
+          sdkmanager --install "cmake;3.22.1" "platforms;android-36" "build-tools;36.0.0" 2>&1 | tail -n 5 || true
+          echo "--- kurulu NDK'lar ---"
+          sdkmanager --list_installed 2>/dev/null | grep -i "ndk" || ls "$ANDROID_HOME/ndk" 2>/dev/null || true
+
+      - name: ⚙️ CI bellek ayarları (runner 7GB — proje 8GB istiyor)
+        run: |
+          mkdir -p ~/.gradle
+          cat > ~/.gradle/gradle.properties << 'EOF'
+          org.gradle.jvmargs=-Xmx4g -Xms512m -XX:+UseG1GC -Dfile.encoding=UTF-8
+          org.gradle.workers.max=2
+          org.gradle.parallel=true
+          org.gradle.daemon=true
+          org.gradle.caching=true
+          kotlin.daemon.jvmargs=-Xmx3g -Xms512m -XX:+UseG1GC
+          EOF
+          cat ~/.gradle/gradle.properties
+
+      - name: 🔨 Debug derle (foss + gms)
+        run: ./gradlew assembleDebug --stacktrace --console=plain
+        env:
+          GRADLE_OPTS: -Dfile.encoding=UTF-8
+
+      - name: 📲 APK'ları yükle
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: debug-apks
+          path: app/build/outputs/apk/**/debug/*.apk
+          retention-days: 7
