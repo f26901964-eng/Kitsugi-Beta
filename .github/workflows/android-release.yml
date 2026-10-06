@@ -96,9 +96,10 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           set +e
+          set -o pipefail
           build_log="$RUNNER_TEMP/kitsugi-fastlane-build.log"
-          fastlane android production > "$build_log" 2>&1
-          build_status=$?
+          fastlane android production 2>&1 | tee "$build_log"
+          build_status=${PIPESTATUS[0]}
 
           if [[ "$build_status" -ne 0 ]]; then
             python3 - "$build_log" <<'PY'
