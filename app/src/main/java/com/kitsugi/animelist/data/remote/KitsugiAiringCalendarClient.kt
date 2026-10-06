@@ -236,7 +236,7 @@ class KitsugiAiringCalendarClient {
                 .put("perPage", 50)
                 .put("airingAt_greater", airingAtGreater)
                 .put("airingAt_lesser", airingAtLesser)
-            val responseText = try {
+            val responseText: String? = try {
                 KitsugiApiBase.executeAniListQuery(
                     query = QUERY,
                     variables = variables,
@@ -245,9 +245,9 @@ class KitsugiAiringCalendarClient {
             } catch (e: Exception) {
                 if (e is AniListServiceDownException) throw e
                 android.util.Log.e("AiringCalendarClient", "fetchAiringSchedule error: ${e.message}")
-                failed = true
-                break
-            } ?: run {
+                null
+            }
+            if (responseText == null) {
                 failed = true
                 break
             }
