@@ -25,6 +25,8 @@ jobs:
   build-debug:
     runs-on: ubuntu-latest
     timeout-minutes: 90
+    permissions:
+      contents: write
 
     steps:
       - name: 📥 Repo klonla
@@ -62,7 +64,8 @@ jobs:
       - name: 🔨 Debug derle (foss + gms)
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --stacktrace --console=plain
+          set -o pipefail
+          ./gradlew assembleDebug --stacktrace --console=plain 2>&1 | tee build.log
         env:
           GRADLE_OPTS: -Dfile.encoding=UTF-8
 
@@ -73,3 +76,37 @@ jobs:
           name: debug-apks
           path: app/build/outputs/apk/**/debug/*.apk
           retention-days: 7
+
+      - name: 🩺 Hata özetini çıkar + commit yorumu yaz
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
+          retention-days: 7
+
+      - name: 💬 Hatayı commit yorumuna yaz
+        if: failure()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          {
+            echo "## ❌ Derleme hatası (\`$GITHUB_SHA\`)"
+            echo ""
+            echo "<details><summary>FAILED task'lar + <code>e:</code> satırları</summary>"
+            echo ""
+            echo "\`\`\`"
+            grep -E "FAILED|Execution failed|error:|e: |NDK|CMake|What went wrong" build.log | head -n 60 || true
+            echo "\`\`\`"
+            echo "</details>"
+            echo ""
+            echo "<details><summary>Log kuyruğu (son 60 satır)</summary>"
+            echo ""
+            echo "\`\`\`"
+            tail -n 60 build.log
+            echo "\`\`\`"
+            echo "</details>"
+          } > comment.md
+          wc -c comment.md
+          gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/comments" -f body="$(cat comment.md)" > /dev/null
+          echo "yorum yazıldı"
