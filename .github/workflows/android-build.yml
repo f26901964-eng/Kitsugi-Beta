@@ -60,7 +60,9 @@ jobs:
           cat ~/.gradle/gradle.properties
 
       - name: 🔨 Debug derle (foss + gms)
-        run: ./gradlew assembleDebug --stacktrace --console=plain
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --stacktrace --console=plain
         env:
           GRADLE_OPTS: -Dfile.encoding=UTF-8
 
