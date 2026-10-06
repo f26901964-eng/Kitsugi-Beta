@@ -167,21 +167,14 @@ fun KitsugiAllActivitiesBottomSheet(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     items(activitiesList, key = { it.id }) { act ->
-                        // Resolve title according to user's titleLanguage preference
-                        val localizedTitle = when (titleLanguage) {
-                            "ENGLISH" -> act.mediaTitleEnglish?.takeIf { it.isNotBlank() }
-                                ?: act.mediaTitleRomaji
-                                ?: act.mediaTitleNative
-                                ?: act.mediaTitle
-                            "NATIVE", "JAPANESE_STAFF" -> act.mediaTitleNative?.takeIf { it.isNotBlank() }
-                                ?: act.mediaTitleRomaji
-                                ?: act.mediaTitleEnglish
-                                ?: act.mediaTitle
-                            else -> act.mediaTitleRomaji
-                                ?: act.mediaTitleEnglish
-                                ?: act.mediaTitleNative
-                                ?: act.mediaTitle
-                        }
+                        // Resolve title according to user's titleLanguage preference (TR → EN → romaji)
+                        val localizedTitle = PreferenceHelpers.resolveActivityTitle(
+                            mediaTitleRomaji = act.mediaTitleRomaji,
+                            mediaTitleEnglish = act.mediaTitleEnglish,
+                            mediaTitleNative = act.mediaTitleNative,
+                            mediaTitle = act.mediaTitle,
+                            titleLanguage = titleLanguage
+                        )
                         // For ListActivities: regenerate display text with localized title
                         val displayText = if (act.mediaTitle != null && localizedTitle != null && localizedTitle != act.mediaTitle) {
                             act.text.replace("**${act.mediaTitle}**", "**$localizedTitle**")

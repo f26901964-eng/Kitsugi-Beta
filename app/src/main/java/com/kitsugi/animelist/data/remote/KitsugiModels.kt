@@ -32,7 +32,18 @@ data class JikanSearchResult(
     val cs3Url: String? = null,
     val cs3ApiName: String? = null,
     val genres: List<String> = emptyList()
-)
+) {
+    /**
+     * Kullanıcının başlık dili tercihine göre görüntülenecek başlık.
+     * TR/varsayılan → yerelleştirilmiş → İngilizce → romaji; Japonca/Çince
+     * ancak bu diller açıkça seçildiğinde gösterilir.
+     */
+    fun getDisplayTitle(titleLanguage: String): String {
+        return com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle(
+            title, titleEnglish, titleJapanese, titleLanguage
+        )
+    }
+}
 
 data class KitsugiTheme(
     val label: String,       // Görüntülenecek metin: "We Are!" by Hiroshi Kitadani (OP1)

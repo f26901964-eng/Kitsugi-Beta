@@ -6,7 +6,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.data.auth.ExternalAuthManager
-import com.kitsugi.animelist.data.remote.KitsugiAiringCalendarClient
 import com.kitsugi.animelist.data.remote.KitsugiAniListNotificationClient
 import com.kitsugi.animelist.data.remote.SimklApiClient
 import com.kitsugi.animelist.model.MediaEntry
@@ -14,6 +13,7 @@ import com.kitsugi.animelist.model.WatchStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -46,7 +46,8 @@ data class NotifItem(
     val userId: Int? = null,
     val userName: String? = null,
     val userAvatarUrl: String? = null,
-    val source: String = "AniList"
+    val source: String = "AniList",
+    val timestampMs: Long? = null
 )
 
 // ─── UI State ─────────────────────────────────────────────────────────────────
@@ -194,34 +195,76 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
         viewModelScope.launch {
             _mal.value = NotifUiState(isLoading = true)
             try {
-                val calendarClient = KitsugiAiringCalendarClient()
-                val schedule = calendarClient.fetchWeeklySchedule()
-                val allEntries = schedule.values.flatten()
-                val now = System.currentTimeMillis()
                 val malEntries = mediaEntries.filter {
-                    (it.source.equals("jikan", ignoreCase = true) || it.source.equals("mal", ignoreCase = true)) &&
+                    (it.source.equals("jikan", ignoreCase = true) ||
+                        it.source.equals("mal", ignoreCase = true) ||
+                        it.source.equals("myanimelist", ignoreCase = true)) &&
                     (it.status == WatchStatus.Watching || it.status == WatchStatus.Repeating)
                 }
-                val matched = allEntries
-                    .filter { entry -> malEntries.any { me -> me.malId == entry.malId } }
-                    .filter { entry ->
-                        val triggerMs = entry.airingAt * 1000L
-                        triggerMs <= now && triggerMs > now - 7 * 24 * 60 * 60 * 1000L
-                    }
-                val items = matched.map { entry ->
-                    val dateText = SimpleDateFormat("dd MMM HH:mm", Locale.getDefault())
-                        .format(Date(entry.airingAt * 1000L))
-                    NotifItem(
-                        id = "mal_${entry.malId}_${entry.episode}",
-                        imageUrl = entry.coverUrl,
-                        title = entry.title,
-                        body = ctx.getString(R.string.notif_mal_episode_released, entry.episode),
-                        dateText = dateText,
-                        mediaId = entry.malId,
-                        mediaType = "anime",
-                        source = "MyAnimeList"
+                // Kayan pencere (son 7 gün + gelecek 3 gün) + Simkl yedek kaynağı +
+                // MAL ID / AniList offset / başlık eşleştirmesi (ortak yardımcı).
+                val result = com.kitsugi.animelist.data.remote.MalAiringNotifications.fetchForEntries(
+                    entries = malEntries,
+                    pastSeconds = 7 * 24 * 3600L,
+                    upcomingSeconds = 3 * 24 * 3600L
+                )
+                if (result.failed) {
+                    _mal.value = NotifUiState(
+                        isLoading = false,
+                        error = ctx.getString(
+                            R.string.notif_error_load,
+                            ctx.getString(R.string.notif_error_schedule_unavailable)
+                        )
                     )
-                }.sortedByDescending { it.id }
+                    return@launch
+                }
+                val titleLang = try {
+                    com.kitsugi.animelist.data.settings.SettingsDataStore(ctx)
+                        .settingsFlow.first().titleLanguage
+                } catch (_: Exception) {
+                    "ROMAJI"
+                }
+                val dateFormat = SimpleDateFormat("dd MMM HH:mm", Locale.getDefault())
+                val items = buildList {
+                    result.aired.forEach { entry ->
+                        add(
+                            NotifItem(
+                                id = "mal_${entry.malId}_${entry.episode}",
+                                imageUrl = entry.coverUrl,
+                                title = entry.getDisplayTitle(titleLang),
+                                body = if (entry.episode > 0) {
+                                    ctx.getString(R.string.notif_mal_episode_released, entry.episode)
+                                } else {
+                                    ctx.getString(R.string.notif_mal_new_content)
+                                },
+                                dateText = dateFormat.format(Date(entry.airingAt * 1000L)),
+                                mediaId = entry.malId,
+                                mediaType = "anime",
+                                source = "MyAnimeList",
+                                timestampMs = entry.airingAt * 1000L
+                            )
+                        )
+                    }
+                    result.upcoming.forEach { entry ->
+                        add(
+                            NotifItem(
+                                id = "mal_up_${entry.malId}_${entry.episode}",
+                                imageUrl = entry.coverUrl,
+                                title = entry.getDisplayTitle(titleLang),
+                                body = if (entry.episode > 0) {
+                                    ctx.getString(R.string.notif_mal_episode_upcoming, entry.episode)
+                                } else {
+                                    ctx.getString(R.string.notif_mal_new_content)
+                                },
+                                dateText = dateFormat.format(Date(entry.airingAt * 1000L)),
+                                mediaId = entry.malId,
+                                mediaType = "anime",
+                                source = "MyAnimeList",
+                                timestampMs = entry.airingAt * 1000L
+                            )
+                        )
+                    }
+                }
 
                 _mal.value = NotifUiState(items = items, isLoading = false, hasMore = false)
             } catch (e: Exception) {

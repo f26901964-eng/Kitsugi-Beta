@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.tv.detail
 
+import com.kitsugi.animelist.utils.PreferenceHelpers
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -333,13 +334,13 @@ fun TvActivityDetailDialog(
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Box(modifier = Modifier.weight(1f)) {
-                                        val localizedTitle = when (titleLanguage) {
-                                            "ENGLISH" -> act.mediaTitleEnglish?.takeIf { it.isNotBlank() }
-                                                ?: act.mediaTitleRomaji ?: act.mediaTitleNative ?: act.mediaTitle
-                                            "NATIVE", "JAPANESE_STAFF" -> act.mediaTitleNative?.takeIf { it.isNotBlank() }
-                                                ?: act.mediaTitleRomaji ?: act.mediaTitleEnglish ?: act.mediaTitle
-                                            else -> act.mediaTitleRomaji ?: act.mediaTitleEnglish ?: act.mediaTitleNative ?: act.mediaTitle
-                                        }
+                                        val localizedTitle = PreferenceHelpers.resolveActivityTitle(
+                                            mediaTitleRomaji = act.mediaTitleRomaji,
+                                            mediaTitleEnglish = act.mediaTitleEnglish,
+                                            mediaTitleNative = act.mediaTitleNative,
+                                            mediaTitle = act.mediaTitle,
+                                            titleLanguage = titleLanguage
+                                        )
                                         val localizedDisplayText = if (act.mediaTitle != null && localizedTitle != null && localizedTitle != act.mediaTitle) {
                                             act.text.replace("**${act.mediaTitle}**", "**$localizedTitle**")
                                         } else act.text

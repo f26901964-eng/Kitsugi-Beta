@@ -3,6 +3,7 @@ package com.kitsugi.animelist.data.remote
 import android.util.Log
 import com.kitsugi.animelist.core.network.KitsugiHttpClient
 import com.kitsugi.animelist.model.MediaType
+import com.kitsugi.animelist.utils.PreferenceHelpers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.Request
@@ -376,8 +377,12 @@ object KitsuExploreClient {
             val canonicalTitle = attrs.optString("canonicalTitle", "")
             val titlesObj = attrs.optJSONObject("titles")
             val titleEn = titlesObj?.optString("en", "")?.takeIf { it.isNotBlank() }
+            val titleEnJp = titlesObj?.optString("en_jp", "")?.takeIf { it.isNotBlank() }
             val titleJa = titlesObj?.optString("ja_jp", "")?.takeIf { it.isNotBlank() }
-            val title = canonicalTitle.takeIf { it.isNotBlank() } ?: titleEn ?: titleJa ?: "Başlıksız"
+            // Latin öncelikli: canonical → İngilizce → romaji → Japonca (son çare)
+            val title = PreferenceHelpers.firstLatinReadable(
+                canonicalTitle.takeIf { it.isNotBlank() }, titleEn, titleEnJp
+            ) ?: titleEn ?: titleEnJp ?: titleJa ?: "Başlıksız"
 
             val synopsis = attrs.optString("synopsis", "").takeIf { it.isNotBlank() }
             val startDate = attrs.optString("startDate", "")
@@ -407,7 +412,7 @@ object KitsuExploreClient {
             KitsugiMediaDetail(
                 synopsis      = synopsis,
                 title         = title,
-                titleEnglish  = titleEn,
+                titleEnglish  = titleEn ?: titleEnJp,
                 titleJapanese = titleJa,
                 imageUrl      = imageUrl,
                 score         = score,

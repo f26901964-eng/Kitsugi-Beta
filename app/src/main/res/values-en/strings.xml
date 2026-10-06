@@ -390,6 +390,9 @@
 
     <string name="notif_error_load">Failed to load notifications: %1$s</string>
     <string name="notif_mal_episode_released">Episode %1$d released 🎬</string>
+    <string name="notif_mal_episode_upcoming">Episode %1$d airing soon ⏳</string>
+    <string name="notif_mal_new_content">New content released 🎬</string>
+    <string name="notif_error_schedule_unavailable">could not fetch the airing schedule</string>
     <string name="notif_simkl_new_content">New content available 🎬</string>
     
     <string name="notif_login_required_anilist">You need to log in to AniList</string>

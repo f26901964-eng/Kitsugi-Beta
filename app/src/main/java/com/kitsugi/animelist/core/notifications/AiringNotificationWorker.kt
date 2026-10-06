@@ -12,13 +12,13 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.kitsugi.animelist.MainActivity
+import com.kitsugi.animelist.R
 import com.kitsugi.animelist.data.auth.ExternalAuthManager
 import com.kitsugi.animelist.data.auth.SimklImportManager
 import com.kitsugi.animelist.data.local.KitsugiDatabase
 import com.kitsugi.animelist.data.local.MediaEntryRepository
 import com.kitsugi.animelist.data.local.toDomain
 import com.kitsugi.animelist.data.remote.KitsugiAniListNotificationClient
-import com.kitsugi.animelist.data.remote.KitsugiAiringCalendarClient
 import com.kitsugi.animelist.data.settings.SettingsDataStore
 import com.kitsugi.animelist.model.WatchStatus
 import kotlinx.coroutines.flow.first
@@ -108,42 +108,40 @@ class AiringNotificationWorker(
         // 3. MyAnimeList (Airing Calendar) Polling
         if (isMalEnabled || isAiringEnabled) {
             try {
-                val calendarClient = KitsugiAiringCalendarClient()
-                val weekSchedule = calendarClient.fetchWeeklySchedule()
-                val now = System.currentTimeMillis()
-                val allEntries = weekSchedule.values.flatten()
-
-                val matched = allEntries.filter { entry ->
-                    watchingEntries.any { me ->
-                        (entry.malId != null && me.malId == entry.malId) ||
-                        (me.source == "anilist" && me.malId == 100_000_000 + entry.aniListId)
-                    }
-                }
+                // Kayan 24 saatlik pencere + Simkl yedek kaynağı + 3-aşamalı
+                // eşleştirme (uygulama içi MAL sekmesiyle ortak yardimci).
+                // Eski takvim-haftası yaklaşımı haftanin ilk günlerinde neredeyse
+                // her zaman bos sonuc veriyordu.
+                val result = com.kitsugi.animelist.data.remote.MalAiringNotifications.fetchForEntries(
+                    entries = watchingEntries,
+                    pastSeconds = 24 * 3600L,
+                    upcomingSeconds = 0L
+                )
 
                 val notifiedMalKeys = sharedPrefs.getStringSet(KEY_NOTIFIED_MAL, emptySet())?.toMutableSet() ?: mutableSetOf()
 
-                for (entry in matched) {
-                    val triggerMs = entry.airingAt * 1000L
-                    // Recently aired (within past 24 hours)
-                    if (triggerMs <= now && triggerMs > now - 24 * 60 * 60 * 1000L) {
-                        val malKey = "${entry.malId}_${entry.episode}"
-                        if (!notifiedMalKeys.contains(malKey)) {
-                            val title = entry.title
-                            val body = "Bölüm ${entry.episode} artık yayında! 🎬"
-                            val malId = entry.malId ?: 0
-                            val notifId = (malId * 1000 + entry.episode) and Int.MAX_VALUE
-
-                            showNotification(
-                                id = notifId,
-                                title = title,
-                                bodyText = body,
-                                source = "MyAnimeList",
-                                imageUrl = entry.coverUrl,
-                                isMedia = true,
-                                mediaId = malId
-                            )
-                            notifiedMalKeys.add(malKey)
+                for (entry in result.aired) {
+                    val malKey = "${entry.malId}_${entry.episode}"
+                    if (!notifiedMalKeys.contains(malKey)) {
+                        val idBase = entry.malId ?: entry.aniListId
+                        val title = entry.getDisplayTitle(settings.titleLanguage)
+                        val body = if (entry.episode > 0) {
+                            context.getString(R.string.notif_mal_episode_released, entry.episode)
+                        } else {
+                            context.getString(R.string.notif_mal_new_content)
                         }
+                        val notifId = (idBase * 31 + entry.episode) and Int.MAX_VALUE
+
+                        showNotification(
+                            id = notifId,
+                            title = title,
+                            bodyText = body,
+                            source = "MyAnimeList",
+                            imageUrl = entry.coverUrl,
+                            isMedia = true,
+                            mediaId = idBase
+                        )
+                        notifiedMalKeys.add(malKey)
                     }
                 }
                 val keptMalKeys = notifiedMalKeys.toList().takeLast(200).toSet()

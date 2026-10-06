@@ -17,7 +17,7 @@ class KitsugiAiringCalendarClient {
                 fetchTmdbWeeklySchedule()
             } else {
                 val (weekStart, weekEnd) = currentWeekRange()
-                val rawEntries = fetchAiringSchedule(weekStart, weekEnd, accessToken)
+                val rawEntries = fetchAiringSchedule(weekStart, weekEnd, accessToken).entries
                 rawEntries
                     .filter { it.airingAt in weekStart..weekEnd }
                     .groupBy { it.dayOfWeek }
@@ -204,31 +204,59 @@ class KitsugiAiringCalendarClient {
             .take(limit)
     }
 
+    /**
+     * Kayan zaman penceresiyle AniList yayın akışını çeker (örn. son 7 gün +
+     * gelecek 3 gün). Takvim haftasına bağlı değildir; bildirim eşleştirmeleri
+     * için haftanın gününden bağımsız tutarlı sonuç verir.
+     *
+     * @return yayın kayıtları + istek başarısız olduysa [AiringFetchResult.failed]
+     */
+    suspend fun fetchAiringWindow(
+        airingAtGreater: Long,
+        airingAtLesser: Long,
+        accessToken: String? = null,
+        maxPages: Int = 10
+    ): AiringFetchResult = withContext(Dispatchers.IO) {
+        fetchAiringSchedule(airingAtGreater, airingAtLesser, accessToken, maxPages)
+    }
+
     private suspend fun fetchAiringSchedule(
         airingAtGreater: Long,
         airingAtLesser: Long,
-        accessToken: String?
-    ): List<AiringEntry> {
+        accessToken: String?,
+        maxPages: Int = 10
+    ): AiringFetchResult {
         val allEntries = mutableListOf<AiringEntry>()
         var page = 1
         var hasNextPage = true
-        while (hasNextPage && page <= 10) {
+        var failed = false
+        while (hasNextPage && page <= maxPages) {
             val variables = JSONObject()
                 .put("page", page)
                 .put("perPage", 50)
                 .put("airingAt_greater", airingAtGreater)
                 .put("airingAt_lesser", airingAtLesser)
-            val responseText = KitsugiApiBase.executeAniListQuery(
-                query = QUERY,
-                variables = variables,
-                accessToken = accessToken
-            ) ?: break
+            val responseText = try {
+                KitsugiApiBase.executeAniListQuery(
+                    query = QUERY,
+                    variables = variables,
+                    accessToken = accessToken
+                )
+            } catch (e: Exception) {
+                if (e is AniListServiceDownException) throw e
+                android.util.Log.e("AiringCalendarClient", "fetchAiringSchedule error: ${e.message}")
+                failed = true
+                break
+            } ?: run {
+                failed = true
+                break
+            }
             val (entries, nextPage) = parseResponse(responseText)
             allEntries.addAll(entries)
             hasNextPage = nextPage && entries.isNotEmpty()
             page++
         }
-        return allEntries
+        return AiringFetchResult(allEntries, failed)
     }
 
     private fun parseResponse(jsonText: String): Pair<List<AiringEntry>, Boolean> {

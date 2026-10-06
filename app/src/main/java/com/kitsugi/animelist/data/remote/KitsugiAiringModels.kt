@@ -1,6 +1,18 @@
 package com.kitsugi.animelist.data.remote
 
+import com.kitsugi.animelist.utils.PreferenceHelpers
 import java.util.Calendar
+
+/**
+ * Yayın akışı çekme sonucu.
+ * @param entries bulunan yayın kayıtları
+ * @param failed true ise istek(ler) başarısız oldu — [entries] boş olabilir ama bu
+ * "yayın yok" anlamına gelmez; çağıran hata durumu göstermelidir.
+ */
+data class AiringFetchResult(
+    val entries: List<AiringEntry>,
+    val failed: Boolean
+)
 
 /**
  * Tek bir anime bölümünün yayın takvimi kaydı.
@@ -48,12 +60,12 @@ data class AiringEntry(
      */
     fun getDisplayTitle(titleLanguage: String = "ROMAJI"): String {
         val isNonJapanese = countryOfOrigin != null && !countryOfOrigin.equals("JP", ignoreCase = true)
-        return when {
-            isNonJapanese && !titleEnglish.isNullOrBlank() -> titleEnglish
-            titleLanguage == "ENGLISH" -> titleEnglish?.takeIf { it.isNotBlank() } ?: title
-            titleLanguage == "NATIVE" -> titleNative?.takeIf { it.isNotBlank() } ?: title
-            else -> title
+        // Kore/Çin yapımlarında Latin İngilizce başlık önceliklidir — ancak kullanıcı
+        // açıkça yerel (NATIVE) başlık dili seçmediyse.
+        if (isNonJapanese && !PreferenceHelpers.isNativeTitleLanguage(titleLanguage)) {
+            titleEnglish.takeIf { PreferenceHelpers.isLatinReadable(it) }?.let { return it }
         }
+        return PreferenceHelpers.getDisplayTitle(title, titleEnglish, titleNative, titleLanguage)
     }
 
     fun toJikanSearchResult(preferredSource: String? = null): JikanSearchResult {
@@ -69,10 +81,12 @@ data class AiringEntry(
             com.kitsugi.animelist.model.MediaType.Anime
         }
         val isNonJapanese = countryOfOrigin != null && !countryOfOrigin.equals("JP", ignoreCase = true)
-        val effectiveTitle = if (isNonJapanese && !titleEnglish.isNullOrBlank()) {
-            titleEnglish
+        val latinTitle = title.takeIf { PreferenceHelpers.isLatinReadable(it) }
+        val latinEnglish = titleEnglish.takeIf { PreferenceHelpers.isLatinReadable(it) }
+        val effectiveTitle = if (isNonJapanese && latinEnglish != null) {
+            latinEnglish
         } else {
-            title
+            latinTitle ?: latinEnglish ?: titleEnglish?.takeIf { it.isNotBlank() } ?: title
         }
         return JikanSearchResult(
             malId = finalId,

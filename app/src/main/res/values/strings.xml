@@ -391,6 +391,9 @@
 
     <string name="notif_error_load">Bildirimler yüklenemedi: %1$s</string>
     <string name="notif_mal_episode_released">Bölüm %1$d yayınlandı 🎬</string>
+    <string name="notif_mal_episode_upcoming">Bölüm %1$d yakında yayınlanacak ⏳</string>
+    <string name="notif_mal_new_content">Yeni içerik yayında 🎬</string>
+    <string name="notif_error_schedule_unavailable">yayın takvimi alınamadı</string>
     <string name="notif_simkl_new_content">Yeni içerik mevcut 🎬</string>
     
     <string name="notif_login_required_anilist">AniList\'e giriş yapmanız gerekiyor</string>

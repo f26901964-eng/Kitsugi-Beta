@@ -383,7 +383,12 @@ fun KitsugiNotificationsScreen(
                                     item { LoadingState(accentColor) }
                                 }
                                 malState.error != null && malState.items.isEmpty() -> {
-                                    item { CenteredEmptyState(malState.error!!) }
+                                    item {
+                                        CenteredEmptyState(
+                                            message = malState.error!!,
+                                            onRetry = { viewModel.loadMal(mediaEntries) }
+                                        )
+                                    }
                                 }
                                 malState.items.isEmpty() -> {
                                     item { CenteredEmptyState(stringResource(R.string.notif_empty_list_mal)) }
@@ -722,7 +727,10 @@ private fun LoadingState(accentColor: Color) {
 }
 
 @Composable
-private fun CenteredEmptyState(message: String) {
+private fun CenteredEmptyState(
+    message: String,
+    onRetry: (() -> Unit)? = null
+) {
     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Icon(
@@ -739,6 +747,28 @@ private fun CenteredEmptyState(message: String) {
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 32.dp)
             )
+            if (onRetry != null) {
+                Spacer(Modifier.height(16.dp))
+                Button(
+                    onClick = onRetry,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = LocalKitsugiAccent.current,
+                        contentColor = KitsugiColors.Background
+                    ),
+                    shape = RoundedCornerShape(14.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Refresh,
+                        contentDescription = null,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(R.string.notif_action_refresh),
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
         }
     }
 }

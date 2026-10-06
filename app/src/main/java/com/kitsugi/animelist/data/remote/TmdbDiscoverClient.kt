@@ -2,6 +2,9 @@ package com.kitsugi.animelist.data.remote
 
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import com.kitsugi.animelist.model.MediaType
@@ -45,13 +48,13 @@ internal object TmdbDiscoverClient {
 
         // Önce trending endpoint'i dene
         val trendUrl = "https://api.themoviedb.org/3/trending/movie/week?api_key=$apiKey&language=$language&page=$page"
-        var result = parseTmdbDiscoverList(trendUrl, MediaType.Movie, executeGet)
+        var result = parseTmdbDiscoverList(trendUrl, MediaType.Movie, apiKey, executeGet)
 
         // Trending boş döndüyse discover fallback kullan
         if (result.isEmpty()) {
             Log.w(TAG, "getTrendingMovies: trending empty, falling back to discover/popularity")
             val fallbackUrl = "https://api.themoviedb.org/3/discover/movie?api_key=$apiKey&language=$language&sort_by=popularity.desc&page=$page"
-            result = parseTmdbDiscoverList(fallbackUrl, MediaType.Movie, executeGet)
+            result = parseTmdbDiscoverList(fallbackUrl, MediaType.Movie, apiKey, executeGet)
         }
 
         if (result.isNotEmpty()) put(cacheKey, result)
@@ -68,12 +71,12 @@ internal object TmdbDiscoverClient {
         get(cacheKey)?.let { return@withContext it }
 
         val trendUrl = "https://api.themoviedb.org/3/trending/tv/week?api_key=$apiKey&language=$language&page=$page"
-        var result = parseTmdbDiscoverList(trendUrl, MediaType.TvShow, executeGet)
+        var result = parseTmdbDiscoverList(trendUrl, MediaType.TvShow, apiKey, executeGet)
 
         if (result.isEmpty()) {
             Log.w(TAG, "getTrendingShows: trending empty, falling back to discover/popularity")
             val fallbackUrl = "https://api.themoviedb.org/3/discover/tv?api_key=$apiKey&language=$language&sort_by=popularity.desc&page=$page"
-            result = parseTmdbDiscoverList(fallbackUrl, MediaType.TvShow, executeGet)
+            result = parseTmdbDiscoverList(fallbackUrl, MediaType.TvShow, apiKey, executeGet)
         }
 
         if (result.isNotEmpty()) put(cacheKey, result)
@@ -94,14 +97,14 @@ internal object TmdbDiscoverClient {
         get(cacheKey)?.let { return@withContext it }
 
         val trendUrl = "https://api.themoviedb.org/3/trending/all/week?api_key=$apiKey&language=$language&page=$page"
-        var result = parseTmdbDiscoverListAll(trendUrl, executeGet)
+        var result = parseTmdbDiscoverListAll(trendUrl, apiKey, executeGet)
 
         if (result.isEmpty()) {
             Log.w(TAG, "getTrendingAll: trending empty, merging movie+tv popular fallback")
             val moviesUrl = "https://api.themoviedb.org/3/discover/movie?api_key=$apiKey&language=$language&sort_by=popularity.desc&page=$page"
             val showsUrl  = "https://api.themoviedb.org/3/discover/tv?api_key=$apiKey&language=$language&sort_by=popularity.desc&page=$page"
-            val movies = parseTmdbDiscoverList(moviesUrl, MediaType.Movie, executeGet)
-            val shows  = parseTmdbDiscoverList(showsUrl, MediaType.TvShow, executeGet)
+            val movies = parseTmdbDiscoverList(moviesUrl, MediaType.Movie, apiKey, executeGet)
+            val shows  = parseTmdbDiscoverList(showsUrl, MediaType.TvShow, apiKey, executeGet)
             // Film ve dizileri interleave et: 1 film, 1 dizi sırayla
             val merged = mutableListOf<JikanSearchResult>()
             val maxSize = maxOf(movies.size, shows.size)
@@ -130,7 +133,7 @@ internal object TmdbDiscoverClient {
         val cacheKey = "popular_movies_$page"
         get(cacheKey)?.let { return@withContext it }
         val url = "https://api.themoviedb.org/3/movie/popular?api_key=$apiKey&language=$language&page=$page"
-        val result = parseTmdbDiscoverList(url, MediaType.Movie, executeGet)
+        val result = parseTmdbDiscoverList(url, MediaType.Movie, apiKey, executeGet)
         if (result.isNotEmpty()) put(cacheKey, result)
         result
     }
@@ -145,7 +148,7 @@ internal object TmdbDiscoverClient {
         val cacheKey = "popular_shows_$page"
         get(cacheKey)?.let { return@withContext it }
         val url = "https://api.themoviedb.org/3/tv/popular?api_key=$apiKey&language=$language&page=$page"
-        val result = parseTmdbDiscoverList(url, MediaType.TvShow, executeGet)
+        val result = parseTmdbDiscoverList(url, MediaType.TvShow, apiKey, executeGet)
         if (result.isNotEmpty()) put(cacheKey, result)
         result
     }
@@ -162,7 +165,7 @@ internal object TmdbDiscoverClient {
         val cacheKey = "top_rated_movies_$page"
         get(cacheKey)?.let { return@withContext it }
         val url = "https://api.themoviedb.org/3/movie/top_rated?api_key=$apiKey&language=$language&page=$page"
-        val result = parseTmdbDiscoverList(url, MediaType.Movie, executeGet)
+        val result = parseTmdbDiscoverList(url, MediaType.Movie, apiKey, executeGet)
         if (result.isNotEmpty()) put(cacheKey, result)
         result
     }
@@ -177,7 +180,7 @@ internal object TmdbDiscoverClient {
         val cacheKey = "top_rated_shows_$page"
         get(cacheKey)?.let { return@withContext it }
         val url = "https://api.themoviedb.org/3/tv/top_rated?api_key=$apiKey&language=$language&page=$page"
-        val result = parseTmdbDiscoverList(url, MediaType.TvShow, executeGet)
+        val result = parseTmdbDiscoverList(url, MediaType.TvShow, apiKey, executeGet)
         if (result.isNotEmpty()) put(cacheKey, result)
         result
     }
@@ -198,7 +201,7 @@ internal object TmdbDiscoverClient {
         val endpoint = if (isMovie) "movie" else "tv"
         val mediaType = if (isMovie) MediaType.Movie else MediaType.TvShow
         val url = "https://api.themoviedb.org/3/discover/$endpoint?api_key=$apiKey&language=$language&with_genres=$genreId&sort_by=popularity.desc&page=1"
-        val result = parseTmdbDiscoverList(url, mediaType, executeGet)
+        val result = parseTmdbDiscoverList(url, mediaType, apiKey, executeGet)
 
         if (result.isNotEmpty()) put(cacheKey, result)
         result
@@ -214,10 +217,10 @@ internal object TmdbDiscoverClient {
         get(cacheKey)?.let { return@withContext it }
 
         val tvUrl = "https://api.themoviedb.org/3/discover/tv?api_key=$apiKey&language=$language&with_genres=16&with_original_language=ja&sort_by=popularity.desc&page=$page"
-        val tvResult = parseTmdbDiscoverList(tvUrl, MediaType.Anime, executeGet)
+        val tvResult = parseTmdbDiscoverList(tvUrl, MediaType.Anime, apiKey, executeGet)
 
         val movieUrl = "https://api.themoviedb.org/3/discover/movie?api_key=$apiKey&language=$language&with_genres=16&with_original_language=ja&sort_by=popularity.desc&page=$page"
-        val movieResult = parseTmdbDiscoverList(movieUrl, MediaType.Anime, executeGet)
+        val movieResult = parseTmdbDiscoverList(movieUrl, MediaType.Anime, apiKey, executeGet)
 
         val merged = mutableListOf<JikanSearchResult>()
         val maxSize = maxOf(tvResult.size, movieResult.size)
@@ -241,10 +244,10 @@ internal object TmdbDiscoverClient {
         get(cacheKey)?.let { return@withContext it }
 
         val tvUrl = "https://api.themoviedb.org/3/discover/tv?api_key=$apiKey&language=$language&with_genres=16&with_original_language=ja&sort_by=vote_count.desc&page=$page"
-        val tvResult = parseTmdbDiscoverList(tvUrl, MediaType.Anime, executeGet)
+        val tvResult = parseTmdbDiscoverList(tvUrl, MediaType.Anime, apiKey, executeGet)
 
         val movieUrl = "https://api.themoviedb.org/3/discover/movie?api_key=$apiKey&language=$language&with_genres=16&with_original_language=ja&sort_by=vote_count.desc&page=$page"
-        val movieResult = parseTmdbDiscoverList(movieUrl, MediaType.Anime, executeGet)
+        val movieResult = parseTmdbDiscoverList(movieUrl, MediaType.Anime, apiKey, executeGet)
 
         val merged = mutableListOf<JikanSearchResult>()
         val maxSize = maxOf(tvResult.size, movieResult.size)
@@ -268,10 +271,10 @@ internal object TmdbDiscoverClient {
         get(cacheKey)?.let { return@withContext it }
 
         val tvUrl = "https://api.themoviedb.org/3/discover/tv?api_key=$apiKey&language=$language&with_genres=16&with_original_language=ja&sort_by=vote_average.desc&vote_count.gte=200&page=$page"
-        val tvResult = parseTmdbDiscoverList(tvUrl, MediaType.Anime, executeGet)
+        val tvResult = parseTmdbDiscoverList(tvUrl, MediaType.Anime, apiKey, executeGet)
 
         val movieUrl = "https://api.themoviedb.org/3/discover/movie?api_key=$apiKey&language=$language&with_genres=16&with_original_language=ja&sort_by=vote_average.desc&vote_count.gte=100&page=$page"
-        val movieResult = parseTmdbDiscoverList(movieUrl, MediaType.Anime, executeGet)
+        val movieResult = parseTmdbDiscoverList(movieUrl, MediaType.Anime, apiKey, executeGet)
 
         val merged = mutableListOf<JikanSearchResult>()
         val maxSize = maxOf(tvResult.size, movieResult.size)
@@ -296,11 +299,11 @@ internal object TmdbDiscoverClient {
 
         // tv/on_the_air: Bu hafta yayında olan diziler — hepsi posterlidir
         val tvUrl = "https://api.themoviedb.org/3/tv/on_the_air?api_key=$apiKey&language=$language&page=$page"
-        val tvResult = parseTmdbDiscoverList(tvUrl, MediaType.TvShow, executeGet)
+        val tvResult = parseTmdbDiscoverList(tvUrl, MediaType.TvShow, apiKey, executeGet)
 
         // movie/upcoming: TMDB resmi yakında çıkacak filmler endpointi — hepsi posterlidir
         val movieUrl = "https://api.themoviedb.org/3/movie/upcoming?api_key=$apiKey&language=$language&page=$page"
-        val movieResult = parseTmdbDiscoverList(movieUrl, MediaType.Movie, executeGet)
+        val movieResult = parseTmdbDiscoverList(movieUrl, MediaType.Movie, apiKey, executeGet)
 
         val merged = mutableListOf<JikanSearchResult>()
         merged.addAll(tvResult)
@@ -366,6 +369,46 @@ internal object TmdbDiscoverClient {
 
     // ── Private Parsers ─────────────────────────────────────────────────────────
 
+    /**
+     * Başlığı hâlâ CJK (Japonca/Çince) kalan öğeler için TMDB alternatif
+     * başlıklarından Latin (İngilizce/romaji) yedek çözer. Sayfa başına en fazla
+     * [MAX_ALTERNATIVE_LOOKUPS] öğe için ek istek yapılır; bulunamayanlar
+     * olduğu gibi bırakılır (görüntü katmanı yine de Latin alanı tercih eder).
+     */
+    private const val MAX_ALTERNATIVE_LOOKUPS = 6
+
+    internal suspend fun patchCjkTitlesWithAlternatives(
+        list: MutableList<JikanSearchResult>,
+        apiKey: String,
+        executeGet: suspend (String) -> String?
+    ) {
+        val cjkIndices = list.indices
+            .filter { PreferenceHelpers.hasCjkCharacters(list[it].title) }
+            .take(MAX_ALTERNATIVE_LOOKUPS)
+        if (cjkIndices.isEmpty()) return
+        val latinTitles = coroutineScope {
+            cjkIndices.map { idx ->
+                async {
+                    val item = list[idx]
+                    val isMovie = item.type == MediaType.Movie
+                    val tmdbId = item.tmdbId ?: item.malId
+                    runCatching {
+                        TmdbTitleFallback.fetchLatinTitle(tmdbId, isMovie, apiKey, executeGet)
+                    }.getOrNull()
+                }
+            }.awaitAll()
+        }
+        cjkIndices.forEachIndexed { i, idx ->
+            val latin = latinTitles[i]?.takeIf { it.isNotBlank() } ?: return@forEachIndexed
+            val item = list[idx]
+            val keptEnglish = item.titleEnglish?.takeIf { PreferenceHelpers.isLatinReadable(it) }
+            list[idx] = item.copy(
+                title = latin,
+                titleEnglish = keptEnglish ?: latin
+            )
+        }
+    }
+
     private suspend fun fetchEnglishTitlesMap(
         url: String,
         executeGet: suspend (String) -> String?
@@ -397,6 +440,7 @@ internal object TmdbDiscoverClient {
     private suspend fun parseTmdbDiscoverList(
         url: String,
         mediaType: MediaType,
+        apiKey: String,
         executeGet: suspend (String) -> String?
     ): List<JikanSearchResult> = withContext(Dispatchers.IO) {
         try {
@@ -466,7 +510,7 @@ internal object TmdbDiscoverClient {
                 val hasCjk = PreferenceHelpers.hasCjkCharacters(title)
                 val enFallback = enTitlesMap?.get(tmdbId)?.takeIf { it.isNotBlank() && !PreferenceHelpers.hasCjkCharacters(it) }
                 val resolvedTitleEnglish = if (originalLang.equals("en", ignoreCase = true)) {
-                    originalTitle
+                    originalTitle.takeIf { it.isNotBlank() }
                 } else if (!enFallback.isNullOrBlank()) {
                     enFallback
                 } else if (!hasCjk) {
@@ -490,6 +534,9 @@ internal object TmdbDiscoverClient {
                     )
                 )
             }
+            // Türkçe ve İngilizce başlıkların ikisi de CJK kaldıysa alternatif
+            // başlıklardan Latin (İngilizce/romaji) yedek dene.
+            patchCjkTitlesWithAlternatives(list, apiKey, executeGet)
             list
         } catch (e: Exception) {
             Log.e(TAG, "parseTmdbDiscoverList error: ${e.message}", e)
@@ -499,6 +546,7 @@ internal object TmdbDiscoverClient {
 
     private suspend fun parseTmdbDiscoverListAll(
         url: String,
+        apiKey: String,
         executeGet: suspend (String) -> String?
     ): List<JikanSearchResult> = withContext(Dispatchers.IO) {
         try {
@@ -564,7 +612,7 @@ internal object TmdbDiscoverClient {
                 val hasCjk = PreferenceHelpers.hasCjkCharacters(title)
                 val enFallback = enTitlesMap?.get(tmdbId)?.takeIf { it.isNotBlank() && !PreferenceHelpers.hasCjkCharacters(it) }
                 val resolvedTitleEnglish = if (originalLang.equals("en", ignoreCase = true)) {
-                    originalTitle
+                    originalTitle.takeIf { it.isNotBlank() }
                 } else if (!enFallback.isNullOrBlank()) {
                     enFallback
                 } else if (!hasCjk) {
@@ -588,6 +636,9 @@ internal object TmdbDiscoverClient {
                     )
                 )
             }
+            // Türkçe ve İngilizce başlıkların ikisi de CJK kaldıysa alternatif
+            // başlıklardan Latin (İngilizce/romaji) yedek dene.
+            patchCjkTitlesWithAlternatives(list, apiKey, executeGet)
             list
         } catch (e: Exception) {
             Log.e(TAG, "parseTmdbDiscoverListAll error: ${e.message}", e)

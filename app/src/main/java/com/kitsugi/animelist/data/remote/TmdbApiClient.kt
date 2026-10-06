@@ -290,7 +290,9 @@ class TmdbApiClient(
                 val originalTitle = if (isMovie) item.optString("original_title", "") else item.optString("original_name", "")
                 val originalLang = item.optString("original_language", "")
                 val enTitle = enTitlesMap[tmdbId]?.takeIf { it.isNotBlank() }
-                    ?: if (originalLang.equals("en", ignoreCase = true)) originalTitle else null
+                    ?: if (originalLang.equals("en", ignoreCase = true)) {
+                        originalTitle.takeIf { PreferenceHelpers.isLatinReadable(it) }
+                    } else null
 
                 // Türkçe istendiğinde eğer TMDB Türkçe başlık sunmamış ve doğrudan Japonca/CJK orijinal başlığı dönmüşse,
                 // veya başlık CJK karakterler içeriyorsa, otomatik olarak İngilizce başlığı tercih et.
@@ -410,6 +412,20 @@ class TmdbApiClient(
                 val mediaType = if (isMovie) MediaType.Movie else MediaType.TvShow
                 val title = if (isMovie) item.optString("title", "") else item.optString("name", "")
                 if (title.isBlank()) continue
+                val originalTitle = if (isMovie) item.optString("original_title", "") else item.optString("original_name", "")
+                val originalLang = item.optString("original_language", "")
+                val hasCjk = PreferenceHelpers.hasCjkCharacters(title)
+                val latinOriginal = originalTitle.takeIf { PreferenceHelpers.isLatinReadable(it) }
+                // Yerelleştirilmiş başlık CJK ise ve orijinal başlık Latin ise orijinali tercih et
+                val resolvedTitle = if (hasCjk) latinOriginal ?: title else title
+                val resolvedTitleEnglish = when {
+                    originalLang.equals("en", ignoreCase = true) -> latinOriginal
+                    !hasCjk -> title
+                    else -> latinOriginal
+                }
+                val resolvedTitleJapanese = if (hasCjk || originalLang == "ja") {
+                    originalTitle.ifBlank { title }
+                } else null
                 val posterPath = item.optNullableString("poster_path") ?: ""
                 val releaseDate = if (isMovie) item.optString("release_date", "") else item.optString("first_air_date", "")
                 val year = releaseDate.take(4).toIntOrNull()
@@ -422,16 +438,18 @@ class TmdbApiClient(
                 }
                 list.add(
                     JikanSearchResult(
-                        malId = tmdbId, title = title,
+                        malId = tmdbId, title = resolvedTitle,
                         subtitle = subtitleParts.joinToString(", "),
                         type = mediaType, total = null, score = score,
                         isAdult = item.optBoolean("adult", false),
                         imageUrl = imageUrl, year = year, source = "tmdb",
-                        realMalId = null, titleEnglish = title, titleJapanese = null,
+                        realMalId = null, titleEnglish = resolvedTitleEnglish, titleJapanese = resolvedTitleJapanese,
                         tmdbId = tmdbId
                     )
                 )
             }
+            // Başlığı hâlâ CJK kalan öğeler için alternatif başlıklardan Latin yedek dene.
+            TmdbDiscoverClient.patchCjkTitlesWithAlternatives(list, apiKey, ::executeGet)
             list
         } catch (e: Exception) {
             Log.e(TAG, "discoverAdvanced error: ${e.message}", e)

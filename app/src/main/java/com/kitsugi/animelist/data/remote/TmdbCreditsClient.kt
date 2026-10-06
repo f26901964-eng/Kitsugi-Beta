@@ -164,7 +164,11 @@ internal object TmdbCreditsClient {
                 val isAdult = item.optBoolean("adult", false)
                 if (isAdult) continue
                 val id = item.optInt("id")
-                val title = if (isMovie) item.optString("title", "Bilinmeyen") else item.optString("name", "Bilinmeyen")
+                val rawTitle = if (isMovie) item.optString("title", "Bilinmeyen") else item.optString("name", "Bilinmeyen")
+                val originalTitle = if (isMovie) item.optString("original_title", "") else item.optString("original_name", "")
+                val originalLang = item.optString("original_language", "")
+                val latinOriginal = originalTitle.takeIf { PreferenceHelpers.isLatinReadable(it) }
+                val title = if (PreferenceHelpers.isLatinReadable(rawTitle)) rawTitle else latinOriginal ?: rawTitle
                 val posterPath = item.optNullableString("poster_path") ?: ""
                 val imageUrl = if (posterPath.isNotEmpty()) "$IMG_W185$posterPath" else null
                 list.add(
@@ -172,7 +176,12 @@ internal object TmdbCreditsClient {
                         malId = id, title = title, relationType = "Tavsiye",
                         imageUrl = imageUrl,
                         mediaType = if (isMovie) MediaType.Movie else MediaType.TvShow,
-                        source = "tmdb"
+                        source = "tmdb",
+                        titleEnglish = latinOriginal
+                            ?: rawTitle.takeIf { PreferenceHelpers.isLatinReadable(it) },
+                        titleJapanese = if (originalLang == "ja" || PreferenceHelpers.hasCjkCharacters(originalTitle)) {
+                            originalTitle.ifBlank { null }
+                        } else null
                     )
                 )
             }
@@ -405,7 +414,13 @@ internal object TmdbCreditsClient {
             for (item in sorted) {
                 val mediaId = item.optInt("id")
                 val isMovie = item.optString("media_type") == "movie"
-                val mediaTitle = if (isMovie) item.optString("title", "Bilinmeyen") else item.optString("name", "Bilinmeyen")
+                val rawMediaTitle = if (isMovie) item.optString("title", "Bilinmeyen") else item.optString("name", "Bilinmeyen")
+                val roleOriginalTitle = if (isMovie) item.optString("original_title", "") else item.optString("original_name", "")
+                val mediaTitle = if (PreferenceHelpers.isLatinReadable(rawMediaTitle)) {
+                    rawMediaTitle
+                } else {
+                    roleOriginalTitle.takeIf { PreferenceHelpers.isLatinReadable(it) } ?: rawMediaTitle
+                }
                 val characterName = item.optString("character", "").ifBlank { "Bilinmeyen" }
                 val posterPath = item.optNullableString("poster_path") ?: ""
                 val mediaImageUrl = if (posterPath.isNotEmpty()) "$IMG_W185$posterPath" else null

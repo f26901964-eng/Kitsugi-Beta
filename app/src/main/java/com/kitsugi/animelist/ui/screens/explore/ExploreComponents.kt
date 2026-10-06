@@ -143,10 +143,7 @@ fun AiringSoonHorizontalCard(
     blurAdultMedia: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    val displayTitle = when (titleLanguage) {
-        "ENGLISH" -> result.titleEnglish ?: result.title
-        else      -> result.title
-    }
+    val displayTitle = result.getDisplayTitle(titleLanguage)
 
     val displayScore = when {
         result.rawScoreDouble != null -> "★ ${result.rawScoreDouble}"

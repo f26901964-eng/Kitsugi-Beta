@@ -1,4 +1,5 @@
 ﻿package com.kitsugi.animelist.ui.components
+import com.kitsugi.animelist.utils.PreferenceHelpers
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.Context
@@ -319,20 +320,13 @@ fun KitsugiActivityDetailBottomSheet(
                                 }
                             }
 
-                            val localizedTitle = when (titleLanguage) {
-                                "ENGLISH" -> act.mediaTitleEnglish?.takeIf { it.isNotBlank() }
-                                    ?: act.mediaTitleRomaji
-                                    ?: act.mediaTitleNative
-                                    ?: act.mediaTitle
-                                "NATIVE", "JAPANESE_STAFF" -> act.mediaTitleNative?.takeIf { it.isNotBlank() }
-                                    ?: act.mediaTitleRomaji
-                                    ?: act.mediaTitleEnglish
-                                    ?: act.mediaTitle
-                                else -> act.mediaTitleRomaji
-                                    ?: act.mediaTitleEnglish
-                                    ?: act.mediaTitleNative
-                                    ?: act.mediaTitle
-                            }
+                            val localizedTitle = PreferenceHelpers.resolveActivityTitle(
+                                mediaTitleRomaji = act.mediaTitleRomaji,
+                                mediaTitleEnglish = act.mediaTitleEnglish,
+                                mediaTitleNative = act.mediaTitleNative,
+                                mediaTitle = act.mediaTitle,
+                                titleLanguage = titleLanguage
+                            )
                             val localizedDisplayText = if (act.mediaTitle != null && localizedTitle != null && localizedTitle != act.mediaTitle) {
                                 act.text.replace("**${act.mediaTitle}**", "**$localizedTitle**")
                             } else act.text

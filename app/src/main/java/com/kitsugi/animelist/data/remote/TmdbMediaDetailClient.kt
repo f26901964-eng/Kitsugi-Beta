@@ -54,19 +54,28 @@ internal object TmdbMediaDetailClient {
             val originalTitle = if (isMovie) finalJson.optString("original_title", "") else finalJson.optString("original_name", "")
             val originalLang = finalJson.optString("original_language", "")
 
-            // Türkçe başlık yoksa veya Japonca/CJK karakter gelmişse İngilizce başlığa düş
-            val hasCjkInTr = com.kitsugi.animelist.utils.PreferenceHelpers.hasCjkCharacters(rawTrTitle)
-            val finalTitle = when {
-                !rawTrTitle.isNullOrBlank() && !hasCjkInTr -> rawTrTitle
-                !rawEnTitle.isNullOrBlank() -> rawEnTitle
-                !rawTrTitle.isNullOrBlank() -> rawTrTitle
-                else -> originalTitle
-            }
+            // Türkçe → İngilizce → Latin orijinal → alternatif başlık (romaji) zinciri.
+            // Japonca/Çince seçilmedikçe CJK başlık gösterilmez.
+            val latinTr = rawTrTitle?.takeIf { com.kitsugi.animelist.utils.PreferenceHelpers.isLatinReadable(it) }
+            val latinEn = rawEnTitle?.takeIf { com.kitsugi.animelist.utils.PreferenceHelpers.isLatinReadable(it) }
+            val latinOriginal = originalTitle.takeIf { com.kitsugi.animelist.utils.PreferenceHelpers.isLatinReadable(it) }
+            val alternativeLatin = if (latinTr == null && latinEn == null && latinOriginal == null) {
+                runCatching {
+                    TmdbTitleFallback.fetchLatinTitle(tmdbId, isMovie, apiKey, executeGet)
+                }.getOrNull()?.takeIf { it.isNotBlank() }
+            } else null
+            val finalTitle = latinTr
+                ?: latinEn
+                ?: latinOriginal
+                ?: alternativeLatin
+                ?: rawEnTitle?.takeIf { it.isNotBlank() }
+                ?: rawTrTitle?.takeIf { it.isNotBlank() }
+                ?: originalTitle.ifBlank { "Bilinmeyen" }
 
-            val titleEnglish = rawEnTitle?.takeIf { it.isNotBlank() } ?: finalTitle
+            val titleEnglish = latinEn ?: alternativeLatin
             val isJapanese = originalLang.equals("ja", ignoreCase = true) || com.kitsugi.animelist.utils.PreferenceHelpers.hasCjkCharacters(originalTitle)
             val titleJapanese = if (isJapanese) originalTitle.takeIf { it.isNotBlank() } else null
-            val titleRomaji = rawEnTitle?.takeIf { it.isNotBlank() } ?: finalTitle
+            val titleRomaji = latinEn ?: latinTr ?: alternativeLatin ?: finalTitle
 
             val posterPath = finalJson.optNullableString("poster_path") ?: ""
             val genresArray = finalJson.optJSONArray("genres")

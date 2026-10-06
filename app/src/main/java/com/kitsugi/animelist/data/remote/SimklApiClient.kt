@@ -1305,6 +1305,15 @@ class SimklApiClient(
                     val poster = obj.optString("poster", "")
                     val year  = obj.optInt("year", 0)
                     val tmdbId = ids.optInt("tmdb", 0)
+                    // MAL eşleştirmesi için (MAL bildirim yedek kaynağı)
+                    val malId = ids.optInt("mal", 0).takeIf { it > 0 }
+                    // Bölüm / yayın tarihi (savunmacı ayrıştırma — alanlar CDN'e göre değişebilir)
+                    val episodeNum = obj.optInt("episode", 0).takeIf { it > 0 }
+                        ?: obj.optInt("number", 0).takeIf { it > 0 }
+                    val airDateRaw = listOf("air_date", "first_aired", "aired", "airdate", "release_date", "released")
+                        .firstNotNullOfOrNull { key -> obj.optString(key, "").takeIf { it.isNotBlank() } }
+                    val airEpoch = parseSimklAirDate(airDateRaw)
+                    val nextAiring = if (airEpoch != null) "${episodeNum ?: 0}|$airEpoch" else null
 
                     val mediaType = when (cdnType) {
                         "movie_release" -> MediaType.Movie
@@ -1324,10 +1333,11 @@ class SimklApiClient(
                             imageUrl = if (poster.isNotEmpty()) "https://simkl.in/posters/${poster}_m.jpg" else null,
                             year = if (year > 0) year else null,
                             source = "simkl",
-                            realMalId = null,
+                            realMalId = malId,
                             titleEnglish = title,
                             titleJapanese = null,
-                            tmdbId = if (tmdbId > 0) tmdbId else null
+                            tmdbId = if (tmdbId > 0) tmdbId else null,
+                            nextAiringEpisode = nextAiring
                         )
                     )
                 }
@@ -1337,6 +1347,37 @@ class SimklApiClient(
             android.util.Log.e("SimklApiClient", "getCalendar $cdnType failed: ${e.message}")
             emptyList()
         }
+    }
+
+    /**
+     * Simkl CDN takvim tarih alanını epoch-saniyeye çevirir.
+     * Desteklenen biçimler: epoch, "yyyy-MM-dd'T'HH:mm:ss['Z']", "yyyy-MM-dd HH:mm:ss", "yyyy-MM-dd".
+     * Ayrıştırılamazsa null döner.
+     */
+    private fun parseSimklAirDate(raw: String?): Long? {
+        if (raw.isNullOrBlank()) return null
+        val cleaned = raw.trim()
+        cleaned.toLongOrNull()?.let { value ->
+            if (value > 0) return if (value > 2_000_000_000L) value / 1000L else value
+        }
+        val formats = listOf(
+            "yyyy-MM-dd'T'HH:mm:ss'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss",
+            "yyyy-MM-dd HH:mm:ss",
+            "yyyy-MM-dd"
+        )
+        for (pattern in formats) {
+            try {
+                val sdf = java.text.SimpleDateFormat(pattern, java.util.Locale.US)
+                sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
+                sdf.isLenient = false
+                val parsed = sdf.parse(cleaned) ?: continue
+                return parsed.time / 1000L
+            } catch (_: Exception) {
+                // Sonraki biçimi dene
+            }
+        }
+        return null
     }
 
     /**

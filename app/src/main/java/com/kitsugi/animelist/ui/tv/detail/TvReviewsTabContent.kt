@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.tv.detail
 
+import com.kitsugi.animelist.utils.PreferenceHelpers
 import android.widget.Toast
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -474,13 +475,13 @@ private fun TvActivityCard(
                     .weight(1f)
                     .heightIn(min = 36.dp, max = 50.dp)
             ) {
-                val localizedTitle = when (titleLanguage) {
-                    "ENGLISH" -> activity.mediaTitleEnglish?.takeIf { it.isNotBlank() }
-                        ?: activity.mediaTitleRomaji ?: activity.mediaTitleNative ?: activity.mediaTitle
-                    "NATIVE", "JAPANESE_STAFF" -> activity.mediaTitleNative?.takeIf { it.isNotBlank() }
-                        ?: activity.mediaTitleRomaji ?: activity.mediaTitleEnglish ?: activity.mediaTitle
-                    else -> activity.mediaTitleRomaji ?: activity.mediaTitleEnglish ?: activity.mediaTitleNative ?: activity.mediaTitle
-                }
+                val localizedTitle = PreferenceHelpers.resolveActivityTitle(
+                    mediaTitleRomaji = activity.mediaTitleRomaji,
+                    mediaTitleEnglish = activity.mediaTitleEnglish,
+                    mediaTitleNative = activity.mediaTitleNative,
+                    mediaTitle = activity.mediaTitle,
+                    titleLanguage = titleLanguage
+                )
                 val displayText = if (activity.mediaTitle != null && localizedTitle != null && localizedTitle != activity.mediaTitle) {
                     activity.text.replace("**${activity.mediaTitle}**", "**$localizedTitle**")
                 } else activity.text

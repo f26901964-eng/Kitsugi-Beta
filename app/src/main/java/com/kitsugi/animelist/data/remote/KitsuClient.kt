@@ -341,8 +341,14 @@ object KitsuClient {
 
         val canonicalTitle = attributes.optString("canonicalTitle", "")
         val titlesObj = attributes.optJSONObject("titles")
-        val titleEnglish = titlesObj?.optString("en", "").takeIf { !it.isNullOrBlank() } ?: canonicalTitle
-        val titleRomaji = titlesObj?.optString("en_jp", "").takeIf { !it.isNullOrBlank() } ?: canonicalTitle
+        val rawEn = titlesObj?.optString("en", "").takeIf { !it.isNullOrBlank() }
+        val rawEnJp = titlesObj?.optString("en_jp", "").takeIf { !it.isNullOrBlank() }
+        // Latin öncelikli: canonical → İngilizce → romaji; CJK yalnızca son çare
+        val latinCanonical = canonicalTitle.takeIf { com.kitsugi.animelist.utils.PreferenceHelpers.isLatinReadable(it) }
+        val resolvedMainTitle = latinCanonical ?: rawEn ?: rawEnJp
+            ?: canonicalTitle.takeIf { it.isNotBlank() } ?: "Başlıksız"
+        val titleEnglish = rawEn ?: rawEnJp ?: latinCanonical
+        val titleRomaji = rawEnJp ?: rawEn ?: latinCanonical
         val titleNative = titlesObj?.optString("ja_jp", "").takeIf { !it.isNullOrBlank() }
         val synonyms = attributes.optJSONArray("abbreviatedTitles")?.let { arr ->
             (0 until arr.length()).mapNotNull { arr.optString(it).takeIf { s -> s.isNotBlank() } }
@@ -401,7 +407,7 @@ object KitsuClient {
             titleEnglish = titleEnglish,
             titleRomaji = titleRomaji,
             titleNative = titleNative,
-            title = canonicalTitle,
+            title = resolvedMainTitle,
             imageUrl = imageUrl,
             score = scoreVal,
             year = yearVal,
