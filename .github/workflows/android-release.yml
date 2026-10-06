@@ -1,4 +1,4 @@
-name: Android Release APK Build
+name: Android FOSS Release APK Build
 
 on:
   workflow_dispatch:
@@ -22,8 +22,8 @@ concurrency:
 
 jobs:
   build-release-apks:
-    name: Build and verify FOSS + GMS APKs
-    runs-on: ubuntu-latest
+    name: Build and verify FOSS APK
+    runs-on: ubuntu-24.04
     timeout-minutes: 90
 
     steps:
@@ -88,7 +88,7 @@ jobs:
       - name: Install Fastlane
         run: gem install fastlane --no-document
 
-      - name: Build both signed release variants
+      - name: Build signed FOSS release APK
         shell: bash
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -137,34 +137,32 @@ jobs:
           rm -f "$build_log"
           exit "$build_status"
 
-      - name: Verify APK signatures match existing installations
+      - name: Verify FOSS APK signature matches existing installations
         shell: bash
         env:
           EXPECTED_CERT_SHA256: A53115764FF5E259E0E5ACEC3C58A85166E88AAD110CD8A20674EEFEA5D6C016
         run: |
           set -euo pipefail
           apksigner="$ANDROID_HOME/build-tools/36.0.0/apksigner"
-          for flavor in foss gms; do
-            apk_dir="app/build/outputs/apk/$flavor/release"
-            mapfile -t apks < <(find "$apk_dir" -maxdepth 1 -type f -name '*.apk' -print | sort)
-            if [[ "${#apks[@]}" -ne 1 ]]; then
-              echo "::error::Expected one $flavor release APK in $apk_dir; found ${#apks[@]}."
-              exit 1
-            fi
+          apk_dir="app/build/outputs/apk/foss/release"
+          mapfile -t apks < <(find "$apk_dir" -maxdepth 1 -type f -name '*.apk' -print | sort)
+          if [[ "${#apks[@]}" -ne 1 ]]; then
+            echo "::error::Expected one FOSS release APK in $apk_dir; found ${#apks[@]}."
+            exit 1
+          fi
 
-            signer_digest="$("$apksigner" verify --print-certs "${apks[0]}" 2>&1 | awk -F': ' 'tolower($0) ~ /certificate sha-256 digest:/ { gsub(/:/, "", $NF); print toupper($NF); exit }')"
-            if [[ "$signer_digest" != "$EXPECTED_CERT_SHA256" ]]; then
-              echo "::error::The $flavor APK signer does not match the certificate used by existing installs."
-              exit 1
-            fi
-            echo "Verified $flavor APK signature against the existing-install certificate."
-          done
+          signer_digest="$("$apksigner" verify --print-certs "${apks[0]}" 2>&1 | awk -F': ' 'tolower($0) ~ /certificate sha-256 digest:/ { gsub(/:/, "", $NF); print toupper($NF); exit }')"
+          if [[ "$signer_digest" != "$EXPECTED_CERT_SHA256" ]]; then
+            echo "::error::The FOSS APK signer does not match the certificate used by existing installs."
+            exit 1
+          fi
+          echo "Verified FOSS APK signature against the existing-install certificate."
 
-      - name: Upload verified APK build artifacts
-        uses: actions/upload-artifact@v4
+      - name: Upload verified FOSS release APK
+        uses: actions/upload-artifact@v7.0.1
         with:
-          name: kitsugi-release-apks-${{ github.run_number }}
-          path: app/build/outputs/apk/*/release/*.apk
+          name: kitsugi-foss-release-apk-${{ github.run_number }}
+          path: app/build/outputs/apk/foss/release/*.apk
           if-no-files-found: error
           retention-days: 14
 
