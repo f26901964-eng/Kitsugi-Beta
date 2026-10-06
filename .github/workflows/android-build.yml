@@ -50,14 +50,21 @@ jobs:
 
       - name: ⚙️ CI bellek ayarları (runner 7GB — proje 8GB istiyor)
         run: |
+          # 6GB swap: derleyici bellek dalgalanmalarında OOM-killer'a yem olmayalım
+          sudo fallocate -l 6G /swapfile 2>/dev/null || sudo dd if=/dev/zero of=/swapfile bs=1M count=6144
+          sudo chmod 600 /swapfile
+          sudo mkswap /swapfile
+          sudo swapon /swapfile
+          free -h
           mkdir -p ~/.gradle
           cat > ~/.gradle/gradle.properties << 'EOF'
-          org.gradle.jvmargs=-Xmx4g -Xms512m -XX:+UseG1GC -Dfile.encoding=UTF-8
+          org.gradle.jvmargs=-Xmx2g -Xms512m -XX:+UseG1GC -Dfile.encoding=UTF-8
           org.gradle.workers.max=2
           org.gradle.parallel=true
           org.gradle.daemon=true
           org.gradle.caching=true
-          kotlin.daemon.jvmargs=-Xmx3g -Xms512m -XX:+UseG1GC
+          kotlin.daemon.jvmargs=-Xmx4g -Xms1g -XX:+UseG1GC
+          kotlin.compiler.execution.strategy=daemon
           EOF
           cat ~/.gradle/gradle.properties
 
