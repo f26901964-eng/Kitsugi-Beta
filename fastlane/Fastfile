@@ -30,6 +30,7 @@ platform :android do
       task: "assemble",
       flavor: "foss",
       build_type: "release",
+      flags: "--stacktrace --console=plain --no-daemon --max-workers=2",
       print_command: false,
       properties: release_signing_properties
     )
@@ -41,6 +42,7 @@ platform :android do
       task: "assemble",
       flavor: "gms",
       build_type: "release",
+      flags: "--stacktrace --console=plain --no-daemon --max-workers=2",
       print_command: false,
       properties: release_signing_properties
     )

@@ -89,11 +89,52 @@ jobs:
         run: gem install fastlane --no-document
 
       - name: Build both signed release variants
-        run: fastlane android production
+        shell: bash
         env:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set +e
+          build_log="$RUNNER_TEMP/kitsugi-fastlane-build.log"
+          fastlane android production > "$build_log" 2>&1
+          build_status=$?
+
+          if [[ "$build_status" -ne 0 ]]; then
+            python3 - "$build_log" <<'PY'
+          import os
+          import re
+          import sys
+
+          with open(sys.argv[1], encoding="utf-8", errors="replace") as log_file:
+              lines = log_file.read().splitlines()
+
+          patterns = re.compile(
+              r"FAILURE:|What went wrong:|Execution failed for task|Could not |"
+              r"Caused by:|Exception|(^|\s)e: |error:|Task .* FAILED|BUILD FAILED"
+          )
+          diagnostics = [line for line in lines if patterns.search(line)]
+          if not diagnostics:
+              diagnostics = [line for line in lines if line.strip()][-20:]
+
+          secrets = {
+              os.environ.get(name, "")
+              for name in ("KEYSTORE_PASSWORD", "KEY_ALIAS", "KEY_PASSWORD")
+              if os.environ.get(name)
+          }
+          for line in diagnostics[-30:]:
+              for secret in secrets:
+                  line = line.replace(secret, "[REDACTED]")
+              line = line.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+              print(f"::error title=Fastlane/Gradle diagnostic::{line[:1000]}")
+          PY
+          else
+            echo "Fastlane completed; filtered output tail:"
+            tail -n 25 "$build_log"
+          fi
+
+          rm -f "$build_log"
+          exit "$build_status"
 
       - name: Verify APK signatures match existing installations
         shell: bash
