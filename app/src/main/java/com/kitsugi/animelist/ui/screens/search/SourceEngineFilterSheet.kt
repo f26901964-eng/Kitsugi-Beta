@@ -1,4 +1,4 @@
-﻿package com.kitsugi.animelist.ui.screens.search
+package com.kitsugi.animelist.ui.screens.search
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.foundation.background
@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -112,6 +113,132 @@ fun SourceEngineFilterSheet(
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Text("Sıfırla", color = KitsugiColors.TextMuted, style = MaterialTheme.typography.labelSmall)
+                }
+            }
+
+            // ── Kategori (Kapsam) Seçimi ─────────────────────────────────────
+            // Arama sayfasındaki kategori çipleri buraya taşındı: sağ üstteki
+            // buton bu sheet üzerinden tüm kapsam/sıralama/filtre öğelerini kapsar.
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    text = "🗂️ Kategori",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = KitsugiColors.TextPrimary
+                    )
+                )
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    uiState.selectedEngine.availableScopes().forEach { scope ->
+                        val isSelected = scope == uiState.selectedScope
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(16.dp))
+                                .background(
+                                    if (isSelected) accentColor.copy(alpha = 0.18f)
+                                    else KitsugiColors.SurfaceElevated.copy(alpha = 0.7f)
+                                )
+                                .border(
+                                    width = if (isSelected) 1.5.dp else 1.dp,
+                                    color = if (isSelected) accentColor else Color.Transparent,
+                                    shape = RoundedCornerShape(16.dp)
+                                )
+                                .clickable { viewModel.setScope(scope) }
+                                .padding(horizontal = 14.dp, vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = scope.displayLabel,
+                                style = MaterialTheme.typography.labelMedium.copy(
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) accentColor else KitsugiColors.TextSecondary
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+
+            // ── Sıralama ─────────────────────────────────────────────────────
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    text = "🔃 Sıralama",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        color = KitsugiColors.TextPrimary
+                    )
+                )
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    sortOptionsForEngine(uiState.selectedEngine).forEach { (key, label) ->
+                        val isSelected = key == getCurrentSortKey(uiState)
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(
+                                    if (isSelected) accentColor.copy(alpha = 0.2f)
+                                    else KitsugiColors.SurfaceElevated.copy(alpha = 0.6f)
+                                )
+                                .border(
+                                    width = if (isSelected) 1.5.dp else 1.dp,
+                                    color = if (isSelected) accentColor else Color.Transparent,
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .clickable {
+                                    applyEngineSort(uiState.selectedEngine, key, viewModel)
+                                }
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.labelSmall.copy(
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    color = if (isSelected) accentColor else KitsugiColors.TextSecondary
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+
+            // ── Tümü modu bilgisi ────────────────────────────────────────────
+            if (uiState.selectedEngine == SearchSourceEngine.ALL) {
+                Text(
+                    text = "🌐 6 platformun (AniList, MAL, TMDB, Shikimori, Kitsu, Simkl) tüm kaynakları eşzamanlı taranıyor.",
+                    style = MaterialTheme.typography.bodySmall.copy(color = KitsugiColors.TextMuted)
+                )
+            }
+
+            // ── Hızlı Filtreler ──────────────────────────────────────────────
+            // Ana sayfadan kaldırılan hızlı filtre çipleri (format, durum, ülke
+            // vb.) işlev kaybı olmaması için bu sheet'e taşındı.
+            if (uiState.selectedEngine != SearchSourceEngine.ALL) {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        text = "⚡ Hızlı Filtreler",
+                        style = MaterialTheme.typography.titleMedium.copy(
+                            fontWeight = FontWeight.Bold,
+                            color = KitsugiColors.TextPrimary
+                        )
+                    )
+                    when (uiState.selectedEngine) {
+                        SearchSourceEngine.ANILIST -> AniListQuickChips(uiState, viewModel)
+                        SearchSourceEngine.MAL -> MalQuickChips(uiState, viewModel)
+                        SearchSourceEngine.TMDB -> TmdbQuickChips(uiState, viewModel)
+                        SearchSourceEngine.SHIKIMORI -> ShikimoriQuickChips(uiState, viewModel)
+                        SearchSourceEngine.KITSU -> KitsuQuickChips(uiState, viewModel)
+                        SearchSourceEngine.SIMKL -> SimklQuickChips(uiState, viewModel)
+                        SearchSourceEngine.ALL -> Unit
+                    }
                 }
             }
 

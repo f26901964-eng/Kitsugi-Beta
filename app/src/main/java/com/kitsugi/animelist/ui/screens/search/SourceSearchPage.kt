@@ -1,0 +1,139 @@
+package com.kitsugi.animelist.ui.screens.search
+
+import android.app.Application
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.lifecycle.AndroidViewModelFactory
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.kitsugi.animelist.data.remote.ApiSearchSelection
+import com.kitsugi.animelist.data.remote.JikanSearchResult
+import com.kitsugi.animelist.model.MediaEntry
+import com.kitsugi.animelist.ui.theme.KitsugiColors
+
+/**
+ * "Tümünü Gör" ile açılan kaynağa özel tam arama sayfası.
+ *
+ * Çoklu arama sonuçlarındaki bir platform rafının "Tümünü Gör" butonu,
+ * o kaynağın filtreleri ve arama sonuçlarıyla birlikte AYRI bir sayfada
+ * açılır. Sayfa, ana arama sayfasının ViewModel'inden izole own ViewModel
+ * instance'ı kullanır — böylece burada değiştirilen motor/kapsam/filtre
+ * durumu ana sayfaya sızmaz ve geri dönüldüğünde çoklu arama olduğu gibi kalır.
+ */
+@Composable
+fun SourceSearchPage(
+    engine: SearchSourceEngine,
+    initialQuery: String,
+    mediaEntries: List<MediaEntry>,
+    showAdultContent: Boolean,
+    titleLanguage: String = "ROMAJI",
+    scoreFormat: String = "POINT_10",
+    hideScores: Boolean = false,
+    onBackClick: () -> Unit,
+    onOpenApiDetail: (JikanSearchResult) -> Unit,
+    onAddSelectionToList: (ApiSearchSelection) -> Unit,
+    onOpenPluginPicker: () -> Unit = {},
+    onOpenAddonExplore: (String) -> Unit = {},
+    onOpenCharacterDetail: (Int, String?, String?) -> Unit = { _, _, _ -> },
+    onOpenStaffDetail: (Int, String?, String?) -> Unit = { _, _, _ -> }
+) {
+    // ── İzole ViewModel ────────────────────────────────────────────────────
+    val context = LocalContext.current
+    val owner = remember {
+        object : ViewModelStoreOwner {
+            override val viewModelStore = ViewModelStore()
+        }
+    }
+    val factory = remember(context) {
+        AndroidViewModelFactory.getInstance(context.applicationContext as Application)
+    }
+    val pageViewModel: SearchViewModel = viewModel(viewModelStoreOwner = owner, factory = factory)
+    DisposableEffect(owner) {
+        onDispose { owner.viewModelStore.clear() }
+    }
+
+    LaunchedEffect(engine, initialQuery) {
+        pageViewModel.setEngine(engine)
+        if (initialQuery.isNotBlank()) {
+            pageViewModel.setQuery(initialQuery)
+        }
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(KitsugiColors.Background)
+    ) {
+        // ── Üst Bar: Geri + Kaynak Başlığı ─────────────────────────────────
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .statusBarsPadding()
+                .padding(horizontal = 8.dp, vertical = 4.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            IconButton(onClick = onBackClick) {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                    contentDescription = "Geri",
+                    tint = KitsugiColors.TextPrimary
+                )
+            }
+            Text(
+                text = "${engine.emoji} ${engine.label} Arama",
+                color = KitsugiColors.TextPrimary,
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
+            )
+            Spacer(modifier = Modifier.width(8.dp))
+        }
+
+        // ── Kaynağa Özel Arama Sayfası (filtreler + sonuçlar) ─────────────
+        SearchScreen(
+            currentEntries = mediaEntries,
+            showAdultContent = showAdultContent,
+            onOpenApiDetail = onOpenApiDetail,
+            onAddSelectionToList = onAddSelectionToList,
+            viewModel = pageViewModel,
+            titleLanguage = titleLanguage,
+            scoreFormat = scoreFormat,
+            hideScores = hideScores,
+            onOpenPluginPicker = onOpenPluginPicker,
+            onOpenAddonExplore = onOpenAddonExplore,
+            onOpenCharacterDetail = onOpenCharacterDetail,
+            onOpenStaffDetail = onOpenStaffDetail,
+            // Bu sayfa içinde "Tümü" motoruna geçilirse rafların "Tümünü Gör"ü
+            // sayfayı ilgili kaynağa geçirir (yeni sayfa yığmadan kaçınır).
+            onOpenSourceSearch = { subEngine -> pageViewModel.setEngine(subEngine) },
+            isBottomBarVisible = false,
+            pageTitle = null
+        )
+    }
+}

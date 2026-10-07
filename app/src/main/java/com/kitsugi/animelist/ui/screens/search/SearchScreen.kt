@@ -106,7 +106,11 @@ fun SearchScreen(
     onOpenCharacterDetail: ((characterId: Int, name: String?, imageUrl: String?) -> Unit)? = null,
     onOpenStaffDetail: ((staffId: Int, name: String?, imageUrl: String?) -> Unit)? = null,
     isBottomBarVisible: Boolean = true,
-    onScrollReset: (() -> Unit)? = null
+    onScrollReset: (() -> Unit)? = null,
+    // "Tümünü Gör" → kaynağa özel tam arama sayfasını ayrı ekranda açar
+    onOpenSourceSearch: (SearchSourceEngine) -> Unit = {},
+    // Alt sayfa olarak kullanıldığında büyük başlığı gizlemek için null verilebilir
+    pageTitle: String? = "Arama"
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val accentColor = LocalKitsugiAccent.current
@@ -296,14 +300,18 @@ fun SearchScreen(
         ) {
             // Title & Search Input Section
             item {
-                Spacer(modifier = Modifier.height(28.dp))
-                Text(
-                    text = "Arama",
-                    color = KitsugiColors.TextPrimary,
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.Bold
-                )
-                Spacer(modifier = Modifier.height(18.dp))
+                if (pageTitle != null) {
+                    Spacer(modifier = Modifier.height(28.dp))
+                    Text(
+                        text = pageTitle,
+                        color = KitsugiColors.TextPrimary,
+                        style = MaterialTheme.typography.headlineLarge,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Spacer(modifier = Modifier.height(18.dp))
+                } else {
+                    Spacer(modifier = Modifier.height(12.dp))
+                }
 
                 val placeholder = when (uiState.selectedEngine) {
                     SearchSourceEngine.ALL -> "Tüm platformlarda ara (6 motor eşzamanlı)..."
@@ -362,24 +370,16 @@ fun SearchScreen(
                 Spacer(modifier = Modifier.height(10.dp))
             }
 
-            // ── Seçili Kaynak Motoruna Özel Alt Kapsamlar (Scope Chips) ─────
+            // ── Kompakt Arama Seçenekleri Özeti ─────────────────────────────
+            // Kategori (kapsam), sıralama ve filtre kontrollerinin tamamı arama
+            // çubuğunun sağındaki butonda (SourceEngineFilterSheet) toplandı;
+            // ana sayfa dağınık bırakılmaz. Bu satır yalnızca varsayılandan
+            // farklı bir ayar aktifse görünür ve aktif durumu özetler.
             item {
-                SourceScopeChipsRow(
-                    selectedEngine = uiState.selectedEngine,
-                    selectedScope = uiState.selectedScope,
-                    onScopeSelected = { scope -> viewModel.setScope(scope) }
-                )
-                Spacer(modifier = Modifier.height(10.dp))
-            }
-
-            // ── Kaynağa ve Kapsama Özel Emojili Sıralama & Filtreleme Çubuğu ──
-            item {
-                SourceSpecificFilterChipsRow(
+                SearchOptionsSummaryRow(
                     uiState = uiState,
-                    viewModel = viewModel,
-                    onOpenFullFilterSheet = { showSourceEngineFilterSheet = true }
+                    onClick = { showSourceEngineFilterSheet = true }
                 )
-                Spacer(modifier = Modifier.height(12.dp))
             }
 
 
@@ -467,7 +467,7 @@ fun SearchScreen(
                         isAlreadyInList = isAlreadyInList,
                         getMediaEntry = getMediaEntry,
                         onItemClick = onOpenApiDetail,
-                        onSeeAllClick = { viewModel.setTab(KitsugiSearchTab.Anime) },
+                        onSeeAllClick = { onOpenSourceSearch(SearchSourceEngine.ANILIST) },
                         titleLanguage = titleLanguage,
                         scoreFormat = scoreFormat,
                         hideScores = hideScores
@@ -483,7 +483,7 @@ fun SearchScreen(
                         isAlreadyInList = isAlreadyInList,
                         getMediaEntry = getMediaEntry,
                         onItemClick = onOpenApiDetail,
-                        onSeeAllClick = { viewModel.setTab(KitsugiSearchTab.MAL) },
+                        onSeeAllClick = { onOpenSourceSearch(SearchSourceEngine.MAL) },
                         titleLanguage = titleLanguage,
                         scoreFormat = scoreFormat,
                         hideScores = hideScores
@@ -499,7 +499,7 @@ fun SearchScreen(
                         isAlreadyInList = isAlreadyInList,
                         getMediaEntry = getMediaEntry,
                         onItemClick = onOpenApiDetail,
-                        onSeeAllClick = { viewModel.setTab(KitsugiSearchTab.TMDB) },
+                        onSeeAllClick = { onOpenSourceSearch(SearchSourceEngine.TMDB) },
                         titleLanguage = titleLanguage,
                         scoreFormat = scoreFormat,
                         hideScores = hideScores
@@ -515,7 +515,7 @@ fun SearchScreen(
                         isAlreadyInList = isAlreadyInList,
                         getMediaEntry = getMediaEntry,
                         onItemClick = onOpenApiDetail,
-                        onSeeAllClick = { viewModel.setTab(KitsugiSearchTab.Shikimori) },
+                        onSeeAllClick = { onOpenSourceSearch(SearchSourceEngine.SHIKIMORI) },
                         titleLanguage = titleLanguage,
                         scoreFormat = scoreFormat,
                         hideScores = hideScores
@@ -531,7 +531,7 @@ fun SearchScreen(
                         isAlreadyInList = isAlreadyInList,
                         getMediaEntry = getMediaEntry,
                         onItemClick = onOpenApiDetail,
-                        onSeeAllClick = { viewModel.setTab(KitsugiSearchTab.Kitsu) },
+                        onSeeAllClick = { onOpenSourceSearch(SearchSourceEngine.KITSU) },
                         titleLanguage = titleLanguage,
                         scoreFormat = scoreFormat,
                         hideScores = hideScores
@@ -547,7 +547,7 @@ fun SearchScreen(
                         isAlreadyInList = isAlreadyInList,
                         getMediaEntry = getMediaEntry,
                         onItemClick = onOpenApiDetail,
-                        onSeeAllClick = { viewModel.setTab(KitsugiSearchTab.Simkl) },
+                        onSeeAllClick = { onOpenSourceSearch(SearchSourceEngine.SIMKL) },
                         titleLanguage = titleLanguage,
                         scoreFormat = scoreFormat,
                         hideScores = hideScores
@@ -816,6 +816,74 @@ fun SearchFilterChip(
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Normal
         )
     }
+}
+
+// ─── Kompakt Arama Seçenekleri Özeti ──────────────────────────────────────────
+
+/**
+ * Arama sayfasını dağınık göstermemek için kategori/sıralama/filtre
+ * kontrolleri sağ üstteki butona (SourceEngineFilterSheet) taşındı.
+ * Bu çip yalnızca varsayılandan farklı bir ayar aktifken görünür;
+ * aktif kapsam + sıralama + filtre adedini tek satırda özetler ve
+ * dokununca birleşik seçenekler sheet'ini açar.
+ */
+@Composable
+private fun SearchOptionsSummaryRow(
+    uiState: SearchUiState,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val accentColor = LocalKitsugiAccent.current
+    val engine = uiState.selectedEngine
+
+    val defaultScope = engine.availableScopes().first()
+    val scopeChanged = uiState.selectedScope != defaultScope
+    val sortChanged = getCurrentSortKey(uiState) != defaultSortKeyForEngine(engine)
+    val activeFilterCount = uiState.activeFilterCount
+
+    if (!scopeChanged && !sortChanged && activeFilterCount == 0) return
+
+    val parts = buildList {
+        if (scopeChanged) add(uiState.selectedScope.displayLabel)
+        if (sortChanged) add(getSortDisplayLabel(uiState))
+        if (activeFilterCount > 0) add("🎛️ $activeFilterCount filtre")
+    }
+
+    val shape = RoundedCornerShape(14.dp)
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Row(
+            modifier = Modifier
+                .clip(shape)
+                .background(accentColor.copy(alpha = 0.10f))
+                .border(1.dp, accentColor.copy(alpha = 0.45f), shape)
+                .tvClickable(shape = shape, onClick = onClick)
+                .padding(horizontal = 12.dp, vertical = 7.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text(
+                text = "🎛️ ${engine.shortLabel} • ${parts.joinToString(" • ")}",
+                color = accentColor,
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f, fill = false)
+            )
+            Text(
+                text = "Düzenle",
+                color = KitsugiColors.TextMuted,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Medium
+            )
+        }
+    }
+    Spacer(modifier = Modifier.height(6.dp))
 }
 
 // ─── Active Filters Chips Row ─────────────────────────────────────────────────
