@@ -40,7 +40,8 @@ class MyListLibraryGroupingTest {
         val grouped = groupMyListEntries(listOf(mal, anilist, kitsu))
 
         assertEquals(1, grouped.size)
-        assertEquals(mal.id, grouped.single().entry.id)
+        // Yeni kural: Temsilci önceliği AniList > MAL > Kitsu > Shikimori > Simkl > TMDB
+        assertEquals(anilist.id, grouped.single().entry.id)
         assertEquals(listOf("mal", "anilist", "kitsu"), grouped.single().sourceIds)
     }
 

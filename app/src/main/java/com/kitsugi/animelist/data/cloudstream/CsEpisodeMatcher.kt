@@ -39,6 +39,37 @@ internal object CsEpisodeMatcher {
         }
     }
 
+    /**
+     * Seçilen bölümün hangi [com.lagradost.cloudstream3.DubStatus] kovasından geldiğini döndürür.
+     *
+     * Dönüş: "dub" | "sub" | null (bilinmiyor).
+     *
+     * Bu, dil rozetinin **kaynağın kendi meta verisine** dayanmasını sağlar; dosya adından
+     * tahmin yürütmek yerine sağlayıcının gerçekte ne söylediğini kullanırız.
+     */
+    fun findDubStatusForEpisodeData(response: LoadResponse, episodeData: String?): String? {
+        if (episodeData.isNullOrBlank()) return null
+        val anime = response as? AnimeLoadResponse ?: return null
+        return try {
+            var result: String? = null
+            for ((status, episodes) in anime.episodes) {
+                val matches = episodes.any { ep -> getEpisodeData(ep) == episodeData }
+                if (matches) {
+                    result = when (status) {
+                        com.lagradost.cloudstream3.DubStatus.Dubbed -> "dub"
+                        com.lagradost.cloudstream3.DubStatus.Subbed -> "sub"
+                        else -> null
+                    }
+                    break
+                }
+            }
+            result
+        } catch (e: Exception) {
+            Log.w(TAG, "findDubStatusForEpisodeData HATA: ${e.message}")
+            null
+        }
+    }
+
     // ─── Private helpers ─────────────────────────────────────────────────────
 
     private fun findInAnimeResponse(response: AnimeLoadResponse, season: Int, episode: Int): String? {

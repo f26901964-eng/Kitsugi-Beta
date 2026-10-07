@@ -46,6 +46,17 @@ fun TvHomeScreen(
     val isLoading = exploreViewModel.isLoading
     val errorMessage = exploreViewModel.errorMessage
 
+    if (selectedPlatform == ExplorePlatform.ALL) {
+        TvAllSourcesHomeContent(
+            viewModel = exploreViewModel,
+            entries = currentEntries,
+            showAdultContent = showAdultContent,
+            onItemClick = onNavigateToDetail,
+            onSeeAllClick = onSeeAllClick
+        )
+        return
+    }
+
     val tvViewModel: TvViewModel = viewModel()
     val focusState by tvViewModel.focusState.collectAsStateWithLifecycle()
 

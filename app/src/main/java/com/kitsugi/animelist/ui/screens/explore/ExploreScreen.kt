@@ -42,6 +42,7 @@ import com.kitsugi.animelist.ui.theme.LocalIsTvDevice
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults
 import com.kitsugi.animelist.ui.utils.tvClickable
+import kotlinx.coroutines.launch
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 
 @Composable
@@ -49,7 +50,7 @@ fun ExploreScreen(
     currentEntries: List<MediaEntry>,
     showAdultContent: Boolean,
     onAddSelectionToList: (ApiSearchSelection) -> Unit,
-    onSeeAllSection: (title: String, categoryType: ExploreCategoryType, results: List<JikanSearchResult>) -> Unit,
+    onSeeAllSection: (title: String, categoryType: ExploreCategoryType, results: List<JikanSearchResult>, platform: ExplorePlatform) -> Unit,
     onNavigateToWatchHistory: () -> Unit = {},
     onOpenApiDetail: (JikanSearchResult) -> Unit,
     onEditEntry: (MediaEntry) -> Unit,
@@ -74,6 +75,9 @@ fun ExploreScreen(
 ) {
     val accentColor = LocalKitsugiAccent.current
     val context = androidx.compose.ui.platform.LocalContext.current
+    val onSeeAllForSelected: (String, ExploreCategoryType, List<JikanSearchResult>) -> Unit = { title, category, results ->
+        onSeeAllSection(title, category, results, viewModel.selectedPlatform)
+    }
 
     val filteredTopAnime = remember(viewModel.topAnime, showAdultContent) { viewModel.topAnime.filter { showAdultContent || !it.isAdult } }
     val filteredAiringAnime = remember(viewModel.airingAnime, showAdultContent) { viewModel.airingAnime.filter { showAdultContent || !it.isAdult } }
@@ -89,8 +93,10 @@ fun ExploreScreen(
     val filteredAiringSoonAnime = remember(viewModel.airingSoonAnime, showAdultContent) { viewModel.airingSoonAnime.filter { showAdultContent || !it.isAdult } }
     val filteredUpcomingMediaTmdb = remember(viewModel.upcomingMediaTmdb, showAdultContent) { viewModel.upcomingMediaTmdb.filter { showAdultContent || !it.isAdult } }
 
-    val heroItems = remember(viewModel.selectedPlatform, filteredTopAnime, filteredAiringAnime, filteredMovieAnime) {
-        if (viewModel.selectedPlatform == ExplorePlatform.TMDB || viewModel.selectedPlatform == ExplorePlatform.SIMKL) {
+    val heroItems = remember(viewModel.selectedPlatform, viewModel.allSourceStates, showAdultContent, filteredTopAnime, filteredAiringAnime, filteredMovieAnime) {
+        if (viewModel.selectedPlatform == ExplorePlatform.ALL) {
+            allSourceHeroes(viewModel.allSourceStates, showAdultContent)
+        } else if (viewModel.selectedPlatform == ExplorePlatform.TMDB || viewModel.selectedPlatform == ExplorePlatform.SIMKL) {
             val itemsMix = mutableListOf<JikanSearchResult>()
             val topIt = filteredTopAnime.iterator()
             val airIt = filteredAiringAnime.iterator()
@@ -98,7 +104,7 @@ fun ExploreScreen(
 
             val addedKeys = mutableSetOf<String>()
             fun addIfUnique(item: JikanSearchResult) {
-                val key = "${item.source}_${item.malId}"
+                val key = item.exploreIdentity()
                 if (key !in addedKeys) {
                     addedKeys.add(key)
                     itemsMix.add(item)
@@ -147,6 +153,11 @@ fun ExploreScreen(
         initialFirstVisibleItemIndex = initialScrollIndex,
         initialFirstVisibleItemScrollOffset = initialScrollOffset
     )
+
+    val allSourcesScope = rememberCoroutineScope()
+    val density = androidx.compose.ui.platform.LocalDensity.current
+    val sourceNavigationHeight = with(density) { 64.dp.roundToPx() }
+    var collapsedSourceNames by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(emptyList<String>()) }
 
     var activeRankingSheetData by remember { mutableStateOf<Triple<String, MediaType, List<JikanSearchResult>>?>(null) }
     var isCategoriesExpanded by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(true) }
@@ -320,10 +331,12 @@ fun ExploreScreen(
                                                                 randomPool.addAll(viewModel.simklPlannedMovies)
                                                                 randomPool.addAll(viewModel.simklContinueSeries)
                                                                 randomPool.addAll(viewModel.simklPlannedSeries)
-                                                                if (randomPool.isNotEmpty()) {
-                                                                    val randomResult = randomPool.random()
-                                                                    onOpenApiDetail(randomResult)
+                                                                if (viewModel.selectedPlatform == ExplorePlatform.ALL) {
+                                                                    randomPool.addAll(allSourceSections(viewModel.allSourceStates, showAdultContent)
+                                                                        .flatMap { it.results }.distinctBy { it.exploreIdentity() })
                                                                 }
+                                                                randomPool.filter { showAdultContent || !it.isAdult }
+                                                                    .randomOrNull()?.let(onOpenApiDetail)
                                                             },
                                                         contentAlignment = Alignment.Center
                                                     ) {
@@ -438,7 +451,31 @@ fun ExploreScreen(
                             }
 
 
-                            if (isCatalogEmpty) {
+                            if (viewModel.selectedPlatform == ExplorePlatform.ALL) {
+                                allSourcesExploreSections(
+                                    states = viewModel.allSourceStates,
+                                    showAdultContent = showAdultContent,
+                                    collapsedSources = ExplorePlatform.sources.filter { it.name in collapsedSourceNames }.toSet(),
+                                    onToggleSource = { source ->
+                                        collapsedSourceNames = if (source.name in collapsedSourceNames) collapsedSourceNames - source.name
+                                            else collapsedSourceNames + source.name
+                                    },
+                                    startIndex = 2 + (if (viewModel.isShowingCachedData) 1 else 0) + (if (viewModel.errorMessage != null) 1 else 0),
+                                    onJumpToIndex = { index -> allSourcesScope.launch {
+                                        lazyListState.animateScrollToItem(index, -sourceNavigationHeight)
+                                    } },
+                                    onRetrySource = viewModel::retrySource,
+                                    alreadyInList = isAlreadyInList,
+                                    getMediaEntry = getMediaEntry,
+                                    onItemClick = onOpenApiDetail,
+                                    onLongClickItem = onLongClickItem,
+                                    onSeeAllSection = onSeeAllSection,
+                                    titleLanguage = titleLanguage,
+                                    scoreFormat = scoreFormat,
+                                    hideScores = hideScores,
+                                    blurAdultMedia = blurAdultMedia
+                                )
+                            } else if (isCatalogEmpty) {
                                 item {
                                     KitsugiEmptyState(
                                         title = "Gösterilecek İçerik Yok",
@@ -462,7 +499,7 @@ fun ExploreScreen(
                                         filteredNewlyAddedAnime = filteredNewlyAddedAnime,
                                         filteredTrendingManga = filteredTrendingManga,
                                         filteredUpcomingMediaTmdb = filteredUpcomingMediaTmdb,
-                                        onSeeAllSection = onSeeAllSection,
+                                        onSeeAllSection = onSeeAllForSelected,
                                         onOpenAiringCalendar = onOpenAiringCalendar
                                     )
                                 }
@@ -476,7 +513,7 @@ fun ExploreScreen(
                                             onItemClick = onOpenApiDetail,
                                             onLongClickItem = onLongClickItem,
                                             onOpenAiringCalendar = {
-                                                onSeeAllSection(context.getString(R.string.explore_airing_soon), ExploreCategoryType.UPCOMING_MEDIA_TMDB, filteredUpcomingMediaTmdb)
+                                                onSeeAllForSelected(context.getString(R.string.explore_airing_soon), ExploreCategoryType.UPCOMING_MEDIA_TMDB, filteredUpcomingMediaTmdb)
                                             },
                                             accentColor = accentColor,
                                             titleLanguage = titleLanguage,
@@ -501,7 +538,7 @@ fun ExploreScreen(
                                     getMediaEntry = getMediaEntry,
                                     onItemClick = onOpenApiDetail,
                                     onLongClickItem = onLongClickItem,
-                                    onSeeAllSection = onSeeAllSection,
+                                    onSeeAllSection = onSeeAllForSelected,
                                     onNavigateToWatchHistory = onNavigateToWatchHistory,
                                     titleLanguage = titleLanguage,
                                     scoreFormat = scoreFormat,
@@ -524,7 +561,7 @@ fun ExploreScreen(
                                         filteredPublishingManga = filteredPublishingManga,
                                         filteredTrendingManga = filteredTrendingManga,
                                         filteredNewlyAddedManga = filteredNewlyAddedManga,
-                                        onSeeAllSection = onSeeAllSection,
+                                        onSeeAllSection = onSeeAllForSelected,
                                         onOpenAiringCalendar = onOpenAiringCalendar,
                                         onOpenMangaReader = onOpenMangaReader
                                     )
@@ -561,7 +598,7 @@ fun ExploreScreen(
                                     getMediaEntry = getMediaEntry,
                                     onItemClick = onOpenApiDetail,
                                     onLongClickItem = onLongClickItem,
-                                    onSeeAllSection = onSeeAllSection,
+                                    onSeeAllSection = onSeeAllForSelected,
                                     titleLanguage = titleLanguage,
                                     scoreFormat = scoreFormat,
                                     hideScores = hideScores,

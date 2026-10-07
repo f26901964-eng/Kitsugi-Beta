@@ -57,6 +57,52 @@ class KitsugiDetailClient {
         return null
     }
 
+    /**
+     * Simkl kayıtları için TMDB tabanlı ayrıntı çözümü.
+     *
+     * Simkl API'si yavaş ve gecikmeli veri döndürdüğü için Simkl kütüphanesindeki
+     * kayıtların ayrıntı sayfası önce TMDB üzerinden açılır:
+     *  1. Bilinen/çözülen TMDB ID ile doğrudan TMDB,
+     *  2. Olmazsa ters medya türüyle (film ↔ dizi) TMDB,
+     *  3. TMDB ID hiç yoksa başlıkla TMDB araması.
+     * Hiçbiri tutmazsa null döner; çağıran taraf MAL (Jikan) → Simkl zincirini dener.
+     */
+    private suspend fun fetchSimklDetailViaTmdb(
+        tmdbId: Int?,
+        mediaType: MediaType,
+        title: String?
+    ): KitsugiMediaDetail? {
+        if (mediaType == MediaType.Manga) return null
+
+        if (tmdbId != null && tmdbId > 0) {
+            val isMovie = mediaType == MediaType.Movie
+            TmdbApiClient().fetchMediaDetail(tmdbId, isMovie)?.let { return it }
+            if (mediaType != MediaType.Manga) {
+                TmdbApiClient().fetchMediaDetail(tmdbId, !isMovie)?.let { return it }
+            }
+        }
+
+        // TMDB ID çözülemedi → başlıkla ara (dizi/film başlıkları TMDB'de en güvenilir sonucu verir)
+        val searchTitle = title?.trim().orEmpty()
+        if (searchTitle.isBlank()) return null
+
+        val results = runCatching { TmdbApiClient().search(searchTitle) }.getOrNull().orEmpty()
+        if (results.isEmpty()) return null
+
+        // Beklenen tür önce denenir; anime kayıtları TMDB'de dizi ya da film olarak görünür.
+        val preferredTypes = when (mediaType) {
+            MediaType.Movie -> listOf(MediaType.Movie, MediaType.TvShow)
+            MediaType.TvShow -> listOf(MediaType.TvShow, MediaType.Movie)
+            else -> listOf(MediaType.TvShow, MediaType.Movie, MediaType.Anime)
+        }
+
+        for (type in preferredTypes) {
+            val candidate = results.firstOrNull { it.type == type && (it.tmdbId ?: 0) > 0 } ?: continue
+            TmdbApiClient().fetchMediaDetail(candidate.tmdbId!!, type == MediaType.Movie)?.let { return it }
+        }
+        return null
+    }
+
     suspend fun fetchSynopsis(
         source: String,
         externalId: Int?,
@@ -68,7 +114,17 @@ class KitsugiDetailClient {
             }
 
             if (mediaType != MediaType.Manga) {
-                val trMeta = getTurkishMetadataFromTmdb(source, externalId, mediaType)
+                // Simkl kayıtlarında TMDB çözümü için önbellekteki gerçek ID'ler kullanılır,
+                // böylece özet de Simkl API'si yerine TMDB'den gelebilir.
+                val cachedSimklDetail =
+                    if (source.equals("simkl", ignoreCase = true)) DetailCache.getMediaDetail("simkl", externalId) else null
+                val trMeta = getTurkishMetadataFromTmdb(
+                    source = source,
+                    externalId = externalId,
+                    mediaType = mediaType,
+                    providedTmdbId = cachedSimklDetail?.tmdbId,
+                    providedRealMalId = cachedSimklDetail?.realMalId
+                )
                 if (trMeta != null && !trMeta.synopsis.isNullOrBlank()) {
                     return@withContext trMeta.synopsis
                 }
@@ -217,30 +273,31 @@ class KitsugiDetailClient {
                     } else null
                 }
                 "simkl" -> {
-                    val resolvedTmdb = tmdbId ?: run {
-                        val malIdForResolve = realMalId ?: DetailCache.getMediaDetail("simkl", externalId)?.realMalId
-                        KitsugiIdResolver.resolveIds(malId = malIdForResolve, aniListId = null, tmdbId = tmdbId, mediaType = mediaType).tmdbId
+                    // ── Öncelik zinciri (TMDB ilk sıradadır) ────────────────────────────
+                    // Simkl API'si verileri gecikmeli döndürdüğü için Simkl kayıtlarının
+                    // ayrıntı sayfası önce TMDB üzerinden açılır. TMDB çözülemezse
+                    // anime kayıtlarında Jikan (MAL), son çare olarak Simkl kullanılır.
+                    val malIdForResolve = realMalId?.takeIf { it > 0 }
+                        ?: DetailCache.getMediaDetail("simkl", externalId)?.realMalId
+                    val resolvedTmdb = tmdbId?.takeIf { it > 0 } ?: run {
+                        KitsugiIdResolver.resolveIds(
+                            malId = malIdForResolve,
+                            aniListId = null,
+                            tmdbId = null,
+                            mediaType = mediaType
+                        ).tmdbId
                     }
-                    // ── Öncelik zinciri (Simkl son çaredir) ────────────────────────────
-                    // 1. Anime ise ve gerçek MAL ID varsa -> Jikan (rate-limit yok, önerilen)
-                    if (mediaType == MediaType.Anime && realMalId != null && realMalId > 0) {
-                        val malDetail = KitsugiMalDetailClient.fetchDetail(realMalId, mediaType)
-                        if (malDetail != null) malDetail
-                        else {
-                            if (resolvedTmdb != null && resolvedTmdb > 0) {
-                                val isMovie = mediaType == MediaType.Movie
-                                val tmdbDetail = TmdbApiClient().fetchMediaDetail(resolvedTmdb, isMovie)
-                                if (tmdbDetail != null) tmdbDetail
-                                else KitsugiSimklDetailClient.fetchSimklDetailDirect(externalId, mediaType)
-                            } else {
-                                KitsugiSimklDetailClient.fetchSimklDetailDirect(externalId, mediaType)
-                            }
-                        }
-                    } else if (resolvedTmdb != null && resolvedTmdb > 0) {
-                        val isMovie = mediaType == MediaType.Movie
-                        val tmdbDetail = TmdbApiClient().fetchMediaDetail(resolvedTmdb, isMovie)
-                        if (tmdbDetail != null) tmdbDetail
-                        else KitsugiSimklDetailClient.fetchSimklDetailDirect(externalId, mediaType)
+
+                    val tmdbDetail = fetchSimklDetailViaTmdb(
+                        tmdbId = resolvedTmdb,
+                        mediaType = mediaType,
+                        title = title
+                    )
+                    if (tmdbDetail != null) {
+                        tmdbDetail
+                    } else if (mediaType == MediaType.Anime && malIdForResolve != null && malIdForResolve > 0) {
+                        KitsugiMalDetailClient.fetchDetail(malIdForResolve, mediaType)
+                            ?: KitsugiSimklDetailClient.fetchSimklDetailDirect(externalId, mediaType)
                     } else {
                         KitsugiSimklDetailClient.fetchSimklDetailDirect(externalId, mediaType)
                     }

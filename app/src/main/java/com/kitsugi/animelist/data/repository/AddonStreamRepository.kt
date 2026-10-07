@@ -251,8 +251,23 @@ data class StreamSource(
     /** HTTP request headers to attach when playing the stream (from behaviorHints.proxyHeaders.request). */
     val requestHeaders: Map<String, String>? = null,
     val isCS: Boolean = false,
+    /**
+     * Kaynağın bildirdiği çözünürlük etiketi (ör. "1080p").
+     * Kaynak bilmiyorsa **null** olmalıdır — tahmini bir değer yazılmaz.
+     */
     val quality: String? = null,
+    /**
+     * Kaynağın bildirdiği çözünürlük yüksekliği. Bilinmiyorsa **null**.
+     * CloudStream `Qualities.Unknown` (= 400) bir çözünürlük değildir ve null'a çevrilir.
+     */
     val qualityValue: Int? = null,
+    /**
+     * Kaynağın kendi meta verisinden gelen ses türü: "dub" | "sub" | "dual" | null.
+     * (CloudStream `DubStatus`, Stremio `behaviorHints` vb.) Tahmin DEĞİLDİR.
+     */
+    val providerAudioKind: String? = null,
+    /** Kaynağın bildirdiği ses dilleri (ISO/BCP-47). Tahmin değildir. */
+    val providerLanguages: List<String> = emptyList(),
     val subtitles: List<com.kitsugi.animelist.core.player.SubtitleInput> = emptyList(),
     /** Episode/source thumbnail URL from the stream provider (e.g. episode cover art from Cloudstream). */
     val thumbnailUrl: String? = null,

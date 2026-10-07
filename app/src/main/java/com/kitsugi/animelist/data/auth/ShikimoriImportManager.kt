@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.data.auth
 
 import android.content.Context
+import android.util.Log
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import kotlinx.coroutines.Dispatchers
@@ -10,6 +11,7 @@ import kotlinx.coroutines.withContext
  * Shikimori.one kütüphanesini içe aktarma yöneticisi.
  */
 object ShikimoriImportManager {
+    private const val TAG = "ShikimoriImportManager"
 
     data class ShikimoriUserProfile(
         val id: Int,
@@ -26,7 +28,7 @@ object ShikimoriImportManager {
 
     suspend fun fetchAllLists(context: Context, token: String, userId: Int): List<MediaEntry> {
         return withContext(Dispatchers.IO) {
-            val rates = ShikimoriApiClient.fetchAllUserRates(token, userId)
+            val rates = fetchRatesWithRetry(context, token, userId)
             val result = mutableListOf<MediaEntry>()
 
             for (rate in rates) {
@@ -62,6 +64,33 @@ object ShikimoriImportManager {
                 )
             }
             result
+        }
+    }
+
+    /**
+     * Shikimori liste çekimini dener; HTTP 401 (token sunucu tarafında iptal
+     * edilmiş ya da süresi dolmuş ama yerel `expiresAt` güncellenmemiş) alırsa
+     * refresh token ile zorla yeni bir access token alır ve bir kez daha dener.
+     */
+    private suspend fun fetchRatesWithRetry(
+        context: Context,
+        token: String,
+        userId: Int
+    ): List<ShikimoriApiClient.ShikimoriRate> {
+        return try {
+            ShikimoriApiClient.fetchAllUserRates(token, userId)
+        } catch (e: Exception) {
+            // Sadece HTTP 401 hatasında retry yap; diğer hatalar olduğu gibi fırlatılır.
+            if (!e.message.orEmpty().contains("HTTP 401")) throw e
+
+            Log.w(TAG, "fetchAllUserRates 401 – token yenileme deneniyor", e)
+            val newToken = ExternalAuthManager.forceRefreshShikimoriToken(context)
+            if (newToken.isNullOrBlank()) {
+                Log.e(TAG, "Token yenilenemedi, Shikimori oturumu sona ermiş olabilir")
+                throw Exception("Shikimori oturumu sona erdi (HTTP 401). Lütfen Shikimori hesabıyla tekrar giriş yapın.")
+            }
+            Log.i(TAG, "Shikimori token yenilendi, liste yeniden çekiliyor...")
+            ShikimoriApiClient.fetchAllUserRates(newToken, userId)
         }
     }
 }

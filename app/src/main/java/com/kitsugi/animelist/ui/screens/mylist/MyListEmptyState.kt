@@ -21,37 +21,38 @@ internal fun MyListNotConnectedState(
     onLogin: () -> Unit
 ) {
     val title = when (selectedTabIndex) {
-        0 -> "AniList Bağlı Değil"
-        1 -> "MyAnimeList Bağlı Değil"
-        2 -> {
+        MY_LIST_ANILIST_TAB_INDEX -> "AniList Bağlı Değil"
+        MY_LIST_MAL_TAB_INDEX -> "MyAnimeList Bağlı Değil"
+        MY_LIST_SIMKL_TAB_INDEX -> {
             if (isSimklSessionExpired) "Simkl Oturum Süresi Doldu"
             else "Simkl Bağlı Değil"
         }
-        3 -> "Kitsu Bağlı Değil"
-        4 -> "Shikimori Bağlı Değil"
+        MY_LIST_KITSU_TAB_INDEX -> "Kitsu Bağlı Değil"
+        MY_LIST_SHIKIMORI_TAB_INDEX -> "Shikimori Bağlı Değil"
         else -> "Hesap Bağlı Değil"
     }
 
     val subtitle = when (selectedTabIndex) {
-        0 -> "AniList kütüphanenizi görüntülemek için hesabınızı bağlayın."
-        1 -> "MyAnimeList kütüphanenizi görüntülemek için hesabınızı bağlayın."
-        2 -> {
+        MY_LIST_ANILIST_TAB_INDEX -> "AniList kütüphanenizi görüntülemek için hesabınızı bağlayın."
+        MY_LIST_MAL_TAB_INDEX -> "MyAnimeList kütüphanenizi görüntülemek için hesabınızı bağlayın."
+        MY_LIST_SIMKL_TAB_INDEX -> {
             if (isSimklSessionExpired)
                 "Simkl oturum süresi doldu. Senkronizasyonu sürdürmek için tekrar bağlayın."
             else
                 "Simkl kütüphanenizi görüntülemek için hesabınızı bağlayın."
         }
-        3 -> "Kitsu kütüphanenizi görüntülemek için hesabınızı bağlayın."
-        4 -> "Shikimori kütüphanenizi görüntülemek için hesabınızı bağlayın."
+        MY_LIST_KITSU_TAB_INDEX -> "Kitsu kütüphanenizi görüntülemek için hesabınızı bağlayın."
+        MY_LIST_SHIKIMORI_TAB_INDEX -> "Shikimori kütüphanenizi görüntülemek için hesabınızı bağlayın."
         else -> "Kütüphanenizi görüntülemek için hesabınızı bağlayın."
     }
 
-    val actionText = if (isSimklSessionExpired && selectedTabIndex == 2) "Yeniden Bağlan" else "Hesabı Bağla"
+    val isSimklTab = selectedTabIndex == MY_LIST_SIMKL_TAB_INDEX
+    val actionText = if (isSimklSessionExpired && isSimklTab) "Yeniden Bağlan" else "Hesabı Bağla"
 
     KitsugiEmptyState(
         title = title,
         subtitle = subtitle,
-        icon = if (isSimklSessionExpired && selectedTabIndex == 2) Icons.Rounded.Refresh else Icons.Rounded.AccountCircle,
+        icon = if (isSimklSessionExpired && isSimklTab) Icons.Rounded.Refresh else Icons.Rounded.AccountCircle,
         actionText = actionText,
         onActionClick = onLogin
     )

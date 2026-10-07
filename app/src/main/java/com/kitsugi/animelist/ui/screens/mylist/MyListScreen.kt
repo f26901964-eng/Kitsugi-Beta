@@ -170,7 +170,7 @@ fun MyListScreen(
 
     // Five provider tabs plus a combined, deduplicated library tab.
     val tabPagerState = rememberPagerState(
-        initialPage = selectedTabIndex.coerceIn(0, MY_LIST_ALL_TAB_INDEX),
+        initialPage = selectedTabIndex.coerceIn(0, MY_LIST_TAB_COUNT - 1),
         pageCount = { MY_LIST_TAB_COUNT }
     )
 
@@ -184,7 +184,7 @@ fun MyListScreen(
     // Parent tab change (chip click) -> animate pager
     LaunchedEffect(selectedTabIndex) {
         if (tabPagerState.currentPage != selectedTabIndex) {
-            tabPagerState.animateScrollToPage(selectedTabIndex.coerceIn(0, MY_LIST_ALL_TAB_INDEX))
+            tabPagerState.animateScrollToPage(selectedTabIndex.coerceIn(0, MY_LIST_TAB_COUNT - 1))
         }
     }
 
@@ -232,15 +232,7 @@ fun MyListScreen(
             selectedTabIndex == MY_LIST_ALL_TAB_INDEX -> allLibraryEntries
             searchQuery.isNotBlank() -> entriesAfterAdultFilter
             else -> entriesAfterAdultFilter.filter { entry ->
-                val src = entry.source.lowercase()
-                when (selectedTabIndex) {
-                    0 -> src == "anilist"
-                    1 -> src == "mal" || src == "jikan" || src == "myanimelist"
-                    2 -> src == "simkl"
-                    3 -> src == "kitsu"
-                    4 -> src == "shikimori"
-                    else -> src == "anilist"
-                }
+                myListSourceMatchesTab(selectedTabIndex, entry.source)
             }
         }
     }
@@ -370,7 +362,7 @@ fun MyListScreen(
 
     // Per-tab scroll states — declared at top level so FAB can reference them
     val tabScrollStates = remember { List(MY_LIST_TAB_COUNT) { androidx.compose.foundation.lazy.LazyListState() } }
-    val activeTabScrollState = tabScrollStates[selectedTabIndex.coerceIn(0, MY_LIST_ALL_TAB_INDEX)]
+    val activeTabScrollState = tabScrollStates[selectedTabIndex.coerceIn(0, MY_LIST_TAB_COUNT - 1)]
 
     Column(
         modifier = Modifier
@@ -506,11 +498,11 @@ fun MyListScreen(
             ) { page ->
                 val pageTabIndex = page
                 val pageIsConnected = when (pageTabIndex) {
-                    0 -> isAniListConnected
-                    1 -> isMalConnected
-                    2 -> isSimklConnected
-                    3 -> isKitsuConnected
-                    4 -> isShikimoriConnected
+                    MY_LIST_ANILIST_TAB_INDEX -> isAniListConnected
+                    MY_LIST_MAL_TAB_INDEX -> isMalConnected
+                    MY_LIST_SIMKL_TAB_INDEX -> isSimklConnected
+                    MY_LIST_KITSU_TAB_INDEX -> isKitsuConnected
+                    MY_LIST_SHIKIMORI_TAB_INDEX -> isShikimoriConnected
                     MY_LIST_ALL_TAB_INDEX -> true // A combined library also includes locally cached records.
                     else -> false
                 }
@@ -520,15 +512,7 @@ fun MyListScreen(
                         allLibraryEntries
                     } else {
                         entriesAfterAdultFilter.filter { entry ->
-                            val src = entry.source.lowercase()
-                            when (pageTabIndex) {
-                                0 -> src == "anilist"
-                                1 -> src == "mal" || src == "jikan" || src == "myanimelist"
-                                2 -> src == "simkl"
-                                3 -> src == "kitsu"
-                                4 -> src == "shikimori"
-                                else -> src == "anilist"
-                            }
+                            myListSourceMatchesTab(pageTabIndex, entry.source)
                         }
                     }
                 }
@@ -549,14 +533,14 @@ fun MyListScreen(
                     pageScrollState = pageScrollState,
                     onLogin = {
                         when (pageTabIndex) {
-                            0 -> onLoginAniList()
-                            1 -> onLoginMal()
-                            2 -> onLoginSimkl()
-                            3 -> {
+                            MY_LIST_ANILIST_TAB_INDEX -> onLoginAniList()
+                            MY_LIST_MAL_TAB_INDEX -> onLoginMal()
+                            MY_LIST_SIMKL_TAB_INDEX -> onLoginSimkl()
+                            MY_LIST_KITSU_TAB_INDEX -> {
                                 if (isKitsuConnected) onLoginKitsu()
                                 else showKitsuLoginDialog = true
                             }
-                            4 -> {
+                            MY_LIST_SHIKIMORI_TAB_INDEX -> {
                                 if (isShikimoriConnected) onLoginShikimori()
                                 else showShikimoriLoginDialog = true
                             }
@@ -564,11 +548,11 @@ fun MyListScreen(
                     },
                     onRefresh = {
                         when (pageTabIndex) {
-                            0 -> onSyncAniList()
-                            1 -> onSyncMal()
-                            2 -> onSyncSimkl()
-                            3 -> onSyncKitsu()
-                            4 -> onSyncShikimori()
+                            MY_LIST_ANILIST_TAB_INDEX -> onSyncAniList()
+                            MY_LIST_MAL_TAB_INDEX -> onSyncMal()
+                            MY_LIST_SIMKL_TAB_INDEX -> onSyncSimkl()
+                            MY_LIST_KITSU_TAB_INDEX -> onSyncKitsu()
+                            MY_LIST_SHIKIMORI_TAB_INDEX -> onSyncShikimori()
                             MY_LIST_ALL_TAB_INDEX -> {
                                 var startedSync = false
                                 if (isAniListConnected) { onSyncAniList(); startedSync = true }
@@ -678,7 +662,7 @@ fun MyListScreen(
                         .background(accentColor)
                         .tvClickable(shape = RoundedCornerShape(16.dp)) {
                             coroutineScope.launch {
-                                val activeState = tabScrollStates[selectedTabIndex.coerceIn(0, MY_LIST_ALL_TAB_INDEX)]
+                                val activeState = tabScrollStates[selectedTabIndex.coerceIn(0, MY_LIST_TAB_COUNT - 1)]
                                 activeState.animateScrollToItem(0)
                                 onScrollReset()
                             }
@@ -713,12 +697,10 @@ fun MyListScreen(
 
 
     if (showAddDialog) {
+        // Manüel kayıt varsayılan kaynağı: Tümü sekmesinde AniList.
+        val manualAddSource = defaultMyListSourceForTab(selectedTabIndex)
         KitsugiMediaEntryEditorDialog(
-            source = when (selectedTabIndex) {
-                0 -> "anilist"
-                1 -> "mal"
-                else -> "simkl"
-            },
+            source = manualAddSource,
             onDismiss = {
                 showAddDialog = false
             },
@@ -727,11 +709,7 @@ fun MyListScreen(
                     id = 0,
                     title = title,
                     subtitle = if (subtitle.isBlank()) {
-                        when (selectedTabIndex) {
-                            0 -> "Manuel AniList Kaydı"
-                            1 -> "Manuel MAL Kaydı"
-                            else -> "Manuel Simkl Kaydı"
-                        }
+                        "Manuel ${myListSourceDisplayName(manualAddSource)} Kaydı"
                     } else {
                         subtitle
                     },
@@ -742,11 +720,7 @@ fun MyListScreen(
                     total = total,
                     isFavorite = isFavorite,
                     isAdult = isAdult,
-                    source = when (selectedTabIndex) {
-                        0 -> "anilist"
-                        1 -> "mal"
-                        else -> "simkl"
-                    },
+                    source = manualAddSource,
                     malId = null,
                     imageUrl = null,
                     year = null,

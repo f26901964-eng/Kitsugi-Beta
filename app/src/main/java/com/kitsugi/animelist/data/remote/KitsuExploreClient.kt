@@ -163,6 +163,10 @@ object KitsuExploreClient {
     suspend fun movieAnime(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
         fetchAnimeList("$BASE/anime?filter[subtype]=movie&sort=-userCount&page[limit]=$limit&page[offset]=$offset")
 
+    /** En yüksek puanlı mangalar */
+    suspend fun topRatedManga(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
+        fetchMangaList("$BASE/manga?sort=-averageRating&page[limit]=$limit&page[offset]=$offset")
+
     /** En popüler mangalar */
     suspend fun topManga(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
         fetchMangaList("$BASE/manga?sort=-userCount&page[limit]=$limit&page[offset]=$offset")

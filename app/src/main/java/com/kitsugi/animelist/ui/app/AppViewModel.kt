@@ -18,6 +18,10 @@ import com.kitsugi.animelist.model.WatchStatus
 import com.kitsugi.animelist.ui.components.BackupImportMode
 import com.kitsugi.animelist.ui.navigation.MainTab
 import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_ALL_TAB_INDEX
+import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_ANILIST_TAB_INDEX
+import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_SIMKL_TAB_INDEX
+import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_TAB_COUNT
+import com.kitsugi.animelist.ui.screens.mylist.migrateLegacyMyListTabIndex
 import kotlinx.coroutines.launch
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
@@ -164,18 +168,39 @@ class AppViewModel : ViewModel() {
         myListYearFilterId = prefs.getString("year_filter", "all") ?: "all"
         myListExtraFilterId = prefs.getString("extra_filter", "all") ?: "all"
         myListSortId = prefs.getString("sort", "newest") ?: "newest"
-        myListTabIndex = prefs.getInt("tab_index", 0).coerceIn(0, MY_LIST_ALL_TAB_INDEX)
+        // Eski sürümlerde sekme sırası farklıydı (5 = Tümü). Kayıtlı değeri yeni sıraya taşı.
+        val storedTabIndex = prefs.getInt("tab_index", -1)
+        val migratedTabIndex = if (storedTabIndex < 0) {
+            // Yeni kurulum: hesap bağlıysa doğrudan birleşik "Tümü" kütüphanesi açılır,
+            // hiç hesap yoksa bağlantı çağrısının görüneceği AniList sekmesi gösterilir.
+            if (hasAnyConnectedAccount(context)) MY_LIST_ALL_TAB_INDEX else MY_LIST_ANILIST_TAB_INDEX
+        } else {
+            migrateLegacyMyListTabIndex(storedTabIndex).coerceIn(0, MY_LIST_TAB_COUNT - 1)
+        }
+        myListTabIndex = migratedTabIndex
+        if (migratedTabIndex != storedTabIndex) {
+            prefs.edit().putInt("tab_index", migratedTabIndex).apply()
+        }
     }
 
     fun updateMyListTabIndex(context: Context, index: Int) {
-        val safeIndex = index.coerceIn(0, MY_LIST_ALL_TAB_INDEX)
+        val safeIndex = index.coerceIn(0, MY_LIST_TAB_COUNT - 1)
         myListTabIndex = safeIndex
         resetMyListScroll()
-        if (safeIndex == 2 && myListTypeFilterId == "manga") {
+        if (safeIndex == MY_LIST_SIMKL_TAB_INDEX && myListTypeFilterId == "manga") {
             updateMyListTypeFilter(context, "all")
         }
         context.getSharedPreferences("Kitsugi_list_filters", Context.MODE_PRIVATE)
             .edit().putInt("tab_index", safeIndex).apply()
+    }
+
+    private fun hasAnyConnectedAccount(context: Context): Boolean {
+        val auth = com.kitsugi.animelist.data.auth.ExternalAuthManager
+        return auth.getAniListToken(context) != null ||
+            auth.getMalToken(context) != null ||
+            auth.getSimklToken(context) != null ||
+            auth.getKitsuToken(context) != null ||
+            auth.getShikimoriToken(context) != null
     }
 
     fun updateMyListScrollPosition(index: Int, offset: Int) {

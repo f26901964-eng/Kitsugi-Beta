@@ -381,6 +381,12 @@ class AniListSearchClient(
     }
 
 
+    suspend fun aniListTopRated(mediaType: MediaType, page: Int = 1, showAdultContent: Boolean = false): List<JikanSearchResult> =
+        withContext(Dispatchers.IO) {
+            requestAniList(mediaType = mediaType, search = null, status = null,
+                sort = listOf("SCORE_DESC"), perPage = 20, page = page, showAdultContent = showAdultContent)
+        }
+
     suspend fun aniListTopAnime(page: Int = 1, showAdultContent: Boolean = false): List<JikanSearchResult> {
         return withContext(Dispatchers.IO) {
             requestAniList(

@@ -15,6 +15,8 @@ import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.data.remote.TmdbApiClient
 import com.kitsugi.animelist.data.settings.SettingsDataStore
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
@@ -23,21 +25,6 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import com.kitsugi.animelist.model.MediaType
-
-// Keşfet sayfasında seçili platform: AniList, MAL (Jikan), TMDB, Simkl, Kitsu veya Shikimori
-enum class ExplorePlatform(
-    val label: String,
-    val emoji: String = "⚡",
-    val shortName: String = label,
-    val description: String = ""
-) {
-    AniList("AniList", "⚡", "AniList", "Trend, popüler ve güncel sezon anime & mangaları"),
-    MAL("MyAnimeList", "🏆", "MAL", "En yüksek puanlı, yaklaşan ve klasik MyAnimeList arşivi"),
-    TMDB("TMDB", "🎬", "TMDB", "Trend filmler, popüler diziler ve vizyondaki yapımlar"),
-    SIMKL("Simkl", "📺", "Simkl", "Simkl en iyiler, TV dizileri ve anime listeleri"),
-    KITSU("Kitsu", "🦊", "Kitsu", "Kitsu popüler, trend ve en sevilen içerikleri"),
-    SHIKIMORI("Shikimori", "🌸", "Shikimori", "Shikimori güncel anime ve manga sıralamaları")
-}
 
 /**
  * Keşfet hatalarının türünü belirler — UI'da platforma özgü aksiyon butonları göstermek için.
@@ -68,6 +55,20 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     private var isFirstLoad = true
     private var showAdultContentState = false
     private var loadJob: Job? = null
+    private val sourceJobs = mutableMapOf<ExplorePlatform, Job>()
+    private var requestGeneration = 0
+
+    var allSourceStates by mutableStateOf<Map<ExplorePlatform, ExploreSourceState>>(emptyMap())
+        private set
+
+    private fun cancelLoads() {
+        requestGeneration++
+        loadJob?.cancel()
+        loadJob = null
+        sourceJobs.values.forEach { it.cancel() }
+        sourceJobs.clear()
+        isLoading = false
+    }
 
     var selectedPlatform by mutableStateOf(ExplorePlatform.TMDB)
         private set
@@ -152,7 +153,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         private set
 
     val isDataLoaded: Boolean
-        get() = selectedPlatform in loadedPlatforms ||
+        get() = (selectedPlatform == ExplorePlatform.ALL && allSourceStates.values.any { it.payload != null }) ||
+                selectedPlatform in loadedPlatforms ||
                 topAnime.isNotEmpty() || airingAnime.isNotEmpty() || trendingAnime.isNotEmpty()
 
     init {
@@ -200,6 +202,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                     } else {
                         platformCache.clear()
                         loadedPlatforms.clear()
+                        allSourceStates = emptyMap()
                         loadData(forceRefresh = true)
                     }
                 }
@@ -212,10 +215,17 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         if (!isFallback) {
             isFallbackInProgress = false
         }
+        cancelLoads()
+        isShowingCachedData = false
         selectedPlatform = platform
 
         // Stale veriyi hemen temizle — eski platformun verisi yeni platformda gözükmesin
         clearPayload()
+
+        if (platform == ExplorePlatform.ALL) {
+            loadAllSources(forceRefresh = false)
+            return
+        }
 
         // Cache'de varsa anında yükle, yoksa fetch et
         val cached = platformCache[platform]
@@ -275,7 +285,12 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         // Eğer forceRefresh değilse ve zaten data yüklüyse veya yükleniyorsa bir şey yapma
         if (!forceRefresh && (isDataLoaded || isLoading)) return
 
-        loadJob?.cancel()
+        cancelLoads()
+        if (selectedPlatform == ExplorePlatform.ALL) {
+            loadAllSources(forceRefresh)
+            return
+        }
+        val generation = requestGeneration
         loadJob = viewModelScope.launch {
             isLoading = true
             errorMessage = null
@@ -284,16 +299,10 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             val platformSnapshot = selectedPlatform
 
             try {
-                val payload = when (platformSnapshot) {
-                    ExplorePlatform.MAL -> loadMalData()
-                    ExplorePlatform.AniList -> loadAniListData()
-                    ExplorePlatform.TMDB -> loadTmdbData()
-                    ExplorePlatform.SIMKL -> loadSimklData()
-                    ExplorePlatform.KITSU -> loadKitsuData()
-                    ExplorePlatform.SHIKIMORI -> loadShikimoriData()
-                }
+                val payload = fetchPlatform(platformSnapshot)
+                currentCoroutineContext().ensureActive()
 
-                if (selectedPlatform == platformSnapshot) {
+                if (selectedPlatform == platformSnapshot && generation == requestGeneration) {
                     platformCache[platformSnapshot] = payload
                     loadedPlatforms.add(platformSnapshot)
                     applyPayload(payload)
@@ -320,10 +329,12 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                if (selectedPlatform == platformSnapshot) {
+                if (selectedPlatform == platformSnapshot && generation == requestGeneration) {
                     // Try to fall back to local offline database cache
                     val db = com.kitsugi.animelist.data.local.KitsugiDatabase.getDatabase(getApplication())
                     val cached = runCatching { db.exploreCacheDao().getCategory("explore_platform_${platformSnapshot.name}") }.getOrNull()
+                    currentCoroutineContext().ensureActive()
+                    if (generation != requestGeneration || selectedPlatform != platformSnapshot) return@launch
                     if (cached != null) {
                         val gson = com.google.gson.Gson()
                         val payload = runCatching { gson.fromJson(cached.payloadJson, ExplorePayload::class.java) }.getOrNull()
@@ -354,6 +365,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                         // Tüm fallback'ler tükendi — platforma özgü hata tipini belirt
                         isFallbackInProgress = false
                         exploreErrorType = when (platformSnapshot) {
+                            ExplorePlatform.ALL       -> ExploreErrorType.None
                             ExplorePlatform.TMDB      -> ExploreErrorType.TmdbError
                             ExplorePlatform.AniList   -> ExploreErrorType.AniListError
                             ExplorePlatform.MAL       -> ExploreErrorType.MalError
@@ -366,6 +378,85 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             } finally {
                 if (coroutineContext[Job] == loadJob) {
                     isLoading = false
+                }
+            }
+        }
+    }
+
+    private suspend fun fetchPlatform(platform: ExplorePlatform, allowFallback: Boolean = true): ExplorePayload = when (platform) {
+        ExplorePlatform.ALL -> error("Tümü bir API kaynağı değildir")
+        ExplorePlatform.AniList -> loadAniListData(allowFallback)
+        ExplorePlatform.MAL -> loadMalData()
+        ExplorePlatform.TMDB -> loadTmdbData()
+        ExplorePlatform.SIMKL -> loadSimklData()
+        ExplorePlatform.KITSU -> loadKitsuData()
+        ExplorePlatform.SHIKIMORI -> loadShikimoriData()
+    }
+
+    private fun loadAllSources(forceRefresh: Boolean) {
+        allSourceStates = ExplorePlatform.sources.associateWith { platform ->
+            ExploreSourceState(
+                payload = (platformCache[platform] ?: allSourceStates[platform]?.payload)?.forSource(platform),
+                isLoading = true,
+                isCached = platformCache[platform] == null && allSourceStates[platform]?.isCached == true
+            )
+        }
+        isLoading = true
+        ExplorePlatform.sources.forEach { launchSource(it, forceRefresh) }
+    }
+
+    /** Only the failed source is retried; successful sources stay visible. */
+    fun retrySource(platform: ExplorePlatform) {
+        if (selectedPlatform != ExplorePlatform.ALL || platform == ExplorePlatform.ALL ||
+            allSourceStates[platform]?.isLoading == true) return
+        allSourceStates = allSourceStates + (platform to
+            (allSourceStates[platform] ?: ExploreSourceState()).copy(isLoading = true, error = null))
+        isLoading = true
+        launchSource(platform, forceRefresh = true)
+    }
+
+    private fun launchSource(platform: ExplorePlatform, forceRefresh: Boolean) {
+        val generation = requestGeneration
+        sourceJobs[platform]?.cancel()
+        sourceJobs[platform] = viewModelScope.launch {
+            val cached = allSourceStates[platform]?.payload
+            val needsFetch = forceRefresh || allSourceStates[platform]?.isCached == true || cached?.hasCatalogContent() != true
+            val state = loadExploreSource(
+                cached = cached,
+                forceRefresh = needsFetch,
+                fetch = { fetchPlatform(platform, allowFallback = false).forSource(platform) },
+                readOffline = {
+                    val db = com.kitsugi.animelist.data.local.KitsugiDatabase.getDatabase(getApplication())
+                    db.exploreCacheDao().getCategory("explore_platform_${platform.name}")?.let {
+                        com.google.gson.Gson().fromJson(it.payloadJson, ExplorePayload::class.java)?.forSource(platform)
+                    }
+                }
+            )
+            currentCoroutineContext().ensureActive()
+            if (generation != requestGeneration || selectedPlatform != ExplorePlatform.ALL) return@launch
+            allSourceStates = allSourceStates + (platform to state)
+            isLoading = allSourceStates.values.any { it.isLoading }
+            // Never mark a failed/empty/offline response as a successful in-memory load.
+            if (state.error == null && state.payload != null) {
+                platformCache[platform] = state.payload
+                loadedPlatforms.add(platform)
+                if (needsFetch) {
+                    try {
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            val db = com.kitsugi.animelist.data.local.KitsugiDatabase.getDatabase(getApplication())
+                            db.exploreCacheDao().insertCategory(
+                                com.kitsugi.animelist.data.local.ExploreCacheEntity(
+                                    categoryKey = "explore_platform_${platform.name}",
+                                    payloadJson = com.google.gson.Gson().toJson(state.payload),
+                                    cachedAtMs = System.currentTimeMillis()
+                                )
+                            )
+                        }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        android.util.Log.w("ExploreViewModel", "Explore cache write failed", e)
+                    }
                 }
             }
         }
@@ -516,11 +607,6 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             continueSeries = enrichedSeries + continueSeries.drop(8)
         }
 
-        simklContinueMovies  = continueMovies
-        simklPlannedMovies   = plannedMovies
-        simklContinueSeries  = continueSeries
-        simklPlannedSeries   = plannedSeries
-
         ExplorePayload(
             topAnime      = allTrending,       // Trend Her Şey (film + dizi karışık)
             airingAnime   = showsList,          // Trend Diziler
@@ -553,6 +639,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         }
 
         val topAnimeDeferred = async { runCatching { com.kitsugi.animelist.data.remote.KitsuExploreClient.topAnime(20) }.getOrDefault(emptyList()) }
+        val topRatedAnimeDeferred = async { runCatching { com.kitsugi.animelist.data.remote.KitsuExploreClient.topRatedAnime(20) }.getOrDefault(emptyList()) }
+        val topRatedMangaDeferred = async { runCatching { com.kitsugi.animelist.data.remote.KitsuExploreClient.topRatedManga(20) }.getOrDefault(emptyList()) }
         val trendingAnimeDeferred = async { runCatching { com.kitsugi.animelist.data.remote.KitsuExploreClient.trendingAnime(20) }.getOrDefault(emptyList()) }
         val seasonalAnimeDeferred = async { runCatching { com.kitsugi.animelist.data.remote.KitsuExploreClient.seasonalAnime(currentSeason, year, 20) }.getOrDefault(emptyList()) }
         val airingAnimeDeferred = async { runCatching { com.kitsugi.animelist.data.remote.KitsuExploreClient.airingAnime(20) }.getOrDefault(emptyList()) }
@@ -593,7 +681,9 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             newlyAddedManga = newlyAddedMangaDeferred.await(),
             trendingAnime = trendingAnimeDeferred.await(),
             movieAnime = movieAnimeDeferred.await(),
-            seasonalAnime = seasonalAnimeDeferred.await()
+            seasonalAnime = seasonalAnimeDeferred.await(),
+            topRatedAnime = topRatedAnimeDeferred.await(),
+            topRatedManga = topRatedMangaDeferred.await()
         )
     }
 
@@ -725,11 +815,6 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         val continueSeries = userShows.filter { it.subtitle.contains("İzleniyor") }
         val plannedSeries  = userShows.filter { it.subtitle.contains("Planlandı") }
 
-        simklContinueMovies  = continueMovies
-        simklPlannedMovies   = plannedMovies
-        simklContinueSeries  = continueSeries
-        simklPlannedSeries   = plannedSeries
-
         val topAnimeList = topAnimeDeferred.await()
         val airingAnimeList = airingAnimeDeferred.await()
         val upcomingAnimeList = upcomingAnimeDeferred.await()
@@ -838,7 +923,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         )
     }
 
-    private suspend fun loadAniListData(): ExplorePayload = supervisorScope {
+    private suspend fun loadAniListData(allowFallback: Boolean = true): ExplorePayload = supervisorScope {
         val showAdult = showAdultContentState
         val serviceError = java.util.concurrent.atomic.AtomicReference<Throwable?>(null)
         fun <T> Result<T>.orDefaultTracking(d: T): T {
@@ -850,6 +935,11 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         }
 
         val topAnimeDeferred = async { apiClient.aniListTopAnime(showAdultContent = showAdult) }
+        val topRatedAnimeDeferred = async { apiClient.aniListTopRated(MediaType.Anime, showAdultContent = showAdult) }
+        val topRatedMangaDeferred = async { apiClient.aniListTopRated(MediaType.Manga, showAdultContent = showAdult) }
+        val trendingAnimeDeferred = async { apiClient.aniListTrendingAnime(showAdultContent = showAdult) }
+        val seasonalAnimeDeferred = async { apiClient.aniListSeasonalAnime(showAdultContent = showAdult) }
+        val movieAnimeDeferred = async { apiClient.aniListMovieAnime(showAdultContent = showAdult) }
         val airingAnimeDeferred = async { apiClient.aniListAiringAnime(showAdultContent = showAdult) }
         val upcomingAnimeDeferred = async { apiClient.aniListUpcomingAnime(showAdultContent = showAdult) }
         val topMangaDeferred = async { apiClient.aniListTopManga(showAdultContent = showAdult) }
@@ -888,7 +978,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
 
         // AniList veri vermezse veya servis hatası tespit edildiyse Kitsu tam fallback
         val isAniListEmpty = topAnime.isEmpty() && airingAnime.isEmpty() && upcomingAnime.isEmpty()
-        if (serviceError.get() != null || isAniListEmpty) {
+        if (allowFallback && (serviceError.get() != null || isAniListEmpty)) {
             android.util.Log.w("ExploreViewModel", "AniList veri vermedi veya servis hatası (boş=$isAniListEmpty) → Kitsu fallback")
             return@supervisorScope loadKitsuData()
         }
@@ -896,7 +986,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         // Kısmi boşlukları Kitsu ile tamamla
         val needsKitsuFill = topAnime.isEmpty() || airingAnime.isEmpty() || upcomingAnime.isEmpty() ||
             topManga.isEmpty() || publishingManga.isEmpty() || trendingManga.isEmpty()
-        val kitsuFill = if (needsKitsuFill) runCatching { loadKitsuData() }.getOrNull() else null
+        val kitsuFill = if (allowFallback && needsKitsuFill) runCatching { loadKitsuData() }.getOrNull() else null
 
         ExplorePayload(
             topAnime = topAnime.ifEmpty { kitsuFill?.topAnime ?: emptyList() },
@@ -907,8 +997,12 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             trendingManga = trendingManga.ifEmpty { kitsuFill?.trendingManga ?: emptyList() },
             newlyAddedAnime = newlyAddedAnime.ifEmpty { kitsuFill?.newlyAddedAnime ?: emptyList() },
             newlyAddedManga = newlyAddedManga.ifEmpty { kitsuFill?.newlyAddedManga ?: emptyList() },
-            trendingAnime = emptyList(), movieAnime = kitsuFill?.movieAnime ?: emptyList(),
-            seasonalAnime = emptyList(), airingSoonAnime = airingSoon
+            trendingAnime = runCatching { trendingAnimeDeferred.await() }.orDefaultTracking(emptyList()),
+            movieAnime = runCatching { movieAnimeDeferred.await() }.orDefaultTracking(emptyList()),
+            seasonalAnime = runCatching { seasonalAnimeDeferred.await() }.orDefaultTracking(emptyList()),
+            topRatedAnime = runCatching { topRatedAnimeDeferred.await() }.orDefaultTracking(emptyList()),
+            topRatedManga = runCatching { topRatedMangaDeferred.await() }.orDefaultTracking(emptyList()),
+            airingSoonAnime = airingSoon
         )
     }
 
@@ -1138,25 +1232,4 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 }
-
-data class ExplorePayload(
-    val topAnime: List<JikanSearchResult>,
-    val airingAnime: List<JikanSearchResult>,
-    val upcomingAnime: List<JikanSearchResult>,
-    val topManga: List<JikanSearchResult>,
-    val publishingManga: List<JikanSearchResult>,
-    val trendingAnime: List<JikanSearchResult>,
-    val movieAnime: List<JikanSearchResult>,
-    val seasonalAnime: List<JikanSearchResult>,
-    val simklContinueMovies: List<JikanSearchResult> = emptyList(),
-    val simklPlannedMovies: List<JikanSearchResult> = emptyList(),
-    val simklContinueSeries: List<JikanSearchResult> = emptyList(),
-    val simklPlannedSeries: List<JikanSearchResult> = emptyList(),
-    val airingSoonAnime: List<JikanSearchResult> = emptyList(),
-    val trendingManga: List<JikanSearchResult> = emptyList(),
-    val newlyAddedAnime: List<JikanSearchResult> = emptyList(),
-    val newlyAddedManga: List<JikanSearchResult> = emptyList(),
-    /** TMDB'ye özgü upcoming medya listesi — trendingManga'dan bağımsız */
-    val upcomingMediaTmdb: List<JikanSearchResult> = emptyList()
-)
 

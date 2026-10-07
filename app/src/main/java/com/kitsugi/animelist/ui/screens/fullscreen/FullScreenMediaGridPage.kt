@@ -76,6 +76,7 @@ import com.kitsugi.animelist.ui.components.KitsugiRankingMediaCard
 import com.kitsugi.animelist.ui.components.DetailedSeasonalMediaCard
 import com.kitsugi.animelist.ui.components.KitsugiSeasonalFilterBottomSheet
 import com.kitsugi.animelist.ui.screens.explore.ExploreCategoryType
+import com.kitsugi.animelist.ui.screens.explore.exploreIdentity
 import com.kitsugi.animelist.ui.screens.explore.ExplorePlatform
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalIsTv
@@ -155,20 +156,41 @@ fun FullScreenMediaGridPage(
     var selectedSortOption by rememberSaveable { mutableStateOf(KitsugiGridSortOption.DEFAULT) }
     var showGeneralFilterBottomSheet by remember { mutableStateOf(false) }
 
-    val dynamicTitle = remember(categoryType, title, seasonalSeason, seasonalYear) {
-        if (categoryType == ExploreCategoryType.SEASONAL_ANIME) {
+    val isSeasonalAnime = categoryType == ExploreCategoryType.SEASONAL_ANIME &&
+        platform != ExplorePlatform.TMDB && platform != ExplorePlatform.SIMKL
+    val dynamicTitle = remember(isSeasonalAnime, title, seasonalSeason, seasonalYear) {
+        if (isSeasonalAnime) {
             val sn = when (seasonalSeason.uppercase()) {
                 "WINTER" -> "Kış"; "SPRING" -> "İlkbahar"; "SUMMER" -> "Yaz"; else -> "Sonbahar"
             }
-            "$sn $seasonalYear"
+            "${platform.label} · $sn $seasonalYear"
         } else title
     }
 
     var loadedResults by remember { mutableStateOf(initialResults) }
     var currentPage by remember { mutableStateOf(if (initialResults.isEmpty()) 0 else 1) }
     var isLoadingMore by remember { mutableStateOf(false) }
-    var hasMorePages by remember { mutableStateOf(true) }
+    // These endpoints return a finite chart, not numbered pages.
+    val finiteChart = platform == ExplorePlatform.SIMKL ||
+        (platform == ExplorePlatform.KITSU && categoryType == ExploreCategoryType.TRENDING_ANIME)
+    var hasMorePages by remember { mutableStateOf(!finiteChart || initialResults.isEmpty()) }
     var loadError by remember { mutableStateOf<String?>(null) }
+
+    suspend fun fetchSeasonalPage(page: Int): List<JikanSearchResult> = when (platform) {
+        ExplorePlatform.AniList -> apiClient.aniListSeasonalAnime(page, showAdultContent, seasonalYear, seasonalSeason, seasonalSort)
+        ExplorePlatform.MAL -> apiClient.seasonalAnime(page, showAdultContent, seasonalYear, seasonalSeason, seasonalSort)
+        ExplorePlatform.KITSU -> com.kitsugi.animelist.data.remote.KitsuExploreClient.searchMediaAdvanced(
+            mediaType = com.kitsugi.animelist.model.MediaType.Anime, page = page, limit = 20,
+            season = seasonalSeason.lowercase(), seasonYear = seasonalYear,
+            sort = when (seasonalSort) { "SCORE_DESC" -> "-averageRating"; "START_DATE_DESC" -> "-startDate"; else -> "-userCount" }
+        )
+        ExplorePlatform.SHIKIMORI -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(
+            mediaType = com.kitsugi.animelist.model.MediaType.Anime, page = page, limit = 20,
+            season = "${seasonalSeason.lowercase()}_$seasonalYear",
+            order = when (seasonalSort) { "SCORE_DESC" -> "ranked"; "START_DATE_DESC" -> "aired_on"; else -> "popularity" }
+        )
+        else -> emptyList()
+    }
 
     fun loadNextPage() {
         if (isLoadingMore || !hasMorePages) return
@@ -178,6 +200,8 @@ fun FullScreenMediaGridPage(
                 val np = currentPage + 1
                 val newItems = when (platform) {
                     ExplorePlatform.MAL -> when (categoryType) {
+                        ExploreCategoryType.TOP_RATED_ANIME -> apiClient.topAnime(np, showAdultContent)
+                        ExploreCategoryType.TOP_RATED_MANGA -> apiClient.topManga(np, showAdultContent)
                         ExploreCategoryType.TOP_ANIME -> apiClient.topAnime(np)
                         ExploreCategoryType.TRENDING_ANIME -> apiClient.trendingAnime(np)
                         ExploreCategoryType.AIRING_ANIME -> apiClient.airingAnime(np)
@@ -192,6 +216,8 @@ fun FullScreenMediaGridPage(
                         ExploreCategoryType.UPCOMING_MEDIA_TMDB -> emptyList()
                     }
                     ExplorePlatform.AniList -> when (categoryType) {
+                        ExploreCategoryType.TOP_RATED_ANIME -> apiClient.aniListTopRated(com.kitsugi.animelist.model.MediaType.Anime, np, showAdultContent)
+                        ExploreCategoryType.TOP_RATED_MANGA -> apiClient.aniListTopRated(com.kitsugi.animelist.model.MediaType.Manga, np, showAdultContent)
                         ExploreCategoryType.TOP_ANIME -> apiClient.aniListTopAnime(np)
                         ExploreCategoryType.TRENDING_ANIME -> apiClient.aniListTrendingAnime(np)
                         ExploreCategoryType.AIRING_ANIME -> apiClient.aniListAiringAnime(np)
@@ -223,6 +249,11 @@ fun FullScreenMediaGridPage(
                         }
                     }
                     ExplorePlatform.KITSU -> when (categoryType) {
+                        ExploreCategoryType.TOP_RATED_ANIME -> com.kitsugi.animelist.data.remote.KitsuExploreClient.topRatedAnime(20, offset = (np - 1) * 20)
+                        ExploreCategoryType.TOP_RATED_MANGA -> com.kitsugi.animelist.data.remote.KitsuExploreClient.topRatedManga(20, offset = (np - 1) * 20)
+                        ExploreCategoryType.TRENDING_ANIME -> com.kitsugi.animelist.data.remote.KitsuExploreClient.trendingAnime(20)
+                        ExploreCategoryType.MOVIE_ANIME -> com.kitsugi.animelist.data.remote.KitsuExploreClient.movieAnime(20, offset = (np - 1) * 20)
+                        ExploreCategoryType.SEASONAL_ANIME -> fetchSeasonalPage(np)
                         ExploreCategoryType.TOP_ANIME -> com.kitsugi.animelist.data.remote.KitsuExploreClient.topAnime(20, offset = (np - 1) * 20)
                         ExploreCategoryType.AIRING_ANIME -> com.kitsugi.animelist.data.remote.KitsuExploreClient.airingAnime(20, offset = (np - 1) * 20)
                         ExploreCategoryType.UPCOMING_ANIME -> com.kitsugi.animelist.data.remote.KitsuExploreClient.upcomingAnime(20, offset = (np - 1) * 20)
@@ -234,8 +265,12 @@ fun FullScreenMediaGridPage(
                         else -> emptyList()
                     }
                     ExplorePlatform.SHIKIMORI -> when (categoryType) {
+                        ExploreCategoryType.TRENDING_ANIME -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.trendingAnime(limit = 20, page = np)
+                        ExploreCategoryType.MOVIE_ANIME -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.movieAnime(limit = 20, page = np)
+                        ExploreCategoryType.SEASONAL_ANIME -> fetchSeasonalPage(np)
+                        ExploreCategoryType.TRENDING_MANGA -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Manga, order = "popularity", page = np, limit = 20)
                         ExploreCategoryType.TOP_ANIME -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Anime, order = "ranked", page = np, limit = 20)
-                        ExploreCategoryType.AIRING_ANIME -> com.kitsugi.animelist.data.remote.KitsuExploreClient.airingAnime(20, offset = (np - 1) * 20)
+                        ExploreCategoryType.AIRING_ANIME -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.airingAnime(limit = 20, page = np)
                         ExploreCategoryType.UPCOMING_ANIME -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Anime, statuses = listOf("anons"), order = "popularity", page = np, limit = 20)
                         ExploreCategoryType.TOP_MANGA -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Manga, order = "ranked", page = np, limit = 20)
                         ExploreCategoryType.PUBLISHING_MANGA -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Manga, statuses = listOf("ongoing"), order = "popularity", page = np, limit = 20)
@@ -257,8 +292,13 @@ fun FullScreenMediaGridPage(
                     }
                     else -> emptyList()
                 }
-                if (newItems.isNotEmpty()) { loadedResults = loadedResults + newItems; currentPage = np }
-                else hasMorePages = false
+                val existingKeys = loadedResults.map { it.exploreIdentity() }.toHashSet()
+                val uniqueItems = newItems.filter { existingKeys.add(it.exploreIdentity()) }
+                if (uniqueItems.isNotEmpty()) {
+                    loadedResults = loadedResults + uniqueItems
+                    currentPage = np
+                }
+                if (uniqueItems.isEmpty() || finiteChart) hasMorePages = false
             } catch (e: Exception) {
                 loadError = e.message ?: "Yükleme hatası"
             } finally { isLoadingMore = false }
@@ -277,9 +317,7 @@ fun FullScreenMediaGridPage(
         isLoadingMore = true; loadError = null
         scope.launch {
             try {
-                loadedResults = if (platform == ExplorePlatform.AniList)
-                    apiClient.aniListSeasonalAnime(1, showAdultContent, year, season, sort)
-                else apiClient.seasonalAnime(1, showAdultContent, year, season, sort)
+                loadedResults = fetchSeasonalPage(1)
             } catch (e: Exception) {
                 loadError = e.message ?: "Hata"
             } finally { isLoadingMore = false }
@@ -409,7 +447,7 @@ fun FullScreenMediaGridPage(
                             // Filtre ve Sıralama Butonu (Her kategoride aktif)
                             IconButton(
                                 onClick = {
-                                    if (categoryType == ExploreCategoryType.SEASONAL_ANIME) {
+                                    if (isSeasonalAnime) {
                                         showFilterBottomSheet = true
                                     } else {
                                         showGeneralFilterBottomSheet = true
@@ -532,7 +570,7 @@ fun FullScreenMediaGridPage(
                         displayedResults,
                         key = { idx, item -> "${item.source}_${item.malId}_g$idx" }
                     ) { index, result ->
-                        val showRank = categoryType != ExploreCategoryType.SEASONAL_ANIME
+                        val showRank = !isSeasonalAnime
                         KitsugiExploreMediaCard(
                             result = result,
                             alreadyInList = alreadyInList(result),
@@ -607,7 +645,7 @@ fun FullScreenMediaGridPage(
                             // Filtre ve Sıralama Butonu (Her kategoride aktif)
                             IconButton(
                                 onClick = {
-                                    if (categoryType == ExploreCategoryType.SEASONAL_ANIME) {
+                                    if (isSeasonalAnime) {
                                         showFilterBottomSheet = true
                                     } else {
                                         showGeneralFilterBottomSheet = true
@@ -735,7 +773,7 @@ fun FullScreenMediaGridPage(
                         displayedResults,
                         key = { idx, item -> "${item.source}_${item.malId}_l$idx" }
                     ) { index, result ->
-                        if (categoryType == ExploreCategoryType.SEASONAL_ANIME) {
+                        if (isSeasonalAnime) {
                             DetailedSeasonalMediaCard(
                                 result = result,
                                 alreadyInList = alreadyInList(result),
@@ -814,7 +852,7 @@ fun FullScreenMediaGridPage(
                 val hasActiveFilterFloating = selectedGenreId != "ALL" || selectedSortOption != KitsugiGridSortOption.DEFAULT
                 IconButton(
                     onClick = {
-                        if (categoryType == ExploreCategoryType.SEASONAL_ANIME) {
+                        if (isSeasonalAnime) {
                             showFilterBottomSheet = true
                         } else {
                             showGeneralFilterBottomSheet = true

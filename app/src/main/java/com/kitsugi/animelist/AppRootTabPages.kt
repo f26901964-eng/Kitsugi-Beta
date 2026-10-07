@@ -13,6 +13,7 @@ import com.kitsugi.animelist.ui.app.AddonViewModel
 import com.kitsugi.animelist.ui.app.MangaViewModel
 import com.kitsugi.animelist.ui.screens.explore.ExploreViewModel
 import com.kitsugi.animelist.ui.screens.search.SearchViewModel
+import com.kitsugi.animelist.ui.screens.explore.ExplorePlatform
 import com.kitsugi.animelist.ui.screens.explore.ExploreCategoryType
 import com.kitsugi.animelist.data.settings.AppSettings
 import com.kitsugi.animelist.data.settings.SettingsDataStore
@@ -61,7 +62,7 @@ data class TabPagesContext(
     val onImportBackupFileClick: () -> Unit,
     val onOpenApiDetail: (JikanSearchResult) -> Unit,
     val onAddApiSelectionToList: (ApiSearchSelection) -> Unit,
-    val onSeeAllSection: (String, ExploreCategoryType, List<JikanSearchResult>) -> Unit,
+    val onSeeAllSection: (String, ExploreCategoryType, List<JikanSearchResult>, ExplorePlatform) -> Unit,
     val onNavigateToWatchHistory: () -> Unit,
     val onOpenMangaReader: () -> Unit,
     val onEditEntry: (MediaEntry) -> Unit,
@@ -228,6 +229,7 @@ private fun ExploreTabPage(ctx: TabPagesContext) {
         onEditEntry = ctx.onEditEntry,
         onOpenAiringCalendar = {
             val preferredSource = when (ctx.exploreViewModel.selectedPlatform) {
+                com.kitsugi.animelist.ui.screens.explore.ExplorePlatform.ALL -> "anilist"
                 com.kitsugi.animelist.ui.screens.explore.ExplorePlatform.MAL -> "jikan"
                 com.kitsugi.animelist.ui.screens.explore.ExplorePlatform.AniList -> "anilist"
                 com.kitsugi.animelist.ui.screens.explore.ExplorePlatform.TMDB -> "tmdb"

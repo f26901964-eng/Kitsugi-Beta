@@ -122,6 +122,7 @@ import com.kitsugi.animelist.ui.screens.detail.StaffDetailPage
 import com.kitsugi.animelist.ui.screens.detail.StudioDetailPage
 import com.kitsugi.animelist.ui.screens.explore.ExploreScreen
 import com.kitsugi.animelist.ui.screens.explore.ExploreViewModel
+import com.kitsugi.animelist.ui.screens.explore.ExplorePlatform
 import com.kitsugi.animelist.ui.screens.explore.ExploreCategoryType
 import com.kitsugi.animelist.ui.screens.fullscreen.FullScreenMediaGridPage
 import com.kitsugi.animelist.ui.screens.mylist.MyListScreen
@@ -687,12 +688,13 @@ fun AppRoot(
     fun openFullScreenSection(
         title: String,
         categoryType: ExploreCategoryType,
-        results: List<JikanSearchResult>
+        results: List<JikanSearchResult>,
+        platform: ExplorePlatform
     ) {
         navState.fullScreenGridState = FullScreenMediaGridState(
             title = title,
             categoryType = categoryType,
-            platform = exploreViewModel.selectedPlatform,
+            platform = platform,
             initialResults = results
         )
     }
@@ -1053,7 +1055,7 @@ private fun AppNavigationContent(
     onExportBackupFileClick: () -> Unit,
     onImportBackupFileClick: () -> Unit,
     onOpenApiDetail: (JikanSearchResult) -> Unit,
-    onSeeAllSection: (String, ExploreCategoryType, List<JikanSearchResult>) -> Unit,
+    onSeeAllSection: (String, ExploreCategoryType, List<JikanSearchResult>, ExplorePlatform) -> Unit,
     onOpenMangaReader: () -> Unit,
     exportMangaSourceReportFile: (String) -> Unit,
     triggerSearch: (String) -> Unit,

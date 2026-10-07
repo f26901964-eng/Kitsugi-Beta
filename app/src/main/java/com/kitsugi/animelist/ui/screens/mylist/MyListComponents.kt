@@ -393,7 +393,7 @@ fun MyListTabBar(
 
     val platforms = listOf(
         MyListPlatformSource(
-            index = 0,
+            index = MY_LIST_ANILIST_TAB_INDEX,
             id = "anilist",
             name = "AniList",
             shortName = "AniList",
@@ -405,7 +405,7 @@ fun MyListTabBar(
             description = "En zengin anime, manga, manhwa ve stüdyo veritabanı"
         ),
         MyListPlatformSource(
-            index = 1,
+            index = MY_LIST_MAL_TAB_INDEX,
             id = "mal",
             name = "MyAnimeList",
             shortName = "MAL",
@@ -417,7 +417,7 @@ fun MyListTabBar(
             description = "Klasik MyAnimeList kataloğu, dergiler ve yapımcılar"
         ),
         MyListPlatformSource(
-            index = 2,
+            index = MY_LIST_SIMKL_TAB_INDEX,
             id = "simkl",
             name = "Simkl",
             shortName = "Simkl",
@@ -429,7 +429,7 @@ fun MyListTabBar(
             description = "TV dizileri, filmler ve anime takip platformu"
         ),
         MyListPlatformSource(
-            index = 3,
+            index = MY_LIST_KITSU_TAB_INDEX,
             id = "kitsu",
             name = "Kitsu",
             shortName = "Kitsu",
@@ -441,7 +441,7 @@ fun MyListTabBar(
             description = "Hızlı, hafif anime ve manga topluluk kütüphanesi"
         ),
         MyListPlatformSource(
-            index = 4,
+            index = MY_LIST_SHIKIMORI_TAB_INDEX,
             id = "shikimori",
             name = "Shikimori",
             shortName = "Shikimori",

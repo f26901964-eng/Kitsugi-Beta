@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.screens.explore
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -42,7 +44,7 @@ import com.kitsugi.animelist.ui.utils.tvClickable
 
 /**
  * Keşfet Sayfası için Brave-Tarzı Kaynak Motoru Seçici Hap Buton.
- * Tıklandığında [ExploreSourcePickerSheet] açılır ve 6 kaynak (AniList, MAL/Jikan, TMDB, Simkl, Kitsu, Shikimori) listelenir.
+ * Tıklandığında [ExploreSourcePickerSheet] açılır; Tümü ve 6 kaynak (AniList, MAL/Jikan, TMDB, Simkl, Kitsu, Shikimori) listelenir.
  */
 @Composable
 fun ExploreSourceEngineSelectorPill(
@@ -91,7 +93,7 @@ fun ExploreSourceEngineSelectorPill(
 }
 
 /**
- * 6 Platformlu Keşfet Kaynak Seçim Bottom Sheet Diyalogu.
+ * Tümü ve 6 Platformlu Keşfet Kaynak Seçim Bottom Sheet Diyalogu.
  * Arama sayfasındaki kaynak seçici tarzında: AniList, MAL/Jikan, TMDB, Simkl, Kitsu ve Shikimori'yi
  * detaylı açıklamaları ve simgeleriyle gösterir.
  */
@@ -123,6 +125,7 @@ fun ExploreSourcePickerSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
                 .padding(horizontal = 20.dp)
                 .padding(bottom = 32.dp)
         ) {
@@ -134,7 +137,7 @@ fun ExploreSourcePickerSheet(
                 )
             )
             Text(
-                text = "Ana sayfada hangi platformun içeriklerini keşfetmek istiyorsun?",
+                text = "Tek bir kaynak seç veya Tümü ile 6 kaynağı birlikte keşfet.",
                 style = MaterialTheme.typography.bodySmall.copy(
                     color = KitsugiColors.TextMuted
                 ),
@@ -203,7 +206,7 @@ fun ExploreSourcePickerSheet(
 }
 
 /**
- * 6 Kaynaklı Hızlı Yatay Çip Çubuğu.
+ * Tümü ve 6 Kaynaklı Hızlı Yatay Çip Çubuğu.
  * Kullanıcının tek dokunuşla kaydırarak platformlar arasında hızlıca geçiş yapmasını sağlar.
  */
 @Composable

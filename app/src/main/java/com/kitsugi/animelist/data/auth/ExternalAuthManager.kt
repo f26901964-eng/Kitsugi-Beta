@@ -287,6 +287,57 @@ object ExternalAuthManager {
     }
 
     /**
+     * expiresAt kontrolünü atlayarak refresh token ile her koşulda yeni bir
+     * Shikimori access token almayı dener.
+     *
+     * Kullanım: `fetchAllUserRates` gibi çağrılar HTTP 401 aldığında çağrılır;
+     * böylece sunucunun token'ı iptal ettiği (ama yerel `expiresAt` geçerli
+     * göründüğü) durumda sessiz retry yapılabilir.
+     *
+     * @return Yeni access token ya da refresh mümkün değilse null.
+     */
+    suspend fun forceRefreshShikimoriToken(context: Context): String? = withContext(Dispatchers.IO) {
+        val p = prefs(context)
+        val refreshToken = p.getString(KEY_SHIKIMORI_REFRESH_TOKEN, null)
+        if (refreshToken.isNullOrBlank()) return@withContext null
+
+        val clientId = getShikimoriClientId(context)
+        val clientSecret = getShikimoriClientSecret(context)
+        if (clientId.isBlank() || clientSecret.isBlank()) return@withContext null
+
+        val refreshResult: ShikimoriApiClient.ShikimoriTokenResponse? = try {
+            ShikimoriApiClient.refreshToken(clientId, clientSecret, refreshToken)
+        } catch (e: ShikimoriApiClient.ShikimoriTokenException) {
+            if (e.status == 400 || e.status == 401) {
+                // Refresh token geçersiz: oturumu temizle, kullanıcıya bildir.
+                p.edit()
+                    .remove(KEY_SHIKIMORI_TOKEN)
+                    .remove(KEY_SHIKIMORI_REFRESH_TOKEN)
+                    .remove(KEY_SHIKIMORI_TOKEN_EXPIRES_AT)
+                    .apply()
+                _authEvents.tryEmit(AuthEvent.SessionExpired("shikimori"))
+            }
+            null
+        } catch (e: Exception) {
+            null
+        }
+
+        if (refreshResult != null) {
+            saveShikimoriAuth(
+                context,
+                refreshResult.accessToken,
+                refreshResult.refreshToken,
+                refreshResult.expiresIn,
+                p.getInt(KEY_SHIKIMORI_USER_ID, 0),
+                p.getString(KEY_SHIKIMORI_USERNAME, "Shikimori") ?: "Shikimori"
+            )
+            refreshResult.accessToken
+        } else {
+            null
+        }
+    }
+
+    /**
      * Kullanıcı kimliği eksikse (giriş sırasında whoami geçici olarak yanıt
      * vermediyse) kayıtlı token ile bir kez çözmeye çalışır.
      * @return Kimlik çözülebildiyse (veya zaten kayıtlıysa) true.

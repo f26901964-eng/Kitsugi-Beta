@@ -2,6 +2,8 @@ package com.kitsugi.animelist.ui.screens.explore
 
 enum class ExploreCategoryType {
     TOP_ANIME,
+    TOP_RATED_ANIME,
+    TOP_RATED_MANGA,
     TRENDING_ANIME,
     AIRING_ANIME,
     UPCOMING_ANIME,

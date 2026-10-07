@@ -213,6 +213,9 @@ class JikanApiClient(
     ) = jikanSearchClient.seasonalAnime(page, showAdultContent, year, season, sort)
 
     // AniList Specific Search Methods
+    suspend fun aniListTopRated(mediaType: MediaType, page: Int = 1, showAdultContent: Boolean = false) =
+        aniListSearchClient.aniListTopRated(mediaType, page, showAdultContent)
+
     suspend fun aniListTopAnime(page: Int = 1, showAdultContent: Boolean = false) = aniListSearchClient.aniListTopAnime(page, showAdultContent)
     suspend fun aniListAiringAnime(page: Int = 1, showAdultContent: Boolean = false) = aniListSearchClient.aniListAiringAnime(page, showAdultContent)
     suspend fun aniListUpcomingAnime(page: Int = 1, showAdultContent: Boolean = false) = aniListSearchClient.aniListUpcomingAnime(page, showAdultContent)

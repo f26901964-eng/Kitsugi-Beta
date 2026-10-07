@@ -3,8 +3,90 @@ package com.kitsugi.animelist.ui.screens.mylist
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaIdentity
 
-internal const val MY_LIST_ALL_TAB_INDEX = 5
-internal const val MY_LIST_TAB_COUNT = MY_LIST_ALL_TAB_INDEX + 1
+/**
+ * Sekme sırası: 0 = Tümü (birleşik kütüphane), 1..5 = platform kütüphaneleri.
+ * "Tümü" artık en başta durur; pager ve hap butonlar aynı sırayı paylaşır.
+ */
+internal const val MY_LIST_ALL_TAB_INDEX = 0
+internal const val MY_LIST_ANILIST_TAB_INDEX = 1
+internal const val MY_LIST_MAL_TAB_INDEX = 2
+internal const val MY_LIST_SIMKL_TAB_INDEX = 3
+internal const val MY_LIST_KITSU_TAB_INDEX = 4
+internal const val MY_LIST_SHIKIMORI_TAB_INDEX = 5
+internal const val MY_LIST_TAB_COUNT = 6
+
+/** Eski sürümlerde "Tümü" sekmesinin index'i (0..4 = platformlar, 5 = Tümü). */
+private const val LEGACY_MY_LIST_ALL_TAB_INDEX = 5
+
+/**
+ * Eski sekme sırasını yeni sıraya çevirir: 5 (Tümü) → 0, 0..4 (platformlar) → +1.
+ */
+internal fun migrateLegacyMyListTabIndex(legacyIndex: Int): Int = when (legacyIndex) {
+    LEGACY_MY_LIST_ALL_TAB_INDEX -> MY_LIST_ALL_TAB_INDEX
+    in 0 until LEGACY_MY_LIST_ALL_TAB_INDEX -> legacyIndex + 1
+    else -> MY_LIST_ALL_TAB_INDEX
+}
+
+/** Verilen kaynağın hangi platform sekmesine ait olduğunu döner (Tümü için null). */
+internal fun myListTabIndexForSource(source: String): Int? = when (sourceBadgeId(source)) {
+    "anilist" -> MY_LIST_ANILIST_TAB_INDEX
+    "mal" -> MY_LIST_MAL_TAB_INDEX
+    "simkl" -> MY_LIST_SIMKL_TAB_INDEX
+    "kitsu" -> MY_LIST_KITSU_TAB_INDEX
+    "shikimori" -> MY_LIST_SHIKIMORI_TAB_INDEX
+    else -> null
+}
+
+/** Bir kaydın verilen platform sekmesinde görünüp görünmeyeceğini söyler. */
+internal fun myListSourceMatchesTab(tabIndex: Int, source: String): Boolean =
+    tabIndex != MY_LIST_ALL_TAB_INDEX && myListTabIndexForSource(source) == tabIndex
+
+/**
+ * Bir sekmede yeni/manüel kayıt oluşturulurken kullanılacak varsayılan kaynak.
+ * Tümü sekmesinde varsayılan AniList'tir; Simkl yalnızca açıkça seçildiğinde kullanılır.
+ */
+internal fun defaultMyListSourceForTab(tabIndex: Int): String = when (tabIndex) {
+    MY_LIST_MAL_TAB_INDEX -> "mal"
+    MY_LIST_SIMKL_TAB_INDEX -> "simkl"
+    MY_LIST_KITSU_TAB_INDEX -> "kitsu"
+    MY_LIST_SHIKIMORI_TAB_INDEX -> "shikimori"
+    else -> "anilist"
+}
+
+/** Kullanıcıya gösterilecek kısa kaynak adı. */
+internal fun myListSourceDisplayName(source: String): String = when (sourceBadgeId(source)) {
+    "anilist" -> "AniList"
+    "mal" -> "MAL"
+    "simkl" -> "Simkl"
+    "kitsu" -> "Kitsu"
+    "shikimori" -> "Shikimori"
+    "tmdb" -> "TMDB"
+    else -> source
+}
+
+/**
+ * Birleşik kütüphanede bir başlığın temsilci kaydının önceliği.
+ * AniList en hızlı ve en zengin kaynak olduğu için ilk sırada, Simkl ise
+ * (API'si gecikmeli yanıt verdiğinden) son sırada yer alır.
+ * Dizi/film kayıtları yalnızca Simkl/TMDB'de bulunduğu için bu türlerde
+ * Simkl doğal olarak temsilci olur.
+ */
+internal fun myListRepresentativeRank(entry: MediaEntry): Int = when (sourceBadgeId(entry.source)) {
+    "anilist" -> 0
+    "mal" -> 1
+    "kitsu" -> 2
+    "shikimori" -> 3
+    "simkl" -> 4
+    "tmdb" -> 5
+    else -> 6
+}
+
+/** Daha düşük öncelik numarası kazanır; eşitlikte en yeni kayıt temsilci olur. */
+private fun isBetterRepresentative(candidate: MediaEntry, current: MediaEntry): Boolean {
+    val candidateRank = myListRepresentativeRank(candidate)
+    val currentRank = myListRepresentativeRank(current)
+    return if (candidateRank != currentRank) candidateRank < currentRank else candidate.id > current.id
+}
 
 /** One visible item in the combined library, with the provider logos that contain it. */
 internal data class MyListLibraryItem(
@@ -54,7 +136,7 @@ internal fun groupMyListEntries(entries: List<MediaEntry>): List<MyListLibraryIt
 
         if (matchingGroupIndex != null) {
             group.entries += entry
-            if (entry.id > group.representative.id) {
+            if (isBetterRepresentative(entry, group.representative)) {
                 group.representative = entry
             }
         } else {
