@@ -13,11 +13,11 @@ oynatıcı hataları, ses/donma/çökme şikâyetleri
 | Kullanıcı şikâyeti | Kök neden | Durum |
 |---|---|---|
 | "Veri gelmiyor / aşırı geç geliyor" | Embed'ler sırayla çözülüyordu (20 sn timeout × N); korumasız eklentilerde gereksiz 500 ms bekleme | ✅ Düzeltildi |
-| "Birçok video kaynağı direkt gelmiyor, eklentiler boş dönüyor" | `loadExtractor` yalnızca kütüphaneye **kayıtlı** extractor'ları tanır; Türkçe CDN'ler (alions, closeload, gstore, trstx, molystream, streambox, pichive, rapidrame, vmnow…) o listede yok; yalnızca 8 sabit wrapper denenir | ✅ Düzeltildi (genel çözümleyici) |
+| "Birçok video kaynağı direkt gelmiyor, eklentiler boş dönüyor" | (a) `loadExtractor` yalnızca kütüphaneye **kayıtlı** extractor'ları tanır; Türkçe CDN'ler (alions, closeload, gstore, trstx, molystream, streambox, pichive, rapidrame, vmnow…) o listede yok; (b) **`KNOWN_DEAD_CDN_HOSTS` içindeki CDN'ler çözümlenmeden siliniyordu** (pichive.cc → Dizilla/AsyaWatch, vmnow.online → SezonlukDizi) | ✅ Düzeltildi (genel çözümleyici + silme kaldırıldı) |
 | "Videolar oynatılamıyor / oynatıcı hata veriyor" | HTML oynatıcı sayfası "oynatılabilir stream" sanılıp oynatıcıya veriliyordu | ✅ Düzeltildi |
 | "Ses olmuyor / video açılmıyor" | Kodek hatalarında (4001–4005, 5001–5002) MPV motoru **atlanıp** kaynak değiştiriliyordu; hâlbuki bu formatları MPV oynatabiliyor | ✅ Düzeltildi |
-| "Donup kalıyor / çöküyor" | Paralel yazım, bozuk URL'lerin oynatıcıya gitmesi, WebView çözümlemesinin hatalı çalıştırılması | ✅ Kısmen düzeltildi (bkz. §6) |
-| Bazı eklentiler hiç sonuç vermiyor | Bulanık domain eşleştirmesi yanlış siteye yönlendirebiliyordu + Türkçe "İ" harfi tam eşleşmeyi bozuyordu | ✅ Düzeltildi |
+| "Donup kalıyor / çöküyor" | (a) WebView sniffer ana thread'de 6 sn'ye kadar **bloke** ediyordu → ANR; (b) paralel yazımda altyazı listesi `ConcurrentModificationException` riski; (c) bozuk URL'lerin oynatıcıya gitmesi | ✅ Düzeltildi |
+| Bazı eklentiler hiç sonuç vermiyor | Bulanık domain eşleştirmesi yanlış siteye yönlendirebiliyordu (AsyaAnimeleri→animeler.pw, FullHDFilmizlesene→hdfilmizle.live) + Türkçe "İ" harfi tam eşleşmeyi bozuyordu | ✅ Düzeltildi |
 
 ---
 
@@ -205,6 +205,66 @@ yok" sonucu büyük ölçüde **yöntem artefaktıdır**. Güvenilir olan: cihaz
 çalışan `plugin_diagnostic_report.md` ve yeni `embedResolveListener` akışı
 (`CsPluginDiagnosticRunner.kt:306`).
 
+### B10 — (Kritik) "Ölü CDN" listesindeki kaynaklar hiç denenmeden siliniyordu ✅ DÜZELTİLDİ
+
+**Kanıt (eski kod, `CsStreamRunner.kt` — embed kuyruğuna alma):**
+```kotlin
+val isDeadCdn = KNOWN_DEAD_CDN_HOSTS.any { cleanUrl.contains(it, ignoreCase = true) }
+if (isDeadCdn) {
+    Log.w(TAG, "[${api.name}] Ölü CDN URL'si sessizce atlanıyor: $cleanUrl")   // ← atılıyor!
+} else {
+    pendingEmbedUrls.add(Triple(link.url, link.name, link.headers))
+}
+```
+`KNOWN_DEAD_CDN_HOSTS = { pichive.online, pichive.cc, sssrr.org, abyss.to, vmnow.online }`.
+Yorumların kendisi kanıt: *"pichive.cc — Pichive CDN alternatif alan"*, *"vmnow.online — VidMoly CDN
+yeni alt domain; **SezonlukDizi** embed CDN'i"*.
+
+**Sonuç:** Dizilla / AsyaWatch → pichive, SezonlukDizi → vmnow linkleri **hiç çözümlenmiyordu**.
+CDN adresi değiştiğinde veya geçici olarak erişilemez olduğunda eklenti **tamamen boş** dönüyordu —
+kullanıcının "eklentiler boş dönüyor" şikâyetinin doğrudan karşılığı. (Cihaz raporunda Dizilla ve
+AsyaWatch'ta 0 stream görülmesi bu bulguyla tutarlı.)
+
+**Çözüm:** Liste artık **çözümlemeyi engellemiyor**; yalnızca son-çare "ÖLÜ KANAL" fallback'ini
+engellemek için kullanılıyor. Log: *"Bilinen ölü CDN — yine de çözümleme deneniyor"*.
+
+### B11 — (Yüksek) Aday doğrulama sıralıydı → 8 aday × 6 sn = ~48 sn gecikme ✅ DÜZELTİLDİ
+
+**Kanıt:** Derin taramada bulunan adaylar `for (candidate in scan.media)` döngüsünde **tek tek** HEAD
+ile doğrulanıyordu; her istek `MEDIA_PROBE_TIMEOUT_MS = 6 sn` bekleyebildiği için kötü durumda
+kaynak listesi ~48 saniye gecikiyordu.
+
+**Çözüm:** En iyi skorlu `MAX_PROBE_CANDIDATES = 6` aday **paralel** doğrulanır (`async` + `awaitAll`);
+kabul sırası skor sırasını (yani kalite/öncelik sırasını) korur. Toplam gecikme ≈tek probe süresi.
+Sınırsız paralellik bilinçli olarak sınırlandı — aksi hâlde 20+ adaylı sayfalarda aynı anda onlarca
+istek çıkıp site tarafında rate-limit (403) tetiklenebiliyordu.
+
+### B12 — (Yüksek) `PlayerFallbackCoordinator` MPV ayarını yok sayıyordu ✅ DÜZELTİLDİ
+
+**Kanıt:** `getFallbackEngine(currentEngine, errorCode, mpvEnabled)` parametreyi alıp **kullanmıyordu**:
+```kotlin
+val next = when (currentEngine) {
+    PlayerEngineType.MEDIA3   -> PlayerEngineType.MPV   // ← mpvEnabled=false olsa bile MPV
+    ...
+```
+Depodaki mevcut birim testi (`PlayerFallbackCoordinatorTest.testFallbackChainMpvDisabled`) ise
+doğru davranışı bekliyor: *MEDIA3 → EXTERNAL (MPV kapalı)*. Yani test bu satır yüzünden **kırıktı**.
+MPV kapalıyken oynatıcı, kurulamayacak bir motora geçiyor ve deneme hakkını harcıyordu.
+
+**Çözüm:** Zincir `mpvEnabled`'a saygılı hâle getirildi (`nextEngine()` ile aynı semantik);
+MPV kapalıysa doğrudan EXTERNAL'e geçilir. Böylece mevcut test de geçer.
+
+### B13 — (Yüksek) WebView sniffer ana iş parçacığını bloke ediyordu (ANR) ✅ DÜZELTİLDİ
+
+**Kanıt (`WebViewMediaSniffer.kt`):** `java.util.concurrent.Semaphore.tryAcquire(timeoutMs / 2, …)`
+çağrısı `withContext(Dispatchers.Main)` bloğunun içindeydi → başka bir WebView çözümlemesi sürerken
+**arayüz 6 saniyeye kadar donuyordu**. Kullanıcının "bazen donup kalıyor" şikâyetiyle örtüşür
+(ANR eşiği 5 sn).
+
+**Çözüm:** Askıya alan (suspending) `kotlinx.coroutines.sync.Semaphore` kullanıldı:
+`withTimeoutOrNull(timeoutMs / 2) { globalGate.acquire() }` — beklerken thread serbest kalır.
+Ayrıca `java.util.concurrent` bağımlılığı dosyadan tamamen kaldırıldı.
+
 ---
 
 ## 4. Yapılan Değişiklikler
@@ -213,14 +273,15 @@ yok" sonucu büyük ölçüde **yöntem artefaktıdır**. Güvenilir olan: cihaz
 | Dosya | Ne yapar |
 |---|---|
 | `app/src/main/java/com/kitsugi/animelist/data/cloudstream/embed/EmbedMediaScanner.kt` | HTML/JS → gerçek medya URL'si (packer, atob, kaçış, iframe, skorlama). **Saf Kotlin → birim testli.** |
-| `app/src/main/java/com/kitsugi/animelist/data/cloudstream/embed/WebViewMediaSniffer.kt` | JS ile üretilen oynatıcılarda medya isteğini gerçek WebView'de yakalar (tek WebView kilidi, 12 sn). |
-| `app/src/test/java/com/kitsugi/animelist/data/cloudstream/embed/EmbedMediaScannerTest.kt` | 11 birim testi: JWPlayer, packer, atob, kaçış, video tag, iframe, data-*, reklam filtresi. |
+| `app/src/main/java/com/kitsugi/animelist/data/cloudstream/embed/WebViewMediaSniffer.kt` | JS ile üretilen oynatıcılarda medya isteğini gerçek WebView'de yakalar (tek WebView kilidi, 12 sn, **ana thread'i bloke etmeyen** kotlinx Semaphore). |
+| `app/src/test/java/com/kitsugi/animelist/data/cloudstream/embed/EmbedMediaScannerTest.kt` | 11 birim testi: JWPlayer, **gerçek p.a.c.k.e.r çıktısı**, atob, kaçış, video tag, iframe, data-*, reklam filtresi. |
 
 ### Değişen dosyalar
 | Dosya | Değişiklik |
 |---|---|
-| `CsStreamRunner.kt` (+519/−35) | 4 aşamalı embed çözümleme; paralel embed çözümü; medya/HTML sınıflandırması; uzantısız medya için Content-Type kontrolü; `normalizePluginKey` + `resolveBuiltinDomain`; altyazı listesi thread-safe; gereksiz beklemenin azaltılması |
-| `PlayerErrorRecoveryController.kt` (+42/−35) | Kodek/ses hatalarında MPV motoruna geçiş; HTTP hatası ile kodek hatasının ayrıştırılması |
+| `CsStreamRunner.kt` | 4 aşamalı embed çözümleme; paralel embed çözümü; medya/HTML sınıflandırması; uzantısız medya için Content-Type kontrolü; `normalizePluginKey` + `resolveBuiltinDomain`; altyazı listesi thread-safe; gereksiz beklemenin azaltılması; **ölü-CDN silmesinin kaldırılması**; **aday doğrulamanın paralelleştirilmesi** (`MAX_PROBE_CANDIDATES`) |
+| `PlayerErrorRecoveryController.kt` | Kodek/ses hatalarında MPV motoruna geçiş; HTTP hatası ile kodek hatasının ayrıştırılması |
+| `core/player/engine/PlayerFallbackCoordinator.kt` | `mpvEnabled` artık zincirde kullanılıyor (MPV kapalıysa MEDIA3 → EXTERNAL); mevcut birim testi artık geçerli |
 
 ### Doğrulama (bu ortamda yapılabilen)
 - **Tekrarlanabilir koşum takımı (depoda):** `scripts/verify_embed_scanner.py` — tarayıcı mantığının
@@ -232,8 +293,16 @@ yok" sonucu büyük ölçüde **yöntem artefaktıdır**. Güvenilir olan: cihaz
 - **Packer doğrulaması:** gerçek `eval(function(p,a,c,k,e,d)…)` çıktısından
   `https://s1.molystream.org/hls/x9/720/index.m3u8?h=abc` çıkarıldı. *(Bu sırada paket çözücüde
   "token→kelime" yerine "kelime→kelime" değişimi yapan bir hata bulundu ve düzeltildi.)*
-- Kotlin dosyalarında süslü parantez/parantez denge kontrolü: `CsStreamRunner.kt` 476/476,
-  `EmbedMediaScanner.kt` 87/87, `WebViewMediaSniffer.kt` 20/20, `PlayerErrorRecoveryController.kt` 18/18.
+- Kotlin dosyalarında süslü parantez/parantez denge kontrolü (yorum/dize ayıklamalı çözümleyici):
+  `CsStreamRunner.kt` {}=477/477 ()=1369/1369, `EmbedMediaScanner.kt` 90/90 327/327,
+  `WebViewMediaSniffer.kt` 20/20 57/57, `PlayerErrorRecoveryController.kt` 18/18 59/59,
+  `EmbedMediaScannerTest.kt` 11/11 68/68 — **hepsi dengeli**.
+- **Domain eşleştirme analizi (kanıt):** 173 eklenti adı × 78 anahtarlı tablo Python ile tarandı;
+  eski bulanık kural bu eklentileri **yanlış** eşliyordu: `AsyaAnimeleri → animeler.pw`,
+  `FullHDFilmizlesene → hdfilmizle.live`, `HDFilmCehennemi2 → hdfilmcehennemi.nl`,
+  `DiziYou → diziyo.so`, `DiziPalOriginal/Orijinal → dizipal3008.com`, `FullHDFilmİzlede → fullhdfilm.pro`.
+  Yeni `resolveBuiltinDomain` bunlardan yalnızca kasten eklenenleri (DiziPal*, HDFilmCehennemi2) uygular;
+  AsyaAnimeleri ve FullHDFilmizlesene artık **kendi doğru domainlerinde** kalır.
 
 ---
 
@@ -279,7 +348,10 @@ Cihazda şu senaryolar kontrol edilmeli:
 5. **Per-eklenti "aşama raporu"** — `embedResolveListener` zaten her embed denemesi için
    `providerName / rawUrl / resolved / error` veriyor; `CsPluginDiagnosticRunner` ekranında
    "hangi aşamada kaldı" kolonu olarak gösterilebilir.
-6. **`decoderPriority` etiketleri** — `AppSettings.kt:103` yorumu ("0 = Hardware only") kodun
+6. **`PlayerFallbackCoordinatorTest` çalıştırılmalı** — düzeltme, depoda zaten var olan ama
+   kırık durumdaki `testFallbackChainMpvDisabled` testini geçirir hâle getirir; `./gradlew
+   testDebugUnitTest --tests "*PlayerFallbackCoordinatorTest*"` ile doğrulanmalı.
+7. **`decoderPriority` etiketleri** — `AppSettings.kt:103` yorumu ("0 = Hardware only") kodun
    gerçek davranışıyla uyuşmuyor (`0` → `EXTENSION_RENDERER_MODE_ON`, yani yazılım fallback **açık**).
    Yorum düzeltilmeli, yoksa yanlış varsayımlarla ayar değiştirilir.
 

@@ -6,8 +6,7 @@ import com.lagradost.cloudstream3.network.WebViewResolver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import java.util.concurrent.Semaphore
-import java.util.concurrent.TimeUnit
+import kotlinx.coroutines.sync.Semaphore
 
 /**
  * FP-41 — WebViewMediaSniffer
@@ -66,11 +65,11 @@ object WebViewMediaSniffer {
 
         cached(playerUrl)?.let { return@withContext SniffResult(it, emptyMap(), "cache") }
 
-        val acquired = try {
-            globalGate.tryAcquire(timeoutMs / 2, TimeUnit.MILLISECONDS)
-        } catch (_: InterruptedException) {
-            false
-        }
+        // ÖNEMLİ: Bu blok Dispatchers.Main'de çalışır. Eskiden `java.util.concurrent.Semaphore
+        // .tryAcquire(6 sn)` kullanılıyordu — bu, arayüz iş parçacığını 6 saniyeye kadar
+        // BLOKLUYORDU (ANR / "donup kalıyor" şikâyeti). Artık askıya alan (suspending) kotlinx
+        // Semaphore kullanılıyor: beklerken thread serbest kalır, ANR oluşmaz.
+        val acquired = withTimeoutOrNull(timeoutMs / 2) { globalGate.acquire() } != null
         if (!acquired) {
             Log.w(TAG, "Başka bir WebView çözümlemesi sürüyor — atlanıyor: $playerUrl")
             return@withContext SniffResult(null, emptyMap(), "meşgul")

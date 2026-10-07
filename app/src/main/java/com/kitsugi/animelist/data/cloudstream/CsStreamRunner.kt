@@ -86,6 +86,11 @@ object CsStreamRunner {
     private const val EMBED_HTML_TIMEOUT_MS = 10_000L
     /** Aday medya URL'si doğrulama zaman aşımı. */
     private const val MEDIA_PROBE_TIMEOUT_MS = 6_000L
+    /**
+     * Paralel doğrulanacak en fazla aday sayısı. Sınırsız bırakılırsa 20+ adaylı bir sayfada
+     * aynı anda onlarca HEAD isteği çıkar (site tarafında rate-limit → 403 → kaynak kaybı).
+     */
+    private const val MAX_PROBE_CANDIDATES = 6
     /** Doğrulanmış aday önbelleği — aynı URL tekrar denendiğinde ağ harcanmaz. */
     private val mediaProbeCache = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
 
@@ -1839,10 +1844,20 @@ object CsStreamRunner {
                             "${scan.iframes.size} iframe, oynatıcıSayfası=${scan.looksLikePlayer}"
                     )
 
+                    // Doğrulama PARALEL yapılır: eskiden adaylar sırayla HEAD ile deneniyordu ve
+                    // her biri 6 sn'ye kadar sürebildiği için 8 adaylı bir sayfa kaynak listesini
+                    // ~48 sn geciktirebiliyordu ("veri aşırı geç geliyor"). Artık en iyi skorlu
+                    // adaylar aynı anda doğrulanır; kabul sırası skor sırasını korur.
+                    val probes = kotlinx.coroutines.coroutineScope {
+                        scan.media.take(MAX_PROBE_CANDIDATES)
+                            .map { c -> async { c to verifyMediaCandidate(c.url, resolvedUrl) } }
+                            .awaitAll()
+                    }
+
                     var accepted = 0
-                    for (candidate in scan.media) {
+                    for ((candidate, probeOk) in probes) {
                         if (accepted >= MAX_STREAMS_PER_EMBED) break
-                        if (!verifyMediaCandidate(candidate.url, resolvedUrl)) {
+                        if (!probeOk) {
                             Log.d(
                                 TAG,
                                 "[$providerName] Aday doğrulanamadı (skor=${candidate.score}, " +
@@ -2077,14 +2092,20 @@ object CsStreamRunner {
                             if (isImageUrl) {
                                 Log.w(TAG, "[${api.name}] Görüntü URL'si atlanıyor (video değil): $cleanUrl")
                             } else if (isEmbedUrl(link.url) || !clearlyDirectMedia) {
-                                // Kalıcı ölü CDN'leri kuyruğa bile alma — FIX: else branch ile gerçekten atlıyoruz
+                                // ⚠️ ESKİ DAVRANIŞ (HATA): KNOWN_DEAD_CDN_HOSTS içindeki URL'ler burada
+                                // SESSİZCE ATILIYORDU. Video CDN'leri adres değiştirir (ya da geçici
+                                // olarak erişilemez olur); statik liste güncel değilse eklentinin TÜM
+                                // kaynakları kayboluyor ve eklenti "boş dönüyor" gibi görünüyordu.
+                                // Örnek: SezonlukDizi'nin embed CDN'i (vmnow.online), Dizilla/AsyaWatch
+                                // (pichive.cc) bu yüzden hiç denenmiyordu.
+                                // YENİ DAVRANIŞ: yine de çözümlemeyi dene. "Ölü CDN" bilgisi yalnızca
+                                // son-çare "ÖLÜ KANAL" fallback'ini engellemek için kullanılır.
                                 val isDeadCdn = KNOWN_DEAD_CDN_HOSTS.any { cleanUrl.contains(it, ignoreCase = true) }
                                 if (isDeadCdn) {
-                                    Log.w(TAG, "[${api.name}] Ölü CDN URL'si sessizce atlanıyor: $cleanUrl")
-                                } else {
-                                    Log.d(TAG, "[${api.name}] Embed URL tespit edildi — extractor kuyruğuna alınıyor: $cleanUrl")
-                                    pendingEmbedUrls.add(Triple(link.url, link.name, link.headers))
+                                    Log.d(TAG, "[${api.name}] Bilinen ölü CDN — yine de çözümleme deneniyor: $cleanUrl")
                                 }
+                                Log.d(TAG, "[${api.name}] Embed URL tespit edildi — extractor kuyruğuna alınıyor: $cleanUrl")
+                                pendingEmbedUrls.add(Triple(link.url, link.name, link.headers))
                             } else {
                                 val headers = link.headers.toMutableMap()
                                 val providerReferer = try { api.mainUrl } catch (_: Exception) { "https://google.com" }
