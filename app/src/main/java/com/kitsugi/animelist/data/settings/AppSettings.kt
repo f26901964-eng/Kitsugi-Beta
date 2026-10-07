@@ -144,6 +144,8 @@ data class AppSettings(
     val aniListNotificationsEnabled: Boolean = false,
     val malNotificationsEnabled: Boolean = false,
     val simklNotificationsEnabled: Boolean = false,
+    val kitsuNotificationsEnabled: Boolean = false,
+    val shikimoriNotificationsEnabled: Boolean = false,
     val notificationInterval: Int = 180, // Dakika bazında
     val searchHistoryEnabled: Boolean = true,
     // ─── T1.7 – StillWatching + PostPlayMode + AutoplaySessionRules ──────────

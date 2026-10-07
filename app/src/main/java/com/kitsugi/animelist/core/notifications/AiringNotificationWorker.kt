@@ -17,11 +17,16 @@ import com.kitsugi.animelist.data.auth.SimklImportManager
 import com.kitsugi.animelist.data.local.KitsugiDatabase
 import com.kitsugi.animelist.data.local.MediaEntryRepository
 import com.kitsugi.animelist.data.local.toDomain
+import com.kitsugi.animelist.data.auth.KitsuApiClient
+import com.kitsugi.animelist.data.auth.ShikimoriApiClient
 import com.kitsugi.animelist.data.remote.KitsugiAniListNotificationClient
 import com.kitsugi.animelist.data.remote.KitsugiAiringCalendarClient
+import com.kitsugi.animelist.data.remote.SimklCalendarClient
 import com.kitsugi.animelist.data.settings.SettingsDataStore
 import com.kitsugi.animelist.model.WatchStatus
 import kotlinx.coroutines.flow.first
+import java.time.Instant
+import java.time.OffsetDateTime
 
 class AiringNotificationWorker(
     private val context: Context,
@@ -34,6 +39,9 @@ class AiringNotificationWorker(
         private const val PREFS_NAME = "Kitsugi_notified_prefs"
         private const val KEY_NOTIFIED_ANILIST = "notified_anilist_ids"
         private const val KEY_NOTIFIED_MAL = "notified_mal_keys"
+        private const val KEY_NOTIFIED_SIMKL = "notified_simkl_keys"
+        private const val KEY_NOTIFIED_KITSU = "notified_kitsu_keys"
+        private const val KEY_NOTIFIED_SHIKIMORI = "notified_shikimori_ids"
     }
 
     override suspend fun doWork(): Result {
@@ -46,9 +54,13 @@ class AiringNotificationWorker(
         val isAniListEnabled = settings.aniListNotificationsEnabled
         val isMalEnabled = settings.malNotificationsEnabled
         val isSimklEnabled = settings.simklNotificationsEnabled
+        val isKitsuEnabled = settings.kitsuNotificationsEnabled
+        val isShikimoriEnabled = settings.shikimoriNotificationsEnabled
 
         // If no notifications are enabled, stop immediately
-        if (!isAiringEnabled && !isAniListEnabled && !isMalEnabled && !isSimklEnabled) {
+        if (!isAiringEnabled && !isAniListEnabled && !isMalEnabled && !isSimklEnabled &&
+            !isKitsuEnabled && !isShikimoriEnabled
+        ) {
             Log.d(TAG, "No notification channels are enabled. Stopping worker.")
             return Result.success()
         }
@@ -109,9 +121,15 @@ class AiringNotificationWorker(
         if (isMalEnabled || isAiringEnabled) {
             try {
                 val calendarClient = KitsugiAiringCalendarClient()
-                val weekSchedule = calendarClient.fetchWeeklySchedule()
-                val now = System.currentTimeMillis()
-                val allEntries = weekSchedule.values.flatten()
+                val nowMs = System.currentTimeMillis()
+                // Hafta sınırına takılmayan kayan pencere: son 24 saat + önümüzdeki 1 saat.
+                // (Eski hâli takvim haftasına bağlıydı; Pazartesi sabahı Pazar gecesi
+                // yayınlanan bölümler gözden kaçabiliyordu.)
+                val allEntries = calendarClient.fetchAiringWindow(
+                    fromEpochSec = (nowMs - 24 * 60 * 60 * 1000L) / 1000L,
+                    toEpochSec = (nowMs + 60 * 60 * 1000L) / 1000L
+                )
+                val now = nowMs
 
                 val matched = allEntries.filter { entry ->
                     watchingEntries.any { me ->
@@ -153,7 +171,9 @@ class AiringNotificationWorker(
             }
         }
 
-        // 4. Simkl Polling (Watchlist Sync + Release Notifications)
+        // 4. Simkl Polling (Watchlist Sync + v2 CDN takvim eşleşmesi)
+        //    NOT: Simkl API'sinde bildirim ucu yoktur; resmî yöntem izleme listesi +
+        //    https://data.simkl.in/calendar/v2/{tv|anime|movie_release}.json birleşimidir.
         if (isSimklEnabled) {
             val simklToken = ExternalAuthManager.getSimklToken(context)
             if (!simklToken.isNullOrBlank()) {
@@ -164,45 +184,141 @@ class AiringNotificationWorker(
                     repository.insertAll(importedEntries)
                     Log.d(TAG, "Simkl background sync successful: ${importedEntries.size} entries")
 
-                    // Check calendar for airing items in user's watchlist
-                    val KEY_NOTIFIED_SIMKL = "notified_simkl_keys"
+                    val calendarClient = SimklCalendarClient()
+                    val watchingIds = runCatching { calendarClient.fetchWatchingIds(simklToken) }.getOrNull()
+                    val calendar = calendarClient.fetchAll()
+                    val now = System.currentTimeMillis()
                     val notifiedSimklKeys = sharedPrefs.getStringSet(KEY_NOTIFIED_SIMKL, emptySet())?.toMutableSet() ?: mutableSetOf()
-                    val simklClient = com.kitsugi.animelist.data.remote.SimklApiClient()
-                    val tvCal = simklClient.getCalendar("tv")
-                    val animeCal = simklClient.getCalendar("anime")
-                    val movieCal = simklClient.getCalendar("movies")
-                    val allCal = (tvCal + animeCal + movieCal).distinctBy { it.malId }
 
-                    val relevantSimkl = watchingEntries.filter { me ->
-                        me.source.equals("simkl", ignoreCase = true) || me.source.equals("tmdb", ignoreCase = true)
-                    }
+                    var matched = 0
+                    for (entry in calendar) {
+                        val isMatched = watchingIds != null && !watchingIds.isEmpty &&
+                            watchingIds.matches(entry)
+                        if (!isMatched) continue
 
-                    for (calItem in allCal) {
-                        val isMatched = relevantSimkl.any { me ->
-                            (me.simklId != null && me.simklId == calItem.malId) ||
-                            (me.tmdbId != null && calItem.tmdbId != null && me.tmdbId == calItem.tmdbId)
-                        }
-                        if (isMatched) {
-                            val simklKey = "simkl_${calItem.malId}"
-                            if (!notifiedSimklKeys.contains(simklKey)) {
-                                val notifId = (calItem.malId.hashCode() and 0x7fffffff)
-                                showNotification(
-                                    id = notifId,
-                                    title = calItem.title,
-                                    bodyText = "Yeni bölüm / içerik yayında! 🎬",
-                                    source = "Simkl",
-                                    imageUrl = calItem.imageUrl,
-                                    isMedia = true,
-                                    mediaId = calItem.malId
-                                )
-                                notifiedSimklKeys.add(simklKey)
-                            }
-                        }
+                        val airingAt = entry.airingAtMs
+                        // Yalnızca son 24 saat içinde yayınlananlar bildirilir.
+                        if (airingAt > now || airingAt <= now - 24 * 60 * 60 * 1000L) continue
+                        matched++
+
+                        // Düzeltme: her bölüm kendi anahtarına sahip (eskiden bölüm ayırt
+                        // edilmiyordu, bu yüzden dizi başına yalnızca bir bildirim gidiyordu).
+                        val key = "simkl_${entry.simklId}_${entry.episode ?: 0}_$airingAt"
+                        if (notifiedSimklKeys.contains(key)) continue
+
+                        val label = entry.episodeLabel
+                        showNotification(
+                            id = key.hashCode() and 0x7fffffff,
+                            title = entry.title,
+                            bodyText = if (label != null) "$label yayınlandı! 🎬" else "Yeni film gösterimi! 🎬",
+                            source = "Simkl",
+                            imageUrl = entry.posterUrl,
+                            isMedia = true,
+                            mediaId = entry.simklId
+                        )
+                        notifiedSimklKeys.add(key)
                     }
-                    val keptSimklKeys = notifiedSimklKeys.toList().takeLast(200).toSet()
+                    Log.d(TAG, "Simkl airing matched=$matched")
+                    val keptSimklKeys = notifiedSimklKeys.toList().takeLast(400).toSet()
                     sharedPrefs.edit().putStringSet(KEY_NOTIFIED_SIMKL, keptSimklKeys).apply()
                 } catch (e: Exception) {
                     Log.e(TAG, "Simkl background sync failed: ${e.message}", e)
+                }
+            }
+        }
+
+        // 5. Kitsu Polling (takip listesi + nextRelease yayın tarihleri)
+        //    Kitsu'nun genel API'sinde bildirim kaynağı yoktur; `nextRelease` alanı
+        //    sonraki bölümün yayın zamanını verir ve bildirim bundan üretilir.
+        if (isKitsuEnabled || isAiringEnabled) {
+            val kitsuToken = ExternalAuthManager.getKitsuToken(context)
+            val kitsuUserId = ExternalAuthManager.getKitsuUserId(context)
+            if (!kitsuToken.isNullOrBlank() && !kitsuUserId.isNullOrBlank()) {
+                try {
+                    val entries = KitsuApiClient.fetchAllLibraryEntries(kitsuToken, kitsuUserId)
+                    val active = entries.filter {
+                        it.status.equals("current", true) || it.status.equals("watching", true)
+                    }
+                    val notifiedKitsuKeys = sharedPrefs.getStringSet(KEY_NOTIFIED_KITSU, emptySet())?.toMutableSet() ?: mutableSetOf()
+                    val now = System.currentTimeMillis()
+
+                    for (entry in active) {
+                        val releaseMs = parseIsoToEpochMs(entry.nextRelease) ?: continue
+                        if (releaseMs > now || releaseMs <= now - 24 * 60 * 60 * 1000L) continue
+
+                        val key = "kitsu_${entry.id}_$releaseMs"
+                        if (notifiedKitsuKeys.contains(key)) continue
+
+                        showNotification(
+                            id = key.hashCode() and 0x7fffffff,
+                            title = entry.title,
+                            bodyText = "Bölüm ${entry.progress + 1} yayınlandı! 🎬",
+                            source = "Kitsu",
+                            imageUrl = entry.imageUrl,
+                            isMedia = true,
+                            mediaId = entry.animeId ?: entry.mangaId
+                        )
+                        notifiedKitsuKeys.add(key)
+                    }
+                    val keptKitsuKeys = notifiedKitsuKeys.toList().takeLast(400).toSet()
+                    sharedPrefs.edit().putStringSet(KEY_NOTIFIED_KITSU, keptKitsuKeys).apply()
+                } catch (e: Exception) {
+                    Log.e(TAG, "Kitsu polling failed: ${e.message}", e)
+                }
+            }
+        }
+
+        // 6. Shikimori Polling (gerçek bildirim ucu: GET /api/users/:id/messages)
+        //    `messages` OAuth izni gerekir; izin yoksa sessizce atlanır ve loglanır.
+        if (isShikimoriEnabled) {
+            val shikiToken = runCatching { ExternalAuthManager.getOrRefreshShikimoriToken(context) }
+                .getOrNull() ?: ExternalAuthManager.getShikimoriToken(context)
+            val shikiUserId = ExternalAuthManager.getShikimoriUserId(context)
+            if (!shikiToken.isNullOrBlank() && shikiUserId != null) {
+                try {
+                    val notifiedShikiIds = sharedPrefs.getStringSet(KEY_NOTIFIED_SHIKIMORI, emptySet())?.toMutableSet() ?: mutableSetOf()
+                    val messages = ShikimoriApiClient.fetchMessages(
+                        token = shikiToken,
+                        userId = shikiUserId,
+                        type = "notifications",
+                        limit = 30
+                    ) + ShikimoriApiClient.fetchMessages(
+                        token = shikiToken,
+                        userId = shikiUserId,
+                        type = "news",
+                        limit = 15
+                    )
+
+                    for (message in messages) {
+                        // Okunmuş bildirimler için tekrar bildirim gönderilmez.
+                        if (message.read) continue
+                        val key = "${message.type}_${message.id}"
+                        if (notifiedShikiIds.contains(key)) continue
+
+                        val bodyText = message.body
+                            .replace(Regex("\\[/?[a-zA-Z0-9=*]+[^\\]]*\\]"), " ")
+                            .replace(Regex("\\s+"), " ")
+                            .trim()
+                            .ifBlank { "Yeni Shikimori bildirimi" }
+
+                        showNotification(
+                            id = key.hashCode() and 0x7fffffff,
+                            title = message.targetTitle ?: "Shikimori",
+                            bodyText = bodyText.take(200),
+                            source = "Shikimori",
+                            imageUrl = message.targetImageUrl,
+                            avatarUrl = message.fromAvatarUrl,
+                            isMedia = message.targetImageUrl != null,
+                            mediaId = message.linkedId?.toInt()
+                        )
+                        notifiedShikiIds.add(key)
+                    }
+                    val keptShikiKeys = notifiedShikiIds.toList().takeLast(400).toSet()
+                    sharedPrefs.edit().putStringSet(KEY_NOTIFIED_SHIKIMORI, keptShikiKeys).apply()
+                } catch (e: ShikimoriApiClient.ShikimoriScopeException) {
+                    Log.w(TAG, "Shikimori 'messages' izni yok; bildirim atlanıyor: ${e.message}")
+                } catch (e: Exception) {
+                    Log.e(TAG, "Shikimori polling failed: ${e.message}", e)
                 }
             }
         }
@@ -302,6 +418,18 @@ class AiringNotificationWorker(
             NotificationManagerCompat.from(context).notify(id, builder.build())
         } catch (e: SecurityException) {
             Log.w(TAG, "Cannot show notification: permission missing: ${e.message}")
+        }
+    }
+
+    /** "2026-07-20T04:00:00Z" / "+09:00 ofsetli" ISO damgalarını epoch ms'e çevirir. */
+    private fun parseIsoToEpochMs(raw: String?): Long? {
+        if (raw.isNullOrBlank()) return null
+        val text = raw.trim()
+        return try {
+            if (text.endsWith("Z", true)) Instant.parse(text).toEpochMilli()
+            else OffsetDateTime.parse(text).toInstant().toEpochMilli()
+        } catch (_: Exception) {
+            null
         }
     }
 

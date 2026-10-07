@@ -72,7 +72,9 @@ object KitsuApiClient {
         val imageUrl: String? = null,
         val total: Int? = null,
         /** Kitsu mappings'ten çözümlenen gerçek MAL ID (null olabilir) */
-        val realMalId: Int? = null
+        val realMalId: Int? = null,
+        /** Sonraki bölümün yayın zamanı (ISO-8601, Kitsu `nextRelease` alanı) */
+        val nextRelease: String? = null
     )
 
     /**
@@ -238,7 +240,9 @@ object KitsuApiClient {
                     val titleEn: String?,
                     val titleJp: String?,
                     val imageUrl: String?,
-                    val mappingIds: List<String> = emptyList()
+                    val mappingIds: List<String> = emptyList(),
+                    /** Kitsu anime `nextRelease` (ISO-8601) — sonraki bölümün yayın zamanı. */
+                    val nextRelease: String? = null
                 )
                 val mediaInfoMap = mutableMapOf<String, KitsuMediaInfo>()
                 val totalMap = mutableMapOf<String, Int?>()
@@ -280,6 +284,8 @@ object KitsuApiClient {
 
                     val poster = incAttrs.optJSONObject("posterImage")
                     val img = poster?.optString("medium") ?: poster?.optString("original")
+                    // Kitsu, sonraki bölüm yayın zamanını anime kaynağında `nextRelease` alanıyla verir.
+                    val nextRelease = incAttrs.optString("nextRelease").takeIf { it.isNotBlank() && it != "null" }
                     val total = if (incType == "anime") incAttrs.optInt("episodeCount", 0).takeIf { it > 0 }
                     else incAttrs.optInt("chapterCount", 0).takeIf { it > 0 }
 
@@ -300,7 +306,8 @@ object KitsuApiClient {
                         titleEn = effectiveEn,
                         titleJp = titleJp,
                         imageUrl = img,
-                        mappingIds = mappingIds
+                        mappingIds = mappingIds,
+                        nextRelease = nextRelease
                     )
                     totalMap[key] = total
                 }
@@ -344,7 +351,8 @@ object KitsuApiClient {
                             titleJapanese = info?.titleJp,
                             imageUrl = info?.imageUrl,
                             total = totalMap[mediaKey],
-                            realMalId = realMalId
+                            realMalId = realMalId,
+                            nextRelease = info?.nextRelease
                         )
                     )
                 }

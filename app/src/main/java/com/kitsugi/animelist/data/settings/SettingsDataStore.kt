@@ -380,6 +380,8 @@ class SettingsDataStore(
                     aniListNotificationsEnabled = preferences[Keys.AniListNotificationsEnabled] ?: false,
                     malNotificationsEnabled = preferences[Keys.MalNotificationsEnabled] ?: false,
                     simklNotificationsEnabled = preferences[Keys.SimklNotificationsEnabled] ?: false,
+                    kitsuNotificationsEnabled = preferences[Keys.KitsuNotificationsEnabled] ?: false,
+                    shikimoriNotificationsEnabled = preferences[Keys.ShikimoriNotificationsEnabled] ?: false,
                     notificationInterval = preferences[Keys.NotificationInterval] ?: 180,
                     searchHistoryEnabled = preferences[Keys.SearchHistoryEnabled] ?: true,
                     // ─── T1.7 ─────────────────────────────────────────────────
@@ -1117,6 +1119,16 @@ class SettingsDataStore(
 
     suspend fun setSimklNotificationsEnabled(enabled: Boolean) {
         context.settingsDataStore.edit { it[Keys.SimklNotificationsEnabled] = enabled }
+    }
+
+    /** Kitsu yayın bildirimleri (Kitsu'nun genel API'sinde bildirim ucu yoktur; yayın tarihi akışı). */
+    suspend fun setKitsuNotificationsEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.KitsuNotificationsEnabled] = enabled }
+    }
+
+    /** Shikimori gerçek bildirimleri (messages izni gerekir). */
+    suspend fun setShikimoriNotificationsEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.ShikimoriNotificationsEnabled] = enabled }
     }
 
     suspend fun setNotificationInterval(minutes: Int) {

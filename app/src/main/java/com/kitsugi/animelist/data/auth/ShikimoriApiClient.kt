@@ -74,6 +74,8 @@ object ShikimoriApiClient {
 
     const val DEFAULT_CLIENT_ID = "poB5DHHfiPP-DiphGJoelAnUeQ3PNkhPXwuUgXusl20"
     const val DEFAULT_CLIENT_SECRET = "ZkmIi8ysb-lDe1RRewUTeEN46Ef6iziPcpJPAnbsAEs"
+    const val SCOPE_USER_RATES = "user_rates"
+    const val SCOPE_MESSAGES = "messages"
     const val DEFAULT_REDIRECT_URI = "urn:ietf:wg:oauth:2.0:oob"
     const val DEEP_LINK_REDIRECT_URI = "kitsugi://shikimori-auth"
     const val FALLBACK_DEEP_LINK_REDIRECT_URI = "aniyomi://shikimori-auth"
@@ -102,20 +104,37 @@ object ShikimoriApiClient {
      */
     fun buildNewApplicationUrl(): String {
         val encodedUri = java.net.URLEncoder.encode(DEEP_LINK_REDIRECT_URI, "UTF-8")
-        return "$BASE_URL/oauth/applications/new?application%5Bname%5D=Kitsugi&application%5Bredirect_uri%5D=$encodedUri&application%5Bscopes%5D=user_rates"
+        // Kişisel bildirimler (GET /api/users/:id/messages) için "messages" izni gerekir;
+        // kullanıcının kendi uygulamasını oluştururken iki izni de ön-dolduruyoruz.
+        return "$BASE_URL/oauth/applications/new?application%5Bname%5D=Kitsugi&application%5Bredirect_uri%5D=$encodedUri&application%5Bscopes%5D=user_rates%20messages"
+    }
+
+    /**
+     * Verilen client_id için istenebilecek izin kümesini döndürür.
+     *
+     * Shikimori kuralı: istenen `scope`, uygulamanın Shikimori'de kayıtlı izinlerinin
+     * **alt kümesi** olmak zorundadır; aksi halde "invalid scope" hatası döner.
+     * Kitsugi'nin paylaşılan (varsayılan) uygulaması yalnızca `user_rates` ile kayıtlıdır,
+     * bu yüzden varsayılan client ile `messages` istenemez. Kullanıcı kendi uygulamasını
+     * (user_rates + messages) girerse gerçek bildirimler de okunabilir.
+     */
+    fun scopesFor(clientId: String?): String {
+        val id = clientId?.trim().orEmpty()
+        return if (id.isBlank() || id == DEFAULT_CLIENT_ID) SCOPE_USER_RATES
+        else "$SCOPE_USER_RATES $SCOPE_MESSAGES"
     }
 
     /**
      * OAuth2 yetkilendirme URL'sini üretir.
      *
      * Not: "scope" uygulamanın Shikimori'de kayıtlı scope'larının bir alt kümesi olmak zorundadır;
-     * aksi halde Shikimori "invalid scope" hatası verir. Varsayılan olarak yalnızca "user_rates"
-     * istenir (uygulamanın fiilen kullandığı kapsam budur).
+     * aksi halde Shikimori "invalid scope" hatası verir. Bu yüzden varsayılan olarak yalnızca
+     * "user_rates" istenir; özel client_id için [scopesFor] kullanın.
      */
     fun buildAuthorizeUrl(
         clientId: String = DEFAULT_CLIENT_ID,
         redirectUri: String = DEEP_LINK_REDIRECT_URI,
-        scopes: String = "user_rates"
+        scopes: String = SCOPE_USER_RATES
     ): String {
         val effectiveClientId = clientId.trim().ifBlank { DEFAULT_CLIENT_ID }
         val effectiveRedirect = redirectUri.trim().ifBlank { DEFAULT_REDIRECT_URI }
@@ -727,6 +746,143 @@ object ShikimoriApiClient {
                 list
             }
         }.getOrDefault(emptyList())
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Gerçek bildirimler (mesajlar) — `messages` OAuth izni gerekir
+    // Resmî doküman: https://shikimori.io/api/doc/1.0/users/messages
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * `messages` izni olmadığında (HTTP 401/403) fırlatılır; UI bunu "izin yok"
+     * durumuna çevirip kullanıcıya ne yapması gerektiğini söyler.
+     */
+    class ShikimoriScopeException(message: String) : Exception(message)
+
+    data class ShikimoriMessage(
+        val id: Long,
+        val kind: String,
+        val read: Boolean,
+        val body: String,
+        val htmlBody: String,
+        val createdAt: String,
+        val linkedType: String?,
+        val linkedId: Long?,
+        val targetTitle: String?,
+        val targetImageUrl: String?,
+        val targetUrl: String?,
+        val fromNickname: String?,
+        val fromAvatarUrl: String?,
+        val fromUserId: Int?,
+        val type: String
+    )
+
+    data class ShikimoriUnread(
+        val messages: Int,
+        val news: Int,
+        val notifications: Int
+    )
+
+    /**
+     * Kullanıcının mesaj/bildirim listesini çeker.
+     *
+     * @param type `inbox`, `private`, `sent`, `news` veya `notifications` (zorunlu)
+     */
+    suspend fun fetchMessages(
+        token: String,
+        userId: Int,
+        type: String,
+        limit: Int = 30,
+        page: Int = 1
+    ): List<ShikimoriMessage> = withContext(Dispatchers.IO) {
+        val safeLimit = limit.coerceIn(1, 100)
+        val url = "$BASE_URL/api/users/$userId/messages?limit=$safeLimit&page=$page&type=$type"
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("User-Agent", USER_AGENT)
+            .addHeader("Authorization", "Bearer $token")
+            .addHeader("Accept", "application/json")
+            .get()
+            .build()
+
+        KitsugiHttpClient.client.newCall(request).execute().use { response ->
+            if (response.code == 401 || response.code == 403) {
+                throw ShikimoriScopeException(
+                    "Shikimori 'messages' izni yok (HTTP ${response.code})"
+                )
+            }
+            if (!response.isSuccessful) return@use emptyList()
+            val body = response.body?.string().orEmpty()
+            val array = runCatching { JSONArray(body) }.getOrNull() ?: return@use emptyList()
+            val list = mutableListOf<ShikimoriMessage>()
+            for (i in 0 until array.length()) {
+                val item = array.optJSONObject(i) ?: continue
+                val linked = item.optJSONObject("linked")
+                val from = item.optJSONObject("from")
+                val rawImg = linked?.optJSONObject("image")?.optString("original")
+                    ?: linked?.optJSONObject("image")?.optString("preview")
+                list.add(
+                    ShikimoriMessage(
+                        id = item.optLong("id", 0L),
+                        kind = item.optString("kind", ""),
+                        read = item.optBoolean("read", true),
+                        body = item.optString("body", ""),
+                        htmlBody = item.optString("html_body", ""),
+                        createdAt = item.optString("created_at", ""),
+                        linkedType = item.optString("linked_type").takeIf { it.isNotBlank() },
+                        linkedId = item.optLong("linked_id", 0L).takeIf { it > 0 },
+                        targetTitle = linked?.optString("name")?.takeIf { it.isNotBlank() }
+                            ?: linked?.optString("russian")?.takeIf { it.isNotBlank() },
+                        targetImageUrl = rawImg?.takeIf { it.isNotBlank() }?.let {
+                            if (it.startsWith("http")) it else "$BASE_URL$it"
+                        },
+                        targetUrl = linked?.optString("url")?.takeIf { it.isNotBlank() }?.let {
+                            if (it.startsWith("http")) it else "$BASE_URL$it"
+                        },
+                        fromNickname = from?.optString("nickname")?.takeIf { it.isNotBlank() },
+                        fromAvatarUrl = from?.optJSONObject("image")?.optString("x48")
+                            ?.takeIf { it.isNotBlank() }
+                            ?.let { if (it.startsWith("http")) it else "$BASE_URL$it" },
+                        fromUserId = from?.optInt("id", 0)?.takeIf { it > 0 },
+                        type = type
+                    )
+                )
+            }
+            list
+        }
+    }
+
+    /**
+     * Okunmamış mesaj/haber/bildirim sayıları.
+     * Resmî doküman: GET /api/users/:id/unread_messages
+     */
+    suspend fun fetchUnreadCounts(token: String, userId: Int): ShikimoriUnread? = withContext(Dispatchers.IO) {
+        val request = Request.Builder()
+            .url("$BASE_URL/api/users/$userId/unread_messages")
+            .addHeader("User-Agent", USER_AGENT)
+            .addHeader("Authorization", "Bearer $token")
+            .addHeader("Accept", "application/json")
+            .get()
+            .build()
+
+        runCatching {
+            KitsugiHttpClient.client.newCall(request).execute().use { response ->
+                if (response.code == 401 || response.code == 403) {
+                    throw ShikimoriScopeException("Shikimori 'messages' izni yok (HTTP ${response.code})")
+                }
+                if (!response.isSuccessful) return@use null
+                val json = JSONObject(response.body?.string().orEmpty())
+                ShikimoriUnread(
+                    messages = json.optInt("messages", 0),
+                    news = json.optInt("news", 0),
+                    notifications = json.optInt("notifications", 0)
+                )
+            }
+        }.getOrElse { cause ->
+            // İzin hatası çağırana taşınır; diğer hatalarda sayı bilinmez (null).
+            if (cause is ShikimoriScopeException) throw cause
+            null
+        }
     }
 
     /**

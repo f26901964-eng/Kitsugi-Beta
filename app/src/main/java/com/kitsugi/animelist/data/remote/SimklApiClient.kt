@@ -1155,6 +1155,11 @@ class SimklApiClient(
      * SIMKL CDN takvim JSON'ını çeker (auth gerekmez).
      * type: "tv", "anime", "movie_release"
      */
+    @Deprecated(
+        "Eski (v2 olmayan) data.simkl.in takvim dosyalarını okur ve sonucu ilk 50 öğeyle " +
+            "sınırlar; bu dosyalar 1 Şubat 2027'de güncellenmeyi bırakacak. " +
+            "Bildirim akışları için SimklCalendarClient kullanın."
+    )
     suspend fun getCalendar(type: String): List<JikanSearchResult> = withContext(Dispatchers.IO) {
         val cdnType = when (type) {
             "movie", "movies", "movie_release" -> "movie_release"

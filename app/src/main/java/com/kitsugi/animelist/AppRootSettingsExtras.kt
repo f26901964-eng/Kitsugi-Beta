@@ -56,6 +56,10 @@ internal fun SettingsContext.buildSettingsParams() =
             onMalNotificationsChanged = { onMalNotificationsChanged(it) },
             simklNotificationsEnabled = appSettings.simklNotificationsEnabled,
             onSimklNotificationsChanged = { onSimklNotificationsChanged(it) },
+            kitsuNotificationsEnabled = appSettings.kitsuNotificationsEnabled,
+            onKitsuNotificationsChanged = { onKitsuNotificationsChanged(it) },
+            shikimoriNotificationsEnabled = appSettings.shikimoriNotificationsEnabled,
+            onShikimoriNotificationsChanged = { onShikimoriNotificationsChanged(it) },
             notificationInterval = appSettings.notificationInterval,
             onNotificationIntervalChanged = { onNotificationIntervalChanged(it) },
             splashAnimationEnabled = appSettings.splashAnimationEnabled,
@@ -553,7 +557,7 @@ internal fun SettingsContext.onAiringNotificationsChanged(enabled: Boolean) {
         appViewModel.showSnackbarMessage(if (enabled) "Yayın bildirimleri etkinleştirildi" else "Yayın bildirimleri devre dışı bırakıldı")
         if (enabled) {
             com.kitsugi.animelist.core.notifications.NotificationScheduler.schedule(context, appSettings.notificationInterval)
-        } else if (!appSettings.aniListNotificationsEnabled && !appSettings.malNotificationsEnabled && !appSettings.simklNotificationsEnabled) {
+        } else if (!appSettings.hasAnyNotificationSource()) {
             com.kitsugi.animelist.core.notifications.NotificationScheduler.cancel(context)
         }
     }
@@ -565,7 +569,7 @@ internal fun SettingsContext.onAniListNotificationsChanged(enabled: Boolean) {
         appViewModel.showSnackbarMessage(if (enabled) "AniList bildirimleri etkinleştirildi" else "AniList bildirimleri devre dışı bırakıldı")
         if (enabled) {
             com.kitsugi.animelist.core.notifications.NotificationScheduler.schedule(context, appSettings.notificationInterval)
-        } else if (!appSettings.airingNotificationsEnabled && !appSettings.malNotificationsEnabled && !appSettings.simklNotificationsEnabled) {
+        } else if (!appSettings.hasAnyNotificationSource()) {
             com.kitsugi.animelist.core.notifications.NotificationScheduler.cancel(context)
         }
     }
@@ -577,7 +581,7 @@ internal fun SettingsContext.onMalNotificationsChanged(enabled: Boolean) {
         appViewModel.showSnackbarMessage(if (enabled) "MyAnimeList bildirimleri etkinleştirildi" else "MyAnimeList bildirimleri devre dışı bırakıldı")
         if (enabled) {
             com.kitsugi.animelist.core.notifications.NotificationScheduler.schedule(context, appSettings.notificationInterval)
-        } else if (!appSettings.airingNotificationsEnabled && !appSettings.aniListNotificationsEnabled && !appSettings.simklNotificationsEnabled) {
+        } else if (!appSettings.hasAnyNotificationSource()) {
             com.kitsugi.animelist.core.notifications.NotificationScheduler.cancel(context)
         }
     }
@@ -589,11 +593,43 @@ internal fun SettingsContext.onSimklNotificationsChanged(enabled: Boolean) {
         appViewModel.showSnackbarMessage(if (enabled) "Simkl bildirimleri etkinleştirildi" else "Simkl bildirimleri devre dışı bırakıldı")
         if (enabled) {
             com.kitsugi.animelist.core.notifications.NotificationScheduler.schedule(context, appSettings.notificationInterval)
-        } else if (!appSettings.airingNotificationsEnabled && !appSettings.aniListNotificationsEnabled && !appSettings.malNotificationsEnabled) {
+        } else if (!appSettings.hasAnyNotificationSource()) {
             com.kitsugi.animelist.core.notifications.NotificationScheduler.cancel(context)
         }
     }
 }
+
+internal fun SettingsContext.onKitsuNotificationsChanged(enabled: Boolean) {
+    coroutineScope.launch {
+        settingsDataStore.setKitsuNotificationsEnabled(enabled)
+        appViewModel.showSnackbarMessage(if (enabled) "Kitsu bildirimleri etkinleştirildi" else "Kitsu bildirimleri devre dışı bırakıldı")
+        if (enabled) {
+            com.kitsugi.animelist.core.notifications.NotificationScheduler.schedule(context, appSettings.notificationInterval)
+        } else if (!appSettings.hasAnyNotificationSource()) {
+            com.kitsugi.animelist.core.notifications.NotificationScheduler.cancel(context)
+        }
+    }
+}
+
+internal fun SettingsContext.onShikimoriNotificationsChanged(enabled: Boolean) {
+    coroutineScope.launch {
+        settingsDataStore.setShikimoriNotificationsEnabled(enabled)
+        appViewModel.showSnackbarMessage(if (enabled) "Shikimori bildirimleri etkinleştirildi" else "Shikimori bildirimleri devre dışı bırakıldı")
+        if (enabled) {
+            com.kitsugi.animelist.core.notifications.NotificationScheduler.schedule(context, appSettings.notificationInterval)
+        } else if (!appSettings.hasAnyNotificationSource()) {
+            com.kitsugi.animelist.core.notifications.NotificationScheduler.cancel(context)
+        }
+    }
+}
+
+/**
+ * Arka plan bildirim işçisi için en az bir kaynak açık mı?
+ * (Yeni kaynak eklendiğinde iptal koşulları burada tek yerden güncellenir.)
+ */
+internal fun com.kitsugi.animelist.data.settings.AppSettings.hasAnyNotificationSource(): Boolean =
+    airingNotificationsEnabled || aniListNotificationsEnabled || malNotificationsEnabled ||
+        simklNotificationsEnabled || kitsuNotificationsEnabled || shikimoriNotificationsEnabled
 
 internal fun SettingsContext.onNotificationIntervalChanged(minutes: Int) {
     coroutineScope.launch {

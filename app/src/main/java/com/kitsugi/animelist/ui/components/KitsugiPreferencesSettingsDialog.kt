@@ -78,6 +78,8 @@ fun KitsugiPreferencesSettingsDialog(
     onAniListNotificationsChanged: (Boolean) -> Unit = {},
     onMalNotificationsChanged: (Boolean) -> Unit = {},
     onSimklNotificationsChanged: (Boolean) -> Unit = {},
+    onKitsuNotificationsChanged: (Boolean) -> Unit = {},
+    onShikimoriNotificationsChanged: (Boolean) -> Unit = {},
     onNotificationIntervalChanged: (Int) -> Unit = {},
     onSearchHistoryEnabledChanged: (Boolean) -> Unit = {},
     onSplashAnimationEnabledChanged: (Boolean) -> Unit = {},
@@ -224,6 +226,8 @@ fun KitsugiPreferencesSettingsDialog(
                         onAniListNotificationsChanged = onAniListNotificationsChanged,
                         onMalNotificationsChanged = onMalNotificationsChanged,
                         onSimklNotificationsChanged = onSimklNotificationsChanged,
+                        onKitsuNotificationsChanged = onKitsuNotificationsChanged,
+                        onShikimoriNotificationsChanged = onShikimoriNotificationsChanged,
                         onNotificationIntervalChanged = onNotificationIntervalChanged,
                         onSearchHistoryEnabledChanged = onSearchHistoryEnabledChanged,
                         accentColor = accentColor,
@@ -631,6 +635,8 @@ private fun ListScoreTab(
     onAniListNotificationsChanged: (Boolean) -> Unit = {},
     onMalNotificationsChanged: (Boolean) -> Unit = {},
     onSimklNotificationsChanged: (Boolean) -> Unit = {},
+    onKitsuNotificationsChanged: (Boolean) -> Unit = {},
+    onShikimoriNotificationsChanged: (Boolean) -> Unit = {},
     onNotificationIntervalChanged: (Int) -> Unit = {},
     onSearchHistoryEnabledChanged: (Boolean) -> Unit = {},
     accentColor: Color,
@@ -707,6 +713,22 @@ private fun ListScoreTab(
         }
     } else null
 
+    val kitsuPermissionLauncher = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestPermission()
+        ) { granted ->
+            if (granted) onKitsuNotificationsChanged(true)
+        }
+    } else null
+
+    val shikimoriPermissionLauncher = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.RequestPermission()
+        ) { granted ->
+            if (granted) onShikimoriNotificationsChanged(true)
+        }
+    } else null
+
     fun handleAiringNotificationsToggle(enabled: Boolean) {
         if (!enabled) {
             onAiringNotificationsChanged(false)
@@ -780,6 +802,44 @@ private fun ListScoreTab(
             }
         } else {
             onSimklNotificationsChanged(true)
+        }
+    }
+
+    fun handleKitsuNotificationsToggle(enabled: Boolean) {
+        if (!enabled) {
+            onKitsuNotificationsChanged(false)
+            return
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val hasPermission = ContextCompat.checkSelfPermission(
+                context, Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+            if (hasPermission) {
+                onKitsuNotificationsChanged(true)
+            } else {
+                kitsuPermissionLauncher?.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        } else {
+            onKitsuNotificationsChanged(true)
+        }
+    }
+
+    fun handleShikimoriNotificationsToggle(enabled: Boolean) {
+        if (!enabled) {
+            onShikimoriNotificationsChanged(false)
+            return
+        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            val hasPermission = ContextCompat.checkSelfPermission(
+                context, Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+            if (hasPermission) {
+                onShikimoriNotificationsChanged(true)
+            } else {
+                shikimoriPermissionLauncher?.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
+        } else {
+            onShikimoriNotificationsChanged(true)
         }
     }
 
@@ -1233,6 +1293,34 @@ private fun ListScoreTab(
                 iconColor = accentColor,
                 checked = appSettings.simklNotificationsEnabled,
                 onCheckedChange = { handleSimklNotificationsToggle(it) }
+            )
+
+            KitsugiSettingsDivider()
+
+            KitsugiSettingsSwitchItem(
+                title = "Kitsu Bildirimleri",
+                description = if (appSettings.kitsuNotificationsEnabled)
+                    "Kitsu takip listenizdeki sonraki bölüm tarihleri arka planda kontrol edilir"
+                else
+                    "Kitsu yayın tarihi kontrolü devre dışı",
+                icon = Icons.Rounded.Settings,
+                iconColor = accentColor,
+                checked = appSettings.kitsuNotificationsEnabled,
+                onCheckedChange = { handleKitsuNotificationsToggle(it) }
+            )
+
+            KitsugiSettingsDivider()
+
+            KitsugiSettingsSwitchItem(
+                title = "Shikimori Bildirimleri",
+                description = if (appSettings.shikimoriNotificationsEnabled)
+                    "Shikimori kişisel bildirimleri arka planda kontrol edilir (messages izni gerekir)"
+                else
+                    "Shikimori bildirim kontrolü devre dışı",
+                icon = Icons.Rounded.Settings,
+                iconColor = accentColor,
+                checked = appSettings.shikimoriNotificationsEnabled,
+                onCheckedChange = { handleShikimoriNotificationsToggle(it) }
             )
 
             KitsugiSettingsDivider()
