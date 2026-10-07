@@ -47,13 +47,17 @@ class PlayerFallbackCoordinator(
         }
 
         attempts++
+        // NOT: `mpvEnabled` daha önce yok sayılıyordu; kullanıcı MPV'yi kapatsa bile zincir
+        // MEDIA3 → MPV diye ilerliyor ve o motor kurulamadığı için deneme boşa harcanıyordu
+        // (kullanıcı açısından "oynatıcı yine hata verdi"). Artık `nextEngine()` ile aynı
+        // semantik: MPV kapalıysa doğrudan EXTERNAL'e geçilir.
         val next = when (currentEngine) {
-            PlayerEngineType.MEDIA3   -> PlayerEngineType.MPV
+            PlayerEngineType.MEDIA3   -> if (mpvEnabled) PlayerEngineType.MPV else PlayerEngineType.EXTERNAL
             PlayerEngineType.MPV      -> PlayerEngineType.EXTERNAL
             PlayerEngineType.EXTERNAL -> null
         }
 
-        Log.d(TAG, "Fallback #$attempts: $currentEngine → $next (hata kodu: $errorCode)")
+        Log.d(TAG, "Fallback #$attempts: $currentEngine → $next (hata kodu: $errorCode, mpv=$mpvEnabled)")
 
         if (next != null) {
             listener?.onPlayerSwitched(from = currentEngine, to = next)

@@ -72,28 +72,52 @@ class PlayerErrorRecoveryController(
     fun onPlaybackError(errorCode: Int, errorMsg: String) {
         Log.w(TAG, "Playback error: code=$errorCode, msg=$errorMsg, retry=$retryCount, hasFallback=$hasFallback")
 
-        val isNonRecoverable = errorCode == 403 ||
+        // ── Kodek / çözücü hataları ──────────────────────────────────────────
+        // Media3 4000–4005: decoder init/query başarısız, format desteklenmiyor, çözünürlük
+        // cihaz sınırını aşıyor. 5001/5002: ses kanalı başlatılamadı/yazılamadı
+        // ("ses yok" şikâyetinin tipik kodu).
+        //
+        // ESKİ DAVRANIŞ (HATA): Bu durumlar MPV motorunu atlayıp doğrudan kaynak değiştirmeye
+        // gidiyordu. MPV (libmpv + ffmpeg) bu formatların neredeyse tamamını oynatabildiği için
+        // kullanıcı "bu kaynak çalışmıyor" görüyordu. YENİ DAVRANIŞ: kodek hatalarında önce
+        // MPV motoruna geçilir; MPV de başarısız olursa kaynak değişir.
+        val isCodecFailure = errorCode in 4000..4005 || errorCode == 5001 || errorCode == 5002
+
+        // 1. Kesin ölü kaynak (401/403/404/5xx, tanınmayan format): motor denemek anlamsız.
+        //    Not: "UnrecognizedInputFormat" bir kodek değil KAP (container) hatasıdır; MPV
+        //    yine de oynatabilir — bu yüzden yalnızca HTTP/erişim hatalarında motoru atlarız.
+        val isHttpLevelFailure = errorCode == 403 ||
             errorMsg.contains("403") ||
             errorMsg.contains("404") ||
             errorMsg.contains("401") ||
-            errorMsg.contains("UnrecognizedInputFormatException") ||
-            errorMsg.contains("None of the available extractors") ||
             errorMsg.contains("Response code: 4") ||
             errorMsg.contains("Response code: 5")
 
-        val isCodecFailure = errorCode in 4000..4005
-
-        // 1. Codec or non-recoverable failures: skip engine fallback, go straight to source fallback
-        if (isNonRecoverable || isCodecFailure) {
-            Log.e(TAG, "Non-recoverable/codec failure ($errorCode). Going to source fallback.")
+        if (isHttpLevelFailure) {
+            Log.e(TAG, "Erişim/HTTP hatası ($errorCode). Kaynak değiştirme deneniyor.")
             retryCount = 0
             _isRecovering.value = false
             triggerSourceFallbackOrFatal(errorCode, errorMsg)
             return
         }
 
-        // 2. Try engine-level fallback first (MEDIA3 → MPV)
+        // 2. Motor seviyesinde kurtarma: MEDIA3 → MPV → EXTERNAL
         val currentEngine = getCurrentEngine?.invoke() ?: PlayerEngineType.MEDIA3
+
+        // Kodek hatasında aynı motorda tekrar denemek anlamsızdır: doğrudan MPV (varsa).
+        // `isMpvEnabled` geri çağrısı verilmemişse (null) MPV'nin kullanılabilir olduğu varsayılır;
+        // açıkça false verilmişse ZORLANMAZ (kullanıcı MPV'yi kapatmış olabilir).
+        val mpvUsable = isMpvEnabled?.invoke() ?: true
+        if (isCodecFailure && currentEngine == PlayerEngineType.MEDIA3 && mpvUsable) {
+            Log.w(TAG, "Kodek/çözücü hatası ($errorCode) — MPV motoruna geçiş zorlanıyor.")
+            if (onSwitchEngine != null) {
+                retryCount = 0
+                _isRecovering.value = false
+                onSwitchEngine(PlayerEngineType.MPV)
+                return
+            }
+        }
+
         val mpvEnabled = isMpvEnabled?.invoke() ?: false
         val nextEngine = engineFallback.getFallbackEngine(
             currentEngine = currentEngine,

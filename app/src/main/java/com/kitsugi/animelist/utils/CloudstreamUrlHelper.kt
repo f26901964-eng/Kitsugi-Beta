@@ -58,7 +58,12 @@ object CloudstreamUrlHelper {
             return when {
                 cleanPath.endsWith(".cs3", ignoreCase = true) -> {
                     val fileName = cleanPath.substringAfterLast("/")
-                    "https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Plugins/builds/$fileName"
+                    val baseName = fileName.removeSuffix(".cs3")
+                    // Bilinen ad eşlemesi varsa dosya adını düzelt: eski depo kayıtları
+                    // (ör. `CizgiveDizi`, `Dizikorea`) yeni depoda farklı adla derleniyor.
+                    val alias = CS3_NAME_ALIASES[pluginIdentityKey(baseName)]
+                    val resolvedName = if (alias != null) "$alias.cs3" else fileName
+                    "https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Plugins/builds/$resolvedName"
                 }
                 cleanPath.endsWith("plugins.json", ignoreCase = true) -> {
                     "https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Plugins/builds/plugins.json"
@@ -90,8 +95,12 @@ object CloudstreamUrlHelper {
             return "https://raw.githubusercontent.com/hexated/cloudstream-extensions-hexated/builds/plugins.json"
         }
 
-        // Kekik feroxx repository
-        if (cleanUrl.contains("feroxx/Kekik-cloudstream", ignoreCase = true) || cleanUrl.contains("keyiflerolsun/Kekik-cloudstream", ignoreCase = true)) {
+        // Kekik feroxx repository — `maarrem/cs-Kekik` ve `keyiflerolsun` eski adresleri
+        // (README'de duyurulan otomatik geçiş) güncel fork'a yönlendirilir.
+        if (cleanUrl.contains("feroxx/Kekik-cloudstream", ignoreCase = true) ||
+            cleanUrl.contains("keyiflerolsun/Kekik-cloudstream", ignoreCase = true) ||
+            cleanUrl.contains("maarrem/cs-Kekik", ignoreCase = true) ||
+            cleanUrl.contains("/cs-Kekik", ignoreCase = true)) {
             val cleanPath = cleanUrl.substringBefore("?").substringBefore("#")
             if (cleanPath.endsWith(".cs3", ignoreCase = true)) {
                 val fileName = cleanPath.substringAfterLast("/")
@@ -127,6 +136,40 @@ object CloudstreamUrlHelper {
         val normalized = normalizeUrl(rawUrl)
         candidates.add(normalized)
 
+        // 0. Dosya adı VARYANTLARI.
+        // Neden gerekli: eklenti kaydındaki `internalName` ile depodaki .cs3 dosya adı
+        // birebir uyuşmadığında indirme 404 alıyor ve kullanıcı "eklenti indirilemiyor /
+        // boş dönüyor" hatası görüyordu. Gerçek örnekler (Kitsugi-Plugins, 2026-10):
+        //   internalName `WFilmİzle`     → depodaki dosya `WFilmizle.cs3`
+        //   internalName `CanliTV`      → depodaki dosya `CanliTv.cs3`
+        //   internalName `DDizi`        → depodaki dosya `Ddizi.cs3`
+        //   internalName `Kanal 7`      → depodaki dosya `Kanal7.cs3`
+        // Aşağıda Türkçe karakter katlaması + başlık biçimi + boşluk temizliği ile üretilen
+        // varyantlar sırayla denenir; ilk başarılı indirme kazanır.
+        val baseDirs = normalized.substringBeforeLast('/', "")
+        val originalName = normalized.substringBefore("?").substringAfterLast("/").removeSuffix(".cs3")
+
+        // Bilinen ad eşlemeleri (eski/yeni marka adı farkları)
+        val alias = CS3_NAME_ALIASES[pluginIdentityKey(originalName)]
+
+        val names = linkedSetOf<String>()
+        alias?.let { names.add(it) }
+        names.add(originalName)
+        names.addAll(cs3NameVariants(originalName))
+
+        // Dosya adı zaten URL'de olduğu gibi varsa listenin başında kalması için yalnızca
+        // farklı isimleri ekle (aynı URL iki kez denenmesin).
+        for (name in names) {
+            if (name.isBlank() || name == originalName) continue
+            if (baseDirs.isNotBlank()) {
+                candidates.add("$baseDirs/$name.cs3")
+            }
+            // Depo `prebuilt/` alt klasörü kullanıyorsa orayı da dene
+            if (!baseDirs.endsWith("/prebuilt")) {
+                candidates.add("https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Plugins/builds/prebuilt/$name.cs3")
+            }
+        }
+
         // 1. jsDelivr proxy alternatifi
         val proxyUrl = applyGithubProxy(normalized)
         if (proxyUrl != normalized) {
@@ -142,6 +185,18 @@ object CloudstreamUrlHelper {
             candidates.add("https://cdn.jsdelivr.net/gh/gameras1010-afk/Kitsugi-Plugins@builds/$scraperId.cs3")
             candidates.add("https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Plugins/builds/prebuilt/$scraperId.cs3")
             candidates.add("https://cdn.jsdelivr.net/gh/f26901964-eng/Kitsugi-Plugins@builds/prebuilt/$scraperId.cs3")
+
+            // 2b. Codeberg (eski birincil havuz) SON ÇARE yedeği.
+            // Kitsugi-Plugins deposu Codeberg havuzunun yerini aldı; ancak bazı eklentiler
+            // (ör. `Filmmirasım`, `FullHDFilmİzlede`, `YesilCamTv`, `__New`) yeni deponun
+            // `builds` dalında hiç derlenmemiş durumda. Bu durumda eski havuz hâlâ tek
+            // çalışan kaynak oluyor — aksi halde eklenti tamamen indirilemez oluyordu.
+            // Varyant adlarını da Codeberg üzerinde dene.
+            for (name in names) {
+                if (name.isBlank()) continue
+                candidates.add("https://codeberg.org/BlackDamage/KitsugiPlugins/raw/branch/builds/$name.cs3")
+            }
+            candidates.add("https://codeberg.org/BlackDamage/KitsugiPlugins/raw/branch/builds/prebuilt/$scraperId.cs3")
         }
 
         // 3. Kraptor havuzu aynaları
@@ -158,6 +213,95 @@ object CloudstreamUrlHelper {
 
         return candidates.toList()
     }
+
+    /**
+     * Eklenti adından indirilebilir `.cs3` dosya adı varyantları üretir.
+     *
+     * Örnek: `"WFilmİzle"` → `["WFilmizle", "Wfilmizle", "WFILMIZLE"]`,
+     *        `"CanliTV"` → `["CanliTv", "CANLITV"]`, `"Kanal 7"` → `["Kanal7", "Kanal 7"]`.
+     */
+    internal fun cs3NameVariants(name: String): List<String> {
+        val folded = foldToAscii(name)
+        val noSpace = folded.replace(" ", "")
+        val variants = linkedSetOf(folded, noSpace)
+        // Kısaltma katlama: "CanliTV" → "CanliTv", "DDizi" → "Ddizi"
+        variants.add(collapseAcronyms(noSpace))
+        variants.add(noSpace.lowercase())
+        variants.add(noSpace.uppercase())
+        return variants.filter { it.isNotBlank() }
+    }
+
+    /**
+     * Ardışık büyük harf gruplarını (kısaltmaları) başlık biçimine indirger:
+     * `"CanliTV"` → `"CanliTv"`, `"DDizi"` → `"Ddizi"`, `"AnimeAV"` → `"AnimeAv"`.
+     *
+     * Neden: depodaki gerçek dosya adları bu biçimde (`CanliTv.cs3`, `Ddizi.cs3`), kayıttaki
+     * `internalName` ise bitişik büyük harfle yazılmış (`CanliTV`, `DDizi`) — doğrudan
+     * eşleştirme 404 veriyordu.
+     */
+    internal fun collapseAcronyms(name: String): String {
+        val sb = StringBuilder(name.length)
+        var i = 0
+        while (i < name.length) {
+            val c = name[i]
+            if (c.isUpperCase()) {
+                var j = i
+                while (j < name.length && name[j].isUpperCase()) j++
+                if (j - i >= 2) {
+                    sb.append(name[i])
+                    sb.append(name.substring(i + 1, j).lowercase())
+                } else {
+                    sb.append(c)
+                }
+                i = j
+            } else {
+                sb.append(c)
+                i++
+            }
+        }
+        return sb.toString()
+    }
+
+    /** Türkçe karakterleri ASCII karşılıklarına indirger; ı/İ/I → i/I, ş/Ş→s/S, ğ/Ğ→g/G, ü/Ü→u/U, ö/Ö→o/O, ç/Ç→c/C. */
+    internal fun foldToAscii(name: String): String {
+        val sb = StringBuilder(name.length)
+        for (ch in name) {
+            when (ch) {
+                'İ', 'ı', 'i' -> sb.append('i')
+                'I' -> sb.append('I')
+                'Ş' -> sb.append('S')
+                'ş' -> sb.append('s')
+                'Ğ' -> sb.append('G')
+                'ğ' -> sb.append('g')
+                'Ü' -> sb.append('U')
+                'ü' -> sb.append('u')
+                'Ö' -> sb.append('O')
+                'ö' -> sb.append('o')
+                'Ç' -> sb.append('C')
+                'ç' -> sb.append('c')
+                else -> sb.append(ch)
+            }
+        }
+        return sb.toString().replace("\u0307", "")
+    }
+
+
+
+    /** Eklenti adını karşılaştırma anahtarına indirger (küçük harf + ASCII + noktalama yok). */
+    internal fun pluginIdentityKey(name: String): String =
+        foldToAscii(name).lowercase().filter { it.isLetterOrDigit() }
+
+    /**
+     * Eski/yeni marka adı farkları: kayıttaki `internalName` ile depodaki `.cs3` dosya adı
+     * tamamen farklı olduğunda kullanılır. Yalnızca DOĞRULANMIŞ eşlemeler yer alır.
+     */
+    private val CS3_NAME_ALIASES = mapOf(
+        // Kitsugi-Plugins builds: eski ad → yeni ad
+        "cizgivedizi" to "CizgiVeDizi",
+        "dizikorea" to "DiziKorea",
+        "sinewix" to "Sinewix",
+        "kanal7" to "Kanal7"
+    )
 
     /**
      * Appends a timestamp query parameter to bypass CDN/Fastly caches for instant updates.

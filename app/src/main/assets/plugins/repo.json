@@ -3,6 +3,7 @@
   "description": "Kitsugi uygulaması için güncel Türkçe eklenti havuzu",
   "manifestVersion": 1,
   "pluginLists": [
+    "https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Plugins/builds/plugins.json",
     "https://codeberg.org/BlackDamage/KitsugiPlugins/raw/branch/builds/plugins.json"
   ]
 }

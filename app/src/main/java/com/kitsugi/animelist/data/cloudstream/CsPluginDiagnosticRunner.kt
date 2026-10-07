@@ -37,19 +37,31 @@ object CsPluginDiagnosticRunner {
     private const val TAG = "CsPluginDiagnostic"
     private const val MAX_CONCURRENT = 4  // Uygulama içi — biraz daha conservative
 
-    /** Türkçe CS eklenti depoları */
+    /**
+     * Türkçe CS eklenti depoları.
+     *
+     * 2026-10 güncellemesi — canlılık doğrulaması (GitHub API):
+     *  • `Kitsugi-Plugins/builds` (Kitsugi'nin resmi deposu) listeye EKLENDİ — gömülü
+     *    `assets/plugins/repo.json` ile aynı birincil kaynak.
+     *  • `Kraptor123/cs-kraptor` → `repo.json` YAYINLAMIYOR (yalnız `builds/plugins.json`);
+     *    eski `refs/heads/master/repo.json` adresi her taramada 404 dönüyordu → düzeltildi.
+     *  • `hexated/cloudstream-extensions-hexated` → aynı durum, doğrudan `plugins.json`'a çevrildi.
+     *  • KALDIRILDI: `ByAyzen/AyzenCS3`, `caca1403/cloudstream-cagi-eklenti` (repo silinmiş / 404) ve
+     *    `sarapcanagii/Pitipitii` (DMCA ile bloke edilmiş → HTTP 451, beIN Sports şikayeti 2026-08-20).
+     *    Ölü adresler her tanı turunda gereksiz gecikme + hata satırı üretiyordu.
+     */
     val REPOS = listOf(
+        "https://raw.githubusercontent.com/f26901964-eng/Kitsugi-Plugins/builds/repo.json",
         "https://codeberg.org/BlackDamage/KitsugiPlugins/raw/branch/builds/repo.json",
         "https://raw.githubusercontent.com/feroxx/Kekik-cloudstream/refs/heads/builds/repo.json",
-        "https://raw.githubusercontent.com/Kraptor123/cs-kraptor/refs/heads/master/repo.json",
         "https://raw.githubusercontent.com/Kraptor123/Cs-Karma/refs/heads/master/repo.json",
         "https://raw.githubusercontent.com/nikyokki/nik-cloudstream/master/repo.json",
-        "https://raw.githubusercontent.com/ByAyzen/AyzenCS3/refs/heads/builds/repo.json",
         "https://raw.githubusercontent.com/Kraptor123/cs-kekikanime/master/repo.json",
-        "https://raw.githubusercontent.com/sarapcanagii/Pitipitii/master/repo.json",
         "https://raw.githubusercontent.com/Kraptor123/Cs-GizliKeyif/refs/heads/master/repo.json",
         "https://raw.githubusercontent.com/Sertel392/Makotogecici/main/repo.json",
-        "https://raw.githubusercontent.com/caca1403/cloudstream-cagi-eklenti/main/repo.json"
+        // repo.json yayınlamayan depolar → doğrudan eklenti listesi:
+        "https://raw.githubusercontent.com/Kraptor123/cs-kraptor/refs/heads/builds/plugins.json",
+        "https://raw.githubusercontent.com/hexated/cloudstream-extensions-hexated/builds/plugins.json"
     )
 
     // ─── State ────────────────────────────────────────────────────────────────

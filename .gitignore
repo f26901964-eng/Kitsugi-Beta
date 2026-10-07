@@ -38,3 +38,7 @@ keystores*
 /all_files*.txt
 /compile_*.txt
 /archive_contents.txt
+
+# Python önbellekleri (scripts/*.py için)
+__pycache__/
+*.pyc
