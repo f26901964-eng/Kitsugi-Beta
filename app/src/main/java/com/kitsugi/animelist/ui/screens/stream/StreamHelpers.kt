@@ -3,6 +3,11 @@ package com.kitsugi.animelist.ui.screens.stream
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
 import com.kitsugi.animelist.data.local.ManagedAddonEntity
+import com.kitsugi.animelist.data.repository.MeasuredStreamInfo
+import com.kitsugi.animelist.data.repository.StreamAudioKind
+import com.kitsugi.animelist.data.repository.StreamInfoResolver
+import com.kitsugi.animelist.data.repository.StreamLangInfo
+import com.kitsugi.animelist.data.repository.StreamQualityInfo
 import com.kitsugi.animelist.data.repository.StreamSource
 import com.google.gson.Gson
 import java.util.Locale
@@ -37,93 +42,80 @@ fun ManagedAddonEntity.supportsStreamResource(type: String, videoId: String): Bo
 }
 
 /**
- * Evaluates the Debrid cache state of a [StreamSource] by inspecting name/title tokens.
+ * Bir [StreamSource] için Debrid önbellek durumunu, yalnızca isim/başlıkta AÇIKÇA yazan
+ * işaretçilere göre belirler. Kanıt yoksa torrentler için P2P kabul edilir —
+ * eskiden olduğu gibi "varsayılan olarak Önbellekte" denmez (bu yanlış bilgiydi).
  */
 fun getCacheState(stream: StreamSource): DebridCacheState {
     val nameLower = stream.name.lowercase(Locale.ROOT)
     val titleLower = stream.title.lowercase(Locale.ROOT)
+    val text = "$nameLower $titleLower"
     return when {
-        nameLower.contains("[rd+]") || nameLower.contains("rd+") || nameLower.contains("cached") ||
-        titleLower.contains("[rd+]") || titleLower.contains("rd+") ||
-        nameLower.contains("[tb+]") || nameLower.contains("tb+") ||
-        nameLower.contains("[pm+]") || nameLower.contains("pm+") ||
-        nameLower.contains("[ad+]") || nameLower.contains("ad+") -> DebridCacheState.CACHED
+        text.contains("[rd+]") || text.contains("[tb+]") || text.contains("[pm+]") ||
+        text.contains("[ad+]") || text.contains("cached") || text.contains("önbellek") -> DebridCacheState.CACHED
 
-        nameLower.contains("[rd~]") || nameLower.contains("download") ||
-        titleLower.contains("[rd~]") || titleLower.contains("download") -> DebridCacheState.NOT_CACHED
+        text.contains("[rd~]") || text.contains("[tb~]") || text.contains("download") -> DebridCacheState.NOT_CACHED
 
-        stream.isTorrent && (stream.url == null || stream.url.startsWith("magnet:", ignoreCase = true) || stream.url.startsWith("torrent://", ignoreCase = true)) -> DebridCacheState.P2P
-
-        else -> DebridCacheState.CACHED
+        else -> DebridCacheState.P2P
     }
 }
 
 enum class StreamLangType(val label: String, val isDub: Boolean, val isSub: Boolean) {
     DUB("🎙️ Dublaj", true, false),
     SUB("💬 Altyazılı", false, true),
-    DUAL("🌐 Dual (TR/EN)", true, true),
-    UNKNOWN("🎬 Standart", false, false)
+    DUAL("🌐 Dual", true, true),
+    UNKNOWN("Bilinmiyor", false, false)
+}
+
+internal fun StreamAudioKind.toLangType(): StreamLangType = when (this) {
+    StreamAudioKind.DUB -> StreamLangType.DUB
+    StreamAudioKind.SUB -> StreamLangType.SUB
+    StreamAudioKind.DUAL -> StreamLangType.DUAL
+    StreamAudioKind.UNKNOWN -> StreamLangType.UNKNOWN
 }
 
 /**
- * Detects whether a stream source is Subbed, Dubbed, or Dual by analyzing titles, names, and provider hints.
+ * Akışın dil bilgisini **kanıta dayalı** olarak çözer.
+ *
+ * Kaynak sırası: ölçülen HLS ses parçaları → eklenti meta verisi (CloudStream DubStatus,
+ * gerçek altyazı dosyaları) → dosya adındaki açık etiketler. Kanıt yoksa
+ * [StreamLangInfo.kind] = UNKNOWN olur ve arayüzde rozet gösterilmez.
+ *
+ * Kaldırılan yanlış varsayımlar: "Türkçe eklenti ⇒ altyazılı", "isimde 'sub' geçiyor ⇒ altyazılı"
+ * (Subaru, Submarine gibi kelimelerde yanlış eşleşiyordu).
  */
-fun detectStreamLang(stream: StreamSource): StreamLangType {
-    val text = "${stream.name} ${stream.title} ${stream.addonName}".lowercase(Locale.ROOT)
-    val isDual = text.contains("dual") || text.contains("multi") || (text.contains("dub") && text.contains("sub"))
-    if (isDual) return StreamLangType.DUAL
+fun resolveStreamLangInfo(stream: StreamSource, measured: MeasuredStreamInfo? = null): StreamLangInfo =
+    StreamInfoResolver.resolveLang(stream, measured)
 
-    val isDub = text.contains("dublaj") || text.contains("dub") || text.contains("tr-dub") || text.contains("trdub") || text.contains("türkçe ses") || text.contains("turkce ses")
-    if (isDub) return StreamLangType.DUB
-
-    val isSub = text.contains("altyazı") || text.contains("altyazi") || text.contains("sub") || text.contains("tr-sub") || text.contains("trsub") || text.contains("çeviri") || text.contains("softsub") || text.contains("hardsub")
-    if (isSub) return StreamLangType.SUB
-
-    // Turkish plugins/addons default to Subbed if no explicit tag is present
-    val isTrAddon = stream.addonName.contains("Dizi", ignoreCase = true) ||
-        stream.addonName.contains("Anime", ignoreCase = true) ||
-        stream.isCS
-    if (isTrAddon) {
-        return StreamLangType.SUB
-    }
-
-    return StreamLangType.UNKNOWN
-}
+/** Geriye dönük uyumluluk: yalnızca dil türünü döndürür. */
+fun detectStreamLang(stream: StreamSource): StreamLangType =
+    StreamInfoResolver.resolveLang(stream).kind.toLangType()
 
 /**
- * Parses quality label (4K, 1080p, etc.) and file size from a stream source.
+ * Akışın çözünürlük bilgisini çözer. Kanıt yoksa [StreamQualityInfo.label] null döner;
+ * arayüz bu durumda "Kalite ?" gösterir, uydurma bir "1080p (HD)" basmaz.
+ */
+fun resolveStreamQuality(stream: StreamSource, measured: MeasuredStreamInfo? = null): StreamQualityInfo =
+    StreamInfoResolver.resolveQuality(stream, measured)
+
+/** Dosya boyutu etiketi (ölçülen veya kaynağın bildirdiği); bilinmiyorsa null. */
+fun resolveStreamSizeLabel(stream: StreamSource, measured: MeasuredStreamInfo? = null): String? =
+    StreamInfoResolver.resolveSizeLabel(stream, measured)
+
+/**
+ * Geriye dönük uyumluluk: (kalite, boyut) çifti. Kalite bilinmiyorsa boş string döner.
  */
 fun parseStreamQuality(stream: StreamSource): Pair<String, String> {
-    val rawQuality = stream.quality
-    if (!rawQuality.isNullOrBlank() && rawQuality != "Bilinmeyen" && rawQuality != "Auto") {
-        val sizeRegex = Regex("""(\d+(?:\.\d+)?\s*(?:gb|mb|gib|mib))""", RegexOption.IGNORE_CASE)
-        val size = sizeRegex.find(stream.title)?.value?.uppercase(Locale.ROOT) ?: ""
-        return rawQuality to size
-    }
-
-    val textLower = "${stream.title} ${stream.name} ${stream.url}".lowercase(Locale.ROOT)
-    val quality = when {
-        textLower.contains("2160") || textLower.contains("4k") || textLower.contains("uhd") -> "4K UHD"
-        textLower.contains("1080") || textLower.contains("fhd") || textLower.contains("fullhd") -> "1080p"
-        textLower.contains("720") || textLower.contains("hd") -> "720p"
-        textLower.contains("480") || textLower.contains("sd") -> "480p"
-        textLower.contains("360") -> "360p"
-        else -> "1080p (HD)"
-    }
-    val sizeRegex = Regex("""(\d+(?:\.\d+)?\s*(?:gb|mb|gib|mib))""", RegexOption.IGNORE_CASE)
-    val size = sizeRegex.find(stream.title)?.value?.uppercase(Locale.ROOT) ?: ""
-    return quality to size
+    val quality = StreamInfoResolver.resolveQuality(stream)
+    val size = StreamInfoResolver.resolveSizeLabel(stream)
+    return (quality.label ?: "") to (size ?: "")
 }
 
+/** Yalnızca başlıktan kalite/boyut okur (TV arayüzü). Kanıt yoksa boş string. */
 fun parseStreamTitle(title: String): Pair<String, String> {
-    val titleLower = title.lowercase(Locale.ROOT)
-    val quality = when {
-        titleLower.contains("2160") || titleLower.contains("4k") -> "4K"
-        titleLower.contains("1080") -> "1080p"
-        titleLower.contains("720") -> "720p"
-        titleLower.contains("480") -> "480p"
-        else -> "1080p (HD)"
-    }
+    val quality = StreamInfoResolver.parseHeightFromText(title)
+        ?.let { StreamInfoResolver.heightToLabel(it) }
+        ?: ""
     val sizeRegex = Regex("""(\d+(?:\.\d+)?\s*(?:gb|mb|gib|mib))""", RegexOption.IGNORE_CASE)
     val size = sizeRegex.find(title)?.value?.uppercase(Locale.ROOT) ?: ""
     return quality to size

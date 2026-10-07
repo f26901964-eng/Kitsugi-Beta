@@ -61,9 +61,7 @@ fun getCacheState(stream: StreamSource): DebridCacheState {
         nameLower.contains("[rd~]") || nameLower.contains("download") ||
         titleLower.contains("[rd~]") || titleLower.contains("download") -> DebridCacheState.NOT_CACHED
         
-        stream.isTorrent && (stream.url == null || stream.url.startsWith("magnet:", ignoreCase = true) || stream.url.startsWith("torrent://", ignoreCase = true)) -> DebridCacheState.P2P
-        
-        else -> DebridCacheState.CACHED
+        else -> DebridCacheState.P2P
     }
 }
 
@@ -611,25 +609,27 @@ private fun StreamItemRow(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    // Quality badge
-                    val qualityColor = when (parsedInfo.quality) {
-                        "4K", "2160p" -> KitsugiColors.AccentRed
-                        "1080p" -> KitsugiColors.AccentBlue
-                        "720p" -> KitsugiColors.AccentGreen
-                        else -> KitsugiColors.SurfaceStrong
-                    }
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(qualityColor.copy(alpha = 0.15f))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = parsedInfo.quality,
-                            color = if (qualityColor == KitsugiColors.SurfaceStrong) KitsugiColors.TextSecondary else qualityColor,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                    // Quality badge — yalnızca bilinen kalite gösterilir
+                    if (parsedInfo.quality.isNotBlank()) {
+                        val qualityColor = when (parsedInfo.quality) {
+                            "4K", "2160p" -> KitsugiColors.AccentRed
+                            "1080p" -> KitsugiColors.AccentBlue
+                            "720p" -> KitsugiColors.AccentGreen
+                            else -> KitsugiColors.SurfaceStrong
+                        }
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(qualityColor.copy(alpha = 0.15f))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = parsedInfo.quality,
+                                color = if (qualityColor == KitsugiColors.SurfaceStrong) KitsugiColors.TextSecondary else qualityColor,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
 
                     // Addon Name Badge
@@ -647,25 +647,27 @@ private fun StreamItemRow(
                         )
                     }
 
-                    // Cache Status Badge
-                    val cacheState = remember(stream) { getCacheState(stream) }
-                    val (cacheText, cacheColor) = when (cacheState) {
-                        DebridCacheState.CACHED -> "Önbellekte" to KitsugiColors.AccentGreen
-                        DebridCacheState.NOT_CACHED -> "İndirilecek" to KitsugiColors.AccentOrange
-                        DebridCacheState.P2P -> "Torrent (P2P)" to KitsugiColors.AccentBlue
-                    }
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(6.dp))
-                            .background(cacheColor.copy(alpha = 0.15f))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = cacheText,
-                            color = cacheColor,
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.Bold
-                        )
+                    // Cache Status Badge — yalnızca torrent/debrid akışları için anlamlı
+                    if (stream.isTorrent) {
+                        val cacheState = remember(stream) { getCacheState(stream) }
+                        val (cacheText, cacheColor) = when (cacheState) {
+                            DebridCacheState.CACHED -> "Önbellekte" to KitsugiColors.AccentGreen
+                            DebridCacheState.NOT_CACHED -> "İndirilecek" to KitsugiColors.AccentOrange
+                            DebridCacheState.P2P -> "Torrent (P2P)" to KitsugiColors.AccentBlue
+                        }
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(cacheColor.copy(alpha = 0.15f))
+                                .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
+                            Text(
+                                text = cacheText,
+                                color = cacheColor,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
 
                     if (parsedInfo.size.isNotBlank()) {
@@ -730,16 +732,12 @@ private data class ParsedStreamInfo(
 )
 
 private fun parseStreamTitle(title: String): ParsedStreamInfo {
-    val titleLower = title.lowercase(Locale.ROOT)
-    
-    // Quality
-    val quality = when {
-        titleLower.contains("2160") || titleLower.contains("4k") -> "4K"
-        titleLower.contains("1080") -> "1080p"
-        titleLower.contains("720") -> "720p"
-        titleLower.contains("480") -> "480p"
-        else -> "HD"
-    }
+    // Kalite yalnızca başlıkta AÇIKÇA yazıyorsa gösterilir; aksi halde boş bırakılır
+    // (eskiden varsayılan olarak "HD" yazılıyordu — bu yanlış bilgiydi).
+    val quality = com.kitsugi.animelist.data.repository.StreamInfoResolver
+        .parseHeightFromText(title)
+        ?.let { com.kitsugi.animelist.data.repository.StreamInfoResolver.heightToLabel(it) }
+        ?: ""
 
     // Size regex like "1.2 GB" or "750 MB" or "1.2gb"
     val sizeRegex = Regex("""(\d+(?:\.\d+)?\s*(?:gb|mb|gib|mib))""", RegexOption.IGNORE_CASE)

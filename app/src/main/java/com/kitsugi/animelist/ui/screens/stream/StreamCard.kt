@@ -31,6 +31,10 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import coil3.compose.AsyncImage
+import com.kitsugi.animelist.data.repository.MeasuredStreamInfo
+import com.kitsugi.animelist.data.repository.StreamAudioKind
+import com.kitsugi.animelist.data.repository.StreamInfoOrigin
+import com.kitsugi.animelist.data.repository.StreamProbe
 import com.kitsugi.animelist.data.repository.StreamSource
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalBlurAdultMedia
@@ -55,8 +59,21 @@ fun StreamCard(
     onClick: () -> Unit,
     onDownloadClick: () -> Unit
 ) {
-    val (quality, size) = remember(source) { parseStreamQuality(source) }
-    val langType = remember(source) { detectStreamLang(source) }
+    // ── Gerçek (ölçülen) akış bilgisi ────────────────────────────────────────
+    // Kaynak kalite/dil bildirmediyse tahmin ETMİYORUZ; bunun yerine akışın kendisini
+    // ölçüyoruz (HLS master playlist → gerçek çözünürlükler ve ses/altyazı dilleri).
+    val measured by produceState<MeasuredStreamInfo?>(
+        initialValue = StreamProbe.cached(source.url),
+        key1 = source.url
+    ) {
+        if (value == null && StreamProbe.isProbeable(source)) {
+            value = runCatching { StreamProbe.probe(source) }.getOrNull()
+        }
+    }
+
+    val qualityInfo = remember(source, measured) { resolveStreamQuality(source, measured) }
+    val langInfo = remember(source, measured) { resolveStreamLangInfo(source, measured) }
+    val size = remember(source, measured) { resolveStreamSizeLabel(source, measured) }
     val cacheState = remember(source) { getCacheState(source) }
 
     var showImageDialog by remember { mutableStateOf(false) }
@@ -138,21 +155,76 @@ fun StreamCard(
                         verticalArrangement = Arrangement.spacedBy(4.dp),
                         modifier = Modifier.padding(bottom = 6.dp)
                     ) {
+                        // ── Kalite rozeti ───────────────────────────────────
+                        // Yalnızca gerçekten bilinen kalite gösterilir. Bilinmiyorsa
+                        // "Kalite ?" yazılır; uydurma bir değer (eski "400p" / "1080p (HD)") basılmaz.
+                        val qualityHeight = qualityInfo.height ?: 0
                         val qualityColor = when {
-                            quality.contains("4K", ignoreCase = true) || quality.contains("2160", ignoreCase = true) -> KitsugiColors.AccentRed
-                            quality.contains("1080", ignoreCase = true) -> KitsugiColors.AccentBlue
-                            quality.contains("720", ignoreCase = true)  -> KitsugiColors.AccentGreen
+                            !qualityInfo.isKnown -> KitsugiColors.TextMuted
+                            qualityHeight >= 2160 -> KitsugiColors.AccentRed
+                            qualityHeight >= 1080 -> KitsugiColors.AccentBlue
+                            qualityHeight >= 720  -> KitsugiColors.AccentGreen
                             else -> KitsugiColors.AccentOrange
                         }
-                        StreamBadge(text = quality, color = qualityColor, bgAlpha = 0.15f, bgColor = qualityColor)
-
-                        val (langText, langColor) = when (langType) {
-                            StreamLangType.DUB     -> "🎙️ Dublaj"     to KitsugiColors.AccentOrange
-                            StreamLangType.SUB     -> "💬 Altyazılı"  to KitsugiColors.AccentBlue
-                            StreamLangType.DUAL    -> "🌐 Dual"       to KitsugiColors.AccentPurple
-                            StreamLangType.UNKNOWN -> "🎬 Standart"   to KitsugiColors.TextSecondary
+                        val qualityText = when {
+                            qualityInfo.isKnown && qualityInfo.isAdaptive -> "${qualityInfo.label} · oto"
+                            qualityInfo.isKnown -> qualityInfo.label.orEmpty()
+                            qualityInfo.isAdaptive -> "Oto (HLS)"
+                            else -> "Kalite ?"
                         }
-                        StreamBadge(text = langText, color = langColor, bgAlpha = 0.15f, bgColor = langColor)
+                        StreamBadge(
+                            text = qualityText,
+                            color = qualityColor,
+                            bgAlpha = if (qualityInfo.isKnown) 0.15f else 0.08f,
+                            bgColor = qualityColor,
+                            isVerified = qualityInfo.origin == StreamInfoOrigin.MEASURED
+                        )
+
+                        // ── Dil rozeti — yalnızca kanıt varsa ───────────────
+                        val langText = when (langInfo.kind) {
+                            StreamAudioKind.DUB  -> "🎙️ Dublaj"
+                            StreamAudioKind.SUB  -> "💬 Altyazılı"
+                            StreamAudioKind.DUAL -> "🌐 Çift dil"
+                            StreamAudioKind.UNKNOWN -> null
+                        }
+                        val langColor = when (langInfo.kind) {
+                            StreamAudioKind.DUB  -> KitsugiColors.AccentOrange
+                            StreamAudioKind.SUB  -> KitsugiColors.AccentBlue
+                            StreamAudioKind.DUAL -> KitsugiColors.AccentPurple
+                            StreamAudioKind.UNKNOWN -> KitsugiColors.TextMuted
+                        }
+                        if (langText != null) {
+                            StreamBadge(
+                                text = langText,
+                                color = langColor,
+                                bgAlpha = 0.15f,
+                                bgColor = langColor,
+                                isVerified = langInfo.origin == StreamInfoOrigin.MEASURED ||
+                                    langInfo.origin == StreamInfoOrigin.PROVIDER
+                            )
+                        }
+
+                        // Gerçekten tespit edilen ses dilleri (HLS EXT-X-MEDIA)
+                        if (langInfo.audioLanguages.isNotEmpty()) {
+                            StreamBadge(
+                                text = "🔊 " + langInfo.audioLanguages.joinToString("/"),
+                                color = KitsugiColors.AccentOrange,
+                                bgAlpha = 0.12f,
+                                bgColor = KitsugiColors.AccentOrange,
+                                isVerified = true
+                            )
+                        }
+
+                        // Kaynağın gerçekten verdiği altyazı dosyaları
+                        if (langInfo.subtitleLanguages.isNotEmpty()) {
+                            StreamBadge(
+                                text = "CC " + langInfo.subtitleLanguages.joinToString("/"),
+                                color = KitsugiColors.AccentBlue,
+                                bgAlpha = 0.12f,
+                                bgColor = KitsugiColors.AccentBlue,
+                                isVerified = true
+                            )
+                        }
 
                         StreamBadge(
                             text = source.addonName,
@@ -172,7 +244,7 @@ fun StreamCard(
                             StreamBadge(text = cacheText, color = cacheColor, bgAlpha = 0.15f, bgColor = cacheColor)
                         }
 
-                        if (size.isNotBlank()) {
+                        if (!size.isNullOrBlank()) {
                             Text(
                                 text = size,
                                 color = KitsugiColors.TextMuted,
@@ -298,8 +370,18 @@ fun StreamCard(
     }
 }
 
+/**
+ * Rozet. [isVerified] true ise bilgi kaynağın meta verisinden ya da gerçek akış ölçümünden
+ * gelir ve "✓" ile işaretlenir; false ise yalnızca dosya adında yazdığı için gösterilir.
+ */
 @Composable
-private fun StreamBadge(text: String, color: Color, bgAlpha: Float, bgColor: Color) {
+private fun StreamBadge(
+    text: String,
+    color: Color,
+    bgAlpha: Float,
+    bgColor: Color,
+    isVerified: Boolean = false
+) {
     Box(
         modifier = Modifier
             .clip(RoundedCornerShape(6.dp))
@@ -307,7 +389,7 @@ private fun StreamBadge(text: String, color: Color, bgAlpha: Float, bgColor: Col
             .padding(horizontal = 6.dp, vertical = 2.dp)
     ) {
         Text(
-            text = text,
+            text = if (isVerified) "$text ✓" else text,
             color = color,
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,

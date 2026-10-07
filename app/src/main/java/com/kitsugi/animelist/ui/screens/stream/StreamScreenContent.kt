@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import coil3.compose.SubcomposeAsyncImage
+import com.kitsugi.animelist.data.repository.StreamProbe
 import com.kitsugi.animelist.data.repository.StreamSource
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.utils.tvClickable
@@ -114,8 +115,11 @@ fun StreamScreenContent(
             }
 
             val matchingStreams = addonState.streams.filter { stream ->
-                val (qual, _) = parseStreamQuality(stream)
-                val langType = detectStreamLang(stream)
+                // Filtreleme de rozetlerle aynı kanıta dayalı bilgiyi kullanır.
+                val qualityInfo = resolveStreamQuality(stream, StreamProbe.cached(stream.url))
+                val qual = qualityInfo.label.orEmpty()
+                val langInfo = resolveStreamLangInfo(stream, StreamProbe.cached(stream.url))
+                val langType = langInfo.kind.toLangType()
 
                 val matchesQuery = query.isEmpty() ||
                     stream.name.lowercase().contains(query) ||
@@ -127,10 +131,11 @@ fun StreamScreenContent(
                     ((query == "tr" || query == "türkçe" || query == "turkce") && (langType == StreamLangType.SUB || langType == StreamLangType.DUB || langType == StreamLangType.DUAL))
 
                 val matchesTag = when (tag) {
-                    "altyazı" -> langType == StreamLangType.SUB || langType == StreamLangType.DUAL
+                    "altyazı" -> langType == StreamLangType.SUB || langType == StreamLangType.DUAL ||
+                        langInfo.subtitleLanguages.isNotEmpty()
                     "dublaj" -> langType == StreamLangType.DUB || langType == StreamLangType.DUAL
-                    "1080p" -> qual.contains("1080") || stream.qualityValue == 1080
-                    "720p" -> qual.contains("720") || stream.qualityValue == 720
+                    "1080p" -> qualityInfo.height != null && qualityInfo.height >= 1080
+                    "720p" -> qualityInfo.height == 720
                     "debrid" -> stream.infoHash != null || stream.url?.contains("magnet") == true
                     else -> true
                 }

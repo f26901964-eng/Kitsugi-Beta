@@ -1384,7 +1384,7 @@ object CsStreamRunner {
                                     requestHeaders = headers,
                                     isCS           = true,
                                     quality        = getQualityString(link.quality),
-                                    qualityValue   = link.quality,
+                                    qualityValue   = getQualityValue(link.quality),
                                     subtitles      = emptyList(),
                                     thumbnailUrl   = thumbnailUrl,
                                     isAdultContent = ADULT_PLUGINS.contains(providerName)
@@ -1503,8 +1503,9 @@ object CsStreamRunner {
                                 fileIndex      = null,
                                 requestHeaders = wHeaders,
                                 isCS           = true,
-                                quality        = getQualityString(if (vid.label.contains("1080")) 1080 else if (vid.label.contains("720")) 720 else if (vid.label.contains("480")) 480 else 0),
-                                qualityValue   = if (vid.label.contains("1080")) 1080 else if (vid.label.contains("720")) 720 else if (vid.label.contains("480")) 480 else 0,
+                                // Kalite yalnızca extractor'ın verdiği etikette AÇIKÇA yazıyorsa kullanılır.
+                                quality        = labelHeight(vid.label)?.let { com.kitsugi.animelist.data.repository.StreamInfoResolver.heightToLabel(it) },
+                                qualityValue   = labelHeight(vid.label),
                                 subtitles      = emptyList(),
                                 thumbnailUrl   = thumbnailUrl,
                                 isAdultContent = ADULT_PLUGINS.contains(providerName)
@@ -1556,8 +1557,9 @@ object CsStreamRunner {
                     fileIndex    = null,
                     requestHeaders = headers,
                     isCS         = true,
-                    quality      = "720p",
-                    qualityValue = 720,
+                    // Çözümlenemeyen kaynağın kalitesi bilinmiyor — uydurma yapılmaz.
+                    quality      = null,
+                    qualityValue = null,
                     subtitles    = emptyList(),
                     thumbnailUrl = thumbnailUrl,
                     isAdultContent = ADULT_PLUGINS.contains(providerName)
@@ -1654,7 +1656,7 @@ object CsStreamRunner {
                                         requestHeaders = headers,
                                         isCS         = true,
                                         quality      = getQualityString(link.quality),
-                                        qualityValue = link.quality,
+                                        qualityValue = getQualityValue(link.quality),
                                         subtitles    = emptyList(),
                                         thumbnailUrl = posterUrl,
                                         isAdultContent = ADULT_PLUGINS.contains(api.name)
@@ -1704,8 +1706,9 @@ object CsStreamRunner {
                                     "User-Agent" to com.lagradost.cloudstream3.network.CloudflareKiller.UNIFIED_USER_AGENT
                                 ),
                                 isCS           = true,
-                                quality        = "HD",
-                                qualityValue   = 1080,
+                                // Extractor çözemedi; kalite bilinmiyor.
+                                quality        = null,
+                                qualityValue   = null,
                                 subtitles      = emptyList(),
                                 thumbnailUrl   = posterUrl,
                                 isAdultContent = ADULT_PLUGINS.contains(api.name)
@@ -1807,9 +1810,18 @@ object CsStreamRunner {
             verifiedStreams.sortedByDescending { it.qualityValue ?: 0 }
         }
 
-        Log.d(TAG, "[${api.name}] ✅ Sonuç: ${finalStreams.size} doğrulanmış stream, ${subtitleList.size} altyazı")
+        // Dil bilgisi: sağlayıcının kendi meta verisinden (DubStatus) okunur — tahmin edilmez.
+        val providerAudioKind = CsEpisodeMatcher.findDubStatusForEpisodeData(loadResponse, episodeData)
+        Log.d(
+            TAG,
+            "[${api.name}] ✅ Sonuç: ${finalStreams.size} doğrulanmış stream, " +
+                "${subtitleList.size} altyazı, sağlayıcı ses türü=${providerAudioKind ?: "bilinmiyor"}"
+        )
         return finalStreams.map { stream ->
-            stream.copy(subtitles = subtitleList.toList())
+            stream.copy(
+                subtitles = subtitleList.toList(),
+                providerAudioKind = stream.providerAudioKind ?: providerAudioKind
+            )
         }
     }
 
@@ -2413,14 +2425,24 @@ object CsStreamRunner {
     private fun findEpisodeData(response: LoadResponse, season: Int, episode: Int): String? =
         CsEpisodeMatcher.findEpisodeData(response, season, episode)
 
-    private fun getQualityString(quality: Int): String = when (quality) {
-        4000, 2160 -> "4K"
-        1080 -> "1080p"
-        720 -> "720p"
-        480 -> "480p"
-        360 -> "360p"
-        else -> if (quality > 0) "${quality}p" else "HD"
-    }
+    /**
+     * CloudStream `ExtractorLink.quality` değerini gerçek bir kalite etiketine çevirir.
+     *
+     * ÖNEMLİ: CloudStream'de `Qualities.Unknown.value = 400`'dür. Bu bir çözünürlük DEĞİLDİR;
+     * eskiden "400p" olarak basılıyor ve kullanıcıya yanlış bilgi veriyordu. Artık bilinmeyen
+     * değerler için `null` döndürülür ve arayüzde kalite rozeti hiç gösterilmez.
+     */
+    private fun getQualityString(quality: Int?): String? =
+        com.kitsugi.animelist.data.repository.StreamInfoResolver.csQualityHeightOrNull(quality)
+            ?.let { com.kitsugi.animelist.data.repository.StreamInfoResolver.heightToLabel(it) }
+
+    /** Kaynağın bildirdiği çözünürlük; bilinmiyorsa null (tahmin yok). */
+    private fun getQualityValue(quality: Int?): Int? =
+        com.kitsugi.animelist.data.repository.StreamInfoResolver.csQualityHeightOrNull(quality)
+
+    /** Extractor etiketinde ("1080p", "HD 720") AÇIKÇA yazan çözünürlük; yoksa null. */
+    private fun labelHeight(label: String?): Int? =
+        com.kitsugi.animelist.data.repository.StreamInfoResolver.parseHeightFromText(label)
 
     suspend fun searchAllAddons(context: android.content.Context, query: String): List<Pair<MainAPI, SearchResponse>> = withContext(Dispatchers.IO) {
         if (!isDomainListFetched.get()) {

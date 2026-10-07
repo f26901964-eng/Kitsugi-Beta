@@ -59,13 +59,15 @@ object StreamSorter {
                 else -> 0
             }
         }
-        val text = "${stream.title} ${stream.name}".lowercase(Locale.ROOT)
+        // Sıralama için dosya adındaki AÇIK çözünürlük etiketine bakılır (tahmin yok).
+        val height = StreamInfoResolver.parseHeightFromText("${stream.title} ${stream.name}")
         return when {
-            text.contains("2160") || text.contains("4k") || text.contains("uhd") -> 5
-            text.contains("1440") || text.contains("2k") -> 4
-            text.contains("1080") || text.contains("fhd") -> 3
-            text.contains("720")  || text.hasToken("hd") -> 2
-            text.contains("480")  || text.hasToken("sd") -> 1
+            height == null -> 0
+            height >= 2160 -> 5
+            height >= 1440 -> 4
+            height >= 1080 -> 3
+            height >= 720 -> 2
+            height >= 480 -> 1
             else -> 0
         }
     }
@@ -106,31 +108,18 @@ object StreamSorter {
         }
     }
 
-    fun parseQualityFromTitle(text: String): String {
-        val lower = text.lowercase(Locale.ROOT)
-        return when {
-            lower.contains("2160") || lower.contains("4k") || lower.contains("uhd") -> "4K"
-            lower.contains("1440") || lower.contains("2k") -> "1440p"
-            lower.contains("1080") || lower.contains("fhd") -> "1080p"
-            lower.contains("720") || lower.hasToken("hd") -> "720p"
-            lower.contains("480") || lower.hasToken("sd") -> "480p"
-            else -> "HD"
-        }
-    }
+    /**
+     * Metinde AÇIKÇA yazan çözünürlüğü döndürür. Kanıt yoksa **null** döner.
+     *
+     * Eskiden burada "hiçbir şey bulunamadıysa HD yaz" davranışı vardı; bu, arayüzde
+     * gerçekte doğrulanmamış kalite rozetlerine sebep oluyordu. Artık uydurmuyoruz.
+     */
+    fun parseQualityFromTitle(text: String): String? =
+        StreamInfoResolver.parseHeightFromText(text)?.let { StreamInfoResolver.heightToLabel(it) }
 
-    fun parseQualityValue(quality: String?): Int {
-        if (quality == null) return -1
-        val lower = quality.lowercase(Locale.ROOT)
-        return when {
-            lower.contains("4k") || lower.contains("2160") -> 2160
-            lower.contains("1440") -> 1440
-            lower.contains("1080") -> 1080
-            lower.contains("720") -> 720
-            lower.contains("480") -> 480
-            lower.contains("360") -> 360
-            else -> -1
-        }
-    }
+    /** Kalite etiketinden çözünürlük yüksekliği; bilinmiyorsa **null**. */
+    fun parseQualityValue(quality: String?): Int? =
+        StreamInfoResolver.parseHeightFromText(quality)
 
     private fun String.hasToken(token: String): Boolean =
         Regex("(^|[^a-z0-9])${Regex.escape(token)}([^a-z0-9]|\$)").containsMatchIn(this)

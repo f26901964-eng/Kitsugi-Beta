@@ -66,7 +66,8 @@ import com.kitsugi.animelist.ui.screens.stream.AddonFetchState
 import com.kitsugi.animelist.ui.screens.stream.StreamViewModel
 import com.kitsugi.animelist.ui.screens.stream.DebridCacheState
 import com.kitsugi.animelist.ui.screens.stream.getCacheState
-import com.kitsugi.animelist.ui.screens.stream.parseStreamTitle
+import com.kitsugi.animelist.ui.screens.stream.resolveStreamQuality
+import com.kitsugi.animelist.ui.screens.stream.resolveStreamSizeLabel
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.KitsugiTvTokens
@@ -579,7 +580,9 @@ private fun TvStreamRowItem(
     onClick: () -> Unit
 ) {
     var isFocused by remember { mutableStateOf(false) }
-    val (quality, size) = remember(stream.title) { parseStreamTitle(stream.title ?: "") }
+    // Kalite/boyut yalnızca kanıt varsa gösterilir (tahmin yok).
+    val quality = remember(stream) { resolveStreamQuality(stream).label.orEmpty() }
+    val size = remember(stream) { resolveStreamSizeLabel(stream).orEmpty() }
     val cacheState = remember(stream) { getCacheState(stream) }
 
     Row(
@@ -634,13 +637,15 @@ private fun TvStreamRowItem(
                     bgColor = KitsugiColors.AccentPurple
                 )
 
-                // Debrid Cache Badge
-                val (cacheText, cacheColor) = when (cacheState) {
-                    DebridCacheState.CACHED     -> "Önbellek" to KitsugiColors.AccentGreen
-                    DebridCacheState.NOT_CACHED -> "İndir" to KitsugiColors.AccentOrange
-                    DebridCacheState.P2P        -> "P2P" to KitsugiColors.AccentBlue
+                // Debrid Cache Badge — yalnızca torrent/debrid akışlarında anlamlıdır
+                if (stream.isTorrent) {
+                    val (cacheText, cacheColor) = when (cacheState) {
+                        DebridCacheState.CACHED     -> "Önbellek" to KitsugiColors.AccentGreen
+                        DebridCacheState.NOT_CACHED -> "İndir" to KitsugiColors.AccentOrange
+                        DebridCacheState.P2P        -> "P2P" to KitsugiColors.AccentBlue
+                    }
+                    TvStreamBadge(text = cacheText, color = cacheColor, bgAlpha = 0.15f, bgColor = cacheColor)
                 }
-                TvStreamBadge(text = cacheText, color = cacheColor, bgAlpha = 0.15f, bgColor = cacheColor)
 
                 // Size Badge
                 if (size.isNotBlank()) {
