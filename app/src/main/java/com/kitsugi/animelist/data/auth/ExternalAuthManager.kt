@@ -225,7 +225,19 @@ object ExternalAuthManager {
         prefs(context).edit().remove(KEY_SHIKIMORI_PENDING_REDIRECT).apply()
     }
 
-    fun saveShikimoriAuth(context: Context, token: String, refreshToken: String, expiresInSeconds: Long, userId: Int, username: String) {
+    /**
+     * @param notify false ise Success olayı yayınlamaz (placeholder kayıtlar için;
+     * böylece çift list aktarımı tetiklenmez).
+     */
+    fun saveShikimoriAuth(
+        context: Context,
+        token: String,
+        refreshToken: String,
+        expiresInSeconds: Long,
+        userId: Int,
+        username: String,
+        notify: Boolean = true
+    ) {
         val expiresAt = System.currentTimeMillis() + (expiresInSeconds * 1000L)
         prefs(context).edit()
             .putString(KEY_SHIKIMORI_TOKEN, token)
@@ -234,7 +246,7 @@ object ExternalAuthManager {
             .putInt(KEY_SHIKIMORI_USER_ID, userId)
             .putString(KEY_SHIKIMORI_USERNAME, username)
             .apply()
-        _authEvents.tryEmit(AuthEvent.Success("shikimori"))
+        if (notify) _authEvents.tryEmit(AuthEvent.Success("shikimori"))
     }
 
     suspend fun getOrRefreshShikimoriToken(context: Context): String? = withContext(Dispatchers.IO) {
@@ -247,9 +259,24 @@ object ExternalAuthManager {
             val clientId = getShikimoriClientId(context)
             val clientSecret = getShikimoriClientSecret(context)
             if (clientId.isNotBlank() && clientSecret.isNotBlank()) {
-                val refreshResult = runCatching {
+                val refreshResult: ShikimoriApiClient.ShikimoriTokenResponse? = try {
                     ShikimoriApiClient.refreshToken(clientId, clientSecret, refreshToken)
-                }.getOrNull()
+                } catch (e: ShikimoriApiClient.ShikimoriTokenException) {
+                    // Sunucu refresh token'ı net biçimde reddetti (invalid_grant/invalid_client):
+                    // ölü oturumu saklı tutma, temizle ve kullanıcıyı yeniden girişe yönlendir.
+                    if (e.status == 400 || e.status == 401) {
+                        p.edit()
+                            .remove(KEY_SHIKIMORI_TOKEN)
+                            .remove(KEY_SHIKIMORI_REFRESH_TOKEN)
+                            .remove(KEY_SHIKIMORI_TOKEN_EXPIRES_AT)
+                            .apply()
+                        _authEvents.tryEmit(AuthEvent.SessionExpired("shikimori"))
+                        return@withContext null
+                    }
+                    null // 5xx vb. geçici sunucu hatası: mevcut token'a düş
+                } catch (e: Exception) {
+                    null // Ağ hatası: mevcut token'a düş
+                }
                 if (refreshResult != null) {
                     saveShikimoriAuth(context, refreshResult.accessToken, refreshResult.refreshToken, refreshResult.expiresIn, p.getInt(KEY_SHIKIMORI_USER_ID, 0), p.getString(KEY_SHIKIMORI_USERNAME, "Shikimori") ?: "Shikimori")
                     return@withContext refreshResult.accessToken
@@ -257,6 +284,27 @@ object ExternalAuthManager {
             }
         }
         token
+    }
+
+    /**
+     * Kullanıcı kimliği eksikse (giriş sırasında whoami geçici olarak yanıt
+     * vermediyse) kayıtlı token ile bir kez çözmeye çalışır.
+     * @return Kimlik çözülebildiyse (veya zaten kayıtlıysa) true.
+     */
+    suspend fun ensureShikimoriUserResolved(context: Context): Boolean = withContext(Dispatchers.IO) {
+        val p = prefs(context)
+        if (p.getInt(KEY_SHIKIMORI_USER_ID, 0) > 0) return@withContext true
+        val token = p.getString(KEY_SHIKIMORI_TOKEN, null)
+        if (token.isNullOrBlank()) return@withContext false
+        runCatching {
+            val user = ShikimoriApiClient.getCurrentUser(token)
+            p.edit()
+                .putInt(KEY_SHIKIMORI_USER_ID, user.id)
+                .putString(KEY_SHIKIMORI_USERNAME, user.nickname)
+                .apply()
+            SettingsDataStore(context).saveShikimoriProfileInfo(user.nickname, user.avatarUrl)
+            true
+        }.getOrDefault(false)
     }
 
     fun saveShikimoriRateId(context: Context, malId: Int, targetType: String, rateId: Int) {
@@ -493,26 +541,42 @@ object ExternalAuthManager {
         val clientId = getShikimoriClientId(context)
         val clientSecret = getShikimoriClientSecret(context)
         CoroutineScope(Dispatchers.IO).launch {
+            // Kod tek kullanımlıktır: takas başarılı olduğunda token DERHAL saklanır.
+            // Profil (whoami) bakımı geçici olarak başarısız olsa bile geçerli oturum
+            // çöpe atılmaz; kullanıcı kimliği ilk kullanımda tembel çözümlenir.
             runCatching {
-                val tokenResp = ShikimoriApiClient.exchangeCodeForToken(
+                ShikimoriApiClient.exchangeCodeForToken(
                     clientId = clientId,
                     clientSecret = clientSecret,
                     code = code,
                     redirectUri = redirectUri
                 )
-                val user = ShikimoriApiClient.getCurrentUser(tokenResp.accessToken)
+            }.onSuccess { tokenResp ->
                 saveShikimoriAuth(
                     context = context,
                     token = tokenResp.accessToken,
                     refreshToken = tokenResp.refreshToken,
                     expiresInSeconds = tokenResp.expiresIn,
-                    userId = user.id,
-                    username = user.nickname
+                    userId = 0,
+                    username = "Shikimori",
+                    notify = false
                 )
-                val settings = SettingsDataStore(context)
-                settings.saveShikimoriProfileInfo(user.nickname, user.avatarUrl)
-                user.nickname
-            }.onSuccess {
+                val user = runCatching { ShikimoriApiClient.getCurrentUser(tokenResp.accessToken) }.getOrNull()
+                if (user != null) {
+                    saveShikimoriAuth(
+                        context = context,
+                        token = tokenResp.accessToken,
+                        refreshToken = tokenResp.refreshToken,
+                        expiresInSeconds = tokenResp.expiresIn,
+                        userId = user.id,
+                        username = user.nickname
+                    )
+                    SettingsDataStore(context).saveShikimoriProfileInfo(user.nickname, user.avatarUrl)
+                } else {
+                    // Kimlik henüz çözülemedi: yine de tek bir Success yayınlamak
+                    // otomatik aktarımı başlatır; aktarım kimliği tembel çözer.
+                    _authEvents.tryEmit(AuthEvent.Success("shikimori"))
+                }
                 withContext(Dispatchers.Main) {
                     onSuccess("shikimori")
                 }

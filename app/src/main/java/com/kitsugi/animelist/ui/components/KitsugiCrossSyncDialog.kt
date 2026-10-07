@@ -1,6 +1,9 @@
-﻿package com.kitsugi.animelist.ui.components
+package com.kitsugi.animelist.ui.components
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -30,6 +33,7 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material3.Icon
@@ -42,11 +46,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -54,7 +62,11 @@ import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.model.CrossPlatformStats
 import com.kitsugi.animelist.model.CrossSyncLogEntry
 import com.kitsugi.animelist.model.CrossSyncProgressState
+import com.kitsugi.animelist.data.auth.CrossSyncReportFormatter
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 
 @Composable
@@ -63,7 +75,30 @@ fun KitsugiCrossSyncDialog(
     onDismiss: () -> Unit
 ) {
     val accentColor = LocalKitsugiAccent.current
+    val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     val logsListState = rememberLazyListState()
+    val reportSnapshot = remember { mutableStateOf("") }
+
+    val saveReportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("text/plain")
+    ) { uri ->
+        if (uri != null) {
+            val report = reportSnapshot.value
+            scope.launch {
+                try {
+                    withContext(Dispatchers.IO) {
+                        val output = context.contentResolver.openOutputStream(uri)
+                            ?: error("Seçilen dosya açılamadı")
+                        output.bufferedWriter(Charsets.UTF_8).use { it.write(report) }
+                    }
+                    Toast.makeText(context, "Eşitleme raporu dosyaya kaydedildi", Toast.LENGTH_SHORT).show()
+                } catch (error: Exception) {
+                    Toast.makeText(context, "Rapor kaydedilemedi: ${error.localizedMessage}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
 
     // Otomatik en son loga kaydır (Her yeni işlem kaydında en alta kaydır)
     LaunchedEffect(state.logs.size, state.logs.lastOrNull()?.id) {
@@ -338,7 +373,19 @@ fun KitsugiCrossSyncDialog(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            // Action Button
+            if (state.reportSavedTo != null) {
+                Text(
+                    text = "Otomatik rapor: ${state.reportSavedTo}",
+                    modifier = Modifier.fillMaxWidth(),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+            }
+
+            // Dışa aktarılan raporda hata/uyarıların yanı sıra tüm kayıt eşleştirme kararları bulunur.
             if (state.isRunning) {
                 OutlinedButton(
                     onClick = onDismiss,
@@ -350,14 +397,45 @@ fun KitsugiCrossSyncDialog(
                     Text("Arka Planda Devam Et")
                 }
             } else {
-                KitsugiButton(
-                    onClick = onDismiss,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(44.dp),
-                    shape = RoundedCornerShape(10.dp)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    Text(if (state.isCompleted) "Tamamlandı • Kapat" else "Kapat")
+                    OutlinedButton(
+                        onClick = {
+                            val reportState = state
+                            val timestamp = reportState.finishedAt ?: reportState.startedAt ?: System.currentTimeMillis()
+                            val filename = CrossSyncReportFormatter.fileName(timestamp)
+                            scope.launch {
+                                reportSnapshot.value = withContext(Dispatchers.IO) {
+                                    CrossSyncReportFormatter.format(reportState)
+                                }
+                                saveReportLauncher.launch(filename)
+                            }
+                        },
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp),
+                        shape = RoundedCornerShape(10.dp),
+                        enabled = state.reportLogs.isNotEmpty() || state.logs.isNotEmpty() || state.errorMessage != null
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Download,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text("Raporu Kaydet", maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                    KitsugiButton(
+                        onClick = onDismiss,
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(44.dp),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text(if (state.isCompleted) "Tamamlandı • Kapat" else "Kapat", maxLines = 1)
+                    }
                 }
             }
         }
@@ -434,13 +512,14 @@ private fun PlatformMiniCard(
 private fun LogItemRow(log: CrossSyncLogEntry) {
     val tagColor = when {
         log.isError -> Color(0xFFEF5350)
+        log.isWarning -> Color(0xFFFFA726)
         log.isAddition -> KitsugiColors.AccentGreen
         log.isUpdate -> Color(0xFF42A5F5)
         else -> MaterialTheme.colorScheme.onSurfaceVariant
     }
 
     val icon = when {
-        log.isError -> Icons.Rounded.ErrorOutline
+        log.isError || log.isWarning -> Icons.Rounded.ErrorOutline
         log.isAddition -> Icons.Rounded.AddCircleOutline
         log.isUpdate -> Icons.Rounded.Edit
         else -> null
@@ -463,7 +542,11 @@ private fun LogItemRow(log: CrossSyncLogEntry) {
         Text(
             text = log.message,
             style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-            color = if (log.isError) Color(0xFFEF5350) else MaterialTheme.colorScheme.onSurface,
+            color = when {
+                log.isError -> Color(0xFFEF5350)
+                log.isWarning -> Color(0xFFFFA726)
+                else -> MaterialTheme.colorScheme.onSurface
+            },
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )

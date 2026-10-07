@@ -6,8 +6,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.FormBody
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
+import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -18,9 +20,64 @@ import org.json.JSONObject
  */
 object ShikimoriApiClient {
     private const val TAG = "ShikimoriApiClient"
-    private const val BASE_URL = "https://shikimori.one"
+    /**
+     * Production'daki resmi (kanonik) host. Shikimori, diğer domain'leri
+     * (örn. shikimori.one) 301 ile shikimori.io adresine yönlendiriyor; OkHttp
+     * host değişen yönlendirmelerde Authorization header'ını SİLER, bu yüzden
+     * tüm kimlik gerektiren istekler doğrudan bu host'a gider (bkz. executeShikimori).
+     */
+    private const val BASE_URL = "https://shikimori.io"
+    private const val LEGACY_BASE_URL = "https://shikimori.one"
     private const val USER_AGENT = "KitsugiApp/2.4 (Android)"
     private val JSON_MEDIA_TYPE = "application/json".toMediaTypeOrNull()
+
+    /**
+     * Host değiştiren yönlendirmeleri manuel takip eden istemci.
+     *
+     * OkHttp varsayılan olarak başka bir host'a yapılan 301/302 yönlendirmelerinde
+     * Authorization header'ını güvenlik nedeniyle atar. Shikimori'nin domain
+     * arası yönlendirmeleri (shikimori.one → shikimori.io) bu yüzden
+     * "oturumsuz" isteklere dönüyordu: whoami 200 + "null" döner, liste uçları 403
+     * verirdi — token geçerliyken bile. Bu istemcide yönlendirmeler başlıklar korunarak
+     * elle takip edilir.
+     */
+    private val shikimoriHttpClient: OkHttpClient by lazy {
+        KitsugiHttpClient.client.newBuilder()
+            .followRedirects(false)
+            .followSslRedirects(false)
+            .build()
+    }
+
+    /**
+     * Shikimori isteklerini çalıştırır. Sunucu yönlendirme (301/302/303/307/308)
+     * döndürürse, isteği orijinal Authorization header'ı korunarak yeni adrese
+     * yeniden gönderir (en fazla 3 atlayış). Dönen response'u çağıran kapatmalıdır.
+     */
+    internal fun executeShikimori(request: Request, maxHops: Int = 3): Response {
+        var current = request
+        var hops = 0
+        while (true) {
+            val response = shikimoriHttpClient.newCall(current).execute()
+            if (response.code in 300..399 && hops < maxHops) {
+                val location = response.header("Location")
+                if (!location.isNullOrBlank()) {
+                    val nextUrl = current.url.resolve(location)
+                    if (nextUrl != null) {
+                        response.close()
+                        // RFC 7231: 301/302/303 POST'u GET'e çevirir (gövde atılır); 307/308 korur.
+                        var next = current.newBuilder().url(nextUrl)
+                        if (response.code != 307 && response.code != 308 && current.method == "POST") {
+                            next = next.method("GET", null)
+                        }
+                        current = next.build()
+                        hops++
+                        continue
+                    }
+                }
+            }
+            return response
+        }
+    }
 
     data class ShikimoriTokenResponse(
         val accessToken: String,
@@ -85,11 +142,11 @@ object ShikimoriApiClient {
      */
     fun sanitizeAuthCode(rawInput: String): String {
         var value = rawInput.trim().trim('"', '\'', '<', '>', ' ')
-        if (value.contains("code=")) {
-            value = value.substringAfter("code=").substringBefore("&").substringBefore("#").trim()
-        }
         if (value.contains("%")) {
             value = runCatching { java.net.URLDecoder.decode(value, "UTF-8") }.getOrDefault(value)
+        }
+        if (value.contains("code=")) {
+            value = value.substringAfter("code=").substringBefore("&").substringBefore("#").trim()
         }
         return value
     }
@@ -130,7 +187,9 @@ object ShikimoriApiClient {
      */
     class ShikimoriTokenException(
         message: String,
-        val isInvalidGrant: Boolean = false
+        val isInvalidGrant: Boolean = false,
+        /** Sunucunun döndürdüğü HTTP durum kodu (0 = ağ/istemci kaynaklı hata). */
+        val status: Int = 0
     ) : Exception(message)
 
     /**
@@ -195,7 +254,7 @@ object ShikimoriApiClient {
             .add("redirect_uri", redirectUri)
             .build()
 
-        val urlsToTry = listOf(OAUTH_TOKEN_URL, "$BASE_URL/oauth/token")
+        val urlsToTry = listOf(OAUTH_TOKEN_URL, "$LEGACY_BASE_URL/oauth/token")
         var lastErr: Exception? = null
 
         for (tokenUrl in urlsToTry) {
@@ -207,7 +266,7 @@ object ShikimoriApiClient {
                     .post(formBody)
                     .build()
 
-                KitsugiHttpClient.client.newCall(request).execute().use { response ->
+                executeShikimori(request).use { response ->
                     val body = response.body?.string().orEmpty()
                     if (!response.isSuccessful) {
                         throw tokenErrorFor(response.code, body)
@@ -253,7 +312,7 @@ object ShikimoriApiClient {
             else ->
                 "Shikimori token alınamadı. ($raw)"
         }
-        return ShikimoriTokenException(friendly, isInvalidGrant = errorCode == "invalid_grant")
+        return ShikimoriTokenException(friendly, isInvalidGrant = errorCode == "invalid_grant", status = status)
     }
 
     /**
@@ -296,7 +355,7 @@ object ShikimoriApiClient {
             .add("refresh_token", refreshToken)
             .build()
 
-        val urlsToTry = listOf(OAUTH_TOKEN_URL, "$BASE_URL/oauth/token")
+        val urlsToTry = listOf(OAUTH_TOKEN_URL, "$LEGACY_BASE_URL/oauth/token")
         var lastErr: Exception? = null
 
         for (tokenUrl in urlsToTry) {
@@ -308,7 +367,7 @@ object ShikimoriApiClient {
                     .post(formBody)
                     .build()
 
-                KitsugiHttpClient.client.newCall(request).execute().use { response ->
+                executeShikimori(request).use { response ->
                     val body = response.body?.string().orEmpty()
                     if (!response.isSuccessful) {
                         throw tokenErrorFor(response.code, body)
@@ -329,38 +388,53 @@ object ShikimoriApiClient {
 
     /**
      * Giriş yapmış kullanıcının profilini alır (/api/users/whoami).
+     *
+     * Not: Shikimori, istek oturumsuz ulaştığında (geçici yönlendirme/önbellek
+     * durumlarında da dahil) 200 OK + "null" döndürür. Bu tek bir denemede
+     * kalıcı hata sayılmamalı: en fazla 3 deneme yapar; 401 (sunucunun jetonu
+     * net biçimde reddi) ise hemen sonlandırır.
      */
     suspend fun getCurrentUser(token: String): ShikimoriUser = withContext(Dispatchers.IO) {
-        val request = Request.Builder()
-            .url("$BASE_URL/api/users/whoami")
-            .addHeader("User-Agent", USER_AGENT)
-            .addHeader("Authorization", "Bearer $token")
-            .get()
-            .build()
+        var lastBody: String? = null
+        for (attempt in 0 until 3) {
+            if (attempt > 0) {
+                Thread.sleep(if (attempt == 1) 700L else 1500L)
+            }
+            val request = Request.Builder()
+                .url("$BASE_URL/api/users/whoami")
+                .addHeader("User-Agent", USER_AGENT)
+                .addHeader("Authorization", "Bearer $token")
+                .get()
+                .build()
 
-        KitsugiHttpClient.client.newCall(request).execute().use { response ->
-            val body = response.body?.string().orEmpty().trim()
-            if (!response.isSuccessful) {
+            val (body, code, isSuccessful) = executeShikimori(request).use { response ->
+                Triple(response.body?.string().orEmpty().trim(), response.code, response.isSuccessful)
+            }
+            if (!isSuccessful) {
                 throw Exception(
-                    if (response.code == 401) "Shikimori oturumu geçersiz ya da süresi dolmuş (401). Lütfen yeniden giriş yapın."
-                    else "Shikimori profil bilgisi alınamadı (${response.code})."
+                    if (code == 401) "Shikimori oturumu geçersiz ya da süresi dolmuş (401). Lütfen yeniden giriş yapın."
+                    else "Shikimori profil bilgisi alınamadı ($code)."
                 )
             }
-            // Shikimori, jeton eksik/geçersizken 200 OK ile düz "null" gövdesi döndürebiliyor
-            // (örn. /api/users/whoami). Bu durumda ham JSONException fırlatmak yerine anlaşılır hata ver.
+            // 200 + "null"/boş/HTML: istek oturumsuz algılanmış. Geçici olabilir → tekrar dene.
             if (body.isBlank() || body == "null" || !body.startsWith("{")) {
-                throw Exception("Shikimori oturumu doğrulanamadı: jeton geçersiz görünüyor. Lütfen yeniden giriş yapın.")
+                lastBody = body
+                continue
             }
             val json = JSONObject(body)
             if (json.optInt("id", 0) <= 0) {
                 throw Exception("Shikimori kullanıcı bilgisi alınamadı (geçersiz yanıt). Lütfen yeniden giriş yapın.")
             }
-            ShikimoriUser(
+            return@withContext ShikimoriUser(
                 id = json.getInt("id"),
                 nickname = json.optString("nickname", "Shikimori User"),
                 avatarUrl = json.optString("avatar").takeIf { it.isNotBlank() }
             )
         }
+        throw Exception(
+            "Shikimori oturumu doğrulanamadı: sunucu oturumu tanımadı (whoami yanıtı: ${lastBody?.take(40) ?: "-"})" +
+                ". Lütfen yeniden giriş yapın."
+        )
     }
 
     /**
@@ -374,7 +448,7 @@ object ShikimoriApiClient {
             .get()
             .build()
 
-        KitsugiHttpClient.client.newCall(request).execute().use { response ->
+        executeShikimori(request).use { response ->
             val body = response.body?.string().orEmpty().trim()
             if (!response.isSuccessful) throw Exception("Shikimori profil bilgisi alınamadı (${response.code})")
             if (body.isBlank() || body == "null" || !body.startsWith("{")) {
@@ -505,7 +579,7 @@ object ShikimoriApiClient {
                     .build()
 
                 val count = try {
-                    KitsugiHttpClient.client.newCall(request).execute().use { response ->
+                    executeShikimori(request).use { response ->
                         if (!response.isSuccessful) {
                             Log.w(TAG, "fetchAllUserRates HTTP ${response.code} for $ep page $page")
                             error("Shikimori liste okuma hatası: HTTP ${response.code} ($ep, sayfa $page)")
@@ -604,7 +678,7 @@ object ShikimoriApiClient {
             .post(payload.toString().toRequestBody(JSON_MEDIA_TYPE))
             .build()
 
-        KitsugiHttpClient.client.newCall(request).execute().use { response ->
+        executeShikimori(request).use { response ->
             val body = response.body?.string().orEmpty()
             if (response.isSuccessful) {
                 JSONObject(body).optInt("id", 0).takeIf { it > 0 }
@@ -643,7 +717,7 @@ object ShikimoriApiClient {
             .patch(payload.toString().toRequestBody(JSON_MEDIA_TYPE))
             .build()
 
-        KitsugiHttpClient.client.newCall(request).execute().use { response ->
+        executeShikimori(request).use { response ->
             response.isSuccessful
         }
     }
@@ -659,7 +733,7 @@ object ShikimoriApiClient {
             .delete()
             .build()
 
-        KitsugiHttpClient.client.newCall(request).execute().use { response ->
+        executeShikimori(request).use { response ->
             response.isSuccessful || response.code == 404
         }
     }
@@ -690,7 +764,7 @@ object ShikimoriApiClient {
             .build()
 
         runCatching {
-            KitsugiHttpClient.client.newCall(request).execute().use { response ->
+            executeShikimori(request).use { response ->
                 if (!response.isSuccessful) return@use emptyList()
                 val body = response.body?.string().orEmpty()
                 val array = JSONArray(body)
@@ -742,7 +816,7 @@ object ShikimoriApiClient {
             .build()
 
         runCatching {
-            KitsugiHttpClient.client.newCall(request).execute().use { response ->
+            executeShikimori(request).use { response ->
                 if (!response.isSuccessful) return@use emptyList()
                 val body = response.body?.string().orEmpty()
                 val json = JSONObject(body)

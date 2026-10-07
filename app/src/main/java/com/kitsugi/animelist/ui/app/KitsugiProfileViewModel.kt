@@ -1735,6 +1735,20 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
 
         val token = ExternalAuthManager.getShikimoriToken(context)
         val userId = ExternalAuthManager.getShikimoriUserId(context)
+
+        // Token var ama kullanıcı kimliği eksikse (girişte whoami yanıt vermediyse)
+        // önce kimliği tembel çözmeye çalış.
+        if (!token.isNullOrBlank() && (userId == null || userId <= 0)) {
+            viewModelScope.launch {
+                if (ExternalAuthManager.ensureShikimoriUserResolved(context)) {
+                    fetchShikimoriProfile(forceRefresh = true)
+                } else {
+                    _shikimoriState.update { it.copy(isConnected = false, isLoading = false, error = "Shikimori bağlantısı bulunamadı") }
+                }
+            }
+            return
+        }
+
         if (token.isNullOrBlank() || userId == null || userId <= 0) {
             _shikimoriState.update { it.copy(isConnected = false, isLoading = false, error = "Shikimori bağlantısı bulunamadı") }
             return

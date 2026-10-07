@@ -16,7 +16,9 @@ data class CrossSyncLogEntry(
     val message: String,
     val isError: Boolean = false,
     val isAddition: Boolean = false,
-    val isUpdate: Boolean = false
+    val isUpdate: Boolean = false,
+    val isWarning: Boolean = false,
+    val details: String? = null
 )
 
 data class CrossSyncProgressState(
@@ -27,8 +29,14 @@ data class CrossSyncProgressState(
     val processedItems: Int = 0,
     val totalItems: Int = 0,
     val platformStats: Map<String, CrossPlatformStats> = emptyMap(),
+    /** Bounded list used by the live dialog. */
     val logs: List<CrossSyncLogEntry> = emptyList(),
-    val errorMessage: String? = null
+    /** Complete, unbounded run history used only after the sync finishes and for export. */
+    val reportLogs: List<CrossSyncLogEntry> = emptyList(),
+    val errorMessage: String? = null,
+    val startedAt: Long? = null,
+    val finishedAt: Long? = null,
+    val reportSavedTo: String? = null
 ) {
     val progressPercent: Float
         get() = if (totalItems > 0) (processedItems.toFloat() / totalItems).coerceIn(0f, 1f) else 0f

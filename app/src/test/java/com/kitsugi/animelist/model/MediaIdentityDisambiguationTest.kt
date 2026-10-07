@@ -104,6 +104,27 @@ class MediaIdentityDisambiguationTest {
     }
 
     @Test
+    fun conflictingProviderIdsAreExplicitlyReportedEvenWhenTitlesMatch() {
+        val first = testEntry(
+            id = 1,
+            title = "Same Title",
+            source = "mal",
+            malId = 1234,
+            year = 2024
+        )
+        val second = testEntry(
+            id = 2,
+            title = "Same Title",
+            source = "mal",
+            malId = 5678,
+            year = 2024
+        )
+
+        assertFalse(MediaIdentity.sameMedia(first, second))
+        assertEquals(setOf("Anime:mal"), MediaIdentity.conflictingIdentityKeys(first, second))
+    }
+
+    @Test
     fun shikimoriIdsAreNamespacedCorrectly() {
         val shikiEntry = testEntry(
             id = 1,

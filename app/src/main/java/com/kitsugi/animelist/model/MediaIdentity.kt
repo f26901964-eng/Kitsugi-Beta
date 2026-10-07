@@ -27,13 +27,19 @@ object MediaIdentity {
     fun normalizedTitle(title: String): String = Normalizer.normalize(title, Normalizer.Form.NFKC)
         .lowercase(Locale.ROOT).replace(Regex("[^\\p{L}\\p{N}]"), "")
 
+    /** Provider-ID namespaces present on both entries but pointing at different IDs. */
+    fun conflictingIdentityKeys(a: MediaEntry, b: MediaEntry): Set<String> {
+        if (a.type != b.type) return emptySet()
+        val aIds = keys(a).associateBy { it.substringBeforeLast(':') }
+        val bIds = keys(b).associateBy { it.substringBeforeLast(':') }
+        return aIds.keys.intersect(bIds.keys).filterTo(mutableSetOf()) { aIds[it] != bIds[it] }
+    }
+
     fun sameMedia(a: MediaEntry, b: MediaEntry, allowTitle: Boolean = true): Boolean {
         if (a.type != b.type) return false
         val aKeys = keys(a)
         val bKeys = keys(b)
-        val aIds = aKeys.associateBy { it.substringBeforeLast(':') }
-        val bIds = bKeys.associateBy { it.substringBeforeLast(':') }
-        if (aIds.keys.intersect(bIds.keys).any { aIds[it] != bIds[it] }) return false
+        if (conflictingIdentityKeys(a, b).isNotEmpty()) return false
         if (aKeys.intersect(bKeys).isNotEmpty()) return true
         if (!allowTitle || (a.year != null && b.year != null && a.year != b.year)) return false
 

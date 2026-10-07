@@ -357,7 +357,10 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
             _shikimori.value = NotifUiState(isLoading = true)
             try {
                 val token = ExternalAuthManager.getOrRefreshShikimoriToken(ctx) ?: ExternalAuthManager.getShikimoriToken(ctx)
-                val userId = ExternalAuthManager.getShikimoriUserId(ctx)
+                var userId = ExternalAuthManager.getShikimoriUserId(ctx)
+                if (!token.isNullOrBlank() && userId == null && ExternalAuthManager.ensureShikimoriUserResolved(ctx)) {
+                    userId = ExternalAuthManager.getShikimoriUserId(ctx)
+                }
                 val items = mutableListOf<NotifItem>()
 
                 if (!token.isNullOrBlank() && userId != null) {

@@ -50,7 +50,12 @@ object ShikimoriSyncManager {
         }
 
         val token = ExternalAuthManager.getOrRefreshShikimoriToken(context)
-        val userId = ExternalAuthManager.getShikimoriUserId(context)
+        var userId = ExternalAuthManager.getShikimoriUserId(context)
+        if (!token.isNullOrBlank() && userId == null) {
+            // Kimlik eksikse (girişte whoami geçici yanıt vermediyse) bir kez daha dene.
+            ExternalAuthManager.ensureShikimoriUserResolved(context)
+            userId = ExternalAuthManager.getShikimoriUserId(context)
+        }
 
         if (token.isNullOrBlank() || userId == null || userId <= 0) {
             return@withContext SyncResult(messages = emptyList(), errors = listOf("Shikimori hesabı bağlı değil"))
@@ -105,6 +110,10 @@ object ShikimoriSyncManager {
         val token = ExternalAuthManager.getOrRefreshShikimoriToken(context)
         if (token.isNullOrBlank()) {
             return@withContext SyncResult(messages = emptyList(), errors = listOf("Shikimori hesabı bağlı değil"))
+        }
+        // getShikimoriRateId, kullanıcı kimliği kayıtlı değilse istisna fırlatır; önce çözmeye çalış.
+        if (ExternalAuthManager.getShikimoriUserId(context) == null) {
+            ExternalAuthManager.ensureShikimoriUserResolved(context)
         }
 
         val targetId = entry.malId?.takeIf { it > 0 && it < 100_000_000 }
