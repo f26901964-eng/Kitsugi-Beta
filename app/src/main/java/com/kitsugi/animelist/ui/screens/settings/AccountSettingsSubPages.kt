@@ -648,19 +648,24 @@ internal fun CrossSyncSettingsContent(profile: ProfileSettings) {
             SectionHeader("Hızlı İşlem")
             SettingsNavCard {
                 val syncDesc = when {
-                    profile.crossSyncState.isRunning -> "${profile.crossSyncState.currentStep} (%${(profile.crossSyncState.progressPercent * 100).toInt()})"
-                    profile.crossSyncState.isCompleted -> "Son eşitleme tamamlandı. Ayrıntılı raporu görmek için dokunun."
+                    profile.crossSyncState.isRunning -> profile.crossSyncState.currentStep +
+                        if (profile.crossSyncState.totalItems > 0) " (%${(profile.crossSyncState.progressPercent * 100).toInt()})" else ""
+                    profile.crossSyncState.startedAt != null -> "Son eşitleme raporunu, sorunları ve platform ayrıntılarını görüntüle"
                     else -> "Tüm bağlı servisleri tek dokunuşla senkronize edin"
                 }
 
                 KitsugiSettingsItem(
-                    title = "Tüm Hesapları Birbiriyle Eşitle",
+                    title = when {
+                        profile.crossSyncState.isRunning -> "Eşitleme Ayrıntılarını Aç"
+                        profile.crossSyncState.startedAt != null -> "Son Eşitleme Raporu"
+                        else -> "Tüm Hesapları Birbiriyle Eşitle"
+                    },
                     description = syncDesc,
                     icon = Icons.Rounded.Cached,
                     iconColor = KitsugiColors.AccentOrange,
                     onClick = {
                         showCrossSyncDialog = true
-                        if (!profile.crossSyncState.isRunning) {
+                        if (!profile.crossSyncState.isRunning && profile.crossSyncState.startedAt == null) {
                             profile.onCrossSyncClick()
                         }
                     }
@@ -668,15 +673,26 @@ internal fun CrossSyncSettingsContent(profile: ProfileSettings) {
 
                 if (profile.crossSyncState.isRunning) {
                     Spacer(modifier = Modifier.height(4.dp))
-                    LinearProgressIndicator(
-                        progress = { profile.crossSyncState.progressPercent },
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .height(4.dp)
-                            .clip(RoundedCornerShape(2.dp)),
-                        color = KitsugiColors.AccentOrange,
-                        trackColor = MaterialTheme.colorScheme.surfaceVariant
-                    )
+                    if (profile.crossSyncState.totalItems <= 0) {
+                        LinearProgressIndicator(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(2.dp)),
+                            color = KitsugiColors.AccentOrange,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    } else {
+                        LinearProgressIndicator(
+                            progress = { profile.crossSyncState.progressPercent },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(4.dp)
+                                .clip(RoundedCornerShape(2.dp)),
+                            color = KitsugiColors.AccentOrange,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant
+                        )
+                    }
                 }
             }
 
@@ -743,7 +759,9 @@ internal fun CrossSyncSettingsContent(profile: ProfileSettings) {
     if (showCrossSyncDialog) {
         KitsugiCrossSyncDialog(
             state = profile.crossSyncState,
-            onDismiss = { showCrossSyncDialog = false }
+            onDismiss = { showCrossSyncDialog = false },
+            onCancel = profile.onCrossSyncCancel,
+            onStart = profile.onCrossSyncClick
         )
     }
 }

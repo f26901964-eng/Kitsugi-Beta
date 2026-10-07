@@ -127,6 +127,7 @@ internal fun SettingsContext.buildSettingsParams() =
             isCrossSyncRunning = authViewModel.isCrossSyncRunning,
             crossSyncState = authViewModel.crossSyncState,
             onCrossSyncClick = { onCrossSyncClick() },
+            onCrossSyncCancel = { authViewModel.cancelCrossSync() },
             onImportModeChange = { appViewModel.updateImportMode(it) },
             onImportTextChange = { appViewModel.updateImportText(it) },
             syncEnabledAnilist = appSettings.syncEnabledAnilist,

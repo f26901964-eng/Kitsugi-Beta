@@ -64,6 +64,27 @@ class CrossSyncReportFormatterTest {
     }
 
     @Test
+    fun reportRedactsQueryTokensAndApiKeys() {
+        val report = CrossSyncReportFormatter.format(
+            CrossSyncProgressState(
+                reportLogs = listOf(
+                    CrossSyncLogEntry(
+                        platform = "AniList",
+                        message = "Request failed: https://example.test/?access_token=secret-value",
+                        isError = true,
+                        details = "api_key: private-key"
+                    )
+                )
+            ),
+            generatedAt = 1234L
+        )
+
+        assertFalse(report.contains("secret-value"))
+        assertFalse(report.contains("private-key"))
+        assertTrue(report.contains("[REDACTED]"))
+    }
+
+    @Test
     fun reportFileNameUsesExpectedPrefixAndTextExtension() {
         val fileName = CrossSyncReportFormatter.fileName(1234L)
         assertTrue(fileName.startsWith("Kitsugi_CrossSync_Report_"))

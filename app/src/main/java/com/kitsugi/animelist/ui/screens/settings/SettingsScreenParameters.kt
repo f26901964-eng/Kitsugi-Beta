@@ -136,6 +136,7 @@ data class ProfileSettings(
     val isCrossSyncRunning: Boolean = false,
     val crossSyncState: com.kitsugi.animelist.model.CrossSyncProgressState = com.kitsugi.animelist.model.CrossSyncProgressState(),
     val onCrossSyncClick: () -> Unit = {},
+    val onCrossSyncCancel: () -> Unit = {},
     val onImportModeChange: (BackupImportMode) -> Unit,
     val onImportTextChange: (String) -> Unit,
     val syncEnabledAnilist: Boolean = false,

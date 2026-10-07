@@ -29,6 +29,7 @@ import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import dagger.hilt.EntryPoint
@@ -113,8 +114,22 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
     var crossSyncState by mutableStateOf(com.kitsugi.animelist.model.CrossSyncProgressState())
         private set
 
+    private var crossSyncJob: kotlinx.coroutines.Job? = null
+
     fun resetCrossSyncState() {
-        crossSyncState = com.kitsugi.animelist.model.CrossSyncProgressState()
+        if (!isCrossSyncRunning) {
+            crossSyncState = com.kitsugi.animelist.model.CrossSyncProgressState()
+        }
+    }
+
+    fun cancelCrossSync() {
+        val job = crossSyncJob ?: return
+        crossSyncState = crossSyncState.copy(
+            currentStep = "Eşitleme durduruluyor...",
+            currentDetail = "Tamamlanan hesap güncellemeleri geri alınamaz; durdurma sonrası rapor oluşturulacak.",
+            lastUpdatedAt = System.currentTimeMillis()
+        )
+        job.cancel(kotlinx.coroutines.CancellationException("Eşitleme kullanıcı tarafından durduruldu"))
     }
 
     var onShowMessage: ((String) -> Unit)? = null
@@ -379,13 +394,17 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         crossSyncState = com.kitsugi.animelist.model.CrossSyncProgressState(
             isRunning = true,
             currentStep = "Hesaplar taranıyor...",
+            currentDetail = "Bağlı servislerin durumu kontrol ediliyor",
+            progressPhaseStartedAt = syncStartedAt,
+            lastUpdatedAt = syncStartedAt,
             startedAt = syncStartedAt
         )
 
-        viewModelScope.launch(Dispatchers.IO) {
+        crossSyncJob = viewModelScope.launch(Dispatchers.IO) {
             val statsMap = mutableMapOf<String, com.kitsugi.animelist.model.CrossPlatformStats>()
             val recentLogs = mutableListOf<com.kitsugi.animelist.model.CrossSyncLogEntry>()
             val reportLogs = mutableListOf<com.kitsugi.animelist.model.CrossSyncLogEntry>()
+            var issueCount = 0
 
             fun logEvent(
                 platform: String,
@@ -407,6 +426,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     details = details
                 )
                 reportLogs.add(entry)
+                if (isError || isWarning) issueCount++
                 if (includeInLiveLog) {
                     recentLogs.add(entry)
                     if (recentLogs.size > 500) recentLogs.removeAt(0)
@@ -417,15 +437,27 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 step: String,
                 detail: String = "",
                 processed: Int = crossSyncState.processedItems,
-                total: Int = crossSyncState.totalItems
+                total: Int = crossSyncState.totalItems,
+                unit: String = "İçerik"
             ) {
-                crossSyncState = com.kitsugi.animelist.model.CrossSyncProgressState(
+                val now = System.currentTimeMillis()
+                val progressPhaseChanged = unit != crossSyncState.progressUnit || total != crossSyncState.totalItems
+                crossSyncState = crossSyncState.copy(
                     isRunning = true,
                     isCompleted = false,
                     currentStep = step,
                     currentDetail = detail,
                     processedItems = processed,
                     totalItems = total,
+                    progressUnit = unit,
+                    progressPhaseStartedAt = if (progressPhaseChanged || crossSyncState.progressPhaseStartedAt == null) {
+                        now
+                    } else {
+                        crossSyncState.progressPhaseStartedAt
+                    },
+                    lastUpdatedAt = now,
+                    totalEventCount = reportLogs.size,
+                    issueCount = issueCount,
                     platformStats = statsMap.toMap(),
                     logs = recentLogs.toList(),
                     startedAt = syncStartedAt
@@ -527,9 +559,18 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 } else emptyList()
 
                 // ── FAZ 2: Çoklu İndeks ile Unified Eşleştirme ────────────────────
-                updateProgress("İçerikler çapraz eşleştiriliyor...", "Tüm platformlardaki kayıtlar birleştiriliyor...")
+                val sourceEntryTotal = aniListEntries.size + malEntries.size + simklEntries.size +
+                    kitsuEntries.size + shikimoriEntries.size
+                updateProgress(
+                    "İçerikler çapraz eşleştiriliyor...",
+                    if (sourceEntryTotal > 0) "0 / $sourceEntryTotal kaynak kayıt taranıyor..." else "Listelerde eşleştirilecek kayıt yok",
+                    processed = 0,
+                    total = sourceEntryTotal,
+                    unit = "Kaynak kayıt"
+                )
 
                 val unifiedItems = mutableListOf<UnifiedSyncItem>()
+                val candidateIndex = com.kitsugi.animelist.data.auth.CrossSyncCandidateIndex<UnifiedSyncItem>()
                 // Japanese franchise titles can be shared by distinct movies/sequels, so only
                 // primary and English title aliases participate in the cross-sync safety check.
                 fun titleAliases(entry: MediaEntry): Set<String> = listOfNotNull(
@@ -545,11 +586,11 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     val identity = com.kitsugi.animelist.model.MediaIdentity
                     val entryKeys = identity.keys(entry)
                     val entryTitles = titleAliases(entry)
-                    val matches = unifiedItems.filter { item ->
+                    val matches = candidateIndex.possibleMatches(entry).filter { item ->
                         item.candidates.isNotEmpty() && item.candidates.all { identity.sameMedia(it, entry) }
                     }
 
-                    val sameTitleIdConflicts = unifiedItems.filter { item ->
+                    val sameTitleIdConflicts = candidateIndex.sharingTitleAlias(entry).filter { item ->
                         item.candidates.any { candidate ->
                             candidate.type == entry.type &&
                                 identity.conflictingIdentityKeys(candidate, entry).isNotEmpty() &&
@@ -656,16 +697,45 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     }
                     assignToPlatform(item)
+                    candidateIndex.add(item, entry)
                 }
 
-                aniListEntries.forEach { e -> clusterEntry(e) { it.aniList = e } }
-                malEntries.forEach { e -> clusterEntry(e) { it.mal = e } }
-                simklEntries.forEach { e -> clusterEntry(e) { it.simkl = e } }
-                kitsuEntries.forEach { e -> clusterEntry(e) { it.kitsu = e } }
-                shikimoriEntries.forEach { e -> clusterEntry(e) { it.shikimori = e } }
+                var sourceEntriesProcessed = 0
+                suspend fun clusterEntries(
+                    entries: List<MediaEntry>,
+                    assignToPlatform: (UnifiedSyncItem, MediaEntry) -> Unit
+                ) {
+                    for (entry in entries) {
+                        kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                        clusterEntry(entry) { item -> assignToPlatform(item, entry) }
+                        sourceEntriesProcessed++
+                        if (sourceEntriesProcessed % 25 == 0 || sourceEntriesProcessed == sourceEntryTotal) {
+                            updateProgress(
+                                step = "İçerikler çapraz eşleştiriliyor...",
+                                detail = "$sourceEntriesProcessed / $sourceEntryTotal kaynak kayıt incelendi · ${unifiedItems.size} grup oluşturuldu",
+                                processed = sourceEntriesProcessed,
+                                total = sourceEntryTotal,
+                                unit = "Kaynak kayıt"
+                            )
+                            kotlinx.coroutines.yield()
+                        }
+                    }
+                }
+
+                clusterEntries(aniListEntries) { item, entry -> item.aniList = entry }
+                clusterEntries(malEntries) { item, entry -> item.mal = entry }
+                clusterEntries(simklEntries) { item, entry -> item.simkl = entry }
+                clusterEntries(kitsuEntries) { item, entry -> item.kitsu = entry }
+                clusterEntries(shikimoriEntries) { item, entry -> item.shikimori = entry }
 
                 logEvent("Analiz", "Toplam ${unifiedItems.size} tekil içerik tespit edildi. Eşitleme başlatılıyor...")
-                updateProgress("Eşitleme başlatılıyor...", "Toplam ${unifiedItems.size} içerik eşitlenecek", processed = 0, total = unifiedItems.size)
+                updateProgress(
+                    "Eşitleme başlatılıyor...",
+                    "Toplam ${unifiedItems.size} içerik eşitlenecek",
+                    processed = 0,
+                    total = unifiedItems.size,
+                    unit = "İçerik"
+                )
 
                 val simklEntriesToSync = mutableListOf<MediaEntry>()
                 fun countSafetySkip(platform: String) {
@@ -674,8 +744,20 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
                 // ── FAZ 3: Eksikleri Tamamlama ve Alan Senkronizasyonu (Asla Silme Yok) ──
                 for ((index, item) in unifiedItems.withIndex()) {
+                    kotlinx.coroutines.currentCoroutineContext().ensureActive()
                     val candidates = item.candidates
-                    if (candidates.isEmpty()) continue
+                    if (candidates.isEmpty()) {
+                        if ((index + 1) % 25 == 0) kotlinx.coroutines.yield()
+                        continue
+                    }
+                    if ((index + 1) % 10 == 1) {
+                        updateProgress(
+                            step = "İçerik eşitleniyor: ${item.primaryTitle}",
+                            detail = "${index + 1} / ${unifiedItems.size} içerik işleniyor",
+                            processed = index,
+                            total = unifiedItems.size
+                        )
+                    }
                     if (item.identityReviewRequired) {
                         val title = candidates.firstOrNull()?.title ?: "Bilinmeyen içerik"
                         logEvent(
@@ -699,6 +781,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                 total = unifiedItems.size
                             )
                         }
+                        if ((index + 1) % 25 == 0) kotlinx.coroutines.yield()
                         continue
                     }
 
@@ -742,6 +825,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     val simklId = candidates.firstNotNullOfOrNull { it.simklId?.takeIf { id -> id > 0 } }
                     val tmdbId = candidates.firstNotNullOfOrNull { it.tmdbId?.takeIf { id -> id > 0 } }
                     val aniListEntryId = candidates.firstNotNullOfOrNull { it.aniListEntryId }
+                    kotlinx.coroutines.currentCoroutineContext().ensureActive()
 
                     val mergedEntry = newest.copy(
                         status = bestStatus,
@@ -779,6 +863,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
                     // ── 1. AniList Eşitleme (Anime & Manga) ──
                     if (isAniList && isAnimeOrManga) {
+                        kotlinx.coroutines.currentCoroutineContext().ensureActive()
                         val current = item.aniList
                         if (current == null) {
                             // AniList'te eksik -> EKLE!
@@ -818,6 +903,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
                     // ── 2. MyAnimeList Eşitleme (Anime & Manga, MAL ID gerektirir) ──
                     if (isMal && isAnimeOrManga) {
+                        kotlinx.coroutines.currentCoroutineContext().ensureActive()
                         if (realMalId != null) {
                             val current = item.mal
                             if (current == null) {
@@ -868,6 +954,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
                     // ── 3. Simkl Eşitleme (Anime, Dizi, Film — Tümü) ──
                     if (isSimkl && (mergedEntry.type == MediaType.Anime || mergedEntry.type == MediaType.TvShow || mergedEntry.type == MediaType.Movie)) {
+                        kotlinx.coroutines.currentCoroutineContext().ensureActive()
                         val current = item.simkl
                         if (current == null) {
                             simklEntriesToSync.add(mergedEntry)
@@ -883,6 +970,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
                     // ── 4. Kitsu Eşitleme (Anime & Manga) ──
                     if (isKitsu && isAnimeOrManga) {
+                        kotlinx.coroutines.currentCoroutineContext().ensureActive()
                         val current = item.kitsu
                         val knownKitsuId = current?.malId?.takeIf { it >= 300_000_000 }?.let { it - 300_000_000 }
                         if (current == null) {
@@ -928,6 +1016,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
                     // ── 5. Shikimori Eşitleme (Anime & Manga, MAL ID gerektirir) ──
                     if (isShikimori && isAnimeOrManga) {
+                        kotlinx.coroutines.currentCoroutineContext().ensureActive()
                         if (realMalId != null) {
                             val current = item.shikimori
                             if (current == null) {
@@ -987,19 +1076,35 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                             total = unifiedItems.size
                         )
                     }
+                    if ((index + 1) % 25 == 0) kotlinx.coroutines.yield()
                 }
 
+                kotlinx.coroutines.currentCoroutineContext().ensureActive()
                 // ── Simkl Toplu Senkronizasyonu (1 req/sn rate limit'e tam uyumlu batch) ──
                 if (isSimkl && simklEntriesToSync.isNotEmpty()) {
-                    updateProgress("Simkl kütüphanesi eşitleniyor...", "0 / ${simklEntriesToSync.size}")
+                    updateProgress(
+                        "Simkl kütüphanesi eşitleniyor...",
+                        "0 / ${simklEntriesToSync.size} Simkl kaydı sıraya alındı",
+                        processed = 0,
+                        total = simklEntriesToSync.size,
+                        unit = "Simkl kaydı"
+                    )
                     val chunks = simklEntriesToSync.chunked(35)
                     var simklAdded = 0
                     var simklErrors = 0
                     var simklSkipped = 0
                     for ((idx, chunk) in chunks.withIndex()) {
-                        val progressText = "${minOf((idx + 1) * 35, simklEntriesToSync.size)} / ${simklEntriesToSync.size} (%${(((idx + 1).toFloat() / chunks.size) * 100).toInt()})"
-                        updateProgress("Simkl kütüphanesi eşitleniyor...", progressText)
+                        val simklProcessed = minOf((idx + 1) * 35, simklEntriesToSync.size)
+                        val progressText = "$simklProcessed / ${simklEntriesToSync.size} Simkl kaydı (%${(simklProcessed.toFloat() / simklEntriesToSync.size * 100).toInt()})"
+                        updateProgress(
+                            "Simkl kütüphanesi eşitleniyor...",
+                            progressText,
+                            processed = simklProcessed,
+                            total = simklEntriesToSync.size,
+                            unit = "Simkl kaydı"
+                        )
                         val syncRes = SimklSyncManager.syncBatchToSimkl(context, chunk)
+                        kotlinx.coroutines.currentCoroutineContext().ensureActive()
                         val count = syncRes.addedCount
                         val notFound = syncRes.notFoundCount
                         simklAdded += count
@@ -1039,22 +1144,48 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     kotlinx.coroutines.delay(1500L)
                 }
 
+                kotlinx.coroutines.currentCoroutineContext().ensureActive()
                 // Read back actual remote state; desired merged values are NOT receipts.
-                updateProgress("Sunucu listeleri doğrulanıyor...", "Yalnızca sunucudan okunan kayıtlar kaydediliyor")
-                if (isAniList) runCatching { repository.smartImport("anilist", AniListImportManager.fetchAllLists(aniListToken!!), allowDelete = false) }
-                    .onFailure { logEvent("AniList", "Yerel liste güncellenemedi: ${it.message}", isError = true, details = it.crossSyncDiagnostic()) }
-                if (isMal) runCatching { repository.smartImport("mal", MalImportManager.fetchAllLists(malToken!!, showAdult), allowDelete = false) }
-                    .onFailure { logEvent("MyAnimeList", "Yerel liste güncellenemedi: ${it.message}", isError = true, details = it.crossSyncDiagnostic()) }
-                if (isKitsu) runCatching { repository.smartImport("kitsu", KitsuImportManager.fetchAllLists(context, kitsuToken!!, kitsuUserId!!), allowDelete = false) }
-                    .onFailure { logEvent("Kitsu", "Yerel liste güncellenemedi: ${it.message}", isError = true, details = it.crossSyncDiagnostic()) }
-                if (isShikimori) runCatching { repository.smartImport("shikimori", ShikimoriImportManager.fetchAllLists(context, shikimoriToken!!, shikimoriUserId!!), allowDelete = false) }
-                    .onFailure { logEvent("Shikimori", "Yerel liste güncellenemedi: ${it.message}", isError = true, details = it.crossSyncDiagnostic()) }
+                updateProgress(
+                    "Sunucu listeleri doğrulanıyor...",
+                    "Kayıtlar tek tek sunucudan yeniden okunuyor; bu aşamada ilerleme çubuğu belirsiz gösterilir",
+                    processed = 0,
+                    total = 0,
+                    unit = ""
+                )
+                if (isAniList) {
+                    kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                    updateProgress("AniList listesi doğrulanıyor...", "Sunucudaki son liste okunuyor", processed = 0, total = 0, unit = "")
+                    runSyncCatching { repository.smartImport("anilist", AniListImportManager.fetchAllLists(aniListToken!!), allowDelete = false) }
+                        .onFailure { logEvent("AniList", "Yerel liste güncellenemedi: ${it.message}", isError = true, details = it.crossSyncDiagnostic()) }
+                }
+                if (isMal) {
+                    kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                    updateProgress("MyAnimeList listesi doğrulanıyor...", "Sunucudaki son liste okunuyor", processed = 0, total = 0, unit = "")
+                    runSyncCatching { repository.smartImport("mal", MalImportManager.fetchAllLists(malToken!!, showAdult), allowDelete = false) }
+                        .onFailure { logEvent("MyAnimeList", "Yerel liste güncellenemedi: ${it.message}", isError = true, details = it.crossSyncDiagnostic()) }
+                }
+                if (isKitsu) {
+                    kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                    updateProgress("Kitsu listesi doğrulanıyor...", "Sunucudaki son liste okunuyor", processed = 0, total = 0, unit = "")
+                    runSyncCatching { repository.smartImport("kitsu", KitsuImportManager.fetchAllLists(context, kitsuToken!!, kitsuUserId!!), allowDelete = false) }
+                        .onFailure { logEvent("Kitsu", "Yerel liste güncellenemedi: ${it.message}", isError = true, details = it.crossSyncDiagnostic()) }
+                }
+                if (isShikimori) {
+                    kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                    updateProgress("Shikimori listesi doğrulanıyor...", "Sunucudaki son liste okunuyor", processed = 0, total = 0, unit = "")
+                    runSyncCatching { repository.smartImport("shikimori", ShikimoriImportManager.fetchAllLists(context, shikimoriToken!!, shikimoriUserId!!), allowDelete = false) }
+                        .onFailure { logEvent("Shikimori", "Yerel liste güncellenemedi: ${it.message}", isError = true, details = it.crossSyncDiagnostic()) }
+                }
                 if (isSimkl) {
+                    kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                    updateProgress("Simkl listesi doğrulanıyor...", "Sunucudaki son liste okunuyor", processed = 0, total = 0, unit = "")
                     val refreshToken = ExternalAuthManager.getSimklToken(context) ?: error("Simkl bağlantısı kesildi")
-                    runCatching { repository.smartImport("simkl", SimklImportManager.fetchAllLists(refreshToken), allowDelete = false) }
+                    runSyncCatching { repository.smartImport("simkl", SimklImportManager.fetchAllLists(refreshToken), allowDelete = false) }
                         .onFailure { logEvent("Simkl", "Yerel liste güncellenemedi: ${it.message}", isError = true, details = it.crossSyncDiagnostic()) }
                 }
 
+                kotlinx.coroutines.currentCoroutineContext().ensureActive()
                 val hasSyncErrors = statsMap.values.any { it.errorCount > 0 } || reportLogs.any { it.isError }
                 val hasWarnings = reportLogs.any { it.isWarning }
                 val summary = if (hasSyncErrors) {
@@ -1071,6 +1202,10 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     currentDetail = summary,
                     processedItems = unifiedItems.size,
                     totalItems = unifiedItems.size,
+                    progressUnit = "İçerik",
+                    lastUpdatedAt = System.currentTimeMillis(),
+                    totalEventCount = reportLogs.size,
+                    issueCount = issueCount,
                     platformStats = statsMap.toMap(),
                     logs = recentLogs.toList(),
                     startedAt = syncStartedAt
@@ -1091,6 +1226,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     currentDetail = error.message ?: "Bilinmeyen bir hata oluştu",
                     errorMessage = error.message,
                     logs = recentLogs.toList(),
+                    totalEventCount = reportLogs.size,
+                    issueCount = issueCount,
+                    lastUpdatedAt = System.currentTimeMillis(),
                     startedAt = syncStartedAt
                 )
                 onShowMessage?.invoke("Eşitleme sırasında hata oluştu: ${error.message}")
@@ -1112,17 +1250,23 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     errorMessage = error.message,
                     currentDetail = error.message ?: "Hesaplar okunamadı",
                     logs = recentLogs.toList(),
+                    totalEventCount = reportLogs.size,
+                    issueCount = issueCount,
+                    lastUpdatedAt = System.currentTimeMillis(),
                     startedAt = syncStartedAt
                 )
                 onShowMessage?.invoke("Eşitleme başlatılamadı: ${error.message}")
             } finally {
-                isCrossSyncRunning = false
                 if (crossSyncState.isRunning) {
                     logEvent("Eşitleme", "Eşitleme durduruldu; tamamlanan kayıtlar rapora eklendi.", isWarning = true)
                     crossSyncState = crossSyncState.copy(
                         isRunning = false,
                         currentStep = "Eşitleme durduruldu",
-                        logs = recentLogs.toList()
+                        currentDetail = "Tamamlanmış sunucu güncellemeleri korunur; geri alınamaz.",
+                        logs = recentLogs.toList(),
+                        totalEventCount = reportLogs.size,
+                        issueCount = issueCount,
+                        lastUpdatedAt = System.currentTimeMillis()
                     )
                 }
                 val completedAt = System.currentTimeMillis()
@@ -1130,12 +1274,17 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     isRunning = false,
                     platformStats = statsMap.toMap(),
                     logs = recentLogs.toList(),
+                    totalEventCount = reportLogs.size,
+                    issueCount = issueCount,
                     reportLogs = reportLogs.toList(),
                     startedAt = syncStartedAt,
-                    finishedAt = completedAt
+                    finishedAt = completedAt,
+                    lastUpdatedAt = completedAt
                 )
                 val reportLocation = runCatching { CrossSyncReportStore.save(context, finalState) }.getOrNull()
                 crossSyncState = finalState.copy(reportSavedTo = reportLocation)
+                isCrossSyncRunning = false
+                crossSyncJob = null
             }
         }
     }

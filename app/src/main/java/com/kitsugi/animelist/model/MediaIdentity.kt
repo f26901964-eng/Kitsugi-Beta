@@ -5,6 +5,8 @@ import java.util.Locale
 
 /** Provider IDs are namespaced by media type. A title must never override conflicting IDs. */
 object MediaIdentity {
+    private val nonIdentityCharacters = Regex("[^\\p{L}\\p{N}]")
+
     fun canonicalSource(source: String): String = when (val value = source.lowercase(Locale.ROOT)) {
         "jikan" -> "mal"
         else -> value
@@ -25,7 +27,7 @@ object MediaIdentity {
     }
 
     fun normalizedTitle(title: String): String = Normalizer.normalize(title, Normalizer.Form.NFKC)
-        .lowercase(Locale.ROOT).replace(Regex("[^\\p{L}\\p{N}]"), "")
+        .lowercase(Locale.ROOT).replace(nonIdentityCharacters, "")
 
     /** Provider-ID namespaces present on both entries but pointing at different IDs. */
     fun conflictingIdentityKeys(a: MediaEntry, b: MediaEntry): Set<String> {

@@ -6,6 +6,7 @@ import androidx.annotation.RequiresApi
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import com.kitsugi.animelist.BuildConfig
 import com.kitsugi.animelist.model.CrossSyncProgressState
 import java.io.File
 import java.io.IOException
@@ -15,11 +16,35 @@ object CrossSyncReportStore {
     private const val REPORT_DIRECTORY = "cross_sync_reports"
     private const val LATEST_REPORT = "Kitsugi_CrossSync_Report_Latest.txt"
 
+    /** Shared formatter adds app/device context to the credential-redacted sync details. */
+    fun format(context: Context, state: CrossSyncProgressState): String = buildString {
+        append(CrossSyncReportFormatter.format(state))
+        appendLine()
+        appendLine("=== ORTAM BİLGİSİ ===")
+        appendLine("Uygulama: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) [${BuildConfig.BUILD_TYPE}]")
+        appendLine("Paket: ${context.packageName}")
+        appendLine("Cihaz: ${Build.MANUFACTURER} ${Build.MODEL} (${Build.DEVICE})")
+        appendLine("Android: ${Build.VERSION.RELEASE} (API ${Build.VERSION.SDK_INT})")
+        appendLine("ABI: ${Build.SUPPORTED_ABIS.firstOrNull() ?: "bilinmiyor"}")
+    }
+
+    /** Creates a short-lived, private file that can be attached to a share sheet. */
+    fun createShareableReport(context: Context, state: CrossSyncProgressState): File {
+        val directory = File(context.cacheDir, REPORT_DIRECTORY)
+        if (!directory.exists() && !directory.mkdirs()) {
+            throw IOException("Eşitleme raporu için geçici klasör oluşturulamadı")
+        }
+        val fileName = CrossSyncReportFormatter.fileName(System.currentTimeMillis())
+        return File(directory, fileName).also { file ->
+            file.writeText(format(context, state), Charsets.UTF_8)
+        }
+    }
+
     /** Returns a user-facing location, or null if even the private copy could not be written. */
     fun save(context: Context, state: CrossSyncProgressState): String? {
         val timestamp = state.finishedAt ?: System.currentTimeMillis()
         val filename = CrossSyncReportFormatter.fileName(timestamp)
-        val report = CrossSyncReportFormatter.format(state)
+        val report = format(context, state)
 
         val privateDirectory = File(context.filesDir, REPORT_DIRECTORY)
         if (!privateDirectory.exists() && !privateDirectory.mkdirs()) return null

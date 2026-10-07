@@ -58,6 +58,7 @@ fun KitsugiAccountConnectionsDialog(
     isCrossSyncRunning: Boolean = false,
     crossSyncState: com.kitsugi.animelist.model.CrossSyncProgressState = com.kitsugi.animelist.model.CrossSyncProgressState(),
     onCrossSyncClick: () -> Unit = {},
+    onCrossSyncCancel: () -> Unit = {},
     syncEnabledAnilist: Boolean = false,
     onSyncEnabledAnilistChanged: (Boolean) -> Unit = {},
     syncEnabledMal: Boolean = false,
@@ -144,6 +145,7 @@ fun KitsugiAccountConnectionsDialog(
                 isCrossSyncRunning = isCrossSyncRunning,
                 crossSyncState = crossSyncState,
                 onCrossSyncClick = onCrossSyncClick,
+                onCrossSyncCancel = onCrossSyncCancel,
                 syncEnabledAnilist = syncEnabledAnilist,
                 onSyncEnabledAnilistChanged = onSyncEnabledAnilistChanged,
                 syncEnabledMal = syncEnabledMal,
@@ -208,6 +210,7 @@ private fun AccountConnectionsTab(
     isCrossSyncRunning: Boolean,
     crossSyncState: com.kitsugi.animelist.model.CrossSyncProgressState,
     onCrossSyncClick: () -> Unit,
+    onCrossSyncCancel: () -> Unit,
     syncEnabledAnilist: Boolean,
     onSyncEnabledAnilistChanged: (Boolean) -> Unit,
     syncEnabledMal: Boolean,
@@ -495,19 +498,24 @@ private fun AccountConnectionsTab(
                         .padding(8.dp)
                 ) {
                     val syncDesc = when {
-                        crossSyncState.isRunning -> "${crossSyncState.currentStep} (%${(crossSyncState.progressPercent * 100).toInt()})"
-                        crossSyncState.isCompleted -> "Son eşitleme tamamlandı. Ayrıntılı raporu görmek için dokunun."
+                        crossSyncState.isRunning -> crossSyncState.currentStep +
+                            if (crossSyncState.totalItems > 0) " (%${(crossSyncState.progressPercent * 100).toInt()})" else ""
+                        crossSyncState.startedAt != null -> "Son eşitleme raporunu, sorunları ve platform ayrıntılarını görüntüle"
                         else -> "$connectedNames verilerini karşılıklı senkronize edin (Asla silme yapılmaz)"
                     }
 
                     KitsugiSettingsItem(
-                        title = "Tüm Hesapları Birbiriyle Eşitle ($connectedCount/5)",
+                        title = when {
+                            crossSyncState.isRunning -> "Eşitleme Ayrıntılarını Aç ($connectedCount/5)"
+                            crossSyncState.startedAt != null -> "Son Eşitleme Raporu ($connectedCount/5)"
+                            else -> "Tüm Hesapları Birbiriyle Eşitle ($connectedCount/5)"
+                        },
                         description = syncDesc,
                         icon = Icons.Rounded.Cached,
                         iconColor = KitsugiColors.AccentOrange,
                         onClick = {
                             showCrossSyncDialog = true
-                            if (!crossSyncState.isRunning) {
+                            if (!crossSyncState.isRunning && crossSyncState.startedAt == null) {
                                 onCrossSyncClick()
                             }
                         }
@@ -515,15 +523,26 @@ private fun AccountConnectionsTab(
 
                     if (crossSyncState.isRunning) {
                         Spacer(modifier = Modifier.height(4.dp))
-                        androidx.compose.material3.LinearProgressIndicator(
-                            progress = { crossSyncState.progressPercent },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(4.dp)
-                                .clip(androidx.compose.foundation.shape.RoundedCornerShape(2.dp)),
-                            color = KitsugiColors.AccentOrange,
-                            trackColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant
-                        )
+                        if (crossSyncState.totalItems <= 0) {
+                            androidx.compose.material3.LinearProgressIndicator(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(4.dp)
+                                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(2.dp)),
+                                color = KitsugiColors.AccentOrange,
+                                trackColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant
+                            )
+                        } else {
+                            androidx.compose.material3.LinearProgressIndicator(
+                                progress = { crossSyncState.progressPercent },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(4.dp)
+                                    .clip(androidx.compose.foundation.shape.RoundedCornerShape(2.dp)),
+                                color = KitsugiColors.AccentOrange,
+                                trackColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant
+                            )
+                        }
                     }
                 }
             }
@@ -553,7 +572,9 @@ private fun AccountConnectionsTab(
     if (showCrossSyncDialog) {
         KitsugiCrossSyncDialog(
             state = crossSyncState,
-            onDismiss = { showCrossSyncDialog = false }
+            onDismiss = { showCrossSyncDialog = false },
+            onCancel = onCrossSyncCancel,
+            onStart = onCrossSyncClick
         )
     }
 }

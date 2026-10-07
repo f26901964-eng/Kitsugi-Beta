@@ -10,6 +10,12 @@ import java.util.TimeZone
 /** Builds a readable, credential-free report for one cross-platform sync run. */
 object CrossSyncReportFormatter {
     private const val DATE_PATTERN = "yyyyMMdd_HHmmss_SSS"
+    private val bearerPattern = Regex("(?i)(Bearer\\s+)[A-Za-z0-9._~+/-]+=*")
+    private val credentialPattern = Regex(
+        "(?i)((?:access|refresh|id)[_\\s-]?token|client[_\\s-]?secret|api[_\\s-]?key|password|passwd|oauth[_\\s-]?code)(\\s*[:=]\\s*)(?:Bearer\\s+)?[^\\s,;&]+"
+    )
+    private val queryCredentialPattern = Regex("(?i)([?&](?:access_token|refresh_token|token|client_secret|api_key|code)=)[^&#\\s]+")
+    private val controlCharacterPattern = Regex("[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F]")
 
     fun fileName(timestamp: Long): String =
         "Kitsugi_CrossSync_Report_${SimpleDateFormat(DATE_PATTERN, Locale.ROOT).format(Date(timestamp))}.txt"
@@ -25,7 +31,7 @@ object CrossSyncReportFormatter {
         state.startedAt?.let { appendLine("Eşitleme başlangıcı: ${formatter.format(Date(it))}") }
         state.finishedAt?.let { appendLine("Eşitleme bitişi: ${formatter.format(Date(it))}") }
         appendLine("Sonuç: ${when {
-            state.isRunning -> "Devam ediyor"
+            state.isRunning -> "Devam ediyor (kısmi rapor)"
             state.errorMessage != null -> "Hata ile sonlandı"
             state.isCompleted && issues.any { it.isError } -> "Kısmen tamamlandı; hata var"
             state.isCompleted -> "Tamamlandı"
@@ -34,7 +40,11 @@ object CrossSyncReportFormatter {
         if (state.currentStep.isNotBlank()) appendLine("Son adım: ${safeText(state.currentStep)}")
         if (state.currentDetail.isNotBlank()) appendLine("Ayrıntı: ${safeText(state.currentDetail)}")
         state.errorMessage?.takeIf { it.isNotBlank() }?.let { appendLine("Genel hata: ${safeText(it)}") }
-        appendLine("İlerleme: ${state.processedItems} / ${state.totalItems}")
+        val elapsedMs = state.startedAt?.let { start -> (state.finishedAt ?: generatedAt) - start }
+        elapsedMs?.takeIf { it >= 0 }?.let { appendLine("Geçen süre: ${it / 1000} sn") }
+        appendLine("İlerleme: ${state.processedItems} / ${state.totalItems} ${safeText(state.progressUnit)}")
+        appendLine("Oluşturulan işlem kaydı: ${state.totalEventCount}")
+        appendLine("Hata/uyarı sayısı: ${state.issueCount}")
 
         appendLine()
         appendLine("=== PLATFORM ÖZETİ ===")
@@ -92,11 +102,10 @@ object CrossSyncReportFormatter {
 
     /** Redact common credential formats in upstream error text before it reaches disk. */
     private fun safeText(value: String): String = value
-        .replace(Regex("(?i)(Bearer\\s+)[A-Za-z0-9._~+/-]+=*")) { match ->
-            "${match.groupValues[1]}[REDACTED]"
-        }
-        .replace(Regex("(?i)((?:access|refresh)[_-]?token|client[_-]?secret)(\\s*[:=]\\s*)[^\\s,;]+")) { match ->
+        .replace(bearerPattern) { match -> "${match.groupValues[1]}[REDACTED]" }
+        .replace(credentialPattern) { match ->
             "${match.groupValues[1]}${match.groupValues[2]}[REDACTED]"
         }
-        .replace(Regex("[\\u0000-\\u0008\\u000B\\u000C\\u000E-\\u001F]"), "")
+        .replace(queryCredentialPattern) { match -> "${match.groupValues[1]}[REDACTED]" }
+        .replace(controlCharacterPattern, "")
 }
