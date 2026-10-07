@@ -527,3 +527,43 @@ Cihazda şu senaryolar kontrol edilmeli:
   ortamda mümkün olmadığı için **ilk iş cihazda `assembleDebug` + testler + logcat kontrolü** olmalı.
 - **Depo tarafında kalan işler:** `Filmmirasım`, `Filmİzlesene`, `FullHDFilmİzlede` eklentilerinin
   derlenmesi ve `merge_plugins.py`'ye dosya varlık kontrolü eklenmesi (bölüm 3b).
+
+
+---
+
+## 8. Ek: `Kitsugi-Plugins` Deposu Denetimi ve Hazırlanan Düzeltme (2026-10-08)
+
+Eklenti deposu (main = kaynak, builds = derlenmiş) tam olarak denetlendi ve düzeltmeler
+**patch olarak** hazırlandı: `plugin-repo-duzeltme/` (çalışma alanı kökü).
+Bu oturumun GitHub bağlantısı bu depoya **yalnızca okuma** yetkisine sahip olduğu için
+(`Resource not accessible by integration`, HTTP 403) push edilemedi.
+
+### Denetim sonuçları
+
+| Kontrol | Sonuç |
+|---|---|
+| `.cs3` içi manifest ile `plugins.json` `pluginClassName` uyumu | **166/166 uyumlu** (0 uyuşmazlık) |
+| `.cs3` dosyalarında `classes.dex` varlığı | **162/162 mevcut** (bozuk ikili yok) |
+| Manifestte olup dosyası **hiç bulunmayan** kayıt | **4:** `Filmmirasım`, `Filmİzlesene`, `FullHDFilmİzlede` (kaynak var, hiç derlenmemiş) + `WFilmİzle` (depoda `WFilmizle.cs3` var, ad uyuşmuyor) |
+| `main/prebuilt` içinde olup `builds`'e kopyalanmayan | **1:** `YesilCamTv.cs3` |
+| Derleyicinin kapsamı | Yalnız `git diff HEAD~1` ile **değişen** dizinler → hiç dokunulmayan dizinler sonsuza dek derlenmiyor |
+| `merge_plugins.py` | Dosya varlığını **hiç kontrol etmiyordu** → silinmemiş/derlenmemiş kayıtlar manifestte kalıyor (kırık 4 kaydın kaynağı) |
+| `Derleyici.yml` prebuilt kopyası | `builds/` **köküne** kopyalıyordu ama manifest URL'leri `builds/prebuilt/...` istiyor |
+
+### Hazırlanan düzeltme (patch, test edildi)
+
+1. `Filmmirasım` v4→v5, `Filmİzlesene` v3→v4, `FullHDFilmİzlede` v5→v6 → push ile derleyici tetiklenir.
+2. `prebuilt/WFilmİzle.cs3` eklendi (mevcut `WFilmizle.cs3` ile birebir).
+3. `merge_plugins.py` yeniden yazıldı: URL'ler gerçek dosya konumuna göre onarılır
+   (`builds/` ↔ `builds/prebuilt/`), Türkçe karakter/kısaltma varyantları eşleştirilir
+   (`WFilmİzle↔WFilmizle`, `CanliTV↔CanliTv`, `DDizi↔Ddizi`, `Kanal 7↔Kanal7`), dosyası
+   bulunmayan kayıtlar yüksek sesle raporlanır. **Yerel senaryo testi geçti** (URL onarımı,
+   varyant eşleştirme, yabancı depo URL'lerine dokunmama, eksik dosya raporu).
+4. `Derleyici.yml`: prebuilt kopyası `builds/prebuilt/` altına; `workflow_dispatch`'e
+   `plugins` girdisi (seçili dizinleri elle derleme). YAML sözdizimi doğrulandı.
+
+### Kullanıcı tarafında gereken işlem
+
+- **Arena'da GitHub bağlantısını yeniden yetkilendirmek** → ajan patch'i doğrudan push edebilir.
+- Veya patch'i elle uygulamak: `git am 0001-*.patch && git push origin main` (ayrıntı:
+  `plugin-repo-duzeltme/NASIL-UYGULANIR.md`).
