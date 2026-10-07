@@ -190,7 +190,7 @@ object NotificationDiagnostics {
                 ok = true,
                 itemCount = matched.size,
                 durationMs = System.currentTimeMillis() - started,
-                detail = "Listenizde $watchingMalIds.size MAL kaydı • son 7 günde $matched yayın eşleşmesi",
+                detail = "Listenizde ${malWatchingMalIds.size} MAL kaydı • son 7 günde ${matched.size} yayın eşleşmesi",
                 hint = if (malWatchingMalIds.isEmpty())
                     "İzleme listenizde 'İzleniyor' durumunda MAL kaynaklı kayıt yok; eşleşme bu yüzden 0."
                 else null

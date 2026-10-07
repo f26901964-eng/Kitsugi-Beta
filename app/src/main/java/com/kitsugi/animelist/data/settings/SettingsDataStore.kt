@@ -152,6 +152,8 @@ class SettingsDataStore(
         val AniListNotificationsEnabled = booleanPreferencesKey("anilist_notifications_enabled")
         val MalNotificationsEnabled = booleanPreferencesKey("mal_notifications_enabled")
         val SimklNotificationsEnabled = booleanPreferencesKey("simkl_notifications_enabled")
+        val KitsuNotificationsEnabled = booleanPreferencesKey("kitsu_notifications_enabled")
+        val ShikimoriNotificationsEnabled = booleanPreferencesKey("shikimori_notifications_enabled")
         val NotificationInterval = intPreferencesKey("notification_interval")
         val SearchHistoryEnabled = booleanPreferencesKey("search_history_enabled")
         // ─── T1.7 – StillWatching + PostPlayMode + AutoplaySessionRules ──────

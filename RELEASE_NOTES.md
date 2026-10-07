@@ -1,6 +1,6 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
-## 🇹🇷 Türkçe (v2.4.191)
+## 🇹🇷 Türkçe (v2.4.192)
 ### 🔔 Bildirim Altyapısı Denetimi — 5 Kaynak (AniList · MAL · Simkl/TMDB · Kitsu · Shikimori)
 
 - **Bildirim Teşhisi (yeni):** Bildirimler ekranının sağ üstüne 🪲 butonu eklendi. Tek dokunuşla 5 kaynağa **gerçek istek** atılır; hesap bağlı mı, hangi uç nokta kullanılıyor, **HTTP durum kodu**, dönen kayıt sayısı, süre ve varsa hata + çözüm ipucu gösterilir. Artık "geliyor mu gelmiyor mu" tahmine kalmaz.
@@ -14,7 +14,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.191)
+## 🇬🇧 English (v2.4.192)
 
 ### 🔔 Notification Infrastructure Audit — All 5 Sources (AniList · MAL · Simkl/TMDB · Kitsu · Shikimori)
 
