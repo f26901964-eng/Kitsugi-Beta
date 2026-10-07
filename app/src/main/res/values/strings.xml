@@ -400,6 +400,49 @@
     <string name="notif_empty_list_simkl">İzleme listenizdeki içerikler için yeni bildirim yok</string>
     <string name="notif_empty_no_notifications">Yeni bildirim yok</string>
 
+    <!-- ── Bildirim kaynak notları + teşhis (v2.4.191) ─────────────────────── -->
+    <string name="notif_mal_episode_upcoming">Bölüm %1$d yayınlanacak</string>
+    <string name="notif_notice_mal_no_list">MyAnimeList API\'si kişisel bildirim sunmaz. İzleme listenizde MAL kaynaklı \"İzleniyor\" kaydı bulunmuyor.</string>
+    <string name="notif_notice_mal_no_airing">MyAnimeList API\'si kişisel bildirim sunmaz. Listenizdeki %1$d yapımın son 7 günde yayınlanan bölümü yok.</string>
+    <string name="notif_notice_mal_feed">MyAnimeList API\'si kişisel bildirim sunmaz; bu liste izleme listenizin (MAL) son 7 gündeki yayınlarıdır. %1$d yayın • %2$d takip edilen yapım.</string>
+    <string name="notif_notice_simkl_not_connected">Simkl API\'sinde kişisel bildirim ucu yoktur. Takvim + hesap eşleşmesi için Ayarlar &gt; Platformlar\'dan Simkl\'e giriş yapın.</string>
+    <string name="notif_notice_simkl_no_airing">Simkl takviminde izleme listenizle eşleşen ±7 günlük yayın yok.</string>
+    <string name="notif_notice_simkl_feed_api">Simkl resmî API\'sinde bildirim ucu yoktur; bu liste v2 takvim + izleme listenizin eşleşmesidir. %1$d yayın.</string>
+    <string name="notif_notice_simkl_feed_local">Simkl bildirim ucu sunmaz; Simkl hesabı bağlı olmadığı için yerel kayıtlarınızla %1$d takvim eşleşmesi gösteriliyor.</string>
+    <string name="notif_simkl_movie_release">Film gösterimi</string>
+    <string name="notif_state_aired">yayınlandı</string>
+    <string name="notif_state_upcoming">yaklaşan</string>
+    <string name="notif_badge_finale">final</string>
+    <string name="notif_kitsu_episode_released">Bölüm %1$d yayınlandı</string>
+    <string name="notif_kitsu_episode_upcoming">Bölüm %1$d • yaklaşan yayın</string>
+    <string name="notif_kitsu_progress">İzleniyor • %1$d. bölüm</string>
+    <string name="notif_kitsu_in_list">Kitsu izleme listesinde</string>
+    <string name="notif_notice_kitsu_not_connected">Kitsu hesabı bağlı değil; yalnızca yerel kayıtlar gösteriliyor. Kitsu\'nun genel API\'sinde bildirim ucu yoktur.</string>
+    <string name="notif_notice_kitsu_api">Kitsu\'nun genel API\'sinde bildirim ucu yoktur; bu liste takip listeniz ve sonraki bölüm (nextRelease) tarihleridir.</string>
+    <string name="notif_login_required_shikimori">Shikimori\'ye giriş yapmanız gerekiyor</string>
+    <string name="notif_notice_shikimori_real">Shikimori gerçek bildirim akışı (bildirimler + haberler) • %1$d kayıt.</string>
+    <string name="notif_notice_shikimori_unread"> Okunmamış: %1$d bildirim, %2$d haber.</string>
+    <string name="notif_notice_shikimori_scope_missing">Shikimori kişisel bildirimleri için \"messages\" izni gerekir. Kendi Shikimori uygulamanızı (user_rates + messages) oluşturup Ayarlar &gt; Platformlar\'da bu client bilgileriyle yeniden giriş yapın; şimdilik izleme geçmişiniz gösteriliyor.</string>
+    <string name="notif_notice_shikimori_history_only">Shikimori bildiriminiz yok; izleme geçmişiniz gösteriliyor.</string>
+    <string name="notif_shikimori_activity_fallback">Shikimori aktivitesi</string>
+    <string name="notif_shikimori_kind_anons">Anons</string>
+    <string name="notif_shikimori_kind_news">Haber</string>
+    <string name="notif_shikimori_kind_generic">Bildirim</string>
+    <string name="notif_diag_action">Bildirim teşhisi</string>
+    <string name="notif_diag_title">Bildirim Teşhisi</string>
+    <string name="notif_diag_subtitle">5 kaynağın bildirim altyapısını canlı isteklerle test eder.</string>
+    <string name="notif_diag_run">Testi Çalıştır</string>
+    <string name="notif_diag_running">Test ediliyor…</string>
+    <string name="notif_diag_close">Kapat</string>
+    <string name="notif_diag_connected">Bağlı</string>
+    <string name="notif_diag_not_connected">Bağlı değil</string>
+    <string name="notif_diag_endpoint">Uç nokta</string>
+    <string name="notif_diag_items">Kayıt: %1$d</string>
+    <string name="notif_diag_status">HTTP %1$d</string>
+    <string name="notif_diag_duration">%1$d ms</string>
+    <string name="notif_diag_ok">ÇALIŞIYOR</string>
+    <string name="notif_diag_fail">SORUN</string>
+
     <!-- Explore Categories -->
     <string name="explore_top_anime">Popüler Anime</string>
     <string name="explore_airing_anime">Yayındaki Anime</string>

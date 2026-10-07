@@ -207,7 +207,11 @@ fun KitsugiShikimoriLoginDialog(
                                     errorMessage = null
                                     // Token adımı authorize adımındaki redirect_uri ile eşleşmek zorunda.
                                     ExternalAuthManager.saveShikimoriPendingRedirectUri(context, ShikimoriApiClient.DEEP_LINK_REDIRECT_URI)
-                                    val authUrl = ShikimoriApiClient.buildAuthorizeUrl(targetId, ShikimoriApiClient.DEEP_LINK_REDIRECT_URI)
+                                    val authUrl = ShikimoriApiClient.buildAuthorizeUrl(
+                                        targetId,
+                                        ShikimoriApiClient.DEEP_LINK_REDIRECT_URI,
+                                        ShikimoriApiClient.scopesFor(targetId)
+                                    )
                                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(authUrl))
                                     context.startActivity(intent)
                                 },
@@ -231,7 +235,11 @@ fun KitsugiShikimoriLoginDialog(
                                     val targetId = clientId.trim().ifBlank { ShikimoriApiClient.DEFAULT_CLIENT_ID }
                                     errorMessage = null
                                     ExternalAuthManager.saveShikimoriPendingRedirectUri(context, ShikimoriApiClient.DEFAULT_REDIRECT_URI)
-                                    val authUrl = ShikimoriApiClient.buildAuthorizeUrl(targetId, ShikimoriApiClient.DEFAULT_REDIRECT_URI)
+                                    val authUrl = ShikimoriApiClient.buildAuthorizeUrl(
+                                        targetId,
+                                        ShikimoriApiClient.DEFAULT_REDIRECT_URI,
+                                        ShikimoriApiClient.scopesFor(targetId)
+                                    )
                                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(authUrl))
                                     context.startActivity(intent)
                                 },
@@ -286,7 +294,11 @@ fun KitsugiShikimoriLoginDialog(
                                         val targetId = clientId.trim().ifBlank { ShikimoriApiClient.DEFAULT_CLIENT_ID }
                                         errorMessage = null
                                         ExternalAuthManager.saveShikimoriPendingRedirectUri(context, ShikimoriApiClient.FALLBACK_DEEP_LINK_REDIRECT_URI)
-                                        val authUrl = ShikimoriApiClient.buildAuthorizeUrl(targetId, ShikimoriApiClient.FALLBACK_DEEP_LINK_REDIRECT_URI)
+                                        val authUrl = ShikimoriApiClient.buildAuthorizeUrl(
+                                            targetId,
+                                            ShikimoriApiClient.FALLBACK_DEEP_LINK_REDIRECT_URI,
+                                            ShikimoriApiClient.scopesFor(targetId)
+                                        )
                                         runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(authUrl))) }
                                     }
                                 ) {

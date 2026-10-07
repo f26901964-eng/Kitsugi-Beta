@@ -156,6 +156,12 @@ settingsDataStore.setSomeField(newValue)
 | Alan | DataStore Key | Tür | Default | UI | Engine |
 |---|---|---|---|---|---|
 | `airingNotificationsEnabled` | `airing_notifications_enabled` | Boolean | `false` | NotificationsPage | AiringNotificationWorker |
+| `aniListNotificationsEnabled` | `anilist_notifications_enabled` | Boolean | `false` | NotificationsPage | AiringNotificationWorker |
+| `malNotificationsEnabled` | `mal_notifications_enabled` | Boolean | `false` | NotificationsPage | AiringNotificationWorker |
+| `simklNotificationsEnabled` | `simkl_notifications_enabled` | Boolean | `false` | NotificationsPage | AiringNotificationWorker |
+| `kitsuNotificationsEnabled` | `kitsu_notifications_enabled` | Boolean | `false` | NotificationsPage | AiringNotificationWorker (`nextRelease` akışı) |
+| `shikimoriNotificationsEnabled` | `shikimori_notifications_enabled` | Boolean | `false` | NotificationsPage | AiringNotificationWorker (`/messages` akışı) |
+| `notificationInterval` | `notification_interval` | Int | `180` | NotificationsPage | NotificationScheduler |
 
 ### 🔌 API Entegrasyonları
 

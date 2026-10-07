@@ -653,7 +653,8 @@ private fun SettingsPreferencesContent(
         integrations.translateSourceLanguage, integrations.translateTargetLanguage, general.appLanguage, general.fixedNavBar,
         general.airingNotificationsEnabled, general.splashAnimationEnabled, general.splashSoundEnabled,
         general.mangaReadingMode, general.mangaColorFilter, general.mangaFitMode, general.mangaBrightness,
-        general.aniListNotificationsEnabled, general.malNotificationsEnabled, general.simklNotificationsEnabled, general.notificationInterval,
+        general.aniListNotificationsEnabled, general.malNotificationsEnabled, general.simklNotificationsEnabled,
+        general.kitsuNotificationsEnabled, general.shikimoriNotificationsEnabled, general.notificationInterval,
         integrations.tmdbLanguage
     ) {
         com.kitsugi.animelist.data.settings.AppSettings(
@@ -681,6 +682,8 @@ private fun SettingsPreferencesContent(
             aniListNotificationsEnabled = general.aniListNotificationsEnabled,
             malNotificationsEnabled = general.malNotificationsEnabled,
             simklNotificationsEnabled = general.simklNotificationsEnabled,
+            kitsuNotificationsEnabled = general.kitsuNotificationsEnabled,
+            shikimoriNotificationsEnabled = general.shikimoriNotificationsEnabled,
             notificationInterval = general.notificationInterval,
             splashAnimationEnabled = general.splashAnimationEnabled,
             splashSoundEnabled = general.splashSoundEnabled,
@@ -717,6 +720,8 @@ private fun SettingsPreferencesContent(
         onAniListNotificationsChanged = general.onAniListNotificationsChanged,
         onMalNotificationsChanged = general.onMalNotificationsChanged,
         onSimklNotificationsChanged = general.onSimklNotificationsChanged,
+        onKitsuNotificationsChanged = general.onKitsuNotificationsChanged,
+        onShikimoriNotificationsChanged = general.onShikimoriNotificationsChanged,
         onNotificationIntervalChanged = general.onNotificationIntervalChanged,
         onSplashAnimationEnabledChanged = general.onSplashAnimationEnabledChanged,
         onSplashSoundEnabledChanged = general.onSplashSoundEnabledChanged,

@@ -233,12 +233,25 @@ class KitsugiAniListNotificationClient {
 
             runCatching {
                 val response = KitsugiApiBase.executeAniListQuery(query, variables, accessToken)
-                    ?: return@runCatching KitsugiNotificationPage(emptyList(), false, page)
+                    ?: throw AniListNotificationException(
+                        "AniList bildirim isteği yanıtsız kaldı (ağ/sunucu hatası)."
+                    )
 
-                val pageObj = JSONObject(response)
+                // GraphQL hataları daha önce sessizce yutuluyordu; bu yüzden kullanıcı
+                // "bildirim yok" sanıyordu. Artık hata açıkça fırlatılır.
+                val root = JSONObject(response)
+                val errors = root.optJSONArray("errors")
+                if (errors != null && errors.length() > 0) {
+                    val message = errors.optJSONObject(0)?.optString("message").orEmpty()
+                    throw AniListNotificationException(
+                        message.ifBlank { "AniList GraphQL hatası (HTTP/yanıt doğrulanamadı)" }
+                    )
+                }
+
+                val pageObj = root
                     .optJSONObject("data")
                     ?.optJSONObject("Page")
-                    ?: return@runCatching KitsugiNotificationPage(emptyList(), false, page)
+                    ?: throw AniListNotificationException("AniList yanıtı beklenen sayfa yapısında değil.")
 
                 val notificationsArr = pageObj.optJSONArray("notifications")
                 val pageInfo = pageObj.optJSONObject("pageInfo")
@@ -253,9 +266,20 @@ class KitsugiAniListNotificationClient {
                     }
                 }
                 KitsugiNotificationPage(list, hasNext, currentP)
-            }.getOrElse { KitsugiNotificationPage(emptyList(), false, page) }
+            }.getOrElse { cause ->
+                // Sessiz boş liste YOK: çağıran katman gerçek nedeni gösterebilsin.
+                if (cause is AniListNotificationException) throw cause
+                throw AniListNotificationException(
+                    cause.message ?: cause.javaClass.simpleName,
+                    cause
+                )
+            }
         }
     }
+
+    /** AniList bildirim akışındaki hataları taşır (ağ, token, GraphQL). */
+    class AniListNotificationException(message: String, cause: Throwable? = null) :
+        Exception(message, cause)
 
     // ─────────────────────────────────────────────────────────────────────────
     // Private — JSON parser

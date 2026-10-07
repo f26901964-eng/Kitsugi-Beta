@@ -399,6 +399,49 @@
     <string name="notif_empty_list_simkl">No new notifications for content in your watch list</string>
     <string name="notif_empty_no_notifications">No new notifications</string>
 
+    <!-- ── Notification source notes + diagnostics (v2.4.191) ──────────────── -->
+    <string name="notif_mal_episode_upcoming">Episode %1$d will air</string>
+    <string name="notif_notice_mal_no_list">The MyAnimeList API does not provide personal notifications. You have no MAL-sourced \"Watching\" entries.</string>
+    <string name="notif_notice_mal_no_airing">The MyAnimeList API does not provide personal notifications. None of your %1$d titles aired in the last 7 days.</string>
+    <string name="notif_notice_mal_feed">The MyAnimeList API does not provide personal notifications; this list shows your MAL watch list airings from the last 7 days. %1$d airings • %2$d followed titles.</string>
+    <string name="notif_notice_simkl_not_connected">The Simkl API has no personal notification endpoint. Log in to Simkl (Settings &gt; Platforms) for calendar + account matching.</string>
+    <string name="notif_notice_simkl_no_airing">Nothing in the Simkl calendar matches your watch list within ±7 days.</string>
+    <string name="notif_notice_simkl_feed_api">The official Simkl API has no notification endpoint; this list combines the v2 calendar with your watch list. %1$d airings.</string>
+    <string name="notif_notice_simkl_feed_local">Simkl offers no notification endpoint; since no Simkl account is connected, %1$d calendar matches with your local entries are shown.</string>
+    <string name="notif_simkl_movie_release">Movie release</string>
+    <string name="notif_state_aired">aired</string>
+    <string name="notif_state_upcoming">upcoming</string>
+    <string name="notif_badge_finale">finale</string>
+    <string name="notif_kitsu_episode_released">Episode %1$d released</string>
+    <string name="notif_kitsu_episode_upcoming">Episode %1$d • upcoming release</string>
+    <string name="notif_kitsu_progress">Watching • episode %1$d</string>
+    <string name="notif_kitsu_in_list">In your Kitsu library</string>
+    <string name="notif_notice_kitsu_not_connected">No Kitsu account connected; only local entries are shown. Kitsu\'s public API has no notification endpoint.</string>
+    <string name="notif_notice_kitsu_api">Kitsu\'s public API has no notification endpoint; this list shows your library and upcoming episode (nextRelease) dates.</string>
+    <string name="notif_login_required_shikimori">You need to log in to Shikimori</string>
+    <string name="notif_notice_shikimori_real">Real Shikimori notification feed (notifications + news) • %1$d entries.</string>
+    <string name="notif_notice_shikimori_unread"> Unread: %1$d notifications, %2$d news.</string>
+    <string name="notif_notice_shikimori_scope_missing">Shikimori personal notifications require the \"messages\" scope. Create your own Shikimori application (user_rates + messages) and sign in again with those client credentials in Settings &gt; Platforms; your watch history is shown meanwhile.</string>
+    <string name="notif_notice_shikimori_history_only">No Shikimori notifications; showing your watch history.</string>
+    <string name="notif_shikimori_activity_fallback">Shikimori activity</string>
+    <string name="notif_shikimori_kind_anons">Announcement</string>
+    <string name="notif_shikimori_kind_news">News</string>
+    <string name="notif_shikimori_kind_generic">Notification</string>
+    <string name="notif_diag_action">Notification diagnostics</string>
+    <string name="notif_diag_title">Notification Diagnostics</string>
+    <string name="notif_diag_subtitle">Tests all 5 sources with live requests.</string>
+    <string name="notif_diag_run">Run Test</string>
+    <string name="notif_diag_running">Testing…</string>
+    <string name="notif_diag_close">Close</string>
+    <string name="notif_diag_connected">Connected</string>
+    <string name="notif_diag_not_connected">Not connected</string>
+    <string name="notif_diag_endpoint">Endpoint</string>
+    <string name="notif_diag_items">Items: %1$d</string>
+    <string name="notif_diag_status">HTTP %1$d</string>
+    <string name="notif_diag_duration">%1$d ms</string>
+    <string name="notif_diag_ok">WORKING</string>
+    <string name="notif_diag_fail">ISSUE</string>
+
     <!-- Explore Categories -->
     <string name="explore_top_anime">Popular Anime</string>
     <string name="explore_airing_anime">Airing Anime</string>

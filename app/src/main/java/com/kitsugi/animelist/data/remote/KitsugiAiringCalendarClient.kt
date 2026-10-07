@@ -150,6 +150,26 @@ class KitsugiAiringCalendarClient {
         }
     }
 
+    /**
+     * Belirli bir zaman aralığında yayınlanan bölümleri (geçmiş + gelecek) döndürür.
+     *
+     * Bildirim akışları için kullanılır: örn. "son 7 günde yayınlananlar".
+     * AniList `airingSchedules` ucu herkese açıktır; token opsiyoneldir.
+     *
+     * @param fromEpochSec aralık başlangıcı (dahil), Unix epoch saniye
+     * @param toEpochSec   aralık bitişi (dahil), Unix epoch saniye
+     */
+    suspend fun fetchAiringWindow(
+        fromEpochSec: Long,
+        toEpochSec: Long,
+        accessToken: String? = null
+    ): List<AiringEntry> = withContext(Dispatchers.IO) {
+        val entries = fetchAiringSchedule(fromEpochSec, toEpochSec, accessToken)
+        entries
+            .filter { it.airingAt in fromEpochSec..toEpochSec }
+            .sortedBy { it.airingAt }
+    }
+
     suspend fun fetchUpcomingSchedule(limit: Int = 30, accessToken: String? = null, preferredSource: String? = null): List<AiringEntry> {
         return withContext(Dispatchers.IO) {
             if (preferredSource == "tmdb") {
