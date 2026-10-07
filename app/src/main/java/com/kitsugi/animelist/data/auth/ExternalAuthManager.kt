@@ -463,8 +463,8 @@ object ExternalAuthManager {
                 _authEvents.tryEmit(AuthEvent.Error(error))
                 return
             }
-            // Köprü, hangi şemayla açıldıysa o redirect_uri ile eşleşmek zorundadır.
-            val redirectUriUsed = if (uri.scheme == "kitsugi") {
+            // Token isteğindeki redirect_uri, OAuth yetkilendirmesini başlatan şemayla birebir eşleşmeli.
+            val redirectUriUsed = if (uri.scheme == "aniyomi") {
                 ShikimoriApiClient.DEEP_LINK_REDIRECT_URI
             } else {
                 ShikimoriApiClient.FALLBACK_DEEP_LINK_REDIRECT_URI

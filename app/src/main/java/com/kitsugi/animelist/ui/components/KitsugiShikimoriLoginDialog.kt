@@ -264,8 +264,8 @@ fun KitsugiShikimoriLoginDialog(
                             // Redirect URI uyuşmazlığında ne yapılacağını açıkla
                             Text(
                                 text = "Tarayıcıda \"The requested redirect uri is malformed or doesn't match client redirect URI\" hatası görürseniz: " +
-                                    "Shikimori'deki OAuth uygulamanızın Redirect URI listesinde ${ShikimoriApiClient.DEEP_LINK_REDIRECT_URI} kayıtlı değil demektir. " +
-                                    "Uygulama ayarlarından ekleyin ya da aşağıdaki aniyomi:// alternatifini / manuel kodu kullanın.",
+                                    "Shikimori'deki OAuth uygulamanızın Redirect URI listesinde ${ShikimoriApiClient.DEEP_LINK_REDIRECT_URI} birebir kayıtlı olmalıdır. " +
+                                    "Kendi uygulamanızda bu URI'yi ekleyin; farklı bir callback kayıtlıysa aşağıdaki alternatif düğmesini ya da manuel kod akışını kullanın.",
                                 style = MaterialTheme.typography.bodySmall.copy(
                                     color = KitsugiColors.TextSecondary,
                                     fontSize = 11.sp,
@@ -302,7 +302,7 @@ fun KitsugiShikimoriLoginDialog(
                                         runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(authUrl))) }
                                     }
                                 ) {
-                                    Text("Alternatif Tek Tık (aniyomi://)", fontSize = 11.sp)
+                                    Text("Alternatif Tek Tık (kitsugi://)", fontSize = 11.sp)
                                 }
                             }
                         }

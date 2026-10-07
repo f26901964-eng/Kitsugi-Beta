@@ -26,7 +26,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.AndroidViewModelFactory
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -68,8 +68,9 @@ fun SourceSearchPage(
             override val viewModelStore = ViewModelStore()
         }
     }
-    val factory = remember(context) {
-        AndroidViewModelFactory.getInstance(context.applicationContext as Application)
+    val app = context.applicationContext as Application
+    val factory = remember(app) {
+        ViewModelProvider.AndroidViewModelFactory.getInstance(app)
     }
     val pageViewModel: SearchViewModel = viewModel(viewModelStoreOwner = owner, factory = factory)
     DisposableEffect(owner) {

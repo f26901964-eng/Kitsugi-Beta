@@ -134,8 +134,11 @@ object ShikimoriApiClient {
     const val SCOPE_USER_RATES = "user_rates"
     const val SCOPE_MESSAGES = "messages"
     const val DEFAULT_REDIRECT_URI = "urn:ietf:wg:oauth:2.0:oob"
-    const val DEEP_LINK_REDIRECT_URI = "kitsugi://shikimori-auth"
-    const val FALLBACK_DEEP_LINK_REDIRECT_URI = "aniyomi://shikimori-auth"
+    // The shared Shikimori OAuth application is registered with this callback (see v2.4.189 release notes).
+    // Keep this as the primary URI: OAuth providers require an exact match with the application's redirect URI.
+    const val DEEP_LINK_REDIRECT_URI = "aniyomi://shikimori-auth"
+    // Kitsugi's branded scheme remains available for OAuth applications registered by the user.
+    const val FALLBACK_DEEP_LINK_REDIRECT_URI = "kitsugi://shikimori-auth"
     private const val OAUTH_TOKEN_URL = "https://shikimori.io/oauth/token"
 
     /**

@@ -22,9 +22,16 @@ class ShikimoriOAuthTest {
         assertTrue("Auth URL must use shikimori.io host", authUrl.startsWith("https://shikimori.io/oauth/authorize"))
         assertTrue("Auth URL must contain response_type=code", authUrl.contains("response_type=code"))
         assertTrue("Auth URL must contain scope=user_rates", authUrl.contains("scope=user_rates"))
+        assertTrue(
+            "The shared OAuth app's registered callback must be used for the default 1-tap flow",
+            authUrl.contains("redirect_uri=aniyomi%3A%2F%2Fshikimori-auth")
+        )
+        assertEquals("aniyomi://shikimori-auth", ShikimoriApiClient.DEEP_LINK_REDIRECT_URI)
+        assertEquals("kitsugi://shikimori-auth", ShikimoriApiClient.FALLBACK_DEEP_LINK_REDIRECT_URI)
 
         val appUrl = ShikimoriApiClient.buildNewApplicationUrl()
         assertTrue("Application URL must use shikimori.io host", appUrl.startsWith("https://shikimori.io/oauth/applications/new"))
+        assertTrue("New applications should use the primary callback", appUrl.contains("aniyomi%3A%2F%2Fshikimori-auth"))
     }
 
     @Test
