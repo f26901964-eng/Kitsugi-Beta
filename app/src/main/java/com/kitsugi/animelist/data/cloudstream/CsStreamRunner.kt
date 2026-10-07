@@ -784,7 +784,8 @@ object CsStreamRunner {
         episode: Int,
         malId: Int? = null,
         aniListId: Int? = null,
-        tmdbId: Int? = null
+        tmdbId: Int? = null,
+        isMovie: Boolean? = null
     ): List<StreamSource> = withContext(Dispatchers.IO) {
         Log.d(TAG, "━━━ getStreams: provider=${api.name} ━━━")
         Log.d(TAG, "  title='$title' season=$season ep=$episode year=$year")
@@ -846,7 +847,13 @@ object CsStreamRunner {
             Log.e(SERR, "🔐 CF_PROTECTED [${api.name}] — ${effectiveTimeout}ms timeout ile çalışıyor. title='$title' S${season}E${episode}")
         }
 
-        val result = runGetStreams(api, title, alternativeTitles, year, season, episode, malId, aniListId, tmdbId)
+        val result = withTimeoutOrNull(effectiveTimeout) {
+            runGetStreams(api, title, alternativeTitles, year, season, episode, malId, aniListId, tmdbId, isMovie)
+        }
+        if (result == null) {
+            Log.w(TAG, "[${api.name}] Provider stream lookup exceeded ${effectiveTimeout}ms; returning no matches.")
+            return@withContext emptyList()
+        }
         result
     }
 
@@ -859,7 +866,8 @@ object CsStreamRunner {
         episode: Int,
         malId: Int? = null,
         aniListId: Int? = null,
-        tmdbId: Int? = null
+        tmdbId: Int? = null,
+        isMovie: Boolean? = null
     ): List<StreamSource> {
         // Resolve external IDs for validation
         val resolvedIds = if (malId != null || aniListId != null || tmdbId != null) {
@@ -888,55 +896,48 @@ object CsStreamRunner {
             imdbId    = targetImdb,
             kitsuId   = targetKitsu,
             season    = season,
-            episode   = episode
+            episode   = episode,
+            isMovie   = isMovie == true
         )
         if (nativeResult != null) {
             Log.d(TAG, "[${api.name}] ⚡ Native getLoadUrl çözümü başarılı — arama atlandı (${nativeResult.size} stream)")
             return nativeResult
         }
 
-        // Build title variants: original + normalized + alts
-        val titleVariants = buildTitleVariants(title, alternativeTitles, season)
+        // Preserve language aliases; include season-specific forms only for episodic content.
+        val titleVariants = buildTitleVariants(title, alternativeTitles, season, isMovie == true)
         Log.d(TAG, "[${api.name}] Arama varyantları (${titleVariants.size}): ${titleVariants.take(6)}")
 
-        // Search all variants sequentially until we get results
-        var results: List<SearchResponse> = emptyList()
+        // Search several strong title/alias queries and merge their results. A single early
+        // provider hit can be the wrong sequel, so do not stop until a high-confidence result
+        // is available or the bounded query budget is exhausted.
+        val collectedResults = linkedMapOf<String, SearchResponse>()
         var searchedVariant = ""
+        val maxSearchVariants = minOf(titleVariants.size, 12)
+        for (variant in titleVariants.take(maxSearchVariants)) {
+            val variantResults = safeSearch(api, variant)
+            if (variantResults.isNotEmpty()) {
+                if (searchedVariant.isBlank()) searchedVariant = variant
+                Log.d(TAG, "[${api.name}] ✓ '$variant' için ${variantResults.size} sonuç bulundu")
+                for (result in variantResults) {
+                    val key = "${result.type}:${result.url.trim().lowercase(Locale.ROOT)}"
+                    if (!collectedResults.containsKey(key)) collectedResults[key] = result
+                }
 
-        for (variant in titleVariants) {
-            results = safeSearch(api, variant)
-            if (results.isNotEmpty()) {
-                searchedVariant = variant
-                Log.d(TAG, "[${api.name}] ✓ '${variant}' için ${results.size} sonuç bulundu")
-                break
+                val bestSoFar = findBestMatch(
+                    collectedResults.values.toList(), title, alternativeTitles, year, season, episode, isMovie
+                )
+                if (bestSoFar != null && CsTitleMatcher.isHighConfidenceMatch(
+                        bestSoFar, title, alternativeTitles, year, season, isMovie
+                    )
+                ) {
+                    Log.d(TAG, "[${api.name}] High-confidence match found after '$variant'; remaining queries skipped")
+                    break
+                }
+                if (collectedResults.size >= 40) break
             }
         }
-
-        // BRUTE-FORCE FALLBACK: try single first meaningful word
-        // Skip common English/Turkish generic words that cause false positives from unrelated providers
-        if (results.isEmpty()) {
-            val GENERIC_WORDS = setOf(
-                "attack", "titan", "season", "final", "the", "and", "from", "into", "with",
-                "sezon", "bölüm", "film", "dizi", "izle", "part", "new", "world", "slayer",
-                "shippuden", "naruto", "boruto", "piece", "clover", "academy", "academia",
-                "kaisen", "hunter", "online", "game", "free", "live", "movie", "series",
-                "turkce", "dublaj", "altyazi", "hd", "full", "tek", "parca", "anime"
-            )
-            val fallbackWord = title.split(Regex("\\s+"))
-                .map { word ->
-                    val cleaned = word.replace(Regex("[^a-zA-Z0-9çğıöşüÇĞİÖŞÜ]"), "").lowercase(Locale.ROOT)
-                    Pair(word, cleaned)
-                }
-                .firstOrNull { (_, cleaned) -> cleaned.length >= 4 && cleaned !in GENERIC_WORDS }
-                ?.let { (orig, _) ->
-                    orig.replace(Regex("^[^a-zA-Z0-9çğıöşüÇĞİÖŞÜ]+|[^a-zA-Z0-9çğıöşüÇĞİÖŞÜ]+$"), "")
-                }
-            if (fallbackWord != null) {
-                Log.d(TAG, "[${api.name}] Tek kelime fallback: '$fallbackWord'")
-                results = safeSearch(api, fallbackWord)
-                if (results.isNotEmpty()) searchedVariant = fallbackWord
-            }
-        }
+        val results = collectedResults.values.toList()
 
         if (results.isEmpty()) {
             Log.w(TAG, "[${api.name}] ✗ ARAMA BAŞARISIZ: Hiçbir varyant sonuç döndürmedi. Site erişilemez veya CF korumalı.")
@@ -955,16 +956,17 @@ object CsStreamRunner {
         Log.d(TAG, "[${api.name}] Arama sonuçları ('$searchedVariant' için ${results.size} adet):")
         results.take(5).forEachIndexed { i, r -> Log.d(TAG, "  [$i] '${r.name}' → ${r.url}") }
 
-        // Find best match via title similarity first
-        val bestMatch = findBestMatch(results, title, alternativeTitles, year, season, episode)
+        // Match title aliases together with requested media kind, year, season, and episode.
+        val bestMatch = findBestMatch(results, title, alternativeTitles, year, season, episode, isMovie)
 
-        // HIGH-CONFIDENCE SHORTCUT: if best match similarity is very high (>=0.85), trust it directly.
-        // This prevents plugins like AnimeciX (which return null on early load() calls) from wasting
-        // the entire timeout budget on serial candidate scanning and ID validation.
-        val bestMatchScore = if (bestMatch != null) getBestTitleSimilarity(bestMatch.name, title, alternativeTitles) else 0.0
-        val skipIdValidation = bestMatchScore >= 0.85
+        val bestMatchScore = if (bestMatch != null) {
+            getBestTitleSimilarity(bestMatch.name, title, alternativeTitles, isMovie)
+        } else 0.0
+        val skipIdValidation = bestMatch != null && CsTitleMatcher.isHighConfidenceMatch(
+            bestMatch, title, alternativeTitles, year, season, isMovie
+        )
         if (skipIdValidation && bestMatch != null) {
-            Log.d(TAG, "[ID-Mapping] ⚡ Yüksek güven skoru (${"%.2f".format(bestMatchScore)}) — ID doğrulaması atlanıyor, direkt '${bestMatch.name}' kullanılıyor.")
+            Log.d(TAG, "[ID-Mapping] ⚡ High-confidence title/type/year/season match (${"%.2f".format(bestMatchScore)}); ID validation skipped for '${bestMatch.name}'.")
         }
 
         // Validate bestMatch using ID mapping if target IDs are available
@@ -1001,16 +1003,20 @@ object CsStreamRunner {
             // 2. If best match failed ID validation (or was null), try other candidates (skip if WebView/slow plugin to prevent timeout)
             if (validatedMatch == null && !isWebViewPlugin && isSyncDataSupported) {
                 // Sort candidates by simple similarity score so we check the most promising ones first
-                val candidates = results.filter { it != bestMatch }
+                val candidates = results.filter {
+                    it != bestMatch && CsTitleMatcher.isCandidateMetadataCompatible(
+                        it, title, alternativeTitles, year, season, episode, isMovie
+                    )
+                }
                     .map { r ->
-                        val score = getBestTitleSimilarity(r.name, title, alternativeTitles)
+                        val score = getBestTitleSimilarity(r.name, title, alternativeTitles, isMovie)
                         Pair(r, score)
                     }
                     .sortedByDescending { it.second }
                     .take(3) // check top 3 alternatives at most to prevent high network overhead
 
                 for ((candidate, score) in candidates) {
-                    if (score < 0.10) continue // skip completely unrelated titles
+                    if (score < 0.45) continue // don't load unrelated candidates, even if a provider has sync data
                     Log.d(TAG, "[ID-Mapping] Checking candidate '${candidate.name}' (similarity: $score)...")
                     val resp = safeLoad(api, candidate.url)
                     if (resp != null) {
@@ -1034,19 +1040,26 @@ object CsStreamRunner {
         // Final match selection
         val finalMatch = validatedMatch ?: bestMatch
         if (finalMatch == null) {
-            val first = results.firstOrNull() ?: return emptyList()
-            Log.w(TAG, "[${api.name}] ✗ EŞLEŞTİRME BAŞARISIZ. İlk sonuç kullanılıyor: '${first.name}'")
-            return loadAndExtractStreams(api, first, season, episode)
+            Log.w(TAG, "[${api.name}] No title/type/year/season result passed the matching threshold; refusing unrelated fallback results.")
+            return emptyList()
         }
 
         Log.d(TAG, "[${api.name}] ✓ Eşleşme: '${finalMatch.name}' → ${finalMatch.url}")
         
         // If we already loaded the correct LoadResponse, reuse it instead of reloading!
         return if (bestLoadResponse != null && finalMatch == validatedMatch) {
-            val episodeData = findEpisodeData(bestLoadResponse, season, episode)
-                ?: bestLoadResponse.url.takeIf { it.isNotBlank() }?.also {
-                    Log.w(TAG, "[${api.name}] findEpisodeData null — URL fallback: $it (powerDizi/XPrime style)")
+            val episodeData = if (isMovie == true) {
+                if (bestLoadResponse is MovieLoadResponse) {
+                    findEpisodeData(bestLoadResponse, season, episode)
+                } else {
+                    bestLoadResponse.url.takeIf { it.isNotBlank() }
                 }
+            } else {
+                findEpisodeData(bestLoadResponse, season, episode)
+                    ?: bestLoadResponse.url.takeIf { it.isNotBlank() }?.also {
+                        Log.w(TAG, "[${api.name}] findEpisodeData null — URL fallback: $it (powerDizi/XPrime style)")
+                    }
+            }
             if (episodeData == null) {
                 Log.w(TAG, "[${api.name}] S${season}E${episode} ve URL fallback da başarısız.")
                 emptyList()
@@ -1054,7 +1067,7 @@ object CsStreamRunner {
                 extractStreamsFromEpisode(api, bestLoadResponse, episodeData)
             }
         } else {
-            loadAndExtractStreams(api, finalMatch, season, episode)
+            loadAndExtractStreams(api, finalMatch, season, episode, isMovie == true)
         }
     }
 
@@ -1062,19 +1075,27 @@ object CsStreamRunner {
         api: MainAPI,
         match: SearchResponse,
         season: Int,
-        episode: Int
+        episode: Int,
+        isMovie: Boolean = false
     ): List<StreamSource> {
         val loadResponse = safeLoad(api, match.url) ?: run {
             Log.w(TAG, "[${api.name}] safeLoad null döndü: ${match.url}")
             return emptyList()
         }
 
-        // findEpisodeData null döndürürse (powerDizi/XPrime gibi providerlar loadLinks'e URL geçiyor),
-        // loadResponse.url'yi fallback olarak kullan.
-        val episodeData = findEpisodeData(loadResponse, season, episode)
-            ?: loadResponse.url.takeIf { it.isNotBlank() }?.also {
-                Log.w(TAG, "[${api.name}] findEpisodeData null — URL fallback: $it (powerDizi/XPrime style)")
+        // Movies load links from the movie page URL; episodic content first resolves its episode.
+        val episodeData = if (isMovie) {
+            if (loadResponse is MovieLoadResponse) {
+                findEpisodeData(loadResponse, season, episode)
+            } else {
+                loadResponse.url.takeIf { it.isNotBlank() }
             }
+        } else {
+            findEpisodeData(loadResponse, season, episode)
+                ?: loadResponse.url.takeIf { it.isNotBlank() }?.also {
+                    Log.w(TAG, "[${api.name}] findEpisodeData null — URL fallback: $it (powerDizi/XPrime style)")
+                }
+        }
         if (episodeData == null) {
             Log.w(TAG, "[${api.name}] S${season}E${episode} bulunamadı. LoadResponse tipi: ${loadResponse.javaClass.simpleName}")
             return emptyList()
@@ -1099,7 +1120,8 @@ object CsStreamRunner {
         imdbId: String?,
         kitsuId: Int?,
         season: Int,
-        episode: Int
+        episode: Int,
+        isMovie: Boolean = false
     ): List<StreamSource>? {
         if (api.supportedSyncNames.isEmpty()) return null
 
@@ -1133,10 +1155,10 @@ object CsStreamRunner {
                     val fakeSearchResponse = api.newAnimeSearchResponse(
                         name = api.name,
                         url  = loadUrl,
-                        type = com.lagradost.cloudstream3.TvType.Anime,
+                        type = if (isMovie) com.lagradost.cloudstream3.TvType.Movie else com.lagradost.cloudstream3.TvType.Anime,
                         fix  = false
                     )
-                    return loadAndExtractStreams(api, fakeSearchResponse, season, episode)
+                    return loadAndExtractStreams(api, fakeSearchResponse, season, episode, isMovie)
                 } else {
                     Log.d(TAG, "[${api.name}] getLoadUrl($syncName, $syncId) → null (desteklenmiyor veya bulunamadı)")
                 }
@@ -1828,8 +1850,8 @@ object CsStreamRunner {
     // Delegated to CsLanguageDetector — see CsLanguageDetector.kt
     private fun detectLanguageCode(lang: String): String =
         CsLanguageDetector.detectLanguageCode(lang)
-    private fun buildTitleVariants(main: String, alts: List<String>, season: Int): List<String> =
-        CsTitleMatcher.buildTitleVariants(main, alts, season)
+    private fun buildTitleVariants(main: String, alts: List<String>, season: Int, isMovie: Boolean = false): List<String> =
+        CsTitleMatcher.buildTitleVariants(main, alts, season, isMovie)
 
     internal suspend fun safeSearch(api: MainAPI, query: String): List<SearchResponse> {
         ensurePluginReady(api)
@@ -2385,8 +2407,12 @@ object CsStreamRunner {
     }
 
     // Delegated to CsTitleMatcher — see CsTitleMatcher.kt
-    private fun getBestTitleSimilarity(candidateName: String, mainTitle: String, altTitles: List<String>): Double =
-        CsTitleMatcher.getBestTitleSimilarity(candidateName, mainTitle, altTitles)
+    private fun getBestTitleSimilarity(
+        candidateName: String,
+        mainTitle: String,
+        altTitles: List<String>,
+        isMovie: Boolean? = null
+    ): Double = CsTitleMatcher.getBestTitleSimilarity(candidateName, mainTitle, altTitles, isMovie)
 
     /**
      * HTTP yanıt kodu veya hata mesajından Cloudflare/ağ engelinin olup olmadığını tahmin eder.
@@ -2416,8 +2442,11 @@ object CsStreamRunner {
         altTitles: List<String>,
         targetYear: Int?,
         targetSeason: Int? = null,
-        targetEpisode: Int? = null
-    ): SearchResponse? = CsTitleMatcher.findBestMatch(results, mainTitle, altTitles, targetYear, targetSeason, targetEpisode)
+        targetEpisode: Int? = null,
+        isMovie: Boolean? = null
+    ): SearchResponse? = CsTitleMatcher.findBestMatch(
+        results, mainTitle, altTitles, targetYear, targetSeason, targetEpisode, isMovie
+    )
 
     // ─── Episode extraction helpers — Delegated to CsEpisodeMatcher ──────────
 
@@ -2500,17 +2529,18 @@ object CsStreamRunner {
         api: MainAPI,
         url: String,
         season: Int,
-        episode: Int
+        episode: Int,
+        isMovie: Boolean = false
     ): List<StreamSource> = withContext(Dispatchers.IO) {
         ensurePluginReady(api)
         if (api.name in KNOWN_BROKEN_PLUGINS) return@withContext emptyList()
         val searchResponse = api.newAnimeSearchResponse(
             name = api.name,
             url = url,
-            type = com.lagradost.cloudstream3.TvType.Anime,
+            type = if (isMovie) com.lagradost.cloudstream3.TvType.Movie else com.lagradost.cloudstream3.TvType.Anime,
             fix = false
         )
-        loadAndExtractStreams(api, searchResponse, season, episode)
+        loadAndExtractStreams(api, searchResponse, season, episode, isMovie)
     }
 }
 

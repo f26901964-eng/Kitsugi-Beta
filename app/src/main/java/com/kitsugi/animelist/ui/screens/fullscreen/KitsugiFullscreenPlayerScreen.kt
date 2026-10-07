@@ -119,6 +119,7 @@ fun KitsugiFullscreenPlayerScreen(
     titleEnglish: String? = null,
     titleRomaji: String? = null,
     titleNative: String? = null,
+    synonyms: List<String> = emptyList(),
     startYear: Int? = null,
     description: String? = null,
     castList: List<MetaCastMember> = emptyList(),
@@ -237,7 +238,7 @@ fun KitsugiFullscreenPlayerScreen(
         }
     }
 
-    LaunchedEffect(videoId, videoUrl, audioUrl, title, initialIndex, episode, tmdbId, isMovie) {
+    LaunchedEffect(videoId, videoUrl, audioUrl, title, initialIndex, episode, tmdbId, isMovie, synonyms) {
         viewModel.initialize(
             videoId = videoId,
             videoUrl = videoUrl,
@@ -256,6 +257,7 @@ fun KitsugiFullscreenPlayerScreen(
             titleEnglish = titleEnglish,
             titleRomaji = titleRomaji,
             titleNative = titleNative,
+            synonyms = synonyms,
             startYear = startYear,
             isMovie = isMovie,
             activity = activity,
@@ -488,6 +490,7 @@ fun KitsugiFullscreenPlayerScreen(
                                 titleEnglish = titleEnglish,
                                 titleRomaji = titleRomaji,
                                 titleNative = titleNative,
+                                synonyms = synonyms,
                                 startYear = startYear,
                                 description = description,
                                 cast = castList,

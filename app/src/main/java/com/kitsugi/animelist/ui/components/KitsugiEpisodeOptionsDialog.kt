@@ -52,6 +52,7 @@ fun KitsugiEpisodeOptionsDialog(
     titleEnglish: String? = null,
     titleRomaji: String? = null,
     titleNative: String? = null,
+    synonyms: List<String> = emptyList(),
     startYear: Int? = null,
     isMovie: Boolean = false,
     seasonNumber: Int = 1,
@@ -135,6 +136,7 @@ fun KitsugiEpisodeOptionsDialog(
                                 titleEnglish = titleEnglish,
                                 titleRomaji = titleRomaji,
                                 titleNative = titleNative,
+                                synonyms = synonyms,
                                 startYear = startYear
                             )
                             onDismiss()
@@ -162,6 +164,7 @@ fun KitsugiEpisodeOptionsDialog(
                                 titleEnglish = titleEnglish,
                                 titleRomaji = titleRomaji,
                                 titleNative = titleNative,
+                                synonyms = synonyms,
                                 startYear = startYear,
                                 isDownloadMode = true
                             )

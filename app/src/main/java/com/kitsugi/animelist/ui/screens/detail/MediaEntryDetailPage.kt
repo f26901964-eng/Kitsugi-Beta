@@ -627,6 +627,7 @@ fun MediaEntryDetailPage(
                 titleEnglish = detailState?.titleEnglish,
                 titleRomaji = detailState?.titleRomaji,
                 titleNative = detailState?.titleNative,
+                synonyms = detailState?.synonyms.orEmpty(),
                 startYear = displayEntry.year,
                 isMovie = displayEntry.type == com.kitsugi.animelist.model.MediaType.Movie,
                 seasonNumber = ep.seasonNumber ?: targetSeason,

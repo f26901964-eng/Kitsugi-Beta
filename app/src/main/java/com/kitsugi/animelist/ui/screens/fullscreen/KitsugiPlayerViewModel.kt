@@ -584,6 +584,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
     private var titleEnglish: String? = null
     private var titleRomaji: String? = null
     private var titleNative: String? = null
+    private var synonyms: List<String> = emptyList()
     private var startYear: Int? = null
     // CS3 kökenli içerikler için kaynak bilgisi (binge-watch + geçmişten devam)
     private var cs3Url: String? = null
@@ -616,9 +617,10 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         isMovie: Boolean = false,
         activity: android.app.Activity? = null,
         cs3Url: String? = null,
-        cs3ApiName: String? = null
+        cs3ApiName: String? = null,
+        synonyms: List<String> = emptyList()
     ) {
-        val initKey = "${videoId ?: ""}_${videoUrl ?: ""}_${episode}_${aniListId ?: 0}_${malId ?: 0}_${tmdbId ?: 0}"
+        val initKey = "${videoId ?: ""}_${videoUrl ?: ""}_${episode}_${aniListId ?: 0}_${malId ?: 0}_${tmdbId ?: 0}_${isMovie}_${synonyms.hashCode()}"
         if (_isInitialized.value && lastInitializedKey == initKey) return
         _isInitialized.value = true
         lastInitializedKey = initKey
@@ -632,6 +634,7 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         this.titleEnglish = titleEnglish
         this.titleRomaji = titleRomaji
         this.titleNative = titleNative
+        this.synonyms = synonyms.map { it.trim() }.filter { it.isNotBlank() }.distinct()
         this.startYear = startYear
         this.cs3Url = cs3Url
         this.cs3ApiName = cs3ApiName
@@ -895,7 +898,8 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                     api = activeApi,
                     url = localCs3Url,
                     season = seasonNum,
-                    episode = nextEp
+                    episode = nextEp,
+                    isMovie = _isMovie.value
                 )
                 if (resolved.isNotEmpty()) {
                     Log.d("KitsugiPlayerViewModel", "fetchStreamsForEpisode: CS3 direkt URL modu — ${resolved.size} kaynak")
@@ -909,7 +913,14 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         // 1. Stremio stream sources
         val stremioJob = async {
             try {
-                repository.getStreamsForEpisode(malId, aniListId, seasonNum, nextEp, tmdbId)
+                repository.getStreamsForEpisode(
+                    malId = malId,
+                    aniListId = aniListId,
+                    season = seasonNum,
+                    episode = nextEp,
+                    tmdbId = tmdbId,
+                    isMovie = _isMovie.value
+                )
             } catch (e: Exception) {
                 Log.e("KitsugiPlayerViewModel", "Error fetching Stremio streams", e)
                 emptyList<StreamSource>()
@@ -924,7 +935,10 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
             emptyList()
         }
 
-        val alternativeTitles = listOfNotNull(titleEnglish, titleRomaji, titleNative)
+        val alternativeTitles = (listOfNotNull(titleEnglish, titleRomaji, titleNative) + synonyms)
+            .map { it.trim() }
+            .filter { it.isNotBlank() && it != animeTitle }
+            .distinctBy { com.kitsugi.animelist.data.cloudstream.CsTitleMatcher.normalizeTitleForMatch(it) }
         val csJobs = enabledCsPlugins.map { plugin ->
             async {
                 val csStreams = mutableListOf<StreamSource>()
@@ -940,7 +954,8 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
                             episode = nextEp,
                             malId = malId,
                             aniListId = aniListId,
-                            tmdbId = tmdbId
+                            tmdbId = tmdbId,
+                            isMovie = _isMovie.value
                         )
                         csStreams.addAll(streams)
                     }
@@ -1367,9 +1382,11 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
         .map { it > 1 }
         .stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
-    val hasNextEpisode: StateFlow<Boolean> = combine(_episodesList, _currentEpisode) { episodes, current ->
-        episodes.any { it.episodeNumber == current + 1 } ||
-        current < (episodes.lastOrNull()?.episodeNumber ?: Int.MAX_VALUE)
+    val hasNextEpisode: StateFlow<Boolean> = combine(_episodesList, _currentEpisode, _isMovie) { episodes, current, isMovie ->
+        !isMovie && (
+            episodes.any { it.episodeNumber == current + 1 } ||
+                current < (episodes.lastOrNull()?.episodeNumber ?: Int.MAX_VALUE)
+            )
     }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     fun onEpisodeEnded(durationMs: Long, positionMs: Long) {
@@ -1381,7 +1398,10 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
             }
 
             val settings = SettingsDataStore(context).settingsFlow.first()
-            val hasNext = _episodesList.value.any { it.episodeNumber == _currentEpisode.value + 1 } || _currentEpisode.value < (_episodesList.value.lastOrNull()?.episodeNumber ?: Int.MAX_VALUE)
+            val hasNext = !_isMovie.value && (
+                _episodesList.value.any { it.episodeNumber == _currentEpisode.value + 1 } ||
+                    _currentEpisode.value < (_episodesList.value.lastOrNull()?.episodeNumber ?: Int.MAX_VALUE)
+                )
             val hasOutro = skipIntervals.value.any { it.type == "outro" }
             val outroStart = skipIntervals.value.find { it.type == "outro" }?.startTime?.toLong()
 

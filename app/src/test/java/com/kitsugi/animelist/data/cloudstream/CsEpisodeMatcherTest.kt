@@ -26,6 +26,16 @@ import org.junit.Test
  */
 class CsEpisodeMatcherTest {
 
+    @Test
+    fun testEpisodeNameMatchingSupportsLocalizedFormatsAndBoundaries() {
+        assertTrue(CsEpisodeMatcher.episodeNameMatchesTarget("S02.E05 - Episode", 2, 5))
+        assertTrue(CsEpisodeMatcher.episodeNameMatchesTarget("2. Sezon 5. Bölüm", 2, 5))
+        assertTrue(CsEpisodeMatcher.episodeNameMatchesTarget("第2期 第5話", 2, 5))
+        assertTrue(CsEpisodeMatcher.episodeNameMatchesTarget("第05集", 1, 5))
+        assertFalse(CsEpisodeMatcher.episodeNameMatchesTarget("S12E5", 2, 5))
+        assertFalse(CsEpisodeMatcher.episodeNameMatchesTarget("2x50", 2, 5))
+    }
+
     // ─── MovieLoadResponse Tests ──────────────────────────────────────────────
 
     @Test

@@ -141,6 +141,7 @@ fun EntryDetailLeftPanel(
                         titleEnglish = detailState?.titleEnglish,
                         titleRomaji = detailState?.titleRomaji,
                         titleNative = detailState?.titleNative,
+                        synonyms = detailState?.synonyms.orEmpty(),
                         startYear = entry.year
                     )
                 }

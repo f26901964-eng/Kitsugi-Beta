@@ -668,6 +668,7 @@ internal fun EntryDetailEpisodesTab(
                         titleEnglish = detailState?.titleEnglish,
                         titleRomaji = detailState?.titleRomaji,
                         titleNative = detailState?.titleNative,
+                        synonyms = detailState?.synonyms.orEmpty(),
                         startYear = entry.year
                     )
                 }
@@ -691,6 +692,7 @@ internal fun EntryDetailEpisodesTab(
                     titleEnglish = detailState?.titleEnglish,
                     titleRomaji = detailState?.titleRomaji,
                     titleNative = detailState?.titleNative,
+                    synonyms = detailState?.synonyms.orEmpty(),
                     startYear = entry.year,
                     isDownloadMode = true
                 )

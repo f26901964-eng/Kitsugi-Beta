@@ -183,6 +183,7 @@ fun ApiDetailLeftPanel(
                             titleEnglish = displayResult.titleEnglish,
                             titleRomaji = detailState?.titleRomaji,
                             titleNative = detailState?.titleNative,
+                            synonyms = detailState?.synonyms.orEmpty(),
                             startYear = displayResult.year
                         )
                     },

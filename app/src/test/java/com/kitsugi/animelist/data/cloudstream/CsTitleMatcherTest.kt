@@ -284,6 +284,188 @@ class CsTitleMatcherTest {
         assertEquals("İtme Beni (밀어내기)", match?.name)
     }
 
+    @Test
+    fun unicodeAliasesAndFranchiseSuffixesArePreserved() {
+        assertEquals("naruto shippuden", CsTitleMatcher.normalizeTitleForMatch("Naruto: Shippuden"))
+        assertEquals("呪術廻戦", CsTitleMatcher.normalizeTitleForMatch("呪術廻戦"))
+        assertEquals(1.0, CsTitleMatcher.getBestTitleSimilarity("呪術廻戦", "Jujutsu Kaisen", listOf("呪術廻戦")), 0.001)
+        val nativeOnlyMatch = CsTitleMatcher.findBestMatch(
+            results = listOf(createSearchResponse("呪術廻戦", "https://example.com/jujutsu", null, TvType.Anime)),
+            mainTitle = "Jujutsu Kaisen",
+            altTitles = listOf("呪術廻戦"),
+            targetYear = null,
+            targetSeason = 1,
+            isMovie = false
+        )
+        assertEquals("呪術廻戦", nativeOnlyMatch?.name)
+        assertEquals("Naruto Shippuden", CsTitleMatcher.extractCleanBaseTitle("Naruto Shippuden"))
+    }
+
+    @Test
+    fun matcherRejectsOnlyFirstWordFranchiseCollision() {
+        val results = listOf(
+            createSearchResponse("Naruto", 2002),
+            createSearchResponse("Naruto Shippuden", 2007)
+        )
+
+        val match = CsTitleMatcher.findBestMatch(
+            results = results,
+            mainTitle = "Naruto Shippuden",
+            altTitles = emptyList(),
+            targetYear = 2007,
+            targetSeason = 1,
+            isMovie = false
+        )
+
+        assertEquals("Naruto Shippuden", match?.name)
+    }
+
+    @Test
+    fun singleWordFranchiseAliasCannotOverrideAFullTitleMismatch() {
+        val results = listOf(
+            createSearchResponse("Naruto", 2002),
+            createSearchResponse("Naruto Shippuden", 2007)
+        )
+
+        val match = CsTitleMatcher.findBestMatch(
+            results = results,
+            mainTitle = "Naruto Shippuden",
+            altTitles = listOf("Naruto"),
+            targetYear = 2007,
+            targetSeason = 1,
+            isMovie = false
+        )
+
+        assertEquals("Naruto Shippuden", match?.name)
+    }
+
+    @Test
+    fun matcherRejectsExplicitWrongSeasonForSeasonOne() {
+        val result = createSearchResponse("Demon Slayer 2. Sezon", 2021)
+
+        val match = CsTitleMatcher.findBestMatch(
+            results = listOf(result),
+            mainTitle = "Demon Slayer",
+            altTitles = emptyList(),
+            targetYear = 2021,
+            targetSeason = 1,
+            isMovie = false
+        )
+
+        assertNull("A mismatched season must not be used as a fallback", match)
+        assertFalse(
+            CsTitleMatcher.isCandidateMetadataCompatible(
+                result, "Demon Slayer", emptyList(), 2021, 1, 1, isMovie = false
+            )
+        )
+    }
+
+    @Test
+    fun mediaTypeDisambiguatesSameNamedMovieAndSeries() {
+        val series = createSearchResponse("The Silent Voice", "https://example.com/series", 2024, TvType.TvSeries)
+        val movie = createSearchResponse("The Silent Voice", "https://example.com/movie", 2024, TvType.Movie)
+        val live = createSearchResponse("The Silent Voice", "https://example.com/live", 2024, TvType.Live)
+
+        val movieMatch = CsTitleMatcher.findBestMatch(
+            results = listOf(series, movie),
+            mainTitle = "The Silent Voice",
+            altTitles = emptyList(),
+            targetYear = 2024,
+            targetSeason = 1,
+            isMovie = true
+        )
+        val seriesMatch = CsTitleMatcher.findBestMatch(
+            results = listOf(movie, series),
+            mainTitle = "The Silent Voice",
+            altTitles = emptyList(),
+            targetYear = 2024,
+            targetSeason = 1,
+            isMovie = false
+        )
+        val liveMatch = CsTitleMatcher.findBestMatch(
+            results = listOf(live),
+            mainTitle = "The Silent Voice",
+            altTitles = emptyList(),
+            targetYear = 2024,
+            targetSeason = 1,
+            isMovie = true
+        )
+
+        assertEquals(movie.url, movieMatch?.url)
+        assertEquals(series.url, seriesMatch?.url)
+        assertNull(liveMatch)
+    }
+
+    @Test
+    fun movieLookupDoesNotChooseAnotherSequelOrDistantYear() {
+        val results = listOf(
+            createSearchResponse("Cars", "https://example.com/cars", 2006, TvType.Movie),
+            createSearchResponse("Cars 2", "https://example.com/cars-2", 2011, TvType.Movie)
+        )
+
+        val original = CsTitleMatcher.findBestMatch(
+            results = results,
+            mainTitle = "Cars",
+            altTitles = emptyList(),
+            targetYear = 2006,
+            targetSeason = 1,
+            isMovie = true
+        )
+        val sequel = CsTitleMatcher.findBestMatch(
+            results = results,
+            mainTitle = "Cars 2",
+            altTitles = listOf("Cars"),
+            targetYear = 2011,
+            targetSeason = 1,
+            isMovie = true
+        )
+
+        assertEquals("Cars", original?.name)
+        assertEquals("Cars 2", sequel?.name)
+
+        val ambiguousSequel = CsTitleMatcher.findBestMatch(
+            results = listOf(createSearchResponse("Cars", "https://example.com/cars", null, TvType.Movie)),
+            mainTitle = "Cars 2",
+            altTitles = listOf("Cars"),
+            targetYear = null,
+            targetSeason = 1,
+            isMovie = true
+        )
+        assertNull("A base-title alias alone cannot prove the sequel", ambiguousSequel)
+
+        val leadingNumberTitle = CsTitleMatcher.findBestMatch(
+            results = listOf(createSearchResponse("2001: A Space Odyssey", "https://example.com/2001", null, TvType.Movie)),
+            mainTitle = "2001: A Space Odyssey",
+            altTitles = emptyList(),
+            targetYear = 1968,
+            targetSeason = 1,
+            isMovie = true
+        )
+        assertEquals("A leading title number is not a release year", "2001: A Space Odyssey", leadingNumberTitle?.name)
+
+        val distantSameTitle = CsTitleMatcher.findBestMatch(
+            results = listOf(createSearchResponse("Inception", "https://example.com/fan-film", 2020, TvType.Movie)),
+            mainTitle = "Inception",
+            altTitles = emptyList(),
+            targetYear = 2010,
+            targetSeason = 1,
+            isMovie = true
+        )
+        assertNull("A same-title result from a distant movie year must be rejected", distantSameTitle)
+    }
+
+    @Test
+    fun seasonAndEpisodeParsersSupportJapaneseAndChineseFormats() {
+        assertEquals(2, CsTitleMatcher.parseSeasonFromTitle("呪術廻戦 第2期"))
+        assertEquals(2, CsTitleMatcher.parseSeasonFromTitle("咒术回战 第二季"))
+        assertEquals(3, CsTitleMatcher.parseSeasonFromTitle("咒术回战 第三季"))
+        assertEquals(5, CsTitleMatcher.parseEpisodeFromTitle("呪術廻戦 第2期 第5話"))
+        assertEquals(5, CsTitleMatcher.parseEpisodeFromTitle("咒术回战 第三季 第5集"))
+        assertEquals(12, CsTitleMatcher.parseEpisodeFromTitle("第十二話"))
+        assertEquals(5, CsTitleMatcher.parseEpisodeFromTitle("Show S02.E05"))
+        assertEquals(5, CsTitleMatcher.parseEpisodeFromTitle("Show 2x05"))
+    }
+
     // ─── ParseSeasonFromSlug Tests ────────────────────────────────────────────
 
     @Test
@@ -293,6 +475,7 @@ class CsTitleMatcherTest {
         assertEquals(3, CsTitleMatcher.parseSeasonFromSlug("https://example.com/sezon-3/naruto"))
         assertEquals(2, CsTitleMatcher.parseSeasonFromSlug("https://example.com/anime/s2/naruto"))
         assertEquals(2, CsTitleMatcher.parseSeasonFromSlug("https://example.com/anime/naruto-2/"))
+        assertEquals(4, CsTitleMatcher.parseSeasonFromSlug("https://example.com/anime/overlord-iv"))
         assertNull(CsTitleMatcher.parseSeasonFromSlug("https://example.com/anime/naruto"))
     }
 
@@ -387,7 +570,10 @@ class CsTitleMatcherTest {
         assertEquals(2, CsTitleMatcher.parseSeasonFromTitle("Vinland Saga II"))
         assertEquals(3, CsTitleMatcher.parseSeasonFromTitle("Overlord III"))
         assertEquals(4, CsTitleMatcher.parseSeasonFromTitle("Overlord IV"))
+        assertEquals(4, CsTitleMatcher.parseSeasonFromTitle("Overlord IV (2022)"))
         assertEquals(5, CsTitleMatcher.parseSeasonFromTitle("Overlord V"))
+        assertEquals(3, CsTitleMatcher.parseSeasonFromTitle("Mushoku Tensei III: Isekai Ittara Honki Dasu"))
+        assertEquals("Mushoku Tensei: Isekai Ittara Honki Dasu", CsTitleMatcher.extractCleanBaseTitle("Mushoku Tensei III: Isekai Ittara Honki Dasu"))
         assertNull(CsTitleMatcher.parseSeasonFromTitle("Naruto"))
         assertNull(CsTitleMatcher.parseSeasonFromTitle("Death Note"))
     }
@@ -455,12 +641,17 @@ class CsTitleMatcherTest {
     @Test
     fun testToAsciiTitle() {
         val ascii = CsTitleMatcher.toAsciiTitle("Şahane Aile — Çok İyi")
-        assertEquals("Sahane Aile   Cok Iyi", ascii)
+        assertEquals("Sahane Aile Cok Iyi", ascii)
     }
 
     // ─── Private Helpers ──────────────────────────────────────────────────────
 
-    private fun createSearchResponse(name: String, url: String = "http://example.com", year: Int?): SearchResponse {
+    private fun createSearchResponse(
+        name: String,
+        url: String = "http://example.com",
+        year: Int?,
+        type: TvType = TvType.Anime
+    ): SearchResponse {
         val cls = Class.forName("com.lagradost.cloudstream3.AnimeSearchResponse")
         val ctor = cls.constructors.firstOrNull { it.parameterCount >= 3 }
             ?: throw IllegalStateException("Could not find AnimeSearchResponse constructor")
@@ -468,7 +659,7 @@ class CsTitleMatcherTest {
         args[0] = name
         args[1] = url
         args[2] = "DummyProvider"
-        if (ctor.parameterCount > 3) args[3] = TvType.Anime
+        if (ctor.parameterCount > 3) args[3] = type
 
         val paramTypes = ctor.parameterTypes
         for (i in 4 until ctor.parameterCount) {

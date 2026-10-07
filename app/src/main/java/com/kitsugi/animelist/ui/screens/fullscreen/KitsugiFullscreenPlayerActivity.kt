@@ -74,6 +74,7 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
         const val EXTRA_TITLE_ENGLISH = "extra_title_english"
         const val EXTRA_TITLE_ROMAJI = "extra_title_romaji"
         const val EXTRA_TITLE_NATIVE = "extra_title_native"
+        const val EXTRA_SYNONYMS = "extra_synonyms"
         const val EXTRA_START_YEAR = "extra_start_year"
         const val EXTRA_DESCRIPTION = "extra_description"
         const val EXTRA_CAST_JSON   = "extra_cast_json"
@@ -120,6 +121,7 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
             titleEnglish: String? = null,
             titleRomaji: String? = null,
             titleNative: String? = null,
+            synonyms: List<String> = emptyList(),
             startYear: Int? = null,
             description: String? = null,
             cast: List<MetaCastMember> = emptyList(),
@@ -156,6 +158,7 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
                         putExtra(EXTRA_TITLE_ENGLISH, titleEnglish)
                         putExtra(EXTRA_TITLE_ROMAJI, titleRomaji)
                         putExtra(EXTRA_TITLE_NATIVE, titleNative)
+                        if (synonyms.isNotEmpty()) putStringArrayListExtra(EXTRA_SYNONYMS, ArrayList(synonyms))
                         startYear?.let { putExtra(EXTRA_START_YEAR, it) }
                         description?.let { putExtra(EXTRA_DESCRIPTION, it) }
                         putExtra(EXTRA_IS_MOVIE, isMovie)
@@ -276,6 +279,7 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
         val titleEnglish = intent.getStringExtra(EXTRA_TITLE_ENGLISH)
         val titleRomaji = intent.getStringExtra(EXTRA_TITLE_ROMAJI)
         val titleNative = intent.getStringExtra(EXTRA_TITLE_NATIVE)
+        val synonyms = intent.getStringArrayListExtra(EXTRA_SYNONYMS)?.filter { it.isNotBlank() }.orEmpty()
         val startYear = intent.getIntExtra(EXTRA_START_YEAR, -1).takeIf { it != -1 }
         val description = intent.getStringExtra(EXTRA_DESCRIPTION)
         val isMovie = intent.getBooleanExtra(EXTRA_IS_MOVIE, false)
@@ -349,6 +353,7 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
                     titleEnglish     = titleEnglish,
                     titleRomaji      = titleRomaji,
                     titleNative      = titleNative,
+                    synonyms         = synonyms,
                     startYear        = startYear,
                     description      = description,
                     castList         = castList,

@@ -7,10 +7,7 @@ package com.kitsugi.animelist.ui.screens.profile
 
 import android.content.res.Configuration
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
@@ -22,7 +19,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
@@ -35,11 +31,9 @@ import com.kitsugi.animelist.ui.app.KitsugiProfileViewModel
 import com.kitsugi.animelist.ui.components.KitsugiActivityDetailBottomSheet
 import com.kitsugi.animelist.ui.components.KitsugiImageGalleryDialog
 import com.kitsugi.animelist.ui.components.KitsugiKitsuLoginDialog
-import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.ui.components.KitsugiShikimoriLoginDialog
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
-import com.kitsugi.animelist.ui.utils.tvClickable
 import kotlinx.coroutines.launch
 
 @Composable
@@ -122,8 +116,7 @@ fun KitsugiProfileScreen(
             .background(KitsugiColors.Background)
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
-            // ── Platform sub-tab selector & Selector Pill ──────────────────
-            val tabScrollState = rememberScrollState()
+            // ── Tek kaynak seçici; platformlar açılır panelden değiştirilir ──
             val currentPlatform = ProfilePlatform.entries.getOrElse(activeSubTab) { ProfilePlatform.ANILIST }
             val isCurrentConnected = when (currentPlatform) {
                 ProfilePlatform.ANILIST -> isAniListConnected
@@ -147,63 +140,7 @@ fun KitsugiProfileScreen(
                     onClick = { showSourcePickerSheet = true }
                 )
 
-                // Scrollable platform tabs with genuine platform logos (Zero Emojis!)
-                Row(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(22.dp))
-                        .background(KitsugiColors.Surface)
-                        .horizontalScroll(tabScrollState)
-                        .padding(3.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(2.dp)
-                ) {
-                    ProfilePlatform.entries.forEachIndexed { index, platform ->
-                        val isSelected = activeSubTab == index
-                        val isServiceConnected = when (platform) {
-                            ProfilePlatform.ANILIST -> isAniListConnected
-                            ProfilePlatform.MAL -> isMalConnected
-                            ProfilePlatform.SIMKL -> isSimklConnected
-                            ProfilePlatform.KITSU -> isKitsuConnected
-                            ProfilePlatform.SHIKIMORI -> isShikimoriConnected
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(20.dp))
-                                .background(if (isSelected) accentColor else Color.Transparent)
-                                .tvClickable(shape = RoundedCornerShape(20.dp), onClick = { viewModel.activeSubTab = index })
-                                .padding(horizontal = 12.dp, vertical = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.Center
-                            ) {
-                                KitsugiPlatformLogo(
-                                    platformId = platform.id,
-                                    size = 16.dp,
-                                    modifier = Modifier.padding(end = 6.dp)
-                                )
-                                Text(
-                                    text = platform.label,
-                                    color = if (isSelected) KitsugiColors.Background else if (isServiceConnected) KitsugiColors.TextPrimary else KitsugiColors.TextMuted,
-                                    style = MaterialTheme.typography.labelMedium,
-                                    fontWeight = if (isSelected) FontWeight.Black else FontWeight.SemiBold
-                                )
-                                if (isServiceConnected) {
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Box(
-                                        modifier = Modifier
-                                            .size(5.dp)
-                                            .clip(CircleShape)
-                                            .background(if (isSelected) KitsugiColors.Background else KitsugiColors.AccentGreen)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
+                Spacer(modifier = Modifier.weight(1f))
 
                 if (onOpenStatsClick != null) {
                     IconButton(

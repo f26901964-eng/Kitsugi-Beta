@@ -42,7 +42,8 @@ class AddonStreamRepository(private val context: Context) {
         aniListId: Int?,
         season: Int,
         episode: Int,
-        tmdbId: Int? = null
+        tmdbId: Int? = null,
+        isMovie: Boolean = false
     ): List<StreamSource> = coroutineScope {
         // Step 1: Resolve IMDb + Kitsu IDs in one ARM API call
         val resolvedIds = KitsugiIdResolver.resolveIds(malId, aniListId, tmdbId)
@@ -56,9 +57,16 @@ class AddonStreamRepository(private val context: Context) {
             return@coroutineScope emptyList()
         }
 
-        val imdbVideoId  = imdbId?.let { "$it:$season:$episode" }
-        val kitsuVideoId = kitsuId?.let { "kitsu:$it:$episode" }
-        val contentType  = "series"
+        val stremioLookup = com.kitsugi.animelist.data.remote.StremioVideoId.forContent(
+            isMovie = isMovie,
+            imdbId = imdbId,
+            kitsuId = kitsuId,
+            season = season,
+            episode = episode
+        )
+        val imdbVideoId = stremioLookup.imdbVideoId
+        val kitsuVideoId = stremioLookup.kitsuVideoId
+        val contentType = stremioLookup.contentType
 
         // Step 2: Build a list of (addon, videoId) pairs — each addon is queried
         // with the video ID format it actually understands.

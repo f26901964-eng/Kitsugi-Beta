@@ -132,15 +132,22 @@ fun TvStreamScreen(
         if (selectedAddonFilter == null) allStreams else allStreams.filter { it.addonName == selectedAddonFilter }
     }
 
-    val alternativeTitles = remember(args.titleEnglish, args.titleRomaji, args.titleNative, args.title) {
+    val alternativeTitles = remember(args.titleEnglish, args.titleRomaji, args.titleNative, args.synonyms, args.title) {
         buildList {
             args.titleEnglish?.takeIf { it.isNotBlank() && it != args.title }?.let { add(it) }
             args.titleRomaji?.takeIf { it.isNotBlank() && it != args.title }?.let { add(it) }
-            args.titleNative?.takeIf { it.isNotBlank() }?.let { add(it) }
-        }
+            args.titleNative?.takeIf { it.isNotBlank() && it != args.title }?.let { add(it) }
+            args.synonyms.asSequence()
+                .map { it.trim() }
+                .filter { it.isNotBlank() && it != args.title }
+                .forEach { add(it) }
+        }.distinctBy { com.kitsugi.animelist.data.cloudstream.CsTitleMatcher.normalizeTitleForMatch(it) }
     }
 
-    LaunchedEffect(args.malId, args.aniListId, args.tmdbId, args.episode, args.season) {
+    LaunchedEffect(
+        args.malId, args.aniListId, args.tmdbId, args.episode, args.season, args.isMovie,
+        args.title, args.startYear, alternativeTitles
+    ) {
         viewModel.startFetch(
             malId = args.malId,
             aniListId = args.aniListId,
@@ -149,7 +156,8 @@ fun TvStreamScreen(
             season = args.season,
             title = args.title,
             alternativeTitles = alternativeTitles,
-            startYear = args.startYear
+            startYear = args.startYear,
+            isMovie = args.isMovie
         )
     }
 
@@ -177,6 +185,7 @@ fun TvStreamScreen(
                     currentSourceIndex = allStreams.indexOf(source),
                     malId = args.malId,
                     aniListId = args.aniListId,
+                    tmdbId = args.tmdbId,
                     season = args.season,
                     episode = args.episode,
                     animeTitle = args.title,
@@ -184,6 +193,8 @@ fun TvStreamScreen(
                     titleEnglish = args.titleEnglish,
                     titleRomaji = args.titleRomaji,
                     titleNative = args.titleNative,
+                    synonyms = args.synonyms,
+                    isMovie = args.isMovie,
                     startYear = args.startYear,
                     description = args.description
                 )
@@ -533,7 +544,8 @@ fun TvStreamScreen(
                         episode = args.episode,
                         malId = args.malId,
                         aniListId = args.aniListId,
-                        tmdbId = args.tmdbId
+                        tmdbId = args.tmdbId,
+                        isMovie = args.isMovie
                     )
                 }
             )

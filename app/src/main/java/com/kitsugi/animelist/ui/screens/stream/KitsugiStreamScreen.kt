@@ -93,6 +93,7 @@ fun KitsugiStreamScreen(
     titleEnglish: String? = null,
     titleRomaji: String? = null,
     titleNative: String? = null,
+    synonyms: List<String> = emptyList(),
     startYear: Int? = null,
     description: String? = null,
     castList: List<MetaCastMember> = emptyList(),
@@ -163,16 +164,20 @@ fun KitsugiStreamScreen(
     }
 
     // ── Build alternative titles list once ────────────────────────────────────
-    val alternativeTitles = remember(titleEnglish, titleRomaji, titleNative, title) {
+    val alternativeTitles = remember(titleEnglish, titleRomaji, titleNative, synonyms, title) {
         buildList {
             titleEnglish?.takeIf { it.isNotBlank() && it != title }?.let { add(it) }
             titleRomaji?.takeIf { it.isNotBlank() && it != title }?.let { add(it) }
-            titleNative?.takeIf { it.isNotBlank() }?.let { add(it) }
-        }
+            titleNative?.takeIf { it.isNotBlank() && it != title }?.let { add(it) }
+            synonyms.asSequence()
+                .map { it.trim() }
+                .filter { it.isNotBlank() && it != title }
+                .forEach { add(it) }
+        }.distinctBy { com.kitsugi.animelist.data.cloudstream.CsTitleMatcher.normalizeTitleForMatch(it) }
     }
 
     // ── Trigger fetch — ViewModel guards against duplicate/redundant calls ────
-    LaunchedEffect(malId, aniListId, tmdbId, episode, season, cs3Url) {
+    LaunchedEffect(malId, aniListId, tmdbId, episode, season, cs3Url, isMovie, title, startYear, alternativeTitles) {
         viewModel.startFetch(
             malId             = malId,
             aniListId         = aniListId,
@@ -183,12 +188,13 @@ fun KitsugiStreamScreen(
             alternativeTitles = alternativeTitles,
             startYear         = startYear,
             cs3Url            = cs3Url,
-            cs3ApiName        = cs3ApiName
+            cs3ApiName        = cs3ApiName,
+            isMovie           = isMovie
         )
     }
 
     // ── Player launcher ───────────────────────────────────────────────────────
-    val launchPlayer = remember(context, allStreams, streamPrefs, onLaunchExternalPlayer, description, castList) {
+    val launchPlayer = remember(context, allStreams, streamPrefs, onLaunchExternalPlayer, description, castList, synonyms) {
         { source: StreamSource, resolvedUrl: String, engine: String ->
             val watchHistoryAnimeId = if (aniListId != null) aniListId.toString()
                                       else if (malId != null) malId.toString()
@@ -234,6 +240,7 @@ fun KitsugiStreamScreen(
                         malId = malId, aniListId = aniListId, tmdbId = tmdbId, season = season, episode = episode,
                         animeTitle = title, posterUrl = posterUrl,
                         titleEnglish = titleEnglish, titleRomaji = titleRomaji, titleNative = titleNative,
+                        synonyms = synonyms,
                         startYear = startYear, description = description, cast = castList,
                         isMovie = isMovie,
                         cs3Url = cs3Url,
@@ -257,6 +264,7 @@ fun KitsugiStreamScreen(
                             malId = malId, aniListId = aniListId, tmdbId = tmdbId, season = season, episode = episode,
                             animeTitle = title, posterUrl = posterUrl,
                             titleEnglish = titleEnglish, titleRomaji = titleRomaji, titleNative = titleNative,
+                            synonyms = synonyms,
                             startYear = startYear, description = description, cast = castList,
                             isMovie = isMovie,
                             cs3Url = cs3Url,
@@ -564,7 +572,8 @@ fun KitsugiStreamScreen(
                                                 alternativeTitles = alternativeTitles,
                                                 startYear = startYear,
                                                 cs3Url = res.cs3Url,
-                                                cs3ApiName = res.cs3ApiName
+                                                cs3ApiName = res.cs3ApiName,
+                                                isMovie = isMovie
                                             )
                                         }
                                         .padding(8.dp),
@@ -668,7 +677,8 @@ fun KitsugiStreamScreen(
                     episode             = episode,
                     malId               = malId,
                     aniListId           = aniListId,
-                    tmdbId              = tmdbId
+                    tmdbId              = tmdbId,
+                    isMovie             = isMovie
                 )
             }
         )

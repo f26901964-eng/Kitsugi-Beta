@@ -454,7 +454,7 @@ fun TvRootScreen(
                             existingEntry = existingApiEntry,
                             titleLanguage = settingsState.titleLanguage,
                             onBackClick = { navigationState.pop() },
-                            onPlayEpisodeClick = { episode, season ->
+                            onPlayEpisodeClick = { episode, season, synonyms, tmdbId ->
                                 val streamMalId = if (mediaResult.source.lowercase() == "anilist") {
                                     mediaResult.realMalId
                                 } else {
@@ -468,7 +468,7 @@ fun TvRootScreen(
                                     TvStreamArgs(
                                         malId = streamMalId,
                                         aniListId = streamAniListId,
-                                        tmdbId = mediaResult.tmdbId,
+                                        tmdbId = tmdbId ?: mediaResult.tmdbId,
                                         episode = episode.episodeNumber ?: 1,
                                         season = season,
                                         isMovie = false,
@@ -478,11 +478,12 @@ fun TvRootScreen(
                                         titleRomaji = mediaResult.title,
                                         titleNative = mediaResult.titleJapanese,
                                         startYear = mediaResult.year,
-                                        description = mediaResult.subtitle
+                                        description = mediaResult.subtitle,
+                                        synonyms = synonyms
                                     )
                                 )
                             },
-                            onPlayMovieClick = {
+                            onPlayMovieClick = { synonyms, tmdbId ->
                                 val streamMalId = if (mediaResult.source.lowercase() == "anilist") {
                                     mediaResult.realMalId
                                 } else {
@@ -496,7 +497,7 @@ fun TvRootScreen(
                                     TvStreamArgs(
                                         malId = streamMalId,
                                         aniListId = streamAniListId,
-                                        tmdbId = mediaResult.tmdbId,
+                                        tmdbId = tmdbId ?: mediaResult.tmdbId,
                                         episode = 1,
                                         season = 1,
                                         isMovie = true,
@@ -506,7 +507,8 @@ fun TvRootScreen(
                                         titleRomaji = mediaResult.title,
                                         titleNative = mediaResult.titleJapanese,
                                         startYear = mediaResult.year,
-                                        description = mediaResult.subtitle
+                                        description = mediaResult.subtitle,
+                                        synonyms = synonyms
                                     )
                                 )
                             },

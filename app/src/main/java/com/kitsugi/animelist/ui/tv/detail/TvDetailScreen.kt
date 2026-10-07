@@ -93,8 +93,8 @@ fun TvDetailScreen(
     result: JikanSearchResult,
     existingEntry: MediaEntry?,
     onBackClick: () -> Unit,
-    onPlayEpisodeClick: (episode: KitsugiStreamingEpisode, season: Int) -> Unit,
-    onPlayMovieClick: () -> Unit,
+    onPlayEpisodeClick: (episode: KitsugiStreamingEpisode, season: Int, synonyms: List<String>, tmdbId: Int?) -> Unit,
+    onPlayMovieClick: (synonyms: List<String>, tmdbId: Int?) -> Unit,
     onToggleLibrary: () -> Unit,
     onNavigateToRelationDetail: (JikanSearchResult) -> Unit,
     onCharacterClick: (characterId: Int, source: String, name: String?, imageUrl: String?) -> Unit,
@@ -409,7 +409,7 @@ fun TvDetailScreen(
                                     onClick = {
                                         if (isMovie) {
                                             com.kitsugi.animelist.core.player.TvTrailerPlayerPoolHolder.get(context).yield()
-                                            onPlayMovieClick()
+                                            onPlayMovieClick(detailState?.synonyms.orEmpty(), detailState?.tmdbId ?: displayResult.tmdbId)
                                         } else {
                                             try {
                                                 if (hasMultipleSeasons && hasSeasonTabs) {
@@ -602,7 +602,7 @@ fun TvDetailScreen(
                                                         isWatched = isWatched,
                                                         onClick = {
                                                             com.kitsugi.animelist.core.player.TvTrailerPlayerPoolHolder.get(context).yield()
-                                                            onPlayEpisodeClick(episode, targetSeason)
+                                                            onPlayEpisodeClick(episode, targetSeason, detailState?.synonyms.orEmpty(), detailState?.tmdbId ?: displayResult.tmdbId)
                                                         }
                                                     )
                                                 }

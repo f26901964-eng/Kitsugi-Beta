@@ -15,5 +15,6 @@ data class TvStreamArgs(
     val titleRomaji: String?,
     val titleNative: String?,
     val startYear: Int?,
-    val description: String? = null
+    val description: String? = null,
+    val synonyms: List<String> = emptyList()
 ) : Serializable

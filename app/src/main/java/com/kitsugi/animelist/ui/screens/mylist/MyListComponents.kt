@@ -511,63 +511,10 @@ fun MyListTabBar(
             )
         }
 
-        // 2. Tümü + yatay kaydırılabilir platform çipleri (hızlı geçiş için)
-        Row(
-            modifier = Modifier
-                .weight(1f)
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            displayPlatforms.forEach { platform ->
-                val isSelected = selectedTabIndex == platform.index
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(
-                            if (isSelected) platform.brandColor.copy(alpha = 0.22f)
-                            else KitsugiColors.surface
-                        )
-                        .border(
-                            width = if (isSelected) 1.5.dp else 1.dp,
-                            color = if (isSelected) platform.brandColor else KitsugiColors.border.copy(alpha = 0.15f),
-                            shape = RoundedCornerShape(14.dp)
-                        )
-                        .tvClickable(shape = RoundedCornerShape(14.dp), onClick = {
-                            onTabIndexChange(platform.index)
-                        })
-                        .padding(horizontal = 10.dp, vertical = 7.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp)
-                    ) {
-                        KitsugiPlatformLogo(
-                            platformId = platform.id,
-                            size = 15.dp,
-                            fallbackTint = platform.brandColor
-                        )
-                        Text(
-                            text = platform.shortName,
-                            color = if (isSelected) platform.brandColor else KitsugiColors.textMuted,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium
-                        )
-                        if (platform.count > 0) {
-                            Text(
-                                text = "${platform.count}",
-                                color = if (isSelected) platform.brandColor else KitsugiColors.textSecondary.copy(alpha = 0.7f),
-                                style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
-                    }
-                }
-            }
-        }
+        // Kaynak değişimi zaten soldaki açılır seçicide var; yinelenen sekme çubuğu kaldırıldı.
+        Spacer(modifier = Modifier.weight(1f))
 
-        // 3. Rastgele Butonu 🎲
+        // Rastgele öğe butonu
         Box(
             modifier = Modifier
                 .size(38.dp)

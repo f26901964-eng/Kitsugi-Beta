@@ -30,6 +30,7 @@ class KitsugiStreamActivity : ComponentActivity() {
         private const val EXTRA_TITLE_ENGLISH  = "extra_title_english"
         private const val EXTRA_TITLE_ROMAJI   = "extra_title_romaji"
         private const val EXTRA_TITLE_NATIVE   = "extra_title_native"
+        private const val EXTRA_SYNONYMS       = "extra_synonyms"
         private const val EXTRA_START_YEAR     = "extra_start_year"
         private const val EXTRA_DESCRIPTION    = "extra_description"
         private const val EXTRA_CAST_JSON      = "extra_cast_json"
@@ -58,6 +59,7 @@ class KitsugiStreamActivity : ComponentActivity() {
             titleEnglish: String? = null,
             titleRomaji: String? = null,
             titleNative: String? = null,
+            synonyms: List<String> = emptyList(),
             startYear: Int? = null,
             description: String? = null,
             cast: List<MetaCastMember> = emptyList(),
@@ -80,6 +82,7 @@ class KitsugiStreamActivity : ComponentActivity() {
                     titleEnglish?.let   { putExtra(EXTRA_TITLE_ENGLISH, it) }
                     titleRomaji?.let    { putExtra(EXTRA_TITLE_ROMAJI, it) }
                     titleNative?.let    { putExtra(EXTRA_TITLE_NATIVE, it) }
+                    if (synonyms.isNotEmpty()) putStringArrayListExtra(EXTRA_SYNONYMS, ArrayList(synonyms))
                     startYear?.let      { putExtra(EXTRA_START_YEAR, it) }
                     description?.let    { putExtra(EXTRA_DESCRIPTION, it) }
                     putExtra(EXTRA_IS_AUTOPLAY, isAutoplay)
@@ -117,7 +120,7 @@ class KitsugiStreamActivity : ComponentActivity() {
 
         // T1.8: Otomatik sonraki bölümü başlatma
         val autoPlay = getSharedPreferences(PREFS_NAME, MODE_PRIVATE).getBoolean("autoplay", true)
-        if (com.kitsugi.animelist.core.player.ExternalAutoNextPolicy.shouldAutoNext(
+        if (!currentIsMovie && com.kitsugi.animelist.core.player.ExternalAutoNextPolicy.shouldAutoNext(
                 positionMs = result.positionMs,
                 durationMs = result.durationMs,
                 endedByUser = result.endedByUser,
@@ -140,6 +143,7 @@ class KitsugiStreamActivity : ComponentActivity() {
                 titleEnglish = currentTitleEnglish,
                 titleRomaji = currentTitleRomaji,
                 titleNative = currentTitleNative,
+                synonyms = currentSynonyms,
                 startYear = currentStartYear,
                 description = currentDescription,
                 isAutoplay = true
@@ -162,6 +166,7 @@ class KitsugiStreamActivity : ComponentActivity() {
     private var currentTitleEnglish: String? = null
     private var currentTitleRomaji: String? = null
     private var currentTitleNative: String? = null
+    private var currentSynonyms: List<String> = emptyList()
     private var currentStartYear: Int? = null
     private var currentDescription: String? = null
     private var isAutoplayMode: Boolean = false
@@ -185,6 +190,7 @@ class KitsugiStreamActivity : ComponentActivity() {
         currentTitleEnglish = intent.getStringExtra(EXTRA_TITLE_ENGLISH)
         currentTitleRomaji  = intent.getStringExtra(EXTRA_TITLE_ROMAJI)
         currentTitleNative  = intent.getStringExtra(EXTRA_TITLE_NATIVE)
+        currentSynonyms     = intent.getStringArrayListExtra(EXTRA_SYNONYMS)?.filter { it.isNotBlank() }.orEmpty()
         currentStartYear    = if (intent.hasExtra(EXTRA_START_YEAR)) intent.getIntExtra(EXTRA_START_YEAR, 0).takeIf { it > 0 } else null
         currentDescription  = intent.getStringExtra(EXTRA_DESCRIPTION)
         isAutoplayMode      = intent.getBooleanExtra(EXTRA_IS_AUTOPLAY, false)
@@ -208,7 +214,7 @@ class KitsugiStreamActivity : ComponentActivity() {
                     malId = currentMalId, aniListId = currentAniList, tmdbId = currentTmdbId,
                     episode = currentEpisode, season = currentSeason, isMovie = currentIsMovie,
                     title = currentTitle, posterUrl = currentPosterUrl, titleEnglish = currentTitleEnglish,
-                    titleRomaji = currentTitleRomaji, titleNative = currentTitleNative, startYear = currentStartYear,
+                    titleRomaji = currentTitleRomaji, titleNative = currentTitleNative, synonyms = currentSynonyms, startYear = currentStartYear,
                     description = currentDescription, castList = castList,
                     isAutoplay = isAutoplayMode,
                     isDownloadMode = isDownloadMode,

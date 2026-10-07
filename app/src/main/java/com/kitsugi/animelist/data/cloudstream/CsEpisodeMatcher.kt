@@ -5,6 +5,8 @@ import com.lagradost.cloudstream3.AnimeLoadResponse
 import com.lagradost.cloudstream3.LoadResponse
 import com.lagradost.cloudstream3.MovieLoadResponse
 import com.lagradost.cloudstream3.TvSeriesLoadResponse
+import java.text.Normalizer
+import java.util.Locale
 
 /**
  * Bölüm verisi çıkarma yardımcıları.
@@ -13,6 +15,32 @@ import com.lagradost.cloudstream3.TvSeriesLoadResponse
 internal object CsEpisodeMatcher {
 
     private const val TAG = "CsEpisodeMatcher"
+
+    /** Exact, boundary-aware recognition of common English/Turkish/Japanese/Chinese episode labels. */
+    fun episodeNameMatchesTarget(name: String, season: Int, episode: Int): Boolean {
+        if (season < 1 || episode < 1) return false
+        val normalized = Normalizer.normalize(name, Normalizer.Form.NFKC)
+            .lowercase(Locale.ROOT)
+            .replace('ı', 'i')
+        val s = season.toString()
+        val e = episode.toString()
+        val seasonEpisodePatterns = listOf(
+            Regex("""(?<![\p{L}\p{N}])s0*${s}[\s._-]*e0*${e}(?![0-9])"""),
+            Regex("""(?<![0-9])0*${s}\s*x\s*0*${e}(?![0-9])"""),
+            Regex("""(?<![\p{L}\p{N}])(?:season|sezon)\s*0*${s}[^0-9]{0,16}(?:episode|ep|bölüm|bolum)\s*0*${e}(?![0-9])"""),
+            Regex("""(?<![0-9])0*${s}\s*[.º°]?\s*(?:sezon|season)\b.{0,24}?(?<![0-9])0*${e}\s*[.º°]?\s*(?:episode|ep|bölüm|bolum)\b"""),
+            Regex("""第0*${s}\s*(?:期|季)[\s,·-]*第0*${e}\s*(?:話|话|集)""")
+        )
+        if (seasonEpisodePatterns.any { it.containsMatchIn(normalized) }) return true
+        if (season != 1) return false
+
+        val seasonOneEpisodePatterns = listOf(
+            Regex("""(?<![\p{L}\p{N}])(?:episode|ep|bölüm|bolum)\s*\.?\s*0*${e}(?![0-9])"""),
+            Regex("""(?<![0-9])0*${e}\s*[.º°]?\s*(?:episode|ep|bölüm|bolum)\b"""),
+            Regex("""第0*${e}\s*(?:話|话|集)""")
+        )
+        return seasonOneEpisodePatterns.any { it.containsMatchIn(normalized) }
+    }
 
     /**
      * Verilen [LoadResponse] içinde belirtilen sezon ve bölüme karşılık gelen
@@ -131,13 +159,8 @@ internal object CsEpisodeMatcher {
         // Fallback 1b: search by name matching the target season and episode (e.g. "S2E5", "2. Sezon 5. Bölüm")
         if (match == null) {
             match = allEpisodes.find { ep ->
-                val epName = getEpisodeName(ep)?.lowercase(java.util.Locale.ROOT) ?: return@find false
-                epName.contains("${season}x${episode}") ||
-                epName.contains("${season}x${String.format("%02d", episode)}") ||
-                epName.contains("${season}. sezon ${episode}. bölüm") ||
-                epName.contains("${season} sezon ${episode} bölüm") ||
-                epName.contains("s${season}e${episode}") ||
-                epName.contains("s${String.format("%02d", season)}e${String.format("%02d", episode)}")
+                val epName = getEpisodeName(ep) ?: return@find false
+                episodeNameMatchesTarget(epName, season, episode)
             }
             if (match != null) Log.d(TAG, "Anime: Name-based season match: '${getEpisodeName(match)}' for S${season}E${episode}")
         }
@@ -253,13 +276,8 @@ internal object CsEpisodeMatcher {
         // Fallback 1: name-based match (e.g. "S2E5", "2. Sezon 5. Bölüm") — before index fallbacks
         if (match == null) {
             match = response.episodes.find { ep ->
-                val epName = getEpisodeName(ep)?.lowercase(java.util.Locale.ROOT) ?: return@find false
-                epName.contains("${season}x${episode}") ||
-                epName.contains("${season}x${String.format("%02d", episode)}") ||
-                epName.contains("${season}. sezon ${episode}. bölüm") ||
-                epName.contains("${season} sezon ${episode} bölüm") ||
-                epName.contains("s${season}e${episode}") ||
-                epName.contains("s${String.format("%02d", season)}e${String.format("%02d", episode)}")
+                val epName = getEpisodeName(ep) ?: return@find false
+                episodeNameMatchesTarget(epName, season, episode)
             }
             if (match != null) Log.d(TAG, "TvSeries: Name-based season match: '${getEpisodeName(match)}' for S${season}E${episode}")
         }

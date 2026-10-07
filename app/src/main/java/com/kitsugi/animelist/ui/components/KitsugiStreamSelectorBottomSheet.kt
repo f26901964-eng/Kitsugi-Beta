@@ -73,6 +73,7 @@ fun KitsugiStreamSelectorBottomSheet(
     season: Int = 1,
     episodeNumber: Int,
     mediaTitle: String,
+    isMovie: Boolean = false,
     onStreamSelected: (url: String, title: String, source: StreamSource) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -155,7 +156,7 @@ fun KitsugiStreamSelectorBottomSheet(
     }
 
     // Fetch streams
-    LaunchedEffect(malId, aniListId, season, episodeNumber) {
+    LaunchedEffect(malId, aniListId, season, episodeNumber, isMovie) {
         isLoading = true
         errorMessage = null
         try {
@@ -163,7 +164,8 @@ fun KitsugiStreamSelectorBottomSheet(
                 malId = malId,
                 aniListId = aniListId,
                 season = season,
-                episode = episodeNumber
+                episode = episodeNumber,
+                isMovie = isMovie
             )
             streams = fetched
             if (fetched.isEmpty()) {

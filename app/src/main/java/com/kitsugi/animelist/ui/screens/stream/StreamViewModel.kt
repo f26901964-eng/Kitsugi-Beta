@@ -95,9 +95,10 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
         alternativeTitles: List<String>,
         startYear: Int?,
         cs3Url: String? = null,
-        cs3ApiName: String? = null
+        cs3ApiName: String? = null,
+        isMovie: Boolean = false
     ) {
-        val newKey = "$malId:$aniListId:$tmdbId:$season:$episode:$cs3Url"
+        val newKey = "$malId:$aniListId:$tmdbId:$isMovie:$season:$episode:$startYear:$cs3Url:${title.hashCode()}:${alternativeTitles.hashCode()}"
 
         // ── Cache hit: same combination, data already present ─────────────────
         if (newKey == currentFetchKey) {
@@ -132,7 +133,8 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                 alternativeTitles = alternativeTitles,
                 startYear = startYear,
                 cs3Url = cs3Url,
-                cs3ApiName = cs3ApiName
+                cs3ApiName = cs3ApiName,
+                isMovie = isMovie
             )
             isFetchInProgress = false
         }
@@ -151,7 +153,8 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
         episode: Int,
         malId: Int? = null,
         aniListId: Int? = null,
-        tmdbId: Int? = null
+        tmdbId: Int? = null,
+        isMovie: Boolean = false
     ) {
         CookieManager.getInstance().flush()
         _webViewDialogState.value = null
@@ -175,7 +178,8 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                     val streams = CsStreamRunner.getStreams(
                         api = api, title = title, alternativeTitles = alternativeTitles,
                         year = startYear, season = season, episode = episode,
-                        malId = malId, aniListId = aniListId, tmdbId = tmdbId
+                        malId = malId, aniListId = aniListId, tmdbId = tmdbId,
+                        isMovie = isMovie
                     )
                     csStreams.addAll(streams)
                 }
@@ -242,7 +246,8 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
         alternativeTitles: List<String>,
         startYear: Int?,
         cs3Url: String? = null,
-        cs3ApiName: String? = null
+        cs3ApiName: String? = null,
+        isMovie: Boolean = false
     ) {
         if (cs3Url != null && cs3ApiName != null) {
             _isResolvingId.value = false
@@ -264,7 +269,8 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                         api = activeApi,
                         url = cs3Url,
                         season = season,
-                        episode = episode
+                        episode = episode,
+                        isMovie = isMovie
                     )
                     updateAddonStateSync(
                         cs3ApiName,
@@ -326,9 +332,16 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
         }
         _imdbId.value = resolvedImdbId
 
-        val imdbVideoId = resolvedImdbId?.let { "$it:$season:$episode" }
-        val kitsuVideoId = resolvedKitsuId?.let { "kitsu:$it:$episode" }
-        val contentType = "series"
+        val stremioLookup = com.kitsugi.animelist.data.remote.StremioVideoId.forContent(
+            isMovie = isMovie,
+            imdbId = resolvedImdbId,
+            kitsuId = resolvedKitsuId,
+            season = season,
+            episode = episode
+        )
+        val imdbVideoId = stremioLookup.imdbVideoId
+        val kitsuVideoId = stremioLookup.kitsuVideoId
+        val contentType = stremioLookup.contentType
 
         data class StreamTask(val addonName: String, val manifestUrl: String, val videoId: String)
 
@@ -479,7 +492,8 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                                     episode          = episode,
                                     malId            = realMalId ?: resolvedIds.malId,
                                     aniListId        = realAniListId ?: resolvedIds.aniListId,
-                                    tmdbId           = tmdbId ?: resolvedIds.tmdbId
+                                    tmdbId           = tmdbId ?: resolvedIds.tmdbId,
+                                    isMovie          = isMovie
                                 )
                                 csStreams.addAll(streams)
                             }

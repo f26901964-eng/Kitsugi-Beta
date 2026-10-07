@@ -702,6 +702,7 @@ fun ApiResultDetailPage(
                             displayTitleEnglish = displayResult.titleEnglish ?: detailState?.titleEnglish,
                             displayTitleRomaji = detailState?.titleRomaji ?: displayResult.title,
                             displayTitleNative = detailState?.titleNative ?: detailState?.titleJapanese ?: displayResult.titleJapanese,
+                            displaySynonyms = detailState?.synonyms.orEmpty(),
                             displayYear = displayResult.year,
                             isMovie = displayResult.type == MediaType.Movie,
                             onSeasonSelected = { newSeason ->
@@ -734,6 +735,7 @@ fun ApiResultDetailPage(
             titleEnglish = displayResult.titleEnglish,
             titleRomaji = detailState?.titleRomaji,
             titleNative = detailState?.titleNative,
+            synonyms = detailState?.synonyms.orEmpty(),
             startYear = displayResult.year,
             isMovie = displayResult.type == MediaType.Movie,
             seasonNumber = ep.seasonNumber ?: targetSeason,
@@ -823,6 +825,7 @@ fun ApiResultDetailPage(
                                 titleEnglish = displayResult.titleEnglish,
                                 titleRomaji = detailState?.titleRomaji,
                                 titleNative = detailState?.titleNative,
+                                synonyms = detailState?.synonyms.orEmpty(),
                                 startYear = displayResult.year
                             )
                         }

@@ -180,6 +180,7 @@ internal fun ApiDetailEpisodesTab(
     displayTitleEnglish: String?,
     displayTitleRomaji: String?,
     displayTitleNative: String?,
+    displaySynonyms: List<String> = emptyList(),
     displayYear: Int?,
     isMovie: Boolean = false,
     onSeasonSelected: (Int) -> Unit,
@@ -239,6 +240,7 @@ internal fun ApiDetailEpisodesTab(
                         titleEnglish = displayTitleEnglish,
                         titleRomaji = displayTitleRomaji,
                         titleNative = displayTitleNative,
+                        synonyms = displaySynonyms,
                         startYear = displayYear
                     )
                 }
@@ -262,6 +264,7 @@ internal fun ApiDetailEpisodesTab(
                     titleEnglish = displayTitleEnglish,
                     titleRomaji = displayTitleRomaji,
                     titleNative = displayTitleNative,
+                    synonyms = displaySynonyms,
                     startYear = displayYear,
                     isDownloadMode = true
                 )

@@ -26,6 +26,7 @@ class PlayerGeneratorViewModel(application: Application) : AndroidViewModel(appl
     var seasonNum: Int = 1
     var alternativeTitles: List<String> = emptyList()
     var year: Int? = null
+    var isMovie: Boolean = false
 
     // Sıralanmış linklerin önbelleği
     private val linksCache = mutableMapOf<Int, List<StreamSource>>()
@@ -45,7 +46,8 @@ class PlayerGeneratorViewModel(application: Application) : AndroidViewModel(appl
         title: String,
         season: Int,
         alts: List<String>,
-        prodYear: Int?
+        prodYear: Int?,
+        isMovie: Boolean = false
     ) {
         currentEpisode = episode
         maxEpisodes = maxEp
@@ -55,6 +57,7 @@ class PlayerGeneratorViewModel(application: Application) : AndroidViewModel(appl
         seasonNum = season
         alternativeTitles = alts
         year = prodYear
+        this.isMovie = isMovie
 
         linksCache.clear()
         preloadedNextEpisodeLinks.clear()
@@ -78,7 +81,8 @@ class PlayerGeneratorViewModel(application: Application) : AndroidViewModel(appl
                     season = seasonNum,
                     episode = episode,
                     malId = malId,
-                    aniListId = aniListId
+                    aniListId = aniListId,
+                    isMovie = isMovie
                 )
                 results.addAll(streams)
             } catch (e: Exception) {
