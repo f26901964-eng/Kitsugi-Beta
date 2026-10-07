@@ -131,7 +131,7 @@ fun ShikimoriProfileContent(
                             .clip(CircleShape)
                             .background(KitsugiColors.Background.copy(alpha = 0.6f))
                             .clickable {
-                                val url = "https://shikimori.one/${state.name}"
+                                val url = "${com.kitsugi.animelist.data.auth.ShikimoriApiClient.WEB_URL}/${state.name}"
                                 val sendIntent = android.content.Intent().apply {
                                     action = android.content.Intent.ACTION_SEND
                                     putExtra(android.content.Intent.EXTRA_TEXT, url)

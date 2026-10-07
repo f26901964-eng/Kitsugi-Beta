@@ -877,7 +877,15 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             runSyncCatching {
                 ExternalAuthManager.saveShikimoriCredentials(context, effectiveClientId, effectiveClientSecret)
-                val tokenResp = ShikimoriApiClient.exchangeCodeForToken(effectiveClientId, effectiveClientSecret, cleanCode)
+                // Manuel akışta kod oob (urn:ietf:wg:oauth:2.0:oob) ile üretilir; kullanıcı deep link adresinin
+                // tamamını yapıştırdıysa (kitsugi://shikimori-auth?code=...) o adres tercih edilir.
+                val redirectUri = ShikimoriApiClient.detectRedirectUri(authCode) ?: ShikimoriApiClient.DEFAULT_REDIRECT_URI
+                val tokenResp = ShikimoriApiClient.exchangeCodeForToken(
+                    clientId = effectiveClientId,
+                    clientSecret = effectiveClientSecret,
+                    code = cleanCode,
+                    redirectUri = redirectUri
+                )
                 val user = ShikimoriApiClient.getCurrentUser(tokenResp.accessToken)
                 ExternalAuthManager.saveShikimoriAuth(
                     context = context,

@@ -12,7 +12,9 @@ import com.kitsugi.animelist.utils.*
 
 object KitsugiShikimoriClient {
     private const val TAG = "KitsugiShikimoriClient"
-    private const val BASE_URL = "https://shikimori.one/api"
+    // Shikimori birincil alan adı .io (eski .one adresi 301 ile .io'ya yönleniyor; doğrudan .io kullanılır).
+    private const val WEB_URL = "https://shikimori.io"
+    private const val BASE_URL = "$WEB_URL/api"
 
     // ─── Arama fonksiyonları ───────────────────────────────────────────────
 
@@ -37,7 +39,7 @@ object KitsugiShikimoriClient {
                     val russianTitle = item.optString("russian", "").trim()
                     val title = romajiTitle.ifBlank { russianTitle }
                     val relativeImg = item.optJSONObject("image")?.optString("original")
-                    val imageUrl = relativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                    val imageUrl = relativeImg?.let { if (it.startsWith("/")) "$WEB_URL$it" else it }
                     val kind = item.optString("kind", "tv")
                     val score = item.optString("score", "0").toDoubleOrNull()?.toInt()?.coerceIn(0, 10)
                     val year = item.optString("aired_on", "").take(4).toIntOrNull()
@@ -90,7 +92,7 @@ object KitsugiShikimoriClient {
                     val russianTitle = item.optString("russian", "").trim()
                     val title = romajiTitle.ifBlank { russianTitle }
                     val relativeImg = item.optJSONObject("image")?.optString("original")
-                    val imageUrl = relativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                    val imageUrl = relativeImg?.let { if (it.startsWith("/")) "$WEB_URL$it" else it }
                     val kind = item.optString("kind", "manga")
                     val score = item.optString("score", "0").toDoubleOrNull()?.toInt()?.coerceIn(0, 10)
                     val year = item.optString("aired_on", "").take(4).toIntOrNull()
@@ -176,7 +178,7 @@ object KitsugiShikimoriClient {
                 val russianTitle = item.optString("russian", "").trim()
                 val title = romajiTitle.ifBlank { russianTitle }
                 val relativeImg = item.optJSONObject("image")?.optString("original")
-                val imageUrl = relativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                val imageUrl = relativeImg?.let { if (it.startsWith("/")) "$WEB_URL$it" else it }
                 val kind = item.optString("kind", "tv")
                 val sc = item.optString("score", "0").toDoubleOrNull()?.toInt()?.coerceIn(0, 10)
                 val yr = item.optString("aired_on", "").take(4).toIntOrNull()
@@ -244,7 +246,7 @@ object KitsugiShikimoriClient {
                 if (id <= 0) continue
                 val name = item.optString("name", "").ifBlank { item.optString("russian", "Karakter") }
                 val relativeImg = item.optJSONObject("image")?.optString("original")
-                val imageUrl = relativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                val imageUrl = relativeImg?.let { if (it.startsWith("/")) "$WEB_URL$it" else it }
                 results.add(
                     JikanSearchResult(
                         malId = id,
@@ -279,7 +281,7 @@ object KitsugiShikimoriClient {
                 if (id <= 0) continue
                 val name = item.optString("name", "").ifBlank { item.optString("russian", "Kişi") }
                 val relativeImg = item.optJSONObject("image")?.optString("original")
-                val imageUrl = relativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                val imageUrl = relativeImg?.let { if (it.startsWith("/")) "$WEB_URL$it" else it }
                 val role = when (kind) {
                     "seyu" -> "Seiyuu / Seslendirmen"
                     "mangaka" -> "Mangaka / Yazar"
@@ -323,7 +325,7 @@ object KitsugiShikimoriClient {
                 val obj = array.optJSONObject(i) ?: continue
                 val relOriginal = obj.optString("original", "").trim()
                 if (relOriginal.isBlank()) continue
-                val fullUrl = if (relOriginal.startsWith("http")) relOriginal else "https://shikimori.one$relOriginal"
+                val fullUrl = if (relOriginal.startsWith("http")) relOriginal else "$WEB_URL$relOriginal"
                 list.add(
                     GalleryItem(
                         url = fullUrl,
@@ -371,7 +373,7 @@ object KitsugiShikimoriClient {
                     val mainTitle = romajiTitle ?: engTitle ?: russianTitle ?: "Bilinmeyen"
 
                     val relativeImg = data.optJSONObject("image")?.optString("original")
-                    val imageUrl = relativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                    val imageUrl = relativeImg?.let { if (it.startsWith("/")) "$WEB_URL$it" else it }
 
                     val rawScore = data.optString("score", "0").toDoubleOrNull()
                     val score = rawScore?.toInt()?.coerceIn(0, 10)
@@ -610,7 +612,7 @@ object KitsugiShikimoriClient {
 
                         val charName = translateIfRussian(charObj.optString("name", "Bilinmeyen"))
                         val relativeImg = charObj.optJSONObject("image")?.optString("original")
-                        val imageUrl = relativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                        val imageUrl = relativeImg?.let { if (it.startsWith("/")) "$WEB_URL$it" else it }
 
                         val vaList = mutableListOf<KitsugiVoiceActor>()
                         val personObj = item.optJSONObject("person")
@@ -619,7 +621,7 @@ object KitsugiShikimoriClient {
                             if (vaId > 0) {
                                 val vaName = translateIfRussian(personObj.optString("name", "Bilinmeyen"))
                                 val vaRelativeImg = personObj.optJSONObject("image")?.optString("original")
-                                val vaImageUrl = vaRelativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                                val vaImageUrl = vaRelativeImg?.let { if (it.startsWith("/")) "$WEB_URL$it" else it }
                                 vaList.add(
                                     KitsugiVoiceActor(
                                         id = vaId,
@@ -688,7 +690,7 @@ object KitsugiShikimoriClient {
 
                             val staffName = translateIfRussian(personObj.optString("name", "Bilinmeyen"))
                             val relativeImg = personObj.optJSONObject("image")?.optString("original")
-                            val imageUrl = relativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                            val imageUrl = relativeImg?.let { if (it.startsWith("/")) "$WEB_URL$it" else it }
 
                             staffList.add(
                                 KitsugiStaff(
@@ -728,7 +730,7 @@ object KitsugiShikimoriClient {
                     }
 
                     val relativeImg = data.optJSONObject("image")?.optString("original")
-                    val imageUrl = relativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                    val imageUrl = relativeImg?.let { if (it.startsWith("/")) "$WEB_URL$it" else it }
                     val biography = translateIfRussian(data.optNullableString("description")?.cleanApiText())
 
                     val gender = null
@@ -746,7 +748,7 @@ object KitsugiShikimoriClient {
 
                             val seyuName = translateIfRussian(seyuItem.optString("name", "Bilinmeyen"))
                             val seyuRelativeImg = seyuItem.optJSONObject("image")?.optString("original")
-                            val seyuImageUrl = seyuRelativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                            val seyuImageUrl = seyuRelativeImg?.let { if (it.startsWith("/")) "$WEB_URL$it" else it }
 
                             voiceActors.add(
                                 KitsugiVoiceActor(
@@ -770,7 +772,7 @@ object KitsugiShikimoriClient {
 
                             val animeTitle = translateIfRussian(animeItem.optString("name", "Bilinmeyen"))
                             val animeRelativeImg = animeItem.optJSONObject("image")?.optString("original")
-                            val animeImageUrl = animeRelativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                            val animeImageUrl = animeRelativeImg?.let { if (it.startsWith("/")) "$WEB_URL$it" else it }
                             val kind = animeItem.optString("kind", "tv")
 
                             val rolesArr = animeItem.optJSONArray("roles")
@@ -800,7 +802,7 @@ object KitsugiShikimoriClient {
 
                             val mangaTitle = translateIfRussian(mangaItem.optString("name", "Bilinmeyen"))
                             val mangaRelativeImg = mangaItem.optJSONObject("image")?.optString("original")
-                            val mangaImageUrl = mangaRelativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                            val mangaImageUrl = mangaRelativeImg?.let { if (it.startsWith("/")) "$WEB_URL$it" else it }
 
                             val rolesArr = mangaItem.optJSONArray("roles")
                             val roleStr = if (rolesArr != null && rolesArr.length() > 0) {
@@ -875,7 +877,7 @@ object KitsugiShikimoriClient {
                     val occupation = rawOccupation?.let { translateIfRussian(it).toTurkishStaffRole() }
 
                     val relativeImg = data.optJSONObject("image")?.optString("original")
-                    val imageUrl = relativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                    val imageUrl = relativeImg?.let { if (it.startsWith("/")) "$WEB_URL$it" else it }
 
                     val characterRoles = mutableListOf<KitsugiStaffCharacterRole>()
                     val rolesArray = data.optJSONArray("roles")
@@ -888,12 +890,12 @@ object KitsugiShikimoriClient {
                             val charId = charObj.optInt("id")
                             val charName = translateIfRussian(charObj.optString("name", "Bilinmeyen"))
                             val charRelativeImg = charObj.optJSONObject("image")?.optString("original")
-                            val charImg = charRelativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                            val charImg = charRelativeImg?.let { if (it.startsWith("/")) "$WEB_URL$it" else it }
 
                             val mediaId = animeObj?.optInt("id") ?: 0
                             val mediaTitle = translateIfRussian(animeObj?.optString("name", "Bilinmeyen") ?: "Bilinmeyen")
                             val mediaRelativeImg = animeObj?.optJSONObject("image")?.optString("original")
-                            val mediaImg = mediaRelativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                            val mediaImg = mediaRelativeImg?.let { if (it.startsWith("/")) "$WEB_URL$it" else it }
                             val mediaTypeStr = animeObj?.optString("kind", "tv") ?: "manga"
 
                             val roleStr = roleObj.optString("role", "Seyu") ?: "Seyu"
@@ -926,7 +928,7 @@ object KitsugiShikimoriClient {
 
                             val mediaTitle = translateIfRussian(animeObj.optString("name", "Bilinmeyen") ?: "Bilinmeyen")
                             val mediaRelativeImg = animeObj.optJSONObject("image")?.optString("original")
-                            val mediaImg = mediaRelativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                            val mediaImg = mediaRelativeImg?.let { if (it.startsWith("/")) "$WEB_URL$it" else it }
                             val mediaTypeStr = animeObj.optString("kind", "tv") ?: "tv"
 
                             val roleStr = workObj.optString("role", "Staff") ?: "Staff"

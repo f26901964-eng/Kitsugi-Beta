@@ -204,7 +204,21 @@ object ExternalAuthManager {
             .apply()
     }
 
-    fun saveShikimoriAuth(context: Context, token: String, refreshToken: String, expiresInSeconds: Long, userId: Int, username: String) {
+    /**
+     * Shikimori oturum bilgilerini kaydeder.
+     * @param emitEvent true ise AuthEvent.Success yayınlanır (ilk bağlantı → liste içe aktarımı tetiklenir).
+     *                  Sessiz token yenilemelerinde false verilmelidir; aksi halde her yenilemede
+     *                  "bağlantı başarılı" bildirimi ve tam liste içe aktarımı tekrar çalışır.
+     */
+    fun saveShikimoriAuth(
+        context: Context,
+        token: String,
+        refreshToken: String,
+        expiresInSeconds: Long,
+        userId: Int,
+        username: String,
+        emitEvent: Boolean = true
+    ) {
         val expiresAt = System.currentTimeMillis() + (expiresInSeconds * 1000L)
         prefs(context).edit()
             .putString(KEY_SHIKIMORI_TOKEN, token)
@@ -213,7 +227,9 @@ object ExternalAuthManager {
             .putInt(KEY_SHIKIMORI_USER_ID, userId)
             .putString(KEY_SHIKIMORI_USERNAME, username)
             .apply()
-        _authEvents.tryEmit(AuthEvent.Success("shikimori"))
+        if (emitEvent) {
+            _authEvents.tryEmit(AuthEvent.Success("shikimori"))
+        }
     }
 
     suspend fun getOrRefreshShikimoriToken(context: Context): String? = withContext(Dispatchers.IO) {
@@ -228,9 +244,19 @@ object ExternalAuthManager {
             if (clientId.isNotBlank() && clientSecret.isNotBlank()) {
                 val refreshResult = runCatching {
                     ShikimoriApiClient.refreshToken(clientId, clientSecret, refreshToken)
+                }.onFailure { err ->
+                    android.util.Log.w("ExternalAuthManager", "Shikimori token yenileme başarısız: ${err.message}")
                 }.getOrNull()
                 if (refreshResult != null) {
-                    saveShikimoriAuth(context, refreshResult.accessToken, refreshResult.refreshToken, refreshResult.expiresIn, p.getInt(KEY_SHIKIMORI_USER_ID, 0), p.getString(KEY_SHIKIMORI_USERNAME, "Shikimori") ?: "Shikimori")
+                    saveShikimoriAuth(
+                        context = context,
+                        token = refreshResult.accessToken,
+                        refreshToken = refreshResult.refreshToken,
+                        expiresInSeconds = refreshResult.expiresIn,
+                        userId = p.getInt(KEY_SHIKIMORI_USER_ID, 0),
+                        username = p.getString(KEY_SHIKIMORI_USERNAME, "Shikimori") ?: "Shikimori",
+                        emitEvent = false // sessiz yenileme: bildirim ve yeniden içe aktarma tetiklenmesin
+                    )
                     return@withContext refreshResult.accessToken
                 }
             }

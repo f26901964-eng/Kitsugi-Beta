@@ -843,7 +843,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         return when {
             lowerUrl.contains("fanart.tv") -> "Fanart.tv"
             lowerUrl.contains("image.tmdb.org") || lowerUrl.contains("tmdb.org") -> "TMDB"
-            lowerUrl.contains("shikimori.one") || lowerUrl.contains("shikimori.me") -> "Shikimori"
+            lowerUrl.contains("shikimori.io") || lowerUrl.contains("shikimori.one") || lowerUrl.contains("shikimori.me") -> "Shikimori"
             lowerUrl.contains("anilist.co") -> "AniList"
             lowerUrl.contains("simkl.in") || lowerUrl.contains("simkl.com") -> "Simkl"
             lowerUrl.contains("myanimelist.net") || lowerUrl.contains("jikan.moe") -> "Jikan (MAL)"

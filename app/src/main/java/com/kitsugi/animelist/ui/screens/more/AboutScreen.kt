@@ -75,7 +75,7 @@ fun AboutScreen(
         LibraryInfo("AniList API (Apollo GraphQL)", "AniList anime/manga veritabanı – GraphQL istemcisi", "https://github.com/apollographql/apollo-kotlin"),
         LibraryInfo("MyAnimeList / Jikan API", "MyAnimeList için açık REST API köprüsü", "https://jikan.moe"),
         LibraryInfo("Kitsu API", "Kitsu.io anime & manga kataloğu REST API", "https://kitsu.io/api/edge"),
-        LibraryInfo("Shikimori API", "Rus dili anime veritabanı ve sosyal platform", "https://shikimori.one/api/doc"),
+        LibraryInfo("Shikimori API", "Rus dili anime veritabanı ve sosyal platform", "https://shikimori.io/api/doc"),
         LibraryInfo("Simkl API", "Film, dizi ve anime takip platformu API'si", "https://simkl.com/apps/developer"),
         LibraryInfo("TMDB API", "The Movie Database – film ve dizi meta verisi", "https://developer.themoviedb.org"),
         LibraryInfo("MDBList API", "IMDb, Rotten Tomatoes, Metacritic puan toplayıcısı", "https://mdblist.com"),

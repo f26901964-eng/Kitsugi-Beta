@@ -188,6 +188,15 @@ fun KitsugiShikimoriLoginDialog(
                                     lineHeight = 16.sp
                                 )
                             )
+                            Spacer(modifier = Modifier.height(4.dp))
+                            Text(
+                                text = "Tarayıcı \"redirect uri ... doesn't match\" hatası gösterirse 'Tarayıcıda Aç (Kodu Manuel Al)' yolunu kullanın ve ekrandaki kodu 2. adıma yapıştırın.",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = KitsugiColors.TextSecondary.copy(alpha = 0.8f),
+                                    fontSize = 11.sp,
+                                    lineHeight = 15.sp
+                                )
+                            )
                             Spacer(modifier = Modifier.height(10.dp))
 
                             // 1-Tık Otomatik Giriş (Deep Link)
@@ -398,6 +407,80 @@ fun KitsugiShikimoriLoginDialog(
                                     Icon(Icons.Rounded.RestartAlt, contentDescription = null, modifier = Modifier.size(16.dp))
                                     Spacer(modifier = Modifier.width(4.dp))
                                     Text("Varsayılan Anahtarları Geri Yükle", fontSize = 11.sp)
+                                }
+
+                                // Redirect URI bilgisi: Shikimori OAuth uygulamasında kayıtlı olması gereken adresler.
+                                // 1-Tık girişin çalışması için deep link adresi uygulamanın Redirect URI listesinde bulunmalıdır.
+                                val requiredRedirectUris = ShikimoriApiClient.REQUIRED_REGISTERED_REDIRECT_URIS.joinToString("\n")
+                                Surface(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = shikimoriBrandColor.copy(alpha = 0.08f),
+                                    border = BorderStroke(1.dp, shikimoriBrandColor.copy(alpha = 0.25f))
+                                ) {
+                                    Column(modifier = Modifier.padding(10.dp)) {
+                                        Text(
+                                            text = "Shikimori uygulamasında kayıtlı olması gereken Redirect URI'ler (her satıra bir tane):",
+                                            style = MaterialTheme.typography.bodySmall.copy(
+                                                color = KitsugiColors.TextSecondary,
+                                                fontSize = 11.sp,
+                                                lineHeight = 15.sp
+                                            )
+                                        )
+                                        Spacer(modifier = Modifier.height(6.dp))
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            verticalAlignment = Alignment.CenterVertically
+                                        ) {
+                                            Text(
+                                                text = requiredRedirectUris,
+                                                style = MaterialTheme.typography.bodySmall.copy(
+                                                    color = KitsugiColors.TextPrimary,
+                                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
+                                                    fontSize = 11.sp,
+                                                    lineHeight = 16.sp
+                                                ),
+                                                modifier = Modifier.weight(1f)
+                                            )
+                                            KitsugiTonalButton(
+                                                onClick = {
+                                                    clipboard.setText(androidx.compose.ui.text.AnnotatedString(requiredRedirectUris))
+                                                },
+                                                shape = RoundedCornerShape(8.dp)
+                                            ) {
+                                                Icon(Icons.Rounded.ContentCopy, contentDescription = null, modifier = Modifier.size(14.dp))
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("Kopyala", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                            }
+                                        }
+                                        Row(
+                                            modifier = Modifier.fillMaxWidth(),
+                                            horizontalArrangement = Arrangement.End
+                                        ) {
+                                            TextButton(
+                                                onClick = {
+                                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(ShikimoriApiClient.buildNewApplicationUrl()))
+                                                    context.startActivity(intent)
+                                                },
+                                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+                                            ) {
+                                                Icon(Icons.Rounded.AddCircleOutline, contentDescription = null, modifier = Modifier.size(14.dp))
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("Yeni Uygulama Oluştur", fontSize = 11.sp)
+                                            }
+                                            TextButton(
+                                                onClick = {
+                                                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse(ShikimoriApiClient.OAUTH_APPLICATIONS_URL))
+                                                    context.startActivity(intent)
+                                                },
+                                                contentPadding = PaddingValues(horizontal = 4.dp, vertical = 0.dp)
+                                            ) {
+                                                Icon(Icons.Rounded.OpenInNew, contentDescription = null, modifier = Modifier.size(14.dp))
+                                                Spacer(modifier = Modifier.width(4.dp))
+                                                Text("Uygulamalarım", fontSize = 11.sp)
+                                            }
+                                        }
+                                    }
                                 }
                             }
                         }

@@ -1,5 +1,31 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.188)
+
+### 🛠️ Shikimori Girişi Düzeltmesi: `redirect_uri` Zorunluluğu & `shikimori.io` Alan Adı Geçişi
+
+- **"Missing required parameter: redirect_uri" Hatası Giderildi:** Shikimori'nin OAuth sunucusu (Doorkeeper) token takas isteğinde `redirect_uri` parametresini zorunlu tutuyor. Bir önceki sürümde "OAuth 2.1 uyumu" adına kaldırılan bu parametre geri eklendi; artık yetkilendirme adımında kullanılan adres token isteğinde birebir aynı şekilde gönderiliyor.
+- **`shikimori.one` → `shikimori.io` Geçişi:** Shikimori birincil alan adını `.io`'ya taşıdı ve `.one` adresi HTTP 301 ile yönlendiriliyor. Bu yönlendirme token POST isteğini GET'e çevirip HTML/404 yanıtı ("A JSONObject text must begin with '{'") üretiyor, API isteklerinde ise `Authorization` başlığını düşürüyordu. OAuth, kullanıcı/liste API'si, arama istemcisi, görsel adresleri ve profil bağlantıları eksiksiz olarak `https://shikimori.io` adresine taşındı.
+- **Akıllı Redirect URI Takası:** Kod hangi adresle üretildiyse önce o adres denenir (`urn:ietf:wg:oauth:2.0:oob`, `kitsugi://shikimori-auth`, `aniyomi://shikimori-auth`); yalnızca `invalid_grant` durumunda bilinen diğer adresler sırayla denenir. Deep link adresinin tamamı (`kitsugi://shikimori-auth?code=...`) yapıştırıldığında doğru adres otomatik tespit edilir.
+- **Anlaşılır Hata Mesajları:** `invalid_grant`, `invalid_client`, `invalid_redirect_uri` ve HTML/boş yanıt durumları için ham JSON yerine Türkçe, yönlendirici hata mesajları gösterilir.
+- **Redirect URI Rehberi:** Giriş diyaloğunun "Özel API Anahtarları" bölümüne, Shikimori OAuth uygulamasında kayıtlı olması gereken yönlendirme adresleri (kopyalama butonu ve uygulama ayarları bağlantısıyla) eklendi. "1-Tık Otomatik Giriş"in çalışması için `kitsugi://shikimori-auth` adresinin Shikimori uygulama ayarlarındaki Redirect URI listesinde bulunması gerekir.
+- **Sessiz Token Yenileme:** Arka planda yapılan token yenilemeleri artık "Shikimori bağlantısı başarılı" bildirimini ve tam liste içe aktarımını yeniden tetiklemiyor.
+
+---
+
+## 🇬🇧 English (v2.4.188)
+
+### 🛠️ Shikimori Login Fix: Mandatory `redirect_uri` & `shikimori.io` Domain Migration
+
+- **Fixed "Missing required parameter: redirect_uri":** Shikimori's OAuth server (Doorkeeper) requires `redirect_uri` in the token exchange request. The parameter removed in the previous release ("OAuth 2.1 compliance") is back, and the exact URI used during authorization is now sent with the token request.
+- **`shikimori.one` → `shikimori.io` Migration:** Shikimori moved its primary domain to `.io`; the `.one` host now answers with HTTP 301. That redirect turned the token POST into a GET (HTML/404 → "A JSONObject text must begin with '{'") and stripped the `Authorization` header from API calls. OAuth, user/list API, search client, image URLs and profile links now target `https://shikimori.io` directly.
+- **Smart Redirect URI Exchange:** The URI the code was issued for is tried first (`urn:ietf:wg:oauth:2.0:oob`, `kitsugi://shikimori-auth`, `aniyomi://shikimori-auth`); other known URIs are only attempted on `invalid_grant`. Pasting a full deep-link callback (`kitsugi://shikimori-auth?code=...`) auto-detects the right URI.
+- **Readable Error Messages:** `invalid_grant`, `invalid_client`, `invalid_redirect_uri` and HTML/empty responses now surface actionable messages instead of raw JSON.
+- **Redirect URI Guide:** The "Custom API Keys" section of the login dialog lists the redirect URIs that must be registered on the Shikimori OAuth application (with copy button and a link to the application settings). "1-Tap Login" requires `kitsugi://shikimori-auth` to be present in the application's Redirect URI list on Shikimori.
+- **Silent Token Refresh:** Background token refreshes no longer re-trigger the "Shikimori connected" notification or a full list re-import.
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.187)
 
 ### 🚀 5 Platform Kapsamlı Senkronizasyon, Shikimori OAuth 2.1 & Yedekleme v2 Mimarisi
