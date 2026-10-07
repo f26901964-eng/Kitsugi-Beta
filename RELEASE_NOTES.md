@@ -1,5 +1,41 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.194)
+### ⚡ Çapraz Eşitleme (Cross-Sync) %0 Takılma Düzeltmesi & Gelişmiş Tanılama
+- **Aday İndeksleme ve Performans Optimizasyonu:** Eşleştirme aşamasında her yeni içerik için tüm birleştirilmiş kayıtların baştan sona taranması ($O(N^2)$) kaldırıldı. Kimlik ve başlık indeksleriyle (`CrossSyncCandidateIndex`) aday arama daraltıldı; binlerce kayıtta donma ve takılmalar engellendi.
+- **Canlı İlerleme Sayacı:** Eşleştirme aşamasında sayaç her 25 kaynak kaydında güncellenir ve coroutine iptal kontrolleri düzenli çalışır.
+- **Dinamik Durum ve Duraklama Uyarıları:** Ağ beklerken sahte %0 yerine belirsiz (indeterminate) ilerleme göstergesi sunulur. Ekrana geçen süre, tahmini kalan süre ve uzun süren duraklamalarda uyarı eklendi.
+- **Gelişmiş Günlük & Rapor Paylaşımı:** Günlükte Tümü / Sorunlar / Hatalar / Uyarılar filtreleri ve genişletilebilir teknik ayrıntılar yer alır. Eşitlemeyi onaylayarak durdurabilir, sürerken kısmi raporu paylaşabilir veya tamamlanınca raporu dışa aktarabilirsiniz.
+- **Otomatik Rapor ve Güvenlik:** Raporlar otomatik olarak `Downloads/Kitsugi/CrossSyncReports` dizinine kaydedilir; cihaz ve ortam bilgileri eklenir, Bearer ve API anahtarları maskelenir (`[REDACTED]`). Hesaplardan içerik silinmez.
+- **İstem Dışı Eşitleme Koruması:** "Son Eşitleme Raporu"na dokunulduğunda yanlışlıkla yeni bir eşitleme başlatılması engellendi.
+
+### 🌐 Listem Sayfası Birleşik "Tümü" Görünümü & Dinamik Platform Rozetleri
+- **Tüm Kaynakları Tek Ekranda Birleştirme:** Listem sekmesine AniList, MyAnimeList, Simkl, Kitsu ve Shikimori kütüphanelerini tek ekranda toplayan "Tümü" seçeneği eklendi.
+- **Tekil Gösterim & Yinelenme Koruması:** Farklı servislerde bulunan aynı yapım yinelenmek yerine tek kartta birleştirilir (`groupMyListEntries`).
+- **Dinamik Kaynak Rozetleri:** Kartların altında yapımın hangi platformlarda bulunduğunu gösteren orijinal platform logoları (`FlowRow` ile dar kartlarda taşmadan) sergilenir.
+- **Tüm Düzenlerle Uyumlu:** Kompakt, rahat, ayrıntılı, 2 sütunlu grid ve minimalist kart düzenleriyle tam uyumludur.
+- **Tek Dokunuşla Yenileme:** Birleşik görünümde aşağı çekip yenileme yapıldığında bağlı tüm aktif sağlayıcılar sırayla eşitlenir.
+
+---
+
+## 🇬🇧 English (v2.4.194)
+### ⚡ Cross-Sync 0% Stall Fix & Advanced Diagnostics
+- **Candidate Indexing & Performance:** Eliminated $O(N^2)$ quadratic scanning during cross-platform media grouping. Added identity & title candidate index (`CrossSyncCandidateIndex`), speeding up grouping on multi-thousand entry libraries.
+- **Live Progress Reporting:** Progress counters update every 25 source records during grouping, with periodic cooperative coroutine cancellation checks.
+- **Indeterminate Progress & Stall Warnings:** Displays indeterminate progress indicators during network/verification steps instead of a false 0% determinate bar. Added elapsed time, estimated time, and long-stall warnings.
+- **Advanced Log Filtering & Report Sharing:** Logs feature All / Issues / Errors / Warnings filters and expandable technical stacktraces. Allows confirmed cancellation, sharing partial reports while sync is active, and exporting final reports.
+- **Auto Report Storage & Credential Redaction:** Diagnostic reports are automatically saved to `Downloads/Kitsugi/CrossSyncReports/` with environment details and redacted credentials (`[REDACTED]`). No items are deleted from upstream accounts.
+- **Accidental Sync Trigger Prevention:** Viewing the "Latest Sync Report" no longer accidentally launches a new synchronization.
+
+### 🌐 My List Unified "All" View & Dynamic Platform Badges
+- **Unified Library Tab:** Added an "All" option to the My List screen consolidating libraries across AniList, MyAnimeList, Simkl, Kitsu, and Shikimori in one view.
+- **Deduplicated Media Grouping:** Identical media titles across multiple connected providers are unified into a single card representation.
+- **Dynamic Platform Badges:** Cards display responsive badges (`FlowRow`) indicating all connected platforms hosting the entry.
+- **Layout Compatibility:** Fully supported across compact, comfortable, large, 2-column grid, and minimalist card designs.
+- **Unified Pull-to-Refresh:** Pulling to refresh in the combined view sequentially syncs all active connected providers.
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.193)
 ### 🔍 Arama Deneyimi (UX) Yenilemesi & "Tümünü Gör" Ayrık Kaynak Sayfası
 
@@ -22,7 +58,7 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.192)
+## 🇹🇷 Türkçe (v2.4.194)
 ### 🔔 Bildirim Altyapısı Denetimi — 5 Kaynak (AniList · MAL · Simkl/TMDB · Kitsu · Shikimori)
 
 - **Bildirim Teşhisi (yeni):** Bildirimler ekranının sağ üstüne 🪲 butonu eklendi. Tek dokunuşla 5 kaynağa **gerçek istek** atılır; hesap bağlı mı, hangi uç nokta kullanılıyor, **HTTP durum kodu**, dönen kayıt sayısı, süre ve varsa hata + çözüm ipucu gösterilir. Artık "geliyor mu gelmiyor mu" tahmine kalmaz.
@@ -36,7 +72,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.192)
+## 🇬🇧 English (v2.4.194)
 
 ### 🔔 Notification Infrastructure Audit — All 5 Sources (AniList · MAL · Simkl/TMDB · Kitsu · Shikimori)
 
@@ -51,7 +87,7 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.190)
+## 🇹🇷 Türkçe (v2.4.194)
 
 ### 🛡️ Kitsu Senkronizasyon & Çoklu Kayıt Çökme Koruması (Crash Fix)
 
@@ -77,7 +113,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.190)
+## 🇬🇧 English (v2.4.194)
 
 ### 🛡️ Kitsu Sync & Disambiguation Crash Fix
 
@@ -103,7 +139,7 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.189)
+## 🇹🇷 Türkçe (v2.4.194)
 
 ### 🚀 MyAnimeList Çapraz Senkronizasyon & Shikimori OAuth Doorkeeper Düzeltmesi
 
@@ -115,7 +151,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.189)
+## 🇬🇧 English (v2.4.194)
 
 ### 🚀 MyAnimeList Cross-Sync Query Encoding & Shikimori OAuth Doorkeeper Fix
 
@@ -138,7 +174,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.189)
+## 🇬🇧 English (v2.4.194)
 
 ### 🚀 Nuvio Libtorrent P2P Streaming Engine, Full Seeding & Upload Controls, Simkl Batch Sync & Media Detail Fixes
 
@@ -151,7 +187,7 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.189)
+## 🇹🇷 Türkçe (v2.4.194)
 
 ### 🚀 İzole Süreç Çökme Ekranı (:crash), Canlı Sistem Teşhisi, Çapraz Senkronizasyon & Kararlılık Güncellemeleri
 
@@ -163,7 +199,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.189)
+## 🇬🇧 English (v2.4.194)
 
 ### 🚀 Isolated :crash Process Architecture, Live System Diagnostics, Cross-Sync & Core Stability
 
@@ -175,7 +211,7 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.189)
+## 🇹🇷 Türkçe (v2.4.194)
 
 ### 🚀 Shikimori 1-Tık Otomatik Giriş Çözümü, Kitsu Bildirim Detay Sayfası Düzeltmesi & Kararlılık Güncellemeleri
 
@@ -186,7 +222,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.189)
+## 🇬🇧 English (v2.4.194)
 
 ### 🚀 Shikimori 1-Tap OAuth & Deep Link Fix, Kitsu Notification Detail Resolution & Stability Improvements
 
@@ -197,7 +233,7 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.189)
+## 🇹🇷 Türkçe (v2.4.194)
 
 ### 🚀 Gelişmiş Arama Filtre Paneli, İzole Arama Motorları, Resmi MAL API Entegrasyonu, Shikimori 1-Tık Giriş & Modern Çökme Raporlama
 
@@ -211,7 +247,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.189)
+## 🇬🇧 English (v2.4.194)
 
 ### 🚀 Advanced Search Filter Sheet, Isolated Search Engines, Official MAL API, Shikimori 1-Tap OAuth & Modern Crash Activity
 
@@ -225,7 +261,7 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.189)
+## 🇹🇷 Türkçe (v2.4.194)
 
 ### 🚀 Zenginleştirilmiş Sistem Bildirimleri, Kitsu & Shikimori Profilleri, Profil Kaynak Seçici Paneli ve Orijinal Logolar
 
@@ -237,7 +273,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.189)
+## 🇬🇧 English (v2.4.194)
 
 ### 🚀 Rich System Notifications, Kitsu & Shikimori Profiles, Source Picker Sheet & Original Logos
 
@@ -249,7 +285,7 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.189)
+## 🇹🇷 Türkçe (v2.4.194)
 
 ### 🚀 Kitsu Düzeltmeleri, Grid/Liste Hatırlama, Yapışkan Bar Filtresi, TMDB İngilizce Fallback, Simkl Dizi/Film Keşfeti ve Çökme Korumaları
 
@@ -266,7 +302,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.189)
+## 🇬🇧 English (v2.4.194)
 
 ### 🚀 Grid Persistence, Sticky Filter Button, TMDB English Fallback, Simkl TV/Movies & Crash Shield
 
@@ -283,7 +319,7 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.189)
+## 🇹🇷 Türkçe (v2.4.194)
 
 ### 🚀 Keşfet Arayüzü, "Tümü" Butonu, Kitsu & Shikimori Girişleri, Bildirim Önizleme ve Çapraz Eşitleme
 
@@ -296,7 +332,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.189)
+## 🇬🇧 English (v2.4.194)
 
 ### 🚀 Explore UI, "All" FAB, Kitsu & Shikimori Auth, Activity Notifications & Cross-Sync Matrix
 
@@ -309,7 +345,7 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.189)
+## 🇹🇷 Türkçe (v2.4.194)
 
 ### 🚀 Eklenti Deposu ve Eklenti Yükleme Sorunları Tamamen Giderildi
 
@@ -320,7 +356,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.189)
+## 🇬🇧 English (v2.4.194)
 
 ### 🚀 Extension Repository & Plugin Loading Fixes
 
@@ -330,17 +366,17 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.189)
+## 🇹🇷 Türkçe (v2.4.194)
 
 ### 🚀 Eklenti Kurulum Hatası Giderildi & Codeberg Eklenti Havuzu Canlıya Alındı
 
 - **Eklenti Kurulumu ve İndirme Hatası Tamamen Çözüldü:** Yeni Codeberg `KitsugiPlugins` deposundaki tüm 174 eklenti (DiziPal, RecTV, FilmMakinesi, InatBox, TurkAnime vb.) artık sorunsuz, doğrudan ve tek tıkla kurulmaktadır. Dosya bütünlüğü ZIP doğrulamasıyla garanti altına alınmıştır.
 - **Doğrudan Codeberg URL Koruması:** Eklenti indirme ve repo yenileme sırasında Codeberg URL'lerinin bozulması engellenmiş, eski GitHub bağlantıları otomatik olarak yeni depoya yönlendirilmiştir.
-- **Sürüm Güncellemesi:** Önceki derlemelerdeki önbellek çakışmalarını gidermek amacıyla v2.4.189 olarak paketlenmiştir.
+- **Sürüm Güncellemesi:** Önceki derlemelerdeki önbellek çakışmalarını gidermek amacıyla v2.4.194 olarak paketlenmiştir.
 
 ---
 
-## 🇬🇧 English (v2.4.189)
+## 🇬🇧 English (v2.4.194)
 
 ### 🚀 Plugin Installation Error Fixed & Codeberg Plugin Pool Live
 
@@ -349,7 +385,7 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.189)
+## 🇹🇷 Türkçe (v2.4.194)
 
 ### 🚀 Codeberg Entegrasyonu & Eklenti Havuzu Güvenliği (+18 Temizlendi)
 
@@ -359,7 +395,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.189)
+## 🇬🇧 English (v2.4.194)
 
 ### 🚀 Codeberg Migration & Clean Plugin Repository (+18 Excluded)
 
@@ -369,7 +405,7 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.189)
+## 🇹🇷 Türkçe (v2.4.194)
 
 ### 📚 Türkçe Manga & Webtoon Altyapısı Kökten Yenilendi (Keiyoushi V2, 77 TR Kaynağı, MangaDex 3.450 TR Başlık, Hotlink Çözümü)
 
@@ -385,7 +421,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.189)
+## 🇬🇧 English (v2.4.194)
 
 ### 📚 Turkish Manga & Webtoon Engine Complete Overhaul (Keiyoushi V2, 77 TR Sources, MangaDex 3,450 TR Titles, Hotlink Bypass)
 
@@ -401,7 +437,7 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.189)
+## 🇹🇷 Türkçe (v2.4.194)
 
 ### 🎭 TMDB Kurgusal Karakter Detayları, Seslendirmen Ayrımı, AL Arama ve Kesintisiz Keşfet (Kitsu Fallback)
 
@@ -412,7 +448,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.189)
+## 🇬🇧 English (v2.4.194)
 
 ### 🎭 TMDB Fictional Character Details, Voice Actor Separation, AL Search & Seamless Kitsu Fallback
 
@@ -423,7 +459,7 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.189)
+## 🇹🇷 Türkçe (v2.4.194)
 
 ### 🎬 TMDB Film/Dizi ID Eşleme Düzeltmesi & Yorumlardaki Resim Büyüme Sorunu Çözüldü
 
@@ -435,7 +471,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.189)
+## 🇬🇧 English (v2.4.194)
 
 ### 🎬 TMDB Movie/TV ID Mapping Fix, Comment Image Auto-Expansion Resolved & Downloads Navigation
 
