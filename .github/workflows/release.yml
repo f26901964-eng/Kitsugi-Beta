@@ -1,0 +1,106 @@
+﻿name: Build & Publish Release APK
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Surüm numarasi (orn: 2.4.191)'
+        required: true
+        default: '2.4.191'
+      prerelease:
+        description: 'Pre-release olarak isaretle?'
+        required: true
+        default: 'true'
+        type: choice
+        options:
+          - 'true'
+          - 'false'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build Release APK and Publish
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v3
+        with:
+          cache-read-only: false
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build FOSS Release APK
+        run: ./gradlew assembleFossRelease --no-daemon
+        env:
+          JAVA_OPTS: "-Xmx4g"
+
+      - name: Find APK
+        id: find_apk
+        run: |
+          APK=$(find app/build/outputs/apk/foss/release -name "*.apk" | head -1)
+          echo "apk_path=$APK" >> $GITHUB_OUTPUT
+          echo "apk_name=$(basename $APK)" >> $GITHUB_OUTPUT
+          echo "Found APK: $APK"
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ github.event.inputs.version }}
+          name: Kitsugi Beta v${{ github.event.inputs.version }}
+          prerelease: ${{ github.event.inputs.prerelease }}
+          files: ${{ steps.find_apk.outputs.apk_path }}
+          body: |
+            ## Turkce
+
+            ### Shikimori OAuth Giris Kok Neden Duzeltmesi
+            - OkHttp, host degistiren 301 yonlendirmelerde Authorization header siliyordu; shikimori.one -> shikimori.io yonlendirmesinde token kayboluyordu, whoami 200+null donuyordu, uygulama gecerli tokeni cope atiyordu
+            - Tum Shikimori istekleri artik Authorization header korunarak manuel yonlendirme takibi yapiyor
+            - Birincil API ucu shikimori.io ya tasindi; shikimori.one yedek olarak korundu
+            - Token, exchange sonrasi aninda saklaniyor - whoami basarisiz olsa bile oturum korunuyor
+            - invalid_grant hatasinda oturum sessizce temizleniyor, tekrar giris dongusu yok
+
+            ### Kapsamli Capraz Eslestirme Hata Raporu
+            - Tum senkronizasyon islemleri, API hatalari ve eslestirme kararlari tam raporda saklaniyor
+            - Android 10 ve uzeri cihazlarda otomatik kayit: Indirilenler/Kitsugi/CrossSyncReports/
+            - Eslestirme penceresine Raporu Kaydet butonu eklendi
+            - Token ve secret bilgileri raporda [REDACTED] ile otomatik maskeleniyor
+
+            ### Eslestirme Guvenligi
+            - Kimlik catismasi veya belirsiz eslestirme tespit edildiginde kayit diger platformlara yazilmadan atlaniyor
+            - CrossSyncReportFormatter ve CrossSyncReportStore yeni bilesenleri eklendi
+
+            ---
+
+            ## English
+
+            ### Shikimori OAuth Login Root-Cause Fix
+            - Root cause resolved: OkHttp was automatically stripping the Authorization header on host-changing 301 redirects. shikimori.one to shikimori.io redirect caused token loss; whoami arrived unauthenticated, returned 200+null, and the app discarded the valid token
+            - All Shikimori requests now follow redirects manually preserving the Authorization header
+            - Primary API endpoint moved to shikimori.io; shikimori.one kept as fallback
+            - Token is now persisted immediately after exchange, session survives even if whoami fails
+            - Invalid refresh tokens (400/401 invalid_grant) silently clear the session, no more retry loops
+
+            ### Comprehensive CrossSync Error Report
+            - Full sync session log (all operations, API errors, matching decisions) saved to report
+            - Auto-saves to Downloads/Kitsugi/CrossSyncReports/ on Android 10+
+            - Save Report button added to sync dialog for manual export
+            - All auth secrets automatically redacted [REDACTED] from reports
+
+            ### Match Safety Guards
+            - Records with conflicting or ambiguous provider identities are skipped (not written cross-platform); reason logged
+            - New CrossSyncReportFormatter and CrossSyncReportStore components added
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
