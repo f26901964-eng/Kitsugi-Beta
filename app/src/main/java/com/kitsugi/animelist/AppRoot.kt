@@ -881,6 +881,7 @@ fun AppRoot(
                     activeScreen is DetailScreen.WatchHistory -> AppStateKey.WatchHistory(depth = currentDepth)
                     activeScreen is DetailScreen.PluginPicker -> AppStateKey.PluginPicker(depth = currentDepth)
                     activeScreen is DetailScreen.AddonExplore -> AppStateKey.AddonExplore(activeScreen.apiName, depth = currentDepth)
+                    activeScreen is DetailScreen.SourceSearchPage -> AppStateKey.SourceSearchPage(activeScreen.engine, activeScreen.query, depth = currentDepth)
                     else                         -> AppStateKey.Tab(selectedTab)
                 }
 
@@ -1197,6 +1198,31 @@ private fun AppNavigationContent(
                             navState.popDetailStack()
                         }
                     }
+                }
+            }
+
+            is AppStateKey.SourceSearchPage -> {
+                navState.stateHolder.SaveableStateProvider(key = "source_search_${key.depth}_${key.engine.id}") {
+                    com.kitsugi.animelist.ui.screens.search.SourceSearchPage(
+                        engine = key.engine,
+                        initialQuery = key.query,
+                        mediaEntries = mediaEntries,
+                        showAdultContent = appSettings.showAdultContent,
+                        titleLanguage = appSettings.titleLanguage,
+                        scoreFormat = appSettings.scoreFormat,
+                        hideScores = appSettings.hideScores,
+                        onBackClick = { navState.popDetailStack() },
+                        onOpenApiDetail = onOpenApiDetail,
+                        onAddSelectionToList = onAddApiSelectionToList,
+                        onOpenPluginPicker = { navState.navigateToDetail(DetailScreen.PluginPicker) },
+                        onOpenAddonExplore = { apiName -> navState.navigateToDetail(DetailScreen.AddonExplore(apiName)) },
+                        onOpenCharacterDetail = { characterId, name, imageUrl ->
+                            navState.navigateToDetail(DetailScreen.CharacterDetail(characterId, "anilist", name, imageUrl))
+                        },
+                        onOpenStaffDetail = { staffId, name, imageUrl ->
+                            navState.navigateToDetail(DetailScreen.StaffDetail(staffId, "anilist", name, imageUrl))
+                        }
+                    )
                 }
             }
 

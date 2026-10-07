@@ -281,6 +281,15 @@ private fun SearchTabPage(ctx: TabPagesContext) {
         hideScores = ctx.appSettings.hideScores,
         isBottomBarVisible = ctx.isBottomBarVisible,
         onScrollReset = ctx.onScrollReset,
+        onOpenSourceSearch = { engine ->
+            // "Tümünü Gör": kaynağın filtreleri + sonuçları ayrı sayfada açılır
+            ctx.navState.navigateToDetail(
+                DetailScreen.SourceSearchPage(
+                    engine = engine,
+                    query = ctx.searchViewModel.uiState.value.query
+                )
+            )
+        },
         onSeeAllAddonSection = { apiName, title, mainPageData, horizontalImages, initialItems ->
             ctx.navState.addonFullScreenGridState = com.kitsugi.animelist.ui.app.AddonFullScreenGridState(
                 title = title,

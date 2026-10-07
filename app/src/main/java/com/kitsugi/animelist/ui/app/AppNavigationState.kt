@@ -96,6 +96,7 @@ class AppNavigationState(
                 DetailScreen.WatchHistory -> "watch_history_${depth}"
                 DetailScreen.PluginPicker -> "plugin_picker_${depth}"
                 is DetailScreen.AddonExplore -> "addon_explore_${depth}_${screen.apiName}"
+                is DetailScreen.SourceSearchPage -> "source_search_${depth}_${screen.engine.id}"
             }
             stateHolder.removeState(key)
         }
