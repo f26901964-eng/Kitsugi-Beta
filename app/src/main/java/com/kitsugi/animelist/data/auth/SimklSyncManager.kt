@@ -95,6 +95,7 @@ object SimklSyncManager {
         }
 
         val unsupportedTitles = mutableListOf<String>()
+        val unsafeIdentityTitles = mutableListOf<String>()
         val batchItems = entries.mapNotNull { entry ->
             if (entry.type == MediaType.Manga) {
                 unsupportedTitles.add(entry.displayTitle())
@@ -110,23 +111,37 @@ object SimklSyncManager {
             val simklId = entry.simklId?.takeIf { it > 0 } ?: 0
             val effectiveTitle = entry.titleEnglish?.takeIf { it.isNotBlank() } ?: entry.title
 
-            // En az bir geçerli ID olmalı veya geçerli bir başlık olmalı
-            if (simklId == 0 && realMalId == null && (entry.tmdbId == null || entry.tmdbId <= 0) && aniListId == null && rawKitsuId == null && effectiveTitle.isBlank()) {
-                unsupportedTitles.add(entry.displayTitle())
-                null
-            } else {
-                SimklApiClient.SimklBatchEntry(
+            // GÜVENLİK: Anime için güvenilir kimlik yalnızca Simkl veya MAL kimliğidir. İkisi de yokken
+            // başlık/yıl ya da TMDB ile eşleştirme, aynı adlı dizileri/filmleri veya franchise'ın başka
+            // sezonunu kullanıcının listesine ekleyebiliyordu. Bu kayıtlar kimliksiz gönderilmez;
+            // yalnızca AniList/Kitsu kimliği varsa başlık eşleştirmesi kapalı olarak denenir.
+            val isAnime = entry.type == MediaType.Anime
+            val hasSafeAnimeIdentity = simklId > 0 || realMalId != null
+            val hasSecondaryAnimeIdentity = aniListId != null || rawKitsuId != null
+            val hasNonAnimeIdentity = simklId > 0 || (entry.tmdbId != null && entry.tmdbId > 0) || effectiveTitle.isNotBlank()
+
+            when {
+                isAnime && !hasSafeAnimeIdentity && !hasSecondaryAnimeIdentity -> {
+                    unsafeIdentityTitles.add(entry.displayTitle())
+                    null
+                }
+                !isAnime && !hasNonAnimeIdentity -> {
+                    unsupportedTitles.add(entry.displayTitle())
+                    null
+                }
+                else -> SimklApiClient.SimklBatchEntry(
                     type = mediaTypeToSimklType(entry.type),
                     status = watchStatusToSimkl(entry.status, entry.type),
                     simklId = simklId,
                     malId = realMalId,
-                    tmdbId = entry.tmdbId,
+                    tmdbId = if (isAnime) null else entry.tmdbId,
                     aniListId = aniListId,
                     kitsuId = rawKitsuId,
                     title = effectiveTitle,
                     year = entry.year,
                     progress = entry.progress,
-                    score = entry.score
+                    score = entry.score,
+                    titleMatchingAllowed = !isAnime || hasSafeAnimeIdentity
                 )
             }
         }
@@ -139,10 +154,15 @@ object SimklSyncManager {
         val historyUnmatchedTitles = mutableListOf<String>()
         val ratingUnmatchedTitles = mutableListOf<String>()
         var totalAdded = 0
-        var totalNotFound = 0
+        // Güvenli kimliği olmadığı için gönderilmeyen animeler "bulunamadı/atlandı" sayılır (hata değil).
+        var totalNotFound = unsafeIdentityTitles.size
         var totalFailed = unsupportedTitles.size
         if (unsupportedTitles.isNotEmpty()) {
             warnings.add("${unsupportedTitles.size} öğe gönderilemedi (desteklenmeyen tür veya eksik kimlik/başlık): ${unsupportedTitles.take(5).joinToString()}")
+        }
+        if (unsafeIdentityTitles.isNotEmpty()) {
+            unmatchedTitles.addAll(unsafeIdentityTitles)
+            warnings.add("${unsafeIdentityTitles.size} anime güvenli kimlik (Simkl/MAL) olmadığı için gönderilmedi; yanlış içerik eklenmesin diye başlıkla eşleştirme yapılmaz: ${unsafeIdentityTitles.take(5).joinToString()}")
         }
 
         // Conservative batch size; not a claim about a documented API maximum.

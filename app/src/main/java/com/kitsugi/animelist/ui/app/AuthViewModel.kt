@@ -345,15 +345,21 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         // AniList kaydı için tekrar Media(idMal) sorgusu atmak hem sonuçsuz hem de 30 istek/dk kotasını
         // tüketip gerçek yazma isteklerinin 429 almasına yol açıyordu. Bu adım bilinçli olarak kaldırıldı.
 
-        val armMal = runSyncCatching {
-            com.kitsugi.animelist.data.remote.KitsugiIdResolver.resolveIds(
-                malId = null,
-                aniListId = rawAniListId,
-                tmdbId = entry.tmdbId,
-                mediaType = entry.type,
-                kitsuId = rawKitsuId
-            ).malId
-        }.getOrNull()
+        // GÜVENLİK: ARM sorgusuna TMDB kimliği bilinçli olarak verilmez. TMDB'de film ve dizi kimlik uzayları
+        // çakışır ve tek bir TMDB dizi kimliği bir franchise'ın tüm sezonlarını kapsar; ARM bu durumda rastgele
+        // bir sezonun/yanlış bir yapımın MAL ID'sini döndürüyordu. Bu, kullanıcının hiç eklemediği animelerin
+        // hesaplarına yazılmasının başlıca nedeniydi. Yalnızca birebir (1:1) kimlikler (AniList/Kitsu) kullanılır.
+        val armMal = if (rawAniListId != null || rawKitsuId != null) {
+            runSyncCatching {
+                com.kitsugi.animelist.data.remote.KitsugiIdResolver.resolveIds(
+                    malId = null,
+                    aniListId = rawAniListId,
+                    tmdbId = null,
+                    mediaType = entry.type,
+                    kitsuId = rawKitsuId
+                ).malId
+            }.getOrNull()
+        } else null
         if (armMal != null && armMal.isRealMalId()) return armMal
 
         val searchTitle = entry.titleEnglish?.takeIf { it.isNotBlank() } ?: entry.title.takeIf { it.isNotBlank() }
@@ -635,23 +641,24 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                 }
                             } else emptyList()
                             if (unrelatedTitleIds.isNotEmpty()) {
-                                // Aynı sağlayıcı kimliği (ör. aynı MAL ID) paylaşan kayıtlar tanım gereği aynı yapımdır;
+                                // Aynı sağlayıcı kimliği (ör. aynı MAL ID) paylaşan kayıtlar normalde aynı yapımdır;
                                 // alias farkı çoğunlukla dil/çeviri farkıdır (Simkl İngilizce, Shikimori romaji, Kitsu
-                                // kanonik). Yalnızca her iki tarafta da yıl biliniyor ve 1 yıldan fazla ayrışıyorsa
-                                // (hatalı sağlayıcı eşlemesi şüphesi) yazma durdurulur.
-                                val yearConflicts = unrelatedTitleIds.filter { candidate ->
-                                    val candidateYear = candidate.year
-                                    val entryYear = entry.year
-                                    candidateYear != null && entryYear != null && kotlin.math.abs(candidateYear - entryYear) > 1
+                                // kanonik). Birleştirme için iki koşul birden aranır: (a) yıllar uyumlu (bilinmiyor ya da
+                                // en fazla 1 yıl fark) ve (b) başlıklar akraba (ortak ayırt edici kelime / ön ek / EN-JP
+                                // alias). Aksi halde sağlayıcı eşlemesi hatalı kabul edilir ve yazma durdurulur — böylece
+                                // yanlış eşlenmiş bir kimlik üzerinden kullanıcının eklemediği içerik hesaplara yazılmaz.
+                                val suspiciousMatches = unrelatedTitleIds.filter { candidate ->
+                                    !com.kitsugi.animelist.data.auth.CrossSyncIdentityGuard.yearsCompatible(candidate.year, entry.year) ||
+                                        !com.kitsugi.animelist.data.auth.CrossSyncIdentityGuard.entriesLookRelated(candidate, entry)
                                 }
-                                if (yearConflicts.isNotEmpty()) {
+                                if (suspiciousMatches.isNotEmpty()) {
                                     val details = buildString {
-                                        appendLine("Aynı harici kimlik(ler) eşleşti, ancak başlıklar ve yayın yılları uyuşmuyor; sağlayıcı eşlemesi hatalı olabilir. Otomatik yazma güvenlik için durduruldu.")
+                                        appendLine("Aynı harici kimlik(ler) eşleşti, ancak başlıklar akraba değil ve/veya yayın yılları uyuşmuyor; sağlayıcı eşlemesi hatalı olabilir. Yanlış içerik eklenmesini önlemek için otomatik yazma durduruldu.")
                                         appendLine("Ortak kimlikler: ${sharedIds.joinToString()}")
                                         appendLine("Gelen kayıt:")
                                         appendLine(describeIdentityCandidate(entry))
                                         appendLine("Eşleşen kayıt(lar):")
-                                        yearConflicts.forEach { appendLine(describeIdentityCandidate(it)) }
+                                        suspiciousMatches.forEach { appendLine(describeIdentityCandidate(it)) }
                                     }
                                     match.identityReviewRequired = true
                                     match.identityReviewDetails = details
@@ -884,6 +891,65 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     val aniListEntryId = candidates.firstNotNullOfOrNull { it.aniListEntryId }
                     kotlinx.coroutines.currentCoroutineContext().ensureActive()
 
+                    // 6b. Kimlik güvencesi — yanlış içerik EKLENMESİNE karşı son savunma hattı.
+                    // Güncellemeler platformun kendi kayıt kimliğiyle yapıldığı için güvenlidir; risk yalnızca
+                    // "bu platformda yok → ekle" yolundadır. Grubun MAL kimliği doğal kaynaktan (MAL/Shikimori)
+                    // gelmiyorsa ve en az iki bağımsız platform tarafından doğrulanmıyorsa, kataloğa karşı
+                    // başlık + yıl doğrulaması yapılır. Reddedilen/doğrulanamayan kimlikle hiçbir platforma
+                    // yeni kayıt eklenmez; mevcut kayıtların güncellenmesi etkilenmez.
+                    val needsAnyAddition =
+                        (isAniList && isAnimeOrManga && item.aniList == null) ||
+                        (isMal && isAnimeOrManga && item.mal == null) ||
+                        (isKitsu && isAnimeOrManga && item.kitsu == null) ||
+                        (isShikimori && isAnimeOrManga && item.shikimori == null) ||
+                        (isSimkl && item.simkl == null)
+                    val identityVerdict: com.kitsugi.animelist.data.auth.CrossSyncIdentityGuard.Verdict? =
+                        if (realMalId != null && needsAnyAddition) {
+                            val holderSources = candidates
+                                .filter { it.malId == realMalId }
+                                .map { it.source.lowercase() }
+                                .distinct()
+                            when {
+                                holderSources.any { it in com.kitsugi.animelist.data.auth.CrossSyncIdentityGuard.NATIVE_MAL_SOURCES } ->
+                                    com.kitsugi.animelist.data.auth.CrossSyncIdentityGuard.Verdict.Trusted("MAL/Shikimori kaydının kendi kimliği")
+                                holderSources.size >= 2 ->
+                                    com.kitsugi.animelist.data.auth.CrossSyncIdentityGuard.Verdict.Trusted("${holderSources.joinToString("+")} aynı MAL ID'yi bağımsız bildirdi")
+                                else -> com.kitsugi.animelist.data.auth.CrossSyncIdentityGuard.verifyMalId(
+                                    malId = realMalId,
+                                    mediaType = newest.type,
+                                    localTitles = candidates.flatMap { com.kitsugi.animelist.data.auth.CrossSyncIdentityGuard.aliasesOf(it) },
+                                    localYear = candidates.firstNotNullOfOrNull { it.year }
+                                )
+                            }
+                        } else null
+                    val additionsAllowed = identityVerdict?.allowsAdditions ?: true
+                    // Eklemelerde kullanılacak MAL kimliği: doğrulanmadıysa yok sayılır.
+                    val guardedMalId: Int? = realMalId?.takeIf { additionsAllowed }
+                    val identitySkipReason = "kimlik doğrulanamadı (MAL #${realMalId} ↔ yerel başlık/yıl uyuşmuyor; yanlış içerik eklenmesin diye atlandı)"
+                    fun recordIdentitySkip(platform: String, title: String) {
+                        recordSkip(
+                            platform = platform,
+                            reasonKey = identitySkipReason,
+                            title = title,
+                            message = "[$platform] - Atlandı (kimlik doğrulanamadı): $title",
+                            details = "Kimlik güvencesi: ${identityVerdict?.describe() ?: "-"}\nYeni kayıt eklenmedi; mevcut kayıtlar etkilenmez."
+                        )
+                    }
+                    if (identityVerdict is com.kitsugi.animelist.data.auth.CrossSyncIdentityGuard.Verdict.Rejected) {
+                        logEvent(
+                            "Eşleştirme",
+                            "Şüpheli kimlik, ekleme engellendi: ${newest.title} → MAL #$realMalId",
+                            isWarning = true,
+                            details = buildString {
+                                appendLine(identityVerdict.describe())
+                                appendLine("Bu grubun MAL kimliği tek bir sağlayıcı eşlemesinden/çıkarımdan geliyor ve MAL kataloğundaki içerikle uyuşmuyor.")
+                                appendLine("Hiçbir platforma yeni kayıt eklenmeyecek; mevcut kayıtların güncellenmesi etkilenmez.")
+                                appendLine("Kaynak kayıtlar:")
+                                candidates.forEach { appendLine(it.crossSyncIdentityDiagnostic()) }
+                            }
+                        )
+                    }
+
                     val mergedEntry = newest.copy(
                         status = bestStatus,
                         progress = maxProgress,
@@ -896,7 +962,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         priority = bestPriority,
                         repeatCount = bestRepeat,
                         isFavorite = isFav,
-                        malId = realMalId ?: newest.malId,
+                        // Doğrulanmamış gerçek MAL kimliği birleşik kayda taşınmaz (sentetik AniList/Kitsu kimlikleri korunur).
+                        malId = if (additionsAllowed) (realMalId ?: newest.malId) else newest.malId?.takeIf { !it.isRealMalId() },
                         simklId = simklId ?: newest.simklId,
                         tmdbId = tmdbId ?: newest.tmdbId,
                         aniListEntryId = aniListEntryId ?: newest.aniListEntryId
@@ -909,7 +976,13 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                             appendLine(candidate.crossSyncIdentityDiagnostic())
                         }
                         appendLine("Eşitleme için birleştirilen değerler:")
-                        append(mergedEntry.crossSyncIdentityDiagnostic())
+                        appendLine(mergedEntry.crossSyncIdentityDiagnostic())
+                        append("Kimlik güvencesi: ")
+                        append(
+                            identityVerdict?.describe()
+                                ?: if (realMalId == null) "MAL kimliği yok (yalnızca platformun kendi kimliğiyle işlem yapılır)"
+                                else "gerek yok (tüm hedef platformlarda kayıt zaten var)"
+                        )
                     }
                     logEvent(
                         "Eşleştirme",
@@ -922,7 +995,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     if (isAniList && isAnimeOrManga) {
                         kotlinx.coroutines.currentCoroutineContext().ensureActive()
                         val current = item.aniList
-                        if (current == null) {
+                        if (current == null && !additionsAllowed) {
+                            recordIdentitySkip("AniList", mergedEntry.title)
+                        } else if (current == null) {
                             // AniList'te eksik -> EKLE!
                             com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("anilist")
                             val res = runSyncCatching { AniListSyncManager.updateAniListEntry(aniListToken!!, mergedEntry) }
@@ -971,12 +1046,14 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     // ── 2. MyAnimeList Eşitleme (Anime & Manga, MAL ID gerektirir) ──
                     if (isMal && isAnimeOrManga) {
                         kotlinx.coroutines.currentCoroutineContext().ensureActive()
-                        if (realMalId != null) {
+                        if (realMalId != null && item.mal == null && !additionsAllowed) {
+                            recordIdentitySkip("MyAnimeList", mergedEntry.title)
+                        } else if (realMalId != null) {
                             val current = item.mal
                             if (current == null) {
-                                // MAL'da eksik -> EKLE!
+                                // MAL'da eksik -> EKLE! (kimlik güvencesinden geçti)
                                 com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("mal")
-                                val target = mergedEntry.copy(malId = realMalId)
+                                val target = mergedEntry.copy(malId = guardedMalId ?: realMalId)
                                 val res = runSyncCatching { MalSyncManager.updateMalEntry(malToken!!, target) }
                                 if (res.isSuccess) {
                                     statsMap["MyAnimeList"] = statsMap["MyAnimeList"]!!.let { it.copy(addedCount = it.addedCount + 1) }
@@ -1023,7 +1100,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     if (isSimkl && (mergedEntry.type == MediaType.Anime || mergedEntry.type == MediaType.TvShow || mergedEntry.type == MediaType.Movie)) {
                         kotlinx.coroutines.currentCoroutineContext().ensureActive()
                         val current = item.simkl
-                        if (current == null) {
+                        if (current == null && !additionsAllowed) {
+                            recordIdentitySkip("Simkl", mergedEntry.title)
+                        } else if (current == null) {
                             simklEntriesToSync.add(mergedEntry)
                         } else {
                             val needsUpdate = !singleSourceGroup && ((current.status != bestStatus) ||
@@ -1041,7 +1120,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         val current = item.kitsu
                         // Kitsu sentetik kimlik aralığı 300M–400M; 400M+ Shikimori'ye ait, yanlışlıkla Kitsu ID sanılmasın.
                         val knownKitsuId = current?.malId?.takeIf { it in 300_000_001..399_999_999 }?.let { it - 300_000_000 }
-                        if (current == null) {
+                        if (current == null && !additionsAllowed) {
+                            recordIdentitySkip("Kitsu", mergedEntry.title)
+                        } else if (current == null) {
                             // Kitsu'da eksik -> EKLE! (hız sınırı artık KitsuApiClient içinde her istek için uygulanıyor)
                             val outcome = runSyncCatching {
                                 KitsuSyncManager.syncEntryToKitsu(context, mergedEntry, knownKitsuMediaId = null)
@@ -1099,12 +1180,14 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     // ── 5. Shikimori Eşitleme (Anime & Manga, MAL ID gerektirir) ──
                     if (isShikimori && isAnimeOrManga) {
                         kotlinx.coroutines.currentCoroutineContext().ensureActive()
-                        if (realMalId != null) {
+                        if (realMalId != null && item.shikimori == null && !additionsAllowed) {
+                            recordIdentitySkip("Shikimori", mergedEntry.title)
+                        } else if (realMalId != null) {
                             val current = item.shikimori
                             if (current == null) {
-                                // Shikimori'de eksik -> EKLE!
+                                // Shikimori'de eksik -> EKLE! (kimlik güvencesinden geçti)
                                 com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("shikimori")
-                                val target = mergedEntry.copy(malId = realMalId)
+                                val target = mergedEntry.copy(malId = guardedMalId ?: realMalId)
                                 val outcome = runSyncCatching { ShikimoriSyncManager.syncEntryToShikimori(context, target) }
                                 val res = outcome.getOrNull()
                                 if (res != null && res.errors.isEmpty()) {

@@ -118,6 +118,10 @@ fun KitsugiCrossSyncDialog(
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
     val isCompactHeight = configuration.screenHeightDp < 480
+    // Yatay düzende sol sütun (ilerleme + hesaplar + eylemler) ekranın %40'ı kadar, ancak 300–460 dp
+    // aralığında tutulur; böylece geniş tabletlerde günlük listesi alanın çoğunu alır, telefonlarda
+    // sütun okunabilir kalır.
+    val landscapeSidePaneWidth = (configuration.screenWidthDp * 0.4f).dp.coerceIn(300.dp, 460.dp)
     val logsListState = rememberLazyListState()
     val reportSnapshot = remember { mutableStateOf("") }
     var showCancelConfirmation by remember { mutableStateOf(false) }
@@ -276,7 +280,7 @@ fun KitsugiCrossSyncDialog(
                 ) {
                     Column(
                         modifier = Modifier
-                            .weight(0.42f)
+                            .width(landscapeSidePaneWidth)
                             .fillMaxHeight()
                             .verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -307,7 +311,7 @@ fun KitsugiCrossSyncDialog(
 
                     Column(
                         modifier = Modifier
-                            .weight(0.58f)
+                            .weight(1f)
                             .fillMaxHeight()
                     ) {
                         LogHeader(

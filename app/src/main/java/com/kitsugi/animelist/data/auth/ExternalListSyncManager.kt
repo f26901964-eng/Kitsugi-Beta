@@ -56,12 +56,15 @@ object ExternalListSyncManager {
                     }
                 }
 
-                if (realMalId == null) {
+                // GÜVENLİK: ARM'a TMDB kimliği verilmez (film/dizi kimlik uzayı çakışması + sezon gruplaması
+                // yanlış MAL ID döndürüyor ve bu kimlik aşağıda yerel veritabanına da kalıcı yazılıyordu).
+                // Yalnızca birebir kimlikler (AniList / Kitsu) kullanılır.
+                if (realMalId == null && (rawAniListId != null || rawKitsuId != null)) {
                     val armMal = runSyncCatching {
                         com.kitsugi.animelist.data.remote.KitsugiIdResolver.resolveIds(
                             malId = null,
                             aniListId = rawAniListId,
-                            tmdbId = entry.tmdbId,
+                            tmdbId = null,
                             mediaType = entry.type,
                             kitsuId = rawKitsuId
                         ).malId

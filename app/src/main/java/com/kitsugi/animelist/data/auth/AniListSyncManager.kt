@@ -294,20 +294,26 @@ object AniListSyncManager {
             if (resolved != null && resolved > 0) return resolved
         }
 
-        // 3. ARM (Anime Relations Mapping) üzerinden AniList ID'sini bul
+        // 3. ARM (Anime Relations Mapping) üzerinden AniList ID'sini bul.
+        // GÜVENLİK: TMDB kimliği ARM'a verilmez — film/dizi kimlik uzayları çakışır ve bir TMDB dizi kimliği
+        // franchise'ın tüm sezonlarını kapsar; yanlış sezon/yapım AniList listesine ekleniyordu.
+        // Yalnızca birebir kimlikler (gerçek MAL / Kitsu) kullanılır.
         val rawKitsuId = entry.malId?.takeIf { it in 300_000_001..399_999_999 }?.minus(300_000_000)
+        val realMalForArm = externalId?.takeIf { it.isRealMalId() }
 
-        val armId = runSyncCatching {
-            kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
-                com.kitsugi.animelist.data.remote.KitsugiIdResolver.resolveIds(
-                    malId = externalId?.takeIf { it.isRealMalId() },
-                    aniListId = null,
-                    tmdbId = entry.tmdbId,
-                    mediaType = entry.type,
-                    kitsuId = rawKitsuId
-                ).aniListId
-            }
-        }.getOrNull()
+        val armId = if (realMalForArm != null || rawKitsuId != null) {
+            runSyncCatching {
+                kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
+                    com.kitsugi.animelist.data.remote.KitsugiIdResolver.resolveIds(
+                        malId = realMalForArm,
+                        aniListId = null,
+                        tmdbId = null,
+                        mediaType = entry.type,
+                        kitsuId = rawKitsuId
+                    ).aniListId
+                }
+            }.getOrNull()
+        } else null
         if (armId != null && armId > 0) return armId
 
         // A search rank is not an identity mapping. Never mutate the first fuzzy result.

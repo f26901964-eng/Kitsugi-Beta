@@ -4,7 +4,7 @@
 **Kapsam:** Çapraz platform eşitleme raporundaki aşırı hata/uyarı sayısının kök neden analizi, platform bazlı düzeltmeler ve eşitleme panelinin tam ekran / yönlendirmeye duyarlı yeniden tasarımı.  
 **Dal:** `arena/5fef9c1c-kitsugi-beta` (temel: `5ef3c9f chore(release): bump version to v2.4.194`)
 
-> Not: Teşhis önce ekran görüntüsündeki sayılar ve kaynak kodun satır satır incelenmesiyle yapıldı; ardından kullanıcının Drive üzerinden paylaştığı 5 MB'lık rapor (`Kitsugi_CrossSync_Report_20261007_223112_904.txt`, 493 sorun / 1854 kayıt) örneklenerek doğrulandı (bkz. Bölüm 5 → "Rapor doğrulaması"). Rapor örnekleri teşhisle birebir örtüştü; ek kod değişikliği gerekmedi.
+> Not: Teşhis önce ekran görüntüsündeki sayılar ve kaynak kodun satır satır incelenmesiyle yapıldı; ardından kullanıcının Drive üzerinden paylaştığı 5 MB'lık rapor (`Kitsugi_CrossSync_Report_20261007_223112_904.txt`, 493 sorun / 1854 kayıt) örneklenerek doğrulandı (bkz. Bölüm 5 → "Rapor doğrulaması"). Rapor örnekleri teşhisle birebir örtüştü; ek kod değişikliği gerekmedi. **Sürüm 3:** kullanıcının "hiç eklemediğim anime/dizi/filmler hesaplarıma ekleniyor" bildirimi üzerine yanlış içerik ekleme vektörleri denetlendi ve "doğrulanamayan kimlikle asla yeni kayıt eklenmez" kuralı uygulandı (bkz. Bölüm 7).
 
 ---
 
@@ -154,4 +154,59 @@ Rapor 5.023.375 bayt olduğu için tamamı değil, başlangıç ve dosya içinde
 11. `app/src/main/java/com/kitsugi/animelist/data/remote/SimklSyncContract.kt`
 12. `app/src/main/java/com/kitsugi/animelist/ui/app/AuthViewModel.kt`
 13. `app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiCrossSyncDialog.kt`
-14. `CROSS_SYNC_DIAGNOSTICS_PLAN_TASK.md` (bu dosya)
+14. `app/src/main/java/com/kitsugi/animelist/data/auth/ExternalListSyncManager.kt` (v3: tekil kayıt gönderiminde ARM'a TMDB verilmez)
+15. `app/src/main/java/com/kitsugi/animelist/data/auth/CrossSyncIdentityGuard.kt` (v3: **yeni** — ekleme öncesi kimlik doğrulama)
+16. `CROSS_SYNC_DIAGNOSTICS_PLAN_TASK.md` (bu dosya)
+
+---
+
+## 7. Yanlış içerik eklenmesine karşı güvence (v3 — "kimlik doğrulanmadan ekleme yok")
+
+### 7.1 Bildirim
+
+Toplu eşitleme sırasında kullanıcının hiç eklemediği anime/dizi/filmler hesaplarına yazılıyor. Bu, hata sayısından daha önemli bir veri bütünlüğü sorunudur: eşitleme yalnızca ekler/günceller (asla silmez), dolayısıyla yanlış eklenen her kayıt kullanıcı tarafından elle temizlenmek zorunda kalır.
+
+### 7.2 Tespit edilen vektörler (kod denetimi)
+
+| # | Vektör | Nerede | Neden yanlış içerik üretir | Durum |
+|---|--------|--------|----------------------------|-------|
+| V1 | ARM'a **TMDB kimliği** ile MAL/AniList/Kitsu kimliği sorulması | `AuthViewModel.resolveRealMalId`, `AniListSyncManager.resolveAniListMediaId` (3. adım), `KitsuSyncManager.resolveKitsuMediaId` (ARM adımı), `ExternalListSyncManager.syncEntry` | TMDB'de film ve dizi kimlik uzayları çakışır (aynı sayı hem bir filmi hem bir diziyi gösterebilir); tek bir TMDB dizi kimliği franchise'ın tüm sezonlarını kapsar ve ARM dizinin ilk elemanını döndürür. Simkl'dan gelen ve `ids.mal` taşımayan kayıtlar TMDB kimliğiyle sorgulandığında bambaşka bir yapımın MAL ID'si "gerçek kimlik" sanılıp tüm platformlara yeni kayıt olarak yazılıyordu. `ExternalListSyncManager` bu yanlış kimliği yerel veritabanına da kalıcı yazıyordu. **En olası ana neden.** | Kapatıldı: ARM'a yalnızca birebir kimlikler (gerçek MAL / AniList / Kitsu) verilir, TMDB hiç verilmez; bu kimlikler yoksa ARM çağrılmaz. |
+| V2 | Simkl isteğinde anime için `tmdb` kimliğinin `mal` ile birlikte gönderilmesi | `SimklApiClient.buildSimklIds` | Anime "shows" zarfıyla gider; film kimliği olan bir TMDB numarası Simkl'da alakasız bir diziye bağlanabilir. | Kapatıldı: Simkl kimliği varsa yalnızca o; anime için TMDB asla gönderilmez; AniList/Kitsu yalnızca MAL yokken eklenir. |
+| V3 | Simkl'da anime için **başlıkla eşleştirme** (Simkl/MAL kimliği yokken) | `SimklSyncManager.syncBatchToSimkl`, `SimklApiClient.addToList` | Aynı adlı dizi/film ya da franchise'ın başka sezonu eşleşebilir. | Kapatıldı: Simkl/MAL kimliği olmayan anime kimliksiz gönderilmez (`titleMatchingAllowed=false`); hiç kimliği yoksa "güvenli kimlik yok" uyarısıyla atlanır (hata değil, atlandı). Dizi/film için TMDB/başlık eşleştirmesi (kendi doğru uzayında) korunur. |
+| V4 | Kitsu başlık aramasında **kısmi eşleşmenin** (contains, puan 60 ≥ 50) kabul edilmesi | `KitsuApiClient.lookupKitsuId` | "Oni Chichi" → "Oni Chichi 2", "Berserk" → "Berserk: Ougon Jidai-hen" gibi sekans/film seçilebiliyordu. | Daraltıldı: birebir alias eşleşmesi + uyumlu yıl (bilinmiyor ya da ≤ 1 fark) gerekir; kısmi eşleşme yalnızca her iki yıl biliniyor ve birebir aynıysa kabul edilir; eşit puanlı adaylarda null. |
+| V5 | **Tek kaynaklı sağlayıcı eşlemesi** (Simkl `ids.mal`, Kitsu `mappings`, AniList `idMal`) ya da ARM/Jikan çıkarımıyla elde edilen MAL ID'nin doğrulanmadan tüm platformlara "ekle" kimliği olarak kullanılması | `AuthViewModel` Faz 3 | Sağlayıcıdaki tek bir hatalı eşleme, yanlış başlığın 4 platforma birden eklenmesine yol açar. | Kapatıldı: yeni `CrossSyncIdentityGuard` ile **ekleme öncesi doğrulama** (7.3). |
+| V6 | v2'de gevşetilen "ortak kimlik, farklı alias" birleştirmesi yalnızca yıla bakıyordu | `AuthViewModel.clusterEntry` | Hatalı sağlayıcı eşlemesi aynı yıl içindeyse birleşip yanlış kayda yazılabilirdi. | Daraltıldı: yıl uyumu **ve** başlık akrabalığı (ortak ayırt edici kelime / ön ek / EN-JP alias) birlikte aranır; aksi halde eski güvenli davranış (kimlik doğrulaması gerekli → yazma yok). |
+
+Denetlenip değişiklik gerekmeyenler: Jikan başlık araması (zaten birebir normalize başlık + tür + yıl + tek sonuç şartı), AniList `Media(idMal, type)` sorgusu (türe bağlı), Shikimori `target_type`, Simkl içe aktarımının MAL ID uydurmaması, AniList/Kitsu/Simkl **güncellemelerinin** platformun kendi kayıt kimliğiyle yapılması (`aniListEntryId`, Kitsu library-entry id, `simklId`).
+
+### 7.3 Yeni bileşen: `CrossSyncIdentityGuard` (verify-before-add)
+
+`app/src/main/java/com/kitsugi/animelist/data/auth/CrossSyncIdentityGuard.kt`
+
+Faz 3'te her içerik grubu için, **en az bir hedef platformda kayıt eksikse** (yani ekleme yapılacaksa) grubun MAL kimliği şu sırayla değerlendirilir:
+
+1. **Güvenilir (Trusted):** grupta MAL/Shikimori kaynaklı bir kayıt bu kimliği taşıyor (kimlik doğal olarak MAL'dır) **veya** en az iki farklı platform (ör. AniList + Kitsu) bağımsız olarak aynı MAL ID'yi bildiriyor. Ağ isteği yapılmaz.
+2. **Doğrulama (Verified / Rejected):** tek bir sağlayıcı eşlemesine ya da ARM/Jikan çıkarımına dayanan kimlik için MAL kataloğundan başlık + alternatif başlıklar + başlangıç yılı çekilir (resmi MAL v2 API, `X-MAL-CLIENT-ID`; yedek: Jikan v4; sonuçlar önbelleklenir, hız sınırlayıcıdan geçer). Yerel grubun tüm alias'ları ile karşılaştırılır:
+   - Başlık akrabalığı: normalize eşitlik / ön ek / içerme (CJK dâhil) ya da en az bir ortak ayırt edici kelime (sezon, part, movie, the, no, wa … gibi yapısal kelimeler ve çıplak sayılar sayılmaz). Yıl bilinmiyorsa yalnızca güçlü akrabalık (eşitlik/ön ek/içerme) kabul edilir.
+   - Yıl uyumu: ikisi de biliniyorsa mutlak fark ≤ 1.
+3. **Doğrulanamadı (Unverifiable):** katalog yanıt vermedi → güvenli taraf.
+
+Sonuç **Rejected** veya **Unverifiable** ise:
+- AniList, MyAnimeList, Kitsu, Shikimori ve Simkl için **hiçbir yeni kayıt eklenmez**; her platformda "kimlik doğrulanamadı (MAL #id ↔ yerel başlık/yıl uyuşmuyor; yanlış içerik eklenmesin diye atlandı)" nedeniyle *atlandı* sayılır ve rapor sonunda tek satırda özetlenir.
+- Birleşik kayda doğrulanmamış gerçek MAL ID taşınmaz (sentetik AniList/Kitsu kimlikleri korunur).
+- Mevcut kayıtların güncellenmesi (durum/ilerleme/puan) etkilenmez; bunlar platformun kendi kayıt kimliğiyle yapılır.
+- Rejected için raporda tek bir uyarı satırı: "Şüpheli kimlik, ekleme engellendi: <başlık> → MAL #id" (MAL'daki başlık/yıl ve yerel kayıtlar detayında).
+
+Her grubun "İçerik grubu oluşturuldu" detayına `Kimlik güvencesi: …` satırı eklendi (güvenilir / doğrulandı / REDDEDİLDİ / doğrulanamadı / gerek yok).
+
+### 7.4 Beklenen etki
+
+- Yanlış sağlayıcı eşlemesi ya da ARM/TMDB belirsizliği artık **hiçbir platforma yeni kayıt olarak yansımaz**; en kötü durumda kayıt "atlandı" olarak raporlanır ve kullanıcı elle ekler.
+- Maliyet: yalnızca tek kaynaklı kimlik taşıyan ve en az bir platformda eksik olan gruplar için grup başına 1 hafif MAL isteği (~450 ms aralıkla, önbellekli). MAL/Shikimori kaynaklı gruplar ve çok kaynaklı gruplar için ek istek yok.
+- Simkl: güvenli kimliği (Simkl/MAL) olmayan animeler artık gönderilmez; bunlar "bulunamadı/atlandı" sayılır, hata değildir.
+
+### 7.5 Kullanıcı için doğrulama önerisi
+
+1. Daha önce yanlış eklenen başlıklardan birkaçının kaynağına bakın (rapordaki "İçerik grubu oluşturuldu" detayı): Simkl kaynaklı ve `ids.mal` olmayan kayıtlar artık `Kimlik güvencesi: …` satırında ya doğrulanmış ya da reddedilmiş görünmeli.
+2. Eşitlemeyi çalıştırıp raporda "Şüpheli kimlik, ekleme engellendi" ve "kimlik doğrulanamadı" satırlarını kontrol edin; buradaki başlıklar hesaplara **eklenmemiş** olmalı.
+3. Simkl özetinde "güvenli kimlik (Simkl/MAL) olmadığı için gönderilmedi" uyarısı varsa bu kayıtlar kimliksiz başlık eşleştirmesine düşmeden atlanmıştır (beklenen davranış).

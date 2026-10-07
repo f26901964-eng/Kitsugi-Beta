@@ -667,10 +667,17 @@ class SimklApiClient(
         kitsuId: Int? = null,
         title: String? = null,
         year: Int? = null
-    ): Boolean = addToListBatchDetailed(token, listOf(SimklBatchEntry(
-        type = type, status = status, simklId = simklId, malId = malId,
-        tmdbId = tmdbId, aniListId = aniListId, kitsuId = kitsuId, title = title, year = year
-    ))).isSuccess
+    ): Boolean {
+        // Anime için başlıkla eşleştirme yalnızca güvenli bir kimlik (Simkl/MAL) eşlik ediyorsa açık kalır;
+        // aksi halde aynı adlı dizi/film listeye eklenebilir (bkz. SimklBatchEntry.titleMatchingAllowed).
+        val hasSafeIdentity = simklId > 0 || (malId != null && malId > 0 && malId < 100_000_000)
+        val entry = SimklBatchEntry(
+            type = type, status = status, simklId = simklId, malId = malId,
+            tmdbId = tmdbId, aniListId = aniListId, kitsuId = kitsuId, title = title, year = year,
+            titleMatchingAllowed = type != "anime" || hasSafeIdentity
+        )
+        return addToListBatchDetailed(token, listOf(entry)).isSuccess
+    }
 
     data class SimklBatchEntry(
         val type: String, // "anime", "movies", "shows"
@@ -683,7 +690,13 @@ class SimklApiClient(
         val title: String? = null,
         val year: Int? = null,
         val progress: Int = 0,
-        val score: Int? = null
+        val score: Int? = null,
+        /**
+         * false ise istek gövdesine `title`/`year` yazılmaz; Simkl yalnızca kimliklerle eşleştirir.
+         * Anime için Simkl/MAL kimliği yokken başlıkla eşleştirme, aynı adlı dizileri/filmleri
+         * kullanıcının listesine ekleyebildiği için kapatılır. Başlık rapor/teşhis için yine taşınır.
+         */
+        val titleMatchingAllowed: Boolean = true
     )
 
     /**
@@ -703,20 +716,34 @@ class SimklApiClient(
         val isPartial: Boolean get() = !transportFailed && addedCount > 0 && notFoundCount > 0
     }
 
+    /**
+     * Simkl'a gönderilecek kimlik nesnesi. Yanlış içerik eklenmesine karşı kurallar:
+     *  • Simkl'ın kendi kimliği varsa yalnızca o gönderilir (başka kimlik eklemek Simkl'ın farklı bir
+     *    kaydı tercih etmesine yol açabilir).
+     *  • Anime için TMDB kimliği ASLA gönderilmez: TMDB film/dizi kimlik uzayları çakışır ve anime
+     *    "shows" zarfıyla gittiği için film kimliği bambaşka bir diziye bağlanabilir.
+     *  • Anime için MAL kimliği birincil anahtardır; AniList/Kitsu kimlikleri yalnızca MAL yokken eklenir.
+     */
     private fun buildSimklIds(entry: SimklBatchEntry): JSONObject {
         return JSONObject().apply {
-            if (entry.simklId > 0) put("simkl", entry.simklId)
+            if (entry.simklId > 0) {
+                put("simkl", entry.simklId)
+                return@apply
+            }
+            val isAnime = entry.type == "anime"
             if (entry.malId != null && entry.malId > 0 && entry.malId < 100_000_000) {
                 put("mal", entry.malId)
             }
-            if (entry.tmdbId != null && entry.tmdbId > 0) {
+            if (!isAnime && entry.tmdbId != null && entry.tmdbId > 0) {
                 put("tmdb", entry.tmdbId)
             }
-            if (entry.aniListId != null && entry.aniListId > 0) {
-                put("anilist", entry.aniListId)
-            }
-            if (entry.kitsuId != null && entry.kitsuId > 0) {
-                put("kitsu", entry.kitsuId)
+            if (isAnime && length() == 0) {
+                if (entry.aniListId != null && entry.aniListId > 0) {
+                    put("anilist", entry.aniListId)
+                }
+                if (entry.kitsuId != null && entry.kitsuId > 0) {
+                    put("kitsu", entry.kitsuId)
+                }
             }
         }
     }
@@ -739,13 +766,14 @@ class SimklApiClient(
             if (idObj.length() > 0) {
                 itemObj.put("ids", idObj)
             }
-            if (!entry.title.isNullOrBlank()) {
+            val titleAllowed = entry.titleMatchingAllowed && !entry.title.isNullOrBlank()
+            if (titleAllowed) {
                 itemObj.put("title", entry.title)
+                if (entry.year != null && entry.year > 1900) {
+                    itemObj.put("year", entry.year)
+                }
             }
-            if (entry.year != null && entry.year > 1900) {
-                itemObj.put("year", entry.year)
-            }
-            if (idObj.length() > 0 || !entry.title.isNullOrBlank()) {
+            if (idObj.length() > 0 || titleAllowed) {
                 when (SimklSyncContract.writeKey(entry.type)) {
                     "movies" -> moviesArray.put(itemObj)
                     else -> showsArray.put(itemObj)
@@ -897,8 +925,10 @@ class SimklApiClient(
         val movies = JSONArray()
         filtered.forEach { entry ->
             val item = JSONObject().put("ids", buildSimklIds(entry))
-            if (!entry.title.isNullOrBlank()) item.put("title", entry.title)
-            if (entry.year != null && entry.year > 0) item.put("year", entry.year)
+            if (entry.titleMatchingAllowed && !entry.title.isNullOrBlank()) {
+                item.put("title", entry.title)
+                if (entry.year != null && entry.year > 0) item.put("year", entry.year)
+            }
             if (SimklSyncContract.writeKey(entry.type) == "movies") {
                 movies.put(item)
             } else {
@@ -955,13 +985,16 @@ class SimklApiClient(
             }
 
             val idObj = buildSimklIds(entry)
-            if (idObj.length() == 0 && entry.title.isNullOrBlank()) return@forEach
+            val titleAllowed = entry.titleMatchingAllowed && !entry.title.isNullOrBlank()
+            if (idObj.length() == 0 && !titleAllowed) return@forEach
 
             val item = JSONObject().apply {
                 put("ids", idObj)
                 put("rating", normalizedRating)
-                if (!entry.title.isNullOrBlank()) put("title", entry.title)
-                if (entry.year != null && entry.year > 1900) put("year", entry.year)
+                if (titleAllowed) {
+                    put("title", entry.title)
+                    if (entry.year != null && entry.year > 1900) put("year", entry.year)
+                }
             }
             sentCount++
 

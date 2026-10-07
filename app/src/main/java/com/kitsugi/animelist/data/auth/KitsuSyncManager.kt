@@ -93,13 +93,15 @@ object KitsuSyncManager {
             }
         }
 
-        // ARM (yalnızca anime için veri içerir)
-        if (isAnime && (realMalId != null || rawAniListId != null || entry.tmdbId != null)) {
+        // ARM (yalnızca anime için veri içerir). GÜVENLİK: TMDB kimliği verilmez — film/dizi kimlik uzayı
+        // çakışması ve sezon gruplaması yüzünden yanlış yapımın Kitsu kimliği dönüyordu; yalnızca birebir
+        // kimlikler (gerçek MAL / AniList) kullanılır.
+        if (isAnime && (realMalId != null || rawAniListId != null)) {
             val armKitsu = runSyncCatching {
                 com.kitsugi.animelist.data.remote.KitsugiIdResolver.resolveIds(
                     malId = realMalId,
                     aniListId = rawAniListId,
-                    tmdbId = entry.tmdbId,
+                    tmdbId = null,
                     mediaType = entry.type
                 ).kitsuId
             }.getOrNull()

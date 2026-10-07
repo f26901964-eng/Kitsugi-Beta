@@ -765,24 +765,29 @@ object KitsuApiClient {
                         }
                     }
 
-                    var matchScore = 0
+                    var exactAlias = false
+                    var partialAlias = false
                     for (cand in candidateTitles) {
                         val cleanCand = cand.lowercase().filter { it.isLetterOrDigit() }
                         if (cleanCand.isBlank()) continue
                         if (cleanCand == cleanTarget) {
-                            matchScore = maxOf(matchScore, 100)
+                            exactAlias = true
                         } else if (cleanCand.contains(cleanTarget) || cleanTarget.contains(cleanCand)) {
-                            matchScore = maxOf(matchScore, 60)
+                            partialAlias = true
                         }
                     }
 
-                    if (expectedYear != null && itemYear != null) {
-                        if (expectedYear == itemYear) {
-                            matchScore += 20
-                        } else if (kotlin.math.abs(expectedYear - itemYear) > 1) {
-                            // Aynı isimli farklı yapım (remake/sezon): kesin eşleşme bile olsa yılı tutmayan adaya yazma
-                            matchScore -= if (matchScore >= 100) 50 else 40
-                        }
+                    // GÜVENLİK (yanlış içerik eklenmesine karşı): başlık araması yalnızca EKLEME öncesi son çare
+                    // olarak kullanılır; bu yüzden kabul kuralı bilinçli olarak dardır.
+                    //  • Birebir alias eşleşmesi: yıl bilinmiyor ya da en fazla 1 yıl fark → kabul.
+                    //  • Kısmi eşleşme ("Oni Chichi" ⊂ "Oni Chichi 2", "Berserk" ⊂ "Berserk: Ougon Jidai-hen"):
+                    //    yalnızca her iki yıl biliniyor ve birebir aynıysa kabul; aksi halde sekans/film seçilebilir.
+                    val yearsKnown = expectedYear != null && itemYear != null
+                    val yearGap = if (yearsKnown) kotlin.math.abs(expectedYear!! - itemYear!!) else null
+                    val matchScore = when {
+                        exactAlias && (yearGap == null || yearGap <= 1) -> if (yearGap == 0) 120 else 100
+                        partialAlias && yearGap == 0 -> 60
+                        else -> 0
                     }
 
                     if (matchScore < 50) continue
