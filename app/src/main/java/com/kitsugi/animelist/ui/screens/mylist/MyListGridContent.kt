@@ -31,6 +31,7 @@ internal fun LazyListScope.MyListGroupedContent(
     hideScores: Boolean,
     blurAdultMedia: Boolean,
     gridColumns: Int = 3,
+    sourceBadgesByEntryId: Map<Int, List<String>> = emptyMap(),
     onEntryClick: (MediaEntry) -> Unit,
     onIncrementProgress: (MediaEntry) -> Unit,
     onPosterLongClick: (String) -> Unit
@@ -76,7 +77,8 @@ internal fun LazyListScope.MyListGroupedContent(
                             scoreFormat = scoreFormat,
                             hideScores = hideScores,
                             blurAdultMedia = blurAdultMedia,
-                            onPosterLongClick = { imageUrl -> onPosterLongClick(imageUrl) }
+                            onPosterLongClick = { imageUrl -> onPosterLongClick(imageUrl) },
+                            sourceBadges = sourceBadgesByEntryId[entry.id]
                         )
                     }
                     if (row.size < gridColumns) {
@@ -102,7 +104,8 @@ internal fun LazyListScope.MyListGroupedContent(
                     scoreFormat = scoreFormat,
                     hideScores = hideScores,
                     blurAdultMedia = blurAdultMedia,
-                    onPosterLongClick = { imageUrl -> onPosterLongClick(imageUrl) }
+                    onPosterLongClick = { imageUrl -> onPosterLongClick(imageUrl) },
+                    sourceBadges = sourceBadgesByEntryId[entry.id]
                 )
                 Spacer(modifier = Modifier.height(cardSpacingForLayout(selectedListLayoutId)))
             }
@@ -123,6 +126,7 @@ internal fun LazyListScope.MyListFlatContent(
     hideScores: Boolean,
     blurAdultMedia: Boolean,
     gridColumns: Int = 3,
+    sourceBadgesByEntryId: Map<Int, List<String>> = emptyMap(),
     onEntryClick: (MediaEntry) -> Unit,
     onIncrementProgress: (MediaEntry) -> Unit,
     onPosterLongClick: (String) -> Unit
@@ -149,7 +153,8 @@ internal fun LazyListScope.MyListFlatContent(
                         scoreFormat = scoreFormat,
                         hideScores = hideScores,
                         blurAdultMedia = blurAdultMedia,
-                        onPosterLongClick = { imageUrl -> onPosterLongClick(imageUrl) }
+                        onPosterLongClick = { imageUrl -> onPosterLongClick(imageUrl) },
+                        sourceBadges = sourceBadgesByEntryId[entry.id]
                     )
                 }
                 if (row.size < gridColumns) {
@@ -175,7 +180,8 @@ internal fun LazyListScope.MyListFlatContent(
                 scoreFormat = scoreFormat,
                 hideScores = hideScores,
                 blurAdultMedia = blurAdultMedia,
-                onPosterLongClick = { imageUrl -> onPosterLongClick(imageUrl) }
+                onPosterLongClick = { imageUrl -> onPosterLongClick(imageUrl) },
+                sourceBadges = sourceBadgesByEntryId[entry.id]
             )
             Spacer(modifier = Modifier.height(cardSpacingForLayout(selectedListLayoutId)))
         }

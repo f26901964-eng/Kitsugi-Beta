@@ -17,6 +17,7 @@ import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
 import com.kitsugi.animelist.ui.components.BackupImportMode
 import com.kitsugi.animelist.ui.navigation.MainTab
+import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_ALL_TAB_INDEX
 import kotlinx.coroutines.launch
 import dagger.hilt.EntryPoint
 import dagger.hilt.InstallIn
@@ -163,17 +164,18 @@ class AppViewModel : ViewModel() {
         myListYearFilterId = prefs.getString("year_filter", "all") ?: "all"
         myListExtraFilterId = prefs.getString("extra_filter", "all") ?: "all"
         myListSortId = prefs.getString("sort", "newest") ?: "newest"
-        myListTabIndex = prefs.getInt("tab_index", 0)
+        myListTabIndex = prefs.getInt("tab_index", 0).coerceIn(0, MY_LIST_ALL_TAB_INDEX)
     }
 
     fun updateMyListTabIndex(context: Context, index: Int) {
-        myListTabIndex = index
+        val safeIndex = index.coerceIn(0, MY_LIST_ALL_TAB_INDEX)
+        myListTabIndex = safeIndex
         resetMyListScroll()
-        if (index == 2 && myListTypeFilterId == "manga") {
+        if (safeIndex == 2 && myListTypeFilterId == "manga") {
             updateMyListTypeFilter(context, "all")
         }
         context.getSharedPreferences("Kitsugi_list_filters", Context.MODE_PRIVATE)
-            .edit().putInt("tab_index", index).apply()
+            .edit().putInt("tab_index", safeIndex).apply()
     }
 
     fun updateMyListScrollPosition(index: Int, offset: Int) {

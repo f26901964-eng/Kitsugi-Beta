@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -52,7 +53,10 @@ import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayScore
 import com.kitsugi.animelist.utils.toFriendlySourceLabel
 
-@OptIn(ExperimentalFoundationApi::class)
+@OptIn(
+    ExperimentalFoundationApi::class,
+    androidx.compose.foundation.layout.ExperimentalLayoutApi::class
+)
 @Composable
 fun KitsugiMediaEntryCard(
     entry: MediaEntry,
@@ -64,67 +68,92 @@ fun KitsugiMediaEntryCard(
     scoreFormat: String = "POINT_10",
     hideScores: Boolean = false,
     blurAdultMedia: Boolean = false,
-    onPosterLongClick: ((String) -> Unit)? = null
+    onPosterLongClick: ((String) -> Unit)? = null,
+    sourceBadges: List<String>? = null
 ) {
-    when (layoutId) {
-        "compact" -> CompactMediaEntryCard(
-            entry = entry,
-            modifier = modifier,
-            onClick = onClick,
-            onIncrementClick = onIncrementClick,
-            titleLanguage = titleLanguage,
-            scoreFormat = scoreFormat,
-            hideScores = hideScores,
-            blurAdultMedia = blurAdultMedia,
-            onPosterLongClick = onPosterLongClick
-        )
+    val additionalSources = remember(entry.source, sourceBadges) {
+        val primarySource = canonicalSourceBadgeId(entry.source)
+        sourceBadges.orEmpty()
+            .map(::canonicalSourceBadgeId)
+            .filter { it.isNotBlank() && it != primarySource && KitsugiPlatformLogos.resFor(it) != null }
+            .distinct()
+    }
 
-        "large" -> LargeMediaEntryCard(
-            entry = entry,
-            modifier = modifier,
-            onClick = onClick,
-            onIncrementClick = onIncrementClick,
-            titleLanguage = titleLanguage,
-            scoreFormat = scoreFormat,
-            hideScores = hideScores,
-            blurAdultMedia = blurAdultMedia,
-            onPosterLongClick = onPosterLongClick
-        )
+    Column(modifier = modifier) {
+        when (layoutId) {
+            "compact" -> CompactMediaEntryCard(
+                entry = entry,
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onClick,
+                onIncrementClick = onIncrementClick,
+                titleLanguage = titleLanguage,
+                scoreFormat = scoreFormat,
+                hideScores = hideScores,
+                blurAdultMedia = blurAdultMedia,
+                onPosterLongClick = onPosterLongClick
+            )
 
-        "minimalist" -> MinimalistMediaEntryCard(
-            entry = entry,
-            modifier = modifier,
-            onClick = onClick,
-            onIncrementClick = onIncrementClick,
-            titleLanguage = titleLanguage,
-            scoreFormat = scoreFormat,
-            hideScores = hideScores,
-            blurAdultMedia = blurAdultMedia,
-            onPosterLongClick = onPosterLongClick
-        )
+            "large" -> LargeMediaEntryCard(
+                entry = entry,
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onClick,
+                onIncrementClick = onIncrementClick,
+                titleLanguage = titleLanguage,
+                scoreFormat = scoreFormat,
+                hideScores = hideScores,
+                blurAdultMedia = blurAdultMedia,
+                onPosterLongClick = onPosterLongClick
+            )
 
-        "grid_2col" -> PosterGridMediaEntryCard(
-            entry = entry,
-            modifier = modifier,
-            onClick = onClick,
-            titleLanguage = titleLanguage,
-            scoreFormat = scoreFormat,
-            hideScores = hideScores,
-            blurAdultMedia = blurAdultMedia,
-            onPosterLongClick = onPosterLongClick
-        )
+            "minimalist" -> MinimalistMediaEntryCard(
+                entry = entry,
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onClick,
+                onIncrementClick = onIncrementClick,
+                titleLanguage = titleLanguage,
+                scoreFormat = scoreFormat,
+                hideScores = hideScores,
+                blurAdultMedia = blurAdultMedia,
+                onPosterLongClick = onPosterLongClick
+            )
 
-        else -> ComfortableMediaEntryCard(
-            entry = entry,
-            modifier = modifier,
-            onClick = onClick,
-            onIncrementClick = onIncrementClick,
-            titleLanguage = titleLanguage,
-            scoreFormat = scoreFormat,
-            hideScores = hideScores,
-            blurAdultMedia = blurAdultMedia,
-            onPosterLongClick = onPosterLongClick
-        )
+            "grid_2col" -> PosterGridMediaEntryCard(
+                entry = entry,
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onClick,
+                titleLanguage = titleLanguage,
+                scoreFormat = scoreFormat,
+                hideScores = hideScores,
+                blurAdultMedia = blurAdultMedia,
+                onPosterLongClick = onPosterLongClick
+            )
+
+            else -> ComfortableMediaEntryCard(
+                entry = entry,
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onClick,
+                onIncrementClick = onIncrementClick,
+                titleLanguage = titleLanguage,
+                scoreFormat = scoreFormat,
+                hideScores = hideScores,
+                blurAdultMedia = blurAdultMedia,
+                onPosterLongClick = onPosterLongClick
+            )
+        }
+
+        if (additionalSources.isNotEmpty()) {
+            FlowRow(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(start = 8.dp, top = 5.dp, bottom = 2.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                additionalSources.forEach { source ->
+                    KitsugiSourceBadge(source = source, size = 18.dp)
+                }
+            }
+        }
     }
 }
 
@@ -510,6 +539,10 @@ private fun LargeMediaEntryCard(
                         modifier = Modifier
                             .align(Alignment.TopEnd)
                             .padding(8.dp)
+                    )
+                    KitsugiSourceBadge(
+                        source = entry.source,
+                        modifier = Modifier.align(Alignment.BottomStart)
                     )
                 }
 
@@ -964,6 +997,14 @@ private fun ScorePill(
         fontWeight = FontWeight.Bold,
         maxLines = 1
     )
+}
+
+private fun canonicalSourceBadgeId(source: String): String = when (source.trim().lowercase()) {
+    "al" -> "anilist"
+    "jikan", "myanimelist", "jikan (mal)", "mal (jikan)" -> "mal"
+    "shiki" -> "shikimori"
+    "themoviedb" -> "tmdb"
+    else -> source.trim().lowercase()
 }
 
 private fun statusColor(status: WatchStatus): Color {

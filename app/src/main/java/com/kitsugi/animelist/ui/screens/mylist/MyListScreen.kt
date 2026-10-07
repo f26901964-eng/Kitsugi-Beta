@@ -168,10 +168,10 @@ fun MyListScreen(
     var activeZoomImageUrl by rememberSaveable { mutableStateOf<String?>(null) }
     var activeZoomTitle by rememberSaveable { mutableStateOf("") }
 
-    // Pager state for AniList / MAL / Simkl / Kitsu / Shikimori tabs (5 tabs)
+    // Five provider tabs plus a combined, deduplicated library tab.
     val tabPagerState = rememberPagerState(
-        initialPage = selectedTabIndex.coerceIn(0, 4),
-        pageCount = { 5 }
+        initialPage = selectedTabIndex.coerceIn(0, MY_LIST_ALL_TAB_INDEX),
+        pageCount = { MY_LIST_TAB_COUNT }
     )
 
     // Pager page change -> notify parent
@@ -184,7 +184,7 @@ fun MyListScreen(
     // Parent tab change (chip click) -> animate pager
     LaunchedEffect(selectedTabIndex) {
         if (tabPagerState.currentPage != selectedTabIndex) {
-            tabPagerState.animateScrollToPage(selectedTabIndex.coerceIn(0, 4))
+            tabPagerState.animateScrollToPage(selectedTabIndex.coerceIn(0, MY_LIST_ALL_TAB_INDEX))
         }
     }
 
@@ -212,11 +212,26 @@ fun MyListScreen(
         }
     }
 
-    val selectedTabEntries = remember(entriesAfterAdultFilter, selectedTabIndex, searchQuery) {
-        if (searchQuery.isNotBlank()) {
-            entriesAfterAdultFilter
-        } else {
-            entriesAfterAdultFilter.filter { entry ->
+    val allLibraryItems = remember(entriesAfterAdultFilter) {
+        groupMyListEntries(entriesAfterAdultFilter)
+    }
+    val allLibraryEntries = remember(allLibraryItems) {
+        allLibraryItems.map { it.entry }
+    }
+    val allSourceBadgesByEntryId = remember(allLibraryItems) {
+        allLibraryItems.associate { it.entry.id to it.sourceIds }
+    }
+
+    val selectedTabEntries = remember(
+        entriesAfterAdultFilter,
+        allLibraryEntries,
+        selectedTabIndex,
+        searchQuery
+    ) {
+        when {
+            selectedTabIndex == MY_LIST_ALL_TAB_INDEX -> allLibraryEntries
+            searchQuery.isNotBlank() -> entriesAfterAdultFilter
+            else -> entriesAfterAdultFilter.filter { entry ->
                 val src = entry.source.lowercase()
                 when (selectedTabIndex) {
                     0 -> src == "anilist"
@@ -354,8 +369,8 @@ fun MyListScreen(
 
 
     // Per-tab scroll states — declared at top level so FAB can reference them
-    val tabScrollStates = remember { List(5) { androidx.compose.foundation.lazy.LazyListState() } }
-    val activeTabScrollState = tabScrollStates[selectedTabIndex.coerceIn(0, 4)]
+    val tabScrollStates = remember { List(MY_LIST_TAB_COUNT) { androidx.compose.foundation.lazy.LazyListState() } }
+    val activeTabScrollState = tabScrollStates[selectedTabIndex.coerceIn(0, MY_LIST_ALL_TAB_INDEX)]
 
     Column(
         modifier = Modifier
@@ -419,6 +434,7 @@ fun MyListScreen(
                 onTabIndexChange = onTabIndexChange,
                 visibleEntries = visibleEntries,
                 allEntries = entriesAfterAdultFilter,
+                allLibraryEntryCount = allLibraryItems.size,
                 isAniListConnected = isAniListConnected,
                 isMalConnected = isMalConnected,
                 isSimklConnected = isSimklConnected,
@@ -495,19 +511,24 @@ fun MyListScreen(
                     2 -> isSimklConnected
                     3 -> isKitsuConnected
                     4 -> isShikimoriConnected
+                    MY_LIST_ALL_TAB_INDEX -> true // A combined library also includes locally cached records.
                     else -> false
                 }
                 val pageScrollState = tabScrollStates[pageTabIndex]
-                val pageEntries = remember(entriesAfterAdultFilter, pageTabIndex) {
-                    entriesAfterAdultFilter.filter { entry ->
-                        val src = entry.source.lowercase()
-                        when (pageTabIndex) {
-                            0 -> src == "anilist"
-                            1 -> src == "mal" || src == "jikan" || src == "myanimelist"
-                            2 -> src == "simkl"
-                            3 -> src == "kitsu"
-                            4 -> src == "shikimori"
-                            else -> src == "anilist"
+                val pageEntries = remember(entriesAfterAdultFilter, allLibraryEntries, pageTabIndex) {
+                    if (pageTabIndex == MY_LIST_ALL_TAB_INDEX) {
+                        allLibraryEntries
+                    } else {
+                        entriesAfterAdultFilter.filter { entry ->
+                            val src = entry.source.lowercase()
+                            when (pageTabIndex) {
+                                0 -> src == "anilist"
+                                1 -> src == "mal" || src == "jikan" || src == "myanimelist"
+                                2 -> src == "simkl"
+                                3 -> src == "kitsu"
+                                4 -> src == "shikimori"
+                                else -> src == "anilist"
+                            }
                         }
                     }
                 }
@@ -518,6 +539,7 @@ fun MyListScreen(
                     isConnected = pageIsConnected,
                     isSimklSessionExpired = isSimklSessionExpired,
                     pageEntries = pageEntries,
+                    sourceBadgesByEntryId = if (pageTabIndex == MY_LIST_ALL_TAB_INDEX) allSourceBadgesByEntryId else emptyMap(),
                     visibleEntries = visibleEntries,
                     groupedVisibleEntries = groupedVisibleEntries,
                     searchQuery = searchQuery,
@@ -547,6 +569,15 @@ fun MyListScreen(
                             2 -> onSyncSimkl()
                             3 -> onSyncKitsu()
                             4 -> onSyncShikimori()
+                            MY_LIST_ALL_TAB_INDEX -> {
+                                var startedSync = false
+                                if (isAniListConnected) { onSyncAniList(); startedSync = true }
+                                if (isMalConnected) { onSyncMal(); startedSync = true }
+                                if (isSimklConnected && !isSimklSessionExpired) { onSyncSimkl(); startedSync = true }
+                                if (isKitsuConnected) { onSyncKitsu(); startedSync = true }
+                                if (isShikimoriConnected) { onSyncShikimori(); startedSync = true }
+                                if (!startedSync) onExternalSyncMessage("Birleşik listeyi yenilemek için en az bir kaynağı bağla")
+                            }
                         }
                     },
                     onEntryClick = onEntryClick,
@@ -647,7 +678,7 @@ fun MyListScreen(
                         .background(accentColor)
                         .tvClickable(shape = RoundedCornerShape(16.dp)) {
                             coroutineScope.launch {
-                                val activeState = tabScrollStates[selectedTabIndex.coerceIn(0, 2)]
+                                val activeState = tabScrollStates[selectedTabIndex.coerceIn(0, MY_LIST_ALL_TAB_INDEX)]
                                 activeState.animateScrollToItem(0)
                                 onScrollReset()
                             }

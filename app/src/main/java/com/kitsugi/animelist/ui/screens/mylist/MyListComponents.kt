@@ -366,6 +366,7 @@ fun MyListTabBar(
     onTabIndexChange: (Int) -> Unit,
     visibleEntries: List<MediaEntry>,
     allEntries: List<MediaEntry> = emptyList(),
+    allLibraryEntryCount: Int = allEntries.size,
     isAniListConnected: Boolean = false,
     isMalConnected: Boolean = false,
     isSimklConnected: Boolean = false,
@@ -453,7 +454,20 @@ fun MyListTabBar(
         )
     )
 
-    val currentPlatform = platforms.getOrNull(selectedTabIndex.coerceIn(0, 4)) ?: platforms[0]
+    val allPlatform = MyListPlatformSource(
+        index = MY_LIST_ALL_TAB_INDEX,
+        id = "all",
+        name = "Tümü",
+        shortName = "Tümü",
+        emoji = "🌐",
+        brandColor = accentColor,
+        isConnected = false,
+        username = "",
+        count = allLibraryEntryCount,
+        description = "${platforms.size} platformdaki içerikleri tek listede birleştir"
+    )
+    val displayPlatforms = listOf(allPlatform) + platforms
+    val currentPlatform = displayPlatforms.firstOrNull { it.index == selectedTabIndex } ?: platforms[0]
 
     Row(
         modifier = Modifier
@@ -479,7 +493,8 @@ fun MyListTabBar(
         ) {
             KitsugiPlatformLogo(
                 platformId = currentPlatform.id,
-                size = 18.dp
+                size = 18.dp,
+                fallbackTint = currentPlatform.brandColor
             )
             Text(
                 text = currentPlatform.shortName,
@@ -496,7 +511,7 @@ fun MyListTabBar(
             )
         }
 
-        // 2. Yatay kaydırılabilir 5 platform çipleri (hızlı geçiş için)
+        // 2. Tümü + yatay kaydırılabilir platform çipleri (hızlı geçiş için)
         Row(
             modifier = Modifier
                 .weight(1f)
@@ -504,7 +519,7 @@ fun MyListTabBar(
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            platforms.forEach { platform ->
+            displayPlatforms.forEach { platform ->
                 val isSelected = selectedTabIndex == platform.index
                 Box(
                     modifier = Modifier
@@ -530,7 +545,8 @@ fun MyListTabBar(
                     ) {
                         KitsugiPlatformLogo(
                             platformId = platform.id,
-                            size = 15.dp
+                            size = 15.dp,
+                            fallbackTint = platform.brandColor
                         )
                         Text(
                             text = platform.shortName,
@@ -612,7 +628,7 @@ fun MyListTabBar(
                     modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
                 )
 
-                platforms.forEach { platform ->
+                displayPlatforms.forEach { platform ->
                     val isSelected = selectedTabIndex == platform.index
                     Row(
                         modifier = Modifier
@@ -638,7 +654,8 @@ fun MyListTabBar(
                         KitsugiPlatformLogo(
                             platformId = platform.id,
                             size = 30.dp,
-                            modifier = Modifier.padding(end = 12.dp)
+                            modifier = Modifier.padding(end = 12.dp),
+                            fallbackTint = platform.brandColor
                         )
 
                         Column(modifier = Modifier.weight(1f)) {
@@ -653,7 +670,21 @@ fun MyListTabBar(
                                         color = if (isSelected) platform.brandColor else KitsugiColors.textPrimary
                                     )
                                 )
-                                if (platform.isConnected) {
+                                if (platform.id == "all") {
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(platform.brandColor.copy(alpha = 0.16f))
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    ) {
+                                        Text(
+                                            text = "${platforms.size} platform",
+                                            color = platform.brandColor,
+                                            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                            fontWeight = FontWeight.Bold
+                                        )
+                                    }
+                                } else if (platform.isConnected) {
                                     Box(
                                         modifier = Modifier
                                             .clip(RoundedCornerShape(6.dp))
@@ -716,6 +747,7 @@ fun MyListContentPage(
     isConnected: Boolean,
     isSimklSessionExpired: Boolean,
     pageEntries: List<MediaEntry>,
+    sourceBadgesByEntryId: Map<Int, List<String>>,
     visibleEntries: List<MediaEntry>,
     groupedVisibleEntries: List<Pair<WatchStatus, List<MediaEntry>>>,
     searchQuery: String,
@@ -792,8 +824,9 @@ fun MyListContentPage(
                 item { MyListSyncPromptState() }
             }
         } else {
-            val displayEntries = if (pageTabIndex == selectedTabIndex || searchQuery.isNotBlank()) visibleEntries else pageEntries
-            val displayGrouped = if (pageTabIndex == selectedTabIndex || searchQuery.isNotBlank()) {
+            val useGlobalSearchResults = searchQuery.isNotBlank() && selectedTabIndex != MY_LIST_ALL_TAB_INDEX
+            val displayEntries = if (pageTabIndex == selectedTabIndex || useGlobalSearchResults) visibleEntries else pageEntries
+            val displayGrouped = if (pageTabIndex == selectedTabIndex || useGlobalSearchResults) {
                 groupedVisibleEntries
             } else {
                 val statusOrder = listOf(
@@ -846,6 +879,7 @@ fun MyListContentPage(
                         hideScores = appSettings.hideScores,
                         blurAdultMedia = appSettings.blurAdultMedia,
                         gridColumns = gridColumns,
+                        sourceBadgesByEntryId = sourceBadgesByEntryId,
                         onEntryClick = onEntryClick,
                         onIncrementProgress = onIncrementProgress,
                         onPosterLongClick = onPosterLongClick
@@ -859,6 +893,7 @@ fun MyListContentPage(
                         hideScores = appSettings.hideScores,
                         blurAdultMedia = appSettings.blurAdultMedia,
                         gridColumns = gridColumns,
+                        sourceBadgesByEntryId = sourceBadgesByEntryId,
                         onEntryClick = onEntryClick,
                         onIncrementProgress = onIncrementProgress,
                         onPosterLongClick = onPosterLongClick
