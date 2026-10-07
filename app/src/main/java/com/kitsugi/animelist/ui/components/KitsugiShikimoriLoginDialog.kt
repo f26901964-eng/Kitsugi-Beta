@@ -60,11 +60,21 @@ fun KitsugiShikimoriLoginDialog(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val scrollState = rememberScrollState()
 
-    // Otomatik deep-link ile giriş tamamlandığında diyaloğu otomatik kapat
+    // Otomatik deep-link ile giriş tamamlandığında diyaloğu otomatik kapat;
+    // deep-link sırasında oluşan hataları da kullanıcıya göster.
     LaunchedEffect(Unit) {
         ExternalAuthManager.authEvents.collect { event ->
-            if (event is ExternalAuthManager.AuthEvent.Success && event.serviceName.equals("shikimori", ignoreCase = true)) {
-                onDismiss()
+            when (event) {
+                is ExternalAuthManager.AuthEvent.Success ->
+                    if (event.serviceName.equals("shikimori", ignoreCase = true)) onDismiss()
+                is ExternalAuthManager.AuthEvent.Error -> {
+                    // Yalnızca Shikimori akışıyla ilgili hataları burada göster.
+                    if (isLoading || event.message.contains("shikimori", ignoreCase = true)) {
+                        isLoading = false
+                        errorMessage = event.message
+                    }
+                }
+                else -> Unit
             }
         }
     }
@@ -194,6 +204,9 @@ fun KitsugiShikimoriLoginDialog(
                             KitsugiButton(
                                 onClick = {
                                     val targetId = clientId.trim().ifBlank { ShikimoriApiClient.DEFAULT_CLIENT_ID }
+                                    errorMessage = null
+                                    // Token adımı authorize adımındaki redirect_uri ile eşleşmek zorunda.
+                                    ExternalAuthManager.saveShikimoriPendingRedirectUri(context, ShikimoriApiClient.DEEP_LINK_REDIRECT_URI)
                                     val authUrl = ShikimoriApiClient.buildAuthorizeUrl(targetId, ShikimoriApiClient.DEEP_LINK_REDIRECT_URI)
                                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(authUrl))
                                     context.startActivity(intent)
@@ -216,6 +229,8 @@ fun KitsugiShikimoriLoginDialog(
                             KitsugiTonalButton(
                                 onClick = {
                                     val targetId = clientId.trim().ifBlank { ShikimoriApiClient.DEFAULT_CLIENT_ID }
+                                    errorMessage = null
+                                    ExternalAuthManager.saveShikimoriPendingRedirectUri(context, ShikimoriApiClient.DEFAULT_REDIRECT_URI)
                                     val authUrl = ShikimoriApiClient.buildAuthorizeUrl(targetId, ShikimoriApiClient.DEFAULT_REDIRECT_URI)
                                     val intent = Intent(Intent.ACTION_VIEW, Uri.parse(authUrl))
                                     context.startActivity(intent)
@@ -234,6 +249,49 @@ fun KitsugiShikimoriLoginDialog(
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.SemiBold
                                 )
+                            }
+
+                            Spacer(modifier = Modifier.height(10.dp))
+
+                            // Redirect URI uyuşmazlığında ne yapılacağını açıkla
+                            Text(
+                                text = "Tarayıcıda \"The requested redirect uri is malformed or doesn't match client redirect URI\" hatası görürseniz: " +
+                                    "Shikimori'deki OAuth uygulamanızın Redirect URI listesinde ${ShikimoriApiClient.DEEP_LINK_REDIRECT_URI} kayıtlı değil demektir. " +
+                                    "Uygulama ayarlarından ekleyin ya da aşağıdaki aniyomi:// alternatifini / manuel kodu kullanın.",
+                                style = MaterialTheme.typography.bodySmall.copy(
+                                    color = KitsugiColors.TextSecondary,
+                                    fontSize = 11.sp,
+                                    lineHeight = 15.sp
+                                )
+                            )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                TextButton(
+                                    onClick = {
+                                        runCatching {
+                                            context.startActivity(
+                                                Intent(Intent.ACTION_VIEW, Uri.parse(ShikimoriApiClient.APPLICATIONS_URL))
+                                            )
+                                        }
+                                    }
+                                ) {
+                                    Text("Shikimori OAuth Uygulamalarım", fontSize = 11.sp)
+                                }
+                                TextButton(
+                                    onClick = {
+                                        val targetId = clientId.trim().ifBlank { ShikimoriApiClient.DEFAULT_CLIENT_ID }
+                                        errorMessage = null
+                                        ExternalAuthManager.saveShikimoriPendingRedirectUri(context, ShikimoriApiClient.FALLBACK_DEEP_LINK_REDIRECT_URI)
+                                        val authUrl = ShikimoriApiClient.buildAuthorizeUrl(targetId, ShikimoriApiClient.FALLBACK_DEEP_LINK_REDIRECT_URI)
+                                        runCatching { context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(authUrl))) }
+                                    }
+                                ) {
+                                    Text("Alternatif Tek Tık (aniyomi://)", fontSize = 11.sp)
+                                }
                             }
                         }
                     }

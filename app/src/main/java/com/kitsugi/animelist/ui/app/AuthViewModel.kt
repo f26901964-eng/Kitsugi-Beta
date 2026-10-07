@@ -875,9 +875,18 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         val cleanCode = ShikimoriApiClient.sanitizeAuthCode(authCode)
 
         viewModelScope.launch(Dispatchers.IO) {
+            // Tarayıcı hangi redirect_uri ile açıldıysa token isteği de onunla eşleşmek zorunda
+            // (Shikimori/Doorkeeper). Akış başlatılırken kaydedilen değeri kullan.
+            val pendingRedirectUri = ExternalAuthManager.getShikimoriPendingRedirectUri(context)
+                ?: ShikimoriApiClient.DEFAULT_REDIRECT_URI
             runSyncCatching {
                 ExternalAuthManager.saveShikimoriCredentials(context, effectiveClientId, effectiveClientSecret)
-                val tokenResp = ShikimoriApiClient.exchangeCodeForToken(effectiveClientId, effectiveClientSecret, cleanCode)
+                val tokenResp = ShikimoriApiClient.exchangeCodeForToken(
+                    clientId = effectiveClientId,
+                    clientSecret = effectiveClientSecret,
+                    code = cleanCode,
+                    redirectUri = pendingRedirectUri
+                )
                 val user = ShikimoriApiClient.getCurrentUser(tokenResp.accessToken)
                 ExternalAuthManager.saveShikimoriAuth(
                     context = context,
@@ -903,6 +912,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     onError(msg)
                 }
             }
+            // Akış tamamlandı (başarılı/başarısız): bekleyen redirect kaydını temizle.
+            ExternalAuthManager.clearShikimoriPendingRedirectUri(context)
         }
     }
 

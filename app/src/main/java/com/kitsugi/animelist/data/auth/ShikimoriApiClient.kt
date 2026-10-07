@@ -81,42 +81,67 @@ object ShikimoriApiClient {
 
     /**
      * Kullanıcının yapıştırdığı metinden (örn. URL veya query parametresi) auth code'u ayıklar.
+     * "?code=XXX&state=...", "code=XXX", tırnaklı yapıştırmalar ve yüzde-kodlu metinler desteklenir.
      */
     fun sanitizeAuthCode(rawInput: String): String {
-        val trimmed = rawInput.trim()
-        if (trimmed.contains("code=")) {
-            val extracted = trimmed.substringAfter("code=").substringBefore("&").substringBefore("#").trim()
-            if (extracted.isNotBlank()) return extracted
+        var value = rawInput.trim().trim('"', '\'', '<', '>', ' ')
+        if (value.contains("code=")) {
+            value = value.substringAfter("code=").substringBefore("&").substringBefore("#").trim()
         }
-        return trimmed
+        if (value.contains("%")) {
+            value = runCatching { java.net.URLDecoder.decode(value, "UTF-8") }.getOrDefault(value)
+        }
+        return value
     }
+
+    /** Shikimori OAuth uygulamaları yönetim sayfası (Redirect URI ayarları burada yapılır). */
+    const val APPLICATIONS_URL = "$BASE_URL/oauth/applications"
 
     /**
      * Shikimori üzerinde önceden doldurulmuş yeni OAuth uygulama oluşturma URL'si (gelişmiş kullanıcılar için).
      */
     fun buildNewApplicationUrl(): String {
         val encodedUri = java.net.URLEncoder.encode(DEEP_LINK_REDIRECT_URI, "UTF-8")
-        return "$BASE_URL/oauth/applications/new?application%5Bname%5D=Kitsugi&application%5Bredirect_uri%5D=$encodedUri&application%5Bscopes%5D=user_rates+comments+topics"
+        return "$BASE_URL/oauth/applications/new?application%5Bname%5D=Kitsugi&application%5Bredirect_uri%5D=$encodedUri&application%5Bscopes%5D=user_rates"
     }
 
     /**
      * OAuth2 yetkilendirme URL'sini üretir.
+     *
+     * Not: "scope" uygulamanın Shikimori'de kayıtlı scope'larının bir alt kümesi olmak zorundadır;
+     * aksi halde Shikimori "invalid scope" hatası verir. Varsayılan olarak yalnızca "user_rates"
+     * istenir (uygulamanın fiilen kullandığı kapsam budur).
      */
     fun buildAuthorizeUrl(
         clientId: String = DEFAULT_CLIENT_ID,
         redirectUri: String = DEEP_LINK_REDIRECT_URI,
-        scopes: String = "user_rates+comments+topics"
+        scopes: String = "user_rates"
     ): String {
         val effectiveClientId = clientId.trim().ifBlank { DEFAULT_CLIENT_ID }
-        val encodedUri = java.net.URLEncoder.encode(redirectUri, "UTF-8")
-        val effectiveScope = if (effectiveClientId == DEFAULT_CLIENT_ID) scopes else "user_rates"
-        return "$BASE_URL/oauth/authorize?client_id=$effectiveClientId&redirect_uri=$encodedUri&response_type=code&scope=$effectiveScope"
+        val effectiveRedirect = redirectUri.trim().ifBlank { DEFAULT_REDIRECT_URI }
+        val encodedUri = java.net.URLEncoder.encode(effectiveRedirect, "UTF-8")
+        return "$BASE_URL/oauth/authorize?client_id=$effectiveClientId&redirect_uri=$encodedUri&response_type=code&scope=$scopes"
     }
 
     /**
+     * Shikimori OAuth/token hatalarını taşıyan özel istisna.
+     * [isInvalidGrant] true ise yetki kodu geçersiz, süresi dolmuş ya da farklı bir
+     * istemci/redirect adresi için üretilmiş demektir.
+     */
+    class ShikimoriTokenException(
+        message: String,
+        val isInvalidGrant: Boolean = false
+    ) : Exception(message)
+
+    /**
      * OAuth yetki kodunu (authorization code) access token ile takas eder.
-     * OAuth 2.1 (RFC 9700) standardı gereği token istek gövdesinde redirect_uri parametresi gönderilmez.
-     * Geriye dönük uyumluluk için gerekirse eski redirect_uri fallback'leri de desteklenir.
+     *
+     * ÖNEMLİ (Shikimori / Doorkeeper): token isteğinde "redirect_uri" ZORUNLUDUR ve
+     * /oauth/authorize adımında kullanılan değerle birebir aynı olmalıdır. Aksi halde
+     * Shikimori "Missing required parameter: redirect_uri." (400) veya "invalid_grant" döner.
+     *
+     * Bu yüzden önce çağıranın verdiği redirect_uri denenir; başarısız olursa uygulamanın
+     * desteklediği diğer redirect_uri değerleri yedek olarak denenir.
      */
     suspend fun exchangeCodeForToken(
         clientId: String = DEFAULT_CLIENT_ID,
@@ -125,69 +150,49 @@ object ShikimoriApiClient {
         redirectUri: String = DEFAULT_REDIRECT_URI
     ): ShikimoriTokenResponse = withContext(Dispatchers.IO) {
         val cleanCode = sanitizeAuthCode(code)
+        if (cleanCode.isBlank()) {
+            throw ShikimoriTokenException("Shikimori yetkilendirme kodu boş görünüyor. Tarayıcıdaki kodu yeniden kopyalayıp yapıştırın.")
+        }
         val targetClientId = clientId.trim().ifBlank { DEFAULT_CLIENT_ID }
         val targetSecret = clientSecret.trim().ifBlank { DEFAULT_CLIENT_SECRET }
 
-        try {
-            // OAuth 2.1: redirect_uri artık gönderilmiyor
-            return@withContext executeTokenRequest(
-                clientId = targetClientId,
-                clientSecret = targetSecret,
-                code = cleanCode
-            )
-        } catch (e: Exception) {
-            // Geriye dönük uyumluluk fallback'i: eski OAuth 2.0 sunucuları için redirect_uri ile deneme
-            val legacyUrls = listOf(OAUTH_TOKEN_URL, "$BASE_URL/oauth/token")
-            val urisToTry = when (redirectUri) {
-                DEEP_LINK_REDIRECT_URI -> listOf(DEEP_LINK_REDIRECT_URI, FALLBACK_DEEP_LINK_REDIRECT_URI, DEFAULT_REDIRECT_URI)
-                FALLBACK_DEEP_LINK_REDIRECT_URI -> listOf(FALLBACK_DEEP_LINK_REDIRECT_URI, DEEP_LINK_REDIRECT_URI, DEFAULT_REDIRECT_URI)
-                else -> listOf(DEFAULT_REDIRECT_URI, DEEP_LINK_REDIRECT_URI, FALLBACK_DEEP_LINK_REDIRECT_URI)
+        val candidates = listOf(
+            redirectUri.trim(),
+            DEFAULT_REDIRECT_URI,
+            DEEP_LINK_REDIRECT_URI,
+            FALLBACK_DEEP_LINK_REDIRECT_URI
+        ).filter { it.isNotBlank() }.distinct()
+
+        var lastError: Exception? = null
+        for (uri in candidates) {
+            try {
+                return@withContext executeTokenRequest(
+                    clientId = targetClientId,
+                    clientSecret = targetSecret,
+                    code = cleanCode,
+                    redirectUri = uri
+                )
+            } catch (e: Exception) {
+                lastError = e
+                Log.w(TAG, "Token denemesi başarısız (redirect_uri=$uri): ${e.message}")
             }
-            for (uri in urisToTry) {
-                for (tokenUrl in legacyUrls) {
-                    try {
-                        val legacyFormBody = FormBody.Builder()
-                            .add("grant_type", "authorization_code")
-                            .add("client_id", targetClientId)
-                            .add("client_secret", targetSecret)
-                            .add("code", cleanCode)
-                            .add("redirect_uri", uri)
-                            .build()
-                        val req = Request.Builder()
-                            .url(tokenUrl)
-                            .addHeader("User-Agent", USER_AGENT)
-                            .addHeader("Accept", "application/json")
-                            .post(legacyFormBody)
-                            .build()
-                        KitsugiHttpClient.client.newCall(req).execute().use { resp ->
-                            val respBody = resp.body?.string().orEmpty()
-                            if (resp.isSuccessful) {
-                                val json = JSONObject(respBody)
-                                return@withContext ShikimoriTokenResponse(
-                                    accessToken = json.getString("access_token"),
-                                    refreshToken = json.optString("refresh_token", ""),
-                                    expiresIn = json.optLong("expires_in", 2592000L)
-                                )
-                            }
-                        }
-                    } catch (_: Exception) {}
-                }
-            }
-            throw e
         }
+        throw lastError ?: ShikimoriTokenException("Shikimori token isteği başarısız oldu.")
     }
 
     private fun executeTokenRequest(
         clientId: String,
         clientSecret: String,
-        code: String
+        code: String,
+        redirectUri: String
     ): ShikimoriTokenResponse {
         val formBody = FormBody.Builder()
             .add("grant_type", "authorization_code")
             .add("client_id", clientId)
             .add("client_secret", clientSecret)
             .add("code", code)
-            // ✅ redirect_uri artık gönderilmiyor (OAuth 2.1)
+            // ✅ Doorkeeper/Shikimori bunu zorunlu tutar ve authorize adımındaki değerle eşleşmelidir.
+            .add("redirect_uri", redirectUri)
             .build()
 
         val urlsToTry = listOf(OAUTH_TOKEN_URL, "$BASE_URL/oauth/token")
@@ -205,20 +210,75 @@ object ShikimoriApiClient {
                 KitsugiHttpClient.client.newCall(request).execute().use { response ->
                     val body = response.body?.string().orEmpty()
                     if (!response.isSuccessful) {
-                        throw Exception("Shikimori token alınamadı (${response.code}): $body")
+                        throw tokenErrorFor(response.code, body)
                     }
-                    val json = JSONObject(body)
-                    return ShikimoriTokenResponse(
-                        accessToken = json.getString("access_token"),
-                        refreshToken = json.optString("refresh_token", ""),
-                        expiresIn = json.optLong("expires_in", 2592000L)
-                    )
+                    return parseTokenResponse(body)
                 }
+            } catch (e: ShikimoriTokenException) {
+                // Sunucu OAuth hatası döndürdü; ayna adresini denemek sonucu değiştirmez.
+                throw e
             } catch (e: Exception) {
+                // Ağ/TLS/parse kaynaklı hata: ayna adres denenebilir.
                 lastErr = e
             }
         }
-        throw lastErr ?: Exception("Shikimori token isteği başarısız oldu.")
+        throw lastErr ?: ShikimoriTokenException("Shikimori token isteği başarısız oldu.")
+    }
+
+    /**
+     * /oauth/token hata yanıtını kullanıcı dostu Türkçe mesaja çevirir.
+     * Ham sunucu açıklaması parantez içinde korunur (hata ayıklama için).
+     */
+    private fun tokenErrorFor(status: Int, body: String): ShikimoriTokenException {
+        val json = runCatching { JSONObject(body.trim()) }.getOrNull()
+        val errorCode = json?.optString("error").orEmpty()
+        val description = json?.optString("error_description").orEmpty()
+        val raw = "HTTP $status" +
+            if (description.isNotBlank()) " • $description"
+            else if (errorCode.isNotBlank()) " • $errorCode"
+            else ""
+
+        val friendly = when {
+            description.contains("redirect_uri", ignoreCase = true) ->
+                "Shikimori token isteğini reddetti: redirect_uri eksik ya da yetkilendirmede kullanılanla uyuşmuyor. " +
+                    "Aynı yöntemle (derin bağlantı veya manuel kod) yeniden deneyin. ($raw)"
+            errorCode == "invalid_client" ->
+                "Shikimori istemci bilgileri geçersiz (client_id/client_secret). " +
+                    "Gelişmiş Ayarlar'dan 'Varsayılan Anahtarları Geri Yükle' seçeneğini kullanın. ($raw)"
+            errorCode == "invalid_grant" ->
+                "Shikimori yetkilendirme kodu geçersiz, süresi dolmuş ya da farklı bir istemci/redirect adresi için üretilmiş. " +
+                    "Tarayıcıda yetkilendirmeyi baştan başlatıp yeni kodu hızlıca girin. ($raw)"
+            status == 429 ->
+                "Shikimori çok fazla istek nedeniyle geçici olarak sınırladı. Birkaç dakika bekleyip tekrar deneyin. ($raw)"
+            else ->
+                "Shikimori token alınamadı. ($raw)"
+        }
+        return ShikimoriTokenException(friendly, isInvalidGrant = errorCode == "invalid_grant")
+    }
+
+    /**
+     * /oauth/token başarılı yanıtını ayrıştırır; gövde JSON değilse ham JSONException yerine
+     * anlaşılır bir hata fırlatır (sunucu/önbellek/engel sayfaları bu yüzden çökertmesin).
+     */
+    private fun parseTokenResponse(body: String): ShikimoriTokenResponse {
+        val trimmed = body.trim()
+        if (!trimmed.startsWith("{")) {
+            throw ShikimoriTokenException(
+                "Shikimori token yanıtı beklenen JSON biçiminde değil " +
+                    "(ağ engeli/önbellek ya da tamamlanmamış yetkilendirme olabilir). Birkaç dakika sonra tekrar deneyin. " +
+                    "Yanıt başlangıcı: ${trimmed.take(120).ifBlank { "<boş>" }}"
+            )
+        }
+        val json = JSONObject(trimmed)
+        val accessToken = json.optString("access_token").trim()
+        if (accessToken.isBlank()) {
+            throw ShikimoriTokenException("Shikimori yanıtında access_token bulunamadı: ${trimmed.take(160)}")
+        }
+        return ShikimoriTokenResponse(
+            accessToken = accessToken,
+            refreshToken = json.optString("refresh_token", ""),
+            expiresIn = json.optLong("expires_in", 2592000L)
+        )
     }
 
     /**
@@ -251,13 +311,13 @@ object ShikimoriApiClient {
                 KitsugiHttpClient.client.newCall(request).execute().use { response ->
                     val body = response.body?.string().orEmpty()
                     if (!response.isSuccessful) {
-                        throw Exception("Shikimori token yenilenemedi (${response.code}): $body")
+                        throw tokenErrorFor(response.code, body)
                     }
-                    val json = JSONObject(body)
+                    val parsed = parseTokenResponse(body)
                     return@withContext ShikimoriTokenResponse(
-                        accessToken = json.getString("access_token"),
-                        refreshToken = json.optString("refresh_token", refreshToken),
-                        expiresIn = json.optLong("expires_in", 2592000L)
+                        accessToken = parsed.accessToken,
+                        refreshToken = parsed.refreshToken.ifBlank { refreshToken },
+                        expiresIn = parsed.expiresIn
                     )
                 }
             } catch (e: Exception) {
@@ -279,11 +339,22 @@ object ShikimoriApiClient {
             .build()
 
         KitsugiHttpClient.client.newCall(request).execute().use { response ->
-            val body = response.body?.string().orEmpty()
+            val body = response.body?.string().orEmpty().trim()
             if (!response.isSuccessful) {
-                throw Exception("Shikimori profil bilgisi alınamadı (${response.code})")
+                throw Exception(
+                    if (response.code == 401) "Shikimori oturumu geçersiz ya da süresi dolmuş (401). Lütfen yeniden giriş yapın."
+                    else "Shikimori profil bilgisi alınamadı (${response.code})."
+                )
+            }
+            // Shikimori, jeton eksik/geçersizken 200 OK ile düz "null" gövdesi döndürebiliyor
+            // (örn. /api/users/whoami). Bu durumda ham JSONException fırlatmak yerine anlaşılır hata ver.
+            if (body.isBlank() || body == "null" || !body.startsWith("{")) {
+                throw Exception("Shikimori oturumu doğrulanamadı: jeton geçersiz görünüyor. Lütfen yeniden giriş yapın.")
             }
             val json = JSONObject(body)
+            if (json.optInt("id", 0) <= 0) {
+                throw Exception("Shikimori kullanıcı bilgisi alınamadı (geçersiz yanıt). Lütfen yeniden giriş yapın.")
+            }
             ShikimoriUser(
                 id = json.getInt("id"),
                 nickname = json.optString("nickname", "Shikimori User"),
@@ -304,8 +375,11 @@ object ShikimoriApiClient {
             .build()
 
         KitsugiHttpClient.client.newCall(request).execute().use { response ->
-            val body = response.body?.string().orEmpty()
+            val body = response.body?.string().orEmpty().trim()
             if (!response.isSuccessful) throw Exception("Shikimori profil bilgisi alınamadı (${response.code})")
+            if (body.isBlank() || body == "null" || !body.startsWith("{")) {
+                throw Exception("Shikimori profil yanıtı geçersiz (jeton süresi dolmuş olabilir). Lütfen yeniden giriş yapın.")
+            }
             val json = JSONObject(body)
             val id = json.getInt("id")
             val nickname = json.optString("nickname", "Shikimori Kullanıcısı")

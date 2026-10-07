@@ -62,6 +62,13 @@ object ExternalAuthManager {
     private const val KEY_SHIKIMORI_CLIENT_ID = "shikimori_client_id"
     private const val KEY_SHIKIMORI_CLIENT_SECRET = "shikimori_client_secret"
 
+    /**
+     * Son yetkilendirme akışında tarayıcıya verilen redirect_uri.
+     * Shikimori/Doorkeeper, token isteğindeki redirect_uri'nin authorize adımındakiyle
+     * birebir aynı olmasını ZORUNLU kılar; bu yüzden akış başlatılırken kaydedilir.
+     */
+    private const val KEY_SHIKIMORI_PENDING_REDIRECT = "shikimori_pending_redirect_uri"
+
     private const val REDIRECT_URI = "malapp://auth"
 
     private val _authEvents = MutableSharedFlow<AuthEvent>(
@@ -202,6 +209,20 @@ object ExternalAuthManager {
             .remove(KEY_SHIKIMORI_CLIENT_ID)
             .remove(KEY_SHIKIMORI_CLIENT_SECRET)
             .apply()
+    }
+
+    /** Yetkilendirme akışı başlatılırken tarayıcıya verilen redirect_uri'yi kaydeder. */
+    fun saveShikimoriPendingRedirectUri(context: Context, redirectUri: String) {
+        if (redirectUri.isBlank()) return
+        prefs(context).edit().putString(KEY_SHIKIMORI_PENDING_REDIRECT, redirectUri.trim()).apply()
+    }
+
+    /** Son akışta kullanılan redirect_uri (yoksa null). */
+    fun getShikimoriPendingRedirectUri(context: Context): String? =
+        prefs(context).getString(KEY_SHIKIMORI_PENDING_REDIRECT, null)?.trim()?.takeIf { it.isNotBlank() }
+
+    fun clearShikimoriPendingRedirectUri(context: Context) {
+        prefs(context).edit().remove(KEY_SHIKIMORI_PENDING_REDIRECT).apply()
     }
 
     fun saveShikimoriAuth(context: Context, token: String, refreshToken: String, expiresInSeconds: Long, userId: Int, username: String) {
@@ -389,10 +410,12 @@ object ExternalAuthManager {
             val code = uri.getQueryParameter("code")
             if (code == null) {
                 val error = uri.getQueryParameter("error") ?: "Shikimori yetkilendirme iptal edildi"
+                clearShikimoriPendingRedirectUri(context)
                 onError(error)
                 _authEvents.tryEmit(AuthEvent.Error(error))
                 return
             }
+            // Köprü, hangi şemayla açıldıysa o redirect_uri ile eşleşmek zorundadır.
             val redirectUriUsed = if (uri.scheme == "kitsugi") {
                 ShikimoriApiClient.DEEP_LINK_REDIRECT_URI
             } else {
@@ -500,6 +523,7 @@ object ExternalAuthManager {
                     _authEvents.tryEmit(AuthEvent.Error(msg))
                 }
             }
+            clearShikimoriPendingRedirectUri(context)
         }
     }
 

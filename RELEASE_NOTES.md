@@ -1,28 +1,26 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
-## 🇹🇷 Türkçe (v2.4.187)
+## 🇹🇷 Türkçe (v2.4.188)
 
-### 🚀 5 Platform Kapsamlı Senkronizasyon, Shikimori OAuth 2.1 & Yedekleme v2 Mimarisi
+### 🌸 Shikimori OAuth Giriş, Doorkeeper Redirect URI & JSON Güvenlik Düzeltmesi
 
-- **5 Platform Tam Senkronizasyon (AniList, MyAnimeList, Kitsu, Shikimori, Simkl):** Tüm takip servislerinde liste okuma, ekleme, güncelleme ve silme akışları standardize edildi. Sahte onaylar engellendi; her yazma sonrası sunucudan doğrulama (read-back) zorunlu kılındı.
-- **Shikimori OAuth 2.1 (RFC 9700) Uyumluluğu:** Token takas isteğindeki gövdeden `redirect_uri` kaldırılarak OAuth 2.1 standardına tam uyum sağlandı. `https://shikimori.io` ve `https://shikimori.one` endpoint fallback desteği eklendi.
-- **Eşzamanlılık Koruması (`SyncSafety`):** Senkronizasyon işlemlerinin aynı anda tetiklenip veritabanında yarış durumuna (race condition) veya kilitlenmeye yol açmasını engelleyen global mutex koruması devreye alındı.
-- **Çevrimdışı Kuyruk Güvencesi:** Başarısız sync istekleri 5 deneme sonrasında silinmeyip yerel Room kuyruğunda korunarak veri kaybı önlendi.
-- **Yedekleme & Geri Yükleme Schema v2:** Notlar, gizlilik durumları, başlama/bitiş tarihleri, TMDB ve Simkl ID'leri yedek dosyasına dahil edildi.
-- **Merkezi Kimlik Eşleme (`MediaIdentity`):** 5 platform arasındaki medya ID dönüşümleri ve çapraz eşitleme tek bir güvenilir sınıf üzerinden yönetilmeye başlandı.
+- **Shikimori Doorkeeper Token İstek Düzeltmesi:** Token takas isteğine (`POST /oauth/token`) `redirect_uri` parametresi geri eklendi; `400 Missing required parameter: redirect_uri` hatası tamamen giderildi.
+- **Dinamik Pending Redirect URI Eşleştirmesi:** Tarayıcının açıldığı yönlendirme adresi (`kitsugi://`, `urn:ietf:wg:oauth:2.0:oob` veya `aniyomi://`) hafızaya alınarak token takası sırasında sunucuya birebir aynı adres gönderilir.
+- **Ham JSON Hatası Engellendi:** Shikimori'nin geçersiz oturumlarda döndürdüğü `null` yanıtının parse edilmesiyle oluşan ham `A JSONObject text must begin with '{'` hatası giderildi; tüm yanıtlar null/HTML kontrolleriyle korumaya alındı.
+- **Gelişmiş Giriş Diyaloğu & Alternatif Şema:** Giriş penceresine "Shikimori OAuth Uygulamalarım" yönetim bağlantısı ve eski şemayı kullananlar için "Alternatif Tek Tık (aniyomi://)" butonu eklendi.
 
 ---
 
-## 🇬🇧 English (v2.4.187)
+## 🇬🇧 English (v2.4.188)
 
-### 🚀 5-Platform Cumulative Sync, Shikimori OAuth 2.1 & Backup Schema v2 Architecture
+### 🌸 Shikimori OAuth Authentication, Doorkeeper Redirect URI & JSON Guard Fix
 
-- **Comprehensive 5-Platform Sync (AniList, MyAnimeList, Kitsu, Shikimori, Simkl):** Standardized CRUD sync workflows across all tracking providers with strict post-write server read-back verification.
-- **Shikimori OAuth 2.1 (RFC 9700) Compliance:** Removed obsolete `redirect_uri` from token exchange payload according to OAuth 2.1 specs; enabled automatic fallback between `https://shikimori.io` and `https://shikimori.one`.
-- **Global Concurrency Guard (`SyncSafety`):** Introduced a thread-safe mutex lock preventing concurrent sync operations from causing Room DB contention or race conditions.
-- **Offline Sync Queue Protection:** Retains pending sync records even after 5 retry attempts, ensuring local modifications are not lost during network outages.
-- **Backup & Restore Schema v2:** Backups now capture custom notes, start/finish timestamps, privacy preferences, and provider IDs (TMDB & Simkl).
-- **Centralized Entity Mapping (`MediaIdentity`):** Cross-platform ID translation and deduplication consolidated into a dedicated identity layer.
+- **Shikimori Doorkeeper Token Payload Fix:** Restored `redirect_uri` parameter in token exchange requests, eliminating `400 Missing required parameter: redirect_uri`.
+- **Dynamic Pending Redirect URI Matching:** Pairs the authorization redirect URI (`kitsugi://`, `urn:ietf:wg:oauth:2.0:oob`, or `aniyomi://`) with the token exchange step as required by Doorkeeper OAuth.
+- **Guarded JSON Parsing:** Eliminated raw `A JSONObject text must begin with '{'` exceptions when encountering `null` or non-JSON payloads from expired session endpoints.
+- **Enhanced Login Dialog & Fallback Flows:** Added direct link to Shikimori OAuth management dashboard and an "Alternative 1-Tap (aniyomi://)" button in the login dialog.
+
+---
 
 ---
 
@@ -35,7 +33,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.187)
+## 🇬🇧 English (v2.4.188)
 
 ### 🚀 Nuvio Libtorrent P2P Streaming Engine, Full Seeding & Upload Controls, Simkl Batch Sync & Media Detail Fixes
 
@@ -48,7 +46,7 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.187)
+## 🇹🇷 Türkçe (v2.4.188)
 
 ### 🚀 İzole Süreç Çökme Ekranı (:crash), Canlı Sistem Teşhisi, Çapraz Senkronizasyon & Kararlılık Güncellemeleri
 
@@ -60,7 +58,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.187)
+## 🇬🇧 English (v2.4.188)
 
 ### 🚀 Isolated :crash Process Architecture, Live System Diagnostics, Cross-Sync & Core Stability
 
@@ -72,7 +70,7 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.187)
+## 🇹🇷 Türkçe (v2.4.188)
 
 ### 🚀 Shikimori 1-Tık Otomatik Giriş Çözümü, Kitsu Bildirim Detay Sayfası Düzeltmesi & Kararlılık Güncellemeleri
 
@@ -83,7 +81,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.187)
+## 🇬🇧 English (v2.4.188)
 
 ### 🚀 Shikimori 1-Tap OAuth & Deep Link Fix, Kitsu Notification Detail Resolution & Stability Improvements
 
@@ -94,7 +92,7 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.187)
+## 🇹🇷 Türkçe (v2.4.188)
 
 ### 🚀 Gelişmiş Arama Filtre Paneli, İzole Arama Motorları, Resmi MAL API Entegrasyonu, Shikimori 1-Tık Giriş & Modern Çökme Raporlama
 
@@ -108,7 +106,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.187)
+## 🇬🇧 English (v2.4.188)
 
 ### 🚀 Advanced Search Filter Sheet, Isolated Search Engines, Official MAL API, Shikimori 1-Tap OAuth & Modern Crash Activity
 
@@ -122,7 +120,7 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.187)
+## 🇹🇷 Türkçe (v2.4.188)
 
 ### 🚀 Zenginleştirilmiş Sistem Bildirimleri, Kitsu & Shikimori Profilleri, Profil Kaynak Seçici Paneli ve Orijinal Logolar
 
@@ -134,7 +132,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.187)
+## 🇬🇧 English (v2.4.188)
 
 ### 🚀 Rich System Notifications, Kitsu & Shikimori Profiles, Source Picker Sheet & Original Logos
 
@@ -146,7 +144,7 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.187)
+## 🇹🇷 Türkçe (v2.4.188)
 
 ### 🚀 Kitsu Düzeltmeleri, Grid/Liste Hatırlama, Yapışkan Bar Filtresi, TMDB İngilizce Fallback, Simkl Dizi/Film Keşfeti ve Çökme Korumaları
 
@@ -163,7 +161,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.187)
+## 🇬🇧 English (v2.4.188)
 
 ### 🚀 Grid Persistence, Sticky Filter Button, TMDB English Fallback, Simkl TV/Movies & Crash Shield
 
@@ -180,7 +178,7 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.187)
+## 🇹🇷 Türkçe (v2.4.188)
 
 ### 🚀 Keşfet Arayüzü, "Tümü" Butonu, Kitsu & Shikimori Girişleri, Bildirim Önizleme ve Çapraz Eşitleme
 
@@ -193,7 +191,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.187)
+## 🇬🇧 English (v2.4.188)
 
 ### 🚀 Explore UI, "All" FAB, Kitsu & Shikimori Auth, Activity Notifications & Cross-Sync Matrix
 
@@ -206,7 +204,7 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.187)
+## 🇹🇷 Türkçe (v2.4.188)
 
 ### 🚀 Eklenti Deposu ve Eklenti Yükleme Sorunları Tamamen Giderildi
 
@@ -217,7 +215,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.187)
+## 🇬🇧 English (v2.4.188)
 
 ### 🚀 Extension Repository & Plugin Loading Fixes
 
@@ -227,17 +225,17 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.187)
+## 🇹🇷 Türkçe (v2.4.188)
 
 ### 🚀 Eklenti Kurulum Hatası Giderildi & Codeberg Eklenti Havuzu Canlıya Alındı
 
 - **Eklenti Kurulumu ve İndirme Hatası Tamamen Çözüldü:** Yeni Codeberg `KitsugiPlugins` deposundaki tüm 174 eklenti (DiziPal, RecTV, FilmMakinesi, InatBox, TurkAnime vb.) artık sorunsuz, doğrudan ve tek tıkla kurulmaktadır. Dosya bütünlüğü ZIP doğrulamasıyla garanti altına alınmıştır.
 - **Doğrudan Codeberg URL Koruması:** Eklenti indirme ve repo yenileme sırasında Codeberg URL'lerinin bozulması engellenmiş, eski GitHub bağlantıları otomatik olarak yeni depoya yönlendirilmiştir.
-- **Sürüm Güncellemesi:** Önceki derlemelerdeki önbellek çakışmalarını gidermek amacıyla v2.4.187 olarak paketlenmiştir.
+- **Sürüm Güncellemesi:** Önceki derlemelerdeki önbellek çakışmalarını gidermek amacıyla v2.4.188 olarak paketlenmiştir.
 
 ---
 
-## 🇬🇧 English (v2.4.187)
+## 🇬🇧 English (v2.4.188)
 
 ### 🚀 Plugin Installation Error Fixed & Codeberg Plugin Pool Live
 
@@ -246,7 +244,7 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.187)
+## 🇹🇷 Türkçe (v2.4.188)
 
 ### 🚀 Codeberg Entegrasyonu & Eklenti Havuzu Güvenliği (+18 Temizlendi)
 
@@ -256,7 +254,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.187)
+## 🇬🇧 English (v2.4.188)
 
 ### 🚀 Codeberg Migration & Clean Plugin Repository (+18 Excluded)
 
@@ -266,7 +264,7 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.187)
+## 🇹🇷 Türkçe (v2.4.188)
 
 ### 📚 Türkçe Manga & Webtoon Altyapısı Kökten Yenilendi (Keiyoushi V2, 77 TR Kaynağı, MangaDex 3.450 TR Başlık, Hotlink Çözümü)
 
@@ -282,7 +280,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.187)
+## 🇬🇧 English (v2.4.188)
 
 ### 📚 Turkish Manga & Webtoon Engine Complete Overhaul (Keiyoushi V2, 77 TR Sources, MangaDex 3,450 TR Titles, Hotlink Bypass)
 
@@ -298,7 +296,7 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.187)
+## 🇹🇷 Türkçe (v2.4.188)
 
 ### 🎭 TMDB Kurgusal Karakter Detayları, Seslendirmen Ayrımı, AL Arama ve Kesintisiz Keşfet (Kitsu Fallback)
 
@@ -309,7 +307,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.187)
+## 🇬🇧 English (v2.4.188)
 
 ### 🎭 TMDB Fictional Character Details, Voice Actor Separation, AL Search & Seamless Kitsu Fallback
 
@@ -320,7 +318,7 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.187)
+## 🇹🇷 Türkçe (v2.4.188)
 
 ### 🎬 TMDB Film/Dizi ID Eşleme Düzeltmesi & Yorumlardaki Resim Büyüme Sorunu Çözüldü
 
@@ -332,7 +330,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.187)
+## 🇬🇧 English (v2.4.188)
 
 ### 🎬 TMDB Movie/TV ID Mapping Fix, Comment Image Auto-Expansion Resolved & Downloads Navigation
 
