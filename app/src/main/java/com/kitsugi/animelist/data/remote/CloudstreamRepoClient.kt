@@ -108,7 +108,7 @@ class CloudstreamRepoClient(private val context: android.content.Context? = null
         val ctx = context ?: return emptyList()
         return runCatching {
             val jsonStr = ctx.assets.open(assetPath).bufferedReader().use { it.readText() }
-            parsePluginsJson(jsonStr, false)
+            dedupePlugins(parsePluginsJson(jsonStr, false))
         }.getOrDefault(emptyList())
     }
 
@@ -339,7 +339,7 @@ class CloudstreamRepoClient(private val context: android.content.Context? = null
                 directPlugins = fetchPlugins(repoUrl, useGithubProxy = true, forceRefresh = forceRefresh)
             }
             if (directPlugins.isNotEmpty()) {
-                return directPlugins.map { it.copy(repositoryUrl = it.repositoryUrl ?: normalizedRepoUrl) }
+                return dedupePlugins(directPlugins.map { it.copy(repositoryUrl = it.repositoryUrl ?: normalizedRepoUrl) })
             }
         }
 
@@ -362,6 +362,57 @@ class CloudstreamRepoClient(private val context: android.content.Context? = null
             }
             all.addAll(plugins.map { it.copy(repositoryUrl = it.repositoryUrl ?: normalizedRepoUrl) })
         }
-        return all
+        return dedupePlugins(all)
+    }
+
+    /**
+     * Aynı eklentinin birden fazla depoda (veya aynı depoda farklı adlarla) listelenmesi
+     * durumunda TEK bir kayıt bırakır.
+     *
+     * Neden gerekli: Türkçe eklenti havuzunda 130+ eklenti birden fazla depoda yer alıyor
+     * ve kayıtlar farklı sürüm/URL'ler taşıyor (`Kanal7` vs `Kanal 7`, `WFilmİzle` vs
+     * `WFilmizle`, `Dizikorea` vs `DiziKorea` gibi yalnızca Türkçe karakter/büyük-küçük harf
+     * farkı olan adlar dahil). Dedupe olmadan aynı eklenti portalda iki kez görünüyor,
+     * kullanıcı eski/kırık sürümü kuruyor ve "eklenti boş dönüyor" hatası ortaya çıkıyordu.
+     *
+     * Kural: kimlik anahtarı normalleştirilmiş [CsPlugin.internalName]'dir. Aynı anahtar için
+     * **en yüksek sürüm** kazanır; sürümler eşitse önce gelen (repo'nun pluginLists sırası)
+     * korunur — böylece birincil depo tercih edilir.
+     */
+    internal fun dedupePlugins(plugins: List<CsPlugin>): List<CsPlugin> {
+        val best = LinkedHashMap<String, CsPlugin>()
+        for (plugin in plugins) {
+            val key = pluginIdentityKey(plugin.internalName.ifBlank { plugin.name })
+            if (key.isEmpty()) continue
+            val existing = best[key]
+            if (existing == null || plugin.version > existing.version) {
+                best[key] = plugin
+            }
+        }
+        return best.values.toList()
+    }
+
+    /**
+     * Eklenti adını karşılaştırma anahtarına indirger: küçük harfe çevirir, Türkçe karakterleri
+     * ASCII karşılıklarına katlar (ı/İ/I → i, ş → s, ğ → g, ü → u, ö → o, ç → c) ve
+     * boşluk/noktalama işaretlerini atar. Böylece `"Kanal 7"`, `"Kanal7"` ile; `"WFilmİzle"`,
+     * `"WFilmizle"` ile eşleşir.
+     */
+    internal fun pluginIdentityKey(name: String): String {
+        val sb = StringBuilder(name.length)
+        for (ch in name) {
+            when (ch) {
+                'İ', 'I', 'ı', 'i' -> sb.append('i')
+                'Ş', 'ş' -> sb.append('s')
+                'Ğ', 'ğ' -> sb.append('g')
+                'Ü', 'ü' -> sb.append('u')
+                'Ö', 'ö' -> sb.append('o')
+                'Ç', 'ç' -> sb.append('c')
+                else -> sb.append(ch.lowercaseChar())
+            }
+        }
+        return sb.toString()
+            .replace("\u0307", "")
+            .filter { it.isLetterOrDigit() }
     }
 }

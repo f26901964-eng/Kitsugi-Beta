@@ -300,6 +300,102 @@ değiştirir. Tablo eskimişse (veya eklenti kendi içinde daha yeni bir domain 
 
 ---
 
+### B15 — (Kritik) Uygulamanın gömülü deposu, Kitsugi'nin resmî deposunu kullanmıyordu ✅ DÜZELTİLDİ
+
+- **Kanıt:** `app/src/main/assets/plugins/repo.json` tek bir `pluginList` içeriyordu:
+  `codeberg.org/BlackDamage/KitsugiPlugins/raw/branch/builds/plugins.json`.
+  Kullanıcının resmî deposu (`github.com/f26901964-eng/Kitsugi-Plugins`, `builds` dalı, 166 eklenti)
+  bu listede **hiç yoktu**. `CloudstreamUrlHelper.normalizeUrl` Codeberg adreslerini yeni depoya
+  çeviriyordu; ancak `repo.json`'ın kendisi (birincil kaynak) hâlâ eski havuza işaret ediyordu.
+- **Etki:** Kullanıcı uygulamada "Kitsugi Eklenti Deposu"nu açtığında 173 kayıtlık **eski** yedek
+  listeyi görüyordu: `RecTV v1` (güncel: v98), `WebteIzle v17` (v59), `InatBox v15` (v30),
+  `AnimeciX v11` (v21) ve 10 kayıt `status: 0` (kapalı) olarak işaretliydi.
+- **Düzeltme:** `repo.json` → birincil liste `f26901964-eng/Kitsugi-Plugins/builds/plugins.json`,
+  Codeberg yedek olarak ikinci sırada. `fetchAllPlugins` tüm listeleri sırayla dener ve birleştirir.
+
+### B16 — (Kritik) Aynı eklenti onlarca kez listeleniyor; tekilleştirme yoktu ✅ DÜZELTİLDİ
+
+- **Ölçüm:** 11 Türkçe/yabancı depo birleştiğinde **554 kayıt**, **355 benzersiz** eklenti;
+  **134 eklenti birden fazla depoda.** Uygulama bu kayıtları olduğu gibi birleştiriyordu.
+- **Etki:** Portal aynı eklentiyi iki kez gösteriyor; kullanıcı hangi kopyayı kuracağını bilmiyor ve
+  eski/kırık kopyayı kurduğunda "eklenti veri getirmiyor" hatası alıyordu.
+- **Düzeltme:** `CloudstreamRepoClient.dedupePlugins()` — kimlik anahtarı Türkçe katlamalı
+  (`WFilmİzle` ≡ `WFilmizle`, `Kanal 7` ≡ `Kanal7`, `CizgiveDizi` ≡ `CizgiVeDizi`,
+  `Dizikorea` ≡ `DiziKorea`); **en yüksek sürüm kazanır**, eşitlikte birincil depo korunur.
+  Hem uzak repo yolunda hem gömülü yedek listede uygulanır.
+
+### B17 — (Kritik) `internalName` ile `.cs3` dosya adı uyuşmuyordu → indirme 404 ✅ DÜZELTİLDİ
+
+- **Kanıt (gerçek dosya karşılaştırması, `Kitsugi-Plugins@builds`):**
+
+  | Kayıttaki ad | Depodaki dosya | Sonuç |
+  |---|---|---|
+  | `WFilmİzle` | `WFilmizle.cs3` | 404 |
+  | `CanliTV` | `CanliTv.cs3` | 404 |
+  | `DDizi` | `Ddizi.cs3` | 404 |
+  | `Kanal 7` | `Kanal7.cs3` | 404 |
+  | `CizgiveDizi` | `CizgiVeDizi.cs3` | 404 |
+  | `Dizikorea` | `DiziKorea.cs3` | 404 |
+  | `SineWix` | `Sinewix.cs3` | 404 |
+
+- Ayrıca depoda **kaydı olup dosyası hiç bulunmayan** 4 kayıt tespit edildi:
+  `Filmmirasım`, `Filmİzlesene`, `FullHDFilmİzlede` (hiç derlenmemiş) ve `WFilmİzle` (ad farkı).
+  `YesilCamTv.cs3` ise `main/prebuilt` içinde var ama `builds` dalına kopyalanmamış.
+- **Düzeltme (uygulama tarafı):**
+  1. `CloudstreamUrlHelper.cs3NameVariants()` — Türkçe ASCII katlama + kısaltma katlama
+     (`CanliTV→CanliTv`, `DDizi→Ddizi`) + boşluk temizliği (`Kanal 7→Kanal7`) ile aday adlar.
+  2. `CS3_NAME_ALIASES` — marka adı değişen kayıtlar (`CizgiveDizi→CizgiVeDizi`).
+  3. `getCandidateDownloadUrls()` — varyantlar + `prebuilt/` yolu + **Codeberg son çare yedeği**.
+- **Sonuç:** 10 kırık kaydın **7'si** uygulama tarafında kurtarıldı; kalan 3'ü (`Filmmirasım`,
+  `Filmİzlesene`, `FullHDFilmİzlede`) Codeberg yedeğiyle deneniyor ve depo tarafında derlenmeleri
+  gerekiyor (bkz. bölüm 3b).
+
+### B18 — (Yüksek) Tanı aracındaki 4 depo ölüydü; her tarama boşa gidiyordu ✅ DÜZELTİLDİ
+
+- **Doğrulama (GitHub API):**
+  - `ByAyzen/AyzenCS3` → **404** (repo silinmiş)
+  - `caca1403/cloudstream-cagi-eklenti` → **404**
+  - `sarapcanagii/Pitipitii` → **HTTP 451 / DMCA** (beIN Sports şikâyeti, 2026-08-20)
+  - `Kraptor123/cs-kraptor/refs/heads/master/repo.json` → **repo.json yayınlanmıyor**
+    (yalnız `builds/plugins.json`) — `hexated` için de aynı durum.
+- **Etki:** Her tanı turunda 4 gereksiz başarısız istek + gecikme; `cs-kraptor` eklentileri hiç
+  listelenemiyordu.
+- **Düzeltme:** Liste canlı adreslerle yenilendi, Kitsugi'nin resmî deposu eklendi, `repo.json`
+  yayınlamayan iki depo doğrudan `plugins.json` ile tanımlandı.
+
+### B19 — (Orta) Gömülü yedek liste 40 kayıtta eski sürüm/yanlış durum taşıyordu ✅ DÜZELTİLDİ
+
+- 173 kaydın 40'ı güncellendi (sürüm, URL, hash, boyut, durum resmî depodan alındı):
+  `RecTV v1→v98`, `WebteIzle v17→v59`, `InatBox v15→v30`, `AnimeciX v11→v21`, `AsyaWatch v1→v6`,
+  10 kayıt `status 0→1`, 7 kayıtta eksik `status/version` tamamlandı.
+- 170 kayıt artık `f26901964-eng/Kitsugi-Plugins` adresine işaret ediyor; yalnız 3 kayıt
+  (`__New`, `AnimeAV`, `YesilCamTv`) Codeberg'de kaldı (yeni depoda hiç derlenmemişler).
+
+---
+
+## 3b. Eklenti Deposu (`f26901964-eng/Kitsugi-Plugins`) Denetimi
+
+Depo tarafında (kaynak + derlenmiş dal) tespit edilen, düzeltilmesi gereken yapısal sorunlar:
+
+| # | Sorun | Kanıt | Etki |
+|---|---|---|---|
+| D1 | `builds/plugins.json` içinde **dosyası olmayan 4 kayıt** | `Filmmirasım.cs3`, `Filmİzlesene.cs3`, `FullHDFilmİzlede.cs3`, `WFilmİzle.cs3` depoda yok | İndirme 404 → "eklenti boş dönüyor" |
+| D2 | `main/prebuilt/YesilCamTv.cs3` **`builds` dalına kopyalanmamış** | `builds` listesinde yok | İndirilemiyor |
+| D3 | Derleyici **yalnız değişen dizinleri** derliyor | `.github/workflows/Derleyici.yml`: `CHANGED=$(git diff --name-only HEAD~1 HEAD)` | Kaynağı olan ama hiç derlenmemiş 10 dizin: `AnimeAV, CanliTV, DDizi, Filmmirasım, Filmİzlesene, FullHDFilmİzlede, WFilmİzle, YesilCamTv, __New, __Temel` |
+| D4 | `merge_plugins.py` **dosya varlığını doğrulamıyor** | Kayıtlar `existing → prebuilt → compiled` olarak birleştiriliyor, `.cs3` kontrolü yok | Silinen dosyanın kaydı manifestte kalıyor (D1'in kök nedeni) |
+| D5 | `prebuilt_plugins.json` (105 Kraptor kaydı) **mevcut kayıtları eziyor** | `merge_plugins.py` sıralaması | Manifest sürümü ile gerçek dosya içeriği ayrışabiliyor |
+| D6 | Eski ad kayıtları yeni depoda farklı adla | `CizgiveDizi`/`Dizikorea`/`SineWix` kayıtları | 404 (uygulama tarafında alias ile kurtarıldı) |
+
+**Önerilen depo düzeltmeleri (uygulama tarafını ilgilendirmeyen, depo sahibinin yapması gerekenler):**
+1. `merge_plugins.py`'ye dosya varlık kontrolü ekle — `.cs3` dosyası bulunmayan kayıt manifeste girmesin.
+2. `Derleyici.yml`'e "tüm eklentileri derle" modu ekle (`workflow_dispatch` girdisi) veya eksik
+   10 dizin için boş bir commit ile derleme tetikle.
+3. `prebuilt_plugins.json` sürümlerinin gerçek dosyalarla eşleştiğini doğrula (D5).
+4. Kaynak dizinlerinde `internalName` ile üretilen `.cs3` adının birebir aynı olduğundan emin ol
+   (`WFilmİzle` → `WFilmizle` sorunu).
+
+---
+
 ## 4. Yapılan Değişiklikler
 
 ### Yeni dosyalar
@@ -308,6 +404,8 @@ değiştirir. Tablo eskimişse (veya eklenti kendi içinde daha yeni bir domain 
 | `app/src/main/java/com/kitsugi/animelist/data/cloudstream/embed/EmbedMediaScanner.kt` | HTML/JS → gerçek medya URL'si (packer, atob, kaçış, iframe, skorlama). **Saf Kotlin → birim testli.** |
 | `app/src/main/java/com/kitsugi/animelist/data/cloudstream/embed/WebViewMediaSniffer.kt` | JS ile üretilen oynatıcılarda medya isteğini gerçek WebView'de yakalar (tek WebView kilidi, 12 sn, **ana thread'i bloke etmeyen** kotlinx Semaphore). |
 | `app/src/test/java/com/kitsugi/animelist/data/cloudstream/embed/EmbedMediaScannerTest.kt` | 11 birim testi: JWPlayer, **gerçek p.a.c.k.e.r çıktısı**, atob, kaçış, video tag, iframe, data-*, reklam filtresi. |
+| `app/src/test/java/com/kitsugi/animelist/utils/CloudstreamUrlHelperTest.kt` | 10 test: Codeberg→Kitsugi yönlendirmesi, eski ad→yeni dosya adı, Türkçe ASCII katlama, kısaltma katlama (`CanliTV→CanliTv`), indirme adaylarında varyant + Codeberg yedeği, Kekik eski adresleri. |
+| `app/src/test/java/com/kitsugi/animelist/data/remote/CloudstreamRepoClientTest.kt` | 5 test: çift kayıt tekilleştirme, en yüksek sürüm kazanır, eşitlikte birincil depo, Türkçe/büyük-küçük harf varyantlarının eşitlenmesi, boş kimlik güvenliği. |
 
 ### Değişen dosyalar
 | Dosya | Değişiklik |
@@ -316,6 +414,11 @@ değiştirir. Tablo eskimişse (veya eklenti kendi içinde daha yeni bir domain 
 | `PlayerErrorRecoveryController.kt` | Kodek/ses hatalarında MPV motoruna geçiş; HTTP hatası ile kodek hatasının ayrıştırılması |
 | `core/player/engine/PlayerFallbackCoordinator.kt` | `mpvEnabled` artık zincirde kullanılıyor (MPV kapalıysa MEDIA3 → EXTERNAL); mevcut birim testi artık geçerli |
 | `CsStreamRunner.kt` (domain) | Yerleşik tablodan zorla uygulanan domain, arama boş dönerse bir kez geri alınır (`forcedDomainOriginals` / `revertForcedDomain`) |
+| `utils/CloudstreamUrlHelper.kt` | `cs3NameVariants()` (Türkçe ASCII + kısaltma + boşluk katlama), `collapseAcronyms()`, `foldToAscii()`, `pluginIdentityKey()`, `CS3_NAME_ALIASES`; `normalizeUrl` artık eski adları yeni dosya adına çeviriyor; `getCandidateDownloadUrls` varyant + `prebuilt/` + **Codeberg son çare** adayları üretiyor; `maarrem/cs-Kekik` eski adresi güncel forka yönleniyor |
+| `data/remote/CloudstreamRepoClient.kt` | `dedupePlugins()` + `pluginIdentityKey()`; uzak repo, doğrudan `plugins.json` ve **gömülü yedek liste** yollarının üçünde de tekilleştirme |
+| `data/cloudstream/CsPluginDiagnosticRunner.kt` | `REPOS` listesi canlılık doğrulamasıyla yenilendi (Kitsugi resmî deposu eklendi; 3 ölü adres çıkarıldı; `repo.json` yayınlamayan 2 depo `plugins.json` ile tanımlandı) |
+| `assets/plugins/repo.json` | Birincil `pluginList` → `f26901964-eng/Kitsugi-Plugins/builds/plugins.json`; Codeberg yedek olarak ikinci sırada |
+| `assets/plugins/plugins.json` | 173 kaydın 40'ı resmî depoyla senkronlandı (sürüm/URL/hash/boyut/durum); 170 kayıt yeni depoya yönlendirildi; `SineWix`/`Kanal7`/`CizgiveDizi`/`Dizikorea` kayıtları düzeltildi |
 
 ### Doğrulama (bu ortamda yapılabilen)
 - **Tekrarlanabilir koşum takımı (depoda):** `scripts/verify_embed_scanner.py` — tarayıcı mantığının
@@ -351,6 +454,8 @@ değiştirir. Tablo eskimişse (veya eklenti kendi içinde daha yeni bir domain 
 # 2) Yeni/etkilenen birim testleri
 ./gradlew testDebugUnitTest --tests "*EmbedMediaScannerTest*"
 ./gradlew testDebugUnitTest --tests "*PlayerFallbackCoordinatorTest*"
+./gradlew testDebugUnitTest --tests "*CloudstreamUrlHelperTest*"
+./gradlew testDebugUnitTest --tests "*CloudstreamRepoClientTest*"
 
 # 2b) Derleme gerektirmeyen doğrulama (bu depoda)
 python3 scripts/verify_embed_scanner.py     # 15/15 geçmeli
@@ -413,6 +518,12 @@ Cihazda şu senaryolar kontrol edilmeli:
   şikâyetlerin büyük kısmı bu şekilde çözülür.
 - **Üçüncü kazanç:** paralel embed çözümü + gereksiz beklemelerin azaltılması → "aşırı geç geliyor"
   şikâyeti.
-- **Doğruluk:** tüm yeni mantık ya birim testli (Kotlin) ya da ikiz uygulamayla senaryo testli (8/8).
-  Derleme ve cihaz testi bu ortamda mümkün olmadığı için **ilk iş cihazda `assembleDebug` + logcat
-  kontrolü** olmalı.
+- **Dördüncü büyük kazanç (bu tur):** eklenti *indirme* zinciri sağlamlaştırıldı. Kullanıcının resmî
+  deposu birincil kaynak oldu (B15), 130+ çift kayıt tekilleştirildi (B16) ve `internalName` ↔ `.cs3`
+  ad uyuşmazlıkları yüzünden 404 alan **7 kayıt kurtarıldı** (B17) — bu, "eklenti kuruluyor ama boş
+  dönüyor" şikâyetinin doğrudan kaynağıydı.
+- **Doğruluk:** tüm yeni mantık ya birim testli (Kotlin: 26 yeni birim testi) ya da
+  ikiz uygulamayla senaryo testli (`verify_embed_scanner.py` 15/15). Derleme ve cihaz testi bu
+  ortamda mümkün olmadığı için **ilk iş cihazda `assembleDebug` + testler + logcat kontrolü** olmalı.
+- **Depo tarafında kalan işler:** `Filmmirasım`, `Filmİzlesene`, `FullHDFilmİzlede` eklentilerinin
+  derlenmesi ve `merge_plugins.py`'ye dosya varlık kontrolü eklenmesi (bölüm 3b).
