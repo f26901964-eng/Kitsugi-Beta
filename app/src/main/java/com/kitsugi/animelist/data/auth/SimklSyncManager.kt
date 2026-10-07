@@ -63,7 +63,7 @@ object SimklSyncManager {
     fun mediaTypeToSimklType(mediaType: MediaType): String = when (mediaType) {
         MediaType.Movie  -> "movies"
         MediaType.TvShow -> "shows"
-        MediaType.Anime  -> "anime" // Simkl API'sinde animeler 'anime' anahtarı altındadır!
+        MediaType.Anime  -> "anime" // Logical category; write envelopes use "shows".
         else             -> "shows"
     }
 
@@ -71,7 +71,7 @@ object SimklSyncManager {
 
     /**
      * Çoklu MediaEntry listesini Simkl API'sine tek veya az sayıda toplu istek ile gönderir.
-     * Simkl'in 1 istek / saniye rate limit'ine ve 50 öğe / istek limitine tam uyumludur.
+     * Uses conservative 35-item batches; delays here do not serialize other callers.
      */
     suspend fun syncBatchToSimkl(
         context: Context,
@@ -85,19 +85,19 @@ object SimklSyncManager {
             return@withContext SyncResult(messages = emptyList(), errors = emptyList())
         }
 
-        val batchItems = entries.mapNotNull { entry ->
-            val realMalId = entry.malId?.takeIf { it > 0 && it < 100_000_000 }
+        val batchItems = entries.filter { it.type != MediaType.Manga }.mapNotNull { entry ->
+            val realMalId = entry.malId?.takeIf { entry.type == MediaType.Anime && it > 0 && it < 100_000_000 }
             val aniListId = if (entry.source == "anilist" && entry.malId != null && entry.malId >= 100_000_000 && entry.malId < 300_000_000) {
                 entry.malId - 100_000_000
             } else null
-            val rawKitsuId = if (entry.source == "kitsu" || (entry.malId != null && entry.malId >= 300_000_000)) {
-                if (entry.malId != null && entry.malId >= 300_000_000) entry.malId - 300_000_000 else entry.malId
-            } else null
+            // KitsuImportManager encodes IDs with this offset. After cross-sync resolves
+            // a real MAL ID, source may still be "kitsu"; never send that MAL ID as kitsu.
+            val rawKitsuId = entry.malId?.takeIf { it > 300_000_000 }?.minus(300_000_000)
             val simklId = entry.simklId?.takeIf { it > 0 } ?: 0
             val effectiveTitle = entry.titleEnglish?.takeIf { it.isNotBlank() } ?: entry.title
 
             // En az bir geçerli ID olmalı veya geçerli bir başlık olmalı
-            if (simklId == 0 && realMalId == null && (entry.tmdbId == null || entry.tmdbId <= 0) && aniListId == null && effectiveTitle.isBlank()) {
+            if (simklId == 0 && realMalId == null && (entry.tmdbId == null || entry.tmdbId <= 0) && aniListId == null && rawKitsuId == null && effectiveTitle.isBlank()) {
                 null
             } else {
                 SimklApiClient.SimklBatchEntry(
@@ -118,35 +118,48 @@ object SimklSyncManager {
 
         val messages = mutableListOf<String>()
         val errors = mutableListOf<String>()
+        if (batchItems.size != entries.size) {
+            errors.add("${entries.size - batchItems.size} öğe gönderilemedi (desteklenmeyen tür veya eksik kimlik/başlık)")
+        }
         var totalAdded = 0
         var totalNotFound = 0
 
-        // 35'lik parçalar halinde gönder (Simkl limiti 50)
+        // Conservative batch size; not a claim about a documented API maximum.
         val chunks = batchItems.chunked(35)
         for ((idx, chunk) in chunks.withIndex()) {
             try {
-                val batchRes = simklApiClient.addToListBatchDetailed(token, chunk)
-                if (batchRes.isSuccess) {
-                    totalAdded += batchRes.addedCount
-                    totalNotFound += batchRes.notFoundCount
-                    messages.add("Simkl grubu ${idx + 1}/${chunks.size} senkronize edildi (${batchRes.addedCount} eklendi${if (batchRes.notFoundCount > 0) ", ${batchRes.notFoundCount} eşleşmedi" else ""}).")
-
-                    // İzlenen bölüm ilerlemelerini Simkl'e aktar (/sync/history)
-                    val withProgress = chunk.filter { it.progress > 0 }
-                    if (withProgress.isNotEmpty()) {
-                        kotlinx.coroutines.delay(1200L)
-                        simklApiClient.historyBatchDetailed(token, withProgress)
-                    }
-
-                    // Puanları Simkl'e aktar (/sync/ratings)
-                    val withScore = chunk.filter { it.score != null && it.score > 0 }
-                    if (withScore.isNotEmpty()) {
-                        kotlinx.coroutines.delay(1200L)
-                        simklApiClient.ratingsBatchDetailed(token, withScore)
-                    }
-                } else {
-                    errors.add("Simkl grubu ${idx + 1} gönderilemedi: ${batchRes.errorMessage ?: "Bilinmeyen hata"}")
+                // History/ratings can change the watchlist status, so apply the intended status LAST.
+                val withProgress = chunk.filter { it.progress > 0 }
+                val tvProgress = withProgress.filter { it.type == "shows" }
+                if (tvProgress.isNotEmpty()) {
+                    errors.add("${tvProgress.size} dizinin bölüm ilerlemesi aktarılamadı: sezon/bölüm eşlemesi gerekli")
                 }
+                val supportedProgress = withProgress.filter { it.type != "shows" }
+                if (supportedProgress.isNotEmpty()) {
+                    if (!simklApiClient.historyBatchDetailed(token, supportedProgress)) {
+                        errors.add("Simkl grubu ${idx + 1}: izleme geçmişi onaylanmadı")
+                    }
+                    kotlinx.coroutines.delay(1200L)
+                }
+                val withScore = chunk.filter { it.score != null && it.score > 0 }
+                if (withScore.isNotEmpty()) {
+                    if (!simklApiClient.ratingsBatchDetailed(token, withScore)) {
+                        errors.add("Simkl grubu ${idx + 1}: puanlar onaylanmadı")
+                    }
+                    kotlinx.coroutines.delay(1200L)
+                }
+                val batchRes = simklApiClient.addToListBatchDetailed(token, chunk)
+                totalAdded += batchRes.addedCount
+                totalNotFound += batchRes.notFoundCount
+                if (batchRes.isSuccess) {
+                    messages.add("Simkl grubu ${idx + 1}/${chunks.size}: ${batchRes.addedCount} liste kaydı onaylandı.")
+                } else {
+                    errors.add("Simkl grubu ${idx + 1}: ${batchRes.errorMessage ?: "Bilinmeyen hata"}")
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: com.kitsugi.animelist.data.repository.SimklAuthException) {
+                throw e
             } catch (e: Exception) {
                 errors.add("Simkl grup ${idx + 1} hatası: ${e.message}")
             }

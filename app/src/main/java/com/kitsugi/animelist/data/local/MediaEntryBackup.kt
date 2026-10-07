@@ -37,12 +37,29 @@ object MediaEntryBackup {
                 .put("year", entry.year)
                 .put("synopsis", entry.synopsis)
                 .put("aniListEntryId", entry.aniListEntryId)
+                .put("startDate", entry.startDate)
+                .put("endDate", entry.endDate)
+                .put("notes", entry.notes)
+                .put("tags", entry.tags)
+                .put("priority", entry.priority)
+                .put("isRepeating", entry.isRepeating)
+                .put("repeatCount", entry.repeatCount)
+                .put("repeatValue", entry.repeatValue)
+                .put("volumeProgress", entry.volumeProgress)
+                .put("isPrivate", entry.isPrivate)
+                .put("isHiddenFromStatusLists", entry.isHiddenFromStatusLists)
+                .put("updatedAt", entry.updatedAt)
+                .put("titleEnglish", entry.titleEnglish)
+                .put("titleJapanese", entry.titleJapanese)
+                .put("malListId", entry.malListId)
+                .put("tmdbId", entry.tmdbId)
+                .put("simklId", entry.simklId)
 
             array.put(item)
         }
 
         val root = JSONObject()
-            .put("schemaVersion", 1)
+            .put("schemaVersion", 2)
             .put("app", "Kitsugi")
             .put("entries", array)
 
@@ -63,31 +80,26 @@ object MediaEntryBackup {
 
     fun importFromJson(jsonText: String): List<MediaEntry> {
         val root = JSONObject(jsonText)
+        require(root.optInt("schemaVersion", 1) in 1..2) { "Desteklenmeyen yedek sürümü" }
         val array = root.optJSONArray("entries")
             ?: throw IllegalArgumentException("Yedek içinde entries alanı bulunamadı.")
 
         val result = mutableListOf<MediaEntry>()
 
         for (index in 0 until array.length()) {
-            val item = array.optJSONObject(index) ?: continue
+            val item = array.optJSONObject(index) ?: error("Yedek kaydı bozuk: $index")
 
-            val title = item.optString("title").trim()
-            if (title.isBlank()) continue
+            val title = item.getString("title")
+            require(title.isNotBlank()) { "Yedek başlığı eksik: $index" }
 
-            val type = runCatching {
-                MediaType.valueOf(item.optString("type"))
-            }.getOrDefault(MediaType.Anime)
+            val type = MediaType.valueOf(item.getString("type"))
 
-            val status = runCatching {
-                WatchStatus.valueOf(item.optString("status"))
-            }.getOrDefault(WatchStatus.Planned)
+            val status = WatchStatus.valueOf(item.getString("status"))
 
             val entry = MediaEntry(
                 id = 0,
                 title = title,
-                subtitle = item.optString("subtitle").ifBlank {
-                    "İçe aktarılan içerik"
-                },
+                subtitle = item.optString("subtitle", "İçe aktarılan içerik"),
                 type = type,
                 status = status,
                 score = item.optionalInt("score"),
@@ -99,21 +111,30 @@ object MediaEntryBackup {
                     "manual"
                 },
                 malId = item.optionalInt("malId"),
-                imageUrl = item.optString("imageUrl").takeIf {
-                    it.isNotBlank() && it != "null"
-                },
+                imageUrl = item.optionalString("imageUrl"),
                 year = item.optionalInt("year"),
-                synopsis = item.optString("synopsis").takeIf {
-                    it.isNotBlank() && it != "null"
-                },
-                aniListEntryId = item.optionalInt("aniListEntryId")
+                synopsis = item.optionalString("synopsis"),
+                aniListEntryId = item.optionalInt("aniListEntryId"),
+                startDate = item.optionalString("startDate"),
+                endDate = item.optionalString("endDate"),
+                notes = item.optionalString("notes"),
+                tags = item.optionalString("tags"),
+                priority = item.optionalInt("priority"),
+                isRepeating = item.optBoolean("isRepeating", false),
+                repeatCount = item.optInt("repeatCount", 0),
+                repeatValue = item.optInt("repeatValue", 0),
+                volumeProgress = item.optInt("volumeProgress", 0),
+                isPrivate = item.optBoolean("isPrivate", false),
+                isHiddenFromStatusLists = item.optBoolean("isHiddenFromStatusLists", false),
+                updatedAt = item.optLong("updatedAt", 0L),
+                titleEnglish = item.optionalString("titleEnglish"),
+                titleJapanese = item.optionalString("titleJapanese"),
+                malListId = if (item.has("malListId") && !item.isNull("malListId")) item.getLong("malListId") else null,
+                tmdbId = item.optionalInt("tmdbId"),
+                simklId = item.optionalInt("simklId")
             )
 
             result.add(entry)
-        }
-
-        if (result.isEmpty()) {
-            throw IllegalArgumentException("Yedek içinde geçerli kayıt bulunamadı.")
         }
 
         return result
@@ -127,46 +148,11 @@ object MediaEntryBackup {
         currentEntries: List<MediaEntry>,
         importedEntries: List<MediaEntry>
     ): List<MediaEntry> {
-        val existingRealMalIds = currentEntries
-            .mapNotNull { entry ->
-                val malId = entry.malId
-                if (entry.source != "manual" && isRealMalId(malId)) malId else null
-            }
-            .toSet()
-
-        val existingKeys = currentEntries
-            .mapNotNull { entry ->
-                val malId = entry.malId
-                if (entry.source != "manual" && malId != null && !isRealMalId(malId)) {
-                    "${canonicalSource(entry.source)}:$malId"
-                } else {
-                    null
-                }
-            }
-            .toSet()
-
-        val acceptedRealMalIds = mutableSetOf<Int>()
-        val acceptedKeys = mutableSetOf<String>()
-
+        val accepted = currentEntries.toMutableList()
         return importedEntries.filter { entry ->
-            val malId = entry.malId
-
-            if (entry.source == "manual" || malId == null) {
-                true
-            } else if (isRealMalId(malId)) {
-                val isDuplicate = malId in existingRealMalIds || malId in acceptedRealMalIds
-                if (!isDuplicate) {
-                    acceptedRealMalIds.add(malId)
-                }
-                !isDuplicate
-            } else {
-                val key = "${canonicalSource(entry.source)}:$malId"
-                val isDuplicate = key in existingKeys || key in acceptedKeys
-                if (!isDuplicate) {
-                    acceptedKeys.add(key)
-                }
-                !isDuplicate
-            }
+            val duplicate = accepted.any { com.kitsugi.animelist.model.MediaIdentity.sameLibraryRecord(it, entry) }
+            if (!duplicate) accepted.add(entry)
+            !duplicate
         }
     }
 
@@ -177,21 +163,13 @@ object MediaEntryBackup {
         val toInsert = mutableListOf<MediaEntry>()
         val toUpdate = mutableListOf<MediaEntry>()
 
-        val existingByMalId = currentEntries
-            .filter { it.malId != null }
-            .associateBy { it.malId!! }
-
-        val existingByTitle = currentEntries
-            .filter { it.malId == null }
-            .associateBy { it.title.lowercase().trim() }
-
         importedEntries.forEach { imported ->
             val malId = imported.malId
-            val existing = if (malId != null) {
-                existingByMalId[malId]
-            } else {
-                existingByTitle[imported.title.lowercase().trim()]
+            val matches = currentEntries.filter {
+                com.kitsugi.animelist.model.MediaIdentity.sameLibraryRecord(it, imported)
             }
+            require(matches.size <= 1) { "Birden fazla yerel kayıt eşleşiyor: ${imported.title}" }
+            val existing = matches.singleOrNull()
 
             if (existing != null) {
                 // Enrich existing local entry with remote sync status
@@ -214,7 +192,16 @@ object MediaEntryBackup {
                     volumeProgress = imported.volumeProgress,
                     startDate = imported.startDate ?: existing.startDate,
                     endDate = imported.endDate ?: existing.endDate,
-                    malId = malId ?: existing.malId
+                    malId = malId ?: existing.malId,
+                    simklId = imported.simklId ?: existing.simklId,
+                    tmdbId = imported.tmdbId ?: existing.tmdbId,
+                    aniListEntryId = imported.aniListEntryId ?: existing.aniListEntryId,
+                    malListId = imported.malListId ?: existing.malListId,
+                    updatedAt = imported.updatedAt,
+                    titleEnglish = imported.titleEnglish ?: existing.titleEnglish,
+                    titleJapanese = imported.titleJapanese ?: existing.titleJapanese,
+                    isPrivate = imported.isPrivate,
+                    isHiddenFromStatusLists = imported.isHiddenFromStatusLists
                 )
                 if (updated != existing) {
                     toUpdate.add(updated)
@@ -237,6 +224,9 @@ object MediaEntryBackup {
         if (lower == "mal" || lower == "jikan") return "mal"
         return lower
     }
+
+    private fun JSONObject.optionalString(key: String): String? =
+        if (!has(key) || isNull(key)) null else getString(key)
 
     private fun JSONObject.optionalInt(key: String): Int? {
         if (!has(key) || isNull(key)) return null

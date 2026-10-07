@@ -18,8 +18,9 @@ object MalSyncManager {
         token: String,
         entry: MediaEntry
     ) {
-        val malId = entry.malId ?: return
-        if (!malId.isRealMalId()) return
+        require(entry.type == MediaType.Anime || entry.type == MediaType.Manga) { "MAL yalnızca anime/manga destekler" }
+        val malId = entry.malId?.takeIf { it.isRealMalId() }
+            ?: error("Geçerli MAL kimliği bulunamadı")
 
         val endpointType = when (entry.type) {
             MediaType.Anime, MediaType.Movie, MediaType.TvShow -> "anime"
@@ -93,8 +94,9 @@ object MalSyncManager {
         token: String,
         entry: MediaEntry
     ) {
-        val malId = entry.malId ?: return
-        if (!malId.isRealMalId()) return
+        require(entry.type == MediaType.Anime || entry.type == MediaType.Manga) { "MAL yalnızca anime/manga destekler" }
+        val malId = entry.malId?.takeIf { it.isRealMalId() }
+            ?: error("Geçerli MAL kimliği bulunamadı")
 
         val endpointType = when (entry.type) {
             MediaType.Anime, MediaType.Movie, MediaType.TvShow -> "anime"

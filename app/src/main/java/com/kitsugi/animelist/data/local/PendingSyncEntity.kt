@@ -22,6 +22,6 @@ data class PendingSyncEntity(
     /** İşlemin ilk oluşturulma zamanı (ms) */
     val createdAt: Long = System.currentTimeMillis(),
 
-    /** Kaç kez denendi — 5'e ulaşınca kayıt temizlenir */
+    /** Kaç kez denendi — 5'e ulaşınca otomatik deneme durur; kayıt korunur */
     val retryCount: Int = 0
 )

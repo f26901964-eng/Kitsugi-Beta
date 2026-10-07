@@ -23,6 +23,7 @@ object AniListSyncManager {
         entry: MediaEntry,
         advancedScores: List<Double>? = null
     ): Int? {
+        require(entry.type == MediaType.Anime || entry.type == MediaType.Manga) { "AniList yalnızca anime/manga destekler" }
         val existingEntryId: Int? = entry.aniListEntryId
 
         val mediaId: Int? = if (existingEntryId == null) {
@@ -38,7 +39,7 @@ object AniListSyncManager {
                 ${'$'}id: Int,
                 ${'$'}mediaId: Int,
                 ${'$'}status: MediaListStatus,
-                ${'$'}score: Float,
+                ${'$'}scoreRaw: Int,
                 ${'$'}progress: Int,
                 ${'$'}progressVolumes: Int,
                 ${'$'}startedAt: FuzzyDateInput,
@@ -53,7 +54,7 @@ object AniListSyncManager {
                     id: ${'$'}id,
                     mediaId: ${'$'}mediaId,
                     status: ${'$'}status,
-                    score: ${'$'}score,
+                    scoreRaw: ${'$'}scoreRaw,
                     progress: ${'$'}progress,
                     progressVolumes: ${'$'}progressVolumes,
                     startedAt: ${'$'}startedAt,
@@ -80,7 +81,7 @@ object AniListSyncManager {
         }
         variables
             .put("status", entry.status.toAniListStatus())
-            .put("score", entry.score ?: 0)
+            .put("scoreRaw", SyncScores.aniListRaw(entry.score))
             .put("progress", entry.progress)
             .put("progressVolumes", entry.volumeProgress)
             .put("private", entry.isPrivate)
@@ -136,7 +137,7 @@ object AniListSyncManager {
 
         val variables = JSONObject().put("id", aniListMediaId)
 
-        return runCatching {
+        return runSyncCatching {
             val response = postAniList(token = token, query = query, variables = variables)
             JSONObject(response)
                 .optJSONObject("data")
@@ -175,7 +176,7 @@ object AniListSyncManager {
 
         val variables = JSONObject().put(varKey, aniListMediaId)
 
-        return runCatching {
+        return runSyncCatching {
             postAniList(token = token, query = query, variables = variables)
             true
         }.getOrDefault(false)
@@ -186,7 +187,7 @@ object AniListSyncManager {
         entry: MediaEntry
     ) {
         val entryId: Int? = entry.aniListEntryId ?: run {
-            val mediaId = resolveAniListMediaId(token = token, entry = entry) ?: return
+            val mediaId = resolveAniListMediaId(token = token, entry = entry) ?: error("AniList kimliği çözülemedi")
             val userId = fetchAniListUserId(token)
 
             val findQuery = """
@@ -251,7 +252,7 @@ object AniListSyncManager {
         val externalId = entry.malId
 
         // 1. AniList sentetik ID'si ise doğrudan çöz
-        if (entry.source == "anilist" && externalId != null && externalId >= ANILIST_SYNTHETIC_ID_OFFSET) {
+        if (entry.source == "anilist" && externalId != null && externalId in 100_000_001..299_999_999) {
             return externalId - ANILIST_SYNTHETIC_ID_OFFSET
         }
 
@@ -274,7 +275,7 @@ object AniListSyncManager {
                 .put("idMal", externalId)
                 .put("type", mediaTypeGql)
 
-            val resolved = runCatching {
+            val resolved = runSyncCatching {
                 val response = postAniList(
                     token = token,
                     query = query,
@@ -291,11 +292,9 @@ object AniListSyncManager {
         }
 
         // 3. ARM (Anime Relations Mapping) üzerinden AniList ID'sini bul
-        val rawKitsuId = if (entry.source == "kitsu" || (entry.malId != null && entry.malId >= 300_000_000)) {
-            if (entry.malId != null && entry.malId >= 300_000_000) entry.malId - 300_000_000 else entry.malId
-        } else null
+        val rawKitsuId = entry.malId?.takeIf { it in 300_000_001..399_999_999 }?.minus(300_000_000)
 
-        val armId = runCatching {
+        val armId = runSyncCatching {
             kotlinx.coroutines.runBlocking(kotlinx.coroutines.Dispatchers.IO) {
                 com.kitsugi.animelist.data.remote.KitsugiIdResolver.resolveIds(
                     malId = externalId?.takeIf { it.isRealMalId() },
@@ -308,40 +307,7 @@ object AniListSyncManager {
         }.getOrNull()
         if (armId != null && armId > 0) return armId
 
-        // 4. Başlık araması ile AniList'ten çöz (Title search fallback)
-        val searchTitle = entry.titleEnglish?.takeIf { it.isNotBlank() }
-            ?: entry.title.takeIf { it.isNotBlank() }
-            ?: entry.titleJapanese?.takeIf { it.isNotBlank() }
-
-        if (!searchTitle.isNullOrBlank()) {
-            val query = """
-                query (${'$'}search: String, ${'$'}type: MediaType) {
-                    Media(search: ${'$'}search, type: ${'$'}type) {
-                        id
-                    }
-                }
-            """.trimIndent()
-
-            val variables = JSONObject()
-                .put("search", searchTitle)
-                .put("type", mediaTypeGql)
-
-            val resolvedByTitle = runCatching {
-                val response = postAniList(
-                    token = token,
-                    query = query,
-                    variables = variables
-                )
-                JSONObject(response)
-                    .optJSONObject("data")
-                    ?.optJSONObject("Media")
-                    ?.optInt("id", 0)
-                    ?.takeIf { it > 0 }
-            }.getOrNull()
-
-            if (resolvedByTitle != null && resolvedByTitle > 0) return resolvedByTitle
-        }
-
+        // A search rank is not an identity mapping. Never mutate the first fuzzy result.
         return null
     }
 
@@ -360,7 +326,7 @@ object AniListSyncManager {
             }
         """.trimIndent()
         val variables = JSONObject().put("id", aniListId)
-        return runCatching {
+        return runSyncCatching {
             val response = postAniList(token = token, query = query, variables = variables)
             JSONObject(response)
                 .optJSONObject("data")

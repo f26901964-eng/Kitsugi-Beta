@@ -454,42 +454,7 @@ class SimklApiClient(
             WatchStatus.Repeating -> "watching" // Simkl has no rewatching; treat as watching
         }
 
-        val typeKey = when (mediaType) {
-            MediaType.Movie -> "movies"
-            MediaType.TvShow -> "shows"
-            else -> "anime"
-        }
-
-        val jsonPayload = JSONObject().apply {
-            put(typeKey, JSONArray().apply {
-                put(JSONObject().apply {
-                    put("to", simklStatus)
-                    put("ids", JSONObject().apply {
-                        put("simkl", simklId)
-                    })
-                })
-            })
-        }.toString()
-
-        val request = Request.Builder()
-            .url("https://api.simkl.com/sync/add-to-list")
-            .post(jsonPayload.toRequestBody("application/json".toMediaTypeOrNull()))
-            .header("Authorization", "Bearer $token")
-            .header("simkl-api-key", clientId)
-            .build()
-
-        try {
-            client.newCall(request).execute().use { response ->
-                checkResponseAndThrow(response)
-                response.isSuccessful
-            }
-        } catch (e: com.kitsugi.animelist.data.repository.SimklAuthException) {
-            throw e
-        } catch (e: Exception) {
-            // T3-05: printStackTrace → Log.e
-            android.util.Log.e("SimklApiClient", "updateWatchlistStatus failed: ${e.message}", e)
-            false
-        }
+        addToList(token, simklId, if (mediaType == MediaType.Movie) "movies" else "shows", simklStatus)
     }
 
     suspend fun updateEpisodeProgress(
@@ -564,13 +529,8 @@ class SimklApiClient(
 
                 for (i in 0 until itemsArray.length()) {
                     val entry = itemsArray.getJSONObject(i)
-                    // shows -> entry.show; movies -> entry.movie; anime -> entry.anime
-                    val mediaKey = when (type) {
-                        "movies" -> "movie"
-                        "shows" -> "show"
-                        "anime" -> "anime"
-                        else -> "show"
-                    }
+                    // Both shows and anime contain a nested "show" object.
+                    val mediaKey = SimklSyncContract.readMediaKey(type)
                     val mediaObj = entry.optJSONObject(mediaKey) ?: continue
                     val ids = mediaObj.optJSONObject("ids") ?: continue
                     val simklId = ids.optInt("simkl", 0).takeIf { it > 0 } ?: continue
@@ -707,51 +667,10 @@ class SimklApiClient(
         kitsuId: Int? = null,
         title: String? = null,
         year: Int? = null
-    ): Boolean = withContext(Dispatchers.IO) {
-        val mediaKey = when (type.lowercase()) {
-            "movies", "movie" -> "movies"
-            "anime" -> "anime"
-            else -> "shows"
-        }
-        val idObj = JSONObject().apply {
-            if (simklId > 0) put("simkl", simklId)
-            if (malId != null && malId > 0 && malId < 100_000_000) put("mal", malId)
-            if (aniListId != null && aniListId > 0) put("anilist", aniListId)
-            if (kitsuId != null && kitsuId > 0) put("kitsu", kitsuId)
-            if (tmdbId != null && tmdbId > 0) put("tmdb", tmdbId)
-        }
-        val itemObj = JSONObject().put("to", status)
-        if (idObj.length() > 0) {
-            itemObj.put("ids", idObj)
-        }
-        if (!title.isNullOrBlank()) {
-            itemObj.put("title", title)
-        }
-        if (year != null && year > 1900) {
-            itemObj.put("year", year)
-        }
-        val payload = JSONObject().put(mediaKey, JSONArray().put(itemObj)).toString()
-
-        val request = Request.Builder()
-            .url("https://api.simkl.com/sync/add-to-list?client_id=$clientId")
-            .post(payload.toRequestBody("application/json".toMediaTypeOrNull()))
-            .header("Authorization", "Bearer $token")
-            .header("simkl-api-key", clientId)
-            .header("Content-Type", "application/json")
-            .header("User-Agent", "KitsugiApp/2.4")
-            .build()
-
-        try {
-            client.newCall(request).execute().use { response ->
-                checkResponseAndThrow(response)
-                response.isSuccessful
-            }
-        } catch (e: com.kitsugi.animelist.data.repository.SimklAuthException) {
-            throw e
-        } catch (e: Exception) {
-            false
-        }
-    }
+    ): Boolean = addToListBatchDetailed(token, listOf(SimklBatchEntry(
+        type = type, status = status, simklId = simklId, malId = malId,
+        tmdbId = tmdbId, aniListId = aniListId, kitsuId = kitsuId, title = title, year = year
+    ))).isSuccess
 
     data class SimklBatchEntry(
         val type: String, // "anime", "movies", "shows"
@@ -794,15 +713,13 @@ class SimklApiClient(
 
     /**
      * Simkl toplu senkronizasyon (POST /sync/add-to-list).
-     * Simkl API'si tek seferde 50 öğeye kadar toplu eklemeyi destekler.
-     * Bu sayede 700+ öğelik kütüphaneler rate limit (1 req/sn) aşılmadan saniyeler içinde senkronize edilir.
+     * Anime is a read category, not a write envelope: all series are sent under shows.
      */
     suspend fun addToListBatchDetailed(
         token: String,
         entries: List<SimklBatchEntry>
     ): SimklBatchResponse = withContext(Dispatchers.IO) {
         if (entries.isEmpty()) return@withContext SimklBatchResponse(isSuccess = true)
-        val animeArray = JSONArray()
         val showsArray = JSONArray()
         val moviesArray = JSONArray()
 
@@ -819,20 +736,18 @@ class SimklApiClient(
                 itemObj.put("year", entry.year)
             }
             if (idObj.length() > 0 || !entry.title.isNullOrBlank()) {
-                when (entry.type.lowercase()) {
-                    "movies", "movie" -> moviesArray.put(itemObj)
-                    "anime" -> animeArray.put(itemObj)
+                when (SimklSyncContract.writeKey(entry.type)) {
+                    "movies" -> moviesArray.put(itemObj)
                     else -> showsArray.put(itemObj)
                 }
             }
         }
 
         val payloadObj = JSONObject()
-        if (animeArray.length() > 0) payloadObj.put("anime", animeArray)
         if (showsArray.length() > 0) payloadObj.put("shows", showsArray)
         if (moviesArray.length() > 0) payloadObj.put("movies", moviesArray)
 
-        if (payloadObj.length() == 0) return@withContext SimklBatchResponse(isSuccess = true)
+        if (payloadObj.length() == 0) return@withContext SimklBatchResponse(isSuccess = false, errorMessage = "Gönderilebilir Simkl kimliği/başlığı yok")
 
         var attempt = 0
         while (attempt < 3) {
@@ -850,68 +765,35 @@ class SimklApiClient(
                 val callResult = client.newCall(request).execute().use { response ->
                     checkResponseAndThrow(response)
                     if (response.code == 429) {
-                        android.util.Log.w("SimklApiClient", "Simkl addToListBatch rate limited (429), waiting 2.5s and retrying (deneme $attempt/3)...")
-                        return@use Pair(true, SimklBatchResponse(isSuccess = false, errorMessage = "HTTP 429 Rate Limit"))
+                        val waitMs = response.header("Retry-After")?.toLongOrNull()
+                            ?.coerceIn(1L, 3600L)?.times(1000L) ?: (2500L * attempt)
+                        return@use Pair(waitMs, SimklBatchResponse(isSuccess = false, errorMessage = "HTTP 429 Rate Limit"))
                     }
                     if (!response.isSuccessful) {
-                        return@use Pair(false, SimklBatchResponse(
+                        return@use Pair(0L, SimklBatchResponse(
                             isSuccess = false,
                             errorMessage = "HTTP ${response.code}"
                         ))
                     }
                     val bodyStr = response.body?.string().orEmpty()
-                    android.util.Log.d("SimklApiClient", "addToListBatchDetailed response: $bodyStr")
-                    var added = 0
-                    var notFound = 0
-                    if (bodyStr.isNotBlank() && bodyStr.trim() != "null") {
-                        runCatching {
-                            val json = JSONObject(bodyStr)
-                            val addedObj = json.optJSONObject("added")
-                            if (addedObj != null) {
-                                fun parseCount(key: String): Int {
-                                    val arr = addedObj.optJSONArray(key)
-                                    if (arr != null) return arr.length()
-                                    return addedObj.optInt(key, 0)
-                                }
-                                added += parseCount("movies")
-                                added += parseCount("shows")
-                                added += parseCount("anime")
-                            } else {
-                                val addedArr = json.optJSONArray("added")
-                                if (addedArr != null) {
-                                    added = addedArr.length()
-                                }
-                            }
-                            val notFoundObj = json.optJSONObject("not_found")
-                            if (notFoundObj != null) {
-                                fun parseNotFound(key: String): Int {
-                                    val arr = notFoundObj.optJSONArray(key)
-                                    if (arr != null) return arr.length()
-                                    return notFoundObj.optInt(key, 0)
-                                }
-                                notFound += parseNotFound("movies")
-                                notFound += parseNotFound("shows")
-                                notFound += parseNotFound("anime")
-                            } else {
-                                val notFoundArr = json.optJSONArray("not_found")
-                                if (notFoundArr != null) {
-                                    notFound = notFoundArr.length()
-                                }
-                            }
-                        }
-                    }
-                    Pair(false, SimklBatchResponse(
-                        isSuccess = true,
-                        addedCount = added,
-                        notFoundCount = notFound
+                    val receipt = SimklSyncContract.receipt(bodyStr)
+                    val complete = receipt.notFound == 0 && receipt.added == entries.size
+                    Pair(0L, SimklBatchResponse(
+                        isSuccess = complete,
+                        addedCount = receipt.added,
+                        notFoundCount = receipt.notFound,
+                        errorMessage = if (complete) null else
+                            "Simkl ${entries.size} öğeden ${receipt.added} tanesini onayladı; ${receipt.notFound} eşleşmedi"
                     ))
                 }
 
-                if (!callResult.first) {
+                if (callResult.first == 0L) {
                     return@withContext callResult.second
                 }
-                kotlinx.coroutines.delay(2500L)
+                if (attempt < 3) kotlinx.coroutines.delay(callResult.first)
             } catch (e: com.kitsugi.animelist.data.repository.SimklAuthException) {
+                throw e
+            } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
                 android.util.Log.e("SimklApiClient", "addToListBatchDetailed exception", e)
@@ -938,42 +820,25 @@ class SimklApiClient(
     ): Boolean = withContext(Dispatchers.IO) {
         val filtered = entries.filter { it.progress > 0 }
         if (filtered.isEmpty()) return@withContext true
-
-        val animeArray = JSONArray()
-        val showsArray = JSONArray()
-
+        // A TV aggregate count cannot be mapped to seasons without an episode catalogue.
+        // Never invent S01E<total>. Report unsupported progress instead of corrupting history.
+        if (filtered.any { it.type == "shows" || it.type == "tv" }) return@withContext false
+        val shows = JSONArray()
+        val movies = JSONArray()
         filtered.forEach { entry ->
-            val idObj = buildSimklIds(entry)
-            if (idObj.length() == 0 && entry.title.isNullOrBlank()) return@forEach
-
-            val isAnime = entry.type.lowercase() == "anime"
-            val epObj = JSONObject().apply {
-                put("number", entry.progress)
-            }
-            val epsArray = JSONArray().put(epObj)
-            val seasonObj = JSONObject().apply {
-                put("number", 1)
-                put("episodes", epsArray)
-            }
-            val item = JSONObject().apply {
-                put("ids", idObj)
-                put("seasons", JSONArray().put(seasonObj))
-                if (!entry.title.isNullOrBlank()) put("title", entry.title)
-                if (entry.year != null && entry.year > 1900) put("year", entry.year)
-            }
-
-            if (isAnime) {
-                animeArray.put(item)
+            val item = JSONObject().put("ids", buildSimklIds(entry))
+            if (!entry.title.isNullOrBlank()) item.put("title", entry.title)
+            if (entry.year != null && entry.year > 0) item.put("year", entry.year)
+            if (SimklSyncContract.writeKey(entry.type) == "movies") {
+                movies.put(item)
             } else {
-                showsArray.put(item)
+                item.put("episodes", SimklSyncContract.animeEpisodes(entry.progress))
+                shows.put(item)
             }
         }
-
         val payload = JSONObject()
-        if (animeArray.length() > 0) payload.put("anime", animeArray)
-        if (showsArray.length() > 0) payload.put("shows", showsArray)
-
-        if (payload.length() == 0) return@withContext true
+        if (shows.length() > 0) payload.put("shows", shows)
+        if (movies.length() > 0) payload.put("movies", movies)
 
         val request = Request.Builder()
             .url("https://api.simkl.com/sync/history?client_id=$clientId&app-name=Kitsugi&app-version=2.4")
@@ -987,8 +852,14 @@ class SimklApiClient(
         try {
             client.newCall(request).execute().use { response ->
                 checkResponseAndThrow(response)
-                response.isSuccessful
+                if (!response.isSuccessful) return@withContext false
+                val receipt = SimklSyncContract.receipt(response.body?.string().orEmpty())
+                receipt.added > 0 && receipt.notFound == 0
             }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: com.kitsugi.animelist.data.repository.SimklAuthException) {
+            throw e
         } catch (e: Exception) {
             android.util.Log.e("SimklApiClient", "historyBatchDetailed error: ${e.message}", e)
             false
@@ -1006,7 +877,6 @@ class SimklApiClient(
         val filtered = entries.filter { it.score != null && it.score > 0 }
         if (filtered.isEmpty()) return@withContext true
 
-        val animeArray = JSONArray()
         val showsArray = JSONArray()
         val moviesArray = JSONArray()
 
@@ -1028,15 +898,13 @@ class SimklApiClient(
                 if (entry.year != null && entry.year > 1900) put("year", entry.year)
             }
 
-            when (entry.type.lowercase()) {
-                "movies", "movie" -> moviesArray.put(item)
-                "anime" -> animeArray.put(item)
+            when (SimklSyncContract.writeKey(entry.type)) {
+                "movies" -> moviesArray.put(item)
                 else -> showsArray.put(item)
             }
         }
 
         val payload = JSONObject()
-        if (animeArray.length() > 0) payload.put("anime", animeArray)
         if (showsArray.length() > 0) payload.put("shows", showsArray)
         if (moviesArray.length() > 0) payload.put("movies", moviesArray)
 
@@ -1054,8 +922,14 @@ class SimklApiClient(
         try {
             client.newCall(request).execute().use { response ->
                 checkResponseAndThrow(response)
-                response.isSuccessful
+                if (!response.isSuccessful) return@withContext false
+                val receipt = SimklSyncContract.receipt(response.body?.string().orEmpty())
+                receipt.added > 0 && receipt.notFound == 0
             }
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: com.kitsugi.animelist.data.repository.SimklAuthException) {
+            throw e
         } catch (e: Exception) {
             android.util.Log.e("SimklApiClient", "ratingsBatchDetailed error: ${e.message}", e)
             false
@@ -1077,7 +951,7 @@ class SimklApiClient(
     ): Boolean = withContext(Dispatchers.IO) {
         val mediaKey = when (type.lowercase()) {
             "movies", "movie" -> "movies"
-            "anime" -> "anime"
+            "anime" -> "shows"
             else -> "shows"
         }
         val idObj = JSONObject().apply {
@@ -1212,7 +1086,7 @@ class SimklApiClient(
     ): Boolean = withContext(Dispatchers.IO) {
         val typeKey = when (mediaType) {
             MediaType.Movie -> "movies"
-            MediaType.Anime -> "anime"
+            MediaType.Anime -> "shows"
             else            -> "shows"
         }
         val idObj   = JSONObject().put("simkl", simklId)
@@ -1249,7 +1123,7 @@ class SimklApiClient(
     ): Boolean = withContext(Dispatchers.IO) {
         val typeKey = when (mediaType) {
             MediaType.Movie -> "movies"
-            MediaType.Anime -> "anime"
+            MediaType.Anime -> "shows"
             else            -> "shows"
         }
         val idObj   = JSONObject().put("simkl", simklId)

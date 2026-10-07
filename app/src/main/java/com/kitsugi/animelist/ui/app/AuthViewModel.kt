@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.app
 
+import com.kitsugi.animelist.data.auth.runSyncCatching
 import android.app.Application
 import android.content.Context
 import androidx.compose.runtime.getValue
@@ -178,8 +179,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             val settingsDataStore = SettingsDataStore(context)
 
-            runCatching {
-                runCatching {
+            runSyncCatching {
+                runSyncCatching {
                     val profile = AniListImportManager.fetchUserProfile(token)
                     settingsDataStore.setAniListProfileInfo(
                         username = profile.name,
@@ -227,8 +228,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
             val settingsDataStore = SettingsDataStore(context)
 
-            runCatching {
-                runCatching {
+            runSyncCatching {
+                runSyncCatching {
                     val profile = MalImportManager.fetchUserProfile(token)
                     settingsDataStore.setMalProfileInfo(
                         username = profile.name,
@@ -272,23 +273,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             get() = candidates.firstOrNull()?.type ?: MediaType.Anime
     }
 
-    private fun normalizeSyncTitle(title: String, type: MediaType): String {
-        val folded = java.text.Normalizer.normalize(title, java.text.Normalizer.Form.NFKC)
-            .lowercase()
-            .replace("2nd season", "season2")
-            .replace("3rd season", "season3")
-            .replace("4th season", "season4")
-            .replace("5th season", "season5")
-            .replace("the final season", "finalseason")
-            .replace("final season", "finalseason")
-            .replace("part 1", "part1")
-            .replace("part 2", "part2")
-            .replace("part 3", "part3")
-            .replace(Regex("[^\\p{L}\\p{N}]"), "")
-        if (folded.length < 2) return ""
-        return "${folded}_${type.name}"
-    }
-
     private fun Int.isRealMalId(): Boolean = this in 1..99_999_999
 
     private suspend fun resolveRealMalId(entry: MediaEntry, aniListToken: String?): Int? {
@@ -302,19 +286,17 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             entry.malId - 100_000_000
         } else null
 
-        val rawKitsuId = if (entry.source == "kitsu" || (entry.malId != null && entry.malId >= 300_000_000)) {
-            if (entry.malId != null && entry.malId >= 300_000_000) entry.malId - 300_000_000 else entry.malId
-        } else null
+        val rawKitsuId = entry.malId?.takeIf { it in 300_000_001..399_999_999 }?.minus(300_000_000)
 
         if (rawAniListId != null && !aniListToken.isNullOrBlank()) {
-            val resolved = runCatching {
+            val resolved = runSyncCatching {
                 com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("anilist")
                 AniListSyncManager.resolveMalIdFromAniList(token = aniListToken, aniListId = rawAniListId)
             }.getOrNull()
             if (resolved != null && resolved.isRealMalId()) return resolved
         }
 
-        val armMal = runCatching {
+        val armMal = runSyncCatching {
             com.kitsugi.animelist.data.remote.KitsugiIdResolver.resolveIds(
                 malId = null,
                 aniListId = rawAniListId,
@@ -327,14 +309,20 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
         val searchTitle = entry.titleEnglish?.takeIf { it.isNotBlank() } ?: entry.title.takeIf { it.isNotBlank() }
         if (!searchTitle.isNullOrBlank()) {
-            val jikanResults = runCatching {
+            val jikanResults = runSyncCatching {
                 com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("jikan")
                 com.kitsugi.animelist.data.remote.JikanSearchClient().searchMALOnly(
                     query = searchTitle,
                     mediaType = entry.type
                 )
             }.getOrNull()
-            val jikanMal = jikanResults?.firstOrNull()?.let { res -> (res.realMalId ?: res.malId).takeIf { it.isRealMalId() } }
+            val jikanMal = jikanResults?.filter { res ->
+                res.type == entry.type && (entry.year == null || res.year == entry.year) &&
+                    listOfNotNull(res.title, res.titleEnglish, res.titleJapanese).any {
+                        com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(it) ==
+                            com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(searchTitle)
+                    }
+            }?.singleOrNull()?.let { res -> (res.realMalId ?: res.malId).takeIf { it.isRealMalId() } }
             if (jikanMal != null) return jikanMal
         }
 
@@ -352,6 +340,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         isCrossSyncRunning = true
 
         viewModelScope.launch(Dispatchers.IO) {
+            try {
+            val syncSettings = SettingsDataStore(context).settingsFlow.first()
+
             val aniListToken = ExternalAuthManager.getAniListToken(context)
             val malToken = ExternalAuthManager.getOrRefreshMalToken(context)
             val simklToken = ExternalAuthManager.getSimklToken(context)
@@ -360,11 +351,11 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             val shikimoriToken = ExternalAuthManager.getOrRefreshShikimoriToken(context)
             val shikimoriUserId = ExternalAuthManager.getShikimoriUserId(context)
 
-            val isAniList = !aniListToken.isNullOrBlank()
-            val isMal = !malToken.isNullOrBlank()
-            val isSimkl = !simklToken.isNullOrBlank()
-            val isKitsu = !kitsuToken.isNullOrBlank() && !kitsuUserId.isNullOrBlank()
-            val isShikimori = !shikimoriToken.isNullOrBlank() && shikimoriUserId != null
+            val isAniList = syncSettings.syncEnabledAnilist && !aniListToken.isNullOrBlank()
+            val isMal = syncSettings.syncEnabledMal && !malToken.isNullOrBlank()
+            val isSimkl = syncSettings.syncEnabledSimkl && !simklToken.isNullOrBlank()
+            val isKitsu = syncSettings.syncEnabledKitsu && !kitsuToken.isNullOrBlank() && !kitsuUserId.isNullOrBlank()
+            val isShikimori = syncSettings.syncEnabledShikimori && !shikimoriToken.isNullOrBlank() && shikimoriUserId != null
 
             val connectedPlatforms = mutableListOf<String>()
             if (isAniList) connectedPlatforms.add("AniList")
@@ -374,10 +365,10 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             if (isShikimori) connectedPlatforms.add("Shikimori")
 
             if (connectedPlatforms.size < 2) {
-                onShowMessage?.invoke("Eşitleme yapabilmek için en az iki hesap bağlı olmalıdır.")
+                onShowMessage?.invoke("Eşitleme için en az iki hesap bağlı ve eşitlemesi açık olmalıdır.")
                 isCrossSyncRunning = false
                 crossSyncState = com.kitsugi.animelist.model.CrossSyncProgressState(
-                    errorMessage = "En az iki hesap bağlı olmalıdır."
+                    errorMessage = "En az iki hesap bağlı ve eşitlemesi açık olmalıdır."
                 )
                 return@launch
             }
@@ -428,13 +419,13 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             updateProgress("Hesaplar taranıyor...", "Bağlı hesaplardan kütüphane listeleri çekiliyor...")
 
             val settingsDataStore = SettingsDataStore(context)
-            runCatching {
+            runSyncCatching {
                 val showAdult = settingsDataStore.settingsFlow.first().showAdultContent
 
                 // ── FAZ 1: Kütüphane Listelerini Çek ──────────────────────────────
                 val aniListEntries = if (isAniList) {
                     updateProgress("AniList listesi alınıyor...", "Kütüphaneniz okunuyor...")
-                    val list = runCatching { AniListImportManager.fetchAllLists(aniListToken!!) }.getOrNull() ?: emptyList()
+                    val list = AniListImportManager.fetchAllLists(aniListToken!!)
                     statsMap["AniList"] = statsMap["AniList"]!!.copy(initialCount = list.size)
                     logEvent("AniList", "AniList kütüphanesinden ${list.size} kayıt alındı.")
                     list
@@ -442,7 +433,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
                 val malEntries = if (isMal) {
                     updateProgress("MyAnimeList listesi alınıyor...", "Kütüphaneniz okunuyor...")
-                    val list = runCatching { MalImportManager.fetchAllLists(malToken!!, showAdult) }.getOrNull() ?: emptyList()
+                    val list = MalImportManager.fetchAllLists(malToken!!, showAdult)
                     statsMap["MyAnimeList"] = statsMap["MyAnimeList"]!!.copy(initialCount = list.size)
                     logEvent("MyAnimeList", "MyAnimeList kütüphanesinden ${list.size} kayıt alındı.")
                     list
@@ -450,7 +441,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
                 val simklEntries = if (isSimkl) {
                     updateProgress("Simkl listesi alınıyor...", "Anime, dizi ve filmler okunuyor...")
-                    val list = runCatching { SimklImportManager.fetchAllLists(simklToken!!) }.getOrNull() ?: emptyList()
+                    val list = SimklImportManager.fetchAllLists(simklToken!!)
                     statsMap["Simkl"] = statsMap["Simkl"]!!.copy(initialCount = list.size)
                     logEvent("Simkl", "Simkl kütüphanesinden ${list.size} kayıt alındı.")
                     list
@@ -458,7 +449,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
                 val kitsuEntries = if (isKitsu) {
                     updateProgress("Kitsu listesi alınıyor...", "Kütüphaneniz okunuyor...")
-                    val list = runCatching { KitsuImportManager.fetchAllLists(context, kitsuToken!!, kitsuUserId!!) }.getOrNull() ?: emptyList()
+                    val list = KitsuImportManager.fetchAllLists(context, kitsuToken!!, kitsuUserId!!)
                     statsMap["Kitsu"] = statsMap["Kitsu"]!!.copy(initialCount = list.size)
                     logEvent("Kitsu", "Kitsu kütüphanesinden ${list.size} kayıt alındı.")
                     list
@@ -466,7 +457,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
                 val shikimoriEntries = if (isShikimori) {
                     updateProgress("Shikimori listesi alınıyor...", "Kütüphaneniz okunuyor...")
-                    val list = runCatching { ShikimoriImportManager.fetchAllLists(context, shikimoriToken!!, shikimoriUserId!!) }.getOrNull() ?: emptyList()
+                    val list = ShikimoriImportManager.fetchAllLists(context, shikimoriToken!!, shikimoriUserId!!)
                     statsMap["Shikimori"] = statsMap["Shikimori"]!!.copy(initialCount = list.size)
                     logEvent("Shikimori", "Shikimori kütüphanesinden ${list.size} kayıt alındı.")
                     list
@@ -476,130 +467,32 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 updateProgress("İçerikler çapraz eşleştiriliyor...", "Tüm platformlardaki kayıtlar birleştiriliyor...")
 
                 val unifiedItems = mutableListOf<UnifiedSyncItem>()
-                val malIdIndex = mutableMapOf<Int, UnifiedSyncItem>()
-                val simklIdIndex = mutableMapOf<Int, UnifiedSyncItem>()
-                val tmdbIdIndex = mutableMapOf<Int, UnifiedSyncItem>()
-                val kitsuIdIndex = mutableMapOf<Int, UnifiedSyncItem>() // Kitsu native ID (300M offset olmadan)
-                val titleIndex = mutableMapOf<String, UnifiedSyncItem>()
-                val titleYearIndex = mutableMapOf<String, UnifiedSyncItem>()
-                // Her unified item için Kitsu native media ID'sini sakla (FAZ 4'te kullanılır)
-                val unifiedItemKitsuMediaId = mutableMapOf<UnifiedSyncItem, Int>()
-
-                fun registerUnifiedItemKeys(item: UnifiedSyncItem, entry: MediaEntry) {
-                    val realMal = entry.malId?.takeIf { it.isRealMalId() }
-                    if (realMal != null) malIdIndex[realMal] = item
-
-                    val simklId = entry.simklId?.takeIf { it > 0 }
-                    if (simklId != null) simklIdIndex[simklId] = item
-
-                    val tmdbId = entry.tmdbId?.takeIf { it > 0 }
-                    if (tmdbId != null) tmdbIdIndex[tmdbId] = item
-
-                    // Extract Kitsu native ID from 300M+ offset
-                    val rawKitsu = entry.malId?.takeIf { it >= 300_000_000 }?.let { it - 300_000_000 }
-                    if (rawKitsu != null && rawKitsu > 0) kitsuIdIndex[rawKitsu] = item
-
-                    val titleKey = normalizeSyncTitle(entry.title, entry.type)
-                    if (titleKey.isNotBlank()) {
-                        titleIndex[titleKey] = item
-                        if (entry.year != null && entry.year > 1900) {
-                            titleYearIndex["${titleKey}_${entry.year}"] = item
-                        }
-                    }
-
-                    val engTitle = entry.titleEnglish?.takeIf { it.isNotBlank() }
-                    if (engTitle != null) {
-                        val engKey = normalizeSyncTitle(engTitle, entry.type)
-                        if (engKey.isNotBlank()) {
-                            titleIndex[engKey] = item
-                            if (entry.year != null && entry.year > 1900) {
-                                titleYearIndex["${engKey}_${entry.year}"] = item
-                            }
-                        }
-                    }
-
-                    val jpTitle = entry.titleJapanese?.takeIf { it.isNotBlank() }
-                    if (jpTitle != null) {
-                        val jpKey = normalizeSyncTitle(jpTitle, entry.type)
-                        if (jpKey.isNotBlank()) {
-                            titleIndex[jpKey] = item
-                            if (entry.year != null && entry.year > 1900) {
-                                titleYearIndex["${jpKey}_${entry.year}"] = item
-                            }
-                        }
-                    }
-                }
-
                 fun clusterEntry(entry: MediaEntry, assignToPlatform: (UnifiedSyncItem) -> Unit) {
-                    val realMal = entry.malId?.takeIf { it.isRealMalId() }
-                    val simklId = entry.simklId?.takeIf { it > 0 }
-                    val tmdbId = entry.tmdbId?.takeIf { it > 0 }
-                    val rawKitsu = entry.malId?.takeIf { it >= 300_000_000 }?.let { it - 300_000_000 }
-                    val titleKey = normalizeSyncTitle(entry.title, entry.type)
-                    val engKey = entry.titleEnglish?.takeIf { it.isNotBlank() }?.let { normalizeSyncTitle(it, entry.type) }
-                    val jpKey = entry.titleJapanese?.takeIf { it.isNotBlank() }?.let { normalizeSyncTitle(it, entry.type) }
-
-                    val year = entry.year?.takeIf { it > 1900 }
-                    val titleYearKey = if (year != null && titleKey.isNotBlank()) "${titleKey}_$year" else null
-                    val engYearKey = if (year != null && engKey != null && engKey.isNotBlank()) "${engKey}_$year" else null
-
-                    val existing = (if (realMal != null) malIdIndex[realMal] else null)
-                        ?: (if (simklId != null) simklIdIndex[simklId] else null)
-                        ?: (if (tmdbId != null) tmdbIdIndex[tmdbId] else null)
-                        ?: (if (rawKitsu != null && rawKitsu > 0) kitsuIdIndex[rawKitsu] else null)
-                        ?: (if (titleYearKey != null) titleYearIndex[titleYearKey] else null)
-                        ?: (if (engYearKey != null) titleYearIndex[engYearKey] else null)
-                        ?: (if (titleKey.isNotBlank()) titleIndex[titleKey] else null)
-                        ?: (if (engKey != null && engKey.isNotBlank()) titleIndex[engKey] else null)
-                        ?: (if (jpKey != null && jpKey.isNotBlank()) titleIndex[jpKey] else null)
-
-                    val targetItem = if (existing != null) {
-                        existing
-                    } else {
-                        val newItem = UnifiedSyncItem()
-                        unifiedItems.add(newItem)
-                        newItem
+                    val matches = unifiedItems.filter { item ->
+                        item.candidates.all { com.kitsugi.animelist.model.MediaIdentity.sameMedia(it, entry) }
                     }
-
-                    assignToPlatform(targetItem)
-                    registerUnifiedItemKeys(targetItem, entry)
+                    require(matches.size <= 1) { "Belirsiz çapraz eşleşme: ${entry.title}; otomatik yazma durduruldu" }
+                    val item = matches.singleOrNull() ?: UnifiedSyncItem().also { unifiedItems.add(it) }
+                    assignToPlatform(item)
                 }
 
                 aniListEntries.forEach { e -> clusterEntry(e) { it.aniList = e } }
                 malEntries.forEach { e -> clusterEntry(e) { it.mal = e } }
                 simklEntries.forEach { e -> clusterEntry(e) { it.simkl = e } }
-                kitsuEntries.forEach { e ->
-                    clusterEntry(e) { item ->
-                        item.kitsu = e
-                        // Kitsu media native ID'sini sakla (malId >= 300M ise offset'i çıkar)
-                        val rawKitsuId = e.malId?.takeIf { it >= 300_000_000 }?.let { it - 300_000_000 }
-                        if (rawKitsuId != null && rawKitsuId > 0) {
-                            unifiedItemKitsuMediaId[item] = rawKitsuId
-                        }
-                    }
-                }
+                kitsuEntries.forEach { e -> clusterEntry(e) { it.kitsu = e } }
                 shikimoriEntries.forEach { e -> clusterEntry(e) { it.shikimori = e } }
 
                 logEvent("Analiz", "Toplam ${unifiedItems.size} tekil içerik tespit edildi. Eşitleme başlatılıyor...")
                 updateProgress("Eşitleme başlatılıyor...", "Toplam ${unifiedItems.size} içerik eşitlenecek", processed = 0, total = unifiedItems.size)
 
-                val finalEntries = mutableListOf<MediaEntry>()
                 val simklEntriesToSync = mutableListOf<MediaEntry>()
 
-                val kitsuPresentOrAddedEntries = mutableSetOf<UnifiedSyncItem>()
-                val malPresentOrAddedEntries = mutableSetOf<UnifiedSyncItem>()
-                val shikimoriPresentOrAddedEntries = mutableSetOf<UnifiedSyncItem>()
-                val aniListPresentOrAddedEntries = mutableSetOf<UnifiedSyncItem>()
 
                 // ── FAZ 3: Eksikleri Tamamlama ve Alan Senkronizasyonu (Asla Silme Yok) ──
                 for ((index, item) in unifiedItems.withIndex()) {
                     val candidates = item.candidates
                     if (candidates.isEmpty()) continue
 
-                    if (item.kitsu != null) kitsuPresentOrAddedEntries.add(item)
-                    if (item.mal != null) malPresentOrAddedEntries.add(item)
-                    if (item.shikimori != null) shikimoriPresentOrAddedEntries.add(item)
-                    if (item.aniList != null) aniListPresentOrAddedEntries.add(item)
 
                     val newest = candidates.maxByOrNull { it.updatedAt } ?: candidates.first()
                     val isAnimeOrManga = newest.type == MediaType.Anime || newest.type == MediaType.Manga
@@ -666,11 +559,10 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         if (current == null) {
                             // AniList'te eksik -> EKLE!
                             com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("anilist")
-                            val res = runCatching { AniListSyncManager.updateAniListEntry(aniListToken!!, mergedEntry) }
+                            val res = runSyncCatching { AniListSyncManager.updateAniListEntry(aniListToken!!, mergedEntry) }
                             if (res.isSuccess && res.getOrNull() != null) {
                                 statsMap["AniList"] = statsMap["AniList"]!!.let { it.copy(addedCount = it.addedCount + 1) }
                                 logEvent("AniList", "[AniList] + Eklendi: ${mergedEntry.title} (${bestStatus.label})", isAddition = true)
-                                aniListPresentOrAddedEntries.add(item)
                             } else {
                                 statsMap["AniList"] = statsMap["AniList"]!!.let { it.copy(errorCount = it.errorCount + 1) }
                                 logEvent("AniList", "[AniList] ! Eklenemedi: ${mergedEntry.title}", isError = true)
@@ -678,16 +570,19 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         } else {
                             val needsUpdate = (current.status != bestStatus) ||
                                     (current.progress < maxProgress) ||
-                                    (current.score == null && bestScore != null) ||
+                                    (bestScore != null && current.score != bestScore) ||
                                     (current.startDate.isNullOrBlank() && !bestStartDate.isNullOrBlank()) ||
                                     (current.endDate.isNullOrBlank() && !bestEndDate.isNullOrBlank())
                             if (needsUpdate) {
                                 com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("anilist")
                                 val target = mergedEntry.copy(aniListEntryId = current.aniListEntryId)
-                                val res = runCatching { AniListSyncManager.updateAniListEntry(aniListToken!!, target) }
-                                if (res.isSuccess) {
+                                val res = runSyncCatching { AniListSyncManager.updateAniListEntry(aniListToken!!, target) }
+                                if (res.isSuccess && res.getOrNull() != null) {
                                     statsMap["AniList"] = statsMap["AniList"]!!.let { it.copy(updatedCount = it.updatedCount + 1) }
                                     logEvent("AniList", "[AniList] ~ Güncellendi: ${mergedEntry.title}", isUpdate = true)
+                                } else {
+                                    statsMap["AniList"] = statsMap["AniList"]!!.let { it.copy(errorCount = it.errorCount + 1) }
+                                    logEvent("AniList", "[AniList] ! Güncellenemedi: ${mergedEntry.title}", isError = true)
                                 }
                             }
                         }
@@ -701,11 +596,10 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                 // MAL'da eksik -> EKLE!
                                 com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("mal")
                                 val target = mergedEntry.copy(malId = realMalId)
-                                val res = runCatching { MalSyncManager.updateMalEntry(malToken!!, target) }
+                                val res = runSyncCatching { MalSyncManager.updateMalEntry(malToken!!, target) }
                                 if (res.isSuccess) {
                                     statsMap["MyAnimeList"] = statsMap["MyAnimeList"]!!.let { it.copy(addedCount = it.addedCount + 1) }
                                     logEvent("MyAnimeList", "[MAL] + Eklendi: ${mergedEntry.title} (${bestStatus.label})", isAddition = true)
-                                    malPresentOrAddedEntries.add(item)
                                 } else {
                                     statsMap["MyAnimeList"] = statsMap["MyAnimeList"]!!.let { it.copy(errorCount = it.errorCount + 1) }
                                     logEvent("MyAnimeList", "[MAL] ! Eklenemedi: ${mergedEntry.title}", isError = true)
@@ -713,17 +607,20 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                             } else {
                                 val needsUpdate = (current.status != bestStatus) ||
                                         (current.progress < maxProgress) ||
-                                        (current.score == null && bestScore != null) ||
+                                        (bestScore != null && current.score != bestScore) ||
                                         (current.startDate.isNullOrBlank() && !bestStartDate.isNullOrBlank()) ||
                                         (current.endDate.isNullOrBlank() && !bestEndDate.isNullOrBlank())
                                 if (needsUpdate) {
                                     com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("mal")
                                     val target = mergedEntry.copy(malId = realMalId)
-                                    val res = runCatching { MalSyncManager.updateMalEntry(malToken!!, target) }
+                                    val res = runSyncCatching { MalSyncManager.updateMalEntry(malToken!!, target) }
                                     if (res.isSuccess) {
                                         statsMap["MyAnimeList"] = statsMap["MyAnimeList"]!!.let { it.copy(updatedCount = it.updatedCount + 1) }
                                         logEvent("MyAnimeList", "[MAL] ~ Güncellendi: ${mergedEntry.title}", isUpdate = true)
-                                    }
+                                    } else {
+                                    statsMap["MyAnimeList"] = statsMap["MyAnimeList"]!!.let { it.copy(errorCount = it.errorCount + 1) }
+                                    logEvent("MyAnimeList", "[MAL] ! Güncellenemedi: ${mergedEntry.title}", isError = true)
+                                }
                                 }
                             }
                         } else {
@@ -740,7 +637,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         } else {
                             val needsUpdate = (current.status != bestStatus) ||
                                     (current.progress < maxProgress) ||
-                                    (current.score == null && bestScore != null)
+                                    (bestScore != null && current.score != bestScore)
                             if (needsUpdate) {
                                 simklEntriesToSync.add(mergedEntry.copy(simklId = current.simklId))
                             }
@@ -754,11 +651,10 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         if (current == null) {
                             // Kitsu'da eksik -> EKLE!
                             com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("kitsu")
-                            val res = runCatching { KitsuSyncManager.syncEntryToKitsu(context, mergedEntry, knownKitsuMediaId = null) }.getOrNull()
+                            val res = runSyncCatching { KitsuSyncManager.syncEntryToKitsu(context, mergedEntry, knownKitsuMediaId = null) }.getOrNull()
                             if (res != null && res.errors.isEmpty()) {
                                 statsMap["Kitsu"] = statsMap["Kitsu"]!!.let { it.copy(addedCount = it.addedCount + 1) }
                                 logEvent("Kitsu", "[Kitsu] + Eklendi: ${mergedEntry.title} (${bestStatus.label})", isAddition = true)
-                                kitsuPresentOrAddedEntries.add(item)
                             } else {
                                 val errMsg = res?.errors?.firstOrNull() ?: "Bilinmeyen hata"
                                 statsMap["Kitsu"] = statsMap["Kitsu"]!!.let { it.copy(errorCount = it.errorCount + 1) }
@@ -767,13 +663,16 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         } else {
                             val needsUpdate = (current.status != bestStatus) ||
                                     (current.progress < maxProgress) ||
-                                    (current.score == null && bestScore != null)
+                                    (bestScore != null && current.score != bestScore)
                             if (needsUpdate) {
                                 com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("kitsu")
-                                val res = runCatching { KitsuSyncManager.syncEntryToKitsu(context, mergedEntry, knownKitsuMediaId = knownKitsuId) }.getOrNull()
+                                val res = runSyncCatching { KitsuSyncManager.syncEntryToKitsu(context, mergedEntry, knownKitsuMediaId = knownKitsuId) }.getOrNull()
                                 if (res != null && res.errors.isEmpty()) {
                                     statsMap["Kitsu"] = statsMap["Kitsu"]!!.let { it.copy(updatedCount = it.updatedCount + 1) }
                                     logEvent("Kitsu", "[Kitsu] ~ Güncellendi: ${mergedEntry.title}", isUpdate = true)
+                                } else {
+                                    statsMap["Kitsu"] = statsMap["Kitsu"]!!.let { it.copy(errorCount = it.errorCount + 1) }
+                                    logEvent("Kitsu", "[Kitsu] ! Güncellenemedi: ${mergedEntry.title}", isError = true)
                                 }
                             }
                         }
@@ -787,11 +686,10 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                 // Shikimori'de eksik -> EKLE!
                                 com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("shikimori")
                                 val target = mergedEntry.copy(malId = realMalId)
-                                val res = runCatching { ShikimoriSyncManager.syncEntryToShikimori(context, target) }.getOrNull()
+                                val res = runSyncCatching { ShikimoriSyncManager.syncEntryToShikimori(context, target) }.getOrNull()
                                 if (res != null && res.errors.isEmpty()) {
                                     statsMap["Shikimori"] = statsMap["Shikimori"]!!.let { it.copy(addedCount = it.addedCount + 1) }
                                     logEvent("Shikimori", "[Shikimori] + Eklendi: ${mergedEntry.title} (${bestStatus.label})", isAddition = true)
-                                    shikimoriPresentOrAddedEntries.add(item)
                                 } else {
                                     val errMsg = res?.errors?.firstOrNull() ?: "Bilinmeyen hata"
                                     statsMap["Shikimori"] = statsMap["Shikimori"]!!.let { it.copy(errorCount = it.errorCount + 1) }
@@ -800,15 +698,18 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                             } else {
                                 val needsUpdate = (current.status != bestStatus) ||
                                         (current.progress < maxProgress) ||
-                                        (current.score == null && bestScore != null)
+                                        (bestScore != null && current.score != bestScore)
                                 if (needsUpdate) {
                                     com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("shikimori")
                                     val target = mergedEntry.copy(malId = realMalId)
-                                    val res = runCatching { ShikimoriSyncManager.syncEntryToShikimori(context, target) }.getOrNull()
+                                    val res = runSyncCatching { ShikimoriSyncManager.syncEntryToShikimori(context, target) }.getOrNull()
                                     if (res != null && res.errors.isEmpty()) {
                                         statsMap["Shikimori"] = statsMap["Shikimori"]!!.let { it.copy(updatedCount = it.updatedCount + 1) }
                                         logEvent("Shikimori", "[Shikimori] ~ Güncellendi: ${mergedEntry.title}", isUpdate = true)
-                                    }
+                                    } else {
+                                    statsMap["Shikimori"] = statsMap["Shikimori"]!!.let { it.copy(errorCount = it.errorCount + 1) }
+                                    logEvent("Shikimori", "[Shikimori] ! Güncellenemedi: ${mergedEntry.title}", isError = true)
+                                }
                                 }
                             }
                         } else {
@@ -817,7 +718,6 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     }
 
-                    finalEntries.add(mergedEntry)
 
                     if ((index + 1) % 2 == 0 || index == unifiedItems.size - 1) {
                         updateProgress(
@@ -840,15 +740,17 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         val progressText = "${minOf((idx + 1) * 35, simklEntriesToSync.size)} / ${simklEntriesToSync.size} (%${(((idx + 1).toFloat() / chunks.size) * 100).toInt()})"
                         updateProgress("Simkl kütüphanesi eşitleniyor...", progressText)
                         val syncRes = SimklSyncManager.syncBatchToSimkl(context, chunk)
+                        val count = syncRes.addedCount
+                        val notFound = syncRes.notFoundCount
+                        simklAdded += count
+                        simklSkipped += notFound
                         if (syncRes.errors.isEmpty()) {
-                            val count = syncRes.addedCount
-                            simklAdded += count
-                            val notFound = syncRes.notFoundCount
-                            if (notFound > 0) simklSkipped += notFound
                             logEvent("Simkl", "[Simkl] Grup ${idx + 1}/${chunks.size} eşitlendi ($count eklendi${if (notFound > 0) ", $notFound eşleşmedi" else ""})", isAddition = count > 0)
                         } else {
                             simklErrors += chunk.size
-                            logEvent("Simkl", "[Simkl] Grup ${idx + 1}/${chunks.size} hata: ${syncRes.errors.firstOrNull()}", isError = true)
+                            syncRes.errors.forEach { message ->
+                                logEvent("Simkl", "[Simkl] Grup ${idx + 1}/${chunks.size}: $message", isError = true)
+                            }
                         }
                         if (idx < chunks.size - 1) {
                             // Simkl API 1 istek/saniye kuralına tam uyum
@@ -865,144 +767,37 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     kotlinx.coroutines.delay(1500L)
                 }
 
-                // ── FAZ 4: Yerel Veritabanını Güncelle (Sıfır Veri Kaybı Garantisi) ──
-                updateProgress("Yerel veritabanı güncelleniyor...", "Kitsugi listeleri yenileniyor...")
-
-                if (isAniList) {
-                    val aniListSynced = finalEntries
-                        .filter { it.type == MediaType.Anime || it.type == MediaType.Manga }
-                        .filter { entry ->
-                            val matchedItem = unifiedItems.firstOrNull { uItem ->
-                                uItem.candidates.any { c ->
-                                    (entry.malId != null && entry.malId == c.malId) ||
-                                    normalizeSyncTitle(c.title, c.type) == normalizeSyncTitle(entry.title, entry.type)
-                                }
-                            }
-                            matchedItem != null && matchedItem in aniListPresentOrAddedEntries
-                        }
-                        .map { entry ->
-                            if (entry.source == "anilist") entry
-                            else entry.copy(
-                                id = entry.malId?.takeIf { it.isRealMalId() } ?: entry.id,
-                                source = "anilist"
-                            )
-                        }
-                    repository.smartImport("anilist", aniListSynced, allowDelete = false)
-                }
-                if (isMal) {
-                    val malSynced = finalEntries
-                        .filter { it.type == MediaType.Anime || it.type == MediaType.Manga }
-                        .filter { entry ->
-                            val matchedItem = unifiedItems.firstOrNull { uItem ->
-                                uItem.candidates.any { c ->
-                                    (entry.malId != null && entry.malId == c.malId) ||
-                                    normalizeSyncTitle(c.title, c.type) == normalizeSyncTitle(entry.title, entry.type)
-                                }
-                            }
-                            matchedItem != null && matchedItem in malPresentOrAddedEntries
-                        }
-                        .map { entry ->
-                            val targetId = entry.malId?.takeIf { it.isRealMalId() } ?: entry.id
-                            if (entry.source == "mal" || entry.source == "jikan") entry
-                            else entry.copy(
-                                id = targetId,
-                                source = "mal"
-                            )
-                        }
-                    repository.smartImport("mal", malSynced, allowDelete = false)
-                }
+                // Read back actual remote state; desired merged values are NOT receipts.
+                updateProgress("Sunucu listeleri doğrulanıyor...", "Yalnızca sunucudan okunan kayıtlar kaydediliyor")
+                if (isAniList) repository.smartImport("anilist", AniListImportManager.fetchAllLists(aniListToken!!), allowDelete = false)
+                if (isMal) repository.smartImport("mal", MalImportManager.fetchAllLists(malToken!!, showAdult), allowDelete = false)
+                if (isKitsu) repository.smartImport("kitsu", KitsuImportManager.fetchAllLists(context, kitsuToken!!, kitsuUserId!!), allowDelete = false)
+                if (isShikimori) repository.smartImport("shikimori", ShikimoriImportManager.fetchAllLists(context, shikimoriToken!!, shikimoriUserId!!), allowDelete = false)
                 if (isSimkl) {
-                    updateProgress("Simkl listesi yenileniyor...", "Simkl kütüphanesi senkronize ediliyor...")
-                    val simklToken = ExternalAuthManager.getSimklToken(context)
-                    val freshSimklList = if (!simklToken.isNullOrBlank()) {
-                        runCatching { SimklImportManager.fetchAllLists(simklToken) }.getOrNull()
-                    } else null
-
-                    val simklBaseEntries = finalEntries
-                        .filter { it.type == MediaType.Anime || it.type == MediaType.TvShow || it.type == MediaType.Movie }
-                        .map { entry ->
-                            entry.copy(
-                                id = entry.simklId?.takeIf { it > 0 } ?: entry.id,
-                                source = "simkl"
-                            )
-                        }
-                    val combinedSimklList = if (!freshSimklList.isNullOrEmpty()) {
-                        freshSimklList
-                    } else {
-                        simklBaseEntries
-                    }
-                    if (combinedSimklList.isNotEmpty()) {
-                        repository.smartImport("simkl", combinedSimklList, allowDelete = false)
-                    }
-                }
-                if (isKitsu) {
-                    // Yalnızca Kitsu'da var olan veya bu senkronizasyonda Kitsu'ya başarıyla eklenen içerikleri Kitsu tablosuna yaz
-                    val kitsuSynced = finalEntries
-                        .filter { it.type == MediaType.Anime || it.type == MediaType.Manga }
-                        .mapNotNull { entry ->
-                            val matchedItem = unifiedItems.firstOrNull { uItem ->
-                                uItem.candidates.any { c ->
-                                    (entry.malId != null && entry.malId == c.malId) ||
-                                    normalizeSyncTitle(c.title, c.type) == normalizeSyncTitle(entry.title, entry.type)
-                                }
-                            }
-                            if (matchedItem == null || matchedItem !in kitsuPresentOrAddedEntries) {
-                                return@mapNotNull null
-                            }
-
-                            val kitsuNativeId = (unifiedItemKitsuMediaId[matchedItem])
-                                ?: matchedItem.kitsu?.malId?.takeIf { it >= 300_000_000 }?.let { it - 300_000_000 }
-                            val kitsuMalId = if (kitsuNativeId != null) 300_000_000 + kitsuNativeId
-                                            else entry.malId?.takeIf { it >= 300_000_000 }
-                            val targetId = kitsuMalId ?: (entry.malId?.takeIf { it in 1..99_999_999 } ?: entry.id)
-                            entry.copy(
-                                id = targetId,
-                                malId = kitsuMalId ?: entry.malId,
-                                source = "kitsu"
-                            )
-                        }
-                    if (kitsuSynced.isNotEmpty()) {
-                        repository.smartImport("kitsu", kitsuSynced, allowDelete = false)
-                    }
-                }
-                if (isShikimori) {
-                    val shikimoriSynced = finalEntries
-                        .filter { it.type == MediaType.Anime || it.type == MediaType.Manga }
-                        .filter { entry ->
-                            val matchedItem = unifiedItems.firstOrNull { uItem ->
-                                uItem.candidates.any { c ->
-                                    (entry.malId != null && entry.malId == c.malId) ||
-                                    normalizeSyncTitle(c.title, c.type) == normalizeSyncTitle(entry.title, entry.type)
-                                }
-                            }
-                            matchedItem != null && matchedItem in shikimoriPresentOrAddedEntries
-                        }
-                        .map { entry ->
-                            val targetId = entry.malId?.takeIf { it.isRealMalId() } ?: entry.id
-                            if (entry.source == "shikimori") entry
-                            else entry.copy(
-                                id = targetId,
-                                source = "shikimori"
-                            )
-                        }
-                    repository.smartImport("shikimori", shikimoriSynced, allowDelete = false)
+                    val refreshToken = ExternalAuthManager.getSimklToken(context) ?: error("Simkl bağlantısı kesildi")
+                    repository.smartImport("simkl", SimklImportManager.fetchAllLists(refreshToken), allowDelete = false)
                 }
 
-                logEvent("Tamamlandı", "Tüm hesaplar başarıyla senkronize edildi. Hiçbir içerik silinmedi.", isAddition = true)
+                val hasSyncErrors = statsMap.values.any { it.errorCount > 0 }
+                val summary = if (hasSyncErrors) {
+                    "Eşitleme kısmen tamamlandı. Aktarılamayan işlemler için hata kayıtlarını inceleyin."
+                } else {
+                    "Eşitleme tamamlandı. Atlanan kayıtlar için platform özetlerini inceleyin."
+                }
+                logEvent("Tamamlandı", summary, isError = hasSyncErrors)
 
                 crossSyncState = com.kitsugi.animelist.model.CrossSyncProgressState(
                     isRunning = false,
                     isCompleted = true,
-                    currentStep = "Senkronizasyon Tamamlandı!",
-                    currentDetail = "Tüm bağlı hesaplar karşılıklı olarak senkronize edildi. Hiçbir içerik silinmedi.",
+                    currentStep = if (hasSyncErrors) "Eşitleme kısmen tamamlandı" else "Senkronizasyon Tamamlandı!",
+                    currentDetail = summary,
                     processedItems = unifiedItems.size,
                     totalItems = unifiedItems.size,
                     platformStats = statsMap.toMap(),
                     logs = recentLogs.toList()
                 )
 
-                val platformsStr = connectedPlatforms.joinToString(", ")
-                onShowMessage?.invoke("${finalEntries.size} içerik $platformsStr hesapları arasında eksiksiz eşitlendi!")
+                onShowMessage?.invoke(summary)
             }.onFailure { error ->
                 logEvent("Hata", "Eşitleme hatası: ${error.message}", isError = true)
                 crossSyncState = crossSyncState.copy(
@@ -1015,7 +810,20 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 )
                 onShowMessage?.invoke("Eşitleme sırasında hata oluştu: ${error.message}")
             }
-            isCrossSyncRunning = false
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (error: Exception) {
+                crossSyncState = crossSyncState.copy(
+                    isRunning = false, isCompleted = false, currentStep = "Eşitleme Hatası",
+                    errorMessage = error.message, currentDetail = error.message ?: "Hesaplar okunamadı"
+                )
+                onShowMessage?.invoke("Eşitleme başlatılamadı: ${error.message}")
+            } finally {
+                isCrossSyncRunning = false
+                if (crossSyncState.isRunning) {
+                    crossSyncState = crossSyncState.copy(isRunning = false, currentStep = "Eşitleme durduruldu")
+                }
+            }
         }
     }
 
@@ -1026,7 +834,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         onError: (String) -> Unit = {}
     ) {
         viewModelScope.launch(Dispatchers.IO) {
-            runCatching {
+            runSyncCatching {
                 val tokenResp = KitsuApiClient.loginWithPassword(username, password)
                 val user = KitsuApiClient.getCurrentUser(tokenResp.accessToken)
                 ExternalAuthManager.saveKitsuAuth(
@@ -1067,7 +875,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         val cleanCode = ShikimoriApiClient.sanitizeAuthCode(authCode)
 
         viewModelScope.launch(Dispatchers.IO) {
-            runCatching {
+            runSyncCatching {
                 ExternalAuthManager.saveShikimoriCredentials(context, effectiveClientId, effectiveClientSecret)
                 val tokenResp = ShikimoriApiClient.exchangeCodeForToken(effectiveClientId, effectiveClientSecret, cleanCode)
                 val user = ShikimoriApiClient.getCurrentUser(tokenResp.accessToken)
@@ -1113,8 +921,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 return@launch
             }
 
-            runCatching {
-                runCatching {
+            runSyncCatching {
+                runSyncCatching {
                     val profile = KitsuImportManager.fetchUserProfile(token)
                     SettingsDataStore(context).saveKitsuProfileInfo(profile.name, profile.avatarUrl)
                 }
@@ -1145,8 +953,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 return@launch
             }
 
-            runCatching {
-                runCatching {
+            runSyncCatching {
+                runSyncCatching {
                     val profile = ShikimoriImportManager.fetchUserProfile(token)
                     SettingsDataStore(context).saveShikimoriProfileInfo(profile.nickname, profile.avatarUrl)
                 }
@@ -1194,8 +1002,8 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch(Dispatchers.IO) {
             val settingsDataStore = SettingsDataStore(context)
 
-            runCatching {
-                runCatching {
+            runSyncCatching {
+                runSyncCatching {
                     val profile = SimklImportManager.fetchUserProfile(token)
                     settingsDataStore.setSimklProfileInfo(
                         username = profile.name,

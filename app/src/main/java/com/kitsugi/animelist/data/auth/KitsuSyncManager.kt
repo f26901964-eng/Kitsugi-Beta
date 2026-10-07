@@ -46,6 +46,10 @@ object KitsuSyncManager {
         entry: MediaEntry,
         knownKitsuMediaId: Int? = null
     ): SyncResult = withContext(Dispatchers.IO) {
+        if (entry.type != MediaType.Anime && entry.type != MediaType.Manga) {
+            return@withContext SyncResult(emptyList(), listOf("Bu servis yalnızca anime/manga destekler"))
+        }
+
         val token = ExternalAuthManager.getKitsuToken(context)
         val userId = ExternalAuthManager.getKitsuUserId(context)
 
@@ -57,7 +61,9 @@ object KitsuSyncManager {
         val isAnime = entry.type != MediaType.Manga
 
         // 1. Kitsu Media Numeric ID'sini bul
-        var kitsuMediaId: Int? = knownKitsuMediaId
+        var kitsuMediaId: Int? = knownKitsuMediaId ?: entry.malId?.takeIf { it in 1..99_999_999 }?.let {
+            ExternalAuthManager.getKitsuMediaIdForMal(context, it, isAnime)
+        }
         if (kitsuMediaId == null && entry.malId != null && entry.malId >= KITSU_OFFSET && entry.malId < 400_000_000) {
             kitsuMediaId = entry.malId - KITSU_OFFSET
         }
@@ -68,7 +74,7 @@ object KitsuSyncManager {
             } else null
             val realMalId = entry.malId?.takeIf { it in 1..99_999_999 }
 
-            val armKitsu = runCatching {
+            val armKitsu = runSyncCatching {
                 com.kitsugi.animelist.data.remote.KitsugiIdResolver.resolveIds(
                     malId = realMalId,
                     aniListId = rawAniListId,
@@ -96,21 +102,15 @@ object KitsuSyncManager {
 
         val status = watchStatusToKitsu(entry.status)
         val progress = entry.progress
-        val ratingTwenty = entry.score?.let { s ->
-            if (s > 10) kotlin.math.round(s / 5.0).toInt().coerceIn(2, 20)
-            else (s * 2).coerceIn(2, 20)
-        }
+        val ratingTwenty = SyncScores.kitsuTwenty(entry.score)
 
         val messages = mutableListOf<String>()
         val errors = mutableListOf<String>()
 
-        // 2. Kütüphanedeki mevcut kaydı kontrol et (önce yerel önbellek, sonra uzaktan sorgu)
-        var existingEntryId = ExternalAuthManager.getKitsuLibraryEntryId(context, kitsuMediaId, isAnime)
-        if (existingEntryId == null) {
-            existingEntryId = KitsuApiClient.findLibraryEntryId(token, userId, kitsuMediaId, isAnime)
-            if (existingEntryId != null) {
-                ExternalAuthManager.saveKitsuLibraryEntryId(context, kitsuMediaId, isAnime, existingEntryId)
-            }
+        // A stale cached library-entry ID is not evidence that a remote record exists.
+        val existingEntryId = KitsuApiClient.findLibraryEntryId(token, userId, kitsuMediaId, isAnime)
+        if (existingEntryId != null) {
+            ExternalAuthManager.saveKitsuLibraryEntryId(context, kitsuMediaId, isAnime, existingEntryId)
         }
 
         if (existingEntryId != null) {
@@ -166,28 +166,36 @@ object KitsuSyncManager {
         context: Context,
         entry: MediaEntry
     ): SyncResult = withContext(Dispatchers.IO) {
+        if (entry.type != MediaType.Anime && entry.type != MediaType.Manga) {
+            return@withContext SyncResult(emptyList(), listOf("Bu servis yalnızca anime/manga destekler"))
+        }
+
         val token = ExternalAuthManager.getKitsuToken(context)
         if (token.isNullOrBlank()) {
             return@withContext SyncResult(messages = emptyList(), errors = listOf("Kitsu hesabı bağlı değil"))
         }
 
         val isAnime = entry.type != MediaType.Manga
-        var kitsuMediaId: Int? = null
+        var kitsuMediaId: Int? = entry.malId?.takeIf { it in 1..99_999_999 }?.let {
+            ExternalAuthManager.getKitsuMediaIdForMal(context, it, isAnime)
+        }
         if (entry.malId != null && entry.malId >= KITSU_OFFSET && entry.malId < 400_000_000) {
             kitsuMediaId = entry.malId - KITSU_OFFSET
         }
 
         val existingEntryId = if (kitsuMediaId != null) {
-            ExternalAuthManager.getKitsuLibraryEntryId(context, kitsuMediaId, isAnime)
+            val userId = ExternalAuthManager.getKitsuUserId(context) ?: error("Kitsu kullanıcı kimliği yok")
+            KitsuApiClient.findLibraryEntryId(token, userId, kitsuMediaId, isAnime)
         } else null
 
         if (existingEntryId != null) {
             val success = KitsuApiClient.deleteLibraryEntry(token, existingEntryId)
-            ExternalAuthManager.removeKitsuLibraryEntryId(context, kitsuMediaId!!, isAnime)
+            if (success) ExternalAuthManager.removeKitsuLibraryEntryId(context, kitsuMediaId!!, isAnime)
             if (success) SyncResult(messages = listOf("Kitsu kütüphanesinden silindi (${entry.title})"))
             else SyncResult(messages = emptyList(), errors = listOf("Kitsu'dan silinemedi"))
         } else {
-            SyncResult(messages = emptyList(), errors = listOf("Kitsu kaydı bulunamadı"))
+            if (kitsuMediaId != null) SyncResult(messages = listOf("Kitsu kaydı zaten yok (${entry.title})"))
+            else SyncResult(messages = emptyList(), errors = listOf("Kitsu medya kimliği bulunamadı"))
         }
     }
 }

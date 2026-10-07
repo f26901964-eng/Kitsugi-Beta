@@ -113,9 +113,10 @@ object SimklImportManager {
                         }
                         if (!response.isSuccessful) {
                             android.util.Log.e("SimklImportManager", "Simkl fetchList [$type] failed: HTTP ${response.code}")
-                            return@use Pair(0L, emptyList<MediaEntry>())
+                            throw IllegalStateException("Simkl liste okuma hatası [$type]: HTTP ${response.code}")
                         }
                         val responseText = response.body?.string().orEmpty()
+                        if (responseText.trim() == "null") return@use Pair(0L, emptyList<MediaEntry>())
                         val root = JSONObject(responseText)
                         val arrayKey = when (type) {
                             "movies" -> "movies"
@@ -129,13 +130,10 @@ object SimklImportManager {
                         val statusStr = item.optNullableString("status")
                         val watchStatus = mapSimklStatus(statusStr)
 
-                        val mediaObjKey = when (type) {
-                            "movies" -> "movie"
-                            "shows" -> "show"
-                            else -> "anime"
-                        }
-                        val mediaObj = item.optJSONObject(mediaObjKey) ?: continue
-                        val title = mediaObj.optNullableString("title") ?: "BaÅŸlÄ±ksÄ±z"
+                        val mediaObjKey = com.kitsugi.animelist.data.remote.SimklSyncContract.readMediaKey(type)
+                        val mediaObj = item.optJSONObject(mediaObjKey)
+                            ?: throw IllegalStateException("Simkl [$type]: $mediaObjKey nesnesi eksik")
+                        val title = mediaObj.optNullableString("title") ?: "Başlıksız"
                         val year = mediaObj.optInt("year", 0).takeIf { it > 0 }
                         val poster = mediaObj.optNullableString("poster")
                         val imageUrl = if (!poster.isNullOrBlank()) "https://simkl.in/posters/${poster}_m.jpg" else null
@@ -207,13 +205,15 @@ object SimklImportManager {
                 kotlinx.coroutines.delay(retryWaitMs)
             } catch (e: com.kitsugi.animelist.data.repository.SimklAuthException) {
                 throw e
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
                 android.util.Log.e("SimklImportManager", "fetchList [$type] failed: ${e.message}", e)
-                if (attempt >= 4) return@withContext emptyList()
+                if (attempt >= 4) throw e
                 kotlinx.coroutines.delay(2000L * attempt)
             }
         }
-        emptyList()
+        throw IllegalStateException("Simkl [$type]: hız sınırı nedeniyle liste alınamadı (4 deneme)")
     }
 }
 

@@ -131,18 +131,28 @@ object ExternalAuthManager {
     }
 
     fun saveKitsuLibraryEntryId(context: Context, mediaId: Int, isAnime: Boolean, entryId: String) {
-        val key = "kitsu_entry_${if (isAnime) "a" else "m"}_$mediaId"
+        val key = "kitsu_entry_${getKitsuUserId(context) ?: error("Kitsu kullanıcı kimliği yok")}_${if (isAnime) "a" else "m"}_$mediaId"
         prefs(context).edit().putString(key, entryId).apply()
     }
 
     fun getKitsuLibraryEntryId(context: Context, mediaId: Int, isAnime: Boolean): String? {
-        val key = "kitsu_entry_${if (isAnime) "a" else "m"}_$mediaId"
+        val key = "kitsu_entry_${getKitsuUserId(context) ?: error("Kitsu kullanıcı kimliği yok")}_${if (isAnime) "a" else "m"}_$mediaId"
         return prefs(context).getString(key, null)
     }
 
     fun removeKitsuLibraryEntryId(context: Context, mediaId: Int, isAnime: Boolean) {
-        val key = "kitsu_entry_${if (isAnime) "a" else "m"}_$mediaId"
+        val key = "kitsu_entry_${getKitsuUserId(context) ?: error("Kitsu kullanıcı kimliği yok")}_${if (isAnime) "a" else "m"}_$mediaId"
         prefs(context).edit().remove(key).apply()
+    }
+
+    fun saveKitsuMediaIdForMal(context: Context, malId: Int, isAnime: Boolean, mediaId: Int) {
+        val key = "kitsu_media_${getKitsuUserId(context) ?: error("Kitsu kullanıcı kimliği yok")}_${if (isAnime) "a" else "m"}_$malId"
+        prefs(context).edit().putInt(key, mediaId).apply()
+    }
+
+    fun getKitsuMediaIdForMal(context: Context, malId: Int, isAnime: Boolean): Int? {
+        val key = "kitsu_media_${getKitsuUserId(context) ?: error("Kitsu kullanıcı kimliği yok")}_${if (isAnime) "a" else "m"}_$malId"
+        return prefs(context).getInt(key, 0).takeIf { it > 0 }
     }
 
     fun getShikimoriToken(context: Context): String? = prefs(context).getString(KEY_SHIKIMORI_TOKEN, null)
@@ -229,18 +239,18 @@ object ExternalAuthManager {
     }
 
     fun saveShikimoriRateId(context: Context, malId: Int, targetType: String, rateId: Int) {
-        val key = "shikimori_rate_${targetType.lowercase()}_$malId"
+        val key = "shikimori_rate_${getShikimoriUserId(context) ?: error("Shikimori kullanıcı kimliği yok")}_${targetType.lowercase()}_$malId"
         prefs(context).edit().putInt(key, rateId).apply()
     }
 
     fun getShikimoriRateId(context: Context, malId: Int, targetType: String): Int? {
-        val key = "shikimori_rate_${targetType.lowercase()}_$malId"
+        val key = "shikimori_rate_${getShikimoriUserId(context) ?: error("Shikimori kullanıcı kimliği yok")}_${targetType.lowercase()}_$malId"
         val id = prefs(context).getInt(key, 0)
         return if (id > 0) id else null
     }
 
     fun removeShikimoriRateId(context: Context, malId: Int, targetType: String) {
-        val key = "shikimori_rate_${targetType.lowercase()}_$malId"
+        val key = "shikimori_rate_${getShikimoriUserId(context) ?: error("Shikimori kullanıcı kimliği yok")}_${targetType.lowercase()}_$malId"
         prefs(context).edit().remove(key).apply()
     }
 

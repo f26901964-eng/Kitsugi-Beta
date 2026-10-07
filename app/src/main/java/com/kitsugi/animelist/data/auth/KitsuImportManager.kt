@@ -40,6 +40,9 @@ object KitsuImportManager {
                 val kitsuStableId = KITSU_OFFSET + mediaId
                 // Gerçek MAL ID biliniyorsa onu kullan (clustering doğru çalışır),
                 // bilinmiyorsa offset'li fake ID saklarız (yine tanımlanabilir)
+                entry.realMalId?.takeIf { it in 1..99_999_999 }?.let {
+                    ExternalAuthManager.saveKitsuMediaIdForMal(context, it, isAnime, mediaId)
+                }
                 val malIdToStore = entry.realMalId?.takeIf { it in 1..99_999_999 } ?: kitsuStableId
                 val status = KitsuSyncManager.kitsuStatusToWatchStatus(entry.status)
                 val score = entry.ratingTwenty?.let { kotlin.math.round(it / 2.0).toInt().coerceIn(1, 10) }

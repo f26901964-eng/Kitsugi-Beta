@@ -25,7 +25,7 @@ android {
     val simklSecret       = localProperties.getProperty("simkl_client_secret")   ?: "81d3253f90d1f2c0c4ea55af6ca317861e5f40d43c16255eeabd57fc51c73f1c"
     val animeSkipClientId = localProperties.getProperty("anime_skip_client_id")  ?: "5mpKIMeowxmJ4UvAWacdPEzNbfXEjZDv"
 
-    val appVersionName = "2.4.186"
+    val appVersionName = "2.4.187"
 
     compileSdk = 36
 
@@ -289,6 +289,8 @@ dependencies {
 
 
     testImplementation(libs.junit)
+    // JVM contract tests need a real JSON implementation, not Android stub methods.
+    testImplementation("org.json:json:20240303")
     testImplementation("org.mockito:mockito-core:5.11.0")
     testImplementation("org.mockito.kotlin:mockito-kotlin:5.2.1")
     androidTestImplementation(libs.androidx.junit)

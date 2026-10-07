@@ -115,7 +115,8 @@ object ShikimoriApiClient {
 
     /**
      * OAuth yetki kodunu (authorization code) access token ile takas eder.
-     * Hem Kitsugi deep-link (kitsugi://), hem eski deep-link (aniyomi://) hem de doğrudan oob uyumluluğunu dener.
+     * OAuth 2.1 (RFC 9700) standardı gereği token istek gövdesinde redirect_uri parametresi gönderilmez.
+     * Geriye dönük uyumluluk için gerekirse eski redirect_uri fallback'leri de desteklenir.
      */
     suspend fun exchangeCodeForToken(
         clientId: String = DEFAULT_CLIENT_ID,
@@ -127,40 +128,66 @@ object ShikimoriApiClient {
         val targetClientId = clientId.trim().ifBlank { DEFAULT_CLIENT_ID }
         val targetSecret = clientSecret.trim().ifBlank { DEFAULT_CLIENT_SECRET }
 
-        val urisToTry = when (redirectUri) {
-            DEEP_LINK_REDIRECT_URI -> listOf(DEEP_LINK_REDIRECT_URI, FALLBACK_DEEP_LINK_REDIRECT_URI, DEFAULT_REDIRECT_URI)
-            FALLBACK_DEEP_LINK_REDIRECT_URI -> listOf(FALLBACK_DEEP_LINK_REDIRECT_URI, DEEP_LINK_REDIRECT_URI, DEFAULT_REDIRECT_URI)
-            else -> listOf(DEFAULT_REDIRECT_URI, DEEP_LINK_REDIRECT_URI, FALLBACK_DEEP_LINK_REDIRECT_URI)
-        }
-
-        var lastException: Exception? = null
-        for (uri in urisToTry) {
-            try {
-                return@withContext executeTokenRequest(
-                    clientId = targetClientId,
-                    clientSecret = targetSecret,
-                    code = cleanCode,
-                    redirectUri = uri
-                )
-            } catch (e: Exception) {
-                lastException = e
+        try {
+            // OAuth 2.1: redirect_uri artık gönderilmiyor
+            return@withContext executeTokenRequest(
+                clientId = targetClientId,
+                clientSecret = targetSecret,
+                code = cleanCode
+            )
+        } catch (e: Exception) {
+            // Geriye dönük uyumluluk fallback'i: eski OAuth 2.0 sunucuları için redirect_uri ile deneme
+            val legacyUrls = listOf(OAUTH_TOKEN_URL, "$BASE_URL/oauth/token")
+            val urisToTry = when (redirectUri) {
+                DEEP_LINK_REDIRECT_URI -> listOf(DEEP_LINK_REDIRECT_URI, FALLBACK_DEEP_LINK_REDIRECT_URI, DEFAULT_REDIRECT_URI)
+                FALLBACK_DEEP_LINK_REDIRECT_URI -> listOf(FALLBACK_DEEP_LINK_REDIRECT_URI, DEEP_LINK_REDIRECT_URI, DEFAULT_REDIRECT_URI)
+                else -> listOf(DEFAULT_REDIRECT_URI, DEEP_LINK_REDIRECT_URI, FALLBACK_DEEP_LINK_REDIRECT_URI)
             }
+            for (uri in urisToTry) {
+                for (tokenUrl in legacyUrls) {
+                    try {
+                        val legacyFormBody = FormBody.Builder()
+                            .add("grant_type", "authorization_code")
+                            .add("client_id", targetClientId)
+                            .add("client_secret", targetSecret)
+                            .add("code", cleanCode)
+                            .add("redirect_uri", uri)
+                            .build()
+                        val req = Request.Builder()
+                            .url(tokenUrl)
+                            .addHeader("User-Agent", USER_AGENT)
+                            .addHeader("Accept", "application/json")
+                            .post(legacyFormBody)
+                            .build()
+                        KitsugiHttpClient.client.newCall(req).execute().use { resp ->
+                            val respBody = resp.body?.string().orEmpty()
+                            if (resp.isSuccessful) {
+                                val json = JSONObject(respBody)
+                                return@withContext ShikimoriTokenResponse(
+                                    accessToken = json.getString("access_token"),
+                                    refreshToken = json.optString("refresh_token", ""),
+                                    expiresIn = json.optLong("expires_in", 2592000L)
+                                )
+                            }
+                        }
+                    } catch (_: Exception) {}
+                }
+            }
+            throw e
         }
-        throw lastException ?: Exception("Shikimori token alınamadı.")
     }
 
     private fun executeTokenRequest(
         clientId: String,
         clientSecret: String,
-        code: String,
-        redirectUri: String
+        code: String
     ): ShikimoriTokenResponse {
         val formBody = FormBody.Builder()
             .add("grant_type", "authorization_code")
             .add("client_id", clientId)
             .add("client_secret", clientSecret)
             .add("code", code)
-            .add("redirect_uri", redirectUri)
+            // ✅ redirect_uri artık gönderilmiyor (OAuth 2.1)
             .build()
 
         val urlsToTry = listOf(OAUTH_TOKEN_URL, "$BASE_URL/oauth/token")
@@ -407,12 +434,12 @@ object ShikimoriApiClient {
                     KitsugiHttpClient.client.newCall(request).execute().use { response ->
                         if (!response.isSuccessful) {
                             Log.w(TAG, "fetchAllUserRates HTTP ${response.code} for $ep page $page")
-                            return@use 0
+                            error("Shikimori liste okuma hatası: HTTP ${response.code} ($ep, sayfa $page)")
                         }
                         val body = response.body?.string().orEmpty()
                         if (!body.trim().startsWith("[")) {
                             Log.w(TAG, "fetchAllUserRates non-array response: $body")
-                            return@use 0
+                            error("Shikimori liste yanıtı JSON dizisi değil ($ep, sayfa $page)")
                         }
                         val array = JSONArray(body)
                         for (i in 0 until array.length()) {
@@ -425,7 +452,7 @@ object ShikimoriApiClient {
                             val updatedAtStr = item.optString("updated_at", "")
                             val updatedAt = runCatching {
                                 java.time.Instant.parse(updatedAtStr).epochSecond
-                            }.getOrDefault(System.currentTimeMillis() / 1000L)
+                            }.getOrDefault(0L)
 
                             val mediaObj = if (targetType == "Anime") item.optJSONObject("anime") else item.optJSONObject("manga")
                             val targetId = mediaObj?.optInt("id", 0)?.takeIf { it > 0 } ?: item.optInt("target_id", 0)
@@ -461,7 +488,7 @@ object ShikimoriApiClient {
                     }
                 } catch (e: Exception) {
                     Log.e(TAG, "fetchAllUserRates error on $ep page $page", e)
-                    0
+                    throw e
                 }
 
                 if (count < limit) break
@@ -559,7 +586,7 @@ object ShikimoriApiClient {
             .build()
 
         KitsugiHttpClient.client.newCall(request).execute().use { response ->
-            response.isSuccessful
+            response.isSuccessful || response.code == 404
         }
     }
 

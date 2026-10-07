@@ -45,6 +45,10 @@ object ShikimoriSyncManager {
         context: Context,
         entry: MediaEntry
     ): SyncResult = withContext(Dispatchers.IO) {
+        if (entry.type != MediaType.Anime && entry.type != MediaType.Manga) {
+            return@withContext SyncResult(emptyList(), listOf("Bu servis yalnızca anime/manga destekler"))
+        }
+
         val token = ExternalAuthManager.getOrRefreshShikimoriToken(context)
         val userId = ExternalAuthManager.getShikimoriUserId(context)
 
@@ -71,35 +75,17 @@ object ShikimoriSyncManager {
         val messages = mutableListOf<String>()
         val errors = mutableListOf<String>()
 
-        val existingRateId = ExternalAuthManager.getShikimoriRateId(context, targetId, targetType)
-
-        if (existingRateId != null) {
-            val success = ShikimoriApiClient.updateUserRate(
-                token = token,
-                rateId = existingRateId,
-                targetType = targetType,
-                status = status,
-                score = score,
-                progress = progress
-            )
-            if (success) messages.add("Shikimori güncellendi (${entry.title})")
-            else errors.add("Shikimori güncellenemedi (${entry.title})")
+        // Official v2 create is an upsert by user_id + target_type + target_id.
+        // It recovers safely from stale cached rate IDs without assuming a failed PATCH means absence.
+        val rateId = ShikimoriApiClient.createUserRate(
+            token = token, userId = userId, targetId = targetId, targetType = targetType,
+            status = status, score = score, progress = progress
+        )
+        if (rateId != null) {
+            ExternalAuthManager.saveShikimoriRateId(context, targetId, targetType, rateId)
+            messages.add("Shikimori kaydı onaylandı (${entry.title})")
         } else {
-            val newRateId = ShikimoriApiClient.createUserRate(
-                token = token,
-                userId = userId,
-                targetId = targetId,
-                targetType = targetType,
-                status = status,
-                score = score,
-                progress = progress
-            )
-            if (newRateId != null) {
-                ExternalAuthManager.saveShikimoriRateId(context, targetId, targetType, newRateId)
-                messages.add("Shikimori kütüphanesine eklendi (${entry.title})")
-            } else {
-                errors.add("Shikimori kütüphanesine eklenemedi (${entry.title})")
-            }
+            errors.add("Shikimori kaydı onaylanmadı (${entry.title})")
         }
 
         SyncResult(messages = messages, errors = errors)
@@ -112,6 +98,10 @@ object ShikimoriSyncManager {
         context: Context,
         entry: MediaEntry
     ): SyncResult = withContext(Dispatchers.IO) {
+        if (entry.type != MediaType.Anime && entry.type != MediaType.Manga) {
+            return@withContext SyncResult(emptyList(), listOf("Bu servis yalnızca anime/manga destekler"))
+        }
+
         val token = ExternalAuthManager.getOrRefreshShikimoriToken(context)
         if (token.isNullOrBlank()) {
             return@withContext SyncResult(messages = emptyList(), errors = listOf("Shikimori hesabı bağlı değil"))
@@ -127,7 +117,7 @@ object ShikimoriSyncManager {
 
         if (existingRateId != null) {
             val success = ShikimoriApiClient.deleteUserRate(token, existingRateId)
-            ExternalAuthManager.removeShikimoriRateId(context, targetId!!, targetType)
+            if (success) ExternalAuthManager.removeShikimoriRateId(context, targetId!!, targetType)
             if (success) SyncResult(messages = listOf("Shikimori kütüphanesinden silindi (${entry.title})"))
             else SyncResult(messages = emptyList(), errors = listOf("Shikimori'den silinemedi"))
         } else {

@@ -227,10 +227,10 @@ object KitsuApiClient {
                 .build()
 
             val fetchedCount = KitsugiHttpClient.client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@use 0
+                check(response.isSuccessful) { "Kitsu liste okuma hatası: HTTP ${response.code} (offset=$offset)" }
                 val body = response.body?.string().orEmpty()
                 val json = JSONObject(body)
-                val data = json.optJSONArray("data") ?: JSONArray()
+                val data = json.getJSONArray("data")
 
                 val included = json.optJSONArray("included") ?: JSONArray()
                 data class KitsuMediaInfo(
@@ -315,7 +315,7 @@ object KitsuApiClient {
                     val updatedAtStr = attrs.optString("updatedAt", "")
                     val updatedAt = runCatching {
                         java.time.Instant.parse(updatedAtStr).epochSecond
-                    }.getOrDefault(System.currentTimeMillis() / 1000L)
+                    }.getOrDefault(0L)
 
                     val rels = item.optJSONObject("relationships")
                     val animeData = rels?.optJSONObject("anime")?.optJSONObject("data")
@@ -352,7 +352,7 @@ object KitsuApiClient {
             }
 
             if (fetchedCount < limit) break
-            offset += limit
+            offset += fetchedCount
         }
 
         result
@@ -376,16 +376,16 @@ object KitsuApiClient {
             .addHeader("User-Agent", "KitsugiApp/2.4")
             .get()
             .build()
-        runCatching {
+        run {
             KitsugiHttpClient.client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@use null
+                check(response.isSuccessful) { "Kitsu kayıt sorgusu: HTTP ${response.code}" }
                 val body = response.body?.string().orEmpty()
-                val data = JSONObject(body).optJSONArray("data")
+                val data = JSONObject(body).getJSONArray("data")
                 if (data != null && data.length() > 0) {
                     data.getJSONObject(0).optString("id")
                 } else null
             }
-        }.getOrNull()
+        }
     }
 
     /**
@@ -523,7 +523,7 @@ object KitsuApiClient {
             .build()
 
         KitsugiHttpClient.client.newCall(request).execute().use { response ->
-            response.isSuccessful
+            response.isSuccessful || response.code == 404
         }
     }
 

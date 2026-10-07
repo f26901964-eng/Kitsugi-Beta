@@ -106,7 +106,7 @@ object AniListImportManager {
                         progress
                         progressVolumes
                         score(format: POINT_10_DECIMAL)
-                        scoreRaw: score
+                        scoreRaw: score(format: POINT_100)
                         advancedScores
                         private
                         notes
@@ -322,7 +322,10 @@ object AniListImportManager {
                     throw IllegalStateException("AniList API hatası: ${response.code} $errorText")
                 }
 
-                return response.body?.string() ?: ""
+                val body = response.body?.string().orEmpty()
+                val errors = JSONObject(body).optJSONArray("errors")
+                require(errors == null || errors.length() == 0) { "AniList GraphQL liste okuma hatası: $errors" }
+                return body
             }
         } catch (e: Exception) {
             if (e is IllegalStateException) throw e

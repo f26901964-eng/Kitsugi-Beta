@@ -49,6 +49,13 @@ interface MediaEntryDao {
     @Query("DELETE FROM media_entries")
     suspend fun deleteAll()
 
+    /** Restore is all-or-nothing; a failed insert must not erase the old library. */
+    @Transaction
+    suspend fun replaceAllTransaction(entities: List<MediaEntryEntity>) {
+        deleteAll()
+        if (entities.isNotEmpty()) insertAll(entities)
+    }
+
     /**
      * Tüm import işlemini tek atomik transaction olarak gerçekleştirir.
      * Bu sayede Room Flow yalnızca BİR KEZ tetiklenir ve tüm liste

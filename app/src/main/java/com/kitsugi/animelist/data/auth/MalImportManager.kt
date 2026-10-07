@@ -63,10 +63,14 @@ object MalImportManager {
         val allEntries = mutableListOf<MediaEntry>()
         var nextUrl: String? = startUrl
 
+        val visited = mutableSetOf<String>()
         while (nextUrl != null) {
+            check(visited.add(nextUrl)) { "MAL sayfalama döngüsü algılandı" }
+            val pageUri = java.net.URI(nextUrl)
+            require(pageUri.scheme == "https" && pageUri.host == "api.myanimelist.net") { "Geçersiz MAL sayfa adresi" }
             val response = getJson(accessToken = accessToken, urlString = nextUrl)
             val root = JSONObject(response)
-            val dataArray = root.optJSONArray("data")
+            val dataArray = root.getJSONArray("data")
 
             if (dataArray != null) {
                 for (index in 0 until dataArray.length()) {

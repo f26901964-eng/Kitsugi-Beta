@@ -1,8 +1,30 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
-## 🇹🇷 Türkçe (v2.4.179)
+## 🇹🇷 Türkçe (v2.4.187)
 
-### 🚀 Nuvio Libtorrent P2P Akış Motoru, Gelişmiş Seeding & Upload Kontrolleri, Simkl Toplu Senkronizasyon & Detay Çözümlemesi
+### 🚀 5 Platform Kapsamlı Senkronizasyon, Shikimori OAuth 2.1 & Yedekleme v2 Mimarisi
+
+- **5 Platform Tam Senkronizasyon (AniList, MyAnimeList, Kitsu, Shikimori, Simkl):** Tüm takip servislerinde liste okuma, ekleme, güncelleme ve silme akışları standardize edildi. Sahte onaylar engellendi; her yazma sonrası sunucudan doğrulama (read-back) zorunlu kılındı.
+- **Shikimori OAuth 2.1 (RFC 9700) Uyumluluğu:** Token takas isteğindeki gövdeden `redirect_uri` kaldırılarak OAuth 2.1 standardına tam uyum sağlandı. `https://shikimori.io` ve `https://shikimori.one` endpoint fallback desteği eklendi.
+- **Eşzamanlılık Koruması (`SyncSafety`):** Senkronizasyon işlemlerinin aynı anda tetiklenip veritabanında yarış durumuna (race condition) veya kilitlenmeye yol açmasını engelleyen global mutex koruması devreye alındı.
+- **Çevrimdışı Kuyruk Güvencesi:** Başarısız sync istekleri 5 deneme sonrasında silinmeyip yerel Room kuyruğunda korunarak veri kaybı önlendi.
+- **Yedekleme & Geri Yükleme Schema v2:** Notlar, gizlilik durumları, başlama/bitiş tarihleri, TMDB ve Simkl ID'leri yedek dosyasına dahil edildi.
+- **Merkezi Kimlik Eşleme (`MediaIdentity`):** 5 platform arasındaki medya ID dönüşümleri ve çapraz eşitleme tek bir güvenilir sınıf üzerinden yönetilmeye başlandı.
+
+---
+
+## 🇬🇧 English (v2.4.187)
+
+### 🚀 5-Platform Cumulative Sync, Shikimori OAuth 2.1 & Backup Schema v2 Architecture
+
+- **Comprehensive 5-Platform Sync (AniList, MyAnimeList, Kitsu, Shikimori, Simkl):** Standardized CRUD sync workflows across all tracking providers with strict post-write server read-back verification.
+- **Shikimori OAuth 2.1 (RFC 9700) Compliance:** Removed obsolete `redirect_uri` from token exchange payload according to OAuth 2.1 specs; enabled automatic fallback between `https://shikimori.io` and `https://shikimori.one`.
+- **Global Concurrency Guard (`SyncSafety`):** Introduced a thread-safe mutex lock preventing concurrent sync operations from causing Room DB contention or race conditions.
+- **Offline Sync Queue Protection:** Retains pending sync records even after 5 retry attempts, ensuring local modifications are not lost during network outages.
+- **Backup & Restore Schema v2:** Backups now capture custom notes, start/finish timestamps, privacy preferences, and provider IDs (TMDB & Simkl).
+- **Centralized Entity Mapping (`MediaIdentity`):** Cross-platform ID translation and deduplication consolidated into a dedicated identity layer.
+
+---
 
 - **Nuvio Libtorrent P2P Motor Entegrasyonu (libtorrent + Boost.Asio):** Nuvio'nun yüksek performanslı C++ libtorrent ve Boost.Asio çekirdeği (`lib-nuvio-engine-android-0.1.2.aar`) Kitsugi'ye entegre edildi. Artık Debrid üyeliği (RealDebrid, AllDebrid vb.) olmadan da Torrentio ve diğer torrent tabanlı Stremio eklentileri doğrudan cihaz üzerinden eşler arası (P2P) ve yüksek hızla oynatılabilir.
 - **Gelişmiş Seeding & Yükleme (Upload) Kontrolleri:** Orijinal Nuvio uygulamasında bulunmayan, arka planda sınırsız çalışan gönderme (seeding) davranışı tamamen kullanıcı denetimine açıldı. Stremio eklentileri ayarlarından seed modu tek tıkla kapatılabilir ya da internet kotasını korumak için 256 KB/s, 512 KB/s, 1 MB/s, 2 MB/s hız sınırları atanabilir.
@@ -13,7 +35,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.179)
+## 🇬🇧 English (v2.4.187)
 
 ### 🚀 Nuvio Libtorrent P2P Streaming Engine, Full Seeding & Upload Controls, Simkl Batch Sync & Media Detail Fixes
 
@@ -26,7 +48,7 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.178)
+## 🇹🇷 Türkçe (v2.4.187)
 
 ### 🚀 İzole Süreç Çökme Ekranı (:crash), Canlı Sistem Teşhisi, Çapraz Senkronizasyon & Kararlılık Güncellemeleri
 
@@ -38,7 +60,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.178)
+## 🇬🇧 English (v2.4.187)
 
 ### 🚀 Isolated :crash Process Architecture, Live System Diagnostics, Cross-Sync & Core Stability
 
@@ -50,7 +72,7 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.177)
+## 🇹🇷 Türkçe (v2.4.187)
 
 ### 🚀 Shikimori 1-Tık Otomatik Giriş Çözümü, Kitsu Bildirim Detay Sayfası Düzeltmesi & Kararlılık Güncellemeleri
 
@@ -61,7 +83,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.177)
+## 🇬🇧 English (v2.4.187)
 
 ### 🚀 Shikimori 1-Tap OAuth & Deep Link Fix, Kitsu Notification Detail Resolution & Stability Improvements
 
@@ -72,7 +94,7 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.176)
+## 🇹🇷 Türkçe (v2.4.187)
 
 ### 🚀 Gelişmiş Arama Filtre Paneli, İzole Arama Motorları, Resmi MAL API Entegrasyonu, Shikimori 1-Tık Giriş & Modern Çökme Raporlama
 
@@ -86,7 +108,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.176)
+## 🇬🇧 English (v2.4.187)
 
 ### 🚀 Advanced Search Filter Sheet, Isolated Search Engines, Official MAL API, Shikimori 1-Tap OAuth & Modern Crash Activity
 
@@ -100,7 +122,7 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.175)
+## 🇹🇷 Türkçe (v2.4.187)
 
 ### 🚀 Zenginleştirilmiş Sistem Bildirimleri, Kitsu & Shikimori Profilleri, Profil Kaynak Seçici Paneli ve Orijinal Logolar
 
@@ -112,7 +134,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.175)
+## 🇬🇧 English (v2.4.187)
 
 ### 🚀 Rich System Notifications, Kitsu & Shikimori Profiles, Source Picker Sheet & Original Logos
 
@@ -124,7 +146,7 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.170)
+## 🇹🇷 Türkçe (v2.4.187)
 
 ### 🚀 Kitsu Düzeltmeleri, Grid/Liste Hatırlama, Yapışkan Bar Filtresi, TMDB İngilizce Fallback, Simkl Dizi/Film Keşfeti ve Çökme Korumaları
 
@@ -141,7 +163,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.170)
+## 🇬🇧 English (v2.4.187)
 
 ### 🚀 Grid Persistence, Sticky Filter Button, TMDB English Fallback, Simkl TV/Movies & Crash Shield
 
@@ -158,7 +180,7 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.169)
+## 🇹🇷 Türkçe (v2.4.187)
 
 ### 🚀 Keşfet Arayüzü, "Tümü" Butonu, Kitsu & Shikimori Girişleri, Bildirim Önizleme ve Çapraz Eşitleme
 
@@ -171,7 +193,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.169)
+## 🇬🇧 English (v2.4.187)
 
 ### 🚀 Explore UI, "All" FAB, Kitsu & Shikimori Auth, Activity Notifications & Cross-Sync Matrix
 
@@ -184,7 +206,7 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.166)
+## 🇹🇷 Türkçe (v2.4.187)
 
 ### 🚀 Eklenti Deposu ve Eklenti Yükleme Sorunları Tamamen Giderildi
 
@@ -195,7 +217,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.166)
+## 🇬🇧 English (v2.4.187)
 
 ### 🚀 Extension Repository & Plugin Loading Fixes
 
@@ -205,17 +227,17 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.165)
+## 🇹🇷 Türkçe (v2.4.187)
 
 ### 🚀 Eklenti Kurulum Hatası Giderildi & Codeberg Eklenti Havuzu Canlıya Alındı
 
 - **Eklenti Kurulumu ve İndirme Hatası Tamamen Çözüldü:** Yeni Codeberg `KitsugiPlugins` deposundaki tüm 174 eklenti (DiziPal, RecTV, FilmMakinesi, InatBox, TurkAnime vb.) artık sorunsuz, doğrudan ve tek tıkla kurulmaktadır. Dosya bütünlüğü ZIP doğrulamasıyla garanti altına alınmıştır.
 - **Doğrudan Codeberg URL Koruması:** Eklenti indirme ve repo yenileme sırasında Codeberg URL'lerinin bozulması engellenmiş, eski GitHub bağlantıları otomatik olarak yeni depoya yönlendirilmiştir.
-- **Sürüm Güncellemesi:** Önceki derlemelerdeki önbellek çakışmalarını gidermek amacıyla v2.4.165 olarak paketlenmiştir.
+- **Sürüm Güncellemesi:** Önceki derlemelerdeki önbellek çakışmalarını gidermek amacıyla v2.4.187 olarak paketlenmiştir.
 
 ---
 
-## 🇬🇧 English (v2.4.165)
+## 🇬🇧 English (v2.4.187)
 
 ### 🚀 Plugin Installation Error Fixed & Codeberg Plugin Pool Live
 
@@ -224,7 +246,7 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.164)
+## 🇹🇷 Türkçe (v2.4.187)
 
 ### 🚀 Codeberg Entegrasyonu & Eklenti Havuzu Güvenliği (+18 Temizlendi)
 
@@ -234,7 +256,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.164)
+## 🇬🇧 English (v2.4.187)
 
 ### 🚀 Codeberg Migration & Clean Plugin Repository (+18 Excluded)
 
@@ -244,7 +266,7 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.163)
+## 🇹🇷 Türkçe (v2.4.187)
 
 ### 📚 Türkçe Manga & Webtoon Altyapısı Kökten Yenilendi (Keiyoushi V2, 77 TR Kaynağı, MangaDex 3.450 TR Başlık, Hotlink Çözümü)
 
@@ -260,7 +282,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.163)
+## 🇬🇧 English (v2.4.187)
 
 ### 📚 Turkish Manga & Webtoon Engine Complete Overhaul (Keiyoushi V2, 77 TR Sources, MangaDex 3,450 TR Titles, Hotlink Bypass)
 
@@ -276,7 +298,7 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.161)
+## 🇹🇷 Türkçe (v2.4.187)
 
 ### 🎭 TMDB Kurgusal Karakter Detayları, Seslendirmen Ayrımı, AL Arama ve Kesintisiz Keşfet (Kitsu Fallback)
 
@@ -287,7 +309,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.161)
+## 🇬🇧 English (v2.4.187)
 
 ### 🎭 TMDB Fictional Character Details, Voice Actor Separation, AL Search & Seamless Kitsu Fallback
 
@@ -298,7 +320,7 @@
 
 ---
 
-## 🇹🇷 Türkçe (v2.4.153)
+## 🇹🇷 Türkçe (v2.4.187)
 
 ### 🎬 TMDB Film/Dizi ID Eşleme Düzeltmesi & Yorumlardaki Resim Büyüme Sorunu Çözüldü
 
@@ -310,7 +332,7 @@
 
 ---
 
-## 🇬🇧 English (v2.4.153)
+## 🇬🇧 English (v2.4.187)
 
 ### 🎬 TMDB Movie/TV ID Mapping Fix, Comment Image Auto-Expansion Resolved & Downloads Navigation
 
