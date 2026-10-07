@@ -3,8 +3,10 @@
 **Tarih:** 2026-10-08
 **Kapsam:** Türkçe ağırlıklı CloudStream eklentilerinden veri/video çekme, embed (iframe) çözümleme,
 oynatıcı hataları, ses/donma/çökme şikâyetleri
-**Durum:** Kod düzeltmeleri uygulandı — **derleme ve cihaz doğrulaması kullanıcı tarafında yapılmalıdır**
-(bu ortamda JDK/Gradle/Android SDK yok: `which java javac gradle kotlinc` → boş).
+**Durum:** Kod düzeltmeleri uygulandı ve `arena/290cdcac-kitsugi-beta` dalına işlendi
+(3 commit: `6da359e`, `cf0260c`, `b479d74`). **Derleme ve cihaz doğrulaması kullanıcı tarafında
+yapılmalıdır** — bu ortamda JDK/Gradle/Android SDK yok, bu yüzden Kotlin kodu **derlenmedi**;
+tüm doğrulama statik analiz + Python ikiz koşum takımı ile yapıldı (§4).
 
 ---
 
@@ -346,8 +348,12 @@ değiştirir. Tablo eskimişse (veya eklenti kendi içinde daha yeni bir domain 
 # 1) Derleme
 ./gradlew assembleDebug
 
-# 2) Yeni birim testleri
+# 2) Yeni/etkilenen birim testleri
 ./gradlew testDebugUnitTest --tests "*EmbedMediaScannerTest*"
+./gradlew testDebugUnitTest --tests "*PlayerFallbackCoordinatorTest*"
+
+# 2b) Derleme gerektirmeyen doğrulama (bu depoda)
+python3 scripts/verify_embed_scanner.py     # 15/15 geçmeli
 
 # 3) Logcat ile canlı izleme (embed aşamaları görünür)
 adb logcat -s CsStreamRunner:V PLUGIN_DIAG:V CS_SEARCH_ERR:V
@@ -360,6 +366,9 @@ Beklenen loglar (yeni):
 [KekikCS] ✅ Derin tarama medya buldu: https://cdn.../master.m3u8
 [KekikCS] WebView sniffer → yakalandı
 [KekikCS] Kodek/çözücü hatası (4003) — MPV motoruna geçiş zorlanıyor.
+[KekikCS] Bilinen ölü CDN — yine de çözümleme deneniyor: https://...   (artık silinmiyor)
+[KekikCS] Zorla uygulanan domain sonuç vermedi → eklentinin kendi domainine dönülüyor: ... 
+[KekikCS] Embed çözümlenemedi ve URL oynatılabilir medya değil — oynatıcıya gönderilmiyor: ...
 ```
 
 Cihazda şu senaryolar kontrol edilmeli:
@@ -373,8 +382,11 @@ Cihazda şu senaryolar kontrol edilmeli:
 
 ## 6. Kalan Riskler / Önerilen Sonraki Adımlar
 
-1. **`applyDomainFix` politika değişikliği** (B6) — tablo tabanlı zorunlu override yerine
-   "yalnızca ölü/marka farklı ise düzelt".
+1. **`applyDomainFix` politika değişikliği** (B6 + ölçüm B14) — tablo tabanlı zorunlu override yerine
+   "yalnızca ölü/marka farklı ise düzelt". Ölçülen 9 çakışma vakası bu turda kısmen giderildi
+   (arama boş dönerse özgün domaine geri dönüş), ancak tablo girdileri **gözden geçirilmeli**:
+   FullHDFilmizlesene `.now` mı `.mx` mi, RecTV `psrectv80` mi `prectv72` mi — cihazda ölçülüp
+   doğru olan sabitlenmeli.
 2. **Kara liste TTL'i** (B7) — 24 saatlik probe ile geri kazanma.
 3. **Cloudflare/DDoS-Guard algılama sıkılaştırması** (B8) — gerçek challenge işareti.
 4. **WebView sniffer için ayar anahtarı** — `CsStreamRunner.enableWebViewSniffing` alanı hazır;
