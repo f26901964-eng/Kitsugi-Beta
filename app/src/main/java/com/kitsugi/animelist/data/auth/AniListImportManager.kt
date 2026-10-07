@@ -131,6 +131,9 @@ object AniListImportManager {
                             episodes
                             chapters
                             seasonYear
+                            startDate {
+                                year
+                            }
                             title {
                                 romaji
                                 english
@@ -193,7 +196,10 @@ object AniListImportManager {
                     .lowercase()
                     .replaceFirstChar { it.uppercase() }
 
+                // seasonYear manga ve bazı eski/özel yapımlar için boş döner; startDate.year ile tamamla.
+                // Yıl bilgisi çapraz eşitlemede kimlik doğrulaması (remake/sezon ayrımı) için kullanılıyor.
                 val year = media.optInt("seasonYear", 0).takeIf { it > 0 }
+                    ?: media.optJSONObject("startDate")?.optInt("year", 0)?.takeIf { it > 0 }
                 val genres = media.optJSONArray("genres")
                 val genreText = buildList {
                     if (format.isNotBlank()) add(format)

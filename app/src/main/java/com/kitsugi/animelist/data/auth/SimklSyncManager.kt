@@ -3,6 +3,7 @@ package com.kitsugi.animelist.data.auth
 import android.content.Context
 import android.util.Log
 import com.kitsugi.animelist.data.remote.SimklApiClient
+import com.kitsugi.animelist.data.remote.SimklSyncContract
 import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
@@ -72,6 +73,10 @@ object SimklSyncManager {
     /**
      * Çoklu MediaEntry listesini Simkl API'sine tek veya az sayıda toplu istek ile gönderir.
      * Uses conservative 35-item batches; delays here do not serialize other callers.
+     *
+     * Sonuç kayıt bazında raporlanır: Simkl'in `not_found` ile geri gönderdiği öğeler
+     * [SyncResult.unmatchedTitles] içinde, HTTP/ağ seviyesinde hiç yazılamayan kayıtlar
+     * [SyncResult.failedCount] içinde sayılır. Kısmi eşleşme artık tüm grubun hatası değildir.
      */
     suspend fun syncBatchToSimkl(
         context: Context,
@@ -79,25 +84,35 @@ object SimklSyncManager {
     ): SyncResult = withContext(Dispatchers.IO) {
         val token = ExternalAuthManager.getSimklToken(context)
         if (token.isNullOrBlank()) {
-            return@withContext SyncResult(messages = emptyList(), errors = listOf("Simkl hesabı bağlı değil"))
+            return@withContext SyncResult(
+                messages = emptyList(),
+                errors = listOf("Simkl hesabı bağlı değil"),
+                failedCount = entries.size
+            )
         }
         if (entries.isEmpty()) {
             return@withContext SyncResult(messages = emptyList(), errors = emptyList())
         }
 
-        val batchItems = entries.filter { it.type != MediaType.Manga }.mapNotNull { entry ->
+        val unsupportedTitles = mutableListOf<String>()
+        val batchItems = entries.mapNotNull { entry ->
+            if (entry.type == MediaType.Manga) {
+                unsupportedTitles.add(entry.displayTitle())
+                return@mapNotNull null
+            }
             val realMalId = entry.malId?.takeIf { entry.type == MediaType.Anime && it > 0 && it < 100_000_000 }
             val aniListId = if (entry.source == "anilist" && entry.malId != null && entry.malId >= 100_000_000 && entry.malId < 300_000_000) {
                 entry.malId - 100_000_000
             } else null
             // KitsuImportManager encodes IDs with this offset. After cross-sync resolves
             // a real MAL ID, source may still be "kitsu"; never send that MAL ID as kitsu.
-            val rawKitsuId = entry.malId?.takeIf { it > 300_000_000 }?.minus(300_000_000)
+            val rawKitsuId = entry.malId?.takeIf { it in 300_000_001..399_999_999 }?.minus(300_000_000)
             val simklId = entry.simklId?.takeIf { it > 0 } ?: 0
             val effectiveTitle = entry.titleEnglish?.takeIf { it.isNotBlank() } ?: entry.title
 
             // En az bir geçerli ID olmalı veya geçerli bir başlık olmalı
             if (simklId == 0 && realMalId == null && (entry.tmdbId == null || entry.tmdbId <= 0) && aniListId == null && rawKitsuId == null && effectiveTitle.isBlank()) {
+                unsupportedTitles.add(entry.displayTitle())
                 null
             } else {
                 SimklApiClient.SimklBatchEntry(
@@ -118,50 +133,72 @@ object SimklSyncManager {
 
         val messages = mutableListOf<String>()
         val errors = mutableListOf<String>()
-        if (batchItems.size != entries.size) {
-            errors.add("${entries.size - batchItems.size} öğe gönderilemedi (desteklenmeyen tür veya eksik kimlik/başlık)")
-        }
+        val warnings = mutableListOf<String>()
+        val unmatchedTitles = mutableListOf<String>()
+        val unsupportedProgressTitles = mutableListOf<String>()
+        val historyUnmatchedTitles = mutableListOf<String>()
+        val ratingUnmatchedTitles = mutableListOf<String>()
         var totalAdded = 0
         var totalNotFound = 0
+        var totalFailed = unsupportedTitles.size
+        if (unsupportedTitles.isNotEmpty()) {
+            warnings.add("${unsupportedTitles.size} öğe gönderilemedi (desteklenmeyen tür veya eksik kimlik/başlık): ${unsupportedTitles.take(5).joinToString()}")
+        }
 
         // Conservative batch size; not a claim about a documented API maximum.
         val chunks = batchItems.chunked(35)
         for ((idx, chunk) in chunks.withIndex()) {
+            val groupLabel = if (chunks.size > 1) "Simkl alt grubu ${idx + 1}/${chunks.size}" else "Simkl grubu"
             try {
                 // History/ratings can change the watchlist status, so apply the intended status LAST.
                 val withProgress = chunk.filter { it.progress > 0 }
                 val tvProgress = withProgress.filter { it.type == "shows" }
                 if (tvProgress.isNotEmpty()) {
-                    errors.add("${tvProgress.size} dizinin bölüm ilerlemesi aktarılamadı: sezon/bölüm eşlemesi gerekli")
+                    unsupportedProgressTitles.addAll(tvProgress.map { it.title ?: "(başlıksız)" })
                 }
                 val supportedProgress = withProgress.filter { it.type != "shows" }
                 if (supportedProgress.isNotEmpty()) {
-                    if (!simklApiClient.historyBatchDetailed(token, supportedProgress)) {
-                        errors.add("Simkl grubu ${idx + 1}: izleme geçmişi onaylanmadı")
+                    val historyRes = simklApiClient.historyBatchReceipt(token, supportedProgress)
+                    if (historyRes.transportFailed) {
+                        warnings.add("$groupLabel: izleme geçmişi gönderilemedi (${historyRes.errorMessage ?: "bilinmeyen hata"})")
+                    } else if (historyRes.notFoundCount > 0) {
+                        historyUnmatchedTitles.addAll(describeUnmatched(historyRes.notFoundItems, supportedProgress))
                     }
                     kotlinx.coroutines.delay(1200L)
                 }
                 val withScore = chunk.filter { it.score != null && it.score > 0 }
                 if (withScore.isNotEmpty()) {
-                    if (!simklApiClient.ratingsBatchDetailed(token, withScore)) {
-                        errors.add("Simkl grubu ${idx + 1}: puanlar onaylanmadı")
+                    val ratingRes = simklApiClient.ratingsBatchReceipt(token, withScore)
+                    if (ratingRes.transportFailed) {
+                        warnings.add("$groupLabel: puanlar gönderilemedi (${ratingRes.errorMessage ?: "bilinmeyen hata"})")
+                    } else if (ratingRes.notFoundCount > 0) {
+                        ratingUnmatchedTitles.addAll(describeUnmatched(ratingRes.notFoundItems, withScore))
                     }
                     kotlinx.coroutines.delay(1200L)
                 }
                 val batchRes = simklApiClient.addToListBatchDetailed(token, chunk)
-                totalAdded += batchRes.addedCount
-                totalNotFound += batchRes.notFoundCount
-                if (batchRes.isSuccess) {
-                    messages.add("Simkl grubu ${idx + 1}/${chunks.size}: ${batchRes.addedCount} liste kaydı onaylandı.")
-                } else {
-                    errors.add("Simkl grubu ${idx + 1}: ${batchRes.errorMessage ?: "Bilinmeyen hata"}")
+                when {
+                    batchRes.transportFailed -> {
+                        totalFailed += chunk.size
+                        errors.add("$groupLabel: ${batchRes.errorMessage ?: "Bilinmeyen hata"} (${chunk.size} kayıt yazılamadı)")
+                    }
+                    else -> {
+                        totalAdded += batchRes.addedCount
+                        totalNotFound += batchRes.notFoundCount
+                        if (batchRes.notFoundCount > 0) {
+                            unmatchedTitles.addAll(describeUnmatched(batchRes.notFoundItems, chunk))
+                        }
+                        val suffix = if (batchRes.notFoundCount > 0) ", ${batchRes.notFoundCount} kayıt Simkl'de bulunamadı." else "."
+                        messages.add("$groupLabel: ${batchRes.addedCount} liste kaydı onaylandı$suffix")
+                    }
                 }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: com.kitsugi.animelist.data.repository.SimklAuthException) {
                 throw e
             } catch (e: Exception) {
-                errors.add("Simkl grup ${idx + 1} hatası: ${e.message}")
+                totalFailed += chunk.size
+                errors.add("$groupLabel hatası: ${e.message ?: e.javaClass.simpleName} (${chunk.size} kayıt yazılamadı)")
             }
             if (idx < chunks.size - 1) {
                 // Rate limit (1 req/sn) aşmamak için bekle
@@ -169,7 +206,69 @@ object SimklSyncManager {
             }
         }
 
-        SyncResult(messages = messages, errors = errors, addedCount = totalAdded, notFoundCount = totalNotFound)
+        if (historyUnmatchedTitles.isNotEmpty()) {
+            warnings.add("${historyUnmatchedTitles.size} kaydın bölüm ilerlemesi Simkl'de eşleşmedi: ${historyUnmatchedTitles.take(5).joinToString()}")
+        }
+        if (ratingUnmatchedTitles.isNotEmpty()) {
+            warnings.add("${ratingUnmatchedTitles.size} kaydın puanı Simkl'de eşleşmedi: ${ratingUnmatchedTitles.take(5).joinToString()}")
+        }
+
+        SyncResult(
+            messages = messages,
+            errors = errors,
+            addedCount = totalAdded,
+            notFoundCount = totalNotFound,
+            failedCount = totalFailed,
+            warnings = warnings,
+            unmatchedTitles = unmatchedTitles.distinct(),
+            unsupportedProgressTitles = unsupportedProgressTitles.distinct()
+        )
+    }
+
+    private fun MediaEntry.displayTitle(): String =
+        titleEnglish?.takeIf { it.isNotBlank() } ?: title.ifBlank { "(başlıksız)" }
+
+    /**
+     * Simkl'in `not_found` ile geri gönderdiği kimlikleri gönderilen kayıtlarla eşleştirir;
+     * kimlik eşleşmezse Simkl'in yankıladığı başlık/kimlik metni kullanılır.
+     */
+    private fun describeUnmatched(
+        unmatched: List<SimklSyncContract.UnmatchedItem>,
+        sent: List<SimklApiClient.SimklBatchEntry>
+    ): List<String> {
+        if (unmatched.isEmpty()) return emptyList()
+        fun normalized(value: String?): String = value.orEmpty().lowercase().filter { it.isLetterOrDigit() }
+        return unmatched.map { item ->
+            val match = sent.firstOrNull { entry ->
+                val simkl = item.ids["simkl"]?.toIntOrNull()
+                val mal = item.ids["mal"]?.toIntOrNull()
+                val tmdb = item.ids["tmdb"]?.toIntOrNull()
+                val anilist = item.ids["anilist"]?.toIntOrNull()
+                val kitsu = item.ids["kitsu"]?.toIntOrNull()
+                (simkl != null && simkl > 0 && simkl == entry.simklId) ||
+                    (mal != null && mal == entry.malId) ||
+                    (tmdb != null && tmdb == entry.tmdbId) ||
+                    (anilist != null && anilist == entry.aniListId) ||
+                    (kitsu != null && kitsu == entry.kitsuId) ||
+                    (item.ids.isEmpty() && !item.title.isNullOrBlank() && normalized(item.title) == normalized(entry.title))
+            }
+            if (match != null) {
+                val idText = listOfNotNull(
+                    match.malId?.let { "mal=$it" },
+                    match.simklId.takeIf { it > 0 }?.let { "simkl=$it" },
+                    match.tmdbId?.let { "tmdb=$it" },
+                    match.aniListId?.let { "anilist=$it" },
+                    match.kitsuId?.let { "kitsu=$it" }
+                ).joinToString(", ")
+                buildString {
+                    append(match.title?.takeIf { it.isNotBlank() } ?: "(başlıksız)")
+                    match.year?.takeIf { it > 0 }?.let { append(" ($it)") }
+                    if (idText.isNotBlank()) append(" [").append(idText).append("]")
+                }
+            } else {
+                item.describe()
+            }
+        }
     }
 
     // ── Tek Entry Senkronizasyonu ─────────────────────────────────────────────────
@@ -413,10 +512,18 @@ object SimklSyncManager {
         val messages: List<String>,
         val errors: List<String> = emptyList(),
         val addedCount: Int = 0,
-        val notFoundCount: Int = 0
+        val notFoundCount: Int = 0,
+        /** Records that could not be written at all (HTTP/network failure or unsupported payload). */
+        val failedCount: Int = 0,
+        /** Non-fatal findings: partial history/rating receipts, unsupported items. */
+        val warnings: List<String> = emptyList(),
+        /** Human-readable titles Simkl echoed back as `not_found` for the list write. */
+        val unmatchedTitles: List<String> = emptyList(),
+        /** TV shows whose aggregate episode count cannot be mapped to Simkl seasons. */
+        val unsupportedProgressTitles: List<String> = emptyList()
     ) {
         val isSuccess: Boolean get() = errors.isEmpty()
-        val hasWarnings: Boolean get() = messages.isNotEmpty() && errors.isNotEmpty()
+        val hasWarnings: Boolean get() = warnings.isNotEmpty() || (messages.isNotEmpty() && errors.isNotEmpty())
     }
 
     data class SimklUserProfile(

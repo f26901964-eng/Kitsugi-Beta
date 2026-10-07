@@ -126,7 +126,11 @@ object ShikimoriApiClient {
         val updatedAt: Long,
         val title: String = "",
         val imageUrl: String? = null,
-        val total: Int? = null
+        val total: Int? = null,
+        /** `aired_on` (anime) / `released_on` (manga) alanından yayın yılı */
+        val startYear: Int? = null,
+        /** Shikimori `english` dizisinin ilk öğesi (varsa); user_rates yanıtında her zaman gelmez */
+        val titleEnglish: String? = null
     )
 
     const val DEFAULT_CLIENT_ID = "poB5DHHfiPP-DiphGJoelAnUeQ3PNkhPXwuUgXusl20"
@@ -637,6 +641,13 @@ object ShikimoriApiClient {
                             } else null
                             val total = if (targetType == "Anime") mediaObj?.optInt("episodes", 0)?.takeIf { it > 0 }
                             else mediaObj?.optInt("chapters", 0)?.takeIf { it > 0 }
+                            // Yayın yılı: çapraz eşitlemede aynı isimli yapımları (remake/sezon) ayırmak için gerekli
+                            val dateKey = if (targetType == "Anime") "aired_on" else "released_on"
+                            val startYear = mediaObj?.optString(dateKey, "")
+                                ?.takeIf { it.isNotBlank() && it != "null" }
+                                ?.take(4)?.toIntOrNull()?.takeIf { it in 1900..2100 }
+                            val englishTitle = mediaObj?.optJSONArray("english")
+                                ?.let { arr -> (0 until arr.length()).map { arr.optString(it, "") }.firstOrNull { it.isNotBlank() && it != "null" } }
 
                             rates.add(
                                 ShikimoriRate(
@@ -650,7 +661,9 @@ object ShikimoriApiClient {
                                     updatedAt = updatedAt,
                                     title = title,
                                     imageUrl = imgUrl,
-                                    total = total
+                                    total = total,
+                                    startYear = startYear,
+                                    titleEnglish = englishTitle
                                 )
                             )
                         }

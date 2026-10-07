@@ -327,6 +327,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
     private fun Int.isRealMalId(): Boolean = this in 1..99_999_999
 
+    @Suppress("UNUSED_PARAMETER")
     private suspend fun resolveRealMalId(entry: MediaEntry, aniListToken: String?): Int? {
         val existing = entry.malId?.takeIf { it.isRealMalId() }
         if (existing != null) return existing
@@ -340,13 +341,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
         val rawKitsuId = entry.malId?.takeIf { it in 300_000_001..399_999_999 }?.minus(300_000_000)
 
-        if (rawAniListId != null && !aniListToken.isNullOrBlank()) {
-            val resolved = runSyncCatching {
-                com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("anilist")
-                AniListSyncManager.resolveMalIdFromAniList(token = aniListToken, aniListId = rawAniListId)
-            }.getOrNull()
-            if (resolved != null && resolved.isRealMalId()) return resolved
-        }
+        // Not: AniList içe aktarımı `idMal` alanını zaten getiriyor; sentetik (100M+) kimlik taşıyan bir
+        // AniList kaydı için tekrar Media(idMal) sorgusu atmak hem sonuçsuz hem de 30 istek/dk kotasını
+        // tüketip gerçek yazma isteklerinin 429 almasına yol açıyordu. Bu adım bilinçli olarak kaldırıldı.
 
         val armMal = runSyncCatching {
             com.kitsugi.animelist.data.remote.KitsugiIdResolver.resolveIds(
@@ -598,26 +595,34 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     }
 
-                    val item = when {
-                        sameTitleIdConflicts.isNotEmpty() -> {
-                            val details = buildString {
-                                appendLine("Eşleşme otomatik olarak birleştirilmedi: aynı tür/başlık için sağlayıcı kimlikleri çelişiyor.")
+                    // Aynı başlık, farklı sağlayıcı kimliği (ör. 1999 ve 2011 Hunter x Hunter, remake'ler, aynı adlı
+                    // sezonlar): `sameMedia` çelişen kimlikleri zaten birleştirmez; bu kayıtlar ayrı gruplar olarak
+                    // kendi kimlikleriyle güvenle eşitlenebilir. Eskiden tüm kayıt "kimlik doğrulaması gerekli" diye
+                    // izole edilip hiçbir hesaba yazılmıyordu; bu, Simkl/MAL/Shikimori'deki yüzlerce "atlandı"
+                    // kaydının ana kaynağıydı. Artık yalnızca bilgi amaçlı rapora not düşülür.
+                    if (sameTitleIdConflicts.isNotEmpty() && matches.isEmpty()) {
+                        val conflictKeys = sameTitleIdConflicts.flatMap { group ->
+                            group.candidates.flatMap { candidate -> identity.conflictingIdentityKeys(candidate, entry) }
+                        }.distinct()
+                        logEvent(
+                            "Eşleştirme",
+                            "Aynı başlıklı farklı yapım ayrı grup olarak işlendi: ${entry.title}",
+                            details = buildString {
+                                appendLine("Sağlayıcı kimlikleri farklı olduğu için mevcut grupla birleştirilmedi; kayıt kendi kimliğiyle eşitlenecek.")
                                 appendLine("Gelen kayıt:")
                                 appendLine(describeIdentityCandidate(entry))
-                                appendLine("Çakışan mevcut kayıtlar:")
+                                appendLine("Aynı başlığı taşıyan mevcut kayıtlar:")
                                 sameTitleIdConflicts.flatMap { it.candidates }.distinct().forEach { candidate ->
                                     appendLine(describeIdentityCandidate(candidate))
                                 }
-                                append("Çakışan kimlik alanları: ")
-                                append(sameTitleIdConflicts.flatMap { group ->
-                                    group.candidates.flatMap { candidate -> identity.conflictingIdentityKeys(candidate, entry) }
-                                }.distinct().joinToString().ifBlank { "bilinmiyor" })
-                            }
-                            UnifiedSyncItem(
-                                identityReviewRequired = true,
-                                identityReviewDetails = details
-                            ).also { unifiedItems.add(it) }
-                        }
+                                append("Farklı kimlik alanları: ")
+                                append(conflictKeys.joinToString().ifBlank { "bilinmiyor" })
+                            },
+                            includeInLiveLog = false
+                        )
+                    }
+
+                    val item = when {
                         matches.isEmpty() -> UnifiedSyncItem().also { unifiedItems.add(it) }
                         matches.size == 1 -> {
                             val match = matches.single()
@@ -630,16 +635,40 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                 }
                             } else emptyList()
                             if (unrelatedTitleIds.isNotEmpty()) {
-                                val details = buildString {
-                                    appendLine("Aynı harici kimlik(ler) eşleşti, ancak başlık alias'ları uyuşmuyor. Otomatik yazma güvenlik için durduruldu.")
-                                    appendLine("Ortak kimlikler: ${sharedIds.joinToString()}")
-                                    appendLine("Gelen kayıt:")
-                                    appendLine(describeIdentityCandidate(entry))
-                                    appendLine("Eşleşen kayıt(lar):")
-                                    unrelatedTitleIds.forEach { appendLine(describeIdentityCandidate(it)) }
+                                // Aynı sağlayıcı kimliği (ör. aynı MAL ID) paylaşan kayıtlar tanım gereği aynı yapımdır;
+                                // alias farkı çoğunlukla dil/çeviri farkıdır (Simkl İngilizce, Shikimori romaji, Kitsu
+                                // kanonik). Yalnızca her iki tarafta da yıl biliniyor ve 1 yıldan fazla ayrışıyorsa
+                                // (hatalı sağlayıcı eşlemesi şüphesi) yazma durdurulur.
+                                val yearConflicts = unrelatedTitleIds.filter { candidate ->
+                                    val candidateYear = candidate.year
+                                    val entryYear = entry.year
+                                    candidateYear != null && entryYear != null && kotlin.math.abs(candidateYear - entryYear) > 1
                                 }
-                                match.identityReviewRequired = true
-                                match.identityReviewDetails = details
+                                if (yearConflicts.isNotEmpty()) {
+                                    val details = buildString {
+                                        appendLine("Aynı harici kimlik(ler) eşleşti, ancak başlıklar ve yayın yılları uyuşmuyor; sağlayıcı eşlemesi hatalı olabilir. Otomatik yazma güvenlik için durduruldu.")
+                                        appendLine("Ortak kimlikler: ${sharedIds.joinToString()}")
+                                        appendLine("Gelen kayıt:")
+                                        appendLine(describeIdentityCandidate(entry))
+                                        appendLine("Eşleşen kayıt(lar):")
+                                        yearConflicts.forEach { appendLine(describeIdentityCandidate(it)) }
+                                    }
+                                    match.identityReviewRequired = true
+                                    match.identityReviewDetails = details
+                                } else {
+                                    logEvent(
+                                        "Eşleştirme",
+                                        "Ortak kimlikle birleştirildi (başlık alias'ları farklı): ${entry.title}",
+                                        details = buildString {
+                                            appendLine("Ortak kimlikler: ${sharedIds.joinToString()}")
+                                            appendLine("Gelen kayıt:")
+                                            appendLine(describeIdentityCandidate(entry))
+                                            appendLine("Eşleşen kayıt(lar):")
+                                            unrelatedTitleIds.forEach { appendLine(describeIdentityCandidate(it)) }
+                                        },
+                                        includeInLiveLog = false
+                                    )
+                                }
                             }
                             match
                         }
@@ -741,6 +770,28 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 fun countSafetySkip(platform: String) {
                     statsMap[platform]?.let { statsMap[platform] = it.copy(skippedCount = it.skippedCount + 1) }
                 }
+                // Kayıt bazlı "atlandı" olayları artık tek tek uyarı üretmez; başlıklar toplanır ve
+                // eşitleme sonunda platform başına tek bir özet uyarı yazılır (ayrıntılarda tam liste).
+                val skippedTitlesByReason = linkedMapOf<String, MutableList<String>>()
+                fun recordSkip(platform: String, reasonKey: String, title: String, message: String, details: String) {
+                    statsMap[platform]?.let { statsMap[platform] = it.copy(skippedCount = it.skippedCount + 1) }
+                    skippedTitlesByReason.getOrPut("$platform|$reasonKey") { mutableListOf() }.add(title)
+                    logEvent(platform, message, details = details, includeInLiveLog = false)
+                }
+                fun flushSkipSummaries() {
+                    skippedTitlesByReason.forEach { (key, titles) ->
+                        if (titles.isEmpty()) return@forEach
+                        val platform = key.substringBefore('|')
+                        val reason = key.substringAfter('|')
+                        logEvent(
+                            platform,
+                            "[$platform] ${titles.size} kayıt atlandı: $reason",
+                            isWarning = true,
+                            details = "Atlanan kayıtlar (${titles.size}):\n" + titles.joinToString("\n") { "• $it" }
+                        )
+                    }
+                    skippedTitlesByReason.clear()
+                }
 
                 // ── FAZ 3: Eksikleri Tamamlama ve Alan Senkronizasyonu (Asla Silme Yok) ──
                 for ((index, item) in unifiedItems.withIndex()) {
@@ -793,7 +844,13 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     val maxVolumeProgress = candidates.maxOf { it.volumeProgress }
 
                     // 2. En gelişmiş izleme durumu
-                    val totalCount = candidates.firstNotNullOfOrNull { it.total?.takeIf { t -> t > 0 } }
+                    // Simkl'in `total` değeri "yayınlanmış bölüm sayısı"dır (devam eden dizilerde toplam değil);
+                    // bu sayıdan "Tamamlandı" çıkarımı yapmak devam eden yapımları yanlışlıkla bitmiş gösteriyordu.
+                    // Çıkarım için yalnızca MAL/AniList/Kitsu/Shikimori toplamları kullanılır.
+                    val totalCount = candidates
+                        .filter { com.kitsugi.animelist.model.MediaIdentity.canonicalSource(it.source) != "simkl" }
+                        .firstNotNullOfOrNull { it.total?.takeIf { t -> t > 0 } }
+                    val singleSourceGroup = candidates.size == 1
                     val bestStatus = when {
                         totalCount != null && maxProgress >= totalCount -> WatchStatus.Completed
                         candidates.any { it.status == WatchStatus.Completed } && (totalCount == null || maxProgress >= (totalCount ?: 0)) -> WatchStatus.Completed
@@ -872,18 +929,28 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                             if (res.isSuccess && res.getOrNull() != null) {
                                 statsMap["AniList"] = statsMap["AniList"]!!.let { it.copy(addedCount = it.addedCount + 1) }
                                 logEvent("AniList", "[AniList] + Eklendi: ${mergedEntry.title} (${bestStatus.label})", isAddition = true, details = mappingDetails)
+                            } else if (res.isSuccess) {
+                                // null = AniList'te hangi medya olduğu güvenle çözülemedi (MAL ID/ARM eşlemesi yok).
+                                // Bu bir API hatası değil; kayıt atlanır ve sonda tek bir özet uyarı verilir.
+                                recordSkip(
+                                    platform = "AniList",
+                                    reasonKey = "AniList medya kimliği çözülemedi (MAL ID veya ARM eşlemesi yok)",
+                                    title = mergedEntry.title,
+                                    message = "[AniList] - Atlandı (medya kimliği çözülemedi): ${mergedEntry.title}",
+                                    details = mappingDetails
+                                )
                             } else {
                                 statsMap["AniList"] = statsMap["AniList"]!!.let { it.copy(errorCount = it.errorCount + 1) }
                                 val failure = res.exceptionOrNull()?.crossSyncDiagnostic()
-                                    ?: "AniList yeni liste kaydını onaylamadı veya medya kimliği çözülemedi."
+                                    ?: "AniList yeni liste kaydını onaylamadı."
                                 logEvent("AniList", "[AniList] ! Eklenemedi: ${mergedEntry.title}", isError = true, details = "$failure\n$mappingDetails")
                             }
                         } else {
-                            val needsUpdate = (current.status != bestStatus) ||
+                            val needsUpdate = !singleSourceGroup && ((current.status != bestStatus) ||
                                     (current.progress < maxProgress) ||
                                     (bestScore != null && current.score != bestScore) ||
                                     (current.startDate.isNullOrBlank() && !bestStartDate.isNullOrBlank()) ||
-                                    (current.endDate.isNullOrBlank() && !bestEndDate.isNullOrBlank())
+                                    (current.endDate.isNullOrBlank() && !bestEndDate.isNullOrBlank()))
                             if (needsUpdate) {
                                 com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("anilist")
                                 val target = mergedEntry.copy(aniListEntryId = current.aniListEntryId)
@@ -921,11 +988,11 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                     logEvent("MyAnimeList", "[MAL] ! Eklenemedi: ${mergedEntry.title}", isError = true, details = "$failure\n$mappingDetails")
                                 }
                             } else {
-                                val needsUpdate = (current.status != bestStatus) ||
+                                val needsUpdate = !singleSourceGroup && ((current.status != bestStatus) ||
                                         (current.progress < maxProgress) ||
                                         (bestScore != null && current.score != bestScore) ||
                                         (current.startDate.isNullOrBlank() && !bestStartDate.isNullOrBlank()) ||
-                                        (current.endDate.isNullOrBlank() && !bestEndDate.isNullOrBlank())
+                                        (current.endDate.isNullOrBlank() && !bestEndDate.isNullOrBlank()))
                                 if (needsUpdate) {
                                     com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("mal")
                                     val target = mergedEntry.copy(malId = realMalId)
@@ -942,11 +1009,11 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                 }
                             }
                         } else {
-                            statsMap["MyAnimeList"] = statsMap["MyAnimeList"]!!.let { it.copy(skippedCount = it.skippedCount + 1) }
-                            logEvent(
-                                "MyAnimeList",
-                                "[MAL] - Atlandı (doğrulanmış MAL ID yok): ${mergedEntry.title}",
-                                isWarning = true,
+                            recordSkip(
+                                platform = "MyAnimeList",
+                                reasonKey = "doğrulanmış MAL ID yok (AniList/Kitsu/Simkl kaydı MAL'a eşlenemedi)",
+                                title = mergedEntry.title,
+                                message = "[MAL] - Atlandı (doğrulanmış MAL ID yok): ${mergedEntry.title}",
                                 details = "MAL ID çözümlemesi başarısız oldu veya güvenli bir kimlik bulunamadı.\n$mappingDetails"
                             )
                         }
@@ -959,9 +1026,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         if (current == null) {
                             simklEntriesToSync.add(mergedEntry)
                         } else {
-                            val needsUpdate = (current.status != bestStatus) ||
+                            val needsUpdate = !singleSourceGroup && ((current.status != bestStatus) ||
                                     (current.progress < maxProgress) ||
-                                    (bestScore != null && current.score != bestScore)
+                                    (bestScore != null && current.score != bestScore))
                             if (needsUpdate) {
                                 simklEntriesToSync.add(mergedEntry.copy(simklId = current.simklId))
                             }
@@ -972,17 +1039,25 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     if (isKitsu && isAnimeOrManga) {
                         kotlinx.coroutines.currentCoroutineContext().ensureActive()
                         val current = item.kitsu
-                        val knownKitsuId = current?.malId?.takeIf { it >= 300_000_000 }?.let { it - 300_000_000 }
+                        // Kitsu sentetik kimlik aralığı 300M–400M; 400M+ Shikimori'ye ait, yanlışlıkla Kitsu ID sanılmasın.
+                        val knownKitsuId = current?.malId?.takeIf { it in 300_000_001..399_999_999 }?.let { it - 300_000_000 }
                         if (current == null) {
-                            // Kitsu'da eksik -> EKLE!
-                            com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("kitsu")
+                            // Kitsu'da eksik -> EKLE! (hız sınırı artık KitsuApiClient içinde her istek için uygulanıyor)
                             val outcome = runSyncCatching {
                                 KitsuSyncManager.syncEntryToKitsu(context, mergedEntry, knownKitsuMediaId = null)
                             }
                             val res = outcome.getOrNull()
                             if (res != null && res.errors.isEmpty()) {
                                 statsMap["Kitsu"] = statsMap["Kitsu"]!!.let { it.copy(addedCount = it.addedCount + 1) }
-                                logEvent("Kitsu", "[Kitsu] + Eklendi: ${mergedEntry.title} (${bestStatus.label})", isAddition = true, details = mappingDetails)
+                                logEvent("Kitsu", "[Kitsu] + Eklendi: ${mergedEntry.title} (${bestStatus.label})", isAddition = true, details = mappingDetails + (res.resolvedVia?.let { "\nKitsu kimliği kaynağı: $it" } ?: ""))
+                            } else if (res != null && res.unresolvedMedia) {
+                                recordSkip(
+                                    platform = "Kitsu",
+                                    reasonKey = "Kitsu kataloğunda güvenilir eşleşme bulunamadı (mappings/ARM/başlık)",
+                                    title = mergedEntry.title,
+                                    message = "[Kitsu] - Atlandı (Kitsu kimliği çözülemedi): ${mergedEntry.title}",
+                                    details = mappingDetails
+                                )
                             } else {
                                 val errMsg = outcome.exceptionOrNull()?.crossSyncDiagnostic()
                                     ?: res?.errors?.joinToString("; ")
@@ -991,11 +1066,10 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                 logEvent("Kitsu", "[Kitsu] ! Hata: ${mergedEntry.title} ($errMsg)", isError = true, details = "$mappingDetails\n$errMsg")
                             }
                         } else {
-                            val needsUpdate = (current.status != bestStatus) ||
+                            val needsUpdate = !singleSourceGroup && ((current.status != bestStatus) ||
                                     (current.progress < maxProgress) ||
-                                    (bestScore != null && current.score != bestScore)
+                                    (bestScore != null && current.score != bestScore))
                             if (needsUpdate) {
-                                com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("kitsu")
                                 val outcome = runSyncCatching {
                                     KitsuSyncManager.syncEntryToKitsu(context, mergedEntry, knownKitsuMediaId = knownKitsuId)
                                 }
@@ -1003,6 +1077,14 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                 if (res != null && res.errors.isEmpty()) {
                                     statsMap["Kitsu"] = statsMap["Kitsu"]!!.let { it.copy(updatedCount = it.updatedCount + 1) }
                                     logEvent("Kitsu", "[Kitsu] ~ Güncellendi: ${mergedEntry.title}", isUpdate = true, details = mappingDetails)
+                                } else if (res != null && res.unresolvedMedia) {
+                                    recordSkip(
+                                        platform = "Kitsu",
+                                        reasonKey = "Kitsu kataloğunda güvenilir eşleşme bulunamadı (mappings/ARM/başlık)",
+                                        title = mergedEntry.title,
+                                        message = "[Kitsu] - Atlandı (Kitsu kimliği çözülemedi): ${mergedEntry.title}",
+                                        details = mappingDetails
+                                    )
                                 } else {
                                     val errMsg = outcome.exceptionOrNull()?.crossSyncDiagnostic()
                                         ?: res?.errors?.joinToString("; ")
@@ -1036,9 +1118,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                     logEvent("Shikimori", "[Shikimori] ! Hata: ${mergedEntry.title} ($errMsg)", isError = true, details = "$mappingDetails\n$errMsg")
                                 }
                             } else {
-                                val needsUpdate = (current.status != bestStatus) ||
+                                val needsUpdate = !singleSourceGroup && ((current.status != bestStatus) ||
                                         (current.progress < maxProgress) ||
-                                        (bestScore != null && current.score != bestScore)
+                                        (bestScore != null && current.score != bestScore))
                                 if (needsUpdate) {
                                     com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("shikimori")
                                     val target = mergedEntry.copy(malId = realMalId)
@@ -1057,11 +1139,11 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                 }
                             }
                         } else {
-                            statsMap["Shikimori"] = statsMap["Shikimori"]!!.let { it.copy(skippedCount = it.skippedCount + 1) }
-                            logEvent(
-                                "Shikimori",
-                                "[Shikimori] - Atlandı (doğrulanmış MAL ID yok): ${mergedEntry.title}",
-                                isWarning = true,
+                            recordSkip(
+                                platform = "Shikimori",
+                                reasonKey = "doğrulanmış MAL ID yok (Shikimori kimlikleri MAL ID ile aynıdır)",
+                                title = mergedEntry.title,
+                                message = "[Shikimori] - Atlandı (doğrulanmış MAL ID yok): ${mergedEntry.title}",
                                 details = "Shikimori senkronizasyonu için doğrulanmış MAL ID gerekiyor.\n$mappingDetails"
                             )
                         }
@@ -1093,6 +1175,12 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     var simklAdded = 0
                     var simklErrors = 0
                     var simklSkipped = 0
+                    // Kayıt bazlı muhasebe: Simkl `not_found` ile geri gönderdiği kayıtlar "atlandı",
+                    // yalnızca HTTP/ağ seviyesinde yazılamayan kayıtlar "hata" sayılır. Eskiden grupta tek
+                    // bir eşleşmeyen kayıt bile 35 kaydın tamamını hata olarak saydırıyordu (297 atlandı / 200 hata).
+                    val simklUnmatchedTitles = mutableListOf<String>()
+                    val simklProgressLimitedTitles = mutableListOf<String>()
+                    val simklWarnings = mutableListOf<String>()
                     for ((idx, chunk) in chunks.withIndex()) {
                         val simklProcessed = minOf((idx + 1) * 35, simklEntriesToSync.size)
                         val progressText = "$simklProcessed / ${simklEntriesToSync.size} Simkl kaydı (%${(simklProcessed.toFloat() / simklEntriesToSync.size * 100).toInt()})"
@@ -1109,23 +1197,44 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         val notFound = syncRes.notFoundCount
                         simklAdded += count
                         simklSkipped += notFound
+                        simklErrors += syncRes.failedCount
+                        simklUnmatchedTitles.addAll(syncRes.unmatchedTitles)
+                        simklProgressLimitedTitles.addAll(syncRes.unsupportedProgressTitles)
+                        simklWarnings.addAll(syncRes.warnings)
                         val chunkDetails = chunk.joinToString("\n\n") { it.crossSyncIdentityDiagnostic() }
+                        val groupLabel = "Grup ${idx + 1}/${chunks.size}"
                         if (syncRes.errors.isEmpty()) {
                             logEvent(
                                 "Simkl",
-                                "[Simkl] Grup ${idx + 1}/${chunks.size} eşitlendi ($count eklendi${if (notFound > 0) ", $notFound eşleşmedi" else ""})",
+                                "[Simkl] $groupLabel eşitlendi ($count eklendi${if (notFound > 0) ", $notFound Simkl'de bulunamadı" else ""})",
                                 isAddition = count > 0,
-                                isWarning = notFound > 0,
-                                details = if (notFound > 0) "Simkl'de karşılığı bulunamayan kayıtlar bu grupta olabilir.\n$chunkDetails" else chunkDetails
+                                details = buildString {
+                                    if (syncRes.unmatchedTitles.isNotEmpty()) {
+                                        appendLine("Simkl'de karşılığı bulunamayan kayıtlar (${syncRes.unmatchedTitles.size}):")
+                                        syncRes.unmatchedTitles.forEach { appendLine("• $it") }
+                                        appendLine()
+                                    }
+                                    append("Grup içindeki kayıtlar:")
+                                    appendLine()
+                                    append(chunkDetails)
+                                }
                             )
                         } else {
-                            simklErrors += chunk.size
                             syncRes.errors.forEach { message ->
                                 logEvent(
                                     "Simkl",
-                                    "[Simkl] Grup ${idx + 1}/${chunks.size}: $message",
+                                    "[Simkl] $groupLabel: $message",
                                     isError = true,
-                                    details = "Grup özeti: $count eklendi, $notFound eşleşmedi. Grup içindeki kayıtlar:\n$chunkDetails"
+                                    details = "Grup özeti: $count eklendi, $notFound Simkl'de bulunamadı, ${syncRes.failedCount} yazılamadı. Grup içindeki kayıtlar:\n$chunkDetails"
+                                )
+                            }
+                            if (count > 0) {
+                                logEvent(
+                                    "Simkl",
+                                    "[Simkl] $groupLabel kısmen eşitlendi ($count eklendi)",
+                                    isAddition = true,
+                                    details = chunkDetails,
+                                    includeInLiveLog = false
                                 )
                             }
                         }
@@ -1133,6 +1242,34 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                             // Simkl API 1 istek/saniye kuralına tam uyum
                             kotlinx.coroutines.delay(1200L)
                         }
+                    }
+                    if (simklUnmatchedTitles.isNotEmpty()) {
+                        val distinctUnmatched = simklUnmatchedTitles.distinct()
+                        logEvent(
+                            "Simkl",
+                            "[Simkl] ${distinctUnmatched.size} kayıt Simkl kataloğunda bulunamadı (atlandı)",
+                            isWarning = true,
+                            details = "Simkl bu kayıtları `not_found` olarak geri gönderdi; kimlik eşlemesi (MAL/TMDB/AniList) Simkl tarafında yok veya başlık eşleşmedi. Kayıtlar diğer hesaplarda eşitlenmeye devam eder.\n\n" +
+                                distinctUnmatched.joinToString("\n") { "• $it" }
+                        )
+                    }
+                    if (simklProgressLimitedTitles.isNotEmpty()) {
+                        val distinctLimited = simklProgressLimitedTitles.distinct()
+                        logEvent(
+                            "Simkl",
+                            "[Simkl] ${distinctLimited.size} dizinin bölüm ilerlemesi aktarılmadı (liste durumu yazıldı)",
+                            isWarning = true,
+                            details = "Simkl, diziler için toplam bölüm sayısı yerine sezon/bölüm bazlı izleme geçmişi ister; bu eşleme henüz desteklenmiyor. Liste durumu ve puan aktarıldı.\n\n" +
+                                distinctLimited.joinToString("\n") { "• $it" }
+                        )
+                    }
+                    if (simklWarnings.isNotEmpty()) {
+                        logEvent(
+                            "Simkl",
+                            "[Simkl] ${simklWarnings.size} kısmi işlem uyarısı (izleme geçmişi/puan)",
+                            isWarning = true,
+                            details = simklWarnings.joinToString("\n") { "• $it" }
+                        )
                     }
                     statsMap["Simkl"] = statsMap["Simkl"]!!.let {
                         it.copy(
@@ -1143,6 +1280,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     }
                     kotlinx.coroutines.delay(1500L)
                 }
+
+                // Platform başına tek satırlık "atlandı" özetleri (ayrıntılarda tam başlık listesi)
+                flushSkipSummaries()
 
                 kotlinx.coroutines.currentCoroutineContext().ensureActive()
                 // Read back actual remote state; desired merged values are NOT receipts.
@@ -1188,12 +1328,16 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 kotlinx.coroutines.currentCoroutineContext().ensureActive()
                 val hasSyncErrors = statsMap.values.any { it.errorCount > 0 } || reportLogs.any { it.isError }
                 val hasWarnings = reportLogs.any { it.isWarning }
-                val summary = if (hasSyncErrors) {
-                    "Eşitleme kısmen tamamlandı. Aktarılamayan işlemler için hata kayıtlarını inceleyin."
-                } else {
-                    "Eşitleme tamamlandı. Atlanan kayıtlar için platform özetlerini inceleyin."
+                val totalErrors = statsMap.values.sumOf { it.errorCount }
+                val totalSkipped = statsMap.values.sumOf { it.skippedCount }
+                val summary = when {
+                    hasSyncErrors -> "Eşitleme kısmen tamamlandı: $totalErrors işlem yazılamadı, $totalSkipped kayıt atlandı. Ayrıntılar için hata ve uyarı kayıtlarını inceleyin."
+                    hasWarnings -> "Eşitleme tamamlandı. $totalSkipped kayıt güvenlik nedeniyle atlandı; uyarı özetlerini inceleyin."
+                    else -> "Eşitleme tamamlandı."
                 }
-                logEvent("Tamamlandı", summary, isError = hasSyncErrors, isWarning = !hasSyncErrors && hasWarnings)
+                // Özet satırı kendisi bir sorun değildir; hata/uyarı sayacına eklenmez (eskiden kırmızı
+                // "hata" olarak listelenip issue sayısını şişiriyordu).
+                logEvent("Tamamlandı", summary)
 
                 crossSyncState = com.kitsugi.animelist.model.CrossSyncProgressState(
                     isRunning = false,

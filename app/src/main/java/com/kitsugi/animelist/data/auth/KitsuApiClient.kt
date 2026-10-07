@@ -74,7 +74,9 @@ object KitsuApiClient {
         /** Kitsu mappings'ten çözümlenen gerçek MAL ID (null olabilir) */
         val realMalId: Int? = null,
         /** Sonraki bölümün yayın zamanı (ISO-8601, Kitsu `nextRelease` alanı) */
-        val nextRelease: String? = null
+        val nextRelease: String? = null,
+        /** Kitsu `startDate` alanından yayın yılı (çapraz eşitlemede kimlik doğrulaması için). */
+        val startYear: Int? = null
     )
 
     /**
@@ -242,7 +244,8 @@ object KitsuApiClient {
                     val imageUrl: String?,
                     val mappingIds: List<String> = emptyList(),
                     /** Kitsu anime `nextRelease` (ISO-8601) — sonraki bölümün yayın zamanı. */
-                    val nextRelease: String? = null
+                    val nextRelease: String? = null,
+                    val startYear: Int? = null
                 )
                 val mediaInfoMap = mutableMapOf<String, KitsuMediaInfo>()
                 val totalMap = mutableMapOf<String, Int?>()
@@ -288,6 +291,8 @@ object KitsuApiClient {
                     val nextRelease = incAttrs.optString("nextRelease").takeIf { it.isNotBlank() && it != "null" }
                     val total = if (incType == "anime") incAttrs.optInt("episodeCount", 0).takeIf { it > 0 }
                     else incAttrs.optInt("chapterCount", 0).takeIf { it > 0 }
+                    val startYear = incAttrs.optString("startDate", "").takeIf { it.isNotBlank() && it != "null" }
+                        ?.take(4)?.toIntOrNull()?.takeIf { it in 1900..2100 }
 
                     // mappings ilişkisinden bağlantılı mapping ID'lerini topla
                     val mappingRels = inc.optJSONObject("relationships")
@@ -307,7 +312,8 @@ object KitsuApiClient {
                         titleJp = titleJp,
                         imageUrl = img,
                         mappingIds = mappingIds,
-                        nextRelease = nextRelease
+                        nextRelease = nextRelease,
+                        startYear = startYear
                     )
                     totalMap[key] = total
                 }
@@ -352,7 +358,8 @@ object KitsuApiClient {
                             imageUrl = info?.imageUrl,
                             total = totalMap[mediaKey],
                             realMalId = realMalId,
-                            nextRelease = info?.nextRelease
+                            nextRelease = info?.nextRelease,
+                            startYear = info?.startYear
                         )
                     )
                 }
@@ -366,8 +373,32 @@ object KitsuApiClient {
         result
     }
 
+    /** Detailed outcome of a Kitsu write so callers can report the real HTTP reason. */
+    data class KitsuWriteResult(
+        val success: Boolean,
+        val entryId: String? = null,
+        val errorMessage: String? = null,
+        val rateLimited: Boolean = false,
+        val httpCode: Int? = null
+    )
+
+    private fun errorSnippet(body: String): String {
+        if (body.isBlank()) return ""
+        return runCatching {
+            val errors = JSONObject(body).optJSONArray("errors")
+            if (errors != null && errors.length() > 0) {
+                val first = errors.getJSONObject(0)
+                listOf(first.optString("title", ""), first.optString("detail", ""))
+                    .filter { it.isNotBlank() }
+                    .joinToString(": ")
+            } else body
+        }.getOrDefault(body).replace('\n', ' ').take(160)
+    }
+
     /**
      * Kullanıcının kütüphanesinde belirli bir medya için mevcut kaydı arar.
+     * 429 yanıtlarında kısa bekleme ile en fazla üç kez yeniden dener; başka HTTP
+     * hatalarında kodu ve sunucu mesajını içeren bir [IllegalStateException] fırlatır.
      */
     suspend fun findLibraryEntryId(
         token: String,
@@ -384,20 +415,40 @@ object KitsuApiClient {
             .addHeader("User-Agent", "KitsugiApp/2.4")
             .get()
             .build()
-        run {
-            KitsugiHttpClient.client.newCall(request).execute().use { response ->
-                check(response.isSuccessful) { "Kitsu kayıt sorgusu: HTTP ${response.code}" }
+        var attempt = 0
+        while (attempt < 3) {
+            attempt++
+            PlatformRateLimiter.acquire("kitsu")
+            val outcome: Result<String?>? = KitsugiHttpClient.client.newCall(request).execute().use { response ->
                 val body = response.body?.string().orEmpty()
-                val data = JSONObject(body).getJSONArray("data")
-                if (data != null && data.length() > 0) {
-                    data.getJSONObject(0).optString("id")
-                } else null
+                when {
+                    response.code == 429 -> {
+                        PlatformRateLimiter.notifyRateLimited("kitsu")
+                        Log.w(TAG, "Kitsu findLibraryEntryId rate limited (429), retrying (deneme $attempt/3)...")
+                        null
+                    }
+                    !response.isSuccessful -> {
+                        val snippet = errorSnippet(body)
+                        error("Kitsu kayıt sorgusu: HTTP ${response.code}${if (snippet.isNotBlank()) " · $snippet" else ""}")
+                    }
+                    else -> {
+                        val data = JSONObject(body).optJSONArray("data")
+                        Result.success(
+                            if (data != null && data.length() > 0) {
+                                data.getJSONObject(0).optString("id").takeIf { it.isNotBlank() }
+                            } else null
+                        )
+                    }
+                }
             }
+            if (outcome != null) return@withContext outcome.getOrNull()
+            if (attempt < 3) kotlinx.coroutines.delay(2000L * attempt)
         }
+        error("Kitsu kayıt sorgusu: HTTP 429 (hız sınırı, 3 deneme sonrası vazgeçildi)")
     }
 
     /**
-     * Kitsu'da kütüphane kaydı oluşturur (POST).
+     * Kitsu'da kütüphane kaydı oluşturur (POST). Başarıda yeni kaydın ID'sini döner.
      */
     suspend fun createLibraryEntry(
         token: String,
@@ -407,7 +458,20 @@ object KitsuApiClient {
         status: String,
         progress: Int,
         ratingTwenty: Int?
-    ): String? = withContext(Dispatchers.IO) {
+    ): String? = createLibraryEntryDetailed(token, userId, kitsuMediaId, isAnime, status, progress, ratingTwenty).entryId
+
+    /**
+     * Kitsu'da kütüphane kaydı oluşturur ve HTTP kodu/sunucu mesajı ile ayrıntılı sonuç döner.
+     */
+    suspend fun createLibraryEntryDetailed(
+        token: String,
+        userId: String,
+        kitsuMediaId: Int,
+        isAnime: Boolean,
+        status: String,
+        progress: Int,
+        ratingTwenty: Int?
+    ): KitsuWriteResult = withContext(Dispatchers.IO) {
         val relType = if (isAnime) "anime" else "manga"
         val payload = JSONObject().apply {
             put("data", JSONObject().apply {
@@ -437,8 +501,10 @@ object KitsuApiClient {
         }
 
         var attempt = 0
+        var lastResult = KitsuWriteResult(success = false, errorMessage = "Kitsu isteği gönderilemedi")
         while (attempt < 3) {
             attempt++
+            PlatformRateLimiter.acquire("kitsu")
             val request = Request.Builder()
                 .url("$BASE_URL/library-entries")
                 .addHeader("Accept", "application/vnd.api+json")
@@ -448,22 +514,34 @@ object KitsuApiClient {
                 .post(payload.toString().toRequestBody(JSON_MEDIA_TYPE))
                 .build()
 
-            val (shouldRetry, newId) = KitsugiHttpClient.client.newCall(request).execute().use { response ->
+            lastResult = KitsugiHttpClient.client.newCall(request).execute().use { response ->
                 val body = response.body?.string().orEmpty()
-                if (response.code == 429) {
-                    Log.w(TAG, "Kitsu createLibraryEntry rate limited (429), waiting 2s and retrying (deneme $attempt/3)...")
-                    Pair(true, null)
-                } else if (response.isSuccessful) {
-                    Pair(false, JSONObject(body).optJSONObject("data")?.optString("id"))
-                } else {
-                    Log.e(TAG, "createLibraryEntry failed: ${response.code} $body")
-                    Pair(false, null)
+                when {
+                    response.code == 429 -> {
+                        PlatformRateLimiter.notifyRateLimited("kitsu")
+                        Log.w(TAG, "Kitsu createLibraryEntry rate limited (429), retrying (deneme $attempt/3)...")
+                        KitsuWriteResult(success = false, errorMessage = "HTTP 429 (hız sınırı)", rateLimited = true, httpCode = 429)
+                    }
+                    response.isSuccessful -> {
+                        val id = JSONObject(body).optJSONObject("data")?.optString("id")?.takeIf { it.isNotBlank() }
+                        if (id != null) KitsuWriteResult(success = true, entryId = id, httpCode = response.code)
+                        else KitsuWriteResult(success = false, errorMessage = "HTTP ${response.code}: yanıtta kayıt kimliği yok", httpCode = response.code)
+                    }
+                    else -> {
+                        Log.e(TAG, "createLibraryEntry failed: ${response.code} $body")
+                        val snippet = errorSnippet(body)
+                        KitsuWriteResult(
+                            success = false,
+                            errorMessage = "HTTP ${response.code}${if (snippet.isNotBlank()) ": $snippet" else ""}",
+                            httpCode = response.code
+                        )
+                    }
                 }
             }
-            if (!shouldRetry) return@withContext newId
-            kotlinx.coroutines.delay(2000L)
+            if (!lastResult.rateLimited) return@withContext lastResult
+            kotlinx.coroutines.delay(2000L * attempt)
         }
-        null
+        lastResult
     }
 
     /**
@@ -475,7 +553,18 @@ object KitsuApiClient {
         status: String,
         progress: Int,
         ratingTwenty: Int?
-    ): Boolean = withContext(Dispatchers.IO) {
+    ): Boolean = updateLibraryEntryDetailed(token, entryId, status, progress, ratingTwenty).success
+
+    /**
+     * Mevcut bir Kitsu kütüphane kaydını günceller ve HTTP kodu/sunucu mesajı ile ayrıntılı sonuç döner.
+     */
+    suspend fun updateLibraryEntryDetailed(
+        token: String,
+        entryId: String,
+        status: String,
+        progress: Int,
+        ratingTwenty: Int?
+    ): KitsuWriteResult = withContext(Dispatchers.IO) {
         val payload = JSONObject().apply {
             put("data", JSONObject().apply {
                 put("id", entryId)
@@ -493,8 +582,10 @@ object KitsuApiClient {
         }
 
         var attempt = 0
+        var lastResult = KitsuWriteResult(success = false, errorMessage = "Kitsu isteği gönderilemedi")
         while (attempt < 3) {
             attempt++
+            PlatformRateLimiter.acquire("kitsu")
             val request = Request.Builder()
                 .url("$BASE_URL/library-entries/$entryId")
                 .addHeader("Accept", "application/vnd.api+json")
@@ -504,18 +595,30 @@ object KitsuApiClient {
                 .patch(payload.toString().toRequestBody(JSON_MEDIA_TYPE))
                 .build()
 
-            val (shouldRetry, success) = KitsugiHttpClient.client.newCall(request).execute().use { response ->
-                if (response.code == 429) {
-                    Log.w(TAG, "Kitsu updateLibraryEntry rate limited (429), waiting 2s and retrying (deneme $attempt/3)...")
-                    Pair(true, false)
-                } else {
-                    Pair(false, response.isSuccessful)
+            lastResult = KitsugiHttpClient.client.newCall(request).execute().use { response ->
+                val body = response.body?.string().orEmpty()
+                when {
+                    response.code == 429 -> {
+                        PlatformRateLimiter.notifyRateLimited("kitsu")
+                        Log.w(TAG, "Kitsu updateLibraryEntry rate limited (429), retrying (deneme $attempt/3)...")
+                        KitsuWriteResult(success = false, errorMessage = "HTTP 429 (hız sınırı)", rateLimited = true, httpCode = 429)
+                    }
+                    response.isSuccessful -> KitsuWriteResult(success = true, entryId = entryId, httpCode = response.code)
+                    else -> {
+                        Log.e(TAG, "updateLibraryEntry failed: ${response.code} $body")
+                        val snippet = errorSnippet(body)
+                        KitsuWriteResult(
+                            success = false,
+                            errorMessage = "HTTP ${response.code}${if (snippet.isNotBlank()) ": $snippet" else ""}",
+                            httpCode = response.code
+                        )
+                    }
                 }
             }
-            if (!shouldRetry) return@withContext success
-            kotlinx.coroutines.delay(2000L)
+            if (!lastResult.rateLimited) return@withContext lastResult
+            kotlinx.coroutines.delay(2000L * attempt)
         }
-        false
+        lastResult
     }
 
     /**
@@ -536,14 +639,80 @@ object KitsuApiClient {
     }
 
     /**
+     * Kitsu'nun resmi `mappings` tablosu üzerinden harici bir kimliği (MAL/AniList) Kitsu medya ID'sine çevirir.
+     * Başlık aramasından farklı olarak bu eşleme deterministiktir; bulunamazsa null döner.
+     *
+     * @param externalSite `myanimelist/anime`, `myanimelist/manga`, `anilist/anime`, `anilist/manga`
+     */
+    suspend fun lookupKitsuIdByExternalMapping(externalSite: String, externalId: Int): Int? = withContext(Dispatchers.IO) {
+        if (externalId <= 0 || externalSite.isBlank()) return@withContext null
+        val encodedSite = java.net.URLEncoder.encode(externalSite, "UTF-8")
+        val url = "$BASE_URL/mappings?filter[externalSite]=$encodedSite&filter[externalId]=$externalId&include=item&fields[mappings]=externalSite,externalId,item&page[limit]=1"
+        val request = Request.Builder()
+            .url(url)
+            .addHeader("Accept", "application/vnd.api+json")
+            .addHeader("User-Agent", "KitsugiApp/2.4")
+            .get()
+            .build()
+        var attempt = 0
+        while (attempt < 3) {
+            attempt++
+            PlatformRateLimiter.acquire("kitsu")
+            val outcome = runCatching {
+                KitsugiHttpClient.client.newCall(request).execute().use { response ->
+                    if (response.code == 429) {
+                        PlatformRateLimiter.notifyRateLimited("kitsu")
+                        return@use null
+                    }
+                    if (!response.isSuccessful) return@use Result.success<Int?>(null)
+                    val body = response.body?.string().orEmpty()
+                    val root = JSONObject(body)
+                    val data = root.optJSONArray("data") ?: return@use Result.success<Int?>(null)
+                    if (data.length() == 0) return@use Result.success<Int?>(null)
+                    val expectedType = externalSite.substringAfter('/', "").lowercase()
+                    val mapping = data.getJSONObject(0)
+                    val rel = mapping.optJSONObject("relationships")?.optJSONObject("item")?.optJSONObject("data")
+                    val relId = rel?.optString("id")?.toIntOrNull()
+                    val relType = rel?.optString("type")?.lowercase()
+                    if (relId != null && relId > 0 && (expectedType.isBlank() || relType == null || relType == expectedType)) {
+                        return@use Result.success<Int?>(relId)
+                    }
+                    // Fallback: `included` listesinden tipi uyuşan ilk öğe
+                    val included = root.optJSONArray("included")
+                    if (included != null) {
+                        for (i in 0 until included.length()) {
+                            val item = included.getJSONObject(i)
+                            val type = item.optString("type").lowercase()
+                            if (expectedType.isBlank() || type == expectedType) {
+                                val id = item.optString("id").toIntOrNull()
+                                if (id != null && id > 0) return@use Result.success<Int?>(id)
+                            }
+                        }
+                    }
+                    Result.success<Int?>(null)
+                }
+            }.getOrElse { e ->
+                Log.w(TAG, "Kitsu mappings lookup failed for $externalSite/$externalId: ${e.message}")
+                Result.success<Int?>(null)
+            }
+            if (outcome != null) return@withContext outcome.getOrNull()
+            kotlinx.coroutines.delay(1500L * attempt)
+        }
+        null
+    }
+
+    /**
      * Başlık veya yıl ile Kitsu medya numeric ID'sini doğrulamalı olarak arar.
+     *
+     * Birden fazla aday aynı en yüksek puanı alıyorsa (ör. aynı isimli sezonlar/yeniden çevrimler)
+     * ve yıl bilgisi ayrıştırmıyorsa null döner; yanlış kayda yazmaktansa kaydı atlamak tercih edilir.
      */
     suspend fun lookupKitsuId(title: String, isAnime: Boolean, expectedYear: Int? = null): Int? = withContext(Dispatchers.IO) {
         if (title.isBlank()) return@withContext null
         PlatformRateLimiter.acquire("kitsu")
         val endpoint = if (isAnime) "anime" else "manga"
         val encoded = java.net.URLEncoder.encode(title.trim(), "UTF-8")
-        val url = "$BASE_URL/$endpoint?filter[text]=$encoded&page[limit]=5"
+        val url = "$BASE_URL/$endpoint?filter[text]=$encoded&page[limit]=5&fields[$endpoint]=canonicalTitle,titles,abbreviatedTitles,startDate"
 
         val request = Request.Builder()
             .url(url)
@@ -564,8 +733,10 @@ object KitsuApiClient {
                 if (data.length() == 0) return@use null
 
                 val cleanTarget = title.lowercase().filter { it.isLetterOrDigit() }
+                if (cleanTarget.isBlank()) return@use null
                 var bestId: Int? = null
                 var bestMatchScore = -1
+                var bestScoreTies = 0
 
                 for (i in 0 until data.length()) {
                     val item = data.getJSONObject(i)
@@ -585,11 +756,19 @@ object KitsuApiClient {
                                 if (t.isNotBlank()) add(t)
                             }
                         }
+                        val abbreviated = attrs.optJSONArray("abbreviatedTitles")
+                        if (abbreviated != null) {
+                            for (j in 0 until abbreviated.length()) {
+                                val t = abbreviated.optString(j, "")
+                                if (t.isNotBlank()) add(t)
+                            }
+                        }
                     }
 
                     var matchScore = 0
                     for (cand in candidateTitles) {
                         val cleanCand = cand.lowercase().filter { it.isLetterOrDigit() }
+                        if (cleanCand.isBlank()) continue
                         if (cleanCand == cleanTarget) {
                             matchScore = maxOf(matchScore, 100)
                         } else if (cleanCand.contains(cleanTarget) || cleanTarget.contains(cleanCand)) {
@@ -600,18 +779,30 @@ object KitsuApiClient {
                     if (expectedYear != null && itemYear != null) {
                         if (expectedYear == itemYear) {
                             matchScore += 20
-                        } else if (kotlin.math.abs(expectedYear - itemYear) > 1 && matchScore < 100) {
-                            matchScore -= 40
+                        } else if (kotlin.math.abs(expectedYear - itemYear) > 1) {
+                            // Aynı isimli farklı yapım (remake/sezon): kesin eşleşme bile olsa yılı tutmayan adaya yazma
+                            matchScore -= if (matchScore >= 100) 50 else 40
                         }
                     }
 
-                    if (matchScore > bestMatchScore && matchScore >= 50) {
+                    if (matchScore < 50) continue
+                    if (matchScore > bestMatchScore) {
                         bestMatchScore = matchScore
                         bestId = id
+                        bestScoreTies = 0
+                    } else if (matchScore == bestMatchScore) {
+                        bestScoreTies++
                     }
                 }
 
-                bestId ?: if (data.length() == 1) data.getJSONObject(0).optString("id").toIntOrNull() else null
+                when {
+                    bestId != null && bestScoreTies == 0 -> bestId
+                    bestId != null -> {
+                        Log.i(TAG, "Kitsu lookup ambiguous for '$title' (${bestScoreTies + 1} candidates share score $bestMatchScore); skipping")
+                        null
+                    }
+                    else -> null
+                }
             }
         }.getOrNull()
     }

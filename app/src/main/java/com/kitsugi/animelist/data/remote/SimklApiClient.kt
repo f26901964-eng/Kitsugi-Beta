@@ -686,12 +686,22 @@ class SimklApiClient(
         val score: Int? = null
     )
 
+    /**
+     * [isSuccess] is only true when every requested item was confirmed. A partially matched batch
+     * still carries [addedCount] and the echoed [notFoundItems], so callers must not treat it as a
+     * whole-batch failure. [transportFailed] marks HTTP/network level failures where nothing was
+     * written at all.
+     */
     data class SimklBatchResponse(
         val isSuccess: Boolean,
         val addedCount: Int = 0,
         val notFoundCount: Int = 0,
-        val errorMessage: String? = null
-    )
+        val errorMessage: String? = null,
+        val notFoundItems: List<SimklSyncContract.UnmatchedItem> = emptyList(),
+        val transportFailed: Boolean = false
+    ) {
+        val isPartial: Boolean get() = !transportFailed && addedCount > 0 && notFoundCount > 0
+    }
 
     private fun buildSimklIds(entry: SimklBatchEntry): JSONObject {
         return JSONObject().apply {
@@ -747,14 +757,46 @@ class SimklApiClient(
         if (showsArray.length() > 0) payloadObj.put("shows", showsArray)
         if (moviesArray.length() > 0) payloadObj.put("movies", moviesArray)
 
-        if (payloadObj.length() == 0) return@withContext SimklBatchResponse(isSuccess = false, errorMessage = "Gönderilebilir Simkl kimliği/başlığı yok")
+        if (payloadObj.length() == 0) {
+            return@withContext SimklBatchResponse(
+                isSuccess = false,
+                errorMessage = "Gönderilebilir Simkl kimliği/başlığı yok",
+                transportFailed = true
+            )
+        }
 
+        postSyncEnvelope(
+            endpoint = "add-to-list",
+            token = token,
+            payload = payloadObj,
+            expectedCount = entries.size,
+            logTag = "addToListBatchDetailed"
+        )
+    }
+
+    suspend fun addToListBatch(
+        token: String,
+        entries: List<SimklBatchEntry>
+    ): Boolean = addToListBatchDetailed(token, entries).isSuccess
+
+    /**
+     * Shared POST + receipt handling for /sync/add-to-list, /sync/history and /sync/ratings.
+     * Retries 429 and transient transport errors; never reports a partial receipt as a transport failure.
+     */
+    private suspend fun postSyncEnvelope(
+        endpoint: String,
+        token: String,
+        payload: JSONObject,
+        expectedCount: Int,
+        logTag: String
+    ): SimklBatchResponse {
         var attempt = 0
+        var lastError: String? = null
         while (attempt < 3) {
             attempt++
             val request = Request.Builder()
-                .url("https://api.simkl.com/sync/add-to-list?client_id=$clientId&app-name=Kitsugi&app-version=2.4")
-                .post(payloadObj.toString().toRequestBody("application/json".toMediaTypeOrNull()))
+                .url("https://api.simkl.com/sync/$endpoint?client_id=$clientId&app-name=Kitsugi&app-version=2.4")
+                .post(payload.toString().toRequestBody("application/json".toMediaTypeOrNull()))
                 .header("Authorization", "Bearer $token")
                 .header("simkl-api-key", clientId)
                 .header("Content-Type", "application/json")
@@ -767,62 +809,90 @@ class SimklApiClient(
                     if (response.code == 429) {
                         val waitMs = response.header("Retry-After")?.toLongOrNull()
                             ?.coerceIn(1L, 3600L)?.times(1000L) ?: (2500L * attempt)
-                        return@use Pair(waitMs, SimklBatchResponse(isSuccess = false, errorMessage = "HTTP 429 Rate Limit"))
+                        return@use Pair(
+                            waitMs,
+                            SimklBatchResponse(isSuccess = false, errorMessage = "HTTP 429 Rate Limit", transportFailed = true)
+                        )
                     }
                     if (!response.isSuccessful) {
-                        return@use Pair(0L, SimklBatchResponse(
-                            isSuccess = false,
-                            errorMessage = "HTTP ${response.code}"
-                        ))
+                        val bodySnippet = response.body?.string().orEmpty().take(200).replace('\n', ' ')
+                        return@use Pair(
+                            0L,
+                            SimklBatchResponse(
+                                isSuccess = false,
+                                errorMessage = "HTTP ${response.code}${if (bodySnippet.isNotBlank()) " · $bodySnippet" else ""}",
+                                transportFailed = true
+                            )
+                        )
                     }
                     val bodyStr = response.body?.string().orEmpty()
                     val receipt = SimklSyncContract.receipt(bodyStr)
-                    val complete = receipt.notFound == 0 && receipt.added == entries.size
-                    Pair(0L, SimklBatchResponse(
-                        isSuccess = complete,
-                        addedCount = receipt.added,
-                        notFoundCount = receipt.notFound,
-                        errorMessage = if (complete) null else
-                            "Simkl ${entries.size} öğeden ${receipt.added} tanesini onayladı; ${receipt.notFound} eşleşmedi"
-                    ))
+                    val complete = receipt.notFound == 0 && receipt.added >= expectedCount
+                    Pair(
+                        0L,
+                        SimklBatchResponse(
+                            isSuccess = complete,
+                            addedCount = receipt.added,
+                            notFoundCount = receipt.notFound,
+                            notFoundItems = receipt.unmatched,
+                            errorMessage = if (complete) null else
+                                "Simkl $expectedCount öğeden ${receipt.added} tanesini onayladı; ${receipt.notFound} eşleşmedi"
+                        )
+                    )
                 }
 
                 if (callResult.first == 0L) {
-                    return@withContext callResult.second
+                    return callResult.second
                 }
+                lastError = callResult.second.errorMessage
                 if (attempt < 3) kotlinx.coroutines.delay(callResult.first)
             } catch (e: com.kitsugi.animelist.data.repository.SimklAuthException) {
                 throw e
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
+            } catch (e: IllegalArgumentException) {
+                // Receipt contract rejected the body (empty/no-op receipt). Retrying the same payload
+                // cannot change the answer; surface it once as a failed write.
+                android.util.Log.w("SimklApiClient", "$logTag receipt rejected: ${e.message}")
+                return SimklBatchResponse(isSuccess = false, errorMessage = e.message, transportFailed = true)
+            } catch (e: org.json.JSONException) {
+                android.util.Log.w("SimklApiClient", "$logTag malformed receipt: ${e.message}")
+                return SimklBatchResponse(isSuccess = false, errorMessage = "Simkl yanıtı çözümlenemedi: ${e.message}", transportFailed = true)
             } catch (e: Exception) {
-                android.util.Log.e("SimklApiClient", "addToListBatchDetailed exception", e)
+                android.util.Log.e("SimklApiClient", "$logTag exception", e)
+                lastError = e.message ?: e.javaClass.simpleName
                 if (attempt >= 3) {
-                    return@withContext SimklBatchResponse(isSuccess = false, errorMessage = e.message)
+                    return SimklBatchResponse(isSuccess = false, errorMessage = lastError, transportFailed = true)
                 }
                 kotlinx.coroutines.delay(1500L)
             }
         }
-        SimklBatchResponse(isSuccess = false, errorMessage = "Simkl isteği başarısız oldu (deneme sınırı aşıldı)")
+        return SimklBatchResponse(
+            isSuccess = false,
+            errorMessage = "Simkl isteği başarısız oldu (deneme sınırı aşıldı${if (lastError != null) ": $lastError" else ""})",
+            transportFailed = true
+        )
     }
-
-    suspend fun addToListBatch(
-        token: String,
-        entries: List<SimklBatchEntry>
-    ): Boolean = addToListBatchDetailed(token, entries).isSuccess
 
     /**
      * Simkl toplu izleme geçmişi / bölüm ilerlemesi (POST /sync/history).
+     * Returns a per-item receipt; unmatched items are echoed in [SimklBatchResponse.notFoundItems].
      */
-    suspend fun historyBatchDetailed(
+    suspend fun historyBatchReceipt(
         token: String,
         entries: List<SimklBatchEntry>
-    ): Boolean = withContext(Dispatchers.IO) {
+    ): SimklBatchResponse = withContext(Dispatchers.IO) {
         val filtered = entries.filter { it.progress > 0 }
-        if (filtered.isEmpty()) return@withContext true
+        if (filtered.isEmpty()) return@withContext SimklBatchResponse(isSuccess = true)
         // A TV aggregate count cannot be mapped to seasons without an episode catalogue.
         // Never invent S01E<total>. Report unsupported progress instead of corrupting history.
-        if (filtered.any { it.type == "shows" || it.type == "tv" }) return@withContext false
+        if (filtered.any { it.type == "shows" || it.type == "tv" }) {
+            return@withContext SimklBatchResponse(
+                isSuccess = false,
+                errorMessage = "Dizi bölüm ilerlemesi sezon/bölüm eşlemesi olmadan gönderilemez",
+                transportFailed = true
+            )
+        }
         val shows = JSONArray()
         val movies = JSONArray()
         filtered.forEach { entry ->
@@ -840,45 +910,41 @@ class SimklApiClient(
         if (shows.length() > 0) payload.put("shows", shows)
         if (movies.length() > 0) payload.put("movies", movies)
 
-        val request = Request.Builder()
-            .url("https://api.simkl.com/sync/history?client_id=$clientId&app-name=Kitsugi&app-version=2.4")
-            .post(payload.toString().toRequestBody("application/json".toMediaTypeOrNull()))
-            .header("Authorization", "Bearer $token")
-            .header("simkl-api-key", clientId)
-            .header("Content-Type", "application/json")
-            .header("User-Agent", "KitsugiApp/2.4")
-            .build()
-
-        try {
-            client.newCall(request).execute().use { response ->
-                checkResponseAndThrow(response)
-                if (!response.isSuccessful) return@withContext false
-                val receipt = SimklSyncContract.receipt(response.body?.string().orEmpty())
-                receipt.added > 0 && receipt.notFound == 0
-            }
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (e: com.kitsugi.animelist.data.repository.SimklAuthException) {
-            throw e
-        } catch (e: Exception) {
-            android.util.Log.e("SimklApiClient", "historyBatchDetailed error: ${e.message}", e)
-            false
-        }
+        // The history receipt counts accepted shows/movies/episodes together, so "complete" means
+        // no unmatched items rather than an exact item count.
+        val result = postSyncEnvelope(
+            endpoint = "history",
+            token = token,
+            payload = payload,
+            expectedCount = 1,
+            logTag = "historyBatchDetailed"
+        )
+        if (result.transportFailed) result else result.copy(
+            isSuccess = result.notFoundCount == 0 && result.addedCount > 0,
+            errorMessage = if (result.notFoundCount == 0 && result.addedCount > 0) null else
+                "Simkl izleme geçmişinde ${result.notFoundCount} kayıt eşleşmedi"
+        )
     }
+
+    suspend fun historyBatchDetailed(
+        token: String,
+        entries: List<SimklBatchEntry>
+    ): Boolean = historyBatchReceipt(token, entries).isSuccess
 
     /**
      * Simkl toplu puanlama (POST /sync/ratings).
      * Puanlar 1–10 arasına normalize edilir.
      */
-    suspend fun ratingsBatchDetailed(
+    suspend fun ratingsBatchReceipt(
         token: String,
         entries: List<SimklBatchEntry>
-    ): Boolean = withContext(Dispatchers.IO) {
+    ): SimklBatchResponse = withContext(Dispatchers.IO) {
         val filtered = entries.filter { it.score != null && it.score > 0 }
-        if (filtered.isEmpty()) return@withContext true
+        if (filtered.isEmpty()) return@withContext SimklBatchResponse(isSuccess = true)
 
         val showsArray = JSONArray()
         val moviesArray = JSONArray()
+        var sentCount = 0
 
         filtered.forEach { entry ->
             val scoreVal = entry.score ?: return@forEach
@@ -897,6 +963,7 @@ class SimklApiClient(
                 if (!entry.title.isNullOrBlank()) put("title", entry.title)
                 if (entry.year != null && entry.year > 1900) put("year", entry.year)
             }
+            sentCount++
 
             when (SimklSyncContract.writeKey(entry.type)) {
                 "movies" -> moviesArray.put(item)
@@ -908,33 +975,21 @@ class SimklApiClient(
         if (showsArray.length() > 0) payload.put("shows", showsArray)
         if (moviesArray.length() > 0) payload.put("movies", moviesArray)
 
-        if (payload.length() == 0) return@withContext true
+        if (payload.length() == 0) return@withContext SimklBatchResponse(isSuccess = true)
 
-        val request = Request.Builder()
-            .url("https://api.simkl.com/sync/ratings?client_id=$clientId&app-name=Kitsugi&app-version=2.4")
-            .post(payload.toString().toRequestBody("application/json".toMediaTypeOrNull()))
-            .header("Authorization", "Bearer $token")
-            .header("simkl-api-key", clientId)
-            .header("Content-Type", "application/json")
-            .header("User-Agent", "KitsugiApp/2.4")
-            .build()
-
-        try {
-            client.newCall(request).execute().use { response ->
-                checkResponseAndThrow(response)
-                if (!response.isSuccessful) return@withContext false
-                val receipt = SimklSyncContract.receipt(response.body?.string().orEmpty())
-                receipt.added > 0 && receipt.notFound == 0
-            }
-        } catch (e: kotlinx.coroutines.CancellationException) {
-            throw e
-        } catch (e: com.kitsugi.animelist.data.repository.SimklAuthException) {
-            throw e
-        } catch (e: Exception) {
-            android.util.Log.e("SimklApiClient", "ratingsBatchDetailed error: ${e.message}", e)
-            false
-        }
+        postSyncEnvelope(
+            endpoint = "ratings",
+            token = token,
+            payload = payload,
+            expectedCount = sentCount,
+            logTag = "ratingsBatchDetailed"
+        )
     }
+
+    suspend fun ratingsBatchDetailed(
+        token: String,
+        entries: List<SimklBatchEntry>
+    ): Boolean = ratingsBatchReceipt(token, entries).isSuccess
 
     /**
      * Listeden içeriği siler.

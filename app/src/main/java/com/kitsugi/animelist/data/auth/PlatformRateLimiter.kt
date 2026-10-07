@@ -7,15 +7,18 @@ import java.util.concurrent.ConcurrentHashMap
 
 /**
  * Platform bazlı merkezi rate limiter.
- * Harici servislerin API limitlerine (AniList 90/dk, Kitsu 60/dk, Simkl 1/sn, MAL 150/dk)
+ * Harici servislerin API limitlerine (AniList fiilen 30/dk, Kitsu 60/dk, Simkl 1/sn, MAL 150/dk)
  * tam uyum sağlayarak HTTP 429 hatalarını önler.
+ *
+ * Not: AniList dokümante edilen 90/dk limitini uzun süredir 30/dk'ya düşürmüş durumda
+ * (yanıt başlığı `X-RateLimit-Limit: 30`). 750 ms aralık toplu eşitlemede 429 üretiyordu.
  */
 object PlatformRateLimiter {
     private val mutexMap = ConcurrentHashMap<String, Mutex>()
     private val lastCallTime = ConcurrentHashMap<String, Long>()
 
     private val platformIntervals = mapOf(
-        "anilist" to 750L,     // ~80 req/dk (Limit ~90/dk)
+        "anilist" to 2100L,    // ~28 req/dk (fiili limit 30/dk; 90/dk dokümante ama uygulanmıyor)
         "mal" to 450L,         // ~133 req/dk (Limit ~150/dk)
         "kitsu" to 1100L,      // ~54 req/dk (Limit ~60/dk)
         "shikimori" to 350L,   // ~170 req/dk (Limit 5 req/sn)

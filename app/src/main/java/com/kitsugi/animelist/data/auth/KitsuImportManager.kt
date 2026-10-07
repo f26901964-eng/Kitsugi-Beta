@@ -64,7 +64,10 @@ object KitsuImportManager {
                         malId = malIdToStore,
                         aniListEntryId = null,
                         source = "kitsu",
-                        updatedAt = entry.updatedAt
+                        updatedAt = entry.updatedAt,
+                        // Yıl olmadan kimlik doğrulaması yapılamıyor; aynı isimli yapımlar
+                        // çapraz eşitlemede "inceleme gerekli" diye atlanıyordu.
+                        year = entry.startYear
                     )
                 )
             }

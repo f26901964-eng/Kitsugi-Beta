@@ -32,6 +32,8 @@ object AniListSyncManager {
             null
         }
 
+        // Null yalnızca "AniList'te hangi medya olduğu güvenle çözülemedi" anlamına gelir
+        // (atlanacak kayıt). Mutasyonun başarısız olması aşağıda istisna ile bildirilir.
         if (existingEntryId == null && mediaId == null) return null
 
         val query = """
@@ -116,6 +118,7 @@ object AniListSyncManager {
             ?.optJSONObject("SaveMediaListEntry")
             ?.optInt("id", 0)
             ?.takeIf { it > 0 }
+            ?: throw IllegalStateException("AniList SaveMediaListEntry kayıt kimliği döndürmedi (${entry.title})")
     }
 
     /**
@@ -594,32 +597,45 @@ object AniListSyncManager {
 
         val request = requestBuilder.build()
 
-        try {
-            com.kitsugi.animelist.core.network.KitsugiHttpClient.client.newCall(request).execute().use { response ->
-                if (response.code == 429) {
-                    val retrySec = response.header("Retry-After")?.toLongOrNull() ?: 5L
-                    kotlinx.coroutines.runBlocking {
-                        PlatformRateLimiter.notifyRateLimited("anilist", retrySec)
+        // AniList'in fiili limiti 30 istek/dk; 429 aldığımızda Retry-After kadar (yoksa 60 sn)
+        // bekleyip aynı isteği en fazla 3 kez tekrarlıyoruz. Böylece toplu eşitlemede tek bir
+        // hız sınırı yanıtı kaydı "hata" olarak işaretlemiyor.
+        var attempt = 0
+        while (true) {
+            attempt++
+            try {
+                com.kitsugi.animelist.core.network.KitsugiHttpClient.client.newCall(request).execute().use { response ->
+                    if (response.code == 429) {
+                        val retrySec = response.header("Retry-After")?.toLongOrNull()?.coerceIn(1L, 120L) ?: 60L
+                        kotlinx.coroutines.runBlocking {
+                            PlatformRateLimiter.notifyRateLimited("anilist", retrySec)
+                        }
+                        if (attempt >= MAX_ANILIST_ATTEMPTS) {
+                            throw IllegalStateException("AniList API hatası: 429 hız sınırı ($attempt deneme, Retry-After=${retrySec}s)")
+                        }
+                        return@use
                     }
-                }
-                if (!response.isSuccessful) {
-                    val errorText = response.body?.string().orEmpty()
-                    throw IllegalStateException("AniList API hatası: ${response.code} $errorText")
-                }
+                    if (!response.isSuccessful) {
+                        val errorText = response.body?.string().orEmpty().take(300)
+                        throw IllegalStateException("AniList API hatası: ${response.code} $errorText")
+                    }
 
-                val responseText = response.body?.string() ?: ""
-                val errors = JSONObject(responseText).optJSONArray("errors")
-                if (errors != null && errors.length() > 0) {
-                    throw IllegalStateException(errors.toString())
-                }
+                    val responseText = response.body?.string() ?: ""
+                    val errors = JSONObject(responseText).optJSONArray("errors")
+                    if (errors != null && errors.length() > 0) {
+                        throw IllegalStateException(errors.toString())
+                    }
 
-                return responseText
+                    return responseText
+                }
+            } catch (e: Exception) {
+                if (e is IllegalStateException) throw e
+                throw IllegalStateException("AniList bağlantı hatası: ${e.message}", e)
             }
-        } catch (e: Exception) {
-            if (e is IllegalStateException) throw e
-            throw IllegalStateException("AniList bağlantı hatası: ${e.message}", e)
         }
     }
+
+    private const val MAX_ANILIST_ATTEMPTS = 3
 
     private fun WatchStatus.toAniListStatus(): String {
         return when (this) {

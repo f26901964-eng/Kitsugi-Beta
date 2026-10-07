@@ -47,7 +47,7 @@ object ShikimoriImportManager {
                         id = 0,
                         title = rate.title,
                         subtitle = "",
-                        titleEnglish = null,
+                        titleEnglish = rate.titleEnglish,
                         titleJapanese = null,
                         imageUrl = rate.imageUrl ?: "",
                         type = if (isManga) MediaType.Manga else MediaType.Anime,
@@ -59,7 +59,8 @@ object ShikimoriImportManager {
                         malId = malId,
                         aniListEntryId = null,
                         source = "shikimori",
-                        updatedAt = rate.updatedAt
+                        updatedAt = rate.updatedAt,
+                        year = rate.startYear
                     )
                 )
             }
