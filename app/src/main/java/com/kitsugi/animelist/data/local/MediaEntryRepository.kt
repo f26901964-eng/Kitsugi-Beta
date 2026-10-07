@@ -74,8 +74,29 @@ class MediaEntryRepository(
             val matches = existing.filter {
                 com.kitsugi.animelist.model.MediaIdentity.sameMedia(it.toDomain(), imported)
             }
-            require(matches.size <= 1) { "Belirsiz $source eşlemesi: ${imported.title}; yerel kayıtlar korunuyor" }
-            val match = matches.singleOrNull()
+            val match = when {
+                matches.isEmpty() -> null
+                matches.size == 1 -> matches.single()
+                else -> {
+                    // Birden fazla eşleşme durumunda en doğru kaydı tespit et (çökmeyi engelle)
+                    val importedKeys = com.kitsugi.animelist.model.MediaIdentity.keys(imported)
+                    val keyMatch = matches.firstOrNull { m ->
+                        val mKeys = com.kitsugi.animelist.model.MediaIdentity.keys(m.toDomain())
+                        importedKeys.intersect(mKeys).isNotEmpty()
+                    }
+                    val exactTitleMatch = matches.firstOrNull { m ->
+                        val normLocal = com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(m.title)
+                        val normImp = com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(imported.title)
+                        normLocal.isNotBlank() && normLocal == normImp
+                    }
+                    val exactEngMatch = matches.firstOrNull { m ->
+                        val engLocal = m.titleEnglish?.let { com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(it) }
+                        val engImp = imported.titleEnglish?.let { com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(it) }
+                        !engLocal.isNullOrBlank() && engLocal == engImp
+                    }
+                    keyMatch ?: exactTitleMatch ?: exactEngMatch ?: matches.maxByOrNull { it.updatedAt } ?: matches.first()
+                }
+            }
             if (match != null) {
                 matchedIds.add(match.id)
                 updates[match.id] = imported.copy(id = match.id).toEntity()

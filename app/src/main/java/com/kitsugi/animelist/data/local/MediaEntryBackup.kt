@@ -168,8 +168,28 @@ object MediaEntryBackup {
             val matches = currentEntries.filter {
                 com.kitsugi.animelist.model.MediaIdentity.sameLibraryRecord(it, imported)
             }
-            require(matches.size <= 1) { "Birden fazla yerel kayıt eşleşiyor: ${imported.title}" }
-            val existing = matches.singleOrNull()
+            val existing = when {
+                matches.isEmpty() -> null
+                matches.size == 1 -> matches.single()
+                else -> {
+                    val importedKeys = com.kitsugi.animelist.model.MediaIdentity.keys(imported)
+                    val keyMatch = matches.firstOrNull { m ->
+                        val mKeys = com.kitsugi.animelist.model.MediaIdentity.keys(m)
+                        importedKeys.intersect(mKeys).isNotEmpty()
+                    }
+                    val exactTitleMatch = matches.firstOrNull { m ->
+                        val normLocal = com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(m.title)
+                        val normImp = com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(imported.title)
+                        normLocal.isNotBlank() && normLocal == normImp
+                    }
+                    val exactEngMatch = matches.firstOrNull { m ->
+                        val engLocal = m.titleEnglish?.let { com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(it) }
+                        val engImp = imported.titleEnglish?.let { com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(it) }
+                        !engLocal.isNullOrBlank() && engLocal == engImp
+                    }
+                    keyMatch ?: exactTitleMatch ?: exactEngMatch ?: matches.maxByOrNull { it.updatedAt } ?: matches.first()
+                }
+            }
 
             if (existing != null) {
                 // Enrich existing local entry with remote sync status

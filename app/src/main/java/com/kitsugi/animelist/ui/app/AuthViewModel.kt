@@ -190,11 +190,14 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 AniListImportManager.fetchAllLists(token)
             }.onSuccess { importedEntries ->
-                repository.smartImport("anilist", importedEntries, allowDelete = false)
-
-                onShowMessage?.invoke(
-                    "${importedEntries.size} AniList kaydı başarıyla aktarıldı"
-                )
+                val importResult = runCatching {
+                    repository.smartImport("anilist", importedEntries, allowDelete = false)
+                }
+                if (importResult.isSuccess) {
+                    onShowMessage?.invoke("${importedEntries.size} AniList kaydı başarıyla aktarıldı")
+                } else {
+                    onShowMessage?.invoke("AniList kaydedilirken sorun oluştu: ${importResult.exceptionOrNull()?.message}")
+                }
             }.onFailure { error ->
                 onShowMessage?.invoke(
                     error.message ?: "AniList içe aktarma başarısız"
@@ -240,11 +243,14 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 val showAdult = settingsDataStore.settingsFlow.first().showAdultContent
                 MalImportManager.fetchAllLists(token, showAdult)
             }.onSuccess { importedEntries ->
-                repository.smartImport("mal", importedEntries, allowDelete = false)
-
-                onShowMessage?.invoke(
-                    "${importedEntries.size} MyAnimeList kaydı başarıyla aktarıldı"
-                )
+                val importResult = runCatching {
+                    repository.smartImport("mal", importedEntries, allowDelete = false)
+                }
+                if (importResult.isSuccess) {
+                    onShowMessage?.invoke("${importedEntries.size} MyAnimeList kaydı başarıyla aktarıldı")
+                } else {
+                    onShowMessage?.invoke("MyAnimeList kaydedilirken sorun oluştu: ${importResult.exceptionOrNull()?.message}")
+                }
             }.onFailure { error ->
                 onShowMessage?.invoke(
                     error.message ?: "MyAnimeList içe aktarma başarısız"
@@ -471,8 +477,27 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     val matches = unifiedItems.filter { item ->
                         item.candidates.all { com.kitsugi.animelist.model.MediaIdentity.sameMedia(it, entry) }
                     }
-                    require(matches.size <= 1) { "Belirsiz çapraz eşleşme: ${entry.title}; otomatik yazma durduruldu" }
-                    val item = matches.singleOrNull() ?: UnifiedSyncItem().also { unifiedItems.add(it) }
+                    val item = when {
+                        matches.isEmpty() -> UnifiedSyncItem().also { unifiedItems.add(it) }
+                        matches.size == 1 -> matches.single()
+                        else -> {
+                            val entryKeys = com.kitsugi.animelist.model.MediaIdentity.keys(entry)
+                            val keyMatch = matches.firstOrNull { itm ->
+                                itm.candidates.any { c ->
+                                    val cKeys = com.kitsugi.animelist.model.MediaIdentity.keys(c)
+                                    entryKeys.intersect(cKeys).isNotEmpty()
+                                }
+                            }
+                            val exactTitleMatch = matches.firstOrNull { itm ->
+                                itm.candidates.any { c ->
+                                    val normC = com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(c.title)
+                                    val normE = com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(entry.title)
+                                    normC.isNotBlank() && normC == normE
+                                }
+                            }
+                            keyMatch ?: exactTitleMatch ?: matches.first()
+                        }
+                    }
                     assignToPlatform(item)
                 }
 
@@ -769,13 +794,18 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
                 // Read back actual remote state; desired merged values are NOT receipts.
                 updateProgress("Sunucu listeleri doğrulanıyor...", "Yalnızca sunucudan okunan kayıtlar kaydediliyor")
-                if (isAniList) repository.smartImport("anilist", AniListImportManager.fetchAllLists(aniListToken!!), allowDelete = false)
-                if (isMal) repository.smartImport("mal", MalImportManager.fetchAllLists(malToken!!, showAdult), allowDelete = false)
-                if (isKitsu) repository.smartImport("kitsu", KitsuImportManager.fetchAllLists(context, kitsuToken!!, kitsuUserId!!), allowDelete = false)
-                if (isShikimori) repository.smartImport("shikimori", ShikimoriImportManager.fetchAllLists(context, shikimoriToken!!, shikimoriUserId!!), allowDelete = false)
+                if (isAniList) runCatching { repository.smartImport("anilist", AniListImportManager.fetchAllLists(aniListToken!!), allowDelete = false) }
+                    .onFailure { logEvent("AniList", "Yerel liste güncellenemedi: ${it.message}", isError = true) }
+                if (isMal) runCatching { repository.smartImport("mal", MalImportManager.fetchAllLists(malToken!!, showAdult), allowDelete = false) }
+                    .onFailure { logEvent("MyAnimeList", "Yerel liste güncellenemedi: ${it.message}", isError = true) }
+                if (isKitsu) runCatching { repository.smartImport("kitsu", KitsuImportManager.fetchAllLists(context, kitsuToken!!, kitsuUserId!!), allowDelete = false) }
+                    .onFailure { logEvent("Kitsu", "Yerel liste güncellenemedi: ${it.message}", isError = true) }
+                if (isShikimori) runCatching { repository.smartImport("shikimori", ShikimoriImportManager.fetchAllLists(context, shikimoriToken!!, shikimoriUserId!!), allowDelete = false) }
+                    .onFailure { logEvent("Shikimori", "Yerel liste güncellenemedi: ${it.message}", isError = true) }
                 if (isSimkl) {
                     val refreshToken = ExternalAuthManager.getSimklToken(context) ?: error("Simkl bağlantısı kesildi")
-                    repository.smartImport("simkl", SimklImportManager.fetchAllLists(refreshToken), allowDelete = false)
+                    runCatching { repository.smartImport("simkl", SimklImportManager.fetchAllLists(refreshToken), allowDelete = false) }
+                        .onFailure { logEvent("Simkl", "Yerel liste güncellenemedi: ${it.message}", isError = true) }
                 }
 
                 val hasSyncErrors = statsMap.values.any { it.errorCount > 0 }
@@ -939,8 +969,14 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 KitsuImportManager.fetchAllLists(context, token, userId)
             }.onSuccess { importedEntries ->
-                repository.smartImport("kitsu", importedEntries, allowDelete = false)
-                onShowMessage?.invoke("${importedEntries.size} Kitsu kaydı başarıyla aktarıldı")
+                val importResult = runCatching {
+                    repository.smartImport("kitsu", importedEntries, allowDelete = false)
+                }
+                if (importResult.isSuccess) {
+                    onShowMessage?.invoke("${importedEntries.size} Kitsu kaydı başarıyla aktarıldı")
+                } else {
+                    onShowMessage?.invoke("Kitsu kaydedilirken sorun oluştu: ${importResult.exceptionOrNull()?.message}")
+                }
             }.onFailure { error ->
                 onShowMessage?.invoke(error.message ?: "Kitsu içe aktarma başarısız")
             }
@@ -971,8 +1007,14 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 ShikimoriImportManager.fetchAllLists(context, token, userId)
             }.onSuccess { importedEntries ->
-                repository.smartImport("shikimori", importedEntries, allowDelete = false)
-                onShowMessage?.invoke("${importedEntries.size} Shikimori kaydı başarıyla aktarıldı")
+                val importResult = runCatching {
+                    repository.smartImport("shikimori", importedEntries, allowDelete = false)
+                }
+                if (importResult.isSuccess) {
+                    onShowMessage?.invoke("${importedEntries.size} Shikimori kaydı başarıyla aktarıldı")
+                } else {
+                    onShowMessage?.invoke("Shikimori kaydedilirken sorun oluştu: ${importResult.exceptionOrNull()?.message}")
+                }
             }.onFailure { error ->
                 onShowMessage?.invoke(error.message ?: "Shikimori içe aktarma başarısız")
             }
@@ -1024,11 +1066,14 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 SimklImportManager.fetchAllLists(token)
             }.onSuccess { importedEntries ->
-                repository.smartImport("simkl", importedEntries, allowDelete = false)
-
-                onShowMessage?.invoke(
-                    "${importedEntries.size} Simkl kaydı başarıyla aktarıldı"
-                )
+                val importResult = runCatching {
+                    repository.smartImport("simkl", importedEntries, allowDelete = false)
+                }
+                if (importResult.isSuccess) {
+                    onShowMessage?.invoke("${importedEntries.size} Simkl kaydı başarıyla aktarıldı")
+                } else {
+                    onShowMessage?.invoke("Simkl kaydedilirken sorun oluştu: ${importResult.exceptionOrNull()?.message}")
+                }
             }.onFailure { error ->
                 onShowMessage?.invoke(
                     error.message ?: "Simkl içe aktarma başarısız"
