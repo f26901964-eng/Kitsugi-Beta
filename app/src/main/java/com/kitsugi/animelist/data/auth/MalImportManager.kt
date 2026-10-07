@@ -13,23 +13,32 @@ import okhttp3.Request
 import com.kitsugi.animelist.data.remote.optNullableString
 
 object MalImportManager {
+    // MAL's nested field selector uses braces, but raw braces are invalid in a URI query
+    // (java.net.URI rejects them before OkHttp can issue the request). Keep them percent-encoded;
+    // MAL decodes the query parameter to the expected `list_status{...}` syntax.
     private const val ANIME_LIST_URL =
         "https://api.myanimelist.net/v2/users/@me/animelist" +
         "?fields=id,title,alternative_titles,main_picture,start_date,end_date,media_type,status,num_episodes,start_season,nsfw,genres,rating," +
-        "list_status{status,score,num_episodes_watched,start_date,finish_date,is_favorited,priority,is_repeating,num_times_rewatched,rewatch_value,tags,comments,updated_at}" +
+        "list_status%7Bstatus,score,num_episodes_watched,start_date,finish_date,is_favorited,priority,is_repeating,num_times_rewatched,rewatch_value,tags,comments,updated_at%7D" +
         "&limit=100&nsfw=true"
 
     private const val MANGA_LIST_URL =
         "https://api.myanimelist.net/v2/users/@me/mangalist" +
         "?fields=id,title,alternative_titles,main_picture,start_date,end_date,media_type,status,num_chapters,start_season,num_volumes,nsfw,genres," +
-        "list_status{status,score,num_chapters_read,num_volumes_read,start_date,finish_date,is_favorited,priority,is_repeating,num_times_reread,reread_value,tags,comments,updated_at}" +
+        "list_status%7Bstatus,score,num_chapters_read,num_volumes_read,start_date,finish_date,is_favorited,priority,is_repeating,num_times_reread,reread_value,tags,comments,updated_at%7D" +
         "&limit=100&nsfw=true"
+
+    internal fun buildAnimeListUrl(showAdultContent: Boolean): String =
+        ANIME_LIST_URL.replace("&nsfw=true", "&nsfw=$showAdultContent")
+
+    internal fun buildMangaListUrl(showAdultContent: Boolean): String =
+        MANGA_LIST_URL.replace("&nsfw=true", "&nsfw=$showAdultContent")
 
     suspend fun fetchAnimeList(
         accessToken: String,
         showAdultContent: Boolean = false
     ): List<MediaEntry> {
-        val url = ANIME_LIST_URL.replace("&nsfw=true", "&nsfw=$showAdultContent")
+        val url = buildAnimeListUrl(showAdultContent)
         return withContext(Dispatchers.IO) {
             fetchPaginatedList(accessToken, url)
         }
@@ -39,7 +48,7 @@ object MalImportManager {
         accessToken: String,
         showAdultContent: Boolean = false
     ): List<MediaEntry> {
-        val url = MANGA_LIST_URL.replace("&nsfw=true", "&nsfw=$showAdultContent")
+        val url = buildMangaListUrl(showAdultContent)
         return withContext(Dispatchers.IO) {
             fetchPaginatedList(accessToken, url)
         }
