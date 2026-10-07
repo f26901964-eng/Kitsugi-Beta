@@ -2,217 +2,164 @@ package com.kitsugi.animelist.data.cloudstream
 
 import android.util.Log
 import com.lagradost.cloudstream3.SearchResponse
+import com.lagradost.cloudstream3.TvType
+import java.text.Normalizer
 import java.util.Locale
 
 /**
- * Başlık benzerliği ve en iyi eşleşme algoritmaları.
- * [CsStreamRunner] içindeki title matching mantığı buraya taşındı.
+ * Unicode-aware title and season matching shared by every CloudStream provider.
+ *
+ * Matching is intentionally conservative: a provider returning search results is not
+ * sufficient reason to load the first result. Names, aliases, year, season, and the
+ * provider's declared media type all contribute to selecting a result.
  */
 internal object CsTitleMatcher {
 
     private const val TAG = "CsTitleMatcher"
+    private const val MIN_MATCH_SCORE = 0.45
 
-    private val seasonRegex = Regex("\\b(\\d+)(?:\\s*\\.|\\s*(?:st|nd|rd|th))?\\s*(?:sezon|season|s\\b)|\\b(?:sezon|season|s(?=\\d)|s\\b)\\s*\\.?\\s*(\\d+)\\b", RegexOption.IGNORE_CASE)
+    private val seasonMarkerPatterns = listOf(
+        Regex(
+            """(?<![\p{L}\p{N}])(\d{1,2})(?:st|nd|rd|th)?\.?[\s-]*(?:seasons?|sezon(?:u|lar)?|cour|part)\b""",
+            RegexOption.IGNORE_CASE
+        ),
+        Regex(
+            """(?<![\p{L}\p{N}])(?:seasons?|sezon(?:u|lar)?|cour|part)\s*[:.-]?\s*(\d{1,2})\b""",
+            RegexOption.IGNORE_CASE
+        ),
+        Regex("""(?<![\p{L}\p{N}])s\s*(\d{1,2})\b""", RegexOption.IGNORE_CASE),
+        Regex("""第\s*([0-9]{1,2}|[〇零一二三四五六七八九十]+)\s*(?:期|季)"""),
+        Regex("""(?<![0-9])([0-9]{1,2}|[〇零一二三四五六七八九十]+)\s*(?:期|季)"""),
+        Regex("""第([〇零一二三四五六七八九十]+)(?:期|季)"""),
+        Regex("""([〇零一二三四五六七八九十]+)(?:期|季)""")
+    )
 
-    // ─── Public API ──────────────────────────────────────────────────────────
+    private val romanSeasonPattern = Regex(
+        """(?:^|[\s:：\-])(?:ix|viii|vii|vi|v|iv|iii|ii)(?=$|\s*[:：\-]|\s*[\[(])""",
+        RegexOption.IGNORE_CASE
+    )
+    private val trailingSeasonNumberPattern = Regex("""(?:^|[\s:：\-])([2-9]|1[0-9]|2[0-5])\s*$""")
+    private val parenthesizedYearPattern = Regex("""\(((?:19|20)\d{2})\)""")
+    private val trailingYearPattern = Regex("""\s+((?:19|20)\d{2})\s*$""")
+    private val romanValues = listOf(
+        "x" to 10, "ix" to 9, "viii" to 8, "vii" to 7, "vi" to 6,
+        "v" to 5, "iv" to 4, "iii" to 3, "ii" to 2
+    )
+    private val cjkDigitValues = mapOf(
+        '〇' to 0, '零' to 0, '一' to 1, '二' to 2, '三' to 3, '四' to 4,
+        '五' to 5, '六' to 6, '七' to 7, '八' to 8, '九' to 9
+    )
+    private val genericWords = setOf(
+        "the", "and", "of", "a", "an", "to", "in", "on", "for", "from", "with",
+        "season", "seasons", "sezon", "sezonu", "part", "cour", "episode", "ep", "bölüm", "bolum",
+        "movie", "film", "series", "dizi", "anime", "izle", "watch", "full", "hd", "turkce",
+        "dublaj", "altyazi", "subtitle", "subbed", "dubbed"
+    )
 
     /**
-     * Verilen başlık dizesinden sezon numarasını çıkarmaya çalışır.
+     * Extracts a season/part number in common English, Turkish, Japanese, and Chinese formats.
+     * A plain trailing number is accepted for common sequel-style anime titles (e.g. "Overlord 4").
      */
     fun parseSeasonFromTitle(title: String): Int? {
-        val lower = title.lowercase(Locale.ROOT).trim()
-        val seasonMatch = seasonRegex.find(lower)
-        if (seasonMatch != null) {
-            val found = seasonMatch.groupValues.firstOrNull { it.toIntOrNull() != null }?.toIntOrNull()
-                ?: seasonMatch.groupValues.getOrNull(1)?.toIntOrNull()
-                ?: seasonMatch.groupValues.getOrNull(2)?.toIntOrNull()
-            if (found != null && found in 1..25) return found
+        val normalized = Normalizer.normalize(title, Normalizer.Form.NFKC).lowercase(Locale.ROOT).trim()
+        parseMarkedSeason(normalized)?.let { return it }
+
+        val romanMatch = romanSeasonPattern.find(normalized)
+        if (romanMatch != null) {
+            val roman = romanMatch.value.trim().trimStart(':', '：', '-', '(', '[').lowercase(Locale.ROOT)
+            romanValues.firstOrNull { (token, _) -> roman == token }?.let { return it.second }
         }
 
-        // Uzundan kısaya doğru Roma rakamları (kelime sınırı ve ayraçlarla: "Mushoku Tensei III: ...", "Mob Psycho 100 III")
-        val romanNumerals = listOf(
-            "x" to 10, "ix" to 9, "viii" to 8, "vii" to 7, "vi" to 6,
-            "v" to 5, "iv" to 4, "iii" to 3, "ii" to 2
-        )
-        for ((roman, num) in romanNumerals) {
-            val regex = Regex("\\b$roman\\b(?:\\s*[:\\-\\(\\[]|\\s*$)", RegexOption.IGNORE_CASE)
-            if (regex.containsMatchIn(lower)) {
-                return num
-            }
-        }
-
-        // Trailing number fallback (e.g. "Anime Name 2", "KonoSuba 3", excluding years)
-        val trailingNumMatch = Regex("\\b([2-9]|1[0-9])\\s*(?:[:\\-\\(\\[]|\\s*$)").find(lower)
-        if (trailingNumMatch != null) {
-            val num = trailingNumMatch.groupValues[1].toIntOrNull()
-            if (num != null && num in 2..25) {
-                return num
-            }
-        }
-        return null
+        // Only a short, terminal number is treated as a sequel season; years are never accepted.
+        val trailing = trailingSeasonNumberPattern.find(normalized)?.groupValues?.getOrNull(1)?.toIntOrNull()
+        return trailing?.takeIf { it in 2..25 }
     }
 
     /**
-     * Başlıktan yıl, sezon anahtar kelimeleri, Roma rakamları ve alt başlıkları temizleyerek
-     * saf anime adını çıkarır (ör. "Mushoku Tensei III: Isekai..." -> "Mushoku Tensei").
+     * Removes only known season/year qualifiers. Subtitle/franchise text after ':' or '-'
+     * stays intact (e.g. "Naruto: Shippuden" must not collapse to "Naruto").
      */
-    fun extractCleanBaseTitle(rawTitle: String): String {
-        var clean = rawTitle.trim()
+    fun extractCleanBaseTitle(rawTitle: String, preserveInstallment: Boolean = false): String {
+        var clean = Normalizer.normalize(rawTitle, Normalizer.Form.NFKC).trim()
+        clean = clean.replace(Regex("\\s*\\((?:19|20)\\d{2}\\)"), " ")
+        // Strip a trailing release year, but keep meaningful leading/embedded numbers such as 2001.
+        clean = clean.replace(Regex("\\s+(?:19|20)\\d{2}\\s*$"), " ")
 
-        // 1. İki nokta üst üste ve tire sonrası alt başlıkları temizle (Franchise adı iki noktadan öncedir)
-        // ör. "Mushoku Tensei III: Isekai Ittara Honki Dasu" -> "Mushoku Tensei III"
-        // ör. "Mushoku Tensei: Jobless Reincarnation" -> "Mushoku Tensei"
-        if (clean.contains(":")) {
-            val prefix = clean.substringBefore(":").trim()
-            if (prefix.length >= 3) {
-                clean = prefix
-            }
-        }
-        if (clean.contains(" - ")) {
-            val prefix = clean.substringBefore(" - ").trim()
-            if (prefix.length >= 3) {
-                clean = prefix
+        if (!preserveInstallment) {
+            seasonMarkerPatterns.forEach { pattern -> clean = clean.replace(pattern, " ") }
+            if (parseSeasonFromTitle(rawTitle) != null) {
+                clean = clean.replace(romanSeasonPattern, " ")
+                clean = clean.replace(trailingSeasonNumberPattern, " ")
             }
         }
 
-        // 2. Yıl bilgisini temizle: (2021), 2024
-        clean = clean.replace(Regex("""\s*\(?(19|20)\d{2}\)?"""), "")
-
-        // 3. Sezon anahtar kelimelerini temizle: Season 3, 3. Sezon, 3rd Season, S3, Part 2, Cour 2
-        clean = clean.replace(Regex("""\s*\b(?:season|sezon|s)\s*[:.-]?\s*\d+\b""", RegexOption.IGNORE_CASE), "")
-        clean = clean.replace(Regex("""\s*\b\d+\s*(?:st|nd|rd|th)?\s*(?:season|sezon)\b""", RegexOption.IGNORE_CASE), "")
-        clean = clean.replace(Regex("""\s*\b\d+\.\s*sezon\b""", RegexOption.IGNORE_CASE), "")
-        clean = clean.replace(Regex("""\s*\b(?:part|cour)\s*\d+\b""", RegexOption.IGNORE_CASE), "")
-
-        // 4. Roma rakamlarını temizle (II, III, IV, V, VI, VII, VIII, IX, X)
-        clean = clean.replace(Regex("""\s*\b(x|ix|viii|vii|vi|v|iv|iii|ii)\b""", RegexOption.IGNORE_CASE), "")
-
-        // 5. Sondaki tek basamaklı veya sezon sayılarını temizle (örn. "Mushoku Tensei 2" -> "Mushoku Tensei")
-        clean = clean.replace(Regex("""\s*\b(?:[2-9]|1[0-9])\b\s*$"""), "")
-
-        return clean.replace(Regex("""\s+"""), " ").trim()
+        return clean.replace(Regex("\\s+"), " ")
+            .trim()
+            .replace(Regex("\\s+([:：])"), "\$1")
+            .trim(':', '：', '-', '–', '—')
     }
 
     /**
-     * Verilen ana başlık ve alternatif başlıklardan arama varyantları listesi oluşturur.
-     * Türkçe anime siteleri için romaji, ASCII, kısmi isim gibi varyantlar üretilir.
+     * Builds full-title query variants first (all supplied language aliases), then safe
+     * normalization variants and season-specific queries. Broad one-word fallbacks are omitted
+     * so a common word cannot make a provider return an unrelated title as a false match.
      */
-    fun buildTitleVariants(main: String, alts: List<String>, season: Int? = null): List<String> {
+    fun buildTitleVariants(
+        main: String,
+        alts: List<String>,
+        season: Int? = null,
+        isMovie: Boolean = false
+    ): List<String> {
         val variants = linkedSetOf<String>()
-        val romanMap = mapOf(2 to "II", 3 to "III", 4 to "IV", 5 to "V", 6 to "VI", 7 to "VII", 8 to "VIII", 9 to "IX", 10 to "X")
+        // Language aliases lead the query list; cap raw synonyms so provider requests remain bounded.
+        val fullTitles = (listOf(main) + alts)
+            .map { Normalizer.normalize(it, Normalizer.Form.NFKC).trim() }
+            .filter { normalizeTitleForMatch(it).length >= 2 }
+            .distinctBy(::queryKey)
+            .take(8)
 
-        val cleanMain = extractCleanBaseTitle(main)
-
-        // 1. Temiz ana başlığı ve orijinal ana başlığı önceliklendir
-        if (cleanMain.isNotBlank() && cleanMain.length >= 3 && cleanMain != main) {
-            variants.add(cleanMain)
-            variants.add(simplifyTitle(cleanMain))
-            variants.add(toAsciiTitle(cleanMain))
+        fun addVariant(value: String?) {
+            val candidate = value?.trim().orEmpty()
+            if (normalizeTitleForMatch(candidate).length >= 2) variants.add(candidate)
         }
 
-        variants.add(main)
-        variants.add(simplifyTitle(main))
-        variants.add(toAsciiTitle(main))
+        fullTitles.forEach(::addVariant)
+        val cleanedBases = fullTitles.map { extractCleanBaseTitle(it, preserveInstallment = isMovie) }
+            .filter { normalizeTitleForMatch(it).length >= 2 }
+            .distinctBy(::queryKey)
 
-        // 2. Alternatif başlıkların temiz franchise adlarını ve tam hallerini ekle
-        for (alt in alts) {
-            val cleanAlt = extractCleanBaseTitle(alt)
-            if (cleanAlt.isNotBlank() && cleanAlt.length >= 3 && cleanAlt != alt) {
-                variants.add(cleanAlt)
-                variants.add(toAsciiTitle(cleanAlt))
+        if (!isMovie && season != null && season > 1) {
+            val primaryBases = (listOfNotNull(cleanedBases.firstOrNull()) + cleanedBases.drop(1).take(2))
+                .distinctBy(::queryKey)
+            val suffixes = buildList {
+                add("$season. Sezon")
+                add("Season $season")
+                add("S$season")
+                add(season.toString())
+                romanValues.firstOrNull { it.second == season }?.let { add(it.first.uppercase(Locale.ROOT)) }
+                val cjk = toCjkNumber(season)
+                add("第${season}期")
+                add("第${cjk}期")
+                add("第${season}季")
+                add("第${cjk}季")
             }
-            variants.add(alt)
-            variants.add(simplifyTitle(alt))
-            variants.add(toAsciiTitle(alt))
-        }
-
-        // 3. İleri sezon aramasında sezon eki eklenmiş varyantları üret
-        if (season != null && season > 1) {
-            val allBases = (listOf(main, cleanMain) + alts.flatMap { listOf(it, extractCleanBaseTitle(it)) })
-                .filter { it.isNotBlank() && it.length >= 3 }
-                .distinct()
-
-            val seasonSuffixes = mutableListOf(
-                "$season. Sezon",
-                "Season $season",
-                "S$season",
-                "$season"
-            )
-            romanMap[season]?.let { seasonSuffixes.add(it) }
-
-            for (base in allBases) {
-                for (suffix in seasonSuffixes) {
-                    val q = "$base $suffix"
-                    variants.add(q)
-                    variants.add(simplifyTitle(q))
-                    variants.add(toAsciiTitle(q))
-                }
+            for (base in primaryBases) {
+                for (suffix in suffixes) addVariant("$base $suffix")
             }
         }
 
-        // Strip season/year suffix — e.g. "Naruto: Shippuden (2007)" → "Naruto: Shippuden"
-        val withoutYear = main.replace(Regex("\\s*\\(?(19|20)\\d{2}\\)?"), "").trim()
-        if (withoutYear != main) { variants.add(withoutYear); variants.add(toAsciiTitle(withoutYear)) }
-
-        // Strip season numbers — e.g. "Boku no Hero Academia Season 4" → "Boku no Hero Academia"
-        val withoutSeason = extractCleanBaseTitle(main)
-        if (withoutSeason != main && withoutSeason.length >= 3) {
-            variants.add(withoutSeason)
-            variants.add(toAsciiTitle(withoutSeason))
+        (fullTitles + cleanedBases).forEach { base ->
+            addVariant(simplifyTitle(base))
+            addVariant(toAsciiTitle(base))
+            addVariant(normalizeTitleForMatch(base))
         }
 
-        // Add first 3 words as a short variant (anime sites often search by partial name)
-        val words = main.split(" ").filter { it.isNotBlank() }
-        if (words.size > 2) variants.add(words.take(3).joinToString(" "))
-        if (words.size > 1) variants.add(words.take(2).joinToString(" "))
-        val GENERIC_WORDS = setOf(
-            "attack", "titan", "season", "final", "the", "and", "from", "into", "with",
-            "sezon", "bölüm", "film", "dizi", "izle", "part", "new", "world", "slayer",
-            "shippuden", "naruto", "boruto", "piece", "clover", "academy", "academia",
-            "kaisen", "hunter", "online", "game", "free", "live", "movie", "series",
-            "turkce", "dublaj", "altyazi", "hd", "full", "tek", "parca", "anime"
-        )
-        val isNotGeneric = { w: String ->
-            val cleaned = w.replace(Regex("[^a-zA-Z0-9çğıöşüÇĞİÖŞÜ]"), "").lowercase(Locale.ROOT)
-            cleaned.length >= 4 && cleaned !in GENERIC_WORDS
-        }
-
-        // Always add every word with 4+ chars as standalone fallback (e.g. "Frieren", "Chainsaw", "Demon")
-        words.filter { isNotGeneric(it) }.forEach { variants.add(it) }
-        words.firstOrNull()?.let { firstWord ->
-            val cleaned = firstWord.replace(Regex("[^a-zA-Z0-9çğıöşüÇĞİÖŞÜ]"), "").lowercase(Locale.ROOT)
-            if (cleaned.length >= 2 && cleaned !in GENERIC_WORDS) {
-                variants.add(firstWord)
-            }
-        }
-
-        // Alternative titles (romaji, english, native) — with the same cleaning
-        for (alt in alts) {
-            variants.add(alt)
-            variants.add(simplifyTitle(alt))
-            variants.add(toAsciiTitle(alt))
-            val altWords = alt.split(" ").filter { it.isNotBlank() }
-            if (altWords.size > 2) variants.add(altWords.take(3).joinToString(" "))
-            if (altWords.size > 1) variants.add(altWords.take(2).joinToString(" "))
-            // Also add every significant alt-word standalone (e.g. "Frieren" from english title)
-            altWords.filter { isNotGeneric(it) }.forEach { variants.add(it) }
-            altWords.firstOrNull()?.let { firstWord ->
-                val cleaned = firstWord.replace(Regex("[^a-zA-Z0-9çğıöşüÇĞİÖŞÜ]"), "").lowercase(Locale.ROOT)
-                if (cleaned.length >= 2 && cleaned !in GENERIC_WORDS) {
-                    variants.add(firstWord)
-                }
-            }
-            val altNoYear = alt.replace(Regex("\\s*\\(?(19|20)\\d{2}\\)?"), "").trim()
-            if (altNoYear != alt) { variants.add(altNoYear); variants.add(toAsciiTitle(altNoYear)) }
-        }
-
-        // Remove blanks and single-character strings
-        return variants.filter { it.length >= 2 }
+        return variants.toList()
     }
 
     /**
-     * Arama sonuçları arasından başlık benzerliği, kelime örtüşmesi ve yıl bilgisine göre
-     * en iyi eşleşmeyi döndürür.
+     * Selects the best semantically compatible provider result. Low-confidence results are
+     * rejected rather than silently returning the provider's first (often unrelated) result.
      */
     fun findBestMatch(
         results: List<SearchResponse>,
@@ -220,164 +167,288 @@ internal object CsTitleMatcher {
         altTitles: List<String>,
         targetYear: Int?,
         targetSeason: Int? = null,
-        targetEpisode: Int? = null
+        targetEpisode: Int? = null,
+        isMovie: Boolean? = null
     ): SearchResponse? {
-        var bestScore = -1.0
+        var bestScore = Double.NEGATIVE_INFINITY
         var bestMatch: SearchResponse? = null
+        val queryTitles = (listOf(mainTitle) + altTitles)
+            .map { Normalizer.normalize(it, Normalizer.Form.NFKC).trim() }
+            .filter { normalizeTitleForMatch(it).length >= 2 }
+            .distinctBy(::queryKey)
+        if (queryTitles.isEmpty()) return null
 
-        // Flatten all title variants into comparable lowercase strings
-        val allQueryTitles = (listOf(mainTitle) + altTitles)
-        val titlesToCompare = allQueryTitles
-            .flatMap { t -> listOf(t, simplifyTitle(t), toAsciiTitle(t)) }
-            .map { it.lowercase(Locale.ROOT).trim() }
-            .filter { it.length >= 2 }
+        val querySeasons = queryTitles.mapNotNull(::parseSeasonFromTitle).toSet()
+        val expectedSeason = when {
+            targetSeason != null && targetSeason > 1 -> targetSeason
+            querySeasons.isNotEmpty() -> querySeasons.maxOrNull()
+            else -> targetSeason
+        }
+        val expectedMovieInstallment = queryTitles.mapNotNull(::parseMovieInstallment).firstOrNull()
+
+        fun normalizedForms(title: String): List<String> = buildList {
+            add(normalizeTitleForMatch(title))
+            val clean = extractCleanBaseTitle(title, preserveInstallment = isMovie == true)
+            if (clean != normalizeTitleForMatch(title)) add(normalizeTitleForMatch(clean))
+        }.filter { it.isNotBlank() }
+
+        val normalizedQueries = queryTitles.flatMap(::normalizedForms).distinct()
+        val queryWordSets = queryTitles.map { title ->
+            significantWords(normalizeTitleForMatch(title))
+        }.filter { it.isNotEmpty() }
+        val strictAliasWordSets = queryWordSets.filter { it.size >= 2 }
+        val strictNormalizedQueries = queryTitles
+            .filter { significantWords(normalizeTitleForMatch(it)).size >= 2 }
+            .flatMap(::normalizedForms)
+            .distinct()
+        val unicodeAliasQueries = queryTitles
+            .filter { title ->
+                val normalized = normalizeTitleForMatch(title)
+                normalized.any { it.code > 0x7F } && significantWords(normalized).size == 1
+            }
+            .flatMap(::normalizedForms)
             .distinct()
 
-        // Extract seasons explicitly mentioned in search query titles
-        val querySeasons = allQueryTitles
-            .mapNotNull { parseSeasonFromTitle(it) }
-            .toSet()
-
-        // Build word sets for overlap scoring
-        val queryWordSets = allQueryTitles.map { t ->
-            toAsciiTitle(t).lowercase(Locale.ROOT).split(Regex("\\s+")).filter { it.length >= 3 }.toSet()
-        }.filter { it.isNotEmpty() }
-
         for (result in results) {
-            val resultName = result.name.lowercase(Locale.ROOT).trim()
-            val resultNameSimple = toAsciiTitle(result.name).lowercase(Locale.ROOT).trim()
-            val resultNameNoYear = resultName.replace(Regex("\\s*\\(?(19|20)\\d{2}\\)?"), "").trim()
-
-            var foundSeason: Int? = null
-            if (targetSeason != null) {
-                foundSeason = parseSeasonFromTitle(resultName) ?: parseSeasonFromSlug(result.url)
+            if (!isTypeCompatible(result.type, isMovie)) {
+                Log.d(TAG, "  -> Media type mismatch, rejecting '${result.name}' type=${result.type} movie=$isMovie")
+                continue
             }
 
-            val resultNameNoSeason = resultName
-                .replace(seasonRegex, "")
-                .replace(Regex("""\b(x|ix|viii|vii|vi|v|iv|iii|ii)\b""", RegexOption.IGNORE_CASE), "")
-                .replace(Regex("""\b(\d+)\s*$"""), "")
-                .replace(Regex("""\s+"""), " ")
-                .trim()
+            val resultName = Normalizer.normalize(result.name, Normalizer.Form.NFKC).trim()
+            val resultYear = getResultYear(result) ?: parseYearFromTitle(resultName)
+            if (isMovie == true && targetYear != null && resultYear != null && kotlin.math.abs(resultYear - targetYear) > 5) {
+                Log.d(TAG, "  -> Movie year mismatch, rejecting '${result.name}' expected=$targetYear found=$resultYear")
+                continue
+            }
+            val resultSeason = if (isMovie == true) null else parseSeasonFromTitle(resultName) ?: parseSeasonFromSlug(result.url)
+            if (expectedSeason != null && resultSeason != null && resultSeason != expectedSeason) {
+                Log.d(TAG, "  -> Season mismatch, rejecting '${result.name}' expected=$expectedSeason found=$resultSeason")
+                continue
+            }
+            val resultEpisode = if (isMovie == true) null else parseEpisodeFromTitle(resultName)
+            if (targetEpisode != null && resultEpisode != null && resultEpisode != targetEpisode) {
+                Log.d(TAG, "  -> Episode mismatch, rejecting '${result.name}' expected=$targetEpisode found=$resultEpisode")
+                continue
+            }
+            val resultInstallment = if (isMovie == true) parseMovieInstallment(resultName) else null
+            if (isMovie == true && expectedMovieInstallment != null) {
+                val installmentMismatch = resultInstallment != null && resultInstallment != expectedMovieInstallment
+                val missingInstallmentWithoutYearProof = resultInstallment == null &&
+                    (targetYear == null || resultYear != targetYear)
+                if (installmentMismatch || missingInstallmentWithoutYearProof) {
+                    Log.d(TAG, "  -> Movie installment mismatch/unknown, rejecting '${result.name}' expected=$expectedMovieInstallment found=$resultInstallment year=$resultYear")
+                    continue
+                }
+            }
+            val resultForms = linkedSetOf(
+                normalizeTitleForMatch(resultName),
+                normalizeTitleForMatch(extractCleanBaseTitle(resultName, preserveInstallment = isMovie == true))
+            )
+            resultForms.removeAll { it.isBlank() }
 
-            var maxSimilarity = 0.0
-            for (t in titlesToCompare) {
-                val sim1 = getSimilarity(resultName, t)
-                val sim2 = getSimilarity(resultNameSimple, t)
-                val sim3 = getSimilarity(resultNameNoYear, t)
-                val sim4 = getSimilarity(resultNameNoSeason, t)
-                val sim = maxOf(sim1, sim2, sim3, sim4)
-                if (sim > maxSimilarity) maxSimilarity = sim
+            var titleSimilarity = 0.0
+            var strictTitleSimilarity = 0.0
+            var unicodeAliasSimilarity = 0.0
+            for (candidate in resultForms) {
+                for (query in normalizedQueries) {
+                    titleSimilarity = maxOf(titleSimilarity, getSimilarity(candidate, query))
+                }
+                for (query in strictNormalizedQueries) {
+                    strictTitleSimilarity = maxOf(strictTitleSimilarity, getSimilarity(candidate, query))
+                }
+                for (query in unicodeAliasQueries) {
+                    unicodeAliasSimilarity = maxOf(unicodeAliasSimilarity, getSimilarity(candidate, query))
+                }
             }
 
-            // Word-overlap bonus: reward results that share significant words with any query
-            val resultWords = resultNameSimple.split(Regex("\\s+")).filter { it.length >= 3 }.toSet()
-            var wordOverlapBonus = 0.0
+            val resultWords = resultForms.flatMapTo(mutableSetOf()) { significantWords(it) }
+            var overlapBonus = 0.0
+            var bestWordCoverage = 0.0
             for (queryWords in queryWordSets) {
-                val shared = queryWords.intersect(resultWords).size
-                val unionSize = (queryWords + resultWords).size
-                if (unionSize > 0) {
-                    val jaccard = shared.toDouble() / unionSize
-                    wordOverlapBonus = maxOf(wordOverlapBonus, jaccard * 0.25)
+                if (queryWords.isNotEmpty()) {
+                    val shared = queryWords.intersect(resultWords).size
+                    val unionSize = (queryWords + resultWords).size
+                    val jaccard = if (unionSize > 0) shared.toDouble() / unionSize else 0.0
+                    val queryCoverage = shared.toDouble() / queryWords.size
+                    if (queryWords.size >= 2) bestWordCoverage = maxOf(bestWordCoverage, queryCoverage)
+                    overlapBonus = maxOf(overlapBonus, jaccard * 0.25, queryCoverage * 0.12)
                 }
             }
 
-            // Containment bonus: if result name contains the query (or vice-versa)
-            var containmentBonus = 0.0
-            for (t in titlesToCompare) {
-                if (resultNameSimple.contains(t) || t.contains(resultNameSimple)) {
-                    containmentBonus = 0.10
-                    break
-                }
+            // A result that only matches the first word of a longer franchise title is usually
+            // the wrong season/series (e.g. Naruto vs Naruto Shippuden). Require either a full
+            // alias-token match or near-exact spelling before considering it.
+            if (strictAliasWordSets.isNotEmpty() && bestWordCoverage < 0.75 &&
+                strictTitleSimilarity < 0.90 && unicodeAliasSimilarity < 0.90
+            ) {
+                Log.d(TAG, "  -> Too few distinctive title tokens match '${result.name}'")
+                continue
             }
 
-            var score = maxSimilarity + wordOverlapBonus + containmentBonus
-            val resultYear = getResultYear(result) ?: parseYearFromTitle(result.name)
+            var score = titleSimilarity + overlapBonus
             if (targetYear != null && resultYear != null) {
-                when {
-                    resultYear == targetYear -> score += 0.15
-                    Math.abs(resultYear - targetYear) <= 1 -> score += 0.05
-                    else -> score -= 0.05
+                val yearDelta = kotlin.math.abs(resultYear - targetYear)
+                score += when {
+                    yearDelta == 0 -> 0.15
+                    yearDelta == 1 -> 0.05
+                    yearDelta <= 3 -> -0.15
+                    else -> -0.25
                 }
             }
 
-            // ── Akıllı Sezon ve Bölüm Filtrelemesi ──
-            // Eğer başlıkta "bölüm" veya "bolum" veya "episode" veya "ep" bilgisi geçiyorsa,
-            // bölüm numarasını yakalayıp arananla karşılaştıralım.
-            if (targetEpisode != null) {
-                val epRegex = Regex("(\\d+)\\s*(?:\\.?\\s*(?:bölüm|bolum|ep|episode|b\\b))|\\b(?:bölüm|bolum|ep|episode|b\\b)\\s*\\.?\\s*(\\d+)", RegexOption.IGNORE_CASE)
-                val epMatch = epRegex.find(resultName)
-                val foundEp = epMatch?.groupValues?.firstOrNull { it.toIntOrNull() != null }?.toIntOrNull()
-                    ?: epMatch?.groupValues?.getOrNull(1)?.toIntOrNull()
-                    ?: epMatch?.groupValues?.getOrNull(2)?.toIntOrNull()
-
-                if (foundEp != null) {
-                    if (foundEp == targetEpisode) {
-                        score += 0.30 // Bölüm numarası birebir eşleşirse büyük ödül puanı
-                        Log.d(TAG, "  -> Bölüm Eşleşti: '${result.name}' (Bölüm $foundEp) +0.30")
-                    } else {
-                        score -= 0.80 // Farklı bir bölüm başlığıysa elensin (-0.80 ceza puanı)
-                        Log.d(TAG, "  -> Farklı Bölüm Uyuşmazlığı: '${result.name}' (Bulunan: $foundEp, Aranan: $targetEpisode) -0.80")
-                    }
-                }
+            if (targetEpisode != null && isMovie != true && resultEpisode != null) {
+                score += 0.30
             }
 
-            if (targetSeason != null) {
-                if (foundSeason != null) {
-                    if (foundSeason == targetSeason || querySeasons.contains(foundSeason)) {
-                        score += 0.35 // Sezon eşleşti ödülü
-                        Log.d(TAG, "  -> Sezon Eşleşti: '${result.name}' (Sezon $foundSeason) +0.35")
-                    } else {
-                        score -= 0.60 // Farklı sezon uyuşmazlığı cezası
-                        Log.d(TAG, "  -> Farklı Sezon Uyuşmazlığı: '${result.name}' (Bulunan: $foundSeason, Aranan: $targetSeason) -0.60")
-                    }
+            if (expectedSeason != null && isMovie != true) {
+                if (resultSeason != null) {
+                    score += 0.35
+                } else if (expectedSeason <= 1) {
+                    score += 0.10
                 } else {
-                    // Implicit season (no season mentioned in result)
-                    // If targetSeason is 1, and no other season is specified in query, we match Season 1.
-                    val expectsHigherSeason = targetSeason > 1 || querySeasons.any { it > 1 }
-                    if (!expectsHigherSeason) {
-                        score += 0.10
-                    } else {
-                        // Birçok Türkçe anime sağlayıcısı (Anizium, TrAnimeİzle, TürkAnime vb.) tüm sezonları
-                        // tek bir ana dizi başlığı altında (konteyner) toplar (örn. "Mushoku Tensei: Jobless Reincarnation").
-                        // Eğer açıkça "3. Sezon" adayı varsa o kazansın (+0.35 ödülü var), ancak konteyner adayı da
-                        // elenmesin diye ceza sadece -0.15 olarak verilir. Böylece 0.20 eşiğini rahatça aşar ve
-                        // safeLoad() çağrıldığında findEpisodeData hedef sezonu ve bölümü bulur.
-                        score -= 0.15
-                        Log.d(TAG, "  -> Sezonsuz Dizi Başlığı (Konteyner adayı, Aranan: $targetSeason): '${result.name}' -0.15")
-                    }
+                    // Some Turkish providers expose one series container with all seasons.
+                    score -= 0.15
                 }
             }
 
-            Log.d(TAG, "  Aday: '${result.name}' sim=${"%.2f".format(maxSimilarity)} overlap=${"%.2f".format(wordOverlapBonus)} total=${"%.2f".format(score)}")
+            if (isMovie == true) {
+                when {
+                    expectedMovieInstallment != null && resultInstallment == expectedMovieInstallment -> score += 0.15
+                    expectedMovieInstallment != null && resultInstallment == null && targetYear != null && resultYear != targetYear -> score -= 0.15
+                }
+            }
 
+            Log.d(TAG, "  Candidate: '${result.name}' title=${"%.2f".format(titleSimilarity)} total=${"%.2f".format(score)}")
             if (score > bestScore) {
                 bestScore = score
                 bestMatch = result
             }
         }
 
-        Log.d(TAG, "En iyi aday puanı: ${"%.2f".format(bestScore)} (eşik: 0.20)")
-        return if (bestScore >= 0.20) bestMatch else null
+        Log.d(TAG, "Best candidate score=${"%.2f".format(bestScore)} (threshold=$MIN_MATCH_SCORE)")
+        return bestMatch?.takeIf { bestScore >= MIN_MATCH_SCORE }
+    }
+
+    /** Rejects provider results whose available metadata conflicts with the requested media. */
+    fun isCandidateMetadataCompatible(
+        result: SearchResponse,
+        mainTitle: String,
+        altTitles: List<String>,
+        targetYear: Int?,
+        targetSeason: Int?,
+        targetEpisode: Int?,
+        isMovie: Boolean?
+    ): Boolean {
+        if (!isTypeCompatible(result.type, isMovie)) return false
+        val queryTitles = (listOf(mainTitle) + altTitles).distinctBy(::queryKey)
+        val expectedSeason = when {
+            targetSeason != null && targetSeason > 1 -> targetSeason
+            else -> queryTitles.mapNotNull(::parseSeasonFromTitle).maxOrNull() ?: targetSeason
+        }
+        val expectedInstallment = queryTitles.mapNotNull(::parseMovieInstallment).firstOrNull()
+        val resultYear = getResultYear(result) ?: parseYearFromTitle(result.name)
+        if (isMovie == true && targetYear != null && resultYear != null && kotlin.math.abs(resultYear - targetYear) > 5) {
+            return false
+        }
+        if (isMovie != true && expectedSeason != null) {
+            val actualSeason = parseSeasonFromTitle(result.name) ?: parseSeasonFromSlug(result.url)
+            if (actualSeason != null && actualSeason != expectedSeason) return false
+        }
+        if (isMovie != true && targetEpisode != null) {
+            val actualEpisode = parseEpisodeFromTitle(result.name)
+            if (actualEpisode != null && actualEpisode != targetEpisode) return false
+        }
+        if (isMovie == true && expectedInstallment != null) {
+            val actualInstallment = parseMovieInstallment(result.name)
+            if (actualInstallment != null && actualInstallment != expectedInstallment) return false
+            if (actualInstallment == null && (targetYear == null || resultYear != targetYear)) return false
+        }
+        return true
     }
 
     /**
-     * Bir aday adının, ana başlık ve alternatifleri arasında en yüksek benzerlik skorunu döndürür.
+     * Returns true only when the name is near-exact and no available type/year/season metadata
+     * contradicts it. Used for the fast path that skips extra provider ID validation.
      */
-    fun getBestTitleSimilarity(candidateName: String, mainTitle: String, altTitles: List<String>): Double {
-        val cand = toAsciiTitle(candidateName).lowercase(Locale.ROOT).trim()
-        var maxSim = 0.0
-        for (t in (listOf(mainTitle) + altTitles)) {
-            val query = toAsciiTitle(t).lowercase(Locale.ROOT).trim()
-            val sim = getSimilarity(cand, query)
-            if (sim > maxSim) maxSim = sim
+    fun isHighConfidenceMatch(
+        result: SearchResponse,
+        mainTitle: String,
+        altTitles: List<String>,
+        targetYear: Int?,
+        targetSeason: Int?,
+        isMovie: Boolean?
+    ): Boolean {
+        if (!isTypeCompatible(result.type, isMovie)) return false
+        if (getBestTitleSimilarity(result.name, mainTitle, altTitles, isMovie) < 0.90) return false
+
+        val resultYear = getResultYear(result) ?: parseYearFromTitle(result.name)
+        if (targetYear != null && resultYear != null && kotlin.math.abs(resultYear - targetYear) > 1) return false
+
+        if (isMovie == true) {
+            val expected = (listOf(mainTitle) + altTitles).mapNotNull(::parseMovieInstallment).firstOrNull()
+            val actual = parseMovieInstallment(result.name)
+            if (expected == null && actual != null) return false
+            if (expected != null && actual != null && expected != actual) return false
+            if (expected != null && actual == null && (targetYear == null || resultYear != targetYear)) return false
+        } else if (targetSeason != null) {
+            val querySeason = (listOf(mainTitle) + altTitles).mapNotNull(::parseSeasonFromTitle).maxOrNull()
+            val expected = if (targetSeason > 1) targetSeason else querySeason ?: targetSeason
+            val actual = parseSeasonFromTitle(result.name) ?: parseSeasonFromSlug(result.url)
+            if (actual != null && actual != expected) return false
+            if (expected > 1 && actual == null) return false
         }
-        return maxSim
+        return true
     }
 
-    // ─── Internal Helpers ────────────────────────────────────────────────────
+    /** Highest Unicode-aware title similarity across the supplied canonical aliases. */
+    fun getBestTitleSimilarity(
+        candidateName: String,
+        mainTitle: String,
+        altTitles: List<String>,
+        isMovie: Boolean? = null
+    ): Double {
+        val candidate = normalizeTitleForMatch(candidateName)
+        if (candidate.isBlank()) return 0.0
 
-    /** Türkçe özel karakterleri kaldırır, gereksiz boşlukları temizler. */
+        val candidateForms = linkedSetOf(candidate)
+        if (isMovie != true) {
+            candidateForms.add(normalizeTitleForMatch(extractCleanBaseTitle(candidateName)))
+        }
+        val queries = (listOf(mainTitle) + altTitles)
+            .flatMap { title ->
+                listOf(
+                    normalizeTitleForMatch(title),
+                    normalizeTitleForMatch(extractCleanBaseTitle(title, preserveInstallment = isMovie == true))
+                )
+            }
+            .filter { it.isNotBlank() }
+            .distinct()
+        if (queries.isEmpty()) return 0.0
+        return candidateForms.filter { it.isNotBlank() }
+            .maxOfOrNull { candidateForm -> queries.maxOf { query -> getSimilarity(candidateForm, query) } }
+            ?: 0.0
+    }
+
+    /** Unicode NFKC + punctuation folding, preserving Japanese, Chinese, and other scripts. */
+    fun normalizeTitleForMatch(title: String): String {
+        if (title.isBlank()) return ""
+        var normalized = Normalizer.normalize(title, Normalizer.Form.NFKC).lowercase(Locale.ROOT)
+        // Treat dotted/dotless Turkish i and common Turkish characters like their ASCII spellings.
+        normalized = normalized
+            .replace('ı', 'i')
+            .replace('ç', 'c')
+            .replace('ğ', 'g')
+            .replace('ö', 'o')
+            .replace('ş', 's')
+            .replace('ü', 'u')
+        return normalized
+            .replace(Regex("[^\\p{L}\\p{N}]+"), " ")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+    }
+
+    /** Removes punctuation and whitespace while retaining Turkish letters, for legacy callers. */
     fun simplifyTitle(title: String): String {
         return title
             .replace(Regex("[^a-zA-Z0-9\\sçÇğĞıİöÖşŞüÜ]"), " ")
@@ -385,7 +456,7 @@ internal object CsTitleMatcher {
             .trim()
     }
 
-    /** Türkçe karakterleri ASCII karşılıklarına dönüştürür (romaji eşleştirme için). */
+    /** Turkish transliteration retained for provider search endpoints that require ASCII. */
     fun toAsciiTitle(title: String): String {
         return title
             .replace("ç", "c").replace("Ç", "C")
@@ -399,29 +470,160 @@ internal object CsTitleMatcher {
             .trim()
     }
 
-    /**
-     * Levenshtein mesafesi tabanlı string benzerliği (0.0 – 1.0).
-     */
+    /** Levenshtein similarity (0.0–1.0). Callers should normalize first. */
     fun getSimilarity(s1: String, s2: String): Double {
         val len1 = s1.length
         val len2 = s2.length
         if (len1 == 0 && len2 == 0) return 1.0
         if (len1 == 0 || len2 == 0) return 0.0
 
-        val dp = Array(len1 + 1) { IntArray(len2 + 1) }
-        for (i in 0..len1) dp[i][0] = i
-        for (j in 0..len2) dp[0][j] = j
+        // Two rows are sufficient and keep memory bounded for long source titles.
+        var previous = IntArray(len2 + 1) { it }
+        var current = IntArray(len2 + 1)
         for (i in 1..len1) {
+            current[0] = i
             for (j in 1..len2) {
                 val cost = if (s1[i - 1] == s2[j - 1]) 0 else 1
-                dp[i][j] = minOf(dp[i - 1][j] + 1, dp[i][j - 1] + 1, dp[i - 1][j - 1] + cost)
+                current[j] = minOf(previous[j] + 1, current[j - 1] + 1, previous[j - 1] + cost)
             }
+            val swap = previous
+            previous = current
+            current = swap
         }
         val maxLen = maxOf(len1, len2)
-        return (maxLen - dp[len1][len2]).toDouble() / maxLen
+        return (maxLen - previous[len2]).toDouble() / maxLen
     }
 
-    private val yearRegex = Regex("\\b(19|20)\\d{2}\\b")
+    /**
+     * Extracts a season number from provider URL path formats such as `2-sezon`, `season-3`,
+     * `s2`, or a terminal `-2`. Bare terminal numbers over 10 are intentionally not trusted.
+     */
+    fun parseSeasonFromSlug(url: String): Int? {
+        val path = try {
+            java.net.URI(url).rawPath.orEmpty()
+        } catch (_: Exception) {
+            url.substringBefore('?').substringAfter("//", url).substringAfter('/', "")
+        }
+        val decoded = runCatching { java.net.URLDecoder.decode(path, Charsets.UTF_8.name()) }.getOrDefault(path)
+        val slugTitle = decoded.replace(Regex("[-_/]+"), " ").trim()
+        parseMarkedSeason(slugTitle)?.let { return it }
+        if (romanSeasonPattern.containsMatchIn(slugTitle)) {
+            parseSeasonFromTitle(slugTitle)?.let { return it }
+        }
+
+        val trailing = Regex("""(?:^|[-/])(\d{1,2})/?$""")
+            .find(path.lowercase(Locale.ROOT))
+            ?.groupValues?.getOrNull(1)
+            ?.toIntOrNull()
+        return trailing?.takeIf { it in 2..10 }
+    }
+
+    private fun parseMarkedSeason(value: String): Int? {
+        for (pattern in seasonMarkerPatterns) {
+            val match = pattern.find(value) ?: continue
+            val numberText = match.groupValues.drop(1).firstOrNull { it.isNotBlank() } ?: continue
+            val number = parseCjkNumber(numberText) ?: numberText.toIntOrNull()
+            if (number != null && number in 1..25) return number
+        }
+        return null
+    }
+
+    private fun parseCjkNumber(token: String): Int? {
+        token.toIntOrNull()?.let { return it }
+        if (token.isBlank() || token.any { it !in cjkDigitValues && it != '十' }) return null
+        if (token == "十") return 10
+
+        val tenIndex = token.indexOf('十')
+        if (tenIndex < 0) {
+            var number = 0
+            for (char in token) {
+                number = number * 10 + (cjkDigitValues[char] ?: return null)
+            }
+            return number
+        }
+        val tens = if (tenIndex == 0) 1 else cjkDigitValues[token[tenIndex - 1]] ?: return null
+        val ones = if (tenIndex == token.lastIndex) 0 else cjkDigitValues[token[tenIndex + 1]] ?: return null
+        return tens * 10 + ones
+    }
+
+    private fun toCjkNumber(number: Int): String {
+        val digits = listOf("〇", "一", "二", "三", "四", "五", "六", "七", "八", "九")
+        return when {
+            number < 10 -> digits[number]
+            number == 10 -> "十"
+            number < 20 -> "十${digits[number % 10].takeIf { number % 10 > 0 }.orEmpty()}"
+            number < 30 -> "二十${digits[number % 10].takeIf { number % 10 > 0 }.orEmpty()}"
+            else -> number.toString()
+        }
+    }
+
+    private fun significantWords(normalized: String): Set<String> = normalized
+        .split(Regex("\\s+"))
+        .filter { it.isNotBlank() && it !in genericWords && (it.length >= 2 || it.any { char -> char.code > 0x7F }) }
+        .toSet()
+
+    private fun queryKey(value: String): String = Normalizer.normalize(value, Normalizer.Form.NFKC)
+        .lowercase(Locale.ROOT)
+        .replace(Regex("[^\\p{L}\\p{N}]+"), " ")
+        .replace(Regex("\\s+"), " ")
+        .trim()
+
+    internal fun parseEpisodeFromTitle(title: String): Int? {
+        val normalized = Normalizer.normalize(title, Normalizer.Form.NFKC).lowercase(Locale.ROOT)
+        val structuredPatterns = listOf(
+            Regex("""(?<![\p{L}\p{N}])s\s*\d{1,2}[\s._-]*e\s*0*(\d{1,3})(?![0-9])"""),
+            Regex("""(?<![0-9])\d{1,2}\s*x\s*0*(\d{1,3})(?![0-9])"""),
+            Regex("""第\s*([0-9]{1,3}|[〇零一二三四五六七八九十]+)\s*(?:話|话|集)""")
+        )
+        for (pattern in structuredPatterns) {
+            val numberText = pattern.find(normalized)?.groupValues?.getOrNull(1) ?: continue
+            val number = numberText.toIntOrNull() ?: parseCjkNumber(numberText)
+            if (number != null && number > 0) return number
+        }
+
+        val match = Regex(
+            """(?:([0-9]{1,3})\s*(?:\.?\s*(?:bölüm|bolum|ep|episode|b\b))|\b(?:bölüm|bolum|ep|episode|b\b)\s*\.?\s*([0-9]{1,3}))""",
+            RegexOption.IGNORE_CASE
+        ).find(normalized) ?: return null
+        return match.groupValues.drop(1).firstNotNullOfOrNull { it.toIntOrNull() }
+    }
+
+    private fun parseMovieInstallment(title: String): Int? {
+        val normalized = normalizeTitleForMatch(title)
+        val marker = Regex("""\b(?:part|chapter|movie|film)\s+(\d{1,2}|zero|one|two|three|four|five|six|seven|eight|nine|ten)\b""")
+            .find(normalized)?.groupValues?.getOrNull(1)
+        if (marker != null) return marker.toIntOrNull() ?: englishSmallNumber(marker)
+
+        val trailing = Regex("""(?:^|\s)(0|[2-9]|1[0-9]|2[0-5])$""").find(normalized)?.groupValues?.getOrNull(1)?.toIntOrNull()
+        if (trailing != null) return trailing
+
+        val roman = romanSeasonPattern.find(normalized)?.value?.trim()?.lowercase(Locale.ROOT)
+        return romanValues.firstOrNull { (token, _) -> roman == token }?.second
+    }
+
+    private fun englishSmallNumber(value: String): Int? = when (value) {
+        "zero" -> 0
+        "one" -> 1
+        "two" -> 2
+        "three" -> 3
+        "four" -> 4
+        "five" -> 5
+        "six" -> 6
+        "seven" -> 7
+        "eight" -> 8
+        "nine" -> 9
+        "ten" -> 10
+        else -> null
+    }
+
+    fun isTypeCompatible(type: TvType?, isMovie: Boolean?): Boolean {
+        if (type == null || isMovie == null) return true
+        val nonVideoTypes = setOf(TvType.Music, TvType.Audio, TvType.AudioBook, TvType.Podcast, TvType.Live)
+        if (type in nonVideoTypes) return false
+        val episodicTypes = setOf(TvType.TvSeries, TvType.Anime, TvType.AsianDrama)
+        val movieOnlyTypes = setOf(TvType.Movie, TvType.AnimeMovie)
+        return if (isMovie) type !in episodicTypes else type !in movieOnlyTypes
+    }
 
     private fun getResultYear(result: SearchResponse): Int? {
         return try {
@@ -432,38 +634,17 @@ internal object CsTitleMatcher {
             try {
                 val method = result.javaClass.getMethod("getYear")
                 (method.invoke(result) as? Number)?.toInt()
-            } catch (_: Exception) { null }
+            } catch (_: Exception) {
+                null
+            }
         }
     }
 
-    private fun parseYearFromTitle(title: String): Int? =
-        yearRegex.find(title)?.value?.toIntOrNull()
-
-    /**
-     * Verilen URL slug'ından veya path'inden sezon numarasını çıkarmaya çalışır.
-     * Örneğin: "naruto-shippuden-2-sezon", "sezon-3", "naruto-2"
-     */
-    fun parseSeasonFromSlug(url: String): Int? {
-        val lower = url.lowercase(Locale.ROOT)
-        // Match "-2-sezon", "/sezon-2", "/2-sezon", "-season-2", "/season-2", "s2"
-        val regex = Regex("(?:-|/|\\b)(\\d+)(?:-sezon|-season|sezon|season)\\b|\\b(?:sezon|season|s)(?:-|/|\\b)?(\\d+)\\b", RegexOption.IGNORE_CASE)
-        val match = regex.find(lower)
-        if (match != null) {
-            val found = match.groupValues.firstOrNull { it.toIntOrNull() != null }?.toIntOrNull()
-                ?: match.groupValues.getOrNull(1)?.toIntOrNull()
-                ?: match.groupValues.getOrNull(2)?.toIntOrNull()
-            if (found != null) return found
-        }
-
-        // Check trailing digit in slug: e.g. "naruto-shippuden-2/" or "naruto-shippuden-2"
-        val cleanUrl = lower.trimEnd('/')
-        val trailingNum = Regex("-(\\d+)$").find(cleanUrl)
-        if (trailingNum != null) {
-            val num = trailingNum.groupValues[1].toIntOrNull()
-            if (num != null && num in 2..10) {
-                return num
-            }
-        }
-        return null
+    private fun parseYearFromTitle(title: String): Int? {
+        val normalized = Normalizer.normalize(title, Normalizer.Form.NFKC)
+        val parenthesizedYear = parenthesizedYearPattern.findAll(normalized)
+            .lastOrNull()?.groupValues?.getOrNull(1)?.toIntOrNull()
+        if (parenthesizedYear != null) return parenthesizedYear
+        return trailingYearPattern.find(normalized)?.groupValues?.getOrNull(1)?.toIntOrNull()
     }
 }
