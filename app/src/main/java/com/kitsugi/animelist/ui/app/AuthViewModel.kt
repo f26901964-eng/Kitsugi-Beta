@@ -349,7 +349,12 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             val kitsuToken = ExternalAuthManager.getKitsuToken(context)
             val kitsuUserId = ExternalAuthManager.getKitsuUserId(context)
             val shikimoriToken = ExternalAuthManager.getOrRefreshShikimoriToken(context)
-            val shikimoriUserId = ExternalAuthManager.getShikimoriUserId(context)
+            var shikimoriUserId = ExternalAuthManager.getShikimoriUserId(context)
+            if (!shikimoriToken.isNullOrBlank() && shikimoriUserId == null &&
+                ExternalAuthManager.ensureShikimoriUserResolved(context)
+            ) {
+                shikimoriUserId = ExternalAuthManager.getShikimoriUserId(context)
+            }
 
             val isAniList = syncSettings.syncEnabledAnilist && !aniListToken.isNullOrBlank()
             val isMal = syncSettings.syncEnabledMal && !malToken.isNullOrBlank()
@@ -881,28 +886,56 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 ?: ShikimoriApiClient.DEFAULT_REDIRECT_URI
             runSyncCatching {
                 ExternalAuthManager.saveShikimoriCredentials(context, effectiveClientId, effectiveClientSecret)
-                val tokenResp = ShikimoriApiClient.exchangeCodeForToken(
+                ShikimoriApiClient.exchangeCodeForToken(
                     clientId = effectiveClientId,
                     clientSecret = effectiveClientSecret,
                     code = cleanCode,
                     redirectUri = pendingRedirectUri
                 )
-                val user = ShikimoriApiClient.getCurrentUser(tokenResp.accessToken)
+            }.onSuccess { tokenResp ->
+                // Kod bu noktada tüketilmiştir: token'u DERHAL sakla. Profil (whoami)
+                // bakımı geçici olarak başarısız olsa bile geçerli oturum çöpe atılmaz;
+                // kullanıcı kimliği ilk kullanımda tembel çözümlenir (bkz. ensureShikimoriUserResolved).
                 ExternalAuthManager.saveShikimoriAuth(
                     context = context,
                     token = tokenResp.accessToken,
                     refreshToken = tokenResp.refreshToken,
                     expiresInSeconds = tokenResp.expiresIn,
-                    userId = user.id,
-                    username = user.nickname
+                    userId = 0,
+                    username = "Shikimori",
+                    notify = false
                 )
-                val settings = SettingsDataStore(context)
-                settings.saveShikimoriProfileInfo(user.nickname, user.avatarUrl)
-                user.nickname
-            }.onSuccess { userName ->
+                val user = runSyncCatching {
+                    ShikimoriApiClient.getCurrentUser(tokenResp.accessToken)
+                }.getOrNull()
+                if (user != null) {
+                    ExternalAuthManager.saveShikimoriAuth(
+                        context = context,
+                        token = tokenResp.accessToken,
+                        refreshToken = tokenResp.refreshToken,
+                        expiresInSeconds = tokenResp.expiresIn,
+                        userId = user.id,
+                        username = user.nickname
+                    )
+                    SettingsDataStore(context).saveShikimoriProfileInfo(user.nickname, user.avatarUrl)
+                } else {
+                    // Kimlik henüz çözülemedi: tek bir Success yayınlamak otomatik
+                    // aktarımı başlatır; aktarım kimliği tembel çözer.
+                    ExternalAuthManager.saveShikimoriAuth(
+                        context = context,
+                        token = tokenResp.accessToken,
+                        refreshToken = tokenResp.refreshToken,
+                        expiresInSeconds = tokenResp.expiresIn,
+                        userId = 0,
+                        username = "Shikimori"
+                    )
+                }
                 refreshAuthState()
                 launch(Dispatchers.Main) {
-                    onShowMessage?.invoke("Shikimori hesabı bağlandı: $userName")
+                    onShowMessage?.invoke(
+                        if (user != null) "Shikimori hesabı bağlandı: ${user.nickname}"
+                        else "Shikimori hesabı bağlandı. Profil bilgisi alınamadı; ilk kullanımda tekrar denenecek."
+                    )
                     onSuccess()
                 }
             }.onFailure { err ->
@@ -956,7 +989,12 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
 
         viewModelScope.launch(Dispatchers.IO) {
             val token = ExternalAuthManager.getOrRefreshShikimoriToken(context)
-            val userId = ExternalAuthManager.getShikimoriUserId(context)
+            var userId = ExternalAuthManager.getShikimoriUserId(context)
+            if (!token.isNullOrBlank() && userId == null &&
+                ExternalAuthManager.ensureShikimoriUserResolved(context)
+            ) {
+                userId = ExternalAuthManager.getShikimoriUserId(context)
+            }
 
             if (token.isNullOrBlank() || userId == null) {
                 onShowMessage?.invoke("Shikimori token veya kullanıcı ID bulunamadı")
