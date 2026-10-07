@@ -18,6 +18,7 @@ import com.kitsugi.animelist.data.repository.StreamSource
 import com.kitsugi.animelist.data.remote.KitsugiIdResolver
 import com.kitsugi.animelist.core.player.SubtitleInput
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
 import kotlinx.coroutines.sync.Semaphore
@@ -71,6 +72,38 @@ object CsStreamRunner {
 
     /** Tek bir provider için stream getirme zaman aşımı — 40s yavaş/mobil ağlarda kesintileri önlemek için idealdir */
     private const val PROVIDER_TIMEOUT_MS = 40_000L
+
+    // ─── Derin embed çözümleme (Aşama 3/4) sabitleri ──────────────────────────
+    /** iframe/AES zincirinin izin verilen en fazla derinliği (sonsuz döngü koruması). */
+    private const val MAX_EMBED_DEPTH = 2
+    /** Tek bir embed'den kabul edilecek en fazla medya adayı. */
+    private const val MAX_STREAMS_PER_EMBED = 8
+    /** Takip edilecek en fazla iframe sayısı. */
+    private const val MAX_IFRAME_FOLLOW = 2
+    /** Embed sayfası indirilirken kabul edilen en fazla karakter (bellek koruması). */
+    private const val MAX_EMBED_HTML_CHARS = 900_000
+    /** Derin tarama için sayfa indirme zaman aşımı. */
+    private const val EMBED_HTML_TIMEOUT_MS = 10_000L
+    /** Aday medya URL'si doğrulama zaman aşımı. */
+    private const val MEDIA_PROBE_TIMEOUT_MS = 6_000L
+    /** Doğrulanmış aday önbelleği — aynı URL tekrar denendiğinde ağ harcanmaz. */
+    private val mediaProbeCache = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
+
+    /**
+     * Aynı anda çözülecek embed sayısı. Sıralı çözümleme (eski davranış) 20 sn timeout × N
+     * embed yüzünden kaynak listesini dakikalarca geciktiriyordu.
+     */
+    private const val EMBED_RESOLVE_CONCURRENCY = 3
+
+    /**
+     * Aşama 4 (WebView medya yakalayıcı) açık mı?
+     *
+     * WebView çözümlemesi yavaştır (≈12 sn) ve yalnızca JS ile üretilen oynatıcılarda gerekir;
+     * bu yüzden yalnızca önceki tüm aşamalar başarısız olduğunda ve sayfa gerçekten bir
+     * oynatıcı sayfası olduğunda devreye girer. Ayarlardan kapatılabilir.
+     */
+    @Volatile
+    var enableWebViewSniffing: Boolean = true
 
     /**
      * Bilinen domain değişikliklerini otomatik uygular.
@@ -614,10 +647,8 @@ object CsStreamRunner {
      * Boş, "/" veya bilinen geçersiz domainleri derhal canlı çalışan URL'ye taşır.
      */
     internal fun applyDomainFix(api: MainAPI) {
-        val nameKey = api.name.lowercase(Locale.ROOT)
-        val builtinFallback = BUILTIN_DEFAULT_DOMAINS[nameKey]
-            ?: BUILTIN_DEFAULT_DOMAINS.entries.firstOrNull { it.key.equals(nameKey, ignoreCase = true) }?.value
-            ?: BUILTIN_DEFAULT_DOMAINS.entries.firstOrNull { nameKey.contains(it.key) || it.key.contains(nameKey) }?.value
+        val nameKey = normalizePluginKey(api.name)
+        val builtinFallback = resolveBuiltinDomain(nameKey)
 
         val remoteUrl = dynamicDomains[nameKey] ?: builtinFallback
         if (remoteUrl != null) {
@@ -676,6 +707,68 @@ object CsStreamRunner {
                 break
             }
         }
+    }
+
+    /**
+     * Eklenti adını karşılaştırma anahtarına çevirir.
+     *
+     * Neden gerekli: `"FullHDFilmİzlede".lowercase(Locale.ROOT)` Türkçe noktalı İ'yi
+     * `"i" + U+0307` (birleşen nokta) yapar ve bu ad hiçbir anahtarla eşleşmez. Ayrıca
+     * Türkçe karakterler (ş, ğ, ü, ö, ç) eklenti adında bulunup tabloda bulunmadığı için
+     * eşleşme kaybolur. Burada ad ASCII'ye indirgenir.
+     */
+    internal fun normalizePluginKey(name: String): String {
+        val sb = StringBuilder(name.length)
+        for (ch in name) {
+            when (ch) {
+                'İ', 'I', 'ı', 'i' -> sb.append('i')
+                'Ş', 'ş' -> sb.append('s')
+                'Ğ', 'ğ' -> sb.append('g')
+                'Ü', 'ü' -> sb.append('u')
+                'Ö', 'ö' -> sb.append('o')
+                'Ç', 'ç' -> sb.append('c')
+                else -> sb.append(ch.lowercaseChar())
+            }
+        }
+        return sb.toString().replace("\u0307", "")
+    }
+
+    /** Eklenti adından türetilen ekler — bir marka değişikliği anlamına GELMEYEN son ekler. */
+    private val SAFE_NAME_SUFFIXES = listOf(
+        "original", "orijinal", "plus", "pro", "tv", "hd", "2", "sitesi", "provider", "official"
+    )
+
+    /**
+     * Eklenti adına karşılık gelen yerleşik varsayılan domaini bulur.
+     *
+     * ESKİ DAVRANIŞ (HATA): `nameKey.contains(it.key) || it.key.contains(nameKey)` şeklindeki
+     * bulanık arama yanlış eşleşmelere yol açabiliyordu — örneğin "animeler" anahtarı
+     * "asyaanimeleri" adının İÇİNDE geçtiği için (tablo sırasına göre) bir eklentinin
+     * mainUrl'si başka bir sitenin adresine çevrilebiliyordu. Yanlış domain = eklenti
+      * çalışmıyor + yanlış sonuç.
+     *
+     * YENİ KURAL: yalnızca tam eşleşme veya "ad, anahtarla başlıyor ve geri kalan kısım
+     * bilinen bir son ek" durumunda eşleşir. En uzun anahtar önce denenir (deterministik).
+     */
+    internal fun resolveBuiltinDomain(nameKey: String): String? {
+        BUILTIN_DEFAULT_DOMAINS[nameKey]?.let { return it }
+
+        val candidates = BUILTIN_DEFAULT_DOMAINS.entries
+            .filter { it.key == nameKey }
+            .map { it.value }
+            .toMutableList()
+        if (candidates.isNotEmpty()) return candidates.first()
+
+        val sorted = BUILTIN_DEFAULT_DOMAINS.keys.sortedByDescending { it.length }
+        for (key in sorted) {
+            if (nameKey.length <= key.length) continue
+            if (!nameKey.startsWith(key)) continue
+            val suffix = nameKey.substring(key.length)
+            if (SAFE_NAME_SUFFIXES.any { suffix == it || suffix == it.removeSuffix("s") }) {
+                return BUILTIN_DEFAULT_DOMAINS[key]
+            }
+        }
+        return null
     }
 
     /**
@@ -1149,6 +1242,32 @@ object CsStreamRunner {
         return null // Hiçbir sync ID çalışmadı — normal arama akışına dön
     }
     /**
+     * URL açıkça doğrudan medya mı? (uzantı veya bilinen akış işareti ile)
+     *
+     * Bu kontrol "kaynağı doğrudan ekle" ile "embed boru hattına gönder" kararını verir.
+     * Yanlış negatif (medyayı embed sanmak) yalnızca biraz yavaşlatır; yanlış pozitif
+     * (HTML sayfasını medya sanmak) ise oynatıcı hatası üretir — bu yüzden kontrol dardır.
+     */
+    internal fun isClearlyDirectMediaUrl(url: String): Boolean {
+        val lower = url.lowercase(Locale.ROOT)
+        val path = try {
+            java.net.URI(lower).path ?: lower
+        } catch (_: Exception) {
+            lower.substringBefore('?')
+        }.trimEnd('/')
+
+        if (path.endsWith(".m3u8") || path.endsWith(".mp4") || path.endsWith(".mpd") ||
+            path.endsWith(".mkv") || path.endsWith(".webm") || path.endsWith(".flv") ||
+            path.endsWith(".m4v") || path.endsWith(".mov") ||
+            path.endsWith("master.txt") || path.endsWith("playlist.txt")
+        ) return true
+
+        // Uzantı sorgu/path içinde: /x.mp4/index.m3u8, ?file=abc.mp4 gibi
+        return lower.contains(".m3u8?") || lower.contains(".mp4?") || lower.contains(".mpd?") ||
+            lower.contains(".m3u8/") || lower.contains(".mp4/")
+    }
+
+    /**
      * URL'nin bir embed/iframe video oynatıcı sayfası olup olmadığını kontrol eder.
      * Doğrudan .mp4/.m3u8/.mpd dosyaları veya bilinen video akışları false döndürür.
      */
@@ -1229,6 +1348,131 @@ object CsStreamRunner {
     }
 
 
+    /** Derin tarama için indirilen sayfa: içerik + Content-Type. */
+    internal data class EmbedPageFetch(val body: String?, val contentType: String?)
+
+    /**
+     * Embed/oynatıcı sayfasını indirir (derin tarama için).
+     * Zaman aşımı ve boyut sınırı uygulanır; hata durumunda (null, null) döner (akış bozulmaz).
+     */
+    private suspend fun fetchEmbedPage(
+        url: String,
+        referer: String,
+        providerName: String
+    ): EmbedPageFetch = try {
+        val response = withTimeoutOrNull(EMBED_HTML_TIMEOUT_MS) {
+            com.lagradost.cloudstream3.app.get(
+                url = url,
+                referer = referer,
+                // Gövdeyi sınırla: MP4 dönen uzantısız bir CDN'de 1 MiB'den fazlasını
+                // indirmek anlamsızdır (bellek/veri tasarrufu). Sunucu Range'i yok sayarsa
+                // yine de MAX_EMBED_HTML_CHARS sınırı uygulanır.
+                headers = mapOf("Range" to "bytes=0-1048575", "Accept" to "*/*")
+            )
+        }
+        if (response == null) {
+            Log.d(TAG, "[$providerName] Derin tarama için sayfa zaman aşımı: $url")
+            EmbedPageFetch(null, null)
+        } else {
+            val contentType = runCatching {
+                response.okhttpResponse.header("Content-Type")
+            }.getOrNull()
+            val body = runCatching { response.text }.getOrNull()
+            val capped = body?.let {
+                if (it.length > MAX_EMBED_HTML_CHARS) it.substring(0, MAX_EMBED_HTML_CHARS) else it
+            }
+            if (capped.isNullOrBlank()) {
+                Log.d(TAG, "[$providerName] Derin tarama için sayfa içeriği alınamadı: $url")
+            }
+            EmbedPageFetch(capped, contentType)
+        }
+    } catch (e: Throwable) {
+        if (e is kotlinx.coroutines.CancellationException) throw e
+        Log.d(TAG, "[$providerName] Derin tarama sayfa indirme hatası: ${e.javaClass.simpleName}: ${e.message}")
+        EmbedPageFetch(null, null)
+    }
+
+    /**
+     * Yanıt gövdesi zaten medya mı? (uzantısız `.m3u8`/`.mp4` sunan CDN'ler)
+     * Oynatıcıya HTML göndermeyi engellemenin ve uzantısız gerçek akışları kurtarmanın yolu.
+     */
+    private fun isMediaContentType(contentType: String?): Boolean {
+        val ct = contentType?.lowercase(Locale.ROOT)?.trim() ?: return false
+        return ct.startsWith("video/") ||
+            ct.startsWith("audio/") ||
+            ct.contains("mpegurl") ||
+            ct.contains("dash+xml") ||
+            ct.contains("application/octet-stream") ||
+            ct.contains("application/vnd.apple") ||
+            ct.contains("application/x-mpeg")
+    }
+
+    /** Gövde bir HTML sayfasına benziyor mu? */
+    private fun looksLikeHtmlDocument(body: String?): Boolean {
+        if (body.isNullOrBlank()) return false
+        val head = body.take(4096).lowercase(Locale.ROOT)
+        return head.contains("<!doctype html") || head.contains("<html") ||
+            head.contains("<head") || head.contains("<body") || head.contains("<div") ||
+            head.contains("<meta") || head.contains("<script")
+    }
+
+    /**
+     * Derin taramada bulunan medya adayını hafif bir HTTP isteğiyle doğrular.
+     *
+     * Oynatıcıya HTML sayfası göndermek "oynatıcı hata veriyor" şikâyetinin en büyük
+     * kaynağıdır; bu yüzden aday önce doğrulanır. Kararsız durumlar (ağ hatası, 405/403)
+     * "canlı" kabul edilir — yanlış negatif, yanlış pozitiften daha maliyetlidir.
+     */
+    private suspend fun verifyMediaCandidate(url: String, pageUrl: String): Boolean {
+        mediaProbeCache[url]?.let { return it }
+
+        val alive = withTimeoutOrNull(MEDIA_PROBE_TIMEOUT_MS) {
+            try {
+                val request = okhttp3.Request.Builder()
+                    .url(url)
+                    .method("HEAD", null)
+                    .addHeader(
+                        "User-Agent",
+                        com.lagradost.cloudstream3.network.CloudflareKiller.UNIFIED_USER_AGENT
+                    )
+                    .addHeader("Referer", pageUrl)
+                    .addHeader("Accept", "*/*")
+                    .build()
+
+                val response = com.kitsugi.animelist.core.network.KitsugiHttpClient.client
+                    .newCall(request).execute()
+                val code = response.code
+                val contentType = response.header("Content-Type")?.lowercase(Locale.ROOT)
+                response.close()
+
+                when {
+                    code == 405 || code == 501 -> true      // HEAD desteklenmiyor → GET ile oynar
+                    code == 403 -> true                     // CDN imza/referer kontrolü; oynatıcıda denenmeye değer
+                    code in 200..299 -> {
+                        contentType == null ||
+                            contentType.isBlank() ||
+                            contentType.contains("video") ||
+                            contentType.contains("mpegurl") ||
+                            contentType.contains("octet-stream") ||
+                            contentType.contains("dash") ||
+                            contentType.contains("text/plain") ||
+                            contentType.contains("mpeg")
+                    }
+                    code == 404 || code == 410 -> false
+                    code in 400..499 -> false
+                    else -> true
+                }
+            } catch (e: Exception) {
+                // Ağ hatası (DNS/TLS/timeout) URL'in ölü olduğunu göstermez.
+                Log.d(TAG, "Aday doğrulama ağ hatası (${e.javaClass.simpleName}): ${url.take(80)}")
+                true
+            }
+        } ?: true
+
+        mediaProbeCache[url] = alive
+        return alive
+    }
+
     internal fun resolveHrefLi(url: String): String {
         var target = if (url.contains("href.li/?", ignoreCase = true)) {
             val lowerUrl = url.lowercase(Locale.ROOT)
@@ -1292,10 +1536,16 @@ object CsStreamRunner {
         rawHeaders: Map<String, String>,
         referer: String,
         subtitleCallback: (SubtitleInput) -> Unit,
-        thumbnailUrl: String? = null
+        thumbnailUrl: String? = null,
+        /** iframe / AES zinciri derinliği — sonsuz döngüyü engeller (en fazla [MAX_EMBED_DEPTH]). */
+        depth: Int = 0
     ): List<StreamSource> {
+        if (depth > MAX_EMBED_DEPTH) {
+            Log.w(TAG, "[$providerName] Embed zinciri çok derin ($depth) — durduruldu: $rawUrl")
+            return emptyList()
+        }
         val resolvedUrl = resolveHrefLi(rawUrl)
-        Log.d(TAG, "[$providerName] Embed URL çözümleniyor: $resolvedUrl")
+        Log.d(TAG, "[$providerName] Embed URL çözümleniyor (derinlik=$depth): $resolvedUrl")
 
         // ── TurkAnime AES-128 intercept ──────────────────────────────────────
         // turkanime.tv/embed/#/url/<BASE64(AES_encrypted_CDN_url)> formatını
@@ -1325,7 +1575,8 @@ object CsStreamRunner {
                         rawHeaders      = rawHeaders,
                         referer         = "https://www.turkanime.tv/",
                         subtitleCallback = subtitleCallback,
-                        thumbnailUrl    = thumbnailUrl
+                        thumbnailUrl    = thumbnailUrl,
+                        depth           = depth + 1
                     )
                 } else {
                     Log.w(TAG, "[$providerName] TurkAnime AES çözüldü ama URL geçersiz: $decrypted")
@@ -1412,6 +1663,8 @@ object CsStreamRunner {
         // CS3 kütüphanesindeki built-in extractor'lar bazı durumlarda boş dönebilir
         // (özellikle kütüphane versiyonu eski olduğunda). Bu durumda Kitsugi'nin
         // kendi regex-tabanlı fallback wrapper'larını dener.
+        // Aşama 3 (derin tarama) aynı sayfayı yeniden indirmemek için içerik burada saklanır.
+        var embedPageHtml: String? = null
         if (resolvedStreams.isEmpty()) {
             try {
                 val needsHtml = com.kitsugi.animelist.data.cloudstream.extractors.McloudWrapper.isMcloudUrl(resolvedUrl) ||
@@ -1435,7 +1688,8 @@ object CsStreamRunner {
                         ""
                     }
                 } else ""
-
+                if (pageContent.isNotBlank()) embedPageHtml = pageContent
+                
                 val wrapperVideos: List<com.kitsugi.animelist.data.cloudstream.extractors.JWPlayerWrapper.ExtractedVideo> = when {
                     com.kitsugi.animelist.data.cloudstream.extractors.McloudWrapper.isMcloudUrl(resolvedUrl) -> {
                         Log.d(TAG, "[$providerName] Mcloud wrapper fallback deneniyor...")
@@ -1521,6 +1775,176 @@ object CsStreamRunner {
         }
         // ─────────────────────────────────────────────────────────────────────
 
+        // ══════════════════════════════════════════════════════════════════════
+        // Aşama 3: HTML derin taraması (genel / site-bağımsız)
+        // ──────────────────────────────────────────────────────────────────────
+        // `loadExtractor` yalnızca kütüphaneye kayıtlı extractor'ları tanır. Türkçe
+        // provider'ların kullandığı onlarca küçük CDN (Alions, CloseLoad, GStore, TRsTX,
+        // Molystream, StreamBox, Pichive, vmnow, rapidrame vb.) o listede yoktur; bu yüzden
+        // extractor boş döner ve eklenti "boş sonuç" gibi görünür.
+        // Bu aşama sayfanın HTML/JS içeriğinden gerçek medya URL'sini çıkarır ve HTTP ile
+        // doğrular. Bulunan aday "ÖLÜ KANAL" gibi etiketlenmez — gerçekten oynatılabilir.
+        // ══════════════════════════════════════════════════════════════════════
+        if (resolvedStreams.isEmpty()) {
+            try {
+                val fetched = if (embedPageHtml != null) {
+                    EmbedPageFetch(embedPageHtml, null)
+                } else {
+                    fetchEmbedPage(resolvedUrl, referer, providerName)
+                }
+                val html = fetched.body
+
+                // 3a) Yanıtın kendisi medya ise (uzantısız HLS/MP4 CDN'leri) → doğrudan kabul et.
+                if (isMediaContentType(fetched.contentType)) {
+                    val selfHeaders = rawHeaders.toMutableMap()
+                    if (!selfHeaders.keys.any { it.equals("referer", ignoreCase = true) }) {
+                        selfHeaders["Referer"] = referer.ifBlank { resolvedUrl }
+                    }
+                    if (!selfHeaders.keys.any { it.equals("user-agent", ignoreCase = true) }) {
+                        selfHeaders["User-Agent"] =
+                            com.lagradost.cloudstream3.network.CloudflareKiller.UNIFIED_USER_AGENT
+                    }
+                    resolvedStreams.add(
+                        StreamSource(
+                            addonName      = providerName,
+                            name           = "$providerName • $rawLinkName",
+                            title          = rawLinkName,
+                            url            = resolvedUrl,
+                            infoHash       = null,
+                            fileIndex      = null,
+                            requestHeaders = selfHeaders,
+                            isCS           = true,
+                            quality        = null,
+                            qualityValue   = null,
+                            subtitles      = emptyList(),
+                            thumbnailUrl   = thumbnailUrl,
+                            isAdultContent = ADULT_PLUGINS.contains(providerName)
+                        )
+                    )
+                    Log.i(
+                        TAG,
+                        "[$providerName] ✅ Embed URL'si kendisi medya (Content-Type=${
+                            fetched.contentType?.take(60)
+                        })"
+                    )
+                }
+
+                if (resolvedStreams.isEmpty() && !html.isNullOrBlank() && looksLikeHtmlDocument(html)) {
+                    embedPageHtml = html
+                    val scan = com.kitsugi.animelist.data.cloudstream.embed.EmbedMediaScanner
+                        .scan(html, resolvedUrl)
+                    Log.d(
+                        TAG,
+                        "[$providerName] Derin tarama: ${scan.media.size} aday, " +
+                            "${scan.iframes.size} iframe, oynatıcıSayfası=${scan.looksLikePlayer}"
+                    )
+
+                    var accepted = 0
+                    for (candidate in scan.media) {
+                        if (accepted >= MAX_STREAMS_PER_EMBED) break
+                        if (!verifyMediaCandidate(candidate.url, resolvedUrl)) {
+                            Log.d(
+                                TAG,
+                                "[$providerName] Aday doğrulanamadı (skor=${candidate.score}, " +
+                                    "${candidate.reason}): ${candidate.url.take(110)}"
+                            )
+                            continue
+                        }
+                        val scannedHeaders = rawHeaders.toMutableMap()
+                        if (!scannedHeaders.keys.any { it.equals("referer", ignoreCase = true) }) {
+                            scannedHeaders["Referer"] = resolvedUrl
+                        }
+                        if (!scannedHeaders.keys.any { it.equals("user-agent", ignoreCase = true) }) {
+                            scannedHeaders["User-Agent"] =
+                                com.lagradost.cloudstream3.network.CloudflareKiller.UNIFIED_USER_AGENT
+                        }
+                        resolvedStreams.add(
+                            StreamSource(
+                                addonName      = providerName,
+                                name           = "$providerName • $rawLinkName",
+                                title          = rawLinkName,
+                                url            = candidate.url,
+                                infoHash       = null,
+                                fileIndex      = null,
+                                requestHeaders = scannedHeaders,
+                                isCS           = true,
+                                // Kalite uydurulmaz; gerçek değer StreamProbe tarafından ölçülür.
+                                quality        = null,
+                                qualityValue   = null,
+                                subtitles      = emptyList(),
+                                thumbnailUrl   = thumbnailUrl,
+                                isAdultContent = ADULT_PLUGINS.contains(providerName)
+                            )
+                        )
+                        accepted++
+                        Log.i(TAG, "[$providerName] ✅ Derin tarama medya buldu: ${candidate.url.take(110)}")
+                    }
+
+                    // iframe zinciri — oynatıcı bir üst katmanda olabilir (ör. provider → iframe1 → iframe2)
+                    if (resolvedStreams.isEmpty() && scan.iframes.isNotEmpty()) {
+                        for (iframe in scan.iframes.take(MAX_IFRAME_FOLLOW)) {
+                            Log.d(TAG, "[$providerName] iframe zinciri deneniyor: ${iframe.take(120)}")
+                            val nested = resolveEmbedUrl(
+                                providerName     = providerName,
+                                rawUrl           = iframe,
+                                rawLinkName      = rawLinkName,
+                                rawHeaders       = rawHeaders,
+                                referer          = resolvedUrl,
+                                subtitleCallback = subtitleCallback,
+                                thumbnailUrl     = thumbnailUrl,
+                                depth            = depth + 1
+                            )
+                            if (nested.isNotEmpty()) {
+                                resolvedStreams.addAll(nested)
+                                break
+                            }
+                        }
+                    }
+
+                    // ── Aşama 4: WebView medya yakalayıcı (son çare) ───────────────
+                    // Yalnızca sayfa gerçekten bir oynatıcı sayfasıysa ve JS gerektiriyorsa.
+                    if (resolvedStreams.isEmpty() && scan.looksLikePlayer && enableWebViewSniffing) {
+                        val sniff = com.kitsugi.animelist.data.cloudstream.embed.WebViewMediaSniffer
+                            .sniff(resolvedUrl, referer)
+                        Log.d(TAG, "[$providerName] WebView sniffer → ${sniff.diagnostic}")
+                        val sniffedUrl = sniff.url
+                        if (sniffedUrl != null) {
+                            val sniffHeaders = sniff.headers.toMutableMap()
+                            if (!sniffHeaders.keys.any { it.equals("referer", ignoreCase = true) }) {
+                                sniffHeaders["Referer"] = resolvedUrl
+                            }
+                            if (!sniffHeaders.keys.any { it.equals("user-agent", ignoreCase = true) }) {
+                                sniffHeaders["User-Agent"] =
+                                    com.lagradost.cloudstream3.network.CloudflareKiller.UNIFIED_USER_AGENT
+                            }
+                            resolvedStreams.add(
+                                StreamSource(
+                                    addonName      = providerName,
+                                    name           = "$providerName • $rawLinkName",
+                                    title          = rawLinkName,
+                                    url            = sniffedUrl,
+                                    infoHash       = null,
+                                    fileIndex      = null,
+                                    requestHeaders = sniffHeaders,
+                                    isCS           = true,
+                                    quality        = null,
+                                    qualityValue   = null,
+                                    subtitles      = emptyList(),
+                                    thumbnailUrl   = thumbnailUrl,
+                                    isAdultContent = ADULT_PLUGINS.contains(providerName)
+                                )
+                            )
+                            Log.i(TAG, "[$providerName] ✅ WebView medya yakaladı: ${sniffedUrl.take(110)}")
+                        }
+                    }
+                }
+            } catch (deepErr: Throwable) {
+                if (deepErr is kotlinx.coroutines.CancellationException) throw deepErr
+                Log.w(TAG, "[$providerName] Derin embed çözümleme hatası: ${deepErr.message}")
+            }
+        }
+        // ══════════════════════════════════════════════════════════════════════
+
         val resolved = resolvedStreams.isNotEmpty()
         val finalError = if (resolved) null else (errorMsg ?: "No links extracted / Host unsupported or offline")
         embedResolveListener?.onEmbedAttempt(
@@ -1538,7 +1962,27 @@ object CsStreamRunner {
                 Log.w(TAG, "[$providerName] Ölü CDN — ÖLÜ KANAL fallback da atlanıyor: $rawUrl")
                 return resolvedStreams // empty
             }
-            Log.w(TAG, "[$providerName] Extractor doğrudan link bulamadı. Fallback Embed kaynağı ekleniyor: $rawUrl")
+
+            // Bu noktaya gelindiyse: loadExtractor, wrapper'lar, derin tarama, Content-Type kontrolü,
+            // iframe zinciri VE WebView sniffer'in hepsi başarısız oldu. Yani URL büyük olasılıkla
+            // bir HTML oynatıcı sayfasıdır. Böyle bir URL oynatıcıya verildiğinde Media3
+            // "UnrecognizedInputFormat / Response code" hatası üretir — kullanıcı bunu
+            // "kaynak oynatılamıyor" olarak görür.
+            //
+            // Bu yüzden fallback artık YALNIZCA uzantısı ile medya olduğu açık olan URL'ler için
+            // eklenir (ör. eklenti .m3u8 döndürdü ama extractor tanımadı).
+            val rawLooksPlayable = isClearlyDirectMediaUrl(rawUrl) ||
+                com.kitsugi.animelist.data.cloudstream.embed.EmbedMediaScanner.looksLikeMediaUrl(rawUrl)
+            if (!rawLooksPlayable) {
+                Log.w(
+                    TAG,
+                    "[$providerName] Embed çözümlenemedi ve URL oynatılabilir medya değil — " +
+                        "oynatıcıya gönderilmiyor: ${rawUrl.take(120)}"
+                )
+                return resolvedStreams // empty
+            }
+
+            Log.w(TAG, "[$providerName] Extractor çözemedi ama URL medya gibi görünüyor — ekleniyor: $rawUrl")
             val headers = rawHeaders.toMutableMap()
             if (!headers.keys.any { it.equals("referer", ignoreCase = true) }) {
                 val rawHost = runCatching { java.net.URI(rawUrl).host }.getOrNull()
@@ -1579,14 +2023,18 @@ object CsStreamRunner {
         Log.d(TAG, "[${api.name}] posterUrl=${posterUrl ?: "(yok)"}")
 
         val streams = mutableListOf<StreamSource>()
-        val subtitleList = mutableListOf<SubtitleInput>()
+        // Embed'ler artık PARALEL çözülüyor; bu yüzden altyazı listesi eşzamanlı yazıma
+        // dayanıklı olmalı (aksi hâlde ConcurrentModificationException → çökme riski).
+        val subtitleList = java.util.Collections.synchronizedList(mutableListOf<SubtitleInput>())
         val pendingEmbedUrls = mutableListOf<Triple<String, String, Map<String, String>>>() // (rawUrl, linkName, headers)
 
         try {
             // Uses LOAD semaphore — completely separate from searchSemaphore, no deadlock risk
             loadSemaphore.withPermit {
-                // Throttling: kısa gecikme Cloudflare tetiklenmesini önler
-                kotlinx.coroutines.delay(500)
+                // Throttling: CF korumalı eklentilerde 500 ms bekleyip istekleri seyreltiriz.
+                // Korumasız eklentilerde uzun bekleme yalnızca gecikme üretir (kullanıcı şikâyeti:
+                // "veri aşırı geç geliyor") — bu yüzden yalnızca kısa bir nefes payı bırakılır.
+                kotlinx.coroutines.delay(if (api.name in CF_PROTECTED_PLUGINS) 500L else 120L)
                 ensurePluginReady(api)
                 Log.d(TAG, "[${api.name}] loadLinks çağrılıyor...")
                 
@@ -1620,9 +2068,15 @@ object CsStreamRunner {
                                 lowerPath.endsWith(".webp") || lowerPath.endsWith(".svg") ||
                                 lowerPath.contains("/vod/img/")
 
+                            // Sınıflandırma: yalnızca UZANTISI/İŞARETİ ile açıkça doğrudan medya
+                            // olan URL'ler doğrudan eklenir. Diğer HER ŞEY embed boru hattına gider;
+                            // orada loadExtractor → wrapper → derin tarama → WebView sniffer zinciri
+                            // çalışır (Content-Type kontrolü sayesinde uzantısız gerçek akışlar da
+                            // doğru şekilde yakalanır).
+                            val clearlyDirectMedia = isClearlyDirectMediaUrl(cleanUrl)
                             if (isImageUrl) {
                                 Log.w(TAG, "[${api.name}] Görüntü URL'si atlanıyor (video değil): $cleanUrl")
-                            } else if (isEmbedUrl(link.url)) {
+                            } else if (isEmbedUrl(link.url) || !clearlyDirectMedia) {
                                 // Kalıcı ölü CDN'leri kuyruğa bile alma — FIX: else branch ile gerçekten atlıyoruz
                                 val isDeadCdn = KNOWN_DEAD_CDN_HOSTS.any { cleanUrl.contains(it, ignoreCase = true) }
                                 if (isDeadCdn) {
@@ -1675,24 +2129,54 @@ object CsStreamRunner {
 
         // ── Embed URL'leri çözümleme aşaması (VK, Sibnet, Vidmoly, Filemoon, Okru vb.) ─────
         if (pendingEmbedUrls.isNotEmpty()) {
-            Log.d(TAG, "[${api.name}] ${pendingEmbedUrls.size} embed URL'si loadExtractor ile çözümleniyor...")
+            Log.d(
+                TAG,
+                "[${api.name}] ${pendingEmbedUrls.size} embed URL'si paralel çözümleniyor " +
+                    "(eşzamanlılık=$EMBED_RESOLVE_CONCURRENCY)..."
+            )
             val referer = try { api.mainUrl } catch (_: Exception) { "https://google.com" }
-            for ((rawUrl, linkName, rawHeaders) in pendingEmbedUrls) {
-                val resolved = resolveEmbedUrl(
-                    providerName     = api.name,
-                    rawUrl           = rawUrl,
-                    rawLinkName      = linkName,
-                    rawHeaders       = rawHeaders,
-                    referer          = referer,
-                    subtitleCallback = { sub -> subtitleList.add(sub) },
-                    thumbnailUrl     = posterUrl
-                )
+
+            // Embed'ler SIRAYLA çözüldüğünde (eski davranış) 20 sn timeout × N embed yüzünden
+            // kaynak listesi dakikalarca gelmiyordu. Artık sınırlı eşzamanlılıkla paralel
+            // çözülür; sonuç sırası korunur (kaynak kalitesi sunum sırasını etkilemesin).
+            val embedResults = kotlinx.coroutines.coroutineScope {
+                val gate = Semaphore(EMBED_RESOLVE_CONCURRENCY)
+                pendingEmbedUrls.map { (rawUrl, linkName, rawHeaders) ->
+                    async {
+                        gate.withPermit {
+                            val resolved = resolveEmbedUrl(
+                                providerName     = api.name,
+                                rawUrl           = rawUrl,
+                                rawLinkName      = linkName,
+                                rawHeaders       = rawHeaders,
+                                referer          = referer,
+                                subtitleCallback = { sub -> subtitleList.add(sub) },
+                                thumbnailUrl     = posterUrl
+                            )
+                            Triple(rawUrl, linkName, resolved)
+                        }
+                    }
+                }.awaitAll()
+            }
+
+            for ((rawUrl, linkName, resolved) in embedResults) {
                 if (resolved.isNotEmpty()) {
                     streams.addAll(resolved)
                 } else {
                     val clean = resolveHrefLi(rawUrl)
-                    if (!clean.contains("shell.php") && !clean.contains("video_ext.php") && !clean.contains("/embed/")) {
-                        Log.w(TAG, "[${api.name}] Extractor fallback: raw URL doğrudan ekleniyor: $clean")
+                    // Oynatıcıya HTML sayfası göndermek "oynatıcı hata veriyor" şikâyetinin
+                    // en büyük kaynağıdır. Bu yüzden yalnızca medya gibi GÖRÜNEN URL'ler
+                    // son çare olarak eklenir; HTML oynatıcı sayfaları elenir.
+                    val obviouslyHtml = clean.contains("shell.php") ||
+                        clean.contains("video_ext.php") ||
+                        clean.contains("/embed/") ||
+                        clean.contains("/player/") ||
+                        clean.endsWith(".html") ||
+                        clean.contains(".html?")
+                    val looksPlayable = isClearlyDirectMediaUrl(clean) ||
+                        com.kitsugi.animelist.data.cloudstream.embed.EmbedMediaScanner.looksLikeMediaUrl(clean)
+                    if (!obviouslyHtml && looksPlayable) {
+                        Log.w(TAG, "[${api.name}] Extractor çözemedi — medya URL'si olduğu için ekleniyor: $clean")
                         streams.add(
                             StreamSource(
                                 addonName      = api.name,
@@ -1715,7 +2199,10 @@ object CsStreamRunner {
                             )
                         )
                     } else {
-                        Log.w(TAG, "[${api.name}] Extractor çözemedi ve HTML iframe URL'si — oynatılamayacağı için atlandı: $clean")
+                        Log.w(
+                            TAG,
+                            "[${api.name}] Embed çözülemedi ve URL oynatılabilir medya değil — elendi: $clean"
+                        )
                     }
                 }
             }

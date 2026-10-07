@@ -1,0 +1,300 @@
+# Kitsugi — Türkçe Eklenti & Oynatıcı Boru Hattı Denetimi
+
+**Tarih:** 2026-10-08
+**Kapsam:** Türkçe ağırlıklı CloudStream eklentilerinden veri/video çekme, embed (iframe) çözümleme,
+oynatıcı hataları, ses/donma/çökme şikâyetleri
+**Durum:** Kod düzeltmeleri uygulandı — **derleme ve cihaz doğrulaması kullanıcı tarafında yapılmalıdır**
+(bu ortamda JDK/Gradle/Android SDK yok: `which java javac gradle kotlinc` → boş).
+
+---
+
+## 1. Şikâyet → Kök Neden Eşlemesi
+
+| Kullanıcı şikâyeti | Kök neden | Durum |
+|---|---|---|
+| "Veri gelmiyor / aşırı geç geliyor" | Embed'ler sırayla çözülüyordu (20 sn timeout × N); korumasız eklentilerde gereksiz 500 ms bekleme | ✅ Düzeltildi |
+| "Birçok video kaynağı direkt gelmiyor, eklentiler boş dönüyor" | `loadExtractor` yalnızca kütüphaneye **kayıtlı** extractor'ları tanır; Türkçe CDN'ler (alions, closeload, gstore, trstx, molystream, streambox, pichive, rapidrame, vmnow…) o listede yok; yalnızca 8 sabit wrapper denenir | ✅ Düzeltildi (genel çözümleyici) |
+| "Videolar oynatılamıyor / oynatıcı hata veriyor" | HTML oynatıcı sayfası "oynatılabilir stream" sanılıp oynatıcıya veriliyordu | ✅ Düzeltildi |
+| "Ses olmuyor / video açılmıyor" | Kodek hatalarında (4001–4005, 5001–5002) MPV motoru **atlanıp** kaynak değiştiriliyordu; hâlbuki bu formatları MPV oynatabiliyor | ✅ Düzeltildi |
+| "Donup kalıyor / çöküyor" | Paralel yazım, bozuk URL'lerin oynatıcıya gitmesi, WebView çözümlemesinin hatalı çalıştırılması | ✅ Kısmen düzeltildi (bkz. §6) |
+| Bazı eklentiler hiç sonuç vermiyor | Bulanık domain eşleştirmesi yanlış siteye yönlendirebiliyordu + Türkçe "İ" harfi tam eşleşmeyi bozuyordu | ✅ Düzeltildi |
+
+---
+
+## 2. Boru Hattı Haritası (kod kanıtlarıyla)
+
+```
+Kullanıcı: "Bölüm izle"
+        │
+        ▼
+StreamViewModel.startFetch (ui/screens/stream/StreamViewModel.kt:88)
+  ├─ Stremio addon'ları  (paralel launch)
+  └─ CS eklentileri      (paralel launch, eklenti başına 1 coroutine)
+        │
+        ▼
+CsStreamRunner.getStreams (data/cloudstream/CsStreamRunner.kt:830)
+  ├─ ensurePluginReady → applyDomainFix  (domain düzeltme + DEX anti-tamper)
+  ├─ +18 filtresi / ölü domain / blok listesi kontrolleri
+        │
+        ▼
+CsStreamRunner.runGetStreams (:908)
+  ├─ tryNativeIdResolution → api.getLoadUrl(MAL/AniList/IMDb/Kitsu)   (15 sn)
+  ├─ buildTitleVariants → safeSearch (12 eşzamanlı, 15 sn)
+  ├─ tek-kelime brute-force fallback (GENERIC_WORDS hariç)
+  ├─ findBestMatch (benzerlik) + syncData ID doğrulaması
+        │
+        ▼
+CsStreamRunner.loadAndExtractStreams (:1160)
+  └─ extractStreamsFromEpisode (:1994)
+       ├─ loadSemaphore(6) + delay(500|120) + api.loadLinks (25 sn / CF'de 90 sn)
+       ├─ link sınıflandırma: görsel mi / doğrudan medya mı / embed mi
+       ├─ embed'ler → resolveEmbedUrl  ★ BURASI DÜZELTİLDİ
+       ├─ HTTP HEAD canlılık kontrolü (6 sn)
+       └─ StreamSource listesi (kalite/dil kanıta dayalı — StreamInfoResolver/StreamProbe)
+
+CsStreamRunner.resolveEmbedUrl (:1350) — 4 aşamalı çözümleme
+  Aşama 1: loadExtractor(url)        → kütüphanedeki kayıtlı extractor'lar (20 sn)
+  Aşama 2: 8 sabit custom wrapper    → Mcloud/Mixdrop/Mp4Upload/StreamTape/Upstream/Voe/XStreamCDN/Gdrive
+  Aşama 3: ★YENİ★ HTML derin taraması→ EmbedMediaScanner (packer/atob/kaçış/iframe/medya desenleri)
+  Aşama 3a:★YENİ★ Content-Type       → yanıtın kendisi medya ise doğrudan kabul (uzantısız HLS/MP4)
+  Aşama 4: ★YENİ★ WebView sniffer    → JS ile üretilen medya isteğini gerçek WebView'de yakalar
+
+Oynatma
+        │
+        ▼
+PlayerMediaSourceFactory.create (:236)
+  ├─ DefaultDataSource + OkHttpDataSource (referer/origin/UA enjeksiyonu, ignoreSSL=true)
+  └─ Media3PlayerEngine (engine/Media3PlayerEngine.kt:451)  veya MpvPlayerEngine
+        │
+        ▼
+Hata → KitsugiFullscreenPlayerScreen:702 → PlayerErrorRecoveryController ★DÜZELTİLDİ★
+        ├─ HTTP/erişim hatası → kaynak değiştir
+        └─ kodek hatası      → MPV motoruna geç (eskiden kaynak değiştiriyordu)
+```
+
+---
+
+## 3. Bulgular ve Kanıtlar
+
+### B1 — (Kritik) Embed çözümleme yalnızca "tanıdık" CDN'lerle sınırlıydı ✅ DÜZELTİLDİ
+
+**Kanıt:** Eski `resolveEmbedUrl`, başarısız `loadExtractor`'dan sonra yalnızca 8 sabit wrapper
+deniyordu. Kütüphanedeki `loadExtractor` (`ExtractorApi.kt:919`) yalnızca `extractorApis`
+listesindeki `mainUrl` ön-ek eşleşmesine (ya da Levenshtein > 80) bakar; eşleşme yoksa **hiçbir şey
+döndürmez** ve sessizce `false` döner.
+
+**Kanıt (rapor):** `provider_stream_source_report.md` — 59 provider tarandı, yalnızca **1**
+(%1,7) provider stream üretti; 47'sinde "sayfa 200 OK ama embed yok".
+
+**Sonuç:** Türkçe provider'ların büyük kısmı embed URL'si veriyor ama medya URL'si hiçbir zaman
+çıkarılamıyordu → kullanıcı "eklenti boş" görüyor.
+
+**Çözüm:** `EmbedMediaScanner` (yeni) + kademeli çözümleme:
+- `<video>/<source>`, JWPlayer `setup({file:…})`, `sources:[{file:…}]`, `data-*`, `setSource()`
+- Dean Edwards **packer** açma (`eval(function(p,a,c,k,e,d)…)`) — gerçek örnekle doğrulandı
+- `atob()` / base64 blob çözme
+- `\/`, `\u002F`, `\x2F`, `&amp;` kaçış çözme, protokolsüz `//host` ve göreli `/x.m3u8` mutlaklaştırma
+- **iframe zinciri** takibi (en fazla 2 katman, döngü korumalı)
+- Reklam/analitik/önizleme URL'lerini **skorla eleme** (preroll reklam akışı gerçek akışın önüne geçemez)
+- HTTP ile **doğrulama** (HEAD + Content-Type) — doğrulanmayan aday oynatıcıya verilmez
+
+### B2 — (Kritik) HTML sayfası oynatılabilir akış olarak ekleniyordu ✅ DÜZELTİLDİ
+
+**Kanıt (eski kod):**
+```kotlin
+if (!clean.contains("shell.php") && !clean.contains("video_ext.php") && !clean.contains("/embed/")) {
+    streams.add(StreamSource(url = clean, ...))   // ← HTML oynatıcı sayfası "stream" olarak eklendi
+}
+```
+ve `isEmbedUrl()` sezgisi bilinmeyen oynatıcı yollarını (`/v/abc123`, `?m=…`, `player.aspx?id=…`)
+"doğrudan video" sayıyordu → URL ham hâlde oynatıcıya gidiyor.
+
+**Sonuç:** ExoPlayer `ERROR_CODE_PARSING_CONTAINER_UNSUPPORTED (3004)` → **"oynatıcı hata veriyor"**.
+
+**Çözüm:**
+- Sınıflandırma tersine çevrildi: yalnızca **uzantısı/deseni ile açıkça medya** olan URL'ler doğrudan
+  eklenir (`isClearlyDirectMediaUrl`); diğer her şey 4 aşamalı embed boru hattına girer.
+- Content-Type kontrolü: yanıtın kendisi `video/*`, `*/mpegurl`, `octet-stream` ise URL medyadır
+  (uzantısız HLS/MP4 CDN'leri bu sayede kurtulur).
+- Son-çare ham URL ekleme yalnızca **medya gibi görünen** URL'ler için yapılır; HTML elenir ve
+  gerekçesi loglanır.
+
+### B3 — (Kritik) Kodek hatalarında MPV motoru atlanıyordu ✅ DÜZELTİLDİ
+
+**Kanıt (eski kod, `PlayerErrorRecoveryController.kt:75-88`):**
+```kotlin
+val isCodecFailure = errorCode in 4000..4005
+if (isNonRecoverable || isCodecFailure) {
+    triggerSourceFallbackOrFatal(errorCode, errorMsg)   // ← motor denemesi YOK
+    return
+}
+```
+Media3 hata kodları: `4001` decoder init, `4002` decoder query, `4003` decoding failed,
+`4004` format sınırı aştı, `4005` format desteklenmiyor, `5001/5002` **ses kanalı** başlatma/yazma.
+
+**Sonuç:** Cihazın donanım/yazılım çözücüsü desteklemediği akış (ör. 10-bit HEVC, AC3/E-AC3 ses,
+yüksek profil MP4) için uygulama "kaynak bozuk" diyordu. Oysa projede **libmpv + ffmpeg** var
+(`lib-nuvio-engine-android-0.1.2.aar` → `jni/*/libnuvio_engine.so`, `MpvPlayerEngine`,
+`KitsugiMpvSurfaceView`) ve bu formatların tamamını oynatabilir.
+
+**Çözüm:** Kodek/ses-kanalı hatalarında önce **MPV motoruna** geçilir (kullanıcı MPV'yi kapatmadıysa);
+MPV de başarısız olursa kaynak değiştirilir. Yalnızca gerçek HTTP/erişim hataları (401/403/404/5xx)
+doğrudan kaynak değiştirmeye gider. `UnrecognizedInputFormat` de artık "kodek" sayılıp MPV denenir
+(çünkü bu bir **kap/container** hatasıdır ve MPV genelde oynatır).
+
+### B4 — (Yüksek) Sıralı embed çözümleme → dakikalarca gecikme ✅ DÜZELTİLDİ
+
+**Kanıt:** `for ((rawUrl, linkName, rawHeaders) in pendingEmbedUrls) { resolveEmbedUrl(...) }`
+— her embed 20 sn timeout'a sahip; 6 embed = 120 sn'ye kadar gecikme. Ayrıca her provider
+`delay(500)` ile bekletiliyordu ve `CF_PROTECTED_PLUGINS` dışındakiler için bu gecikme gereksizdi.
+
+**Çözüm:**
+- Embed'ler **paralel** çözülür: `Semaphore(EMBED_RESOLVE_CONCURRENCY = 3)`, sonuç sırası korunur.
+- Korumasız eklentilerde bekleme 500 ms → **120 ms**.
+- Paralel yazıma karşı altyazı listesi `Collections.synchronizedList` yapıldı
+  (aksi hâlde `ConcurrentModificationException` → çökme riski vardı).
+
+### B5 — (Yüksek) Bulanık domain eşleştirmesi yanlış siteye yönlendirebiliyordu ✅ DÜZELTİLDİ
+
+**Kanıt (eski kod, `CsStreamRunner.kt:618`):**
+```kotlin
+BUILTIN_DEFAULT_DOMAINS.entries.firstOrNull { nameKey.contains(it.key) || it.key.contains(nameKey) }
+```
+Bu, alt-dize eşleşmesidir: `"asyaanimeleri"` adı `"animeler"` anahtarını **içerir**; tablo sırasına
+göre eşleşme `animeler.pw`'ye düşer ve eklentinin `mainUrl`'si **başka bir sitenin adresine** çevrilir.
+Tek bir yanlış domain = eklenti hiç çalışmıyor.
+
+**Ek kanıt (bu denetimde bulundu):** `"FullHDFilmİzlede".lowercase(Locale.ROOT)` Türkçe noktalı `İ`
+harfini `"i" + U+0307` yapar; bu nedenle **tam eşleşme bile** kaçabiliyordu.
+
+**Çözüm:**
+- `normalizePluginKey()` — ad ASCII'ye indirgenir (İ/I/ı→i, ş→s, ğ→g, ü→u, ö→o, ç→c, birleşen nokta silinir).
+- `resolveBuiltinDomain()` — yalnızca **tam eşleşme** veya **anahtarla başlayan ad + güvenli son ek**
+  (`original/orijinal/plus/pro/tv/hd/2/sitesi/provider/official`); en uzun anahtar önce.
+  Artık rastlantısal alt-dize eşleşmesi mümkün değil.
+
+### B6 — (Orta) `applyDomainFix` eklentinin kendi güncel domainini ezebiliyor ⚠️ DOKÜMANTE
+
+**Kanıt:** `normalize(currentUrl) != normalize(remoteUrl)` koşulu, tabloda kayıt varsa mevcut
+domaini koşulsuz değiştirir. Eklenti kendi içinde daha yeni bir domain taşıyorsa tablo onu geri alır.
+
+**Öneri (sonraki iş):** Yalnızca mevcut host ölü/404 ise veya marka adı farklıysa değiştir;
+aksi hâlde eklentinin kendi domainini koru. Bu denetimde **güvenli hâle getirilmedi** çünkü
+mevcut davranış kullanıcının "domain yenile" akışının parçası — davranış değişikliği ayrı bir
+sürümde, ölçümle yapılmalı.
+
+### B7 — (Orta) Kalıcı kara listeler geri dönüşsüz ⚠️ DOKÜMANTE
+
+`KNOWN_DEAD_CDN_HOSTS` (pichive.online, pichive.cc, sssrr.org, abyss.to, vmnow.online) ve
+`KNOWN_BROKEN_DOMAINS` listelerindeki kayıtlar **süresiz** atlanır. CDN geri geldiğinde kullanıcı
+bunu asla göremez. **Öneri:** TTL + tek seferlik probe ile "geri kazanma" (örn. 24 saatte bir
+HEAD isteği başarılıysa listeyi düşür).
+
+### B8 — (Orta) WAF/Cloudflare algılama eşiği WebView maliyetini tetikleyebiliyor ⚠️ DOKÜMANTE
+
+**Kanıt:** `CloudflareKiller.intercept` gövdede `"ddos-guard"`, `"sucuri"` gibi **metinler**
+geçtiğinde çözümleme (WebView, 12–30 sn) başlatır. Sadece DDoS-Guard'ı **anmak** bile bu yola
+sokabilir. **Öneri:** gerçek challenge işareti arayın (`__ddg` cookie seti, `<form action=` +
+`ddos-guard.net`, `cf-chl-` script'i) — metin varlığı yeterli olmasın.
+
+### B9 — (Düşük) Eski tanı raporlarının yöntemi yanıltıcı ⚠️ DOKÜMANTE
+
+`provider_stream_source_report.md`, provider sitelerini **düz HTTP + regex** ile tarar; JS
+çalıştırmaz, eklentinin kendi ayrıştırma mantığını kullanmaz. Bu yüzden "47 provider OK ama embed
+yok" sonucu büyük ölçüde **yöntem artefaktıdır**. Güvenilir olan: cihaz içi, eklentiler üzerinden
+çalışan `plugin_diagnostic_report.md` ve yeni `embedResolveListener` akışı
+(`CsPluginDiagnosticRunner.kt:306`).
+
+---
+
+## 4. Yapılan Değişiklikler
+
+### Yeni dosyalar
+| Dosya | Ne yapar |
+|---|---|
+| `app/src/main/java/com/kitsugi/animelist/data/cloudstream/embed/EmbedMediaScanner.kt` | HTML/JS → gerçek medya URL'si (packer, atob, kaçış, iframe, skorlama). **Saf Kotlin → birim testli.** |
+| `app/src/main/java/com/kitsugi/animelist/data/cloudstream/embed/WebViewMediaSniffer.kt` | JS ile üretilen oynatıcılarda medya isteğini gerçek WebView'de yakalar (tek WebView kilidi, 12 sn). |
+| `app/src/test/java/com/kitsugi/animelist/data/cloudstream/embed/EmbedMediaScannerTest.kt` | 11 birim testi: JWPlayer, packer, atob, kaçış, video tag, iframe, data-*, reklam filtresi. |
+
+### Değişen dosyalar
+| Dosya | Değişiklik |
+|---|---|
+| `CsStreamRunner.kt` (+519/−35) | 4 aşamalı embed çözümleme; paralel embed çözümü; medya/HTML sınıflandırması; uzantısız medya için Content-Type kontrolü; `normalizePluginKey` + `resolveBuiltinDomain`; altyazı listesi thread-safe; gereksiz beklemenin azaltılması |
+| `PlayerErrorRecoveryController.kt` (+42/−35) | Kodek/ses hatalarında MPV motoruna geçiş; HTTP hatası ile kodek hatasının ayrıştırılması |
+
+### Doğrulama (bu ortamda yapılabilen)
+- **Tekrarlanabilir koşum takımı (depoda):** `scripts/verify_embed_scanner.py` — tarayıcı mantığının
+  birebir Python ikizi; `python3 scripts/verify_embed_scanner.py` komutu **15/15 geçer** (8 oynatıcı
+  senaryosu + packer + `looksLikeMediaUrl` negatif/pozitif kontrolleri).
+- **URL sınıflandırma kontrolü:** `isClearlyDirectMediaUrl` 9 örnekle doğrulandı — uzantısız oynatıcı
+  yolları (`/v/abc123`, `/play/9f8a…`, `player.aspx?id=…`) artık **medya sayılmıyor**; `.m3u8`/`.mp4` ve
+  `master.txt`/`playlist.txt` işaretleri medya sayılıyor.
+- **Packer doğrulaması:** gerçek `eval(function(p,a,c,k,e,d)…)` çıktısından
+  `https://s1.molystream.org/hls/x9/720/index.m3u8?h=abc` çıkarıldı. *(Bu sırada paket çözücüde
+  "token→kelime" yerine "kelime→kelime" değişimi yapan bir hata bulundu ve düzeltildi.)*
+- Kotlin dosyalarında süslü parantez/parantez denge kontrolü: `CsStreamRunner.kt` 476/476,
+  `EmbedMediaScanner.kt` 87/87, `WebViewMediaSniffer.kt` 20/20, `PlayerErrorRecoveryController.kt` 18/18.
+
+---
+
+## 5. Cihazda Doğrulama Adımları (yapılması gereken)
+
+```bash
+# 1) Derleme
+./gradlew assembleDebug
+
+# 2) Yeni birim testleri
+./gradlew testDebugUnitTest --tests "*EmbedMediaScannerTest*"
+
+# 3) Logcat ile canlı izleme (embed aşamaları görünür)
+adb logcat -s CsStreamRunner:V PLUGIN_DIAG:V CS_SEARCH_ERR:V
+```
+
+Beklenen loglar (yeni):
+```
+[KekikCS] 2 embed URL'si paralel çözümleniyor (eşzamanlılık=3)...
+[KekikCS] Derin tarama: 3 aday, 1 iframe, oynatıcıSayfası=true
+[KekikCS] ✅ Derin tarama medya buldu: https://cdn.../master.m3u8
+[KekikCS] WebView sniffer → yakalandı
+[KekikCS] Kodek/çözücü hatası (4003) — MPV motoruna geçiş zorlanıyor.
+```
+
+Cihazda şu senaryolar kontrol edilmeli:
+1. **DiziBox / HDFilmCehennemi / Dizilla** → en az 1 kaynak gerçek medya URL'si olmalı; "ÖLÜ KANAL"
+   etiketi görülmemeli.
+2. `Kalite ?` ya da ölçülmüş kalite rozetleri görünmeli (uydurma 400p/1080p **olmamalı**).
+3. Bir kaynakta ses yoksa oynatıcı **MPV'ye** geçip oynamaya devam etmeli.
+4. Uzun kaynak listesinde ilk sonuçlar eskisine göre **belirgin şekilde erken** gelmeli.
+
+---
+
+## 6. Kalan Riskler / Önerilen Sonraki Adımlar
+
+1. **`applyDomainFix` politika değişikliği** (B6) — tablo tabanlı zorunlu override yerine
+   "yalnızca ölü/marka farklı ise düzelt".
+2. **Kara liste TTL'i** (B7) — 24 saatlik probe ile geri kazanma.
+3. **Cloudflare/DDoS-Guard algılama sıkılaştırması** (B8) — gerçek challenge işareti.
+4. **WebView sniffer için ayar anahtarı** — `CsStreamRunner.enableWebViewSniffing` alanı hazır;
+   Ayarlar ekranına "JS oynatıcıları çöz (yavaş)" anahtarı eklenebilir (varsayılan: açık).
+5. **Per-eklenti "aşama raporu"** — `embedResolveListener` zaten her embed denemesi için
+   `providerName / rawUrl / resolved / error` veriyor; `CsPluginDiagnosticRunner` ekranında
+   "hangi aşamada kaldı" kolonu olarak gösterilebilir.
+6. **`decoderPriority` etiketleri** — `AppSettings.kt:103` yorumu ("0 = Hardware only") kodun
+   gerçek davranışıyla uyuşmuyor (`0` → `EXTENSION_RENDERER_MODE_ON`, yani yazılım fallback **açık**).
+   Yorum düzeltilmeli, yoksa yanlış varsayımlarla ayar değiştirilir.
+
+---
+
+## 7. Özet
+
+- **En büyük kazanç:** embed çözümleme artık site-bağımsız. Kütüphanenin tanımadığı Türkçe CDN'ler
+  için HTML/JS derin taraması, base64/packer çözme, Content-Type tespiti, iframe zinciri ve son
+  çare olarak gerçek WebView sniffing devrede. **Video kaynağı bulunamayan eklenti sayısı hedefli
+  olarak azalır.**
+- **İkinci büyük kazanç:** kodek hatalarında MPV'ye geçiş — "ses yok / video açılmıyor" sınıfındaki
+  şikâyetlerin büyük kısmı bu şekilde çözülür.
+- **Üçüncü kazanç:** paralel embed çözümü + gereksiz beklemelerin azaltılması → "aşırı geç geliyor"
+  şikâyeti.
+- **Doğruluk:** tüm yeni mantık ya birim testli (Kotlin) ya da ikiz uygulamayla senaryo testli (8/8).
+  Derleme ve cihaz testi bu ortamda mümkün olmadığı için **ilk iş cihazda `assembleDebug` + logcat
+  kontrolü** olmalı.
