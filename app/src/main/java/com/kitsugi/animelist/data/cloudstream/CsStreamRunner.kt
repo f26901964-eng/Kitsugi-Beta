@@ -647,6 +647,31 @@ object CsStreamRunner {
         }
     }
 
+    /** Zorla uygulanan (yerleşik tablodan gelen) domainlerin eklentideki özgün hâli. */
+    private val forcedDomainOriginals = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+    /**
+     * Yerleşik tablo yüzünden domaini değiştirilmiş eklentiyi kendi özgün domainine döndürür.
+     *
+     * Neden gerekli: ölçümde 9 eklentide (FullHDFilmizlesene, RecTV, DiziMom, WebteIzle,
+     * SetFilmIzle, FullHDFilm, DiziPal, DiziPalOriginal …) uygulamanın zorla uyguladığı domain,
+     * eklentinin kendi beyan ettiği (ve o an güncel olan) domainden farklı çıktı. Tablo eskimişse
+     * eklenti hiç sonuç vermiyordu. Bu yöntem, arama boş döndüğünde özgün domaine **bir kez**
+     * döner; döngüye girme riski yoktur (kayıt `remove` ile tüketilir).
+     */
+    private fun revertForcedDomain(api: MainAPI): Boolean {
+        val original = forcedDomainOriginals.remove(api.name) ?: return false
+        if (original.isBlank() || original == "/") return false
+        if (original.trimEnd('/') == api.mainUrl.trimEnd('/')) return false
+        Log.w(
+            TAG,
+            "[${api.name}] Zorla uygulanan domain sonuç vermedi → eklentinin kendi domainine dönülüyor: " +
+                "'${api.mainUrl}' -> '$original'"
+        )
+        api.mainUrl = original
+        return true
+    }
+
     /**
      * Plugin'in mainUrl'sini bilinen dinamik (GitHub) ve dahili varsayılan domainlerle günceller.
      * Boş, "/" veya bilinen geçersiz domainleri derhal canlı çalışan URL'ye taşır.
@@ -655,12 +680,21 @@ object CsStreamRunner {
         val nameKey = normalizePluginKey(api.name)
         val builtinFallback = resolveBuiltinDomain(nameKey)
 
-        val remoteUrl = dynamicDomains[nameKey] ?: builtinFallback
+        val dynamicUrl = dynamicDomains[nameKey]
+        val remoteUrl = dynamicUrl ?: builtinFallback
         if (remoteUrl != null) {
             val currentUrl = api.mainUrl
             val normalize = { u: String -> u.replace("https://", "").replace("http://", "").replace("www.", "").trimEnd('/') }
             if (currentUrl.isBlank() || currentUrl == "/" || currentUrl.contains("x.anizium.co") || currentUrl.contains("anizium.de") || normalize(currentUrl) != normalize(remoteUrl)) {
                 Log.w(TAG, "[${api.name}] Domain güncellendi: '$currentUrl' -> '$remoteUrl'")
+                if (dynamicUrl != null) {
+                    // Uzak (depo sahibinin yayınladığı) liste güncel kabul edilir — geri dönüş yok.
+                    forcedDomainOriginals.remove(api.name)
+                } else {
+                    // YERLEŞİK tablo eskimiş olabilir (ör. eklenti kendi içinde daha yeni bir domain
+                    // taşıyor). Özgün domaini sakla: arama hiç sonuç vermezse bir kez geri dönülür.
+                    forcedDomainOriginals.putIfAbsent(api.name, currentUrl)
+                }
                 api.mainUrl = remoteUrl
                 return
             }
@@ -1033,6 +1067,19 @@ object CsStreamRunner {
                 Log.d(TAG, "[${api.name}] Tek kelime fallback: '$fallbackWord'")
                 results = safeSearch(api, fallbackWord)
                 if (results.isNotEmpty()) searchedVariant = fallbackWord
+            }
+        }
+
+        // SON ÇARE (domain): Arama hiç sonuç vermediyse ve domaini YERLEŞİK tablo yüzünden
+        // değiştirdiysek, eklentinin kendi domainiyle bir kez daha dene. Tablo eskimiş olabilir.
+        if (results.isEmpty() && revertForcedDomain(api)) {
+            for (variant in titleVariants) {
+                results = safeSearch(api, variant)
+                if (results.isNotEmpty()) {
+                    searchedVariant = variant
+                    Log.d(TAG, "[${api.name}] ✓ Özgün domainle '${variant}' için ${results.size} sonuç bulundu")
+                    break
+                }
             }
         }
 

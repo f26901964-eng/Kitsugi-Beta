@@ -265,6 +265,37 @@ MPV kapalıysa doğrudan EXTERNAL'e geçilir. Böylece mevcut test de geçer.
 `withTimeoutOrNull(timeoutMs / 2) { globalGate.acquire() }` — beklerken thread serbest kalır.
 Ayrıca `java.util.concurrent` bağımlılığı dosyadan tamamen kaldırıldı.
 
+### B14 — (Yüksek) Yerleşik domain tablosu, eklentinin kendi güncel domainini eziyor ✅ AZALTILDI
+
+**Yöntem:** `feroxx/Kekik-cloudstream` deposunun **gerçek kaynak kodu** (codeload tar.gz, 139 .kt)
+indirildi; 71 provider/extractor'ın kendi beyan ettiği `mainUrl` çıkarıldı ve uygulamanın
+`BUILTIN_DEFAULT_DOMAINS` tablosuyla karşılaştırıldı.
+
+**Sonuç — 9 eklentide tablo farklı bir domain dayatıyor:**
+
+| Eklenti | Eklentinin beyan ettiği (kaynak kod) | Uygulamanın dayattığı (tablo) |
+|---|---|---|
+| DiziMom | `dizimom.wiki` | `dizimom.help` |
+| DiziPal | `dizipal1587.com` | `dizipal3008.com` |
+| DiziPalOriginal | `dizipal2136.com` | `dizipal3008.com` |
+| FullHDFilm | `hdfilm.us` | `fullhdfilm.pro` |
+| **FullHDFilmizlesene** | `fullhdfilmizlesene.now` | `fullhdfilmizlesene.mx` |
+| **RecTV** | `a.psrectv80.xyz` | `m.prectv72.lol` |
+| SetFilmIzle | `setfilmizle.ltd` | `setfilmizle.uk` |
+| WebDramaTurkey | `dtpasn.asia` | `webdramaturkey2.com` |
+| WebteIzle | `webteizle.info` | `webteizle3.xyz` |
+
+`applyDomainFix`, `normalize(currentUrl) != normalize(remoteUrl)` olduğunda domaini **koşulsuz**
+değiştirir. Tablo eskimişse (veya eklenti kendi içinde daha yeni bir domain taşıyorsa) eklenti
+çalışmaz hâle gelir. Ölçümde 62/71 eklentide domain **aynı** çıktı; sorun bu 9'la sınırlı.
+
+**Çözüm (güvenli geri dönüş eklendi):**
+- Yalnızca **yerleşik tablodan** gelen domain değişiklikleri için özgün domain hatırlanır
+  (`forcedDomainOriginals`). Uzak (depo sahibinin yayınladığı) liste güncel kabul edilir.
+- Arama **hiç sonuç vermezse**, eklenti kendi özgün domainiyle **bir kez** daha denenir
+  (`revertForcedDomain`) → tablo eskimişse eklenti kurtulur, döngü riski yoktur (kayıt tüketilir).
+- Log: *"Zorla uygulanan domain sonuç vermedi → eklentinin kendi domainine dönülüyor"*.
+
 ---
 
 ## 4. Yapılan Değişiklikler
@@ -282,6 +313,7 @@ Ayrıca `java.util.concurrent` bağımlılığı dosyadan tamamen kaldırıldı.
 | `CsStreamRunner.kt` | 4 aşamalı embed çözümleme; paralel embed çözümü; medya/HTML sınıflandırması; uzantısız medya için Content-Type kontrolü; `normalizePluginKey` + `resolveBuiltinDomain`; altyazı listesi thread-safe; gereksiz beklemenin azaltılması; **ölü-CDN silmesinin kaldırılması**; **aday doğrulamanın paralelleştirilmesi** (`MAX_PROBE_CANDIDATES`) |
 | `PlayerErrorRecoveryController.kt` | Kodek/ses hatalarında MPV motoruna geçiş; HTTP hatası ile kodek hatasının ayrıştırılması |
 | `core/player/engine/PlayerFallbackCoordinator.kt` | `mpvEnabled` artık zincirde kullanılıyor (MPV kapalıysa MEDIA3 → EXTERNAL); mevcut birim testi artık geçerli |
+| `CsStreamRunner.kt` (domain) | Yerleşik tablodan zorla uygulanan domain, arama boş dönerse bir kez geri alınır (`forcedDomainOriginals` / `revertForcedDomain`) |
 
 ### Doğrulama (bu ortamda yapılabilen)
 - **Tekrarlanabilir koşum takımı (depoda):** `scripts/verify_embed_scanner.py` — tarayıcı mantığının
@@ -297,6 +329,8 @@ Ayrıca `java.util.concurrent` bağımlılığı dosyadan tamamen kaldırıldı.
   `CsStreamRunner.kt` {}=477/477 ()=1369/1369, `EmbedMediaScanner.kt` 90/90 327/327,
   `WebViewMediaSniffer.kt` 20/20 57/57, `PlayerErrorRecoveryController.kt` 18/18 59/59,
   `EmbedMediaScannerTest.kt` 11/11 68/68 — **hepsi dengeli**.
+- **Gerçek kaynak analizi (kanıt):** `feroxx/Kekik-cloudstream` (139 .kt, codeload tar.gz) indirilip
+  71 provider'ın `mainUrl` beyanı çıkarıldı → 62'si uygulama tablosuyla **aynı**, 9'u farklı (B14).
 - **Domain eşleştirme analizi (kanıt):** 173 eklenti adı × 78 anahtarlı tablo Python ile tarandı;
   eski bulanık kural bu eklentileri **yanlış** eşliyordu: `AsyaAnimeleri → animeler.pw`,
   `FullHDFilmizlesene → hdfilmizle.live`, `HDFilmCehennemi2 → hdfilmcehennemi.nl`,

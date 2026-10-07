@@ -50,11 +50,13 @@ UNICODE_ESCAPE = re.compile(r"""\\u([0-9a-fA-F]{4})""")
 HEX_ESCAPE = re.compile(r"""\\x([0-9a-fA-F]{2})""")
 NUMERIC_ENTITY = re.compile(r"""&#(x?[0-9a-fA-F]{1,6});""")
 
+# NOT: Bu listeler EmbedMediaScanner.kt içindeki MEDIA_EXTENSIONS / HARD_DENY_EXTENSIONS ile
+# BİREBİR aynı tutulmalıdır; aksi hâlde bu koşum takımı yanlış güven verir.
 MEDIA_EXT = (".m3u8", ".mp4", ".mpd", ".mkv", ".webm", ".flv", ".ts", ".m4v", ".mov", ".avi",
              "master.txt", "playlist.txt")
 HARD_DENY = (".css", ".js", ".json", ".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".ico",
-             ".woff", ".woff2", ".ttf", ".eot", ".html", ".htm", ".php", ".xml", ".vtt",
-             ".srt", ".ass", ".ssa")
+             ".woff", ".woff2", ".ttf", ".eot", ".html", ".htm", ".php", ".xml",
+             ".txt.map", ".css.map", ".js.map", ".vtt", ".srt", ".ass", ".ssa")
 DENY_TOKENS = ("doubleclick", "googlesyndication", "adservice", "adsystem", "adserver",
                "/ads/", "advert", "banner", "popunder", "onclick", "click?",
                "google-analytics", "googletagmanager", "facebook.com/tr", "pixel.gif",
@@ -316,13 +318,17 @@ def scan(html, base_url):
 
 # ── Senaryolar ────────────────────────────────────────────────────────────────
 
+# GERÇEKTEN paketlenmiş örnek: URL, "0"…"d" token'larının içinde gizlidir.
+# Beklenen çözüm: jwplayer('v').setup({file:'https://s1.molystream.org/hls/x9/720/index.m3u8?h=abc'});
 PACKED_REAL = (
     r"""eval(function(p,a,c,k,e,d){e=function(c){return(c<a?'':e(parseInt(c/a)))+((c=c%a)>35?"""
     r"""String.fromCharCode(c+29):c.toString(36))};while(c--){if(k[c]){p=p.replace("""
-    r"""new RegExp('\\b'+e(c)+'\\b','g'),k[c])}}return p}("""
-    r"""'0("v").1({2:"3://4.5.6/7/8/9/a.b?c=d"});',36,14,"""
+    r"""new RegExp('\b'+e(c)+'\b','g'),k[c])}}return p}("""
+    "\'0(\\'v\\').1({2:\\'3://4.5.6/7/8/9/a.b?c=d\\'});\',36,14,"
     r"""'jwplayer|setup|file|https|s1|molystream|org|hls|x9|720|index|m3u8|h|abc'.split('|')))"""
 )
+
+PACKED_EXPECTED = "jwplayer('v').setup({file:'https://s1.molystream.org/hls/x9/720/index.m3u8?h=abc'});"
 
 _ATOB_INNER = '{"sources":[{"file":"https://cdn3.alions.pro/stream/sd/abc/master.m3u8","label":"720p"}]}'
 _ATOB_B64 = base64.b64encode(_ATOB_INNER.encode()).decode()
@@ -413,8 +419,8 @@ def main():
     print(("✅" if ok else "❌"), f"{'iframe_chain':20s} media=0 iframe={len(iframes)} (zincir takibi)")
     passed, failed = (passed + 1, failed) if ok else (passed, failed + 1)
 
-    # packer çözücüsü birebir doğrulama
-    expected_js = 'jwplayer("v").setup({file:"https://s1.molystream.org/hls/x9/720/index.m3u8?h=abc"});'
+    # packer çözücüsü birebir doğrulama (gövde gerçekten paketlenmiş: token → kelime)
+    expected_js = PACKED_EXPECTED
     unpacked = unpack_packed_js(PACKED_REAL)
     ok = unpacked == expected_js
     print(("✅" if ok else "❌"), "packer token→kelime çözümü")
