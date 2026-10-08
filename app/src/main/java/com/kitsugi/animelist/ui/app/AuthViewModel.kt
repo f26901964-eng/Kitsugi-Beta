@@ -51,6 +51,17 @@ private fun Throwable.crossSyncDiagnostic(): String = buildString {
     }
 }
 
+/**
+ * `malId` alanı yalnızca gerçek MAL kimliği değil; uygulama Kitsu (id + 300M) ve AniList (id + 100M)
+ * kayıtlarını da bu alanda iç ad alanıyla taşır. Raporda bunlar MAL kimliği gibi okunmasın diye etiketlenir.
+ */
+private fun describeMalIdField(malId: Int?): String = when {
+    malId == null -> "yok"
+    malId in 300_000_001..399_999_999 -> "$malId (iç Kitsu kimliği, MAL değil: Kitsu #${malId - 300_000_000})"
+    malId in 100_000_001..299_999_999 -> "$malId (iç AniList kimliği, MAL değil: AniList #${malId - 100_000_000})"
+    else -> "$malId (MAL)"
+}
+
 private fun MediaEntry.crossSyncIdentityDiagnostic(): String = buildString {
     fun clean(value: String?): String = value.orEmpty().replace('\n', ' ').replace('\r', ' ').trim()
     appendLine("Başlık: ${clean(title)}")
@@ -60,7 +71,7 @@ private fun MediaEntry.crossSyncIdentityDiagnostic(): String = buildString {
     appendLine("Kaynak: ${clean(source)}")
     val identityKeys = com.kitsugi.animelist.model.MediaIdentity.keys(this@crossSyncIdentityDiagnostic)
     appendLine("Harici kimlikler: ${identityKeys.takeIf { it.isNotEmpty() }?.joinToString() ?: "yok"}")
-    appendLine("Ham kimlik alanları: malId=$malId, aniListEntryId=$aniListEntryId, malListId=$malListId, simklId=$simklId, tmdbId=$tmdbId")
+    appendLine("Ham kimlik alanları: malId=${describeMalIdField(malId)}, aniListEntryId=$aniListEntryId, malListId=$malListId, simklId=$simklId, tmdbId=$tmdbId")
     appendLine("Durum/ilerleme: ${status.label}, bölüm=$progress/${total ?: "?"}, cilt=$volumeProgress, puan=${score ?: "yok"}")
     appendLine("Tarihler: başlangıç=${startDate ?: "yok"}, bitiş=${endDate ?: "yok"}; favori=$isFavorite")
 }
@@ -695,7 +706,16 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                 keyMatches.isEmpty() && exactTitleMatches.size == 1 -> exactTitleMatches.single()
                                 else -> null
                             }
-                            if (resolvedMatch != null) {
+                            // Tekil seçim de tek aday dalındaki güvenlik kontrolünden geçmeli: seçilen grubun herhangi bir
+                            // kaydı yıl olarak uyuşmuyorsa veya ortak kimlikli kayıt başlıkça akraba değilse grup birleştirilmez.
+                            // Güncellemeler de grup doğruluğuna bağlı olduğu için bu durumda hiçbir hesaba yazılmaz.
+                            val identityConflictedCandidates = resolvedMatch?.candidates.orEmpty().filter { candidate ->
+                                val sharesId = identity.keys(candidate).intersect(entryKeys).isNotEmpty()
+                                !com.kitsugi.animelist.data.auth.CrossSyncIdentityGuard.yearsCompatible(candidate.year, entry.year) ||
+                                    (sharesId && titleAliases(candidate).intersect(entryTitles).isEmpty() &&
+                                        !com.kitsugi.animelist.data.auth.CrossSyncIdentityGuard.entriesLookRelated(candidate, entry))
+                            }
+                            if (resolvedMatch != null && identityConflictedCandidates.isEmpty()) {
                                 val details = buildString {
                                     appendLine("Birden fazla aday grup bulundu; tekil ${if (keyMatches.size == 1) "ortak kimlik" else "tam başlık"} ile seçim yapıldı.")
                                     appendLine("Gelen kayıt:")
@@ -716,7 +736,12 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                                 resolvedMatch
                             } else {
                                 val details = buildString {
-                                    appendLine("Birden fazla olası grup arasında güvenilir tek bir seçim yapılamadı. Kayıt başka hesaplara yazılmadı.")
+                                    appendLine(
+                                        if (resolvedMatch != null)
+                                            "Tekil seçilen grubun başlık/yıl bilgisi gelen kayıtla uyuşmadı; yanlış birleştirmeyi önlemek için seçim reddedildi. Kayıt başka hesaplara yazılmadı."
+                                        else
+                                            "Birden fazla olası grup arasında güvenilir tek bir seçim yapılamadı. Kayıt başka hesaplara yazılmadı."
+                                    )
                                     appendLine("Gelen kayıt:")
                                     appendLine(describeIdentityCandidate(entry))
                                     appendLine("Aday gruplar:")
