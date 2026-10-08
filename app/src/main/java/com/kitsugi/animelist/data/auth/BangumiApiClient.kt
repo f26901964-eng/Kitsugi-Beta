@@ -177,7 +177,9 @@ object BangumiApiClient {
         val username: String,
         val nickname: String,
         val avatarUrl: String?,
-        val userGroup: Int? = null
+        val userGroup: Int? = null,
+        /** Kişisel imza (`sign`); profil ekranında gösterilir. */
+        val sign: String? = null
     )
 
     data class BangumiImages(
@@ -339,6 +341,18 @@ object BangumiApiClient {
         /** [EpisodeCollectionType] */
         val type: Int,
         val episode: BangumiEpisode? = null
+    )
+
+    /**
+     * Karakter veya kişi favorisi (`UserCharacterCollection` / `UserPersonCollection`).
+     * Karakter `type`: 1 角色, 2 机体, 3 舰船, 4 组织. Kişi `type`: 1 个人, 2 公司, 3 组合.
+     */
+    data class BangumiFavoriteItem(
+        val id: Int,
+        val name: String,
+        val type: Int,
+        val imageUrl: String?,
+        val createdAt: String?
     )
 
     /** Sayfalı yanıtların ortak zarfı (`total` + `limit` + `offset` + `data`). */
@@ -579,6 +593,35 @@ object BangumiApiClient {
         parseUser(JSONObject(body))
     }
 
+    /** `GET /v0/users/{username}/collections/-/characters` — kullanıcının karakter favorileri. */
+    suspend fun getUserCharacterFavorites(token: String?, username: String): List<BangumiFavoriteItem> =
+        withContext(Dispatchers.IO) {
+            fetchFavoriteList("/v0/users/${URLEncoder.encode(username, "UTF-8")}/collections/-/characters", token)
+        }
+
+    /** `GET /v0/users/{username}/collections/-/persons` — kullanıcının kişi (声优/スタッフ) favorileri. */
+    suspend fun getUserPersonFavorites(token: String?, username: String): List<BangumiFavoriteItem> =
+        withContext(Dispatchers.IO) {
+            fetchFavoriteList("/v0/users/${URLEncoder.encode(username, "UTF-8")}/collections/-/persons", token)
+        }
+
+    private fun fetchFavoriteList(path: String, token: String?): List<BangumiFavoriteItem> {
+        val body = get(path, token = token) ?: return emptyList()
+        val array = JSONObject(body).optJSONArray("data") ?: return emptyList()
+        return (0 until array.length()).mapNotNull { index ->
+            val item = array.optJSONObject(index) ?: return@mapNotNull null
+            val id = item.optInt("id", 0)
+            if (id <= 0) return@mapNotNull null
+            BangumiFavoriteItem(
+                id = id,
+                name = item.optString("name").ifBlank { "#$id" },
+                type = item.optInt("type", 0),
+                imageUrl = parseImages(item.optJSONObject("images"))?.thumb,
+                createdAt = item.optString("created_at").ifBlank { null }
+            )
+        }
+    }
+
     /** `GET /v0/users/{username}` — başka bir kullanıcının açık profili. */
     suspend fun getUser(token: String?, username: String): BangumiUser? = withContext(Dispatchers.IO) {
         runCatching {
@@ -595,7 +638,8 @@ object BangumiApiClient {
             nickname = json.optString("nickname").ifBlank { json.optString("username") },
             avatarUrl = avatar?.optString("large")?.ifBlank { null }
                 ?: avatar?.optString("medium")?.ifBlank { null },
-            userGroup = json.optInt("user_group", 0).takeIf { it > 0 }
+            userGroup = json.optInt("user_group", 0).takeIf { it > 0 },
+            sign = json.optString("sign").ifBlank { null }
         )
     }
 

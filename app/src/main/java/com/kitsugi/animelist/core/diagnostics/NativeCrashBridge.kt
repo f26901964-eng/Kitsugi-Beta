@@ -23,6 +23,12 @@ object NativeCrashBridge {
 
     private const val NATIVE_CRASH_FILE = "native_crash.txt"
 
+    /**
+     * Sessiz (temiz olmayan) kapanma raporlarında yerel iz bu süreye kadar eklenebilir (7 gün).
+     * Kullanıcı uygulamayı çökmeden saatler sonra açarsa kanıt kaybolmasın diye 30 dk penceresi kullanılmaz.
+     */
+    const val UNCLEAN_TRACE_MAX_AGE_MS: Long = 7L * 24L * 60L * 60L * 1000L
+
     @Volatile
     private var loaded = false
 

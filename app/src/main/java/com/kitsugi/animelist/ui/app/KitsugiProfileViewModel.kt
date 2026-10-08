@@ -128,6 +128,9 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
     private val _shikimoriState = MutableStateFlow(ShikimoriProfileState())
     val shikimoriState: StateFlow<ShikimoriProfileState> = _shikimoriState.asStateFlow()
 
+    private val _bangumiState = MutableStateFlow(BangumiProfileState())
+    val bangumiState: StateFlow<BangumiProfileState> = _bangumiState.asStateFlow()
+
     fun initLocalStats(entries: List<MediaEntry>) {
         viewModelScope.launch {
             val anime = entries.filter { it.type == MediaType.Anime || it.type == MediaType.Movie || it.type == MediaType.TvShow }
@@ -166,6 +169,7 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
             2 -> fetchSimklProfile(forceRefresh = true)
             3 -> fetchKitsuProfile(forceRefresh = true)
             4 -> fetchShikimoriProfile(forceRefresh = true)
+            5 -> fetchBangumiProfile(forceRefresh = true)
         }
     }
 
@@ -1727,6 +1731,57 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
         }
     }
 
+    // --- BANGUMI API FETCHING ---
+    fun fetchBangumiProfile(forceRefresh: Boolean = false) {
+        if (!forceRefresh && _bangumiState.value.lastUpdatedMs > 0L) return
+
+        if (!com.kitsugi.animelist.data.auth.BangumiAuthStore.isConnected(context)) {
+            // Oturum kapatıldıysa önceki hesabın verisi ekranda kalmasın.
+            _bangumiState.update {
+                BangumiProfileState(isConnected = false, isLoading = false, error = "Bangumi bağlantısı bulunamadı")
+            }
+            return
+        }
+
+        _bangumiState.update { it.copy(isConnected = true, isLoading = true, error = null) }
+
+        viewModelScope.launch {
+            try {
+                val snapshot = com.kitsugi.animelist.data.auth.BangumiProfileManager.fetch(context)
+                if (snapshot == null) {
+                    _bangumiState.update {
+                        BangumiProfileState(isConnected = false, isLoading = false, error = "Bangumi bağlantısı bulunamadı")
+                    }
+                    return@launch
+                }
+                val user = snapshot.user
+                _bangumiState.update {
+                    it.copy(
+                        isConnected = true,
+                        isLoading = false,
+                        error = null,
+                        userId = user.id,
+                        userName = user.username,
+                        nickname = user.nickname,
+                        avatarUrl = user.avatarUrl,
+                        sign = user.sign,
+                        userGroup = user.userGroup,
+                        collections = snapshot.collections,
+                        characterFavorites = snapshot.characterFavorites,
+                        personFavorites = snapshot.personFavorites,
+                        lastUpdatedMs = System.currentTimeMillis()
+                    )
+                }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _bangumiState.update {
+                    it.copy(isLoading = false, error = e.message ?: "Bangumi profili yüklenemedi")
+                }
+            }
+        }
+    }
+
     // --- SHIKIMORI API FETCHING ---
     fun fetchShikimoriProfile(forceRefresh: Boolean = false) {
         if (!forceRefresh && _shikimoriState.value.name.isNotBlank()) {
@@ -2118,6 +2173,24 @@ data class KitsuProfileState(
     val episodesWatched: Int? = null,
     val favorites: List<ProfileFavoriteItem> = emptyList(),
     val libraryEntries: List<ProfileFavoriteItem> = emptyList()
+)
+
+/** Bangumi profil sekmesinin durumu (veri kaynağı: BangumiProfileManager). */
+data class BangumiProfileState(
+    val isConnected: Boolean = false,
+    val isLoading: Boolean = false,
+    val error: String? = null,
+    val userId: Long = 0L,
+    val userName: String = "",
+    val nickname: String = "",
+    val avatarUrl: String? = null,
+    val sign: String? = null,
+    val userGroup: Int? = null,
+    val collections: List<com.kitsugi.animelist.data.auth.BangumiApiClient.BangumiUserCollection> = emptyList(),
+    val characterFavorites: List<com.kitsugi.animelist.data.auth.BangumiApiClient.BangumiFavoriteItem> = emptyList(),
+    val personFavorites: List<com.kitsugi.animelist.data.auth.BangumiApiClient.BangumiFavoriteItem> = emptyList(),
+    /** 0 → henüz yüklenmedi; yükleme başarılı olunca zaman damgası yazılır. */
+    val lastUpdatedMs: Long = 0L
 )
 
 data class ShikimoriProfileState(

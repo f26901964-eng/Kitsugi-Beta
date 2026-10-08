@@ -32,6 +32,7 @@ import com.kitsugi.animelist.ui.components.KitsugiActivityDetailBottomSheet
 import com.kitsugi.animelist.ui.components.KitsugiImageGalleryDialog
 import com.kitsugi.animelist.ui.components.KitsugiKitsuLoginDialog
 import com.kitsugi.animelist.ui.components.KitsugiShikimoriLoginDialog
+import com.kitsugi.animelist.ui.components.KitsugiBangumiLoginDialog
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import kotlinx.coroutines.launch
@@ -45,6 +46,7 @@ fun KitsugiProfileScreen(
     isSimklConnected: Boolean,
     isKitsuConnected: Boolean = false,
     isShikimoriConnected: Boolean = false,
+    isBangumiConnected: Boolean = false,
     profileName: String,
     listTitle: String,
     profileImageUri: String,
@@ -64,8 +66,10 @@ fun KitsugiProfileScreen(
     onLoginSimkl: () -> Unit = {},
     onLoginKitsu: () -> Unit = {},
     onLoginShikimori: () -> Unit = {},
+    onLoginBangumi: () -> Unit = {},
     onKitsuAuthSubmit: ((String, String, (Boolean, String?) -> Unit) -> Unit)? = null,
     onShikimoriAuthSubmit: ((String, String, String, (Boolean, String?) -> Unit) -> Unit)? = null,
+    onBangumiAuthSubmit: ((String, String, String, (Boolean, String?) -> Unit) -> Unit)? = null,
     onUserProfileClick: (userId: Int, username: String, avatarUrl: String?) -> Unit = { _, _, _ -> },
     modifier: Modifier = Modifier
 ) {
@@ -80,6 +84,7 @@ fun KitsugiProfileScreen(
     val simklState by viewModel.simklState.collectAsState()
     val kitsuState by viewModel.kitsuState.collectAsState()
     val shikimoriState by viewModel.shikimoriState.collectAsState()
+    val bangumiState by viewModel.bangumiState.collectAsState()
 
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -88,6 +93,7 @@ fun KitsugiProfileScreen(
     var showSourcePickerSheet by remember { mutableStateOf(false) }
     var showKitsuLoginDialog by remember { mutableStateOf(false) }
     var showShikimoriLoginDialog by remember { mutableStateOf(false) }
+    var showBangumiLoginDialog by remember { mutableStateOf(false) }
 
     var activeFavoriteSheet by remember { mutableStateOf<Pair<String, List<com.kitsugi.animelist.ui.app.ProfileFavoriteItem>>?>(null) }
     var onSheetItemClick by remember { mutableStateOf<((com.kitsugi.animelist.ui.app.ProfileFavoriteItem) -> Unit)?>(null) }
@@ -100,13 +106,14 @@ fun KitsugiProfileScreen(
         onSheetItemClick = onClick
     }
 
-    LaunchedEffect(activeSubTab, isAniListConnected, isMalConnected, isSimklConnected, isKitsuConnected, isShikimoriConnected) {
+    LaunchedEffect(activeSubTab, isAniListConnected, isMalConnected, isSimklConnected, isKitsuConnected, isShikimoriConnected, isBangumiConnected) {
         when (activeSubTab) {
             0 -> if (isAniListConnected && aniListState.userId == null) viewModel.fetchAniListProfile()
             1 -> if (isMalConnected && malState.name.isBlank()) viewModel.fetchMalProfile()
             2 -> if (isSimklConnected && simklState.name.isBlank()) viewModel.fetchSimklProfile()
             3 -> if (isKitsuConnected && kitsuState.name.isBlank()) viewModel.fetchKitsuProfile()
             4 -> if (isShikimoriConnected && shikimoriState.name.isBlank()) viewModel.fetchShikimoriProfile()
+            5 -> if (isBangumiConnected && bangumiState.lastUpdatedMs == 0L) viewModel.fetchBangumiProfile()
         }
     }
 
@@ -124,6 +131,7 @@ fun KitsugiProfileScreen(
                 ProfilePlatform.SIMKL -> isSimklConnected
                 ProfilePlatform.KITSU -> isKitsuConnected
                 ProfilePlatform.SHIKIMORI -> isShikimoriConnected
+                ProfilePlatform.BANGUMI -> isBangumiConnected
             }
 
             Row(
@@ -164,6 +172,7 @@ fun KitsugiProfileScreen(
                 2 -> simklState.isLoading
                 3 -> kitsuState.isLoading
                 4 -> shikimoriState.isLoading
+                5 -> bangumiState.isLoading
                 else -> false
             }
             val pullRefreshState = rememberPullToRefreshState()
@@ -285,6 +294,25 @@ fun KitsugiProfileScreen(
                                 isLandscape = isLandscape,
                                 accentColor = accentColor,
                                 onImageClick = { urls, idx, title -> activeGalleryImages = Triple(urls, idx, title) }
+                            )
+                        }
+                        5 -> ExternalProfileWrapper(
+                            isConnected = isBangumiConnected,
+                            isLoading = bangumiState.isLoading,
+                            error = bangumiState.error,
+                            onConnectClick = { if (onBangumiAuthSubmit != null) showBangumiLoginDialog = true else onLoginBangumi() },
+                            accentColor = accentColor,
+                            platformName = "Bangumi"
+                        ) {
+                            BangumiProfileContent(
+                                state = bangumiState,
+                                accentColor = accentColor,
+                                onOpenAnimeOrManga = { subjectId, mediaType, title, imageUrl ->
+                                    val stableId = com.kitsugi.animelist.data.remote.BangumiIdNamespace.stableIdFromRaw(subjectId)
+                                    if (stableId != null) {
+                                        onFavoriteMediaClick(stableId, mediaType, "bangumi", title, imageUrl)
+                                    }
+                                }
                             )
                         }
                         4 -> ExternalProfileWrapper(
@@ -409,11 +437,28 @@ fun KitsugiProfileScreen(
             simklUsername = simklState.name.ifBlank { null },
             kitsuUsername = kitsuState.name.ifBlank { null },
             shikimoriUsername = shikimoriState.name.ifBlank { null },
+            isBangumiConnected = isBangumiConnected,
+            bangumiUsername = bangumiState.userName.ifBlank { null },
             onSelectPlatform = { index ->
                 viewModel.activeSubTab = index
                 showSourcePickerSheet = false
             },
             onDismiss = { showSourcePickerSheet = false }
+        )
+    }
+
+    if (showBangumiLoginDialog && onBangumiAuthSubmit != null) {
+        KitsugiBangumiLoginDialog(
+            onDismiss = { showBangumiLoginDialog = false },
+            onLogin = { clientId, clientSecret, authCode, callback ->
+                onBangumiAuthSubmit(clientId, clientSecret, authCode) { success, error ->
+                    callback(success, error)
+                    if (success) {
+                        showBangumiLoginDialog = false
+                        viewModel.fetchBangumiProfile(forceRefresh = true)
+                    }
+                }
+            }
         )
     }
 

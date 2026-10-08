@@ -312,14 +312,14 @@ object KitsugiCrashLogger {
             // Hangisi daha yeniyse onu göster: Java çökmesi mi, sessiz ölüm mü?
             if (uncleanTime > 0 && uncleanTime >= primaryTime) {
                 val text = unclean.readText()
-                val nativeTrace = NativeCrashBridge.readRecentNativeCrash(context)
+                val nativeTrace = NativeCrashBridge.readRecentNativeCrash(context, NativeCrashBridge.UNCLEAN_TRACE_MAX_AGE_MS)
                 if (!nativeTrace.isNullOrBlank()) "$text\n\n▶ NATIVE ÇÖKME İZİ\n$nativeTrace" else text
             } else if (primaryTime > 0) {
                 val text = primary.readText()
                 val nativeTrace = NativeCrashBridge.readRecentNativeCrash(context)
                 if (!nativeTrace.isNullOrBlank()) "$text\n\n▶ NATIVE ÇÖKME İZİ\n$nativeTrace" else text
             } else {
-                val nativeTrace = NativeCrashBridge.readRecentNativeCrash(context)
+                val nativeTrace = NativeCrashBridge.readRecentNativeCrash(context, NativeCrashBridge.UNCLEAN_TRACE_MAX_AGE_MS)
                 if (!nativeTrace.isNullOrBlank()) "▶ NATIVE ÇÖKME İZİ\n$nativeTrace"
                 else "Henüz çökme kaydı bulunamadı."
             }

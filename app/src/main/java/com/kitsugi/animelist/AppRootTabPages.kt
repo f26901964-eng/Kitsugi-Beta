@@ -124,6 +124,7 @@ fun AppRootTabPages(
                     isSimklConnected = ctx.authViewModel.isSimklConnected,
                     isKitsuConnected = ctx.authViewModel.isKitsuConnected,
                     isShikimoriConnected = ctx.authViewModel.isShikimoriConnected,
+                    isBangumiConnected = ctx.authViewModel.isBangumiConnected,
                     profileName = ctx.appSettings.profileName,
                     listTitle = ctx.appSettings.listTitle,
                     profileImageUri = ctx.appSettings.profileImageUri,
@@ -150,6 +151,15 @@ fun AppRootTabPages(
                     },
                     onShikimoriAuthSubmit = { clientId, clientSecret, authCode, onComplete ->
                         ctx.authViewModel.loginShikimori(
+                            clientId = clientId,
+                            clientSecret = clientSecret,
+                            authCode = authCode,
+                            onSuccess = { onComplete(true, null) },
+                            onError = { onComplete(false, it) }
+                        )
+                    },
+                    onBangumiAuthSubmit = { clientId, clientSecret, authCode, onComplete ->
+                        ctx.authViewModel.loginBangumi(
                             clientId = clientId,
                             clientSecret = clientSecret,
                             authCode = authCode,

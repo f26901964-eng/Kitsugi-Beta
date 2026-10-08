@@ -17,6 +17,8 @@
 #include <jni.h>
 
 #include <android/log.h>
+#include <stddef.h>
+#include <stdint.h>
 #include <fcntl.h>
 #include <signal.h>
 #include <string.h>
@@ -24,6 +26,7 @@
 #include <sys/syscall.h>
 #include <time.h>
 #include <unistd.h>
+#include <ucontext.h>
 #include <unwind.h>
 
 #define LOG_TAG "KitsugiNativeCrash"
@@ -31,13 +34,16 @@
 
 namespace {
 
-constexpr int kMaxFrames = 48;
+constexpr int kMaxFrames = 96;
 constexpr size_t kDirMax = 480;
 
 char g_dir[kDirMax + 1] = {0};          // uygulamanın filesDir yolu
 char g_process_name[64] = {0};
 volatile sig_atomic_t g_installed = 0;
 volatile sig_atomic_t g_in_handler = 0;
+// Yalnızca İLK çökme kaydedilir. Aynı süreçteki sonraki sinyaller (ör. SIGSEGV'den sonra gelen
+// SIGABRT) ilk raporun üzerine yazmamalı veya ikinci, sahte bir kayıt eklememelidir.
+volatile sig_atomic_t g_recorded = 0;
 
 // Yığın taşması (stack overflow) kaynaklı SIGSEGV'de normal yığın kullanılamaz.
 // Bu yüzden yedek (alt) yığın ayırıyoruz — statik, malloc yok.
@@ -135,7 +141,30 @@ static size_t CaptureBacktrace(void** buffer, size_t max_frames) {
 
 // ── Rapor yazımı (async-signal-safe) ────────────────────────────────────────
 
-void write_native_report(int sig, siginfo_t* info) {
+// /proc/self/maps dökümü: ham adresleri (ör. 0x7f5a109550) hangi .so dosyasının hangi ofsetine
+// denk geldiğine çevirmek için gerekir (addr2line / ndk-stack ile ÇEVRİMDIŞI çözüm).
+// Yalnızca open/read/write/close kullanır → async-signal-safe.
+void write_proc_maps(int out_fd) {
+    static const char kBegin[] = "=== PROC MAPS (/proc/self/maps) ===\n";
+    static const char kEnd[] = "=== END PROC MAPS ===\n";
+    write_all(out_fd, kBegin, sizeof(kBegin) - 1);
+    int maps_fd = open("/proc/self/maps", O_RDONLY | O_CLOEXEC);
+    if (maps_fd >= 0) {
+        char chunk[4096];
+        for (;;) {
+            ssize_t n = read(maps_fd, chunk, sizeof(chunk));
+            if (n <= 0) break;
+            write_all(out_fd, chunk, static_cast<size_t>(n));
+        }
+        close(maps_fd);
+    } else {
+        static const char kFail[] = "(maps açılamadı)\n";
+        write_all(out_fd, kFail, sizeof(kFail) - 1);
+    }
+    write_all(out_fd, kEnd, sizeof(kEnd) - 1);
+}
+
+void write_native_report(int sig, siginfo_t* info, const void* ucontext_ptr) {
     if (g_dir[0] == '\0') return;
 
     char path[kDirMax + 24];
@@ -170,6 +199,25 @@ void write_native_report(int sig, siginfo_t* info) {
     append_str(buf, sizeof(buf), &b, "\nprocess=");
     append_str(buf, sizeof(buf), &b, g_process_name[0] != '\0' ? g_process_name : "?");
 
+    // Kesin hata adresi (PC) ve dönüş adresi (LR): geri izin ilk çerçeveleri sinyal
+    // trampoline'ı yüzünden kaçırabildiğinden doğrudan sinyal bağlamından alınır.
+    const ucontext_t* uc = static_cast<const ucontext_t*>(ucontext_ptr);
+    if (uc != nullptr) {
+#if defined(__aarch64__)
+        append_str(buf, sizeof(buf), &b, "\npc=0x");
+        append_hex(buf, sizeof(buf), &b, static_cast<unsigned long long>(uc->uc_mcontext.pc));
+        append_str(buf, sizeof(buf), &b, "\nlr=0x");
+        append_hex(buf, sizeof(buf), &b, static_cast<unsigned long long>(uc->uc_mcontext.regs[30]));
+#elif defined(__arm__)
+        append_str(buf, sizeof(buf), &b, "\npc=0x");
+        append_hex(buf, sizeof(buf), &b, static_cast<unsigned long long>(uc->uc_mcontext.arm_pc));
+        append_str(buf, sizeof(buf), &b, "\nlr=0x");
+        append_hex(buf, sizeof(buf), &b, static_cast<unsigned long long>(uc->uc_mcontext.arm_lr));
+#else
+        (void)uc;
+#endif
+    }
+
     char thread_name[32];
     thread_name[0] = '\0';
     if (prctl(PR_GET_NAME, thread_name, 0, 0, 0) == 0) {
@@ -198,11 +246,14 @@ void write_native_report(int sig, siginfo_t* info) {
     const char* footer = "=== END NATIVE CRASH ===\n";
     write_all(fd, footer, strlen(footer));
 
+    // Modül haritası: çözümleme için mutlaka gerekli (footer'dan sonra; ayrıştırıcılar bozulmasın).
+    write_proc_maps(fd);
+
     fsync(fd);
     close(fd);
 }
 
-void crash_signal_handler(int sig, siginfo_t* info, void* /*ucontext*/) {
+void crash_signal_handler(int sig, siginfo_t* info, void* ucontext) {
     // İç içe çökme koruması: handler içinde tekrar sinyal gelirse rapor yazma.
     if (g_in_handler) {
         signal(sig, SIG_DFL);
@@ -211,7 +262,10 @@ void crash_signal_handler(int sig, siginfo_t* info, void* /*ucontext*/) {
     }
     g_in_handler = 1;
 
-    write_native_report(sig, info);
+    if (!g_recorded) {
+        g_recorded = 1;
+        write_native_report(sig, info, ucontext);
+    }
 
     g_in_handler = 0;
 

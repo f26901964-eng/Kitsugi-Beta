@@ -38,7 +38,7 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 
 /**
- * Desteklenen 5 Profil Kaynak Platformu.
+ * Desteklenen 6 Profil Kaynak Platformu.
  */
 enum class ProfilePlatform(
     val id: String,
@@ -69,6 +69,11 @@ enum class ProfilePlatform(
         id = "shikimori",
         label = "Shikimori",
         description = "Anime ve manga listeleri, bölüm sayıları, puan istatistikleri ve kullanıcı oranları"
+    ),
+    BANGUMI(
+        id = "bangumi",
+        label = "Bangumi",
+        description = "Anime, manga, oyun ve müzik koleksiyonları, ilerleme ve puanlar, favori karakter ve kişiler"
     )
 }
 
@@ -149,6 +154,8 @@ fun ProfileSourcePickerSheet(
     simklUsername: String? = null,
     kitsuUsername: String? = null,
     shikimoriUsername: String? = null,
+    isBangumiConnected: Boolean = false,
+    bangumiUsername: String? = null,
     onSelectPlatform: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -199,6 +206,7 @@ fun ProfileSourcePickerSheet(
                     ProfilePlatform.SIMKL -> isSimklConnected
                     ProfilePlatform.KITSU -> isKitsuConnected
                     ProfilePlatform.SHIKIMORI -> isShikimoriConnected
+                    ProfilePlatform.BANGUMI -> isBangumiConnected
                 }
                 val username = when (platform) {
                     ProfilePlatform.ANILIST -> aniListUsername
@@ -206,6 +214,7 @@ fun ProfileSourcePickerSheet(
                     ProfilePlatform.SIMKL -> simklUsername
                     ProfilePlatform.KITSU -> kitsuUsername
                     ProfilePlatform.SHIKIMORI -> shikimoriUsername
+                    ProfilePlatform.BANGUMI -> bangumiUsername
                 }
 
                 Row(

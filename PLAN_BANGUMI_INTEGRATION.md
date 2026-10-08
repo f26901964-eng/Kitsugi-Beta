@@ -129,3 +129,13 @@ etiket/renk: `KitsugiHeroSection`, `KitsugiPlatformLogo`, `Character/StaffDetail
 4. Arama → 🎌 BGM motoru; boş sorguda filtre taraması (browse fallback) sonuç üretmeli.
 5. Bir kaydı "İzliyorum + 3 bölüm + puan 8" yap → bgm.tv profilinde 在看 / ep 3 / ★8 görünmeli.
 6. 429 görürsen: `PlatformRateLimiter` devrede; 10 dk'da 3000 istek sınırını aşma.
+
+---
+
+## Durum güncellemesi — 2026-10-09 (profil sekmesi)
+
+- Profil kaynağı seçicisine **Bangumi** eklendi (profil, koleksiyon listesi, tür/durum filtreleri, favori karakter ve kişiler).
+- Bildirimler resmi API'de yok; uygulama içi WebView'de `bgm.tv/notify/all` açılıyor (bkz. araştırma notları).
+- Karakter ve kişi detayı için uygulama içi ekran henüz yok; bgm.tv sayfası açılıyor.
+- Ayrıntılı araştırma, lisans kararları ve cihaz test listesi: `docs/audits/BANGUMI_PROFILE_RESEARCH_2026-10-09.md`.
+- Derleme ve cihaz testleri bu oturumda çalıştırılmadı.

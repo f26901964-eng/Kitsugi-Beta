@@ -421,6 +421,15 @@ class CloudstreamRepoRepository(private val context: Context) {
             for (installedPlugin in installedCsPlugins) {
                 val latestPlugin = allLatestPluginsMap[installedPlugin.id]
                 if (latestPlugin != null && latestPlugin.version > installedPlugin.version) {
+                    // Bu sürüm için yakın zamanda tüm adaylar başarısız olduysa, her eşitlemede
+                    // yeniden denemek yerine bekle (aksi halde her açılışta ~15–20 gereksiz 404 isteği).
+                    if (com.kitsugi.animelist.data.cloudstream.CsAutoUpdateBackoff.shouldSkip(
+                            context, latestPlugin.internalName, latestPlugin.version
+                        )
+                    ) {
+                        Log.d(TAG, "Auto-update skipped (recent failure for v${latestPlugin.version}): ${installedPlugin.name}")
+                        continue
+                    }
                     Log.d(TAG, "Auto-updating plugin: ${installedPlugin.name} from version ${installedPlugin.version} to ${latestPlugin.version}")
                     
                     val downloadSuccess = com.kitsugi.animelist.data.cloudstream.CsPluginLoader.downloadExtension(
@@ -431,6 +440,7 @@ class CloudstreamRepoRepository(private val context: Context) {
                         forceDownload = true
                     )
                     if (downloadSuccess) {
+                        com.kitsugi.animelist.data.cloudstream.CsAutoUpdateBackoff.clear(context, latestPlugin.internalName)
                         val updatedEntity = installedPlugin.copy(
                             version = latestPlugin.version,
                             downloadUrl = latestPlugin.url,
@@ -453,6 +463,9 @@ class CloudstreamRepoRepository(private val context: Context) {
                         }
                         Log.d(TAG, "Successfully auto-updated plugin: ${installedPlugin.name}")
                     } else {
+                        com.kitsugi.animelist.data.cloudstream.CsAutoUpdateBackoff.markFailed(
+                            context, latestPlugin.internalName, latestPlugin.version
+                        )
                         Log.e(TAG, "Failed to download update for plugin: ${installedPlugin.name}")
                     }
                 }
