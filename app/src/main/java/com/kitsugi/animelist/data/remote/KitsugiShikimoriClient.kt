@@ -12,7 +12,9 @@ import com.kitsugi.animelist.utils.*
 
 object KitsugiShikimoriClient {
     private const val TAG = "KitsugiShikimoriClient"
-    private const val BASE_URL = "https://shikimori.one/api"
+    // Kanonik host: shikimori.one/.me/.org artık shikimori.io'ya yönleniyor
+    // (bkz. ShikimoriApiClient.BASE_URL ve ShikimoriPosterResolver.HOST).
+    private const val BASE_URL = "https://shikimori.io/api"
 
     private fun adultFlag(item: JSONObject): Boolean {
         val rating = item.optString("rating").takeIf { it.isNotBlank() && it != "null" }
@@ -48,7 +50,7 @@ object KitsugiShikimoriClient {
                     val russianTitle = item.optString("russian", "").trim()
                     val title = romajiTitle.ifBlank { russianTitle }
                     val relativeImg = item.optJSONObject("image")?.optString("original")
-                    val imageUrl = relativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                    val imageUrl = ShikimoriPosterResolver.absoluteUrl(relativeImg)
                     val kind = item.optString("kind", "tv")
                     val score = item.optString("score", "0").toDoubleOrNull()?.toInt()?.coerceIn(0, 10)
                     val year = item.optString("aired_on", "").take(4).toIntOrNull()
@@ -74,7 +76,7 @@ object KitsugiShikimoriClient {
                         )
                     )
                 }
-                results
+                withResolvedPosters(ShikimoriPosterResolver.Kind.ANIME, results)
             }.getOrElse { err ->
                 Log.e(TAG, "Shikimori searchAnime exception: ${err.message}", err)
                 emptyList()
@@ -101,7 +103,7 @@ object KitsugiShikimoriClient {
                     val russianTitle = item.optString("russian", "").trim()
                     val title = romajiTitle.ifBlank { russianTitle }
                     val relativeImg = item.optJSONObject("image")?.optString("original")
-                    val imageUrl = relativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                    val imageUrl = ShikimoriPosterResolver.absoluteUrl(relativeImg)
                     val kind = item.optString("kind", "manga")
                     val score = item.optString("score", "0").toDoubleOrNull()?.toInt()?.coerceIn(0, 10)
                     val year = item.optString("aired_on", "").take(4).toIntOrNull()
@@ -122,7 +124,7 @@ object KitsugiShikimoriClient {
                         )
                     )
                 }
-                results
+                withResolvedPosters(ShikimoriPosterResolver.Kind.MANGA, results)
             }.getOrElse { err ->
                 Log.e(TAG, "Shikimori searchManga exception: ${err.message}", err)
                 emptyList()
@@ -187,7 +189,7 @@ object KitsugiShikimoriClient {
                 val russianTitle = item.optString("russian", "").trim()
                 val title = romajiTitle.ifBlank { russianTitle }
                 val relativeImg = item.optJSONObject("image")?.optString("original")
-                val imageUrl = relativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                val imageUrl = ShikimoriPosterResolver.absoluteUrl(relativeImg)
                 val kind = item.optString("kind", "tv")
                 val sc = item.optString("score", "0").toDoubleOrNull()?.toInt()?.coerceIn(0, 10)
                 val yr = item.optString("aired_on", "").take(4).toIntOrNull()
@@ -210,7 +212,11 @@ object KitsugiShikimoriClient {
                     )
                 )
             }
-            results
+            withResolvedPosters(
+                if (mediaType == com.kitsugi.animelist.model.MediaType.Manga) ShikimoriPosterResolver.Kind.MANGA
+                else ShikimoriPosterResolver.Kind.ANIME,
+                results
+            )
         }.getOrElse { emptyList() }
     }
 
@@ -256,7 +262,7 @@ object KitsugiShikimoriClient {
                 if (id <= 0) continue
                 val name = item.optString("name", "").ifBlank { item.optString("russian", "Karakter") }
                 val relativeImg = item.optJSONObject("image")?.optString("original")
-                val imageUrl = relativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                val imageUrl = ShikimoriPosterResolver.absoluteUrl(relativeImg)
                 results.add(
                     JikanSearchResult(
                         malId = id,
@@ -272,7 +278,7 @@ object KitsugiShikimoriClient {
                     )
                 )
             }
-            results
+            withResolvedPosters(ShikimoriPosterResolver.Kind.CHARACTER, results)
         }.getOrElse { emptyList() }
     }
 
@@ -291,7 +297,7 @@ object KitsugiShikimoriClient {
                 if (id <= 0) continue
                 val name = item.optString("name", "").ifBlank { item.optString("russian", "Kişi") }
                 val relativeImg = item.optJSONObject("image")?.optString("original")
-                val imageUrl = relativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                val imageUrl = ShikimoriPosterResolver.absoluteUrl(relativeImg)
                 val role = when (kind) {
                     "seyu" -> "Seiyuu / Seslendirmen"
                     "mangaka" -> "Mangaka / Yazar"
@@ -313,7 +319,7 @@ object KitsugiShikimoriClient {
                     )
                 )
             }
-            results
+            withResolvedPosters(ShikimoriPosterResolver.Kind.PERSON, results)
         }.getOrElse { emptyList() }
     }
 
@@ -335,7 +341,7 @@ object KitsugiShikimoriClient {
                 val obj = array.optJSONObject(i) ?: continue
                 val relOriginal = obj.optString("original", "").trim()
                 if (relOriginal.isBlank()) continue
-                val fullUrl = if (relOriginal.startsWith("http")) relOriginal else "https://shikimori.one$relOriginal"
+                val fullUrl = ShikimoriPosterResolver.absoluteUrl(relOriginal) ?: continue
                 list.add(
                     GalleryItem(
                         url = fullUrl,
@@ -383,7 +389,14 @@ object KitsugiShikimoriClient {
                     val mainTitle = romajiTitle ?: engTitle ?: russianTitle ?: "Bilinmeyen"
 
                     val relativeImg = data.optJSONObject("image")?.optString("original")
-                    val imageUrl = relativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                    // REST `image` yer tutucuya düşerse gerçek kapak GraphQL'den alınır.
+                    val imageUrl = ShikimoriPosterResolver.bestImageUrl(
+                        kind = if (mediaType == MediaType.Manga) ShikimoriPosterResolver.Kind.MANGA
+                        else ShikimoriPosterResolver.Kind.ANIME,
+                        id = externalId,
+                        restImageUrl = relativeImg,
+                        preferFull = true
+                    )
 
                     val rawScore = data.optString("score", "0").toDoubleOrNull()
                     val score = rawScore?.toInt()?.coerceIn(0, 10)
@@ -620,7 +633,7 @@ object KitsugiShikimoriClient {
 
                         val charName = translateIfRussian(charObj.optString("name", "Bilinmeyen"))
                         val relativeImg = charObj.optJSONObject("image")?.optString("original")
-                        val imageUrl = relativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                        val imageUrl = ShikimoriPosterResolver.absoluteUrl(relativeImg)
 
                         val vaList = mutableListOf<KitsugiVoiceActor>()
                         val personObj = item.optJSONObject("person")
@@ -629,7 +642,7 @@ object KitsugiShikimoriClient {
                             if (vaId > 0) {
                                 val vaName = translateIfRussian(personObj.optString("name", "Bilinmeyen"))
                                 val vaRelativeImg = personObj.optJSONObject("image")?.optString("original")
-                                val vaImageUrl = vaRelativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                                val vaImageUrl = ShikimoriPosterResolver.absoluteUrl(vaRelativeImg)
                                 vaList.add(
                                     KitsugiVoiceActor(
                                         id = vaId,
@@ -657,7 +670,7 @@ object KitsugiShikimoriClient {
                             )
                         }
                     }
-                    charactersMap.values.toList()
+                    withResolvedCharacterPosters(charactersMap.values.toList())
                 }
             }.getOrElse { err ->
                 Log.e(TAG, "Shikimori fetchCharacters exception: ${err.message}", err)
@@ -698,7 +711,7 @@ object KitsugiShikimoriClient {
 
                             val staffName = translateIfRussian(personObj.optString("name", "Bilinmeyen"))
                             val relativeImg = personObj.optJSONObject("image")?.optString("original")
-                            val imageUrl = relativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                            val imageUrl = ShikimoriPosterResolver.absoluteUrl(relativeImg)
 
                             staffList.add(
                                 KitsugiStaff(
@@ -711,7 +724,7 @@ object KitsugiShikimoriClient {
                             )
                         }
                     }
-                    staffList
+                    withResolvedStaffPosters(staffList)
                 }
             }.getOrElse { err ->
                 Log.e(TAG, "Shikimori fetchStaff exception: ${err.message}", err)
@@ -738,7 +751,7 @@ object KitsugiShikimoriClient {
                     }
 
                     val relativeImg = data.optJSONObject("image")?.optString("original")
-                    val imageUrl = relativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                    val imageUrl = ShikimoriPosterResolver.absoluteUrl(relativeImg)
                     val biography = translateIfRussian(data.optNullableString("description")?.cleanApiText())
 
                     val gender = null
@@ -756,7 +769,7 @@ object KitsugiShikimoriClient {
 
                             val seyuName = translateIfRussian(seyuItem.optString("name", "Bilinmeyen"))
                             val seyuRelativeImg = seyuItem.optJSONObject("image")?.optString("original")
-                            val seyuImageUrl = seyuRelativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                            val seyuImageUrl = ShikimoriPosterResolver.absoluteUrl(seyuRelativeImg)
 
                             voiceActors.add(
                                 KitsugiVoiceActor(
@@ -770,7 +783,8 @@ object KitsugiShikimoriClient {
                         }
                     }
 
-                    val mediaAppearances = mutableListOf<KitsugiCharacterMediaAppearance>()
+                    val animeAppearances = mutableListOf<KitsugiCharacterMediaAppearance>()
+                    val mangaAppearances = mutableListOf<KitsugiCharacterMediaAppearance>()
                     val animesArray = data.optJSONArray("animes")
                     if (animesArray != null) {
                         for (i in 0 until animesArray.length()) {
@@ -780,7 +794,7 @@ object KitsugiShikimoriClient {
 
                             val animeTitle = translateIfRussian(animeItem.optString("name", "Bilinmeyen"))
                             val animeRelativeImg = animeItem.optJSONObject("image")?.optString("original")
-                            val animeImageUrl = animeRelativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                            val animeImageUrl = ShikimoriPosterResolver.absoluteUrl(animeRelativeImg)
                             val kind = animeItem.optString("kind", "tv")
 
                             val rolesArr = animeItem.optJSONArray("roles")
@@ -788,7 +802,7 @@ object KitsugiShikimoriClient {
                                 rolesArr.optString(0)
                             } else "Supporting"
 
-                            mediaAppearances.add(
+                            animeAppearances.add(
                                 KitsugiCharacterMediaAppearance(
                                     mediaId = animeId,
                                     title = animeTitle,
@@ -810,14 +824,14 @@ object KitsugiShikimoriClient {
 
                             val mangaTitle = translateIfRussian(mangaItem.optString("name", "Bilinmeyen"))
                             val mangaRelativeImg = mangaItem.optJSONObject("image")?.optString("original")
-                            val mangaImageUrl = mangaRelativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                            val mangaImageUrl = ShikimoriPosterResolver.absoluteUrl(mangaRelativeImg)
 
                             val rolesArr = mangaItem.optJSONArray("roles")
                             val roleStr = if (rolesArr != null && rolesArr.length() > 0) {
                                 rolesArr.optString(0)
                             } else "Supporting"
 
-                            mediaAppearances.add(
+                            mangaAppearances.add(
                                 KitsugiCharacterMediaAppearance(
                                     mediaId = mangaId,
                                     title = mangaTitle,
@@ -830,19 +844,36 @@ object KitsugiShikimoriClient {
                         }
                     }
 
+                    // Eksik kapakları (karakter, seslendirmenler, yer aldığı yapımlar) toplu çöz.
+                    val posters = PosterBatch()
+                    posters.need(ShikimoriPosterResolver.Kind.CHARACTER, characterId, imageUrl)
+                    voiceActors.forEach { posters.need(ShikimoriPosterResolver.Kind.PERSON, it.id, it.imageUrl) }
+                    animeAppearances.forEach { posters.need(ShikimoriPosterResolver.Kind.ANIME, it.mediaId, it.imageUrl) }
+                    mangaAppearances.forEach { posters.need(ShikimoriPosterResolver.Kind.MANGA, it.mediaId, it.imageUrl) }
+                    posters.resolve()
+
+                    val resolvedAppearances =
+                        animeAppearances.map {
+                            it.copy(imageUrl = posters.url(ShikimoriPosterResolver.Kind.ANIME, it.mediaId, it.imageUrl))
+                        } + mangaAppearances.map {
+                            it.copy(imageUrl = posters.url(ShikimoriPosterResolver.Kind.MANGA, it.mediaId, it.imageUrl))
+                        }
+
                     KitsugiCharacterDetail(
                         id = characterId,
                         name = charName,
                         nativeName = nativeName,
                         alternativeNames = alternativeNames,
-                        imageUrl = imageUrl,
+                        imageUrl = posters.url(ShikimoriPosterResolver.Kind.CHARACTER, characterId, imageUrl),
                         gender = gender,
                         age = age,
                         birthday = birthday,
                         bloodType = bloodType,
                         biography = biography,
-                        voiceActors = voiceActors,
-                        mediaAppearances = mediaAppearances,
+                        voiceActors = voiceActors.map {
+                            it.copy(imageUrl = posters.url(ShikimoriPosterResolver.Kind.PERSON, it.id, it.imageUrl))
+                        },
+                        mediaAppearances = resolvedAppearances,
                         isFavourite = false
                     )
                 }
@@ -885,9 +916,11 @@ object KitsugiShikimoriClient {
                     val occupation = rawOccupation?.let { translateIfRussian(it).toTurkishStaffRole() }
 
                     val relativeImg = data.optJSONObject("image")?.optString("original")
-                    val imageUrl = relativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                    val imageUrl = ShikimoriPosterResolver.absoluteUrl(relativeImg)
 
                     val characterRoles = mutableListOf<KitsugiStaffCharacterRole>()
+                    // characterRoles ile aynı sırada: her rolün yapımı anime mi manga mı?
+                    val roleMediaKinds = mutableListOf<ShikimoriPosterResolver.Kind?>()
                     val rolesArray = data.optJSONArray("roles")
                     if (rolesArray != null) {
                         for (i in 0 until rolesArray.length()) {
@@ -898,16 +931,23 @@ object KitsugiShikimoriClient {
                             val charId = charObj.optInt("id")
                             val charName = translateIfRussian(charObj.optString("name", "Bilinmeyen"))
                             val charRelativeImg = charObj.optJSONObject("image")?.optString("original")
-                            val charImg = charRelativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                            val charImg = ShikimoriPosterResolver.absoluteUrl(charRelativeImg)
 
                             val mediaId = animeObj?.optInt("id") ?: 0
                             val mediaTitle = translateIfRussian(animeObj?.optString("name", "Bilinmeyen") ?: "Bilinmeyen")
                             val mediaRelativeImg = animeObj?.optJSONObject("image")?.optString("original")
-                            val mediaImg = mediaRelativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                            val mediaImg = ShikimoriPosterResolver.absoluteUrl(mediaRelativeImg)
                             val mediaTypeStr = animeObj?.optString("kind", "tv") ?: "manga"
 
                             val roleStr = roleObj.optString("role", "Seyu") ?: "Seyu"
 
+                            roleMediaKinds.add(
+                                when {
+                                    roleObj.optJSONObject("anime") != null -> ShikimoriPosterResolver.Kind.ANIME
+                                    roleObj.optJSONObject("manga") != null -> ShikimoriPosterResolver.Kind.MANGA
+                                    else -> null
+                                }
+                            )
                             characterRoles.add(
                                 KitsugiStaffCharacterRole(
                                     characterId = charId,
@@ -926,6 +966,8 @@ object KitsugiShikimoriClient {
                     }
 
                     val mediaWorks = mutableListOf<KitsugiStaffMediaWork>()
+                    // mediaWorks ile aynı sırada: yapım anime mi manga mı?
+                    val workMediaKinds = mutableListOf<ShikimoriPosterResolver.Kind?>()
                     val worksArray = data.optJSONArray("works")
                     if (worksArray != null) {
                         for (i in 0 until worksArray.length()) {
@@ -936,11 +978,15 @@ object KitsugiShikimoriClient {
 
                             val mediaTitle = translateIfRussian(animeObj.optString("name", "Bilinmeyen") ?: "Bilinmeyen")
                             val mediaRelativeImg = animeObj.optJSONObject("image")?.optString("original")
-                            val mediaImg = mediaRelativeImg?.let { if (it.startsWith("/")) "https://shikimori.one$it" else it }
+                            val mediaImg = ShikimoriPosterResolver.absoluteUrl(mediaRelativeImg)
                             val mediaTypeStr = animeObj.optString("kind", "tv") ?: "tv"
 
                             val roleStr = workObj.optString("role", "Staff") ?: "Staff"
 
+                            workMediaKinds.add(
+                                if (workObj.optJSONObject("anime") != null) ShikimoriPosterResolver.Kind.ANIME
+                                else ShikimoriPosterResolver.Kind.MANGA
+                            )
                             mediaWorks.add(
                                 KitsugiStaffMediaWork(
                                     mediaId = mediaId,
@@ -954,24 +1000,143 @@ object KitsugiShikimoriClient {
                         }
                     }
 
+                    // Eksik kapakları (kişi, karakterler, yapımlar) toplu çöz.
+                    val posters = PosterBatch()
+                    posters.need(ShikimoriPosterResolver.Kind.PERSON, staffId, imageUrl)
+                    characterRoles.forEachIndexed { index, role ->
+                        posters.need(ShikimoriPosterResolver.Kind.CHARACTER, role.characterId, role.characterImageUrl)
+                        posters.need(roleMediaKinds.getOrNull(index), role.mediaId, role.mediaImageUrl)
+                    }
+                    mediaWorks.forEachIndexed { index, work ->
+                        posters.need(workMediaKinds.getOrNull(index), work.mediaId, work.mediaImageUrl)
+                    }
+                    posters.resolve()
+
+                    val resolvedRoles = characterRoles.mapIndexed { index, role ->
+                        role.copy(
+                            characterImageUrl = posters.url(
+                                ShikimoriPosterResolver.Kind.CHARACTER, role.characterId, role.characterImageUrl
+                            ),
+                            mediaImageUrl = posters.url(
+                                roleMediaKinds.getOrNull(index), role.mediaId, role.mediaImageUrl
+                            )
+                        )
+                    }
+                    val resolvedWorks = mediaWorks.mapIndexed { index, work ->
+                        work.copy(
+                            mediaImageUrl = posters.url(
+                                workMediaKinds.getOrNull(index), work.mediaId, work.mediaImageUrl
+                            )
+                        )
+                    }
+
                     KitsugiStaffDetail(
                         id = staffId,
                         name = staffName,
                         nativeName = nativeName,
                         alternativeNames = alternativeNames,
-                        imageUrl = imageUrl,
+                        imageUrl = posters.url(ShikimoriPosterResolver.Kind.PERSON, staffId, imageUrl),
                         biography = biography,
                         occupation = occupation,
                         birthday = birthday,
                         age = age,
                         gender = gender,
                         homeTown = homeTown,
-                        characterRoles = characterRoles,
-                        mediaWorks = mediaWorks,
+                        characterRoles = resolvedRoles,
+                        mediaWorks = resolvedWorks,
                         isFavourite = false
                     )
                 }
             }.getOrNull()
+        }
+    }
+
+    // ─── Poster (kapak) çözümleme yardımcıları ─────────────────────────────
+    //
+    // Shikimori REST API'sinin `image` alanı eski Paperclip ekine bakar ve yeni
+    // yapımlarda `/assets/globals/missing_original.jpg` ("404 not found" görseli)
+    // döndürür. Gerçek kapaklar yalnızca GraphQL'deki `poster` alanında bulunur.
+    // Bu yüzden eksik kalan kayıtlar tür başına tek istekte toplu çözülür.
+    // Ayrıntılı kök neden açıklaması: [ShikimoriPosterResolver]
+
+    /**
+     * Tür (anime/manga/karakter/kişi) başına tek GraphQL isteğiyle çözüm yapan
+     * küçük toplu iş yardımcısı. Önce [need] ile eksikler toplanır, [resolve] ile
+     * tek seferde çözülür, sonra [url] ile okunur.
+     */
+    private class PosterBatch {
+        private val wanted = mutableMapOf<ShikimoriPosterResolver.Kind, MutableSet<Int>>()
+        private val resolved = mutableMapOf<ShikimoriPosterResolver.Kind, Map<Int, ShikimoriPosterResolver.Poster>>()
+
+        fun need(kind: ShikimoriPosterResolver.Kind?, id: Int, current: String?) {
+            if (kind == null || current != null || id <= 0) return
+            wanted.getOrPut(kind) { linkedSetOf() }.add(id)
+        }
+
+        suspend fun resolve() {
+            for ((kind, ids) in wanted) {
+                resolved[kind] = ShikimoriPosterResolver.resolve(kind, ids)
+            }
+        }
+
+        fun url(kind: ShikimoriPosterResolver.Kind?, id: Int, current: String?): String? {
+            if (current != null) return current
+            if (kind == null || id <= 0) return null
+            return resolved[kind]?.get(id)?.cardUrl
+        }
+    }
+
+    /** Arama/keşfet sonuçlarındaki eksik kapakları toplu tamamlar. */
+    private suspend fun withResolvedPosters(
+        kind: ShikimoriPosterResolver.Kind,
+        results: List<JikanSearchResult>
+    ): List<JikanSearchResult> {
+        if (results.isEmpty()) return results
+        val missingIds = results.filter { it.imageUrl == null && it.malId > 0 }.map { it.malId }
+        if (missingIds.isEmpty()) return results
+        val posters = ShikimoriPosterResolver.resolve(kind, missingIds)
+        if (posters.isEmpty()) return results
+        return results.map { item ->
+            if (item.imageUrl != null) item
+            else posters[item.malId]?.cardUrl?.let { item.copy(imageUrl = it) } ?: item
+        }
+    }
+
+    /** Karakter listesindeki karakter ve seslendirmen görsellerini toplu tamamlar. */
+    private suspend fun withResolvedCharacterPosters(
+        characters: List<KitsugiCharacter>
+    ): List<KitsugiCharacter> {
+        if (characters.isEmpty()) return characters
+        val batch = PosterBatch()
+        characters.forEach { character ->
+            batch.need(ShikimoriPosterResolver.Kind.CHARACTER, character.id, character.imageUrl)
+            character.voiceActors.forEach { actor ->
+                batch.need(ShikimoriPosterResolver.Kind.PERSON, actor.id, actor.imageUrl)
+            }
+        }
+        batch.resolve()
+        return characters.map { character ->
+            character.copy(
+                imageUrl = batch.url(ShikimoriPosterResolver.Kind.CHARACTER, character.id, character.imageUrl),
+                voiceActors = character.voiceActors.map { actor ->
+                    actor.copy(
+                        imageUrl = batch.url(ShikimoriPosterResolver.Kind.PERSON, actor.id, actor.imageUrl)
+                    )
+                }
+            )
+        }
+    }
+
+    /** Ekip listesindeki kişi görsellerini toplu tamamlar. */
+    private suspend fun withResolvedStaffPosters(staff: List<KitsugiStaff>): List<KitsugiStaff> {
+        if (staff.isEmpty()) return staff
+        val missingIds = staff.filter { it.imageUrl == null }.map { it.id }
+        if (missingIds.isEmpty()) return staff
+        val posters = ShikimoriPosterResolver.resolve(ShikimoriPosterResolver.Kind.PERSON, missingIds)
+        if (posters.isEmpty()) return staff
+        return staff.map { person ->
+            if (person.imageUrl != null) person
+            else posters[person.id]?.cardUrl?.let { person.copy(imageUrl = it) } ?: person
         }
     }
 

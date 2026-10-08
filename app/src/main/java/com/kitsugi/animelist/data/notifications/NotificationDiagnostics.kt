@@ -345,7 +345,7 @@ object NotificationDiagnostics {
 
     private suspend fun checkShikimori(context: Context): Row {
         val started = System.currentTimeMillis()
-        val endpoint = "shikimori.one/api/users/:id/(unread_messages|messages)"
+        val endpoint = "shikimori.io/api/users/:id/(unread_messages|messages)"
         val token = runCatching {
             ExternalAuthManager.getOrRefreshShikimoriToken(context)
         }.getOrNull() ?: ExternalAuthManager.getShikimoriToken(context)
@@ -363,7 +363,7 @@ object NotificationDiagnostics {
             )
         }
 
-        val unreadHttp = runCatching { httpGet("https://shikimori.one/api/users/$userId/unread_messages", token) }.getOrNull()
+        val unreadHttp = runCatching { httpGet("https://shikimori.io/api/users/$userId/unread_messages", token) }.getOrNull()
         val unreadStatus = unreadHttp?.first
         val duration = System.currentTimeMillis() - started
 
@@ -392,7 +392,7 @@ object NotificationDiagnostics {
         }
 
         val msgHttp = runCatching {
-            httpGet("https://shikimori.one/api/users/$userId/messages?limit=30&type=notifications", token)
+            httpGet("https://shikimori.io/api/users/$userId/messages?limit=30&type=notifications", token)
         }.getOrNull()
         val msgStatus = msgHttp?.first
         val items = runCatching { JSONArray(msgHttp?.second.orEmpty()).length() }.getOrDefault(0)

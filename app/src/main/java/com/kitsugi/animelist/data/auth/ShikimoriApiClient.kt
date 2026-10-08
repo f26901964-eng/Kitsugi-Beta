@@ -3,6 +3,7 @@ package com.kitsugi.animelist.data.auth
 import android.util.Log
 import com.kitsugi.animelist.core.network.KitsugiHttpClient
 import com.kitsugi.animelist.data.remote.KitsugiApiBase
+import com.kitsugi.animelist.data.remote.ShikimoriPosterResolver
 import com.kitsugi.animelist.data.remote.isShikimoriAdultContent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -459,7 +460,7 @@ object ShikimoriApiClient {
             return@withContext ShikimoriUser(
                 id = json.getInt("id"),
                 nickname = json.optString("nickname", "Shikimori User"),
-                avatarUrl = json.optString("avatar").takeIf { it.isNotBlank() }
+                avatarUrl = ShikimoriPosterResolver.absoluteUrl(json.optString("avatar"))
             )
         }
         throw Exception(
@@ -488,9 +489,9 @@ object ShikimoriApiClient {
             val json = JSONObject(body)
             val id = json.getInt("id")
             val nickname = json.optString("nickname", "Shikimori Kullanıcısı")
-            val avatar = json.optString("avatar").takeIf { it.isNotBlank() }
-                ?: json.optJSONObject("image")?.optString("x160")
-                ?: json.optJSONObject("image")?.optString("original")
+            val avatar = ShikimoriPosterResolver.absoluteUrl(json.optString("avatar"))
+                ?: ShikimoriPosterResolver.absoluteUrl(json.optJSONObject("image")?.optString("x160"))
+                ?: ShikimoriPosterResolver.absoluteUrl(json.optJSONObject("image")?.optString("original"))
             val location = json.optString("location").takeIf { it.isNotBlank() }
             val lastOnline = json.optString("last_online_at").takeIf { it.isNotBlank() }
             val bio = json.optString("about").takeIf { it.isNotBlank() }
@@ -641,9 +642,10 @@ object ShikimoriApiClient {
                                 ?: "Shikimori #$targetId"
                             val imageObj = mediaObj?.optJSONObject("image")
                             val rawImg = imageObj?.optString("original") ?: imageObj?.optString("preview")
-                            val imgUrl = if (!rawImg.isNullOrBlank()) {
-                                if (rawImg.startsWith("http")) rawImg else "$BASE_URL$rawImg"
-                            } else null
+                            // REST `image` alanı yeni yapımlarda Shikimori'nin "404 not found"
+                            // yer tutucusuna düşer; burada elenir, gerçek kapak aşağıda
+                            // GraphQL ile toplu çözülür (bkz. withResolvedPosters).
+                            val imgUrl = ShikimoriPosterResolver.absoluteUrl(rawImg)
                             val total = if (targetType == "Anime") mediaObj?.optInt("episodes", 0)?.takeIf { it > 0 }
                             else mediaObj?.optInt("chapters", 0)?.takeIf { it > 0 }
                             // Yayın yılı: çapraz eşitlemede aynı isimli yapımları (remake/sezon) ayırmak için gerekli
@@ -698,7 +700,37 @@ object ShikimoriApiClient {
                 page++
             }
         }
-        rates
+        withResolvedPosters(rates)
+    }
+
+    /**
+     * Liste kayıtlarında eksik kalan kapakları Shikimori GraphQL'inden toplu tamamlar.
+     *
+     * REST `user_rates` yanıtı kapakları eski Paperclip eki üzerinden verdiği için yeni
+     * yapımlarda hep "404 not found" yer tutucusu dönüyor. Gerçek posterler yalnızca
+     * GraphQL `poster` alanında bulunuyor; 50'lik gruplar hâlinde çözülür ve
+     * [ShikimoriPosterResolver] içinde önbelleğe alınır.
+     */
+    private suspend fun withResolvedPosters(rates: List<ShikimoriRate>): List<ShikimoriRate> {
+        if (rates.isEmpty()) return rates
+        val animeIds = rates.filter { it.imageUrl == null && it.targetType != "Manga" }.map { it.targetId }
+        val mangaIds = rates.filter { it.imageUrl == null && it.targetType == "Manga" }.map { it.targetId }
+        if (animeIds.isEmpty() && mangaIds.isEmpty()) return rates
+
+        val animePosters = ShikimoriPosterResolver.resolve(ShikimoriPosterResolver.Kind.ANIME, animeIds)
+        val mangaPosters = ShikimoriPosterResolver.resolve(ShikimoriPosterResolver.Kind.MANGA, mangaIds)
+        if (animePosters.isEmpty() && mangaPosters.isEmpty()) return rates
+
+        return rates.map { rate ->
+            if (rate.imageUrl != null) return@map rate
+            val poster = if (rate.targetType == "Manga") {
+                mangaPosters[rate.targetId]
+            } else {
+                animePosters[rate.targetId]
+            }
+            val url = poster?.cardUrl ?: return@map rate
+            rate.copy(imageUrl = url)
+        }
     }
 
     /**
@@ -894,9 +926,7 @@ object ShikimoriApiClient {
                     val targetTitle = target?.optString("name", "")?.ifBlank { target.optString("russian", "") } ?: "Kayıt"
                     val imgObj = target?.optJSONObject("image")
                     val rawImg = imgObj?.optString("original") ?: imgObj?.optString("preview")
-                    val imgUrl = if (!rawImg.isNullOrBlank()) {
-                        if (rawImg.startsWith("http")) rawImg else "$BASE_URL$rawImg"
-                    } else null
+                    val imgUrl = ShikimoriPosterResolver.absoluteUrl(rawImg)
                     val score = target?.optString("score")
                     list.add(
                         ShikimoriHistoryItem(
@@ -1001,16 +1031,14 @@ object ShikimoriApiClient {
                         linkedId = item.optLong("linked_id", 0L).takeIf { it > 0 },
                         targetTitle = linked?.optString("name")?.takeIf { it.isNotBlank() }
                             ?: linked?.optString("russian")?.takeIf { it.isNotBlank() },
-                        targetImageUrl = rawImg?.takeIf { it.isNotBlank() }?.let {
-                            if (it.startsWith("http")) it else "$BASE_URL$it"
-                        },
+                        targetImageUrl = ShikimoriPosterResolver.absoluteUrl(rawImg),
                         targetUrl = linked?.optString("url")?.takeIf { it.isNotBlank() }?.let {
                             if (it.startsWith("http")) it else "$BASE_URL$it"
                         },
                         fromNickname = from?.optString("nickname")?.takeIf { it.isNotBlank() },
-                        fromAvatarUrl = from?.optJSONObject("image")?.optString("x48")
-                            ?.takeIf { it.isNotBlank() }
-                            ?.let { if (it.startsWith("http")) it else "$BASE_URL$it" },
+                        fromAvatarUrl = ShikimoriPosterResolver.absoluteUrl(
+                            from?.optJSONObject("image")?.optString("x48")
+                        ),
                         fromUserId = from?.optInt("id", 0)?.takeIf { it > 0 },
                         type = type
                     )
@@ -1072,8 +1100,15 @@ object ShikimoriApiClient {
                 val json = JSONObject(body)
                 val list = mutableListOf<com.kitsugi.animelist.ui.app.ProfileFavoriteItem>()
 
-                val arrayKeys = listOf("animes", "mangas", "characters")
-                for (key in arrayKeys) {
+                // Favori kaydının türü, hangi dizide geldiğinden bilinir; kapak eksikse
+                // GraphQL'den tür bazında toplu çözülür.
+                val favoriteKinds = mutableListOf<ShikimoriPosterResolver.Kind>()
+                val arrayKeys = listOf(
+                    "animes" to ShikimoriPosterResolver.Kind.ANIME,
+                    "mangas" to ShikimoriPosterResolver.Kind.MANGA,
+                    "characters" to ShikimoriPosterResolver.Kind.CHARACTER
+                )
+                for ((key, kind) in arrayKeys) {
                     val arr = json.optJSONArray(key) ?: continue
                     for (i in 0 until arr.length()) {
                         val item = arr.getJSONObject(i)
@@ -1081,10 +1116,9 @@ object ShikimoriApiClient {
                         val title = item.optString("name", "").ifBlank { item.optString("russian", "Favori") }
                         val imgObj = item.optJSONObject("image")
                         val rawImg = imgObj?.optString("original") ?: imgObj?.optString("preview") ?: item.optString("image", "")
-                        val imgUrl = if (rawImg.isNotBlank()) {
-                            if (rawImg.startsWith("http")) rawImg else "$BASE_URL$rawImg"
-                        } else null
+                        val imgUrl = ShikimoriPosterResolver.absoluteUrl(rawImg)
                         if (id.isNotBlank() && title.isNotBlank()) {
+                            favoriteKinds.add(kind)
                             list.add(
                                 com.kitsugi.animelist.ui.app.ProfileFavoriteItem(
                                     id = id,
@@ -1095,7 +1129,26 @@ object ShikimoriApiClient {
                         }
                     }
                 }
-                list
+
+                val missingByKind = mutableMapOf<ShikimoriPosterResolver.Kind, MutableSet<Int>>()
+                list.forEachIndexed { index, favorite ->
+                    if (favorite.imageUrl.isNotBlank()) return@forEachIndexed
+                    val numericId = favorite.id.toIntOrNull() ?: return@forEachIndexed
+                    missingByKind.getOrPut(favoriteKinds[index]) { linkedSetOf() }.add(numericId)
+                }
+                if (missingByKind.isEmpty()) return@use list
+
+                val resolvedByKind = mutableMapOf<ShikimoriPosterResolver.Kind, Map<Int, ShikimoriPosterResolver.Poster>>()
+                for ((kind, ids) in missingByKind) {
+                    resolvedByKind[kind] = ShikimoriPosterResolver.resolve(kind, ids)
+                }
+                list.mapIndexed { index, favorite ->
+                    if (favorite.imageUrl.isNotBlank()) return@mapIndexed favorite
+                    val numericId = favorite.id.toIntOrNull() ?: return@mapIndexed favorite
+                    val url = resolvedByKind[favoriteKinds[index]]?.get(numericId)?.cardUrl
+                        ?: return@mapIndexed favorite
+                    favorite.copy(imageUrl = url)
+                }
             }
         }.getOrDefault(emptyList())
     }
