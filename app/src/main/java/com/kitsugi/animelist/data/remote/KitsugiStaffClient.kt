@@ -23,10 +23,13 @@ class KitsugiStaffClient {
             }
 
             when (MalJikanMediaSupport.canonicalSource(source)) {
-                "bangumi" -> {
-                    // 1) Bangumi'nin kendi ekip listesi (p1 /staffs/persons).
+                "bangumi", "bgm" -> {
+                    // 1) Bangumi'nin kendi ekip listesi (p1 /staffs/persons veya v0 /subjects/{id}/persons).
                     val native = runCatching { KitsugiBangumiDetailClient.fetchStaff(externalId, mediaType) }
                         .getOrNull().orEmpty()
+                        .ifEmpty {
+                            runCatching { KitsugiBangumiCreditsClient.fetchSubjectStaff(externalId) }.getOrNull().orEmpty()
+                        }
                     if (native.isNotEmpty()) return@withContext native
 
                     // 2) Yedek: Çözülen MAL kimliğiyle MAL/Jikan ekibi (stableId MAL ID değildir).
@@ -235,8 +238,9 @@ class KitsugiStaffClient {
         return withContext(Dispatchers.IO) {
             if (staffId <= 0) return@withContext null
             when (MalJikanMediaSupport.canonicalSource(source)) {
-                "bangumi" -> {
-                    KitsugiBangumiDetailClient.fetchStaffDetail(staffId)
+                "bangumi", "bgm" -> {
+                    KitsugiBangumiCreditsClient.fetchPersonDetail(staffId, name)
+                        ?: KitsugiBangumiDetailClient.fetchStaffDetail(staffId)
                 }
                 "shikimori" -> {
                     KitsugiShikimoriClient.fetchStaffDetail(staffId)

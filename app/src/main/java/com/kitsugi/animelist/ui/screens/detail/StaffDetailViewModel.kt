@@ -4,6 +4,8 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.kitsugi.animelist.data.auth.BangumiApiClient
+import com.kitsugi.animelist.data.auth.BangumiAuthStore
 import com.kitsugi.animelist.data.auth.ExternalAuthManager
 import com.kitsugi.animelist.data.local.TranslationManager
 import com.kitsugi.animelist.data.remote.DetailCache
@@ -150,6 +152,7 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
             DetailCache.putStaffDetail(source, staffId, detail)
             _state.value = StaffDetailState.Success(detail)
             _isFavourite.value = detail.isFavourite
+            if (isBangumiSource(source)) refreshBangumiFavourite(detail.id)
 
             // Build gallery from imageUrl + Jikan /people pictures
             buildStaffGallery(staffId, source, detail.imageUrl)
@@ -253,6 +256,10 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
      * AniList ekip üyesi favori toggle — giriş yapılmış ve aniListId biliniyorsa çalışır.
      */
     fun toggleFavourite() {
+        if (isBangumiSource(lastSource)) {
+            toggleBangumiFavourite()
+            return
+        }
         ExternalAuthManager.getAniListToken(context) ?: return
         val currentState = _state.value as? StaffDetailState.Success ?: return
         val detail = currentState.detail
@@ -267,6 +274,58 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
 
         viewModelScope.launch(Dispatchers.IO) {
             val ok = mutationsClient.toggleFavourite("staff", targetId)
+            if (!ok) {
+                _isFavourite.value = !newFav
+                val rolled = detail.copy(isFavourite = !newFav)
+                _state.value = StaffDetailState.Success(rolled)
+                DetailCache.putStaffDetail(lastSource, lastStaffId, rolled)
+            }
+        }
+    }
+
+    private fun isBangumiSource(source: String): Boolean {
+        val key = source.trim().lowercase()
+        return key == "bangumi" || key == "bgm"
+    }
+
+    /** Bangumi kişi favori durumunu token sahibinin koleksiyonundan okur (bağlıysa). */
+    private fun refreshBangumiFavourite(personId: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            if (!BangumiAuthStore.isConnected(context)) return@launch
+            val token = BangumiAuthStore.getValidToken(context) ?: return@launch
+            val username = BangumiAuthStore.getUsername(context)?.takeIf { it.isNotBlank() } ?: "-"
+            val favourite = runCatching {
+                BangumiApiClient.isPersonFavourite(token, username, personId)
+            }.getOrNull() ?: return@launch
+            _isFavourite.value = favourite
+            val current = (_state.value as? StaffDetailState.Success)?.detail ?: return@launch
+            if (current.id != personId) return@launch
+            val updated = current.copy(isFavourite = favourite)
+            _state.value = StaffDetailState.Success(updated)
+            DetailCache.putStaffDetail(lastSource, lastStaffId, updated)
+        }
+    }
+
+    /**
+     * Bangumi kişi favorisi: `POST` / `DELETE /v0/persons/{id}/collect`.
+     * İyimser güncelleme yapılır; istek başarısız olursa önceki duruma dönülür.
+     */
+    private fun toggleBangumiFavourite() {
+        if (!BangumiAuthStore.isConnected(context)) return
+        val currentState = _state.value as? StaffDetailState.Success ?: return
+        val detail = currentState.detail
+        val newFav = !_isFavourite.value
+        _isFavourite.value = newFav
+        val updated = detail.copy(isFavourite = newFav)
+        _state.value = StaffDetailState.Success(updated)
+        DetailCache.putStaffDetail(lastSource, lastStaffId, updated)
+
+        viewModelScope.launch(Dispatchers.IO) {
+            val ok = runCatching {
+                val token = BangumiAuthStore.getValidToken(context) ?: return@runCatching false
+                BangumiApiClient.setPersonFavourite(token, detail.id, newFav)
+                true
+            }.getOrDefault(false)
             if (!ok) {
                 _isFavourite.value = !newFav
                 val rolled = detail.copy(isFavourite = !newFav)

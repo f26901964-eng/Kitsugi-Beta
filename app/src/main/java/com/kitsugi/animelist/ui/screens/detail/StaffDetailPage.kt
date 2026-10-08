@@ -139,7 +139,9 @@ fun StaffDetailPage(
     val isFavourite by viewModel.isFavourite.collectAsState()
     val isAniListSource = source.lowercase() == "anilist"
     val isAniListConnected = remember { com.kitsugi.animelist.data.auth.ExternalAuthManager.getAniListToken(context) != null }
-    val showFavouriteButton = isAniListSource || isAniListConnected
+    val isBangumiSource = source.trim().lowercase() == "bangumi" || source.trim().lowercase() == "bgm"
+    val isBangumiConnected = remember { com.kitsugi.animelist.data.auth.BangumiAuthStore.isConnected(context) }
+    val showFavouriteButton = if (isBangumiSource) isBangumiConnected else (isAniListSource || isAniListConnected)
 
     Box(
         modifier = Modifier

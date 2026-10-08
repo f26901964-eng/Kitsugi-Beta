@@ -1,5 +1,81 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.210)
+
+### 🎌 1. Bangumi Profil Sekmesi ve Koleksiyon Yönetimi
+- **Profil Seçicisine Eklendi:** Profil kaynağı seçicisine (Profile Source Picker) "Bangumi" seçeneği eklendi. Hesap bağlıysa `@kullanıcıadı` görüntülenir.
+- **Kapsamlı Profil Başlığı:** Kullanıcı avatarı, takma adı, kullanıcı adı, kişisel imzası (`sign`) ve tek tıkla açılan "bgm.tv profili" butonu.
+- **Koleksiyon Listesi ve Filtreler:** Tür (Anime, Kitap/Manga, Oyun, Müzik, Dizi/Film) ve izleme durumu filtreleri, özet koleksiyon sayaçları, bölüm/cilt ilerleme göstergesi ve kullanıcı puanı.
+- **Favori Karakterler ve Kişiler:** Kullanıcının Bangumi'de favorilediği karakterler ve kişiler profil ekranında listelenir.
+- **Doğrudan Detay Ekranı:** Anime ve manga koleksiyon kartlarına dokunulduğunda doğrudan uygulama içi detay ekranı açılır.
+- **Bildirimler:** Resmi Bangumi API'sinde bildirim ucu bulunmadığı için uygulama içi WebView ile doğrudan ve güvenli `bgm.tv/notify/all` sayfası açılır.
+
+### 👤 2. Uygulama İçi Karakter ve Kişi Detayları & Favori Eşitleme
+- **Uygulama İçi Detay Sayfaları:** Bangumi karakter ve kişi (yapım ekibi/seiyuu) sayfaları artık tarayıcıya yönlendirilmeden doğrudan uygulama içinde açılır (`KitsugiBangumiCreditsClient` ve `KitsugiBangumiDetailClient`).
+- **Bangumi Favori (Kalp) Entegrasyonu:** Bangumi hesabı bağlıyken karakter veya kişi sayfasındaki favori durumu canlı olarak Bangumi sunucusuyla eşitlenir; ekleme ve çıkarma anında yazılır, ağ hatasında güvenli bir şekilde eski haline döner.
+- **Dolu Karakter ve Ekip Sekmeleri:** Bangumi konularında "Karakterler" ve "Ekip" sekmeleri v0 OpenAPI ve p1 web uçlarıyla eksiksiz doldurulur.
+- **Doğru Paylaşım Bağlantıları:** Karakter ve kişi paylaş butonları artık `bgm.tv/character/{id}` ve `bgm.tv/person/{id}` bağlantılarını üretir.
+
+### 🎮 3. Oynatıcı Jest Bölgeleri, PiP Butonları ve Ses Yönetimi
+- **Kaydırıcı ve Dokunma Hizalaması:** Ekrandaki kaydırıcı yerleşimiyle dokunma bölgeleri eşitlendi: Sol yarı parlaklık, sağ yarı ses (varsayılan). Ayar menüsündeki yön metinleri düzeltildi.
+- **Çalışan PiP Tuşları:** Mini oynatıcı (PiP) penceresindeki Oynat, Duraklat ve Sonraki Bölüm tuşları Compose oynatıcı köprüsüne (`PipPlayerCallback`) bağlandı.
+- **Arka Plan Ses Kesilmesi:** PiP kapatıldığında veya uygulama arka plana alındığında sesin çalmaya devam etmesi `onStop` ve `onDestroy` yaşam döngüsü kontrolleriyle engellendi.
+
+### 🌐 4. CloudStream Kaynak Akışı ve Domain İyileştirmeleri
+- **Canlı Eklenti Denemeleri:** `domain_fixes.json` "blocked" listesindeki eklentiler atlanmayıp kendi özgün domainleriyle denenir.
+- **Taze Domain Önceliği:** Dinamik güncel domain tablosundan gelen taze domainler, sabit `KNOWN_BROKEN_DOMAINS` listesi tarafından engellenmez.
+- **Revert Kararlılığı:** Özgün domaine dönüldükten sonra aynı oturumda yerleşik tablonun tekrar zorlanması engellendi.
+- **Güncelleme Geri Çekilme (Backoff):** 404 veren eklentiler için 12 saatlik bekleme süresi uygulandı (`CsAutoUpdateBackoff`).
+
+### 🛠️ 5. Gelişmiş Çökme Teşhisi ve Oturum Denetimi (Crash Diagnostics Overhaul)
+- **Native İz Genişletmesi:** Native çökme yığın izi sınırı 48'den 96 çerçeveye çıkarıldı; PC (Program Counter) ve LR (Link Register) bilgileri eklendi.
+- **Bellek Haritası Desteği (`/proc/self/maps`):** Çökme anında bellek haritası kaydedilerek native adreslerin ilgili `.so` dosya adına ve ofsetine çözülebilmesi sağlandı.
+- **Doğru Süreç ve Ekran Tespiti:** Teşhis raporundaki "Ölüm Sebebi" artık sadece çöken oturumun PID'sine odaklanır; "Son Ekran" bilgisi eylem izinden doğrulanarak gösterilir.
+- **Genişletilmiş Kanıt Penceresi:** Sessiz kapanmalarda native iz okuma penceresi 30 dakikadan 7 güne çıkarıldı.
+
+### 📦 6. Dağıtım
+- Kullanıcı talimatı doğrultusunda **yalnızca FOSS varyantı** (`assembleFossRelease`) derlendi (`Kitsugi-Beta-v2.4.210-foss.apk`). GMS kesinlikle hariç tutuldu.
+
+---
+
+## 🇬🇧 English (v2.4.210)
+
+### 🎌 1. Bangumi Profile Tab & Collection Management
+- **Added to Profile Picker:** Bangumi is now available in the profile source selector, displaying `@username` when connected.
+- **Full Profile Header:** Displays user avatar, nickname, username, personal signature (`sign`), and a direct link to open the bgm.tv web profile.
+- **Collections & Filters:** Category (Anime, Manga/Book, Game, Music, Real/Drama) and status filters, collection counters, episode/volume progress, and user ratings.
+- **Favorite Characters & People:** Highlights the user's favorited Bangumi characters and staff members directly on the profile screen.
+- **In-App Navigation:** Tapping anime or manga entries seamlessly opens the existing in-app media detail page.
+- **Notifications:** Since Bangumi does not provide a public notification API endpoint, notifications open via an in-app WebView targeting `bgm.tv/notify/all`.
+
+### 👤 2. In-App Character & Staff Detail Pages & Bangumi Favorites
+- **Native In-App Views:** Bangumi character and person/staff pages now render natively in-app (`KitsugiBangumiCreditsClient` & `KitsugiBangumiDetailClient`) rather than opening externally.
+- **Live Favorite Toggle:** When logged in with Bangumi, tapping the favorite heart on character/person screens syncs directly to Bangumi with rollback on error.
+- **Populated Credits Tabs:** Subjects on Bangumi now populate both "Characters" and "Staff" tabs via official v0 OpenAPI with p1 fallbacks.
+- **Accurate Share URLs:** Sharing characters or staff members now correctly generates `bgm.tv/character/{id}` and `bgm.tv/person/{id}` links.
+
+### 🎮 3. Player Gesture Zones, PiP Controls & Audio Lifecycle
+- **Slider & Touch Zone Alignment:** Touch regions now match on-screen sliders: Left half controls brightness, right half controls volume (default). Settings labels aligned.
+- **Functional PiP Actions:** Mini player (PiP) Play, Pause, and Skip Next buttons are wired to the player engine via `PipPlayerCallback`.
+- **Background Audio Stop:** Playback reliably pauses upon closing PiP or backgrounding the activity via `onStop` and `onDestroy`.
+
+### 🌐 4. CloudStream Stream & Domain Enhancements
+- **Dynamic Plugin Retries:** Plugins in `domain_fixes.json` "blocked" list are tested with their own original domains instead of skipping.
+- **Fresh Domain Priority:** Fresh remote domains override the hardcoded `KNOWN_BROKEN_DOMAINS` blocklist.
+- **Stable Revert Protection:** Restored domains are protected against immediate builtin overrides in the same session.
+- **Update Backoff:** 12-hour retry backoff on 404/missing extensions (`CsAutoUpdateBackoff`).
+
+### 🛠️ 5. Enhanced Crash Diagnostics & Session Supervisor
+- **Extended Native Trace:** Increased native stack frames limit from 48 to 96, capturing PC and LR registers.
+- **Memory Maps Dump (`/proc/self/maps`):** Recorded address maps allow translating raw crash addresses to `.so` library names and offsets.
+- **Precise PID & Last Screen Tracking:** Root cause attribution strictly targets the crashing PID session; the last visited screen is inferred from the action breadcrumbs.
+- **Extended Evidence Window:** Silent crash native trace retention window prolonged to 7 days.
+
+### 📦 6. Distribution
+- Strictly built and released the **FOSS variant only** (`assembleFossRelease` -> `Kitsugi-Beta-v2.4.210-foss.apk`). GMS is completely excluded.
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.209)
 
 ### 🎌 1. Bangumi Liste İçe Aktarma ve Eşitleme 404 Kök Neden Çözümü

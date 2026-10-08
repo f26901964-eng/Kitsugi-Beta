@@ -995,7 +995,7 @@ internal fun PlayerGeneralTab(
                 // Ses/Parlaklık Yer Değiştir
                 KitsugiSettingsSwitchItem(
                     title = "Ses/Parlaklık Taraf Yer Değiştir",
-                    description = "Kapalı: sol el ses, sağ el parlaklık. Açık: sol el parlaklık, sağ el ses.",
+                    description = "Kapalı (varsayılan): sol taraf parlaklık, sağ taraf ses. Açık: sol taraf ses, sağ taraf parlaklık.",
                     icon = Icons.Rounded.SwapHoriz,
                     iconColor = accentColor,
                     checked = !swipeVolumeBrightnessSides,

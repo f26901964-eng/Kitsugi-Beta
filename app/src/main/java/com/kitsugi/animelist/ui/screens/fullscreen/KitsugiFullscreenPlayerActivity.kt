@@ -35,13 +35,28 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
     // ── T2.3: MediaSession + PiP BroadcastReceiver ────────────────────────────
     private var mediaSessionHelper: PlayerMediaSessionHelper? = null
 
-    /** ViewModel referansı — PiP broadcast'leri ViewModel'a iletilir */
+    /**
+     * Oynatıcı ekranının (Compose) köprüsü. PiP penceresindeki / bildirimdeki tuşlar ve
+     * Activity yaşam döngüsü olayları buraya iletilir. Ekran, DisposableEffect ile kaydolur
+     * ve çıkarken [setPipPlayerCallback] ile `null` yapar.
+     */
     private var pipPlayerCallback: PipPlayerCallback? = null
+
+    /** PiP penceresinde miyiz? (onPictureInPictureModeChanged ile güncellenir) */
+    private var isInPipNow = false
+
+    /** Son bilinen oynatma durumu — PiP'e geçerken RemoteAction ikonlarını doğru kurmak için. */
+    private var lastKnownIsPlaying = false
+    private var lastKnownHasNext = false
 
     interface PipPlayerCallback {
         fun onPipPlay()
         fun onPipPause()
         fun onPipSkipNext()
+    }
+
+    fun setPipPlayerCallback(callback: PipPlayerCallback?) {
+        pipPlayerCallback = callback
     }
 
     private val pipBroadcastReceiver = object : BroadcastReceiver() {
@@ -380,13 +395,31 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
     override fun onUserLeaveHint() {
         super.onUserLeaveHint()
         if (isPipEnabled) {
-            PlayerPipHelper.enterPipSafe(this, null, isPlaying = true, hasNext = false)
+            PlayerPipHelper.enterPipSafe(
+                this,
+                null,
+                isPlaying = lastKnownIsPlaying,
+                hasNext = lastKnownHasNext
+            )
         }
     }
 
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: android.content.res.Configuration) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        isInPipNow = isInPictureInPictureMode
         PlayerPipHelper.onPipModeChanged(isInPictureInPictureMode) { /* Screen observes via ViewModel */ }
+    }
+
+    /**
+     * Activity görünmez olduğunda (PiP penceresi kapatıldı, uygulama arka plana alındı,
+     * ekran kilitlendi vb.) oynatmayı durdurur. Aksi halde video yüzeyi kaybolsa bile ses
+     * arka planda çalmaya devam ediyordu.
+     */
+    override fun onStop() {
+        super.onStop()
+        if (!isInPipNow && !isInPictureInPictureMode && !isChangingConfigurations) {
+            pipPlayerCallback?.onPipPause()
+        }
     }
 
     /**
@@ -400,6 +433,8 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
         durationMs: Long,
         hasNext: Boolean = false
     ) {
+        lastKnownIsPlaying = isPlaying
+        lastKnownHasNext = hasNext
         val helper = mediaSessionHelper ?: return
         helper.setMetadata(title = title, subtitle = "Bölüm $episode", durationMs = durationMs)
         helper.updatePlaybackState(isPlaying = isPlaying, positionMs = positionMs, hasNext = hasNext)
@@ -409,6 +444,13 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        // Activity tamamen kapanıyorsa (ekran döndürme hariç) ses kesin olarak durmalı.
+        // Kaynakların serbest bırakılması Compose tarafındaki DisposableEffect'te yapılır;
+        // burada yalnızca durdurma yapıyoruz ki kayıt (progress) işlemi bozulmasın.
+        if (!isChangingConfigurations) {
+            runCatching { pipPlayerCallback?.onPipPause() }
+        }
+        pipPlayerCallback = null
         super.onDestroy()
         tempStreamSources = null
         tempCast = null

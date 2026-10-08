@@ -63,10 +63,13 @@ class KitsugiCharacterClient {
             Log.d(TAG, "fetchCharacters başladı: source=$source, externalId=$externalId, realMalId=$realMalId, mediaType=$mediaType, tmdbId=$tmdbId, title=$title")
 
             when (srcLower) {
-                "bangumi" -> {
+                "bangumi", "bgm" -> {
                     // 1) Bangumi'nin KENDİ karakter + seslendirmen listesi (p1): eşleme gerektirmez.
                     val native = runCatching { KitsugiBangumiDetailClient.fetchCharacters(externalId, mediaType) }
                         .getOrNull().orEmpty()
+                        .ifEmpty {
+                            runCatching { KitsugiBangumiCreditsClient.fetchSubjectCharacters(externalId) }.getOrNull().orEmpty()
+                        }
                     if (native.isNotEmpty()) return@withContext native
 
                     // 2) Yedek: AniList araması → MAL kimliği çözülüp MAL/AniList karakterleri.
@@ -467,8 +470,9 @@ class KitsugiCharacterClient {
         return withContext(Dispatchers.IO) {
             if (characterId <= 0) return@withContext null
             when (MalJikanMediaSupport.canonicalSource(source)) {
-                "bangumi" -> {
-                    KitsugiBangumiDetailClient.fetchCharacterDetail(characterId)
+                "bangumi", "bgm" -> {
+                    KitsugiBangumiCreditsClient.fetchCharacterDetail(characterId, name, fallbackImageUrl)
+                        ?: KitsugiBangumiDetailClient.fetchCharacterDetail(characterId)
                 }
                 "shikimori" -> {
                     KitsugiShikimoriClient.fetchCharacterDetail(characterId)

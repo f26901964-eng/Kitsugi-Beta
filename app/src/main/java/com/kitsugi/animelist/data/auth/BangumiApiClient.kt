@@ -183,7 +183,21 @@ object BangumiApiClient {
         val username: String,
         val nickname: String,
         val avatarUrl: String?,
-        val userGroup: Int? = null
+        val userGroup: Int? = null,
+        /** Kişisel imza (`sign`); profil ekranında gösterilir. */
+        val sign: String? = null
+    )
+
+    /**
+     * Karakter veya kişi favorisi (`UserCharacterCollection` / `UserPersonCollection`).
+     * Karakter `type`: 1 角色, 2 机体, 3 舰船, 4 组织. Kişi `type`: 1 个人, 2 公司, 3 组合.
+     */
+    data class BangumiFavoriteItem(
+        val id: Int,
+        val name: String,
+        val type: Int,
+        val imageUrl: String?,
+        val createdAt: String?
     )
 
     data class BangumiImages(
@@ -610,6 +624,35 @@ object BangumiApiClient {
         }.getOrNull()
     }
 
+    /** `GET /v0/users/{username}/collections/-/characters` — kullanıcının karakter favorileri. */
+    suspend fun getUserCharacterFavorites(token: String?, username: String): List<BangumiFavoriteItem> =
+        withContext(Dispatchers.IO) {
+            fetchFavoriteList("/v0/users/${URLEncoder.encode(username, "UTF-8")}/collections/-/characters", token)
+        }
+
+    /** `GET /v0/users/{username}/collections/-/persons` — kullanıcının kişi (kişi/stüdyo) favorileri. */
+    suspend fun getUserPersonFavorites(token: String?, username: String): List<BangumiFavoriteItem> =
+        withContext(Dispatchers.IO) {
+            fetchFavoriteList("/v0/users/${URLEncoder.encode(username, "UTF-8")}/collections/-/persons", token)
+        }
+
+    private fun fetchFavoriteList(path: String, token: String?): List<BangumiFavoriteItem> {
+        val body = get(path, token = token) ?: return emptyList()
+        val array = JSONObject(body).optJSONArray("data") ?: return emptyList()
+        return (0 until array.length()).mapNotNull { index ->
+            val item = array.optJSONObject(index) ?: return@mapNotNull null
+            val id = item.optInt("id", 0)
+            if (id <= 0) return@mapNotNull null
+            BangumiFavoriteItem(
+                id = id,
+                name = item.optString("name").ifBlank { "#$id" },
+                type = item.optInt("type", 0),
+                imageUrl = parseImages(item.optJSONObject("images"))?.thumb,
+                createdAt = item.optString("created_at").ifBlank { null }
+            )
+        }
+    }
+
     private fun parseUser(json: JSONObject): BangumiUser {
         val avatar = json.optJSONObject("avatar")
         return BangumiUser(
@@ -618,7 +661,8 @@ object BangumiApiClient {
             nickname = json.optString("nickname").ifBlank { json.optString("username") },
             avatarUrl = avatar?.optString("large")?.ifBlank { null }
                 ?: avatar?.optString("medium")?.ifBlank { null },
-            userGroup = json.optInt("user_group", 0).takeIf { it > 0 }
+            userGroup = json.optInt("user_group", 0).takeIf { it > 0 },
+            sign = json.optString("sign").ifBlank { null }
         )
     }
 
@@ -1051,6 +1095,63 @@ object BangumiApiClient {
         runCatching {
             get("/v0/persons/$personId", token = token)?.let { JSONObject(it) }
         }.getOrNull()
+    }
+
+    /**
+     * Ham bir JSON dizisi uç noktası (`/v0/subjects/{id}/characters` gibi). Ağ veya HTTP hatasında
+     * `null` döner; çağıran taraf boş listeyle devam eder. Böylece tek bir ilişkili uç çökse bile
+     * ana detay sayfası açılır.
+     */
+    suspend fun getJsonArrayOrNull(path: String, token: String? = null): JSONArray? = withContext(Dispatchers.IO) {
+        runCatching {
+            get(path, token = token)?.let { JSONArray(it) }
+        }.getOrElse {
+            Log.w(TAG, "GET $path failed: ${it.message}")
+            null
+        }
+    }
+
+    /**
+     * `GET /v0/users/{username}/collections/-/characters/{id}` — karakter favori mi?
+     * Kayıt yoksa (404) `false`. `username` olarak token sahibi için `-` kullanılabilir.
+     */
+    suspend fun isCharacterFavourite(token: String, username: String, characterId: Int): Boolean =
+        isFavouriteEntity("characters", token, username, characterId)
+
+    /** `GET /v0/users/{username}/collections/-/persons/{id}` — kişi favori mi? */
+    suspend fun isPersonFavourite(token: String, username: String, personId: Int): Boolean =
+        isFavouriteEntity("persons", token, username, personId)
+
+    private suspend fun isFavouriteEntity(kind: String, token: String, username: String, id: Int): Boolean =
+        withContext(Dispatchers.IO) {
+            try {
+                val path = "/v0/users/${URLEncoder.encode(username, "UTF-8")}/collections/-/$kind/$id"
+                get(path, token = token) != null
+            } catch (e: BangumiApiException) {
+                if (e.isNotFound) false else throw e
+            }
+        }
+
+    /** `POST /v0/characters/{id}/collect` (favoriye ekle) veya `DELETE` (çıkar). Başarıda 204 döner. */
+    suspend fun setCharacterFavourite(token: String, characterId: Int, favourite: Boolean) {
+        setFavouriteEntity("characters", token, characterId, favourite)
+    }
+
+    /** `POST /v0/persons/{id}/collect` (favoriye ekle) veya `DELETE` (çıkar). */
+    suspend fun setPersonFavourite(token: String, personId: Int, favourite: Boolean) {
+        setFavouriteEntity("persons", token, personId, favourite)
+    }
+
+    private suspend fun setFavouriteEntity(kind: String, token: String, id: Int, favourite: Boolean) {
+        withContext(Dispatchers.IO) {
+            try {
+                send(if (favourite) "POST" else "DELETE", "/v0/$kind/$id/collect", null, token)
+            } catch (e: BangumiApiException) {
+                // Zaten favori olmayan kaydı silmek istenmiş gibi davranmak: başarı sayılır.
+                if (favourite || !e.isNotFound) throw e
+            }
+            Unit
+        }
     }
 
     // ── Kullanıcı kütüphanesi (收藏) ─────────────────────────────────────────
@@ -1510,7 +1611,7 @@ object BangumiApiClient {
      * `infobox` wiki alanları `[{ "key": "别名", "value": [...] | "v": "..." }]` biçimindedir.
      * Türkçe/İngilizce başlık eşleştirmesi ve "diğer adlar" için kullanışlıdır.
      */
-    private fun parseInfobox(array: JSONArray?): Map<String, List<String>> {
+    fun parseInfobox(array: JSONArray?): Map<String, List<String>> {
         if (array == null) return emptyMap()
         val result = linkedMapOf<String, MutableList<String>>()
         for (i in 0 until array.length()) {

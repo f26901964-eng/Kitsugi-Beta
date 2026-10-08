@@ -352,7 +352,7 @@ object KitsugiSessionSupervisor {
         build: String
     ) {
         val postMortem = try {
-            scrapePostMortemLogcat(ctx, prevPid)
+            scrapePostMortemLogcat(ctx, prevPid, started, lastAlive)
         } catch (_: Throwable) {
             PostMortem("SEBEP BULUNAMADI (logcat okunamadı)", "", false)
         }
@@ -370,7 +370,13 @@ object KitsugiSessionSupervisor {
                 appendLine("▶ YAŞAM SÜRESİ  : ${(lastAlive - started) / 1000} sn")
             }
             appendLine("▶ ARKA PLAN MI? : ${if (wasForeground) "HAYIR (uygulama ÖN PLANDAYDI → gerçek çökme)" else "EVET (arka planda sistem tarafından kapatıldı olabilir)"}")
-            appendLine("▶ SON EKRAN     : $screen")
+            // Oturum anlık görüntüsü ("screen") yalnızca periyodik heartbeat'te yazılır; en son ekran
+            // geçişi ise eylem izinde kayıtlıdır. Bu yüzden önce eylem izindeki son ekranı kullan.
+            val crumbScreen = breadcrumbLastScreen(ctx)
+            appendLine(
+                "▶ SON EKRAN     : ${crumbScreen ?: screen}" +
+                    (if (crumbScreen != null && crumbScreen != screen) "   (oturum anlık görüntüsü: $screen)" else "")
+            )
             appendLine()
             appendLine("▶ ÖLÜM SEBEBİ (logcat analizi)")
             appendLine("  ${postMortem.headline}")
@@ -411,13 +417,25 @@ object KitsugiSessionSupervisor {
         }
     }
 
+    /** Eylem izindeki son "ekran →" kaydı: çökme anındaki gerçek ekran (oturum anlık görüntüsü gecikebilir). */
+    private fun breadcrumbLastScreen(ctx: Context): String? {
+        return try {
+            val f = File(ctx.filesDir, BREADCRUMB_FILE)
+            if (!f.exists()) return null
+            f.readLines().lastOrNull { it.contains("ekran → ") }
+                ?.substringAfter("ekran → ")?.trim()?.takeIf { it.isNotBlank() }
+        } catch (_: Throwable) {
+            null
+        }
+    }
+
     private data class PostMortem(val headline: String, val lines: String, val looksLikeCrash: Boolean)
 
     /**
      * Ölü sürecin izini logcat arabelleğinden kazar.
      * (Süreç öldükten sonra dahi logd arabelleği son binlerce satırı tutar.)
      */
-    private fun scrapePostMortemLogcat(ctx: Context, prevPid: Int): PostMortem {
+    private fun scrapePostMortemLogcat(ctx: Context, prevPid: Int, started: Long, lastAlive: Long): PostMortem {
         val raw = try {
             readLogcat(arrayOf("logcat", "-d", "-v", "threadtime", "-t", MAX_LOGCAT_LINES.toString()))
         } catch (_: Throwable) {
@@ -432,6 +450,14 @@ object KitsugiSessionSupervisor {
         val all = (crashBuffer + "\n" + raw).lines()
         val pkg = try { ctx.packageName } catch (_: Throwable) { "com.kitsugi.animelist" }
 
+        // Yalnızca ÇÖKEN sürecin (prevPid) ve oturum penceresinin satırları değerlendirilir.
+        // Eskiden ilk "Fatal signal" satırı tamponun HERHANGİ bir yerinden alınıyordu; bu yüzden
+        // rapor, günler önce başka bir sürecin çökmesini "ölüm sebebi" olarak gösteriyordu.
+        val nowMs = System.currentTimeMillis()
+        val windowStart = if (started > 0L) started - 30_000L else Long.MIN_VALUE
+        // Öldürme satırları (lmkd/am_kill) kalp atışından dakikalar sonra yazılabilir; pencere geniş tutulur.
+        val windowEnd = if (lastAlive > 0L) lastAlive + 15L * 60_000L else Long.MAX_VALUE
+
         val relevant = ArrayList<String>()
         var nativeCrash: String? = null
         var anr: String? = null
@@ -440,40 +466,32 @@ object KitsugiSessionSupervisor {
         var amKill: String? = null
 
         all.forEach { line ->
-            val matchesPid = line.contains(" $prevPid ") || line.contains("($prevPid)") || line.contains("pid=$prevPid")
-            val isCrashKeyword = line.contains("Fatal signal") ||
-                    line.contains("ANR in") ||
-                    line.contains("lowmemorykiller") ||
-                    line.contains("lmkd") ||
-                    line.contains("am_kill") ||
-                    line.contains("OutOfMemoryError") ||
-                    line.contains("SIGSEGV") ||
-                    line.contains("SIGABRT") ||
-                    line.contains("SIGBUS") ||
-                    line.contains("SIGILL") ||
-                    line.contains("SIGFPE") ||
-                    line.contains("tombstone") ||
-                    line.contains("debuggerd") ||
-                    line.contains("Force finishing") ||
-                    line.contains("Killing ") ||
-                    line.contains("backtrace:")
-            val mentionsPkg = line.contains(pkg)
+            val timeMs = logcatTimeMs(line, nowMs)
+            if (timeMs != null && (timeMs < windowStart || timeMs > windowEnd)) return@forEach
 
-            if (line.contains("Fatal signal") && nativeCrash == null) {
-                nativeCrash = line
-            } else if (line.contains("ANR in") && (mentionsPkg || line.contains("ANR in $pkg")) && anr == null) {
-                anr = line
-            } else if ((line.contains("lowmemorykiller") || line.contains("lmkd")) && lmkd == null && (mentionsPkg || matchesPid)) {
-                lmkd = line
-            } else if (line.contains("OutOfMemoryError") && javaOom == null) {
-                javaOom = line
-            } else if ((line.contains("am_kill") || (line.contains("Killing ") && line.contains(pkg)))
-                && amKill == null && (mentionsPkg || matchesPid || line.contains(pkg))
+            // logcat threadtime: "MM-dd HH:mm:ss.SSS PID TID PRIO TAG: mesaj" — PID sütunu çöken süreçtir.
+            val matchesPid = line.contains(" $prevPid ") || line.contains(",$prevPid,") ||
+                    line.contains("($prevPid)") || line.contains("pid=$prevPid")
+            // DEBUG/tombstone ve libc satırları süreci "pid: N" veya "pid N (" biçiminde de adlandırır.
+            val namesPid = matchesPid || line.contains("pid: $prevPid") || line.contains("pid $prevPid (")
+            val mentionsPkg = line.contains(pkg)
+            val isAnrLine = mentionsPkg && (line.contains("ANR in") || line.contains("PID: $prevPid"))
+
+            if (namesPid && (line.contains("Fatal signal") || line.contains("exiting due to SIG_DFL handler")) &&
+                nativeCrash == null
             ) {
+                nativeCrash = line
+            } else if (line.contains("ANR in") && mentionsPkg && anr == null) {
+                anr = line
+            } else if ((line.contains("lowmemorykiller") || line.contains("lmkd")) && lmkd == null && (mentionsPkg || namesPid)) {
+                lmkd = line
+            } else if (line.contains("OutOfMemoryError") && matchesPid && javaOom == null) {
+                javaOom = line
+            } else if ((line.contains("am_kill") || line.contains("Killing ")) && amKill == null && (mentionsPkg || namesPid)) {
                 amKill = line
             }
 
-            if (matchesPid || isCrashKeyword || (mentionsPkg && line.contains("FATAL"))) {
+            if (matchesPid || namesPid || isAnrLine || (mentionsPkg && line.contains("FATAL"))) {
                 if (relevant.size < LOGCAT_RELEVANT_LIMIT) {
                     relevant.add(line)
                 }
@@ -481,7 +499,7 @@ object KitsugiSessionSupervisor {
         }
 
         val headline = when {
-            nativeCrash != null -> "NATIVE ÇÖKME (SIGSEGV/SIGABRT/SIGBUS — Java istisnası yok, rapor üretilemez)\n  ${nativeCrash!!.trim()}\n  → Native kütüphane (oynatıcı/decoder/GPU) ya da JNI katmanı çöktü."
+            nativeCrash != null -> "NATIVE ÇÖKME (SIGSEGV/SIGABRT/SIGBUS — Java istisnası yok)\n  ${nativeCrash!!.trim()}\n  → Ham yerel iz raporun sonundaki \"NATIVE ÇÖKME İZİ\" bölümünde; adresler /proc/self/maps ile çözülür. Native kütüphane (oynatıcı/decoder/GPU) ya da JNI katmanı çöktü."
             anr != null -> "ANR (UYGULAMA YANIT VERMEDİ) — ana iş parçacığı kilitlendi, sistem süreci öldürdü\n  ${anr!!.trim()}\n  → Son ekran: $lastScreen"
             lmkd != null -> "BELLEK YETERSİZLİĞİ (LMKD / düşük bellek nedeniyle sistem öldürdü)\n  ${lmkd!!.trim()}\n  → Görsel/bellek yükü çok yüksek."
             javaOom != null -> "JAVA OutOfMemoryError (bellek tükendi)\n  ${javaOom!!.trim()}"
@@ -501,6 +519,31 @@ object KitsugiSessionSupervisor {
         } catch (_: Throwable) {}
 
         return PostMortem(headline, relevant.joinToString("\n"), looksLikeCrash)
+    }
+
+    /**
+     * logcat "threadtime" satırının zaman damgasını (MM-dd HH:mm:ss.SSS) epoch ms olarak çözer.
+     * logcat yıl bilgisi yazmaz; şimdiki yıl varsayılır, gelecekte görünen tarih bir yıl geri alınır.
+     * Biçim tanınmazsa null döner (satır pencere filtresine takılmaz).
+     */
+    private fun logcatTimeMs(line: String, nowMs: Long): Long? {
+        if (line.length < 18) return null
+        val head = line.substring(0, 18)
+        if (head[2] != '-' || head[5] != ' ' || head[8] != ':' || head[11] != ':' || head[14] != '.') return null
+        return try {
+            val cal = java.util.Calendar.getInstance()
+            cal.timeInMillis = nowMs
+            cal.set(java.util.Calendar.MONTH, head.substring(0, 2).toInt() - 1)
+            cal.set(java.util.Calendar.DAY_OF_MONTH, head.substring(3, 5).toInt())
+            cal.set(java.util.Calendar.HOUR_OF_DAY, head.substring(6, 8).toInt())
+            cal.set(java.util.Calendar.MINUTE, head.substring(9, 11).toInt())
+            cal.set(java.util.Calendar.SECOND, head.substring(12, 14).toInt())
+            cal.set(java.util.Calendar.MILLISECOND, head.substring(15, 18).toInt())
+            if (cal.timeInMillis > nowMs + 2L * 24L * 3600_000L) cal.add(java.util.Calendar.YEAR, -1)
+            cal.timeInMillis
+        } catch (_: Throwable) {
+            null
+        }
     }
 
     /** logcat'i oku; asla asılı kalma (sert zaman aşımı). */
