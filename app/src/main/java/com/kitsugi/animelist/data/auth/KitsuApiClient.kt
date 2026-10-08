@@ -545,6 +545,38 @@ object KitsuApiClient {
     }
 
     /**
+     * Kitsu medyasının uzunluğunu (anime: episodeCount, manga: chapterCount) döner.
+     * Bilinmiyorsa (ör. devam eden yayın) veya istek başarısızsa null.
+     */
+    suspend fun fetchMediaLength(kitsuMediaId: Int, isAnime: Boolean): Int? = withContext(Dispatchers.IO) {
+        val endpoint = if (isAnime) "anime" else "manga"
+        val field = if (isAnime) "episodeCount" else "chapterCount"
+        PlatformRateLimiter.acquire("kitsu")
+        val request = Request.Builder()
+            .url("$BASE_URL/$endpoint/$kitsuMediaId?fields[$endpoint]=$field")
+            .addHeader("Accept", "application/vnd.api+json")
+            .addHeader("User-Agent", "KitsugiApp/2.4")
+            .build()
+        try {
+            KitsugiHttpClient.client.newCall(request).execute().use { response ->
+                if (response.code == 429) PlatformRateLimiter.notifyRateLimited("kitsu")
+                if (!response.isSuccessful) return@use null
+                val body = response.body?.string()
+                if (body.isNullOrBlank()) return@use null
+                JSONObject(body).optJSONObject("data")?.optJSONObject("attributes")
+                    ?.optInt(field, 0)?.takeIf { it > 0 }
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Kitsu media length lookup failed for $endpoint/$kitsuMediaId: ${e.message}")
+            null
+        }
+    }
+
+    /** Kitsu, ilerlemenin medya uzunluğunu aşmasını HTTP 422 "cannot exceed length of media" ile reddeder. */
+    fun isMediaLengthError(message: String?): Boolean =
+        message?.contains("exceed length", ignoreCase = true) == true
+
+    /**
      * Mevcut bir Kitsu kütüphane kaydını günceller (PATCH).
      */
     suspend fun updateLibraryEntry(
