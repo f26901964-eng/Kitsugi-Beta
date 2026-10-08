@@ -788,7 +788,7 @@ fun KitsugiPlayerSettingsDialog(
                                     val swipeSides = appSettings?.swipeVolumeBrightnessSides ?: true
                                     KitsugiSettingsSwitchItem(
                                         title = "Jest Yönlerini Ters Çevir",
-                                        description = if (swipeSides) "Sol: Ses, Sağ: Parlaklık (Varsayılan)" else "Sol: Parlaklık, Sağ: Ses",
+                                        description = if (swipeSides) "Sol: Parlaklık, Sağ: Ses (Varsayılan)" else "Sol: Ses, Sağ: Parlaklık",
                                         checked = !swipeSides,
                                         icon = Icons.Rounded.CompareArrows,
                                         iconColor = accentColor,

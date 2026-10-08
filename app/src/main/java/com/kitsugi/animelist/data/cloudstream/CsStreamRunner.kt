@@ -651,6 +651,27 @@ object CsStreamRunner {
     private val forcedDomainOriginals = java.util.concurrent.ConcurrentHashMap<String, String>()
 
     /**
+     * Bu oturumda özgün domaine dönülmüş eklentiler. Dönüşten sonra [applyDomainFix] tekrar
+     * tablo domainini zorlarsa geri alma işi anlamsızlaşır (ensurePluginReady her aramada çağrılır).
+     * [clearUnsupportedMethodsCache] ile her yeni aramada temizlenir.
+     */
+    private val domainRevertedPlugins = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+    /**
+     * Eklentinin domaini KNOWN_BROKEN_DOMAINS listesinde mi?
+     *
+     * Uzak domain_fixes.json'dan TAZE gelen bir domain, bu sabit (eski) listeyi geçersiz kılar.
+     * Örn. AltıYüzAltmışAltıFilmİzle için uzak tablo 666filmizle.site'ı güncel gösterirken sabit
+     * liste aynı domaini "ölü" sayıp eklentiyi hiç denemiyordu.
+     */
+    private fun isKnownBrokenDomainFor(api: MainAPI): Boolean {
+        if (dynamicDomains.containsKey(normalizePluginKey(api.name))) return false
+        val currentDomain = api.mainUrl
+            .replace("https://", "").replace("http://", "").replace("www.", "").trimEnd('/')
+        return KNOWN_BROKEN_DOMAINS.any { currentDomain.contains(it) }
+    }
+
+    /**
      * Yerleşik tablo yüzünden domaini değiştirilmiş eklentiyi kendi özgün domainine döndürür.
      *
      * Neden gerekli: ölçümde 9 eklentide (FullHDFilmizlesene, RecTV, DiziMom, WebteIzle,
@@ -668,6 +689,7 @@ object CsStreamRunner {
             "[${api.name}] Zorla uygulanan domain sonuç vermedi → eklentinin kendi domainine dönülüyor: " +
                 "'${api.mainUrl}' -> '$original'"
         )
+        domainRevertedPlugins.add(api.name)
         api.mainUrl = original
         return true
     }
@@ -677,6 +699,8 @@ object CsStreamRunner {
      * Boş, "/" veya bilinen geçersiz domainleri derhal canlı çalışan URL'ye taşır.
      */
     internal fun applyDomainFix(api: MainAPI) {
+        // Bu oturumda özgün domaine dönüldüyse tabloyu tekrar zorlama (aksi halde geri alma etkisiz kalır).
+        if (api.name in domainRevertedPlugins && api.mainUrl.isNotBlank() && api.mainUrl != "/") return
         val nameKey = normalizePluginKey(api.name)
         val builtinFallback = resolveBuiltinDomain(nameKey)
 
@@ -687,12 +711,9 @@ object CsStreamRunner {
             val normalize = { u: String -> u.replace("https://", "").replace("http://", "").replace("www.", "").trimEnd('/') }
             if (currentUrl.isBlank() || currentUrl == "/" || currentUrl.contains("x.anizium.co") || currentUrl.contains("anizium.de") || normalize(currentUrl) != normalize(remoteUrl)) {
                 Log.w(TAG, "[${api.name}] Domain güncellendi: '$currentUrl' -> '$remoteUrl'")
-                if (dynamicUrl != null) {
-                    // Uzak (depo sahibinin yayınladığı) liste güncel kabul edilir — geri dönüş yok.
-                    forcedDomainOriginals.remove(api.name)
-                } else {
-                    // YERLEŞİK tablo eskimiş olabilir (ör. eklenti kendi içinde daha yeni bir domain
-                    // taşıyor). Özgün domaini sakla: arama hiç sonuç vermezse bir kez geri dönülür.
+                // Uzak tablo da eskiyebilir (eklenti kendi içinde daha yeni bir domain taşıyabilir).
+                // Özgün domaini sakla: tablo domaini ile arama hiç sonuç vermezse bir kez geri dönülür.
+                if (currentUrl.isNotBlank() && currentUrl != "/") {
                     forcedDomainOriginals.putIfAbsent(api.name, currentUrl)
                 }
                 api.mainUrl = remoteUrl
@@ -880,6 +901,7 @@ object CsStreamRunner {
     fun clearUnsupportedMethodsCache() {
         val count = unsupportedMethods.size
         unsupportedMethods.clear()
+        domainRevertedPlugins.clear()
         if (count > 0) Log.d(TAG, "unsupportedMethods cache temizlendi ($count kayıt silindi)")
     }
 
@@ -933,11 +955,13 @@ object CsStreamRunner {
         // Bilinen domain değişikliklerini ve DEX anti-tamper patch'lerini uygula
         ensurePluginReady(api)
 
-        // Dinamik olarak engellenmiş (ölü/bozuk) eklentileri atla
+        // domain_fixes.json "blocked" listesi: otomatik betik bu eklenti için CANLI bir domain
+        // bulamadı demektir; eklentinin kendisi bozuk olduğu anlamına gelmez (ör. 4KFilmIzlesene,
+        // AnimeWorld, Movix gibi eklentiler bu listede olsa da çalışabiliyor). Bu yüzden ATLANMAZ:
+        // eklenti kendi domaini ile denenir; sonuç yoksa zaten boş döner.
         val nameKey = api.name.lowercase(Locale.ROOT)
         if (nameKey in dynamicBlockedPlugins) {
-            Log.w(TAG, "[${api.name}] Dinamik engelli listesinde (domain_fixes.json) — atlanıyor.")
-            return@withContext emptyList()
+            Log.i(TAG, "[${api.name}] domain_fixes.json 'blocked' listesinde — kendi domaini ile deneniyor.")
         }
 
         // Kalıcı bozuk olduğu bilinen plugin'leri direkt atla — ağ kaynağı harcama
@@ -958,9 +982,7 @@ object CsStreamRunner {
         }
 
         // Alan adı bazında ölü domain kontrolü
-        val normalizeUrl = { u: String -> u.replace("https://", "").replace("http://", "").replace("www.", "").trimEnd('/') }
-        val currentDomain = normalizeUrl(api.mainUrl)
-        if (KNOWN_BROKEN_DOMAINS.any { currentDomain.contains(it) }) {
+        if (isKnownBrokenDomainFor(api)) {
             Log.w(TAG, "[${api.name}] Domain (${api.mainUrl}) ölü domain listesinde — atlanıyor.")
             return@withContext emptyList()
         }
@@ -2418,9 +2440,7 @@ object CsStreamRunner {
         // NOT: KNOWN_BROKEN_PLUGINS kontrolü kasıtlı olarak burada YOK.
         // Bu eklentiler plugin arama sayfasında çalışabilmeli.
         // Engel sadece stream çekme aşamasında (getStreamsForUrl) uygulanır.
-        val normalizeUrl = { u: String -> u.replace("https://", "").replace("http://", "").replace("www.", "").trimEnd('/') }
-        val currentDomain = normalizeUrl(api.mainUrl)
-        if (KNOWN_BROKEN_DOMAINS.any { currentDomain.contains(it) }) {
+        if (isKnownBrokenDomainFor(api)) {
             Log.w(TAG, "[${api.name}] safeSearch: Domain (${api.mainUrl}) ölü domain listesinde — atlanıyor.")
             return emptyList()
         }
@@ -2843,9 +2863,7 @@ object CsStreamRunner {
         // NOT: KNOWN_BROKEN_PLUGINS kontrolü kasıtlı olarak burada YOK.
         // Detay sayfası (İçerik bilgisi, bölüm listesi) erişilebilmeli.
         // Engel sadece stream çekme aşamasında (getStreamsForUrl) uygulanır.
-        val normalizeUrl = { u: String -> u.replace("https://", "").replace("http://", "").replace("www.", "").trimEnd('/') }
-        val currentDomain = normalizeUrl(api.mainUrl)
-        if (KNOWN_BROKEN_DOMAINS.any { currentDomain.contains(it) }) {
+        if (isKnownBrokenDomainFor(api)) {
             Log.w(TAG, "[${api.name}] safeLoad: Domain (${api.mainUrl}) ölü domain listesinde — atlanıyor.")
             return null
         }

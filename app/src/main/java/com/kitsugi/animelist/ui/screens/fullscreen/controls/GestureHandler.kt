@@ -316,11 +316,13 @@ fun GestureHandler(
                         }
                     }
 
-                    if (swapVolumeBrightness) {
-                        if (change.position.x > size.width / 2) changeBrightness() else changeVolume()
-                    } else {
-                        if (change.position.x < size.width / 2) changeBrightness() else changeVolume()
-                    }
+                    // Dokunma bölgeleri, ekrandaki kaydırıcı yerleşimiyle AYNI olmalı:
+                    //  - swapVolumeBrightness = true (varsayılan): parlaklık SOL, ses SAĞ
+                    //  - swapVolumeBrightness = false: ses SOL, parlaklık SAĞ
+                    // (PlayerControls.kt'deki BrightnessSlider/VolumeSlider hizalaması ile aynı kural.)
+                    val isLeftHalf = change.position.x < size.width / 2
+                    val brightnessOnLeft = swapVolumeBrightness
+                    if (isLeftHalf == brightnessOnLeft) changeBrightness() else changeVolume()
                 }
             },
     )

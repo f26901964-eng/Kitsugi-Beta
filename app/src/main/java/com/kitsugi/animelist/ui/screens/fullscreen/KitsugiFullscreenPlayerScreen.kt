@@ -558,6 +558,20 @@ fun KitsugiFullscreenPlayerScreen(
                     }
                 }
 
+                // ─── PiP / bildirim tuşları köprüsü ──────────────────────────────────
+                // PiP penceresindeki Oynat/Duraklat/Sonraki tuşları ve Activity durdurma
+                // olayları bu köprü üzerinden oynatıcıya iletilir.
+                val fullscreenActivity = activity as? KitsugiFullscreenPlayerActivity
+                DisposableEffect(playerEngine, fullscreenActivity) {
+                    val bridge = object : KitsugiFullscreenPlayerActivity.PipPlayerCallback {
+                        override fun onPipPlay() { viewModel.play() }
+                        override fun onPipPause() { viewModel.pause() }
+                        override fun onPipSkipNext() { playNextEpisode() }
+                    }
+                    fullscreenActivity?.setPipPlayerCallback(bridge)
+                    onDispose { fullscreenActivity?.setPipPlayerCallback(null) }
+                }
+
                 // ─── Audio Output Route Detector (T1.3) ─────────────────────────────
                 val routeDetector = remember(context) { AudioOutputRouteDetector(context) }
                 val activeAudioRoute by routeDetector.observeRouteChanges().collectAsState(initial = AudioRoute.SPEAKER)
@@ -574,6 +588,19 @@ fun KitsugiFullscreenPlayerScreen(
                 var isPlayingState by remember { mutableStateOf(true) }
                 var isBufferingState by remember { mutableStateOf(false) }
                 var isPlaybackEnded by remember { mutableStateOf(false) }
+
+                // PiP RemoteAction ikonlarının (Oynat/Duraklat) ve medya bildiriminin
+                // oynatma durumuyla senkron kalması için.
+                LaunchedEffect(isPlayingState, currentEpisode, currentTitle) {
+                    fullscreenActivity?.updateMediaSession(
+                        title = currentTitle.ifBlank { title },
+                        episode = currentEpisode,
+                        isPlaying = isPlayingState,
+                        positionMs = currentPosition,
+                        durationMs = duration,
+                        hasNext = episodesList.any { it.episodeNumber > currentEpisode }
+                    )
+                }
                 var isEngineReady by remember(mediaIdForHistory, currentEpisode, currentAddonName) { mutableStateOf(false) }
                 
                 var aspectFeedback by remember { mutableStateOf<String?>(null) }
