@@ -466,14 +466,12 @@ object CsStreamRunner {
         "net52.cc",             // MirrorVerse eski domain (domain fix ile net77'ye yönlendiriliyor)
         "tafdi.info",           // Tafdi — 0 sonuç, DNS yok
         "dizimag.mom",          // DiziMag — 0 sonuç
-        "4kfilmizlesene.nl",    // 4KFilmIzlesene — 0 sonuç
         "hdfilmcehennemi2.site",// HDFilmCehennemi2 — ölü mirror
         "hdfilmizle.to",        // HDFilmIzle — 0 sonuç
         "hdfilmsite.net",       // HDFilmSitesi — 0 sonuç
         "filmkovasi.pw",        // FilmKovasi — 0 sonuç
         "filmizleilk.vip",      // FilmIzleIlk — 0 sonuç
-        "fullhdfilmizlede.org", // FullHDFilmİzlede — 0 sonuç
-        "666filmizle.site"      // AltiYuzAltmisAltiFilmIzle — 0 sonuç
+        "fullhdfilmizlede.org"  // FullHDFilmİzlede — 0 sonuç
     )
 
     /**
@@ -955,13 +953,18 @@ object CsStreamRunner {
         // Bilinen domain değişikliklerini ve DEX anti-tamper patch'lerini uygula
         ensurePluginReady(api)
 
-        // domain_fixes.json "blocked" listesi: otomatik betik bu eklenti için CANLI bir domain
-        // bulamadı demektir; eklentinin kendisi bozuk olduğu anlamına gelmez (ör. 4KFilmIzlesene,
-        // AnimeWorld, Movix gibi eklentiler bu listede olsa da çalışabiliyor). Bu yüzden ATLANMAZ:
-        // eklenti kendi domaini ile denenir; sonuç yoksa zaten boş döner.
+        // Dinamik olarak engellenmiş (ölü/bozuk) eklentiler — YALNIZCA uyarı.
+        // ESKİ DAVRANIŞ (HATA): domain_fixes.json "blocked" listesi eklentiyi SESSİZCE
+        // atlıyordu; liste eskidiğinde (4kfilmizlesene vb.) çalışan eklentiler bile
+        // sıfıra iniyordu. YENİ DAVRANIŞ: yine de dene, sebebi tracker'a yaz ki UI
+        // "akış bulunamadı" yerine gerçek durumu göstersin.
         val nameKey = api.name.lowercase(Locale.ROOT)
         if (nameKey in dynamicBlockedPlugins) {
-            Log.i(TAG, "[${api.name}] domain_fixes.json 'blocked' listesinde — kendi domaini ile deneniyor.")
+            Log.w(TAG, "[${api.name}] Dinamik engelli listesinde (domain_fixes.json) — yine de deneniyor.")
+            CsPluginStatusTracker.recordSkip(
+                api.name,
+                "domain_fixes.json blocked listesinde — yine de denendi (liste eskimiş olabilir)"
+            )
         }
 
         // Kalıcı bozuk olduğu bilinen plugin'leri direkt atla — ağ kaynağı harcama
@@ -981,10 +984,17 @@ object CsStreamRunner {
             Log.d(TAG, "[${api.name}] ADULT_PLUGINS listesinde ama showAdultContent=true — devam ediliyor.")
         }
 
-        // Alan adı bazında ölü domain kontrolü
-        if (isKnownBrokenDomainFor(api)) {
-            Log.w(TAG, "[${api.name}] Domain (${api.mainUrl}) ölü domain listesinde — atlanıyor.")
-            return@withContext emptyList()
+        // Alan adı bazında ölü domain kontrolü — YALNIZCA uyarı, SESSİZ ATLAMA YOK.
+        // ESKİ DAVRANIŞ (HATA): eşleşme olunca `return emptyList()` eklentiyi sessizce
+        // sıfıra indiriyor, UI "Bu anime için akış bulunamadı" gösteriyordu. Domain
+        // listeleri eskidiğinde (site geri açılır / domain döner) eklenti sonsuza kadar
+        // ölü kalıyordu — kullanıcı "hiçbir eklentiden veri gelmiyor" olarak görüyordu.
+        // YENİ DAVRANIŞ: yine de dene; domain gerçekten ölüyse arama hızlıca DNS/HTTP
+        // hatası verir, hata CsPluginStatusTracker'a düşer ve UI'da gerçek sebep görünür.
+        val normalizeUrl = { u: String -> u.replace("https://", "").replace("http://", "").replace("www.", "").trimEnd('/') }
+        val currentDomain = normalizeUrl(api.mainUrl)
+        if (KNOWN_BROKEN_DOMAINS.any { currentDomain.contains(it) }) {
+            Log.w(TAG, "[${api.name}] Domain (${api.mainUrl}) ölü domain listesinde — yine de deneniyor (sessiz atlama kaldırıldı).")
         }
 
         // Engellenen plugin'leri atla — tekrarlı NotImplementedError veya 3+ hata sonrası oluşur
@@ -2440,9 +2450,11 @@ object CsStreamRunner {
         // NOT: KNOWN_BROKEN_PLUGINS kontrolü kasıtlı olarak burada YOK.
         // Bu eklentiler plugin arama sayfasında çalışabilmeli.
         // Engel sadece stream çekme aşamasında (getStreamsForUrl) uygulanır.
-        if (isKnownBrokenDomainFor(api)) {
-            Log.w(TAG, "[${api.name}] safeSearch: Domain (${api.mainUrl}) ölü domain listesinde — atlanıyor.")
-            return emptyList()
+        val normalizeUrl = { u: String -> u.replace("https://", "").replace("http://", "").replace("www.", "").trimEnd('/') }
+        val currentDomain = normalizeUrl(api.mainUrl)
+        if (KNOWN_BROKEN_DOMAINS.any { currentDomain.contains(it) }) {
+            // Sessiz atlama YOK — eski davranış eklentiyi kalıcı olarak sıfıra indiriyordu.
+            Log.w(TAG, "[${api.name}] safeSearch: Domain (${api.mainUrl}) ölü domain listesinde — yine de deneniyor.")
         }
         return searchSemaphore.withPermit {
             withTimeoutOrNull(15_000L) {
@@ -2863,9 +2875,11 @@ object CsStreamRunner {
         // NOT: KNOWN_BROKEN_PLUGINS kontrolü kasıtlı olarak burada YOK.
         // Detay sayfası (İçerik bilgisi, bölüm listesi) erişilebilmeli.
         // Engel sadece stream çekme aşamasında (getStreamsForUrl) uygulanır.
-        if (isKnownBrokenDomainFor(api)) {
-            Log.w(TAG, "[${api.name}] safeLoad: Domain (${api.mainUrl}) ölü domain listesinde — atlanıyor.")
-            return null
+        val normalizeUrl = { u: String -> u.replace("https://", "").replace("http://", "").replace("www.", "").trimEnd('/') }
+        val currentDomain = normalizeUrl(api.mainUrl)
+        if (KNOWN_BROKEN_DOMAINS.any { currentDomain.contains(it) }) {
+            // Sessiz atlama YOK — detay/bölüm yüklemesi de denenmeli; hata tracker'a düşer.
+            Log.w(TAG, "[${api.name}] safeLoad: Domain (${api.mainUrl}) ölü domain listesinde — yine de deneniyor.")
         }
         return loadSemaphore.withPermit {
             withTimeoutOrNull(15_000L) {

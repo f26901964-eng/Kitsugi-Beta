@@ -22,7 +22,10 @@
 - **Arka Plan Ses Kesilmesi:** PiP kapatıldığında veya uygulama arka plana alındığında sesin çalmaya devam etmesi `onStop` ve `onDestroy` yaşam döngüsü kontrolleriyle engellendi.
 
 ### 🌐 4. CloudStream Kaynak Akışı ve Domain İyileştirmeleri
-- **Canlı Eklenti Denemeleri:** `domain_fixes.json` "blocked" listesindeki eklentiler atlanmayıp kendi özgün domainleriyle denenir.
+- **Sessiz Atlama Kapıları Kaldırıldı:** `KNOWN_BROKEN_DOMAINS` ve `domain_fixes.json` blocked listesi eşleştiğinde eklentiler artık peşinen atlanıp sıfır sonuca düşürülmüyor; her zaman denenir ve gerçek hata (DNS/Cloudflare/timeout vb.) UI kartında kullanıcıya bildirilir (`CsPluginStatusTracker.recordSkip`).
+- **Domain Listesi Çelişkileri Çözüldü:** `4kfilmizlesene.nl` ve `666filmizle.site` ölü domainler listesinden çıkarıldı.
+- **Temizlenen Blocked Listesi:** `domain_fixes.json` dosyasındaki gereksiz yere TR eklentilerini öldüren blocked listesi boşaltıldı (+18 filtreleme uygulamada `ADULT_PLUGINS` ile ayrı olarak yönetilir).
+- **Gerçek Hata Gösterimi:** Boş akış döndüğünde "Bu anime için akış bulunamadı" yerine `CsPluginStatusTracker`'dan gelen gerçek sebep gösterilir.
 - **Taze Domain Önceliği:** Dinamik güncel domain tablosundan gelen taze domainler, sabit `KNOWN_BROKEN_DOMAINS` listesi tarafından engellenmez.
 - **Revert Kararlılığı:** Özgün domaine dönüldükten sonra aynı oturumda yerleşik tablonun tekrar zorlanması engellendi.
 - **Güncelleme Geri Çekilme (Backoff):** 404 veren eklentiler için 12 saatlik bekleme süresi uygulandı (`CsAutoUpdateBackoff`).
@@ -60,7 +63,10 @@
 - **Background Audio Stop:** Playback reliably pauses upon closing PiP or backgrounding the activity via `onStop` and `onDestroy`.
 
 ### 🌐 4. CloudStream Stream & Domain Enhancements
-- **Dynamic Plugin Retries:** Plugins in `domain_fixes.json` "blocked" list are tested with their own original domains instead of skipping.
+- **Eliminated Silent Skip Gates:** Extensions matching `KNOWN_BROKEN_DOMAINS` or `domain_fixes.json` blocked list are no longer prematurely skipped; all extensions are executed and real errors (DNS, Cloudflare, timeouts) are surfaced directly on stream cards (`CsPluginStatusTracker.recordSkip`).
+- **Domain Contradictions Resolved:** `4kfilmizlesene.nl` and `666filmizle.site` removed from broken domain blocklist.
+- **Cleared Blocked List:** Cleared `domain_fixes.json` blocked list that previously incapacitated legitimate Turkish streaming providers (+18 filtering is handled strictly via `ADULT_PLUGINS`).
+- **Real Diagnostic Error Display:** When stream discovery yields empty results, the actual root cause from `CsPluginStatusTracker` is displayed instead of a generic "No streams found" placeholder.
 - **Fresh Domain Priority:** Fresh remote domains override the hardcoded `KNOWN_BROKEN_DOMAINS` blocklist.
 - **Stable Revert Protection:** Restored domains are protected against immediate builtin overrides in the same session.
 - **Update Backoff:** 12-hour retry backoff on 404/missing extensions (`CsAutoUpdateBackoff`).
