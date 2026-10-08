@@ -40,4 +40,10 @@ class CrossSyncIdentityGuardTest {
             )
         )
     }
+
+    @Test
+    fun variantRuleDoesNotMergeSuffixSequels() {
+        // Yazım-varyantı kuralı sonda eklenmiş kelimeli (sekel benzeri) başlıkları birleştirmemeli.
+        assertFalse(CrossSyncIdentityGuard.titlesVariantRelated("Dragon Ball", "Dragon Ball Z"))
+    }
 }

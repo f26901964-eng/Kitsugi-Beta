@@ -205,7 +205,10 @@ object CrossSyncIdentityGuard {
         val ta = rawTokens(a)
         val tb = rawTokens(b)
         val (shortT, longT) = if (ta.size <= tb.size) ta to tb else tb to ta
-        if (shortT.isNotEmpty()) {
+        // Yalnızca sayısal başlıklar için (ör. "86"); aksi halde "Dragon Ball" ↔ "Dragon Ball Z" gibi
+        // farklı yapımlar, yanlış bir ortak kimlik yüzünden birleşebilirdi.
+        val shortIsNumeric = shortT.any { tok -> tok.all { it.isDigit() } }
+        if (shortIsNumeric && shortT.isNotEmpty()) {
             var idx = 0
             for (tok in longT) {
                 if (idx < shortT.size && tok == shortT[idx]) idx++
@@ -216,7 +219,9 @@ object CrossSyncIdentityGuard {
         // (2) Kısa romanizasyon/yazım farkı: en fazla 1 karakter ve uzunluğun %15'i kadar fark
         if (ka.length >= 6 && kb.length >= 6) {
             val dist = levenshtein(ka, kb)
-            if (dist <= 1 || (dist <= 2 && dist.toDouble() / maxOf(ka.length, kb.length) <= 0.15)) return true
+            // Sonda eklenmiş kelime (ör. "Dragon Ball" ↔ "Dragon Ball Z") yazım farkı değildir; reddedilir.
+            val suffixAddition = ka.startsWith(kb) || kb.startsWith(ka)
+            if (!suffixAddition && (dist <= 1 || (dist <= 2 && dist.toDouble() / maxOf(ka.length, kb.length) <= 0.15))) return true
         }
         return false
     }
