@@ -306,14 +306,40 @@ object KitsuClient {
         }
     }
 
+    /**
+     * Kitsu detay isteği.
+     *
+     * Kitsu API'si R18/+18 kayıtları **anonim isteklere gizler** (resmî kural). Kayıt
+     * kullanıcının kendi listesinden geldiği için, oturum varsa jetonla çekiyoruz; jeton
+     * geçersiz/süresi dolmuşsa (401/403) ya da yanıt çözümlenemezse anonim isteğe düşüyoruz.
+     * Böylece hem +18 kayıtlar açılır hem de jeton sorunları sayfayı düşürmez.
+     */
     private suspend fun executeGet(urlStr: String, isArrayResponse: Boolean = false): KitsugiMediaDetail? {
+        val authToken = authTokenOrNull()
+        return executeGetOnce(urlStr, isArrayResponse, authToken)
+            ?: if (authToken != null) executeGetOnce(urlStr, isArrayResponse, null) else null
+    }
+
+    /** Kitsu çağrılarında kullanılacak kullanıcı jetonu (yoksa null). */
+    fun authTokenOrNull(): String? = runCatching {
+        com.kitsugi.animelist.KitsugiApplication.getInstance()
+            ?.let { com.kitsugi.animelist.data.auth.ExternalAuthManager.getKitsuToken(it) }
+            ?.takeIf { it.isNotBlank() }
+    }.getOrNull()
+
+    private suspend fun executeGetOnce(
+        urlStr: String,
+        isArrayResponse: Boolean,
+        authToken: String?
+    ): KitsugiMediaDetail? {
         try {
-            val request = Request.Builder()
+            val builder = Request.Builder()
                 .url(urlStr)
                 .header("Accept", "application/vnd.api+json")
                 .header("Content-Type", "application/vnd.api+json")
                 .header("User-Agent", "Kitsugi/1.0 (Android)")
-                .build()
+            if (authToken != null) builder.header("Authorization", "Bearer $authToken")
+            val request = builder.build()
             KitsugiHttpClient.client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
                     Log.e(TAG, "HTTP ${response.code} for $urlStr")

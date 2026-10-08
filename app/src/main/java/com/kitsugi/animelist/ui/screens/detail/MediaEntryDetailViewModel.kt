@@ -295,14 +295,28 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
         return -entry.id
     }
 
+    /**
+     * Kaydın dış (API) kimliği.
+     *
+     * Kitsu kayıtlarında kimlik alanı boş olabilir (eski içe aktarmalar ya da
+     * `KitsuIdentityMigration` sonrası). Bu durumda yerel satır numarası (`entry.id`)
+     * KESİNLİKLE dış kimlik olarak kullanılmaz: 42 gibi bir satır numarası MAL ID'si
+     * sanılıp alakasız bir yapımın detayı getiriliyordu. Kitsu için 0 döneriz —
+     * KitsugiDetailClient başlık üzerinden kanonik kimliği çözmeyi dener.
+     */
+    private fun externalIdOf(entry: MediaEntry): Int = when (entry.source.lowercase()) {
+        "simkl" -> entry.simklId?.takeIf { it > 0 } ?: (if (entry.id > 0) entry.id else (entry.malId ?: 0))
+        "kitsu" -> entry.malId?.takeIf { it > 0 } ?: 0
+        else -> entry.malId ?: entry.id
+    }
+
     private suspend fun fetchDetail(entry: MediaEntry) {
-        val effectiveExternalId = when (entry.source.lowercase()) {
-            "simkl" -> entry.simklId?.takeIf { it > 0 } ?: (if (entry.id > 0) entry.id else (entry.malId ?: 0))
-            else -> entry.malId ?: entry.id
-            // NOT (Kitsu): kimlik alanı her zaman 300M aralığındaki stableId olmalıdır. Eski
-            // kayıtlarda bu alan gerçek MAL ID taşıyabiliyor; KitsugiDetailClient kimliği
-            // kanonikleştirir (eşleme önbelleği → Kitsu mappings → sıkı başlık araması).
-        }
+        // NOT (Kitsu): kimlik alanı her zaman 300M aralığındaki stableId olmalıdır. Eski
+        // kayıtlarda bu alan gerçek MAL ID taşıyabiliyor; KitsugiDetailClient kimliği
+        // kanonikleştirir (eşleme önbelleği → Kitsu mappings → sıkı başlık araması).
+        // Kimlik hiç yoksa 0 geçilir ve istemci başlık üzerinden çözer (bkz. externalIdOf).
+        val effectiveExternalId = externalIdOf(entry)
+
         val stableId = cacheIdentityOf(entry)
         if (entry.source.equals("kitsu", ignoreCase = true)) {
             com.kitsugi.animelist.data.remote.KitsuIdNamespace.stableIdOrNull(effectiveExternalId)?.let { canonicalKitsuIdForEntry = entry.id to it }
@@ -773,10 +787,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
      * Lazy-loads tabs data when a specific tab index is selected.
      */
     fun loadTab(tabIndex: Int, entry: MediaEntry, realMalId: Int?) {
-        val effectiveExternalId = when (entry.source.lowercase()) {
-            "simkl" -> entry.simklId?.takeIf { it > 0 } ?: (if (entry.id > 0) entry.id else (entry.malId ?: 0))
-            else -> entry.malId ?: entry.id
-        }
+        val effectiveExternalId = externalIdOf(entry)
         // Önbellek anahtarı Kitsu'da kanonik kimlik üzerinden kurulur (bkz. cacheIdentityOf)
         val malId = cacheIdentityOf(entry)
         val effectiveRealMalId = realMalId

@@ -2,6 +2,7 @@ package com.kitsugi.animelist.data.auth
 
 import android.util.Log
 import com.kitsugi.animelist.core.network.KitsugiHttpClient
+import com.kitsugi.animelist.data.remote.KitsuClient
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
@@ -744,19 +745,35 @@ object KitsuApiClient {
      * Birden fazla aday aynı en yüksek puanı alıyorsa (ör. aynı isimli sezonlar/yeniden çevrimler)
      * ve yıl bilgisi ayrıştırmıyorsa null döner; yanlış kayda yazmaktansa kaydı atlamak tercih edilir.
      */
-    suspend fun lookupKitsuId(title: String, isAnime: Boolean, expectedYear: Int? = null): Int? = withContext(Dispatchers.IO) {
+    suspend fun lookupKitsuId(title: String, isAnime: Boolean, expectedYear: Int? = null): Int? {
+        // +18 (R18/nsfw) Kitsu kayıtları anonim aramalarda gizlenir. Aranan kayıt
+        // kullanıcının KENDİ listesinden geldiği için oturum varsa jetonla arıyoruz;
+        // sonuç çıkmazsa anonim aramaya düşüyoruz.
+        val authToken = runCatching { KitsuClient.authTokenOrNull() }.getOrNull()
+        if (authToken != null) {
+            lookupKitsuIdMatching(title, isAnime, expectedYear, authToken)?.let { return it }
+        }
+        return lookupKitsuIdMatching(title, isAnime, expectedYear, null)
+    }
+
+    private suspend fun lookupKitsuIdMatching(
+        title: String,
+        isAnime: Boolean,
+        expectedYear: Int?,
+        authToken: String?
+    ): Int? = withContext(Dispatchers.IO) {
         if (title.isBlank()) return@withContext null
         PlatformRateLimiter.acquire("kitsu")
         val endpoint = if (isAnime) "anime" else "manga"
         val encoded = java.net.URLEncoder.encode(title.trim(), "UTF-8")
         val url = "$BASE_URL/$endpoint?filter[text]=$encoded&page[limit]=5&fields[$endpoint]=canonicalTitle,titles,abbreviatedTitles,startDate"
 
-        val request = Request.Builder()
+        val builder = Request.Builder()
             .url(url)
             .addHeader("Accept", "application/vnd.api+json")
             .addHeader("User-Agent", "KitsugiApp/2.4")
-            .get()
-            .build()
+        if (authToken != null) builder.addHeader("Authorization", "Bearer $authToken")
+        val request = builder.get().build()
 
         runCatching {
             KitsugiHttpClient.client.newCall(request).execute().use { response ->
