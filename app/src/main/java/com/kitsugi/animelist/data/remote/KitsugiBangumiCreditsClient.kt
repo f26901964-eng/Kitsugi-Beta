@@ -57,13 +57,17 @@ object KitsugiBangumiCreditsClient {
                     .mapNotNull { j -> actors.optJSONObject(j)?.let { parseVoiceActor(it) } }
                     .distinctBy { it.id }
             }
+            val characterName = localizedName(item)
             KitsugiCharacter(
                 id = characterId,
-                name = item.optString("name").ifBlank { "#$characterId" },
+                name = characterName.display.ifBlank { "#$characterId" },
                 role = characterRoleLabel(item.optString("relation")),
                 imageUrl = pickImage(item.optJSONObject("images"), preferSmall = true),
                 voiceActors = voiceActors,
-                source = SOURCE
+                source = SOURCE,
+                romanizedName = characterName.romaji,
+                nativeName = characterName.native,
+                englishName = characterName.english
             )
         }
     }
@@ -89,14 +93,18 @@ object KitsugiBangumiCreditsClient {
         }
         return firstSeen.map { (personId, item) ->
             val roles: Set<String> = rolesByPerson[personId].orEmpty()
+            val personName = localizedName(item)
             KitsugiStaff(
                 id = personId,
-                name = item.optString("name").ifBlank { "#$personId" },
+                name = personName.display.ifBlank { "#$personId" },
                 role = roles.joinToString(" · ")
                     .ifBlank { occupationLabel(item.optJSONArray("career")) }
                     .ifBlank { "Ekip Üyesi" },
                 imageUrl = pickImage(item.optJSONObject("images"), preferSmall = true),
-                source = SOURCE
+                source = SOURCE,
+                romanizedName = personName.romaji,
+                nativeName = personName.native,
+                englishName = personName.english
             )
         }
     }
@@ -127,18 +135,22 @@ object KitsugiBangumiCreditsClient {
             subjectsCall.await() to personsCall.await()
         }
         val infobox = BangumiApiClient.parseInfobox(root.optJSONArray("infobox"))
-        val fullName = root.optString("name").trim()
-        val cnName = infoboxFirst(infobox, CN_NAME_KEYS)
-        val primaryName = cnName
-            ?: fullName.ifBlank { null }
+        val localized = BangumiNameLocalizer.entity(
+            name = root.optString("name"),
+            nameCn = root.optString("name_cn", root.optString("nameCN", "")).ifBlank { infoboxFirst(infobox, CN_NAME_KEYS) ?: "" },
+            aliases = infobox[ALIAS_KEY].orEmpty(),
+            englishAliases = infobox["英文名"].orEmpty() + infobox["英語名"].orEmpty(),
+            romajiAliases = infobox["罗马字"].orEmpty() + infobox["羅馬字"].orEmpty()
+        )
+        val primaryName = localized.display.takeIf { it.isNotBlank() && it != "?" }
             ?: name?.trim()?.ifBlank { null }
             ?: "Bilinmeyen"
 
         return KitsugiCharacterDetail(
             id = rawCharacterId,
             name = primaryName,
-            nativeName = fullName.takeIf { it.isNotEmpty() && it != primaryName },
-            alternativeNames = infobox[ALIAS_KEY].orEmpty(),
+            nativeName = localized.native,
+            alternativeNames = localized.alternatives,
             imageUrl = pickImage(root.optJSONObject("images"), preferSmall = false)
                 ?: BangumiApiClient.absoluteImageUrl(fallbackImageUrl?.ifBlank { null }),
             gender = genderLabel(root.optString("gender"))
@@ -153,7 +165,8 @@ object KitsugiBangumiCreditsClient {
             isFavourite = false,
             aniListId = null,
             source = SOURCE,
-            romanizedName = null
+            romanizedName = localized.romaji,
+            englishName = localized.english
         )
     }
 
@@ -175,18 +188,22 @@ object KitsugiBangumiCreditsClient {
             subjectsCall.await() to charactersCall.await()
         }
         val infobox = BangumiApiClient.parseInfobox(root.optJSONArray("infobox"))
-        val fullName = root.optString("name").trim()
-        val cnName = infoboxFirst(infobox, CN_NAME_KEYS)
-        val primaryName = cnName
-            ?: fullName.ifBlank { null }
+        val localized = BangumiNameLocalizer.entity(
+            name = root.optString("name"),
+            nameCn = root.optString("name_cn", root.optString("nameCN", "")).ifBlank { infoboxFirst(infobox, CN_NAME_KEYS) ?: "" },
+            aliases = infobox[ALIAS_KEY].orEmpty(),
+            englishAliases = infobox["英文名"].orEmpty() + infobox["英語名"].orEmpty(),
+            romajiAliases = infobox["罗马字"].orEmpty() + infobox["羅馬字"].orEmpty()
+        )
+        val primaryName = localized.display.takeIf { it.isNotBlank() && it != "?" }
             ?: name?.trim()?.ifBlank { null }
             ?: "Bilinmeyen"
 
         return KitsugiStaffDetail(
             id = rawPersonId,
             name = primaryName,
-            nativeName = fullName.takeIf { it.isNotEmpty() && it != primaryName },
-            alternativeNames = infobox[ALIAS_KEY].orEmpty(),
+            nativeName = localized.native,
+            alternativeNames = localized.alternatives,
             imageUrl = pickImage(root.optJSONObject("images"), preferSmall = false),
             biography = root.optString("summary").trim().ifBlank { null },
             occupation = occupationLabel(root.optJSONArray("career")).ifBlank { null },
@@ -199,7 +216,8 @@ object KitsugiBangumiCreditsClient {
             mediaWorks = subjects?.let { parseMediaWorks(it) }.orEmpty(),
             isFavourite = false,
             aniListId = null,
-            romanizedName = null
+            romanizedName = localized.romaji,
+            englishName = localized.english
         )
     }
 
@@ -207,13 +225,17 @@ object KitsugiBangumiCreditsClient {
 
     private fun parseVoiceActor(item: JSONObject): KitsugiVoiceActor? {
         val id = item.optInt("id", 0).takeIf { it > 0 } ?: return null
+        val name = localizedName(item)
         return KitsugiVoiceActor(
             id = id,
-            name = item.optString("name").ifBlank { "#$id" },
+            name = name.display.ifBlank { "#$id" },
             // Bangumi, seslendirmenin dilini ayrıca vermez; bilinmeyen değer olarak bırakılır.
             language = "",
             imageUrl = pickImage(item.optJSONObject("images"), preferSmall = true),
-            source = SOURCE
+            source = SOURCE,
+            romanizedName = name.romaji,
+            nativeName = name.native,
+            englishName = name.english
         )
     }
 
@@ -237,18 +259,17 @@ object KitsugiBangumiCreditsClient {
             if (subjectType !in SUPPORTED_SUBJECT_TYPES) return@mapNotNull null
             val mediaId = BangumiIdNamespace.stableIdFromRaw(subjectId) ?: return@mapNotNull null
             if (!seen.add(subjectId)) return@mapNotNull null
-            val nameCn = item.optString("name_cn").trim()
-            val nameJp = item.optString("name").trim()
+            val title = BangumiNameLocalizer.entity(item.optString("name"), item.optString("name_cn"))
             KitsugiCharacterMediaAppearance(
                 mediaId = mediaId,
-                title = nameCn.ifBlank { nameJp }.ifBlank { "#$subjectId" },
+                title = title.display.ifBlank { "#$subjectId" },
                 imageUrl = BangumiApiClient.absoluteImageUrl(item.optString("image").trim().ifBlank { null }),
                 mediaType = mediaTypeKey(subjectType),
                 characterRole = characterRoleLabel(item.optString("staff")),
                 source = SOURCE,
-                titleEnglish = null,
-                titleJapanese = nameJp.takeIf { it.isNotEmpty() && it != nameCn },
-                titleRomaji = null
+                titleEnglish = title.english,
+                titleJapanese = title.native,
+                titleRomaji = title.romaji
             )
         }
     }
@@ -264,21 +285,28 @@ object KitsugiBangumiCreditsClient {
             if (subjectType !in SUPPORTED_SUBJECT_TYPES) return@mapNotNull null
             val mediaId = BangumiIdNamespace.stableIdFromRaw(subjectId) ?: return@mapNotNull null
             if (!seen.add(characterId to subjectId)) return@mapNotNull null
-            val subjectNameCn = item.optString("subject_name_cn").trim()
-            val subjectName = item.optString("subject_name").trim()
+            val characterName = localizedName(item)
+            val mediaTitle = BangumiNameLocalizer.entity(
+                name = item.optString("subject_name"),
+                nameCn = item.optString("subject_name_cn")
+            )
             KitsugiStaffCharacterRole(
                 characterId = characterId,
-                characterName = item.optString("name").ifBlank { "#$characterId" },
+                characterName = characterName.display.ifBlank { "#$characterId" },
                 characterImageUrl = pickImage(item.optJSONObject("images"), preferSmall = true),
                 characterSource = SOURCE,
                 mediaId = mediaId,
-                mediaTitle = subjectNameCn.ifBlank { subjectName }.ifBlank { "#$subjectId" },
+                mediaTitle = mediaTitle.display.ifBlank { "#$subjectId" },
                 mediaImageUrl = null,
                 mediaType = mediaTypeKey(subjectType),
                 characterRole = characterRoleLabel(item.optString("staff")),
                 mediaSource = SOURCE,
-                characterRomanizedName = null,
-                characterNativeName = null
+                characterRomanizedName = characterName.romaji,
+                characterNativeName = characterName.native,
+                characterEnglishName = characterName.english,
+                mediaTitleEnglish = mediaTitle.english,
+                mediaTitleJapanese = mediaTitle.native,
+                mediaTitleRomaji = mediaTitle.romaji
             )
         }
     }
@@ -293,23 +321,28 @@ object KitsugiBangumiCreditsClient {
             if (subjectType !in SUPPORTED_SUBJECT_TYPES) return@mapNotNull null
             val mediaId = BangumiIdNamespace.stableIdFromRaw(subjectId) ?: return@mapNotNull null
             if (!seen.add(subjectId)) return@mapNotNull null
-            val nameCn = item.optString("name_cn").trim()
-            val nameJp = item.optString("name").trim()
+            val title = BangumiNameLocalizer.entity(item.optString("name"), item.optString("name_cn"))
             KitsugiStaffMediaWork(
                 mediaId = mediaId,
-                mediaTitle = nameCn.ifBlank { nameJp }.ifBlank { "#$subjectId" },
+                mediaTitle = title.display.ifBlank { "#$subjectId" },
                 mediaImageUrl = BangumiApiClient.absoluteImageUrl(item.optString("image").trim().ifBlank { null }),
                 mediaType = mediaTypeKey(subjectType),
                 staffRole = item.optString("staff").trim().ifBlank { "Ekip Üyesi" },
                 source = SOURCE,
-                titleEnglish = null,
-                titleJapanese = nameJp.takeIf { it.isNotEmpty() && it != nameCn },
-                titleRomaji = null
+                titleEnglish = title.english,
+                titleJapanese = title.native,
+                titleRomaji = title.romaji
             )
         }
     }
 
     // ── Yardımcılar ──────────────────────────────────────────────────────────
+
+    /** V0 kısa karakter/kişi nesnesinin dil alanlarını korur. */
+    private fun localizedName(item: JSONObject): BangumiLocalizedName = BangumiNameLocalizer.entity(
+        name = item.optString("name"),
+        nameCn = item.optString("name_cn", item.optString("nameCN", ""))
+    )
 
     /** stableId (500M+) gelirse ham Bangumi ID'sine çevirir; ham ID'yi olduğu gibi döndürür. */
     private fun rawId(idOrStable: Int): Int = BangumiIdNamespace.rawIdFromStable(idOrStable) ?: idOrStable

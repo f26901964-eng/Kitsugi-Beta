@@ -65,9 +65,11 @@ fun CharactersTabContent(
             val list = remember(state.data, titleLanguage) {
                 state.data.map { character ->
                     character.copy(
-                        name = displayPersonName(character.name, character.romanizedName, character.nativeName, titleLanguage),
+                        name = displayPersonName(
+                            character.name, character.romanizedName, character.nativeName, titleLanguage, character.englishName
+                        ),
                         voiceActors = character.voiceActors.map { va ->
-                            va.copy(name = displayPersonName(va.name, va.romanizedName, va.nativeName, titleLanguage))
+                            va.copy(name = displayPersonName(va.name, va.romanizedName, va.nativeName, titleLanguage, va.englishName))
                         }
                     )
                 }
@@ -385,7 +387,11 @@ fun StaffTabContent(
         is DetailTabState.Success -> {
             val list = remember(state.data, titleLanguage) {
                 state.data.map { staff ->
-                    staff.copy(name = displayPersonName(staff.name, staff.romanizedName, staff.nativeName, titleLanguage))
+                    staff.copy(
+                        name = displayPersonName(
+                            staff.name, staff.romanizedName, staff.nativeName, titleLanguage, staff.englishName
+                        )
+                    )
                 }
             }
             if (list.isEmpty()) {

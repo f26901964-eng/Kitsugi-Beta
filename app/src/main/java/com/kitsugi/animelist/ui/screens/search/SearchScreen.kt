@@ -570,7 +570,13 @@ fun SearchScreen(
                 }
             } else if (uiState.currentTab == KitsugiSearchTab.Character || uiState.currentTab == KitsugiSearchTab.Staff) {
                 items(filteredResults, key = { "${it.source}_${it.type}_${it.malId}" }) { result ->
-                    val displayName = com.kitsugi.animelist.data.remote.displayPersonName(result.title, result.titleEnglish, result.titleJapanese, titleLanguage)
+                    val displayName = com.kitsugi.animelist.data.remote.displayPersonName(
+                        result.title,
+                        result.titleRomaji,
+                        result.titleJapanese,
+                        titleLanguage,
+                        result.titleEnglish
+                    )
                     CharacterStaffResultRow(
                         result = result.copy(
                             title = displayName,

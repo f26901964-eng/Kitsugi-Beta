@@ -33,6 +33,14 @@ internal fun JSONObject?.aniListPersonName(): AniListPersonName {
 }
 
 /** Cached API models stay language-neutral; switching languages does not require a refetch. */
-fun displayPersonName(name: String, romanized: String?, native: String?, language: String): String =
-    if (language == "NATIVE" || language == "JAPANESE_STAFF") native?.takeIf { it.isNotBlank() } ?: name
-    else romanized?.takeIf { it.isNotBlank() } ?: name
+fun displayPersonName(
+    name: String,
+    romanized: String?,
+    native: String?,
+    language: String,
+    english: String? = null
+): String = when (language) {
+    "NATIVE", "JAPANESE_STAFF" -> native?.takeIf { it.isNotBlank() } ?: name
+    "ENGLISH" -> english?.takeIf { it.isNotBlank() } ?: romanized?.takeIf { it.isNotBlank() } ?: name
+    else -> romanized?.takeIf { it.isNotBlank() } ?: english?.takeIf { it.isNotBlank() } ?: name
+}

@@ -241,17 +241,23 @@ fun ApiResultDetailPage(
                     "ENGLISH" -> MediaTitleResolver.resolveEnglish(rawTitle, effTitleEnglish, effTitleRomaji, effTitleJapanese) ?: rawTitle
                     else -> MediaTitleResolver.resolve(rawTitle, effTitleEnglish, effTitleRomaji, effTitleJapanese)
                 }
-            } else when {
-                !effTitleRomaji.isNullOrBlank() && !PreferenceHelpers.hasCjkCharacters(effTitleRomaji) -> effTitleRomaji
-                !PreferenceHelpers.hasCjkCharacters(rawTitle) -> rawTitle
-                !effTitleEnglish.isNullOrBlank() -> effTitleEnglish
-                else -> rawTitle
+            } else {
+                // Bangumi'de English ve romaji farklı alanlardır. Önceki kod her tercih için
+                // romaji seçiyor, English/Native ayarını başlık ekranında etkisiz bırakıyordu.
+                PreferenceHelpers.getDisplayTitle(
+                    title = rawTitle,
+                    titleEnglish = effTitleEnglish,
+                    titleJapanese = effTitleJapanese,
+                    titleLanguage = titleLanguage,
+                    titleRomaji = effTitleRomaji
+                )
             }
 
             result.copy(
                 title = chosenTitle,
                 titleEnglish = effTitleEnglish,
                 titleJapanese = effTitleJapanese,
+                titleRomaji = effTitleRomaji,
                 imageUrl = if (!detail.imageUrl.isNullOrBlank()) detail.imageUrl else result.imageUrl,
                 score = result.score ?: detail.score,
                 year = result.year ?: detail.year,
@@ -659,7 +665,8 @@ fun ApiResultDetailPage(
                             year = null,
                             source = rel.source,
                             titleEnglish = rel.titleEnglish,
-                            titleJapanese = rel.titleJapanese
+                            titleJapanese = rel.titleJapanese,
+                            titleRomaji = rel.titleRomaji
                         )
                         onRelationClick(relResult)
                     })
@@ -682,7 +689,8 @@ fun ApiResultDetailPage(
                             year = null,
                             source = rel.source,
                             titleEnglish = rel.titleEnglish,
-                            titleJapanese = rel.titleJapanese
+                            titleJapanese = rel.titleJapanese,
+                            titleRomaji = rel.titleRomaji
                         )
                         onRelationClick(relResult)
                     })

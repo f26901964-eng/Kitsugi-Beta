@@ -139,6 +139,7 @@ fun TvDetailScreen(
                 title = detail.titleRomaji ?: (if (result.title == "Yükleniyor..." || result.title == "Loading...") (detail.title ?: result.title) else result.title),
                 titleEnglish = detail.titleEnglish ?: result.titleEnglish,
                 titleJapanese = (detail.titleJapanese ?: detail.titleNative) ?: result.titleJapanese,
+                titleRomaji = detail.titleRomaji ?: result.titleRomaji,
                 imageUrl = result.imageUrl ?: detail.imageUrl,
                 score = result.score ?: detail.score,
                 year = result.year ?: detail.year,
@@ -780,9 +781,10 @@ fun TvDetailScreen(
                                             items(relations) { rel ->
                                                 TvRelationCard(
                                                     relation = rel,
+                                                    titleLanguage = titleLanguage,
                                                     onClick = {
                                                         val relResult = JikanSearchResult(
-                                                            source = displayResult.source,
+                                                            source = rel.source,
                                                             malId = rel.malId,
                                                             title = rel.title,
                                                             subtitle = "",
@@ -795,7 +797,10 @@ fun TvDetailScreen(
                                                             score = null,
                                                             isAdult = false,
                                                             imageUrl = rel.imageUrl,
-                                                            year = null
+                                                            year = null,
+                                                            titleEnglish = rel.titleEnglish,
+                                                            titleJapanese = rel.titleJapanese,
+                                                            titleRomaji = rel.titleRomaji
                                                         )
                                                         onNavigateToRelationDetail(relResult)
                                                     }
@@ -1295,8 +1300,10 @@ private fun TvStaffCard(
 @Composable
 private fun TvRelationCard(
     relation: KitsugiRelation,
+    titleLanguage: String,
     onClick: () -> Unit
 ) {
+    val displayTitle = relation.getDisplayTitle(titleLanguage)
     var isFocused by remember { mutableStateOf(false) }
 
     Column(
@@ -1308,7 +1315,7 @@ private fun TvRelationCard(
     ) {
         com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
             model = relation.imageUrl,
-            contentDescription = relation.title,
+            contentDescription = displayTitle,
             isAdult = relation.isAdult,
             modifier = Modifier
                 .fillMaxWidth()
@@ -1326,7 +1333,7 @@ private fun TvRelationCard(
         )
 
         Text(
-            text = relation.title,
+            text = displayTitle,
             style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
             color = KitsugiColors.TextPrimary,
             maxLines = 1,

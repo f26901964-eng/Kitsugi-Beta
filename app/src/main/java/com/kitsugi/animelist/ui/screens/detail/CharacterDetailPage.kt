@@ -201,9 +201,11 @@ fun CharacterDetailPage(
                 val rawDetail = currentState.detail
                 val detail = remember(rawDetail, titleLanguage) {
                     rawDetail.copy(
-                        name = displayPersonName(rawDetail.name, rawDetail.romanizedName, rawDetail.nativeName, titleLanguage),
+                        name = displayPersonName(
+                            rawDetail.name, rawDetail.romanizedName, rawDetail.nativeName, titleLanguage, rawDetail.englishName
+                        ),
                         voiceActors = rawDetail.voiceActors.map { va ->
-                            va.copy(name = displayPersonName(va.name, va.romanizedName, va.nativeName, titleLanguage))
+                            va.copy(name = displayPersonName(va.name, va.romanizedName, va.nativeName, titleLanguage, va.englishName))
                         }
                     )
                 }

@@ -73,7 +73,8 @@ class BangumiApiClientSearchTest {
 
         val first = page.data[0]
         assertEquals(51, first.id)
-        assertEquals("约会大作战", first.displayTitle)
+        // Varsayılan Çince yerelleştirmeye sabitlenmez; özgün ad önceliklidir.
+        assertEquals("デート・ア・ライブ", first.displayTitle)
         assertEquals("デート・ア・ライブ", first.name)
         assertEquals("2013-04-05", first.date)
         assertEquals(12, first.eps)

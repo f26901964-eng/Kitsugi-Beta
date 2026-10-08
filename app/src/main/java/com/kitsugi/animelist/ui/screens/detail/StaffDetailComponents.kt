@@ -39,6 +39,7 @@ import androidx.compose.animation.shrinkVertically
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
+import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayMediaTitle
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.focus.FocusRequester
@@ -73,7 +74,7 @@ internal fun StaffCharacterRoleCard(
     onMediaClick: (mediaId: Int, mediaType: String, mediaSource: String) -> Unit
 ) {
     val accentColor = LocalKitsugiAccent.current
-    val displayMediaTitle = role.mediaTitle
+    val displayMediaTitle = role.getDisplayMediaTitle(titleLanguage)
     // AniHyou PersonItemHorizontal-style: single compact row
     Row(
         modifier = Modifier
@@ -122,7 +123,7 @@ internal fun StaffCharacterRoleCard(
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = "${role.mediaTitle} • ${role.characterRole}",
+                text = "$displayMediaTitle • ${role.characterRole}",
                 color = KitsugiColors.TextSecondary,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Medium,

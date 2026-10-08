@@ -307,6 +307,7 @@ fun KitsugiProfileScreen(
                             BangumiProfileContent(
                                 state = bangumiState,
                                 accentColor = accentColor,
+                                titleLanguage = appSettings.titleLanguage,
                                 onOpenAnimeOrManga = { subjectId, mediaType, title, imageUrl ->
                                     val stableId = com.kitsugi.animelist.data.remote.BangumiIdNamespace.stableIdFromRaw(subjectId)
                                     if (stableId != null) {
