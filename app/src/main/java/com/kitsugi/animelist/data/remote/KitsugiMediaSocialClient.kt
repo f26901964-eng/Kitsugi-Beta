@@ -45,7 +45,7 @@ class KitsugiMediaSocialClient {
     ): KitsugiStats? {
         return withContext(Dispatchers.IO) {
             if (externalId == null || externalId <= 0) return@withContext null
-            when (source.lowercase()) {
+            when (MalJikanMediaSupport.canonicalSource(source)) {
                 "tmdb" -> {
                     val effectiveTmdbId = externalId
                     val isMovie = mediaType == MediaType.Movie
@@ -118,11 +118,23 @@ class KitsugiMediaSocialClient {
                     null
                 }
                 "jikan", "mal" -> {
-                    val aniStats = fetchStatsFromAniList(externalId, mediaType)
-                    if (aniStats != null && (aniStats.rankings.isNotEmpty() || aniStats.scoreDistribution.isNotEmpty())) {
-                        aniStats
+                    val malId = MalJikanMediaSupport.resolveMalId(source, externalId, realMalId)
+                        ?: return@withContext null
+                    // MAL details use Jikan as their primary source. AniList is a fallback,
+                    // not a prerequisite that can keep valid MAL statistics waiting.
+                    val jikanStats = fetchStatsFromJikan(malId, mediaType)
+                    if (jikanStats != null && (
+                            jikanStats.watching != null ||
+                                jikanStats.completed != null ||
+                                jikanStats.planned != null ||
+                                jikanStats.dropped != null ||
+                                jikanStats.paused != null ||
+                                jikanStats.scoreDistribution.isNotEmpty()
+                            )
+                    ) {
+                        jikanStats
                     } else {
-                        fetchStatsFromJikan(externalId, mediaType)
+                        fetchStatsFromAniList(malId, mediaType)
                     }
                 }
                 "shikimori" -> {
@@ -148,7 +160,7 @@ class KitsugiMediaSocialClient {
     }
 
     private suspend fun fetchStatsFromJikan(externalId: Int, mediaType: MediaType): KitsugiStats? {
-        val endpoint = if (mediaType == MediaType.Anime) "anime" else "manga"
+        val endpoint = MalJikanMediaSupport.jikanEndpoint(mediaType)
         val url = java.net.URL("https://api.jikan.moe/v4/$endpoint/$externalId/statistics")
         return runCatching {
             KitsugiApiBase.runWithRateLimit {
@@ -197,7 +209,7 @@ class KitsugiMediaSocialClient {
                 }
             }
         """.trimIndent()
-        val variables = JSONObject().put("type", if (mediaType == MediaType.Anime) "ANIME" else "MANGA")
+        val variables = JSONObject().put("type", MalJikanMediaSupport.aniListMediaType(mediaType))
         if (aniListId != null) variables.put("id", aniListId) else variables.put("idMal", externalId)
 
         return runCatching {
@@ -271,7 +283,7 @@ class KitsugiMediaSocialClient {
     ): List<KitsugiReview> {
         return withContext(Dispatchers.IO) {
             if (externalId == null || externalId <= 0) return@withContext emptyList()
-            when (source.lowercase()) {
+            when (MalJikanMediaSupport.canonicalSource(source)) {
                 "simkl" -> {
                     val list = mutableListOf<KitsugiReview>()
                     if (mediaType == MediaType.Anime) {
@@ -350,7 +362,13 @@ class KitsugiMediaSocialClient {
                     val jikanType = if (mediaType == MediaType.Manga) MediaType.Manga else MediaType.Anime
                     if (malId != null && malId > 0) fetchReviewsFromJikan(malId, jikanType, page) else emptyList()
                 }
-                "jikan", "mal" -> fetchReviewsFromJikan(externalId, mediaType, page)
+                "jikan", "mal" -> {
+                    val malId = MalJikanMediaSupport.resolveMalId(source, externalId, realMalId)
+                        ?: return@withContext emptyList()
+                    val jikanReviews = fetchReviewsFromJikan(malId, mediaType, page)
+                    if (jikanReviews.isNotEmpty()) jikanReviews
+                    else fetchReviewsFromAniList(malId, mediaType, page)
+                }
                 "anilist"      -> fetchReviewsFromAniList(externalId, mediaType, page)
                 else           -> emptyList()
             }
@@ -358,7 +376,7 @@ class KitsugiMediaSocialClient {
     }
 
     private suspend fun fetchReviewsFromJikan(externalId: Int, mediaType: MediaType, page: Int): List<KitsugiReview> {
-        val endpoint = if (mediaType == MediaType.Anime) "anime" else "manga"
+        val endpoint = MalJikanMediaSupport.jikanEndpoint(mediaType)
         val url = java.net.URL("https://api.jikan.moe/v4/$endpoint/$externalId/reviews?page=$page")
         return runCatching {
             KitsugiApiBase.runWithRateLimit {
@@ -417,7 +435,7 @@ class KitsugiMediaSocialClient {
             }
         """.trimIndent()
         val variables = JSONObject()
-            .put("type", if (mediaType == MediaType.Anime) "ANIME" else "MANGA")
+            .put("type", MalJikanMediaSupport.aniListMediaType(mediaType))
             .put("page", page)
         if (aniListId != null) variables.put("id", aniListId) else variables.put("idMal", externalId)
 
@@ -468,7 +486,7 @@ class KitsugiMediaSocialClient {
         page: Int = 1
     ): List<KitsugiForumTopic> {
         return withContext(Dispatchers.IO) {
-            when (source.lowercase()) {
+            when (MalJikanMediaSupport.canonicalSource(source)) {
                 "jikan", "mal" -> {
                     val aniListId = relationsClient.resolveAniListId(externalId, mediaType)
                     if (aniListId != null) {
@@ -491,7 +509,7 @@ class KitsugiMediaSocialClient {
     }
 
     private suspend fun fetchForumTopicsFromJikan(externalId: Int, mediaType: MediaType): List<KitsugiForumTopic> {
-        val pathType = if (mediaType == MediaType.Anime) "anime" else "manga"
+        val pathType = MalJikanMediaSupport.jikanEndpoint(mediaType)
         val url = java.net.URL("https://api.jikan.moe/v4/$pathType/$externalId/forum")
         return KitsugiApiBase.runWithRateLimit {
             val response = KitsugiApiBase.executeGetRequestResilient(url) ?: return@runWithRateLimit emptyList()

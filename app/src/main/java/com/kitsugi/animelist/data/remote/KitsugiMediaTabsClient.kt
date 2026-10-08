@@ -29,13 +29,15 @@ class KitsugiMediaTabsClient {
             if (externalId == null || externalId <= 0) return@withContext emptyList()
             if (mediaType == MediaType.Movie) return@withContext emptyList()
 
-            val effectiveSource = source.lowercase()
+            val effectiveSource = MalJikanMediaSupport.canonicalSource(source)
             val effectiveId = externalId
 
             if (effectiveSource == "jikan" || effectiveSource == "mal" || effectiveSource == "anilist") {
                 val list = when (effectiveSource) {
                     "jikan", "mal" -> {
-                        fetchEpisodesFromJikan(effectiveId)
+                        val malId = MalJikanMediaSupport.resolveMalId(effectiveSource, effectiveId, realMalId)
+                            ?: return@withContext emptyList()
+                        fetchEpisodesFromJikan(malId)
                     }
                     "anilist" -> {
                         fetchEpisodesFromAniList(effectiveId)

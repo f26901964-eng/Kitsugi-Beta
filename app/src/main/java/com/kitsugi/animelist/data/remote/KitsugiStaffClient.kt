@@ -22,7 +22,7 @@ class KitsugiStaffClient {
                 return@withContext emptyList()
             }
 
-            when (source.lowercase()) {
+            when (MalJikanMediaSupport.canonicalSource(source)) {
                 "shikimori" -> {
                     // 1) Shikimori'nin kendi `/roles` ucu personel kayıtlarını (yönetmen,
                     //    senarist …) ve seiyuu kayıtlarını içerir.
@@ -72,11 +72,9 @@ class KitsugiStaffClient {
                     } else emptyList()
                 }
                 "jikan", "mal" -> {
-                    val jikanId = realMalId?.takeIf { it > 0 } ?: externalId
-                    val endpoint = when (mediaType) {
-                        MediaType.Anime, MediaType.Movie, MediaType.TvShow -> "anime"
-                        MediaType.Manga -> "manga"
-                    }
+                    val jikanId = MalJikanMediaSupport.resolveMalId(source, externalId, realMalId)
+                        ?: return@withContext emptyList()
+                    val endpoint = MalJikanMediaSupport.jikanEndpoint(mediaType)
                     val url = URL("https://api.jikan.moe/v4/$endpoint/$jikanId/staff")
                     val jikanList = runCatching {
                         KitsugiApiBase.runWithRateLimit {
@@ -109,13 +107,22 @@ class KitsugiStaffClient {
                     if (jikanList.isNotEmpty()) {
                         jikanList
                     } else {
-                        android.util.Log.w("KitsugiStaffClient", "Jikan ekip listesi boş veya başarısız oldu. Shikimori fallback devreye giriyor...")
-                        // Shikimori kendi ID'sini bekler — MAL ID'si ARM ile çevrilir.
-                        val shikiId = KitsugiIdResolver.resolveShikimoriIdFromMal(jikanId)
-                        if (shikiId != null && shikiId > 0) {
-                            KitsugiShikimoriClient.fetchStaff(mediaType, shikiId)
+                        // Jikan boşsa aynı doğrulanmış MAL ID'siyle AniList'i dene; bu
+                        // kimlik köprüsü ARM/fuzzy aramadan daha hızlı ve daha güvenlidir.
+                        val aniListList = runCatching {
+                            fetchStaff("anilist", jikanId, mediaType)
+                        }.getOrNull().orEmpty()
+                        if (aniListList.isNotEmpty()) {
+                            aniListList
                         } else {
-                            emptyList()
+                            android.util.Log.w("KitsugiStaffClient", "Jikan/AniList ekip listesi boş; Shikimori fallback deneniyor")
+                            // Shikimori kendi ID'sini bekler — MAL ID'si ARM ile çevrilir.
+                            val shikiId = KitsugiIdResolver.resolveShikimoriIdFromMal(jikanId)
+                            if (shikiId != null && shikiId > 0) {
+                                KitsugiShikimoriClient.fetchStaff(mediaType, shikiId)
+                            } else {
+                                emptyList()
+                            }
                         }
                     }
                 }
@@ -170,7 +177,7 @@ class KitsugiStaffClient {
                             }
                         }
                     """.trimIndent()
-                    val variables = JSONObject().put("type", if (mediaType == MediaType.Anime) "ANIME" else "MANGA")
+                    val variables = JSONObject().put("type", MalJikanMediaSupport.aniListMediaType(mediaType))
                     if (aniListId != null) variables.put("id", aniListId) else variables.put("idMal", externalId)
 
                     runCatching {
@@ -204,7 +211,7 @@ class KitsugiStaffClient {
     ): KitsugiStaffDetail? {
         return withContext(Dispatchers.IO) {
             if (staffId <= 0) return@withContext null
-            when (source.lowercase()) {
+            when (MalJikanMediaSupport.canonicalSource(source)) {
                 "shikimori" -> {
                     KitsugiShikimoriClient.fetchStaffDetail(staffId)
                 }

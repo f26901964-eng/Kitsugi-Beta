@@ -25,7 +25,7 @@ class KitsugiDetailClient {
 
         val tmdbId = providedTmdbId ?: run {
             // Source'a göre doğru ID tipini belirle
-            val malIdForResolve: Int? = when (source.lowercase()) {
+            val malIdForResolve: Int? = when (MalJikanMediaSupport.canonicalSource(source)) {
                 "simkl" -> providedRealMalId
                 "jikan", "mal" -> externalId
                 "kitsu" -> providedRealMalId
@@ -142,7 +142,7 @@ class KitsugiDetailClient {
                 }
             }
 
-            when (source.lowercase()) {
+            when (MalJikanMediaSupport.canonicalSource(source)) {
                 "jikan", "mal" -> KitsugiMalDetailClient.fetchSynopsis(
                     malId = externalId,
                     mediaType = mediaType
@@ -305,7 +305,7 @@ class KitsugiDetailClient {
 
             // 2. Primary source fetch — toplam zaman tavanı: yavaş/hanging zincirler
             // (Jikan → ARM → TMDB → Kitsu ...) sayfanın önünü bloklamaz.
-            val detail = withTimeoutOrNull(PRIMARY_FETCH_TIMEOUT_MS) { when (source.lowercase()) {
+            val detail = withTimeoutOrNull(PRIMARY_FETCH_TIMEOUT_MS) { when (MalJikanMediaSupport.canonicalSource(source)) {
                 "jikan", "mal" -> KitsugiMalDetailClient.fetchDetail(extId, mediaType)
                 "shikimori" -> {
                     // NOT: externalId Shikimori ID'sidir — MAL ID'si olarak KULLANILMAZ!
@@ -641,7 +641,7 @@ class KitsugiDetailClient {
 
         // Eğer nextAiringEpisode hâlâ null ise AniList üzerinden çöz ve çek
         if (mergedDetail.nextAiringEpisode == null) {
-            val malIdForResolve = when (source.lowercase()) {
+            val malIdForResolve = when (MalJikanMediaSupport.canonicalSource(source)) {
                 "simkl" -> realMalId ?: mergedDetail.realMalId
                 "jikan", "mal" -> externalId
                 "anilist" -> if (externalId < 100_000_000) externalId else realMalId ?: mergedDetail.realMalId

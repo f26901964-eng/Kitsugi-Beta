@@ -59,7 +59,7 @@ class KitsugiCharacterClient {
                 return@withContext emptyList()
             }
 
-            val srcLower = source.lowercase()
+            val srcLower = MalJikanMediaSupport.canonicalSource(source)
             Log.d(TAG, "fetchCharacters başladı: source=$source, externalId=$externalId, realMalId=$realMalId, mediaType=$mediaType, tmdbId=$tmdbId, title=$title")
 
             when (srcLower) {
@@ -159,11 +159,9 @@ class KitsugiCharacterClient {
                     } else emptyList()
                 }
                 "jikan", "mal" -> {
-                    val jikanId = realMalId?.takeIf { it > 0 } ?: externalId
-                    val endpoint = when (mediaType) {
-                        MediaType.Anime, MediaType.Movie, MediaType.TvShow -> "anime"
-                        MediaType.Manga -> "manga"
-                    }
+                    val jikanId = MalJikanMediaSupport.resolveMalId(source, externalId, realMalId)
+                        ?: return@withContext emptyList()
+                    val endpoint = MalJikanMediaSupport.jikanEndpoint(mediaType)
                     val url = URL("https://api.jikan.moe/v4/$endpoint/$jikanId/characters")
                     Log.d(TAG, "Jikan isteği: $url")
                     val jikanList = runCatching {
@@ -220,15 +218,24 @@ class KitsugiCharacterClient {
                     if (jikanList.isNotEmpty()) {
                         jikanList
                     } else {
-                        Log.w(TAG, "Jikan karakter listesi boş veya başarısız oldu. Shikimori fallback devreye giriyor...")
-                        // Shikimori endpoint'i KENDİ ID'sini bekler — MAL ID'si ARM ile
-                        // Shikimori ID'sine çevrilmeden çağrılırsa YANLIŞ animenin (veya
-                        // hiç) karakteri döner.
-                        val shikiId = KitsugiIdResolver.resolveShikimoriIdFromMal(jikanId)
-                        if (shikiId != null && shikiId > 0) {
-                            KitsugiShikimoriClient.fetchCharacters(mediaType, shikiId)
+                        // MAL and Jikan are the same identity namespace. If Jikan is
+                        // temporarily empty/unavailable, query AniList by this exact MAL ID
+                        // before paying for a Shikimori ID-resolution fallback.
+                        val aniListList = runCatching {
+                            fetchCharacters("anilist", jikanId, mediaType, null, tmdbId, title)
+                        }.getOrNull().orEmpty()
+                        if (aniListList.isNotEmpty()) {
+                            aniListList
                         } else {
-                            emptyList()
+                            Log.w(TAG, "Jikan/AniList karakter listesi boş; Shikimori fallback deneniyor")
+                            // Shikimori endpoint'i KENDİ ID'sini bekler — MAL ID'si ARM ile
+                            // Shikimori ID'sine çevrilmeden çağrılırsa yanlış yapımın verisi gelir.
+                            val shikiId = KitsugiIdResolver.resolveShikimoriIdFromMal(jikanId)
+                            if (shikiId != null && shikiId > 0) {
+                                KitsugiShikimoriClient.fetchCharacters(mediaType, shikiId)
+                            } else {
+                                emptyList()
+                            }
                         }
                     }
                 }
@@ -264,7 +271,7 @@ class KitsugiCharacterClient {
                             }
                         }
                     """.trimIndent()
-                    val variables = JSONObject().put("type", if (mediaType == MediaType.Anime) "ANIME" else "MANGA")
+                    val variables = JSONObject().put("type", MalJikanMediaSupport.aniListMediaType(mediaType))
                     if (aniListId != null) variables.put("id", aniListId) else variables.put("idMal", externalId)
 
                     runCatching {
@@ -435,7 +442,7 @@ class KitsugiCharacterClient {
     ): KitsugiCharacterDetail? {
         return withContext(Dispatchers.IO) {
             if (characterId <= 0) return@withContext null
-            when (source.lowercase()) {
+            when (MalJikanMediaSupport.canonicalSource(source)) {
                 "shikimori" -> {
                     KitsugiShikimoriClient.fetchCharacterDetail(characterId)
                 }
