@@ -1,5 +1,22 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.198)
+### 📌 Kaynak Seçimi Kalıcılığı (Keşfet / Arama / Listem)
+- **Keşfet:** Son seçili kaynak (Tümü / AniList / MAL / TMDB / Simkl / Kitsu / Shikimori) `SettingsDataStore` üzerinde saklanır ve uygulama yeniden açıldığında otomatik geri yüklenir. Otomatik kaynak düşüşleri (ör. TMDB anahtarı bozuksa AniList'e geçiş) seçim sayılmaz, kaydedilmez.
+- **Arama:** Kaynak motoru + kapsam (sekme, platform, medya türü) birlikte hatırlanır; sekme çipleri ile motor seçicisi senkron kalır ve açılışta gereksiz arama tetiklenmez.
+- **Listem:** Kaynak sekmesi `tab_index` ile zaten kalıcıydı; Keşfet/Arama ile aynı davranış sergilemesi doğrulanıp korundu.
+- **Açılış maliyeti:** Son seçim TMDB/Tümü dışında bir kaynaksa splash sırasındaki 11 istekli TMDB önbellek ön-yüklemesi atlanır.
+- **Mimari not:** Bu seçimler `AppSettings`/`settingsFlow` içine EKLENMEDİ; ayrı dar kapsamlı akışlar olarak okunur ki ekran yeniden kurulduğunda sahte "ayar değişti" sinyali veri yenilemesin.
+
+### 🦊 Düzeltme: Listem → Kitsu'da Alakasız Veriyle Açılan Ayrıntı Sayfası
+- **Kök neden:** Kitsu içe aktarması, MAL eşleşmesi bilinen kayıtların kimlik alanına (`media_entries.malId`) Kitsu stableId'si (`300_000_000 + kitsuId`) yerine gerçek MAL ID yazıyordu. Sistemin geri kalanı bu alanı koşulsuz "Kitsu ID" saydığı için MAL #35658 → Kitsu #35658 ("Keep Your Hands Off Eizouken!") gibi tamamen alakasız yapımlar açılıyordu; kimlik uzayları çakıştığından API hata değil, geçerli ama yanlış kayıt döndürüyordu.
+- **Kanonik kimlik:** `KitsuImportManager` Kitsu kayıtlarında artık her zaman offset'li stableId yazar; bilinen MAL ID yalnızca MAL→Kitsu eşleme önbelleğine gider. Yeni `KitsuIdNamespace` aralık doğrulaması ve kademeli çözümleme (kayıttaki stableId → eşleme önbelleği → Kitsu `mappings` → sıkı başlık+yıl araması) sunar.
+- **Güvenli ayrıntı akışı:** `KitsugiDetailClient` ve `KitsuExploreClient` aralık dışı kimlikleri reddeder, başlığı gerçekten tutmayan hiçbir sonucu kabul etmez; kimliği belirsiz Kitsu kayıtlarında diske önbellek yazılmaz/okunmaz ve jenerik "başlıkla ara" zinciri devreye girmez. Kitsu önbelleğine TMDB'deki gibi başlık uyuşmazlığı koruması eklendi.
+- **Yardımcı veriler:** Logo, bölüm puanları, TMDB/Fanart galerisi ve Kitsu'ya geri yazım/silme yolları kanonik Kitsu kimliği üzerinden çalışır; `realMalId` yalnızca gerçek MAL aralığında gönderilir; bellek içi `DetailCache` anahtarları kanonik kimlikle kurulur.
+- **Tek seferlik onarım:** `KitsuIdentityMigration` mevcut Kitsu kayıtlarının kimliğini (mümkünse ağa hiç dokunmadan) stableId uzayına taşır; çözülemeyen kayıtlarda yanlış uzaydaki ID temizlenir ve 12 saat sonra yeniden denenir.
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.196)
 ### 🛡️ Yanlış İçerik Eklenmesine Karşı Kimlik Güvencesi (CrossSyncIdentityGuard)
 - **6 Sızıntı Vektörünün Kapatılması:**

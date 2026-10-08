@@ -247,6 +247,68 @@ class SettingsDataStore(
         val DownloadNewUnseenEpisodesOnly = booleanPreferencesKey("download_new_unread_episodes_only")
         // ── Altyazı İndirme Dil Filtresi ──────────────────────────────────────
         val SubtitleDownloadLanguages = stringPreferencesKey("subtitle_download_languages")
+
+        // ─── Kaynak Seçimi Kalıcılığı (Keşfet / Arama / Listem) ───────────────────
+        // Kullanıcının bir ekranda seçtiği kaynak, uygulama kapatılıp açıldığında
+        // yeniden kaybolmasın diye saklanır.
+        val LastExplorePlatform = stringPreferencesKey("last_explore_platform")
+        val LastSearchTab = stringPreferencesKey("last_search_tab")
+        val LastSearchEngine = stringPreferencesKey("last_search_engine")
+        val LastSearchScope = stringPreferencesKey("last_search_scope")
+        val LastSearchPlatform = stringPreferencesKey("last_search_platform")
+        val LastSearchMediaType = stringPreferencesKey("last_search_media_type")
+        // Not: Listem sekmesi "Kitsugi_list_filters" (SharedPreferences) içinde
+        // AppViewModel.loadFilters/updateMyListTabIndex tarafından zaten kalıcı tutuluyor;
+        // manga kaynak durumu ise Room (MangaSourceStateDao) üzerinden saklanıyor.
+    }
+
+    // ─── Kaynak seçimi kalıcılığı ───────────────────────────────────────────────
+    // Bu değerler akış (settingsFlow) İÇİNDE değildir: ekran her yeniden kurulduğunda
+    // "ayar değişti" sinyali üretip gereksiz veri yenilemesine yol açmamak için
+    // ayrı ve dar kapsamlı akışlar olarak okunur.
+
+    /** Keşfet ekranının son seçili kaynağı (ExplorePlatform.name). */
+    val lastExplorePlatformFlow: Flow<String> = kotlinx.coroutines.flow.flow {
+        context.settingsDataStore.data.collect { preferences ->
+            emit(preferences[Keys.LastExplorePlatform] ?: "")
+        }
+    }
+
+    suspend fun setLastExplorePlatform(platformName: String) {
+        if (platformName.isBlank()) return
+        context.settingsDataStore.edit { preferences ->
+            preferences[Keys.LastExplorePlatform] = platformName
+        }
+    }
+
+    /** Arama ekranının sekme/platform/tür seçimi (ileriye dönük okuma için saklanır). */
+    suspend fun setLastSearchSelection(tabName: String, platformName: String, mediaTypeName: String) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[Keys.LastSearchTab] = tabName
+            preferences[Keys.LastSearchPlatform] = platformName
+            preferences[Keys.LastSearchMediaType] = mediaTypeName
+        }
+    }
+
+    /** Arama ekranının son seçili kaynak motoru (SearchSourceEngine.name). */
+    val lastSearchEngineFlow: Flow<String> = kotlinx.coroutines.flow.flow {
+        context.settingsDataStore.data.collect { preferences ->
+            emit(preferences[Keys.LastSearchEngine] ?: "")
+        }
+    }
+
+    /** Arama ekranının son seçili kapsamı (SearchScope.name). */
+    val lastSearchScopeFlow: Flow<String> = kotlinx.coroutines.flow.flow {
+        context.settingsDataStore.data.collect { preferences ->
+            emit(preferences[Keys.LastSearchScope] ?: "")
+        }
+    }
+
+    suspend fun setLastSearchEngineAndScope(engineName: String, scopeName: String) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[Keys.LastSearchEngine] = engineName
+            preferences[Keys.LastSearchScope] = scopeName
+        }
     }
 
     val settingsFlow: Flow<AppSettings> = kotlinx.coroutines.flow.flow {
