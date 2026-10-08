@@ -50,15 +50,12 @@ class PlayerFallbackCoordinator(
         }
 
         attempts++
-        triedEngines += currentEngine
-        // Zincir yalnızca DAHİLİ motorlardan oluşur: MEDIA3 ↔ MPV. Harici uygulama
-        // (EXTERNAL) bu zincirde yer almaz; ikinci dahili motor da denenmiş ise
-        // kaynak-seviyesi kurtarmaya bırakılır.
         val next = nextInternalEngine(currentEngine, mpvEnabled, triedEngines)
 
         Log.d(TAG, "Fallback #$attempts: $currentEngine → $next (hata kodu: $errorCode, mpv=$mpvEnabled)")
 
         if (next != null) {
+            triedEngines += next
             listener?.onPlayerSwitched(from = currentEngine, to = next)
         } else {
             listener?.onFatalError(

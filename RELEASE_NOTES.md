@@ -1,5 +1,55 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.211)
+
+### 🎌 1. Kapsamlı Bangumi Başlık ve İsim Yerelleştirmesi (Bangumi Localization)
+- **Merkezi İsim Yerelleştirici (`BangumiNameLocalizer`):** Bangumi'den gelen İngilizce (English), Romaji, Japonca/Özgün (Native), Çince ve alternatif adları (`alias`) koruyan merkezi yerelleştirme katmanı eklendi.
+- **Kullanıcı Başlık Dili Tercihi:** Başlık dili tercihi (İngilizce / Romaji / Japonca-Özgün) Bangumi için de tam olarak uygulanır; eksik alanlarda güvenli geri dönüş zinciri çalışır.
+- **Çince Önceliği Kaldırıldı:** Bölüm isimlerinde ve varsayılan konu başlıklarında Çince ismin zorunlu önceliği kaldırıldı; orijinal ve İngilizce başlıklar ön plana çıkarılır.
+- **Bağımsız İngilizce İsim Desteği:** Karakter ve yapım ekibi modellerinde İngilizce ve Romaji adlar birbirinden ayrıldı.
+- **Tüm Ekranlarda Aktif:** Arama, keşfet, medya detayları, karakterler, seslendirmenler, ekip, ilişkiler, öneriler, profil/favoriler, içe aktarma ve Android TV ekranlarının tamamında yerelleştirilmiş isimler uygulandı.
+
+### 🎮 2. Oynatıcı Arayüzü, Tema Uyumu ve Media3 ↔ MPV Paritesi
+- **Sabit Gösterge Konumları:** Parlaklık göstergesi ekranın sağında, ses göstergesi solunda sabitlendi (kaydırma jest bölgeleri kullanıcının tercihine göre çalışmaya devam eder).
+- **Yenilenen Altyazı Stil Paneli:** Yatay modda ekran dışına taşma sorunu giderildi; panel ekran sınırlarına sabit, kaydırılabilir ve çentik/sistem çubuklarını (safe-area) dikkate alacak şekilde yeniden yapılandırıldı.
+- **Uygulama Teması ve Vurgu Rengi (`PlayerAccentTheme`):** Oynatıcı artık seçili tema rengini ve AMOLED modunu alıyor; diyalog, panel, kaydırıcı, buton ve sekmelerdeki sabit renkler seçili tema vurgu rengine uyarlandı.
+- **Dahili Oynatıcı Yedekleme Zinciri:** Ana oynatıcıda (Media3) oynatma hatası meydana geldiğinde doğrudan ikinci dahili motor olan MPV'ye geçilir (harici uygulamaya düşme kaldırıldı). Motor geçişinde video sıfırdan başlamaz, kalınan saniyeden devam eder.
+- **Ortak Altyazı Öncelik Politikası (`SubtitleSelectionPolicy`):** Hem Media3 hem MPV için tek kural: Gömülü Türkçe > Harici Türkçe > Tercih edilen diğer diller. `tr-TR` ve `tr_TR` gibi bölgesel etiketler Türkçe olarak tanınır.
+- **Altyazı ve Ses Düzeltmeleri:** Önbellekteki harici altyazıların bozuk `file://$sub.url` yolu düzeltildi; harici altyazılar benzersiz ID ile eşleştirilir. MPV motoruna ayrı ses akışı (`audioUrl`) harici parça olarak eklendi.
+
+### 🌐 3. CloudStream & Akış İyileştirmeleri
+- `domain_fixes.json` blocked listesi temizlendi; Türk eklentileri üzerindeki sessiz atlama kapıları kaldırılarak gerçek hata durumu kartlarda gösterildi.
+
+### 📦 4. Dağıtım
+- Kullanıcı talimatı doğrultusunda **yalnızca FOSS varyantı** (`assembleFossRelease`) derlendi (`Kitsugi-Beta-v2.4.211-foss.apk`). GMS kesinlikle hariç tutuldu.
+
+---
+
+## 🇬🇧 English (v2.4.211)
+
+### 🎌 1. Comprehensive Bangumi Title and Name Localization
+- **Central Name Localizer (`BangumiNameLocalizer`):** Dedicated localization engine preserving Bangumi English, Romaji, native/Japanese, Chinese, and alias records.
+- **User Language Preference:** The global title language preference (English, Romaji, Native/Japanese) is now fully applied across all Bangumi surfaces with graceful fallback logic.
+- **Removed Chinese Default Bias:** Forced Chinese title precedence on episode titles and main subjects has been removed in favor of user preferences.
+- **Distinct English Names:** Added dedicated English naming fields for character and staff models so English and Romaji are no longer conflated.
+- **Omnipresent UI Support:** Applied across search, explore, media details, characters, voice actors, staff credits, relations, recommendations, profiles/favorites, imports, and Android TV screens.
+
+### 🎮 2. Player UI, Theme Accent & Media3 ↔ MPV Parity
+- **Fixed Indicator Placement:** Brightness indicator is fixed on the right screen edge, volume indicator on the left (swipe gesture regions remain configurable).
+- **Redesigned Subtitle Style Panel:** Eliminated horizontal overflow in landscape mode; panel is now bounded, scrollable, and aware of notches and system bars.
+- **Dynamic Theme Accent (`PlayerAccentTheme`):** Player now inherits the active app theme color and AMOLED settings; hardcoded colors in sheets, dialogs, sliders, and buttons replaced with the chosen accent color.
+- **Internal Engine Fallback Chain:** Playback failures on the primary engine (Media3) automatically switch to the secondary internal engine (MPV) rather than dropping to an external player. Playback resumes from the exact failure position.
+- **Shared Subtitle Selection Policy (`SubtitleSelectionPolicy`):** Unified policy across both Media3 and MPV: Embedded Turkish > External Turkish > Other preferred languages. Regional language tags (e.g. `tr-TR`, `tr_TR`) properly recognized.
+- **Track & Path Fixes:** Resolved broken `file://$sub.url` paths for cached external subtitles; external tracks identified by unique IDs. Added separate audio stream (`audioUrl`) loading support to MPV.
+
+### 🌐 3. CloudStream & Streaming Refinements
+- Cleared broken provider blocklists in `domain_fixes.json`, removed silent skip gates, and surfaced diagnostic error messages.
+
+### 📦 4. Distribution
+- Strictly built and released the **FOSS variant only** (`assembleFossRelease` -> `Kitsugi-Beta-v2.4.211-foss.apk`). GMS is completely excluded.
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.210)
 
 ### 🎌 1. Bangumi Profil Sekmesi ve Koleksiyon Yönetimi
