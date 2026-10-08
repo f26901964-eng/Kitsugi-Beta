@@ -177,7 +177,7 @@ class AniListSearchClient(
                             name {
                                 userPreferred
                                 native
-                                full
+                                full first middle last alternative
                             }
                             image {
                                 large
@@ -206,8 +206,9 @@ class AniListSearchClient(
                     val id = item.optInt("id", 0)
                     if (id <= 0) continue
                     val nameObj = item.optJSONObject("name")
-                    val name = nameObj?.optNullableString("userPreferred") ?: nameObj?.optNullableString("full") ?: "Bilinmeyen"
-                    val nativeName = nameObj?.optNullableString("native")
+                    val personName = nameObj.aniListPersonName()
+                    val name = personName.preferred
+                    val nativeName = personName.native
                     val imgObj = item.optJSONObject("image")
                     val imgUrl = imgObj?.optNullableString("large") ?: imgObj?.optNullableString("medium")
                     val favs = item.optInt("favourites", 0)
@@ -215,6 +216,8 @@ class AniListSearchClient(
                         JikanSearchResult(
                             malId = id,
                             title = name,
+                            titleEnglish = personName.romanized,
+                            titleJapanese = personName.native,
                             subtitle = if (!nativeName.isNullOrBlank()) nativeName else "Karakter",
                             type = MediaType.Anime,
                             total = null,
@@ -255,7 +258,7 @@ class AniListSearchClient(
                             name {
                                 userPreferred
                                 native
-                                full
+                                full first middle last alternative
                             }
                             image {
                                 large
@@ -285,8 +288,9 @@ class AniListSearchClient(
                     val id = item.optInt("id", 0)
                     if (id <= 0) continue
                     val nameObj = item.optJSONObject("name")
-                    val name = nameObj?.optNullableString("userPreferred") ?: nameObj?.optNullableString("full") ?: "Bilinmeyen"
-                    val nativeName = nameObj?.optNullableString("native")
+                    val personName = nameObj.aniListPersonName()
+                    val name = personName.preferred
+                    val nativeName = personName.native
                     val imgObj = item.optJSONObject("image")
                     val imgUrl = imgObj?.optNullableString("large") ?: imgObj?.optNullableString("medium")
                     val favs = item.optInt("favourites", 0)
@@ -298,6 +302,8 @@ class AniListSearchClient(
                         JikanSearchResult(
                             malId = id,
                             title = name,
+                            titleEnglish = personName.romanized,
+                            titleJapanese = personName.native,
                             subtitle = if (!nativeName.isNullOrBlank()) "$nativeName • $occupationText" else occupationText,
                             type = MediaType.Anime,
                             total = null,

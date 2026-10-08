@@ -1,5 +1,69 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.208)
+
+### 🏷️ 1. AniList İsim Dili (Romaji / İngilizce / Japonca) Yerelleştirmesi
+- **Karakter, Seslendirmen & Yapım Ekibi (Staff) İsimleri:** AniList'ten gelen kişi ve karakter adları artık kullanıcının tercih ettiği isim diline (`ROMAJI`, `ENGLISH`, `NATIVE`, `JAPANESE_STAFF`) göre dinamik olarak gösteriliyor.
+- **Latin & Orijinal Ad Uyumu (`AniListPersonName.kt`):** AniList sorgularında `userPreferred` yerine `full`, `native` ve alternatif adlar çekilerek Romaji/İngilizce tercihinde Latin harfli isimler önceliklendirildi. Latin harfli karşılık bulunamadığında orijinal ad korunur.
+- **Temiz Başlık & Alt Başlık:** Japonca/Yerel ad seçildiğinde alt başlıktaki mükerrer isimler temizlenir ("Karakter" veya doğrudan rol açıklaması gösterilir).
+- **Kapsam:** Arama sonuçları, yapım detay sekmeleri (`CharactersTab`), API detay sayfası, yerel kütüphane detay sayfası, karakter detayı ve yapım ekibi detay sayfalarının tümü güncellendi.
+
+### 📜 2. Akıllı Kaydırma Konumu Koruma (Scroll Retention)
+- **Detaydan Geri Dönüş Güvencesi:** Bir listenin ortasından detay sayfasına girilip geri dönüldüğünde ekranın başa sarması ve kaydırma konumunun sıfırlanması tamamen önlendi.
+- **Listem (My List):** 7 kütüphane sekmesinin (Tümü, İzlediklerim, İzleyeceklerim, Bıraktıklarım vb. ve 🎌 Bangumi) her biri için kaydırma konumu ekran kapansa dahi bağımsız saklanır (`savedTabIndices`, `savedTabOffsets`, `restoredTabs`).
+- **Arama & Çoklu Platform Rafları:** Arama sayfası ve kaynağa özel arama (`SourceSearchPage`) için `rememberRetainedLazyListState` entegre edildi. Sonuçlar henüz yüklenirken veya yenilenirken listenin 0'a sıfırlanması engellendi. `SourceSearchOwner` ile izole ViewModel durumu geri dönüşte korunur.
+- **Keşfet & Tam Ekran Izgaralar:** `FullScreenMediaGridPage` ve `AddonFullScreenGridPage` `SaveableStateProvider` ve derinlik takibi (`openingStackDepth`) ile korunarak detaydan dönüşte tam kaldığı noktaya döner.
+
+### ✨ 3. Kartlarda Neon Degrade Çerçeve ve Parıltı (List Grid Glow)
+- **Kare Izgara Kartları (`KitsugiMediaEntryCard`):** Kare poster görünümündeki kartlara zarif degrade çerçeve ve neon parıltı efekti (`kitsugiNeonGlow`) uygulandı. Listem sekmelerine ve Favorilerim ekranına modern, canlı bir görünüm kazandırıldı.
+- **Kullanıcı Listeleri (`UserMediaListCards`):** Kaynak kullanıcı profil listelerindeki hem kare (grid) hem yatay satır (row) kartlarına degrade çerçeve ve parıltı stili dahil edildi.
+
+### 🛠️ 4. MyAnimeList / Jikan Detay Sekmeleri Kök Neden Çözümü (`MalJikanMediaSupport`)
+- **Sekme Donması ve Boş Kalma Çözümü:** MAL kaynaklı detay sayfalarında Karakterler, Ekip, Öneriler, İlişkiler, İstatistikler ve Yorumlar sekmelerindeki iskelet takılması ve boş kalma sorunu giderildi.
+- **Tek Ortak Kural:** `mal`, `jikan`, `myanimelist` kimlik uzayları `MalJikanMediaSupport.canonicalSource` altında birleştirildi; `Movie` ve `TvShow` tiplerinin Jikan uç noktalarında (`anime`) veya AniList tipinde (`ANIME`) yanlışlıkla `MANGA`ya düşmesi engellendi.
+- **Akıllı Hiyerarşi:** Jikan birincil kaynak yapıldı; AniList'ten toplu zenginleştirme için 25 saniye bekleme kaldırıldı (veriler anında ekrana gelir). Jikan boş döndüğünde ise karmaşık ARM araması öncesi doğrudan aynı MAL ID'si ile AniList denenerek anında sonuç üretilir.
+
+### 🎬 5. Çökme ve Kurtarma Pencerelerinde Canlı Animasyon (`KitsugiCrashAnimation`)
+- **Canlı Çökme Görseli:** Çökme ekranı (`KitsugiCrashActivity`) ve başlangıç kurtarma penceresinde (`KitsugiCrashRecoveryDialog`) statik hata ikonu yerine `res/raw/crash_animation.mp4` döngüsel animasyonu eklendi.
+- **Sıfır Ek Yük ve Güvenlik:** Android'in yerel `TextureView` ve `MediaPlayer` altyapısı kullanılarak sessiz ve kesintisiz döngü sağlandı; donanım düzeyinde hata koruması sayesinde çökme ekranının kendisinin hata vermesi tamamen engellendi.
+
+### 📦 6. Dağıtım
+- Kullanıcı talimatı doğrultusunda **yalnızca `foss` varyantı** derlendi ve GitHub'a yüklendi (`Kitsugi-Beta-v2.4.208-foss.apk`). GMS kesinlikle hariç tutuldu.
+
+---
+
+## 🇬🇧 English (v2.4.208)
+
+### 🏷️ 1. AniList Person Name Localization (Romaji / English / Native)
+- **Characters, Voice Actors & Staff:** AniList person and character names now dynamically conform to the user's selected name/title language preference (`ROMAJI`, `ENGLISH`, `NATIVE`, `JAPANESE_STAFF`).
+- **Latin & Native Fallback (`AniListPersonName.kt`):** Queries now request `full`, `native`, and alternate names instead of solely relying on `userPreferred`. When Romaji or English is selected, Latinized names take precedence; if no Latin name exists, the original name is safely preserved.
+- **Clean Subtitles:** Redundant name prefixes in subtitles when native names are active are cleanly stripped (displaying "Character" or role details).
+- **Universal Coverage:** Applied across Search results, Media Detail tabs (`CharactersTab`), API and Local library detail pages, Character Detail, and Staff Detail pages.
+
+### 📜 2. Smart Scroll Retention Across All Lists
+- **Seamless Navigation Return:** Returning from a detail screen to any list or search view now accurately preserves scroll position instead of snapping to top.
+- **My List Tabs:** Each of the 7 library tabs (including 🎌 Bangumi) retains its scroll index and pixel offset independently across tab switching and detail navigation (`savedTabIndices`, `savedTabOffsets`, `restoredTabs`).
+- **Search & Source Search:** Integrated `rememberRetainedLazyListState` to prevent intermediate empty/loading states from clamping scroll offsets to 0. `SourceSearchPage` leverages `SourceSearchOwner` to keep isolated ViewModel state alive during nested navigation.
+- **Explore & Full-Screen Grids:** Wrapped `FullScreenMediaGridPage` and `AddonFullScreenGridPage` in `SaveableStateProvider` with depth tracking (`openingStackDepth`) for accurate back-stack restoration.
+
+### ✨ 3. Neon Gradient Border & Glow on Media Cards
+- **Grid Cards (`KitsugiMediaEntryCard`):** Added subtle neon glow and gradient border accents (`kitsugiNeonGlow`) to poster grid media cards across My List and Favorites.
+- **User Profile Lists (`UserMediaListCards`):** Extended neon gradient styling to both grid and row cards within remote user profile lists.
+
+### 🛠️ 4. MyAnimeList / Jikan Detail Tabs Unification (`MalJikanMediaSupport`)
+- **Stall & Empty Tab Resolution:** Fixed root causes where Characters, Staff, Recommendations, Relations, Stats, and Reviews tabs on MAL-sourced items remained stuck on skeletons or empty.
+- **Unified Identity Space:** Normalized `mal`, `jikan`, and `myanimelist` under `MalJikanMediaSupport.canonicalSource`. Corrected `Movie` and `TvShow` mapping to prevent accidental `MANGA` endpoints.
+- **Instant Response Flow:** Made Jikan the primary responsive source without waiting 25s for AniList batch cover enrichment. If Jikan is empty, AniList is queried with the exact MAL ID before escalating to ARM/Shikimori resolvers.
+
+### 🎬 5. Smooth Looping Animation for Crash & Recovery Screens (`KitsugiCrashAnimation`)
+- **Dynamic Error Graphic:** Replaced static bug icons in `KitsugiCrashActivity` and `KitsugiCrashRecoveryDialog` with a sleek looping video animation (`res/raw/crash_animation.mp4`).
+- **Zero Overhead & Robust Fallbacks:** Built on Android's native `TextureView` and `MediaPlayer` for seamless looping, zero audio intrusion, and complete crash immunity.
+
+### 📦 6. Distribution
+- Per user specification, **only the `foss` release APK** was built and released (`Kitsugi-Beta-v2.4.208-foss.apk`). GMS is strictly excluded.
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.207)
 
 ### 🎌 1. Bangumi (bgm.tv) Tam Platform Entegrasyonu (7. Kaynak)

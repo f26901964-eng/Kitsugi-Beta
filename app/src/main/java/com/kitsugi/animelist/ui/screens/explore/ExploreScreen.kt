@@ -164,9 +164,13 @@ fun ExploreScreen(
         }
     }
 
-    val lazyListState = rememberLazyListState(
-        initialFirstVisibleItemIndex = initialScrollIndex,
-        initialFirstVisibleItemScrollOffset = initialScrollOffset
+    val hasCatalogContent = heroItems.isNotEmpty() || filteredTopAnime.isNotEmpty() ||
+        filteredAiringAnime.isNotEmpty() || filteredTopManga.isNotEmpty() ||
+        filteredTrendingAnime.isNotEmpty() || viewModel.simklContinueSeries.isNotEmpty()
+    val lazyListState = com.kitsugi.animelist.ui.utils.rememberRetainedLazyListState(
+        contentReady = hasCatalogContent,
+        initialIndex = initialScrollIndex,
+        initialOffset = initialScrollOffset
     )
 
     val allSourcesScope = rememberCoroutineScope()
@@ -180,11 +184,11 @@ fun ExploreScreen(
     var isCategoriesExpanded by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(true) }
     var showSourceSheet by remember { mutableStateOf(false) }
 
-    LaunchedEffect(lazyListState) {
+    LaunchedEffect(lazyListState, hasCatalogContent) {
         snapshotFlow {
             lazyListState.firstVisibleItemIndex to lazyListState.firstVisibleItemScrollOffset
         }.collect { (index, offset) ->
-            onScrollPositionChange(index, offset)
+            if (hasCatalogContent) onScrollPositionChange(index, offset)
         }
     }
 

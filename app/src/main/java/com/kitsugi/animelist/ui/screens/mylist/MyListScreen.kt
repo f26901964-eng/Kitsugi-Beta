@@ -152,9 +152,15 @@ fun MyListScreen(
 
     val entries by viewModel.entriesFlow.collectAsState()
 
-    var isScrollRestored by rememberSaveable(initialScrollIndex, initialScrollOffset) {
-        mutableStateOf(initialScrollIndex == 0 && initialScrollOffset == 0)
+    // Save positions separately from LazyListState: an empty/loading list can clamp its
+    // index to zero before the library finishes loading when returning from a detail page.
+    var savedTabIndices by rememberSaveable {
+        mutableStateOf(List(MY_LIST_TAB_COUNT) { if (it == selectedTabIndex) initialScrollIndex else 0 })
     }
+    var savedTabOffsets by rememberSaveable {
+        mutableStateOf(List(MY_LIST_TAB_COUNT) { if (it == selectedTabIndex) initialScrollOffset else 0 })
+    }
+    var restoredTabs by remember { mutableStateOf(emptySet<Int>()) }
 
     var isFabVisible by rememberSaveable { mutableStateOf(true) }
     // showHeader and showScrollToTop are driven by active tab scroll — updated in LaunchedEffect below
@@ -368,7 +374,13 @@ fun MyListScreen(
 
 
     // Per-tab scroll states — declared at top level so FAB can reference them
-    val tabScrollStates = remember { List(MY_LIST_TAB_COUNT) { androidx.compose.foundation.lazy.LazyListState() } }
+    val tabScrollStates = (0 until MY_LIST_TAB_COUNT).map { page ->
+        androidx.compose.runtime.key(page) {
+            rememberSaveable(saver = androidx.compose.foundation.lazy.LazyListState.Saver) {
+                androidx.compose.foundation.lazy.LazyListState(savedTabIndices[page], savedTabOffsets[page])
+            }
+        }
+    }
     val activeTabScrollState = tabScrollStates[selectedTabIndex.coerceIn(0, MY_LIST_TAB_COUNT - 1)]
 
     Column(
@@ -463,7 +475,7 @@ fun MyListScreen(
             snapshotFlow {
                 activeTabScrollState.firstVisibleItemIndex to activeTabScrollState.firstVisibleItemScrollOffset
             }.collect { (index, offset) ->
-                if (isScrollRestored && entries.isNotEmpty()) {
+                if (selectedTabIndex in restoredTabs && entries.isNotEmpty()) {
                     onScrollPositionChange(index, offset)
                 }
                 val scrollingDown = index > prevIndex || (index == prevIndex && offset > prevOffset + 15)
@@ -525,6 +537,24 @@ fun MyListScreen(
                             myListSourceMatchesTab(pageTabIndex, entry.source)
                         }
                     }
+                }
+
+                // Wait until this page has actual items before restoring a deep position.
+                // A loading/empty LazyColumn would otherwise reset the saved index to zero.
+                LaunchedEffect(pageTabIndex, pageEntries.isNotEmpty()) {
+                    if (pageEntries.isNotEmpty() && pageTabIndex !in restoredTabs) {
+                        pageScrollState.scrollToItem(savedTabIndices[pageTabIndex], savedTabOffsets[pageTabIndex])
+                        restoredTabs = restoredTabs + pageTabIndex
+                    }
+                }
+                LaunchedEffect(pageScrollState, pageTabIndex, pageEntries.isNotEmpty(), restoredTabs.contains(pageTabIndex)) {
+                    snapshotFlow { pageScrollState.firstVisibleItemIndex to pageScrollState.firstVisibleItemScrollOffset }
+                        .collect { (index, offset) ->
+                            if (pageTabIndex in restoredTabs && pageEntries.isNotEmpty()) {
+                                savedTabIndices = savedTabIndices.toMutableList().also { it[pageTabIndex] = index }
+                                savedTabOffsets = savedTabOffsets.toMutableList().also { it[pageTabIndex] = offset }
+                            }
+                        }
                 }
 
                 MyListContentPage(

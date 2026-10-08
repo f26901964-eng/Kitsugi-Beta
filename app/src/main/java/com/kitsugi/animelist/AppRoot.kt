@@ -757,8 +757,18 @@ fun AppRoot(
                 mangaBrowseViewModel.reset()
                 navState.closeMangaBrowse()
             }
-            navState.addonFullScreenGridState != null     -> navState.addonFullScreenGridState = null
-            navState.fullScreenGridState != null          -> navState.fullScreenGridState = null
+            navState.detailBackStack.isNotEmpty() && (
+                navState.addonFullScreenGridState?.let { navState.detailBackStack.size > it.openingStackDepth } == true ||
+                navState.fullScreenGridState?.let { navState.detailBackStack.size > it.openingStackDepth } == true
+            ) -> navState.popDetailStack()
+            navState.addonFullScreenGridState != null     -> {
+                navState.addonFullScreenGridState?.savedStateKey?.let(navState.stateHolder::removeState)
+                navState.addonFullScreenGridState = null
+            }
+            navState.fullScreenGridState != null          -> {
+                navState.fullScreenGridState?.savedStateKey?.let(navState.stateHolder::removeState)
+                navState.fullScreenGridState = null
+            }
             navState.detailBackStack.isNotEmpty()         -> navState.popDetailStack()
             appViewModel.popTabHistory()                  -> { /* Tab history popped */ }
             else                                          -> showExitConfirmDialog = true
@@ -1149,30 +1159,45 @@ private fun AppNavigationContent(
             }
 
             is AppStateKey.FullScreenGrid -> {
-                FullScreenMediaGridPage(
-                    title = key.state.title,
-                    categoryType = key.state.categoryType,
-                    platform = key.state.platform,
-                    initialResults = key.state.initialResults,
-                    alreadyInList = isAlreadyInList,
-                    onItemClick = onOpenApiDetail,
-                    onBackClick = {
-                        navState.fullScreenGridState = null
-                    },
-                    titleLanguage = appSettings.titleLanguage,
-                    scoreFormat = appSettings.scoreFormat,
-                    hideScores = appSettings.hideScores,
-                    showAdultContent = appSettings.showAdultContent,
-                    blurAdultMedia = appSettings.blurAdultMedia,
-                    getMediaEntry = getMediaEntry
-                )
+                val gridKey = "full_grid_${key.depth}_${System.identityHashCode(key.state)}"
+                if (key.state.savedStateKey == null) key.state.openingStackDepth = navState.detailBackStack.size
+                key.state.savedStateKey = gridKey
+                navState.stateHolder.SaveableStateProvider(key = gridKey) {
+                    FullScreenMediaGridPage(
+                        title = key.state.title,
+                        categoryType = key.state.categoryType,
+                        platform = key.state.platform,
+                        initialResults = key.state.initialResults,
+                        session = key.state,
+                        alreadyInList = isAlreadyInList,
+                        onItemClick = onOpenApiDetail,
+                        onBackClick = {
+                            navState.fullScreenGridState = null
+                            navState.stateHolder.removeState(gridKey)
+                        },
+                        titleLanguage = appSettings.titleLanguage,
+                        scoreFormat = appSettings.scoreFormat,
+                        hideScores = appSettings.hideScores,
+                        showAdultContent = appSettings.showAdultContent,
+                        blurAdultMedia = appSettings.blurAdultMedia,
+                        getMediaEntry = getMediaEntry
+                    )
+                }
             }
 
             is AppStateKey.AddonFullScreenGrid -> {
-                com.kitsugi.animelist.ui.screens.fullscreen.AddonFullScreenGridPage(
-                    state = key.state,
-                    onBackClick = { navState.addonFullScreenGridState = null }
-                )
+                val gridKey = "addon_grid_${key.depth}_${System.identityHashCode(key.state)}"
+                if (key.state.savedStateKey == null) key.state.openingStackDepth = navState.detailBackStack.size
+                key.state.savedStateKey = gridKey
+                navState.stateHolder.SaveableStateProvider(key = gridKey) {
+                    com.kitsugi.animelist.ui.screens.fullscreen.AddonFullScreenGridPage(
+                        state = key.state,
+                        onBackClick = {
+                            navState.addonFullScreenGridState = null
+                            navState.stateHolder.removeState(gridKey)
+                        }
+                    )
+                }
             }
 
             is AppStateKey.PluginPicker -> {
@@ -1217,6 +1242,7 @@ private fun AppNavigationContent(
                 navState.stateHolder.SaveableStateProvider(key = "source_search_${key.depth}_${key.engine.id}") {
                     com.kitsugi.animelist.ui.screens.search.SourceSearchPage(
                         engine = key.engine,
+                        retainedOwner = navState.sourceSearchOwner("source_search_${key.depth}_${key.engine.id}"),
                         initialQuery = key.query,
                         initialScope = key.scope,
                         initialResults = key.shelfResults,

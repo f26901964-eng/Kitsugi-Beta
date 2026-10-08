@@ -118,7 +118,7 @@ fun KitsugiHorizontalMediaSection(
                         val focusRequesters = remember(results) { mutableMapOf<Int, FocusRequester>() }
                         val rowFocusRequester = remember { FocusRequester() }
                         // title'a bağlı stable state — platform değişiminde sıfırlanır, yoksa korunur
-                        val lazyListState = remember(title) { LazyListState() }
+                        val lazyListState = androidx.compose.runtime.saveable.rememberSaveable(title, saver = LazyListState.Saver) { LazyListState() }
                         CompositionLocalProvider(LocalBringIntoViewSpec provides tvSpec) {
                             LazyRow(
                                 state = lazyListState,
@@ -164,7 +164,7 @@ fun KitsugiHorizontalMediaSection(
                         }
                     } else {
                         // title'a bağlı stable state — scroll pozisyonu platform değişince sıfırlanır
-                        val lazyListState = remember(title) { LazyListState() }
+                        val lazyListState = androidx.compose.runtime.saveable.rememberSaveable(title, saver = LazyListState.Saver) { LazyListState() }
                         LazyRow(
                             state = lazyListState,
                             contentPadding = PaddingValues(horizontal = 20.dp),

@@ -22,7 +22,7 @@ class KitsugiStaffClient {
                 return@withContext emptyList()
             }
 
-            when (source.lowercase()) {
+            when (MalJikanMediaSupport.canonicalSource(source)) {
                 "shikimori" -> {
                     // 1) Shikimori'nin kendi `/roles` ucu personel kayıtlarını (yönetmen,
                     //    senarist …) ve seiyuu kayıtlarını içerir.
@@ -72,11 +72,9 @@ class KitsugiStaffClient {
                     } else emptyList()
                 }
                 "jikan", "mal" -> {
-                    val jikanId = realMalId?.takeIf { it > 0 } ?: externalId
-                    val endpoint = when (mediaType) {
-                        MediaType.Anime, MediaType.Movie, MediaType.TvShow -> "anime"
-                        MediaType.Manga -> "manga"
-                    }
+                    val jikanId = MalJikanMediaSupport.resolveMalId(source, externalId, realMalId)
+                        ?: return@withContext emptyList()
+                    val endpoint = MalJikanMediaSupport.jikanEndpoint(mediaType)
                     val url = URL("https://api.jikan.moe/v4/$endpoint/$jikanId/staff")
                     val jikanList = runCatching {
                         KitsugiApiBase.runWithRateLimit {
@@ -109,13 +107,22 @@ class KitsugiStaffClient {
                     if (jikanList.isNotEmpty()) {
                         jikanList
                     } else {
-                        android.util.Log.w("KitsugiStaffClient", "Jikan ekip listesi boş veya başarısız oldu. Shikimori fallback devreye giriyor...")
-                        // Shikimori kendi ID'sini bekler — MAL ID'si ARM ile çevrilir.
-                        val shikiId = KitsugiIdResolver.resolveShikimoriIdFromMal(jikanId)
-                        if (shikiId != null && shikiId > 0) {
-                            KitsugiShikimoriClient.fetchStaff(mediaType, shikiId)
+                        // Jikan boşsa aynı doğrulanmış MAL ID'siyle AniList'i dene; bu
+                        // kimlik köprüsü ARM/fuzzy aramadan daha hızlı ve daha güvenlidir.
+                        val aniListList = runCatching {
+                            fetchStaff("anilist", jikanId, mediaType)
+                        }.getOrNull().orEmpty()
+                        if (aniListList.isNotEmpty()) {
+                            aniListList
                         } else {
-                            emptyList()
+                            android.util.Log.w("KitsugiStaffClient", "Jikan/AniList ekip listesi boş; Shikimori fallback deneniyor")
+                            // Shikimori kendi ID'sini bekler — MAL ID'si ARM ile çevrilir.
+                            val shikiId = KitsugiIdResolver.resolveShikimoriIdFromMal(jikanId)
+                            if (shikiId != null && shikiId > 0) {
+                                KitsugiShikimoriClient.fetchStaff(mediaType, shikiId)
+                            } else {
+                                emptyList()
+                            }
                         }
                     }
                 }
@@ -162,7 +169,7 @@ class KitsugiStaffClient {
                                         role
                                         node {
                                             id
-                                            name { userPreferred }
+                                            name { userPreferred full first middle last native alternative }
                                             image { medium }
                                         }
                                     }
@@ -170,7 +177,7 @@ class KitsugiStaffClient {
                             }
                         }
                     """.trimIndent()
-                    val variables = JSONObject().put("type", if (mediaType == MediaType.Anime) "ANIME" else "MANGA")
+                    val variables = JSONObject().put("type", MalJikanMediaSupport.aniListMediaType(mediaType))
                     if (aniListId != null) variables.put("id", aniListId) else variables.put("idMal", externalId)
 
                     runCatching {
@@ -184,9 +191,10 @@ class KitsugiStaffClient {
                             val node = edge.optJSONObject("node") ?: continue
                             val id = node.optInt("id")
                             val nameObj = node.optJSONObject("name")
-                            val name = nameObj?.optNullableString("userPreferred") ?: "Bilinmeyen"
+                            val personName = nameObj.aniListPersonName()
+                            val name = personName.preferred
                             val imageUrl = node.optJSONObject("image")?.optNullableString("medium")
-                            list.add(KitsugiStaff(id, name, role, imageUrl, source = "anilist"))
+                            list.add(KitsugiStaff(id, name, role, imageUrl, source = "anilist", romanizedName = personName.romanized, nativeName = personName.native))
                         }
                         list
                     }.getOrElse { emptyList() }
@@ -204,7 +212,7 @@ class KitsugiStaffClient {
     ): KitsugiStaffDetail? {
         return withContext(Dispatchers.IO) {
             if (staffId <= 0) return@withContext null
-            when (source.lowercase()) {
+            when (MalJikanMediaSupport.canonicalSource(source)) {
                 "shikimori" -> {
                     KitsugiShikimoriClient.fetchStaffDetail(staffId)
                 }
@@ -358,6 +366,7 @@ class KitsugiStaffClient {
                                 isFavourite
                                 name {
                                     userPreferred
+                                    full first middle last
                                     native
                                     alternative
                                 }
@@ -380,7 +389,7 @@ class KitsugiStaffClient {
                                         }
                                         characters {
                                             id
-                                            name { userPreferred }
+                                            name { userPreferred full first middle last native alternative }
                                             image { medium }
                                         }
                                     }
@@ -407,7 +416,8 @@ class KitsugiStaffClient {
                         val data = root.optJSONObject("data")?.optJSONObject("Staff") ?: return@runCatching null
 
                         val nameObj = data.optJSONObject("name")
-                        val name = nameObj?.optNullableString("userPreferred") ?: "Bilinmeyen"
+                        val personName = nameObj.aniListPersonName()
+                        val name = personName.preferred
                         val nativeName = nameObj?.optNullableString("native")
 
                         val alternativeNames = mutableListOf<String>()
@@ -466,12 +476,15 @@ class KitsugiStaffClient {
                                 if (chars != null && chars.length() > 0) {
                                     val charObj = chars.optJSONObject(0) ?: continue
                                     val charId = charObj.optInt("id")
-                                    val charName = charObj.optJSONObject("name")?.optNullableString("userPreferred") ?: "Bilinmeyen"
+                                    val charPersonName = charObj.optJSONObject("name").aniListPersonName()
+                                    val charName = charPersonName.preferred
                                     val charImg = charObj.optJSONObject("image")?.optNullableString("medium")
 
                                     characterRoles.add(KitsugiStaffCharacterRole(
                                         characterId = charId,
                                         characterName = charName,
+                                        characterRomanizedName = charPersonName.romanized,
+                                        characterNativeName = charPersonName.native,
                                         characterImageUrl = charImg,
                                         characterSource = "anilist",
                                         mediaId = mediaId,
@@ -531,7 +544,8 @@ class KitsugiStaffClient {
                             characterRoles = characterRoles,
                             mediaWorks = mediaWorks,
                             isFavourite = isFavourite,
-                            aniListId = staffId
+                            aniListId = staffId,
+                            romanizedName = personName.romanized
                         )
                     }.getOrNull()
                 }
@@ -589,6 +603,7 @@ class KitsugiStaffClient {
                         isFavourite
                         name {
                             userPreferred
+                            full first middle last
                             native
                             alternative
                         }
@@ -611,7 +626,7 @@ class KitsugiStaffClient {
                                 }
                                 characters {
                                     id
-                                    name { userPreferred }
+                                    name { userPreferred full first middle last native alternative }
                                     image { medium }
                                 }
                             }
@@ -641,7 +656,8 @@ class KitsugiStaffClient {
             val data = staffArr.getJSONObject(0)
 
             val nameObj = data.optJSONObject("name")
-            val staffName = nameObj?.optNullableString("userPreferred") ?: "Bilinmeyen"
+            val personName = nameObj.aniListPersonName()
+            val staffName = personName.preferred
             val nativeName = nameObj?.optNullableString("native")
 
             val alternativeNames = mutableListOf<String>()
@@ -701,13 +717,16 @@ class KitsugiStaffClient {
                     if (charArr != null && charArr.length() > 0) {
                         val charObj = charArr.getJSONObject(0)
                         val charId = charObj.optInt("id")
-                        val charName = charObj.optJSONObject("name")?.optNullableString("userPreferred") ?: "Bilinmeyen"
+                        val charPersonName = charObj.optJSONObject("name").aniListPersonName()
+                        val charName = charPersonName.preferred
                         val charImg = charObj.optJSONObject("image")?.optNullableString("medium")
 
                         characterRoles.add(
                             KitsugiStaffCharacterRole(
                                 characterId = charId,
                                 characterName = charName,
+                                characterRomanizedName = charPersonName.romanized,
+                                characterNativeName = charPersonName.native,
                                 characterImageUrl = charImg,
                                 characterSource = "anilist",
                                 mediaId = stableMediaId,
@@ -773,7 +792,8 @@ class KitsugiStaffClient {
                 characterRoles = characterRoles,
                 mediaWorks = mediaWorks,
                 isFavourite = isFavourite,
-                aniListId = data.optInt("id")
+                aniListId = data.optInt("id"),
+                romanizedName = personName.romanized
             )
         }.getOrNull()
     }

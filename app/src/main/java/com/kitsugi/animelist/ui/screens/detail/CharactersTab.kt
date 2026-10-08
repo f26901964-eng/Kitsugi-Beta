@@ -17,6 +17,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import com.kitsugi.animelist.data.remote.displayPersonName
 import com.kitsugi.animelist.data.remote.KitsugiCharacter
 import com.kitsugi.animelist.data.remote.KitsugiStaff
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
@@ -43,7 +44,8 @@ fun CharactersTabContent(
     state: DetailTabState<List<KitsugiCharacter>>,
     onCharacterClick: (KitsugiCharacter) -> Unit,
     onStaffClick: (Int, String, String?, String?) -> Unit,
-    onMediaClick: (Int, String, String) -> Unit
+    onMediaClick: (Int, String, String) -> Unit,
+    titleLanguage: String = "ROMAJI"
 ) {
     var selectedCharacterForVoiceActors by remember { mutableStateOf<KitsugiCharacter?>(null) }
 
@@ -60,7 +62,16 @@ fun CharactersTabContent(
             )
         }
         is DetailTabState.Success -> {
-            val list = state.data
+            val list = remember(state.data, titleLanguage) {
+                state.data.map { character ->
+                    character.copy(
+                        name = displayPersonName(character.name, character.romanizedName, character.nativeName, titleLanguage),
+                        voiceActors = character.voiceActors.map { va ->
+                            va.copy(name = displayPersonName(va.name, va.romanizedName, va.nativeName, titleLanguage))
+                        }
+                    )
+                }
+            }
             if (list.isEmpty()) {
                 Text(
                     text = stringResource(R.string.detail_characters_empty),
@@ -356,7 +367,8 @@ fun CharacterVoiceActorCard(
 @Composable
 fun StaffTabContent(
     state: DetailTabState<List<KitsugiStaff>>,
-    onStaffClick: (Int, String, String?, String?) -> Unit
+    onStaffClick: (Int, String, String?, String?) -> Unit,
+    titleLanguage: String = "ROMAJI"
 ) {
     when (state) {
         is DetailTabState.Loading -> {
@@ -371,7 +383,11 @@ fun StaffTabContent(
             )
         }
         is DetailTabState.Success -> {
-            val list = state.data
+            val list = remember(state.data, titleLanguage) {
+                state.data.map { staff ->
+                    staff.copy(name = displayPersonName(staff.name, staff.romanizedName, staff.nativeName, titleLanguage))
+                }
+            }
             if (list.isEmpty()) {
                 Text(
                     text = stringResource(R.string.detail_staff_empty),

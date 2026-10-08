@@ -27,12 +27,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.ViewModelProvider
-import androidx.lifecycle.ViewModelStore
-import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kitsugi.animelist.data.remote.ApiSearchSelection
 import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.model.MediaEntry
+import com.kitsugi.animelist.ui.app.SourceSearchOwner
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 
 /**
@@ -61,26 +60,27 @@ fun SourceSearchPage(
     onOpenPluginPicker: () -> Unit = {},
     onOpenAddonExplore: (String) -> Unit = {},
     onOpenCharacterDetail: (Int, String?, String?) -> Unit = { _, _, _ -> },
-    onOpenStaffDetail: (Int, String?, String?) -> Unit = { _, _, _ -> }
+    onOpenStaffDetail: (Int, String?, String?) -> Unit = { _, _, _ -> },
+    retainedOwner: SourceSearchOwner? = null
 ) {
     // ── İzole ViewModel ────────────────────────────────────────────────────
     val context = LocalContext.current
-    val owner = remember {
-        object : ViewModelStoreOwner {
-            override val viewModelStore = ViewModelStore()
-        }
-    }
+    val localOwner = remember { SourceSearchOwner() }
+    val owner = retainedOwner ?: localOwner
     val app = context.applicationContext as Application
     val factory = remember(app) {
         ViewModelProvider.AndroidViewModelFactory.getInstance(app)
     }
     val pageViewModel: SearchViewModel = viewModel(viewModelStoreOwner = owner, factory = factory)
     DisposableEffect(owner) {
-        onDispose { owner.viewModelStore.clear() }
+        onDispose { if (retainedOwner == null) localOwner.viewModelStore.clear() }
     }
 
-    LaunchedEffect(engine, initialQuery, initialScope) {
-        pageViewModel.openSourceSearch(engine, initialQuery, initialScope, initialResults)
+    LaunchedEffect(owner, engine, initialQuery, initialScope) {
+        if (!owner.initialized) {
+            owner.initialized = true
+            pageViewModel.openSourceSearch(engine, initialQuery, initialScope, initialResults)
+        }
     }
 
     Column(

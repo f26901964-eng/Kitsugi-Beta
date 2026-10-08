@@ -173,7 +173,9 @@ data class KitsugiVoiceActor(
     val name: String,
     val language: String,
     val imageUrl: String?,
-    val source: String = "jikan"
+    val source: String = "jikan",
+    val romanizedName: String? = null,
+    val nativeName: String? = null
 )
 
 data class KitsugiCharacter(
@@ -185,7 +187,9 @@ data class KitsugiCharacter(
     val source: String = "jikan",
     // Canlı çekim (animasyon olmayan) dizi/film karakterleri: detay sayfası
     // AniList/MAL/Kitsu araması yerine doğrudan TMDB/Simkl verisiyle açılır.
-    val isRealMediaRole: Boolean = false
+    val isRealMediaRole: Boolean = false,
+    val romanizedName: String? = null,
+    val nativeName: String? = null
 )
 
 data class KitsugiCharacterMediaAppearance(
@@ -215,7 +219,8 @@ data class KitsugiCharacterDetail(
     val mediaAppearances: List<KitsugiCharacterMediaAppearance> = emptyList(),
     val isFavourite: Boolean = false,
     val aniListId: Int? = null,
-    val source: String = "jikan"
+    val source: String = "jikan",
+    val romanizedName: String? = null
 )
 
 data class KitsugiStaff(
@@ -223,7 +228,9 @@ data class KitsugiStaff(
     val name: String,
     val role: String,
     val imageUrl: String?,
-    val source: String = "jikan"
+    val source: String = "jikan",
+    val romanizedName: String? = null,
+    val nativeName: String? = null
 )
 
 data class KitsugiStaffCharacterRole(
@@ -236,7 +243,9 @@ data class KitsugiStaffCharacterRole(
     val mediaImageUrl: String?,
     val mediaType: String,
     val characterRole: String,
-    val mediaSource: String = "jikan"
+    val mediaSource: String = "jikan",
+    val characterRomanizedName: String? = null,
+    val characterNativeName: String? = null
 )
 
 data class KitsugiStaffMediaWork(
@@ -266,7 +275,8 @@ data class KitsugiStaffDetail(
     val characterRoles: List<KitsugiStaffCharacterRole> = emptyList(),
     val mediaWorks: List<KitsugiStaffMediaWork> = emptyList(),
     val isFavourite: Boolean = false,
-    val aniListId: Int? = null
+    val aniListId: Int? = null,
+    val romanizedName: String? = null
 )
 
 data class KitsugiRelation(
@@ -532,6 +542,7 @@ fun KitsugiCharacterDetail.mergeWith(other: KitsugiCharacterDetail): KitsugiChar
 
     return this.copy(
         nativeName = this.nativeName.takeIf { !it.isNullOrBlank() && it != "null" } ?: other.nativeName,
+        romanizedName = this.romanizedName ?: other.romanizedName,
         alternativeNames = mergedAlternativeNames,
         imageUrl = this.imageUrl.takeIf { !it.isNullOrBlank() && it != "null" } ?: other.imageUrl,
         gender = this.gender.takeIf { !it.isNullOrBlank() && it != "null" } ?: other.gender,
@@ -578,6 +589,7 @@ fun KitsugiStaffDetail.mergeWith(other: KitsugiStaffDetail): KitsugiStaffDetail 
 
     return this.copy(
         nativeName = this.nativeName.takeIf { !it.isNullOrBlank() && it != "null" } ?: other.nativeName,
+        romanizedName = this.romanizedName ?: other.romanizedName,
         alternativeNames = mergedAlternativeNames,
         imageUrl = this.imageUrl.takeIf { !it.isNullOrBlank() && it != "null" } ?: other.imageUrl,
         biography = this.biography.takeIf { !it.isNullOrBlank() && it != "null" } ?: other.biography,

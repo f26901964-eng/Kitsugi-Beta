@@ -114,7 +114,9 @@ fun SearchScreen(
     val uiState by viewModel.uiState.collectAsState()
     val accentColor = LocalKitsugiAccent.current
     val isTv = LocalIsTv.current
-    val lazyListState = rememberLazyListState()
+    val lazyListState = com.kitsugi.animelist.ui.utils.rememberRetainedLazyListState(
+        contentReady = uiState.results.isNotEmpty() || !uiState.multiResults.isEmpty || !uiState.hasSearched
+    )
     val scope = rememberCoroutineScope()
     val keyboardController = LocalSoftwareKeyboardController.current
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -568,14 +570,24 @@ fun SearchScreen(
                 }
             } else if (uiState.currentTab == KitsugiSearchTab.Character || uiState.currentTab == KitsugiSearchTab.Staff) {
                 items(filteredResults, key = { "${it.source}_${it.type}_${it.malId}" }) { result ->
+                    val displayName = com.kitsugi.animelist.data.remote.displayPersonName(result.title, result.titleEnglish, result.titleJapanese, titleLanguage)
                     CharacterStaffResultRow(
-                        result = result,
+                        result = result.copy(
+                            title = displayName,
+                            subtitle = if (titleLanguage in listOf("NATIVE", "JAPANESE_STAFF")) {
+                                when {
+                                    result.subtitle == displayName -> "Karakter"
+                                    result.subtitle.startsWith("$displayName • ") -> result.subtitle.removePrefix("$displayName • ")
+                                    else -> result.subtitle
+                                }
+                            } else result.subtitle
+                        ),
                         isStaff = uiState.currentTab == KitsugiSearchTab.Staff,
                         onClick = {
                             if (uiState.currentTab == KitsugiSearchTab.Staff) {
-                                onOpenStaffDetail?.invoke(result.malId, result.title, result.imageUrl)
+                                onOpenStaffDetail?.invoke(result.malId, displayName, result.imageUrl)
                             } else {
-                                onOpenCharacterDetail?.invoke(result.malId, result.title, result.imageUrl)
+                                onOpenCharacterDetail?.invoke(result.malId, displayName, result.imageUrl)
                             }
                         }
                     )
@@ -1112,7 +1124,7 @@ private fun MultiSearchSection(
             }
 
             else -> {
-                val lazyListState = remember(title) { LazyListState() }
+                val lazyListState = androidx.compose.runtime.saveable.rememberSaveable(title, saver = LazyListState.Saver) { LazyListState() }
                 val cardWidth = if (isLandscape) 260.dp else 180.dp
 
                 if (isTvDevice) {

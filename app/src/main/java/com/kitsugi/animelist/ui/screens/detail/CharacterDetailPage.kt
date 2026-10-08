@@ -79,6 +79,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.runtime.rememberCoroutineScope
 import com.kitsugi.animelist.data.remote.JikanApiClient
+import com.kitsugi.animelist.data.remote.displayPersonName
 import com.kitsugi.animelist.data.remote.KitsugiCharacterDetail
 import com.kitsugi.animelist.data.local.TranslationManager
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
@@ -195,7 +196,15 @@ fun CharacterDetailPage(
                 }
             }
             is CharacterDetailState.Success -> {
-                val detail = currentState.detail
+                val rawDetail = currentState.detail
+                val detail = remember(rawDetail, titleLanguage) {
+                    rawDetail.copy(
+                        name = displayPersonName(rawDetail.name, rawDetail.romanizedName, rawDetail.nativeName, titleLanguage),
+                        voiceActors = rawDetail.voiceActors.map { va ->
+                            va.copy(name = displayPersonName(va.name, va.romanizedName, va.nativeName, titleLanguage))
+                        }
+                    )
+                }
                 val isRefreshing by viewModel.isRefreshing.collectAsState()
                 val pullRefreshState = rememberPullToRefreshState()
                 PullToRefreshBox(

@@ -3,7 +3,6 @@ package com.kitsugi.animelist.data.remote
 import com.kitsugi.animelist.model.MediaType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
 import org.json.JSONObject
 import com.kitsugi.animelist.utils.toTurkishRelationType
 
@@ -34,7 +33,7 @@ class KitsugiMediaRelationsClient {
             """.trimIndent()
             val variables = JSONObject()
                 .put("idMal", malId)
-                .put("type", if (mediaType == MediaType.Anime) "ANIME" else "MANGA")
+                .put("type", MalJikanMediaSupport.aniListMediaType(mediaType))
             runCatching {
                 val response = KitsugiApiBase.executeAniListQuery(query, variables) ?: return@runCatching null
                 val root = JSONObject(response)
@@ -54,7 +53,7 @@ class KitsugiMediaRelationsClient {
         return withContext(Dispatchers.IO) {
             if (externalId == null || externalId <= 0) return@withContext emptyList()
 
-            when (source.lowercase()) {
+            when (MalJikanMediaSupport.canonicalSource(source)) {
                 "simkl" -> {
                     if (mediaType == MediaType.Anime) {
                         val malId = realMalId ?: DetailCache.getMediaDetail("simkl", externalId)?.realMalId
@@ -140,7 +139,24 @@ class KitsugiMediaRelationsClient {
                     val aniListStableId = resolveAniListStableIdForShikimori(malId)
                     if (aniListStableId != null) fetchRelationsFromAniList(aniListStableId, mediaType) else emptyList()
                 }
-                "jikan", "mal" -> fetchRelationsFromJikan(externalId, mediaType)
+                "jikan", "mal" -> {
+                    val malId = MalJikanMediaSupport.resolveMalId(source, externalId, realMalId)
+                        ?: return@withContext emptyList()
+                    val jikanRelations = fetchRelationsFromJikan(malId, mediaType)
+                    if (jikanRelations.isNotEmpty()) return@withContext jikanRelations
+
+                    // Jikan is the canonical source for MAL records; use AniList by the exact
+                    // MAL ID only if Jikan has no relation data (never fuzzy-title match here).
+                    val aniListRelations = fetchRelationsFromAniList(malId, mediaType)
+                    if (aniListRelations.isNotEmpty()) return@withContext aniListRelations
+
+                    if (mediaType != MediaType.Manga && tmdbId != null && tmdbId > 0) {
+                        TmdbApiClient().fetchRelations(tmdbId, mediaType == MediaType.Movie)
+                            .map { it.copy(source = "tmdb") }
+                    } else {
+                        emptyList()
+                    }
+                }
                 "anilist"      -> fetchRelationsFromAniList(externalId, mediaType)
                 else           -> emptyList()
             }
@@ -174,7 +190,7 @@ class KitsugiMediaRelationsClient {
         externalId: Int,
         mediaType: MediaType
     ): List<KitsugiRelation> {
-        val endpoint = if (mediaType == MediaType.Anime) "anime" else "manga"
+        val endpoint = MalJikanMediaSupport.jikanEndpoint(mediaType)
         val url = java.net.URL("https://api.jikan.moe/v4/$endpoint/$externalId/relations")
         return runCatching {
             KitsugiApiBase.runWithRateLimit {
@@ -204,72 +220,12 @@ class KitsugiMediaRelationsClient {
                     }
                 }
 
-                // AniList bulk sorgusuyla kapak + İngilizce/Japonca başlıkları ekle
-                // (başlık dili ayarı İngilizce/Japonca seçildiğinde Romaji'ye düşmesin).
-                if (list.isNotEmpty()) {
-                    val infoMap = fetchAniListBulkInfoByMalIds(list.map { it.malId }.distinct())
-                    list.replaceAll { rel ->
-                        val info = infoMap[rel.malId] ?: return@replaceAll rel
-                        rel.copy(
-                            imageUrl = info.coverUrl ?: rel.imageUrl,
-                            titleRomaji = info.romaji ?: rel.title,
-                            titleEnglish = info.english,
-                            titleJapanese = info.native
-                        )
-                    }
-                }
+                // Jikan'ın ilişki listesi zaten kullanılabilir temel veridir. Kapak/başlık
+                // zenginleştirmesini burada bekletmiyoruz; AniList'in yavaşlığı MAL listesinin
+                // ekrana ulaşmasını engellememeli.
                 list
             }
         }.getOrElse { emptyList() }
-    }
-
-    /** AniList'ten toplu çekilen kapak + başlık bilgisi (MAL kimliğiyle eşlenir). */
-    private data class AniListBulkInfo(
-        val coverUrl: String?,
-        val romaji: String?,
-        val english: String?,
-        val native: String?
-    )
-
-    /**
-     * Verilen MAL kimliklerini TEK AniList sorgusuyla çözer (kapak + romaji/İngilizce/Japonca).
-     * Hata durumunda boş harita döner; çağıran liste yine de gösterilir.
-     */
-    private suspend fun fetchAniListBulkInfoByMalIds(malIds: List<Int>): Map<Int, AniListBulkInfo> {
-        val ids = malIds.filter { it > 0 }.distinct()
-        if (ids.isEmpty()) return emptyMap()
-        val query = """
-            query (${'$'}ids: [Int]) {
-                Page(perPage: 50) {
-                    media(idMal_in: ${'$'}ids) {
-                        idMal
-                        coverImage { large }
-                        title { romaji english native }
-                    }
-                }
-            }
-        """.trimIndent()
-        val out = HashMap<Int, AniListBulkInfo>()
-        runCatching {
-            val resp = KitsugiApiBase.executeAniListQuery(query, JSONObject().put("ids", JSONArray(ids)))
-                ?: return@runCatching
-            val mediaArr = JSONObject(resp).optJSONObject("data")
-                ?.optJSONObject("Page")
-                ?.optJSONArray("media") ?: return@runCatching
-            for (k in 0 until mediaArr.length()) {
-                val mi = mediaArr.optJSONObject(k) ?: continue
-                val malId = mi.optInt("idMal")
-                if (malId <= 0 || out.containsKey(malId)) continue
-                val titleObj = mi.optJSONObject("title")
-                out[malId] = AniListBulkInfo(
-                    coverUrl = mi.optJSONObject("coverImage")?.optNullableString("large"),
-                    romaji = titleObj?.optNullableString("romaji"),
-                    english = titleObj?.optNullableString("english"),
-                    native = titleObj?.optNullableString("native")
-                )
-            }
-        }
-        return out
     }
 
     private suspend fun fetchRelationsFromAniList(
@@ -298,7 +254,7 @@ class KitsugiMediaRelationsClient {
                 }
             }
         """.trimIndent()
-        val variables = JSONObject().put("type", if (mediaType == MediaType.Anime) "ANIME" else "MANGA")
+        val variables = JSONObject().put("type", MalJikanMediaSupport.aniListMediaType(mediaType))
         if (aniListId != null) variables.put("id", aniListId) else variables.put("idMal", externalId)
 
         return runCatching {
@@ -355,7 +311,7 @@ class KitsugiMediaRelationsClient {
         return withContext(Dispatchers.IO) {
             if (externalId == null || externalId <= 0) return@withContext emptyList()
 
-            when (source.lowercase()) {
+            when (MalJikanMediaSupport.canonicalSource(source)) {
                 "simkl" -> {
                     if (mediaType == MediaType.Anime) {
                         val malId = realMalId ?: DetailCache.getMediaDetail("simkl", externalId)?.realMalId
@@ -397,24 +353,23 @@ class KitsugiMediaRelationsClient {
                     } else emptyList()
                 }
                 "jikan", "mal" -> {
-                    val malList = fetchRecommendationsFromJikan(externalId, mediaType)
-                    // For anime/TV, try to enrich with TMDB "More Like This" when a tmdbId is known
-                    if (mediaType != MediaType.Manga) {
-                        val effectiveTmdbId = tmdbId ?: runCatching {
-                            KitsugiIdResolver.resolveIds(malId = realMalId ?: externalId, aniListId = null).tmdbId
-                        }.getOrNull()
-                        if (effectiveTmdbId != null && effectiveTmdbId > 0) {
-                            val isMovie = mediaType == MediaType.Movie
-                            val tmdbList = TmdbApiClient().fetchRecommendations(effectiveTmdbId, isMovie)
-                            if (tmdbList.isNotEmpty()) {
-                                // Keep MAL items (canonical IDs) first; append TMDB-only items after
-                                val malIds = malList.map { it.malId }.toHashSet()
-                                val tmdbOnly = tmdbList.filter { it.malId !in malIds }
-                                return@withContext malList + tmdbOnly
-                            }
-                        }
+                    val malId = MalJikanMediaSupport.resolveMalId(source, externalId, realMalId)
+                        ?: return@withContext emptyList()
+                    val jikanRecommendations = fetchRecommendationsFromJikan(malId, mediaType)
+                    if (jikanRecommendations.isNotEmpty()) return@withContext jikanRecommendations
+
+                    // Exact MAL-ID fallback keeps both MAL/Jikan result types on the same path.
+                    val aniListRecommendations = fetchRecommendationsFromAniList(malId, mediaType)
+                    if (aniListRecommendations.isNotEmpty()) return@withContext aniListRecommendations
+
+                    // TMDB is a last-resort source. Do not resolve IDs through ARM or wait for
+                    // TMDB when Jikan already has recommendations to show.
+                    if (mediaType != MediaType.Manga && tmdbId != null && tmdbId > 0) {
+                        TmdbApiClient().fetchRecommendations(tmdbId, mediaType == MediaType.Movie)
+                            .map { it.copy(source = "tmdb") }
+                    } else {
+                        emptyList()
                     }
-                    malList
                 }
                 "kitsu" -> {
                     val kitsuOffset = 300_000_000
@@ -469,7 +424,7 @@ class KitsugiMediaRelationsClient {
         externalId: Int,
         mediaType: MediaType
     ): List<KitsugiRelation> {
-        val endpoint = if (mediaType == MediaType.Anime) "anime" else "manga"
+        val endpoint = MalJikanMediaSupport.jikanEndpoint(mediaType)
         val url = java.net.URL("https://api.jikan.moe/v4/$endpoint/$externalId/recommendations")
         return runCatching {
             KitsugiApiBase.runWithRateLimit {
@@ -497,18 +452,8 @@ class KitsugiMediaRelationsClient {
                     ))
                 }
 
-                // Başlık dili İngilizce/Japonca iken Romaji'ye düşmemek için AniList'ten tamamla.
-                if (list.isNotEmpty()) {
-                    val infoMap = fetchAniListBulkInfoByMalIds(list.map { it.malId }.distinct())
-                    list.replaceAll { rec ->
-                        val info = infoMap[rec.malId] ?: return@replaceAll rec
-                        rec.copy(
-                            titleRomaji = info.romaji ?: rec.title,
-                            titleEnglish = info.english,
-                            titleJapanese = info.native
-                        )
-                    }
-                }
+                // Öneri kartlarının Jikan'dan gelen başlık ve kapakları hemen gösterilir;
+                // ek bir AniList isteği temel sonucun önüne geçmez.
                 list
             }
         }.getOrElse { emptyList() }
@@ -541,7 +486,7 @@ class KitsugiMediaRelationsClient {
                 }
             }
         """.trimIndent()
-        val variables = JSONObject().put("type", if (mediaType == MediaType.Anime) "ANIME" else "MANGA")
+        val variables = JSONObject().put("type", MalJikanMediaSupport.aniListMediaType(mediaType))
         if (aniListId != null) variables.put("id", aniListId) else variables.put("idMal", externalId)
 
         return runCatching {
@@ -612,7 +557,7 @@ class KitsugiMediaRelationsClient {
         """.trimIndent()
         val variables = JSONObject()
             .put("search", searchTitle)
-            .put("type", if (mediaType == MediaType.Anime) "ANIME" else "MANGA")
+            .put("type", MalJikanMediaSupport.aniListMediaType(mediaType))
 
         return runCatching {
             val response = KitsugiApiBase.executeAniListQuery(query, variables) ?: return emptyList()
@@ -683,7 +628,7 @@ class KitsugiMediaRelationsClient {
         """.trimIndent()
         val variables = JSONObject()
             .put("search", searchTitle)
-            .put("type", if (mediaType == MediaType.Anime) "ANIME" else "MANGA")
+            .put("type", MalJikanMediaSupport.aniListMediaType(mediaType))
 
         return runCatching {
             val response = KitsugiApiBase.executeAniListQuery(query, variables) ?: return emptyList()

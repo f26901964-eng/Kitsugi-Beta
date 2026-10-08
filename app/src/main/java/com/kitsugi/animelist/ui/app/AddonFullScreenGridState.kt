@@ -20,4 +20,10 @@ data class AddonFullScreenGridState(
     val mainPageData: String,
     /** Whether the category uses horizontal (wide) poster images */
     val horizontalImages: Boolean = false
-)
+) {
+    var savedStateKey: String? = null
+    var openingStackDepth: Int = 0
+    var cachedItems: List<SearchResponse>? = null
+    var cachedPage: Int? = null
+    var cachedHasMore: Boolean? = null
+}

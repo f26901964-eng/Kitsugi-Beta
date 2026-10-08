@@ -29,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.ui.components.KitsugiNsfwImage
 import com.kitsugi.animelist.ui.components.KitsugiSheetOrDialog
+import com.kitsugi.animelist.ui.components.kitsugiNeonGlow
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.model.MediaType
@@ -43,12 +44,14 @@ internal fun UserMediaGridCard(
     accentColor: Color,
     onClick: () -> Unit
 ) {
+    val cardShape = RoundedCornerShape(16.dp)
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .kitsugiNeonGlow(cardShape)
+            .clip(cardShape)
             .background(KitsugiColors.Surface)
-            .tvClickable(shape = RoundedCornerShape(16.dp), onClick = onClick)
+            .tvClickable(shape = cardShape, onClick = onClick)
     ) {
         Box(
             modifier = Modifier
@@ -144,12 +147,14 @@ internal fun UserMediaRowCard(
     accentColor: Color,
     onClick: () -> Unit
 ) {
+    val cardShape = RoundedCornerShape(16.dp)
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
+            .kitsugiNeonGlow(cardShape)
+            .clip(cardShape)
             .background(KitsugiColors.Surface)
-            .tvClickable(shape = RoundedCornerShape(16.dp), onClick = onClick)
+            .tvClickable(shape = cardShape, onClick = onClick)
             .padding(8.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {

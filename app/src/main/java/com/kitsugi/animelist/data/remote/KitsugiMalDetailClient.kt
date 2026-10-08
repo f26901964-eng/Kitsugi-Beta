@@ -39,10 +39,7 @@ internal object KitsugiMalDetailClient {
             Log.w(TAG, "fetchDetail: malId=$malId is invalid (<=0), skipping Jikan/MAL call")
             return null
         }
-        val endpoint = when (mediaType) {
-            MediaType.Anime, MediaType.Movie, MediaType.TvShow -> "anime"
-            MediaType.Manga -> "manga"
-        }
+        val endpoint = MalJikanMediaSupport.jikanEndpoint(mediaType)
 
         var isFromMalv2 = false
         // 1. Resmi MAL v2 API'sini birincil olarak dene
@@ -163,10 +160,7 @@ internal object KitsugiMalDetailClient {
     }
 
     suspend fun fetchSynopsis(malId: Int, mediaType: MediaType): String? {
-        val endpoint = when (mediaType) {
-            MediaType.Anime, MediaType.Movie, MediaType.TvShow -> "anime"
-            MediaType.Manga -> "manga"
-        }
+        val endpoint = MalJikanMediaSupport.jikanEndpoint(mediaType)
         val url = URL("https://api.jikan.moe/v4/$endpoint/$malId/full")
         return runCatching {
             KitsugiApiBase.runWithRateLimit {

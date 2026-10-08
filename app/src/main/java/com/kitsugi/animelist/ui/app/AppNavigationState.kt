@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.app
 
+import androidx.lifecycle.ViewModelStore
+import androidx.lifecycle.ViewModelStoreOwner
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
@@ -12,11 +14,21 @@ import com.kitsugi.animelist.DetailScreen
 import com.kitsugi.animelist.MangaDetailNavState
 import com.kitsugi.animelist.MangaReaderNavState
 
+/** Kept while a source-search page is underneath a pushed detail screen. */
+class SourceSearchOwner : ViewModelStoreOwner {
+    override val viewModelStore = ViewModelStore()
+    var initialized = false
+}
+
 @Stable
 class AppNavigationState(
     val stateHolder: SaveableStateHolder
 ) {
     var detailBackStack by mutableStateOf<List<DetailScreen>>(emptyList())
+    private val sourceSearchOwners = mutableMapOf<String, SourceSearchOwner>()
+
+    fun sourceSearchOwner(key: String): SourceSearchOwner =
+        sourceSearchOwners.getOrPut(key) { SourceSearchOwner() }
     var mangaBrowseOpen by mutableStateOf(false)
         private set
     var mangaBrowseQuery by mutableStateOf<String?>(null)
@@ -99,6 +111,7 @@ class AppNavigationState(
                 is DetailScreen.SourceSearchPage -> "source_search_${depth}_${screen.engine.id}"
             }
             stateHolder.removeState(key)
+            sourceSearchOwners.remove(key)?.viewModelStore?.clear()
         }
         previousBackStack = detailBackStack
     }

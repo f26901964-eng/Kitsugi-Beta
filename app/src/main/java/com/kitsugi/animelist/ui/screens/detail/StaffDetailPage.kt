@@ -79,6 +79,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import com.kitsugi.animelist.data.remote.JikanApiClient
 import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.data.remote.GalleryCategory
+import com.kitsugi.animelist.data.remote.displayPersonName
 import com.kitsugi.animelist.data.remote.KitsugiStaffDetail
 import com.kitsugi.animelist.data.local.TranslationManager
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
@@ -192,7 +193,15 @@ fun StaffDetailPage(
                 }
             }
             is StaffDetailState.Success -> {
-                val detail = currentState.detail
+                val rawDetail = currentState.detail
+                val detail = remember(rawDetail, titleLanguage) {
+                    rawDetail.copy(
+                        name = displayPersonName(rawDetail.name, rawDetail.romanizedName, rawDetail.nativeName, titleLanguage),
+                        characterRoles = rawDetail.characterRoles.map { role ->
+                            role.copy(characterName = displayPersonName(role.characterName, role.characterRomanizedName, role.characterNativeName, titleLanguage))
+                        }
+                    )
+                }
                 val isRefreshing by viewModel.isRefreshing.collectAsState()
                 val pullRefreshState = rememberPullToRefreshState()
                 PullToRefreshBox(

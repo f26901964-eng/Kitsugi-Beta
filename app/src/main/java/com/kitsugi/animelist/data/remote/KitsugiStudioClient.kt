@@ -17,7 +17,7 @@ class KitsugiStudioClient {
     ): KitsugiStudioDetail? {
         return withContext(Dispatchers.IO) {
             if (studioId <= 0) return@withContext null
-            when (source.lowercase()) {
+            when (MalJikanMediaSupport.canonicalSource(source)) {
                 "jikan", "mal" -> {
                     val jikanRes = fetchJikanStudioDetail(studioId)
                     val detail = if (jikanRes != null) {

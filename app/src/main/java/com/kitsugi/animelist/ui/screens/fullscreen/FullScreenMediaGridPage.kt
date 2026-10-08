@@ -96,6 +96,7 @@ fun FullScreenMediaGridPage(
     categoryType: ExploreCategoryType,
     platform: ExplorePlatform,
     initialResults: List<JikanSearchResult>,
+    session: com.kitsugi.animelist.ui.app.FullScreenMediaGridState? = null,
     alreadyInList: (JikanSearchResult) -> Boolean,
     onItemClick: (JikanSearchResult) -> Unit,
     onBackClick: () -> Unit,
@@ -172,9 +173,9 @@ fun FullScreenMediaGridPage(
         } else title
     }
 
-    var loadedResults by remember(platform, categoryType) { mutableStateOf(initialResults) }
+    var loadedResults by remember(platform, categoryType) { mutableStateOf(session?.cachedResults ?: initialResults) }
     var currentPage by remember(platform, categoryType) {
-        mutableIntStateOf(if (initialResults.isEmpty()) 0 else 1)
+        mutableIntStateOf(session?.cachedPage ?: if (initialResults.isEmpty()) 0 else 1)
     }
     var isLoadingMore by remember { mutableStateOf(false) }
     // Simkl mixes page-based genre/premiere APIs with finite trending charts and an unpaged
@@ -201,9 +202,14 @@ fun FullScreenMediaGridPage(
     }
     var simklTrendingResults by remember(platform, categoryType) { mutableStateOf<List<JikanSearchResult>?>(null) }
     var hasMorePages by remember(platform, categoryType, isSimklPersonalList) {
-        mutableStateOf(!isSimklPersonalList && (platform == ExplorePlatform.SIMKL || !finiteChart || initialResults.isEmpty()))
+        mutableStateOf(session?.cachedHasMore ?: (!isSimklPersonalList && (platform == ExplorePlatform.SIMKL || !finiteChart || initialResults.isEmpty())))
     }
     var loadError by remember { mutableStateOf<String?>(null) }
+    androidx.compose.runtime.SideEffect {
+        session?.cachedResults = loadedResults
+        session?.cachedPage = currentPage
+        session?.cachedHasMore = hasMorePages
+    }
 
     suspend fun fetchSeasonalPage(page: Int): List<JikanSearchResult> = when (platform) {
         ExplorePlatform.AniList -> apiClient.aniListSeasonalAnime(page, showAdultContent, seasonalYear, seasonalSeason, seasonalSort)

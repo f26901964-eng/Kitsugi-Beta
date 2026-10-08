@@ -327,7 +327,7 @@ fun ExploreAiringSoonSection(
 
         Spacer(modifier = Modifier.height(10.dp))
 
-        val lazyListState = remember { androidx.compose.foundation.lazy.LazyListState() }
+        val lazyListState = androidx.compose.runtime.saveable.rememberSaveable(saver = androidx.compose.foundation.lazy.LazyListState.Saver) { androidx.compose.foundation.lazy.LazyListState() }
         LazyRow(
             state = lazyListState,
             contentPadding = PaddingValues(horizontal = 20.dp),

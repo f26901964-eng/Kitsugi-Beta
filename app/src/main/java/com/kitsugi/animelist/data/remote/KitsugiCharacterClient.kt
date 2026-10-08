@@ -59,7 +59,7 @@ class KitsugiCharacterClient {
                 return@withContext emptyList()
             }
 
-            val srcLower = source.lowercase()
+            val srcLower = MalJikanMediaSupport.canonicalSource(source)
             Log.d(TAG, "fetchCharacters başladı: source=$source, externalId=$externalId, realMalId=$realMalId, mediaType=$mediaType, tmdbId=$tmdbId, title=$title")
 
             when (srcLower) {
@@ -159,11 +159,9 @@ class KitsugiCharacterClient {
                     } else emptyList()
                 }
                 "jikan", "mal" -> {
-                    val jikanId = realMalId?.takeIf { it > 0 } ?: externalId
-                    val endpoint = when (mediaType) {
-                        MediaType.Anime, MediaType.Movie, MediaType.TvShow -> "anime"
-                        MediaType.Manga -> "manga"
-                    }
+                    val jikanId = MalJikanMediaSupport.resolveMalId(source, externalId, realMalId)
+                        ?: return@withContext emptyList()
+                    val endpoint = MalJikanMediaSupport.jikanEndpoint(mediaType)
                     val url = URL("https://api.jikan.moe/v4/$endpoint/$jikanId/characters")
                     Log.d(TAG, "Jikan isteği: $url")
                     val jikanList = runCatching {
@@ -220,15 +218,24 @@ class KitsugiCharacterClient {
                     if (jikanList.isNotEmpty()) {
                         jikanList
                     } else {
-                        Log.w(TAG, "Jikan karakter listesi boş veya başarısız oldu. Shikimori fallback devreye giriyor...")
-                        // Shikimori endpoint'i KENDİ ID'sini bekler — MAL ID'si ARM ile
-                        // Shikimori ID'sine çevrilmeden çağrılırsa YANLIŞ animenin (veya
-                        // hiç) karakteri döner.
-                        val shikiId = KitsugiIdResolver.resolveShikimoriIdFromMal(jikanId)
-                        if (shikiId != null && shikiId > 0) {
-                            KitsugiShikimoriClient.fetchCharacters(mediaType, shikiId)
+                        // MAL and Jikan are the same identity namespace. If Jikan is
+                        // temporarily empty/unavailable, query AniList by this exact MAL ID
+                        // before paying for a Shikimori ID-resolution fallback.
+                        val aniListList = runCatching {
+                            fetchCharacters("anilist", jikanId, mediaType, null, tmdbId, title)
+                        }.getOrNull().orEmpty()
+                        if (aniListList.isNotEmpty()) {
+                            aniListList
                         } else {
-                            emptyList()
+                            Log.w(TAG, "Jikan/AniList karakter listesi boş; Shikimori fallback deneniyor")
+                            // Shikimori endpoint'i KENDİ ID'sini bekler — MAL ID'si ARM ile
+                            // Shikimori ID'sine çevrilmeden çağrılırsa YANLIŞ yapımın verisi gelir.
+                            val shikiId = KitsugiIdResolver.resolveShikimoriIdFromMal(jikanId)
+                            if (shikiId != null && shikiId > 0) {
+                                KitsugiShikimoriClient.fetchCharacters(mediaType, shikiId)
+                            } else {
+                                emptyList()
+                            }
                         }
                     }
                 }
@@ -250,12 +257,12 @@ class KitsugiCharacterClient {
                                         role
                                         node {
                                             id
-                                            name { userPreferred }
+                                            name { userPreferred full first middle last native alternative }
                                             image { medium }
                                         }
                                         voiceActors(sort: [RELEVANCE, LANGUAGE]) {
                                             id
-                                            name { userPreferred }
+                                            name { userPreferred full first middle last native alternative }
                                             image { medium }
                                             languageV2
                                         }
@@ -264,7 +271,7 @@ class KitsugiCharacterClient {
                             }
                         }
                     """.trimIndent()
-                    val variables = JSONObject().put("type", if (mediaType == MediaType.Anime) "ANIME" else "MANGA")
+                    val variables = JSONObject().put("type", MalJikanMediaSupport.aniListMediaType(mediaType))
                     if (aniListId != null) variables.put("id", aniListId) else variables.put("idMal", externalId)
 
                     runCatching {
@@ -294,7 +301,8 @@ class KitsugiCharacterClient {
                             val node = edge.optJSONObject("node") ?: continue
                             val id = node.optInt("id")
                             val nameObj = node.optJSONObject("name")
-                            val name = nameObj?.optNullableString("userPreferred") ?: "Bilinmeyen"
+                            val personName = nameObj.aniListPersonName()
+                            val name = personName.preferred
                             val imageUrl = node.optJSONObject("image")?.optNullableString("medium")
 
                             val vaList = mutableListOf<KitsugiVoiceActor>()
@@ -303,15 +311,16 @@ class KitsugiCharacterClient {
                                 for (j in 0 until vaArray.length()) {
                                     val vaItem = vaArray.optJSONObject(j) ?: continue
                                     val vaId = vaItem.optInt("id")
-                                    val vaName = vaItem.optJSONObject("name")?.optNullableString("userPreferred") ?: "Bilinmeyen"
+                                    val vaPersonName = vaItem.optJSONObject("name").aniListPersonName()
+                                    val vaName = vaPersonName.preferred
                                     val vaLang = (vaItem.optNullableString("languageV2")
                                         ?: vaItem.optNullableString("language")
                                         ?: "Japanese").toTurkishLanguage()
                                     val vaImageUrl = vaItem.optJSONObject("image")?.optNullableString("medium")
-                                    vaList.add(KitsugiVoiceActor(vaId, vaName, vaLang, vaImageUrl, source = "anilist"))
+                                    vaList.add(KitsugiVoiceActor(vaId, vaName, vaLang, vaImageUrl, source = "anilist", romanizedName = vaPersonName.romanized, nativeName = vaPersonName.native))
                                 }
                             }
-                            list.add(KitsugiCharacter(id, name, role, imageUrl, vaList, source = "anilist"))
+                            list.add(KitsugiCharacter(id, name, role, imageUrl, vaList, source = "anilist", romanizedName = personName.romanized, nativeName = personName.native))
                         }
                         list
                     }.getOrElse { err ->
@@ -435,7 +444,7 @@ class KitsugiCharacterClient {
     ): KitsugiCharacterDetail? {
         return withContext(Dispatchers.IO) {
             if (characterId <= 0) return@withContext null
-            when (source.lowercase()) {
+            when (MalJikanMediaSupport.canonicalSource(source)) {
                 "shikimori" -> {
                     KitsugiShikimoriClient.fetchCharacterDetail(characterId)
                 }
@@ -587,6 +596,7 @@ class KitsugiCharacterClient {
                                 isFavourite
                                 name {
                                     userPreferred
+                                    full first middle last
                                     native
                                     alternative
                                     alternativeSpoiler
@@ -615,7 +625,7 @@ class KitsugiCharacterClient {
                                         }
                                         voiceActors {
                                             id
-                                            name { userPreferred }
+                                            name { userPreferred full first middle last native alternative }
                                             image { medium }
                                             language
                                             languageV2
@@ -632,7 +642,8 @@ class KitsugiCharacterClient {
                         val data = root.optJSONObject("data")?.optJSONObject("Character") ?: return@runCatching null
 
                         val nameObj = data.optJSONObject("name")
-                        val name = nameObj?.optNullableString("userPreferred") ?: "Bilinmeyen"
+                        val personName = nameObj.aniListPersonName()
+                        val name = personName.preferred
                         val nativeName = nameObj?.optNullableString("native")
 
                         val alternativeNames = mutableListOf<String>()
@@ -707,12 +718,13 @@ class KitsugiCharacterClient {
                                     for (j in 0 until vaArray.length()) {
                                         val vaItem = vaArray.optJSONObject(j) ?: continue
                                         val vaId = vaItem.optInt("id")
-                                        val vaName = vaItem.optJSONObject("name")?.optNullableString("userPreferred") ?: "Bilinmeyen"
+                                        val vaPersonName = vaItem.optJSONObject("name").aniListPersonName()
+                                        val vaName = vaPersonName.preferred
                                         val vaLang = (vaItem.optNullableString("languageV2")
                                             ?: vaItem.optNullableString("language")
                                             ?: "Japanese").toTurkishLanguage()
                                         val vaImageUrl = vaItem.optJSONObject("image")?.optNullableString("medium")
-                                        vaMap[vaId] = KitsugiVoiceActor(vaId, vaName, vaLang, vaImageUrl, source = "anilist")
+                                        vaMap[vaId] = KitsugiVoiceActor(vaId, vaName, vaLang, vaImageUrl, source = "anilist", romanizedName = vaPersonName.romanized, nativeName = vaPersonName.native)
                                     }
                                 }
                             }
@@ -733,7 +745,8 @@ class KitsugiCharacterClient {
                             voiceActors = vaMap.values.toList(),
                             mediaAppearances = mediaAppearances,
                             isFavourite = isFavourite,
-                            aniListId = characterId
+                            aniListId = characterId,
+                            romanizedName = personName.romanized
                         )
                     }.getOrNull()
                 }
@@ -897,6 +910,7 @@ class KitsugiCharacterClient {
                         isFavourite
                         name {
                             userPreferred
+                            full first middle last
                             native
                             alternative
                             alternativeSpoiler
@@ -925,7 +939,7 @@ class KitsugiCharacterClient {
                                 }
                                 voiceActors {
                                     id
-                                    name { userPreferred }
+                                    name { userPreferred full first middle last native alternative }
                                     image { medium }
                                     language
                                     languageV2
@@ -945,7 +959,8 @@ class KitsugiCharacterClient {
             val data = charactersArr.getJSONObject(0)
 
             val nameObj = data.optJSONObject("name")
-            val charName = nameObj?.optNullableString("userPreferred") ?: "Bilinmeyen"
+            val personName = nameObj.aniListPersonName()
+            val charName = personName.preferred
             val nativeName = nameObj?.optNullableString("native")
 
             val alternativeNames = mutableListOf<String>()
@@ -1026,7 +1041,8 @@ class KitsugiCharacterClient {
                         for (j in 0 until vaArr.length()) {
                             val va = vaArr.optJSONObject(j) ?: continue
                             val vaId = va.optInt("id")
-                            val vaName = va.optJSONObject("name")?.optNullableString("userPreferred") ?: "Bilinmeyen"
+                            val vaPersonName = va.optJSONObject("name").aniListPersonName()
+                            val vaName = vaPersonName.preferred
                             val vaImg = va.optJSONObject("image")?.optNullableString("medium")
                             val vaLang = (va.optNullableString("languageV2")
                                 ?: va.optNullableString("language")
@@ -1035,6 +1051,8 @@ class KitsugiCharacterClient {
                                 KitsugiVoiceActor(
                                     id = vaId,
                                     name = vaName,
+                                    romanizedName = vaPersonName.romanized,
+                                    nativeName = vaPersonName.native,
                                     language = vaLang,
                                     imageUrl = vaImg,
                                     source = "anilist"
@@ -1060,7 +1078,8 @@ class KitsugiCharacterClient {
                 mediaAppearances = mediaAppearances,
                 voiceActors = voiceActors,
                 isFavourite = isFavourite,
-                aniListId = data.optInt("id")
+                aniListId = data.optInt("id"),
+                romanizedName = personName.romanized
             )
         }.getOrNull()
     }

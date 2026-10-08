@@ -1225,6 +1225,7 @@ private fun PosterGridMediaEntryCard(
     val accentColor = LocalKitsugiAccent.current
     val imageUrl = entry.imageUrl
     val isTv = LocalIsTv.current
+    val cardShape = RoundedCornerShape(16.dp)
 
     val posterModifier = if (isTv) {
         Modifier
@@ -1239,9 +1240,10 @@ private fun PosterGridMediaEntryCard(
 
     Column(
         modifier = modifier
-            .clip(RoundedCornerShape(16.dp))
+            .kitsugiNeonGlow(cardShape)
+            .clip(cardShape)
             .background(KitsugiColors.Surface)
-            .tvClickable(shape = RoundedCornerShape(16.dp), scaleFocused = 1.05f, onClick = onClick)
+            .tvClickable(shape = cardShape, scaleFocused = 1.05f, onClick = onClick)
     ) {
         // ─── Poster görseli ─────────────────────────────────────────────────
         Box(

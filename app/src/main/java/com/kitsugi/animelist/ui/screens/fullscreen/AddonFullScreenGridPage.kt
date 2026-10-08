@@ -110,11 +110,16 @@ fun AddonFullScreenGridPage(
     }
 
     // ── State ────────────────────────────────────────────────────────────────
-    var loadedItems by remember { mutableStateOf(state.initialItems) }
-    var currentPage by remember { mutableIntStateOf(if (state.initialItems.isEmpty()) 0 else 1) }
+    var loadedItems by remember { mutableStateOf(state.cachedItems ?: state.initialItems) }
+    var currentPage by remember { mutableIntStateOf(state.cachedPage ?: if (state.initialItems.isEmpty()) 0 else 1) }
     var isLoadingMore by remember { mutableStateOf(false) }
-    var hasMorePages by remember { mutableStateOf(true) }
+    var hasMorePages by remember { mutableStateOf(state.cachedHasMore ?: true) }
     var loadError by remember { mutableStateOf<String?>(null) }
+    androidx.compose.runtime.SideEffect {
+        state.cachedItems = loadedItems
+        state.cachedPage = currentPage
+        state.cachedHasMore = hasMorePages
+    }
     var apiReady by remember { mutableStateOf(false) }
     var activeDetailItem by remember { mutableStateOf<com.lagradost.cloudstream3.SearchResponse?>(null) }
     var activeDetailApiName by remember { mutableStateOf<String?>(null) }

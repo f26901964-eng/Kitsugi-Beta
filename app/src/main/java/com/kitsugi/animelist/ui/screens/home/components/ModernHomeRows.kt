@@ -79,6 +79,8 @@ fun ModernHomeRows(
 
         Spacer(modifier = Modifier.height(8.dp))
 
+        // Keep the row state alive while the placeholder replaces its content.
+        val rowState = androidx.compose.runtime.saveable.rememberSaveable(title, saver = androidx.compose.foundation.lazy.LazyListState.Saver) { androidx.compose.foundation.lazy.LazyListState() }
         when {
             isLoading && results.isEmpty() -> {
                 KitsugiShimmerMediaRow(cardCount = 5)
@@ -92,7 +94,6 @@ fun ModernHomeRows(
                 )
             }
             else -> {
-                val rowState = androidx.compose.runtime.remember(title) { androidx.compose.foundation.lazy.LazyListState() }
                 LazyRow(
                     state = rowState,
                     contentPadding = PaddingValues(horizontal = 16.dp),

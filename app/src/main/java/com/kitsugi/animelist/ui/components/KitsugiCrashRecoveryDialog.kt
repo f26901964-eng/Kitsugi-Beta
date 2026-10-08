@@ -1,4 +1,4 @@
-﻿package com.kitsugi.animelist.ui.components
+package com.kitsugi.animelist.ui.components
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.ClipData
@@ -52,21 +52,12 @@ fun KitsugiCrashRecoveryDialog(
                     .padding(20.dp),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                // İkon
-                Box(
+                // Çökme Animasyonu
+                KitsugiCrashAnimation(
                     modifier = Modifier
-                        .size(56.dp)
-                        .clip(RoundedCornerShape(16.dp))
-                        .background(KitsugiColors.SurfaceSoft),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        Icons.Rounded.BugReport,
-                        contentDescription = null,
-                        tint = KitsugiColors.AccentRed,
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
+                        .width(160.dp)
+                        .height(90.dp)
+                )
 
                 Spacer(Modifier.height(12.dp))
 

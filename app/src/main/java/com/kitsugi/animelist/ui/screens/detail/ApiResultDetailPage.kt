@@ -638,8 +638,8 @@ fun ApiResultDetailPage(
                             }
                         }
                     }
-                    2 -> CharactersTabContent(state = charactersState, onCharacterClick = onCharacterClick, onStaffClick = onStaffClick, onMediaClick = onMediaClick)
-                    3 -> StaffTabContent(state = staffState, onStaffClick = onStaffClick)
+                    2 -> CharactersTabContent(state = charactersState, onCharacterClick = onCharacterClick, onStaffClick = onStaffClick, onMediaClick = onMediaClick, titleLanguage = titleLanguage)
+                    3 -> StaffTabContent(state = staffState, onStaffClick = onStaffClick, titleLanguage = titleLanguage)
                     4 -> RecommendationsTabContent(state = recommendationsState, titleLanguage = titleLanguage, blurAdultMedia = blurAdultMedia, onRecommendationClick = { rel ->
                         val typeLabel = when (rel.mediaType) {
                             MediaType.Anime -> "Anime"

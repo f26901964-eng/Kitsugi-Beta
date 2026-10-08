@@ -124,21 +124,12 @@ class KitsugiCrashActivity : ComponentActivity() {
                     ) {
                         Spacer(Modifier.height(20.dp))
 
-                        // ── İkon + Başlık ─────────────────────────────────────────────────
-                        Surface(
-                            shape = RoundedCornerShape(18.dp),
-                            color = KitsugiColors.SurfaceSoft,
-                            modifier = Modifier.size(72.dp)
-                        ) {
-                            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                                Icon(
-                                    Icons.Rounded.BugReport,
-                                    contentDescription = null,
-                                    tint = KitsugiColors.AccentRed,
-                                    modifier = Modifier.size(38.dp)
-                                )
-                            }
-                        }
+                        // ── Çökme Animasyonu ──────────────────────────────────────────────
+                        com.kitsugi.animelist.ui.components.KitsugiCrashAnimation(
+                            modifier = Modifier
+                                .width(180.dp)
+                                .height(101.dp)
+                        )
 
                         Spacer(Modifier.height(12.dp))
 

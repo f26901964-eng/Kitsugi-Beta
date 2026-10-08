@@ -9,4 +9,11 @@ data class FullScreenMediaGridState(
     val categoryType: ExploreCategoryType,
     val platform: ExplorePlatform,
     val initialResults: List<JikanSearchResult>
-)
+) {
+    // In-memory pagination while a detail page is pushed above the grid.
+    var savedStateKey: String? = null
+    var openingStackDepth: Int = 0
+    var cachedResults: List<JikanSearchResult>? = null
+    var cachedPage: Int? = null
+    var cachedHasMore: Boolean? = null
+}
