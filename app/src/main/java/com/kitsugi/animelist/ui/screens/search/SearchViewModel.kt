@@ -53,6 +53,24 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     private var searchJob: Job? = null
 
     /**
+     * Arama nesli (generation) sayacı.
+     *
+     * Her yeni arama bu sayacı artırır. Arka planda kalan iptal edilmiş bir çalışma
+     * yalnızca kendi nesli güncel nesle eşitse UI durumuna yazabilir; aksi halde eski
+     * sorgunun (çoğu zaman boş/başarısız) sonuçları yeni sorgunun üzerine yazıyor ve
+     * "Tümü" ekranında kaynaklara göre karışık/eksik sonuç görünüyordu.
+     */
+    private val searchGeneration = java.util.concurrent.atomic.AtomicInteger(0)
+
+    /**
+     * "Tümü" aramasında tek bir kaynağın yanıtı için tanınan süre. Eski değer 7 sn idi;
+     * yavaş mobil bağlantılarda (ör. 125 KB/s) AniList/MAL yanıtı bu süreyi aşınca kaynak
+     * tamamen kayboluyor ve kullanıcı "aradığım şey çıkmıyor" durumuyla karşılaşıyordu.
+     * Şeffaf yükleme durumu (shimmer) korunduğu için süre artışı UX'i bozmaz.
+     */
+    private val allSourceTimeoutMs = 20_000L
+
+    /**
      * Arama ekranında kaynak seçimi kalıcılığı: kullanıcı hangi kaynağı/kapsamı seçtiyse
      * uygulama yeniden açıldığında oradan devam eder.
      */
@@ -1018,6 +1036,10 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         searchJob?.cancel()
         debounceJob?.cancel()
 
+        // Bu çalışmanın nesli. Sonraki aramalar sayacı ilerletir; o anda hâlâ çalışan
+        // (iptali yutan) eski çalışmalar UI durumuna yazamaz.
+        val generation = searchGeneration.incrementAndGet()
+
         val queryNotBlank = state.query.isNotBlank()
         val newHistoryItem = if (queryNotBlank) {
             SearchHistoryItem(
@@ -1039,7 +1061,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         searchJob = viewModelScope.launch {
             try {
                 val rawQuery = state.query.trim()
-                val (results, hasNext) = executeSearchForPage(rawQuery, page = 1)
+                val (results, hasNext) = executeSearchForPage(rawQuery, page = 1, generation = generation)
 
                 ensureActive()
 
@@ -1080,12 +1102,15 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         if (state.query.isBlank() && !state.hasFiltersApplied) return
 
         val nextPage = state.page + 1
+        val generation = searchGeneration.get()
         _uiState.update { it.copy(isLoadingMore = true) }
 
         viewModelScope.launch {
             try {
-                val (moreResults, hasNext) = executeSearchForPage(state.query.trim(), page = nextPage)
+                val (moreResults, hasNext) = executeSearchForPage(state.query.trim(), page = nextPage, generation = generation)
                 _uiState.update { current ->
+                    // Nesil değiştiyse (araya yeni bir arama girdiyse) sayfalamayı uygulama.
+                    if (searchGeneration.get() != generation) return@update current
                     val currentIds = current.results.map { "${it.source}_${it.malId}" }.toSet()
                     val uniqueNew = moreResults.filter { !currentIds.contains("${it.source}_${it.malId}") }
                     current.copy(
@@ -1103,7 +1128,11 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    private suspend fun executeSearchForPage(queryText: String, page: Int): Pair<List<JikanSearchResult>, Boolean> {
+    private suspend fun executeSearchForPage(
+        queryText: String,
+        page: Int,
+        generation: Int = searchGeneration.get()
+    ): Pair<List<JikanSearchResult>, Boolean> {
         val state = _uiState.value
         val showAdult = showAdultContentState
 
@@ -1384,6 +1413,17 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 val combinedResults = mutableListOf<JikanSearchResult>()
 
                 fun onPlatformCompleted(platformResults: List<JikanSearchResult>, updater: (MultiPlatformResults) -> MultiPlatformResults) {
+                    // Bayat çalışma koruması: iptal edilen (artık geçersiz) bir arama,
+                    // kaynak sonuçlarını yeni aramanın üzerine YAZAMAZ — aksi halde yeni
+                    // sorgunun AniList/MAL satırları boşalırken Shikimori/Kitsu satırları
+                    // eski sorgunun (alakasız) sonuçlarıyla doluyordu.
+                    if (searchGeneration.get() != generation) {
+                        android.util.Log.d(
+                            "SearchViewModel",
+                            "Bayat arama nesli (gen=$generation, güncel=${searchGeneration.get()}) — kaynak sonucu yazılmadı"
+                        )
+                        return
+                    }
                     _uiState.update { current ->
                         val newMulti = updater(current.multiResults)
                         val merged = synchronized(resultsLock) {
@@ -1399,7 +1439,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 }
 
                 val aniListDef = async(Dispatchers.IO) {
-                    val res = withTimeoutOrNull(7000L) {
+                    val res = withTimeoutOrNull(allSourceTimeoutMs) {
                         runCatching {
                             if (scopeIsManga) {
                                 apiClient.searchAniListPaged(
@@ -1448,14 +1488,14 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                                     perPage = 10
                                 ).results
                             }
-                        }.getOrDefault(emptyList())
+                        }.getOrElse { err -> if (err is kotlinx.coroutines.CancellationException) throw err; emptyList() }
                     } ?: emptyList()
                     onPlatformCompleted(res) { it.copy(aniListResults = res, isLoadingAniList = false) }
                     res
                 }
 
                 val malDef = async(Dispatchers.IO) {
-                    val res = withTimeoutOrNull(7000L) {
+                    val res = withTimeoutOrNull(allSourceTimeoutMs) {
                         runCatching {
                             if (scopeIsManga) {
                                 apiClient.searchMALOnly(
@@ -1494,24 +1534,24 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                                     showAdultContent = showAdult
                                 ).take(10)
                             }
-                        }.getOrDefault(emptyList())
+                        }.getOrElse { err -> if (err is kotlinx.coroutines.CancellationException) throw err; emptyList() }
                     } ?: emptyList()
                     onPlatformCompleted(res) { it.copy(malResults = res, isLoadingMal = false) }
                     res
                 }
 
                 val tmdbDef = async(Dispatchers.IO) {
-                    val res = withTimeoutOrNull(7000L) {
+                    val res = withTimeoutOrNull(allSourceTimeoutMs) {
                         runCatching {
                             TmdbApiClient().search(queryText).take(10)
-                        }.getOrDefault(emptyList())
+                        }.getOrElse { err -> if (err is kotlinx.coroutines.CancellationException) throw err; emptyList() }
                     } ?: emptyList()
                     onPlatformCompleted(res) { it.copy(tmdbResults = res, isLoadingTmdb = false) }
                     res
                 }
 
                 val shikimoriDef = async(Dispatchers.IO) {
-                    val res = withTimeoutOrNull(7000L) {
+                    val res = withTimeoutOrNull(allSourceTimeoutMs) {
                         runCatching {
                             if (scopeIsManga) {
                                 KitsugiShikimoriClient.searchMediaAdvanced(
@@ -1542,14 +1582,14 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                             } else {
                                 KitsugiShikimoriClient.searchAnime(queryText, limit = 10)
                             }
-                        }.getOrDefault(emptyList())
+                        }.getOrElse { err -> if (err is kotlinx.coroutines.CancellationException) throw err; emptyList() }
                     } ?: emptyList()
                     onPlatformCompleted(res) { it.copy(shikimoriResults = res, isLoadingShikimori = false) }
                     res
                 }
 
                 val kitsuDef = async(Dispatchers.IO) {
-                    val res = withTimeoutOrNull(7000L) {
+                    val res = withTimeoutOrNull(allSourceTimeoutMs) {
                         runCatching {
                             if (scopeIsManga) {
                                 KitsuExploreClient.searchMediaAdvanced(
@@ -1590,17 +1630,17 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                                     limit = 10
                                 )
                             }
-                        }.getOrDefault(emptyList())
+                        }.getOrElse { err -> if (err is kotlinx.coroutines.CancellationException) throw err; emptyList() }
                     } ?: emptyList()
                     onPlatformCompleted(res) { it.copy(kitsuResults = res, isLoadingKitsu = false) }
                     res
                 }
 
                 val simklDef = async(Dispatchers.IO) {
-                    val res = withTimeoutOrNull(7000L) {
+                    val res = withTimeoutOrNull(allSourceTimeoutMs) {
                         runCatching {
                             SimklApiClient().search(queryText, limit = 10)
-                        }.getOrDefault(emptyList())
+                        }.getOrElse { err -> if (err is kotlinx.coroutines.CancellationException) throw err; emptyList() }
                     } ?: emptyList()
                     onPlatformCompleted(res) { it.copy(simklResults = res, isLoadingSimkl = false) }
                     res
@@ -1615,6 +1655,12 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
 
                 val finalCombined = (aniListRes + malRes + tmdbRes + shikimoriRes + kitsuRes + simklRes)
                     .distinctBy { "${it.source}_${it.malId}" }
+
+                if (searchGeneration.get() != generation) {
+                    // Bu çalışma arada başlayan yeni bir arama tarafından geçersiz kılındı;
+                    // hiçbir şey yazmıyoruz (çağıran tarafın ensureActive() kontrolü de var).
+                    return@supervisorScope Pair(_uiState.value.results, false)
+                }
 
                 _uiState.update {
                     it.copy(

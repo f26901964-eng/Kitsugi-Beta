@@ -1,5 +1,35 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.201)
+### 🩹 Kitsu Detay Sayfası Artık Açılıyor (Eski Kayıtlar Kurtarıldı)
+- **Kimlik alanı artık silinmiyor:** `KitsuIdentityMigration` çözemediği kayıtta `malId` değerini `null` yapıyordu. Kayıt kimliksiz kalınca detay sayfası yerel satır numarasını (`entry.id`, örn. 42) MAL ID'si sanıp ya alakasız yapım getiriyor ya da **"Medya detay bilgisi şu anda yüklenemedi"** ekranına düşüyordu. Artık değer korunur (Kitsu kimliği gibi yorumlanmaz, MAL tarafında kullanılmaya devam eder) ve sonraki turda yeniden denenir.
+- **Kitsu'ya güvenli yedek zinciri:** Kitsu kaydı veri döndürmediğinde (Kitsu'da silinmiş/18+ gizlenmiş yapım, 404, çözülememiş eşleme) sırayla: kaydın bildiği gerçek MAL ID → Jikan, sıkı başlık eşleşmeli MAL araması → Jikan, film/dizi ise başlıktan TMDB denenir. Hiçbiri başlığı doğrulanmamış bir yapımı kabul etmez.
+- **Kimliksiz kayıtlar başlıktan çözülür:** Kitsu kaydında kimlik yoksa istemci artık sayfayı düşürmek yerine başlıktan kanonik stableId çözmeyi dener.
+- **Onarım bütçesi:** Kimlik onarımında ağ denemesi bütçesi 40 → 120'ye çıkarıldı ve bütçe nedeniyle ertelenen kayıtlar "başarısız" sayılmaz (sonraki turda denenir).
+- **Silinmiş kimlikler geri kazanılıyor:** Önceki onarım turunun kimliği tamamen sildiği Kitsu kayıtları (`malId = null`) artık atlanmıyor; başlık üzerinden yeniden çözülüp kanonik stableId yazılıyor.
+- **+18 (R18) Kitsu kayıtları artık açılıyor:** Kitsu API'si R18/nsfw kayıtları **anonim isteklere gizler**. Detay, manga detayı ve kimlik onarımı artık kullanıcının Kitsu jetonuyla istek atıyor (jeton yoksa/geçersizse anonim isteğe düşer). Bu yüzden +18 kayıtlarda Kitsu "404" dönse bile sayfa veriyle açılıyor.
+
+### 🔎 Arama "Tümü" Sekmesi Düzeltmeleri
+- **Bayat arama sonucu sızması giderildi:** Arama her yazılan tuşta yeniden başlatılırken iptal edilen çalışma, iptali yutan `runCatching` blokları yüzünden arka planda devam edip **yeni sorgunun sonuçlarının üzerine yazıyordu.** Bu yüzden "Tümü" ekranında bir kaynak (AniList/MAL) boş kalırken başka bir kaynak (Shikimori/Kitsu) önceki sorgunun alakasız sonuçlarını gösteriyordu. Artık her arama bir nesil (generation) numarası taşır ve yalnızca güncel nesil UI durumuna yazabilir.
+- **İptal sinyali artık yutulmuyor:** Kaynak isteklerinde `CancellationException` yeniden fırlatılır; iptal edilen arama gereksiz ağ trafiği üretmez.
+- **Kaynak zaman tavanı 7 sn → 20 sn:** Yavaş mobil bağlantılarda (ekran görüntülerindeki ~125 KB/s gibi) AniList/MAL yanıtı 7 saniyeyi aşınca kaynak tamamen kayboluyordu. Kaynaklar geldikçe tek tek görünmeye devam eder.
+- **MyAnimeList yedeği:** Resmî MAL v2 API'si boş/başarısız döndüğünde (anahtar, 429, bölgesel engel) artık Jikan v4 araması devreye girer — "MyAnimeList" rafı boş kalmaz ve kimlikler MAL kalır (AniList kimliği MAL diye gösterilmez).
+
+## 🇬🇧 English (v2.4.201)
+### 🩹 Kitsu Detail Page Now Loads (Legacy Records Rescued)
+- **Identity is never destroyed:** `KitsuIdentityMigration` used to set `malId = null` when it could not resolve a Kitsu stable ID. Without an identity the detail page treated the local row id (e.g. 42) as a MAL ID — either opening an unrelated title or showing the **"Media details could not be loaded"** screen. The stored value is now preserved (it is never interpreted as a Kitsu ID, and the MAL path keeps working) and retried on the next run.
+- **Safe fallback chain for Kitsu:** When Kitsu returns no data (deleted/adult-hidden title, 404, unresolved mapping) the app now falls back in order: the record's real MAL ID → Jikan, a strict title-matched MAL search → Jikan, and for movies/TV shows a title-based TMDB lookup. No step ever accepts a title it could not verify.
+- **Identity-less records resolve by title:** If a Kitsu record has no identity at all, the client resolves the canonical stable ID from the title instead of failing the page.
+- **Repair budget:** Network lookup budget raised 40 → 120; entries deferred by the budget are no longer counted as failures (retried later).
+- **Deleted identities are recovered:** Kitsu records whose identity was wiped by the previous repair run (`malId = null`) are no longer skipped; they are re-resolved from the title and given a canonical stable ID.
+- **R18 Kitsu records now open:** The Kitsu API **hides R18/nsfw records from anonymous requests**. Detail, manga-detail and identity-repair calls now send the user's Kitsu token (falling back to anonymous when it is missing/expired), so pages load instead of reporting "not available" when Kitsu answers 404 anonymously.
+
+### 🔎 Search "All" Tab Fixes
+- **Stale search leakage fixed:** While typing, a new search cancels the previous one — but cancellation was swallowed by `runCatching` blocks, so the cancelled run kept writing its (often empty) results **over the fresh query.** That is why some rails (AniList/MAL) went missing while others (Shikimori/Kitsu) showed unrelated results from the previous query. Each search now carries a generation id and only the current generation may write UI state.
+- **Cancellation is no longer swallowed:** Source requests rethrow `CancellationException`, so superseded searches stop instead of wasting network calls.
+- **Per-source timeout 7s → 20s:** On slow mobile links (≈125 KB/s in the reported screenshots) sources exceeding 7 seconds disappeared entirely. Rails still appear incrementally as each source answers.
+- **MyAnimeList fallback:** When the official MAL v2 API returns nothing (key, 429, regional block) the app now falls back to Jikan v4 search — the "MyAnimeList" rail is no longer empty, and identities stay MAL-native.
+
 ## 🇹🇷 Türkçe (v2.4.198)
 ### 🔞 +18 Bulanıklık & Yetişkin İçerik Güvenliği (Her Koşulda Tam Koruma)
 - **46 Arayüz Yüzeyinde Eksiksiz Uygulama:** Ana sayfa, Keşfet şeritleri, Arama sonuçları, Karakter/Personel detayları, Galeri pencereleri ve Android TV arayüzlerinde +18 afiş ve görseller ayara tam uyumlu olarak maskelenir.

@@ -351,16 +351,26 @@ object KitsuExploreClient {
         }
     }
 
-    private suspend fun fetchMangaDetail(kitsuId: String): KitsugiMediaDetail? =
+    private suspend fun fetchMangaDetail(kitsuId: String): KitsugiMediaDetail? {
+        // R18/+18 Kitsu kayıtları anonim isteklere gizlenir (resmî API kuralı). Kayıt
+        // kullanıcının listesinden geldiği için oturum varsa jetonla çekiyoruz; jeton
+        // yoksa/geçersizse eskisi gibi anonim istek yapılır (bkz. KitsuClient.executeGet).
+        val authToken = runCatching { KitsuClient.authTokenOrNull() }.getOrNull()
+        return fetchMangaDetailOnce(kitsuId, authToken)
+            ?: if (authToken != null) fetchMangaDetailOnce(kitsuId, null) else null
+    }
+
+    private suspend fun fetchMangaDetailOnce(kitsuId: String, authToken: String?): KitsugiMediaDetail? =
         withContext(Dispatchers.IO) {
             try {
                 val url = "$BASE/manga/$kitsuId"
-                val request = Request.Builder()
+                val builder = Request.Builder()
                     .url(url)
                     .header("Accept", "application/vnd.api+json")
                     .header("Content-Type", "application/vnd.api+json")
                     .header("User-Agent", "Kitsugi/1.0 (Android)")
-                    .build()
+                if (authToken != null) builder.header("Authorization", "Bearer $authToken")
+                val request = builder.build()
 
                 KitsugiHttpClient.client.newCall(request).execute().use { response ->
                     if (!response.isSuccessful) return@withContext null

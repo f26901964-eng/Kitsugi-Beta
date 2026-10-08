@@ -85,8 +85,82 @@ class JikanSearchClient {
                 return@withContext official
             }
 
+            // 2. Resmî API boş/başarısız (anahtar, 429, bölgesel engel) → Jikan v4 yedeği.
+            // Jikan sonuçları da GERÇEK MAL kimlikleri taşır; bu yüzden "MyAnimeList"
+            // rafı boş kalmaz ve kimlik uzayı bozulmaz (AniList kimliği MAL diye gösterilmez).
+            val jikan = runCatching { searchJikanFallback(query, mediaType, showAdultContent) }
+                .getOrDefault(emptyList())
+            if (jikan.isNotEmpty()) {
+                return@withContext jikan
+            }
+
             emptyList()
         }
+    }
+
+    /**
+     * Jikan v4 arama uç noktası (`/anime|/manga?q=`) — resmî MAL API veri döndürmediğinde
+     * kullanılan yedek. Dönen kayıtlar MAL kimlikleriyle işaretlenir (`source = "mal"`).
+     */
+    private suspend fun searchJikanFallback(
+        query: String,
+        mediaType: MediaType,
+        showAdultContent: Boolean
+    ): List<JikanSearchResult> = withContext(Dispatchers.IO) {
+        if (query.isBlank()) return@withContext emptyList()
+        val endpoint = if (mediaType == MediaType.Manga) "manga" else "anime"
+        val encoded = URLEncoder.encode(query.trim(), "UTF-8")
+        val sfw = if (showAdultContent) "false" else "true"
+        val url = URL("https://api.jikan.moe/v4/$endpoint?q=$encoded&limit=24&sfw=$sfw&order_by=members&sort=desc")
+        val json = KitsugiApiBase.executeGetRequestResilient(url) ?: return@withContext emptyList()
+        val root = JSONObject(json)
+        val data = root.optJSONArray("data") ?: return@withContext emptyList()
+        val results = mutableListOf<JikanSearchResult>()
+        for (i in 0 until data.length()) {
+            val item = data.optJSONObject(i) ?: continue
+            val malId = item.optInt("mal_id", 0)
+            if (malId <= 0) continue
+            val title = item.optString("title", "").takeIf { it.isNotBlank() } ?: continue
+            val titleEnglish = item.optNullableString("title_english")
+            val titleJapanese = item.optNullableString("title_japanese")
+            val imgObj = item.optJSONObject("images")?.optJSONObject("jpg")
+            val imageUrl = imgObj?.optNullableString("large_image_url") ?: imgObj?.optNullableString("image_url")
+            val score = item.optDouble("score", Double.NaN).takeIf { !it.isNaN() }?.toInt()?.coerceIn(0, 10)
+            val year = item.optInt("year", 0).takeIf { it > 1900 }
+                ?: item.optJSONObject("aired")?.optJSONObject("prop")?.optJSONObject("from")?.optInt("year", 0)
+                    ?.takeIf { it > 1900 }
+            val total = if (mediaType == MediaType.Manga) {
+                item.optInt("chapters", 0).takeIf { it > 0 }
+            } else {
+                item.optInt("episodes", 0).takeIf { it > 0 }
+            }
+            val typeStr = item.optString("type", "")
+            val rating = item.optString("rating", "")
+            val isAdult = rating.contains("Rx", ignoreCase = true) || rating.contains("Hentai", ignoreCase = true)
+            val resolvedType = when {
+                mediaType == MediaType.Manga -> MediaType.Manga
+                typeStr.equals("Movie", ignoreCase = true) -> MediaType.Movie
+                else -> MediaType.Anime
+            }
+            results.add(
+                JikanSearchResult(
+                    malId = malId,
+                    title = title,
+                    subtitle = typeStr.ifBlank { "MAL" },
+                    type = resolvedType,
+                    total = total,
+                    score = score,
+                    isAdult = isAdult,
+                    imageUrl = imageUrl,
+                    year = year,
+                    source = "mal",
+                    titleEnglish = titleEnglish,
+                    titleJapanese = titleJapanese,
+                    members = item.optInt("members", 0).takeIf { it > 0 }
+                )
+            )
+        }
+        results
     }
 
     suspend fun searchMalAdvanced(

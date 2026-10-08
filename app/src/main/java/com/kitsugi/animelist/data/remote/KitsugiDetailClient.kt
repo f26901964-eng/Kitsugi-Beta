@@ -174,7 +174,18 @@ class KitsugiDetailClient {
         title: String? = null
     ): KitsugiMediaDetail? {
         return withContext(Dispatchers.IO) {
-            if (externalId == null || externalId <= 0) return@withContext null
+            // Kitsu kayıtlarında kimlik alanı boş olabilir (eski içe aktarmalar, kimlik onarımı
+            // ya da hiç çözülememiş eşleme). Bu durumda detayı KAYIT BAŞLIĞINDAN çözmeye
+            // çalışırız; kimlik yok diye sayfayı düşürmeyiz. Diğer kaynaklarda kimlik yoksa
+            // güvenli bir çıkış yolu yoktur → eskisi gibi null.
+            val hasUsableId = externalId != null && externalId > 0
+            val isKitsuSource = source.lowercase() == "kitsu"
+            if (!hasUsableId && !(isKitsuSource && !title.isNullOrBlank())) {
+                return@withContext null
+            }
+            // Kimlik yoksa 0: aşağıda hiçbir yerde ham sayı Kitsu/MAL kimliği gibi
+            // yorumlanmaz, yalnızca başlık çözümlemesi devreye girer.
+            val extId: Int = externalId?.takeIf { it > 0 } ?: 0
 
             val context = com.kitsugi.animelist.KitsugiApplication.getInstance()?.applicationContext
 
@@ -182,22 +193,21 @@ class KitsugiDetailClient {
             // Eski sürümlerde (veya MAL eşleşmesi bilinen kayıtlarda) bu alana gerçek MAL ID
             // yazıldığı için 35658 gibi bir MAL ID'si "Kitsu ID" diye yorumlanıp ALAKASIZ bir
             // yapımın ayrıntısı açılıyordu. Kimliği önce Kitsu uzayına kanonikleştiriyoruz.
-            val isKitsuSource = source.lowercase() == "kitsu"
             val kitsuCanonicalId = if (isKitsuSource) {
-                KitsuIdNamespace.stableIdOrNull(externalId)
+                KitsuIdNamespace.stableIdOrNull(extId)
                     ?: KitsuIdNamespace.resolveCanonicalStableId(
                         context = context,
                         storedId = null, // çözümleme realMalId/başlık üzerinden yapılsın
-                        realMalId = realMalId ?: KitsuIdNamespace.realMalIdOf(externalId),
+                        realMalId = realMalId ?: KitsuIdNamespace.realMalIdOf(extId),
                         isAnime = KitsuIdNamespace.isAnimeType(mediaType),
                         title = title
                     )
             } else {
-                externalId
+                extId
             }
 
             val mediaTypeStr = mediaType.name.lowercase()
-            val keyId = if (isKitsuSource) kitsuCanonicalId ?: externalId else externalId
+            val keyId = if (isKitsuSource) kitsuCanonicalId ?: extId else extId
             // Kimliği çözülememiş Kitsu kayıtlarında önbellek KULLANMIYORUZ: alan adı
             // (source + id) tek başına kimliği garanti etmiyor ve yanlış anahtar, yanlış veriyi
             // besleyebiliyor (gerçek hayatta görülen "alakasız veri" hatasının ikinci bacağı).
@@ -210,7 +220,7 @@ class KitsugiDetailClient {
                 null
             } else if (source.lowercase() == "tmdb") {
                 val typeStr = if (mediaType == MediaType.Movie) "movie" else "tv"
-                "tmdb_${typeStr}_$externalId"
+                "tmdb_${typeStr}_$extId"
             } else {
                 "${source.lowercase()}_$keyId"
             }
@@ -253,7 +263,7 @@ class KitsugiDetailClient {
                                         android.util.Log.w("KitsugiDetailClient", "Cached $source detail title mismatch: expected '$title', got '${detail.title}'. Invalidating cache.")
                                         db.persistentDetailCacheDao().deleteDetail(cacheKey)
                                         legacyKey?.let { db.persistentDetailCacheDao().deleteDetail(it) }
-                                        if (source.lowercase() == "tmdb") db.persistentDetailCacheDao().deleteDetail("tmdb_$externalId")
+                                        if (source.lowercase() == "tmdb") db.persistentDetailCacheDao().deleteDetail("tmdb_$extId")
                                     } else {
                                         android.util.Log.d("KitsugiDetailClient", "Serving fresh detail from Room cache for $cacheKey")
                                         return@withContext cleanDetail
@@ -273,17 +283,17 @@ class KitsugiDetailClient {
             // 2. Primary source fetch — toplam zaman tavanı: yavaş/hanging zincirler
             // (Jikan → ARM → TMDB → Kitsu ...) sayfanın önünü bloklamaz.
             val detail = withTimeoutOrNull(PRIMARY_FETCH_TIMEOUT_MS) { when (source.lowercase()) {
-                "jikan", "mal" -> KitsugiMalDetailClient.fetchDetail(externalId, mediaType)
+                "jikan", "mal" -> KitsugiMalDetailClient.fetchDetail(extId, mediaType)
                 "shikimori" -> {
                     // NOT: externalId Shikimori ID'sidir — MAL ID'si olarak KULLANILMAZ!
                     // Shikimori başarısızsa gerçek MAL ID'si ARM ile çözülüp dene.
-                    KitsugiShikimoriClient.fetchDetail(externalId, mediaType)
+                    KitsugiShikimoriClient.fetchDetail(extId, mediaType)
                         ?: run {
-                            val malId = KitsugiIdResolver.resolveMalIdFromShikimori(externalId)
+                            val malId = KitsugiIdResolver.resolveMalIdFromShikimori(extId)
                             if (malId != null && malId > 0) KitsugiMalDetailClient.fetchDetail(malId, mediaType) else null
                         }
                 }
-                "anilist" -> KitsugiAniListDetailClient.fetchDetail(externalId, mediaType)
+                "anilist" -> KitsugiAniListDetailClient.fetchDetail(extId, mediaType)
                 // Kitsu keşfet fallback öğeleri: stableId = kitsuId + 300_000_000
                 "kitsu" -> {
                     // Kanonik (300M aralığındaki) Kitsu stableId'si olmadan asla ham ID ile
@@ -292,35 +302,33 @@ class KitsugiDetailClient {
                     android.util.Log.d(
                         "KitsugiDetailClient",
                         if (canonicalKitsuId != null) "Fetching Kitsu detail for stableId=$canonicalKitsuId"
-                        else "Kitsu identity unresolved for stored id=$externalId ('$title'); skipping ID fetch"
+                        else "Kitsu identity unresolved for stored id=$extId ('$title'); resolving by title"
                     )
                     val rawKitsuDetail = canonicalKitsuId?.let { KitsuExploreClient.fetchDetailByStableId(it, mediaType) }
-                    // Kimlik çözülemediyse: (a) eski kayıtların malId alanında gerçek bir MAL ID
-                    // duruyorsa Jikan/MAL üzerinden çek, (b) o da yoksa sıkı başlık eşleşmeli
-                    // Kitsu araması dene. Başlığı tutmayan hiçbir sonucu kabul etmiyoruz.
-                    val fallbackDetail = if (rawKitsuDetail != null) {
-                        rawKitsuDetail
-                    } else if (mediaType == MediaType.Movie || mediaType == MediaType.TvShow) {
-                        // Film/dizi kayıtlarında malId alanı TMDB kimliği taşıyabilir; MAL ID
-                        // diye yorumlamak yanlış yapımı getirir → denemiyoruz.
-                        null
-                    } else {
-                        KitsuIdNamespace.realMalIdOf(externalId)?.let { malId ->
-                            KitsugiMalDetailClient.fetchDetail(malId, mediaType)
-                        } ?: title?.trim()?.takeIf { it.isNotBlank() }?.let { expectedTitle ->
-                            KitsuClient.fetchAnimeDetailByTitle(expectedTitle)?.takeIf { fetched ->
-                                val expected = expectedTitle.lowercase()
-                                val gotTitle = fetched.title?.trim()?.lowercase().orEmpty()
-                                val gotEnTitle = fetched.titleEnglish?.trim()?.lowercase().orEmpty()
-                                gotTitle.isNotBlank() && (gotTitle.contains(expected) || expected.contains(gotTitle) ||
-                                    gotEnTitle.isNotBlank() && (gotEnTitle.contains(expected) || expected.contains(gotEnTitle)))
-                            }
-                        }
+
+                    // ── Yedek zinciri ────────────────────────────────────────────────────
+                    // Kitsu kaydı veri döndürmediğinde (Kitsu'da silinmiş/18+ gizlenmiş kayıt,
+                    // 404, eşleşmemiş kimlik) sayfa "yüklenemedi" ekranına düşmemelidir.
+                    // Sıra: (a) kaydın/belleğin bildiği gerçek MAL ID → Jikan,
+                    //       (b) sıkı başlık eşleşmeli MAL araması → Jikan,
+                    //       (c) film/dizi ise başlıktan TMDB.
+                    // Hiçbir adım başlığı doğrulanmamış bir yapımı kabul etmez.
+                    var resolved: KitsugiMediaDetail? = rawKitsuDetail
+                    val malIdFallback = realMalId?.takeIf { it in 1..99_999_999 }
+                        ?: KitsuIdNamespace.realMalIdOf(extId)
+                    if (resolved == null && malIdFallback != null) {
+                        resolved = KitsugiMalDetailClient.fetchDetail(malIdFallback, mediaType)
                     }
-                    val kitsuDetail = fallbackDetail
+                    if (resolved == null) {
+                        resolved = fetchMalDetailByTitle(title, mediaType)
+                    }
+                    if (resolved == null) {
+                        resolved = fetchTmdbDetailByTitle(title, mediaType)
+                    }
+                    val kitsuDetail = resolved
                     // AnimeThemes entegrasyonu: Kitsu ID'si ile tema müziklerini çek
-                    if (kitsuDetail != null && mediaType != MediaType.Manga) {
-                        val kitsuNumericId = KitsuIdNamespace.rawIdFromStable(canonicalKitsuId ?: externalId)
+                    if (kitsuDetail != null && rawKitsuDetail != null && mediaType != MediaType.Manga) {
+                        val kitsuNumericId = KitsuIdNamespace.rawIdFromStable(canonicalKitsuId ?: extId)
                         if (kitsuNumericId != null && kitsuNumericId > 0) {
                             try {
                                 val themes = KitsugiAnimeThemesClient.fetchAnimeThemes(kitsuNumericId, "Kitsu")
@@ -337,7 +345,7 @@ class KitsugiDetailClient {
                 }
                 // TMDB discovery öğeleri: malId aslında tmdbId, doğrudan TMDB'den çek
                 "tmdb" -> {
-                    val effectiveTmdbId = tmdbId ?: externalId
+                    val effectiveTmdbId = tmdbId ?: extId
                     if (effectiveTmdbId > 0) {
                         val isMovie = mediaType == MediaType.Movie
                         val firstTry = TmdbApiClient().fetchMediaDetail(effectiveTmdbId, isMovie)
@@ -365,7 +373,7 @@ class KitsugiDetailClient {
                     // ayrıntı sayfası önce TMDB üzerinden açılır. TMDB çözülemezse
                     // anime kayıtlarında Jikan (MAL), son çare olarak Simkl kullanılır.
                     val malIdForResolve = realMalId?.takeIf { it > 0 }
-                        ?: DetailCache.getMediaDetail("simkl", externalId)?.realMalId
+                        ?: DetailCache.getMediaDetail("simkl", extId)?.realMalId
                     val resolvedTmdb = tmdbId?.takeIf { it > 0 } ?: run {
                         KitsugiIdResolver.resolveIds(
                             malId = malIdForResolve,
@@ -384,9 +392,9 @@ class KitsugiDetailClient {
                         tmdbDetail
                     } else if (mediaType == MediaType.Anime && malIdForResolve != null && malIdForResolve > 0) {
                         KitsugiMalDetailClient.fetchDetail(malIdForResolve, mediaType)
-                            ?: KitsugiSimklDetailClient.fetchSimklDetailDirect(externalId, mediaType)
+                            ?: KitsugiSimklDetailClient.fetchSimklDetailDirect(extId, mediaType)
                     } else {
-                        KitsugiSimklDetailClient.fetchSimklDetailDirect(externalId, mediaType)
+                        KitsugiSimklDetailClient.fetchSimklDetailDirect(extId, mediaType)
                     }
                 }
                 else -> null
@@ -417,9 +425,9 @@ class KitsugiDetailClient {
                         android.util.Log.d("KitsugiDetailClient", "AniList/MAL detail returned null. Trying Kitsu fallback.")
                         val kitsuId = if (db != null) {
                             val resolvedEntity = if (source.lowercase() == "anilist") {
-                                db.mediaMetaCacheDao().getByAniListId(externalId)
+                                db.mediaMetaCacheDao().getByAniListId(extId)
                             } else {
-                                db.mediaMetaCacheDao().getByMalId(externalId)
+                                db.mediaMetaCacheDao().getByMalId(extId)
                             }
                             resolvedEntity?.kitsuId
                         } else null
@@ -477,6 +485,51 @@ class KitsugiDetailClient {
 
             finalDetail
         }
+    }
+
+
+    /**
+     * MAL (Jikan) başlık araması: yalnızca başlığı **doğrulanan** ilk sonucu kabul eder.
+     *
+     * Kitsu gibi birincil kaynağı veri döndürmeyen kayıtlar (Kitsu'da silinmiş ya da
+     * gizlenmiş 18+ yapımlar) için güvenli yedektir; başlığı tutmayan hiçbir sonucu
+     * kabul etmediği için kullanıcıya asla alakasız bir yapım göstermez.
+     */
+    private suspend fun fetchMalDetailByTitle(title: String?, mediaType: MediaType): KitsugiMediaDetail? {
+        val query = title?.trim().orEmpty()
+        if (query.isBlank()) return null
+        val candidates = runCatching {
+            JikanApiClient().searchMALOnly(query, mediaType, showAdultContent = true)
+        }.getOrNull().orEmpty()
+        if (candidates.isEmpty()) return null
+        val match = candidates.firstOrNull { candidate ->
+            com.kitsugi.animelist.data.auth.CrossSyncIdentityGuard.titlesLookRelated(
+                listOfNotNull(candidate.title, candidate.titleEnglish, candidate.titleJapanese),
+                listOf(query),
+                strict = true
+            )
+        } ?: return null
+        android.util.Log.d(
+            "KitsugiDetailClient",
+            "MAL başlık yedeği: '$query' → MAL ${match.malId} ('${match.title}')"
+        )
+        return KitsugiMalDetailClient.fetchDetail(match.malId, mediaType)
+    }
+
+    /**
+     * TMDB başlık araması (yalnızca film/dizi) — medya türü eşleşen ilk sonuç kullanılır.
+     * Kaynak verisi tükenmiş film/dizi kayıtlarında sayfanın boş kalmamasını sağlar.
+     */
+    private suspend fun fetchTmdbDetailByTitle(title: String?, mediaType: MediaType): KitsugiMediaDetail? {
+        if (mediaType != MediaType.Movie && mediaType != MediaType.TvShow) return null
+        val query = title?.trim().orEmpty()
+        if (query.isBlank()) return null
+        val candidate = runCatching { TmdbApiClient().search(query) }.getOrNull().orEmpty()
+            .firstOrNull { it.type == mediaType && (it.tmdbId ?: 0) > 0 } ?: return null
+        val tmdbId = candidate.tmdbId ?: return null
+        return runCatching {
+            TmdbApiClient().fetchMediaDetail(tmdbId, mediaType == MediaType.Movie)
+        }.getOrNull()
     }
 
     /**
