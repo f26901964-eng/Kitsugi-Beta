@@ -63,6 +63,28 @@ class KitsugiCharacterClient {
             Log.d(TAG, "fetchCharacters başladı: source=$source, externalId=$externalId, realMalId=$realMalId, mediaType=$mediaType, tmdbId=$tmdbId, title=$title")
 
             when (srcLower) {
+                "bangumi" -> {
+                    // 1) Bangumi'nin KENDİ karakter + seslendirmen listesi (p1): eşleme gerektirmez.
+                    val native = runCatching { KitsugiBangumiDetailClient.fetchCharacters(externalId, mediaType) }
+                        .getOrNull().orEmpty()
+                    if (native.isNotEmpty()) return@withContext native
+
+                    // 2) Yedek: AniList araması → MAL kimliği çözülüp MAL/AniList karakterleri.
+                    //    Bangumi stableId'si (500M+) ASLA MAL ID olarak kullanılmaz.
+                    val cross = runCatching {
+                        KitsugiBangumiDetailClient.resolveCrossIds(externalId, mediaType)
+                    }.getOrNull()
+                    val malId = cross?.malId ?: KitsugiBangumiDetailClient.sanitizeMalId(realMalId)
+                    if (malId != null && malId > 0 && mediaType != MediaType.Movie && mediaType != MediaType.TvShow) {
+                        fetchJikanOrAniListCharacters(malId, mediaType, tmdbId ?: cross?.tmdbId, title)
+                    } else {
+                        val resolvedTmdb = tmdbId ?: cross?.tmdbId
+                        if (resolvedTmdb != null && resolvedTmdb > 0 && mediaType != MediaType.Manga) {
+                            val (tmdbChars, _) = TmdbApiClient().fetchCredits(resolvedTmdb, mediaType == MediaType.Movie)
+                            tmdbChars.map { it.copy(isRealMediaRole = true) }
+                        } else emptyList()
+                    }
+                }
                 "shikimori" -> {
                     // 1) Shikimori kendi karakter + seiyuu listesini verir: tek istek.
                     val shikiChars = KitsugiShikimoriClient.fetchCharacters(mediaType, externalId)
@@ -445,6 +467,9 @@ class KitsugiCharacterClient {
         return withContext(Dispatchers.IO) {
             if (characterId <= 0) return@withContext null
             when (MalJikanMediaSupport.canonicalSource(source)) {
+                "bangumi" -> {
+                    KitsugiBangumiDetailClient.fetchCharacterDetail(characterId)
+                }
                 "shikimori" -> {
                     KitsugiShikimoriClient.fetchCharacterDetail(characterId)
                 }

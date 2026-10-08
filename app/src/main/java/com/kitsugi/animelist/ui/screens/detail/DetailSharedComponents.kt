@@ -102,6 +102,7 @@ internal fun DetailPlatformBadge(
             "anilist" -> Color(0xFF02A9FF)
             "mal", "jikan" -> Color(0xFF2E51A2)
             "shikimori" -> Color(0xFF8E44AD)
+            "bangumi", "bgm" -> Color(0xFFF09199)
             "simkl" -> Color(0xFFE21926)
             "tmdb" -> Color(0xFFFFB800)
             else -> KitsugiColors.SurfaceSoft

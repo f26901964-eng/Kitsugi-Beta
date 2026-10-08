@@ -113,7 +113,25 @@ class KitsugiMediaTabsClient {
                     ?: KitsugiIdResolver.resolveMalIdFromShikimori(effectiveId)
             } else null
 
+            // Bangumi: stableId (500M+) MAL ID DEĞİLDİR. Bölümler Bangumi'nin kendi ucundan gelir;
+            // TMDB bölüm adı/görsel eşlemesi ve MAL yedeği çözülen çapraz kimliklerle yapılır.
+            val bangumiCross = if (effectiveSource == "bangumi") {
+                runCatching { KitsugiBangumiDetailClient.resolveCrossIds(effectiveId, mediaType) }.getOrNull()
+            } else null
+            val bangumiMalId = if (effectiveSource == "bangumi") {
+                bangumiCross?.malId ?: KitsugiBangumiDetailClient.sanitizeMalId(realMalId)
+            } else null
+
             val list: List<KitsugiStreamingEpisode> = when (effectiveSource) {
+                "bangumi" -> {
+                    val native = runCatching { KitsugiBangumiDetailClient.fetchEpisodes(effectiveId) }
+                        .getOrNull().orEmpty()
+                    if (native.isNotEmpty()) {
+                        native
+                    } else if (bangumiMalId != null && bangumiMalId > 0 && mediaType == MediaType.Anime) {
+                        fetchEpisodesFromJikan(bangumiMalId)
+                    } else emptyList()
+                }
                 "kitsu" -> {
                     // externalId = kitsuStableId = kitsuNumericId + 300_000_000
                     val kitsuOffset = 300_000_000
@@ -173,6 +191,15 @@ class KitsugiMediaTabsClient {
                             } else null
                         }
                         "tmdb" -> effectiveId
+                        "bangumi" -> {
+                            if (tmdbId != null && tmdbId > 0) {
+                                tmdbId
+                            } else if (bangumiCross?.tmdbId != null && bangumiCross.tmdbId > 0) {
+                                bangumiCross.tmdbId
+                            } else if (bangumiMalId != null && bangumiMalId > 0) {
+                                KitsugiEpisodeRatingsRepository.getResolvedTmdbIdForMal(bangumiMalId)
+                            } else null
+                        }
                         "shikimori" -> {
                             if (tmdbId != null && tmdbId > 0) {
                                 tmdbId
@@ -200,6 +227,15 @@ class KitsugiMediaTabsClient {
                                 } else null
                             }
                             "tmdb" -> effectiveId
+                            "bangumi" -> {
+                                if (tmdbId != null && tmdbId > 0) {
+                                    tmdbId
+                                } else if (bangumiCross?.tmdbId != null && bangumiCross.tmdbId > 0) {
+                                    bangumiCross.tmdbId
+                                } else if (bangumiMalId != null && bangumiMalId > 0) {
+                                    KitsugiEpisodeRatingsRepository.resolveTmdbIdFromMal(bangumiMalId)
+                                } else null
+                            }
                             "shikimori" -> {
                                 if (tmdbId != null && tmdbId > 0) {
                                     tmdbId

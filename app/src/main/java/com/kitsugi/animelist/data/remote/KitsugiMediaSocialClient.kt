@@ -46,6 +46,27 @@ class KitsugiMediaSocialClient {
         return withContext(Dispatchers.IO) {
             if (externalId == null || externalId <= 0) return@withContext null
             when (MalJikanMediaSupport.canonicalSource(source)) {
+                "bangumi" -> {
+                    // 1) Bangumi'nin kendi puan dağılımı + koleksiyon durumu + sıralaması (ek istek yok).
+                    val native = runCatching { KitsugiBangumiDetailClient.fetchStats(externalId, mediaType) }.getOrNull()
+                    val nativeUseful = native != null &&
+                        (native.scoreDistribution.isNotEmpty() || native.rankings.isNotEmpty() ||
+                            (native.completed ?: 0) + (native.watching ?: 0) + (native.planned ?: 0) > 0)
+                    if (nativeUseful) return@withContext native
+
+                    // 2) Yedek: Çözülen AniList / MAL kimliği (Bangumi stableId'si MAL ID DEĞİLDİR).
+                    if (mediaType != MediaType.Anime && mediaType != MediaType.Manga) return@withContext native
+                    val cross = runCatching { KitsugiBangumiDetailClient.resolveCrossIds(externalId, mediaType) }.getOrNull()
+                    val malId = cross?.malId ?: KitsugiBangumiDetailClient.sanitizeMalId(realMalId)
+                    val aniListStable = cross?.aniListStableId ?: resolveAniListStableIdForShikimori(malId)
+                    if (aniListStable != null) {
+                        val aniStats = fetchStatsFromAniList(aniListStable, mediaType)
+                        if (aniStats != null && (aniStats.rankings.isNotEmpty() || aniStats.scoreDistribution.isNotEmpty())) {
+                            return@withContext aniStats
+                        }
+                    }
+                    if (malId != null && malId > 0) fetchStatsFromJikan(malId, mediaType) ?: native else native
+                }
                 "tmdb" -> {
                     val effectiveTmdbId = externalId
                     val isMovie = mediaType == MediaType.Movie
@@ -284,6 +305,33 @@ class KitsugiMediaSocialClient {
         return withContext(Dispatchers.IO) {
             if (externalId == null || externalId <= 0) return@withContext emptyList()
             when (MalJikanMediaSupport.canonicalSource(source)) {
+                "bangumi" -> {
+                    // 1) Bangumi incelemeleri (uzun, tam metinli) + kısa puanlı kullanıcı yorumları.
+                    val native = runCatching { KitsugiBangumiDetailClient.fetchReviews(externalId, page) }
+                        .getOrNull().orEmpty()
+                    if (native.size >= 6 || (mediaType != MediaType.Anime && mediaType != MediaType.Manga)) {
+                        return@withContext native
+                    }
+
+                    // 2) Az ise MAL / AniList incelemeleriyle tamamla (çözülen kimliklerle).
+                    val cross = runCatching { KitsugiBangumiDetailClient.resolveCrossIds(externalId, mediaType) }.getOrNull()
+                    val malId = cross?.malId ?: KitsugiBangumiDetailClient.sanitizeMalId(realMalId)
+                    val extra: List<KitsugiReview> = if (malId != null && malId > 0) {
+                        val fromMal = runCatching { fetchReviewsFromJikan(malId, mediaType, page) }.getOrNull().orEmpty()
+                        if (fromMal.isNotEmpty()) fromMal else {
+                            val aniListStable = cross?.aniListStableId ?: resolveAniListStableIdForShikimori(malId)
+                            if (aniListStable != null) {
+                                runCatching { fetchReviewsFromAniList(aniListStable, mediaType, page) }.getOrNull().orEmpty()
+                            } else emptyList()
+                        }
+                    } else {
+                        val aniListStable = cross?.aniListStableId
+                        if (aniListStable != null) {
+                            runCatching { fetchReviewsFromAniList(aniListStable, mediaType, page) }.getOrNull().orEmpty()
+                        } else emptyList()
+                    }
+                    (native + extra).distinctBy { it.username + it.fullText.take(20) }
+                }
                 "simkl" -> {
                     val list = mutableListOf<KitsugiReview>()
                     if (mediaType == MediaType.Anime) {

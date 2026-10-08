@@ -78,6 +78,7 @@ API: `https://api.bgm.tv/v0` (46 uç). Auth host'u farklıdır: `https://bgm.tv`
 | `data/auth/BangumiImportManager.kt` | koleksiyonu içe aktarma (`MediaEntry`'ye çevirme), profil çekme |
 | `data/remote/BangumiIdNamespace.kt` | **500M ID ad alanı** (`subject_id + 500_000_000`) + yerel eşleme cache'i |
 | `data/remote/KitsugiBangumiClient.kt` | `JikanSearchResult` adaptörü: Keşfet şeritleri, sayfalı arama, karakter/kişi arama |
+| `data/remote/KitsugiBangumiDetailClient.kt` | **Detay sayfası**: Bangumi-yerel bilgi/karakter/ekip/ilişki/öneri/istatistik/yorum/bölüm + AniList→MAL→ARM çapraz kimlik çözümü + MAL/AniList/TMDB birleştirmesi |
 | `ui/components/KitsugiBangumiLoginDialog.kt` | App ID/Secret + 1-tık deep link + kod yapıştırma akışı |
 | `res/drawable/ic_logo_bangumi.xml` | marka rozeti (pembe zemin + beyaz küp) |
 
@@ -98,7 +99,11 @@ etiket/renk: `KitsugiHeroSection`, `KitsugiPlatformLogo`, `Character/StaffDetail
 
 - **Keşfet**: `GET /v0/subjects?type=&cat=&sort={date|rank}&year=&month=&limit=&offset=` (1. sayfa 24s cache)
 - **Arama**: `POST /v0/search/subjects` body `{keyword, sort: match|heat|rank|score, filter:{type,tag,air_date,rating,rank,nsfw,meta_tags}}` → 200 = `Paged_Subject` (tam `Subject` modeli!)
-- **Koleksiyon**: `GET /v0/users/{name}/collections[/{subject_id}]` (404 = toplanmamış),
+  `filter.nsfw` JSON **boolean** (metin → 400); `limit` sunucuda **20'ye kırpılır** (`SEARCH_PAGE_SIZE`); yedek: `GET /search/subject/{q}?type=&responseGroup=large&start=&max_results=`.
+- **Detay (web arayüzü API'si)**: `https://next.bgm.tv/p1/…` — anonim GET: `/subjects/{id}/characters|staffs/persons|relations|recs|reviews|comments|episodes`,
+  `/blogs/{id}`, `/characters/{id}(/casts)`, `/persons/{id}(/works|/casts)`. Sınırlar: recs ≤ 10, reviews ≤ 20, comments/characters/staffs/relations ≤ 100, episodes ≤ 1000.
+- **Koleksiyon**: `GET /v0/users/{name}/collections[/{subject_id}]` (404 = toplanmamış). **`{name}` GERÇEK kullanıcı adı olmalı:**
+  `-` takma adı yalnızca yazma uçlarında geçerli, okuma ucunda 404 "user doesn't exist" verir → `BangumiAuthStore.resolveUsername`,
   `POST|PATCH /v0/users/-/collections/{id}` → 204, bölüm: `…/episodes` (`{episode_id:[…],type}`)
 - **DELETE YOK** → silme = `type=5 (抛弃)` + `rate=0` (Aniyomi/Mihon da `DeletableAnimeTracker` uygulamaz)
 - `ep_status/vol_status` **yalnız kitap**; anime ilerlemesi bölüm uçlarıyla (打格子)
@@ -108,8 +113,8 @@ etiket/renk: `KitsugiHeroSection`, `KitsugiPlatformLogo`, `Character/StaffDetail
 
 ## 6. Bilinen kısıtlar
 
-1. Karakter/kişi sonucu tıklanınca detay sayfası AniList kimliği bekler → Bangumi karakter detay sayfası
-   henüz yok (Shikimori/Kitsu'da da aynı durum var).
+1. ~~Bangumi karakter/kişi detay sayfası yok~~ → artık var (`KitsugiBangumiDetailClient.fetchCharacterDetail/fetchStaffDetail`).
+   Detay sayfasının tüm sekmeleri ve çapraz platform eşlemesi için bkz. `PLAN_TASK_BANGUMI_FIXES.md`.
 2. Bangumi'de stüdyo/yayıncı bazlı arama yok → filtre sheet'inde bu alanlar sunulmaz.
 3. `aniyomi://bangumi-auth` yedek şeması **kayıtlı redirect ile eşleşmediği için** artık çalışmaz
    (kayıt `kitsugi://bangumi-auth`). Diyaloğun "Alternatif Şema" düğmesi yalnız redirect alanı BOŞ

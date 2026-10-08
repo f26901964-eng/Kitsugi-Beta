@@ -182,6 +182,10 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
     private suspend fun buildStaffGallery(staffId: Int, source: String, mainImageUrl: String?) {
         val jikanId = if (source.lowercase() == "anilist" && staffId >= 100_000_000) {
             null
+        } else if (source.equals("bangumi", ignoreCase = true)) {
+            // Bangumi kişi kimliği MAL uzayında DEĞİLDİR; Jikan /people/{id}/pictures alakasız
+            // bir kişinin görsellerini getirirdi.
+            null
         } else {
             staffId.takeIf { it > 0 }
         }

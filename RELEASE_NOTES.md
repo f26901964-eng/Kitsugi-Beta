@@ -1,5 +1,57 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.209)
+
+### 🎌 1. Bangumi Liste İçe Aktarma ve Eşitleme 404 Kök Neden Çözümü
+- **Kullanıcı Adı Çözümlemesi:** Bangumi sunucusunda `"-"` takma adının yalnızca yazma uçlarında geçerli olması ve okuma ucunda (`GET /v0/users/-/collections`) 404 vermesi sorunu çözüldü. Artık saklanan kullanıcı adı, yoksa `/v0/me`, o da yoksa sayısal ID dinamik olarak çözümlenerek gerçek kullanıcı adına istek atılıyor.
+- **Koleksiyon Uçları Güvenliği:** `getUserCollections`, `getAllUserCollections` ve `getUserCollection` fonksiyonlarındaki hatalı `"-"` varsayılan değeri kaldırılarak yanlışlıkla 404 hatasına düşülmesi engellendi.
+- **Durum Kontrolü:** `BangumiSyncManager.fetchRemoteStatus` içerisindeki aynı hata giderilerek uzaktaki izleme/okuma durumu güvenle alınır hale getirildi.
+
+### 🔍 2. Bangumi Arama Motoru İyileştirmeleri ve Yedek Uç
+- **Yetişkin İçerik (NSFW) Filtresi:** Yetişkin içerik açıkken sunucuya metin (`"include"`) olarak gidip 400 hatası oluşturan `filter.nsfw` parametresi, sunucunun beklediği JSON boolean formatına dönüştürüldü (`false` veya filtresiz).
+- **Sayfa Boyutu ve Atlama Düzeltmesi:** Sunucu limiti 20 olduğu halde istemcinin 24 kayıt istemesi ve offset hesaplamasında her sayfada 4 kaydın atlanması sorunu giderildi; tüm Bangumi aramalarında sayfa boyutu 20'ye sabitlendi.
+- **Eski Uç Yedeği (Legacy Search Fallback):** v0 deneysel arama ucu hata verirse veya boş dönerse `GET /search/subject/{q}` eski arama ucu otomatik devreye girer.
+- **Şeffaf Hata Bildirimi:** Arama hataları artık "Sonuç bulunamadı" ardına gizlenmez; sunucudan dönen gerçek hata mesajı ekranda gösterilir ("Tümü" karma rafında da anime ve manga hataları yüzeye çıkarılır).
+
+### 🎬 3. Kapsamlı Bangumi Detay Sayfası ve Çapraz Kimlik Eşleştirme (`KitsugiBangumiDetailClient`)
+- **Doğrudan Yerel Veri Doldurma:** Bilgi, karakterler (seslendirmenli), yapım ekibi, ilişkiler, öneriler, puan dağılım grafikleri, incelemeler/yorumlar ve bölümler doğrudan Bangumi'nin kendi verisinden (v0 ve p1 uçları) anında doldurulur.
+- **Karakter ve Kişi Detay Sayfaları:** Bangumi kaynaklı karakter ve yapım ekibi detay sayfaları p1 uçları üzerinden eksiksiz çalışır hale getirildi.
+- **Akıllı Çapraz Kimlik Eşleme:** Bangumi kaydı başlık, yıl, bölüm sayısı ve format puanlamasıyla AniList, MAL ve ARM üzerinden TMDB/Kitsu/TVDB/IMDb ile güvenli şekilde eşleştirilir.
+- **Zenginleştirilmiş Galeri:** Resimler sekmesine Fanart.tv, TMDB, Shikimori, MAL ve AniList görselleri dahil edildi. `lain.bgm.tv` kaynaklı aynı görselin farklı boyut kopyaları kanonik anahtar ile tekil görsele indirildi.
+- **Room Önbellek Sürümlemesi:** Önceki sürümlerin eksik/hatalı Kitsu aramasıyla önbelleğe aldığı satırların okunmasını engellemek için önbellek anahtarına `_bgm1` sürüm eki getirildi.
+- **Bölüm Puanları ve Logolar:** MDBList, logo ve bölüm puanları eşleşen çapraz kimlikler üzerinden kusursuz çalışır.
+
+### 📦 4. Dağıtım
+- Kullanıcı talimatı doğrultusunda **yalnızca `foss` varyantı** derlendi ve GitHub'a yüklendi (`Kitsugi-Beta-v2.4.209-foss.apk`). GMS kesinlikle hariç tutuldu.
+
+---
+
+## 🇬🇧 English (v2.4.209)
+
+### 🎌 1. Bangumi Collection Import & Sync 404 Root Cause Fix
+- **Dynamic Username Resolution:** Resolved the issue where Bangumi rejected the `"-"` alias on read endpoints (`GET /v0/users/-/collections`) with 404 Not Found. Real username is now dynamically determined via stored name, `/v0/me`, or numeric ID.
+- **Safe Collection Endpoints:** Removed the fallback `"-"` default in `getUserCollections`, `getAllUserCollections`, and `getUserCollection` to prevent accidental regressions.
+- **Sync Status Audit:** Fixed identical issue in `BangumiSyncManager.fetchRemoteStatus` so remote progress sync works reliably.
+
+### 🔍 2. Bangumi Search Improvements & Legacy Fallback
+- **NSFW Boolean Filtering:** Fixed `filter.nsfw` sending string `"include"` which caused HTTP 400 Bad Request; now correctly sends JSON boolean or omits when inactive.
+- **Page Size Alignment:** Standardized page size and pagination offsets to 20 to match Bangumi's hard limit, preventing 4-item skipping and false "no more pages" triggers.
+- **Legacy Fallback Endpoint:** If experimental v0 search fails or returns empty, fallback to legacy `GET /search/subject/{q}` seamlessly engages.
+- **Surfaced Error Messages:** API errors are no longer silently masked as "No results found"; descriptive server messages are displayed across both isolated and mixed search views.
+
+### 🎬 3. Full Native Bangumi Media Details & Cross-ID Enrichment (`KitsugiBangumiDetailClient`)
+- **Native Details & Tabs:** Information, characters with voice actors, staff, relations, recommendations, score distributions, reviews/comments, and episodes load immediately using native Bangumi APIs (v0 and p1).
+- **Character & Staff Pages:** Native Bangumi character and person profile pages are fully supported via p1 endpoints.
+- **Cross-ID Resolution:** Bangumi subjects are matched with AniList, MAL, and ARM (TMDB/Kitsu/TVDB/IMDb) using strict title, year, episode count, and format scoring.
+- **Enhanced Gallery & Dedup:** Gallery tabs are enriched with fanart.tv, TMDB, Shikimori, MAL, and AniList images. Duplicate covers from `lain.bgm.tv` across various size buckets are deduplicated into single items.
+- **Room Cache Busting:** Added `_bgm1` suffix to Bangumi detail cache keys, preventing stale/erroneous legacy Kitsu cache entries from loading.
+- **Episode Ratings & Logos:** MDBList, clearlogos, and episode rating curves now correctly resolve using the linked cross-IDs.
+
+### 📦 4. Distribution
+- Built and published strictly as a **FOSS release** (`Kitsugi-Beta-v2.4.209-foss.apk`). GMS flavor is omitted.
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.208)
 
 ### 🏷️ 1. AniList İsim Dili (Romaji / İngilizce / Japonca) Yerelleştirmesi

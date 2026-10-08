@@ -172,6 +172,24 @@ object BangumiAuthStore {
         }
     }
 
+    /**
+     * Koleksiyon **okuma** uçları (`GET /v0/users/{username}/collections[/{id}]`) için
+     * GERÇEK kullanıcı adını döndürür.
+     *
+     * Bangumi sunucusu bu uçlarda `-` takma adını kabul etmez (`user.GetByName("-")` →
+     * 404 "user doesn't exist or has been removed"). `-` yalnızca yazma uçlarında
+     * (`POST/PATCH /v0/users/-/collections/...`) geçerlidir. Sıra:
+     *  1. Kayıtlı kullanıcı adı,
+     *  2. `GET /v0/me` ile çözülen kullanıcı adı (kaydedilir),
+     *  3. Kayıtlı sayısal kullanıcı ID'si (özel kullanıcı adı yoksa `username` zaten ID'dir).
+     */
+    suspend fun resolveUsername(context: Context): String? {
+        getUsername(context)?.takeIf { it.isNotBlank() && it != "-" }?.let { return it }
+        ensureUserResolved(context)
+        getUsername(context)?.takeIf { it.isNotBlank() && it != "-" }?.let { return it }
+        return getUserId(context).takeIf { it > 0L }?.toString()
+    }
+
     fun logout(context: Context) {
         prefs(context).edit()
             .remove(KEY_TOKEN)

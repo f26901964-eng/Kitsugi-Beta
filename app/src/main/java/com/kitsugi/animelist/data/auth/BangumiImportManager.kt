@@ -66,7 +66,16 @@ object BangumiImportManager {
         resolveAdult: Boolean = false,
         maxAdultLookups: Int = 60
     ): List<MediaEntry> = withContext(Dispatchers.IO) {
-        val effectiveUsername = username?.takeIf { it.isNotBlank() } ?: "-"
+        // ÖNEMLİ: `GET /v0/users/-/collections` Bangumi'de 404 verir ("-" yalnızca yazma
+        // uçlarında geçerli). Okuma için gerçek kullanıcı adı (ya da sayısal ID) gerekir.
+        val effectiveUsername = username?.takeIf { it.isNotBlank() && it != "-" }
+            ?: BangumiAuthStore.resolveUsername(context)
+            ?: throw BangumiApiClient.BangumiApiException(
+                code = 401,
+                title = "Unauthorized",
+                description = null,
+                message = "Bangumi kullanıcı adı çözülemedi. Lütfen Bangumi hesabıyla tekrar giriş yapın."
+            )
         val collections = fetchCollectionsWithRetry(context, token, effectiveUsername, subjectType)
         Log.i(TAG, "Bangumi içe aktarma: ${collections.size} koleksiyon kaydı çekildi")
 

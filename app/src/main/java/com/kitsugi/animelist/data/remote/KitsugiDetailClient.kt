@@ -29,6 +29,8 @@ class KitsugiDetailClient {
                 "simkl" -> providedRealMalId
                 "jikan", "mal" -> externalId
                 "kitsu" -> providedRealMalId
+                // Bangumi stableId'si (500M+) MAL ID DEĞİLDİR; yalnızca çözülmüş gerçek MAL ID kullanılır.
+                "bangumi" -> KitsugiBangumiDetailClient.sanitizeMalId(providedRealMalId)
                 "anilist" -> {
                     // stableId < 100_000_000 → AniList arama sonucu MAL ID ile döndü
                     // Bu durumda MAL ID olarak çözümle, AniList ID olarak değil
@@ -128,8 +130,12 @@ class KitsugiDetailClient {
             if (mediaType != MediaType.Manga) {
                 // Simkl kayıtlarında TMDB çözümü için önbellekteki gerçek ID'ler kullanılır,
                 // böylece özet de Simkl API'si yerine TMDB'den gelebilir.
-                val cachedSimklDetail =
-                    if (source.equals("simkl", ignoreCase = true)) DetailCache.getMediaDetail("simkl", externalId) else null
+                // Bangumi için de aynı yol: önbellekteki çözülmüş TMDB/MAL kimlikleri kullanılır.
+                val cachedSimklDetail = when {
+                    source.equals("simkl", ignoreCase = true) -> DetailCache.getMediaDetail("simkl", externalId)
+                    source.equals("bangumi", ignoreCase = true) -> DetailCache.getMediaDetail("bangumi", externalId)
+                    else -> null
+                }
                 val trMeta = getTurkishMetadataFromTmdb(
                     source = source,
                     externalId = externalId,
@@ -154,6 +160,8 @@ class KitsugiDetailClient {
                 )
 
                 "simkl" -> KitsugiSimklDetailClient.fetchSimklDetailDirect(externalId, mediaType)?.synopsis
+
+                "bangumi" -> KitsugiBangumiDetailClient.fetchDetail(externalId, mediaType)?.synopsis
 
                 "shikimori" -> {
                     // Shikimori detayı özet taşır (Türkçeye çevrilir). Özet yoksa gerçek
@@ -237,6 +245,10 @@ class KitsugiDetailClient {
             }
             val legacyKey = if (cacheKey == null) {
                 null
+            } else if (source.lowercase() == "bangumi") {
+                // Eski sürümler Bangumi kayıtlarını Kitsu başlık aramasıyla (alakasız/eksik veri)
+                // önbelleğe yazıyordu; eski anahtar bilerek OKUNMAZ.
+                null
             } else if (source.lowercase() == "tmdb") {
                 val typeStr = if (mediaType == MediaType.Movie) "movie" else "tv"
                 "tmdb_${typeStr}_$extId"
@@ -317,6 +329,8 @@ class KitsugiDetailClient {
                         }
                 }
                 "anilist" -> KitsugiAniListDetailClient.fetchDetail(extId, mediaType)
+                // Bangumi: yerel (v0 + p1) veri; MAL/AniList/TMDB ile birleştirme enrichDetail'de.
+                "bangumi" -> KitsugiBangumiDetailClient.fetchDetail(extId, mediaType)
                 // Kitsu keşfet fallback öğeleri: stableId = kitsuId + 300_000_000
                 "kitsu" -> {
                     // Kanonik (300M aralığındaki) Kitsu stableId'si olmadan asla ham ID ile
@@ -571,12 +585,28 @@ class KitsugiDetailClient {
         realMalId: Int? = null,
         title: String? = null
     ): KitsugiMediaDetail? = withContext(Dispatchers.IO) {
-        if (externalId == null || externalId <= 0 || mediaType == MediaType.Manga) return@withContext detail
+        val isBangumi = source.equals("bangumi", ignoreCase = true)
+        // Bangumi: çapraz kimlik çözümü (AniList → MAL → ARM) + MAL/AniList/TMDB birleştirmesi.
+        // Bu adım ViewModel tarafında zaman tavanlıdır; başarısız olursa yerel detay aynen kalır.
+        val baseDetail = if (isBangumi && externalId != null && externalId > 0) {
+            runCatching { KitsugiBangumiDetailClient.enrich(externalId, mediaType, detail) }.getOrDefault(detail)
+        } else {
+            detail
+        }
+        if (externalId == null || externalId <= 0 || mediaType == MediaType.Manga) {
+            if (isBangumi && externalId != null && externalId > 0 && baseDetail !== detail) {
+                saveToRoomCache(source, mediaType, externalId, baseDetail)
+            }
+            return@withContext baseDetail
+        }
 
-        val currentDetail = detail
+        val currentDetail = baseDetail
+
+        // Bangumi stableId'si (500M+) gerçek MAL ID değildir; çağıranın verdiği değer süzülür.
+        val safeRealMalId = if (isBangumi) KitsugiBangumiDetailClient.sanitizeMalId(realMalId) else realMalId
 
         // TMDB zenginleştirmesi için en iyi MAL ID'yi bul
-        val effectiveRealMalId = realMalId
+        val effectiveRealMalId = safeRealMalId
             ?: currentDetail.realMalId
             ?: if (source.lowercase() == "anilist" && externalId < 100_000_000) externalId else null
 
@@ -646,6 +676,7 @@ class KitsugiDetailClient {
                 "jikan", "mal" -> externalId
                 "anilist" -> if (externalId < 100_000_000) externalId else realMalId ?: mergedDetail.realMalId
                 "kitsu" -> realMalId ?: mergedDetail.realMalId
+                "bangumi" -> mergedDetail.realMalId
                 else -> null
             }
             val resolvedAniListId = runCatching {
@@ -697,10 +728,12 @@ class KitsugiDetailClient {
      */
     private fun detailCacheKey(source: String, mediaTypeStr: String, keyId: Int): String {
         val base = "${source.lowercase()}_${mediaTypeStr}_$keyId"
-        return if (MediaTitleResolver.isLatinPreferredSource(source)) {
-            "${base}_vl${MediaTitleResolver.VERSION}"
-        } else {
-            base
+        return when {
+            // v1: Bangumi'ye özgü detay hattı. Önceki sürümlerin Kitsu-başlık-araması kaynaklı
+            // (yanlış/eksik) önbellek satırları bu sürüm anahtarı sayesinde bir daha okunmaz.
+            source.equals("bangumi", ignoreCase = true) -> "${base}_bgm1"
+            MediaTitleResolver.isLatinPreferredSource(source) -> "${base}_vl${MediaTitleResolver.VERSION}"
+            else -> base
         }
     }
 

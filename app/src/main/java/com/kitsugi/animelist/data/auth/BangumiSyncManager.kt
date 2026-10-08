@@ -180,7 +180,9 @@ object BangumiSyncManager {
         val token = BangumiAuthStore.getValidToken(context) ?: return@withContext null
         val subjectId = resolveSubjectId(context, entry, entry.type == MediaType.Anime)
             ?: return@withContext null
-        runCatching { BangumiApiClient.getUserCollection(token, subjectId) }.getOrNull()
+        // `GET /v0/users/-/collections/{id}` 404 verir; gerçek kullanıcı adıyla sorulmalı.
+        val username = BangumiAuthStore.resolveUsername(context) ?: return@withContext null
+        runCatching { BangumiApiClient.getUserCollection(token, subjectId, username) }.getOrNull()
     }
 
     /**

@@ -54,6 +54,30 @@ class KitsugiMediaRelationsClient {
             if (externalId == null || externalId <= 0) return@withContext emptyList()
 
             when (MalJikanMediaSupport.canonicalSource(source)) {
+                "bangumi" -> {
+                    // 1) Bangumi'nin KENDİ ilişki ucu (p1 /relations): ön/devam, yan hikaye, uyarlama ...
+                    val native = runCatching { KitsugiBangumiDetailClient.fetchRelations(externalId, mediaType) }
+                        .getOrNull().orEmpty()
+                    if (native.isNotEmpty()) return@withContext native
+
+                    // 2) Yedek: Çözülen MAL / AniList kimliği (Bangumi stableId'si MAL ID DEĞİLDİR).
+                    val cross = runCatching { KitsugiBangumiDetailClient.resolveCrossIds(externalId, mediaType) }.getOrNull()
+                    val malId = cross?.malId ?: KitsugiBangumiDetailClient.sanitizeMalId(realMalId)
+                    if (mediaType == MediaType.Anime || mediaType == MediaType.Manga) {
+                        if (malId != null && malId > 0) {
+                            val list = fetchRelationsFromJikan(malId, mediaType)
+                            if (list.isNotEmpty()) return@withContext list
+                        }
+                        val aniListStable = cross?.aniListStableId ?: resolveAniListStableIdForShikimori(malId)
+                        if (aniListStable != null) fetchRelationsFromAniList(aniListStable, mediaType) else emptyList()
+                    } else {
+                        val resolvedTmdb = tmdbId ?: cross?.tmdbId
+                        if (resolvedTmdb != null && resolvedTmdb > 0) {
+                            TmdbApiClient().fetchRelations(resolvedTmdb, mediaType == MediaType.Movie)
+                                .map { it.copy(source = "tmdb") }
+                        } else emptyList()
+                    }
+                }
                 "simkl" -> {
                     if (mediaType == MediaType.Anime) {
                         val malId = realMalId ?: DetailCache.getMediaDetail("simkl", externalId)?.realMalId
@@ -312,6 +336,32 @@ class KitsugiMediaRelationsClient {
             if (externalId == null || externalId <= 0) return@withContext emptyList()
 
             when (MalJikanMediaSupport.canonicalSource(source)) {
+                "bangumi" -> {
+                    // 1) Bangumi'nin kendi önerileri (p1 /recs; sunucu en fazla 10 kayıt verir).
+                    val native = runCatching { KitsugiBangumiDetailClient.fetchRecommendations(externalId, mediaType) }
+                        .getOrNull().orEmpty()
+                    if (native.size >= 4) return@withContext native
+
+                    // 2) Az/boşsa MAL / AniList / TMDB önerileriyle tamamla (çözülen kimliklerle).
+                    val cross = runCatching { KitsugiBangumiDetailClient.resolveCrossIds(externalId, mediaType) }.getOrNull()
+                    val malId = cross?.malId ?: KitsugiBangumiDetailClient.sanitizeMalId(realMalId)
+                    val extra: List<KitsugiRelation> = if (mediaType == MediaType.Anime || mediaType == MediaType.Manga) {
+                        val fromMal = if (malId != null && malId > 0) fetchRecommendationsFromJikan(malId, mediaType) else emptyList()
+                        if (fromMal.isNotEmpty()) {
+                            fromMal
+                        } else {
+                            val aniListStable = cross?.aniListStableId ?: resolveAniListStableIdForShikimori(malId)
+                            if (aniListStable != null) fetchRecommendationsFromAniList(aniListStable, mediaType) else emptyList()
+                        }
+                    } else {
+                        val resolvedTmdb = tmdbId ?: cross?.tmdbId
+                        if (resolvedTmdb != null && resolvedTmdb > 0) {
+                            TmdbApiClient().fetchRecommendations(resolvedTmdb, mediaType == MediaType.Movie)
+                                .map { it.copy(source = "tmdb") }
+                        } else emptyList()
+                    }
+                    (native + extra).distinctBy { "${it.source}_${it.malId}" }
+                }
                 "simkl" -> {
                     if (mediaType == MediaType.Anime) {
                         val malId = realMalId ?: DetailCache.getMediaDetail("simkl", externalId)?.realMalId

@@ -3,6 +3,7 @@ package com.kitsugi.animelist.ui.screens.search
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.kitsugi.animelist.data.auth.BangumiApiClient
 import com.kitsugi.animelist.data.remote.JikanApiClient
 import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.data.remote.TmdbApiClient
@@ -1265,18 +1266,25 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         // Tam sayfa da aynı iki uç noktayı sayfalayarak sorgulamalı.
         if (scope == SearchScope.ALL_MIXED && engine in mixedMediaEngines) {
             return supervisorScope {
-                suspend fun fetch(mediaScope: SearchScope): Pair<List<JikanSearchResult>, Boolean> =
+                suspend fun fetch(mediaScope: SearchScope): Result<Pair<List<JikanSearchResult>, Boolean>> =
                     try {
-                        executeSearchForPage(queryText, page, generation, mediaScope)
+                        Result.success(executeSearchForPage(queryText, page, generation, mediaScope))
                     } catch (e: kotlinx.coroutines.CancellationException) {
                         throw e
                     } catch (e: Exception) {
-                        Pair(emptyList(), false)
+                        Result.failure(e)
                     }
                 val anime = async { fetch(SearchScope.ANIME) }
                 val manga = async { fetch(SearchScope.MANGA) }
-                val (animeResults, animeNext) = anime.await()
-                val (mangaResults, mangaNext) = manga.await()
+                val animeOutcome = anime.await()
+                val mangaOutcome = manga.await()
+                // İki istek de HATA verdiyse bunu "Sonuç bulunamadı" diye yutma: gerçek mesajı göster.
+                if (animeOutcome.isFailure && mangaOutcome.isFailure) {
+                    throw animeOutcome.exceptionOrNull() ?: mangaOutcome.exceptionOrNull()
+                        ?: IllegalStateException("Arama başarısız")
+                }
+                val (animeResults, animeNext) = animeOutcome.getOrNull() ?: Pair(emptyList(), false)
+                val (mangaResults, mangaNext) = mangaOutcome.getOrNull() ?: Pair(emptyList(), false)
                 Pair(mergeSourceSearchResults(animeResults, mangaResults), animeNext || mangaNext)
             }
         }
@@ -1416,18 +1424,22 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 }
                 SearchSourceEngine.BANGUMI -> {
                     val f = state.bangumiSpecificFilters
+                    // Bangumi arama uçları sayfa başına EN FAZLA 20 kayıt döndürür (sunucu limiti
+                    // sessizce 20'ye kısar). 24 istenirse offset her sayfada 4 kayıt atlar ve
+                    // `size >= 24` kontrolü "sonraki sayfa yok" sonucu verir.
+                    val bangumiPageSize = BangumiApiClient.SEARCH_PAGE_SIZE
                     when (scope) {
                         SearchScope.CHARACTER -> {
                             val res = KitsugiBangumiClient.searchCharacters(
-                                queryText, page = page, includeAdult = showAdult
+                                queryText, page = page, limit = bangumiPageSize, includeAdult = showAdult
                             )
-                            return Pair(res, res.size >= 24)
+                            return Pair(res, res.size >= bangumiPageSize)
                         }
                         SearchScope.STAFF -> {
                             val res = KitsugiBangumiClient.searchPeople(
-                                queryText, page = page, career = f.career
+                                queryText, page = page, limit = bangumiPageSize, career = f.career
                             )
-                            return Pair(res, res.size >= 24)
+                            return Pair(res, res.size >= bangumiPageSize)
                         }
                         else -> {
                             val mediaType = if (scope in listOf(SearchScope.MANGA, SearchScope.MANHWA, SearchScope.MANHUA, SearchScope.LIGHT_NOVEL)) MediaType.Manga else MediaType.Anime
@@ -1435,7 +1447,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                                 mediaType = mediaType,
                                 query = queryText,
                                 page = page,
-                                limit = 24,
+                                limit = bangumiPageSize,
                                 sort = f.sort,
                                 tags = f.tags,
                                 yearFrom = f.yearFrom,
@@ -1443,7 +1455,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                                 minScore = f.minScore,
                                 includeAdult = f.nsfw || showAdult
                             )
-                            return Pair(res, res.size >= 24)
+                            return Pair(res, res.size >= bangumiPageSize)
                         }
                     }
                 }
@@ -1788,7 +1800,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                                 coroutineScope {
                                     val animePart = async {
                                         runCatching {
-                                            KitsugiBangumiClient.searchAnime(queryText, limit = 24, includeAdult = showAdult)
+                                            KitsugiBangumiClient.searchAnime(queryText, limit = BangumiApiClient.SEARCH_PAGE_SIZE, includeAdult = showAdult)
                                         }.getOrDefault(emptyList())
                                     }
                                     val mangaPart = async {
@@ -1801,7 +1813,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                                         .take(10)
                                 }
                             } else {
-                                KitsugiBangumiClient.searchAnime(queryText, limit = 24, includeAdult = showAdult)
+                                KitsugiBangumiClient.searchAnime(queryText, limit = BangumiApiClient.SEARCH_PAGE_SIZE, includeAdult = showAdult)
                             }
                         }.getOrElse { err -> if (err is kotlinx.coroutines.CancellationException) throw err; emptyList() }
                     } ?: emptyList()
@@ -2001,12 +2013,13 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         // 4b. Bangumi (Çin / bgm.tv)
         if (state.currentTab == KitsugiSearchTab.Bangumi || state.selectedPlatform == SearchPlatform.Bangumi) {
             val f = state.bangumiSpecificFilters
+            val bangumiPageSize = BangumiApiClient.SEARCH_PAGE_SIZE
             val results = when (state.selectedScope) {
                 SearchScope.CHARACTER -> KitsugiBangumiClient.searchCharacters(
-                    queryText, page = page, limit = 24, includeAdult = showAdult
+                    queryText, page = page, limit = bangumiPageSize, includeAdult = showAdult
                 )
                 SearchScope.STAFF -> KitsugiBangumiClient.searchPeople(
-                    queryText, page = page, limit = 24, career = f.career
+                    queryText, page = page, limit = bangumiPageSize, career = f.career
                 )
                 else -> {
                     val targetType = if (state.selectedScope in listOf(SearchScope.MANGA, SearchScope.MANHWA, SearchScope.MANHUA, SearchScope.LIGHT_NOVEL) || state.selectedMediaType == MediaType.Manga) {
@@ -2018,7 +2031,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                         mediaType = targetType,
                         query = queryText,
                         page = page,
-                        limit = 24,
+                        limit = bangumiPageSize,
                         sort = f.sort,
                         tags = f.tags,
                         yearFrom = f.yearFrom,
@@ -2028,7 +2041,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                     )
                 }
             }
-            return Pair(results, results.size >= 20)
+            return Pair(results, results.size >= bangumiPageSize)
         }
 
         // 5. Karakter Arama (AniHyou)

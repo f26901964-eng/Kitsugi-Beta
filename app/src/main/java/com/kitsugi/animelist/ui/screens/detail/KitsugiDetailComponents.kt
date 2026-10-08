@@ -74,7 +74,10 @@ fun KitsugiStudiosCard(
                         text = studio.name,
                         color = accentColor,
                         solid = true,
-                        onClick = { onStudioClick(studio) }
+                        // Bangumi-yerel stüdyoların (infobox adı) detay kimliği yoktur → tıklanamaz.
+                        onClick = if (studio.id > 0 || !studio.source.equals("bangumi", ignoreCase = true)) {
+                            { onStudioClick(studio) }
+                        } else null
                     )
                 }
             }
@@ -90,7 +93,9 @@ fun KitsugiStudiosCard(
                         text = producer.name,
                         color = accentColor,
                         solid = false,
-                        onClick = { onProducerClick(producer) }
+                        onClick = if (producer.id > 0 || !producer.source.equals("bangumi", ignoreCase = true)) {
+                            { onProducerClick(producer) }
+                        } else null
                     )
                 }
             }

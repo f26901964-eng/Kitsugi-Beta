@@ -70,6 +70,12 @@ object BangumiApiClient {
      */
     const val FALLBACK_DEEP_LINK_REDIRECT_URI = "aniyomi://bangumi-auth"
 
+    /** `next.bgm.tv/p1` — Bangumi'nin web arayüzünün kullandığı zengin (karakter/öneri/yorum) API'si. */
+    const val NEXT_BASE = "https://next.bgm.tv"
+
+    /** `POST /v0/search/subjects` sunucu tarafında en fazla 20 sonuç döndürür (yumuşak sınır). */
+    const val SEARCH_PAGE_SIZE = 20
+
     private val JSON_MEDIA_TYPE = "application/json".toMediaTypeOrNull()
 
     /**
@@ -410,6 +416,23 @@ object BangumiApiClient {
         return execute(request)
     }
 
+    /**
+     * Kimlik doğrulamasız/isteğe bağlı token'lı genel GET. Gövdeyi ham metin olarak döndürür.
+     *
+     * @param next `true` → `next.bgm.tv/p1` (zengin web API'si), `false` → `api.bgm.tv`
+     *             (v0 + legacy uçlar). 404 ve diğer hatalar [BangumiApiException] fırlatır.
+     */
+    suspend fun getRaw(
+        path: String,
+        query: Map<String, String?> = emptyMap(),
+        token: String? = null,
+        next: Boolean = false
+    ): String? = withContext(Dispatchers.IO) {
+        val url = if (next) buildUrl("/p1$path", query, NEXT_BASE) else buildUrl(path, query)
+        val request = Request.Builder().url(url).get().bangumiHeaders(token).build()
+        execute(request)
+    }
+
     private fun send(
         method: String,
         path: String,
@@ -427,8 +450,8 @@ object BangumiApiClient {
         return execute(request)
     }
 
-    private fun buildUrl(path: String, query: Map<String, String?>): String {
-        val sb = StringBuilder(API_BASE).append(path)
+    private fun buildUrl(path: String, query: Map<String, String?>, base: String = API_BASE): String {
+        val sb = StringBuilder(base).append(path)
         var first = true
         query.forEach { (key, value) ->
             if (value.isNullOrBlank()) return@forEach
@@ -609,7 +632,14 @@ object BangumiApiClient {
      * @param tags     `tag` filtresi (kullanıcı etiketleri). `-etiket` biçimi hariç tutar.
      * @param airDate  `>=2020-07-01`, `<2020-10-01` gibi aralık ifadeleri.
      * @param rating   `>=8` gibi puan ifadeleri.
-     * @param nsfw     `include` → NSFW dahil; boş → hariç (yetkisiz istekte zaten hiç dönmez).
+     * @param nsfw     JSON **boolean**: `false` → yalnız R18 olmayanlar, `true` → yalnız R18,
+     *                 `null` → filtre yok (R18 yalnızca yetkili hesaplara döner).
+     *                 DİKKAT: sunucu bu alanı `null.Bool` olarak çözer; eski sürümdeki
+     *                 `"nsfw":"include"` metni HTTP 400 döndürüp aramanın tamamen boş
+     *                 görünmesine yol açıyordu.
+     * @param limit    Sunucu `limit` değerini 20'ye KISAR (yumuşak sınır); sayfalama
+     *                 `offset`'i istemci limitine göre hesaplarsa kayıt atlar. Bu yüzden
+     *                 burada 1..20 aralığına sabitlenir ve çağıranlar aynı değeri kullanmalıdır.
      */
     suspend fun searchSubjects(
         keyword: String,
@@ -620,50 +650,120 @@ object BangumiApiClient {
         airDate: List<String> = emptyList(),
         rating: List<String> = emptyList(),
         rank: List<String> = emptyList(),
-        nsfw: String? = null,
-        limit: Int = 25,
+        nsfw: Boolean? = null,
+        limit: Int = SEARCH_PAGE_SIZE,
         offset: Int = 0
     ): BangumiPage<BangumiSubject> = withContext(Dispatchers.IO) {
-        val payload = JSONObject().apply {
-            put("keyword", keyword)
-            put("sort", sort)
-            val filter = JSONObject()
-            var hasFilter = false
-            if (types.isNotEmpty()) {
-                filter.put("type", JSONArray(types))
-                hasFilter = true
-            }
-            if (tags.isNotEmpty()) {
-                filter.put("tag", JSONArray(tags))
-                hasFilter = true
-            }
-            if (airDate.isNotEmpty()) {
-                filter.put("air_date", JSONArray(airDate))
-                hasFilter = true
-            }
-            if (rating.isNotEmpty()) {
-                filter.put("rating", JSONArray(rating))
-                hasFilter = true
-            }
-            if (rank.isNotEmpty()) {
-                filter.put("rank", JSONArray(rank))
-                hasFilter = true
-            }
-            if (!nsfw.isNullOrBlank()) {
-                filter.put("nsfw", nsfw)
-                hasFilter = true
-            }
-            if (hasFilter) put("filter", filter)
-        }
+        val pageLimit = limit.coerceIn(1, SEARCH_PAGE_SIZE)
+        val payload = buildSearchSubjectsPayload(keyword, sort, types, tags, airDate, rating, rank, nsfw)
         val body = send(
             method = "POST",
             path = "/v0/search/subjects",
             jsonBody = payload,
             token = token,
-            query = mapOf("limit" to limit.toString(), "offset" to offset.toString())
-        ) ?: return@withContext BangumiPage(0, limit, offset, emptyList())
+            query = mapOf("limit" to pageLimit.toString(), "offset" to offset.toString())
+        ) ?: return@withContext BangumiPage(0, pageLimit, offset, emptyList())
         // Arama ucu `Paged_Subject` döndürür: öğeler TAM条目 modelidir (nsfw, rating, tags dahil).
-        parseSubjectPage(JSONObject(body), limit, offset)
+        parseSubjectPage(JSONObject(body), pageLimit, offset)
+    }
+
+    /**
+     * `POST /v0/search/subjects` gövdesi. `filter.nsfw` bir JSON **boolean**'dır; sunucu bunu
+     * `null.Bool` olarak çözer. Metin (`"include"`) göndermek HTTP 400 verir.
+     */
+    internal fun buildSearchSubjectsPayload(
+        keyword: String,
+        sort: String,
+        types: List<Int>,
+        tags: List<String>,
+        airDate: List<String>,
+        rating: List<String>,
+        rank: List<String>,
+        nsfw: Boolean?
+    ): JSONObject = JSONObject().apply {
+        put("keyword", keyword)
+        put("sort", sort)
+        val filter = JSONObject()
+        var hasFilter = false
+        if (types.isNotEmpty()) {
+            filter.put("type", JSONArray(types))
+            hasFilter = true
+        }
+        if (tags.isNotEmpty()) {
+            filter.put("tag", JSONArray(tags))
+            hasFilter = true
+        }
+        if (airDate.isNotEmpty()) {
+            filter.put("air_date", JSONArray(airDate))
+            hasFilter = true
+        }
+        if (rating.isNotEmpty()) {
+            filter.put("rating", JSONArray(rating))
+            hasFilter = true
+        }
+        if (rank.isNotEmpty()) {
+            filter.put("rank", JSONArray(rank))
+            hasFilter = true
+        }
+        if (nsfw != null) {
+            filter.put("nsfw", nsfw)
+            hasFilter = true
+        }
+        if (hasFilter) put("filter", filter)
+    }
+
+    /**
+     * Eski (legacy) arama ucu: `GET /search/subject/{keyword}?type=2&responseGroup=large`.
+     *
+     * `POST /v0/search/subjects` "deneysel"dir ve hata verirse ya da boş dönerse arama ekranı
+     * tamamen boş kalıyordu. Aniyomi/Mihon'un da kullandığı bu uç, Latin harfli sorgularda
+     * (örn. "date a live") takma adlardan eşleşir ve yedek olarak kullanılır.
+     * Sonuç bulunamazsa sunucu 404 ya da `list=null` döndürebilir → boş sayfa.
+     *
+     * @param type [SubjectType] (null = tümü)
+     */
+    suspend fun searchSubjectsLegacy(
+        keyword: String,
+        token: String? = null,
+        type: Int? = null,
+        limit: Int = SEARCH_PAGE_SIZE,
+        offset: Int = 0
+    ): BangumiPage<BangumiSubject> = withContext(Dispatchers.IO) {
+        val query = linkedMapOf(
+            "type" to type?.toString(),
+            "responseGroup" to "large",
+            "start" to offset.toString(),
+            "max_results" to limit.coerceIn(1, 25).toString()
+        )
+        val path = "/search/subject/" + URLEncoder.encode(keyword.trim(), "UTF-8").replace("+", "%20")
+        val body = try {
+            get(path, query, token)
+        } catch (e: BangumiApiException) {
+            if (e.isNotFound) null else throw e
+        } ?: return@withContext BangumiPage(0, limit, offset, emptyList())
+        parseLegacySearchResponse(body, limit, offset)
+    }
+
+    /** Legacy arama yanıtı (`{results, list:[...]}`) → [BangumiPage]. Bozuk/boş gövde boş sayfa verir. */
+    internal fun parseLegacySearchResponse(body: String, limit: Int, offset: Int): BangumiPage<BangumiSubject> {
+        val json = runCatching { JSONObject(body) }.getOrNull()
+            ?: return BangumiPage(0, limit, offset, emptyList())
+        val array = json.optJSONArray("list") ?: JSONArray()
+        val items = (0 until array.length()).mapNotNull { index ->
+            val raw = array.optJSONObject(index) ?: return@mapNotNull null
+            // Legacy öğede tarih `air_date` ("0000-00-00" = bilinmiyor); v0 ayrıştırıcısı `date` bekler.
+            if (!raw.has("date") || raw.isNull("date")) {
+                val airDate = raw.cleanString("air_date")
+                raw.put("date", if (airDate.startsWith("0000")) "" else airDate)
+            }
+            parseSubjectOrNull(raw)
+        }
+        return BangumiPage(
+            total = json.optInt("results", items.size),
+            limit = limit,
+            offset = offset,
+            data = items
+        )
     }
 
     /** Yalnızca动画 arar (anime sekmesi kısayolu). */
@@ -671,7 +771,7 @@ object BangumiApiClient {
         keyword: String,
         token: String? = null,
         sort: String = SearchSort.MATCH,
-        limit: Int = 25,
+        limit: Int = SEARCH_PAGE_SIZE,
         offset: Int = 0
     ): BangumiPage<BangumiSubject> =
         searchSubjects(keyword, token, listOf(SubjectType.ANIME), sort, limit = limit, offset = offset)
@@ -681,7 +781,7 @@ object BangumiApiClient {
         keyword: String,
         token: String? = null,
         sort: String = SearchSort.MATCH,
-        limit: Int = 25,
+        limit: Int = SEARCH_PAGE_SIZE,
         offset: Int = 0
     ): BangumiPage<BangumiSubject> =
         searchSubjects(keyword, token, listOf(SubjectType.BOOK), sort, limit = limit, offset = offset)
@@ -958,15 +1058,17 @@ object BangumiApiClient {
     /**
      * `GET /v0/users/{username}/collections` — kullanıcının koleksiyonu, sayfalı.
      *
-     * `username` yerine `-` kullanılabilir (token sahibi). Özel (private)收藏'ları
-     * görmek için token zorunludur.
+     * `username` GERÇEK kullanıcı adı (ya da sayısal ID) olmalıdır: sunucu bu okuma ucunda
+     * `-` takma adını KABUL ETMEZ (404 "user doesn't exist or has been removed" döner).
+     * Token sahibinin adı için [BangumiAuthStore.resolveUsername] kullanılır. Özel (private)
+     * 收藏'ları görmek için token zorunludur.
      *
      * @param subjectType null = tüm türler, [SubjectType.ANIME], [SubjectType.BOOK] ...
      * @param collectionType null = tüm durumlar, [CollectionType.DOING] ...
      */
     suspend fun getUserCollections(
         token: String,
-        username: String = "-",
+        username: String,
         subjectType: Int? = null,
         collectionType: Int? = null,
         limit: Int = 50,
@@ -994,7 +1096,7 @@ object BangumiApiClient {
     /** Kullanıcının tüm koleksiyonunu sayfalayarak toplar (içe aktarma için). */
     suspend fun getAllUserCollections(
         token: String,
-        username: String = "-",
+        username: String,
         subjectType: Int? = null,
         maxPages: Int = 200
     ): List<BangumiUserCollection> {
@@ -1013,12 +1115,13 @@ object BangumiApiClient {
 
     /**
      * `GET /v0/users/{username}/collections/{subject_id}` — tek条目 koleksiyon kaydı.
+     * `username` gerçek kullanıcı adı olmalıdır (`-` bu okuma ucunda 404 verir).
      * Kayıt yoksa `404` döner ve bu fonksiyon **null** verir (hata sayılmaz).
      */
     suspend fun getUserCollection(
         token: String?,
         subjectId: Int,
-        username: String = "-"
+        username: String
     ): BangumiUserCollection? = withContext(Dispatchers.IO) {
         try {
             val body = get(
@@ -1355,7 +1458,7 @@ object BangumiApiClient {
         )
     }
 
-    private fun parseSubject(json: JSONObject): BangumiSubject {
+    internal fun parseSubject(json: JSONObject): BangumiSubject {
         val ratingJson = json.optJSONObject("rating")
         val counts = mutableMapOf<Int, Int>()
         ratingJson?.optJSONObject("count")?.let { countJson ->
@@ -1370,8 +1473,8 @@ object BangumiApiClient {
             name = json.optString("name"),
             nameCn = json.optString("name_cn"),
             summary = json.optString("summary"),
-            date = json.optString("date").ifBlank { null },
-            platform = json.optString("platform").ifBlank { null },
+            date = json.cleanString("date").ifBlank { null },
+            platform = json.cleanString("platform").ifBlank { null },
             nsfw = json.optBoolean("nsfw", false),
             locked = json.optBoolean("locked", false),
             eps = json.optInt("eps", 0),
@@ -1454,6 +1557,10 @@ object BangumiApiClient {
         )
     }
 
+    /** Android `optString` JSON `null` için "null" metni döndürür; bunu boş metne çevirir. */
+    private fun JSONObject.cleanString(key: String): String =
+        if (isNull(key)) "" else optString(key, "")
+
     private fun parseImages(json: JSONObject?): BangumiImages? {
         if (json == null) return null
         val large = json.optString("large").ifBlank { null }
@@ -1503,6 +1610,9 @@ object BangumiApiClient {
         return when {
             url.startsWith("//") -> "https:$url"
             url.startsWith("/") -> "$SITE_BASE$url"
+            // Eski (legacy) arama ucu görselleri `http://lain.bgm.tv/...` verir; Android düz HTTP
+            // trafiğini engelleyebilir ve Bangumi HTTPS sunar → şemayı yükselt.
+            url.startsWith("http://", ignoreCase = true) -> "https://" + url.substring(7)
             else -> url
         }
     }

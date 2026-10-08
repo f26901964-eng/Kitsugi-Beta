@@ -132,6 +132,9 @@ object ShareUtils {
                     }
                 } else null
             }
+            // Bangumi: stableId = subject_id + 500_000_000 → bgm.tv/subject/{subject_id}
+            "bangumi" -> com.kitsugi.animelist.data.remote.BangumiIdNamespace.rawIdFromStable(id)
+                ?.let { "https://bgm.tv/subject/$it" }
             else -> null
         }
     }
@@ -147,6 +150,7 @@ object ShareUtils {
     fun buildCharacterUrl(source: String, characterId: Int): String {
         return when (source.lowercase()) {
             "anilist" -> "https://anilist.co/character/$characterId"
+            "bangumi" -> "https://bgm.tv/character/$characterId"
             else -> "https://myanimelist.net/character/$characterId"
         }
     }
@@ -154,6 +158,7 @@ object ShareUtils {
     fun buildStaffUrl(source: String, staffId: Int): String {
         return when (source.lowercase()) {
             "anilist" -> "https://anilist.co/staff/$staffId"
+            "bangumi" -> "https://bgm.tv/person/$staffId"
             else -> "https://myanimelist.net/people/$staffId"
         }
     }

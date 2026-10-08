@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import com.kitsugi.animelist.data.local.TranslationManager
 import com.kitsugi.animelist.data.remote.DetailCache
 import com.kitsugi.animelist.data.remote.JikanApiClient
+import com.kitsugi.animelist.data.remote.KitsugiBangumiDetailClient
 import com.kitsugi.animelist.data.remote.KitsugiCharacter
 import com.kitsugi.animelist.data.remote.KitsugiEpisodeRatingsRepository
 import com.kitsugi.animelist.data.remote.KitsugiMediaDetail
@@ -369,6 +370,8 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                             // Kitsu: 300M aralığı Kitsu stableId'sidir; yalnızca aralık altındaki
                             // (eski sürümlerin yazdığı) değer gerçek MAL ID sayılır.
                             "kitsu" -> com.kitsugi.animelist.data.remote.KitsuIdNamespace.realMalIdOf(entry.malId)
+                            // Bangumi: entry.malId stableId'dir (500M+), MAL ID değildir; istemci çapraz kimliği çözer.
+                            "bangumi" -> null
                             else -> entry.malId
                         },
                         title = entry.title
@@ -405,8 +408,9 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             )
             _targetSeason.value = determinedSeason
 
-            // Detaydan gelen TMDB ID veya resimler varsa ve galeri henüz kısıtlıysa galeriyi zenginleştir
-            if (_galleryItems.value.size <= 2) {
+            // Detaydan gelen TMDB ID veya resimler varsa ve galeri henüz kısıtlıysa galeriyi zenginleştir.
+            // Bangumi'de çapraz kimlikler detayla birlikte çözüldüğü için galeri her zaman bir kez yenilenir.
+            if (_galleryItems.value.size <= 2 || entry.source.equals("bangumi", ignoreCase = true)) {
                 viewModelScope.launch {
                     try {
                         fetchFanartGallery(entry)
@@ -474,6 +478,25 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                         foundRatings = KitsugiEpisodeRatingsRepository.getEpisodeRatingsByKitsuId(kitsuId)
                         resolvedId = KitsugiEpisodeRatingsRepository.getResolvedTmdbIdForKitsu(kitsuId)
                     }
+                }
+                entry.source.equals("bangumi", ignoreCase = true) -> {
+                    // Bangumi stableId'si MAL ID DEĞİLDİR: çözülen çapraz kimliklerle alınır.
+                    val cross = runCatching {
+                        KitsugiBangumiDetailClient.resolveCrossIds(entry.malId, entry.type)
+                    }.getOrNull()
+                    val malId = detail.realMalId?.takeIf { it in 1..99_999_999 } ?: cross?.malId
+                    if (malId != null && malId > 0) {
+                        foundRatings = KitsugiEpisodeRatingsRepository.getEpisodeRatingsByMalId(malId)
+                        resolvedId = KitsugiEpisodeRatingsRepository.getResolvedTmdbIdForMal(malId)
+                    }
+                    if (foundRatings.isEmpty()) {
+                        val aniListId = cross?.aniListId
+                        if (aniListId != null && aniListId > 0) {
+                            foundRatings = KitsugiEpisodeRatingsRepository.getEpisodeRatingsByAniListId(aniListId)
+                            if (resolvedId == null) resolvedId = KitsugiEpisodeRatingsRepository.getResolvedTmdbIdForAniList(aniListId)
+                        }
+                    }
+                    if (resolvedId == null) resolvedId = cross?.tmdbId
                 }
                 entry.source.equals("shikimori", ignoreCase = true) -> {
                     // NOT: Shikimori ID'si MAL ID'si DEĞİLDİR. Önce gerçek MAL ID'si çözülür;
@@ -546,6 +569,21 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                 entry.source.equals("mal", ignoreCase = true) -> {
                     if (stableId > 0) KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId) else null
                 }
+                entry.source.equals("bangumi", ignoreCase = true) -> {
+                    // Bangumi stableId'si MAL ID değildir: çözülen çapraz kimlik kullanılır.
+                    val cross = runCatching {
+                        KitsugiBangumiDetailClient.resolveCrossIds(stableId, entry.type)
+                    }.getOrNull()
+                    val malId = _detailState.value?.realMalId?.takeIf { it in 1..99_999_999 } ?: cross?.malId
+                    val aniListId = cross?.aniListId
+                    val tmdb = entry.tmdbId ?: _detailState.value?.tmdbId ?: cross?.tmdbId
+                    when {
+                        malId != null && malId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(malId)
+                        aniListId != null && aniListId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByAniListId(aniListId, fallbackMalId = null)
+                        tmdb != null && tmdb > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrl(tmdb)
+                        else -> null
+                    }
+                }
                 entry.source.equals("shikimori", ignoreCase = true) -> {
                     // Shikimori ID'si MAL ID değildir: önce gerçek MAL ID'si çözülür.
                     val malId = _detailState.value?.realMalId?.takeIf { it > 0 }
@@ -597,9 +635,19 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                     }
                 }
             }
-            _galleryItems.value = existingItems
+            _galleryItems.value = existingItems.distinctBy { KitsugiBangumiDetailClient.galleryDedupKey(it.url) }
             return
         }
+
+        val isBangumiEntry = entry.source.equals("bangumi", ignoreCase = true)
+        // Bangumi: Fanart.tv / TMDB / Shikimori görselleri için çapraz kimlikler (kalıcı önbellekli).
+        val bangumiCross = if (isBangumiEntry) {
+            withContext(Dispatchers.IO) {
+                withTimeoutOrNull(15_000L) {
+                    runCatching { KitsugiBangumiDetailClient.resolveCrossIds(entry.malId, entry.type) }.getOrNull()
+                }
+            }
+        } else null
 
         val tmdbId = withContext(Dispatchers.IO) {
             val detailTmdb = _detailState.value?.tmdbId
@@ -633,6 +681,14 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                         ?: KitsugiIdResolver.resolveMalIdFromShikimori(entry.malId)
                     if (malId != null && malId > 0) KitsugiEpisodeRatingsRepository.resolveTmdbIdFromMal(malId) else null
                 }
+                isBangumiEntry -> {
+                    // Bangumi stableId'si MAL ID DEĞİLDİR; yalnızca çözülen çapraz kimlikler kullanılır.
+                    bangumiCross?.tmdbId?.takeIf { it > 0 }
+                        ?: bangumiCross?.malId?.takeIf { it > 0 }
+                            ?.let { KitsugiEpisodeRatingsRepository.resolveTmdbIdFromMal(it) }
+                        ?: bangumiCross?.aniListId?.takeIf { it > 0 }
+                            ?.let { KitsugiEpisodeRatingsRepository.resolveTmdbIdFromAniList(it) }
+                }
                 else -> entry.malId?.let { KitsugiEpisodeRatingsRepository.resolveTmdbIdFromMal(it) }
             }
         }
@@ -652,15 +708,22 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             entry.source.equals("shikimori", ignoreCase = true) ->
                 _detailState.value?.realMalId?.takeIf { it > 0 }
                     ?: KitsugiIdResolver.resolveMalIdFromShikimori(entry.malId)
+            // Bangumi: entry.malId stableId'dir → çözülen gerçek MAL ID'si kullanılır.
+            isBangumiEntry ->
+                bangumiCross?.malId ?: _detailState.value?.realMalId?.takeIf { it in 1..99_999_999 }
             !entry.source.equals("tmdb", ignoreCase = true) -> entry.malId
             else -> null
         }
         val fallbackAniListId: Int? = if (entry.source.equals("anilist", ignoreCase = true)) {
             val m = entry.malId ?: 0
             if (m >= 100_000_000) m - 100_000_000 else null
+        } else if (isBangumiEntry) {
+            bangumiCross?.aniListId
         } else null
         val fallbackKitsuId: Int? = if (entry.source.equals("kitsu", ignoreCase = true)) {
             com.kitsugi.animelist.data.remote.KitsuIdNamespace.rawIdFromStable(entry.malId)
+        } else if (isBangumiEntry) {
+            bangumiCross?.kitsuId
         } else null
 
         val (fanartItems, tmdbItems, shikimoriItems) = coroutineScope {
@@ -690,6 +753,8 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                         if (m > 0 && m < 100_000_000) m else _detailState.value?.realMalId
                     }
                     entry.source.equals("mal", ignoreCase = true) || entry.source.equals("jikan", ignoreCase = true) -> entry.malId?.takeIf { it > 0 }
+                    // Shikimori anime kimliği = MAL kimliği: Bangumi'de çözülen MAL ID ile ekran görüntüleri çekilir.
+                    isBangumiEntry -> bangumiCross?.malId ?: _detailState.value?.realMalId?.takeIf { it in 1..99_999_999 }
                     else -> _detailState.value?.realMalId
                 }
                 if (isAnime && shikimoriAnimeId != null && shikimoriAnimeId > 0) {
@@ -727,7 +792,9 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
         val enrichedExisting = existingItems.map { item ->
             richMap[item.url] ?: item
         }
-        val allItems = (enrichedExisting + tmdbItems + fanartItems + shikimoriItems).distinctBy { it.url }
+        // `lain.bgm.tv` aynı kapağı farklı boyut yollarıyla verir (kopya görünürdü) → kanonik anahtarla tekilleştir.
+        val allItems = (enrichedExisting + tmdbItems + fanartItems + shikimoriItems)
+            .distinctBy { KitsugiBangumiDetailClient.galleryDedupKey(it.url) }
 
         val sortedItems = allItems.sortedWith(
             compareBy(
@@ -760,9 +827,11 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             lowerUrl.contains("anilist.co") -> "AniList"
             lowerUrl.contains("simkl.in") || lowerUrl.contains("simkl.com") -> "Simkl"
             lowerUrl.contains("myanimelist.net") || lowerUrl.contains("jikan.moe") -> "Jikan (MAL)"
-            lowerUrl.contains("kitsu.io") -> "Kitsu"
+            lowerUrl.contains("kitsu.io") || lowerUrl.contains("kitsu.app") -> "Kitsu"
+            lowerUrl.contains("bgm.tv") -> "Bangumi"
             else -> {
                 when (fallbackSource.lowercase()) {
+                    "bangumi" -> "Bangumi"
                     "shikimori" -> "Shikimori"
                     "anilist" -> "AniList"
                     "tmdb" -> "TMDB"
@@ -1163,6 +1232,9 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             val malId: Int? = when {
                 isAniList && stableId >= 100_000_000 -> null // no real MAL ID from stableId
                 isAniList -> stableId
+                // Bangumi stableId'si MAL ID değildir → detaydan/çapraz çözümden gelen gerçek MAL ID.
+                entry.source.equals("bangumi", ignoreCase = true) ->
+                    _detailState.value?.realMalId?.takeIf { it in 1..99_999_999 }
                 else -> entry.malId
             }
             val aniListId: Int? = if (isAniList && stableId >= 100_000_000) stableId - 100_000_000 else null

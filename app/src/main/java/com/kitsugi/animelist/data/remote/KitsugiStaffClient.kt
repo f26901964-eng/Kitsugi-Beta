@@ -23,6 +23,28 @@ class KitsugiStaffClient {
             }
 
             when (MalJikanMediaSupport.canonicalSource(source)) {
+                "bangumi" -> {
+                    // 1) Bangumi'nin kendi ekip listesi (p1 /staffs/persons).
+                    val native = runCatching { KitsugiBangumiDetailClient.fetchStaff(externalId, mediaType) }
+                        .getOrNull().orEmpty()
+                    if (native.isNotEmpty()) return@withContext native
+
+                    // 2) Yedek: Çözülen MAL kimliğiyle MAL/Jikan ekibi (stableId MAL ID değildir).
+                    val cross = runCatching {
+                        KitsugiBangumiDetailClient.resolveCrossIds(externalId, mediaType)
+                    }.getOrNull()
+                    val malId = cross?.malId ?: KitsugiBangumiDetailClient.sanitizeMalId(realMalId)
+                    if (malId != null && malId > 0 && (mediaType == MediaType.Anime || mediaType == MediaType.Manga)) {
+                        val jikanList = fetchStaff("jikan", malId, mediaType, null, null)
+                        if (jikanList.isNotEmpty()) return@withContext jikanList
+                    }
+                    val resolvedTmdb = tmdbId ?: cross?.tmdbId
+                    if (resolvedTmdb != null && resolvedTmdb > 0 && mediaType != MediaType.Manga) {
+                        val (_, tmdbStaff) = TmdbApiClient().fetchCredits(resolvedTmdb, mediaType == MediaType.Movie)
+                        if (tmdbStaff.isNotEmpty()) return@withContext tmdbStaff
+                    }
+                    emptyList()
+                }
                 "shikimori" -> {
                     // 1) Shikimori'nin kendi `/roles` ucu personel kayıtlarını (yönetmen,
                     //    senarist …) ve seiyuu kayıtlarını içerir.
@@ -213,6 +235,9 @@ class KitsugiStaffClient {
         return withContext(Dispatchers.IO) {
             if (staffId <= 0) return@withContext null
             when (MalJikanMediaSupport.canonicalSource(source)) {
+                "bangumi" -> {
+                    KitsugiBangumiDetailClient.fetchStaffDetail(staffId)
+                }
                 "shikimori" -> {
                     KitsugiShikimoriClient.fetchStaffDetail(staffId)
                 }

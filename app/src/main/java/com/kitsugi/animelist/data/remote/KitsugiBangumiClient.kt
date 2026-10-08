@@ -59,16 +59,15 @@ object KitsugiBangumiClient {
         includeAdult: Boolean = false
     ): List<JikanSearchResult> = withContext(Dispatchers.IO) {
         runCatching {
-            val page = BangumiApiClient.searchSubjects(
+            searchWithFallback(
                 keyword = query,
                 token = tokenOrNull(context),
                 types = listOf(BangumiApiClient.SubjectType.ANIME),
                 sort = BangumiApiClient.SearchSort.MATCH,
-                nsfw = if (includeAdult) "include" else null,
+                includeAdult = includeAdult,
                 limit = limit,
                 offset = offset
-            )
-            page.data.filter { includeAdult || !it.nsfw }.map { it.toSearchResult(MediaType.Anime) }
+            ).filter { includeAdult || !it.nsfw }.map { it.toSearchResult(MediaType.Anime) }
         }.getOrElse { error ->
             Log.e(TAG, "Bangumi searchAnime failed: ${error.message}", error)
             emptyList()
@@ -89,16 +88,15 @@ object KitsugiBangumiClient {
         comicsOnly: Boolean = true
     ): List<JikanSearchResult> = withContext(Dispatchers.IO) {
         runCatching {
-            val page = BangumiApiClient.searchSubjects(
+            searchWithFallback(
                 keyword = query,
                 token = tokenOrNull(context),
                 types = listOf(BangumiApiClient.SubjectType.BOOK),
                 sort = BangumiApiClient.SearchSort.MATCH,
-                nsfw = if (includeAdult) "include" else null,
+                includeAdult = includeAdult,
                 limit = limit,
                 offset = offset
             )
-            page.data
                 .filter { includeAdult || !it.nsfw }
                 .filter { !comicsOnly || it.platform == null || it.platform == "漫画" }
                 .map { it.toSearchResult(MediaType.Manga) }
@@ -116,7 +114,7 @@ object KitsugiBangumiClient {
     suspend fun searchCharacters(
         query: String,
         page: Int = 1,
-        limit: Int = 24,
+        limit: Int = BangumiApiClient.SEARCH_PAGE_SIZE,
         context: Context? = null,
         includeAdult: Boolean = false
     ): List<JikanSearchResult> = withContext(Dispatchers.IO) {
@@ -136,7 +134,7 @@ object KitsugiBangumiClient {
     suspend fun searchPeople(
         query: String,
         page: Int = 1,
-        limit: Int = 24,
+        limit: Int = BangumiApiClient.SEARCH_PAGE_SIZE,
         context: Context? = null,
         career: List<String> = emptyList()
     ): List<JikanSearchResult> = withContext(Dispatchers.IO) {
@@ -172,7 +170,7 @@ object KitsugiBangumiClient {
         context: Context? = null,
         includeAdult: Boolean = false
     ): List<JikanSearchResult> = withContext(Dispatchers.IO) {
-        runCatching {
+        try {
             val types = when (mediaType) {
                 MediaType.Manga -> listOf(BangumiApiClient.SubjectType.BOOK)
                 MediaType.Movie -> listOf(BangumiApiClient.SubjectType.ANIME, BangumiApiClient.SubjectType.REAL)
@@ -184,21 +182,24 @@ object KitsugiBangumiClient {
             yearTo?.let { airDate += "<=${it}-12-31" }
             val rating = minScore?.takeIf { it > 0 }?.let { listOf(">=$it") } ?: emptyList()
 
-            val offset = ((page - 1).coerceAtLeast(0)) * limit
-            val effectiveQuery = query.ifBlank { "" }
+            val effectiveQuery = query.trim()
+            // Arama ucu sayfa başına en fazla 20 kayıt verir; offset de AYNI boyuta göre
+            // hesaplanmazsa her sayfada kayıt atlanır. Göz atma ucu ise 50'ye kadar destekler.
+            val pageSize = if (effectiveQuery.isBlank()) limit else limit.coerceIn(1, BangumiApiClient.SEARCH_PAGE_SIZE)
+            val offset = ((page - 1).coerceAtLeast(0)) * pageSize
 
             // Boş sorguda arama ucu güvenilmez; göz atma ucuna düş.
-            val pageResult = if (effectiveQuery.isBlank()) {
+            val subjects = if (effectiveQuery.isBlank()) {
                 BangumiApiClient.browseSubjects(
                     type = types.first(),
                     token = tokenOrNull(context),
                     sort = if (sort == BangumiApiClient.SearchSort.RANK) "rank" else "date",
                     year = yearFrom ?: yearTo,
-                    limit = limit,
+                    limit = pageSize,
                     offset = offset
-                )
+                ).data
             } else {
-                BangumiApiClient.searchSubjects(
+                searchWithFallback(
                     keyword = effectiveQuery,
                     token = tokenOrNull(context),
                     types = types,
@@ -206,18 +207,94 @@ object KitsugiBangumiClient {
                     tags = tags,
                     airDate = airDate,
                     rating = rating,
-                    nsfw = if (includeAdult) "include" else null,
-                    limit = limit,
+                    includeAdult = includeAdult,
+                    limit = pageSize,
                     offset = offset
                 )
             }
-            pageResult.data
+            subjects
                 .filter { includeAdult || !it.nsfw }
                 .map { it.toSearchResult(mediaType) }
-        }.getOrElse { error ->
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            // Hata artık sessizce "Sonuç bulunamadı"ya çevrilmiyor: arama ekranı gerçek hata
+            // mesajını gösterir (ör. "Bangumi HTTP 400 ..."), böylece teşhis mümkün olur.
             Log.e(TAG, "Bangumi searchMediaAdvanced failed: ${error.message}", error)
-            emptyList()
+            throw error
         }
+    }
+
+    /**
+     * Anahtar kelime araması: önce `POST /v0/search/subjects`, hata verirse ya da boş dönerse
+     * (ve süzgeç yoksa) eski `GET /search/subject/{q}` ucu denenir.
+     *
+     * NSFW: sunucu `filter.nsfw` alanını JSON boolean olarak bekler. Yetişkin içerik kapalıyken
+     * `false` gönderilir (sayfa boyutu sunucuda süzüldüğü için sayfalama bozulmaz); açıkken
+     * filtre hiç gönderilmez (R18, yalnızca yetkili hesaplara döner).
+     *
+     * İki uç da hata verirse ilk (v0) hata fırlatılır; ikisi de boşsa boş liste döner.
+     */
+    private suspend fun searchWithFallback(
+        keyword: String,
+        token: String?,
+        types: List<Int>,
+        sort: String,
+        includeAdult: Boolean,
+        limit: Int,
+        offset: Int,
+        tags: List<String> = emptyList(),
+        airDate: List<String> = emptyList(),
+        rating: List<String> = emptyList()
+    ): List<BangumiSubject> {
+        val primary = runCatching {
+            BangumiApiClient.searchSubjects(
+                keyword = keyword,
+                token = token,
+                types = types,
+                sort = sort,
+                tags = tags,
+                airDate = airDate,
+                rating = rating,
+                nsfw = if (includeAdult) null else false,
+                limit = limit,
+                offset = offset
+            )
+        }
+        primary.exceptionOrNull()?.let { if (it is kotlinx.coroutines.CancellationException) throw it }
+        val primaryData = primary.getOrNull()?.data.orEmpty()
+        if (primaryData.isNotEmpty()) return primaryData
+
+        // Eski uç tag/tarih/puan süzgeci desteklemez; süzgeçli aramada yedeğe düşme.
+        val plainQuery = tags.isEmpty() && airDate.isEmpty() && rating.isEmpty()
+        if (!plainQuery || keyword.isBlank()) {
+            primary.exceptionOrNull()?.let { throw it }
+            return emptyList()
+        }
+
+        val legacyTypes: List<Int?> = if (types.isEmpty()) listOf<Int?>(null) else types
+        val legacy = runCatching {
+            val merged = LinkedHashMap<Int, BangumiSubject>()
+            for (type in legacyTypes) {
+                BangumiApiClient.searchSubjectsLegacy(
+                    keyword = keyword,
+                    token = token,
+                    type = type,
+                    limit = limit,
+                    offset = offset
+                ).data.forEach { merged.putIfAbsent(it.id, it) }
+            }
+            merged.values.toList()
+        }
+        legacy.exceptionOrNull()?.let { if (it is kotlinx.coroutines.CancellationException) throw it }
+        val legacyData = legacy.getOrNull().orEmpty()
+        if (legacyData.isNotEmpty()) {
+            Log.w(TAG, "Bangumi v0 arama sonuç vermedi (${primary.exceptionOrNull()?.message}); legacy uç ${legacyData.size} sonuç döndürdü")
+            return legacyData
+        }
+        primary.exceptionOrNull()?.let { throw it }
+        legacy.exceptionOrNull()?.let { throw it }
+        return emptyList()
     }
 
     // ── Keşfet kategorileri ──────────────────────────────────────────────────
@@ -239,15 +316,19 @@ object KitsugiBangumiClient {
     /** "En Yüksek Puanlı Animeler" — `sort=score` araması. */
     suspend fun topRatedAnime(limit: Int = 20, context: Context? = null, offset: Int = 0): List<JikanSearchResult> =
         runCatching {
-            BangumiApiClient.searchSubjects(
-                keyword = "",
-                token = tokenOrNull(context),
-                types = listOf(BangumiApiClient.SubjectType.ANIME),
-                sort = BangumiApiClient.SearchSort.SCORE,
-                limit = limit,
-                offset = offset
-            ).data.map { it.toSearchResult(MediaType.Anime) }
-                .ifEmpty { topAnime(limit, context) }
+            // Boş anahtar kelimeli arama sunucuda hata verebilir → rank sıralamasına düş.
+            runCatching {
+                BangumiApiClient.searchSubjects(
+                    keyword = "",
+                    token = tokenOrNull(context),
+                    types = listOf(BangumiApiClient.SubjectType.ANIME),
+                    sort = BangumiApiClient.SearchSort.SCORE,
+                    nsfw = false,
+                    limit = limit,
+                    offset = offset
+                ).data.map { it.toSearchResult(MediaType.Anime) }
+            }.getOrDefault(emptyList())
+                .ifEmpty { topAnime(limit, context, offset) }
         }.getOrElse { logAndEmpty("topRatedAnime", it) }
 
     /**
