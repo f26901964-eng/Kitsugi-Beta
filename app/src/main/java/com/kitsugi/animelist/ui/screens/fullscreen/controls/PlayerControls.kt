@@ -1,4 +1,5 @@
 ﻿package com.kitsugi.animelist.ui.screens.fullscreen.controls
+import com.kitsugi.animelist.ui.screens.fullscreen.playerSurfaceColor
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.animation.AnimatedVisibility
@@ -226,14 +227,17 @@ fun PlayerControls(
             modifier          = Modifier.fillMaxSize()
         )
 
-        // ── Brightness slider overlay ─────────────────────────────────────────
-        val swapVolumeAndBrightness = settings.swipeVolumeBrightnessSides
+        // ── Gösterge yerleşimi (SABİT) ────────────────────────────────────────
+        // Parlaklık göstergesi SAĞDA, ses göstergesi SOLDA gösterilir.
+        // Bu yalnızca görsel göstergeleri etkiler; kaydırma (dokunma) bölgeleri
+        // GestureHandler'daki swipeVolumeBrightnessSides ayarına göre değişmeye devam eder.
+        // ── Brightness slider overlay (sağ kenar) ─────────────────────────────
         AnimatedVisibility(
             visible = isBrightnessSliderShown,
-            enter = slideInHorizontally(androidx.compose.animation.core.tween(100)) { if (swapVolumeAndBrightness) -it else it } + fadeIn(),
-            exit = slideOutHorizontally(androidx.compose.animation.core.tween(300)) { if (swapVolumeAndBrightness) -it else it } + fadeOut(),
+            enter = slideInHorizontally(androidx.compose.animation.core.tween(100)) { it } + fadeIn(),
+            exit = slideOutHorizontally(androidx.compose.animation.core.tween(300)) { it } + fadeOut(),
             modifier = Modifier
-                .align(if (swapVolumeAndBrightness) Alignment.CenterStart else Alignment.CenterEnd)
+                .align(Alignment.CenterEnd)
                 .padding(horizontal = 24.dp)
         ) {
             BrightnessSlider(
@@ -243,13 +247,13 @@ fun PlayerControls(
             )
         }
 
-        // ── Volume slider overlay ─────────────────────────────────────────────
+        // ── Volume slider overlay (sol kenar) ─────────────────────────────────
         AnimatedVisibility(
             visible = isVolumeSliderShown,
-            enter = slideInHorizontally(androidx.compose.animation.core.tween(100)) { if (swapVolumeAndBrightness) it else -it } + fadeIn(),
-            exit = slideOutHorizontally(androidx.compose.animation.core.tween(300)) { if (swapVolumeAndBrightness) it else -it } + fadeOut(),
+            enter = slideInHorizontally(androidx.compose.animation.core.tween(100)) { -it } + fadeIn(),
+            exit = slideOutHorizontally(androidx.compose.animation.core.tween(300)) { -it } + fadeOut(),
             modifier = Modifier
-                .align(if (swapVolumeAndBrightness) Alignment.CenterEnd else Alignment.CenterStart)
+                .align(Alignment.CenterStart)
                 .padding(horizontal = 24.dp)
         ) {
             VolumeSlider(
@@ -287,7 +291,7 @@ fun PlayerControls(
             if (showLoadingCircle) {
                 CircularProgressIndicator(
                     modifier = Modifier.size(80.dp).align(Alignment.Center),
-                    color = KitsugiColors.AccentBlue,
+                    color = KitsugiColors.Accent,
                     strokeWidth = 4.dp
                 )
             }
@@ -531,7 +535,7 @@ fun PlayerControls(
             Card(
                 shape  = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFF1E1E38).copy(alpha = 0.9f),
+                    containerColor = playerSurfaceColor(0.92f),
                     contentColor = Color.White
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 8.dp),

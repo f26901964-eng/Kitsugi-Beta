@@ -23,6 +23,9 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import androidx.activity.viewModels
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.collectAsState
 import androidx.lifecycle.lifecycleScope
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -348,7 +351,24 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
         }
 
         setContent {
-            KitsugiAnimeListTheme {
+            // Oynatıcı, ana uygulamayla AYNI tema ayarlarını kullanmalı (seçili tema rengi, AMOLED, tema modu).
+            // Aksi halde KitsugiAnimeListTheme varsayılan (mint) vurgu rengiyle açılıyordu.
+            val playerSettingsStore = remember { SettingsDataStore(applicationContext) }
+            val playerSettings by playerSettingsStore.settingsFlow.collectAsState(
+                initial = com.kitsugi.animelist.data.settings.AppSettings()
+            )
+            val playerDarkTheme = when (playerSettings.themeMode) {
+                "LIGHT" -> false
+                "DARK" -> true
+                else -> androidx.compose.foundation.isSystemInDarkTheme()
+            }
+            KitsugiAnimeListTheme(
+                darkTheme = playerDarkTheme,
+                amoledBlack = playerSettings.amoledBlack,
+                selectedThemeId = playerSettings.selectedThemeId,
+                customAccentColor = playerSettings.customAccentColor,
+            ) {
+              PlayerAccentTheme {
                 KitsugiFullscreenPlayerScreen(
                     videoId          = videoId,
                     videoUrl         = videoUrl,
@@ -378,6 +398,7 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
                     resumePosition   = resumePosition,
                     onBack           = { finish() }
                 )
+              }
             }
         }
     }

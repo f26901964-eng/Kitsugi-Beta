@@ -23,19 +23,22 @@ class PlayerFallbackCoordinator(
     private val TAG = "PlayerFallbackCoord"
     private var attempts = 0
 
+    /** Bu kaynak için zaten denenmiş dahili motorlar (aynı motora geri dönüşü engeller). */
+    private val triedEngines = mutableSetOf<PlayerEngineType>()
+
     /**
      * Mevcut motora göre bir sonraki fallback motorunu döndürür.
      *
      * @param currentEngine Şu an oynatmaya çalışan motor tipi
      * @param errorCode     [PlayerEngine.Listener.onPlaybackError] hata kodu
-     * @param mpvEnabled    Kullanıcı ayarında MPV seçeneği açık mı?
+     * @param mpvEnabled    MPV dahili motorunun kullanılabilir olup olmadığı (paketle gelir, varsayılan true)
      *
      * @return Denedecek sonraki motor; fallback bitti ise null
      */
     fun getFallbackEngine(
         currentEngine: PlayerEngineType,
         errorCode: Int,
-        mpvEnabled: Boolean = false
+        mpvEnabled: Boolean = true
     ): PlayerEngineType? {
         if (attempts >= maxAttempts) {
             Log.w(TAG, "Fallback limit aşıldı ($attempts/$maxAttempts) — fatal error bildiriliyor")
@@ -47,15 +50,11 @@ class PlayerFallbackCoordinator(
         }
 
         attempts++
-        // NOT: `mpvEnabled` daha önce yok sayılıyordu; kullanıcı MPV'yi kapatsa bile zincir
-        // MEDIA3 → MPV diye ilerliyor ve o motor kurulamadığı için deneme boşa harcanıyordu
-        // (kullanıcı açısından "oynatıcı yine hata verdi"). Artık `nextEngine()` ile aynı
-        // semantik: MPV kapalıysa doğrudan EXTERNAL'e geçilir.
-        val next = when (currentEngine) {
-            PlayerEngineType.MEDIA3   -> if (mpvEnabled) PlayerEngineType.MPV else PlayerEngineType.EXTERNAL
-            PlayerEngineType.MPV      -> PlayerEngineType.EXTERNAL
-            PlayerEngineType.EXTERNAL -> null
-        }
+        triedEngines += currentEngine
+        // Zincir yalnızca DAHİLİ motorlardan oluşur: MEDIA3 ↔ MPV. Harici uygulama
+        // (EXTERNAL) bu zincirde yer almaz; ikinci dahili motor da denenmiş ise
+        // kaynak-seviyesi kurtarmaya bırakılır.
+        val next = nextInternalEngine(currentEngine, mpvEnabled, triedEngines)
 
         Log.d(TAG, "Fallback #$attempts: $currentEngine → $next (hata kodu: $errorCode, mpv=$mpvEnabled)")
 
@@ -78,6 +77,7 @@ class PlayerFallbackCoordinator(
     fun reset() {
         if (attempts > 0) Log.d(TAG, "Fallback sayacı sıfırlandı ($attempts deneme vardı)")
         attempts = 0
+        triedEngines.clear()
     }
 
     /** Kaç fallback denemesi yapıldığını döndürür */
@@ -92,11 +92,26 @@ class PlayerFallbackCoordinator(
          */
         fun nextEngine(
             currentEngine: PlayerEngineType,
-            mpvEnabled: Boolean = false
-        ): PlayerEngineType? = when (currentEngine) {
-            PlayerEngineType.MEDIA3   -> if (mpvEnabled) PlayerEngineType.MPV else PlayerEngineType.EXTERNAL
-            PlayerEngineType.MPV      -> PlayerEngineType.EXTERNAL
-            PlayerEngineType.EXTERNAL -> null
+            mpvEnabled: Boolean = true
+        ): PlayerEngineType? = nextInternalEngine(currentEngine, mpvEnabled, emptySet())
+
+        /**
+         * Dahili motorlar arasında bir sonraki motoru seçer.
+         * MEDIA3 → MPV (MPV paketle geldiği için her zaman kullanılabilir kabul edilir,
+         * [mpvEnabled] false verilirse yalnızca MPV'yi atlar), MPV → MEDIA3.
+         * Zaten denenmiş motorlara dönülmez.
+         */
+        internal fun nextInternalEngine(
+            currentEngine: PlayerEngineType,
+            mpvEnabled: Boolean,
+            tried: Set<PlayerEngineType>
+        ): PlayerEngineType? {
+            val candidate = when (currentEngine) {
+                PlayerEngineType.MEDIA3   -> if (mpvEnabled) PlayerEngineType.MPV else null
+                PlayerEngineType.MPV      -> PlayerEngineType.MEDIA3
+                PlayerEngineType.EXTERNAL -> null
+            }
+            return candidate?.takeUnless { it in tried }
         }
     }
 }

@@ -81,7 +81,7 @@ fun TorrentOverlay(
                         Icon(
                             imageVector = Icons.Rounded.CloudDownload,
                             contentDescription = "Torrent",
-                            tint = KitsugiColors.AccentGreen,
+                            tint = KitsugiColors.Accent,
                             modifier = Modifier.size(16.dp)
                         )
                         Text(
@@ -111,7 +111,7 @@ fun TorrentOverlay(
 
                 Text(
                     text = "İndirme: $ds",
-                    color = KitsugiColors.AccentGreen,
+                    color = KitsugiColors.Accent,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -133,7 +133,7 @@ fun TorrentOverlay(
                 ) {
                     LinearProgressIndicator(
                         progress = { bufferPercent / 100f },
-                        color = KitsugiColors.AccentGreen,
+                        color = KitsugiColors.Accent,
                         trackColor = Color.White.copy(alpha = 0.15f),
                         modifier = Modifier
                             .width(84.dp)

@@ -52,8 +52,8 @@ fun AutoPlaySwitch(
     val (thumbIcon, thumbColor, trackColor) = if (isChecked) {
         Triple(
             Icons.Filled.PlayCircle,
-            KitsugiColors.AccentBlue,
-            KitsugiColors.AccentBlue.copy(alpha = 0.3f),
+            KitsugiColors.Accent,
+            KitsugiColors.Accent.copy(alpha = 0.3f),
         )
     } else {
         Triple(

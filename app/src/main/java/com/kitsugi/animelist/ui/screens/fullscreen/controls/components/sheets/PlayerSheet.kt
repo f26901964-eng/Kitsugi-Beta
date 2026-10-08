@@ -1,4 +1,5 @@
 package com.kitsugi.animelist.ui.screens.fullscreen.controls.components.sheets
+import com.kitsugi.animelist.ui.screens.fullscreen.playerSurfaceColor
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -17,6 +18,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.dp
 
 /**
@@ -38,16 +40,18 @@ fun PlayerSheet(
         }
     }
 
+    val sheetSurface = com.kitsugi.animelist.ui.screens.fullscreen.playerSurfaceColor()
+    val sheetAccent = com.kitsugi.animelist.ui.theme.KitsugiColors.Accent
     androidx.compose.material3.MaterialTheme(
         colorScheme = androidx.compose.material3.darkColorScheme(
-            background = Color(0xFF16162A),
+            background = sheetSurface,
             onBackground = Color.White,
-            surface = Color(0xFF16162A),
+            surface = sheetSurface,
             onSurface = Color.White,
-            surfaceVariant = Color(0xFF25254A),
+            surfaceVariant = androidx.compose.ui.graphics.lerp(sheetSurface, Color.White, 0.10f),
             onSurfaceVariant = Color.White,
-            primary = Color(0xFF8C8CFF),
-            onPrimary = Color.Black
+            primary = sheetAccent,
+            onPrimary = com.kitsugi.animelist.ui.screens.fullscreen.playerOnAccentColor()
         )
     ) {
         Surface(
@@ -56,7 +60,7 @@ fun PlayerSheet(
                 .navigationBarsPadding()
                 .widthIn(max = 600.dp), // landscape/tablet genişlik sınırı
             shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-            color = Color(0xFF16162A).copy(alpha = 0.95f),
+            color = sheetSurface.copy(alpha = 0.95f),
             contentColor = Color.White,
         ) {
             Column(

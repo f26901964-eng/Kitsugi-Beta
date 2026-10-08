@@ -46,7 +46,7 @@ val CARDS_MAX_WIDTH = 420.dp
 
 @Composable
 fun panelCardsColors() = CardDefaults.cardColors(
-    containerColor = Color.Black,
+    containerColor = com.kitsugi.animelist.ui.screens.fullscreen.playerSurfaceColor(0.96f),
     contentColor = Color.White,
 )
 

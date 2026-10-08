@@ -44,7 +44,7 @@ fun QualitySheet(
                         .padding(24.dp),
                     horizontalArrangement = Arrangement.Center,
                 ) {
-                    CircularProgressIndicator(color = KitsugiColors.AccentBlue)
+                    CircularProgressIndicator(color = KitsugiColors.Accent)
                 }
             } else {
                 LazyColumn {

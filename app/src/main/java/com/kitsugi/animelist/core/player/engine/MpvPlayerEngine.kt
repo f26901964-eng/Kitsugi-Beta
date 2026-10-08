@@ -92,6 +92,7 @@ class MpvPlayerEngine(
     private var pendingHeaders: Map<String, String> = emptyMap()
     private var pendingSubtitles: List<SubtitleInput> = emptyList()
     private var pendingStartPositionMs: Long = 0L
+    private var pendingAudioUrl: String? = null
 
     /** Hazırlık sırasında motorun aldığı SubtitleInput listesi (dahili/harici bayrağını taşır). */
     private var preparedSubtitles: List<SubtitleInput> = emptyList()
@@ -101,6 +102,22 @@ class MpvPlayerEngine(
      * false = henüz yapılmadı (bir sonraki updateTracks'de çalışacak)
      */
     private var initialSelectionDone: Boolean = false
+
+    /** Mevcut medya dosyası açıldı mı (MPV_EVENT_FILE_LOADED alındı mı)? */
+    private var fileLoaded: Boolean = false
+    /** Bu medya yükleme döngüsü için oynatıcı hatası zaten bildirildi mi? */
+    private var errorReportedForLoad: Boolean = false
+    /**
+     * loadfile(replace) ile değiştirilen ÖNCEKİ dosyanın END_FILE olaylarını atlamak için sayaç.
+     * Bunlar yeni medyanın hatası değildir; atlanmazsa sahte hata → sahte motor değişimi olur.
+     */
+    private var staleEndFileEvents: Int = 0
+    /** Son yüklenen medyanın anahtarı (url + headers + başlangıç konumu); setMedia ile aynı koşul. */
+    private var lastLoadKey: String? = null
+    /** Ayrı ses akışı (audioUrl) eklendi mi? true ise MPV'nin ses otomatik seçimi ezilmez. */
+    private var hasExternalAudio: Boolean = false
+    /** Harici altyazılar beklenmeden de ilk seçim yapılsın diye zorlanmış değerlendirme. */
+    private var selectionForced: Boolean = false
 
     // ──── Observed properties (Aniyomi modeli) ───────────────────────────────
     // Bu liste, MPV başlatılırken tek seferlik kayıt yapılır.
@@ -179,10 +196,13 @@ class MpvPlayerEngine(
         this.pendingSubtitles = subtitles
         this.pendingStartPositionMs = startPositionMs
 
+        this.pendingAudioUrl = audioUrl
         val view = mpvView
         if (view != null) {
             applyInitOptions(view)
+            beginLoad(videoUrl, audioUrl, headers, startPositionMs)
             view.setMedia(videoUrl, headers, startPositionMs)
+            applyExternalAudio(view, audioUrl)
             view.applySubtitleLanguagePreferences(settings.preferredSubtitleLanguages, null)
             subtitles.forEach { sub ->
                 view.addAndSelectExternalSubtitle(sub.url, sub.name, sub.lang)
@@ -367,7 +387,9 @@ class MpvPlayerEngine(
 
                 val pendingUrl = videoUrl
                 if (!pendingUrl.isNullOrBlank()) {
+                    beginLoad(pendingUrl, pendingAudioUrl, pendingHeaders, pendingStartPositionMs)
                     setMedia(pendingUrl, pendingHeaders, pendingStartPositionMs)
+                    applyExternalAudio(this, pendingAudioUrl)
                     applySubtitleLanguagePreferences(settings.preferredSubtitleLanguages, null)
                     pendingSubtitles.forEach { sub ->
                         addAndSelectExternalSubtitle(sub.url, sub.name, sub.lang)
@@ -505,12 +527,20 @@ class MpvPlayerEngine(
         when (eventId) {
             MPV.mpvEvent.MPV_EVENT_FILE_LOADED -> {
                 Log.d(TAG, "MPV_EVENT_FILE_LOADED")
+                fileLoaded = true
                 updateState(PlayerEngine.State.READY)
                 updateTracks()
+                // Harici altyazılar bazen geç eklenir; kısa bir gecikmeden sonra seçimi zorla.
+                android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                    if (!initialSelectionDone) {
+                        selectionForced = true
+                        updateTracks()
+                    }
+                }, 1500L)
             }
             MPV.mpvEvent.MPV_EVENT_END_FILE -> {
                 Log.d(TAG, "MPV_EVENT_END_FILE")
-                // eof-reached property de tetiklenir; burada sadece loglama
+                handleEndFile()
             }
         }
     }
@@ -591,6 +621,63 @@ class MpvPlayerEngine(
         }
     }
 
+    /** Yeni bir medya yüklenmeden önce yükleme durumunu hazırlar. */
+    private fun beginLoad(url: String, audioUrl: String?, headers: Map<String, String>, startPositionMs: Long) {
+        // setMedia yalnızca bu anahtar değiştiğinde loadfile çağırır; aynı mantığı burada kullanıyoruz.
+        val key = "$url|${headers.hashCode()}|${startPositionMs.coerceAtLeast(0L)}"
+        val isNewLoad = key != lastLoadKey
+        if (isNewLoad) {
+            // Önceki dosya hâlâ açıksa, replace nedeniyle gelecek END_FILE'ı atla.
+            if (fileLoaded) staleEndFileEvents++
+            fileLoaded = false
+            errorReportedForLoad = false
+            selectionForced = false
+            initialSelectionDone = false
+        }
+        lastLoadKey = key
+        hasExternalAudio = !audioUrl.isNullOrBlank()
+    }
+
+    /** Ayrı ses akışını (audioUrl) MPV'ye ses parçası olarak ekler ve seçer. */
+    private fun applyExternalAudio(view: KitsugiMpvSurfaceView, audioUrl: String?) {
+        if (audioUrl.isNullOrBlank()) return
+        runCatching {
+            view.mpv.command("audio-add", audioUrl, "select")
+        }.onFailure {
+            Log.w(TAG, "audio-add başarısız: ${it.message}")
+        }
+    }
+
+    /**
+     * MPV_EVENT_END_FILE işleyici. Dosya açılamazsa veya oynatma EOF'a ulaşmadan
+     * beklenmeyen şekilde kesilirse hata bildirir; PlayerErrorRecoveryController
+     * böylece yedek dahili oynatıcıya (MEDIA3) geçebilir.
+     */
+    private fun handleEndFile() {
+        if (staleEndFileEvents > 0) {
+            staleEndFileEvents--
+            Log.d(TAG, "Önceki dosyanın END_FILE olayı atlandı (kalan=$staleEndFileEvents)")
+            return
+        }
+        val wasLoaded = fileLoaded
+        fileLoaded = false
+        val reachedEof = runCatching { mpvView?.mpv?.getPropertyBoolean("eof-reached") == true }
+            .getOrDefault(false)
+        if (reachedEof || errorReportedForLoad) return
+
+        errorReportedForLoad = true
+        val code = if (wasLoaded) 9002 else 9001
+        val msg = if (wasLoaded) {
+            "MPV oynatma sırasında beklenmeyen şekilde durdu"
+        } else {
+            "MPV dosyayı açamadı (kaynak erişilemiyor veya format desteklenmiyor)"
+        }
+        Log.e(TAG, "$msg (code=$code)")
+        android.os.Handler(android.os.Looper.getMainLooper()).post {
+            listeners.forEach { it.onPlaybackError(code, msg, null) }
+        }
+    }
+
     private fun updateState(newState: PlayerEngine.State) {
         if (currentState != newState) {
             currentState = newState
@@ -637,27 +724,24 @@ class MpvPlayerEngine(
             )
         }
 
-        val isAddonSub: (com.kitsugi.animelist.core.player.engine.MpvTrack) -> Boolean = { track ->
-            preparedSubtitles.any { sub ->
-                sub.isExternal && (
-                    track.name.contains(sub.name, ignoreCase = true) ||
-                    sub.name.contains(track.name, ignoreCase = true) ||
-                    (sub.lang.isNotBlank() && track.language == sub.lang)
-                )
-            }
-        }
+        // Harici altyazılar MPV track-list'inde kendi "external" bayrağıyla gelir: isim tahminine gerek yok.
+        val expectedExternalSubs = preparedSubtitles.count { it.isExternal }
+        val loadedExternalSubs = snapshot.subtitleTracks.count { it.isExternal }
+        val externalSubsReady = loadedExternalSubs >= expectedExternalSubs || selectionForced
 
-        // ── İlk otomatik parça seçimi — yalnızca yeni medya yüklendiğinde tetiklenir ────────────────
-        if (!initialSelectionDone && (snapshot.audioTracks.isNotEmpty() || snapshot.subtitleTracks.isNotEmpty())) {
+        // ── İlk otomatik parça seçimi — yalnızca yeni medya yüklendiğinde ve harici altyazılar hazırken ──
+        if (!initialSelectionDone && fileLoaded && externalSubsReady &&
+            (snapshot.audioTracks.isNotEmpty() || snapshot.subtitleTracks.isNotEmpty())
+        ) {
             initialSelectionDone = true
             val preferredLangs = settings.preferredSubtitleLanguages
                 .split(",").map { it.trim().lowercase() }.filter { it.isNotEmpty() }
 
-            // ── Ses: Türkçe önce, sonra tercih listesi ───────────────────────────────
+            // ── Ses: Türkçe önce, sonra tercih listesi (ayrı ses akışı varsa dokunulmaz) ──
             val currentlySelectedAudio = snapshot.audioTracks.firstOrNull { it.isSelected }
-            val isSelectedAudioTurkish = currentlySelectedAudio != null && 
+            val isSelectedAudioTurkish = currentlySelectedAudio != null &&
                 com.kitsugi.animelist.core.player.PlayerSubtitleUtils.isTurkish(currentlySelectedAudio.language, currentlySelectedAudio.name)
-            if (!isSelectedAudioTurkish) {
+            if (!isSelectedAudioTurkish && !hasExternalAudio) {
                 val bestAudio = com.kitsugi.animelist.core.player.PlayerSubtitleUtils
                     .findBestMpvAudioTrack(snapshot.audioTracks, preferredLangs)
                 if (bestAudio != null && currentlySelectedAudio?.id != bestAudio.id) {
@@ -666,27 +750,29 @@ class MpvPlayerEngine(
                 }
             }
 
-            // ── Altyazı: Kesin Öncelik Hiyerarşisi ───────────────────────────────────
-            // 1. Dahili / site kaynaklı Türkçe altyazı (isAddonSub = false)
-            // 2. Harici (OpenSubtitles vb.) Türkçe altyazı (isAddonSub = true)
-            // 3. Kullanıcı diğer tercih dilleri
-            // 4. Eşleşme yoksa: Devre dışı bırak (İtalyanca vb. yabancı diller ASLA seçilmez!)
+            // ── Altyazı: Tek ortak politika (SubtitleSelectionPolicy) — Media3 ile birebir aynı ──
+            // 1. Videonun içindeki Türkçe  2. Harici Türkçe  3. Diğer tercih dilleri  4. Yoksa kapat
             if (!_isSubtitleDisabled && snapshot.subtitleTracks.isNotEmpty()) {
                 val currentlySelectedSub = snapshot.subtitleTracks.firstOrNull { it.isSelected }
-                val isSelectedTurkishSource = currentlySelectedSub != null && 
-                    !isAddonSub(currentlySelectedSub) && 
+                val isSelectedTurkishSource = currentlySelectedSub != null &&
+                    !currentlySelectedSub.isExternal &&
                     com.kitsugi.animelist.core.player.PlayerSubtitleUtils.isTurkish(currentlySelectedSub.language, currentlySelectedSub.name)
-
                 if (!isSelectedTurkishSource) {
-                    val bestSub = com.kitsugi.animelist.core.player.PlayerSubtitleUtils
-                        .findBestMpvSubtitleTrack(snapshot.subtitleTracks, preferredLangs, isAddonSub)
+                    val candidates = snapshot.subtitleTracks.map { track ->
+                        com.kitsugi.animelist.core.player.SubtitleSelectionPolicy.Candidate(
+                            item = track,
+                            lang = track.language,
+                            label = track.name,
+                            isExternal = track.isExternal,
+                        )
+                    }
+                    val bestSub = com.kitsugi.animelist.core.player.SubtitleSelectionPolicy.pick(candidates, preferredLangs)
                     if (bestSub != null) {
                         if (currentlySelectedSub?.id != bestSub.id) {
                             Log.i(TAG, "Auto-selecting subtitle track: ${bestSub.name} (id=${bestSub.id})")
                             view.selectSubtitleTrackById(bestSub.id)
                         }
                     } else {
-                        // Türkçe veya tercih edilen dil bulunamadı — yabancı dili kapat
                         Log.i(TAG, "No Turkish/preferred subtitle found. Disabling non-preferred track: ${currentlySelectedSub?.name}")
                         view.disableSubtitles()
                     }

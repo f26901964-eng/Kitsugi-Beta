@@ -3,14 +3,19 @@ package com.kitsugi.animelist.ui.screens.fullscreen.controls.components.panels
 import android.content.res.Configuration.ORIENTATION_PORTRAIT
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -23,8 +28,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -32,10 +35,17 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shadow
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
-import androidx.constraintlayout.compose.ConstraintLayout
-import androidx.constraintlayout.compose.Dimension
 import com.kitsugi.animelist.ui.screens.fullscreen.components.SubtitleStyleSettings
 
+/**
+ * Altyazı stil penceresi.
+ *
+ * Önceki sürümde landscape (yatay) modda kart kolonu ConstraintLayout içinde yalnızca
+ * üst/sağ kenarına bağlıydı ve yüksekliği sınırlı değildi; içerik ekran dışına taşıyordu.
+ * Artık tüm panel ekran boyutuna sabitlenir, güvenli alan (çentik / sistem çubukları)
+ * dikkate alınır ve içerik dikey olarak kaydırılabilir. Yatay modda sağ kenara, dikey
+ * modda ortaya hizalanır; genişlik her iki modda da sınırlıdır.
+ */
 @Composable
 fun SubtitleSettingsPanel(
     subtitleStyle: SubtitleStyleSettings,
@@ -44,83 +54,54 @@ fun SubtitleSettingsPanel(
     modifier: Modifier = Modifier,
 ) {
     BackHandler(onBack = onDismissRequest)
-    val orientation = LocalConfiguration.current.orientation
+    val isPortrait = LocalConfiguration.current.orientation == ORIENTATION_PORTRAIT
 
-    ConstraintLayout(modifier = modifier.fillMaxSize()) {
-        val subSettingsCards = createRef()
-
-        val cards: @Composable (Int, Modifier) -> Unit = { page, cardModifier ->
-            when (page) {
-                0 -> SubtitleTypographyCard(subtitleStyle, onStyleChange, cardModifier)
-                1 -> SubtitleMiscCard(subtitleStyle, onStyleChange, cardModifier)
-                else -> {}
-            }
-        }
-
-        if (orientation == ORIENTATION_PORTRAIT) {
-            Column(
-                modifier = Modifier
-                    .constrainAs(subSettingsCards) {
-                        top.linkTo(parent.top, 16.dp)
-                        start.linkTo(parent.start)
-                        end.linkTo(parent.end)
-                        bottom.linkTo(parent.bottom, 16.dp)
-                        width = Dimension.fillToConstraints
-                        height = Dimension.fillToConstraints
-                    }
-                    .padding(horizontal = 16.dp)
-                    .verticalScroll(rememberScrollState()),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(12.dp),
+    Box(
+        modifier = modifier
+            .fillMaxSize()
+            .windowInsetsPadding(WindowInsets.safeDrawing),
+        contentAlignment = if (isPortrait) Alignment.TopCenter else Alignment.CenterEnd,
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxHeight()
+                .fillMaxWidth()
+                .widthIn(max = if (isPortrait) PORTRAIT_PANEL_MAX_WIDTH else LANDSCAPE_PANEL_MAX_WIDTH)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
+                .verticalScroll(rememberScrollState()),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                TopAppBar(
-                    title = {
-                        Text(
-                            "Altyazı Ayarları",
-                            style = MaterialTheme.typography.headlineMedium.copy(shadow = Shadow(blurRadius = 20f)),
-                        )
-                    },
-                    navigationIcon = {
-                        IconButton(onClick = onDismissRequest) {
-                            Icon(imageVector = Icons.AutoMirrored.Default.ArrowBack, contentDescription = null)
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors().copy(containerColor = Color.Transparent),
-                )
-                SubtitleTypographyCard(subtitleStyle, onStyleChange, Modifier.fillMaxWidth())
-                SubtitleMiscCard(subtitleStyle, onStyleChange, Modifier.fillMaxWidth())
-                Spacer(Modifier.height(24.dp))
-            }
-        } else {
-            Column(
-                horizontalAlignment = Alignment.Start,
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier
-                    .constrainAs(subSettingsCards) {
-                        top.linkTo(parent.top)
-                        end.linkTo(parent.end, 32.dp)
-                    }
-                    .verticalScroll(rememberScrollState()),
-            ) {
-                Spacer(Modifier.height(16.dp))
-                Row(
-                    Modifier.widthIn(max = CARDS_MAX_WIDTH).fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Text(
-                        "Altyazı Ayarları",
-                        style = MaterialTheme.typography.headlineMedium.copy(shadow = Shadow(blurRadius = 20f)),
+                IconButton(onClick = onDismissRequest) {
+                    Icon(
+                        imageVector = if (isPortrait) Icons.AutoMirrored.Default.ArrowBack else Icons.Default.Close,
+                        contentDescription = null,
+                        tint = Color.White,
                     )
-                    IconButton(onDismissRequest) {
-                        Icon(imageVector = Icons.Default.Close, contentDescription = null)
-                    }
                 }
-                repeat(2) { cards(it, Modifier.fillMaxWidth()) }
-                Spacer(Modifier.height(16.dp))
+                Text(
+                    text = "Altyazı Ayarları",
+                    color = Color.White,
+                    style = MaterialTheme.typography.headlineSmall.copy(shadow = Shadow(blurRadius = 20f)),
+                )
+                // Simetri için görünmez yer tutucu
+                Spacer(Modifier.height(48.dp).widthIn(min = 48.dp))
             }
+
+            SubtitleTypographyCard(subtitleStyle, onStyleChange, Modifier.fillMaxWidth())
+            SubtitleMiscCard(subtitleStyle, onStyleChange, Modifier.fillMaxWidth())
+            Spacer(Modifier.height(24.dp))
         }
     }
 }
+
+private val PORTRAIT_PANEL_MAX_WIDTH = 560.dp
+private val LANDSCAPE_PANEL_MAX_WIDTH = CARDS_MAX_WIDTH + 80.dp
 
 @Composable
 private fun SubtitleTypographyCard(

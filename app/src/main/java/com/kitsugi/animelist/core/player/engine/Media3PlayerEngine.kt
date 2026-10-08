@@ -337,62 +337,40 @@ class Media3PlayerEngine(
                 // 3. Kullanıcı diğer tercih dilleri
                 // 4. Eşleşme yoksa: Devre dışı bırak (İtalyanca vb. yabancı diller ASLA seçilmez!)
                 if (!isSubtitleDisabled && textOptions.isNotEmpty()) {
+                    // Harici altyazı tespiti: ÖNCE track kimliği (setId ile verilen sub.url),
+                    // sonra birebir (büyük/küçük harf duyarsız) isim eşleşmesi.
+                    // Eskiden "contains" tabanlı eşleşme yüzünden dahili "Türkçe" parçası,
+                    // "Türkçe (addon)" adlı harici altyazıyla karıştırılıp harici sayılıyordu.
                     val isExternalTrack: (TrackOption) -> Boolean = { opt ->
                         val format = opt.group.getTrackFormat(opt.trackIndex)
-                        val lang = format.language ?: ""
                         val label = format.label ?: ""
                         val id = format.id ?: ""
-                        preparedSubtitles.any { sub ->
-                            sub.isExternal && (
-                                (id.isNotBlank() && (id == sub.url || id == "file://${sub.url}")) ||
-                                (label.isNotBlank() && (label == sub.name || label.contains(sub.name, ignoreCase = true))) ||
-                                (sub.name.isNotBlank() && sub.name.contains(label, ignoreCase = true))
-                            )
+                        val externals = preparedSubtitles.filter { it.isExternal }
+                        externals.any { sub ->
+                            (id.isNotBlank() && (id == sub.url || id == "file://${sub.url}")) ||
+                                (label.isNotBlank() && sub.name.isNotBlank() && label.equals(sub.name, ignoreCase = true))
                         }
                     }
 
                     val currentlySelected = textOptions.firstOrNull { it.isSelected }
                     val isSelectedTurkishSource = currentlySelected != null && run {
                         val format = currentlySelected.group.getTrackFormat(currentlySelected.trackIndex)
-                        !isExternalTrack(currentlySelected) && 
+                        !isExternalTrack(currentlySelected) &&
                             com.kitsugi.animelist.core.player.PlayerSubtitleUtils.isTurkish(format.language, format.label)
                     }
 
                     if (!isSelectedTurkishSource) {
-                        var bestSub: TrackOption? = null
-
-                        // 1. ÖNCELİK: Dahili / site kaynaklı Türkçe altyazı
-                        bestSub = textOptions.find { opt ->
+                        // Tek ortak politika (SubtitleSelectionPolicy) — MPV ile birebir aynı sonuç.
+                        val candidates = textOptions.map { opt ->
                             val format = opt.group.getTrackFormat(opt.trackIndex)
-                            !isExternalTrack(opt) && com.kitsugi.animelist.core.player.PlayerSubtitleUtils.isTurkish(format.language, format.label)
+                            com.kitsugi.animelist.core.player.SubtitleSelectionPolicy.Candidate(
+                                item = opt,
+                                lang = format.language,
+                                label = format.label,
+                                isExternal = isExternalTrack(opt),
+                            )
                         }
-
-                        // 2. ÖNCELİK: Harici (OpenSubtitles vb.) Türkçe altyazı
-                        if (bestSub == null) {
-                            bestSub = textOptions.find { opt ->
-                                val format = opt.group.getTrackFormat(opt.trackIndex)
-                                isExternalTrack(opt) && com.kitsugi.animelist.core.player.PlayerSubtitleUtils.isTurkish(format.language, format.label)
-                            }
-                        }
-
-                        // 3. ÖNCELİK: Diğer tercih dilleri (sırayla dahili, sonra harici)
-                        if (bestSub == null) {
-                            for (lang in preferredLangs) {
-                                if (com.kitsugi.animelist.core.player.PlayerSubtitleUtils.matchesLanguageCode(lang, "tr")) continue
-                                bestSub = textOptions.find { opt ->
-                                    val format = opt.group.getTrackFormat(opt.trackIndex)
-                                    !isExternalTrack(opt) && com.kitsugi.animelist.core.player.PlayerSubtitleUtils.matchesTrackLanguage(format.language, format.label, lang)
-                                }
-                                if (bestSub != null) break
-
-                                bestSub = textOptions.find { opt ->
-                                    val format = opt.group.getTrackFormat(opt.trackIndex)
-                                    isExternalTrack(opt) && com.kitsugi.animelist.core.player.PlayerSubtitleUtils.matchesTrackLanguage(format.language, format.label, lang)
-                                }
-                                if (bestSub != null) break
-                            }
-                        }
-
+                        val bestSub = com.kitsugi.animelist.core.player.SubtitleSelectionPolicy.pick(candidates, preferredLangs)
                         if (bestSub != null) {
                             if (currentlySelected != bestSub) {
                                 Log.i(TAG, "Auto-selecting best subtitle track: ${bestSub.label}")
@@ -738,7 +716,12 @@ class Media3PlayerEngine(
                         sub.url.contains(".ass", ignoreCase = true) || sub.url.contains(".ssa", ignoreCase = true) -> MimeTypes.TEXT_SSA
                         else -> MimeTypes.TEXT_VTT
                     }
-                    MediaItem.SubtitleConfiguration.Builder(Uri.parse(if (sub.url.startsWith("/")) "file://$sub.url" else sub.url))
+                    // NOT: "file://$sub.url" yanlış interpolasyondu (sub.toString() + ".url").
+                    // Yerel önbellek yolu için doğru şema "file://${sub.url}" olmalı.
+                    MediaItem.SubtitleConfiguration.Builder(Uri.parse(if (sub.url.startsWith("/")) "file://${sub.url}" else sub.url))
+                        // Harici altyazıyı track kimliğiyle eşleştirebilmek için benzersiz id:
+                        // isim benzerliğine (ör. "Türkçe" dahili / "Türkçe (addon)" harici) güvenmiyoruz.
+                        .setId(sub.url)
                         .setMimeType(mime)
                         .setLanguage(sub.lang)
                         .setLabel(sub.name)

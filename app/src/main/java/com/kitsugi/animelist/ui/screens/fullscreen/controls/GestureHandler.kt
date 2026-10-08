@@ -316,10 +316,11 @@ fun GestureHandler(
                         }
                     }
 
-                    // Dokunma bölgeleri, ekrandaki kaydırıcı yerleşimiyle AYNI olmalı:
-                    //  - swapVolumeBrightness = true (varsayılan): parlaklık SOL, ses SAĞ
-                    //  - swapVolumeBrightness = false: ses SOL, parlaklık SAĞ
-                    // (PlayerControls.kt'deki BrightnessSlider/VolumeSlider hizalaması ile aynı kural.)
+                    // Kaydırma (dokunma) bölgeleri swipeVolumeBrightnessSides ayarına göre belirlenir:
+                    //  - swapVolumeBrightness = true (varsayılan): sol yarı parlaklık, sağ yarı ses
+                    //  - swapVolumeBrightness = false: sol yarı ses, sağ yarı parlaklık
+                    // NOT: Ekrandaki gösterge (slider) yerleşimi bundan BAĞIMSIZDIR; göstergeler
+                    // PlayerControls.kt içinde sabit olarak parlaklık SAĞDA, ses SOLDA çizilir.
                     val isLeftHalf = change.position.x < size.width / 2
                     val brightnessOnLeft = swapVolumeBrightness
                     if (isLeftHalf == brightnessOnLeft) changeBrightness() else changeVolume()
