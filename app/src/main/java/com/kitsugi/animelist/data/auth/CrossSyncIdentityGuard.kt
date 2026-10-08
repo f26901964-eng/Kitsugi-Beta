@@ -154,6 +154,70 @@ object CrossSyncIdentityGuard {
         for (x in left) for (y in right) {
             if (titlesShareDistinctiveToken(x, y)) return true
         }
+        // Gevşek ama güvenli varyant kontrolü (yalnızca yıllar biliniyorken): çeviri/romanizasyon farkları
+        // (Mayoiga ↔ Mayohiga, Onee-san ↔ Oneesan), sayısal başlığın İngilizce biçimi (86 ↔ 86: Eighty Six)
+        // ve kelime eklemesi (86 Part 2 ↔ 86: Eighty Six Part 2). Sezon/bölüm numaraları birebir aynı olmalı.
+        for (x in left) for (y in right) {
+            if (titlesVariantRelated(x, y)) return true
+        }
+        return false
+    }
+
+    private fun rawTokens(title: String): List<String> =
+        tokenNormalize(title).split(' ').filter { it.isNotBlank() }
+
+    /** Sayısal kelimeler (sezon/bölüm numarası gibi): "Part 2" ↔ "Part 3" farkını yakalamak için. */
+    private fun numericTokens(title: String): Set<String> =
+        rawTokens(title).filter { tok -> tok.all { it.isDigit() } }.toSet()
+
+    /** Yapısal kelimeler atılmış, boşluksuz karşılaştırma anahtarı; Hepburn romanizasyon farklarını katlar. */
+    private fun compactKey(title: String): String = rawTokens(title)
+        .filterNot { it in structuralTokens }
+        .joinToString("")
+        .replace("ou", "o")
+        .replace("oo", "o")
+        .replace("uu", "u")
+        .replace("ei", "e")
+
+    private fun levenshtein(a: String, b: String): Int {
+        if (a == b) return 0
+        var prev = IntArray(b.length + 1) { it }
+        var curr = IntArray(b.length + 1)
+        for (i in 1..a.length) {
+            curr[0] = i
+            for (j in 1..b.length) {
+                val cost = if (a[i - 1] == b[j - 1]) 0 else 1
+                curr[j] = minOf(curr[j - 1] + 1, prev[j] + 1, prev[j - 1] + cost)
+            }
+            val tmp = prev; prev = curr; curr = tmp
+        }
+        return prev[b.length]
+    }
+
+    /** Yalnızca varyant/çeviri farkı olan iki başlık (sayısal kimlikler aynı olmak zorunda). */
+    fun titlesVariantRelated(a: String, b: String): Boolean {
+        if (numericTokens(a) != numericTokens(b)) return false
+        val ka = compactKey(a)
+        val kb = compactKey(b)
+        if (ka.isEmpty() || kb.isEmpty()) return false
+
+        // (1) Sayısal başlık + İngilizce açılımı: "86" ↔ "86 Eighty Six" (tüm kelimeler sırayla bulunmalı)
+        val ta = rawTokens(a)
+        val tb = rawTokens(b)
+        val (shortT, longT) = if (ta.size <= tb.size) ta to tb else tb to ta
+        if (shortT.isNotEmpty()) {
+            var idx = 0
+            for (tok in longT) {
+                if (idx < shortT.size && tok == shortT[idx]) idx++
+            }
+            if (idx == shortT.size && (longT.size - shortT.size) <= 4) return true
+        }
+
+        // (2) Kısa romanizasyon/yazım farkı: en fazla 1 karakter ve uzunluğun %15'i kadar fark
+        if (ka.length >= 6 && kb.length >= 6) {
+            val dist = levenshtein(ka, kb)
+            if (dist <= 1 || (dist <= 2 && dist.toDouble() / maxOf(ka.length, kb.length) <= 0.15)) return true
+        }
         return false
     }
 

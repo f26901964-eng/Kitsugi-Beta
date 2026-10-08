@@ -158,11 +158,26 @@ object KitsuSyncManager {
         val kitsuMediaId = resolved.id
 
         val status = watchStatusToKitsu(entry.status)
-        val progress = entry.progress
         val ratingTwenty = SyncScores.kitsuTwenty(entry.score)
 
         val messages = mutableListOf<String>()
         val errors = mutableListOf<String>()
+
+        // Birleştirilmiş ilerleme (ör. AniList 13/13) Kitsu'daki bölüm sayısından (12) büyük olabilir;
+        // Kitsu bunu 422 "cannot exceed length of media" ile reddeder. Böyle bir hatada medya uzunluğunu
+        // alıp ilerlemeyi o sınıra indirerek bir kez daha yazarız. Kayıt ve durum değişmez.
+        var cappedProgressTo: Int? = null
+        suspend fun writeWithLengthGuard(
+            write: suspend (Int) -> KitsuApiClient.KitsuWriteResult
+        ): KitsuApiClient.KitsuWriteResult {
+            val first = write(entry.progress)
+            if (first.success || !KitsuApiClient.isMediaLengthError(first.errorMessage)) return first
+            val cap = KitsuApiClient.fetchMediaLength(kitsuMediaId, isAnime) ?: return first
+            if (cap >= entry.progress) return first
+            val capped = write(cap)
+            if (capped.success) cappedProgressTo = cap
+            return capped
+        }
 
         // A stale cached library-entry ID is not evidence that a remote record exists.
         val existingEntryId = KitsuApiClient.findLibraryEntryId(token, userId, kitsuMediaId, isAnime)
@@ -170,29 +185,37 @@ object KitsuSyncManager {
             ExternalAuthManager.saveKitsuLibraryEntryId(context, kitsuMediaId, isAnime, existingEntryId)
         }
 
+        val cappedNote = {
+            cappedProgressTo?.let { " — ilerleme ${entry.progress}→$it (Kitsu medya uzunluğuna sınırlandı)" }.orEmpty()
+        }
+
         if (existingEntryId != null) {
-            val result = KitsuApiClient.updateLibraryEntryDetailed(
-                token = token,
-                entryId = existingEntryId,
-                status = status,
-                progress = progress,
-                ratingTwenty = ratingTwenty
-            )
-            if (result.success) messages.add("Kitsu güncellendi (${entry.title})")
+            val result = writeWithLengthGuard { p ->
+                KitsuApiClient.updateLibraryEntryDetailed(
+                    token = token,
+                    entryId = existingEntryId,
+                    status = status,
+                    progress = p,
+                    ratingTwenty = ratingTwenty
+                )
+            }
+            if (result.success) messages.add("Kitsu güncellendi (${entry.title})${cappedNote()}")
             else errors.add("Kitsu güncellenemedi (${entry.title}): ${result.errorMessage ?: "bilinmeyen hata"}")
         } else {
-            val created = KitsuApiClient.createLibraryEntryDetailed(
-                token = token,
-                userId = userId,
-                kitsuMediaId = kitsuMediaId,
-                isAnime = isAnime,
-                status = status,
-                progress = progress,
-                ratingTwenty = ratingTwenty
-            )
+            val created = writeWithLengthGuard { p ->
+                KitsuApiClient.createLibraryEntryDetailed(
+                    token = token,
+                    userId = userId,
+                    kitsuMediaId = kitsuMediaId,
+                    isAnime = isAnime,
+                    status = status,
+                    progress = p,
+                    ratingTwenty = ratingTwenty
+                )
+            }
             if (created.success && created.entryId != null) {
                 ExternalAuthManager.saveKitsuLibraryEntryId(context, kitsuMediaId, isAnime, created.entryId)
-                messages.add("Kitsu kütüphanesine eklendi (${entry.title})")
+                messages.add("Kitsu kütüphanesine eklendi (${entry.title})${cappedNote()}")
             } else {
                 // Kayıt zaten Kitsu'da var olabilir (HTTP 422 "already exists") -> ID'yi bulup güncellemeyi dene
                 val fallbackId = runSyncCatching {
@@ -200,14 +223,16 @@ object KitsuSyncManager {
                 }.getOrNull()
                 if (fallbackId != null) {
                     ExternalAuthManager.saveKitsuLibraryEntryId(context, kitsuMediaId, isAnime, fallbackId)
-                    val updated = KitsuApiClient.updateLibraryEntryDetailed(
-                        token = token,
-                        entryId = fallbackId,
-                        status = status,
-                        progress = progress,
-                        ratingTwenty = ratingTwenty
-                    )
-                    if (updated.success) messages.add("Kitsu güncellendi (${entry.title})")
+                    val updated = writeWithLengthGuard { p ->
+                        KitsuApiClient.updateLibraryEntryDetailed(
+                            token = token,
+                            entryId = fallbackId,
+                            status = status,
+                            progress = p,
+                            ratingTwenty = ratingTwenty
+                        )
+                    }
+                    if (updated.success) messages.add("Kitsu güncellendi (${entry.title})${cappedNote()}")
                     else errors.add("Kitsu güncellenemedi (${entry.title}): ${updated.errorMessage ?: "bilinmeyen hata"}")
                 } else {
                     errors.add("Kitsu kütüphanesine eklenemedi (${entry.title}): ${created.errorMessage ?: "bilinmeyen hata"} [kitsu=$kitsuMediaId, ${resolved.via}]")
