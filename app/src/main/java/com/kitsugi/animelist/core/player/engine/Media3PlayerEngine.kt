@@ -355,45 +355,22 @@ class Media3PlayerEngine(
                     val currentlySelected = textOptions.firstOrNull { it.isSelected }
                     val isSelectedTurkishSource = currentlySelected != null && run {
                         val format = currentlySelected.group.getTrackFormat(currentlySelected.trackIndex)
-                        !isExternalTrack(currentlySelected) && 
+                        !isExternalTrack(currentlySelected) &&
                             com.kitsugi.animelist.core.player.PlayerSubtitleUtils.isTurkish(format.language, format.label)
                     }
 
                     if (!isSelectedTurkishSource) {
-                        var bestSub: TrackOption? = null
-
-                        // 1. ÖNCELİK: Dahili / site kaynaklı Türkçe altyazı
-                        bestSub = textOptions.find { opt ->
+                        // Tek ortak politika (SubtitleSelectionPolicy) — MPV ile birebir aynı sonuç.
+                        val candidates = textOptions.map { opt ->
                             val format = opt.group.getTrackFormat(opt.trackIndex)
-                            !isExternalTrack(opt) && com.kitsugi.animelist.core.player.PlayerSubtitleUtils.isTurkish(format.language, format.label)
+                            com.kitsugi.animelist.core.player.SubtitleSelectionPolicy.Candidate(
+                                item = opt,
+                                lang = format.language,
+                                label = format.label,
+                                isExternal = isExternalTrack(opt),
+                            )
                         }
-
-                        // 2. ÖNCELİK: Harici (OpenSubtitles vb.) Türkçe altyazı
-                        if (bestSub == null) {
-                            bestSub = textOptions.find { opt ->
-                                val format = opt.group.getTrackFormat(opt.trackIndex)
-                                isExternalTrack(opt) && com.kitsugi.animelist.core.player.PlayerSubtitleUtils.isTurkish(format.language, format.label)
-                            }
-                        }
-
-                        // 3. ÖNCELİK: Diğer tercih dilleri (sırayla dahili, sonra harici)
-                        if (bestSub == null) {
-                            for (lang in preferredLangs) {
-                                if (com.kitsugi.animelist.core.player.PlayerSubtitleUtils.matchesLanguageCode(lang, "tr")) continue
-                                bestSub = textOptions.find { opt ->
-                                    val format = opt.group.getTrackFormat(opt.trackIndex)
-                                    !isExternalTrack(opt) && com.kitsugi.animelist.core.player.PlayerSubtitleUtils.matchesTrackLanguage(format.language, format.label, lang)
-                                }
-                                if (bestSub != null) break
-
-                                bestSub = textOptions.find { opt ->
-                                    val format = opt.group.getTrackFormat(opt.trackIndex)
-                                    isExternalTrack(opt) && com.kitsugi.animelist.core.player.PlayerSubtitleUtils.matchesTrackLanguage(format.language, format.label, lang)
-                                }
-                                if (bestSub != null) break
-                            }
-                        }
-
+                        val bestSub = com.kitsugi.animelist.core.player.SubtitleSelectionPolicy.pick(candidates, preferredLangs)
                         if (bestSub != null) {
                             if (currentlySelected != bestSub) {
                                 Log.i(TAG, "Auto-selecting best subtitle track: ${bestSub.label}")

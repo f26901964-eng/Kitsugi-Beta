@@ -205,8 +205,24 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
     val activeEngineType: StateFlow<PlayerEngineType> = _activeEngineType.asStateFlow()
 
     /** Called by the error recovery controller when a fallback engine switch is triggered. */
+    /**
+     * Yedek motora geçişte, hata veren motorun konumu. Yeni motor bu konumdan devam eder
+     * (aksi halde yeni motor 0'dan başlayıp bölüm baştan oynardı).
+     */
+    private var pendingResumeAfterEngineSwitchMs: Long? = null
+
     fun onEngineSwitched(to: PlayerEngineType) {
+        activeEngine?.let { engine ->
+            pendingResumeAfterEngineSwitchMs = engine.currentPosition.takeIf { it > 0L }
+        }
         _activeEngineType.value = to
+    }
+
+    /** Motor değişiminden kalan devam konumunu bir kez tüketir. */
+    fun takePendingResumeAfterEngineSwitch(): Long? {
+        val value = pendingResumeAfterEngineSwitchMs
+        pendingResumeAfterEngineSwitchMs = null
+        return value
     }
 
     // ── Controls visibility (Aniyomi-style OSD) ──────────────────────────────

@@ -818,7 +818,13 @@ fun KitsugiFullscreenPlayerScreen(
                     playerEngine.setPlaybackSpeed(playbackSpeed)
 
                     val activeSource = currentStreamSources.getOrNull(currentSourceIndex)
-                    val startPos = if (safeVideoUrl == lastPreparedUrl) playerEngine.currentPosition else 0L
+                    // Yedek motora geçişte hata veren motorun konumundan devam et (yeni motor 0'dan başlamasın).
+                    val switchedResumeMs = viewModel.takePendingResumeAfterEngineSwitch()
+                    val startPos = if (safeVideoUrl == lastPreparedUrl) {
+                        switchedResumeMs ?: playerEngine.currentPosition
+                    } else {
+                        0L
+                    }
                     lastPreparedUrl = safeVideoUrl
 
                     playerEngine.prepare(
