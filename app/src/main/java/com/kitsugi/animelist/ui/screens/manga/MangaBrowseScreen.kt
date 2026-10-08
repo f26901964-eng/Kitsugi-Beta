@@ -1,4 +1,4 @@
-﻿package com.kitsugi.animelist.ui.screens.manga
+package com.kitsugi.animelist.ui.screens.manga
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.res.Configuration
@@ -535,7 +535,13 @@ private fun MangaCard(manga: MangaDetails, accent: Color, onClick: () -> Unit) {
         elevation = CardDefaults.cardElevation(4.dp)
     ) {
         Box(Modifier.fillMaxSize()) {
-            AsyncImage(model = manga.thumbnailUrl, contentDescription = manga.title, contentScale = ContentScale.Crop, modifier = Modifier.fillMaxSize())
+            com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
+                model = manga.thumbnailUrl,
+                contentDescription = manga.title,
+                isAdult = manga.isAdultContent,
+                contentScale = ContentScale.Crop,
+                modifier = Modifier.fillMaxSize()
+            )
             Box(
                 Modifier.fillMaxWidth().align(Alignment.BottomCenter)
                     .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(0.93f)))).padding(8.dp)

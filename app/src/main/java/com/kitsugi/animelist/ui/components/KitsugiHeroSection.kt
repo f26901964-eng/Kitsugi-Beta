@@ -180,8 +180,13 @@ fun KitsugiHeroSection(
                     }
                 }
                 item.source.equals("kitsu", ignoreCase = true) -> {
-                    val kitsuId = if (stableId >= 300_000_000) stableId - 300_000_000 else stableId
-                    KitsugiEpisodeRatingsRepository.getLogoUrlByKitsuId(kitsuId)
+                    if (stableId >= 300_000_000) {
+                        val kitsuId = stableId - 300_000_000
+                        KitsugiEpisodeRatingsRepository.getLogoUrlByKitsuId(kitsuId)
+                    } else if (stableId > 0) {
+                        // malId gerçek MAL ID ise (Kitsu import onu saklamış olabilir)
+                        KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId)
+                    } else null
                 }
                 item.source.equals("simkl", ignoreCase = true) -> {
                     val realMalId = item.realMalId

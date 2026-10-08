@@ -519,9 +519,10 @@ internal fun AiringEntryGridCard(
                 .clip(RoundedCornerShape(14.dp))
                 .background(KitsugiColors.SurfaceSoft)
         ) {
-            AsyncImage(
+            com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
                 model = entry.coverUrl,
                 contentDescription = displayTitle,
+                isAdult = entry.isAdult,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
@@ -633,9 +634,10 @@ internal fun AiringEntryCard(
                 .clip(RoundedCornerShape(10.dp))
                 .background(KitsugiColors.SurfaceSoft)
         ) {
-            AsyncImage(
+            com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
                 model = entry.coverUrl,
                 contentDescription = displayTitle,
+                isAdult = entry.isAdult,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )

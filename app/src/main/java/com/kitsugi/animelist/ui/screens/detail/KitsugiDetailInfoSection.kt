@@ -127,9 +127,10 @@ internal fun QuickActions(
                     horizontalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
                     if (!mangaMapping.mangaThumbnail.isNullOrBlank()) {
-                        AsyncImage(
+                        com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
                             model = mangaMapping.mangaThumbnail,
                             contentDescription = null,
+                            isAdult = entry.isAdult,
                             modifier = Modifier
                                 .width(40.dp)
                                 .height(60.dp)

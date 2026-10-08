@@ -18,13 +18,14 @@ object KitsugiShikimoriClient {
 
     private fun adultFlag(item: JSONObject): Boolean {
         val rating = item.optString("rating").takeIf { it.isNotBlank() && it != "null" }
+        val kind = item.optString("kind", "")
         val genres = item.optJSONArray("genres")?.let { array ->
             (0 until array.length()).mapNotNull { index ->
                 array.optJSONObject(index)?.optString("name")
                     ?.takeIf { it.isNotBlank() && it != "null" }
             }
         }.orEmpty()
-        return isShikimoriAdultContent(rating, genres)
+        return isShikimoriAdultContent(rating, genres) || kind.equals("hentai", ignoreCase = true)
     }
 
     // ─── Arama fonksiyonları ───────────────────────────────────────────────

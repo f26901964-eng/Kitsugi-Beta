@@ -253,9 +253,10 @@ fun TvDetailScreen(
         // 1. Fullscreen Backdrop with Gradients
         val backdropUrl = displayResult.backdropUrl ?: displayResult.imageUrl
         if (!backdropUrl.isNullOrBlank()) {
-            AsyncImage(
+            com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
                 model = backdropUrl,
                 contentDescription = null,
+                isAdult = displayResult.isAdult,
                 modifier = Modifier
                     .fillMaxSize()
                     .graphicsLayer(alpha = 0.3f),
@@ -600,6 +601,7 @@ fun TvDetailScreen(
                                                         accentColor = accentColor,
                                                         rating = rating,
                                                         isWatched = isWatched,
+                                                        isAdult = displayResult.isAdult,
                                                         onClick = {
                                                             com.kitsugi.animelist.core.player.TvTrailerPlayerPoolHolder.get(context).yield()
                                                             onPlayEpisodeClick(episode, targetSeason, detailState?.synonyms.orEmpty(), detailState?.tmdbId ?: displayResult.tmdbId)
@@ -1057,6 +1059,7 @@ private fun TvEpisodeCard(
     accentColor: Color,
     rating: Double?,
     isWatched: Boolean,
+    isAdult: Boolean = false,
     onClick: () -> Unit
 ) {
     var isFocused by remember { mutableStateOf(false) }
@@ -1086,9 +1089,10 @@ private fun TvEpisodeCard(
             contentAlignment = Alignment.Center
         ) {
             if (!episode.thumbnail.isNullOrBlank()) {
-                AsyncImage(
+                com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
                     model = episode.thumbnail,
                     contentDescription = episode.title,
+                    isAdult = isAdult,
                     modifier = Modifier
                         .fillMaxSize()
                         .then(
@@ -1302,9 +1306,10 @@ private fun TvRelationCard(
             .tvClickable(shape = RoundedCornerShape(10.dp), onClick = onClick),
         verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
-        AsyncImage(
+        com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
             model = relation.imageUrl,
             contentDescription = relation.title,
+            isAdult = relation.isAdult,
             modifier = Modifier
                 .fillMaxWidth()
                 .height(150.dp)

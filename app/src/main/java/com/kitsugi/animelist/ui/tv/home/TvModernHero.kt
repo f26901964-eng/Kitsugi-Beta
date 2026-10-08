@@ -80,9 +80,10 @@ fun TvModernHero(
     ) {
         // 1. Static Backdrop Base
         if (backdropUrl != null) {
-            AsyncImage(
+            com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
                 model = backdropUrl,
                 contentDescription = item?.title,
+                isAdult = item?.isAdult ?: false,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )

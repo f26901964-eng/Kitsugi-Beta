@@ -18,7 +18,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import coil.compose.AsyncImage
 import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.ui.components.KitsugiShimmerMediaRow
 import com.kitsugi.animelist.ui.theme.KitsugiColors
@@ -132,10 +131,11 @@ private fun ModernHomeMediaCard(
         elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
     ) {
         Box(modifier = Modifier.fillMaxSize()) {
-            // Poster resmi
-            AsyncImage(
+            // Poster resmi — +18 içeriklerde her koşulda bulanıklık uygulanır
+            com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
                 model = item.imageUrl,
                 contentDescription = item.title,
+                isAdult = item.isAdult,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )

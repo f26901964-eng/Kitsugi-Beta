@@ -53,7 +53,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import coil3.compose.AsyncImage
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.data.remote.GalleryCategory
@@ -70,6 +69,7 @@ fun KitsugiImageGalleryDialog(
     initialIndex: Int = 0,
     initialCategory: GalleryCategory? = galleryItems.getOrNull(initialIndex)?.category,
     title: String,
+    isAdult: Boolean = false,
     onDismiss: () -> Unit
 ) {
     if (galleryItems.isEmpty()) return
@@ -255,7 +255,8 @@ fun KitsugiImageGalleryDialog(
                             onShare = onShare,
                             onDismiss = { dismissWithAnimation() },
                             density = density,
-                            galleryItems = galleryItems
+                            galleryItems = galleryItems,
+                            isAdult = isAdult
                         )
                     } else {
                         // ── PORTRAIT LAYOUT (existing behaviour) ───────────────────────
@@ -272,7 +273,8 @@ fun KitsugiImageGalleryDialog(
                             onShare = onShare,
                             onDismiss = { dismissWithAnimation() },
                             density = density,
-                            galleryItems = galleryItems
+                            galleryItems = galleryItems,
+                            isAdult = isAdult
                         )
                     }
                 }
@@ -302,7 +304,8 @@ private fun GalleryLandscapeLayout(
     onShare: () -> Unit,
     onDismiss: () -> Unit,
     density: androidx.compose.ui.unit.Density,
-    galleryItems: List<GalleryItem>
+    galleryItems: List<GalleryItem>,
+    isAdult: Boolean = false
 ) {
     val scope = rememberCoroutineScope()
     val currentItem = filteredItems.getOrNull(pagerState.currentPage)
@@ -362,9 +365,10 @@ private fun GalleryLandscapeLayout(
                         modifier = Modifier
                             .graphicsLayer(scaleX = thumbScale, scaleY = thumbScale, alpha = thumbAlpha)
                     ) {
-                        AsyncImage(
+                        KitsugiNsfwImage(
                             model = item.url,
                             contentDescription = "Küçük resim $index",
+                            isAdult = isAdult,
                             modifier = Modifier
                                 .size(width = 62.dp, height = 80.dp)
                                 .clip(RoundedCornerShape(8.dp))
@@ -452,7 +456,8 @@ private fun GalleryLandscapeLayout(
                                 imageUrl = item.url,
                                 title = title,
                                 page = page,
-                                pagerState = pagerState
+                                pagerState = pagerState,
+                                isAdult = isAdult
                             )
                         }
                     }
@@ -836,9 +841,10 @@ private fun GalleryLandscapeLayout(
                         ) {
                             itemsIndexed(sameCategory) { _, relatedItem ->
                                 val relIdx = filteredItems.indexOf(relatedItem)
-                                AsyncImage(
+                                KitsugiNsfwImage(
                                     model = relatedItem.url,
-                                    contentDescription = null,
+                                    contentDescription = "İlgili resim",
+                                    isAdult = isAdult,
                                     modifier = Modifier
                                         .fillMaxWidth()
                                         .height(90.dp)
@@ -878,7 +884,8 @@ private fun GalleryPortraitLayout(
     onShare: () -> Unit,
     onDismiss: () -> Unit,
     density: androidx.compose.ui.unit.Density,
-    galleryItems: List<GalleryItem>
+    galleryItems: List<GalleryItem>,
+    isAdult: Boolean = false
 ) {
     val scope = rememberCoroutineScope()
 
@@ -955,7 +962,8 @@ private fun GalleryPortraitLayout(
                             imageUrl = item.url,
                             title = title,
                             page = page,
-                            pagerState = pagerState
+                            pagerState = pagerState,
+                            isAdult = isAdult
                         )
 
                         // Source, Category & Metadata badge overlay on the page
@@ -1159,9 +1167,10 @@ private fun GalleryPortraitLayout(
                             modifier = Modifier
                                 .graphicsLayer(scaleX = thumbScale, scaleY = thumbScale, alpha = thumbAlpha)
                         ) {
-                            AsyncImage(
+                            KitsugiNsfwImage(
                                 model = item.url,
                                 contentDescription = "Thumbnail $index",
+                                isAdult = isAdult,
                                 modifier = Modifier
                                     .size(width = 48.dp, height = 64.dp)
                                     .clip(RoundedCornerShape(10.dp))
@@ -1242,6 +1251,7 @@ fun KitsugiImageGalleryDialog(
     imageUrls: List<String>,
     initialIndex: Int = 0,
     title: String,
+    isAdult: Boolean = false,
     onDismiss: () -> Unit
 ) {
     val items = remember(imageUrls) {
@@ -1251,6 +1261,7 @@ fun KitsugiImageGalleryDialog(
         galleryItems = items,
         initialIndex = initialIndex,
         title = title,
+        isAdult = isAdult,
         onDismiss = onDismiss
     )
 }
@@ -1308,7 +1319,8 @@ private fun GalleryImagePage(
     imageUrl: String,
     title: String,
     page: Int,
-    pagerState: androidx.compose.foundation.pager.PagerState
+    pagerState: androidx.compose.foundation.pager.PagerState,
+    isAdult: Boolean = false
 ) {
     var zoomScale by remember { mutableStateOf(1f) }
     var offset by remember { mutableStateOf(Offset.Zero) }
@@ -1368,9 +1380,11 @@ private fun GalleryImagePage(
                 },
             contentAlignment = Alignment.Center
         ) {
-            AsyncImage(
+            // +18 içeriklerde her koşulda bulanıklık (cihaz desteklemiyorsa bitmap blur)
+            KitsugiNsfwImage(
                 model = imageUrl,
                 contentDescription = "$title - Resim $page",
+                isAdult = isAdult,
                 modifier = Modifier
                     .fillMaxSize(0.88f)
                     .graphicsLayer(

@@ -183,6 +183,7 @@ internal fun ApiDetailEpisodesTab(
     displaySynonyms: List<String> = emptyList(),
     displayYear: Int?,
     isMovie: Boolean = false,
+    isAdult: Boolean = false,
     onSeasonSelected: (Int) -> Unit,
     onEpisodeOptionsRequested: (KitsugiStreamingEpisode) -> Unit
 ) {
@@ -204,6 +205,7 @@ internal fun ApiDetailEpisodesTab(
     EpisodesTabContent(
         state = state,
         animeId = currentAnimeId,
+        isAdult = isAdult,
         episodeRatings = episodeRatings,
         targetSeason = targetSeason,
         totalSeasons = totalSeasons,

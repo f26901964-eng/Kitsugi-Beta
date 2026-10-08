@@ -293,8 +293,7 @@ object KitsuExploreClient {
                     attrs.optInt("chapterCount", 0).takeIf { it > 0 }
             }
 
-            val ageRating = attrs.optString("ageRating", "")
-            val isAdult   = ageRating.equals("R18", ignoreCase = true)
+            val isAdult   = KitsuAdultFlags.isAdult(attrs)
 
             // Altyazı: tür + yıl + durum
             val subtitleParts = buildList {
@@ -336,12 +335,14 @@ object KitsuExploreClient {
      * stableId = kitsuId + 300_000_000 veya doğrudan kitsuId
      */
     suspend fun fetchDetailByStableId(stableId: Int, mediaType: MediaType): KitsugiMediaDetail? {
-        val kitsuNumericId = if (stableId >= KITSU_ID_OFFSET) {
-            stableId - KITSU_ID_OFFSET
-        } else {
-            stableId
+        // stableId her zaman offset'li Kitsu aralığında (300M..399M) olmalı. Aralığın altındaki
+        // değerler MAL/AniList kimlik alanlarıyla çakışır; "ham Kitsu ID" diye yorumlanırsa
+        // alakasız bir yapımın verisi döner (Listem → Kitsu ayrıntı sayfası hatasının kökü).
+        val kitsuNumericId = KitsuIdNamespace.rawIdFromStable(stableId)
+        if (kitsuNumericId == null || kitsuNumericId <= 0) {
+            Log.w(TAG, "fetchDetailByStableId: $stableId Kitsu kimlik aralığında değil, reddedildi")
+            return null
         }
-        if (kitsuNumericId <= 0) return null
         return when (mediaType) {
             MediaType.Anime, MediaType.Movie, MediaType.TvShow ->
                 KitsuClient.fetchAnimeDetail(kitsuNumericId.toString())
@@ -420,6 +421,7 @@ object KitsuExploreClient {
                 startDate     = startDate.takeIf { it.isNotBlank() },
                 endDate       = endDate.takeIf { it.isNotBlank() },
                 status        = statusTr,
+                isAdult       = KitsuAdultFlags.isAdult(attrs),
                 externalLinks = links
             )
         } catch (e: Exception) {

@@ -23,6 +23,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.ensureActive
@@ -50,6 +51,13 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     private var showAdultContentState = false
     private var searchHistoryEnabledState = true
     private var searchJob: Job? = null
+
+    /**
+     * Arama ekranında kaynak seçimi kalıcılığı: kullanıcı hangi kaynağı/kapsamı seçtiyse
+     * uygulama yeniden açıldığında oradan devam eder.
+     */
+    private var searchSelectionRestored = false
+    private var restoringSearchSelection = false
 
     private data class TabSearchState(
         val query: String = "",
@@ -80,7 +88,86 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         return stateCache[key] ?: TabSearchState()
     }
 
+    /** Sekme + motor + kapsam + platform + tür seçimini disk'e yazar. */
+    private fun persistSearchSelection() {
+        if (restoringSearchSelection) return
+        val state = _uiState.value
+        viewModelScope.launch {
+            runCatching {
+                settingsDataStore.setLastSearchEngineAndScope(state.selectedEngine.name, state.selectedScope.name)
+                settingsDataStore.setLastSearchSelection(state.currentTab.name, state.selectedPlatform.name, state.selectedMediaType.name)
+            }
+        }
+    }
+
+    /**
+     * Kalıcı seçim geri yüklenirken kaynak motoruna göre UI durumunu senkron tutar.
+     * Arama başlatmaz — açılışta yalnızca seçili görünen kaynak düzeltilir.
+     */
+    private fun applySearchSelection(engine: SearchSourceEngine, scope: SearchScope, tab: KitsugiSearchTab) {
+        val platform = when (engine) {
+            SearchSourceEngine.ALL -> SearchPlatform.All
+            SearchSourceEngine.ANILIST -> SearchPlatform.AniList
+            SearchSourceEngine.MAL -> SearchPlatform.MAL
+            SearchSourceEngine.TMDB -> SearchPlatform.TMDB
+            SearchSourceEngine.SHIKIMORI -> SearchPlatform.Shikimori
+            SearchSourceEngine.KITSU -> SearchPlatform.Kitsu
+            SearchSourceEngine.SIMKL -> SearchPlatform.Simkl
+        }
+        val mediaType = when (scope) {
+            SearchScope.MANGA, SearchScope.MANHWA, SearchScope.MANHUA, SearchScope.LIGHT_NOVEL -> MediaType.Manga
+            SearchScope.MOVIE -> MediaType.Movie
+            SearchScope.TV -> MediaType.TvShow
+            else -> MediaType.Anime
+        }
+        _uiState.update {
+            it.copy(
+                selectedEngine = engine,
+                selectedScope = scope,
+                currentTab = tab,
+                selectedPlatform = platform,
+                selectedMediaType = mediaType
+            )
+        }
+    }
+
     init {
+        viewModelScope.launch {
+            // Kalıcı kaynak seçimini uygula (kullanıcı henüz arama yapmadıysa)
+            if (!searchSelectionRestored) {
+                searchSelectionRestored = true
+                val engineName = runCatching { settingsDataStore.lastSearchEngineFlow.firstOrNull() }.getOrNull().orEmpty()
+                val scopeName = runCatching { settingsDataStore.lastSearchScopeFlow.firstOrNull() }.getOrNull().orEmpty()
+                val engine = SearchSourceEngine.entries.firstOrNull { it.name == engineName }
+                val scope = SearchScope.entries.firstOrNull { it.name == scopeName }
+                if (engine != null && engine != _uiState.value.selectedEngine &&
+                    _uiState.value.query.isBlank() && !_uiState.value.hasSearched
+                ) {
+                    val scopes = engine.availableScopes()
+                    val effectiveScope = scope?.takeIf { it in scopes } ?: scopes.first()
+                    restoringSearchSelection = true
+                    applySearchSelection(
+                        engine = engine,
+                        scope = effectiveScope,
+                        tab = when (effectiveScope) {
+                            SearchScope.CHARACTER -> KitsugiSearchTab.Character
+                            SearchScope.STAFF -> KitsugiSearchTab.Staff
+                            SearchScope.MANGA, SearchScope.MANHWA, SearchScope.MANHUA, SearchScope.LIGHT_NOVEL -> KitsugiSearchTab.Manga
+                            else -> when (engine) {
+                                SearchSourceEngine.ALL -> KitsugiSearchTab.All
+                                SearchSourceEngine.ANILIST -> KitsugiSearchTab.Anime
+                                SearchSourceEngine.MAL -> KitsugiSearchTab.MAL
+                                SearchSourceEngine.TMDB -> KitsugiSearchTab.TMDB
+                                SearchSourceEngine.SHIKIMORI -> KitsugiSearchTab.Shikimori
+                                SearchSourceEngine.KITSU -> KitsugiSearchTab.Kitsu
+                                SearchSourceEngine.SIMKL -> KitsugiSearchTab.Simkl
+                            }
+                        }
+                    )
+                    restoringSearchSelection = false
+                }
+            }
+        }
         viewModelScope.launch {
             settingsDataStore.settingsFlow.collect { settings ->
                 showAdultContentState = settings.showAdultContent
@@ -170,6 +257,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             )
         }
 
+        persistSearchSelection()
         if (effectiveQuery.isNotBlank() || _uiState.value.hasFiltersApplied) {
             search(resetPage = true)
         }
@@ -196,6 +284,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 errorMessage = cached.errorMessage
             )
         }
+        persistSearchSelection()
         if (effectiveQuery.isNotBlank() || _uiState.value.hasFiltersApplied) {
             search(resetPage = true)
         }
@@ -215,6 +304,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 errorMessage = cached.errorMessage
             )
         }
+        persistSearchSelection()
         if (effectiveQuery.isNotBlank() || _uiState.value.hasFiltersApplied) {
             search(resetPage = true)
         }
@@ -235,6 +325,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 errorMessage = cached.errorMessage
             )
         }
+        persistSearchSelection()
         if (effectiveQuery.isNotBlank() || _uiState.value.hasFiltersApplied) {
             search(resetPage = true)
         }
@@ -408,6 +499,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 hasNextPage = true
             )
         }
+        persistSearchSelection()
         search(resetPage = true)
     }
 
@@ -436,6 +528,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 hasNextPage = true
             )
         }
+        persistSearchSelection()
         search(resetPage = true)
     }
 
@@ -1180,7 +1273,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                     }
                     val hasCustomFilters = f.subtype != null || f.genre != null || f.country != null || f.year != null
                     val res = if (queryText.isBlank() && !hasCustomFilters && f.trendingPeriod.isNotBlank()) {
-                        SimklApiClient().getTrendingPeriod(simklType, f.trendingPeriod)
+                        SimklApiClient().getTrendingPeriodPage(simklType, f.trendingPeriod, page, pageSize = 20)
                     } else {
                         SimklApiClient().searchAdvanced(
                             type = simklType,
@@ -1189,7 +1282,8 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                             genre = f.genre,
                             country = f.country,
                             year = f.year,
-                            sort = f.sort
+                            sort = f.sort,
+                            page = page
                         )
                     }
                     return Pair(res, res.size >= 20)
@@ -1471,7 +1565,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 MediaType.Anime -> "anime"
                 else -> null
             }
-            val results = SimklApiClient().search(queryText, type = simklType, limit = 20)
+            val results = SimklApiClient().search(queryText, type = simklType, limit = 20, page = page)
             return Pair(results, results.size >= 20)
         }
 

@@ -329,9 +329,10 @@ fun CharacterStaffResultRow(
                 .clip(RoundedCornerShape(14.dp))
                 .background(KitsugiColors.SurfaceStrong)
         ) {
-            AsyncImage(
+            com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
                 model = result.imageUrl,
                 contentDescription = result.title,
+                isAdult = result.isAdult,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.matchParentSize()
             )

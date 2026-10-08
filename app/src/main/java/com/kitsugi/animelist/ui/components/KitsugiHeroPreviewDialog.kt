@@ -31,7 +31,6 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import com.kitsugi.animelist.data.remote.JikanApiClient
 import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.utils.toFriendlySourceLabel
@@ -109,9 +108,11 @@ fun KitsugiHeroPreviewDialog(
                     contentAlignment = Alignment.Center
                 ) {
                     if (!result.imageUrl.isNullOrBlank()) {
-                        AsyncImage(
+                        // +18 içeriklerde her koşulda bulanıklık
+                        com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
                             model = result.imageUrl,
                             contentDescription = result.title,
+                            isAdult = result.isAdult,
                             modifier = Modifier.fillMaxSize(),
                             contentScale = ContentScale.Crop
                         )

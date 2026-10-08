@@ -81,7 +81,8 @@ class KitsugiAiringCalendarClient {
                     episode = if (isMovie) 0 else 1,
                     airingAt = airingAt,
                     dayOfWeek = dayOfWeek,
-                    averageScore = score
+                    averageScore = score,
+                    isAdult = item.optBoolean("adult", false)
                 )
 
                 if (scheduleMap != null) {
@@ -303,7 +304,8 @@ class KitsugiAiringCalendarClient {
                         airingAt = airingAt,
                         dayOfWeek = dayOfWeek,
                         averageScore = averageScore,
-                        countryOfOrigin = countryOfOrigin
+                        countryOfOrigin = countryOfOrigin,
+                        isAdult = media.optBoolean("isAdult", false)
                     )
                 )
             }
@@ -344,6 +346,7 @@ class KitsugiAiringCalendarClient {
                     countryOfOrigin
                     coverImage{large}
                     averageScore
+                    isAdult
                   }
                 }
               }

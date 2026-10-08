@@ -98,9 +98,11 @@ internal fun ApiHero(
             .height(470.dp)
     ) {
         if (!result.imageUrl.isNullOrBlank()) {
-            AsyncImage(
+            // +18 içeriklerde her koşulda bulanıklık
+            com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
                 model = result.imageUrl,
                 contentDescription = result.getDisplayTitle(titleLanguage),
+                isAdult = result.isAdult,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )

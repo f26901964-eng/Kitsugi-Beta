@@ -70,8 +70,14 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         isLoading = false
     }
 
-    var selectedPlatform by mutableStateOf(ExplorePlatform.TMDB)
+    /**
+     * Kalıcı (persisted) kaynak seçimi. Uygulama kapatılıp açıldığında Keşfet ekranı
+     * kullanıcının son seçtiği kaynakla açılır — varsayılan: Tümü (6 kaynak birlikte).
+     */
+    var selectedPlatform by mutableStateOf(ExplorePlatform.ALL)
         private set
+
+    private var platformRestored = false
 
     var isLoading by mutableStateOf(false)
         private set
@@ -91,7 +97,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     private var tmdbModernHomeEnabledState = false
     private var tmdbEnrichContinueWatchingState = true
 
-    private val initialPayload = platformCache[ExplorePlatform.TMDB]
+    private val initialPayload: ExplorePayload?
+        get() = platformCache[selectedPlatform]
 
     var topAnime by mutableStateOf<List<JikanSearchResult>>(initialPayload?.topAnime ?: emptyList())
         private set
@@ -159,6 +166,28 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
 
     init {
         viewModelScope.launch {
+            // Kaynak seçimi kalıcılığı: açılışta kullanıcının son seçtiği kaynağa dön.
+            // Ayar akışı collection'ından ÖNCE okunmalı ki ilk yükleme yanlış platformla yapılmasın.
+            if (!platformRestored) {
+                platformRestored = true
+                val restored = runCatching {
+                    settingsDataStore.lastExplorePlatformFlow.firstOrNull()?.let { name ->
+                        ExplorePlatform.entries.firstOrNull { it.name == name }
+                    }
+                }.getOrNull() ?: ExplorePlatform.ALL
+                if (restored != selectedPlatform) {
+                    selectedPlatform = restored
+                    if (restored == ExplorePlatform.ALL) {
+                        loadAllSources(forceRefresh = false)
+                    } else {
+                        platformCache[restored]?.let { cached ->
+                            applyPayload(cached)
+                            loadedPlatforms.add(restored)
+                        }
+                    }
+                }
+            }
+
             settingsDataStore.settingsFlow.collect { settings ->
                 val adultChanged = showAdultContentState != settings.showAdultContent
                 showAdultContentState = settings.showAdultContent
@@ -214,6 +243,9 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         if (selectedPlatform == platform) return
         if (!isFallback) {
             isFallbackInProgress = false
+            // Yalnızca kullanıcının kendi seçimi kalıcı olur; otomatik fallback
+            // (örn. TMDB anahtarı bozuksa AniList'e düşme) seçim olarak kaydedilmez.
+            persistPlatform(platform)
         }
         cancelLoads()
         isShowingCachedData = false
@@ -235,6 +267,13 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             loadedPlatforms.add(platform)
         } else {
             loadData(forceRefresh = true)
+        }
+    }
+
+    /** Kullanıcının Keşfet kaynak seçimini disk'e yazar (uygulama yeniden açıldığında korunur). */
+    private fun persistPlatform(platform: ExplorePlatform) {
+        viewModelScope.launch {
+            runCatching { settingsDataStore.setLastExplorePlatform(platform.name) }
         }
     }
 
@@ -543,7 +582,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                         type = finalType,
                         total = null,
                         score = entry.averageScore,
-                        isAdult = false,
+                        isAdult = entry.isAdult,
                         imageUrl = entry.coverUrl,
                         year = null,
                         source = "tmdb",
@@ -900,7 +939,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                         type = MediaType.Anime,
                         total = null,
                         score = entry.averageScore,
-                        isAdult = false,
+                        isAdult = entry.isAdult,
                         imageUrl = entry.coverUrl,
                         year = null,
                         source = "mal",
@@ -962,7 +1001,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                     JikanSearchResult(
                         malId = e.malId ?: e.aniListId, title = e.getDisplayTitle(),
                         subtitle = "${e.episode}. Bölüm", type = MediaType.Anime,
-                        total = null, score = e.averageScore, isAdult = false,
+                        total = null, score = e.averageScore, isAdult = e.isAdult,
                         imageUrl = e.coverUrl, year = null, source = "anilist",
                         realMalId = e.malId, titleEnglish = e.titleEnglish,
                         titleJapanese = e.titleNative,
@@ -1047,7 +1086,18 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                     val simklToken = ExternalAuthManager.getSimklToken(app)
                     
                     val tmdbApiClient = TmdbApiClient(userApiKey = settings.tmdbUserApiKey)
-                    
+
+                    // Kullanıcının kalıcı Keşfet kaynağı TMDB değilse bu pahalı ön-yükleme
+                    // boşa bant genişliği tüketir; kendi platformunun verisini açılışta
+                    // kendisi çeker. Sadece TMDB / Tümü seçiliyse önbelleği dolduruyoruz.
+                    val lastPlatformName = settingsDataStore.lastExplorePlatformFlow.first()
+                    val lastPlatform = ExplorePlatform.entries.firstOrNull { it.name == lastPlatformName }
+                        ?: ExplorePlatform.ALL
+                    if (lastPlatform != ExplorePlatform.TMDB && lastPlatform != ExplorePlatform.ALL) {
+                        android.util.Log.d("ExplorePrefetch", "Son seçili kaynak $lastPlatform — TMDB önbelleği atlanıyor")
+                        return@launch
+                    }
+
                     supervisorScope {
                         // Startup prefetch only fetches TMDB (default platform) to minimize latency and bandwidth
                         val tmdbPayload = runCatching {
@@ -1079,7 +1129,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                                             type = finalType,
                                             total = null,
                                             score = entry.averageScore,
-                                            isAdult = false,
+                                            isAdult = entry.isAdult,
                                             imageUrl = entry.coverUrl,
                                             year = null,
                                             source = "tmdb",

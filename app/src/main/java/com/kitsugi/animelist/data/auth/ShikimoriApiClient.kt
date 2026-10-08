@@ -136,6 +136,7 @@ object ShikimoriApiClient {
         val titleEnglish: String? = null,
         /** Shikimori rating, when included in the user-rate response. */
         val ageRating: String? = null,
+        /** +18 içerik mi? (`rating == "rx"` / hentai türü) — bulanıklık için kullanılır */
         val isAdult: Boolean = false
     )
 
@@ -667,7 +668,10 @@ object ShikimoriApiClient {
                                     }
                                 }
                             }.orEmpty()
-                            val isAdult = isShikimoriAdultContent(ageRating, genres)
+                            // +18 tespiti: Shikimori "rating" alanı ("rx" = Hentai) veya hentai türü/kind.
+                            // "r" (17+ şiddet) ve "r_plus" (hafif çıplaklık) +18 DEĞİLDİR.
+                            val rateKind = mediaObj?.optString("kind", "")?.lowercase().orEmpty()
+                            val isAdult = isShikimoriAdultContent(ageRating, genres) || rateKind == "hentai"
 
                             rates.add(
                                 ShikimoriRate(

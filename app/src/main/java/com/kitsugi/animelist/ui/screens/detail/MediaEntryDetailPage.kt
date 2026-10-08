@@ -493,6 +493,7 @@ fun MediaEntryDetailPage(
                             } else if (galleryItems.isNotEmpty()) {
                                 DetailGalleryCard(
                                     items = galleryItems,
+                                    isAdult = displayEntry.isAdult,
                                     onItemClick = { index ->
                                         activeGalleryItems = galleryItems
                                         activeGalleryIndex = index
@@ -604,6 +605,7 @@ fun MediaEntryDetailPage(
                 initialIndex = activeGalleryIndex,
                 initialCategory = activeGalleryCategory ?: activeGalleryItems.getOrNull(activeGalleryIndex)?.category,
                 title = displayEntry.title,
+                isAdult = displayEntry.isAdult,
                 onDismiss = { 
                     activeGalleryItems = emptyList()
                     activeGalleryCategory = null

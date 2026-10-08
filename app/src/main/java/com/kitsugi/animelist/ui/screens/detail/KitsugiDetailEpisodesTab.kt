@@ -68,6 +68,7 @@ import com.kitsugi.animelist.ui.utils.tvClickable
 fun EpisodesTabContent(
     state: DetailTabState<List<KitsugiStreamingEpisode>>,
     animeId: String = "",
+    isAdult: Boolean = false,
     onEpisodeClick: (episode: KitsugiStreamingEpisode) -> Unit,
     onDownloadClick: (episode: KitsugiStreamingEpisode) -> Unit = {},
     episodeRatings: Map<Pair<Int, Int>, Double> = emptyMap(),
@@ -101,6 +102,7 @@ fun EpisodesTabContent(
             if (totalSeasons != null && totalSeasons > 1) {
                 SeasonAccordion(
                     episodes = episodes,
+                    isAdult = isAdult,
                     totalSeasons = totalSeasons,
                     targetSeason = targetSeason,
                     episodeRatings = episodeRatings,
@@ -116,6 +118,7 @@ fun EpisodesTabContent(
                 // Tek sezon → Sayfalı/parçalı liste (Doraemon/One Piece gibi 1000+ bölümlü dizilerde donma ve ANR'yi önler)
                 PaginatedEpisodesList(
                     episodes = episodes,
+                    isAdult = isAdult,
                     targetSeason = targetSeason,
                     episodeRatings = episodeRatings,
                     accentColor = accentColor,
@@ -151,6 +154,7 @@ fun EpisodesTabContent(
 @Composable
 private fun SeasonAccordion(
     episodes: List<KitsugiStreamingEpisode>,
+    isAdult: Boolean = false,
     totalSeasons: Int,
     targetSeason: Int?,
     episodeRatings: Map<Pair<Int, Int>, Double>,
@@ -173,6 +177,7 @@ private fun SeasonAccordion(
 
             SeasonAccordionItem(
                 seasonNumber = season,
+                isAdult = isAdult,
                 isExpanded = isExpanded,
                 episodes = episodes.filter {
                     it.seasonNumber == season || (season == (targetSeason ?: 1) && it.seasonNumber == null)
@@ -202,6 +207,7 @@ private fun SeasonAccordion(
 @Composable
 private fun SeasonAccordionItem(
     seasonNumber: Int,
+    isAdult: Boolean = false,
     isExpanded: Boolean,
     episodes: List<KitsugiStreamingEpisode>,
     episodeRatings: Map<Pair<Int, Int>, Double>,
@@ -301,6 +307,7 @@ private fun SeasonAccordionItem(
             ) {
                 PaginatedEpisodesList(
                     episodes = episodes,
+                    isAdult = isAdult,
                     targetSeason = targetSeason,
                     episodeRatings = episodeRatings,
                     accentColor = accentColor,
@@ -321,6 +328,7 @@ private fun SeasonAccordionItem(
 @Composable
 private fun PaginatedEpisodesList(
     episodes: List<KitsugiStreamingEpisode>,
+    isAdult: Boolean = false,
     targetSeason: Int?,
     episodeRatings: Map<Pair<Int, Int>, Double>,
     accentColor: Color,
@@ -388,6 +396,7 @@ private fun PaginatedEpisodesList(
             EpisodeRow(
                 episode = episode,
                 index = index,
+                isAdult = isAdult,
                 accentColor = accentColor,
                 imdbRating = rating,
                 download = download,
@@ -483,6 +492,7 @@ private fun resolveRating(
 private fun EpisodeRow(
     episode: KitsugiStreamingEpisode,
     index: Int,
+    isAdult: Boolean = false,
     accentColor: androidx.compose.ui.graphics.Color,
     imdbRating: Double? = null,
     download: com.kitsugi.animelist.data.model.AnimeDownload? = null,
@@ -511,9 +521,10 @@ private fun EpisodeRow(
             contentAlignment = Alignment.Center
         ) {
             if (hasThumbnail) {
-                AsyncImage(
+                com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
                     model = episode.thumbnail,
                     contentDescription = episode.title,
+                    isAdult = isAdult,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = androidx.compose.ui.layout.ContentScale.Crop
                 )

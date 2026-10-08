@@ -103,6 +103,7 @@ fun TvContinueWatchingCard(
                 TvImage(
                     model = imageModel,
                     contentDescription = item.title,
+                    isAdult = item.isAdult,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
                     backgroundColor = KitsugiColors.Surface

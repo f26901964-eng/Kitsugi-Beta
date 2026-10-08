@@ -93,6 +93,7 @@ fun TvContentCard(
                 TvImage(
                     model = item.imageUrl,
                     contentDescription = item.title,
+                    isAdult = item.isAdult,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier.fillMaxSize(),
                     backgroundColor = KitsugiColors.Surface

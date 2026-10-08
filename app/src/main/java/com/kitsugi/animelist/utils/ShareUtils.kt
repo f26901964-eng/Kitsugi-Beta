@@ -26,6 +26,22 @@ object ShareUtils {
                     else -> "https://anilist.co/anime/$realId"
                 }
             }
+            s == "kitsu" -> {
+                if (mediaId >= 300_000_000) {
+                    // Offset'li stable ID → Kitsu numeric ID
+                    val kitsuId = mediaId - 300_000_000
+                    when (mediaType) {
+                        MediaType.Manga -> "https://kitsu.io/manga/$kitsuId"
+                        else -> "https://kitsu.io/anime/$kitsuId"
+                    }
+                } else {
+                    // Kitsu kayıtlarında saklanan ID gerçek MAL ID olabilir — doğru MAL bağlantısı
+                    when (mediaType) {
+                        MediaType.Manga -> "https://myanimelist.net/manga/$mediaId"
+                        else -> "https://myanimelist.net/anime/$mediaId"
+                    }
+                }
+            }
             s == "tmdb" -> {
                 when (mediaType) {
                     MediaType.Movie -> "https://themoviedb.org/movie/$mediaId"
@@ -91,6 +107,30 @@ object ShareUtils {
                     MediaType.TvShow -> "https://simkl.com/shows/$id"
                     else -> "https://simkl.com/anime/$id"
                 }
+            }
+            "kitsu" -> {
+                if (id >= 300_000_000) {
+                    val kitsuId = id - 300_000_000
+                    when (type) {
+                        MediaType.Manga -> "https://kitsu.io/manga/$kitsuId"
+                        else -> "https://kitsu.io/anime/$kitsuId"
+                    }
+                } else if (id > 0) {
+                    // Elindeki ID bir MAL ID'si — doğru yapımın MAL bağlantısı
+                    when (type) {
+                        MediaType.Manga -> "https://myanimelist.net/manga/$id"
+                        else -> "https://myanimelist.net/anime/$id"
+                    }
+                } else null
+            }
+            "shikimori" -> {
+                // Shikimori ID'leri MAL ID'leriyle aynıdır
+                if (id > 0) {
+                    when (type) {
+                        MediaType.Manga -> "https://shikimori.one/mangas/$id"
+                        else -> "https://shikimori.one/animes/$id"
+                    }
+                } else null
             }
             else -> null
         }

@@ -14,7 +14,18 @@ data class MangaDetails(
     val thumbnailUrl: String? = null,
     val status: MangaStatus = MangaStatus.Unknown,
     val source: String = ""
-)
+) {
+    /**
+     * +18 içerik mi? Manga kaynaklarında net bir API bayrağı olmadığı için
+     * tür/source ipuçlarıyla kontrol edilir (ecchi hariç tutulur).
+     */
+    val isAdultContent: Boolean
+        get() {
+            val adultTokens = listOf("hentai", "porn", "doujin", "adult", "18+", "xxx")
+            return genre.any { g -> adultTokens.any { it in g.lowercase() } } ||
+                adultTokens.any { it in source.lowercase() }
+        }
+}
 
 /**
  * Bir bölümün (chapter) temel bilgilerini taşır.

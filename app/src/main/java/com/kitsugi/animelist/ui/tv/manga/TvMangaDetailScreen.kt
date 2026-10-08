@@ -115,9 +115,10 @@ fun TvMangaDetailScreen(
     ) {
         // ── Arka Plan Backdrop (TV Optimized) ──────────────────────────────────
         if (!details.thumbnailUrl.isNullOrBlank()) {
-            AsyncImage(
+            com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
                 model = details.thumbnailUrl,
                 contentDescription = null,
+                isAdult = details.isAdultContent,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxSize()
@@ -189,9 +190,10 @@ fun TvMangaDetailScreen(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    AsyncImage(
+                    com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
                         model = details.thumbnailUrl,
                         contentDescription = details.title,
+                        isAdult = details.isAdultContent,
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .width(110.dp)

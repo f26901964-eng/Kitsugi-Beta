@@ -138,9 +138,10 @@ fun TvMangaBrowseScreen(
 
         // ── Hafif backdrop (TV: alpha overlay, blur yok) ──────────────────────
         if (!backdropUrl.isNullOrBlank()) {
-            AsyncImage(
+            com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
                 model = backdropUrl,
                 contentDescription = null,
+                isAdult = mergedMangas.firstOrNull()?.isAdultContent ?: false,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize().graphicsLayer { alpha = 0.12f }
             )
@@ -397,9 +398,10 @@ private fun TvMangaCard(
             )
             .background(KitsugiColors.Surface)
     ) {
-        AsyncImage(
+        com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
             model = manga.thumbnailUrl,
             contentDescription = manga.title,
+            isAdult = manga.isAdultContent,
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize()
         )

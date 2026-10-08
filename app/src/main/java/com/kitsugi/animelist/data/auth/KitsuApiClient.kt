@@ -2,7 +2,6 @@ package com.kitsugi.animelist.data.auth
 
 import android.util.Log
 import com.kitsugi.animelist.core.network.KitsugiHttpClient
-import com.kitsugi.animelist.data.remote.isKitsuAdultContent
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
@@ -78,7 +77,7 @@ object KitsuApiClient {
         val nextRelease: String? = null,
         /** Kitsu `startDate` alanından yayın yılı (çapraz eşitlemede kimlik doğrulaması için). */
         val startYear: Int? = null,
-        /** Kitsu age rating, used to blur +18 entries in the combined list. */
+        /** +18 içerik mi? (ageRating=R18 / nsfw / hentai) — bulanıklık için kullanılır */
         val isAdult: Boolean = false
     )
 
@@ -249,6 +248,7 @@ object KitsuApiClient {
                     /** Kitsu anime `nextRelease` (ISO-8601) — sonraki bölümün yayın zamanı. */
                     val nextRelease: String? = null,
                     val startYear: Int? = null,
+                    /** +18 içerik mi? (ageRating=R18 / nsfw / hentai) */
                     val isAdult: Boolean = false
                 )
                 val mediaInfoMap = mutableMapOf<String, KitsuMediaInfo>()
@@ -297,10 +297,6 @@ object KitsuApiClient {
                     else incAttrs.optInt("chapterCount", 0).takeIf { it > 0 }
                     val startYear = incAttrs.optString("startDate", "").takeIf { it.isNotBlank() && it != "null" }
                         ?.take(4)?.toIntOrNull()?.takeIf { it in 1900..2100 }
-                    val ageRating = incAttrs.optString("ageRating", "")
-                    val ageRatingGuide = incAttrs.optString("ageRatingGuide", "")
-                    val isAdult = isKitsuAdultContent(ageRating, ageRatingGuide)
-
                     // mappings ilişkisinden bağlantılı mapping ID'lerini topla
                     val mappingRels = inc.optJSONObject("relationships")
                         ?.optJSONObject("mappings")
@@ -321,7 +317,7 @@ object KitsuApiClient {
                         mappingIds = mappingIds,
                         nextRelease = nextRelease,
                         startYear = startYear,
-                        isAdult = isAdult
+                        isAdult = com.kitsugi.animelist.data.remote.KitsuAdultFlags.isAdult(incAttrs)
                     )
                     totalMap[key] = total
                 }
@@ -368,7 +364,7 @@ object KitsuApiClient {
                             realMalId = realMalId,
                             nextRelease = info?.nextRelease,
                             startYear = info?.startYear,
-                            isAdult = info?.isAdult ?: false
+                            isAdult = info?.isAdult == true
                         )
                     )
                 }

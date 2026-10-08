@@ -24,7 +24,9 @@ data class AiringEntry(
      */
     val dayOfWeek: Int,
     val averageScore: Int? = null,
-    val countryOfOrigin: String? = null
+    val countryOfOrigin: String? = null,
+    /** +18 içerik mi? (AniList `media.isAdult`) — bulanıklık için kullanılır */
+    val isAdult: Boolean = false
 ) {
     /** Yayın saatini okunabilir "HH:mm" formatında döndürür. */
     fun formattedTime(): String {
@@ -81,7 +83,7 @@ data class AiringEntry(
             type = finalType,
             total = null,
             score = averageScore,
-            isAdult = false,
+            isAdult = isAdult,
             imageUrl = coverUrl,
             year = null,
             source = finalSource,

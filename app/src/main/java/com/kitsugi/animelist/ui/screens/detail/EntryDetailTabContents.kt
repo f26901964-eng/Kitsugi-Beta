@@ -234,7 +234,8 @@ internal fun EntryDetailOverviewTab(
 internal fun DetailGalleryCard(
     items: List<GalleryItem>,
     onItemClick: (index: Int) -> Unit,
-    onOpenGallery: ((category: GalleryCategory?) -> Unit)? = null
+    onOpenGallery: ((category: GalleryCategory?) -> Unit)? = null,
+    isAdult: Boolean = false
 ) {
     val accentColor = LocalKitsugiAccent.current
 
@@ -474,9 +475,10 @@ internal fun DetailGalleryCard(
                                     .border(1.dp, KitsugiColors.Border, RoundedCornerShape(12.dp))
                                     .tvClickable(shape = RoundedCornerShape(12.dp)) { onItemClick(mainIndex) }
                             ) {
-                                AsyncImage(
+                                com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
                                     model = item.url,
                                     contentDescription = "${item.category.label} – ${item.source}",
+                                    isAdult = isAdult,
                                     modifier = Modifier.matchParentSize(),
                                     contentScale = ContentScale.Crop
                                 )
@@ -632,6 +634,7 @@ internal fun EntryDetailEpisodesTab(
     EpisodesTabContent(
         state = state,
         animeId = currentAnimeId,
+        isAdult = entry.isAdult,
         episodeRatings = episodeRatings,
         targetSeason = targetSeason,
         totalSeasons = detailState?.totalSeasons,

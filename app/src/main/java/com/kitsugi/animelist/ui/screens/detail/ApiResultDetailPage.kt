@@ -1,4 +1,4 @@
-﻿@file:OptIn(
+@file:OptIn(
     androidx.compose.foundation.ExperimentalFoundationApi::class,
     androidx.compose.material3.ExperimentalMaterial3Api::class
 )
@@ -599,6 +599,7 @@ fun ApiResultDetailPage(
                             } else if (galleryItems.isNotEmpty()) {
                                 DetailGalleryCard(
                                     items = galleryItems,
+                                    isAdult = displayResult.isAdult,
                                     onItemClick = { index ->
                                         activeGalleryItems = galleryItems
                                         activeGalleryIndex = index
@@ -705,6 +706,7 @@ fun ApiResultDetailPage(
                             displaySynonyms = detailState?.synonyms.orEmpty(),
                             displayYear = displayResult.year,
                             isMovie = displayResult.type == MediaType.Movie,
+                            isAdult = displayResult.isAdult,
                             onSeasonSelected = { newSeason ->
                                 viewModel.setTargetSeason(newSeason, result, displayResult.realMalId)
                             },
@@ -888,6 +890,7 @@ fun ApiResultDetailPage(
             initialIndex = activeGalleryIndex,
             initialCategory = activeGalleryCategory ?: activeGalleryItems.getOrNull(activeGalleryIndex)?.category,
             title = displayResult.title,
+            isAdult = displayResult.isAdult,
             onDismiss = { 
                 activeGalleryItems = emptyList()
                 activeGalleryCategory = null

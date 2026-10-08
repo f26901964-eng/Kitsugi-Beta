@@ -2,6 +2,7 @@ package com.kitsugi.animelist.data.auth
 
 import android.content.Context
 import android.util.Log
+import com.kitsugi.animelist.data.remote.KitsuIdNamespace
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
@@ -65,8 +66,8 @@ object KitsuSyncManager {
             ?.takeIf { it > 0 }
             ?.let { return ResolvedKitsuMedia(it, "önbellek (MAL→Kitsu)") }
 
-        if (entry.malId != null && entry.malId >= KITSU_OFFSET && entry.malId < 400_000_000) {
-            return ResolvedKitsuMedia(entry.malId - KITSU_OFFSET, "Kitsu kaynaklı kayıt")
+        KitsuIdNamespace.rawIdFromStable(entry.malId)?.let {
+            return ResolvedKitsuMedia(it, "Kitsu kaynaklı kayıt")
         }
 
         val rawAniListId = if (entry.source == "anilist" && entry.malId != null && entry.malId >= 100_000_000 && entry.malId < KITSU_OFFSET) {
@@ -260,12 +261,12 @@ object KitsuSyncManager {
         }
 
         val isAnime = entry.type != MediaType.Manga
-        var kitsuMediaId: Int? = entry.malId?.takeIf { it in 1..99_999_999 }?.let {
+        // Kitsu kimlik alanı her zaman offset'li stableId taşır; eski kayıtlarda gerçek
+        // MAL ID durabiliyor → eşleme önbelleği üzerinden çözülür.
+        var kitsuMediaId: Int? = KitsuIdNamespace.realMalIdOf(entry.malId)?.let {
             ExternalAuthManager.getKitsuMediaIdForMal(context, it, isAnime)
         }
-        if (entry.malId != null && entry.malId >= KITSU_OFFSET && entry.malId < 400_000_000) {
-            kitsuMediaId = entry.malId - KITSU_OFFSET
-        }
+        KitsuIdNamespace.rawIdFromStable(entry.malId)?.let { kitsuMediaId = it }
 
         val existingEntryId = if (kitsuMediaId != null) {
             val userId = ExternalAuthManager.getKitsuUserId(context) ?: error("Kitsu kullanıcı kimliği yok")

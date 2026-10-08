@@ -167,6 +167,7 @@ fun MyListScreen(
     var showShikimoriLoginDialog by rememberSaveable { mutableStateOf(false) }
     var activeZoomImageUrl by rememberSaveable { mutableStateOf<String?>(null) }
     var activeZoomTitle by rememberSaveable { mutableStateOf("") }
+    var activeZoomIsAdult by rememberSaveable { mutableStateOf(false) }
 
     // Five provider tabs plus a combined, deduplicated library tab.
     val tabPagerState = rememberPagerState(
@@ -568,8 +569,10 @@ fun MyListScreen(
                     onIncrementProgress = { incrementEntryProgress(it) },
                     onPosterLongClick = { imageUrl ->
                         activeZoomImageUrl = imageUrl
-                        activeZoomTitle = visibleEntries.find { it.imageUrl == imageUrl }?.title
-                            ?: pageEntries.find { it.imageUrl == imageUrl }?.title ?: ""
+                        val zoomEntry = visibleEntries.find { it.imageUrl == imageUrl }
+                            ?: pageEntries.find { it.imageUrl == imageUrl }
+                        activeZoomTitle = zoomEntry?.title ?: ""
+                        activeZoomIsAdult = zoomEntry?.isAdult == true
                     },
                     accentColor = accentColor,
                     horizontalPadding = horizontalPadding
@@ -886,9 +889,11 @@ fun MyListScreen(
         KitsugiImagePreviewDialog(
             imageUrl = activeZoomImageUrl!!,
             title = activeZoomTitle,
+            isAdult = activeZoomIsAdult,
             onDismiss = {
                 activeZoomImageUrl = null
                 activeZoomTitle = ""
+                activeZoomIsAdult = false
             }
         )
     }

@@ -186,7 +186,7 @@ object SimklImportManager {
                                 progress = progress,
                                 total = total,
                                 isFavorite = false,
-                                isAdult = false,
+                                isAdult = com.kitsugi.animelist.data.remote.SimklAdultFlags.isAdult(mediaObj),
                                 source = "simkl",
                                 malId = realMalId,
                                 imageUrl = imageUrl,

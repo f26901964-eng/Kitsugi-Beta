@@ -502,9 +502,10 @@ private fun TvLibraryCard(
                 .fillMaxWidth()
                 .height(KitsugiTvTokens.Cards.posterHeight)
         ) {
-            AsyncImage(
+            com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
                 model = entry.imageUrl,
                 contentDescription = entry.title,
+                isAdult = entry.isAdult,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )
@@ -594,9 +595,10 @@ private fun TvContinueWatchingCard(
                 .fillMaxWidth()
                 .height(124.dp)
         ) {
-            AsyncImage(
+            com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
                 model = entry.imageUrl,
                 contentDescription = entry.title,
+                isAdult = entry.isAdult,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )

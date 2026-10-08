@@ -36,8 +36,20 @@ fun TvImage(
     backgroundColor: Color = KitsugiColors.Surface,
     onError: (() -> Unit)? = null,              // Opsiyonel, sadece özel durumlar
     requestWidthPx: Int? = null,                 // YENİ: Decode boyutu
-    requestHeightPx: Int? = null                 // YENİ: Decode boyutu
+    requestHeightPx: Int? = null,                // YENİ: Decode boyutu
+    isAdult: Boolean = false                     // +18 → otomatik bulanıklık
 ) {
+    if (isAdult) {
+        // +18 içerik: KitsugiNsfwImage (API<31'de bitmap bulanıklık fallback'i dahil)
+        com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
+            model = model,
+            contentDescription = contentDescription,
+            isAdult = true,
+            modifier = modifier,
+            contentScale = contentScale
+        )
+        return
+    }
     val context = LocalContext.current
     val placeholderPainter = remember(backgroundColor) { ColorPainter(backgroundColor) }
 

@@ -91,7 +91,7 @@ internal object KitsugiSimklDetailClient {
                     score = if (ratingScore > 0.0) (ratingScore * 10).toInt() else null,
                     year = if (year > 0) year else null,
                     total = null,
-                    isAdult = false,
+                    isAdult = com.kitsugi.animelist.data.remote.SimklAdultFlags.isAdult(obj),
                     realMalId = if (realMalId > 0) realMalId else null,
                     tags = emptyList(),
                     externalLinks = emptyList(),

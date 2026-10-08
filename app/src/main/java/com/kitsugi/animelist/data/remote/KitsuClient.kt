@@ -377,7 +377,7 @@ object KitsuClient {
             "R18" -> "Rx - Hentai"
             else  -> ageRatingGuide.takeIf { it.isNotBlank() }
         }
-        val isAdult = ageRating.equals("R18", ignoreCase = true)
+        val isAdult = com.kitsugi.animelist.data.remote.KitsuAdultFlags.isAdult(attributes)
 
         val posterObj = attributes.optJSONObject("posterImage")
         val imageUrl = posterObj?.optString("medium")?.takeIf { it.isNotBlank() }

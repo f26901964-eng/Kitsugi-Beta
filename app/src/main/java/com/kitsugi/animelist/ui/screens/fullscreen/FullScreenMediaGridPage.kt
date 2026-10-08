@@ -86,6 +86,10 @@ import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import kotlinx.coroutines.launch
 import java.util.Calendar
 
+/** Simkl uses 20-item API pages; its static trending chart files are sliced locally. */
+private const val SIMKL_EXPLORE_PAGE_SIZE = 20
+private const val SIMKL_MAX_API_PAGE = 20
+
 @Composable
 fun FullScreenMediaGridPage(
     title: String,
@@ -107,6 +111,7 @@ fun FullScreenMediaGridPage(
     val scope = rememberCoroutineScope()
     val apiClient = remember { JikanApiClient() }
     val tmdbApiClient = remember { TmdbApiClient() }
+    val simklApiClient = remember { com.kitsugi.animelist.data.remote.SimklApiClient() }
 
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
     val screenWidthDp = configuration.screenWidthDp
@@ -167,13 +172,37 @@ fun FullScreenMediaGridPage(
         } else title
     }
 
-    var loadedResults by remember { mutableStateOf(initialResults) }
-    var currentPage by remember { mutableStateOf(if (initialResults.isEmpty()) 0 else 1) }
+    var loadedResults by remember(platform, categoryType) { mutableStateOf(initialResults) }
+    var currentPage by remember(platform, categoryType) {
+        mutableIntStateOf(if (initialResults.isEmpty()) 0 else 1)
+    }
     var isLoadingMore by remember { mutableStateOf(false) }
-    // These endpoints return a finite chart, not numbered pages.
-    val finiteChart = platform == ExplorePlatform.SIMKL ||
-        (platform == ExplorePlatform.KITSU && categoryType == ExploreCategoryType.TRENDING_ANIME)
-    var hasMorePages by remember { mutableStateOf(!finiteChart || initialResults.isEmpty()) }
+    // Simkl mixes page-based genre/premiere APIs with finite trending charts and an unpaged
+    // airing schedule. Its own watchlists are already fully loaded and must not be re-fetched.
+    val isSimklPersonalList = platform == ExplorePlatform.SIMKL && listOf(
+        context.getString(com.kitsugi.animelist.R.string.explore_simkl_continue_watching_series),
+        context.getString(com.kitsugi.animelist.R.string.explore_simkl_continue_watching_movies),
+        context.getString(com.kitsugi.animelist.R.string.explore_simkl_plantowatch_series),
+        context.getString(com.kitsugi.animelist.R.string.explore_simkl_plantowatch_movies)
+    ).any { title.contains(it, ignoreCase = true) }
+    val finiteChart = platform == ExplorePlatform.KITSU && categoryType == ExploreCategoryType.TRENDING_ANIME
+    val simklCategoryUsesFiniteChart = platform == ExplorePlatform.SIMKL && categoryType in setOf(
+        ExploreCategoryType.TOP_ANIME,
+        ExploreCategoryType.MOVIE_ANIME,
+        ExploreCategoryType.PUBLISHING_MANGA,
+        ExploreCategoryType.TRENDING_ANIME
+    )
+    val simklCategoryHasPagination = !isSimklPersonalList && categoryType !in setOf(
+        ExploreCategoryType.AIRING_ANIME,
+        ExploreCategoryType.TRENDING_MANGA
+    )
+    var simklPageInitialized by remember(platform, categoryType, isSimklPersonalList) {
+        mutableStateOf(platform != ExplorePlatform.SIMKL || isSimklPersonalList)
+    }
+    var simklTrendingResults by remember(platform, categoryType) { mutableStateOf<List<JikanSearchResult>?>(null) }
+    var hasMorePages by remember(platform, categoryType, isSimklPersonalList) {
+        mutableStateOf(!isSimklPersonalList && (platform == ExplorePlatform.SIMKL || !finiteChart || initialResults.isEmpty()))
+    }
     var loadError by remember { mutableStateOf<String?>(null) }
 
     suspend fun fetchSeasonalPage(page: Int): List<JikanSearchResult> = when (platform) {
@@ -193,12 +222,50 @@ fun FullScreenMediaGridPage(
         else -> emptyList()
     }
 
+    suspend fun fetchSimklPage(page: Int): List<JikanSearchResult> = when (categoryType) {
+        ExploreCategoryType.TOP_ANIME -> {
+            val chart = simklTrendingResults ?: simklApiClient.getTrendingPeriod("tv", "week")
+                .also { simklTrendingResults = it }
+            chart.drop((page - 1) * SIMKL_EXPLORE_PAGE_SIZE).take(SIMKL_EXPLORE_PAGE_SIZE)
+        }
+        ExploreCategoryType.AIRING_ANIME -> if (page == 1) simklApiClient.getAiringMedia("tv") else emptyList()
+        ExploreCategoryType.MOVIE_ANIME -> {
+            val chart = simklTrendingResults ?: simklApiClient.getTrendingPeriod("movies", "week")
+                .also { simklTrendingResults = it }
+            chart.drop((page - 1) * SIMKL_EXPLORE_PAGE_SIZE).take(SIMKL_EXPLORE_PAGE_SIZE)
+        }
+        ExploreCategoryType.TOP_MANGA -> simklApiClient.getExploreGenrePage("tv", "rank", page, SIMKL_EXPLORE_PAGE_SIZE)
+        // The Simkl explore tile is the popular-movies list, not an upcoming-release list.
+        // `this-week` is not a valid movie year filter; use the documented weekly sort instead.
+        ExploreCategoryType.UPCOMING_ANIME -> simklApiClient.getExploreGenrePage(
+            "movies", "popular-this-week", page, SIMKL_EXPLORE_PAGE_SIZE
+        )
+        ExploreCategoryType.PUBLISHING_MANGA -> {
+            val chart = simklTrendingResults ?: simklApiClient.getTrendingPeriod("movies", "week")
+                .also { simklTrendingResults = it }
+            chart.drop((page - 1) * SIMKL_EXPLORE_PAGE_SIZE).take(SIMKL_EXPLORE_PAGE_SIZE)
+        }
+        ExploreCategoryType.SEASONAL_ANIME -> simklApiClient.getExploreGenrePage("tv", "rank", page, SIMKL_EXPLORE_PAGE_SIZE)
+        ExploreCategoryType.TRENDING_ANIME -> {
+            val chart = simklTrendingResults ?: simklApiClient.getTrendingPeriod("anime", "week")
+                .also { simklTrendingResults = it }
+            chart.drop((page - 1) * SIMKL_EXPLORE_PAGE_SIZE).take(SIMKL_EXPLORE_PAGE_SIZE)
+        }
+        ExploreCategoryType.NEWLY_ADDED_ANIME -> simklApiClient.getExploreGenrePage("anime", "rank", page, SIMKL_EXPLORE_PAGE_SIZE)
+        ExploreCategoryType.TRENDING_MANGA -> if (page == 1) simklApiClient.getAiringMedia("anime") else emptyList()
+        ExploreCategoryType.UPCOMING_MEDIA_TMDB -> simklApiClient.getPremieresPage(
+            "anime", "soon", page, SIMKL_EXPLORE_PAGE_SIZE
+        )
+        else -> simklApiClient.getExploreGenrePage("anime", "rank", page, SIMKL_EXPLORE_PAGE_SIZE)
+    }
+
     fun loadNextPage() {
         if (isLoadingMore || !hasMorePages) return
         isLoadingMore = true; loadError = null
         scope.launch {
             try {
-                val np = currentPage + 1
+                val isInitialSimklPage = platform == ExplorePlatform.SIMKL && !simklPageInitialized
+                val np = if (isInitialSimklPage) 1 else currentPage + 1
                 val newItems = when (platform) {
                     ExplorePlatform.MAL -> when (categoryType) {
                         ExploreCategoryType.TOP_RATED_ANIME -> apiClient.topAnime(np, showAdultContent)
@@ -277,37 +344,44 @@ fun FullScreenMediaGridPage(
                         ExploreCategoryType.PUBLISHING_MANGA -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Manga, statuses = listOf("ongoing"), order = "popularity", page = np, limit = 20, censored = !showAdultContent)
                         else -> emptyList()
                     }
-                    ExplorePlatform.SIMKL -> when (categoryType) {
-                        ExploreCategoryType.TOP_ANIME -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("tv/trending", com.kitsugi.animelist.model.MediaType.TvShow, 20)
-                        ExploreCategoryType.AIRING_ANIME -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("tv/best/airing", com.kitsugi.animelist.model.MediaType.TvShow, 20)
-                        ExploreCategoryType.MOVIE_ANIME -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("movies/trending", com.kitsugi.animelist.model.MediaType.Movie, 20)
-                        ExploreCategoryType.TOP_MANGA -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("tv/best/all-time", com.kitsugi.animelist.model.MediaType.TvShow, 20)
-                        ExploreCategoryType.UPCOMING_ANIME -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("movies/recent", com.kitsugi.animelist.model.MediaType.Movie, 20)
-                        ExploreCategoryType.PUBLISHING_MANGA -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("movies/trending", com.kitsugi.animelist.model.MediaType.Movie, 20)
-                        ExploreCategoryType.SEASONAL_ANIME -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("tv/best/all-time", com.kitsugi.animelist.model.MediaType.TvShow, 20)
-                        ExploreCategoryType.TRENDING_ANIME -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("anime/trending", com.kitsugi.animelist.model.MediaType.Anime, 20)
-                        ExploreCategoryType.NEWLY_ADDED_ANIME -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("anime/best/all-time", com.kitsugi.animelist.model.MediaType.Anime, 20)
-                        ExploreCategoryType.TRENDING_MANGA -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("anime/best/airing", com.kitsugi.animelist.model.MediaType.Anime, 20)
-                        ExploreCategoryType.UPCOMING_MEDIA_TMDB -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("anime/best/upcoming", com.kitsugi.animelist.model.MediaType.Anime, 20)
-                        else -> emptyList()
-                    }
+                    ExplorePlatform.SIMKL -> fetchSimklPage(np)
                     else -> emptyList()
                 }
-                val existingKeys = loadedResults.map { it.exploreIdentity() }.toHashSet()
-                val uniqueItems = newItems.filter { existingKeys.add(it.exploreIdentity()) }
-                if (uniqueItems.isNotEmpty()) {
-                    loadedResults = loadedResults + uniqueItems
-                    currentPage = np
+                if (isInitialSimklPage) {
+                    if (newItems.isEmpty()) {
+                        // Keep the already-visible chart data and allow the page-one request to be retried.
+                        loadError = "Simkl listesinin ilk sayfası alınamadı. Tekrar deneyin."
+                    } else {
+                        loadedResults = newItems
+                        currentPage = 1
+                        simklPageInitialized = true
+                        hasMorePages = simklCategoryHasPagination &&
+                            newItems.size >= SIMKL_EXPLORE_PAGE_SIZE &&
+                            (simklCategoryUsesFiniteChart || 1 < SIMKL_MAX_API_PAGE)
+                    }
+                } else {
+                    val existingKeys = loadedResults.map { it.exploreIdentity() }.toHashSet()
+                    val uniqueItems = newItems.filter { existingKeys.add(it.exploreIdentity()) }
+                    if (uniqueItems.isNotEmpty()) {
+                        loadedResults = loadedResults + uniqueItems
+                        currentPage = np
+                    }
+                    if (uniqueItems.isEmpty() || finiteChart) hasMorePages = false
+                    if (platform == ExplorePlatform.SIMKL && simklCategoryHasPagination &&
+                        (newItems.size < SIMKL_EXPLORE_PAGE_SIZE ||
+                            (!simklCategoryUsesFiniteChart && np >= SIMKL_MAX_API_PAGE))
+                    ) {
+                        hasMorePages = false
+                    }
                 }
-                if (uniqueItems.isEmpty() || finiteChart) hasMorePages = false
             } catch (e: Exception) {
                 loadError = e.message ?: "Yükleme hatası"
             } finally { isLoadingMore = false }
         }
     }
 
-    LaunchedEffect(Unit) {
-        if (loadedResults.isEmpty()) {
+    LaunchedEffect(platform, categoryType, isSimklPersonalList) {
+        if (!isSimklPersonalList && (platform == ExplorePlatform.SIMKL || loadedResults.isEmpty())) {
             loadNextPage()
         }
     }
@@ -382,7 +456,9 @@ fun FullScreenMediaGridPage(
             last.index >= listState.layoutInfo.totalItemsCount - 4
         }
     }
-    LaunchedEffect(shouldLoadMoreList) { if (shouldLoadMoreList) loadNextPage() }
+    LaunchedEffect(shouldLoadMoreList, isLoadingMore, hasMorePages, isGridView) {
+        if (!isGridView && shouldLoadMoreList && !isLoadingMore && hasMorePages) loadNextPage()
+    }
 
     // Grid scroll state + auto-load trigger
     val gridState = rememberLazyGridState()
@@ -392,7 +468,9 @@ fun FullScreenMediaGridPage(
             last.index >= gridState.layoutInfo.totalItemsCount - 6
         }
     }
-    LaunchedEffect(shouldLoadMoreGrid) { if (shouldLoadMoreGrid) loadNextPage() }
+    LaunchedEffect(shouldLoadMoreGrid, isLoadingMore, hasMorePages, isGridView) {
+        if (isGridView && shouldLoadMoreGrid && !isLoadingMore && hasMorePages) loadNextPage()
+    }
 
     val showFloatingHeader = if (isGridView) gridState.firstVisibleItemIndex >= 1
     else listState.firstVisibleItemIndex >= 1

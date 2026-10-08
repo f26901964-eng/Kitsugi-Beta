@@ -444,9 +444,10 @@ private fun TvSearchResultCard(
                 .fillMaxWidth()
                 .height(KitsugiTvTokens.Cards.posterHeight)
         ) {
-            AsyncImage(
+            com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
                 model = item.imageUrl,
                 contentDescription = item.title,
+                isAdult = item.isAdult,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier.fillMaxSize()
             )

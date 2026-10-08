@@ -1079,9 +1079,10 @@ private fun PreviewPoster(
         contentAlignment = Alignment.Center
     ) {
         if (!result.imageUrl.isNullOrBlank()) {
-            AsyncImage(
+            com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
                 model = result.imageUrl,
                 contentDescription = result.title,
+                isAdult = result.isAdult,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )

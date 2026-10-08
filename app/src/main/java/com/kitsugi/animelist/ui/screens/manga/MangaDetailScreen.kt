@@ -1,4 +1,4 @@
-﻿package com.kitsugi.animelist.ui.screens.manga
+package com.kitsugi.animelist.ui.screens.manga
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.foundation.background
@@ -48,7 +48,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
-import coil3.compose.AsyncImage
 import com.kitsugi.animelist.data.manga.MangaChapter
 import com.kitsugi.animelist.data.manga.MangaDetails
 import com.kitsugi.animelist.data.manga.MangaSource
@@ -220,6 +219,8 @@ fun MangaDetailScreen(
 
 @Composable
 private fun MangaDetailHeader(details: MangaDetails, accent: Color) {
+    // +18 türü/source → bulanıklık her koşulda uygulanır
+    val isAdultContent = details.isAdultContent
     Box(
         modifier = Modifier
             .fillMaxWidth()
@@ -227,9 +228,10 @@ private fun MangaDetailHeader(details: MangaDetails, accent: Color) {
     ) {
         // Bulanık arkaplan kapak
         if (!details.thumbnailUrl.isNullOrBlank()) {
-            AsyncImage(
+            com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
                 model = details.thumbnailUrl,
-                contentDescription = null,
+                contentDescription = "",
+                isAdult = isAdultContent,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxSize()
@@ -259,9 +261,10 @@ private fun MangaDetailHeader(details: MangaDetails, accent: Color) {
             verticalAlignment = Alignment.Bottom
         ) {
             // Kapak
-            AsyncImage(
+            com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
                 model = details.thumbnailUrl,
                 contentDescription = details.title,
+                isAdult = isAdultContent,
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .width(120.dp)

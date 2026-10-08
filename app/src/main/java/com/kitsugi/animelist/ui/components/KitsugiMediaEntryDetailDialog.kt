@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -73,6 +74,7 @@ fun KitsugiMediaEntryDetailDialog(
     }
 
     val externalUrl = buildExternalUrl(entry)
+    val context = LocalContext.current.applicationContext
 
     LaunchedEffect(entry.id, entry.source, entry.malId, entry.synopsis) {
         if (!entry.synopsis.isNullOrBlank()) {
@@ -82,9 +84,19 @@ fun KitsugiMediaEntryDetailDialog(
 
         synopsisState = SynopsisState.Loading
 
+        // Kitsu kayıtlarında gerçek MAL ID doğrudan Kitsu ID olarak kullanılamaz;
+        // önce stable Kitsu ID çözülür, çözülemezse MAL üzerinden gidilir.
+        val resolvedExternalId = if (entry.source.equals("kitsu", ignoreCase = true)) {
+            com.kitsugi.animelist.data.remote.KitsuEntryIdResolver.resolveStableId(
+                entry,
+                context
+            )
+        } else {
+            entry.malId
+        }
         val synopsis = apiClient.fetchSynopsis(
-            source = entry.source,
-            externalId = entry.malId,
+            source = if (entry.source.equals("kitsu", ignoreCase = true) && resolvedExternalId == null) "mal" else entry.source,
+            externalId = resolvedExternalId ?: entry.malId,
             mediaType = entry.type
         )
 
@@ -454,9 +466,10 @@ private fun DetailPoster(
         contentAlignment = Alignment.Center
     ) {
         if (!entry.imageUrl.isNullOrBlank()) {
-            AsyncImage(
+            com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
                 model = entry.imageUrl,
                 contentDescription = entry.title,
+                isAdult = entry.isAdult,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
