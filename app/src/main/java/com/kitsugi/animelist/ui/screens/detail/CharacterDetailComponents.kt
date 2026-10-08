@@ -130,6 +130,10 @@ internal fun MediaAppearanceRow(
                 fontWeight = FontWeight.Medium
             )
         }
+        KitsugiMiniCopyButton(
+            text = displayTitle,
+            modifier = Modifier.padding(end = 8.dp)
+        )
     }
 }
 
@@ -190,6 +194,10 @@ internal fun VoiceActorRow(
                 fontWeight = FontWeight.Medium
             )
         }
+        KitsugiMiniCopyButton(
+            text = actor.name,
+            modifier = Modifier.padding(end = 8.dp)
+        )
     }
 }
 

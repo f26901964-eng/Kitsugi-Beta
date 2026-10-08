@@ -20,7 +20,9 @@ import com.kitsugi.animelist.ui.theme.LocalIsTvDevice
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiTvTokens
 
+import androidx.compose.foundation.Indication
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 
 /**
  * TV-aware clickable modifier for D-pad navigation support.
@@ -46,6 +48,8 @@ fun Modifier.tvClickable(
     scaleOnFocus: Boolean = true,
     scaleFocused: Float = KitsugiTvTokens.Focus.scale,
     borderWidth: Dp = KitsugiTvTokens.Cards.focusedBorderWidth,
+    interactionSource: MutableInteractionSource? = null,
+    indication: Indication? = null,
     onLongClick: (() -> Unit)? = null,
     onClick: () -> Unit
 ): Modifier = composed {
@@ -69,12 +73,16 @@ fun Modifier.tvClickable(
             .then(if (scaleOnFocus) Modifier.scale(scale) else Modifier)
             .combinedClickable(
                 enabled = enabled,
+                interactionSource = interactionSource,
+                indication = indication,
                 onLongClick = onLongClick,
                 onClick = onClick
             )
     } else {
         this.combinedClickable(
             enabled = enabled,
+            interactionSource = interactionSource,
+            indication = indication,
             onLongClick = onLongClick,
             onClick = onClick
         )

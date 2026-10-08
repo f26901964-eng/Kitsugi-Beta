@@ -13,8 +13,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
-import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.TextFieldLineLimits
+import androidx.compose.foundation.text.input.TextFieldState
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.filled.Close
@@ -92,6 +94,20 @@ fun PluginPickerScreen(
     var isLoadingActiveApis by remember { mutableStateOf(cachedActiveApis == null) }
     var selectedGroupLabel by rememberSaveable { mutableStateOf<String?>(null) }
     var queryText by rememberSaveable { mutableStateOf("") }
+
+    // Durum tabanlı metin alanı: uzun metinlerde yatay kaydırma (pan) desteği.
+    // (queryText rememberSaveable ile korunur ve LaunchedEffect ile senkronize edilir.)
+    val pluginQueryState = remember { TextFieldState() }
+    LaunchedEffect(queryText) {
+        if (queryText != pluginQueryState.text.toString()) {
+            pluginQueryState.setTextAndPlaceCursorAtEnd(queryText)
+        }
+    }
+    LaunchedEffect(Unit) {
+        snapshotFlow { pluginQueryState.text.toString() }.collect { t ->
+            if (t != queryText) queryText = t
+        }
+    }
 
     val listState = rememberLazyListState(
         initialFirstVisibleItemIndex = savedPickerScrollIndex,
@@ -292,28 +308,29 @@ fun PluginPickerScreen(
                             )
 
                             BasicTextField(
-                                value = queryText,
-                                onValueChange = { queryText = it },
+                                state = pluginQueryState,
                                 textStyle = androidx.compose.ui.text.TextStyle(
                                     color = KitsugiColors.TextPrimary,
                                     fontSize = 15.sp
                                 ),
                                 cursorBrush = SolidColor(accentColor),
-                                singleLine = true,
+                                lineLimits = TextFieldLineLimits.SingleLine,
                                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                                keyboardActions = KeyboardActions(onDone = {
+                                onKeyboardAction = {
                                     keyboardController?.hide()
-                                }),
+                                },
                                 modifier = Modifier.weight(1f),
-                                decorationBox = { innerTextField ->
-                                    if (queryText.isEmpty()) {
-                                        Text(
-                                            text = "Eklentilerde ara... (${activeApis.size} eklenti)",
-                                            color = KitsugiColors.TextMuted,
-                                            fontSize = 14.sp
-                                        )
+                                decorator = { innerTextField ->
+                                    Box(contentAlignment = Alignment.CenterStart) {
+                                        if (pluginQueryState.text.isEmpty()) {
+                                            Text(
+                                                text = "Eklentilerde ara... (${activeApis.size} eklenti)",
+                                                color = KitsugiColors.TextMuted,
+                                                fontSize = 14.sp
+                                            )
+                                        }
+                                        innerTextField()
                                     }
-                                    innerTextField()
                                 }
                             )
 

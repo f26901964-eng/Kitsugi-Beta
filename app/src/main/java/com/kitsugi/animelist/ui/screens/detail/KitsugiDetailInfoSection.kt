@@ -813,7 +813,8 @@ private fun EntryInfoRow(label: String, value: String, onValueClick: (() -> Unit
         modifier = Modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.SpaceBetween
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
     ) {
         Text(
             text = label,
@@ -822,22 +823,29 @@ private fun EntryInfoRow(label: String, value: String, onValueClick: (() -> Unit
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.weight(0.4f)
         )
-        val valueColor = if (onValueClick != null) LocalKitsugiAccent.current else KitsugiColors.TextPrimary
-        val valueModifier = Modifier
-            .weight(0.6f)
-            .let {
-                if (onValueClick != null) {
-                    it.clip(RoundedCornerShape(4.dp)).tvClickable(shape = RoundedCornerShape(4.dp), onClick = onValueClick)
-                } else {
-                    it
+        Row(
+            modifier = Modifier.weight(0.6f),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            val valueColor = if (onValueClick != null) LocalKitsugiAccent.current else KitsugiColors.TextPrimary
+            val valueModifier = Modifier
+                .weight(1f, fill = false)
+                .let {
+                    if (onValueClick != null) {
+                        it.clip(RoundedCornerShape(4.dp)).tvClickable(shape = RoundedCornerShape(4.dp), onClick = onValueClick)
+                    } else {
+                        it
+                    }
                 }
-            }
-        Text(
-            text = value,
-            color = valueColor,
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = if (onValueClick != null) FontWeight.Bold else FontWeight.Normal,
-            modifier = valueModifier
-        )
+            Text(
+                text = value,
+                color = valueColor,
+                style = MaterialTheme.typography.bodySmall,
+                fontWeight = if (onValueClick != null) FontWeight.Bold else FontWeight.Normal,
+                modifier = valueModifier
+            )
+            KitsugiMiniCopyButton(text = value)
+        }
     }
 }
