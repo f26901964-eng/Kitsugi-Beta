@@ -939,7 +939,8 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
         _targetSeason.value = season
         _episodesState.value = DetailTabState.Loading
         DetailCache.removeMediaEpisodes(entry.source, entry.malId ?: 0)
-        loadTab(7, entry, _detailState.value?.realMalId)
+        // Bölüm sekmesi = 8 (7 = Yorumlar). Yanlış indeks bölümleri hiç yüklemiyordu.
+        loadTab(8, entry, _detailState.value?.realMalId)
     }
 
     /**

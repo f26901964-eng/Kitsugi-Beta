@@ -123,12 +123,12 @@ fun TvDetailScreen(
 
     LaunchedEffect(detailState) {
         if (detailState != null) {
-            viewModel.loadTab(1, result, result.realMalId ?: detailState?.realMalId) // Characters
-            viewModel.loadTab(2, result, result.realMalId ?: detailState?.realMalId) // Staff
-            viewModel.loadTab(3, result, result.realMalId ?: detailState?.realMalId) // Relations
-            viewModel.loadTab(4, result, result.realMalId ?: detailState?.realMalId) // Stats
-            viewModel.loadTab(5, result, result.realMalId ?: detailState?.realMalId) // Reviews
-            viewModel.loadTab(6, result, result.realMalId ?: detailState?.realMalId) // Episodes
+            viewModel.loadTab(2, result, result.realMalId ?: detailState?.realMalId) // Karakterler
+            viewModel.loadTab(3, result, result.realMalId ?: detailState?.realMalId) // Ekip
+            viewModel.loadTab(5, result, result.realMalId ?: detailState?.realMalId) // İlişkiler
+            viewModel.loadTab(6, result, result.realMalId ?: detailState?.realMalId) // Grafikler (stats)
+            viewModel.loadTab(7, result, result.realMalId ?: detailState?.realMalId) // Yorumlar (reviews)
+            viewModel.loadTab(8, result, result.realMalId ?: detailState?.realMalId) // Bölümler (episodes)
         }
     }
 

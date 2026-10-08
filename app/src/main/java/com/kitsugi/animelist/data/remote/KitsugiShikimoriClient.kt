@@ -16,6 +16,14 @@ object KitsugiShikimoriClient {
     // (bkz. ShikimoriApiClient.BASE_URL ve ShikimoriPosterResolver.HOST).
     private const val BASE_URL = "https://shikimori.io/api"
 
+    /**
+     * Metin aramasında varsayılan anime türleri. Shikimori arama sonuçlarına müzik (music),
+     * PV (pv) ve reklam (cm) öğelerini de ekliyor; bunlar anime aramasında alakasız görünüyordu
+     * ("Na mo Naki Nanimo Kamo", "... PV", "Suntory ... Tennensui" gibi). Kullanıcı tür filtresi
+     * seçtiyse o liste geçerlidir.
+     */
+    private const val ANIME_SEARCH_DEFAULT_KINDS = "tv,movie,ova,ona,special,tv_special"
+
     private fun adultFlag(item: JSONObject): Boolean {
         val rating = item.optString("rating").takeIf { it.isNotBlank() && it != "null" }
         val kind = item.optString("kind", "")
@@ -38,7 +46,10 @@ object KitsugiShikimoriClient {
         withContext(Dispatchers.IO) {
             runCatching {
                 val encoded = java.net.URLEncoder.encode(query, "UTF-8")
-                val url = URL("$BASE_URL/animes?search=$encoded&limit=$limit&order=popularity")
+                val url = URL(
+                    "$BASE_URL/animes?search=$encoded&limit=$limit&order=popularity" +
+                        "&censored=true&kind=$ANIME_SEARCH_DEFAULT_KINDS"
+                )
                 Log.d(TAG, "Shikimori searchAnime: $url")
                 val response = KitsugiApiBase.executeGetRequestResilient(url) ?: return@runCatching emptyList()
                 val array = JSONArray(response)
@@ -162,7 +173,12 @@ object KitsugiShikimoriClient {
             params.add("censored=$censored")
 
             if (query.isNotBlank()) params.add("search=${java.net.URLEncoder.encode(query.trim(), "UTF-8")}")
-            if (!kinds.isNullOrEmpty()) params.add("kind=${kinds.joinToString(",")}")
+            if (!kinds.isNullOrEmpty()) {
+                params.add("kind=${kinds.joinToString(",")}")
+            } else if (query.isNotBlank() && endpoint == "animes") {
+                // Metin araması ve kullanıcı tür seçmemiş: müzik/PV/reklam öğelerini dışla.
+                params.add("kind=$ANIME_SEARCH_DEFAULT_KINDS")
+            }
             if (!statuses.isNullOrEmpty()) params.add("status=${statuses.joinToString(",")}")
             if (!season.isNullOrBlank()) params.add("season=$season")
             if (score != null && score > 0) params.add("score=$score")

@@ -23,8 +23,10 @@ class RetryInterceptor(
 
     companion object {
         private const val TAG = "RetryInterceptor"
-        // Restore to 30s so slow rate limits still work, but abort immediately if call is canceled
-        private const val MAX_RETRY_AFTER_MS = 30_000L
+        // 429 beklemesi çağıran thread'i (ve UI'ı bekleten detay sekmelerini) bloke eder.
+        // 30 sn'lik Retry-After, tek bir sekmeyi dakikalarca skeleton'da bırakıyordu; üst sınır 5 sn.
+        // Daha uzun limit durumunda çağıran taraf bu isteği kısa sürede hata/boş olarak alır.
+        private const val MAX_RETRY_AFTER_MS = 5_000L
     }
 
     override fun intercept(chain: Interceptor.Chain): Response {

@@ -8,9 +8,13 @@ import okhttp3.Request
 import com.kitsugi.animelist.utils.*
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * MyAnimeList / Jikan API'sinden anime/manga detay bilgisi çeker.
@@ -20,6 +24,15 @@ internal object KitsugiMalDetailClient {
 
     private const val TAG = "KitsugiMalDetail"
     private const val MAX_RETRIES = 3
+
+    /** Zenginleştirme işleri (tema, /pictures, ARM, Jikan destek) için en fazla bekleme. */
+    private const val ENRICHMENT_WAIT_MS = 6_000L
+
+    /**
+     * Zenginleştirme işleri ana detayın kapsamında DEĞİL. Ana detay en fazla [ENRICHMENT_WAIT_MS]
+     * bekler; yetişmeyen iş iptal edilir. Böylece bir kaynağın yavaşlığı sayfayı açmayı geciktirmez.
+     */
+    private val enrichmentScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     suspend fun fetchDetail(malId: Int, mediaType: MediaType): KitsugiMediaDetail? {
         if (malId <= 0) {
@@ -52,80 +65,101 @@ internal object KitsugiMalDetailClient {
         }
 
         if (detail != null) {
-            return coroutineScope {
-                if (mediaType != MediaType.Manga) {
-                    val themesDeferred = async(Dispatchers.IO) {
-                        runCatching { KitsugiAnimeThemesClient.fetchAnimeThemes(malId, "MyAnimeList") }
-                            .getOrElse { Pair(emptyList(), emptyList()) }
-                    }
-                    val picturesDeferred = async(Dispatchers.IO) {
-                        fetchPictures(malId, endpoint)
-                    }
-                    val resolvedTmdbDeferred = if (detail.tmdbId == null) {
-                        async(Dispatchers.IO) {
-                            runCatching { KitsugiIdResolver.resolveIds(malId = malId, aniListId = null).tmdbId }.getOrNull()
-                        }
-                    } else null
-
-                    // Jikan'dan ek bilgileri (trailer, streaming/external links) paralel çek
-                    val jikanSupplementDeferred = if (isFromMalv2) {
-                        async(Dispatchers.IO) {
-                            fetchJikanSupplement(malId, endpoint)
-                        }
-                    } else null
-
-                    val themes = themesDeferred.await()
-                    val pictures = picturesDeferred.await()
-                    val resolvedTmdb = resolvedTmdbDeferred?.await()
-                    val jikanSupplement = jikanSupplementDeferred?.await()
-
-                    var mergedDetail = detail
-
-                    if (themes.first.isNotEmpty() || themes.second.isNotEmpty()) {
-                        mergedDetail = mergedDetail.copy(openings = themes.first, endings = themes.second)
-                    }
-                    if (pictures.isNotEmpty()) {
-                        mergedDetail = mergedDetail.copy(pictures = pictures)
-                    }
-                    if (mergedDetail.tmdbId == null && resolvedTmdb != null && resolvedTmdb > 0) {
-                        mergedDetail = mergedDetail.copy(tmdbId = resolvedTmdb)
-                    }
-                    if (jikanSupplement != null) {
-                        mergedDetail = mergedDetail.copy(
-                            trailerUrl = jikanSupplement.trailerUrl ?: mergedDetail.trailerUrl,
-                            streamingLinks = jikanSupplement.streamingLinks,
-                            externalLinks = jikanSupplement.externalLinks
-                        )
-                    }
-
-                    mergedDetail
-                } else {
-                    val picturesDeferred = async(Dispatchers.IO) {
-                        fetchPictures(malId, endpoint)
-                    }
-                    val jikanSupplementDeferred = if (isFromMalv2) {
-                        async(Dispatchers.IO) {
-                            fetchJikanSupplement(malId, endpoint)
-                        }
-                    } else null
-
-                    val pictures = picturesDeferred.await()
-                    val jikanSupplement = jikanSupplementDeferred?.await()
-
-                    var mergedDetail = detail
-                    if (pictures.isNotEmpty()) {
-                        mergedDetail = mergedDetail.copy(pictures = pictures)
-                    }
-                    if (jikanSupplement != null) {
-                        mergedDetail = mergedDetail.copy(
-                            externalLinks = jikanSupplement.externalLinks
-                        )
-                    }
-                    mergedDetail
-                }
-            }
+            val primary: KitsugiMediaDetail = detail
+            return enrichWithinBudget(primary, malId, mediaType, endpoint, isFromMalv2)
         }
         return detail
+    }
+
+    /**
+     * Ana detayın üstüne ek verileri (tema, /pictures, ARM tmdb, Jikan destek bilgileri) ekler.
+     *
+     * ÖNEMLİ: Eskiden `coroutineScope` bu işlerin HEPSİ bitene kadar bekliyordu. Jikan 429 verince
+     * her biri yeniden denemelerle uzuyor, sayfa başlığı dakikalarca gelmiyordu. Artık her iş en
+     * fazla [ENRICHMENT_WAIT_MS] bekletilir; yetişmeyen iş atlanır (alan boş kalır) ve ana detay
+     * hemen döner. TMDB/TR zenginleştirmesi zaten VM'de aynı şekilde arka planda yapılır.
+     */
+    private suspend fun enrichWithinBudget(
+        primary: KitsugiMediaDetail,
+        malId: Int,
+        mediaType: MediaType,
+        endpoint: String,
+        isFromMalv2: Boolean
+    ): KitsugiMediaDetail {
+        if (mediaType == MediaType.Manga) {
+            val picturesDeferred = enrichmentScope.async { fetchPictures(malId, endpoint) }
+            val supplementDeferred = if (isFromMalv2) {
+                enrichmentScope.async { fetchJikanSupplement(malId, endpoint) }
+            } else null
+
+            val pictures = picturesDeferred.awaitWithinBudget(emptyList())
+            val jikanSupplement = supplementDeferred?.awaitWithinBudget(null)
+
+            var merged = primary
+            if (pictures.isNotEmpty()) {
+                merged = merged.copy(pictures = pictures)
+            }
+            if (jikanSupplement != null) {
+                merged = merged.copy(externalLinks = jikanSupplement.externalLinks)
+            }
+            return merged
+        }
+
+        val themesDeferred = enrichmentScope.async {
+            runCatching { KitsugiAnimeThemesClient.fetchAnimeThemes(malId, "MyAnimeList") }
+                .getOrElse { Pair(emptyList(), emptyList()) }
+        }
+        val picturesDeferred = enrichmentScope.async { fetchPictures(malId, endpoint) }
+        val resolvedTmdbDeferred = if (primary.tmdbId == null) {
+            enrichmentScope.async {
+                runCatching { KitsugiIdResolver.resolveIds(malId = malId, aniListId = null).tmdbId }.getOrNull()
+            }
+        } else null
+        // Jikan'dan ek bilgiler (trailer, streaming/external links)
+        val supplementDeferred = if (isFromMalv2) {
+            enrichmentScope.async { fetchJikanSupplement(malId, endpoint) }
+        } else null
+
+        val themes = themesDeferred.awaitWithinBudget(Pair(emptyList(), emptyList()))
+        val pictures = picturesDeferred.awaitWithinBudget(emptyList())
+        val resolvedTmdb = resolvedTmdbDeferred?.awaitWithinBudget(null)
+        val jikanSupplement = supplementDeferred?.awaitWithinBudget(null)
+
+        var merged = primary
+        if (themes.first.isNotEmpty() || themes.second.isNotEmpty()) {
+            merged = merged.copy(openings = themes.first, endings = themes.second)
+        }
+        if (pictures.isNotEmpty()) {
+            merged = merged.copy(pictures = pictures)
+        }
+        if (merged.tmdbId == null && resolvedTmdb != null && resolvedTmdb > 0) {
+            merged = merged.copy(tmdbId = resolvedTmdb)
+        }
+        if (jikanSupplement != null) {
+            merged = merged.copy(
+                trailerUrl = jikanSupplement.trailerUrl ?: merged.trailerUrl,
+                streamingLinks = jikanSupplement.streamingLinks,
+                externalLinks = jikanSupplement.externalLinks
+            )
+        }
+        return merged
+    }
+
+    /**
+     * Zenginleştirme işinin sonucunu en fazla [ENRICHMENT_WAIT_MS] bekler. Süre dolarsa ya da iş
+     * hata verirse [fallback] döner; yetişmeyen iş iptal edilir.
+     */
+    private suspend fun <T> Deferred<T>.awaitWithinBudget(fallback: T): T {
+        val value: T? = try {
+            withTimeoutOrNull(ENRICHMENT_WAIT_MS) { await() }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            Log.w(TAG, "Zenginleştirme işi başarısız: ${e.message}")
+            null
+        }
+        if (!isCompleted) cancel()
+        return value ?: fallback
     }
 
     suspend fun fetchSynopsis(malId: Int, mediaType: MediaType): String? {
@@ -146,7 +180,9 @@ internal object KitsugiMalDetailClient {
     private suspend fun fetchPictures(malId: Int, endpoint: String): List<String> {
         val url = URL("https://api.jikan.moe/v4/$endpoint/$malId/pictures")
         return runCatching {
-            val text = KitsugiApiBase.executeGetRequestResilient(url) ?: return@runCatching emptyList()
+            // Jikan'a giden tüm istekler hız sınırı slotundan geçer (aksi halde 429 fırtınası çıkar)
+            val text = KitsugiApiBase.runWithRateLimit { KitsugiApiBase.executeGetRequestResilient(url) }
+                ?: return@runCatching emptyList()
             runCatching {
                 val dataArr = org.json.JSONObject(text).optJSONArray("data") ?: return@runCatching emptyList()
                 val urls = mutableListOf<String>()
@@ -752,7 +788,7 @@ internal object KitsugiMalDetailClient {
         val url = URL("https://api.jikan.moe/v4/$endpoint/$malId/full")
 
         return runCatching {
-            val text = KitsugiApiBase.executeGetRequestResilient(url) ?: run {
+            val text = KitsugiApiBase.runWithRateLimit { KitsugiApiBase.executeGetRequestResilient(url) } ?: run {
                 Log.w(TAG, "fetchJikanSupplement: yanıt alınamadı (429/5xx retry dahil) malId=$malId")
                 return@runCatching null
             }
