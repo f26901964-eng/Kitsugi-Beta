@@ -27,8 +27,23 @@ class AniListServiceDownException(message: String) : Exception(message)
 
 object KitsugiApiBase {
     private const val MIN_REQUEST_INTERVAL_MS = 450L
-    private val requestMutex = Mutex()
-    private var lastRequestTime: Long = 0L
+
+    /** Slot zamanlayıcısının (ve 429 cezasının) geçerli olduğu hostlar. AnimeThemes/ARM gibi
+     *  diğer hostların 429'u Jikan/Shikimori isteklerini yavaşlatmamalı. */
+    private val SLOT_LIMITED_HOSTS = setOf("api.jikan.moe", "shikimori.io")
+
+    /**
+     * Jikan/Shikimori istekleri için "slot" zamanlayıcısı: istek BAŞLANGIÇLARI arasında
+     * [MIN_REQUEST_INTERVAL_MS] bırakılır.
+     *
+     * ÖNEMLİ: Eski tasarımda tek bir Mutex, ağ çağrısının TAMAMI (retry'lar ve 429 beklemesi dâhil)
+     * boyunca tutuluyordu. Sonuç: uygulamadaki tüm Jikan çağrıları (karakter, ekip, ilişki, öneri,
+     * bölüm, istatistik, yorum, /full, /pictures) birbirinin arkasına dizilip dakikalarca bekliyor,
+     * sekmeler skeleton'da kalıyordu. Artık yalnızca slot ayrılır; ağ çağrısı kilit dışında yapılır.
+     * Başlangıç aralığı korunduğu için istek hızı yine sınırlıdır.
+     */
+    private val slotLock = Any()
+    private var nextRequestSlotAt: Long = 0L
 
     // ─── AniList'e özel hız sınırlama (Jikan'dan bağımsız) ──────────────────────
     // AniList resmi limiti dakikada ~90 istek; güvenli tarafta kalmak için
@@ -38,23 +53,32 @@ object KitsugiApiBase {
     private val aniListMutex = Mutex()
     private var lastAniListRequestTime: Long = 0L
 
+    /**
+     * Jikan/Shikimori isteğini hız sınırı slotu alarak çalıştırır. Kilit yalnızca slot
+     * hesabı için tutulur; [block] (ağ çağrısı dâhil) kilit dışında çalışır.
+     */
     suspend fun <T> runWithRateLimit(block: suspend () -> T): T {
-        return requestMutex.withLock {
-            waitForRateLimitWindow()
-            block()
-        }
+        reserveRequestSlot()
+        return block()
     }
 
-    private suspend fun waitForRateLimitWindow() {
-        val now = System.currentTimeMillis()
-        val elapsed = now - lastRequestTime
-        val waitMs = MIN_REQUEST_INTERVAL_MS - elapsed
-
+    private suspend fun reserveRequestSlot() {
+        val waitMs = synchronized(slotLock) {
+            val now = System.currentTimeMillis()
+            val slotAt = maxOf(now, nextRequestSlotAt)
+            nextRequestSlotAt = slotAt + MIN_REQUEST_INTERVAL_MS
+            slotAt - now
+        }
         if (waitMs > 0) {
             delay(waitMs)
         }
+    }
 
-        lastRequestTime = System.currentTimeMillis()
+    /** 429 yanıtında sonraki isteklerin de [delayMs] kadar beklemesini sağlar (ortak geri çekilme). */
+    private fun penalizeRequestSlot(delayMs: Long) {
+        synchronized(slotLock) {
+            nextRequestSlotAt = maxOf(nextRequestSlotAt, System.currentTimeMillis() + delayMs)
+        }
     }
 
     private suspend fun waitForAniListWindow() {
@@ -83,12 +107,16 @@ object KitsugiApiBase {
             .build()
 
         return try {
-            com.kitsugi.animelist.core.network.KitsugiHttpClient.client.newCall(request).execute().use { response ->
+            com.kitsugi.animelist.core.network.KitsugiHttpClient.metadataClient.newCall(request).execute().use { response ->
                 val body = if (response.isSuccessful) response.body?.string() else null
                 val retryAfterMs = if (response.code == 429 || response.code in 500..599) {
                     val retryAfterSec = response.header("Retry-After")?.toLongOrNull()
                     retryAfterSec?.let { (it * 1_000L).coerceIn(0L, 10_000L) }
                 } else null
+                if (response.code == 429 && url.host in SLOT_LIMITED_HOSTS) {
+                    // Sunucu limiti aştı: aynı havuzdaki sonraki istekler de kısa süre beklesin.
+                    penalizeRequestSlot(retryAfterMs ?: 2_000L)
+                }
                 if (body == null) {
                     if (response.code == 429) {
                         android.util.Log.w("KitsugiApiBase", "HTTP 429 Too Many Requests: Rate limit hit for URL: $url")
@@ -141,11 +169,16 @@ object KitsugiApiBase {
             .header("User-Agent", "KitsugiAnimeList/1.0")
             .build()
 
-        com.kitsugi.animelist.core.network.KitsugiHttpClient.client.newCall(request).execute().use { response ->
+        com.kitsugi.animelist.core.network.KitsugiHttpClient.metadataClient.newCall(request).execute().use { response ->
             if (response.isSuccessful) {
                 return response.body?.string().orEmpty()
             } else {
                 if (response.code == 429) {
+                    if (url.host in SLOT_LIMITED_HOSTS) {
+                        penalizeRequestSlot(
+                            response.header("Retry-After")?.toLongOrNull()?.times(1_000L)?.coerceIn(0L, 10_000L) ?: 2_000L
+                        )
+                    }
                     throw RateLimitException("HTTP 429 Too Many Requests: Rate limit hit for URL: $url")
                 } else if (response.code == 404) {
                     throw ResourceNotFoundException("HTTP 404 Not Found for URL: $url")

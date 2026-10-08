@@ -1563,7 +1563,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                                 coroutineScope {
                                     val animePart = async {
                                         runCatching {
-                                            KitsugiShikimoriClient.searchAnime(queryText, limit = 10)
+                                            KitsugiShikimoriClient.searchAnime(queryText, limit = 24)
                                         }.getOrDefault(emptyList())
                                     }
                                     val mangaPart = async {
@@ -1580,7 +1580,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                                         .take(10)
                                 }
                             } else {
-                                KitsugiShikimoriClient.searchAnime(queryText, limit = 10)
+                                KitsugiShikimoriClient.searchAnime(queryText, limit = 24)
                             }
                         }.getOrElse { err -> if (err is kotlinx.coroutines.CancellationException) throw err; emptyList() }
                     } ?: emptyList()

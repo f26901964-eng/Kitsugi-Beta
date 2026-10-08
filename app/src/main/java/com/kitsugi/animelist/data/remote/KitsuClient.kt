@@ -3,6 +3,8 @@ package com.kitsugi.animelist.data.remote
 import android.util.Log
 import com.kitsugi.animelist.core.network.KitsugiHttpClient
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import okhttp3.Request
 import org.json.JSONArray
@@ -27,133 +29,76 @@ object KitsuClient {
 
     // ─── Character Fetching ───────────────────────────────────────────────────
 
+    /** Sayfa başına karakter kaydı ve taranacak en fazla sayfa (en fazla 100 karakter). */
+    private const val CHARACTER_PAGE_LIMIT = 20
+    private const val CHARACTER_MAX_PAGES = 5
+
     /**
-     * Kitsu anime-characters endpoint'inden karakter listesi çeker (paginated).
-     * JSON:API: data[] = anime-character join records (role attr), included[] = character objects.
+     * Kitsu'dan anime karakter listesini çeker (sayfalı).
+     *
+     * Birincil kaynak `anime-characters` uç noktasıdır (JSON:API: data[] = join kaydı + role,
+     * included[] = characters). Bu tablo bazı yapımlarda eksiktir (ör. Cowboy Bebop boş döner);
+     * boş dönerse aynı veriyi taşıyan `anime/{id}/characters` ilişki uç noktasına düşülür.
+     * Seslendirmenler (VA) `castings` uç noktasından karakterlere bağlanır.
+     *
      * @param kitsuNumericId Kitsu'nun kendi numeric ID'si (300_000_000 offset olmadan)
      */
     suspend fun fetchKitsuCharacters(kitsuNumericId: Int): List<KitsugiCharacter> = withContext(Dispatchers.IO) {
-        val allCharacters = mutableListOf<KitsugiCharacter>()
-        var offset = 0
-        val limit = 20
-        val maxPages = 5 // max 100 characters
-
-        repeat(maxPages) {
-            val pageResult = fetchCharacterPage(kitsuNumericId, limit, offset)
-            allCharacters.addAll(pageResult.first)
-            if (pageResult.second < limit) return@repeat
-            offset += limit
+        var characters = fetchCharacterPages { offset, limit ->
+            "$BASE/anime-characters" +
+                "?filter[animeId]=$kitsuNumericId" +
+                "&include=character" +
+                "&fields[characters]=name,image" +
+                "&page[limit]=$limit&page[offset]=$offset"
         }
+        if (characters.isEmpty()) {
+            Log.w(TAG, "Kitsu anime-characters boş (kitsuId=$kitsuNumericId), anime/{id}/characters deneniyor")
+            characters = fetchCharacterPages { offset, limit ->
+                "$BASE/anime/$kitsuNumericId/characters" +
+                    "?include=character" +
+                    "&page[limit]=$limit&page[offset]=$offset"
+            }
+        }
+        if (characters.isEmpty()) return@withContext characters
 
         // Kitsu castings endpoint'inden seslendirmenleri çek ve karakterlere bağla
         val castingsMap = fetchKitsuCastings(kitsuNumericId)
-        if (castingsMap.isNotEmpty()) {
-            allCharacters.map { char ->
+        if (castingsMap.isEmpty()) {
+            characters
+        } else {
+            characters.map { char ->
                 val vas = castingsMap[char.id]
                 if (!vas.isNullOrEmpty()) char.copy(voiceActors = vas) else char
             }
-        } else {
-            allCharacters
         }
     }
 
-    private suspend fun fetchKitsuCastings(kitsuNumericId: Int): Map<Int, List<KitsugiVoiceActor>> = withContext(Dispatchers.IO) {
-        val castingsMap = mutableMapOf<Int, MutableList<KitsugiVoiceActor>>()
+    /**
+     * Verilen URL üreticisiyle sayfalı karakter çeker. Aynı karakter birden fazla sayfada
+     * geçerse tek kayıt tutulur. Son (kısmi) sayfada ya da hatada döngü biter.
+     */
+    private suspend fun fetchCharacterPages(urlFor: (offset: Int, limit: Int) -> String): List<KitsugiCharacter> {
+        val byId = LinkedHashMap<Int, KitsugiCharacter>()
         var offset = 0
-        val limit = 50
-        val maxPages = 3 // up to 150 castings
-
-        repeat(maxPages) {
-            val url = "$BASE/castings" +
-                "?filter[mediaId]=$kitsuNumericId" +
-                "&filter[isCharacter]=true" +
-                "&include=character,person" +
-                "&page[limit]=$limit&page[offset]=$offset"
-            try {
-                val request = Request.Builder()
-                    .url(url)
-                    .header("Accept", "application/vnd.api+json")
-                    .header("User-Agent", "Kitsugi/1.0 (Android)")
-                    .build()
-
-                KitsugiHttpClient.client.newCall(request).execute().use { response ->
-                    if (!response.isSuccessful) return@repeat
-                    val body = response.body?.string() ?: return@repeat
-                    val root = JSONObject(body)
-                    val dataArr = root.optJSONArray("data") ?: return@repeat
-                    val includedArr = root.optJSONArray("included") ?: JSONArray()
-
-                    val peopleMap = mutableMapOf<String, Pair<String, String?>>()
-                    for (i in 0 until includedArr.length()) {
-                        val inc = includedArr.optJSONObject(i) ?: continue
-                        if (inc.optString("type") == "people") {
-                            val pid = inc.optString("id", "")
-                            val attrs = inc.optJSONObject("attributes") ?: continue
-                            val name = attrs.optString("name", "").takeIf { it.isNotBlank() } ?: continue
-                            val imgObj = attrs.optJSONObject("image")
-                            val img = imgObj?.optString("original")
-                                ?: imgObj?.optString("large")
-                                ?: imgObj?.optString("medium")
-                            peopleMap[pid] = Pair(name, img)
-                        }
-                    }
-
-                    for (i in 0 until dataArr.length()) {
-                        val item = dataArr.optJSONObject(i) ?: continue
-                        val attrs = item.optJSONObject("attributes") ?: continue
-                        val isVa = attrs.optBoolean("voiceActor", false) ||
-                            attrs.optString("role", "").equals("Voice Actor", ignoreCase = true)
-                        if (!isVa) continue
-
-                        val charIdStr = item.optJSONObject("relationships")
-                            ?.optJSONObject("character")
-                            ?.optJSONObject("data")
-                            ?.optString("id", "") ?: ""
-                        val charId = charIdStr.toIntOrNull() ?: continue
-
-                        val personIdStr = item.optJSONObject("relationships")
-                            ?.optJSONObject("person")
-                            ?.optJSONObject("data")
-                            ?.optString("id", "") ?: ""
-                        val personId = personIdStr.toIntOrNull() ?: continue
-
-                        val personInfo = peopleMap[personIdStr] ?: continue
-                        val rawLang = attrs.optString("language", "Japanese")
-                        val lang = rawLang.toTurkishLanguage()
-
-                        val va = KitsugiVoiceActor(
-                            id = personId,
-                            name = personInfo.first,
-                            language = lang,
-                            imageUrl = personInfo.second,
-                            source = "kitsu"
-                        )
-                        castingsMap.getOrPut(charId) { mutableListOf() }.add(va)
-                    }
-
-                    if (dataArr.length() < limit) return@withContext castingsMap.mapValues { entry ->
-                        entry.value.sortedByLanguagePreference()
-                    }
-                    offset += limit
-                }
-            } catch (e: Exception) {
-                Log.e(TAG, "Error fetching Kitsu castings: ${e.message}", e)
-                return@repeat
-            }
+        var pagesFetched = 0
+        while (pagesFetched < CHARACTER_MAX_PAGES) {
+            currentCoroutineContext().ensureActive()
+            val (items, rawCount) = fetchCharacterPage(urlFor(offset, CHARACTER_PAGE_LIMIT))
+            items.forEach { byId.putIfAbsent(it.id, it) }
+            // Son sayfa veya hata (0 kayıt) → bitir. Eski `return@repeat` döngüyü kesmiyordu;
+            // son kısmi sayfa tekrar tekrar eklenip kopya karakter üretiyordu.
+            if (rawCount < CHARACTER_PAGE_LIMIT) break
+            offset += CHARACTER_PAGE_LIMIT
+            pagesFetched++
         }
-        castingsMap.mapValues { entry -> entry.value.sortedByLanguagePreference() }
+        return byId.values.toList()
     }
 
-    private fun fetchCharacterPage(
-        kitsuNumericId: Int,
-        limit: Int,
-        offset: Int
-    ): Pair<List<KitsugiCharacter>, Int> {
-        val url = "$BASE/anime-characters" +
-            "?filter[animeId]=$kitsuNumericId" +
-            "&include=character" +
-            "&fields[characters]=name,image" +
-            "&page[limit]=$limit&page[offset]=$offset"
+    /**
+     * Tek bir sayfa karakter isteği. Döndürür: (ayrıştırılan karakterler, sayfadaki ham kayıt sayısı).
+     * Hata veya boş yanıtta (emptyList, 0).
+     */
+    private fun fetchCharacterPage(url: String): Pair<List<KitsugiCharacter>, Int> {
         return try {
             val request = Request.Builder()
                 .url(url)
@@ -161,9 +106,9 @@ object KitsuClient {
                 .header("User-Agent", "Kitsugi/1.0 (Android)")
                 .build()
 
-            KitsugiHttpClient.client.newCall(request).execute().use { response ->
+            KitsugiHttpClient.metadataClient.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
-                    Log.w(TAG, "HTTP ${response.code} for anime-characters")
+                    Log.w(TAG, "HTTP ${response.code} for Kitsu characters: $url")
                     return Pair(emptyList(), 0)
                 }
                 val body = response.body?.string() ?: return Pair(emptyList(), 0)
@@ -218,13 +163,104 @@ object KitsuClient {
                         )
                     )
                 }
-                Log.d(TAG, "Kitsu characters page (offset=$offset): ${results.size} chars")
+                Log.d(TAG, "Kitsu characters page: ${results.size} chars (raw=${dataArr.length()})")
                 Pair(results, dataArr.length())
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching Kitsu character page: ${e.message}", e)
             Pair(emptyList(), 0)
         }
+    }
+
+    /**
+     * Kitsu castings uç noktasından seslendirmenleri (VA) karakter ID'sine göre toplar.
+     * Hata veya son (kısmi) sayfada döngü sonlanır.
+     */
+    private suspend fun fetchKitsuCastings(kitsuNumericId: Int): Map<Int, List<KitsugiVoiceActor>> {
+        val castingsMap = mutableMapOf<Int, MutableList<KitsugiVoiceActor>>()
+        val limit = 50
+        val maxPages = 3 // up to 150 castings
+        var offset = 0
+        var pagesFetched = 0
+        while (pagesFetched < maxPages) {
+            currentCoroutineContext().ensureActive()
+            val url = "$BASE/castings" +
+                "?filter[mediaId]=$kitsuNumericId" +
+                "&filter[isCharacter]=true" +
+                "&include=character,person" +
+                "&page[limit]=$limit&page[offset]=$offset"
+            val pageCount = try {
+                val request = Request.Builder()
+                    .url(url)
+                    .header("Accept", "application/vnd.api+json")
+                    .header("User-Agent", "Kitsugi/1.0 (Android)")
+                    .build()
+
+                KitsugiHttpClient.metadataClient.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) return@use -1
+                    val body = response.body?.string() ?: return@use -1
+                    val root = JSONObject(body)
+                    val dataArr = root.optJSONArray("data") ?: return@use -1
+                    val includedArr = root.optJSONArray("included") ?: JSONArray()
+
+                    val peopleMap = mutableMapOf<String, Pair<String, String?>>()
+                    for (i in 0 until includedArr.length()) {
+                        val inc = includedArr.optJSONObject(i) ?: continue
+                        if (inc.optString("type") == "people") {
+                            val pid = inc.optString("id", "")
+                            val attrs = inc.optJSONObject("attributes") ?: continue
+                            val name = attrs.optString("name", "").takeIf { it.isNotBlank() } ?: continue
+                            val imgObj = attrs.optJSONObject("image")
+                            val img = imgObj?.optString("original")
+                                ?: imgObj?.optString("large")
+                                ?: imgObj?.optString("medium")
+                            peopleMap[pid] = Pair(name, img)
+                        }
+                    }
+
+                    for (i in 0 until dataArr.length()) {
+                        val item = dataArr.optJSONObject(i) ?: continue
+                        val attrs = item.optJSONObject("attributes") ?: continue
+                        val isVa = attrs.optBoolean("voiceActor", false) ||
+                            attrs.optString("role", "").equals("Voice Actor", ignoreCase = true)
+                        if (!isVa) continue
+
+                        val charIdStr = item.optJSONObject("relationships")
+                            ?.optJSONObject("character")
+                            ?.optJSONObject("data")
+                            ?.optString("id", "") ?: ""
+                        val charId = charIdStr.toIntOrNull() ?: continue
+
+                        val personIdStr = item.optJSONObject("relationships")
+                            ?.optJSONObject("person")
+                            ?.optJSONObject("data")
+                            ?.optString("id", "") ?: ""
+                        val personId = personIdStr.toIntOrNull() ?: continue
+
+                        val personInfo = peopleMap[personIdStr] ?: continue
+                        val rawLang = attrs.optString("language", "Japanese")
+                        val lang = rawLang.toTurkishLanguage()
+
+                        val va = KitsugiVoiceActor(
+                            id = personId,
+                            name = personInfo.first,
+                            language = lang,
+                            imageUrl = personInfo.second,
+                            source = "kitsu"
+                        )
+                        castingsMap.getOrPut(charId) { mutableListOf() }.add(va)
+                    }
+                    dataArr.length()
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Error fetching Kitsu castings: ${e.message}", e)
+                -1
+            }
+            if (pageCount < limit) break
+            offset += limit
+            pagesFetched++
+        }
+        return castingsMap.mapValues { entry -> entry.value.sortedByLanguagePreference() }
     }
 
     // ─── Episode Fetching ─────────────────────────────────────────────────────

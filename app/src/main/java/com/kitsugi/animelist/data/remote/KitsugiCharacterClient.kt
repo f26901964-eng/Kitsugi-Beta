@@ -4,7 +4,11 @@ import android.util.Log
 import com.kitsugi.animelist.KitsugiApplication
 import com.kitsugi.animelist.model.MediaType
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.SupervisorJob
 import org.json.JSONObject
 import java.net.URL
 import com.kitsugi.animelist.utils.*
@@ -13,6 +17,9 @@ class KitsugiCharacterClient {
 
     companion object {
         private const val TAG = "KitsugiCharacterClient"
+
+        /** Kitsu listesi VA'sızken MAL/AniList'ten VA eklemek için bekleme sınırı. */
+        private const val KITSU_VA_MERGE_TIMEOUT_MS = 8_000L
     }
 
     /**
@@ -274,39 +281,51 @@ class KitsugiCharacterClient {
                         emptyList()
                     }
 
+                    // Kitsu listesi seslendirmenleriyle birlikte hazırsa HEMEN dön. Eski akış, VA
+                    // eşlemesi için ARM + Jikan + AniList'i sırayla bekliyordu; Jikan yavaşken
+                    // Kitsu karakter sekmesi dakikalarca skeleton'da kalıyordu.
+                    if (kitsuList.isNotEmpty() && kitsuList.any { it.voiceActors.isNotEmpty() }) {
+                        Log.d(TAG, "Kitsu karakter listesi başarılı: ${kitsuList.size} karakter")
+                        return@withContext kitsuList
+                    }
+
+                    // Kitsu'da hiç VA yoksa ya da liste boşsa MAL/AniList yedeğine bak.
                     val effectiveMalId = realMalId?.takeIf { it > 0 }
                         ?: DetailCache.getMediaDetail("kitsu", externalId)?.realMalId
                         ?: runCatching {
                             KitsugiIdResolver.resolveIds(malId = null, aniListId = null, kitsuId = kitsuNumericId).malId
                         }.getOrNull()?.takeIf { it > 0 }
 
-                    if (kitsuList.isNotEmpty()) {
-                        Log.d(TAG, "Kitsu karakter listesi başarılı: ${kitsuList.size} karakter")
-                        if (effectiveMalId != null && kitsuList.any { it.voiceActors.isEmpty() }) {
-                            val refChars = runCatching {
-                                fetchCharacters("jikan", effectiveMalId, mediaType, effectiveMalId, tmdbId, title)
-                            }.getOrNull()?.takeIf { it.isNotEmpty() }
-                                ?: runCatching {
-                                    fetchCharacters("anilist", effectiveMalId, mediaType, effectiveMalId, tmdbId, title)
-                                }.getOrNull()
-                            if (!refChars.isNullOrEmpty()) {
-                                val kitsuRefChars = refChars.map { rc ->
-                                    rc.copy(voiceActors = rc.voiceActors.map { va -> va.copy(source = "kitsu") })
-                                }
-                                return@withContext mergeVoiceActorsIntoCharacters(kitsuList, kitsuRefChars)
-                            }
-                        }
-                        kitsuList
+                    if (effectiveMalId == null || effectiveMalId <= 0) {
+                        return@withContext kitsuList
+                    }
+
+                    if (kitsuList.isEmpty()) {
+                        // Kitsu boş: MAL/AniList yedeği tek başına sonuçtur (süre sınırı VM tarafında).
+                        Log.w(TAG, "Kitsu boş döndü, MAL/AniList yedeği deneniyor (malId=$effectiveMalId)")
+                        val fallback = fetchJikanOrAniListCharacters(effectiveMalId, mediaType, tmdbId, title)
+                        fallback.map { it.copy(source = "kitsu", voiceActors = it.voiceActors.map { va -> va.copy(source = "kitsu") }) }
                     } else {
-                        // Kitsu boş döndü — AniList veya Jikan fallback
-                        Log.w(TAG, "Kitsu boş döndü, AniList/Jikan fallback deneniyor (malId=$effectiveMalId)")
-                        if (effectiveMalId != null && effectiveMalId > 0) {
-                            val malList = fetchCharacters("jikan", effectiveMalId, mediaType, effectiveMalId, tmdbId, title)
-                            if (malList.isNotEmpty()) return@withContext malList.map { it.copy(source = "kitsu", voiceActors = it.voiceActors.map { va -> va.copy(source = "kitsu") }) }
-                            val aniList = fetchCharacters("anilist", effectiveMalId, mediaType, effectiveMalId, tmdbId, title)
-                            if (aniList.isNotEmpty()) return@withContext aniList.map { it.copy(source = "kitsu", voiceActors = it.voiceActors.map { va -> va.copy(source = "kitsu") }) }
+                        // Kitsu listesi var ama VA'sız: yedek yalnızca VA eklemek için; kısa süre bekle,
+                        // yavaşsa Kitsu listesini VA'sız olarak göster.
+                        // Ayrı kapsamda başlatılır: withContext/withTimeoutOrNull bloklayan ağ çağrısını
+                        // beklemeden dönemez. Süre dolunca UI Kitsu listesini VA'sız gösterir.
+                        val refDeferred = vaMergeScope.async {
+                            fetchJikanOrAniListCharacters(effectiveMalId, mediaType, tmdbId, title)
                         }
-                        emptyList()
+                        val refChars = withTimeoutOrNull(KITSU_VA_MERGE_TIMEOUT_MS) { refDeferred.await() }
+                            ?: run {
+                                refDeferred.cancel()
+                                emptyList<KitsugiCharacter>()
+                            }
+                        if (refChars.isEmpty()) {
+                            kitsuList
+                        } else {
+                            val kitsuRefChars = refChars.map { rc ->
+                                rc.copy(voiceActors = rc.voiceActors.map { va -> va.copy(source = "kitsu") })
+                            }
+                            mergeVoiceActorsIntoCharacters(kitsuList, kitsuRefChars)
+                        }
                     }
                 }
 
@@ -323,6 +342,30 @@ class KitsugiCharacterClient {
                 }
             }
         }
+    }
+
+    /**
+     * Kitsu VA birleştirme işleri için bağımsız kapsam (ana çağrının kapsamı DEĞİL). Böylece
+     * süre dolduğunda ana çağrı bloklanmaz; arka plan işi kendi OkHttp callTimeout'u ile biter.
+     */
+    private val vaMergeScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /**
+     * MAL ID üzerinden Jikan, yoksa AniList'ten karakter listesi (yedek kaynak).
+     */
+    private suspend fun fetchJikanOrAniListCharacters(
+        malId: Int,
+        mediaType: MediaType,
+        tmdbId: Int?,
+        title: String?
+    ): List<KitsugiCharacter> {
+        val jikan = runCatching {
+            fetchCharacters("jikan", malId, mediaType, malId, tmdbId, title)
+        }.getOrNull()
+        if (!jikan.isNullOrEmpty()) return jikan
+        return runCatching {
+            fetchCharacters("anilist", malId, mediaType, malId, tmdbId, title)
+        }.getOrNull() ?: emptyList()
     }
 
     suspend fun fetchCharacterDetail(

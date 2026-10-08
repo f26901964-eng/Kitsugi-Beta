@@ -7,6 +7,23 @@ import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
 
 object KitsugiHttpClient {
+
+    /**
+     * Meta veri API'leri (Jikan, Shikimori, ARM, Kitsu sekme verileri) için toplam çağrı süresi.
+     * Retry'lar dâhil tek bir çağrı bu sürenin üstüne çıkamaz; böylece askıda kalan bir uç nokta
+     * detay sekmesini dakikalarca skeleton'da bırakmaz.
+     */
+    private const val METADATA_CALL_TIMEOUT_SECONDS = 20L
+
+    /**
+     * [client] ile aynı bağlantı havuzu ve dispatcher'ı paylaşır; yalnızca `callTimeout` eklenir.
+     */
+    val metadataClient: OkHttpClient by lazy {
+        client.newBuilder()
+            .callTimeout(METADATA_CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+            .build()
+    }
+
     val client: OkHttpClient by lazy {
         OkHttpClient.Builder()
             .dns(IPv4FirstDns())

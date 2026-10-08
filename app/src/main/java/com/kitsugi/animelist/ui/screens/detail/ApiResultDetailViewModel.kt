@@ -34,6 +34,19 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+
+/** Detay sekmesi indeksleri (ApiResultDetailPage tab listesiyle eşleşir). */
+private const val TAB_REVIEWS = 7
+private const val TAB_EPISODES = 8
+
+/** Bir sekme verisi bu süreden uzun sürerse "yüklenemedi" durumuna düşer (skeleton sonsuz kalmaz). */
+private const val TAB_FETCH_TIMEOUT_MS = 25_000L
+
+/** Bölüm listesi çok bölümlü serilerde (ör. 1000+ bölüm) sayfa sayfa çekilir; daha uzun sınır. */
+private const val TAB_EPISODES_FETCH_TIMEOUT_MS = 90_000L
 
 class ApiResultDetailViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -91,6 +104,9 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
     private val _episodesState = MutableStateFlow<DetailTabState<List<KitsugiStreamingEpisode>>>(DetailTabState.Loading)
     val episodesState: StateFlow<DetailTabState<List<KitsugiStreamingEpisode>>> = _episodesState.asStateFlow()
 
+    /** Çalışan sekme yüklemeleri (sekme indeksi → iş). Tek uçuş ve iptal için. */
+    private val tabJobs = HashMap<Int, Job>()
+
     private val _targetSeason = MutableStateFlow<Int>(1)
     val targetSeason: StateFlow<Int> = _targetSeason.asStateFlow()
 
@@ -143,6 +159,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
 
         Log.d(TAG, "loadResult: New key=$newKey (was $currentFetchKey)")
         currentFetchKey = newKey
+        cancelTabLoads() // eski sonucun sekme işleri yeni state'e yazmasın
         lastResult = result
         _pageResetTrigger.value += 1 // Signal UI to scroll back to first tab
 
@@ -251,7 +268,9 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         _targetSeason.value = season
         _episodesState.value = DetailTabState.Loading
         DetailCache.removeMediaEpisodes(result.source, result.malId)
-        loadTab(7, result, realMalId)
+        // Eski kod burada loadTab(7) (Yorumlar) çağırıyordu: bölümler hiç yeniden yüklenmiyor,
+        // Bölümler sekmesi sonsuza dek spinner'da kalıyordu. Doğrusu bölüm sekmesi (8).
+        loadTab(TAB_EPISODES, result, realMalId, force = true)
     }
 
     /** TMDB/TR zenginleştirmesinin zaman tavanı — sayfa asıl detayla açıkken bu adım
@@ -393,7 +412,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                     (epState is DetailTabState.Success && epState.data.isEmpty())
                 if (needsEpLoad) {
                     android.util.Log.d(TAG, "fetchDetail: detail loaded, auto-triggering episode load for ${result.source}/${result.malId}")
-                    loadTab(7, result, result.realMalId ?: finalDetail.realMalId)
+                    loadTab(TAB_EPISODES, result, result.realMalId ?: finalDetail.realMalId)
                 }
             }
         }
@@ -518,7 +537,19 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         _logoUrl.value = logo
     }
 
-    fun loadTab(tabIndex: Int, result: JikanSearchResult, realMalId: Int?) {
+    /**
+     * Sekme verisini yükler.
+     *
+     * - Aynı sekme zaten yükleniyorsa yeni istek başlatılmaz (LaunchedEffect birden çok kez
+     *   tetiklense bile tek uçuş). Eskiden her tetiklemede yeni bir istek kuyruğa giriyordu.
+     * - Her veri çağrısı [TAB_FETCH_TIMEOUT_MS] ile sınırlıdır; süre dolarsa sekme Error'a düşer.
+     * - [force] yalnızca kasıtlı yeniden yüklemede (ör. sezon değişimi) kullanılır.
+     */
+    fun loadTab(tabIndex: Int, result: JikanSearchResult, realMalId: Int?, force: Boolean = false) {
+        val running = tabJobs[tabIndex]
+        if (!force && running != null && running.isActive) return
+        running?.cancel()
+
         val malId = result.malId
         val effectiveRealMalId = realMalId
             ?: _detailState.value?.realMalId
@@ -528,7 +559,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         val tmdbId = if (isManga) null else (_detailState.value?.tmdbId
             ?: result.tmdbId
             ?: if (result.source.equals("tmdb", ignoreCase = true)) result.malId else null)
-        viewModelScope.launch {
+        tabJobs[tabIndex] = viewModelScope.launch {
             val settings = runCatching { settingsDataStore.settingsFlow.first() }.getOrNull()
             val tmdbEnabled    = settings?.tmdbEnabled    ?: true
             val useCredits     = settings?.tmdbUseCredits  ?: true
@@ -549,7 +580,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                                 ?: _detailState.value?.titleEnglish
                                 ?: _detailState.value?.titleRomaji
                                 ?: result.title
-                            val data = withContext(Dispatchers.IO) {
+                            val fetched = fetchTabWithTimeout {
                                 apiClient.fetchCharacters(
                                     source = result.source,
                                     externalId = result.malId,
@@ -559,7 +590,11 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                                     tmdbId = if (tmdbEnabled && useCredits) tmdbId else null,
                                     title = resolvedTitle
                                 )
+                            } ?: run {
+                                _charactersState.value = DetailTabState.Error
+                                return@launch
                             }
+                            val data = fetched.value
                             if (data.isNotEmpty()) {
                                 DetailCache.putMediaCharacters(result.source, malId, data)
                             }
@@ -572,13 +607,17 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                             (currentSuccess.data.isEmpty() && DetailCache.getMediaStaff(result.source, malId) == null)
                         if (needsRefetch) {
                             _staffState.value = DetailTabState.Loading
-                            val data = withContext(Dispatchers.IO) {
+                            val fetched = fetchTabWithTimeout {
                                 apiClient.fetchStaff(
                                     result.source, result.malId, result.type,
                                     tmdbId = if (tmdbEnabled && useCredits) tmdbId else null,
                                     realMalId = realMalId
                                 )
+                            } ?: run {
+                                _staffState.value = DetailTabState.Error
+                                return@launch
                             }
+                            val data = fetched.value
                             if (data.isNotEmpty()) {
                                 DetailCache.putMediaStaff(result.source, malId, data)
                             }
@@ -591,14 +630,18 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                             (currentSuccess.data.isEmpty() && DetailCache.getMediaRecommendations(result.source, malId) == null)
                         if (needsRefetch) {
                             _recommendationsState.value = DetailTabState.Loading
-                            val data = withContext(Dispatchers.IO) {
+                            val fetched = fetchTabWithTimeout {
                                 apiClient.fetchRecommendations(
                                     result.source, result.malId, result.type,
                                     tmdbId = if (tmdbEnabled && useMoreLikeThis) tmdbId else null,
                                     realMalId = realMalId,
                                     title = result.title
                                 )
+                            } ?: run {
+                                _recommendationsState.value = DetailTabState.Error
+                                return@launch
                             }
+                            val data = fetched.value
                             if (data.isNotEmpty()) {
                                 DetailCache.putMediaRecommendations(result.source, malId, data)
                             }
@@ -611,14 +654,18 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                             (currentSuccess.data.isEmpty() && DetailCache.getMediaRelations(result.source, malId) == null)
                         if (needsRefetch) {
                             _relationsState.value = DetailTabState.Loading
-                            val data = withContext(Dispatchers.IO) {
+                            val fetched = fetchTabWithTimeout {
                                 apiClient.fetchRelations(
                                     result.source, result.malId, result.type,
                                     tmdbId = if (tmdbEnabled && useMoreLikeThis) tmdbId else null,
                                     realMalId = realMalId,
                                     title = result.title
                                 )
+                            } ?: run {
+                                _relationsState.value = DetailTabState.Error
+                                return@launch
                             }
+                            val data = fetched.value
                             if (data.isNotEmpty()) {
                                 DetailCache.putMediaRelations(result.source, malId, data)
                             }
@@ -628,13 +675,17 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                     6 -> {
                         if (_statsState.value !is DetailTabState.Success) {
                             _statsState.value = DetailTabState.Loading
-                            val data = withContext(Dispatchers.IO) {
+                            val fetched = fetchTabWithTimeout {
                                 apiClient.fetchStats(
                                     result.source, result.malId, result.type,
                                     realMalId = realMalId
                                     // Note: fetchStats uses externalId (result.malId) as tmdbId when source="tmdb"
                                 )
+                            } ?: run {
+                                _statsState.value = DetailTabState.Error
+                                return@launch
                             }
+                            val data = fetched.value
                             if (data != null) {
                                 DetailCache.putMediaStats(result.source, malId, data)
                                 _statsState.value = DetailTabState.Success(data)
@@ -643,33 +694,38 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                             }
                         }
                     }
-                    7 -> {
+                    TAB_REVIEWS -> {
                         val currentSuccess = _reviewsState.value as? DetailTabState.Success
                         val needsRefetch = currentSuccess == null ||
                             (currentSuccess.data.isEmpty() && DetailCache.getMediaReviews(result.source, malId) == null)
                         if (needsRefetch) {
                             _reviewsState.value = DetailTabState.Loading
-                            val data = withContext(Dispatchers.IO) {
+                            val fetched = fetchTabWithTimeout {
                                 apiClient.fetchReviews(
                                     result.source, result.malId, result.type,
                                     tmdbId = if (tmdbEnabled) tmdbId else null,
                                     realMalId = realMalId
                                 )
+                            } ?: run {
+                                _reviewsState.value = DetailTabState.Error
+                                return@launch
                             }
+                            val data = fetched.value
                             if (data.isNotEmpty()) {
                                 DetailCache.putMediaReviews(result.source, malId, data)
                             }
                             _reviewsState.value = DetailTabState.Success(data)
                         }
                     }
-                    8 -> {
+                    TAB_EPISODES -> {
                         val currentEpisodes = _episodesState.value
-                        // Boş liste veya Loading ise yeniden yükle
-                        val needsEpFetch = currentEpisodes !is DetailTabState.Success ||
+                        // Boş liste veya Loading ise yeniden yükle; force ise her zaman
+                        val needsEpFetch = force ||
+                            currentEpisodes !is DetailTabState.Success ||
                             (currentEpisodes is DetailTabState.Success && currentEpisodes.data.isEmpty())
                         if (needsEpFetch) {
                             _episodesState.value = DetailTabState.Loading
-                            val data = withContext(Dispatchers.IO) {
+                            val fetched = fetchTabWithTimeout(TAB_EPISODES_FETCH_TIMEOUT_MS) {
                                 apiClient.fetchEpisodes(
                                     source = result.source,
                                     externalId = result.malId,
@@ -681,7 +737,11 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                                     // Episodes (TMDB bölüm başlıkları/thumbnail'ları) devre dışıysa tmdbId gönderme
                                     tmdbId = if (tmdbEnabled && useEpisodes) tmdbId else null
                                 )
+                            } ?: run {
+                                _episodesState.value = DetailTabState.Error
+                                return@launch
                             }
+                            val data = fetched.value
                             if (data.isNotEmpty()) {
                                 DetailCache.putMediaEpisodes(result.source, malId, data)
                             }
@@ -689,6 +749,9 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                         }
                     }
                 }
+            } catch (e: CancellationException) {
+                // Sonuç değişti ya da sekme yeniden başlatıldı: state'e dokunma, yeni yükleme yönetir.
+                throw e
             } catch (e: Exception) {
                 Log.e(TAG, "Error loading tab data for index $tabIndex: ${e.message}", e)
                 when (tabIndex) {
@@ -697,11 +760,37 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                     4 -> _recommendationsState.value = DetailTabState.Error
                     5 -> _relationsState.value = DetailTabState.Error
                     6 -> _statsState.value = DetailTabState.Error
-                    7 -> _reviewsState.value = DetailTabState.Error
-                    8 -> _episodesState.value = DetailTabState.Error
+                    TAB_REVIEWS -> _reviewsState.value = DetailTabState.Error
+                    TAB_EPISODES -> _episodesState.value = DetailTabState.Error
                 }
             }
         }
+    }
+
+    /**
+     * Sekme veri çağrısını süre sınırıyla çalıştırır. Süre dolarsa null döner ve iş iptal edilir.
+     *
+     * ÖNEMLİ: `withTimeoutOrNull { withContext(IO) { bloklayan ağ çağrısı } }` deseni sert bir sınır
+     * DEĞİLDİR: withContext, bloklayan çağrı bitene kadar dönmez. Burada iş bir ÇOCUK `async` olarak
+     * başlatılır ve yalnızca `await()` sınırlanır; süre dolunca UI beklemeyi bırakır.
+     */
+    private suspend fun <T> CoroutineScope.fetchTabWithTimeout(
+        timeoutMs: Long = TAB_FETCH_TIMEOUT_MS,
+        block: suspend () -> T
+    ): TabFetch<T>? {
+        val work = async(Dispatchers.IO) { block() }
+        val fetched: TabFetch<T>? = withTimeoutOrNull(timeoutMs) { TabFetch(work.await()) }
+        if (fetched == null) work.cancel()
+        return fetched
+    }
+
+    /** Süre sınırlı sekme çağrısının sarmalayıcısı (null değerli sonuçları ayırt etmek için). */
+    private class TabFetch<T>(val value: T)
+
+    /** Önceki sonucun sekme yüklemelerini iptal eder; eski veri yeni sonucun state'ine yazılamaz. */
+    private fun cancelTabLoads() {
+        tabJobs.values.forEach { it.cancel() }
+        tabJobs.clear()
     }
 
     private suspend fun fetchMdbListRatings(result: JikanSearchResult) {
