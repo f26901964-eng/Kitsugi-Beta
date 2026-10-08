@@ -1,4 +1,4 @@
-﻿package com.kitsugi.animelist.ui.screens.detail
+package com.kitsugi.animelist.ui.screens.detail
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.foundation.background
@@ -50,6 +50,10 @@ import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.ui.components.KitsugiPlatformLogos
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.utils.toFriendlySourceLabel
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.rounded.ContentCopy
+import androidx.compose.ui.platform.LocalContext
+import com.kitsugi.animelist.utils.copyToClipboard
 
 /**
  * Shared pill/chip composable used across all detail pages within this package.
@@ -124,14 +128,45 @@ internal fun DetailPlatformBadge(
 }
 
 /**
+ * Minnak kopyala butonu — karakter/seslendirmen sayfasındaki "Diğer İsimler"
+ * çiplerindeki küçük kopyala ikonunun aynısı. Ayrıntı sayfalarında kopyalanabilir
+ * her metnin yanına iliştirilmek üzere paylaşılır.
+ */
+@Composable
+internal fun KitsugiMiniCopyButton(
+    text: String,
+    modifier: Modifier = Modifier
+) {
+    if (text.isBlank()) return
+    val context = LocalContext.current
+    val accentColor = LocalKitsugiAccent.current
+    Box(
+        modifier = modifier
+            .size(26.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .clickable { copyToClipboard(context, text) },
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.ContentCopy,
+            contentDescription = "Kopyala",
+            tint = accentColor.copy(alpha = 0.85f),
+            modifier = Modifier.size(13.dp)
+        )
+    }
+}
+
+/**
  * Shared info-row composable (label + value) used across detail pages.
+ * Değerin yanında küçük bir kopyala butonu taşır.
  */
 @Composable
 internal fun InfoRow(label: String, value: String) {
     SelectionContainer {
         Row(
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = label,
@@ -139,12 +174,18 @@ internal fun InfoRow(label: String, value: String) {
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.Medium
             )
-            Text(
-                text = value,
-                color = KitsugiColors.TextPrimary,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.Bold
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Text(
+                    text = value,
+                    color = KitsugiColors.TextPrimary,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                KitsugiMiniCopyButton(text = value)
+            }
         }
     }
 }

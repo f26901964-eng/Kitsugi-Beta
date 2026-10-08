@@ -56,7 +56,6 @@ import com.kitsugi.animelist.ui.components.KitsugiExploreMediaCard
 import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import com.kitsugi.animelist.ui.components.KitsugiCosmicSearchBar
 import com.kitsugi.animelist.ui.components.CosmicCompanionButton
-import com.kitsugi.animelist.ui.components.CyberMatrixGridCanvas
 import com.kitsugi.animelist.ui.screens.search.components.AddonExploreDialog
 import com.kitsugi.animelist.ui.screens.search.composables.KitsugiSearchCountryChip
 import com.kitsugi.animelist.ui.screens.search.composables.KitsugiSearchDateChip
@@ -282,15 +281,6 @@ fun SearchScreen(
             .background(KitsugiColors.Background),
         contentAlignment = Alignment.TopCenter
     ) {
-        // Uiverse Lakshay-art .grid: Arka planda hafif siber matris ızgarası
-        CyberMatrixGridCanvas(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(300.dp),
-            lineSpacing = 16.dp,
-            lineColor = Color(0xFF161426).copy(alpha = 0.40f)
-        )
-
         LazyColumn(
             state = lazyListState,
             modifier = Modifier

@@ -1359,6 +1359,27 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 )
             }
             return supervisorScope {
+                // Kapsam duyarlı çoklu platform araması: Manga/Manhwa/Manhua/LN
+                // kapsamlarında yalnızca manga uçları, varsayılan "Tümü"
+                // (ALL_MIXED) kapsamında ise anime + manga uçları birlikte
+                // sorgulanır; böylece manhwa/manga başlıkları da sonuçlarda çıkar.
+                val mangaScopes = listOf(
+                    SearchScope.MANGA, SearchScope.MANHWA, SearchScope.MANHUA, SearchScope.LIGHT_NOVEL
+                )
+                val scopeIsManga = scope in mangaScopes
+                val scopeIsMixed = scope == SearchScope.ALL_MIXED
+                val kitsuSubtypes = when (scope) {
+                    SearchScope.MANHWA -> listOf("manhwa")
+                    SearchScope.MANHUA -> listOf("manhua")
+                    SearchScope.LIGHT_NOVEL -> listOf("novel")
+                    else -> null
+                }
+                val aniListCountry = when (scope) {
+                    SearchScope.MANHWA -> "KR"
+                    SearchScope.MANHUA -> "CN"
+                    else -> null
+                }
+
                 val resultsLock = Any()
                 val combinedResults = mutableListOf<JikanSearchResult>()
 
@@ -1380,13 +1401,53 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 val aniListDef = async(Dispatchers.IO) {
                     val res = withTimeoutOrNull(7000L) {
                         runCatching {
-                            apiClient.searchAniListPaged(
-                                query = queryText,
-                                mediaType = MediaType.Anime,
-                                showAdultContent = showAdult,
-                                page = 1,
-                                perPage = 10
-                            ).results
+                            if (scopeIsManga) {
+                                apiClient.searchAniListPaged(
+                                    query = queryText,
+                                    mediaType = MediaType.Manga,
+                                    showAdultContent = showAdult,
+                                    country = aniListCountry,
+                                    page = 1,
+                                    perPage = 10
+                                ).results
+                            } else if (scopeIsMixed) {
+                                coroutineScope {
+                                    val animePart = async {
+                                        runCatching {
+                                            apiClient.searchAniListPaged(
+                                                query = queryText,
+                                                mediaType = MediaType.Anime,
+                                                showAdultContent = showAdult,
+                                                page = 1,
+                                                perPage = 10
+                                            ).results
+                                        }.getOrDefault(emptyList())
+                                    }
+                                    val mangaPart = async {
+                                        runCatching {
+                                            apiClient.searchAniListPaged(
+                                                query = queryText,
+                                                mediaType = MediaType.Manga,
+                                                showAdultContent = showAdult,
+                                                country = aniListCountry,
+                                                page = 1,
+                                                perPage = 10
+                                            ).results
+                                        }.getOrDefault(emptyList())
+                                    }
+                                    (animePart.await() + mangaPart.await())
+                                        .distinctBy { "${it.source}_${it.malId}" }
+                                        .take(10)
+                                }
+                            } else {
+                                apiClient.searchAniListPaged(
+                                    query = queryText,
+                                    mediaType = MediaType.Anime,
+                                    showAdultContent = showAdult,
+                                    page = 1,
+                                    perPage = 10
+                                ).results
+                            }
                         }.getOrDefault(emptyList())
                     } ?: emptyList()
                     onPlatformCompleted(res) { it.copy(aniListResults = res, isLoadingAniList = false) }
@@ -1396,11 +1457,43 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 val malDef = async(Dispatchers.IO) {
                     val res = withTimeoutOrNull(7000L) {
                         runCatching {
-                            apiClient.searchMALOnly(
-                                query = queryText,
-                                mediaType = MediaType.Anime,
-                                showAdultContent = showAdult
-                            ).take(10)
+                            if (scopeIsManga) {
+                                apiClient.searchMALOnly(
+                                    query = queryText,
+                                    mediaType = MediaType.Manga,
+                                    showAdultContent = showAdult
+                                ).take(10)
+                            } else if (scopeIsMixed) {
+                                coroutineScope {
+                                    val animePart = async {
+                                        runCatching {
+                                            apiClient.searchMALOnly(
+                                                query = queryText,
+                                                mediaType = MediaType.Anime,
+                                                showAdultContent = showAdult
+                                            ).take(10)
+                                        }.getOrDefault(emptyList())
+                                    }
+                                    val mangaPart = async {
+                                        runCatching {
+                                            apiClient.searchMALOnly(
+                                                query = queryText,
+                                                mediaType = MediaType.Manga,
+                                                showAdultContent = showAdult
+                                            ).take(10)
+                                        }.getOrDefault(emptyList())
+                                    }
+                                    (animePart.await() + mangaPart.await())
+                                        .distinctBy { "${it.source}_${it.malId}" }
+                                        .take(10)
+                                }
+                            } else {
+                                apiClient.searchMALOnly(
+                                    query = queryText,
+                                    mediaType = MediaType.Anime,
+                                    showAdultContent = showAdult
+                                ).take(10)
+                            }
                         }.getOrDefault(emptyList())
                     } ?: emptyList()
                     onPlatformCompleted(res) { it.copy(malResults = res, isLoadingMal = false) }
@@ -1420,7 +1513,35 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 val shikimoriDef = async(Dispatchers.IO) {
                     val res = withTimeoutOrNull(7000L) {
                         runCatching {
-                            KitsugiShikimoriClient.searchAnime(queryText, limit = 10)
+                            if (scopeIsManga) {
+                                KitsugiShikimoriClient.searchMediaAdvanced(
+                                    mediaType = MediaType.Manga,
+                                    query = queryText,
+                                    limit = 10
+                                )
+                            } else if (scopeIsMixed) {
+                                coroutineScope {
+                                    val animePart = async {
+                                        runCatching {
+                                            KitsugiShikimoriClient.searchAnime(queryText, limit = 10)
+                                        }.getOrDefault(emptyList())
+                                    }
+                                    val mangaPart = async {
+                                        runCatching {
+                                            KitsugiShikimoriClient.searchMediaAdvanced(
+                                                mediaType = MediaType.Manga,
+                                                query = queryText,
+                                                limit = 10
+                                            )
+                                        }.getOrDefault(emptyList())
+                                    }
+                                    (animePart.await() + mangaPart.await())
+                                        .distinctBy { "${it.source}_${it.malId}" }
+                                        .take(10)
+                                }
+                            } else {
+                                KitsugiShikimoriClient.searchAnime(queryText, limit = 10)
+                            }
                         }.getOrDefault(emptyList())
                     } ?: emptyList()
                     onPlatformCompleted(res) { it.copy(shikimoriResults = res, isLoadingShikimori = false) }
@@ -1430,7 +1551,45 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 val kitsuDef = async(Dispatchers.IO) {
                     val res = withTimeoutOrNull(7000L) {
                         runCatching {
-                            KitsuExploreClient.searchAnime(queryText, MediaType.Anime, limit = 10)
+                            if (scopeIsManga) {
+                                KitsuExploreClient.searchMediaAdvanced(
+                                    mediaType = MediaType.Manga,
+                                    query = queryText,
+                                    limit = 10,
+                                    subtypes = kitsuSubtypes
+                                )
+                            } else if (scopeIsMixed) {
+                                coroutineScope {
+                                    val animePart = async {
+                                        runCatching {
+                                            KitsuExploreClient.searchMediaAdvanced(
+                                                mediaType = MediaType.Anime,
+                                                query = queryText,
+                                                limit = 10
+                                            )
+                                        }.getOrDefault(emptyList())
+                                    }
+                                    val mangaPart = async {
+                                        runCatching {
+                                            KitsuExploreClient.searchMediaAdvanced(
+                                                mediaType = MediaType.Manga,
+                                                query = queryText,
+                                                limit = 10,
+                                                subtypes = kitsuSubtypes
+                                            )
+                                        }.getOrDefault(emptyList())
+                                    }
+                                    (animePart.await() + mangaPart.await())
+                                        .distinctBy { "${it.source}_${it.malId}" }
+                                        .take(10)
+                                }
+                            } else {
+                                KitsuExploreClient.searchMediaAdvanced(
+                                    mediaType = MediaType.Anime,
+                                    query = queryText,
+                                    limit = 10
+                                )
+                            }
                         }.getOrDefault(emptyList())
                     } ?: emptyList()
                     onPlatformCompleted(res) { it.copy(kitsuResults = res, isLoadingKitsu = false) }
