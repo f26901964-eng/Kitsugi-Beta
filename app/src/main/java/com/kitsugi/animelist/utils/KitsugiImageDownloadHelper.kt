@@ -21,9 +21,12 @@ import com.kitsugi.animelist.R
 import com.kitsugi.animelist.data.settings.SettingsDataStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONObject
 import java.io.File
 import java.net.URL
 
@@ -32,6 +35,196 @@ object KitsugiImageDownloadHelper {
     private const val CHANNEL_ID    = "kitsugi_image_downloads"
     private const val CHANNEL_NAME  = "Resim İndirmeleri"
     private const val NOTIF_ID_BASE = 50000
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // İndirme index'i — aynı pencerenin/resmin tekrar indirilmesini önler
+    // ─────────────────────────────────────────────────────────────────────────
+    //
+    // İndirilen her resmin URL'si uygulama içi dosyada (filesDir) tutulur:
+    //   kitsugi_downloaded_images.json  →  { url: { fileName, customUri, timestamp } }
+    //
+    // Böylece:
+    //  • Aynı URL ikinci kez indirilmek istendiğinde engellenir ("zaten indirilmiş").
+    //  • Kullanıcı dosyayı İndirmeler ekranından silerse index'ten de düşülür,
+    //    böylece isterse resmi tekrar indirebilir.
+    //  • Galeri arayüzü bu index'i StateFlow ile takip edip "indirildi" rozeti gösterir.
+    private const val INDEX_FILE_NAME = "kitsugi_downloaded_images.json"
+
+    private data class DownloadRecord(
+        val fileName: String,
+        val customUri: String = "",
+        val timestamp: Long = 0L
+    )
+
+    private val indexLock = Any()
+
+    @Volatile
+    private var indexCache: MutableMap<String, DownloadRecord>? = null
+
+    private val inFlightLock = Any()
+    private val inFlightDownloads = mutableSetOf<String>()
+
+    private val _downloadedUrls = MutableStateFlow<Set<String>>(emptySet())
+
+    /** İndirilmiş (ve hâlâ diskte duran) resim URL'leri. Galeri arayüzü bunu dinler. */
+    val downloadedUrls: StateFlow<Set<String>> = _downloadedUrls
+
+    private fun indexFile(context: Context): File = File(context.filesDir, INDEX_FILE_NAME)
+
+    private fun defaultImagesDir(): File = File(
+        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+        "Kitsugi/Images"
+    )
+
+    private fun legacyImagesDir(): File = File(
+        Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
+        "Kitsugi"
+    )
+
+    private fun loadIndex(context: Context): MutableMap<String, DownloadRecord> {
+        indexCache?.let { return it }
+        return synchronized(indexLock) {
+            indexCache?.let { return it }
+            val map = mutableMapOf<String, DownloadRecord>()
+            try {
+                val f = indexFile(context)
+                if (f.exists()) {
+                    val json = JSONObject(f.readText())
+                    val keys = json.keys()
+                    while (keys.hasNext()) {
+                        val url = keys.next()
+                        val obj = json.optJSONObject(url) ?: continue
+                        val fileName = obj.optString("fileName").trim()
+                        if (fileName.isBlank()) continue
+                        map[url] = DownloadRecord(
+                            fileName = fileName,
+                            customUri = obj.optString("customUri", ""),
+                            timestamp = obj.optLong("timestamp", 0L)
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+            indexCache = map
+            map
+        }
+    }
+
+    private fun saveIndex(context: Context, map: Map<String, DownloadRecord>) {
+        synchronized(indexLock) {
+            indexCache = map.toMutableMap()
+            try {
+                val json = JSONObject()
+                map.forEach { (url, rec) ->
+                    json.put(url, JSONObject().apply {
+                        put("fileName", rec.fileName)
+                        put("customUri", rec.customUri)
+                        put("timestamp", rec.timestamp)
+                    })
+                }
+                indexFile(context).writeText(json.toString())
+            } catch (e: Exception) {
+                e.printStackTrace()
+            }
+        }
+    }
+
+    /** Index'teki kaydın dosyası hâlâ diskte mi kontrol eder (SAF konumu dahil). */
+    private fun recordFileExists(context: Context, record: DownloadRecord): Boolean {
+        return try {
+            if (record.customUri.isNotBlank()) {
+                val dir = DocumentFile.fromTreeUri(context, Uri.parse(record.customUri))
+                dir?.findFile(record.fileName)?.exists() == true
+            } else {
+                File(defaultImagesDir(), record.fileName).exists() ||
+                    File(legacyImagesDir(), record.fileName).exists()
+            }
+        } catch (_: Exception) {
+            false
+        }
+    }
+
+    /**
+     * Index'i diskten tazeler; dosyası silinmiş (stale) kayıtları temizler ve
+     * [downloadedUrls] akışını günceller. Arayüz açıldığında arka planda çağrılır.
+     */
+    fun refreshDownloadedUrls(context: Context) {
+        CoroutineScope(Dispatchers.IO).launch {
+            val appContext = context.applicationContext
+            val index = loadIndex(appContext)
+            val valid = mutableMapOf<String, DownloadRecord>()
+            var changed = false
+            index.forEach { (url, rec) ->
+                if (recordFileExists(appContext, rec)) {
+                    valid[url] = rec
+                } else {
+                    changed = true
+                }
+            }
+            if (changed) saveIndex(appContext, valid)
+            _downloadedUrls.value = valid.keys.toSet()
+        }
+    }
+
+    /**
+     * Verilen URL daha önce indirilmiş ve dosyası hâlâ duruyor mu?
+     * (Çağıran IO context'inde olmalıdır — disk kontrolü yapar.)
+     */
+    fun isImageDownloaded(context: Context, url: String): Boolean {
+        if (url.isBlank()) return false
+        val appContext = context.applicationContext
+        val rec = loadIndex(appContext)[url] ?: return false
+        val exists = recordFileExists(appContext, rec)
+        if (!exists) {
+            // Stale kayıt — dosya silinmiş, index'ten düş
+            synchronized(indexLock) {
+                val current = indexCache
+                if (current != null && current.remove(url) != null) {
+                    saveIndex(appContext, current)
+                }
+            }
+            _downloadedUrls.value = _downloadedUrls.value - url
+        }
+        return exists
+    }
+
+    /** İndirme varsayılan konuma kaydedildiyse dosyayı döner; SAF konumunda null döner. */
+    fun findDownloadedImageFile(context: Context, url: String): File? {
+        val rec = loadIndex(context.applicationContext)[url] ?: return null
+        if (rec.customUri.isNotBlank()) return null
+        return File(defaultImagesDir(), rec.fileName).takeIf { it.exists() }
+            ?: File(legacyImagesDir(), rec.fileName).takeIf { it.exists() }
+    }
+
+    /** Başarılı indirme sonrası URL'yi index'e işler. */
+    fun markImageDownloaded(context: Context, url: String, fileName: String, customUri: String) {
+        if (url.isBlank() || fileName.isBlank()) return
+        val appContext = context.applicationContext
+        synchronized(indexLock) {
+            val current = indexCache ?: loadIndex(appContext)
+            current[url] = DownloadRecord(fileName, customUri, System.currentTimeMillis())
+            saveIndex(appContext, current)
+        }
+        _downloadedUrls.value = _downloadedUrls.value + url
+    }
+
+    /**
+     * İndirmeler ekranından silinen bir dosya için index kaydını düşürür;
+     * böylece kullanıcı isterse aynı resmi tekrar indirebilir.
+     */
+    fun unmarkImageDownloadedByFileName(context: Context, fileName: String) {
+        if (fileName.isBlank()) return
+        val appContext = context.applicationContext
+        synchronized(indexLock) {
+            val current = indexCache ?: return
+            val staleKeys = current.filterValues { it.fileName == fileName }.keys
+            if (staleKeys.isEmpty()) return
+            staleKeys.forEach { current.remove(it) }
+            saveIndex(appContext, current)
+            _downloadedUrls.value = _downloadedUrls.value - staleKeys
+        }
+    }
 
     // ─────────────────────────────────────────────────────────────────────────
     // Public API
@@ -108,65 +301,97 @@ object KitsugiImageDownloadHelper {
         customUriString: String? = null
     ) {
         CoroutineScope(Dispatchers.IO).launch {
-            val uriToUse = customUriString ?: runCatching {
-                SettingsDataStore(context).settingsFlow.first().customImageDownloadUri
-            }.getOrDefault("")
-
-            val sanitizedTitle = title.replace(Regex("[^a-zA-Z0-9_]"), "_")
-            val filename       = "Kitsugi_${sanitizedTitle}_${System.currentTimeMillis()}.jpg"
-
-            // Show "downloading…" notification
-            val notifId = (url.hashCode() and 0x7fffffff) + NOTIF_ID_BASE
-            showProgressNotification(context, notifId, title, filename)
-
-            // Download bytes
-            val bytes: ByteArray? = runCatching {
-                val connection = URL(url).openConnection()
-                connection.connectTimeout = 15_000
-                connection.readTimeout    = 15_000
-                connection.inputStream.use { it.readBytes() }
-            }.getOrNull()
-
-            if (bytes == null) {
+            // Yerel dosya (örn. İndirilenler galerisinden açılan) tekrar indirilmez
+            if (url.startsWith("file://") || url.startsWith("content://")) {
                 withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "İndirme başarısız oldu.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "Bu resim zaten cihazda kayıtlı.", Toast.LENGTH_SHORT).show()
                 }
-                cancelNotification(context, notifId)
                 return@launch
             }
 
-            val thumbnail: Bitmap? = runCatching {
-                BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-            }.getOrNull()
+            // Daha önce indirilmiş içerik tekrar indirilmez
+            if (isImageDownloaded(context, url)) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Bu resim zaten indirilmiş.", Toast.LENGTH_SHORT).show()
+                }
+                return@launch
+            }
 
-            // 1. Save to custom SAF folder
-            if (uriToUse.isNotBlank()) {
-                val saved = saveToCustumUri(context, uriToUse, filename, bytes)
-                if (saved) {
+            // Aynı anda aynı URL için ikinci istek engellenir (çift dokunuş vb.)
+            val alreadyInFlight = synchronized(inFlightLock) { !inFlightDownloads.add(url) }
+            if (alreadyInFlight) {
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(context, "Bu resim zaten indiriliyor.", Toast.LENGTH_SHORT).show()
+                }
+                return@launch
+            }
+
+            try {
+                val uriToUse = customUriString ?: runCatching {
+                    SettingsDataStore(context).settingsFlow.first().customImageDownloadUri
+                }.getOrDefault("")
+
+                // Unicode harfleri koru (Türkçe/Japonca içerik adları düzgün kalsın)
+                val sanitizedTitle = title
+                    .replace(Regex("[^\\p{L}\\p{N}_]"), "_")
+                    .replace(Regex("_+"), "_")
+                    .trim('_')
+                val filename       = "Kitsugi_${sanitizedTitle}_${System.currentTimeMillis()}.jpg"
+
+                // Show "downloading…" notification
+                val notifId = (url.hashCode() and 0x7fffffff) + NOTIF_ID_BASE
+                showProgressNotification(context, notifId, title, filename)
+
+                // Download bytes
+                val bytes: ByteArray? = runCatching {
+                    val connection = URL(url).openConnection()
+                    connection.connectTimeout = 15_000
+                    connection.readTimeout    = 15_000
+                    connection.inputStream.use { it.readBytes() }
+                }.getOrNull()
+
+                if (bytes == null) {
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "İndirme başarısız oldu.", Toast.LENGTH_LONG).show()
+                    }
+                    cancelNotification(context, notifId)
+                    return@launch
+                }
+
+                val thumbnail: Bitmap? = runCatching {
+                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
+                }.getOrNull()
+
+                // 1. Save to custom SAF folder
+                if (uriToUse.isNotBlank()) {
+                    val saved = saveToCustumUri(context, uriToUse, filename, bytes)
+                    if (saved) {
+                        markImageDownloaded(context, url, filename, uriToUse)
+                        withContext(Dispatchers.Main) {
+                            showCompletedNotification(context, notifId, title, filename, bytes.size.toLong(), thumbnail)
+                        }
+                        return@launch
+                    }
+                }
+
+                // 2. Save to Downloads/Kitsugi/Images
+                val imagesDir = defaultImagesDir().also { it.mkdirs() }
+
+                val imageFile = File(imagesDir, filename)
+                try {
+                    imageFile.writeBytes(bytes)
+                    markImageDownloaded(context, url, filename, "")
                     withContext(Dispatchers.Main) {
                         showCompletedNotification(context, notifId, title, filename, bytes.size.toLong(), thumbnail)
                     }
-                    return@launch
+                } catch (e: Exception) {
+                    e.printStackTrace()
+                    withContext(Dispatchers.Main) {
+                        Toast.makeText(context, "Dosya kaydedilemedi: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                    }
                 }
-            }
-
-            // 2. Save to Downloads/Kitsugi/Images
-            val imagesDir = File(
-                Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS),
-                "Kitsugi/Images"
-            ).also { it.mkdirs() }
-
-            val imageFile = File(imagesDir, filename)
-            try {
-                imageFile.writeBytes(bytes)
-                withContext(Dispatchers.Main) {
-                    showCompletedNotification(context, notifId, title, filename, bytes.size.toLong(), thumbnail)
-                }
-            } catch (e: Exception) {
-                e.printStackTrace()
-                withContext(Dispatchers.Main) {
-                    Toast.makeText(context, "Dosya kaydedilemedi: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
-                }
+            } finally {
+                synchronized(inFlightLock) { inFlightDownloads.remove(url) }
             }
         }
     }

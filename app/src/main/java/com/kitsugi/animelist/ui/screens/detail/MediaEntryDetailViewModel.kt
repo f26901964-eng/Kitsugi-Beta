@@ -470,7 +470,8 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
     }
 
     private suspend fun fetchLogo(entry: MediaEntry, showAnimeLogos: Boolean) {
-        if (!showAnimeLogos) {
+        val isManga = entry.type == MediaType.Manga || _detailState.value?.type == MediaType.Manga
+        if (!showAnimeLogos || isManga) {
             _logoUrl.value = null
             return
         }
@@ -530,6 +531,40 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
      * Sonuçlar [_galleryItems] akışına yazılır; UI reaktif güncelleme alır.
      */
     private suspend fun fetchFanartGallery(entry: MediaEntry) {
+        val isManga = entry.type == MediaType.Manga || _detailState.value?.type == MediaType.Manga
+        if (isManga) {
+            // Manga içerikleri TMDB veya Fanart.tv'de bulunmaz. ARM API üzerinden Kitsu manga ID'sinin
+            // alakasız anime yapımları (örn. Berserk -> Hungry Heart) ile eşleştirilmesini ve galerinin
+            // yanlış içeriklerle dolmasını engelliyoruz. Yalnızca eserin kendi görselleri eklenir.
+            val currentDetail = _detailState.value
+            val coverUrl = currentDetail?.imageUrl ?: entry.imageUrl
+            val entryImg = entry.imageUrl
+            val existingItems = buildList {
+                if (!coverUrl.isNullOrBlank()) {
+                    val src = determineSource(coverUrl, entry.source)
+                    add(GalleryItem(url = coverUrl, source = src, category = GalleryCategory.POSTER))
+                }
+                if (!entryImg.isNullOrBlank() && entryImg != coverUrl) {
+                    val src = determineSource(entryImg, entry.source)
+                    add(GalleryItem(url = entryImg, source = src, category = GalleryCategory.POSTER))
+                }
+                currentDetail?.bannerImage?.let { bannerUrl ->
+                    if (bannerUrl.isNotBlank() && bannerUrl != coverUrl && bannerUrl != entryImg) {
+                        val src = determineSource(bannerUrl, entry.source)
+                        add(GalleryItem(url = bannerUrl, source = src, category = GalleryCategory.BACKDROP))
+                    }
+                }
+                currentDetail?.pictures?.forEach { picUrl ->
+                    if (picUrl.isNotBlank() && picUrl != coverUrl && picUrl != entryImg && picUrl != currentDetail.bannerImage) {
+                        val src = determineSource(picUrl, entry.source)
+                        add(GalleryItem(url = picUrl, source = src, category = GalleryCategory.POSTER))
+                    }
+                }
+            }
+            _galleryItems.value = existingItems
+            return
+        }
+
         val tmdbId = withContext(Dispatchers.IO) {
             val detailTmdb = _detailState.value?.tmdbId
             when {
@@ -793,7 +828,8 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
         val effectiveRealMalId = realMalId
             ?: _detailState.value?.realMalId
             ?: (if (entry.source.equals("mal", true) || entry.source.equals("jikan", true) || entry.source.equals("shikimori", true)) entry.malId else null)
-        val tmdbId = entry.tmdbId ?: _detailState.value?.tmdbId ?: _resolvedTmdbId.value
+        val isManga = entry.type == MediaType.Manga || _detailState.value?.type == MediaType.Manga
+        val tmdbId = if (isManga) null else (entry.tmdbId ?: _detailState.value?.tmdbId ?: _resolvedTmdbId.value)
         viewModelScope.launch {
             try {
                 when (tabIndex) {

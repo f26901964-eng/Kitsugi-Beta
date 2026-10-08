@@ -98,6 +98,8 @@ data class KitsugiMediaDetail(
     val trailerUrl: String? = null,
     val title: String? = null,
     val imageUrl: String? = null,
+    val bannerImage: String? = null,
+    val type: MediaType? = null,
     val score: Int? = null,
     val year: Int? = null,
     val total: Int? = null,

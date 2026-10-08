@@ -35,6 +35,11 @@ object KitsugiIdResolver {
         kitsuId: Int? = null
     ): ResolvedIds = withContext(Dispatchers.IO) {
         Log.d(TAG, "Starting ID resolution: malParam=$malId, aniListParam=$aniListId, tmdbParam=$tmdbId, mediaType=$mediaType, kitsuParam=$kitsuId")
+
+        if (mediaType == MediaType.Manga) {
+            Log.d(TAG, "Manga yapımları ARM API'de yer almaz; alakasız anime eşleştirmelerini önlemek için ARM sorgusu atlanıyor.")
+            return@withContext ResolvedIds(malId = malId, aniListId = aniListId, kitsuId = kitsuId)
+        }
         
         var armJson: JSONObject? = null
         val isNonAnime = mediaType == MediaType.Movie || mediaType == MediaType.TvShow

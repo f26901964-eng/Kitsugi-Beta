@@ -14,9 +14,6 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.grid.GridCells
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
@@ -49,6 +46,7 @@ import com.kitsugi.animelist.ui.components.KitsugiImageGalleryDialog
 import com.kitsugi.animelist.ui.components.KitsugiAnimatedDeleteButton
 import com.kitsugi.animelist.ui.screens.fullscreen.KitsugiFullscreenPlayerActivity
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import com.kitsugi.animelist.utils.KitsugiImageDownloadHelper
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import kotlinx.coroutines.launch
 import java.io.File
@@ -83,6 +81,19 @@ data class DownloadedImageItem(
     val width: Int = 0,
     val height: Int = 0
 )
+
+/**
+ * İndirilen resimleri içerik adına (anime / dizi / film) göre gruplar.
+ * Başlık olarak en güncel kaydın adı, bölüm olarak o içeriğin resimleri gösterilir.
+ */
+data class DownloadedImageGroup(
+    val displayName: String,
+    val items: List<DownloadedImageItem>
+)
+
+/** Gruplama anahtarı: büyük/küçük harf ve boşluk farklarını dengeler. */
+private fun normalizeImageGroupKey(title: String): String =
+    title.trim().lowercase(Locale.ROOT).replace(Regex("\\s+"), " ")
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -438,12 +449,30 @@ fun DownloadedImagesTab(
     onRefresh: () -> Unit
 ) {
     val context = LocalContext.current
+    var galleryGroup by remember { mutableStateOf<DownloadedImageGroup?>(null) }
     var galleryInitialIndex by remember { mutableIntStateOf(0) }
-    var showGallery by remember { mutableStateOf(false) }
 
-    if (showGallery && images.isNotEmpty()) {
-        val galleryItems = remember(images) {
-            images.map { img ->
+    // İndirilen resimler içerik adına (anime / dizi / film) göre gruplanır.
+    // Gruplar en yeni indirmenin tarihine göre sıralanır.
+    val groups = remember(images) {
+        images
+            .groupBy { normalizeImageGroupKey(it.title) }
+            .map { (_, list) ->
+                DownloadedImageGroup(
+                    displayName = list.maxByOrNull { it.lastModified }?.title?.trim()
+                        ?.ifBlank { "Bilinmeyen İçerik" } ?: "Bilinmeyen İçerik",
+                    items = list.sortedByDescending { it.lastModified }
+                )
+            }
+            .sortedByDescending { g -> g.items.maxOfOrNull { it.lastModified } ?: 0L }
+    }
+
+    // Açılan galeri: yalnızca ilgili grubun resimleri gösterilir.
+    // allowDownload=false → indirme butonu gösterilmez (içerik zaten cihazda).
+    val activeGroup = galleryGroup
+    if (activeGroup != null && activeGroup.items.isNotEmpty()) {
+        val galleryItems = remember(activeGroup) {
+            activeGroup.items.map { img ->
                 GalleryItem(
                     url = "file://${img.file.absolutePath}",
                     source = "Kitsugi",
@@ -456,9 +485,10 @@ fun DownloadedImagesTab(
         }
         KitsugiImageGalleryDialog(
             galleryItems = galleryItems,
-            initialIndex = galleryInitialIndex,
-            title = "İndirilen Resimler",
-            onDismiss = { showGallery = false }
+            initialIndex = galleryInitialIndex.coerceIn(0, galleryItems.size - 1),
+            title = activeGroup.displayName,
+            allowDownload = false,
+            onDismiss = { galleryGroup = null }
         )
     }
 
@@ -490,32 +520,92 @@ fun DownloadedImagesTab(
             }
         }
     } else {
-        LazyVerticalGrid(
-            columns = GridCells.Adaptive(minSize = 160.dp),
+        LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            itemsIndexed(images, key = { _, img -> img.file.absolutePath }) { index, img ->
-                DownloadedImageCard(
-                    item = img,
-                    accentColor = accentColor,
-                    onClick = {
-                        galleryInitialIndex = index
-                        showGallery = true
-                    },
-                    onOpenFolder = {
-                        openFolderInFileManager(context, img.file.parentFile ?: img.file)
-                    },
-                    onDelete = {
-                        if (img.file.exists()) {
-                            img.file.delete()
-                            Toast.makeText(context, "Resim silindi: ${img.title}", Toast.LENGTH_SHORT).show()
-                            onRefresh()
+            groups.forEach { group ->
+                // ── Grup başlığı: içerik adı + resim sayısı ──
+                item(key = "group_header_${group.displayName}") {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 6.dp, bottom = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(26.dp)
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(accentColor.copy(alpha = 0.15f))
+                                .border(1.dp, accentColor.copy(alpha = 0.3f), RoundedCornerShape(8.dp)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.VideoLibrary,
+                                contentDescription = null,
+                                tint = accentColor,
+                                modifier = Modifier.size(14.dp)
+                            )
+                        }
+                        Text(
+                            text = group.displayName,
+                            color = KitsugiColors.TextPrimary,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(999.dp))
+                                .background(KitsugiColors.SurfaceStrong)
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Text(
+                                text = "${group.items.size} resim",
+                                color = KitsugiColors.TextSecondary,
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
                         }
                     }
-                )
+                }
+                // ── Grup resimleri ──
+                item(key = "group_grid_${group.displayName}") {
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp)
+                    ) {
+                        group.items.forEachIndexed { index, img ->
+                            DownloadedImageCard(
+                                item = img,
+                                accentColor = accentColor,
+                                modifier = Modifier.width(160.dp),
+                                onClick = {
+                                    galleryInitialIndex = index
+                                    galleryGroup = group
+                                },
+                                onOpenFolder = {
+                                    openFolderInFileManager(context, img.file.parentFile ?: img.file)
+                                },
+                                onDelete = {
+                                    if (img.file.exists()) {
+                                        img.file.delete()
+                                        // Index'ten de düş — istenirse resim tekrar indirilebilir
+                                        KitsugiImageDownloadHelper.unmarkImageDownloadedByFileName(context, img.file.name)
+                                        Toast.makeText(context, "Resim silindi: ${img.title}", Toast.LENGTH_SHORT).show()
+                                        onRefresh()
+                                    }
+                                }
+                            )
+                        }
+                    }
+                }
             }
         }
     }
@@ -527,7 +617,8 @@ fun DownloadedImageCard(
     accentColor: Color,
     onClick: () -> Unit,
     onOpenFolder: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val dateStr = remember(item.lastModified) {
         if (item.lastModified > 0)
@@ -537,8 +628,7 @@ fun DownloadedImageCard(
     val sizeStr = formatBytes(item.fileSizeBytes)
 
     Box(
-        modifier = Modifier
-            .fillMaxWidth()
+        modifier = modifier
             .clip(RoundedCornerShape(14.dp))
             .background(KitsugiColors.SurfaceSoft)
             .border(1.dp, KitsugiColors.Border.copy(alpha = 0.4f), RoundedCornerShape(14.dp))
@@ -1237,8 +1327,9 @@ fun loadAllDownloadedImages(context: Context): List<DownloadedImageItem> {
                 results.none { it.file.absolutePath == f.absolutePath }
             }?.forEach { f ->
                 // Title: strip "Kitsugi_" prefix and trailing timestamp+extension
+                // (birden fazla alt çizgiyi tek boşluğa indir — Unicode içerik adları düzgün görünsün)
                 val rawName = f.nameWithoutExtension.removePrefix("Kitsugi_")
-                val title = rawName.replace(Regex("_\\d{13}$"), "").replace("_", " ").trim()
+                val title = rawName.replace(Regex("_\\d{13}$"), "").replace(Regex("_+"), " ").trim()
                 results.add(
                     DownloadedImageItem(
                         file = f,

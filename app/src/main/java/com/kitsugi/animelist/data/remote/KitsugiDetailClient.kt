@@ -21,6 +21,8 @@ class KitsugiDetailClient {
         providedTmdbId: Int? = null,
         providedRealMalId: Int? = null
     ): KitsugiMediaDetail? {
+        if (mediaType == MediaType.Manga) return null
+
         val tmdbId = providedTmdbId ?: run {
             // Source'a göre doğru ID tipini belirle
             val malIdForResolve: Int? = when (source.lowercase()) {
@@ -38,7 +40,7 @@ class KitsugiDetailClient {
                 // 100_000_000+ offset'li stableId → gerçek AniList ID'yi çıkar
                 externalId - 100_000_000
             } else null
-            val kitsuIdForResolve: Int? = if (source.lowercase() == "kitsu") {
+            val kitsuIdForResolve: Int? = if (source.lowercase() == "kitsu" && mediaType != MediaType.Manga) {
                 // Yalnızca gerçek Kitsu stableId aralığındaki değer çözülür; altındaki
                 // değerler MAL ID'dir ve kitsuId olarak asla yorumlanmamalıdır.
                 KitsuIdNamespace.rawIdFromStable(externalId)

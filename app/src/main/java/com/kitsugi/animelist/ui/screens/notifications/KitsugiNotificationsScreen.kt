@@ -5,6 +5,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -18,7 +19,9 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.BugReport
+import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.NotificationsNone
@@ -45,6 +48,8 @@ import coil3.compose.AsyncImage
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.data.notifications.NotificationDiagnostics
 import com.kitsugi.animelist.data.remote.KitsugiAniListNotificationClient
+import com.kitsugi.animelist.data.settings.AppSettings
+import com.kitsugi.animelist.data.settings.SettingsDataStore
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
@@ -55,12 +60,36 @@ import kotlinx.coroutines.launch
 
 // ─── Platform seçimi ──────────────────────────────────────────────────────────
 
-private enum class NotifPlatform(val label: String, val logoId: String) {
-    ANILIST("AniList", "anilist"),
-    MAL("MAL", "mal"),
-    TMDB_SIMKL("TMDB & Simkl", "simkl"),
-    KITSU("Kitsu", "kitsu"),
-    SHIKIMORI("Shikimori", "shikimori")
+private enum class NotifPlatform(
+    val label: String,
+    val logoId: String,
+    val description: String
+) {
+    ANILIST(
+        label = "AniList",
+        logoId = "anilist",
+        description = "Yayın takvimi, aktivite beğenileri, yorumlar ve forum bildirimleri"
+    ),
+    MAL(
+        label = "MyAnimeList",
+        logoId = "mal",
+        description = "Kulüp mesajları, arkadaşlık istekleri ve liste bildirimleri"
+    ),
+    TMDB_SIMKL(
+        label = "TMDB & Simkl",
+        logoId = "simkl",
+        description = "Dizi, film ve anime yeni bölüm yayın bildirimleri"
+    ),
+    KITSU(
+        label = "Kitsu",
+        logoId = "kitsu",
+        description = "Topluluk etkileşimleri, yorumlar ve takipçi bildirimleri"
+    ),
+    SHIKIMORI(
+        label = "Shikimori",
+        logoId = "shikimori",
+        description = "Kullanıcı mesajları, kulüp ve yayın güncellemeleri"
+    )
 }
 
 // ─── Ana Ekran ────────────────────────────────────────────────────────────────
@@ -82,10 +111,13 @@ fun KitsugiNotificationsScreen(
     val accentColor = LocalKitsugiAccent.current
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    val settingsDataStore = remember { SettingsDataStore(context) }
+    val appSettings by settingsDataStore.settingsFlow.collectAsState(initial = AppSettings())
     val aniListToken = remember { com.kitsugi.animelist.data.auth.ExternalAuthManager.getAniListToken(context) }
     val apiClient = remember(aniListToken) { com.kitsugi.animelist.data.remote.JikanApiClient(aniListToken) }
     var activeActivityIdForDetail by remember { mutableStateOf<Int?>(null) }
     var showDiagnostics by remember { mutableStateOf(false) }
+    var showSourcePickerSheet by remember { mutableStateOf(false) }
 
     // ── ViewModel state'lerini topla ──
     val malState       by viewModel.mal.collectAsState()
@@ -200,92 +232,29 @@ fun KitsugiNotificationsScreen(
             }
         }
 
-        // ── Platform Sekmeleri ──
+        val currentPlatform = NotifPlatform.entries.getOrElse(pagerState.currentPage) { NotifPlatform.ANILIST }
+        val isCurrentConnected = when (currentPlatform) {
+            NotifPlatform.ANILIST    -> isAniListConnected
+            NotifPlatform.MAL        -> isMalConnected
+            NotifPlatform.TMDB_SIMKL -> isSimklConnected
+            NotifPlatform.KITSU      -> isKitsuConnected
+            NotifPlatform.SHIKIMORI  -> isShikimoriConnected
+        }
+
+        // ── Platform Seçici Buton (Listem sayfası açılır panel tarzı) ──
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = if (isLandscape) 18.dp else 16.dp, vertical = 10.dp),
+                .padding(horizontal = if (isLandscape) 18.dp else 16.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState())
-                    .clip(RoundedCornerShape(22.dp))
-                    .background(KitsugiColors.Surface)
-                    .padding(3.dp),
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                NotifPlatform.entries.forEachIndexed { index, platform ->
-                    val active    = pagerState.currentPage == index
-                    val isConnected = when (platform) {
-                        NotifPlatform.ANILIST    -> isAniListConnected
-                        NotifPlatform.MAL        -> isMalConnected
-                        NotifPlatform.TMDB_SIMKL -> isSimklConnected
-                        NotifPlatform.KITSU      -> isKitsuConnected
-                        NotifPlatform.SHIKIMORI  -> isShikimoriConnected
-                    }
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(18.dp))
-                            .background(if (active) accentColor else Color.Transparent)
-                            .tvClickable(shape = RoundedCornerShape(18.dp)) {
-                                scope.launch { pagerState.animateScrollToPage(index) }
-                            }
-                            .padding(horizontal = 14.dp, vertical = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center
-                        ) {
-                            KitsugiPlatformLogo(
-                                platformId = platform.logoId,
-                                size = 16.dp,
-                                modifier = Modifier.padding(end = 6.dp)
-                            )
-                            Text(
-                                text = platform.label,
-                                color = if (active) KitsugiColors.Background
-                                        else if (isConnected) KitsugiColors.TextPrimary
-                                        else KitsugiColors.TextMuted,
-                                fontSize = 13.sp,
-                                fontWeight = if (active) FontWeight.Black else FontWeight.Medium
-                            )
-                            // AniList okunmamış bildirim rozeti
-                            val badge = if (platform == NotifPlatform.ANILIST) aniListUnread else null
-                            if (badge != null && badge > 0) {
-                                Spacer(modifier = Modifier.width(5.dp))
-                                Box(
-                                    modifier = Modifier
-                                        .clip(CircleShape)
-                                        .background(if (active) KitsugiColors.Background else accentColor)
-                                        .padding(horizontal = 5.dp, vertical = 1.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = if (badge > 99) "99+" else badge.toString(),
-                                        color = if (active) accentColor else KitsugiColors.Background,
-                                        fontSize = 9.sp,
-                                        fontWeight = FontWeight.Bold
-                                    )
-                                }
-                            } else if (isConnected) {
-                                Spacer(modifier = Modifier.width(5.dp))
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .clip(CircleShape)
-                                        .background(
-                                            if (active) KitsugiColors.Background
-                                            else KitsugiColors.AccentGreen
-                                        )
-                                )
-                            }
-                        }
-                    }
-                }
-            }
+            NotificationSourceSelectorPill(
+                selectedPlatform = currentPlatform,
+                isConnected = isCurrentConnected,
+                unreadCount = if (currentPlatform == NotifPlatform.ANILIST) (aniListUnread ?: 0) else 0,
+                accentColor = accentColor,
+                onClick = { showSourcePickerSheet = true }
+            )
         }
 
         HorizontalDivider(
@@ -478,6 +447,30 @@ fun KitsugiNotificationsScreen(
             state = diagState,
             onRerun = { viewModel.runDiagnostics(mediaEntries) },
             onDismiss = { showDiagnostics = false }
+        )
+    }
+
+    if (showSourcePickerSheet) {
+        NotificationSourcePickerSheet(
+            selectedPlatformIndex = pagerState.currentPage,
+            isAniListConnected = isAniListConnected,
+            isMalConnected = isMalConnected,
+            isSimklConnected = isSimklConnected,
+            isKitsuConnected = isKitsuConnected,
+            isShikimoriConnected = isShikimoriConnected,
+            aniListUsername = appSettings.anilistUsername,
+            malUsername = appSettings.malUsername,
+            simklUsername = appSettings.simklUsername,
+            kitsuUsername = appSettings.kitsuUsername,
+            shikimoriUsername = appSettings.shikimoriUsername,
+            aniListUnread = aniListUnread ?: 0,
+            accentColor = accentColor,
+            onSelectPlatform = { index ->
+                scope.launch {
+                    pagerState.animateScrollToPage(index)
+                }
+            },
+            onDismiss = { showSourcePickerSheet = false }
         )
     }
 }
@@ -995,6 +988,267 @@ private fun CenteredEmptyState(message: String) {
                 textAlign = TextAlign.Center,
                 modifier = Modifier.padding(horizontal = 32.dp)
             )
+        }
+    }
+}
+
+// ─── Bildirim Kaynak Seçici Hap Buton ─────────────────────────────────────────
+
+@Composable
+private fun NotificationSourceSelectorPill(
+    selectedPlatform: NotifPlatform,
+    isConnected: Boolean,
+    unreadCount: Int,
+    accentColor: Color,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(16.dp))
+            .background(KitsugiColors.Surface)
+            .border(
+                width = 1.dp,
+                color = accentColor.copy(alpha = 0.5f),
+                shape = RoundedCornerShape(16.dp)
+            )
+            .tvClickable(shape = RoundedCornerShape(16.dp), onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 7.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        KitsugiPlatformLogo(
+            platformId = selectedPlatform.logoId,
+            size = 18.dp
+        )
+        Text(
+            text = selectedPlatform.label,
+            style = MaterialTheme.typography.labelMedium.copy(
+                fontWeight = FontWeight.Bold,
+                color = KitsugiColors.TextPrimary
+            )
+        )
+        if (unreadCount > 0) {
+            Box(
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(accentColor)
+                    .padding(horizontal = 6.dp, vertical = 1.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = if (unreadCount > 99) "99+" else unreadCount.toString(),
+                    color = KitsugiColors.Background,
+                    fontSize = 9.sp,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        } else if (isConnected) {
+            Box(
+                modifier = Modifier
+                    .size(6.dp)
+                    .clip(CircleShape)
+                    .background(KitsugiColors.AccentGreen)
+            )
+        }
+        Icon(
+            imageVector = Icons.Rounded.ArrowDropDown,
+            contentDescription = "Bildirim Kaynağı Seç",
+            tint = accentColor,
+            modifier = Modifier.size(18.dp)
+        )
+    }
+}
+
+// ─── Bildirim Kaynak Seçim Modal Bottom Sheet (Listem Sayfası Tarzı) ──────────
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun NotificationSourcePickerSheet(
+    selectedPlatformIndex: Int,
+    isAniListConnected: Boolean,
+    isMalConnected: Boolean,
+    isSimklConnected: Boolean,
+    isKitsuConnected: Boolean,
+    isShikimoriConnected: Boolean,
+    aniListUsername: String,
+    malUsername: String,
+    simklUsername: String,
+    kitsuUsername: String,
+    shikimoriUsername: String,
+    aniListUnread: Int,
+    accentColor: Color,
+    onSelectPlatform: (Int) -> Unit,
+    onDismiss: () -> Unit
+) {
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true),
+        containerColor = KitsugiColors.Surface,
+        dragHandle = {
+            Box(
+                modifier = Modifier
+                    .padding(vertical = 10.dp)
+                    .width(36.dp)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(KitsugiColors.TextMuted.copy(alpha = 0.4f))
+            )
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp)
+        ) {
+            Text(
+                text = "Bildirim Kaynağı Seç",
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = KitsugiColors.TextPrimary
+                )
+            )
+            Text(
+                text = "Görüntülemek ve yönetmek istediğin platform bildirimlerini seç",
+                style = MaterialTheme.typography.bodySmall.copy(
+                    color = KitsugiColors.TextMuted
+                ),
+                modifier = Modifier.padding(top = 4.dp, bottom = 16.dp)
+            )
+
+            NotifPlatform.entries.forEachIndexed { index, platform ->
+                val isSelected = index == selectedPlatformIndex
+                val isConnected = when (platform) {
+                    NotifPlatform.ANILIST -> isAniListConnected
+                    NotifPlatform.MAL -> isMalConnected
+                    NotifPlatform.TMDB_SIMKL -> isSimklConnected
+                    NotifPlatform.KITSU -> isKitsuConnected
+                    NotifPlatform.SHIKIMORI -> isShikimoriConnected
+                }
+                val username = when (platform) {
+                    NotifPlatform.ANILIST -> aniListUsername
+                    NotifPlatform.MAL -> malUsername
+                    NotifPlatform.TMDB_SIMKL -> simklUsername
+                    NotifPlatform.KITSU -> kitsuUsername
+                    NotifPlatform.SHIKIMORI -> shikimoriUsername
+                }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 4.dp)
+                        .clip(RoundedCornerShape(16.dp))
+                        .background(
+                            if (isSelected) accentColor.copy(alpha = 0.14f)
+                            else KitsugiColors.SurfaceElevated.copy(alpha = 0.5f)
+                        )
+                        .border(
+                            width = if (isSelected) 1.5.dp else 1.dp,
+                            color = if (isSelected) accentColor else Color.Transparent,
+                            shape = RoundedCornerShape(16.dp)
+                        )
+                        .tvClickable(shape = RoundedCornerShape(16.dp)) {
+                            onSelectPlatform(index)
+                            onDismiss()
+                        }
+                        .padding(horizontal = 14.dp, vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    KitsugiPlatformLogo(
+                        platformId = platform.logoId,
+                        size = 30.dp,
+                        modifier = Modifier.padding(end = 12.dp)
+                    )
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            Text(
+                                text = platform.label,
+                                style = MaterialTheme.typography.bodyLarge.copy(
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.SemiBold,
+                                    color = if (isSelected) accentColor else KitsugiColors.TextPrimary
+                                )
+                            )
+                            if (isConnected) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(Color(0xFF27AE60).copy(alpha = 0.18f))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = if (username.isNotBlank()) "@$username" else "Bağlı",
+                                        color = Color(0xFF27AE60),
+                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            } else {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(KitsugiColors.SurfaceStrong)
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "Bağlı Değil",
+                                        color = KitsugiColors.TextMuted,
+                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+
+                            if (platform == NotifPlatform.ANILIST && aniListUnread > 0) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(accentColor.copy(alpha = 0.2f))
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                ) {
+                                    Text(
+                                        text = "$aniListUnread yeni",
+                                        color = accentColor,
+                                        style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                                        fontWeight = FontWeight.Bold
+                                    )
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(3.dp))
+                        Text(
+                            text = platform.description,
+                            style = MaterialTheme.typography.bodySmall.copy(
+                                color = KitsugiColors.TextSecondary,
+                                fontSize = 12.sp,
+                                lineHeight = 16.sp
+                            )
+                        )
+                    }
+
+                    if (isSelected) {
+                        Box(
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(CircleShape)
+                                .background(accentColor),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Check,
+                                contentDescription = "Seçili",
+                                tint = KitsugiColors.Background,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+                }
+            }
         }
     }
 }

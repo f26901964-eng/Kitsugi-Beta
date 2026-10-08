@@ -465,7 +465,8 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
     }
 
     private suspend fun fetchLogo(result: JikanSearchResult, showAnimeLogos: Boolean) {
-        if (!showAnimeLogos) {
+        val isManga = result.type == MediaType.Manga || _detailState.value?.type == MediaType.Manga
+        if (!showAnimeLogos || isManga) {
             _logoUrl.value = null
             return
         }
@@ -522,10 +523,11 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         val effectiveRealMalId = realMalId
             ?: _detailState.value?.realMalId
             ?: result.realMalId
-        // TMDB kaynaklı içerikte malId zaten tmdbId'dir
-        val tmdbId = _detailState.value?.tmdbId
+        val isManga = result.type == MediaType.Manga || _detailState.value?.type == MediaType.Manga
+        // TMDB kaynaklı içerikte malId zaten tmdbId'dir; manga içeriklerinde TMDB ID asla kullanılmaz
+        val tmdbId = if (isManga) null else (_detailState.value?.tmdbId
             ?: result.tmdbId
-            ?: if (result.source.equals("tmdb", ignoreCase = true)) result.malId else null
+            ?: if (result.source.equals("tmdb", ignoreCase = true)) result.malId else null)
         viewModelScope.launch {
             val settings = runCatching { settingsDataStore.settingsFlow.first() }.getOrNull()
             val tmdbEnabled    = settings?.tmdbEnabled    ?: true
@@ -754,6 +756,40 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
     }
 
     private suspend fun fetchFanartGallery(result: JikanSearchResult) {
+        val isManga = result.type == MediaType.Manga || _detailState.value?.type == MediaType.Manga
+        if (isManga) {
+            // Manga içerikleri TMDB veya Fanart.tv'de yer almaz. Kitsu manga ID'lerinin ARM API
+            // üzerinden rastgele animelerle (örn. Berserk -> Hungry Heart) eşleşmesini ve yanlış
+            // resimlerin/logoların galeriye dolmasını engelliyoruz. Yalnızca eserin kendi görselleri kullanılır.
+            val currentDetail = _detailState.value
+            val coverUrl = currentDetail?.imageUrl ?: result.imageUrl
+            val searchImg = result.imageUrl
+            val existingItems = buildList {
+                if (!coverUrl.isNullOrBlank()) {
+                    val src = determineGallerySource(coverUrl, result.source)
+                    add(GalleryItem(url = coverUrl, source = src, category = GalleryCategory.POSTER))
+                }
+                if (!searchImg.isNullOrBlank() && searchImg != coverUrl) {
+                    val src = determineGallerySource(searchImg, result.source)
+                    add(GalleryItem(url = searchImg, source = src, category = GalleryCategory.POSTER))
+                }
+                currentDetail?.bannerImage?.let { bannerUrl ->
+                    if (bannerUrl.isNotBlank() && bannerUrl != coverUrl && bannerUrl != searchImg) {
+                        val src = determineGallerySource(bannerUrl, result.source)
+                        add(GalleryItem(url = bannerUrl, source = src, category = GalleryCategory.BACKDROP))
+                    }
+                }
+                currentDetail?.pictures?.forEach { picUrl ->
+                    if (picUrl.isNotBlank() && picUrl != coverUrl && picUrl != searchImg && picUrl != currentDetail.bannerImage) {
+                        val src = determineGallerySource(picUrl, result.source)
+                        add(GalleryItem(url = picUrl, source = src, category = GalleryCategory.POSTER))
+                    }
+                }
+            }
+            _galleryItems.value = existingItems
+            return
+        }
+
         val tmdbId = withContext(Dispatchers.IO) {
             val stableId = result.malId
             val detailTmdb = _detailState.value?.tmdbId

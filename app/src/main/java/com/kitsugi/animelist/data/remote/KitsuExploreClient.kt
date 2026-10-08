@@ -406,6 +406,12 @@ object KitsuExploreClient {
             val posterObj = attrs.optJSONObject("posterImage")
             val imageUrl = posterObj?.optString("medium")?.takeIf { it.isNotBlank() }
                 ?: posterObj?.optString("original")?.takeIf { it.isNotBlank() }
+            val posterOriginal = posterObj?.optString("original")?.takeIf { it.isNotBlank() }
+
+            val coverObj = attrs.optJSONObject("coverImage")
+            val coverOriginal = coverObj?.optString("original")?.takeIf { it.isNotBlank() }
+                ?: coverObj?.optString("large")?.takeIf { it.isNotBlank() }
+            val kitsuPictures = listOfNotNull(posterOriginal, coverOriginal).distinct()
 
             val kitsuId = data.optString("id", "")
             val links = mutableListOf<KitsugiExternalLink>()
@@ -425,6 +431,8 @@ object KitsuExploreClient {
                 titleEnglish  = titleEn,
                 titleJapanese = titleJa,
                 imageUrl      = imageUrl,
+                bannerImage   = coverOriginal,
+                type          = MediaType.Manga,
                 score         = score,
                 year          = year,
                 total         = chapterCount,
@@ -432,7 +440,8 @@ object KitsuExploreClient {
                 endDate       = endDate.takeIf { it.isNotBlank() },
                 status        = statusTr,
                 isAdult       = KitsuAdultFlags.isAdult(attrs),
-                externalLinks = links
+                externalLinks = links,
+                pictures      = kitsuPictures
             )
         } catch (e: Exception) {
             Log.e(TAG, "Error parsing Kitsu manga detail: ${e.message}", e)

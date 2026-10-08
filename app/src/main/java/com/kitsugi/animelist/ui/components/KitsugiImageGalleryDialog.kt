@@ -25,6 +25,7 @@ import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.ChevronLeft
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Close
@@ -70,12 +71,20 @@ fun KitsugiImageGalleryDialog(
     initialCategory: GalleryCategory? = galleryItems.getOrNull(initialIndex)?.category,
     title: String,
     isAdult: Boolean = false,
+    allowDownload: Boolean = true,
     onDismiss: () -> Unit
 ) {
     if (galleryItems.isEmpty()) return
 
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
+    // İndirme index'i: "zaten indirilmiş" rozetini göstermek ve tekrar
+    // indirmeyi önlemek için dinlenir. Açılışta arka planda tazelenir.
+    val downloadedUrls by KitsugiImageDownloadHelper.downloadedUrls.collectAsState()
+    LaunchedEffect(Unit) {
+        KitsugiImageDownloadHelper.refreshDownloadedUrls(context)
+    }
 
     // We only show category tabs if there are multiple categories.
     val availableCategories = remember(galleryItems) {
@@ -172,13 +181,36 @@ fun KitsugiImageGalleryDialog(
         label = "download_glow"
     )
 
+    // Mevcut sayfa için indirme butonu durumu:
+    //  • Yerel dosya (file:// / content://) ise buton hiç gösterilmez — içerik zaten cihazda.
+    //  • allowDownload=false ise buton hiç gösterilmez (örn. İndirilenler ekranı).
+    //  • Daha önce indirilmişse buton "indirildi" (tik) durumunda gösterilir.
+    val currentActionItem = filteredItems.getOrNull(pagerState.currentPage)
+    val isLocalImage = currentActionItem?.url?.let {
+        it.startsWith("file://") || it.startsWith("content://")
+    } == true
+    val showDownloadButton = allowDownload && !isLocalImage
+    val isAlreadyDownloaded = !isLocalImage &&
+        currentActionItem != null &&
+        downloadedUrls.contains(currentActionItem.url)
+
     val onDownload = {
         val currentItem = filteredItems.getOrNull(pagerState.currentPage)
         if (currentItem != null) {
-            if (KitsugiImageDownloadHelper.hasWritePermission(context)) {
-                KitsugiImageDownloadHelper.downloadImage(context, currentItem.url, title)
-            } else {
-                launcher.launch(KitsugiImageDownloadHelper.getRequiredPermissions())
+            val url = currentItem.url
+            when {
+                url.startsWith("file://") || url.startsWith("content://") -> {
+                    android.widget.Toast.makeText(context, "Bu resim zaten cihazda kayıtlı.", android.widget.Toast.LENGTH_SHORT).show()
+                }
+                downloadedUrls.contains(url) -> {
+                    android.widget.Toast.makeText(context, "Bu resim zaten indirilmiş.", android.widget.Toast.LENGTH_SHORT).show()
+                }
+                KitsugiImageDownloadHelper.hasWritePermission(context) -> {
+                    KitsugiImageDownloadHelper.downloadImage(context, url, title)
+                }
+                else -> {
+                    launcher.launch(KitsugiImageDownloadHelper.getRequiredPermissions())
+                }
             }
         }
     }
@@ -256,7 +288,9 @@ fun KitsugiImageGalleryDialog(
                             onDismiss = { dismissWithAnimation() },
                             density = density,
                             galleryItems = galleryItems,
-                            isAdult = isAdult
+                            isAdult = isAdult,
+                            showDownloadButton = showDownloadButton,
+                            isAlreadyDownloaded = isAlreadyDownloaded
                         )
                     } else {
                         // ── PORTRAIT LAYOUT (existing behaviour) ───────────────────────
@@ -274,7 +308,9 @@ fun KitsugiImageGalleryDialog(
                             onDismiss = { dismissWithAnimation() },
                             density = density,
                             galleryItems = galleryItems,
-                            isAdult = isAdult
+                            isAdult = isAdult,
+                            showDownloadButton = showDownloadButton,
+                            isAlreadyDownloaded = isAlreadyDownloaded
                         )
                     }
                 }
@@ -305,7 +341,9 @@ private fun GalleryLandscapeLayout(
     onDismiss: () -> Unit,
     density: androidx.compose.ui.unit.Density,
     galleryItems: List<GalleryItem>,
-    isAdult: Boolean = false
+    isAdult: Boolean = false,
+    showDownloadButton: Boolean = true,
+    isAlreadyDownloaded: Boolean = false
 ) {
     val scope = rememberCoroutineScope()
     val currentItem = filteredItems.getOrNull(pagerState.currentPage)
@@ -565,24 +603,28 @@ private fun GalleryLandscapeLayout(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    // Download
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .background(
-                                color = accentColor.copy(alpha = 0.18f * downloadGlow),
-                                shape = RoundedCornerShape(10.dp)
+                    // Download — yerel dosyalarda gizli; zaten indirilmişse tik işareti
+                    if (showDownloadButton) {
+                        val downloadBtnColor =
+                            if (isAlreadyDownloaded) KitsugiColors.AccentGreen else accentColor
+                        Box(
+                            modifier = Modifier
+                                .size(36.dp)
+                                .background(
+                                    color = downloadBtnColor.copy(alpha = 0.18f * downloadGlow),
+                                    shape = RoundedCornerShape(10.dp)
+                                )
+                                .border(1.dp, downloadBtnColor.copy(alpha = 0.45f), RoundedCornerShape(10.dp))
+                                .tvClickable(shape = RoundedCornerShape(10.dp), onClick = onDownload),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (isAlreadyDownloaded) Icons.Rounded.CheckCircle else Icons.Rounded.Download,
+                                contentDescription = if (isAlreadyDownloaded) "İndirildi" else "İndir",
+                                tint = downloadBtnColor,
+                                modifier = Modifier.size(18.dp)
                             )
-                            .border(1.dp, accentColor.copy(alpha = 0.45f), RoundedCornerShape(10.dp))
-                            .tvClickable(shape = RoundedCornerShape(10.dp), onClick = onDownload),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Download,
-                            contentDescription = "İndir",
-                            tint = accentColor,
-                            modifier = Modifier.size(18.dp)
-                        )
+                        }
                     }
 
                     // Share / Send (Animated Fly)
@@ -885,7 +927,9 @@ private fun GalleryPortraitLayout(
     onDismiss: () -> Unit,
     density: androidx.compose.ui.unit.Density,
     galleryItems: List<GalleryItem>,
-    isAdult: Boolean = false
+    isAdult: Boolean = false,
+    showDownloadButton: Boolean = true,
+    isAlreadyDownloaded: Boolean = false
 ) {
     val scope = rememberCoroutineScope()
 
@@ -905,7 +949,9 @@ private fun GalleryPortraitLayout(
             onDownload = onDownload,
             onShare = onShare,
             onDismiss = onDismiss,
-            isLandscape = false
+            isLandscape = false,
+            showDownloadButton = showDownloadButton,
+            isAlreadyDownloaded = isAlreadyDownloaded
         )
 
         // Categories filter (if multiple categories available)
@@ -1252,6 +1298,7 @@ fun KitsugiImageGalleryDialog(
     initialIndex: Int = 0,
     title: String,
     isAdult: Boolean = false,
+    allowDownload: Boolean = true,
     onDismiss: () -> Unit
 ) {
     val items = remember(imageUrls) {
@@ -1262,6 +1309,7 @@ fun KitsugiImageGalleryDialog(
         initialIndex = initialIndex,
         title = title,
         isAdult = isAdult,
+        allowDownload = allowDownload,
         onDismiss = onDismiss
     )
 }
@@ -1411,7 +1459,9 @@ private fun KitsugiGalleryHeader(
     onDownload: () -> Unit,
     onShare: () -> Unit,
     onDismiss: () -> Unit,
-    isLandscape: Boolean
+    isLandscape: Boolean,
+    showDownloadButton: Boolean = true,
+    isAlreadyDownloaded: Boolean = false
 ) {
     Box(
         modifier = Modifier
@@ -1504,27 +1554,32 @@ private fun KitsugiGalleryHeader(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     // İndirme Butonu — accent renkli, animasyonlu
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .background(
-                                color = accentColor.copy(alpha = 0.18f * downloadGlow),
-                                shape = RoundedCornerShape(12.dp)
+                    // Yerel dosyalarda gizli; zaten indirilmişse tik işareti
+                    if (showDownloadButton) {
+                        val downloadBtnColor =
+                            if (isAlreadyDownloaded) KitsugiColors.AccentGreen else accentColor
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .background(
+                                    color = downloadBtnColor.copy(alpha = 0.18f * downloadGlow),
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .border(
+                                    width = 1.dp,
+                                    color = downloadBtnColor.copy(alpha = 0.45f),
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .tvClickable(shape = RoundedCornerShape(12.dp), onClick = onDownload),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = if (isAlreadyDownloaded) Icons.Rounded.CheckCircle else Icons.Rounded.Download,
+                                contentDescription = if (isAlreadyDownloaded) "İndirildi" else "İndir",
+                                tint = downloadBtnColor,
+                                modifier = Modifier.size(20.dp)
                             )
-                            .border(
-                                width = 1.dp,
-                                color = accentColor.copy(alpha = 0.45f),
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                            .tvClickable(shape = RoundedCornerShape(12.dp), onClick = onDownload),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Rounded.Download,
-                            contentDescription = "İndir",
-                            tint = accentColor,
-                            modifier = Modifier.size(20.dp)
-                        )
+                        }
                     }
 
                     // Paylaşım Butonu — accent dokunuşlu glassmorphism

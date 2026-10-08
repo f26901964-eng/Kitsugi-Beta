@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.components
 
+import com.kitsugi.animelist.model.MediaType
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.focusable
@@ -162,6 +163,7 @@ fun KitsugiHeroSection(
 
         for (idx in priorityIndices) {
             val item = items[idx]
+            if (item.type == MediaType.Manga) continue
             val stableId = item.malId
             val logoUrl = when {
                 item.source.equals("tmdb", ignoreCase = true) -> {
