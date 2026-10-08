@@ -901,6 +901,10 @@ private fun SafetyNote() {
             overflow = TextOverflow.Ellipsis
         )
     }
+    CrossSyncDisclaimerText(
+        full = true,
+        modifier = Modifier.padding(top = 4.dp)
+    )
 }
 
 @Composable

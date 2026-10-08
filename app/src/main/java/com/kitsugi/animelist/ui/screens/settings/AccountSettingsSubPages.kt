@@ -116,7 +116,7 @@ internal fun AccountConnectionsHubContent(
 
             AccountHubItem(
                 title = "Çapraz Eşitleme (Cross-Sync)",
-                subtitle = if (connectedCount >= 2) "$connectedCount hesap arasında karşılıklı senkronizasyon" else "En az 2 hesap bağlandığında etkinleşir",
+                subtitle = if (connectedCount >= 2) "Deneysel · $connectedCount hesap arasında karşılıklı senkronizasyon" else "Deneysel · En az 2 hesap bağlandığında etkinleşir",
                 icon = Icons.Rounded.CloudSync,
                 iconColor = KitsugiColors.AccentOrange,
                 isConnected = connectedCount >= 2,
@@ -641,6 +641,7 @@ internal fun CrossSyncSettingsContent(profile: ProfileSettings) {
                     fontSize = 13.sp,
                     lineHeight = 19.sp
                 )
+                CrossSyncDisclaimerText(full = true)
             }
         }
 
@@ -695,6 +696,11 @@ internal fun CrossSyncSettingsContent(profile: ProfileSettings) {
                     }
                 }
             }
+
+            CrossSyncDisclaimerText(
+                full = false,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
 
             SectionHeader("Otomatik Eşitleme Tercihleri")
             SettingsNavCard {
