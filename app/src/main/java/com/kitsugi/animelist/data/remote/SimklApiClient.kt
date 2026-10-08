@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.data.remote
 
 import com.kitsugi.animelist.model.MediaType
+import com.kitsugi.animelist.utils.MediaTitleResolver
 import com.kitsugi.animelist.model.WatchStatus
 import com.kitsugi.animelist.model.MediaEntry
 import kotlinx.coroutines.async
@@ -42,6 +43,48 @@ class SimklApiClient(
         // Simkl trending JSONs are CDN-cached for an hour; share them across page requests.
         private const val TRENDING_CACHE_TTL_MS = 60 * 60 * 1000L
         private val trendingPeriodCache = ConcurrentHashMap<String, SimklTrendingCacheEntry>()
+    }
+
+    /**
+     * Simkl başlık alanlarını Türkçe → İngilizce → Romaji zinciriyle çözer.
+     *
+     * Simkl `title` alanı bazı kayıtlarda doğrudan Japonca/Çince gelebilir. Bu
+     * durumda sırasıyla `title_en`/`en_title`, `title_romaji` ve Latin orijinal
+     * başlık denenir; ekranlarda CJK başlık görünmesi engellenir.
+     */
+    private fun resolveSimklTitle(obj: JSONObject): String {
+        val raw = obj.optString("title", "")
+        val english = MediaTitleResolver.nonBlank(
+            obj.optString("title_en"),
+            obj.optString("en_title"),
+            obj.optString("title_english")
+        )
+        val romaji = MediaTitleResolver.nonBlank(
+            obj.optString("title_romaji"),
+            obj.optString("romaji")
+        )
+        val native = MediaTitleResolver.nonBlank(
+            obj.optString("title_native"),
+            obj.optString("ja_title"),
+            obj.optString("title_japanese")
+        )
+        return MediaTitleResolver.resolve(
+            localized = MediaTitleResolver.latin(raw),
+            english = english,
+            romaji = romaji,
+            original = native ?: raw
+        )
+    }
+
+    /** Simkl kaydındaki yerel (Japonca/Çince/Korece) başlık — yoksa null. */
+    private fun simklNativeTitle(obj: JSONObject): String? {
+        val native = MediaTitleResolver.nonBlank(
+            obj.optString("title_native"),
+            obj.optString("ja_title"),
+            obj.optString("title_japanese"),
+            obj.optString("title")
+        )
+        return native?.takeIf { MediaTitleResolver.hasCjk(it) }
     }
 
     private fun checkResponseAndThrow(response: okhttp3.Response) {
@@ -99,7 +142,7 @@ class SimklApiClient(
 
                 for (i in 0 until minOf(jsonArray.length(), limit)) {
                     val obj = jsonArray.getJSONObject(i)
-                    val title = obj.optString("title", "")
+                    val title = resolveSimklTitle(obj)
                     val ids = obj.optJSONObject("ids") ?: continue
 
                     val simklId = ids.optInt("simkl_id", 0).takeIf { it > 0 }
@@ -139,7 +182,7 @@ class SimklApiClient(
                             source = "simkl",
                             realMalId = if (malId > 0) malId else null,
                             titleEnglish = title,
-                            titleJapanese = null,
+                            titleJapanese = simklNativeTitle(obj),
                             tmdbId = if (tmdbId > 0) tmdbId else null
                         )
                     )
@@ -338,7 +381,7 @@ class SimklApiClient(
         val results = mutableListOf<JikanSearchResult>()
         for (i in 0 until minOf(jsonArray.length(), limit)) {
             val obj = jsonArray.getJSONObject(i)
-            val title = obj.optString("title", "")
+            val title = resolveSimklTitle(obj)
             val ids = obj.optJSONObject("ids") ?: continue
             val simklId = ids.optInt("simkl_id", 0).takeIf { it > 0 } ?: ids.optInt("simkl", 0)
             if (simklId <= 0) continue
@@ -372,7 +415,7 @@ class SimklApiClient(
                     source = "simkl",
                     realMalId = if (malId > 0) malId else null,
                     titleEnglish = title,
-                    titleJapanese = null,
+                    titleJapanese = simklNativeTitle(obj),
                     tmdbId = if (tmdbId > 0) tmdbId else null
                 )
             )
@@ -402,7 +445,7 @@ class SimklApiClient(
 
                 for (i in 0 until minOf(jsonArray.length(), 500)) {
                     val obj = jsonArray.getJSONObject(i)
-                    val title = obj.optString("title", "")
+                    val title = resolveSimklTitle(obj)
                     val ids = obj.optJSONObject("ids") ?: continue
 
                     // CDN response'unda ids iÃ§inde "simkl_id" veya "simkl" olabilir (NyanTV referans)
@@ -447,7 +490,7 @@ class SimklApiClient(
                             source = "simkl",
                             realMalId = if (malId > 0) malId else null,
                             titleEnglish = title,
-                            titleJapanese = null,
+                            titleJapanese = simklNativeTitle(obj),
                             tmdbId = if (tmdbId > 0) tmdbId else null
                         )
                     )
@@ -476,7 +519,7 @@ class SimklApiClient(
 
                 for (i in 0 until minOf(jsonArray.length(), 20)) {
                     val obj = jsonArray.getJSONObject(i)
-                    val title = obj.optString("title", "")
+                    val title = resolveSimklTitle(obj)
                     val ids = obj.optJSONObject("ids") ?: continue
                     val simklId = ids.optInt("simkl", 0)
                     val tmdbId = ids.optInt("tmdb", 0)
@@ -497,7 +540,7 @@ class SimklApiClient(
                             source = "simkl",
                             realMalId = null,
                             titleEnglish = title,
-                            titleJapanese = null,
+                            titleJapanese = simklNativeTitle(obj),
                             tmdbId = if (tmdbId > 0) tmdbId else null
                         )
                     )
@@ -536,7 +579,7 @@ class SimklApiClient(
 
                 for (i in 0 until jsonArray.length()) {
                     val obj = jsonArray.getJSONObject(i)
-                    val title = obj.optString("title", "")
+                    val title = resolveSimklTitle(obj)
                     val typeStr = obj.optString("type", "")
                     val ids = obj.optJSONObject("ids") ?: continue
                     val simklId = ids.optInt("simkl", 0)
@@ -565,7 +608,7 @@ class SimklApiClient(
                             source = "simkl",
                             realMalId = ids.optInt("mal", 0).takeIf { it > 0 },
                             titleEnglish = title,
-                            titleJapanese = null,
+                            titleJapanese = simklNativeTitle(obj),
                             tmdbId = if (tmdbId > 0) tmdbId else null
                         )
                     )
@@ -676,7 +719,7 @@ class SimklApiClient(
                     val simklId = ids.optInt("simkl", 0).takeIf { it > 0 } ?: continue
                     val tmdbId = ids.optInt("tmdb", 0)
                     val malId = ids.optInt("mal", 0)
-                    val title = mediaObj.optString("title", "")
+                    val title = resolveSimklTitle(mediaObj)
                     val poster = mediaObj.optString("poster", "")
                     val year = mediaObj.optInt("year", 0)
                     val status = entry.optString("status", "")
@@ -704,7 +747,7 @@ class SimklApiClient(
                             source = "simkl",
                             realMalId = if (malId > 0) malId else null,
                             titleEnglish = title,
-                            titleJapanese = null,
+                            titleJapanese = simklNativeTitle(mediaObj),
                             tmdbId = if (tmdbId > 0) tmdbId else null
                         )
                     )
@@ -737,7 +780,7 @@ class SimklApiClient(
                 val results = mutableListOf<JikanSearchResult>()
                 for (i in 0 until minOf(array.length(), limit)) {
                     val obj = array.optJSONObject(i) ?: continue
-                    val title = obj.optString("title", "")
+                    val title = resolveSimklTitle(obj)
                     if (title.isBlank()) continue
                     val ids = obj.optJSONObject("ids")
                     val simklId = ids?.optInt("simkl_id", 0)?.takeIf { it > 0 } ?: (i + 1)
@@ -778,6 +821,8 @@ class SimklApiClient(
                             year = year,
                             source = "simkl",
                             realMalId = ids?.optInt("mal", 0)?.takeIf { it > 0 },
+                            titleEnglish = title,
+                            titleJapanese = simklNativeTitle(obj),
                             backdropUrl = backdropUrl
                         )
                     )
@@ -1408,7 +1453,7 @@ class SimklApiClient(
                     val ids   = obj.optJSONObject("ids") ?: continue
                     val simklId = ids.optInt("simkl_id", 0).takeIf { it > 0 }
                         ?: ids.optInt("simkl", 0).takeIf { it > 0 } ?: continue
-                    val title = obj.optString("title", "")
+                    val title = resolveSimklTitle(obj)
                     val poster = obj.optString("poster", "")
                     val year  = obj.optInt("year", 0)
                     val tmdbId = ids.optInt("tmdb", 0)
@@ -1433,7 +1478,7 @@ class SimklApiClient(
                             source = "simkl",
                             realMalId = null,
                             titleEnglish = title,
-                            titleJapanese = null,
+                            titleJapanese = simklNativeTitle(obj),
                             tmdbId = if (tmdbId > 0) tmdbId else null
                         )
                     )

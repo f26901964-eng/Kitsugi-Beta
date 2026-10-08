@@ -54,7 +54,10 @@ data class AiringEntry(
             isNonJapanese && !titleEnglish.isNullOrBlank() -> titleEnglish
             titleLanguage == "ENGLISH" -> titleEnglish?.takeIf { it.isNotBlank() } ?: title
             titleLanguage == "NATIVE" -> titleNative?.takeIf { it.isNotBlank() } ?: title
-            else -> title
+            // TMDB kaynaklı kayıtlarda CJK başlık yerine Latin alternatif gösterilir
+            else -> com.kitsugi.animelist.utils.MediaTitleResolver.latin(title)
+                ?: com.kitsugi.animelist.utils.MediaTitleResolver.latin(titleEnglish)
+                ?: title
         }
     }
 
@@ -74,7 +77,9 @@ data class AiringEntry(
         val effectiveTitle = if (isNonJapanese && !titleEnglish.isNullOrBlank()) {
             titleEnglish
         } else {
-            title
+            com.kitsugi.animelist.utils.MediaTitleResolver.latin(title)
+                ?: com.kitsugi.animelist.utils.MediaTitleResolver.latin(titleEnglish)
+                ?: title
         }
         return JikanSearchResult(
             malId = finalId,

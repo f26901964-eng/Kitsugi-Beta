@@ -17,6 +17,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URL
 import kotlinx.coroutines.flow.first
+import com.kitsugi.animelist.utils.PreferenceHelpers
 
 /**
  * KitsugiEpisodeRatingsRepository
@@ -1092,7 +1093,29 @@ object KitsugiEpisodeRatingsRepository {
                     }.getOrNull() ?: return@async emptyList<TmdbEpisodeDto>()
 
                     val responseText = KitsugiApiBase.executeGetRequest(url) ?: return@async emptyList<TmdbEpisodeDto>()
-                    val parsed = parseTmdbEpisodes(responseText)
+                    var parsed = parseTmdbEpisodes(responseText)
+                    // Bölüm adları da Türkçe → İngilizce zincirine uyar: TMDB istenen dilde
+                    // bölüm adı bulamazsa orijinal (Japonca) adı döndürür. Bu durumda tek bir
+                    // en-US isteğiyle adlar İngilizce'ye tamamlanır.
+                    if (parsed.any { it.name != null && PreferenceHelpers.hasCjkCharacters(it.name) }) {
+                        val enUrl = runCatching {
+                            URL(com.kitsugi.animelist.data.remote.TmdbUrlUtils.withLanguage(url.toString(), "en-US"))
+                        }.getOrNull()
+                        val enResponse = enUrl?.let { runCatching { KitsugiApiBase.executeGetRequest(it) }.getOrNull() }
+                        if (!enResponse.isNullOrBlank()) {
+                            val enNames = parseTmdbEpisodes(enResponse)
+                                .mapNotNull { dto -> dto.name?.takeIf { it.isNotBlank() }?.let { dto.episodeNumber to it } }
+                                .toMap()
+                            parsed = parsed.map { dto ->
+                                val latin = enNames[dto.episodeNumber]?.takeIf {
+                                    !PreferenceHelpers.hasCjkCharacters(it)
+                                }
+                                if (dto.name != null && PreferenceHelpers.hasCjkCharacters(dto.name) && latin != null) {
+                                    dto.copy(name = latin)
+                                } else dto
+                            }
+                        }
+                    }
                     if (parsed.isNotEmpty()) {
                         mutex.withLock {
                             DetailCache.tmdbEpisodesCache[cacheKey] = parsed.map { it.toCached() }

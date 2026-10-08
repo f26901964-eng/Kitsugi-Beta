@@ -30,8 +30,10 @@ internal object TmdbMediaDetailClient {
         val typePath = if (isMovie) "movie" else "tv"
         val lang = language
 
-        val trUrl = "https://api.themoviedb.org/3/$typePath/$tmdbId?api_key=$apiKey&language=$lang"
-        val enUrl = "https://api.themoviedb.org/3/$typePath/$tmdbId?api_key=$apiKey&language=en-US"
+        // append_to_response=alternative_titles: ek ağ isteği olmadan alternatif başlıklar
+        // (TR / US / JP ...) gelir; Türkçe → İngilizce → Romaji zinciri bu veriyle kurulur.
+        val trUrl = "https://api.themoviedb.org/3/$typePath/$tmdbId?api_key=$apiKey&language=$lang&append_to_response=alternative_titles"
+        val enUrl = TmdbUrlUtils.englishVariant(trUrl)
 
         return try {
             val trResponse = executeGet(trUrl)
@@ -54,19 +56,48 @@ internal object TmdbMediaDetailClient {
             val originalTitle = if (isMovie) finalJson.optString("original_title", "") else finalJson.optString("original_name", "")
             val originalLang = finalJson.optString("original_language", "")
 
-            // Türkçe başlık yoksa veya Japonca/CJK karakter gelmişse İngilizce başlığa düş
-            val hasCjkInTr = com.kitsugi.animelist.utils.PreferenceHelpers.hasCjkCharacters(rawTrTitle)
-            val finalTitle = when {
-                !rawTrTitle.isNullOrBlank() && !hasCjkInTr -> rawTrTitle
-                !rawEnTitle.isNullOrBlank() -> rawEnTitle
-                !rawTrTitle.isNullOrBlank() -> rawTrTitle
-                else -> originalTitle
-            }
+            // Türkçe başlık yoksa veya TMDB orijinal (Japonca) başlığa düşmüşse
+            // otomatik olarak İngilizce'ye, o da yoksa Romaji/Latin alternatife in.
+            val alternatives = extractAlternativeTitles(finalJson)
+            val altTr = MediaTitleResolver.pickAlternative(alternatives, listOf("TR"))
+            val altEn = MediaTitleResolver.pickAlternative(alternatives, listOf("US", "GB"))
+            val altRomaji = MediaTitleResolver.pickAlternative(alternatives, listOf("JP"))
+            val altLatin = MediaTitleResolver.pickAlternative(alternatives, emptyList())
 
-            val titleEnglish = rawEnTitle?.takeIf { it.isNotBlank() } ?: finalTitle
+            val localizedFallback = MediaTitleResolver.isLocalizedFallback(rawTrTitle, originalTitle, lang, originalLang)
+            val localizedCandidate = MediaTitleResolver.latin(rawTrTitle?.takeIf { !localizedFallback })
+                ?: MediaTitleResolver.latin(altTr)
+            val englishCandidate = MediaTitleResolver.latin(rawEnTitle)
+                ?: MediaTitleResolver.latin(altEn)
+            val romajiCandidate = MediaTitleResolver.latin(altRomaji)
+                ?: MediaTitleResolver.latin(altLatin)
+                ?: MediaTitleResolver.latin(originalTitle)
+
+            val finalTitle = MediaTitleResolver.resolve(
+                localized = localizedCandidate,
+                english = englishCandidate,
+                romaji = romajiCandidate,
+                original = originalTitle.ifBlank { rawTrTitle.orEmpty() }
+            )
+
+            val titleEnglish = MediaTitleResolver.resolveEnglish(
+                localized = localizedCandidate,
+                english = englishCandidate,
+                romaji = romajiCandidate,
+                original = originalTitle
+            ) ?: finalTitle
             val isJapanese = originalLang.equals("ja", ignoreCase = true) || com.kitsugi.animelist.utils.PreferenceHelpers.hasCjkCharacters(originalTitle)
             val titleJapanese = if (isJapanese) originalTitle.takeIf { it.isNotBlank() } else null
-            val titleRomaji = rawEnTitle?.takeIf { it.isNotBlank() } ?: finalTitle
+
+            // TMDB'de ayrı bir "romaji" alanı yoktur. Latin alternatif başlıklar eşleştirme
+            // (stream/eklenti arama) için synonyms'e taşınır; detay ekranları birincil başlık
+            // olarak yerelleştirilmiş (Türkçe) başlığı korur.
+            val titleRomaji: String? = null
+            val synonymList = alternatives
+                .map { it.second.trim() }
+                .filter { it.isNotBlank() && it != finalTitle && it != titleEnglish && it != titleJapanese }
+                .distinct()
+                .take(12)
 
             val posterPath = finalJson.optNullableString("poster_path") ?: ""
             val genresArray = finalJson.optJSONArray("genres")
@@ -152,7 +183,7 @@ internal object TmdbMediaDetailClient {
                 titleJapanese = titleJapanese,
                 titleRomaji = titleRomaji,
                 titleNative = originalTitle,
-                synonyms = emptyList(),
+                synonyms = synonymList,
                 openings = videoThemes,
                 endings = emptyList(),
                 trailerUrl = trailer,
@@ -181,6 +212,23 @@ internal object TmdbMediaDetailClient {
             Log.e(TAG, "Error fetching TMDB details: ${e.message}", e)
             null
         }
+    }
+
+    /**
+     * `append_to_response=alternative_titles` yanıtından (ülke kodu → başlık) çiftlerini çıkarır.
+     * Film uçları `titles`, dizi uçları `results` dizisini döndürür.
+     */
+    private fun extractAlternativeTitles(json: JSONObject?): List<Pair<String, String>> {
+        val altObj = json?.optJSONObject("alternative_titles") ?: return emptyList()
+        val array = altObj.optJSONArray("titles") ?: altObj.optJSONArray("results") ?: return emptyList()
+        val out = mutableListOf<Pair<String, String>>()
+        for (i in 0 until array.length()) {
+            val item = array.optJSONObject(i) ?: continue
+            val altTitle = item.optString("title", "").trim()
+            if (altTitle.isEmpty()) continue
+            out.add(item.optString("iso_3166_1", "").uppercase() to altTitle)
+        }
+        return out
     }
 
     suspend fun fetchMediaImages(

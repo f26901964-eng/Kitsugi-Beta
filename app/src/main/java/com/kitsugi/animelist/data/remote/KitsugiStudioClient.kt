@@ -78,16 +78,29 @@ class KitsugiStudioClient {
 
             val mediaWorks = mutableListOf<KitsugiStaffMediaWork>()
 
-            // Movie discover
+            // Movie discover — Türkçe başlık yoksa İngilizce'ye düşmek için en-US haritası
             val movieResponse = KitsugiApiBase.executeGetRequest(moviesUrl)
             if (movieResponse != null) {
                 val root = JSONObject(movieResponse)
                 val results = root.optJSONArray("results")
                 if (results != null) {
+                    val movieUrlStr = moviesUrl.toString()
+                    val movieEnTitles = if (TmdbTitleFallback.needsEnglishFallback(results, movieUrlStr, { true })) {
+                        TmdbTitleFallback.parseEnglishTitles(
+                            runCatching {
+                                KitsugiApiBase.executeGetRequest(URL(TmdbUrlUtils.englishVariant(movieUrlStr)))
+                            }.getOrNull()
+                        )
+                    } else emptyMap()
                     for (i in 0 until results.length()) {
                         val item = results.optJSONObject(i) ?: continue
                         val id = item.optInt("id")
-                        val title = item.optNullableString("title") ?: item.optNullableString("original_title") ?: "Başlıksız"
+                        val title = TmdbTitleFallback.resolve(
+                            item = item,
+                            isMovie = true,
+                            url = movieUrlStr,
+                            englishTitle = movieEnTitles[id]
+                        ).display.ifBlank { "Başlıksız" }
                         val posterPath = item.optNullableString("poster_path")
                         val imgUrl = if (!posterPath.isNullOrBlank()) "https://image.tmdb.org/t/p/w185$posterPath" else null
                         mediaWorks.add(
@@ -104,16 +117,29 @@ class KitsugiStudioClient {
                 }
             }
 
-            // TV discover
+            // TV discover — Türkçe başlık yoksa İngilizce'ye düşmek için en-US haritası
             val tvResponse = KitsugiApiBase.executeGetRequest(tvUrl)
             if (tvResponse != null) {
                 val root = JSONObject(tvResponse)
                 val results = root.optJSONArray("results")
                 if (results != null) {
+                    val tvUrlStr = tvUrl.toString()
+                    val tvEnTitles = if (TmdbTitleFallback.needsEnglishFallback(results, tvUrlStr, { false })) {
+                        TmdbTitleFallback.parseEnglishTitles(
+                            runCatching {
+                                KitsugiApiBase.executeGetRequest(URL(TmdbUrlUtils.englishVariant(tvUrlStr)))
+                            }.getOrNull()
+                        )
+                    } else emptyMap()
                     for (i in 0 until results.length()) {
                         val item = results.optJSONObject(i) ?: continue
                         val id = item.optInt("id")
-                        val title = item.optNullableString("name") ?: item.optNullableString("original_name") ?: "Başlıksız"
+                        val title = TmdbTitleFallback.resolve(
+                            item = item,
+                            isMovie = false,
+                            url = tvUrlStr,
+                            englishTitle = tvEnTitles[id]
+                        ).display.ifBlank { "Başlıksız" }
                         val posterPath = item.optNullableString("poster_path")
                         val imgUrl = if (!posterPath.isNullOrBlank()) "https://image.tmdb.org/t/p/w185$posterPath" else null
                         mediaWorks.add(

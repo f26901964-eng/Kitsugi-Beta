@@ -65,6 +65,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import com.kitsugi.animelist.utils.parseToMediaType
 import com.kitsugi.animelist.utils.PreferenceHelpers
+import com.kitsugi.animelist.utils.MediaTitleResolver
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.platform.LocalDensity
@@ -225,14 +226,22 @@ fun ApiResultDetailPage(
     // Galeri (fanart.tv) arka planda yüklenirken sayfa zaten açık kalır.
     val isLoading = detailLoading
 
-    val displayResult = remember(result, detailState) {
+    val displayResult = remember(result, detailState, titleLanguage) {
         val detail = detailState
         if (detail != null) {
             val effTitleEnglish = detail.titleEnglish?.takeIf { it.isNotBlank() } ?: result.titleEnglish
             val effTitleJapanese = (detail.titleJapanese ?: detail.titleNative)?.takeIf { it.isNotBlank() } ?: result.titleJapanese
             val effTitleRomaji = detail.titleRomaji?.takeIf { it.isNotBlank() }
             val rawTitle = if (result.title.isBlank() || result.title == "Yükleniyor...") (detail.title ?: result.title) else result.title
-            val chosenTitle = when {
+            val chosenTitle = if (MediaTitleResolver.isLatinPreferredSource(result.source)) {
+                // TMDB/Simkl: yerelleştirilmiş (Türkçe) → İngilizce → Romaji. CJK başlık ekrana düşmez;
+                // yalnızca kullanıcı açıkça "NATIVE" seçtiyse orijinal başlık gösterilir.
+                when (titleLanguage) {
+                    "NATIVE", "JAPANESE_STAFF" -> effTitleJapanese ?: rawTitle
+                    "ENGLISH" -> MediaTitleResolver.resolveEnglish(rawTitle, effTitleEnglish, effTitleRomaji, effTitleJapanese) ?: rawTitle
+                    else -> MediaTitleResolver.resolve(rawTitle, effTitleEnglish, effTitleRomaji, effTitleJapanese)
+                }
+            } else when {
                 !effTitleRomaji.isNullOrBlank() && !PreferenceHelpers.hasCjkCharacters(effTitleRomaji) -> effTitleRomaji
                 !PreferenceHelpers.hasCjkCharacters(rawTitle) -> rawTitle
                 !effTitleEnglish.isNullOrBlank() -> effTitleEnglish
