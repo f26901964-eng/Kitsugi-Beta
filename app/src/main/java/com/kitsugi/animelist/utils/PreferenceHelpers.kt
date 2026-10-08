@@ -45,14 +45,43 @@ object PreferenceHelpers {
     }
 
     fun MediaEntry.getDisplayTitle(titleLanguage: String): String {
+        if (MediaTitleResolver.isLatinPreferredSource(source)) {
+            return when (titleLanguage) {
+                "NATIVE", "JAPANESE_STAFF" -> titleJapanese?.takeIf { it.isNotBlank() } ?: title
+                "ENGLISH" -> MediaTitleResolver.latin(titleEnglish) ?: MediaTitleResolver.latin(title) ?: title
+                else -> MediaTitleResolver.latin(title)
+                    ?: MediaTitleResolver.latin(titleEnglish)
+                    ?: title
+            }
+        }
         return PreferenceHelpers.getDisplayTitle(title, titleEnglish, titleJapanese, titleLanguage)
     }
 
     fun JikanSearchResult.getDisplayTitle(titleLanguage: String): String {
+        if (MediaTitleResolver.isLatinPreferredSource(source)) {
+            return when (titleLanguage) {
+                "NATIVE", "JAPANESE_STAFF" -> titleJapanese?.takeIf { it.isNotBlank() } ?: title
+                "ENGLISH" -> MediaTitleResolver.latin(titleEnglish) ?: MediaTitleResolver.latin(title) ?: title
+                else -> MediaTitleResolver.latin(title)
+                    ?: MediaTitleResolver.latin(titleEnglish)
+                    ?: MediaTitleResolver.latin(titleJapanese)
+                    ?: title
+            }
+        }
         return PreferenceHelpers.getDisplayTitle(title, titleEnglish, titleJapanese, titleLanguage)
     }
 
     fun KitsugiRelation.getDisplayTitle(titleLanguage: String): String {
+        if (MediaTitleResolver.isLatinPreferredSource(source)) {
+            return when (titleLanguage) {
+                "NATIVE", "JAPANESE_STAFF" -> titleJapanese?.takeIf { it.isNotBlank() } ?: title
+                "ENGLISH" -> MediaTitleResolver.latin(titleEnglish) ?: MediaTitleResolver.latin(titleRomaji) ?: MediaTitleResolver.latin(title) ?: title
+                else -> MediaTitleResolver.latin(title)
+                    ?: MediaTitleResolver.latin(titleRomaji)
+                    ?: MediaTitleResolver.latin(titleEnglish)
+                    ?: title
+            }
+        }
         return PreferenceHelpers.getDisplayTitle(title, titleEnglish, titleJapanese, titleLanguage)
     }
 
