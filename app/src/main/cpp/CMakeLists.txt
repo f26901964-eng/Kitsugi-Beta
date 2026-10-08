@@ -75,3 +75,19 @@ else()
     endif()
     target_link_libraries(dovi_bridge ${log-lib})
 endif()
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Native çökme yakalayıcı (SIGSEGV / SIGABRT / SIGBUS ...)
+# Java UncaughtExceptionHandler bu sinyalleri göremez; bu kütüphane ham geri izi
+# filesDir/native_crash.txt dosyasına yazar ve sinyali yeniden yükseltir.
+# ─────────────────────────────────────────────────────────────────────────────
+add_library(
+    kitsugi_crash_handler
+    SHARED
+    kitsugi_crash_handler.cpp
+)
+
+target_compile_features(kitsugi_crash_handler PRIVATE cxx_std_17)
+target_compile_options(kitsugi_crash_handler PRIVATE -Wall -Wextra -Wno-unused-parameter)
+target_link_options(kitsugi_crash_handler PRIVATE "-Wl,-z,max-page-size=16384")
+target_link_libraries(kitsugi_crash_handler ${log-lib})

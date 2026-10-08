@@ -67,7 +67,8 @@ class JikanSearchClient {
         format: String? = null,
         genreId: Int? = null,
         sort: String? = null,
-        orderBy: String? = null
+        orderBy: String? = null,
+        page: Int = 1
     ): List<JikanSearchResult> {
         return withContext(Dispatchers.IO) {
             if (query.isBlank() && status == null && format == null && genreId == null) {
@@ -79,7 +80,8 @@ class JikanSearchClient {
                 query = query,
                 mediaType = mediaType,
                 showAdultContent = showAdultContent,
-                limit = 24
+                limit = 24,
+                page = page
             )
             if (official.isNotEmpty()) {
                 return@withContext official
@@ -88,7 +90,7 @@ class JikanSearchClient {
             // 2. Resmî API boş/başarısız (anahtar, 429, bölgesel engel) → Jikan v4 yedeği.
             // Jikan sonuçları da GERÇEK MAL kimlikleri taşır; bu yüzden "MyAnimeList"
             // rafı boş kalmaz ve kimlik uzayı bozulmaz (AniList kimliği MAL diye gösterilmez).
-            val jikan = runCatching { searchJikanFallback(query, mediaType, showAdultContent) }
+            val jikan = runCatching { searchJikanFallback(query, mediaType, showAdultContent, page) }
                 .getOrDefault(emptyList())
             if (jikan.isNotEmpty()) {
                 return@withContext jikan
@@ -105,13 +107,14 @@ class JikanSearchClient {
     private suspend fun searchJikanFallback(
         query: String,
         mediaType: MediaType,
-        showAdultContent: Boolean
+        showAdultContent: Boolean,
+        page: Int = 1
     ): List<JikanSearchResult> = withContext(Dispatchers.IO) {
         if (query.isBlank()) return@withContext emptyList()
         val endpoint = if (mediaType == MediaType.Manga) "manga" else "anime"
         val encoded = URLEncoder.encode(query.trim(), "UTF-8")
         val sfw = if (showAdultContent) "false" else "true"
-        val url = URL("https://api.jikan.moe/v4/$endpoint?q=$encoded&limit=24&sfw=$sfw&order_by=members&sort=desc")
+        val url = URL("https://api.jikan.moe/v4/$endpoint?q=$encoded&limit=24&page=$page&sfw=$sfw&order_by=members&sort=desc")
         val json = KitsugiApiBase.executeGetRequestResilient(url) ?: return@withContext emptyList()
         val root = JSONObject(json)
         val data = root.optJSONArray("data") ?: return@withContext emptyList()
@@ -205,9 +208,14 @@ class JikanSearchClient {
                     limit = 24
                 )
                 if (results.isNotEmpty()) return@withContext results
+                // Boş arama sonucu ASLA popüler sıralamaya dönüşmemeli. Resmî API
+                // geçici hata verirse rafla aynı Jikan yedeğini (aynı sayfada) dene.
+                return@withContext runCatching {
+                    searchJikanFallback(query, mediaType, showAdultContent, page)
+                }.getOrDefault(emptyList())
             }
 
-            // 3. Filtre veya boş sorgu -> Resmi MAL Sıralama API'si
+            // 3. Yalnızca boş sorguda -> Resmi MAL Sıralama API'si
             val rankingType = when {
                 status == "airing" -> "airing"
                 status == "upcoming" -> "upcoming"

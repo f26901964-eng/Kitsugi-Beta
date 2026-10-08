@@ -467,15 +467,30 @@ fun AboutScreen(
                                         )
                                         filesToShare.add(infoUri)
 
-                                        // 2. Çökme Raporu
-                                        val crashFile = File(context.filesDir, "crash_log.txt")
-                                        if (crashFile.exists()) {
-                                            val crashUri = androidx.core.content.FileProvider.getUriForFile(
-                                                context,
-                                                "com.kitsugi.animelist.fileprovider",
-                                                crashFile
-                                            )
-                                            filesToShare.add(crashUri)
+                                        // 2. Çökme Raporu + sessiz ölüm (native/ANR/OOM) kanıtları
+                                        //    ((Java istisnası olmayan çökmeler burada yer alır)
+                                        val crashRelatedFiles = listOf(
+                                            "crash_log.txt",            // son Java çökmesi
+                                            "crash_history.txt",        // tüm çökme geçmişi
+                                            "unclean_exit.txt",         // sessiz kapanma analizi (native/ANR/lmkd)
+                                            "native_crash.txt",         // native SIGSEGV/SIGABRT geri izi
+                                            "logcat_at_crash.txt",      // çökme anı logcat
+                                            "post_mortem_logcat.txt",   // ölüm sonrası logcat kanıtları
+                                            "crash_in_crash.txt",       // çökme ekranının kendisi çöktüyse
+                                            "breadcrumbs.txt",          // kullanıcı eylem izi
+                                            "app_logs.txt"              // (debug) sürekli log dosyası
+                                        )
+                                        for (fileName in crashRelatedFiles) {
+                                            val f = File(context.filesDir, fileName)
+                                            if (!f.exists() || f.length() <= 0) continue
+                                            try {
+                                                val uri = androidx.core.content.FileProvider.getUriForFile(
+                                                    context,
+                                                    "com.kitsugi.animelist.fileprovider",
+                                                    f
+                                                )
+                                                filesToShare.add(uri)
+                                            } catch (_: Throwable) {}
                                         }
 
                                         // 3. Arka Plan Günlükleri

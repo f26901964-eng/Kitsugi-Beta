@@ -107,7 +107,7 @@ fun SearchScreen(
     isBottomBarVisible: Boolean = true,
     onScrollReset: (() -> Unit)? = null,
     // "Tümünü Gör" → kaynağa özel tam arama sayfasını ayrı ekranda açar
-    onOpenSourceSearch: (SearchSourceEngine) -> Unit = {},
+    onOpenSourceSearch: (SearchSourceEngine, SearchScope, List<JikanSearchResult>) -> Unit = { _, _, _ -> },
     // Alt sayfa olarak kullanıldığında büyük başlığı gizlemek için null verilebilir
     pageTitle: String? = "Arama"
 ) {
@@ -457,7 +457,7 @@ fun SearchScreen(
                         isAlreadyInList = isAlreadyInList,
                         getMediaEntry = getMediaEntry,
                         onItemClick = onOpenApiDetail,
-                        onSeeAllClick = { onOpenSourceSearch(SearchSourceEngine.ANILIST) },
+                        onSeeAllClick = { onOpenSourceSearch(SearchSourceEngine.ANILIST, uiState.selectedScope, uiState.multiResults.aniListResults) },
                         titleLanguage = titleLanguage,
                         scoreFormat = scoreFormat,
                         hideScores = hideScores
@@ -473,7 +473,7 @@ fun SearchScreen(
                         isAlreadyInList = isAlreadyInList,
                         getMediaEntry = getMediaEntry,
                         onItemClick = onOpenApiDetail,
-                        onSeeAllClick = { onOpenSourceSearch(SearchSourceEngine.MAL) },
+                        onSeeAllClick = { onOpenSourceSearch(SearchSourceEngine.MAL, uiState.selectedScope, uiState.multiResults.malResults) },
                         titleLanguage = titleLanguage,
                         scoreFormat = scoreFormat,
                         hideScores = hideScores
@@ -489,7 +489,7 @@ fun SearchScreen(
                         isAlreadyInList = isAlreadyInList,
                         getMediaEntry = getMediaEntry,
                         onItemClick = onOpenApiDetail,
-                        onSeeAllClick = { onOpenSourceSearch(SearchSourceEngine.TMDB) },
+                        onSeeAllClick = { onOpenSourceSearch(SearchSourceEngine.TMDB, uiState.selectedScope, uiState.multiResults.tmdbResults) },
                         titleLanguage = titleLanguage,
                         scoreFormat = scoreFormat,
                         hideScores = hideScores
@@ -505,7 +505,7 @@ fun SearchScreen(
                         isAlreadyInList = isAlreadyInList,
                         getMediaEntry = getMediaEntry,
                         onItemClick = onOpenApiDetail,
-                        onSeeAllClick = { onOpenSourceSearch(SearchSourceEngine.SHIKIMORI) },
+                        onSeeAllClick = { onOpenSourceSearch(SearchSourceEngine.SHIKIMORI, uiState.selectedScope, uiState.multiResults.shikimoriResults) },
                         titleLanguage = titleLanguage,
                         scoreFormat = scoreFormat,
                         hideScores = hideScores
@@ -521,7 +521,7 @@ fun SearchScreen(
                         isAlreadyInList = isAlreadyInList,
                         getMediaEntry = getMediaEntry,
                         onItemClick = onOpenApiDetail,
-                        onSeeAllClick = { onOpenSourceSearch(SearchSourceEngine.KITSU) },
+                        onSeeAllClick = { onOpenSourceSearch(SearchSourceEngine.KITSU, uiState.selectedScope, uiState.multiResults.kitsuResults) },
                         titleLanguage = titleLanguage,
                         scoreFormat = scoreFormat,
                         hideScores = hideScores
@@ -537,14 +537,14 @@ fun SearchScreen(
                         isAlreadyInList = isAlreadyInList,
                         getMediaEntry = getMediaEntry,
                         onItemClick = onOpenApiDetail,
-                        onSeeAllClick = { onOpenSourceSearch(SearchSourceEngine.SIMKL) },
+                        onSeeAllClick = { onOpenSourceSearch(SearchSourceEngine.SIMKL, uiState.selectedScope, uiState.multiResults.simklResults) },
                         titleLanguage = titleLanguage,
                         scoreFormat = scoreFormat,
                         hideScores = hideScores
                     )
                 }
             } else if (uiState.currentTab == KitsugiSearchTab.Character || uiState.currentTab == KitsugiSearchTab.Staff) {
-                items(filteredResults, key = { "${it.source}_${it.malId}" }) { result ->
+                items(filteredResults, key = { "${it.source}_${it.type}_${it.malId}" }) { result ->
                     CharacterStaffResultRow(
                         result = result,
                         isStaff = uiState.currentTab == KitsugiSearchTab.Staff,
@@ -559,7 +559,7 @@ fun SearchScreen(
                     Spacer(modifier = Modifier.height(10.dp))
                 }
             } else {
-                items(filteredResults, key = { "${it.source}_${it.malId}" }) { result ->
+                items(filteredResults, key = { "${it.source}_${it.type}_${it.malId}" }) { result ->
                     SearchResultRow(
                         result = result,
                         alreadyInList = isAlreadyInList(result),

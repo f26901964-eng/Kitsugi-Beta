@@ -159,7 +159,10 @@ fun KitsugiMediaGridDialog(
                             ) {
                                 items(
                                     count = filteredResults.size,
-                                    key = { index -> filteredResults[index].malId }
+                                    // DİKKAT: malId tek başına KARARLI DEĞİL — farklı kaynaklarda aynı
+                                    // malId (veya 0) birden çok kez geçebiliyor ve LazyGrid
+                                    // "Key was already used" ile ÇÖKÜYORDU. Index eklenerek benzersiz yapıldı.
+                                    key = { index -> "${filteredResults[index].source}_${filteredResults[index].malId}_$index" }
                                 ) { index ->
                                     val result = filteredResults[index]
                                     KitsugiExploreMediaCard(

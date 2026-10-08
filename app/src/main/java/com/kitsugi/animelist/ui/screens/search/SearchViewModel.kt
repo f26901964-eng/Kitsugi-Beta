@@ -69,6 +69,10 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
      * Şeffaf yükleme durumu (shimmer) korunduğu için süre artışı UX'i bozmaz.
      */
     private val allSourceTimeoutMs = 20_000L
+    private val mixedMediaEngines = setOf(
+        SearchSourceEngine.ANILIST, SearchSourceEngine.MAL,
+        SearchSourceEngine.SHIKIMORI, SearchSourceEngine.KITSU
+    )
 
     /**
      * Arama ekranında kaynak seçimi kalıcılığı: kullanıcı hangi kaynağı/kapsamı seçtiyse
@@ -202,7 +206,16 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     private var debounceJob: Job? = null
 
     fun setQuery(value: String) {
-        _uiState.update { it.copy(query = value) }
+        if (value != _uiState.value.query) {
+            // Metin değiştiği anda eski sorgunun sonuç/isteklerini geçersiz kıl.
+            // Debounce sırasında eski sorgu yeni metin altında görünmemeli.
+            searchGeneration.incrementAndGet()
+            searchJob?.cancel()
+            _uiState.update {
+                it.copy(query = value, results = emptyList(), multiResults = MultiPlatformResults(),
+                    isLoading = false, hasSearched = false, errorMessage = null, hasNextPage = false)
+            }
+        }
         saveCurrentStateToCache()
 
         debounceJob?.cancel()
@@ -210,11 +223,48 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             clearResults()
             return
         }
-        // AniHyou debounced live search
         debounceJob = viewModelScope.launch {
             kotlinx.coroutines.delay(400)
             search(resetPage = true)
         }
+    }
+
+    /** Rafın sorgusunu, kapsamını ve gerçekten görünen kayıtlarını tek seferde devral. */
+    fun openSourceSearch(engine: SearchSourceEngine, query: String, scope: SearchScope, shelf: List<JikanSearchResult>) {
+        searchGeneration.incrementAndGet()
+        searchJob?.cancel()
+        debounceJob?.cancel()
+        val selectedScope = scope.takeIf { it in engine.availableScopes() } ?: engine.availableScopes().first()
+        val mediaType = when (selectedScope) {
+            SearchScope.MANGA, SearchScope.MANHWA, SearchScope.MANHUA, SearchScope.LIGHT_NOVEL -> MediaType.Manga
+            SearchScope.TV -> MediaType.TvShow
+            SearchScope.MOVIE -> MediaType.Movie
+            else -> MediaType.Anime
+        }
+        val tab = when (engine) {
+            SearchSourceEngine.ANILIST -> KitsugiSearchTab.Anime
+            SearchSourceEngine.MAL -> KitsugiSearchTab.MAL
+            SearchSourceEngine.TMDB -> KitsugiSearchTab.TMDB
+            SearchSourceEngine.SHIKIMORI -> KitsugiSearchTab.Shikimori
+            SearchSourceEngine.KITSU -> KitsugiSearchTab.Kitsu
+            SearchSourceEngine.SIMKL -> KitsugiSearchTab.Simkl
+            SearchSourceEngine.ALL -> KitsugiSearchTab.All
+        }
+        _uiState.update {
+            it.copy(query = query, selectedEngine = engine, selectedScope = selectedScope,
+                currentTab = tab, selectedPlatform = when (engine) {
+                    SearchSourceEngine.ANILIST -> SearchPlatform.AniList
+                    SearchSourceEngine.MAL -> SearchPlatform.MAL
+                    SearchSourceEngine.TMDB -> SearchPlatform.TMDB
+                    SearchSourceEngine.SHIKIMORI -> SearchPlatform.Shikimori
+                    SearchSourceEngine.KITSU -> SearchPlatform.Kitsu
+                    SearchSourceEngine.SIMKL -> SearchPlatform.Simkl
+                    SearchSourceEngine.ALL -> SearchPlatform.All
+                }, selectedMediaType = mediaType,
+                results = shelf, hasSearched = shelf.isNotEmpty(), errorMessage = null,
+                page = 1, hasNextPage = false)
+        }
+        if (query.isNotBlank()) search(seedResults = shelf)
     }
 
     fun onSearchAction() {
@@ -1026,7 +1076,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         return list.distinct()
     }
 
-    fun search(resetPage: Boolean = true) {
+    fun search(resetPage: Boolean = true, seedResults: List<JikanSearchResult> = emptyList()) {
         val state = _uiState.value
         if (state.query.isBlank() && !state.hasFiltersApplied) {
             clearResults()
@@ -1054,7 +1104,10 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 isLoading = true,
                 errorMessage = null,
                 page = if (resetPage) 1 else it.page,
-                hasNextPage = true
+                hasNextPage = true,
+                results = seedResults,
+                hasSearched = seedResults.isNotEmpty(),
+                multiResults = if (state.selectedEngine == SearchSourceEngine.ALL) MultiPlatformResults() else it.multiResults
             )
         }
 
@@ -1065,6 +1118,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
 
                 ensureActive()
 
+                if (searchGeneration.get() != generation) return@launch
                 if (newHistoryItem != null && searchHistoryEnabledState && results.isNotEmpty()) {
                     searchHistoryRepository.insertSearchQuery(newHistoryItem)
                 }
@@ -1072,26 +1126,30 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 ensureActive()
 
                 _uiState.update {
+                    if (searchGeneration.get() != generation) return@update it
+                    // Yenileme başarısız olsa bile kullanıcıyı getiren raf kaydı kaybolmaz.
+                    val visible = mergeSourceSearchResults(seedResults, results)
                     it.copy(
-                        results = results,
+                        results = visible,
                         isLoading = false,
                         hasSearched = true,
                         page = 1,
                         hasNextPage = hasNext,
-                        errorMessage = if (results.isEmpty()) "Sonuç bulunamadı." else null
+                        errorMessage = if (visible.isEmpty()) "Sonuç bulunamadı." else null
                     )
                 }
-                saveCurrentStateToCache()
+                if (searchGeneration.get() == generation) saveCurrentStateToCache()
             } catch (e: kotlinx.coroutines.CancellationException) {
                 throw e
             } catch (e: Exception) {
                 _uiState.update {
+                    if (searchGeneration.get() != generation) return@update it
                     it.copy(
                         isLoading = false,
-                        errorMessage = e.message ?: "Arama sırasında bir hata oluştu."
+                        errorMessage = if (it.results.isEmpty()) e.message ?: "Arama sırasında bir hata oluştu." else null
                     )
                 }
-                saveCurrentStateToCache()
+                if (searchGeneration.get() == generation) saveCurrentStateToCache()
             }
         }
     }
@@ -1111,8 +1169,8 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 _uiState.update { current ->
                     // Nesil değiştiyse (araya yeni bir arama girdiyse) sayfalamayı uygulama.
                     if (searchGeneration.get() != generation) return@update current
-                    val currentIds = current.results.map { "${it.source}_${it.malId}" }.toSet()
-                    val uniqueNew = moreResults.filter { !currentIds.contains("${it.source}_${it.malId}") }
+                    val currentIds = current.results.map { "${it.source}_${it.type}_${it.malId}" }.toSet()
+                    val uniqueNew = moreResults.filter { !currentIds.contains("${it.source}_${it.type}_${it.malId}") }
                     current.copy(
                         results = current.results + uniqueNew,
                         page = nextPage,
@@ -1131,13 +1189,34 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     private suspend fun executeSearchForPage(
         queryText: String,
         page: Int,
-        generation: Int = searchGeneration.get()
+        generation: Int = searchGeneration.get(),
+        scopeOverride: SearchScope? = null
     ): Pair<List<JikanSearchResult>, Boolean> {
         val state = _uiState.value
         val showAdult = showAdultContentState
 
         val engine = state.selectedEngine
-        val scope = state.selectedScope
+        val scope = scopeOverride ?: state.selectedScope
+
+        // Kaynağın "Tümü" rafı anime + manga sorgularını birlikte kullanır.
+        // Tam sayfa da aynı iki uç noktayı sayfalayarak sorgulamalı.
+        if (scope == SearchScope.ALL_MIXED && engine in mixedMediaEngines) {
+            return supervisorScope {
+                suspend fun fetch(mediaScope: SearchScope): Pair<List<JikanSearchResult>, Boolean> =
+                    try {
+                        executeSearchForPage(queryText, page, generation, mediaScope)
+                    } catch (e: kotlinx.coroutines.CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        Pair(emptyList(), false)
+                    }
+                val anime = async { fetch(SearchScope.ANIME) }
+                val manga = async { fetch(SearchScope.MANGA) }
+                val (animeResults, animeNext) = anime.await()
+                val (mangaResults, mangaNext) = manga.await()
+                Pair(mergeSourceSearchResults(animeResults, mangaResults), animeNext || mangaNext)
+            }
+        }
 
         // If a specific engine is chosen (not ALL):
         if (engine != SearchSourceEngine.ALL) {
@@ -1195,6 +1274,18 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                             return Pair(res, res.size >= 24)
                         }
                         else -> {
+                            // TMDB discover/with_keywords sayısal keyword ID bekler; serbest metin
+                            // başlığını buraya göndermek rafın bulduğu filmi/diziyi gizliyordu.
+                            if (queryText.isNotBlank() && f.activeCount == 0) {
+                                val res = TmdbApiClient().search(queryText, page = page).filter {
+                                    when (scope) {
+                                        SearchScope.MOVIE -> it.type == MediaType.Movie
+                                        SearchScope.TV -> it.type == MediaType.TvShow
+                                        else -> true
+                                    }
+                                }
+                                return Pair(res, res.size >= 20)
+                            }
                             val isMovie = scope == SearchScope.MOVIE || (scope != SearchScope.TV && state.selectedMediaType == MediaType.Movie)
                             val country = if (scope == SearchScope.K_DRAMA) "KR" else f.originCountry
                             val res = TmdbApiClient().discoverAdvanced(
@@ -1269,7 +1360,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                         }
                         else -> {
                             val mediaType = if (scope in listOf(SearchScope.MANGA, SearchScope.MANHWA, SearchScope.MANHUA, SearchScope.LIGHT_NOVEL)) MediaType.Manga else MediaType.Anime
-                            val subtypes = if (scope == SearchScope.MANGA) listOf("manga")
+                            val subtypes = if (scope == SearchScope.MANGA) f.subtypes.ifEmpty { null }
                                 else if (scope == SearchScope.MANHWA) listOf("manhwa")
                                 else if (scope == SearchScope.MANHUA) listOf("manhua")
                                 else if (scope == SearchScope.LIGHT_NOVEL) listOf("novel")
@@ -1301,7 +1392,10 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                         else -> "anime"
                     }
                     val hasCustomFilters = f.subtype != null || f.genre != null || f.country != null || f.year != null
-                    val res = if (queryText.isBlank() && !hasCustomFilters && f.trendingPeriod.isNotBlank()) {
+                    val res = if (queryText.isNotBlank() && scope == SearchScope.ALL_MIXED) {
+                        // Raf da üç Simkl kataloğunu (anime, dizi, film) birlikte arıyor.
+                        SimklApiClient().search(queryText, limit = 20, page = page)
+                    } else if (queryText.isBlank() && !hasCustomFilters && f.trendingPeriod.isNotBlank()) {
                         SimklApiClient().getTrendingPeriodPage(simklType, f.trendingPeriod, page, pageSize = 20)
                     } else {
                         SimklApiClient().searchAdvanced(
@@ -1934,6 +2028,8 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun clearResults() {
+        searchGeneration.incrementAndGet()
+        searchJob?.cancel()
         _uiState.update { 
             it.copy(
                 results = emptyList(),
@@ -1950,6 +2046,9 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
      * Hem sorgu metnini hem arama sonuçlarını sıfırlar → geçmiş görünümüne dönüş.
      */
     fun clearQuery() {
+        debounceJob?.cancel()
+        searchGeneration.incrementAndGet()
+        searchJob?.cancel()
         _uiState.update {
             it.copy(
                 query = "",

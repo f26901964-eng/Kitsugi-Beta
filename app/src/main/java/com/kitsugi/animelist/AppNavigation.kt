@@ -7,6 +7,7 @@ import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.ui.app.AddonFullScreenGridState
 import com.kitsugi.animelist.ui.app.FullScreenMediaGridState
 import com.kitsugi.animelist.ui.navigation.MainTab
+import com.kitsugi.animelist.ui.screens.search.SearchScope
 import com.kitsugi.animelist.ui.screens.search.SearchSourceEngine
 
 sealed interface DetailScreen {
@@ -27,7 +28,7 @@ sealed interface DetailScreen {
     data object PluginPicker : DetailScreen
     data class AddonExplore(val apiName: String) : DetailScreen
     /** "Tümünü Gör" → kaynağa özel filtreler + arama sonuçlarının ayrı sayfada açılması. */
-    data class SourceSearchPage(val engine: SearchSourceEngine, val query: String) : DetailScreen
+    data class SourceSearchPage(val engine: SearchSourceEngine, val query: String, val scope: SearchScope, val shelfResults: List<JikanSearchResult>) : DetailScreen
 }
 
 sealed interface AppStateKey {
@@ -58,7 +59,7 @@ sealed interface AppStateKey {
     data class WatchHistory(override val depth: Int) : AppStateKey
     data class PluginPicker(override val depth: Int) : AppStateKey
     data class AddonExplore(val apiName: String, override val depth: Int) : AppStateKey
-    data class SourceSearchPage(val engine: SearchSourceEngine, val query: String, override val depth: Int) : AppStateKey
+    data class SourceSearchPage(val engine: SearchSourceEngine, val query: String, val scope: SearchScope, val shelfResults: List<JikanSearchResult>, override val depth: Int) : AppStateKey
 }
 
 /**

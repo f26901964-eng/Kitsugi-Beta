@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.screens.home.components
 
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
@@ -101,7 +102,7 @@ fun ModernHomeRows(
                         snapPosition = androidx.compose.foundation.gestures.snapping.SnapPosition.Start
                     )
                 ) {
-                    items(results, key = { "${it.source}_${it.malId}" }) { item ->
+                    itemsIndexed(results, key = { index, item -> "${item.source}_${item.malId}_$index" }) { _, item ->
                         ModernHomeMediaCard(
                             item = item,
                             cardWidth = cardWidth,

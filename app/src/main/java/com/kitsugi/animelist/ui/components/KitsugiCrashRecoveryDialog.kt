@@ -182,9 +182,9 @@ fun KitsugiCrashRecoveryDialog(
                     // Satır 3: İndirilenlere Kaydet
                     OutlinedButton(
                         onClick = {
-                            val file = KitsugiCrashLogger.exportReportToDownloads(context)
-                            if (file != null) {
-                                Toast.makeText(context, "Rapor kaydedildi: ${file.name} (İndirilenler) ✓", Toast.LENGTH_LONG).show()
+                            val location = KitsugiCrashLogger.exportReportToDownloads(context)
+                            if (location != null) {
+                                Toast.makeText(context, "Rapor kaydedildi: $location ✓", Toast.LENGTH_LONG).show()
                             } else {
                                 Toast.makeText(context, "Kaydedilemedi", Toast.LENGTH_SHORT).show()
                             }

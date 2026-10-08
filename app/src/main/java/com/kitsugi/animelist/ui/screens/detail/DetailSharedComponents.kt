@@ -51,6 +51,9 @@ import com.kitsugi.animelist.ui.components.KitsugiPlatformLogos
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.utils.toFriendlySourceLabel
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
+import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.ui.platform.LocalContext
 import com.kitsugi.animelist.utils.copyToClipboard
@@ -489,3 +492,91 @@ fun DetailIntegrationsSettingsDialog(
         onDismiss = onDismiss
     )
 }
+
+/**
+ * "Bilgiler" kartı satırı (etiket + değer). Tüm ayrıntı sayfalarında (kütüphane girdisi
+ * ve API sonucu) ortak kullanılır.
+ *
+ * - Normal satırlarda değerin yanında kopyala butonu bulunur.
+ * - [names] doluysa (ör. "Diğer Adlar") her isim kendi kopyala butonuyla ayrı ayrı gösterilir;
+ *   tek bir butonla hepsini birden kopyalamaz.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun DetailInfoValueRow(
+    label: String,
+    value: String,
+    names: List<String> = emptyList(),
+    onValueClick: (() -> Unit)? = null
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = label,
+            color = KitsugiColors.TextMuted,
+            style = MaterialTheme.typography.bodySmall,
+            fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.weight(0.4f).padding(top = 6.dp)
+        )
+        if (names.isNotEmpty()) {
+            FlowRow(
+                modifier = Modifier.weight(0.6f),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                names.forEach { name ->
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(KitsugiColors.Background.copy(alpha = 0.55f))
+                            .padding(start = 10.dp, top = 2.dp, bottom = 2.dp, end = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = name,
+                            color = KitsugiColors.TextPrimary,
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.weight(1f, fill = false)
+                        )
+                        KitsugiMiniCopyButton(text = name)
+                    }
+                }
+            }
+        } else {
+            Row(
+                modifier = Modifier.weight(0.6f),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                val valueColor = if (onValueClick != null) LocalKitsugiAccent.current else KitsugiColors.TextPrimary
+                val valueModifier = Modifier
+                    .weight(1f, fill = false)
+                    .let {
+                        if (onValueClick != null) {
+                            it.clip(RoundedCornerShape(4.dp))
+                                .tvClickable(shape = RoundedCornerShape(4.dp), onClick = onValueClick)
+                        } else {
+                            it
+                        }
+                    }
+                Text(
+                    text = value,
+                    color = valueColor,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontWeight = if (onValueClick != null) FontWeight.Bold else FontWeight.Normal,
+                    modifier = valueModifier
+                )
+                KitsugiMiniCopyButton(text = value)
+            }
+        }
+    }
+}
+
+/** Ayrıntı modelindeki eş anlamlı adları temizler (boş/"null"/tekrar edenleri atar). */
+internal fun cleanDetailSynonyms(synonyms: List<String>): List<String> =
+    synonyms.map { it.trim() }.filter { it.isNotBlank() && it != "null" }.distinct()

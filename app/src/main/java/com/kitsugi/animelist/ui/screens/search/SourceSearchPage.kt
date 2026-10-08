@@ -48,6 +48,8 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 fun SourceSearchPage(
     engine: SearchSourceEngine,
     initialQuery: String,
+    initialScope: SearchScope,
+    initialResults: List<JikanSearchResult>,
     mediaEntries: List<MediaEntry>,
     showAdultContent: Boolean,
     titleLanguage: String = "ROMAJI",
@@ -77,11 +79,8 @@ fun SourceSearchPage(
         onDispose { owner.viewModelStore.clear() }
     }
 
-    LaunchedEffect(engine, initialQuery) {
-        pageViewModel.setEngine(engine)
-        if (initialQuery.isNotBlank()) {
-            pageViewModel.setQuery(initialQuery)
-        }
+    LaunchedEffect(engine, initialQuery, initialScope) {
+        pageViewModel.openSourceSearch(engine, initialQuery, initialScope, initialResults)
     }
 
     Column(
@@ -132,7 +131,9 @@ fun SourceSearchPage(
             onOpenStaffDetail = onOpenStaffDetail,
             // Bu sayfa içinde "Tümü" motoruna geçilirse rafların "Tümünü Gör"ü
             // sayfayı ilgili kaynağa geçirir (yeni sayfa yığmadan kaçınır).
-            onOpenSourceSearch = { subEngine -> pageViewModel.setEngine(subEngine) },
+            onOpenSourceSearch = { subEngine, scope, results ->
+                pageViewModel.openSourceSearch(subEngine, pageViewModel.uiState.value.query, scope, results)
+            },
             isBottomBarVisible = false,
             pageTitle = null
         )

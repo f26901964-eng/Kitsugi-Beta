@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -84,7 +85,7 @@ fun PlaybackSpeedSheet(
                     modifier = Modifier.weight(1f),
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    items(speedPresets.sorted(), key = { it }) { preset ->
+                    itemsIndexed(speedPresets.sorted(), key = { index, value -> "${value}_$index" }) { _, preset ->
                         InputChip(
                             selected = speed.toFixed() == preset.toFixed(),
                             onClick = { onSpeedChange(preset) },

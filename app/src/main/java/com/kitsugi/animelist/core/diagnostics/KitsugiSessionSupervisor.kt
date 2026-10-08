@@ -1,0 +1,531 @@
+package com.kitsugi.animelist.core.diagnostics
+
+import android.app.Application
+import android.content.Context
+import android.os.Handler
+import android.os.Looper
+import android.os.Process
+import android.util.Log
+import java.io.BufferedReader
+import java.io.File
+import java.io.InputStreamReader
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
+
+/**
+ * KitsugiSessionSupervisor — "sessiz ölüm" dedektörü.
+ *
+ * NEDEN GEREKLİ?
+ * ─────────────
+ * Java `Thread.setDefaultUncaughtExceptionHandler` yalnızca **yönetilen (managed) Java/Kotlin
+ * istisnalarında** çalışır. Uygulama aşağıdaki durumlarda bu handler'a HİÇ uğramadan aniden
+ * yok olur ve kullanıcı hiçbir çökme raporu göremez:
+ *
+ *   1. Native çökme      → SIGSEGV / SIGABRT / SIGBUS (libmpv, ffmpeg, MediaCodec, GPU/Skia,
+ *                           libdovi JNI, TorrServer vb.)
+ *   2. Sistem/IME kill   → LMKD (low memory killer) SIGKILL, "am_kill", "Killing ... (adj)"
+ *   3. ANR + kill        → Ana iş parçacığı kilitlenir, sistem süreci zorla öldürür.
+ *   4. Zorla durdurma    → "Force stop", "swipe from recents" sonrası temizlenmeyen durum.
+ *
+ * Bu sınıf her oturum için diske küçük bir "oturum durumu" dosyası yazar ve uygulama her
+ * açılışta önceki oturumun temiz kapanıp kapanmadığını kontrol eder. Temiz kapanmadıysa:
+ *
+ *   • logcat geçmişinden ölüm sebebini kazar (Fatal signal / ANR / lmkd / am_kill ...)
+ *   • `unclean_exit.txt` raporunu üretir
+ *   • çökme bayrağını kaldırır → uygulama açıldığında çökme ekranı/uyarı penceresi çıkar
+ *
+ * Ayrıca "breadcrumb" (ekmek kırıntısı) izi tutar: kullanıcı hangi ekrandaydı, hangi
+ * işlemi yapıyordu (galeri açtı, resim indirmeye bastı, detay sayfasına girdi...).
+ * Böylece çökme raporu tek başına "nerede öldü" sorusunu da cevaplar.
+ */
+object KitsugiSessionSupervisor {
+
+    private const val TAG = "KitsugiSession"
+
+    private const val SESSION_FILE      = "session_state.txt"
+    private const val UNCLEAN_REPORT    = "unclean_exit.txt"
+    private const val BREADCRUMB_FILE   = "breadcrumbs.txt"
+    private const val POSTMORTEM_LOGCAT = "post_mortem_logcat.txt"
+
+    private const val HEARTBEAT_MS        = 5_000L
+    private const val FLUSH_EVERY_N_TICKS = 3          // ~15 sn'de bir diske yaz
+    private const val MAX_BREADCRUMBS     = 40
+    private const val MAX_LOGCAT_LINES    = 9_000
+    private const val LOGCAT_RELEVANT_LIMIT = 220
+
+    private val ioExecutor = Executors.newSingleThreadExecutor { r ->
+        Thread(r, "KitsugiSessionIO").apply { isDaemon = true }
+    }
+
+    @Volatile private var appContext: Context? = null
+    /** Yalnızca ANA süreçte true olur — :crash gibi yardımcı süreçler oturum dosyasına yazmaz. */
+    @Volatile private var trackingEnabled = false
+    @Volatile private var active = false
+    @Volatile private var foreground = true
+    @Volatile private var lastScreen: String = "baslangic"
+    @Volatile private var lastAliveMs: Long = 0L
+    @Volatile private var tick = 0
+    @Volatile private var flushedOnce = false
+
+    private val breadcrumbs = ArrayDeque<String>()
+    private val breadcrumbLock = Any()
+
+    // SimpleDateFormat thread-safe DEĞİLDİR; bu sınıf ana thread + IO thread + çökme
+    // handler'ından birlikte çağrılır → her kullanım kilit altında yapılır.
+    private val dateFmt = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US)
+    private val dateFmtLock = Any()
+
+    private fun nowText(): String = synchronized(dateFmtLock) { dateFmt.format(Date()) }
+
+    private val uncleanExitDetected = AtomicBoolean(false)
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Kurulum — Application.attachBaseContext içinden çağrılır (en erken nokta)
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    /** Uygulamanın gerçek (ana) sürecinde miyiz? `:crash` gibi yardımcı süreçlerde hayır. */
+    fun isMainProcess(context: Context): Boolean {
+        return try {
+            val pkg = context.packageName
+            val proc = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                Application.getProcessName()
+            } else {
+                @Suppress("DEPRECATION")
+                val am = context.getSystemService(Context.ACTIVITY_SERVICE) as? android.app.ActivityManager
+                val pid = Process.myPid()
+                am?.runningAppProcesses?.firstOrNull { it.pid == pid }?.processName
+            } ?: pkg
+            proc == pkg
+        } catch (_: Throwable) {
+            true
+        }
+    }
+
+    fun install(context: Context) {
+        if (appContext != null) return
+        // attachBaseContext() sırasında applicationContext null olabilir → geçilen context'i kullan.
+        val ctx: Context = context.applicationContext ?: context
+        appContext = ctx
+
+        // Yardımcı süreçler (:crash) ana oturum dosyasına dokunmasın.
+        if (!isMainProcess(ctx)) {
+            Log.d(TAG, "Yardımcı süreçteyiz, oturum takibi devre dışı.")
+            return
+        }
+
+        trackingEnabled = true
+
+        try {
+            inspectPreviousSession(ctx)
+        } catch (t: Throwable) {
+            Log.w(TAG, "Önceki oturum incelenemedi: ${t.javaClass.simpleName}: ${t.message}")
+        }
+
+        startNewSession(ctx)
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Yeni oturum + kalp atışı (heartbeat)
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    private fun startNewSession(ctx: Context) {
+        active = true
+        foreground = true
+        lastAliveMs = System.currentTimeMillis()
+        tick = 0
+
+        ioExecutor.execute {
+            try {
+                File(ctx.filesDir, BREADCRUMB_FILE).delete()
+                commitSessionFile(ctx, clean = false)
+            } catch (_: Throwable) {}
+        }
+
+        val handler = Handler(Looper.getMainLooper())
+        val beat = object : Runnable {
+            override fun run() {
+                if (!active) return
+                lastAliveMs = System.currentTimeMillis()
+                tick++
+                if (!flushedOnce || tick % FLUSH_EVERY_N_TICKS == 0) {
+                    flushedOnce = true
+                    val fg = foreground
+                    val screen = lastScreen
+                    ioExecutor.execute {
+                        try { commitSessionFile(ctx, clean = false, fg = fg, screen = screen) } catch (_: Throwable) {}
+                    }
+                }
+                handler.postDelayed(this, HEARTBEAT_MS)
+            }
+        }
+        handler.postDelayed(beat, HEARTBEAT_MS)
+    }
+
+    /**
+     * Ana iş parçacığının canlı olduğunu kanıtlayan kalp atışı bilgisi.
+     * (UI donduysa rapor "son canlı zaman" ile bunu gösterir.)
+     */
+    fun noteForeground(isForeground: Boolean) {
+        foreground = isForeground
+    }
+
+    /** Ekran/rota değişimlerini izler — çökme raporunda "son ekran" olarak görünür. */
+    fun noteScreen(screen: String) {
+        if (!active) return
+        lastScreen = screen
+        noteAction("ekran → $screen")
+    }
+
+    /** Kullanıcı eylemlerini (galeri aç, resim indir, oynat...) halka tampona ekler. */
+    fun noteAction(action: String) {
+        if (!active) return
+        val line = "${nowText()}  $action"
+        synchronized(breadcrumbLock) {
+            breadcrumbs.addLast(line)
+            while (breadcrumbs.size > MAX_BREADCRUMBS) breadcrumbs.removeFirst()
+        }
+        val copy = synchronized(breadcrumbLock) { breadcrumbs.toList() }
+        ioExecutor.execute {
+            try {
+                appContext?.let { ctx ->
+                    File(ctx.filesDir, BREADCRUMB_FILE).writeText(copy.joinToString("\n"))
+                }
+            } catch (_: Throwable) {}
+        }
+    }
+
+    /** Çökme anında kırıntıları hemen diske yazar (rapora eklenecek). */
+    fun flushNow() {
+        if (!trackingEnabled) return
+        val ctx = appContext ?: return
+        val copy = synchronized(breadcrumbLock) { breadcrumbs.toList() }
+        try {
+            File(ctx.filesDir, BREADCRUMB_FILE).writeText(copy.joinToString("\n"))
+        } catch (_: Throwable) {}
+    }
+
+    /** Rapor üretimi için son kırıntı metni. */
+    fun breadcrumbText(context: Context): String {
+        return try {
+            val f = File(context.filesDir, BREADCRUMB_FILE)
+            if (f.exists() && f.length() > 0) f.readText() else "(eylem izi yok)"
+        } catch (_: Throwable) {
+            "(eylem izi okunamadı)"
+        }
+    }
+
+    fun lastKnownScreen(): String = lastScreen
+
+    /** Uygulama kullanıcı tarafından düzgün kapatıldıysa işaretlenir. */
+    fun markCleanExit() {
+        if (!trackingEnabled) return
+        val ctx = appContext ?: return
+        active = false
+        try {
+            commitSessionFile(ctx, clean = true)
+            File(ctx.filesDir, BREADCRUMB_FILE).delete()
+        } catch (_: Throwable) {}
+    }
+
+    fun wasUncleanExitDetected(): Boolean = uncleanExitDetected.get()
+
+    fun hasUncleanExitReport(context: Context): Boolean {
+        return try {
+            File(context.filesDir, UNCLEAN_REPORT).let { it.exists() && it.length() > 32 }
+        } catch (_: Throwable) {
+            false
+        }
+    }
+
+    fun uncleanExitReportFile(context: Context): File = File(context.filesDir, UNCLEAN_REPORT)
+
+    fun readUncleanExitReport(context: Context): String {
+        return try {
+            val f = uncleanExitReportFile(context)
+            if (f.exists()) f.readText() else "Temiz olmayan kapanma kaydı yok."
+        } catch (_: Throwable) {
+            "Temiz olmayan kapanma kaydı okunamadı."
+        }
+    }
+
+    fun clearUncleanExitReport(context: Context) {
+        try { uncleanExitReportFile(context).delete() } catch (_: Throwable) {}
+        uncleanExitDetected.set(false)
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Oturum dosyası
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    private fun sessionFile(ctx: Context) = File(ctx.filesDir, SESSION_FILE)
+
+    private fun commitSessionFile(
+        ctx: Context,
+        clean: Boolean,
+        fg: Boolean = foreground,
+        screen: String = lastScreen
+    ) {
+        val text = buildString {
+            appendLine("pid=${Process.myPid()}")
+            appendLine("started=${KitsugiCrashLogger.KitsugiApplication_LaunchTime ?: System.currentTimeMillis()}")
+            appendLine("last_alive=${System.currentTimeMillis()}")
+            appendLine("heartbeat_seen=$lastAliveMs")
+            appendLine("foreground=${if (fg) 1 else 0}")
+            appendLine("screen=$screen")
+            appendLine("clean=${if (clean) 1 else 0}")
+            appendLine("build=${com.kitsugi.animelist.BuildConfig.VERSION_NAME}")
+        }
+        try {
+            sessionFile(ctx).writeText(text)
+        } catch (_: Throwable) {}
+    }
+
+    private fun readKeyValues(file: File): Map<String, String> {
+        val map = HashMap<String, String>()
+        try {
+            file.readLines().forEach { line ->
+                val idx = line.indexOf('=')
+                if (idx > 0) map[line.substring(0, idx).trim()] = line.substring(idx + 1).trim()
+            }
+        } catch (_: Throwable) {}
+        return map
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Önceki oturumun ölüm sebebini araştır
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    private fun inspectPreviousSession(ctx: Context) {
+        val f = sessionFile(ctx)
+        if (!f.exists()) return
+
+        val info = readKeyValues(f)
+        try { f.delete() } catch (_: Throwable) {}
+
+        val prevPid     = info["pid"]?.toIntOrNull() ?: -1
+        val clean       = info["clean"] == "1"
+        val wasForeground = info["foreground"] == "1"
+        val started     = info["started"]?.toLongOrNull() ?: 0L
+        val lastAlive   = info["last_alive"]?.toLongOrNull() ?: started
+        val screen      = info["screen"] ?: "bilinmiyor"
+        val build       = info["build"] ?: "?"
+
+        if (clean || prevPid <= 0 || prevPid == Process.myPid()) return
+
+        Log.w(TAG, "Temiz olmayan kapanma tespit edildi (önceki pid=$prevPid, ekran=$screen)")
+
+        // ── ÖN PLANDa öldüyse kullanıcıya HEMEN haber ver (bu kısım çok ucuz: sadece prefs) ──
+        // Uygulama açılışını BLOKLAMAMAK için logcat kazısı + rapor üretimi arka planda yapılır
+        // (eskiden bu işler ana thread'de yapılıyordu → her açılışta donma riski).
+        if (wasForeground) {
+            uncleanExitDetected.set(true)
+            setUnreadFlag(ctx, "Önceki oturum beklenmedik şekilde sonlandı (sebep analiz ediliyor…)")
+        }
+
+        ioExecutor.execute {
+            buildAndStoreUncleanReport(ctx, prevPid, started, lastAlive, wasForeground, screen, build)
+        }
+    }
+
+    private fun setUnreadFlag(ctx: Context, headline: String) {
+        try {
+            ctx.getSharedPreferences("kitsugi_crash_prefs", Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean("has_unread_crash", true)
+                .putBoolean("has_unclean_exit", true)
+                .putLong("last_crash_time", System.currentTimeMillis())
+                .putString("last_crash_title", headline.take(200))
+                .commit()
+        } catch (_: Throwable) {}
+    }
+
+    private fun buildAndStoreUncleanReport(
+        ctx: Context,
+        prevPid: Int,
+        started: Long,
+        lastAlive: Long,
+        wasForeground: Boolean,
+        screen: String,
+        build: String
+    ) {
+        val postMortem = try {
+            scrapePostMortemLogcat(ctx, prevPid)
+        } catch (_: Throwable) {
+            PostMortem("SEBEP BULUNAMADI (logcat okunamadı)", "", false)
+        }
+
+        val report = buildString {
+            appendLine("╔══════════════════════════════════════════════════════════════╗")
+            appendLine("║   KİTSUGİ — TEMİZ OLMAYAN KAPANMA (SESSİZ ÇÖKME) RAPORU")
+            appendLine("╚══════════════════════════════════════════════════════════════╝")
+            appendLine()
+            appendLine("▶ TESPİT ZAMANI : ${nowText()}")
+            appendLine("▶ ÖNCEKİ SÜREÇ  : pid=$prevPid (sürüm=$build)")
+            appendLine("▶ OTURUM BAŞI   : ${if (started > 0) synchronized(dateFmtLock) { dateFmt.format(Date(started)) } else "?"}")
+            appendLine("▶ SON CANLI ANI : ${if (lastAlive > 0) synchronized(dateFmtLock) { dateFmt.format(Date(lastAlive)) } else "?"}")
+            if (started > 0 && lastAlive > 0) {
+                appendLine("▶ YAŞAM SÜRESİ  : ${(lastAlive - started) / 1000} sn")
+            }
+            appendLine("▶ ARKA PLAN MI? : ${if (wasForeground) "HAYIR (uygulama ÖN PLANDAYDI → gerçek çökme)" else "EVET (arka planda sistem tarafından kapatıldı olabilir)"}")
+            appendLine("▶ SON EKRAN     : $screen")
+            appendLine()
+            appendLine("▶ ÖLÜM SEBEBİ (logcat analizi)")
+            appendLine("  ${postMortem.headline}")
+            appendLine()
+            appendLine("▶ UYGULAMA EYLEM İZİ (breadcrumbs — sondan geriye)")
+            appendLine(KitsugiSessionSupervisor.breadcrumbText(ctx).lines().asReversed().take(30).joinToString("\n"))
+            appendLine()
+            if (postMortem.lines.isNotBlank()) {
+                appendLine("▶ LOGCAT KANIT SATIRLARI")
+                appendLine(postMortem.lines)
+                appendLine()
+            }
+            appendLine("───────────────────────────────────────────────────────────────")
+            appendLine("NOT: Bu rapor, Java istisnası OLMAYAN çökmeler (native SIGSEGV/SIGABRT,")
+            appendLine("     LMKD/OOM kill, ANR sonrası öldürme) için üretilir. Bu tür çökmelerde")
+            appendLine("     Java UncaughtExceptionHandler ÇALIŞMAZ — bu yüzden daha önce hiçbir")
+            appendLine("     çökme raporu göremiyordunuz.")
+            appendLine("═══════════════════════════════════════════════════════════════")
+        }
+
+        // Kullanıcı ekranı yalnızca ön planda öldüyse veya kanıt (ANR/native/lmkd) varsa gösterilir.
+        // Arka planda sistem tarafından kapatılan normal durumlar kullanıcıyı rahatsız ETMEZ;
+        // yalnızca geçmişe yazılır.
+        val shouldSurface = wasForeground || postMortem.looksLikeCrash
+
+        try {
+            if (shouldSurface) {
+                File(ctx.filesDir, UNCLEAN_REPORT).writeText(report)
+            }
+            File(ctx.filesDir, "crash_history.txt").appendText(
+                "\n[${if (shouldSurface) "UNCLEAN EXIT" else "BACKGROUND EXIT"}] ${nowText()}\n$report\n"
+            )
+        } catch (_: Throwable) {}
+
+        if (shouldSurface) {
+            uncleanExitDetected.set(true)
+            setUnreadFlag(ctx, postMortem.headline.lineSequence().firstOrNull() ?: "Beklenmedik kapanma")
+        }
+    }
+
+    private data class PostMortem(val headline: String, val lines: String, val looksLikeCrash: Boolean)
+
+    /**
+     * Ölü sürecin izini logcat arabelleğinden kazar.
+     * (Süreç öldükten sonra dahi logd arabelleği son binlerce satırı tutar.)
+     */
+    private fun scrapePostMortemLogcat(ctx: Context, prevPid: Int): PostMortem {
+        val raw = try {
+            readLogcat(arrayOf("logcat", "-d", "-v", "threadtime", "-t", MAX_LOGCAT_LINES.toString()))
+        } catch (_: Throwable) {
+            ""
+        }
+        val crashBuffer = try {
+            readLogcat(arrayOf("logcat", "-b", "crash", "-d", "-v", "threadtime", "-t", "600"))
+        } catch (_: Throwable) {
+            ""
+        }
+
+        val all = (crashBuffer + "\n" + raw).lines()
+        val pkg = try { ctx.packageName } catch (_: Throwable) { "com.kitsugi.animelist" }
+
+        val relevant = ArrayList<String>()
+        var nativeCrash: String? = null
+        var anr: String? = null
+        var lmkd: String? = null
+        var javaOom: String? = null
+        var amKill: String? = null
+
+        all.forEach { line ->
+            val matchesPid = line.contains(" $prevPid ") || line.contains("($prevPid)") || line.contains("pid=$prevPid")
+            val isCrashKeyword = line.contains("Fatal signal") ||
+                    line.contains("ANR in") ||
+                    line.contains("lowmemorykiller") ||
+                    line.contains("lmkd") ||
+                    line.contains("am_kill") ||
+                    line.contains("OutOfMemoryError") ||
+                    line.contains("SIGSEGV") ||
+                    line.contains("SIGABRT") ||
+                    line.contains("SIGBUS") ||
+                    line.contains("SIGILL") ||
+                    line.contains("SIGFPE") ||
+                    line.contains("tombstone") ||
+                    line.contains("debuggerd") ||
+                    line.contains("Force finishing") ||
+                    line.contains("Killing ") ||
+                    line.contains("backtrace:")
+            val mentionsPkg = line.contains(pkg)
+
+            if (line.contains("Fatal signal") && nativeCrash == null) {
+                nativeCrash = line
+            } else if (line.contains("ANR in") && (mentionsPkg || line.contains("ANR in $pkg")) && anr == null) {
+                anr = line
+            } else if ((line.contains("lowmemorykiller") || line.contains("lmkd")) && lmkd == null && (mentionsPkg || matchesPid)) {
+                lmkd = line
+            } else if (line.contains("OutOfMemoryError") && javaOom == null) {
+                javaOom = line
+            } else if ((line.contains("am_kill") || (line.contains("Killing ") && line.contains(pkg)))
+                && amKill == null && (mentionsPkg || matchesPid || line.contains(pkg))
+            ) {
+                amKill = line
+            }
+
+            if (matchesPid || isCrashKeyword || (mentionsPkg && line.contains("FATAL"))) {
+                if (relevant.size < LOGCAT_RELEVANT_LIMIT) {
+                    relevant.add(line)
+                }
+            }
+        }
+
+        val headline = when {
+            nativeCrash != null -> "NATIVE ÇÖKME (SIGSEGV/SIGABRT/SIGBUS — Java istisnası yok, rapor üretilemez)\n  ${nativeCrash!!.trim()}\n  → Native kütüphane (oynatıcı/decoder/GPU) ya da JNI katmanı çöktü."
+            anr != null -> "ANR (UYGULAMA YANIT VERMEDİ) — ana iş parçacığı kilitlendi, sistem süreci öldürdü\n  ${anr!!.trim()}\n  → Son ekran: $lastScreen"
+            lmkd != null -> "BELLEK YETERSİZLİĞİ (LMKD / düşük bellek nedeniyle sistem öldürdü)\n  ${lmkd!!.trim()}\n  → Görsel/bellek yükü çok yüksek."
+            javaOom != null -> "JAVA OutOfMemoryError (bellek tükendi)\n  ${javaOom!!.trim()}"
+            amKill != null -> "SİSTEM TARAFINDAN ÖLDÜRÜLDÜ\n  ${amKill!!.trim()}"
+            else -> "SEBEP BULUNAMADI (sessiz SIGKILL olabilir — örn. kullanıcı geri tuşuyla kapatma, " +
+                    "arka plan kısıtlaması veya log arabelleği dolmuş olabilir)"
+        }
+
+        val looksLikeCrash = nativeCrash != null || anr != null || lmkd != null || javaOom != null || amKill != null
+
+        try {
+            if (relevant.isNotEmpty()) {
+                File(ctx.filesDir, POSTMORTEM_LOGCAT).writeText(
+                    "=== Ölüm Sonrası Logcat Kanıtları (pid=$prevPid) ===\n" + relevant.joinToString("\n")
+                )
+            }
+        } catch (_: Throwable) {}
+
+        return PostMortem(headline, relevant.joinToString("\n"), looksLikeCrash)
+    }
+
+    /** logcat'i oku; asla asılı kalma (sert zaman aşımı). */
+    private fun readLogcat(cmd: Array<String>): String {
+        val sb = StringBuilder()
+        var proc: java.lang.Process? = null
+        try {
+            proc = Runtime.getRuntime().exec(cmd)
+            val out = proc.inputStream
+            val reader = Thread {
+                try {
+                    BufferedReader(InputStreamReader(out)).useLines { lines ->
+                        lines.forEach { line ->
+                            if (sb.length < 900_000) sb.appendLine(line)
+                        }
+                    }
+                } catch (_: Throwable) {}
+            }
+            reader.isDaemon = true
+            reader.start()
+            reader.join(1600)
+            try { proc.destroy() } catch (_: Throwable) {}
+        } catch (_: Throwable) {
+            try { proc?.destroy() } catch (_: Throwable) {}
+        }
+        return sb.toString()
+    }
+}

@@ -111,7 +111,7 @@ class SimklApiClient(
                 val animeDef = async { searchType(rawQuery, "anime", limit, page) }
                 val tvDef = async { searchType(rawQuery, "tv", limit, page) }
                 val movieDef = async { searchType(rawQuery, "movie", limit, page) }
-                (animeDef.await() + tvDef.await() + movieDef.await()).distinctBy { it.malId }
+                (animeDef.await() + tvDef.await() + movieDef.await()).distinctBy { "${it.type}_${it.malId}" }
             }
         } else {
             searchType(rawQuery, type, limit, page)

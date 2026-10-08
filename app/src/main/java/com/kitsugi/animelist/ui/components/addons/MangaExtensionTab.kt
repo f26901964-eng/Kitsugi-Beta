@@ -1,4 +1,5 @@
 ﻿package com.kitsugi.animelist.ui.components.addons
+import androidx.compose.foundation.lazy.itemsIndexed
 import com.kitsugi.animelist.ui.components.KitsugiTonalButton
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
@@ -840,7 +841,7 @@ internal fun MangaExtensionsTab(
                     }
                 }
             }
-            items(sources, key = { it.name + it.lang }) { source ->
+            itemsIndexed(sources, key = { index, src -> "${src.name}_${src.lang}_$index" }) { _, source ->
                 val health = onGetSourceHealthStatus(source)
                 val isBusy = onIsSourceBusy(source)
                 val domain = onGetConfiguredDomain(source)

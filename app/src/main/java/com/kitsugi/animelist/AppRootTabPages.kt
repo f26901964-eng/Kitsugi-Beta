@@ -286,12 +286,14 @@ private fun SearchTabPage(ctx: TabPagesContext) {
         hideScores = ctx.appSettings.hideScores,
         isBottomBarVisible = ctx.isBottomBarVisible,
         onScrollReset = ctx.onScrollReset,
-        onOpenSourceSearch = { engine ->
+        onOpenSourceSearch = { engine, scope, shelfResults ->
             // "Tümünü Gör": kaynağın filtreleri + sonuçları ayrı sayfada açılır
             ctx.navState.navigateToDetail(
                 DetailScreen.SourceSearchPage(
                     engine = engine,
-                    query = ctx.searchViewModel.uiState.value.query
+                    query = ctx.searchViewModel.uiState.value.query,
+                    scope = scope,
+                    shelfResults = shelfResults
                 )
             )
         },

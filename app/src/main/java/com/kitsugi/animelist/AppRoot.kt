@@ -883,8 +883,16 @@ fun AppRoot(
                     activeScreen is DetailScreen.WatchHistory -> AppStateKey.WatchHistory(depth = currentDepth)
                     activeScreen is DetailScreen.PluginPicker -> AppStateKey.PluginPicker(depth = currentDepth)
                     activeScreen is DetailScreen.AddonExplore -> AppStateKey.AddonExplore(activeScreen.apiName, depth = currentDepth)
-                    activeScreen is DetailScreen.SourceSearchPage -> AppStateKey.SourceSearchPage(activeScreen.engine, activeScreen.query, depth = currentDepth)
+                    activeScreen is DetailScreen.SourceSearchPage -> AppStateKey.SourceSearchPage(activeScreen.engine, activeScreen.query, activeScreen.scope, activeScreen.shelfResults, depth = currentDepth)
                     else                         -> AppStateKey.Tab(selectedTab)
+                }
+
+                // Çökme raporu için "son ekran" bilgisini kaydet (sessiz ölümlerde tek ipucu bu olur)
+                LaunchedEffect(currentAppStateKey) {
+                    try {
+                        com.kitsugi.animelist.core.diagnostics.KitsugiSessionSupervisor
+                            .noteScreen(currentAppStateKey.toString())
+                    } catch (_: Throwable) {}
                 }
 
                 AppNavigationContent(
@@ -1208,6 +1216,8 @@ private fun AppNavigationContent(
                     com.kitsugi.animelist.ui.screens.search.SourceSearchPage(
                         engine = key.engine,
                         initialQuery = key.query,
+                        initialScope = key.scope,
+                        initialResults = key.shelfResults,
                         mediaEntries = mediaEntries,
                         showAdultContent = appSettings.showAdultContent,
                         titleLanguage = appSettings.titleLanguage,

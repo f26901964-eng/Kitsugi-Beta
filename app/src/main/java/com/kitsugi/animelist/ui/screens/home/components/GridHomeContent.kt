@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.screens.home.components
 
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
@@ -90,7 +91,7 @@ fun GridHomeContent(
                     userScrollEnabled = false,
                     modifier = Modifier.wrapContentHeight()
                 ) {
-                    items(results, key = { it.malId }) { item ->
+                    itemsIndexed(results, key = { index, item -> "${item.source}_${item.malId}_$index" }) { _, item ->
                         KitsugiExploreMediaCard(
                             result = item,
                             alreadyInList = alreadyInList(item),

@@ -770,29 +770,35 @@ internal fun EntryInfoSection(
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 8.dp)
             )
+            val synonymNames = cleanDetailSynonyms(detail.synonyms)
             val rows = buildList {
-                if (!detail.status.isNullOrBlank()) add("Durum" to listOf(detail.status))
-                if (!detail.season.isNullOrBlank()) add("Sezon" to listOf(detail.season))
-                if (!detail.startDate.isNullOrBlank()) add("Başlangıç" to listOf(detail.startDate))
-                if (!detail.endDate.isNullOrBlank()) add("Bitiş" to listOf(detail.endDate))
-                if (!detail.sourceMaterial.isNullOrBlank()) add("Kaynak" to listOf(detail.sourceMaterial))
+                if (!detail.status.isNullOrBlank()) add("Durum" to detail.status)
+                if (!detail.season.isNullOrBlank()) add("Sezon" to detail.season)
+                if (!detail.startDate.isNullOrBlank()) add("Başlangıç" to detail.startDate)
+                if (!detail.endDate.isNullOrBlank()) add("Bitiş" to detail.endDate)
+                if (!detail.sourceMaterial.isNullOrBlank()) add("Kaynak" to detail.sourceMaterial)
                 if (mediaType == MediaType.Anime) {
-                    if (detail.studios.isNotEmpty()) add("Stüdyo" to detail.studios.map { it.name })
-                    if (!detail.episodeDuration.isNullOrBlank()) add("Süre" to listOf(detail.episodeDuration))
-                    if (!detail.broadcast.isNullOrBlank()) add("Yayın" to listOf(detail.broadcast))
-                    if (!detail.rating.isNullOrBlank()) add("Yaş Sınırı" to listOf(detail.rating))
+                    if (detail.studios.isNotEmpty()) add("Stüdyo" to detail.studios.joinToString(", ") { it.name })
+                    if (!detail.episodeDuration.isNullOrBlank()) add("Süre" to detail.episodeDuration)
+                    if (!detail.broadcast.isNullOrBlank()) add("Yayın" to detail.broadcast)
+                    if (!detail.rating.isNullOrBlank()) add("Yaş Sınırı" to detail.rating)
                 }
-                if (!detail.titleEnglish.isNullOrBlank()) add("İngilizce" to listOf(detail.titleEnglish))
-                if (!detail.titleJapanese.isNullOrBlank()) add("Japonca" to listOf(detail.titleJapanese))
-                if (detail.synonyms.isNotEmpty()) add("Diğer Adlar" to detail.synonyms)
+                if (!detail.titleEnglish.isNullOrBlank()) add("İngilizce" to detail.titleEnglish)
+                if (!detail.titleJapanese.isNullOrBlank()) add("Japonca" to detail.titleJapanese)
+                if (synonymNames.isNotEmpty()) add("Diğer Adlar" to synonymNames.joinToString(", "))
             }
-            rows.forEachIndexed { index, (label, values) ->
+            rows.forEachIndexed { index, (label, value) ->
                 val onValueClick: (() -> Unit)? = if (label == "Sezon") {
-                    { onSearchQuery(values.joinToString(", ")) }
+                    { onSearchQuery(value) }
                 } else {
                     null
                 }
-                EntryInfoRow(label = label, values = values, onValueClick = onValueClick)
+                DetailInfoValueRow(
+                    label = label,
+                    value = value,
+                    names = if (label == "Diğer Adlar") synonymNames else emptyList(),
+                    onValueClick = onValueClick
+                )
                 if (index < rows.lastIndex) {
                     HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 16.dp),
@@ -802,55 +808,6 @@ internal fun EntryInfoSection(
                 }
             }
             Spacer(modifier = Modifier.height(12.dp))
-        }
-    }
-}
-
-@Composable
-private fun EntryInfoRow(label: String, values: List<String>, onValueClick: (() -> Unit)? = null) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = label,
-            color = KitsugiColors.TextMuted,
-            style = MaterialTheme.typography.bodySmall,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.weight(0.4f)
-        )
-        Column(
-            modifier = Modifier.weight(0.6f),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            values.forEach { value ->
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                ) {
-                    val valueColor = if (onValueClick != null) LocalKitsugiAccent.current else KitsugiColors.TextPrimary
-                    val valueModifier = Modifier
-                        .weight(1f, fill = false)
-                        .let {
-                            if (onValueClick != null) {
-                                it.clip(RoundedCornerShape(4.dp)).tvClickable(shape = RoundedCornerShape(4.dp), onClick = onValueClick)
-                            } else {
-                                it
-                            }
-                        }
-                    Text(
-                        text = value,
-                        color = valueColor,
-                        style = MaterialTheme.typography.bodySmall,
-                        fontWeight = if (onValueClick != null) FontWeight.Bold else FontWeight.Normal,
-                        modifier = valueModifier
-                    )
-                    KitsugiMiniCopyButton(text = value)
-                }
-            }
         }
     }
 }

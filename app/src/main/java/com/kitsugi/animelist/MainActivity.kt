@@ -69,10 +69,24 @@ class MainActivity : AppCompatActivity() {
             ) {
                 KitsugiPermissionRequester()
 
+                // Çökme kontrolü ANA THREAD'DE DOSYA OKUMASIN (eski hâli arayüzü kilitliyordu).
                 var showCrashRecovery by androidx.compose.runtime.remember {
-                    androidx.compose.runtime.mutableStateOf(
+                    androidx.compose.runtime.mutableStateOf(false)
+                }
+                androidx.compose.runtime.LaunchedEffect(Unit) {
+                    val hasUnreported = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
                         com.kitsugi.animelist.core.diagnostics.KitsugiCrashLogger.hasUnreadCrash(applicationContext)
-                    )
+                    }
+                    if (hasUnreported) showCrashRecovery = true
+                }
+                androidx.compose.runtime.LaunchedEffect(Unit) {
+                    // Sessiz çökme (native/ANR/OOM) analizi arka planda tamamlanır; kısa bir
+                    // gecikmeyle tekrar bakıp kaçırılan raporu da kullanıcıya göster.
+                    kotlinx.coroutines.delay(2_500L)
+                    val late = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                        com.kitsugi.animelist.core.diagnostics.KitsugiCrashLogger.hasUnreadCrash(applicationContext)
+                    }
+                    if (late) showCrashRecovery = true
                 }
 
                 if (showCrashRecovery) {
@@ -116,6 +130,17 @@ class MainActivity : AppCompatActivity() {
             // B1.11: Arka plana geciste launcher icin son reconcile yapilir
             tvChannelSyncService.onForegroundChanged(foreground = false)
         }
+    }
+
+    override fun onDestroy() {
+        // Kullanıcı uygulamayı düzgün kapattıysa "temiz kapanış" işaretle —
+        // böylece sessiz ölüm dedektörü yanlış alarm vermez.
+        if (isFinishing) {
+            try {
+                com.kitsugi.animelist.core.diagnostics.KitsugiSessionSupervisor.markCleanExit()
+            } catch (_: Throwable) {}
+        }
+        super.onDestroy()
     }
 
     override fun dispatchKeyEvent(event: KeyEvent): Boolean {

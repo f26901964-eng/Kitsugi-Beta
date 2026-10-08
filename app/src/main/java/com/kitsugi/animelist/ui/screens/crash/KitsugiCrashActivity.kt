@@ -63,6 +63,35 @@ class KitsugiCrashActivity : ComponentActivity() {
 
         val intentCrashReport = intent.getStringExtra("crash_report") ?: intent.getStringExtra("crash_summary")
 
+        // ── Çöken ana süreç hâlâ asılı kaldıysa kapat ────────────────────────────────
+        // Çökme ekranı AYRI bir süreçte (:crash) ve AYRI bir görevde çalışır; bu yüzden
+        // ana sürecin ölümü bizi etkilemez. Eski tasarımda ana süreç kendini 800 ms sonra
+        // öldürüyordu ve bu yarış yüzünden çökme ekranı çoğu zaman hiç görünmüyordu.
+        val crashedPid = intent.getIntExtra("crashed_pid", -1)
+        if (crashedPid > 0 && crashedPid != android.os.Process.myPid()) {
+            window.decorView.post {
+                try {
+                    // GÜVENLİK: PID yeniden kullanılmış olabilir. Öldürmeden önce
+                    // /proc/<pid>/cmdline kontrolü ile sürecin gerçekten BİZİM uygulamamıza
+                    // ait olduğundan emin ol (yanlış süreci öldürmeyelim).
+                    val cmdline = try {
+                        java.io.File("/proc/$crashedPid/cmdline").readText()
+                    } catch (_: Throwable) {
+                        ""
+                    }
+                    val isOurProcess = cmdline.contains(packageName)
+                    if (isOurProcess) {
+                        android.os.Process.killProcess(crashedPid)
+                        android.util.Log.i("KitsugiCrashActivity", "Çöken ana süreç kapatıldı: pid=$crashedPid")
+                    } else {
+                        android.util.Log.i("KitsugiCrashActivity",
+                            "pid=$crashedPid artık bize ait değil / zaten ölmüş — öldürme atlandı")
+                    }
+                } catch (_: Throwable) {}
+            }
+        }
+
+        try {
         setContent {
             val context = LocalContext.current
             val scope = rememberCoroutineScope()
@@ -295,7 +324,7 @@ class KitsugiCrashActivity : ComponentActivity() {
                                 onClick = {
                                     val exported = KitsugiCrashLogger.exportReportToDownloads(context)
                                     if (exported != null) {
-                                        Toast.makeText(context, "Rapor İndirilenler klasörüne kaydedildi:\n${exported.name} ✓", Toast.LENGTH_LONG).show()
+                                        Toast.makeText(context, "Rapor kaydedildi:\n$exported ✓", Toast.LENGTH_LONG).show()
                                     } else {
                                         Toast.makeText(context, "İndirilenler klasörüne yazılamadı", Toast.LENGTH_SHORT).show()
                                     }
@@ -443,5 +472,32 @@ class KitsugiCrashActivity : ComponentActivity() {
                 }
             }
         }
+        } catch (t: Throwable) {
+            // Compose arayüzü kurulumu çökerse kullanıcıyı boş ekranda bırakma.
+            showEmergencyFallback(t)
+        }
+    }
+
+    /**
+     * Çökme ekranının kendisi çizilemezse gösterilen düz-Android son çare ekranı.
+     * (Kullanıcı hiçbir durumda boş/siyah ekranda kalmamalı.)
+     */
+    private fun showEmergencyFallback(t: Throwable) {
+        try {
+            val report = try { KitsugiCrashLogger.readCrashLog(this) } catch (_: Throwable) { "(rapor okunamadı)" }
+            val textView = android.widget.TextView(this).apply {
+                text = buildString {
+                    appendLine("Kitsugi çökme ekranı açılamadı")
+                    appendLine("${t.javaClass.name}: ${t.message}")
+                    appendLine()
+                    appendLine("─── KAYITLI ÇÖKME RAPORU ───")
+                    appendLine(report.take(4000))
+                }
+                setTextIsSelectable(true)
+                textSize = 10f
+                setPadding(32, 32, 32, 32)
+            }
+            setContentView(android.widget.ScrollView(this).apply { addView(textView) })
+        } catch (_: Throwable) {}
     }
 }

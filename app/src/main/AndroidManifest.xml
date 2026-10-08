@@ -266,12 +266,17 @@
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|density"
             android:theme="@style/Theme.KitsugiAnimeList" />
 
-        <!-- KitsugiCrashActivity: Standalone crash & diagnostics activity running in isolated :crash process -->
+        <!-- KitsugiCrashActivity: crash & diagnostics activity in an isolated :crash process.
+             DİKKAT: Bu ekran KENDİ GÖREVİNDE (taskAffinity) açılmalıdır. Ana süreç ölürken aynı
+             görevde açılan bir ekran görev temizliğiyle birlikte yok ediliyordu — çökme
+             penceresinin hiç görünmemesinin ana sebeplerinden biri buydu. -->
         <activity
             android:name=".ui.screens.crash.KitsugiCrashActivity"
             android:process=":crash"
             android:exported="false"
             android:launchMode="singleTask"
+            android:taskAffinity="com.kitsugi.animelist.crash"
+            android:excludeFromRecents="true"
             android:configChanges="orientation|screenSize|screenLayout|smallestScreenSize|density|uiMode"
             android:theme="@style/Theme.KitsugiAnimeList" />
 

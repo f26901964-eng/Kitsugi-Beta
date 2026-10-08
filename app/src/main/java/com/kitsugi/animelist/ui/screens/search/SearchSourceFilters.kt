@@ -54,11 +54,11 @@ fun SearchSourceEngine.availableScopes(): List<SearchScope> = when (this) {
         SearchScope.TV, SearchScope.MOVIE, SearchScope.CHARACTER, SearchScope.STAFF
     )
     SearchSourceEngine.ANILIST -> listOf(
-        SearchScope.ANIME, SearchScope.MANGA, SearchScope.MANHWA, SearchScope.MANHUA,
+        SearchScope.ALL_MIXED, SearchScope.ANIME, SearchScope.MANGA, SearchScope.MANHWA, SearchScope.MANHUA,
         SearchScope.LIGHT_NOVEL, SearchScope.CHARACTER, SearchScope.STAFF, SearchScope.STUDIO
     )
     SearchSourceEngine.MAL -> listOf(
-        SearchScope.ANIME, SearchScope.MANGA, SearchScope.MANHWA, SearchScope.MANHUA,
+        SearchScope.ALL_MIXED, SearchScope.ANIME, SearchScope.MANGA, SearchScope.MANHWA, SearchScope.MANHUA,
         SearchScope.LIGHT_NOVEL, SearchScope.CHARACTER, SearchScope.STAFF, SearchScope.STUDIO
     )
     SearchSourceEngine.TMDB -> listOf(
@@ -66,11 +66,11 @@ fun SearchSourceEngine.availableScopes(): List<SearchScope> = when (this) {
         SearchScope.ANIME, SearchScope.K_DRAMA, SearchScope.STAFF, SearchScope.STUDIO
     )
     SearchSourceEngine.SHIKIMORI -> listOf(
-        SearchScope.ANIME, SearchScope.MANGA, SearchScope.MANHWA, SearchScope.MANHUA,
+        SearchScope.ALL_MIXED, SearchScope.ANIME, SearchScope.MANGA, SearchScope.MANHWA, SearchScope.MANHUA,
         SearchScope.LIGHT_NOVEL, SearchScope.CHARACTER, SearchScope.STAFF
     )
     SearchSourceEngine.KITSU -> listOf(
-        SearchScope.ANIME, SearchScope.MANGA, SearchScope.MANHWA, SearchScope.MANHUA,
+        SearchScope.ALL_MIXED, SearchScope.ANIME, SearchScope.MANGA, SearchScope.MANHWA, SearchScope.MANHUA,
         SearchScope.LIGHT_NOVEL, SearchScope.CHARACTER
     )
     SearchSourceEngine.SIMKL -> listOf(

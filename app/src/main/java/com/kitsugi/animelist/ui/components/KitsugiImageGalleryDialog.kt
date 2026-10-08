@@ -84,6 +84,11 @@ fun KitsugiImageGalleryDialog(
     val downloadedUrls by KitsugiImageDownloadHelper.downloadedUrls.collectAsState()
     LaunchedEffect(Unit) {
         KitsugiImageDownloadHelper.refreshDownloadedUrls(context)
+        // Çökme raporu için iz: hangi galeri, kaç görsel
+        try {
+            com.kitsugi.animelist.core.diagnostics.KitsugiSessionSupervisor
+                .noteScreen("Galeri: $title (${galleryItems.size} görsel)")
+        } catch (_: Throwable) {}
     }
 
     // We only show category tabs if there are multiple categories.
@@ -138,6 +143,14 @@ fun KitsugiImageGalleryDialog(
     val density = LocalDensity.current
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    // Galeride gezinme izi (çökme raporunda görünür)
+    LaunchedEffect(pagerState.currentPage, filteredItems.size) {
+        try {
+            com.kitsugi.animelist.core.diagnostics.KitsugiSessionSupervisor
+                .noteAction("galeri gezinme: sayfa ${pagerState.currentPage + 1}/${filteredItems.size}")
+        } catch (_: Throwable) {}
+    }
 
     // Slide-up and fade transitions state
     var isAnimatedVisible by remember { mutableStateOf(false) }
