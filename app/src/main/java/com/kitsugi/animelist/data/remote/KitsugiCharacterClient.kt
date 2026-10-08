@@ -19,11 +19,11 @@ class KitsugiCharacterClient {
     companion object {
         private const val TAG = "KitsugiCharacterClient"
 
-        /** Kitsu listesi VA'sızken MAL/AniList'ten VA eklemek için bekleme sınırı. */
-        private const val KITSU_VA_MERGE_TIMEOUT_MS = 8_000L
+        /** Kitsu listesi VA'sızken MAL/AniList'ten VA eklemek için bekleme sınırı (yavaşsa VA'sız gösterilir). */
+        private const val KITSU_VA_MERGE_TIMEOUT_MS = 5_000L
 
         /** Shikimori listesinde VA eksiği varsa MAL/AniList yedeği için bekleme sınırı. */
-        private const val SHIKIMORI_VA_MERGE_TIMEOUT_MS = 8_000L
+        private const val SHIKIMORI_VA_MERGE_TIMEOUT_MS = 5_000L
 
         /** Karakter görselleri için yapım düzeyinde denenecek en fazla başlık adayı. */
         private const val MAX_ANILIST_TITLE_LOOKUPS = 4
