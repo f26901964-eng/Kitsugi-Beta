@@ -4,12 +4,14 @@ import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.net.Uri
+import android.provider.MediaStore
 import android.os.Build
 import android.os.Environment
 import android.widget.Toast
@@ -133,14 +135,30 @@ object KitsugiImageDownloadHelper {
     /** Index'teki kaydın dosyası hâlâ diskte mi kontrol eder (SAF konumu dahil). */
     private fun recordFileExists(context: Context, record: DownloadRecord): Boolean {
         return try {
-            if (record.customUri.isNotBlank()) {
-                val dir = DocumentFile.fromTreeUri(context, Uri.parse(record.customUri))
-                dir?.findFile(record.fileName)?.exists() == true
-            } else {
-                File(defaultImagesDir(), record.fileName).exists() ||
-                    File(legacyImagesDir(), record.fileName).exists()
+            val custom = record.customUri
+            when {
+                custom.startsWith("mediastore:") -> {
+                    // Android 10+ MediaStore kaydı — URI hâlâ geçerli mi?
+                    val uri = Uri.parse(custom.removePrefix("mediastore:"))
+                    try {
+                        context.contentResolver.query(
+                            uri, arrayOf(MediaStore.MediaColumns._ID), null, null, null
+                        )?.use { cursor -> cursor.moveToFirst() } ?: false
+                    } catch (_: Throwable) {
+                        false
+                    }
+                }
+                custom.isNotBlank() -> {
+                    // SAF (kullanıcı klasörü) kaydı
+                    val dir = DocumentFile.fromTreeUri(context, Uri.parse(custom))
+                    dir?.findFile(record.fileName)?.exists() == true
+                }
+                else -> {
+                    File(defaultImagesDir(), record.fileName).exists() ||
+                        File(legacyImagesDir(), record.fileName).exists()
+                }
             }
-        } catch (_: Exception) {
+        } catch (_: Throwable) {
             false
         }
     }
@@ -317,6 +335,12 @@ object KitsugiImageDownloadHelper {
                 return@launch
             }
 
+            // Çökme raporu için iz (sessiz ölümlerde "ne yapıyordu" sorusunun cevabı)
+            try {
+                com.kitsugi.animelist.core.diagnostics.KitsugiSessionSupervisor
+                    .noteAction("resim indirme BAŞLADI: ${title.take(60)}")
+            } catch (_: Throwable) {}
+
             // Aynı anda aynı URL için ikinci istek engellenir (çift dokunuş vb.)
             val alreadyInFlight = synchronized(inFlightLock) { !inFlightDownloads.add(url) }
             if (alreadyInFlight) {
@@ -342,12 +366,18 @@ object KitsugiImageDownloadHelper {
                 val notifId = (url.hashCode() and 0x7fffffff) + NOTIF_ID_BASE
                 showProgressNotification(context, notifId, title, filename)
 
-                // Download bytes
+                // Download bytes — MAKSİMUM 48 MB (devasa görseller bellek tüketip
+                // LMKD/OOM ile süreci sessizce öldürüyordu: "resim indirirken pat diye kapanma")
+                val maxBytes = 48L * 1024 * 1024
                 val bytes: ByteArray? = runCatching {
                     val connection = URL(url).openConnection()
                     connection.connectTimeout = 15_000
                     connection.readTimeout    = 15_000
-                    connection.inputStream.use { it.readBytes() }
+                    val declared = connection.contentLengthLong
+                    if (declared > maxBytes) error("Görsel çok büyük ($declared bayt)")
+                    val data = connection.inputStream.use { it.readBytes() }
+                    if (data.size > maxBytes) error("Görsel çok büyük (${data.size} bayt)")
+                    data
                 }.getOrNull()
 
                 if (bytes == null) {
@@ -358,9 +388,9 @@ object KitsugiImageDownloadHelper {
                     return@launch
                 }
 
-                val thumbnail: Bitmap? = runCatching {
-                    BitmapFactory.decodeByteArray(bytes, 0, bytes.size)
-                }.getOrNull()
+                // Bildirim simgesi için KÜÇÜLTÜLMÜŞ bitmap — tam boy decode (ör. 4000x6000 JPEG)
+                // 96 MB'a kadar bellek istiyor ve süreci OOM ile öldürebiliyordu.
+                val thumbnail: Bitmap? = decodeSampledThumbnail(bytes)
 
                 // 1. Save to custom SAF folder
                 if (uriToUse.isNotBlank()) {
@@ -374,13 +404,34 @@ object KitsugiImageDownloadHelper {
                     }
                 }
 
-                // 2. Save to Downloads/Kitsugi/Images
+                // 2. Android 10+ → MediaStore ile İndirilenler/Kitsugi/Images (izin gerekmez,
+                //    dosya galeri uygulamalarında ve dosya yöneticilerinde görünür)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                    val savedUri = saveImageViaMediaStore(context, filename, bytes)
+                    if (savedUri != null) {
+                        markImageDownloaded(context, url, filename, "mediastore:$savedUri")
+                        try {
+                            com.kitsugi.animelist.core.diagnostics.KitsugiSessionSupervisor
+                                .noteAction("resim indirme TAMAM (MediaStore): $filename")
+                        } catch (_: Throwable) {}
+                        withContext(Dispatchers.Main) {
+                            showCompletedNotification(context, notifId, title, filename, bytes.size.toLong(), thumbnail)
+                        }
+                        return@launch
+                    }
+                }
+
+                // 3. Android 9 ve altı (veya MediaStore başarısız olduysa) → doğrudan dosya
                 val imagesDir = defaultImagesDir().also { it.mkdirs() }
 
                 val imageFile = File(imagesDir, filename)
                 try {
                     imageFile.writeBytes(bytes)
                     markImageDownloaded(context, url, filename, "")
+                    try {
+                        com.kitsugi.animelist.core.diagnostics.KitsugiSessionSupervisor
+                            .noteAction("resim indirme TAMAM (dosya): $filename")
+                    } catch (_: Throwable) {}
                     withContext(Dispatchers.Main) {
                         showCompletedNotification(context, notifId, title, filename, bytes.size.toLong(), thumbnail)
                     }
@@ -399,6 +450,60 @@ object KitsugiImageDownloadHelper {
     // ─────────────────────────────────────────────────────────────────────────
     // Private helpers
     // ─────────────────────────────────────────────────────────────────────────
+
+    /** Android 10+ için MediaStore tabanlı görsel kaydı. Başarılıysa content:// URI döner. */
+    private fun saveImageViaMediaStore(context: Context, filename: String, bytes: ByteArray): Uri? {
+        return try {
+            val values = ContentValues().apply {
+                put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
+                put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
+                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/Kitsugi/Images")
+                put(MediaStore.MediaColumns.IS_PENDING, 1)
+            }
+            val resolver = context.contentResolver
+            val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: return null
+            val written = try {
+                resolver.openOutputStream(uri)?.use { out ->
+                    out.write(bytes)
+                    out.flush()
+                }
+                true
+            } catch (_: Throwable) {
+                false
+            }
+            if (!written) {
+                try { resolver.delete(uri, null, null) } catch (_: Throwable) {}
+                return null
+            }
+            val done = ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }
+            try { resolver.update(uri, done, null, null) } catch (_: Throwable) {}
+            uri
+        } catch (_: Throwable) {
+            null
+        }
+    }
+
+    /** Bildirim simgesi için bellek dostu (örneklemeli) bitmap decode. */
+    private fun decodeSampledThumbnail(bytes: ByteArray, targetPx: Int = 512): Bitmap? {
+        return try {
+            val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, bounds)
+            var sample = 1
+            while (bounds.outWidth > 0 && bounds.outHeight > 0 &&
+                (bounds.outWidth / (sample * 2)) >= targetPx &&
+                (bounds.outHeight / (sample * 2)) >= targetPx
+            ) {
+                sample *= 2
+            }
+            val opts = BitmapFactory.Options().apply {
+                inSampleSize = sample
+                inPreferredConfig = Bitmap.Config.RGB_565
+            }
+            BitmapFactory.decodeByteArray(bytes, 0, bytes.size, opts)
+        } catch (_: Throwable) {
+            null
+        }
+    }
 
     private fun saveToCustumUri(
         context: Context,

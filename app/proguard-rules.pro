@@ -99,6 +99,19 @@
     public long nativeHandle;
 }
 
+# ── Kitsugi Native Crash Handler (JNI) ────────────────────────────────────────
+# JNI sembol adı sınıf + metot adından türetilir
+# (Java_com_kitsugi_animelist_core_diagnostics_NativeCrashBridge_nativeInstall).
+# R8 bu sınıfı yeniden adlandırırsa native çökme yakalayıcı sessizce devre dışı kalır.
+-keep class com.kitsugi.animelist.core.diagnostics.NativeCrashBridge { *; }
+-keepclasseswithmembernames class com.kitsugi.animelist.core.diagnostics.NativeCrashBridge {
+    native <methods>;
+}
+# Genel güvenlik ağı: native metodu olan sınıfların adları korunmalı.
+-keepclasseswithmembernames class * {
+    native <methods>;
+}
+
 # ── MPV (native JNI callbacks) ────────────────────────────────────────────────
 # is.xyz.mpv'nin tüm native callback yöntemleri reflection ile çözülür.
 -keep class is.xyz.mpv.** { *; }

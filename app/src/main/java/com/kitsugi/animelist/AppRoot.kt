@@ -887,6 +887,14 @@ fun AppRoot(
                     else                         -> AppStateKey.Tab(selectedTab)
                 }
 
+                // Çökme raporu için "son ekran" bilgisini kaydet (sessiz ölümlerde tek ipucu bu olur)
+                LaunchedEffect(currentAppStateKey) {
+                    try {
+                        com.kitsugi.animelist.core.diagnostics.KitsugiSessionSupervisor
+                            .noteScreen(currentAppStateKey.toString())
+                    } catch (_: Throwable) {}
+                }
+
                 AppNavigationContent(
                     currentAppStateKey = currentAppStateKey,
                     navState = navState,

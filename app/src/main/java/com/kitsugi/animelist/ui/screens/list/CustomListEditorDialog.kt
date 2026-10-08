@@ -3,6 +3,7 @@ package com.kitsugi.animelist.ui.screens.list
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -114,7 +115,7 @@ fun CustomListEditorDialog(
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.weight(1f, fill = false)
                 ) {
-                    items(customLists, key = { it }) { listName ->
+                    itemsIndexed(customLists, key = { index, name -> "${name}_$index" }) { _, listName ->
                         CustomListRow(
                             name = listName,
                             isEditing = editingList == listName,

@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.screens.explore
 
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.grid.itemsIndexed
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -352,7 +354,7 @@ internal fun AiringEntryList(
             contentPadding = PaddingValues(start = 16.dp, top = 4.dp, end = 16.dp, bottom = 80.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            items(entries, key = { "${it.malId}_${it.aniListId}_${it.episode}" }) { entry ->
+            itemsIndexed(entries, key = { index, entry -> "${entry.malId}_${entry.aniListId}_${entry.episode}_$index" }) { _, entry ->
                 val isInList = remember(currentEntries, entry) {
                     currentEntries.any { me ->
                         (entry.malId != null && me.malId == entry.malId) ||
@@ -439,7 +441,7 @@ internal fun AiringEntryGridList(
             verticalArrangement = Arrangement.spacedBy(12.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            items(entries, key = { "${it.aniListId}_${it.episode}" }) { entry ->
+            itemsIndexed(entries, key = { index, entry -> "${entry.aniListId}_${entry.episode}_$index" }) { _, entry ->
                 val isInList = remember(currentEntries, entry) {
                     currentEntries.any { me ->
                         (entry.malId != null && me.malId == entry.malId) ||
