@@ -266,8 +266,9 @@ class TmdbApiClient(
                             } else {
                                 enItem.optString("title", "")
                             }
-                            if (enId > 0 && enName.isNotBlank()) {
-                                enTitlesMap[enId] = enName
+                            val latinName = MediaTitleResolver.latin(enName)
+                            if (enId > 0 && latinName != null) {
+                                enTitlesMap[enId] = latinName
                             }
                         }
                     }
@@ -290,20 +291,36 @@ class TmdbApiClient(
                 val originalTitle = if (isMovie) item.optString("original_title", "") else item.optString("original_name", "")
                 val originalLang = item.optString("original_language", "")
                 val enTitle = enTitlesMap[tmdbId]?.takeIf { it.isNotBlank() }
-                    ?: if (originalLang.equals("en", ignoreCase = true)) originalTitle else null
+                    ?: if (originalLang.equals("en", ignoreCase = true)) originalTitle.takeIf { it.isNotBlank() } else null
 
-                // Türkçe istendiğinde eğer TMDB Türkçe başlık sunmamış ve doğrudan Japonca/CJK orijinal başlığı dönmüşse,
-                // veya başlık CJK karakterler içeriyorsa, otomatik olarak İngilizce başlığı tercih et.
-                val hasCjk = PreferenceHelpers.hasCjkCharacters(rawTitle)
-                val finalTitle = if (hasCjk && !enTitle.isNullOrBlank() && !PreferenceHelpers.hasCjkCharacters(enTitle)) {
-                    enTitle
-                } else {
-                    rawTitle
-                }
-                val resolvedTitleEnglish = enTitle ?: if (!hasCjk) rawTitle else null
-                val resolvedTitleJapanese = if (hasCjk || originalLang == "ja") {
-                    originalTitle.ifBlank { rawTitle }
-                } else null
+                // Türkçe (veya seçili dil) başlık yoksa veya TMDB orijinal başlığa düşmüşse
+                // zincir otomatik olarak İngilizce'ye, ardından Romaji/Latin orijinale iner.
+                val localizedFallback = MediaTitleResolver.isLocalizedFallback(
+                    localized = rawTitle,
+                    original = originalTitle,
+                    requestedLanguage = language,
+                    originalLanguage = originalLang
+                )
+                val titleInput = if (localizedFallback) null else rawTitle
+                val finalTitle = MediaTitleResolver.resolve(
+                    localized = titleInput,
+                    english = enTitle,
+                    romaji = MediaTitleResolver.latin(originalTitle),
+                    original = originalTitle.ifBlank { rawTitle }
+                )
+                val resolvedTitleEnglish = MediaTitleResolver.resolveEnglish(
+                    localized = titleInput,
+                    english = enTitle,
+                    romaji = MediaTitleResolver.latin(originalTitle),
+                    original = originalTitle
+                )
+                val resolvedTitleJapanese = originalTitle
+                    .ifBlank { rawTitle }
+                    .takeIf {
+                        originalLang in listOf("ja", "zh", "ko") ||
+                            MediaTitleResolver.hasCjk(originalTitle) ||
+                            MediaTitleResolver.hasCjk(rawTitle)
+                    }
 
                 val posterPath = item.optNullableString("poster_path") ?: ""
                 val releaseDate = if (isMovie) item.optString("release_date", "") else item.optString("first_air_date", "")
@@ -403,6 +420,11 @@ class TmdbApiClient(
             val responseText = executeGet(url) ?: return@withContext emptyList()
             val root = JSONObject(responseText)
             val results = root.optJSONArray("results") ?: return@withContext emptyList()
+            // Filtreli listelerde de ("Tümünü Gör" + filtre çipleri) Türkçe başlık yoksa
+            // İngilizce'ye düşmek için aynı sayfanın en-US başlık haritası kullanılır.
+            val enTitles = if (TmdbTitleFallback.needsEnglishFallback(results, url, { isMovie })) {
+                TmdbTitleFallback.parseEnglishTitles(executeGet(TmdbUrlUtils.englishVariant(url)))
+            } else emptyMap()
             val list = mutableListOf<JikanSearchResult>()
             for (i in 0 until minOf(results.length(), 24)) {
                 val item = results.getJSONObject(i)
@@ -410,6 +432,12 @@ class TmdbApiClient(
                 val mediaType = if (isMovie) MediaType.Movie else MediaType.TvShow
                 val title = if (isMovie) item.optString("title", "") else item.optString("name", "")
                 if (title.isBlank()) continue
+                val resolved = TmdbTitleFallback.resolve(
+                    item = item,
+                    isMovie = isMovie,
+                    url = url,
+                    englishTitle = enTitles[tmdbId]
+                )
                 val posterPath = item.optNullableString("poster_path") ?: ""
                 val releaseDate = if (isMovie) item.optString("release_date", "") else item.optString("first_air_date", "")
                 val year = releaseDate.take(4).toIntOrNull()
@@ -422,12 +450,12 @@ class TmdbApiClient(
                 }
                 list.add(
                     JikanSearchResult(
-                        malId = tmdbId, title = title,
+                        malId = tmdbId, title = resolved.display,
                         subtitle = subtitleParts.joinToString(", "),
                         type = mediaType, total = null, score = score,
                         isAdult = item.optBoolean("adult", false),
                         imageUrl = imageUrl, year = year, source = "tmdb",
-                        realMalId = null, titleEnglish = title, titleJapanese = null,
+                        realMalId = null, titleEnglish = resolved.english, titleJapanese = resolved.native,
                         tmdbId = tmdbId
                     )
                 )

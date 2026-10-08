@@ -357,7 +357,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                             val json = gson.toJson(payload)
                             db.exploreCacheDao().insertCategory(
                                 com.kitsugi.animelist.data.local.ExploreCacheEntity(
-                                    categoryKey = "explore_platform_${platformSnapshot.name}",
+                                    categoryKey = exploreCacheKey(platformSnapshot),
                                     payloadJson = json,
                                     cachedAtMs = System.currentTimeMillis()
                                 )
@@ -371,7 +371,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                 if (selectedPlatform == platformSnapshot && generation == requestGeneration) {
                     // Try to fall back to local offline database cache
                     val db = com.kitsugi.animelist.data.local.KitsugiDatabase.getDatabase(getApplication())
-                    val cached = runCatching { db.exploreCacheDao().getCategory("explore_platform_${platformSnapshot.name}") }.getOrNull()
+                    val cached = runCatching { db.exploreCacheDao().getCategory(exploreCacheKey(platformSnapshot)) }.getOrNull()
                     currentCoroutineContext().ensureActive()
                     if (generation != requestGeneration || selectedPlatform != platformSnapshot) return@launch
                     if (cached != null) {
@@ -454,6 +454,18 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         launchSource(platform, forceRefresh = true)
     }
 
+    /**
+     * Keşfet disk önbelleği anahtarı.
+     *
+     * Aktif TMDB dilini ve [MediaTitleResolver.VERSION] sürümünü içerir; böylece
+     * dil değişiminde ya da başlık çözümleme mantığı güncellendiğinde (ör. CJK
+     * başlıkların düzeltildiği sürümde) eski hatalı kayıtlar servis edilmez.
+     */
+    private fun exploreCacheKey(platform: ExplorePlatform): String {
+        val language = com.kitsugi.animelist.data.remote.TmdbApiClient.getActiveLanguage().lowercase()
+        return "explore_platform_${platform.name}_${language}_v${com.kitsugi.animelist.utils.MediaTitleResolver.VERSION}"
+    }
+
     private fun launchSource(platform: ExplorePlatform, forceRefresh: Boolean) {
         val generation = requestGeneration
         sourceJobs[platform]?.cancel()
@@ -466,7 +478,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                 fetch = { fetchPlatform(platform, allowFallback = false).forSource(platform) },
                 readOffline = {
                     val db = com.kitsugi.animelist.data.local.KitsugiDatabase.getDatabase(getApplication())
-                    db.exploreCacheDao().getCategory("explore_platform_${platform.name}")?.let {
+                    db.exploreCacheDao().getCategory(exploreCacheKey(platform))?.let {
                         com.google.gson.Gson().fromJson(it.payloadJson, ExplorePayload::class.java)?.forSource(platform)
                     }
                 }
@@ -485,7 +497,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                             val db = com.kitsugi.animelist.data.local.KitsugiDatabase.getDatabase(getApplication())
                             db.exploreCacheDao().insertCategory(
                                 com.kitsugi.animelist.data.local.ExploreCacheEntity(
-                                    categoryKey = "explore_platform_${platform.name}",
+                                    categoryKey = exploreCacheKey(platform),
                                     payloadJson = com.google.gson.Gson().toJson(state.payload),
                                     cachedAtMs = System.currentTimeMillis()
                                 )

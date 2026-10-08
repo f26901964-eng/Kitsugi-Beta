@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.data.remote
 
+import com.kitsugi.animelist.utils.MediaTitleResolver
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -58,11 +59,39 @@ class KitsugiAiringCalendarClient {
             val responseText = KitsugiApiBase.executeGetRequest(java.net.URL(urlStr)) ?: return
             val root = JSONObject(responseText)
             val results = root.optJSONArray("results") ?: return
+            // Türkçe başlık yoksa İngilizce'ye düşmek için aynı sayfanın en-US başlık haritası
+            val enTitlesMap = fetchEnglishTitleMapIfNeeded(results, isMovie, urlStr)
             for (i in 0 until results.length()) {
                 val item = results.getJSONObject(i)
                 val tmdbId = item.optInt("id", 0).takeIf { it > 0 } ?: continue
-                val title = if (isMovie) item.optString("title", "") else item.optString("name", "")
-                if (title.isBlank()) continue
+                val localizedTitle = if (isMovie) item.optString("title", "") else item.optString("name", "")
+                if (localizedTitle.isBlank()) continue
+                val originalTitle = if (isMovie) item.optString("original_title", "") else item.optString("original_name", "")
+                val originalLang = item.optString("original_language", "")
+                val localizedFallback = MediaTitleResolver.isLocalizedFallback(
+                    localized = localizedTitle,
+                    original = originalTitle,
+                    requestedLanguage = TmdbUrlUtils.languageOf(urlStr),
+                    originalLanguage = originalLang
+                )
+                val titleInput = if (localizedFallback) null else localizedTitle
+                val englishTitle = enTitlesMap[tmdbId]
+                // Türkçe → İngilizce → Romaji zinciri (CJK başlık ekrana düşmez)
+                val title = MediaTitleResolver.resolve(
+                    localized = titleInput,
+                    english = englishTitle,
+                    romaji = MediaTitleResolver.latin(originalTitle),
+                    original = originalTitle.ifBlank { localizedTitle }
+                )
+                val resolvedTitleEnglish = MediaTitleResolver.resolveEnglish(
+                    localized = titleInput,
+                    english = englishTitle,
+                    romaji = MediaTitleResolver.latin(originalTitle),
+                    original = originalTitle
+                ) ?: title
+                val resolvedTitleNative = originalTitle
+                    .ifBlank { localizedTitle }
+                    .takeIf { MediaTitleResolver.hasCjk(it) }
                 val posterPath = item.optNullableString("poster_path") ?: ""
                 val releaseDate = if (isMovie) item.optString("release_date", "") else item.optString("first_air_date", "")
                 
@@ -75,8 +104,8 @@ class KitsugiAiringCalendarClient {
                     aniListId = tmdbId,
                     malId = null,
                     title = title,
-                    titleEnglish = title,
-                    titleNative = null,
+                    titleEnglish = resolvedTitleEnglish,
+                    titleNative = resolvedTitleNative,
                     coverUrl = coverUrl,
                     episode = if (isMovie) 0 else 1,
                     airingAt = airingAt,
@@ -100,6 +129,32 @@ class KitsugiAiringCalendarClient {
         } catch (e: Exception) {
             android.util.Log.e("AiringCalendarClient", "parseTmdbList error: ${e.message}", e)
         }
+    }
+
+    /**
+     * Aynı sayfanın İngilizce (en-US) başlıklarını id → başlık haritası olarak çeker.
+     *
+     * TMDB, istenen dilde (ör. Türkçe) başlık bulamazsa orijinal Japonca başlığı döndürür.
+     * Bu durumda yalnızca bir ek istek yapılır; `with_original_language` parametresi
+     * bozulmadan korunur (bkz. [TmdbUrlUtils.withLanguage]).
+     */
+    private fun fetchEnglishTitleMapIfNeeded(
+        results: org.json.JSONArray,
+        isMovie: Boolean,
+        urlStr: String
+    ): Map<Int, String> {
+        // Gereksinim kontrolü ortak yardımcıya devredilir (tüm TMDB çağrıları aynı kuralı kullanır).
+        if (!TmdbTitleFallback.needsEnglishFallback(results, urlStr, { isMovie })) return emptyMap()
+        repeat(2) { attempt ->
+            try {
+                val enUrl = java.net.URL(TmdbUrlUtils.englishVariant(urlStr))
+                val map = TmdbTitleFallback.parseEnglishTitles(KitsugiApiBase.executeGetRequest(enUrl))
+                if (map.isNotEmpty()) return map
+            } catch (e: Exception) {
+                android.util.Log.e("AiringCalendarClient", "İngilizce başlık haritası alınamadı (deneme ${attempt + 1}): ${e.message}")
+            }
+        }
+        return emptyMap()
     }
 
     private fun parseDateToAiringAtAndDayOfWeek(dateStr: String, shiftToCurrentWeek: Boolean = false): Pair<Long, Int> {

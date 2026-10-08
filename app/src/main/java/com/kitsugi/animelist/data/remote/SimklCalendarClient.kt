@@ -185,9 +185,18 @@ class SimklCalendarClient {
             val ids = meta?.optJSONObject("ids")
 
             val poster = meta?.optString("poster")?.takeIf { it.isNotBlank() }
-            val title = meta?.optString("title")?.takeIf { it.isNotBlank() }
-                ?: item.optString("title").takeIf { it.isNotBlank() }
-                ?: "Simkl #$simklId"
+            // Simkl `title` alanı bazı kayıtlarda CJK gelir; bildirimlerde Japonca başlık
+            // görünmemesi için önce Latin alternatifler (title_en / title_romaji) denenir.
+            val title = com.kitsugi.animelist.utils.MediaTitleResolver.firstLatin(
+                meta?.optString("title"),
+                item.optString("title"),
+                meta?.optString("title_en"),
+                meta?.optString("en_title"),
+                item.optString("title_en"),
+                meta?.optString("title_romaji")
+            ) ?: com.kitsugi.animelist.utils.MediaTitleResolver.nonBlank(
+                meta?.optString("title"), item.optString("title")
+            ) ?: "Simkl #$simklId"
 
             out.add(
                 SimklCalendarEntry(
@@ -234,7 +243,12 @@ class SimklCalendarClient {
                     simklId = simklId,
                     tmdbId = ids.optInt("tmdb", 0).takeIf { it > 0 },
                     malId = ids.optInt("mal", 0).takeIf { it > 0 },
-                    title = item.optString("title", "Simkl #$simklId"),
+                    title = com.kitsugi.animelist.utils.MediaTitleResolver.firstLatin(
+                        item.optString("title"),
+                        item.optString("title_en"),
+                        item.optString("en_title"),
+                        item.optString("title_romaji")
+                    ) ?: item.optString("title", "Simkl #$simklId"),
                     posterUrl = poster?.let { "https://simkl.in/posters/${it}_m.jpg" },
                     airingAtMs = airingAtMs,
                     season = season,

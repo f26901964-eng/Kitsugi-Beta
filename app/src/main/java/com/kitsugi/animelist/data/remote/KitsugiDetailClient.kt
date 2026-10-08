@@ -204,7 +204,7 @@ class KitsugiDetailClient {
             val cacheKey = if (isKitsuSource && kitsuCanonicalId == null) {
                 null
             } else {
-                "${source.lowercase()}_${mediaTypeStr}_$keyId"
+                detailCacheKey(source, mediaTypeStr, keyId)
             }
             val legacyKey = if (cacheKey == null) {
                 null
@@ -221,7 +221,11 @@ class KitsugiDetailClient {
             if (db != null && !cacheKey.isNullOrBlank()) {
                 try {
                     val cached = db.persistentDetailCacheDao().getDetail(cacheKey)
-                        ?: legacyKey?.let { db.persistentDetailCacheDao().getDetail(it) }
+                        // TMDB/Simkl için eski (sürümsüz) anahtarlar okunmaz: o kayıtlar
+                        // düzeltme öncesi CJK başlıkları taşıyor olabilir ve 24 saat boyunca
+                        // ekrana Japonca başlık düşmesine yol açardı.
+                        ?: legacyKey?.takeIf { !MediaTitleResolver.isLatinPreferredSource(source) }
+                            ?.let { db.persistentDetailCacheDao().getDetail(it) }
                     if (cached != null) {
                         val isFresh = (System.currentTimeMillis() - cached.cachedAtMs) < 24 * 60 * 60 * 1000L
                         if (isFresh) {
@@ -612,6 +616,22 @@ class KitsugiDetailClient {
         }.getOrNull() ?: primary
     }
 
+    /**
+     * Detay önbelleği anahtarı.
+     *
+     * TMDB/Simkl kayıtlarında anahtara [MediaTitleResolver.VERSION] eklenir: böylece
+     * başlık çözümleme mantığı düzeltildiğinde eski (Japonça başlık taşıyan)
+     * kayıtlar 24 saatlik tazelik penceresi boyunca servis edilmez.
+     */
+    private fun detailCacheKey(source: String, mediaTypeStr: String, keyId: Int): String {
+        val base = "${source.lowercase()}_${mediaTypeStr}_$keyId"
+        return if (MediaTitleResolver.isLatinPreferredSource(source)) {
+            "${base}_vl${MediaTitleResolver.VERSION}"
+        } else {
+            base
+        }
+    }
+
     /** Birincil detay + zenginleşmiş detay ortak Room önbellek yazarı. */
     private suspend fun saveToRoomCache(
         source: String,
@@ -623,7 +643,7 @@ class KitsugiDetailClient {
         val db = com.kitsugi.animelist.data.local.KitsugiDatabase.getDatabase(context) ?: return
         try {
             val mediaTypeStr = mediaType.name.lowercase()
-            val cacheKey = "${source.lowercase()}_${mediaTypeStr}_$externalId"
+            val cacheKey = detailCacheKey(source, mediaTypeStr, externalId)
             val entity = com.kitsugi.animelist.data.local.PersistentDetailCacheEntity(
                 cacheKey = cacheKey,
                 detailJson = com.google.gson.Gson().toJson(detail),
