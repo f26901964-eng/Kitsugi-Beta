@@ -1,14 +1,14 @@
 {
   "_comment": "Kitsugi Eklenti Domain Listesi — GitHub Actions + AI tarafından otomatik güncellenir.",
   "_format": "eklentiAdi (küçük harf) → güncel ana URL",
-  "_updated": "2026-10-07 03:06 UTC",
+  "_updated": "2026-10-08 03:05 UTC",
   "_stats": {
     "total": 58,
     "added": 0,
-    "removed": 1,
+    "removed": 0,
     "changed": 0,
     "ai_assisted": 0,
-    "blocked": 175
+    "blocked": 176
   },
   "domains": {
     "altiyuzaltmisaltifilmizle": "https://666filmizle.site",
@@ -87,6 +87,7 @@
     "badtv",
     "basketballreplays",
     "beeg",
+    "brazzpw",
     "camcaps",
     "camwh",
     "canlitv",
