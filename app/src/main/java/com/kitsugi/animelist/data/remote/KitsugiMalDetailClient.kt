@@ -143,17 +143,11 @@ internal object KitsugiMalDetailClient {
 
     // ─── Private ─────────────────────────────────────────────────────────────
 
-    private fun fetchPictures(malId: Int, endpoint: String): List<String> {
+    private suspend fun fetchPictures(malId: Int, endpoint: String): List<String> {
         val url = URL("https://api.jikan.moe/v4/$endpoint/$malId/pictures")
-        val request = Request.Builder()
-            .url(url)
-            .header("Accept", "application/json")
-            .header("User-Agent", "KitsugiAnimeList/1.0")
-            .build()
         return runCatching {
-            com.kitsugi.animelist.core.network.KitsugiHttpClient.client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return@runCatching emptyList()
-                val text = response.body?.string() ?: return@runCatching emptyList()
+            val text = KitsugiApiBase.executeGetRequestResilient(url) ?: return@runCatching emptyList()
+            runCatching {
                 val dataArr = org.json.JSONObject(text).optJSONArray("data") ?: return@runCatching emptyList()
                 val urls = mutableListOf<String>()
                 for (i in 0 until dataArr.length()) {
@@ -167,7 +161,7 @@ internal object KitsugiMalDetailClient {
                     if (!picUrl.isNullOrBlank()) urls.add(picUrl)
                 }
                 urls
-            }
+            }.getOrElse { emptyList() }
         }.getOrElse { emptyList() }
     }
 
@@ -743,43 +737,26 @@ internal object KitsugiMalDetailClient {
         }
     }
 
-    private fun requestSynopsis(url: URL): String? {
-        val request = Request.Builder()
-            .url(url)
-            .header("Accept", "application/json")
-            .header("User-Agent", "KitsugiAnimeList/1.0")
-            .build()
-        return try {
-            com.kitsugi.animelist.core.network.KitsugiHttpClient.client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return null
-                val responseText = response.body?.string() ?: return null
-                val root = JSONObject(responseText)
-                val data = root.optJSONObject("data") ?: return null
-                data.optString("synopsis")
-                    .cleanApiText()
-                    .takeIf { it.isNotBlank() }
-            }
-        } catch (e: Exception) {
-            null
-        }
+    private suspend fun requestSynopsis(url: URL): String? {
+        return runCatching {
+            val responseText = KitsugiApiBase.executeGetRequestResilient(url) ?: return null
+            val root = JSONObject(responseText)
+            val data = root.optJSONObject("data") ?: return null
+            data.optString("synopsis")
+                .cleanApiText()
+                .takeIf { it.isNotBlank() }
+        }.getOrNull()
     }
 
-    private fun fetchJikanSupplement(malId: Int, endpoint: String): JikanSupplement? {
+    private suspend fun fetchJikanSupplement(malId: Int, endpoint: String): JikanSupplement? {
         val url = URL("https://api.jikan.moe/v4/$endpoint/$malId/full")
-        val request = Request.Builder()
-            .url(url)
-            .header("Accept", "application/json")
-            .header("User-Agent", "KitsugiAnimeList/1.0")
-            .build()
 
-        return try {
-            com.kitsugi.animelist.core.network.KitsugiHttpClient.client.newCall(request).execute().use { response ->
-                val code = response.code
-                if (!response.isSuccessful) {
-                    Log.w(TAG, "fetchJikanSupplement: HTTP $code for malId=$malId")
-                    return null
-                }
-                val text = response.body?.string() ?: return null
+        return runCatching {
+            val text = KitsugiApiBase.executeGetRequestResilient(url) ?: run {
+                Log.w(TAG, "fetchJikanSupplement: yanıt alınamadı (429/5xx retry dahil) malId=$malId")
+                return@runCatching null
+            }
+            runCatching {
                 val root = JSONObject(text)
                 val data = root.optJSONObject("data") ?: return null
 
@@ -827,11 +804,8 @@ internal object KitsugiMalDetailClient {
                     streamingLinks = streamingLinks,
                     externalLinks = externalLinks
                 )
-            }
-        } catch (e: Exception) {
-            Log.e(TAG, "fetchJikanSupplement: Failed for malId=$malId: ${e.message}")
-            null
-        }
+            }.getOrNull()
+        }.getOrNull()
     }
 }
 

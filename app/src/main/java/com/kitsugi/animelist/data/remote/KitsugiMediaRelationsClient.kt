@@ -141,7 +141,7 @@ class KitsugiMediaRelationsClient {
         val url = java.net.URL("https://api.jikan.moe/v4/$endpoint/$externalId/relations")
         return runCatching {
             KitsugiApiBase.runWithRateLimit {
-                val response = KitsugiApiBase.executeGetRequest(url) ?: return@runWithRateLimit emptyList()
+                val response = KitsugiApiBase.executeGetRequestResilient(url) ?: return@runWithRateLimit emptyList()
                 val root = JSONObject(response)
                 val data = root.optJSONArray("data") ?: return@runWithRateLimit emptyList()
                 val list = mutableListOf<KitsugiRelation>()
@@ -391,7 +391,7 @@ class KitsugiMediaRelationsClient {
         val url = java.net.URL("https://api.jikan.moe/v4/$endpoint/$externalId/recommendations")
         return runCatching {
             KitsugiApiBase.runWithRateLimit {
-                val response = KitsugiApiBase.executeGetRequest(url) ?: return@runWithRateLimit emptyList()
+                val response = KitsugiApiBase.executeGetRequestResilient(url) ?: return@runWithRateLimit emptyList()
                 val root = JSONObject(response)
                 val data = root.optJSONArray("data") ?: return@runWithRateLimit emptyList()
                 val list = mutableListOf<KitsugiRelation>()

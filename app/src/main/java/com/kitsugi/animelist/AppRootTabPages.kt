@@ -244,6 +244,9 @@ private fun ExploreTabPage(ctx: TabPagesContext) {
         onScrollPositionChange = { index, offset ->
             ctx.appViewModel.updateExploreScrollPosition(index, offset)
         },
+        // "Yukarı Çık" FAB'ının alt barla ortak çalışması için:
+        isBottomBarVisible = ctx.isBottomBarVisible,
+        onScrollReset = ctx.onScrollReset,
         viewModel = ctx.exploreViewModel,
         titleLanguage = ctx.appSettings.titleLanguage,
         scoreFormat = ctx.appSettings.scoreFormat,

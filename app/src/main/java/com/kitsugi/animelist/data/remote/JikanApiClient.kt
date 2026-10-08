@@ -244,6 +244,14 @@ class JikanApiClient(
     suspend fun fetchSynopsis(source: String, externalId: Int?, mediaType: MediaType) = detailClient.fetchSynopsis(source, externalId, mediaType)
     suspend fun fetchDetail(source: String, externalId: Int?, mediaType: MediaType, tmdbId: Int? = null, realMalId: Int? = null, title: String? = null) = detailClient.fetchDetail(source, externalId, mediaType, tmdbId, realMalId, title)
 
+    /**
+     * Kademeli detay akışı (detay sayfası için):
+     *  - [fetchPrimaryDetail]: kaynak + fallback + önbellek (TMDB zenginleştirmesi YOK)
+     *  - [enrichDetail]: TMDB/TR meta + next-airing (zaman tavanlı, arka planda)
+     */
+    suspend fun fetchPrimaryDetail(source: String, externalId: Int?, mediaType: MediaType, tmdbId: Int? = null, realMalId: Int? = null, title: String? = null) = detailClient.fetchPrimaryDetail(source, externalId, mediaType, tmdbId, realMalId, title)
+    suspend fun enrichDetail(source: String, externalId: Int?, mediaType: MediaType, detail: KitsugiMediaDetail, tmdbId: Int? = null, realMalId: Int? = null, title: String? = null): KitsugiMediaDetail? = detailClient.enrichDetail(source, externalId, mediaType, detail, tmdbId, realMalId, title)
+
     // Characters & Staff
     suspend fun fetchCharacters(source: String, externalId: Int?, mediaType: MediaType, realMalId: Int? = null, tmdbId: Int? = null, title: String? = null) = characterClient.fetchCharacters(source, externalId, mediaType, realMalId, tmdbId, title)
     suspend fun fetchCharacterDetail(source: String, characterId: Int, name: String? = null) = characterClient.fetchCharacterDetail(source, characterId, name)

@@ -69,7 +69,13 @@ object KitsugiApiBase {
         lastAniListRequestTime = System.currentTimeMillis()
     }
 
-    fun executeGetRequest(url: URL): String? {
+    private data class RawGetResult(
+        val code: Int,
+        val body: String?,
+        val retryAfterMs: Long?
+    )
+
+    private fun performGet(url: URL): RawGetResult {
         val request = Request.Builder()
             .url(url)
             .header("Accept", "application/json")
@@ -78,20 +84,53 @@ object KitsugiApiBase {
 
         return try {
             com.kitsugi.animelist.core.network.KitsugiHttpClient.client.newCall(request).execute().use { response ->
-                if (response.isSuccessful) {
-                    response.body?.string()
-                } else {
+                val body = if (response.isSuccessful) response.body?.string() else null
+                val retryAfterMs = if (response.code == 429 || response.code in 500..599) {
+                    val retryAfterSec = response.header("Retry-After")?.toLongOrNull()
+                    retryAfterSec?.let { (it * 1_000L).coerceIn(0L, 10_000L) }
+                } else null
+                if (body == null) {
                     if (response.code == 429) {
                         android.util.Log.w("KitsugiApiBase", "HTTP 429 Too Many Requests: Rate limit hit for URL: $url")
                     } else {
                         android.util.Log.w("KitsugiApiBase", "HTTP Error: ${response.code} ${response.message} for URL: $url")
                     }
-                    null
                 }
+                RawGetResult(response.code, body, retryAfterMs)
             }
         } catch (e: Exception) {
             android.util.Log.e("KitsugiApiBase", "executeGetRequest Exception: ${e.message} for URL: $url", e)
-            null
+            RawGetResult(0, null, null)
+        }
+    }
+
+    fun executeGetRequest(url: URL): String? {
+        val result = performGet(url)
+        return result.body
+    }
+
+    /**
+     * 429 (rate-limit) ve 5xx (geçici sunucu hatası) durumlarında kısa bir beklemeyle
+     * sınırlı sayıda tekrar deneyen GET.
+     *
+     * Jikan/Shikimori gibi rate-limit'li kaynaklarda tek seferlik 429 gelirse veri
+     * "eksik/boş" dönmek yerine (karakter listesi, ekip, ilişkiler vb.) Retry-After
+     * başlığına uyarak (en fazla 5 sn) üstel beklemeyle yeniden çekilir. Kalıcı 4xx
+     * hataları (404 vb.) yeniden denenmez.
+     *
+     * NOT: `Dispatchers.IO` üzerinde çağrılmalıdır (suspend bekleme kullanır).
+     */
+    suspend fun executeGetRequestResilient(url: URL, maxRetries: Int = 2): String? {
+        var attempt = 0
+        while (true) {
+            val result = performGet(url)
+            if (result.body != null) return result.body
+            val retryable = result.code == 429 || result.code in 500..599
+            if (!retryable || attempt >= maxRetries) return null
+            val backoffMs = (result.retryAfterMs ?: (1_000L * (1 shl attempt))).coerceAtMost(5_000L)
+            android.util.Log.w("KitsugiApiBase", "HTTP ${result.code} → ${backoffMs}ms bekleme ile yeniden deneniyor (deneme ${attempt + 1}/$maxRetries): $url")
+            kotlinx.coroutines.delay(backoffMs)
+            attempt++
         }
     }
 

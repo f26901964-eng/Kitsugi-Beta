@@ -33,6 +33,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 
 class ApiResultDetailViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -253,19 +254,25 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         loadTab(7, result, realMalId)
     }
 
+    /** TMDB/TR zenginleştirmesinin zaman tavanı — sayfa asıl detayla açıkken bu adım
+     *  asla kullanıcıyı dakika dakika bekletmesin. */
+     private val enrichTimeoutMillis: Long get() = 20_000L
+
     private suspend fun fetchDetail(result: JikanSearchResult) {
         // TMDB devre dışıysa TMDB zenginleştirmesini atla
         val settings = runCatching { settingsDataStore.settingsFlow.first() }.getOrNull()
         val tmdbEnabled = settings?.tmdbEnabled ?: true
 
         val cached = DetailCache.getMediaDetail(result.source, result.malId)
+        // ── Aşama 1: BİRİNCİL DETAY (kaynak + fallback + Room önbelleği) ─────────────
+        // Sayfa bu veriyle HEMEN açılır; TMDB/TR zenginleştirmesi için beklenmez.
         val detail = if (cached != null) {
             cached
         } else {
             _detailLoading.value = true
             val fetched = try {
                 withContext(Dispatchers.IO) {
-                    apiClient.fetchDetail(
+                    apiClient.fetchPrimaryDetail(
                         source = result.source,
                         externalId = result.malId,
                         mediaType = result.type,
@@ -276,7 +283,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                     )
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Exception during apiClient.fetchDetail: ${e.message}", e)
+                Log.e(TAG, "Exception during apiClient.fetchPrimaryDetail: ${e.message}", e)
                 null
             }
             if (fetched != null) {
@@ -289,11 +296,39 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         _detailLoading.value = false
 
         if (detail != null) {
+            // ── Aşama 2: TMDB/TR ZENGİNLEŞTİRME — zaman tavanlı, arka planda ─────────
+            val enriched = if (tmdbEnabled) {
+                try {
+                    withTimeoutOrNull(enrichTimeoutMillis) {
+                        withContext(Dispatchers.IO) {
+                            apiClient.enrichDetail(
+                                source = result.source,
+                                externalId = result.malId,
+                                mediaType = result.type,
+                                detail = detail,
+                                tmdbId = result.tmdbId,
+                                realMalId = result.realMalId,
+                                title = result.title
+                            )
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e(TAG, "Enrichment failed, keeping primary detail: ${e.message}")
+                    null
+                }
+            } else null
+
+            val finalDetail = enriched ?: detail
+            if (enriched != null && enriched !== detail) {
+                DetailCache.putMediaDetail(result.source, result.malId, enriched)
+                _detailState.value = enriched
+            }
+
             val determinedSeason = KitsugiEpisodeRatingsRepository.determineTargetSeason(
-                tmdbSeason = detail.tmdbSeason,
+                tmdbSeason = finalDetail.tmdbSeason,
                 title = result.title,
-                titleEnglish = detail.titleEnglish,
-                synonyms = detail.synonyms.orEmpty()
+                titleEnglish = finalDetail.titleEnglish,
+                synonyms = finalDetail.synonyms.orEmpty()
             )
             _targetSeason.value = determinedSeason
 
@@ -309,7 +344,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
             }
 
             // Önce ham synopsis'i göster
-            val rawSynopsis = detail.synopsis
+            val rawSynopsis = finalDetail.synopsis
             if (!rawSynopsis.isNullOrBlank()) {
                 _translatedSynopsis.value = rawSynopsis
                 // Google Translate yalnızca kullanıcı otomatik çeviri ayarını açtıysa veya metin Rusça ise çalışır.
@@ -332,7 +367,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
             }
 
             // Fetch episode ratings
-            fetchEpisodeRatings(result, detail)
+            fetchEpisodeRatings(result, finalDetail)
 
             // Logo güncelle — Simkl gibi kaynaklarda detaydan realMalId veya tmdbId geldiğinde logo çekilebilir
             if (_logoUrl.value == null) {
@@ -340,7 +375,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                 if (showLogos) {
                     viewModelScope.launch {
                         try {
-                            fetchLogo(result.copy(realMalId = detail.realMalId ?: result.realMalId, tmdbId = detail.tmdbId ?: result.tmdbId), showLogos)
+                            fetchLogo(result.copy(realMalId = finalDetail.realMalId ?: result.realMalId, tmdbId = finalDetail.tmdbId ?: result.tmdbId), showLogos)
                         } catch (e: Exception) {
                             Log.e(TAG, "Post-detail logo fetch failed: ${e.message}")
                         }
@@ -358,7 +393,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                     (epState is DetailTabState.Success && epState.data.isEmpty())
                 if (needsEpLoad) {
                     android.util.Log.d(TAG, "fetchDetail: detail loaded, auto-triggering episode load for ${result.source}/${result.malId}")
-                    loadTab(7, result, result.realMalId ?: detail.realMalId)
+                    loadTab(7, result, result.realMalId ?: finalDetail.realMalId)
                 }
             }
         }
@@ -463,9 +498,15 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                     }
                 }
                 result.source.equals("jikan", ignoreCase = true) ||
-                result.source.equals("mal", ignoreCase = true) ||
-                result.source.equals("shikimori", ignoreCase = true) -> {
+                result.source.equals("mal", ignoreCase = true) -> {
                     if (stableId > 0) KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId) else null
+                }
+                result.source.equals("shikimori", ignoreCase = true) -> {
+                    // NOT: stableId burada Shikimori ID'sidir — MAL ID'si olarak KULLANILMAZ.
+                    // Gerçek MAL ID'si result/detail/ARM zincirinden çözülür.
+                    val malId = result.realMalId ?: _detailState.value?.realMalId
+                        ?: KitsugiIdResolver.resolveMalIdFromShikimori(stableId)
+                    if (malId != null && malId > 0) KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(malId) else null
                 }
                 stableId > 0 && !result.source.equals("simkl", ignoreCase = true) -> {
                     KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId)

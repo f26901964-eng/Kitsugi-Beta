@@ -116,7 +116,7 @@ class KitsugiMediaSocialClient {
         val url = java.net.URL("https://api.jikan.moe/v4/$endpoint/$externalId/statistics")
         return runCatching {
             KitsugiApiBase.runWithRateLimit {
-                val response = KitsugiApiBase.executeGetRequest(url) ?: return@runWithRateLimit null
+                val response = KitsugiApiBase.executeGetRequestResilient(url) ?: return@runWithRateLimit null
                 val root = JSONObject(response)
                 val data = root.optJSONObject("data") ?: return@runWithRateLimit null
                 val watching   = data.optionalPositiveInt("watching")
@@ -320,7 +320,7 @@ class KitsugiMediaSocialClient {
         val url = java.net.URL("https://api.jikan.moe/v4/$endpoint/$externalId/reviews?page=$page")
         return runCatching {
             KitsugiApiBase.runWithRateLimit {
-                val response = KitsugiApiBase.executeGetRequest(url) ?: return@runWithRateLimit emptyList()
+                val response = KitsugiApiBase.executeGetRequestResilient(url) ?: return@runWithRateLimit emptyList()
                 val root = JSONObject(response)
                 val data = root.optJSONArray("data") ?: return@runWithRateLimit emptyList()
                 val list = mutableListOf<KitsugiReview>()
@@ -452,7 +452,7 @@ class KitsugiMediaSocialClient {
         val pathType = if (mediaType == MediaType.Anime) "anime" else "manga"
         val url = java.net.URL("https://api.jikan.moe/v4/$pathType/$externalId/forum")
         return KitsugiApiBase.runWithRateLimit {
-            val response = KitsugiApiBase.executeGetRequest(url) ?: return@runWithRateLimit emptyList()
+            val response = KitsugiApiBase.executeGetRequestResilient(url) ?: return@runWithRateLimit emptyList()
             runCatching {
                 val root = JSONObject(response)
                 val data = root.optJSONArray("data") ?: return@runCatching emptyList()

@@ -3,9 +3,16 @@ package com.kitsugi.animelist.data.remote
 import com.kitsugi.animelist.model.MediaType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import com.kitsugi.animelist.utils.*
 
 class KitsugiDetailClient {
+
+    /**
+     * Birincil detay zincirinin (kaynak + fallback'ler) toplam zaman tavanı.
+     * Yavaş/askıda kalan istekler sayfanın önünü bloklamaz; eskimeş önbellek devreye girer.
+     */
+    private val PRIMARY_FETCH_TIMEOUT_MS = 45_000L
 
     private suspend fun getTurkishMetadataFromTmdb(
         source: String,
@@ -151,7 +158,14 @@ class KitsugiDetailClient {
         }
     }
 
-    suspend fun fetchDetail(
+    /**
+     * Birincil detayı çeker: kaynak istemcisi + fallback zinciri + Room önbelleği.
+     *
+     * TMDB zenginleştirmesi BURADA yapılmaz — o adım [enrichDetail] ile ayrı ve
+     * (ViewModel tarafında) zaman tavanlı çalışır. Böylece detay sayfası asıl veriyle
+     * HEMEN açılır; Türkçe/TMDB metaları arka planda gelince eklenir.
+     */
+    suspend fun fetchPrimaryDetail(
         source: String,
         externalId: Int?,
         mediaType: MediaType,
@@ -256,10 +270,19 @@ class KitsugiDetailClient {
                 }
             }
 
-            // 2. Primary source fetch
-            val detail = when (source.lowercase()) {
+            // 2. Primary source fetch — toplam zaman tavanı: yavaş/hanging zincirler
+            // (Jikan → ARM → TMDB → Kitsu ...) sayfanın önünü bloklamaz.
+            val detail = withTimeoutOrNull(PRIMARY_FETCH_TIMEOUT_MS) { when (source.lowercase()) {
                 "jikan", "mal" -> KitsugiMalDetailClient.fetchDetail(externalId, mediaType)
-                "shikimori" -> KitsugiShikimoriClient.fetchDetail(externalId, mediaType) ?: KitsugiMalDetailClient.fetchDetail(externalId, mediaType)
+                "shikimori" -> {
+                    // NOT: externalId Shikimori ID'sidir — MAL ID'si olarak KULLANILMAZ!
+                    // Shikimori başarısızsa gerçek MAL ID'si ARM ile çözülüp dene.
+                    KitsugiShikimoriClient.fetchDetail(externalId, mediaType)
+                        ?: run {
+                            val malId = KitsugiIdResolver.resolveMalIdFromShikimori(externalId)
+                            if (malId != null && malId > 0) KitsugiMalDetailClient.fetchDetail(malId, mediaType) else null
+                        }
+                }
                 "anilist" -> KitsugiAniListDetailClient.fetchDetail(externalId, mediaType)
                 // Kitsu keşfet fallback öğeleri: stableId = kitsuId + 300_000_000
                 "kitsu" -> {
@@ -367,159 +390,68 @@ class KitsugiDetailClient {
                     }
                 }
                 else -> null
-            }
+            } }
 
             var finalDetail = detail
             
-            // 3. Fallback Client Chains (Live Backups)
-            // Kitsu kaynaklı kayıtlarda zincir yukarıda zaten kendi güvenli denemelerini yaptı
-            // (Kitsu → MAL/Jikan → sıkı başlık araması). Buradaki başlık bazlı jenerik zincir
-            // eşleşmeyen bir yapımı geri getirebildiği için Kitsu'da ayrıca denemiyoruz.
+            // 3. Fallback Client Chains (Live Backups) — aynı tavanla sınırlı
             if (finalDetail == null && !isKitsuSource) {
-                if (mediaType == MediaType.Movie || mediaType == MediaType.TvShow) {
-                    // TMDB Fallback: TVmaze for TV Shows
-                    if (mediaType == MediaType.TvShow && !title.isNullOrBlank()) {
-                        android.util.Log.d("KitsugiDetailClient", "TMDB returned null. Trying TVmaze fallback for TV show: $title")
-                        finalDetail = TvMazeClient.fetchShowDetailByTitle(title)
-                    }
-                    // TMDB Fallback: Search fallback by title
-                    if (finalDetail == null && !title.isNullOrBlank()) {
-                        android.util.Log.d("KitsugiDetailClient", "Trying direct TMDB search fallback for: $title")
-                        val searchResults = TmdbApiClient().search(title)
-                        val matchedResult = searchResults.firstOrNull { it.type == mediaType }
-                        if (matchedResult != null && matchedResult.tmdbId != null && matchedResult.tmdbId > 0) {
-                            finalDetail = TmdbApiClient().fetchMediaDetail(matchedResult.tmdbId, mediaType == MediaType.Movie)
+                withTimeoutOrNull(PRIMARY_FETCH_TIMEOUT_MS) {
+                    if (mediaType == MediaType.Movie || mediaType == MediaType.TvShow) {
+                        // TMDB Fallback: TVmaze for TV Shows
+                        if (mediaType == MediaType.TvShow && !title.isNullOrBlank()) {
+                            android.util.Log.d("KitsugiDetailClient", "TMDB returned null. Trying TVmaze fallback for TV show: $title")
+                            finalDetail = TvMazeClient.fetchShowDetailByTitle(title)
                         }
-                    }
-                } else if (mediaType == MediaType.Anime) {
-                    // Anime Fallback: Kitsu
-                    android.util.Log.d("KitsugiDetailClient", "AniList/MAL detail returned null. Trying Kitsu fallback.")
-                    val kitsuId = if (db != null) {
-                        val resolvedEntity = if (source.lowercase() == "anilist") {
-                            db.mediaMetaCacheDao().getByAniListId(externalId)
-                        } else {
-                            db.mediaMetaCacheDao().getByMalId(externalId)
+                        // TMDB Fallback: Search fallback by title
+                        if (finalDetail == null && !title.isNullOrBlank()) {
+                            android.util.Log.d("KitsugiDetailClient", "Trying direct TMDB search fallback for: $title")
+                            val searchResults = TmdbApiClient().search(title)
+                            val matchedResult = searchResults.firstOrNull { it.type == mediaType }
+                            if (matchedResult != null && matchedResult.tmdbId != null && matchedResult.tmdbId > 0) {
+                                finalDetail = TmdbApiClient().fetchMediaDetail(matchedResult.tmdbId, mediaType == MediaType.Movie)
+                            }
                         }
-                        resolvedEntity?.kitsuId
-                    } else null
+                    } else if (mediaType == MediaType.Anime) {
+                        // Anime Fallback: Kitsu
+                        android.util.Log.d("KitsugiDetailClient", "AniList/MAL detail returned null. Trying Kitsu fallback.")
+                        val kitsuId = if (db != null) {
+                            val resolvedEntity = if (source.lowercase() == "anilist") {
+                                db.mediaMetaCacheDao().getByAniListId(externalId)
+                            } else {
+                                db.mediaMetaCacheDao().getByMalId(externalId)
+                            }
+                            resolvedEntity?.kitsuId
+                        } else null
 
-                    if (!kitsuId.isNullOrBlank()) {
-                        android.util.Log.d("KitsugiDetailClient", "Fetching Kitsu detail via resolved kitsuId: $kitsuId")
-                        finalDetail = KitsuClient.fetchAnimeDetail(kitsuId)
-                    }
-                    if (finalDetail == null && !title.isNullOrBlank()) {
-                        android.util.Log.d("KitsugiDetailClient", "Fetching Kitsu detail via title search: $title")
-                        finalDetail = KitsuClient.fetchAnimeDetailByTitle(title)
-                    }
-                    if (finalDetail == null && !title.isNullOrBlank()) {
-                        runCatching {
-                            val simklResults = SimklApiClient().search(title, type = "anime", limit = 1)
-                            val matched = simklResults.firstOrNull()
-                            if (matched != null && matched.malId > 0) {
-                                finalDetail = KitsugiSimklDetailClient.fetchSimklDetailDirect(matched.malId, mediaType)
+                        if (!kitsuId.isNullOrBlank()) {
+                            android.util.Log.d("KitsugiDetailClient", "Fetching Kitsu detail via resolved kitsuId: $kitsuId")
+                            finalDetail = KitsuClient.fetchAnimeDetail(kitsuId)
+                        }
+                        if (finalDetail == null && !title.isNullOrBlank()) {
+                            android.util.Log.d("KitsugiDetailClient", "Fetching Kitsu detail via title search: $title")
+                            finalDetail = KitsuClient.fetchAnimeDetailByTitle(title)
+                        }
+                        if (finalDetail == null && !title.isNullOrBlank()) {
+                            runCatching {
+                                val simklResults = SimklApiClient().search(title, type = "anime", limit = 1)
+                                val matched = simklResults.firstOrNull()
+                                if (matched != null && matched.malId > 0) {
+                                    finalDetail = KitsugiSimklDetailClient.fetchSimklDetailDirect(matched.malId, mediaType)
+                                }
+                            }
+                        }
+                        if (finalDetail == null && !title.isNullOrBlank()) {
+                            runCatching {
+                                val jikanResults = JikanApiClient().search(title, MediaType.Anime)
+                                val matched = jikanResults.firstOrNull()
+                                if (matched != null && matched.malId > 0) {
+                                    finalDetail = KitsugiMalDetailClient.fetchDetail(matched.malId, mediaType)
+                                }
                             }
                         }
                     }
-                    if (finalDetail == null && !title.isNullOrBlank()) {
-                        runCatching {
-                            val jikanResults = JikanApiClient().search(title, MediaType.Anime)
-                            val matched = jikanResults.firstOrNull()
-                            if (matched != null && matched.malId > 0) {
-                                finalDetail = KitsugiMalDetailClient.fetchDetail(matched.malId, mediaType)
-                            }
-                        }
-                    }
                 }
-            }
-
-            val currentDetail = finalDetail
-            if (currentDetail != null && mediaType != MediaType.Manga) {
-                // TMDB zenginleştirmesi için en iyi MAL ID'yi bul
-                // Kitsu'da externalId ya 300M+ aralığındaki stableId'dir ya da (legacy kayıtlar)
-                // gerçek MAL ID. İkisini birbirine karıştırmak yanlış yapımın TMDB'sini çeker.
-                val effectiveRealMalId = realMalId
-                    ?: currentDetail.realMalId
-                    ?: if (source.lowercase() == "anilist" && externalId < 100_000_000) externalId else null
-                
-                var resolvedTmdbId = tmdbId ?: currentDetail.tmdbId
-                
-                // Fallback scenario 2: Primary detail is not null, but tmdbId is missing -> Try direct TMDB search fallback by title!
-                if ((resolvedTmdbId == null || resolvedTmdbId <= 0) && (mediaType == MediaType.Movie || mediaType == MediaType.TvShow)) {
-                    val searchTitle = title ?: currentDetail.title ?: currentDetail.titleEnglish
-                    if (!searchTitle.isNullOrBlank()) {
-                        android.util.Log.d("KitsugiDetailClient", "Primary resolution has no tmdbId. Triggering TMDB search for title: $searchTitle")
-                        val searchResults = TmdbApiClient().search(searchTitle)
-                        val matchedResult = searchResults.firstOrNull { it.type == mediaType }
-                        if (matchedResult != null && matchedResult.tmdbId != null && matchedResult.tmdbId > 0) {
-                            resolvedTmdbId = matchedResult.tmdbId
-                            android.util.Log.d("KitsugiDetailClient", "Resolved tmdbId = $resolvedTmdbId via search for title: $searchTitle")
-                        }
-                    }
-                }
-                
-                val trMeta = getTurkishMetadataFromTmdb(source, externalId, mediaType, resolvedTmdbId, effectiveRealMalId)
-                var mergedDetail = if (trMeta != null) {
-                    val updatedSynopsis = if (!trMeta.synopsis.isNullOrBlank()) trMeta.synopsis else currentDetail.synopsis
-                    // Kaynak Otoritesi Kuralı (Source Authority Preservation):
-                    // Birincil kaynağın başlıkları, türleri, stüdyoları ve kapak görseli her zaman önceliklidir!
-                    val updatedTitle = if (!currentDetail.title.isNullOrBlank()) currentDetail.title else trMeta.title
-                    val updatedTitleEnglish = if (!currentDetail.titleEnglish.isNullOrBlank()) currentDetail.titleEnglish else trMeta.titleEnglish
-                    val updatedGenres = if (currentDetail.genres.isNotEmpty()) currentDetail.genres else trMeta.genres
-                    val combinedPictures = (currentDetail.pictures.orEmpty() + trMeta.pictures.orEmpty()).distinct()
-                    val mergedStudios = if (currentDetail.studios.isNotEmpty()) currentDetail.studios else trMeta.studios
-                    val mergedProducers = if (currentDetail.producers.isNotEmpty()) currentDetail.producers else trMeta.producers
-                    val mergedRating = if (!currentDetail.rating.isNullOrBlank()) currentDetail.rating else trMeta.rating
-                    val updatedImageUrl = if (!currentDetail.imageUrl.isNullOrBlank()) currentDetail.imageUrl else trMeta.imageUrl
-                    currentDetail.copy(
-                        synopsis = updatedSynopsis,
-                        title = updatedTitle,
-                        titleEnglish = updatedTitleEnglish,
-                        genres = updatedGenres,
-                        tmdbId = resolvedTmdbId ?: currentDetail.tmdbId,
-                        imageUrl = updatedImageUrl,
-                        pictures = combinedPictures,
-                        studios = mergedStudios,
-                        producers = mergedProducers,
-                        rating = mergedRating,
-                        totalSeasons = if (source.lowercase() == "tmdb" || source.lowercase() == "simkl") {
-                            trMeta.totalSeasons ?: currentDetail.totalSeasons
-                        } else {
-                            currentDetail.totalSeasons ?: 1
-                        },
-                        meanScore = currentDetail.meanScore ?: trMeta.meanScore,
-                        averageScore = currentDetail.averageScore ?: trMeta.averageScore,
-                        popularity = currentDetail.popularity ?: trMeta.popularity,
-                        favorites = currentDetail.favorites ?: trMeta.favorites,
-                        rank = currentDetail.rank ?: trMeta.rank,
-                        popularityRank = currentDetail.popularityRank ?: trMeta.popularityRank,
-                        scoredBy = currentDetail.scoredBy ?: trMeta.scoredBy,
-                        members = currentDetail.members ?: trMeta.members,
-                        nextAiringEpisode = currentDetail.nextAiringEpisode ?: trMeta.nextAiringEpisode
-                    )
-                } else {
-                    currentDetail
-                }
-
-                // Eğer nextAiringEpisode hâlâ null ise AniList üzerinden çöz ve çek
-                if (mergedDetail.nextAiringEpisode == null) {
-                    val malIdForResolve = when (source.lowercase()) {
-                        "simkl" -> realMalId ?: mergedDetail.realMalId
-                        "jikan", "mal" -> externalId
-                        "anilist" -> if (externalId < 100_000_000) externalId else realMalId ?: mergedDetail.realMalId
-                        "kitsu" -> realMalId ?: mergedDetail.realMalId
-                        else -> null
-                    }
-                    val resolvedAniListId = runCatching {
-                        KitsugiIdResolver.resolveIds(malId = malIdForResolve, aniListId = null, mediaType = mediaType).aniListId
-                    }.getOrNull()
-                    if (resolvedAniListId != null && resolvedAniListId > 0) {
-                        val nextAiring = KitsugiAniListDetailClient.fetchNextAiringEpisodeOnly(resolvedAniListId)
-                        if (nextAiring != null) {
-                            mergedDetail = mergedDetail.copy(nextAiringEpisode = nextAiring)
-                        }
-                    }
-                }
-                finalDetail = mergedDetail
             }
 
             // 4. Stale Cache Fallback (If all network attempts returned null, check cache again even if expired)
@@ -538,20 +470,168 @@ class KitsugiDetailClient {
             }
 
             // 5. Cache update on success
-            if (finalDetail != null && db != null && !cacheKey.isNullOrBlank()) {
-                try {
-                    val entity = com.kitsugi.animelist.data.local.PersistentDetailCacheEntity(
-                        cacheKey = cacheKey,
-                        detailJson = gson.toJson(finalDetail),
-                        cachedAtMs = System.currentTimeMillis()
-                    )
-                    db.persistentDetailCacheDao().insertDetail(entity)
-                } catch (e: Exception) {
-                    android.util.Log.e("KitsugiDetailClient", "Error writing detail cache: ${e.message}")
-                }
+            val currentFinal = finalDetail
+            if (currentFinal != null && !cacheKey.isNullOrBlank()) {
+                saveToRoomCache(source, mediaType, keyId, currentFinal)
             }
 
             finalDetail
+        }
+    }
+
+    /**
+     * TMDB zenginleştirmesi (TR meta, görseller, puanlar) + next-airing çözümü.
+     *
+     * Birincil detaydan SONRA çağrılır; ApiResultDetailViewModel bu adımı zaman
+     * tavanıyla (~20 sn) çalıştırır. Başarısızsa/timeout'ta [detail] aynen döner —
+     * sayfa asla asıl veriye kavuşmamış durumuna düşmez.
+     */
+    suspend fun enrichDetail(
+        source: String,
+        externalId: Int?,
+        mediaType: MediaType,
+        detail: KitsugiMediaDetail,
+        tmdbId: Int? = null,
+        realMalId: Int? = null,
+        title: String? = null
+    ): KitsugiMediaDetail? = withContext(Dispatchers.IO) {
+        if (externalId == null || externalId <= 0 || mediaType == MediaType.Manga) return@withContext detail
+
+        val currentDetail = detail
+
+        // TMDB zenginleştirmesi için en iyi MAL ID'yi bul
+        val effectiveRealMalId = realMalId
+            ?: currentDetail.realMalId
+            ?: if (source.lowercase() == "anilist" && externalId < 100_000_000) externalId else null
+
+        var resolvedTmdbId = tmdbId ?: currentDetail.tmdbId
+
+        // Fallback scenario 2: Primary detail is not null, but tmdbId is missing -> Try direct TMDB search fallback by title!
+        if ((resolvedTmdbId == null || resolvedTmdbId <= 0) && (mediaType == MediaType.Movie || mediaType == MediaType.TvShow)) {
+            val searchTitle = title ?: currentDetail.title ?: currentDetail.titleEnglish
+            if (!searchTitle.isNullOrBlank()) {
+                android.util.Log.d("KitsugiDetailClient", "Primary resolution has no tmdbId. Triggering TMDB search for title: $searchTitle")
+                val searchResults = TmdbApiClient().search(searchTitle)
+                val matchedResult = searchResults.firstOrNull { it.type == mediaType }
+                if (matchedResult != null && matchedResult.tmdbId != null && matchedResult.tmdbId > 0) {
+                    resolvedTmdbId = matchedResult.tmdbId
+                    android.util.Log.d("KitsugiDetailClient", "Resolved tmdbId = $resolvedTmdbId via search for title: $searchTitle")
+                }
+            }
+        }
+
+        val trMeta = getTurkishMetadataFromTmdb(source, externalId, mediaType, resolvedTmdbId, effectiveRealMalId)
+        var mergedDetail = if (trMeta != null) {
+            val updatedSynopsis = if (!trMeta.synopsis.isNullOrBlank()) trMeta.synopsis else currentDetail.synopsis
+            // Kaynak Otoritesi Kuralı (Source Authority Preservation):
+            // Birincil kaynağın başlıkları, türleri, stüdyoları ve kapak görseli her zaman önceliklidir!
+            val updatedTitle = if (!currentDetail.title.isNullOrBlank()) currentDetail.title else trMeta.title
+            val updatedTitleEnglish = if (!currentDetail.titleEnglish.isNullOrBlank()) currentDetail.titleEnglish else trMeta.titleEnglish
+            val updatedGenres = if (currentDetail.genres.isNotEmpty()) currentDetail.genres else trMeta.genres
+            val combinedPictures = (currentDetail.pictures.orEmpty() + trMeta.pictures.orEmpty()).distinct()
+            val mergedStudios = if (currentDetail.studios.isNotEmpty()) currentDetail.studios else trMeta.studios
+            val mergedProducers = if (currentDetail.producers.isNotEmpty()) currentDetail.producers else trMeta.producers
+            val mergedRating = if (!currentDetail.rating.isNullOrBlank()) currentDetail.rating else trMeta.rating
+            val updatedImageUrl = if (!currentDetail.imageUrl.isNullOrBlank()) currentDetail.imageUrl else trMeta.imageUrl
+            currentDetail.copy(
+                synopsis = updatedSynopsis,
+                title = updatedTitle,
+                titleEnglish = updatedTitleEnglish,
+                genres = updatedGenres,
+                tmdbId = resolvedTmdbId ?: currentDetail.tmdbId,
+                imageUrl = updatedImageUrl,
+                pictures = combinedPictures,
+                studios = mergedStudios,
+                producers = mergedProducers,
+                rating = mergedRating,
+                totalSeasons = if (source.lowercase() == "tmdb" || source.lowercase() == "simkl") {
+                    trMeta.totalSeasons ?: currentDetail.totalSeasons
+                } else {
+                    currentDetail.totalSeasons ?: 1
+                },
+                meanScore = currentDetail.meanScore ?: trMeta.meanScore,
+                averageScore = currentDetail.averageScore ?: trMeta.averageScore,
+                popularity = currentDetail.popularity ?: trMeta.popularity,
+                favorites = currentDetail.favorites ?: trMeta.favorites,
+                rank = currentDetail.rank ?: trMeta.rank,
+                popularityRank = currentDetail.popularityRank ?: trMeta.popularityRank,
+                scoredBy = currentDetail.scoredBy ?: trMeta.scoredBy,
+                members = currentDetail.members ?: trMeta.members,
+                nextAiringEpisode = currentDetail.nextAiringEpisode ?: trMeta.nextAiringEpisode
+            )
+        } else {
+            currentDetail
+        }
+
+        // Eğer nextAiringEpisode hâlâ null ise AniList üzerinden çöz ve çek
+        if (mergedDetail.nextAiringEpisode == null) {
+            val malIdForResolve = when (source.lowercase()) {
+                "simkl" -> realMalId ?: mergedDetail.realMalId
+                "jikan", "mal" -> externalId
+                "anilist" -> if (externalId < 100_000_000) externalId else realMalId ?: mergedDetail.realMalId
+                "kitsu" -> realMalId ?: mergedDetail.realMalId
+                else -> null
+            }
+            val resolvedAniListId = runCatching {
+                KitsugiIdResolver.resolveIds(malId = malIdForResolve, aniListId = null, mediaType = mediaType).aniListId
+            }.getOrNull()
+            if (resolvedAniListId != null && resolvedAniListId > 0) {
+                val nextAiring = KitsugiAniListDetailClient.fetchNextAiringEpisodeOnly(resolvedAniListId)
+                if (nextAiring != null) {
+                    mergedDetail = mergedDetail.copy(nextAiringEpisode = nextAiring)
+                }
+            }
+        }
+
+        val isKitsuSource = source.lowercase() == "kitsu"
+        val keyId = if (isKitsuSource) {
+            KitsuIdNamespace.stableIdOrNull(externalId) ?: externalId
+        } else {
+            externalId
+        }
+        saveToRoomCache(source, mediaType, keyId, mergedDetail)
+        mergedDetail
+    }
+
+    /**
+     * Eski davranışı koruyan tam akış (TV / entry detay sayfası): birincil detay +
+     * TMDB zenginleştirmesi tek çağrıda. Kademeli akış için
+     * [fetchPrimaryDetail] + [enrichDetail] ayrımı kullanılır.
+     */
+    suspend fun fetchDetail(
+        source: String,
+        externalId: Int?,
+        mediaType: MediaType,
+        tmdbId: Int? = null,
+        realMalId: Int? = null,
+        title: String? = null
+    ): KitsugiMediaDetail? {
+        val primary = fetchPrimaryDetail(source, externalId, mediaType, tmdbId, realMalId, title) ?: return null
+        return runCatching {
+            enrichDetail(source, externalId, mediaType, primary, tmdbId, realMalId, title)
+        }.getOrNull() ?: primary
+    }
+
+    /** Birincil detay + zenginleşmiş detay ortak Room önbellek yazarı. */
+    private suspend fun saveToRoomCache(
+        source: String,
+        mediaType: MediaType,
+        externalId: Int,
+        detail: KitsugiMediaDetail
+    ) {
+        val context = com.kitsugi.animelist.KitsugiApplication.getInstance()?.applicationContext ?: return
+        val db = com.kitsugi.animelist.data.local.KitsugiDatabase.getDatabase(context) ?: return
+        try {
+            val mediaTypeStr = mediaType.name.lowercase()
+            val cacheKey = "${source.lowercase()}_${mediaTypeStr}_$externalId"
+            val entity = com.kitsugi.animelist.data.local.PersistentDetailCacheEntity(
+                cacheKey = cacheKey,
+                detailJson = com.google.gson.Gson().toJson(detail),
+                cachedAtMs = System.currentTimeMillis()
+            )
+            db.persistentDetailCacheDao().insertDetail(entity)
+        } catch (e: Exception) {
+            android.util.Log.e("KitsugiDetailClient", "Error writing detail cache: ${e.message}")
         }
     }
 }

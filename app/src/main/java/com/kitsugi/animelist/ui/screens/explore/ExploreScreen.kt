@@ -5,6 +5,14 @@
 
 package com.kitsugi.animelist.ui.screens.explore
 
+import android.content.res.Configuration
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.*
@@ -12,6 +20,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Key
 import androidx.compose.material.icons.rounded.Login
@@ -23,6 +32,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -68,6 +79,10 @@ fun ExploreScreen(
     blurAdultMedia: Boolean = false,
     onOpenNotifications: () -> Unit = {},
     isNotificationsVisible: Boolean = false,
+    /** Alt navigasyon barı görünüyor mu? — "Yukarı Çık" FAB'ı alt barın üstünde hizalanır. */
+    isBottomBarVisible: Boolean = true,
+    /** Liste tepesine dönüldüğünde çağrılır (diğer ana sayfalarla aynı sözleşme). */
+    onScrollReset: (() -> Unit)? = null,
     /** TMDB hatası — Ayarlar/Entegrasyonlar sayfasına yönlendir */
     onRedirectToSettings: (() -> Unit)? = null,
     /** AniList/MAL hatası — Giriş yap sayfasına yönlendir */
@@ -156,7 +171,9 @@ fun ExploreScreen(
 
     val allSourcesScope = rememberCoroutineScope()
     val density = androidx.compose.ui.platform.LocalDensity.current
-    val sourceNavigationHeight = with(density) { 64.dp.roundToPx() }
+    // Kalan yapışkan başlık: kaynak seçici pill satırı (~48dp). Kaynak başlıkları bu
+    // yüksekliğin ALTINDA oturmalı ki sticky pill'in arkasına gizlenmesinler.
+    val stickyToggleHeight = with(density) { 56.dp.roundToPx() }
     var collapsedSourceNames by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(emptyList<String>()) }
 
     var activeRankingSheetData by remember { mutableStateOf<Triple<String, MediaType, List<JikanSearchResult>>?>(null) }
@@ -172,6 +189,33 @@ fun ExploreScreen(
     }
 
     val isTvDevice = LocalIsTvDevice.current
+
+    // ── "Yukarı Çık" FAB — arama/liste sayfalarıyla aynı davranış, alt barla uyumlu ──
+    val scope = rememberCoroutineScope()
+    val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val navigationBarsPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+    val fabBottomPadding by animateDpAsState(
+        targetValue = if (isLandscape) {
+            16.dp
+        } else if (isBottomBarVisible) {
+            80.dp + navigationBarsPadding
+        } else {
+            16.dp + navigationBarsPadding
+        },
+        animationSpec = tween(durationMillis = 200),
+        label = "explore_fab_bottom_padding"
+    )
+    val showFab by remember { derivedStateOf { lazyListState.firstVisibleItemIndex > 1 } }
+
+    // Manuel olarak tepeye dönüldüğünde sıfırlama sinyali ver (diğer sayfalarla aynı sözleşme).
+    LaunchedEffect(lazyListState) {
+        snapshotFlow { lazyListState.firstVisibleItemIndex to lazyListState.firstVisibleItemScrollOffset }
+            .collect { (firstIndex, scrollOffset) ->
+                if (firstIndex == 0 && scrollOffset == 0) {
+                    onScrollReset?.invoke()
+                }
+            }
+    }
 
     val isCatalogEmpty = !viewModel.isLoading && viewModel.errorMessage == null &&
         filteredTopAnime.isEmpty() && filteredAiringAnime.isEmpty() &&
@@ -462,7 +506,7 @@ fun ExploreScreen(
                                     },
                                     startIndex = 2 + (if (viewModel.isShowingCachedData) 1 else 0) + (if (viewModel.errorMessage != null) 1 else 0),
                                     onJumpToIndex = { index -> allSourcesScope.launch {
-                                        lazyListState.animateScrollToItem(index, -sourceNavigationHeight)
+                                        lazyListState.animateScrollToItem(index, stickyToggleHeight)
                                     } },
                                     onRetrySource = viewModel::retrySource,
                                     alreadyInList = isAlreadyInList,
@@ -473,7 +517,10 @@ fun ExploreScreen(
                                     titleLanguage = titleLanguage,
                                     scoreFormat = scoreFormat,
                                     hideScores = hideScores,
-                                    blurAdultMedia = blurAdultMedia
+                                    blurAdultMedia = blurAdultMedia,
+                                    // Telefon: yapışkan kaynak çubuğu kaldırıldı —
+                                    // yukarı çıkma için yüzen FAB kullanılıyor (alt barla uyumlu).
+                                    showSourceJumpBar = false
                                 )
                             } else if (isCatalogEmpty) {
                                 item {
@@ -608,6 +655,31 @@ fun ExploreScreen(
                             }
                         }
                     }
+                }
+            }
+
+            // ── "Yukarı Çık" FAB — aşağı kaydırınca belirir, alt bar üstünde hizalanır ──
+            androidx.compose.animation.AnimatedVisibility(
+                visible = showFab,
+                enter = fadeIn() + scaleIn(),
+                exit = fadeOut() + scaleOut(),
+                modifier = Modifier
+                    .align(Alignment.BottomEnd)
+                    .padding(end = 20.dp, bottom = fabBottomPadding)
+            ) {
+                FloatingActionButton(
+                    onClick = {
+                        onScrollReset?.invoke()
+                        scope.launch {
+                            lazyListState.animateScrollToItem(0)
+                        }
+                    },
+                    containerColor = accentColor,
+                    contentColor = Color.White,
+                    shape = RoundedCornerShape(16.dp),
+                    modifier = Modifier.size(52.dp)
+                ) {
+                    Icon(Icons.Default.ArrowUpward, contentDescription = "Yukarı Çık")
                 }
             }
         }

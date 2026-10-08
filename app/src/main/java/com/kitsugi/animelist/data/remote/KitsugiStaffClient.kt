@@ -61,7 +61,8 @@ class KitsugiStaffClient {
                     val url = URL("https://api.jikan.moe/v4/$endpoint/$jikanId/staff")
                     val jikanList = runCatching {
                         KitsugiApiBase.runWithRateLimit {
-                            val response = KitsugiApiBase.executeGetRequest(url) ?: return@runWithRateLimit emptyList()
+                            // 429/5xx dayanıklı — rate-limit'te ekip listesi eksik dönmüş olmasın
+                            val response = KitsugiApiBase.executeGetRequestResilient(url) ?: return@runWithRateLimit emptyList()
                             val root = JSONObject(response)
                             val data = root.optJSONArray("data") ?: return@runWithRateLimit emptyList()
                             val list = mutableListOf<KitsugiStaff>()
@@ -90,7 +91,13 @@ class KitsugiStaffClient {
                         jikanList
                     } else {
                         android.util.Log.w("KitsugiStaffClient", "Jikan ekip listesi boş veya başarısız oldu. Shikimori fallback devreye giriyor...")
-                        KitsugiShikimoriClient.fetchStaff(mediaType, jikanId)
+                        // Shikimori kendi ID'sini bekler — MAL ID'si ARM ile çevrilir.
+                        val shikiId = KitsugiIdResolver.resolveShikimoriIdFromMal(jikanId)
+                        if (shikiId != null && shikiId > 0) {
+                            KitsugiShikimoriClient.fetchStaff(mediaType, shikiId)
+                        } else {
+                            emptyList()
+                        }
                     }
                 }
 

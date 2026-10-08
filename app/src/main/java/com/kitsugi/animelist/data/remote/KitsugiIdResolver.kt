@@ -154,6 +154,50 @@ object KitsugiIdResolver {
     suspend fun getImdbId(malId: Int?, aniListId: Int?): String? =
         resolveIds(malId, aniListId).imdbId
 
+    /**
+     * MAL ID → Shikimori ID (ARM).
+     *
+     * Shikimori REST endpoint'leri KENDİ numeric ID'lerini bekler. Jikan/MAL verisi
+     * Shikimori'ye fallback yaparken MAL ID'sini doğrudan geçmek YANLIŞ animenin
+     * karakter/ekip verisini döndürür — bu dönüşüm ile doğru ID sağlanır.
+     * Çözüm bulunamazsa null döner (çağıran taraf fallback'i atlar).
+     */
+    fun resolveShikimoriIdFromMal(malId: Int?): Int? {
+        if (malId == null || malId <= 0) return null
+        val shikiId = fetchArmJson("myanimelist", malId)?.let {
+            val v = it.optInt("shikimori", -1)
+            if (v > 0) v else null
+        }
+        if (shikiId != null) {
+            Log.d(TAG, "MAL $malId → Shikimori $shikiId (ARM)")
+        } else {
+            Log.w(TAG, "Shikimori ID çözülmedi için MAL $malId (ARM haritası yok)")
+        }
+        return shikiId
+    }
+
+    /**
+     * Shikimori ID → MAL ID (ARM).
+     *
+     * Shikimori arama sonuçlarında [JikanSearchResult.malId] Shikimori'nin kendi ID'sini
+     * taşır; MAL/AniList'e fallback (detay, logo, karakter VA birleştirmesi) için gerçek
+     * MAL ID'si çözülmesi gerekir. Shikimori detayındaki myanimelist_id önbellekte
+     * yoksa bu ARM dönüşümü kullanılır.
+     */
+    fun resolveMalIdFromShikimori(shikimoriId: Int?): Int? {
+        if (shikimoriId == null || shikimoriId <= 0) return null
+        val malId = fetchArmJson("shikimori", shikimoriId)?.let {
+            val v = it.optInt("myanimelist", -1)
+            if (v > 0) v else null
+        }
+        if (malId != null) {
+            Log.d(TAG, "Shikimori $shikimoriId → MAL $malId (ARM)")
+        } else {
+            Log.w(TAG, "MAL ID çözülmedi için Shikimori $shikimoriId (ARM haritası yok)")
+        }
+        return malId
+    }
+
     /** Fetches the raw ARM JSON for a given source+id pair. Returns null on failure or missing id. */
     private fun fetchArmJson(source: String, id: Int?): JSONObject? {
         if (id == null || id <= 0) return null

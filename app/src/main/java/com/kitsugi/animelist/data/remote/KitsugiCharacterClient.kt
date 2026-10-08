@@ -39,9 +39,11 @@ class KitsugiCharacterClient {
             when (srcLower) {
                 "shikimori" -> {
                     val shikiChars = KitsugiShikimoriClient.fetchCharacters(mediaType, externalId)
+                    // NOT: externalId burada Shikimori ID'sidir — MAL ID'si olarak KULLANILMAZ.
+                    // Gerçek MAL ID'si detay önbelleğinden (myanimelist_id) ya da ARM'den çözülür.
                     val malId = realMalId?.takeIf { it > 0 }
                         ?: DetailCache.getMediaDetail("shikimori", externalId)?.realMalId
-                        ?: externalId.takeIf { it > 0 }
+                        ?: KitsugiIdResolver.resolveMalIdFromShikimori(externalId)
                     if (malId != null && shikiChars.isNotEmpty() && mediaType != MediaType.Manga) {
                         val refChars = runCatching {
                             fetchCharacters("jikan", malId, mediaType, malId, tmdbId, title)
@@ -105,7 +107,9 @@ class KitsugiCharacterClient {
                     Log.d(TAG, "Jikan isteği: $url")
                     val jikanList = runCatching {
                         KitsugiApiBase.runWithRateLimit {
-                            val response = KitsugiApiBase.executeGetRequest(url)
+                            // 429/5xx'te kısa bekleme ile yeniden dene — Jikan rate-limit'inde
+                            // karakter listesi "eksik" dönmüş olmasın.
+                            val response = KitsugiApiBase.executeGetRequestResilient(url)
                             if (response == null) {
                                 Log.w(TAG, "Jikan yanıt null: $url")
                                 return@runWithRateLimit emptyList()
@@ -156,7 +160,15 @@ class KitsugiCharacterClient {
                         jikanList
                     } else {
                         Log.w(TAG, "Jikan karakter listesi boş veya başarısız oldu. Shikimori fallback devreye giriyor...")
-                        KitsugiShikimoriClient.fetchCharacters(mediaType, jikanId)
+                        // Shikimori endpoint'i KENDİ ID'sini bekler — MAL ID'si ARM ile
+                        // Shikimori ID'sine çevrilmeden çağrılırsa YANLIŞ animenin (veya
+                        // hiç) karakteri döner.
+                        val shikiId = KitsugiIdResolver.resolveShikimoriIdFromMal(jikanId)
+                        if (shikiId != null && shikiId > 0) {
+                            KitsugiShikimoriClient.fetchCharacters(mediaType, shikiId)
+                        } else {
+                            emptyList()
+                        }
                     }
                 }
 

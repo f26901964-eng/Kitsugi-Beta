@@ -47,10 +47,11 @@ fun LazyListScope.allSourcesExploreSections(
     titleLanguage: String = "ROMAJI",
     scoreFormat: String = "POINT_10",
     hideScores: Boolean = false,
-    blurAdultMedia: Boolean = false
+    blurAdultMedia: Boolean = false,
+    showSourceJumpBar: Boolean = true
 ) {
     val sections = allSourceSections(states, showAdultContent).groupBy { it.platform }
-    val headerIndices = allSourceHeaderIndices(sections, collapsedSources, startIndex)
+    val headerIndices = allSourceHeaderIndices(sections, collapsedSources, startIndex, showSourceJumpBar)
     item(key = "all_sources_intro") {
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 20.dp)) {
             Text("Altı kaynak. Tek keşif.", style = MaterialTheme.typography.headlineSmall,
@@ -60,7 +61,8 @@ fun LazyListScope.allSourcesExploreSections(
                 style = MaterialTheme.typography.bodyMedium, color = KitsugiColors.TextSecondary)
         }
     }
-    stickyHeader(key = "all_sources_navigation") {
+    if (showSourceJumpBar) {
+        stickyHeader(key = "all_sources_navigation") {
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
@@ -85,6 +87,7 @@ fun LazyListScope.allSourcesExploreSections(
                 }
             }
         }
+    }
     }
     ExplorePlatform.sources.forEach { platform ->
         val state = states[platform] ?: ExploreSourceState(isLoading = true)

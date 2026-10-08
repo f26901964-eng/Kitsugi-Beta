@@ -117,13 +117,15 @@ fun allSourceSections(
     }.filter { it.results.isNotEmpty() }
 }
 
-/** Mirrors the lazy DSL: intro + sticky navigation + each header/rows/footer. */
+/** Mirrors the lazy DSL: intro (+ sticky navigation) + each header/rows/footer. */
 internal fun allSourceHeaderIndices(
     sections: Map<ExplorePlatform, List<ExploreSourceSection>>,
     collapsed: Set<ExplorePlatform>,
-    startIndex: Int
+    startIndex: Int,
+    hasJumpBar: Boolean = true
 ): Map<ExplorePlatform, Int> {
-    var index = startIndex + 2
+    // intro her zaman var; yapışkan kaynak çubuğu yalnızca gösteriliyorsa eklenir.
+    var index = startIndex + if (hasJumpBar) 2 else 1
     return ExplorePlatform.sources.associateWith { platform ->
         val header = index++
         if (platform !in collapsed) index += sections[platform].orEmpty().size + 1

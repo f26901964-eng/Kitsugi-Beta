@@ -280,7 +280,7 @@ class KitsugiMediaTabsClient {
             val url = URL("https://api.jikan.moe/v4/anime/$malId/episodes?page=$page")
             val pageList = runCatching {
                 KitsugiApiBase.runWithRateLimit {
-                    val response = KitsugiApiBase.executeGetRequest(url) ?: return@runWithRateLimit emptyList<KitsugiStreamingEpisode>()
+                    val response = KitsugiApiBase.executeGetRequestResilient(url) ?: return@runWithRateLimit emptyList<KitsugiStreamingEpisode>()
                     val root = JSONObject(response)
                     val data = root.optJSONArray("data") ?: return@runWithRateLimit emptyList<KitsugiStreamingEpisode>()
                     val pageItems = mutableListOf<KitsugiStreamingEpisode>()

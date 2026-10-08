@@ -40,7 +40,7 @@ object KitsugiShikimoriClient {
                 val encoded = java.net.URLEncoder.encode(query, "UTF-8")
                 val url = URL("$BASE_URL/animes?search=$encoded&limit=$limit&order=popularity")
                 Log.d(TAG, "Shikimori searchAnime: $url")
-                val response = KitsugiApiBase.executeGetRequest(url) ?: return@runCatching emptyList()
+                val response = KitsugiApiBase.executeGetRequestResilient(url) ?: return@runCatching emptyList()
                 val array = JSONArray(response)
                 val results = mutableListOf<JikanSearchResult>()
                 for (i in 0 until array.length()) {
@@ -93,7 +93,7 @@ object KitsugiShikimoriClient {
                 val encoded = java.net.URLEncoder.encode(query, "UTF-8")
                 val url = URL("$BASE_URL/mangas?search=$encoded&limit=$limit&order=popularity")
                 Log.d(TAG, "Shikimori searchManga: $url")
-                val response = KitsugiApiBase.executeGetRequest(url) ?: return@runCatching emptyList()
+                val response = KitsugiApiBase.executeGetRequestResilient(url) ?: return@runCatching emptyList()
                 val array = JSONArray(response)
                 val results = mutableListOf<JikanSearchResult>()
                 for (i in 0 until array.length()) {
@@ -179,7 +179,7 @@ object KitsugiShikimoriClient {
             }
 
             val url = URL("$BASE_URL/$endpoint?${params.joinToString("&")}")
-            val response = KitsugiApiBase.executeGetRequest(url) ?: return@runCatching emptyList()
+            val response = KitsugiApiBase.executeGetRequestResilient(url) ?: return@runCatching emptyList()
             val array = JSONArray(response)
             val results = mutableListOf<JikanSearchResult>()
             for (i in 0 until array.length()) {
@@ -254,7 +254,7 @@ object KitsugiShikimoriClient {
         runCatching {
             val encoded = java.net.URLEncoder.encode(query.trim(), "UTF-8")
             val url = URL("$BASE_URL/characters/search?search=$encoded&page=$page&limit=$limit")
-            val response = KitsugiApiBase.executeGetRequest(url) ?: return@runCatching emptyList()
+            val response = KitsugiApiBase.executeGetRequestResilient(url) ?: return@runCatching emptyList()
             val array = JSONArray(response)
             val results = mutableListOf<JikanSearchResult>()
             for (i in 0 until array.length()) {
@@ -289,7 +289,7 @@ object KitsugiShikimoriClient {
             val encoded = java.net.URLEncoder.encode(query.trim(), "UTF-8")
             val kindParam = if (!kind.isNullOrBlank()) "&kind=$kind" else ""
             val url = URL("$BASE_URL/people/search?search=$encoded&page=$page&limit=$limit$kindParam")
-            val response = KitsugiApiBase.executeGetRequest(url) ?: return@runCatching emptyList()
+            val response = KitsugiApiBase.executeGetRequestResilient(url) ?: return@runCatching emptyList()
             val array = JSONArray(response)
             val results = mutableListOf<JikanSearchResult>()
             for (i in 0 until array.length()) {
@@ -334,7 +334,7 @@ object KitsugiShikimoriClient {
         if (cached != null) return@withContext cached
 
         val url = URL("$BASE_URL/animes/$animeId/screenshots")
-        val response = KitsugiApiBase.executeGetRequest(url) ?: return@withContext emptyList()
+        val response = KitsugiApiBase.executeGetRequestResilient(url) ?: return@withContext emptyList()
         runCatching {
             val array = JSONArray(response)
             val list = mutableListOf<GalleryItem>()
@@ -380,7 +380,7 @@ object KitsugiShikimoriClient {
             Log.d(TAG, "Shikimori fetchDetail: $url")
             runCatching {
                 KitsugiApiBase.runWithRateLimit {
-                    val response = KitsugiApiBase.executeGetRequest(url) ?: return@runWithRateLimit null
+                    val response = KitsugiApiBase.executeGetRequestResilient(url) ?: return@runWithRateLimit null
                     val data = JSONObject(response)
 
                     val russianTitle = data.optString("russian").takeIf { it.isNotBlank() }
@@ -547,7 +547,7 @@ object KitsugiShikimoriClient {
         if (animeId <= 0) return@withContext emptyList()
         val url = runCatching { URL("$BASE_URL/animes/$animeId/videos") }.getOrNull() ?: return@withContext emptyList()
         runCatching {
-            val response = KitsugiApiBase.executeGetRequest(url) ?: return@runCatching emptyList()
+            val response = KitsugiApiBase.executeGetRequestResilient(url) ?: return@runCatching emptyList()
             val array = JSONArray(response)
             val list = mutableListOf<Pair<String, KitsugiTheme>>()
             for (i in 0 until array.length()) {
@@ -576,7 +576,7 @@ object KitsugiShikimoriClient {
         if (animeId <= 0) return@withContext emptyList()
         val url = runCatching { URL("$BASE_URL/animes/$animeId/external_links") }.getOrNull() ?: return@withContext emptyList()
         runCatching {
-            val response = KitsugiApiBase.executeGetRequest(url) ?: return@runCatching emptyList()
+            val response = KitsugiApiBase.executeGetRequestResilient(url) ?: return@runCatching emptyList()
             val array = JSONArray(response)
             val list = mutableListOf<KitsugiExternalLink>()
             for (i in 0 until array.length()) {
@@ -617,7 +617,7 @@ object KitsugiShikimoriClient {
             Log.d(TAG, "Shikimori fetchCharacters: $url")
             runCatching {
                 KitsugiApiBase.runWithRateLimit {
-                    val response = KitsugiApiBase.executeGetRequest(url) ?: return@runWithRateLimit emptyList()
+                    val response = KitsugiApiBase.executeGetRequestResilient(url) ?: return@runWithRateLimit emptyList()
                     val array = JSONArray(response)
                     val charactersMap = mutableMapOf<Int, KitsugiCharacter>()
 
@@ -693,7 +693,7 @@ object KitsugiShikimoriClient {
             Log.d(TAG, "Shikimori fetchStaff: $url")
             runCatching {
                 KitsugiApiBase.runWithRateLimit {
-                    val response = KitsugiApiBase.executeGetRequest(url) ?: return@runWithRateLimit emptyList()
+                    val response = KitsugiApiBase.executeGetRequestResilient(url) ?: return@runWithRateLimit emptyList()
                     val array = JSONArray(response)
                     val staffList = mutableListOf<KitsugiStaff>()
 
@@ -740,7 +740,7 @@ object KitsugiShikimoriClient {
             Log.d(TAG, "Shikimori fetchCharacterDetail: $url")
             runCatching {
                 KitsugiApiBase.runWithRateLimit {
-                    val response = KitsugiApiBase.executeGetRequest(url) ?: return@runWithRateLimit null
+                    val response = KitsugiApiBase.executeGetRequestResilient(url) ?: return@runWithRateLimit null
                     val data = JSONObject(response)
 
                     val charName = translateIfRussian(data.optString("name", "Bilinmeyen"))
@@ -888,7 +888,7 @@ object KitsugiShikimoriClient {
             Log.d(TAG, "Shikimori fetchStaffDetail: $url")
             runCatching {
                 KitsugiApiBase.runWithRateLimit {
-                    val response = KitsugiApiBase.executeGetRequest(url) ?: return@runWithRateLimit null
+                    val response = KitsugiApiBase.executeGetRequestResilient(url) ?: return@runWithRateLimit null
                     val data = JSONObject(response)
 
                     val staffName = translateIfRussian(data.optString("name", "Bilinmeyen"))
