@@ -86,6 +86,9 @@ import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import kotlinx.coroutines.launch
 import java.util.Calendar
 
+/** Simkl discover charts are not page-indexed; fetch their supported full chart once. */
+private const val SIMKL_EXPLORE_CHART_LIMIT = 100
+
 @Composable
 fun FullScreenMediaGridPage(
     title: String,
@@ -170,10 +173,20 @@ fun FullScreenMediaGridPage(
     var loadedResults by remember { mutableStateOf(initialResults) }
     var currentPage by remember { mutableStateOf(if (initialResults.isEmpty()) 0 else 1) }
     var isLoadingMore by remember { mutableStateOf(false) }
-    // These endpoints return a finite chart, not numbered pages.
+    // Simkl's discovery endpoints are finite charts (no page/offset parameter), so the
+    // explore feed starts with 20 items and this page expands it to the API's 100-item cap
+    // on demand. Kitsu trending likewise only exposes a single fixed chart.
     val finiteChart = platform == ExplorePlatform.SIMKL ||
         (platform == ExplorePlatform.KITSU && categoryType == ExploreCategoryType.TRENDING_ANIME)
-    var hasMorePages by remember { mutableStateOf(!finiteChart || initialResults.isEmpty()) }
+    var hasMorePages by remember {
+        mutableStateOf(
+            when {
+                platform == ExplorePlatform.SIMKL -> initialResults.size < SIMKL_EXPLORE_CHART_LIMIT
+                finiteChart -> initialResults.isEmpty()
+                else -> true
+            }
+        )
+    }
     var loadError by remember { mutableStateOf<String?>(null) }
 
     suspend fun fetchSeasonalPage(page: Int): List<JikanSearchResult> = when (platform) {
@@ -277,17 +290,17 @@ fun FullScreenMediaGridPage(
                         else -> emptyList()
                     }
                     ExplorePlatform.SIMKL -> when (categoryType) {
-                        ExploreCategoryType.TOP_ANIME -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("tv/trending", com.kitsugi.animelist.model.MediaType.TvShow, 20)
-                        ExploreCategoryType.AIRING_ANIME -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("tv/best/airing", com.kitsugi.animelist.model.MediaType.TvShow, 20)
-                        ExploreCategoryType.MOVIE_ANIME -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("movies/trending", com.kitsugi.animelist.model.MediaType.Movie, 20)
-                        ExploreCategoryType.TOP_MANGA -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("tv/best/all-time", com.kitsugi.animelist.model.MediaType.TvShow, 20)
-                        ExploreCategoryType.UPCOMING_ANIME -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("movies/recent", com.kitsugi.animelist.model.MediaType.Movie, 20)
-                        ExploreCategoryType.PUBLISHING_MANGA -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("movies/trending", com.kitsugi.animelist.model.MediaType.Movie, 20)
-                        ExploreCategoryType.SEASONAL_ANIME -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("tv/best/all-time", com.kitsugi.animelist.model.MediaType.TvShow, 20)
-                        ExploreCategoryType.TRENDING_ANIME -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("anime/trending", com.kitsugi.animelist.model.MediaType.Anime, 20)
-                        ExploreCategoryType.NEWLY_ADDED_ANIME -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("anime/best/all-time", com.kitsugi.animelist.model.MediaType.Anime, 20)
-                        ExploreCategoryType.TRENDING_MANGA -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("anime/best/airing", com.kitsugi.animelist.model.MediaType.Anime, 20)
-                        ExploreCategoryType.UPCOMING_MEDIA_TMDB -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("anime/best/upcoming", com.kitsugi.animelist.model.MediaType.Anime, 20)
+                        ExploreCategoryType.TOP_ANIME -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("tv/trending", com.kitsugi.animelist.model.MediaType.TvShow, SIMKL_EXPLORE_CHART_LIMIT)
+                        ExploreCategoryType.AIRING_ANIME -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("tv/best/airing", com.kitsugi.animelist.model.MediaType.TvShow, SIMKL_EXPLORE_CHART_LIMIT)
+                        ExploreCategoryType.MOVIE_ANIME -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("movies/trending", com.kitsugi.animelist.model.MediaType.Movie, SIMKL_EXPLORE_CHART_LIMIT)
+                        ExploreCategoryType.TOP_MANGA -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("tv/best/all-time", com.kitsugi.animelist.model.MediaType.TvShow, SIMKL_EXPLORE_CHART_LIMIT)
+                        ExploreCategoryType.UPCOMING_ANIME -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("movies/recent", com.kitsugi.animelist.model.MediaType.Movie, SIMKL_EXPLORE_CHART_LIMIT)
+                        ExploreCategoryType.PUBLISHING_MANGA -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("movies/trending", com.kitsugi.animelist.model.MediaType.Movie, SIMKL_EXPLORE_CHART_LIMIT)
+                        ExploreCategoryType.SEASONAL_ANIME -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("tv/best/all-time", com.kitsugi.animelist.model.MediaType.TvShow, SIMKL_EXPLORE_CHART_LIMIT)
+                        ExploreCategoryType.TRENDING_ANIME -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("anime/trending", com.kitsugi.animelist.model.MediaType.Anime, SIMKL_EXPLORE_CHART_LIMIT)
+                        ExploreCategoryType.NEWLY_ADDED_ANIME -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("anime/best/all-time", com.kitsugi.animelist.model.MediaType.Anime, SIMKL_EXPLORE_CHART_LIMIT)
+                        ExploreCategoryType.TRENDING_MANGA -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("anime/best/airing", com.kitsugi.animelist.model.MediaType.Anime, SIMKL_EXPLORE_CHART_LIMIT)
+                        ExploreCategoryType.UPCOMING_MEDIA_TMDB -> com.kitsugi.animelist.data.remote.SimklApiClient().getBestMedia("anime/best/upcoming", com.kitsugi.animelist.model.MediaType.Anime, SIMKL_EXPLORE_CHART_LIMIT)
                         else -> emptyList()
                     }
                     else -> emptyList()

@@ -77,7 +77,6 @@ fun LazyListScope.allSourcesExploreSections(
         val state = states[platform] ?: ExploreSourceState(isLoading = true)
         val sourceSections = sections[platform].orEmpty()
         val expanded = platform !in collapsedSources
-        val headerIndex = headerIndices.getValue(platform)
         item(key = "all_source_${platform.name}") {
             SourceHeader(
                 platform = platform,
@@ -86,7 +85,16 @@ fun LazyListScope.allSourcesExploreSections(
                 expanded = expanded,
                 onToggle = { onToggleSource(platform) },
                 onRetry = { onRetrySource(platform) },
-                onCategory = { index -> onJumpToIndex(headerIndex + 1 + index) }
+                onCategory = { index ->
+                    sourceSections.getOrNull(index)?.let { section ->
+                        onSeeAllSection(
+                            "${platform.label} · ${section.title}",
+                            section.category,
+                            section.results,
+                            platform
+                        )
+                    }
+                }
             )
         }
         if (expanded) {
