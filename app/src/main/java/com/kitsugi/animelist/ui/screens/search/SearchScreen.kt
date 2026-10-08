@@ -304,13 +304,14 @@ fun SearchScreen(
                 }
 
                 val placeholder = when (uiState.selectedEngine) {
-                    SearchSourceEngine.ALL -> "Tüm platformlarda ara (6 motor eşzamanlı)..."
+                    SearchSourceEngine.ALL -> "Tüm platformlarda ara (7 motor eşzamanlı)..."
                     SearchSourceEngine.ANILIST -> "AniList'te ${uiState.selectedScope.label.lowercase()} ara..."
                     SearchSourceEngine.MAL -> "MyAnimeList'te ${uiState.selectedScope.label.lowercase()} ara..."
                     SearchSourceEngine.TMDB -> "TMDB'de ${uiState.selectedScope.label.lowercase()} ara..."
                     SearchSourceEngine.SHIKIMORI -> "Shikimori'de ${uiState.selectedScope.label.lowercase()} ara..."
                     SearchSourceEngine.KITSU -> "Kitsu'da ${uiState.selectedScope.label.lowercase()} ara..."
                     SearchSourceEngine.SIMKL -> "Simkl'de ${uiState.selectedScope.label.lowercase()} ara..."
+                    SearchSourceEngine.BANGUMI -> "Bangumi'de ${uiState.selectedScope.label.lowercase()} ara..."
                 }
 
                 // Uiverse Lakshay-art Cosmic Search Bar & Companion Button
@@ -414,6 +415,12 @@ fun SearchScreen(
                         MultiSearchShelfShimmer(
                             title = "Shikimori",
                             platformId = "shikimori"
+                        )
+                    }
+                    item {
+                        MultiSearchShelfShimmer(
+                            title = "Bangumi",
+                            platformId = "bangumi"
                         )
                     }
                 } else {
@@ -538,6 +545,22 @@ fun SearchScreen(
                         getMediaEntry = getMediaEntry,
                         onItemClick = onOpenApiDetail,
                         onSeeAllClick = { onOpenSourceSearch(SearchSourceEngine.SIMKL, uiState.selectedScope, uiState.multiResults.simklResults) },
+                        titleLanguage = titleLanguage,
+                        scoreFormat = scoreFormat,
+                        hideScores = hideScores
+                    )
+                }
+
+                item {
+                    MultiSearchSection(
+                        title = "Bangumi (Çin Kaynağı / Anime & Kitap)",
+                        platformId = "bangumi",
+                        results = uiState.multiResults.bangumiResults,
+                        isLoading = uiState.multiResults.isLoadingBangumi,
+                        isAlreadyInList = isAlreadyInList,
+                        getMediaEntry = getMediaEntry,
+                        onItemClick = onOpenApiDetail,
+                        onSeeAllClick = { onOpenSourceSearch(SearchSourceEngine.BANGUMI, uiState.selectedScope, uiState.multiResults.bangumiResults) },
                         titleLanguage = titleLanguage,
                         scoreFormat = scoreFormat,
                         hideScores = hideScores
@@ -675,7 +698,8 @@ fun SearchScreen(
             SearchPlatform.TMDB,
             SearchPlatform.Shikimori,
             SearchPlatform.Kitsu,
-            SearchPlatform.Simkl
+            SearchPlatform.Simkl,
+            SearchPlatform.Bangumi
         )
         DialogWithRadioSelection(
             title = "Kaynak Platform Seç",

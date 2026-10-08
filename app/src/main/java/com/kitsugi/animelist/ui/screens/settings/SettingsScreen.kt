@@ -74,6 +74,7 @@ internal enum class SettingsRoute {
     SimklSettings,
     KitsuSettings,
     ShikimoriSettings,
+    BangumiSettings,
     CrossSyncSettings,
     AppearancePreferences,
     PlayerSettings,
@@ -109,6 +110,7 @@ fun SettingsScreen(
             SettingsRoute.SimklSettings,
             SettingsRoute.KitsuSettings,
             SettingsRoute.ShikimoriSettings,
+            SettingsRoute.BangumiSettings,
             SettingsRoute.CrossSyncSettings -> SettingsRoute.AccountConnections
             else -> SettingsRoute.Main
         }
@@ -204,6 +206,15 @@ fun SettingsScreen(
                     onBack = { route = SettingsRoute.AccountConnections }
                 ) {
                     ShikimoriSettingsContent(profile = params.profile)
+                }
+            }
+
+            SettingsRoute.BangumiSettings -> {
+                SettingsSubPage(
+                    title = "Bangumi",
+                    onBack = { route = SettingsRoute.AccountConnections }
+                ) {
+                    BangumiSettingsContent(profile = params.profile)
                 }
             }
 

@@ -176,6 +176,7 @@ private fun sourceColor(platform: ExplorePlatform): Color = when (platform) {
     ExplorePlatform.SIMKL -> Color(0xFFC2ADFF)
     ExplorePlatform.KITSU -> Color(0xFFFFA080)
     ExplorePlatform.SHIKIMORI -> Color(0xFFD1BEEC)
+    ExplorePlatform.BANGUMI -> Color(0xFFF09199)
     ExplorePlatform.ALL -> Color(0xFFE9AD65)
 }
 

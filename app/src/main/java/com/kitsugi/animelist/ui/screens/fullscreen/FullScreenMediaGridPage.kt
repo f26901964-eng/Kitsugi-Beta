@@ -219,7 +219,48 @@ fun FullScreenMediaGridPage(
             order = when (seasonalSort) { "SCORE_DESC" -> "ranked"; "START_DATE_DESC" -> "aired_on"; else -> "popularity" },
             censored = !showAdultContent
         )
+        ExplorePlatform.BANGUMI -> {
+            // Bangumi'de sezon "yıl+ay" ile ifade edilir; mevsim adını temsil ayına çevir.
+            val bangumiMonth = when (seasonalSeason.uppercase()) {
+                "WINTER" -> 1
+                "SPRING" -> 4
+                "SUMMER" -> 7
+                else -> 10
+            }
+            com.kitsugi.animelist.data.remote.KitsugiBangumiClient.seasonFor(
+                year = seasonalYear, month = bangumiMonth, limit = 20,
+                offset = (page - 1).coerceAtLeast(0) * 20
+            )
+        }
         else -> emptyList()
+    }
+
+    /**
+     * Bangumi "Tümünü Gör" sayfalaması. `limit/offset` tabanlıdır; kategori → Bangumi
+     * şeridi eşlemesi ExploreViewModel.loadBangumiData() ile birebir aynıdır ki ilk sayfa
+     * ve devam sayfaları aynı sıralamayı kullansın.
+     */
+    suspend fun bangumiPage(page: Int): List<JikanSearchResult> {
+        val bangumi = com.kitsugi.animelist.data.remote.KitsugiBangumiClient
+        val limit = 20
+        val offset = (page - 1).coerceAtLeast(0) * limit
+        val adult = showAdultContent
+        return when (categoryType) {
+            ExploreCategoryType.TOP_ANIME -> bangumi.topAnime(limit, offset = offset)
+            ExploreCategoryType.TOP_RATED_ANIME -> bangumi.topRatedAnime(limit, offset = offset)
+            ExploreCategoryType.TRENDING_ANIME -> bangumi.trendingAnime(limit, offset = offset)
+            ExploreCategoryType.AIRING_ANIME -> bangumi.airingAnime(limit)
+            ExploreCategoryType.UPCOMING_ANIME -> bangumi.upcomingAnime(limit)
+            ExploreCategoryType.MOVIE_ANIME -> bangumi.movieAnime(limit, offset = offset)
+            ExploreCategoryType.SEASONAL_ANIME -> fetchSeasonalPage(page)
+            ExploreCategoryType.NEWLY_ADDED_ANIME -> bangumi.newlyAddedAnime(limit, offset = offset)
+            ExploreCategoryType.TOP_MANGA -> bangumi.topManga(limit, offset = offset)
+            ExploreCategoryType.TOP_RATED_MANGA -> bangumi.topRatedManga(limit, offset = offset)
+            ExploreCategoryType.PUBLISHING_MANGA -> bangumi.publishingManga(limit, offset = offset)
+            ExploreCategoryType.TRENDING_MANGA -> bangumi.trendingManga(limit, offset = offset)
+            ExploreCategoryType.NEWLY_ADDED_MANGA -> bangumi.publishingManga(limit, offset = offset)
+            else -> emptyList()
+        }.filter { adult || !it.isAdult }
     }
 
     suspend fun fetchSimklPage(page: Int): List<JikanSearchResult> = when (categoryType) {
@@ -344,6 +385,7 @@ fun FullScreenMediaGridPage(
                         ExploreCategoryType.PUBLISHING_MANGA -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Manga, statuses = listOf("ongoing"), order = "popularity", page = np, limit = 20, censored = !showAdultContent)
                         else -> emptyList()
                     }
+                    ExplorePlatform.BANGUMI -> bangumiPage(np)
                     ExplorePlatform.SIMKL -> fetchSimklPage(np)
                     else -> emptyList()
                 }

@@ -121,6 +121,16 @@ fun KitsugiRankingBottomSheet(
                             else -> initialResults
                         }
                     }
+                    ExplorePlatform.BANGUMI -> {
+                        val bangumi = com.kitsugi.animelist.data.remote.KitsugiBangumiClient
+                        when (tab) {
+                            "SCORE" -> if (isManga) bangumi.topRatedManga(24) else bangumi.topRatedAnime(24)
+                            "POPULARITY" -> if (isManga) bangumi.trendingManga(24) else bangumi.trendingAnime(24)
+                            "FAVORITE" -> if (isManga) bangumi.topManga(24) else bangumi.topAnime(24)
+                            "UPCOMING" -> bangumi.upcomingAnime(24)
+                            else -> initialResults
+                        }
+                    }
                     else -> initialResults
                 }
                 if (newItems.isNotEmpty()) {

@@ -18,6 +18,7 @@ enum class KitsugiSearchTab(val label: String) {
     TMDB("🍿 Film & Dizi"),
     Kitsu("🦊 Kitsu"),
     Simkl("📺 Simkl"),
+    Bangumi("🎌 Bangumi 🇨🇳"),
     Character("👤 Karakter"),
     Staff("🎙️ Personel")
 }
@@ -32,12 +33,14 @@ data class MultiPlatformResults(
     val shikimoriResults: List<JikanSearchResult> = emptyList(),
     val kitsuResults: List<JikanSearchResult> = emptyList(),
     val simklResults: List<JikanSearchResult> = emptyList(),
+    val bangumiResults: List<JikanSearchResult> = emptyList(),
     val isLoadingAniList: Boolean = false,
     val isLoadingMal: Boolean = false,
     val isLoadingTmdb: Boolean = false,
     val isLoadingShikimori: Boolean = false,
     val isLoadingKitsu: Boolean = false,
     val isLoadingSimkl: Boolean = false,
+    val isLoadingBangumi: Boolean = false,
 ) {
     val isEmpty: Boolean get() =
         aniListResults.isEmpty() &&
@@ -45,11 +48,12 @@ data class MultiPlatformResults(
         tmdbResults.isEmpty() &&
         shikimoriResults.isEmpty() &&
         kitsuResults.isEmpty() &&
-        simklResults.isEmpty()
+        simklResults.isEmpty() &&
+        bangumiResults.isEmpty()
 
     val isAnyLoading: Boolean get() =
         isLoadingAniList || isLoadingMal || isLoadingTmdb ||
-        isLoadingShikimori || isLoadingKitsu || isLoadingSimkl
+        isLoadingShikimori || isLoadingKitsu || isLoadingSimkl || isLoadingBangumi
 }
 
 /**
@@ -84,6 +88,7 @@ data class SearchUiState(
     val shikimoriSpecificFilters: ShikimoriSpecificFilters = ShikimoriSpecificFilters(),
     val kitsuSpecificFilters: KitsuSpecificFilters = KitsuSpecificFilters(),
     val simklSpecificFilters: SimklSpecificFilters = SimklSpecificFilters(),
+    val bangumiSpecificFilters: BangumiSpecificFilters = BangumiSpecificFilters(),
 
     // ── Plugin Explore Mode ────────────────────────────────────────────────
     /** When non-null, the search screen shows this plugin's explore page instead of normal search */
@@ -163,6 +168,7 @@ data class SearchUiState(
             SearchSourceEngine.SHIKIMORI -> shikimoriSpecificFilters.activeCount
             SearchSourceEngine.KITSU -> kitsuSpecificFilters.activeCount
             SearchSourceEngine.SIMKL -> simklSpecificFilters.activeCount
+            SearchSourceEngine.BANGUMI -> bangumiSpecificFilters.activeCount
         }
     }
 
@@ -196,6 +202,7 @@ enum class SearchPlatform(val label: String) {
     Kitsu("Kitsu"),
     Shikimori("Shikimori"),
     Simkl("Simkl"),
+    Bangumi("Bangumi"),
     CS3("Eklentiler")
 }
 

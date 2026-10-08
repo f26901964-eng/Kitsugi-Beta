@@ -103,10 +103,12 @@ fun AppDialogHost(
             // jikan IS the MAL API — always resolve to "mal", only fall back to AniList if MAL isn't connected
             "mal", "jikan" -> if (isMal) "mal" else if (isAniList) "anilist" else "mal"
             "simkl" -> "simkl"
+            "bangumi", "bgm" -> "bangumi"
             else -> {
                 when {
                     entry.source.lowercase() == "kitsu" -> "kitsu"
                     entry.source.lowercase() == "shikimori" -> "shikimori"
+                    entry.source.lowercase() == "bangumi" || entry.source.lowercase() == "bgm" -> "bangumi"
                     entry.aniListEntryId != null && isAniList -> "anilist"
                     entry.malId != null && isMal -> "mal"
                     entry.simklId != null && isSimkl -> "simkl"

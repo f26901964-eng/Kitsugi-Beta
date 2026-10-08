@@ -9,7 +9,7 @@ import com.kitsugi.animelist.model.MediaType
  * SearchScreen / SearchViewModel'a aktarılır.
  */
 data class DetailSearchFilterRequest(
-    val source: String,                      // "anilist", "mal"/"jikan", "tmdb", "shikimori", "kitsu", "simkl"
+    val source: String,                      // "anilist", "mal"/"jikan", "tmdb", "shikimori", "kitsu", "simkl", "bangumi"
     val mediaType: MediaType,                // Anime, Manga, Movie, TvShow
     val format: String? = null,              // TV, MOVIE, OVA, ONA, SPECIAL, MANGA, MANHWA, MANHUA, NOVEL, ONE_SHOT
     val status: String? = null,              // RELEASING, FINISHED, NOT_YET_RELEASED, CANCELLED, HIATUS
@@ -36,7 +36,7 @@ data class DetailSearchFilterRequest(
 )
 
 /**
- * 6 Kaynak ve Tümü için Kanonik Filtre Köprüsü (CanonicalFilterBridge)
+ * 7 Kaynak ve Tümü için Kanonik Filtre Köprüsü (CanonicalFilterBridge)
  * Kaynaklar arası filtre çevirisi ve Akıllı Kapsam Koruması (Auto-Scope Guard)
  */
 object CanonicalFilterBridge {
@@ -48,6 +48,7 @@ object CanonicalFilterBridge {
         "shikimori" -> SearchSourceEngine.SHIKIMORI
         "kitsu" -> SearchSourceEngine.KITSU
         "simkl" -> SearchSourceEngine.SIMKL
+        "bangumi", "bgm" -> SearchSourceEngine.BANGUMI
         else -> SearchSourceEngine.ALL
     }
 
@@ -94,6 +95,12 @@ object CanonicalFilterBridge {
                 MediaType.TvShow -> SearchScope.TV
                 MediaType.Movie -> SearchScope.MOVIE
                 MediaType.Manga -> SearchScope.ANIME
+            }
+            SearchSourceEngine.BANGUMI -> when (mediaType) {
+                MediaType.Anime -> SearchScope.ANIME
+                MediaType.Manga -> SearchScope.MANGA
+                // Bangumi'de film ayrı bir tür değil, 动画 içinde 剧场版 alt kategorisidir.
+                MediaType.Movie, MediaType.TvShow -> SearchScope.ANIME
             }
         }
     }

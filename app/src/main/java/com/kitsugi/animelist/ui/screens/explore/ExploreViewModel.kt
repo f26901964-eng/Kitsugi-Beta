@@ -72,7 +72,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
 
     /**
      * Kalıcı (persisted) kaynak seçimi. Uygulama kapatılıp açıldığında Keşfet ekranı
-     * kullanıcının son seçtiği kaynakla açılır — varsayılan: Tümü (6 kaynak birlikte).
+     * kullanıcının son seçtiği kaynakla açılır — varsayılan: Tümü (7 kaynak birlikte).
      */
     var selectedPlatform by mutableStateOf(ExplorePlatform.ALL)
         private set
@@ -411,6 +411,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                             ExplorePlatform.SIMKL     -> ExploreErrorType.None
                             ExplorePlatform.KITSU     -> ExploreErrorType.None
                             ExplorePlatform.SHIKIMORI -> ExploreErrorType.None
+                            ExplorePlatform.BANGUMI   -> ExploreErrorType.None
                         }
                     }
                 }
@@ -430,6 +431,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         ExplorePlatform.SIMKL -> loadSimklData()
         ExplorePlatform.KITSU -> loadKitsuData()
         ExplorePlatform.SHIKIMORI -> loadShikimoriData()
+        ExplorePlatform.BANGUMI -> loadBangumiData()
     }
 
     private fun loadAllSources(forceRefresh: Boolean) {
@@ -733,6 +735,64 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             trendingAnime = trendingAnimeDeferred.await(),
             movieAnime = movieAnimeDeferred.await(),
             seasonalAnime = seasonalAnimeDeferred.await(),
+            topRatedAnime = topRatedAnimeDeferred.await(),
+            topRatedManga = topRatedMangaDeferred.await()
+        )
+    }
+
+    /**
+     * Bangumi (bgm.tv) Keşfet verisi.
+     *
+     * Tüm şeritler `POST /v0/search/subjects` + `GET /v0/subjects` uçlarından gelir ve
+     * token gerektirmez (anonim okuma serbest); bağlı bir hesap varsa token eklenir ki
+     * hız sınırı kullanıcı bazında sayılsın. Yetişkin içerik `nsfw` alanından süzülür.
+     */
+    private suspend fun loadBangumiData(): ExplorePayload = supervisorScope {
+        val context = getApplication<Application>().applicationContext
+        val bangumi = com.kitsugi.animelist.data.remote.KitsugiBangumiClient
+
+        val topAnimeDeferred = async { runCatching { bangumi.topAnime(20, context) }.getOrDefault(emptyList()) }
+        val trendingAnimeDeferred = async { runCatching { bangumi.trendingAnime(20, context) }.getOrDefault(emptyList()) }
+        val topRatedAnimeDeferred = async { runCatching { bangumi.topRatedAnime(20, context) }.getOrDefault(emptyList()) }
+        val seasonalAnimeDeferred = async { runCatching { bangumi.seasonalAnime(20, context) }.getOrDefault(emptyList()) }
+        val airingAnimeDeferred = async { runCatching { bangumi.airingAnime(20, context) }.getOrDefault(emptyList()) }
+        val upcomingAnimeDeferred = async { runCatching { bangumi.upcomingAnime(20, context) }.getOrDefault(emptyList()) }
+        val movieAnimeDeferred = async { runCatching { bangumi.movieAnime(20, context) }.getOrDefault(emptyList()) }
+        val newlyAddedAnimeDeferred = async { runCatching { bangumi.newlyAddedAnime(20, context) }.getOrDefault(emptyList()) }
+        val topMangaDeferred = async { runCatching { bangumi.topManga(20, context) }.getOrDefault(emptyList()) }
+        val publishingMangaDeferred = async { runCatching { bangumi.publishingManga(20, context) }.getOrDefault(emptyList()) }
+        val trendingMangaDeferred = async { runCatching { bangumi.trendingManga(20, context) }.getOrDefault(emptyList()) }
+        val topRatedMangaDeferred = async { runCatching { bangumi.topRatedManga(20, context) }.getOrDefault(emptyList()) }
+
+        val rawTopAnime = runCatching { topAnimeDeferred.await() }.getOrDefault(emptyList())
+        val enrichedTopAnime = if (rawTopAnime.isNotEmpty() && tmdbEnabledState) {
+            val heroCount = minOf(rawTopAnime.size, 5)
+            val backdropJobs = (0 until heroCount).map { index ->
+                val item = rawTopAnime[index]
+                async {
+                    val backdrop = tmdbApiClient.fetchBackdropByTitle(item.title)
+                    if (backdrop != null) item.copy(backdropUrl = backdrop) else item
+                }
+            }
+            val enrichedHeroes = backdropJobs.mapIndexed { index, job ->
+                runCatching { job.await() }.getOrDefault(rawTopAnime[index])
+            }
+            enrichedHeroes + rawTopAnime.drop(heroCount)
+        } else {
+            rawTopAnime
+        }
+
+        ExplorePayload(
+            topAnime = enrichedTopAnime,
+            airingAnime = airingAnimeDeferred.await(),
+            upcomingAnime = upcomingAnimeDeferred.await(),
+            topManga = topMangaDeferred.await(),
+            publishingManga = publishingMangaDeferred.await(),
+            trendingAnime = trendingAnimeDeferred.await(),
+            movieAnime = movieAnimeDeferred.await(),
+            seasonalAnime = seasonalAnimeDeferred.await(),
+            trendingManga = trendingMangaDeferred.await(),
+            newlyAddedAnime = newlyAddedAnimeDeferred.await(),
             topRatedAnime = topRatedAnimeDeferred.await(),
             topRatedManga = topRatedMangaDeferred.await()
         )

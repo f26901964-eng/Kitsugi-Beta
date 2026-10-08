@@ -83,6 +83,7 @@ private fun heroSourceLabel(source: String): String? = when (source.trim().lower
     "simkl" -> "Simkl"
     "kitsu" -> "Kitsu"
     "shikimori", "shiki" -> "Shikimori"
+    "bangumi", "bgm" -> "Bangumi"
     else -> null
 }
 

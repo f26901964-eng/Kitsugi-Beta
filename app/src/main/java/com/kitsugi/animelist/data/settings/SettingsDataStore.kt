@@ -185,10 +185,13 @@ class SettingsDataStore(
         val SyncEnabledSimkl = booleanPreferencesKey("sync_enabled_simkl")
         val SyncEnabledKitsu = booleanPreferencesKey("sync_enabled_kitsu")
         val SyncEnabledShikimori = booleanPreferencesKey("sync_enabled_shikimori")
+        val SyncEnabledBangumi = booleanPreferencesKey("sync_enabled_bangumi")
         val KitsuUsername = stringPreferencesKey("kitsu_username")
         val KitsuProfileImageUri = stringPreferencesKey("kitsu_profile_image_uri")
         val ShikimoriUsername = stringPreferencesKey("shikimori_username")
         val ShikimoriProfileImageUri = stringPreferencesKey("shikimori_profile_image_uri")
+        val BangumiUsername = stringPreferencesKey("bangumi_username")
+        val BangumiProfileImageUri = stringPreferencesKey("bangumi_profile_image_uri")
         // ─── MPV Gelişmiş Oynatıcı Ayarları ───────────────────────────────────────
         val MpvGpuRenderer = stringPreferencesKey("mpv_gpu_renderer")
         val MpvHwdecMode = stringPreferencesKey("mpv_hwdec_mode")
@@ -343,6 +346,8 @@ class SettingsDataStore(
                     kitsuProfileImageUri = preferences[Keys.KitsuProfileImageUri] ?: "",
                     shikimoriUsername = preferences[Keys.ShikimoriUsername] ?: "",
                     shikimoriProfileImageUri = preferences[Keys.ShikimoriProfileImageUri] ?: "",
+                    bangumiUsername = preferences[Keys.BangumiUsername] ?: "",
+                    bangumiProfileImageUri = preferences[Keys.BangumiProfileImageUri] ?: "",
                     profileImageUri = preferences[Keys.ProfileImageUri] ?: "",
                     bannerImageUri = preferences[Keys.BannerImageUri] ?: "",
                     titleLanguage = preferences[Keys.TitleLanguage] ?: "ROMAJI",
@@ -477,6 +482,7 @@ class SettingsDataStore(
                     syncEnabledSimkl = preferences[Keys.SyncEnabledSimkl] ?: true,
                     syncEnabledKitsu = preferences[Keys.SyncEnabledKitsu] ?: true,
                     syncEnabledShikimori = preferences[Keys.SyncEnabledShikimori] ?: true,
+                    syncEnabledBangumi = preferences[Keys.SyncEnabledBangumi] ?: true,
                     // ─── MPV Gelişmiş Ayarları
                     mpvGpuRenderer = preferences[Keys.MpvGpuRenderer] ?: "gpu",
                     mpvHwdecMode = preferences[Keys.MpvHwdecMode] ?: "auto-safe",
@@ -1292,6 +1298,10 @@ class SettingsDataStore(
         context.settingsDataStore.edit { it[Keys.SyncEnabledShikimori] = enabled }
     }
 
+    suspend fun setSyncEnabledBangumi(enabled: Boolean) {
+        context.settingsDataStore.edit { it[Keys.SyncEnabledBangumi] = enabled }
+    }
+
     suspend fun saveKitsuProfileInfo(username: String, avatarUrl: String? = null) {
         context.settingsDataStore.edit {
             it[Keys.KitsuUsername] = username
@@ -1317,6 +1327,20 @@ class SettingsDataStore(
         context.settingsDataStore.edit {
             it.remove(Keys.ShikimoriUsername)
             it.remove(Keys.ShikimoriProfileImageUri)
+        }
+    }
+
+    suspend fun saveBangumiProfileInfo(username: String, avatarUrl: String? = null) {
+        context.settingsDataStore.edit {
+            it[Keys.BangumiUsername] = username
+            if (avatarUrl != null) it[Keys.BangumiProfileImageUri] = avatarUrl
+        }
+    }
+
+    suspend fun clearBangumiProfileInfo() {
+        context.settingsDataStore.edit {
+            it.remove(Keys.BangumiUsername)
+            it.remove(Keys.BangumiProfileImageUri)
         }
     }
 

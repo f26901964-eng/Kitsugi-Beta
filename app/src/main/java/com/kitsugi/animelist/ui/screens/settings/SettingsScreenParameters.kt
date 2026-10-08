@@ -160,7 +160,16 @@ data class ProfileSettings(
     val onShikimoriImportClick: () -> Unit = {},
     val syncEnabledShikimori: Boolean = false,
     val onSyncEnabledShikimoriChanged: (Boolean) -> Unit = {},
-    val onLoginShikimori: (clientId: String, clientSecret: String, authCode: String, onComplete: (Boolean, String?) -> Unit) -> Unit = { _, _, _, _ -> }
+    val onLoginShikimori: (clientId: String, clientSecret: String, authCode: String, onComplete: (Boolean, String?) -> Unit) -> Unit = { _, _, _, _ -> },
+    // ── Bangumi (bgm.tv) ─────────────────────────────────────────────────────
+    val isBangumiConnected: Boolean = false,
+    val bangumiUsername: String = "",
+    val isBangumiImportRunning: Boolean = false,
+    val onBangumiAuthClick: () -> Unit = {},
+    val onBangumiImportClick: () -> Unit = {},
+    val syncEnabledBangumi: Boolean = false,
+    val onSyncEnabledBangumiChanged: (Boolean) -> Unit = {},
+    val onLoginBangumi: (clientId: String, clientSecret: String, authCode: String, onComplete: (Boolean, String?) -> Unit) -> Unit = { _, _, _, _ -> }
 )
 
 data class PlayerSettings(

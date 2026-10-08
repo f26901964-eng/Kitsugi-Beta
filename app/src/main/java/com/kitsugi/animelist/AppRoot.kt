@@ -515,6 +515,7 @@ fun AppRoot(
                             "simkl"     -> "Simkl bağlantısı başarılı, liste aktarılıyor..."
                             "kitsu"     -> "Kitsu bağlantısı başarılı, liste aktarılıyor..."
                             "shikimori" -> "Shikimori bağlantısı başarılı, liste aktarılıyor..."
+                            "bangumi"   -> "Bangumi bağlantısı başarılı, koleksiyon aktarılıyor..."
                             else        -> "MyAnimeList bağlantısı başarılı, liste aktarılıyor..."
                         }
                     )
@@ -524,6 +525,7 @@ fun AppRoot(
                         "simkl"     -> authViewModel.importSimklList(latestMediaEntries, mediaRepository)
                         "kitsu"     -> authViewModel.importKitsuList(latestMediaEntries, mediaRepository)
                         "shikimori" -> authViewModel.importShikimoriList(latestMediaEntries, mediaRepository)
+                        "bangumi"   -> authViewModel.importBangumiList(latestMediaEntries, mediaRepository)
                         else        -> authViewModel.importMalAnimeList(latestMediaEntries, mediaRepository)
                     }
 

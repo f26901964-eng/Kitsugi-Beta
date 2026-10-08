@@ -421,7 +421,13 @@ private val relationTypeMap = mapOf(
     "OTHER" to "Diğer",
 )
 
-fun String.toTurkishRelationType(): String = if (!isTurkish()) this else relationTypeMap[this] ?: this
+fun String.toTurkishRelationType(): String {
+    if (!isTurkish()) return this
+    // Shikimori "Side story" / "Side Story" gibi farklı büyük-küçük harf kullanabiliyor.
+    return relationTypeMap[this]
+        ?: relationTypeMap.entries.firstOrNull { it.key.equals(this, ignoreCase = true) }?.value
+        ?: this
+}
 
 // ─── Medya Tipi / Media Type (API string'den) ─────────────────────────────────
 

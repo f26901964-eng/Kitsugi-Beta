@@ -236,6 +236,7 @@ private fun ExploreTabPage(ctx: TabPagesContext) {
                 com.kitsugi.animelist.ui.screens.explore.ExplorePlatform.KITSU -> "kitsu"
                 com.kitsugi.animelist.ui.screens.explore.ExplorePlatform.SHIKIMORI -> "shikimori"
                 com.kitsugi.animelist.ui.screens.explore.ExplorePlatform.SIMKL -> "simkl"
+                com.kitsugi.animelist.ui.screens.explore.ExplorePlatform.BANGUMI -> "bangumi"
             }
             ctx.navState.navigateToDetail(DetailScreen.AiringCalendar(preferredSource))
         },
@@ -424,6 +425,7 @@ private fun MyListTabPageWrapper(
         isSimklSessionExpired = authViewModel.isSimklSessionExpired,
         isKitsuConnected = authViewModel.isKitsuConnected,
         isShikimoriConnected = authViewModel.isShikimoriConnected,
+        isBangumiConnected = authViewModel.isBangumiConnected,
         onLoginAniList = { authViewModel.startExternalAuth("anilist") },
         onLoginMal = { authViewModel.startExternalAuth("mal") },
         onLoginSimkl = { authViewModel.startExternalAuth("simkl") },
@@ -432,6 +434,7 @@ private fun MyListTabPageWrapper(
         onSyncSimkl = { authViewModel.importSimklList(mediaEntries, mediaRepository) },
         onSyncKitsu = { authViewModel.importKitsuList(mediaEntries, mediaRepository) },
         onSyncShikimori = { authViewModel.importShikimoriList(mediaEntries, mediaRepository) },
+        onSyncBangumi = { authViewModel.importBangumiList(mediaEntries, mediaRepository) },
         onKitsuAuthSubmit = { username, password, onComplete ->
             authViewModel.loginKitsu(
                 username = username,
@@ -442,6 +445,15 @@ private fun MyListTabPageWrapper(
         },
         onShikimoriAuthSubmit = { clientId, clientSecret, authCode, onComplete ->
             authViewModel.loginShikimori(
+                clientId = clientId,
+                clientSecret = clientSecret,
+                authCode = authCode,
+                onSuccess = { onComplete(true, null) },
+                onError = { onComplete(false, it) }
+            )
+        },
+        onBangumiAuthSubmit = { clientId, clientSecret, authCode, onComplete ->
+            authViewModel.loginBangumi(
                 clientId = clientId,
                 clientSecret = clientSecret,
                 authCode = authCode,

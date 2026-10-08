@@ -136,13 +136,14 @@ fun SourceEnginePickerSheet(
             SearchSourceEngine.entries.forEach { engine ->
                 val isSelected = engine == selectedEngine
                 val description = when (engine) {
-                    SearchSourceEngine.ALL -> "6 platformda eşzamanlı birleşik arama"
+                    SearchSourceEngine.ALL -> "7 platformda eşzamanlı birleşik arama"
                     SearchSourceEngine.ANILIST -> "En zengin anime, manga, manhwa ve stüdyo veritabanı"
                     SearchSourceEngine.MAL -> "Klasik MyAnimeList kataloğu, dergiler ve yapımcılar"
                     SearchSourceEngine.TMDB -> "Film, dizi, oyuncu ve yapım şirketleri"
                     SearchSourceEngine.SHIKIMORI -> "Rusça / Japonca anime, manga ve karakter arşivi"
                     SearchSourceEngine.KITSU -> "Hızlı, hafif anime ve manga kataloğu"
                     SearchSourceEngine.SIMKL -> "TV dizileri, filmler ve anime takip platformu"
+                    SearchSourceEngine.BANGUMI -> "Çin'in en büyük anime/manga veritabanı ve topluluk puanları"
                 }
 
                 Row(

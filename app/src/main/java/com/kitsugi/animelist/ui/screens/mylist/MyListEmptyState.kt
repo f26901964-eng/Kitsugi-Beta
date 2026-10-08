@@ -29,6 +29,7 @@ internal fun MyListNotConnectedState(
         }
         MY_LIST_KITSU_TAB_INDEX -> "Kitsu Bağlı Değil"
         MY_LIST_SHIKIMORI_TAB_INDEX -> "Shikimori Bağlı Değil"
+        MY_LIST_BANGUMI_TAB_INDEX -> "Bangumi Bağlı Değil"
         else -> "Hesap Bağlı Değil"
     }
 
@@ -43,6 +44,7 @@ internal fun MyListNotConnectedState(
         }
         MY_LIST_KITSU_TAB_INDEX -> "Kitsu kütüphanenizi görüntülemek için hesabınızı bağlayın."
         MY_LIST_SHIKIMORI_TAB_INDEX -> "Shikimori kütüphanenizi görüntülemek için hesabınızı bağlayın."
+        MY_LIST_BANGUMI_TAB_INDEX -> "Bangumi (bgm.tv) koleksiyonunuzu görüntülemek için hesabınızı bağlayın."
         else -> "Kütüphanenizi görüntülemek için hesabınızı bağlayın."
     }
 

@@ -25,7 +25,7 @@ import com.kitsugi.animelist.R
  * Emoji yerine tüm kaynak seçicilerde (Keşfet, Listem, Arama, Hesap Bağlantıları) kullanılır.
  *
  * [platformId] büyük/küçük harf duyarsızdır: "anilist", "mal", "myanimelist", "jikan",
- * "tmdb", "simkl", "kitsu", "shikimori", "fanart.tv". "all"/"tümü" için dünya ikonu gösterilir.
+ * "tmdb", "simkl", "kitsu", "shikimori", "bangumi", "fanart.tv". "all"/"tümü" için dünya ikonu gösterilir.
  */
 object KitsugiPlatformLogos {
     @DrawableRes
@@ -36,6 +36,7 @@ object KitsugiPlatformLogos {
         "simkl" -> R.drawable.ic_logo_simkl
         "kitsu" -> R.drawable.ic_logo_kitsu
         "shikimori", "shiki" -> R.drawable.ic_logo_shikimori
+        "bangumi", "bgm" -> R.drawable.ic_logo_bangumi
         "fanart.tv", "fanart" -> R.drawable.ic_logo_fanart
         else -> null
     }

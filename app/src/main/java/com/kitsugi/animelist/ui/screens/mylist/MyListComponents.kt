@@ -372,11 +372,13 @@ fun MyListTabBar(
     isSimklConnected: Boolean = false,
     isKitsuConnected: Boolean = false,
     isShikimoriConnected: Boolean = false,
+    isBangumiConnected: Boolean = false,
     anilistUsername: String = "",
     malUsername: String = "",
     simklUsername: String = "",
     kitsuUsername: String = "",
     shikimoriUsername: String = "",
+    bangumiUsername: String = "",
     onEntryClick: (MediaEntry) -> Unit,
     onExternalSyncMessage: (String) -> Unit,
     accentColor: Color,
@@ -390,6 +392,7 @@ fun MyListTabBar(
     val countSimkl = remember(allEntries) { allEntries.count { it.source.equals("simkl", ignoreCase = true) } }
     val countKitsu = remember(allEntries) { allEntries.count { it.source.equals("kitsu", ignoreCase = true) } }
     val countShikimori = remember(allEntries) { allEntries.count { it.source.equals("shikimori", ignoreCase = true) } }
+    val countBangumi = remember(allEntries) { allEntries.count { it.source.equals("bangumi", ignoreCase = true) || it.source.equals("bgm", ignoreCase = true) } }
 
     val platforms = listOf(
         MyListPlatformSource(
@@ -451,6 +454,18 @@ fun MyListTabBar(
             username = shikimoriUsername,
             count = countShikimori,
             description = "Kapsamlı anime, manga ve ranobe veritabanı"
+        ),
+        MyListPlatformSource(
+            index = MY_LIST_BANGUMI_TAB_INDEX,
+            id = "bangumi",
+            name = "Bangumi",
+            shortName = "Bangumi",
+            emoji = "🎌",
+            brandColor = Color(0xFFF09199),
+            isConnected = isBangumiConnected,
+            username = bangumiUsername,
+            count = countBangumi,
+            description = "Çin'in anime/manga topluluk veritabanı (bgm.tv)"
         )
     )
 

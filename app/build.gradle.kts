@@ -24,8 +24,11 @@ android {
     val simklClientId     = localProperties.getProperty("simkl_client_id")       ?: "650ad7c96b7e1ab1e0056f745708ee0d05558480e8e0c6ae80f1061d2ae31496"
     val simklSecret       = localProperties.getProperty("simkl_client_secret")   ?: "81d3253f90d1f2c0c4ea55af6ca317861e5f40d43c16255eeabd57fc51c73f1c"
     val animeSkipClientId = localProperties.getProperty("anime_skip_client_id")  ?: "5mpKIMeowxmJ4UvAWacdPEzNbfXEjZDv"
+    // Bangumi (bgm.tv) OAuth — https://bgm.tv/dev/app
+    val bangumiClientId     = localProperties.getProperty("bangumi_client_id")     ?: "YOUR_BANGUMI_CLIENT_ID"
+    val bangumiClientSecret = localProperties.getProperty("bangumi_client_secret") ?: "YOUR_BANGUMI_CLIENT_SECRET"
 
-    val appVersionName = "2.4.206"
+    val appVersionName = "2.4.207"
 
     compileSdk = 36
 
@@ -46,6 +49,8 @@ android {
         buildConfigField("String", "SIMKL_CLIENT_ID",        "\"$simklClientId\"")
         buildConfigField("String", "SIMKL_CLIENT_SECRET",    "\"$simklSecret\"")
         buildConfigField("String", "ANIME_SKIP_CLIENT_ID",   "\"$animeSkipClientId\"")
+        buildConfigField("String", "BANGUMI_CLIENT_ID",      "\"$bangumiClientId\"")
+        buildConfigField("String", "BANGUMI_CLIENT_SECRET",  "\"$bangumiClientSecret\"")
         // Dolby Vision native bridge flags.
         // DOVI_NATIVE_ENABLED: stub so=true (always loads); flip to false to skip System.loadLibrary.
         // DOVI_EXTRACTOR_HOOK_READY: true once DolbyVisionExtractorsFactory is wired into the player.

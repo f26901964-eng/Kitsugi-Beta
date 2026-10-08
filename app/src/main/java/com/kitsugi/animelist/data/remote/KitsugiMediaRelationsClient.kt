@@ -204,46 +204,72 @@ class KitsugiMediaRelationsClient {
                     }
                 }
 
-                // AniList bulk sorgusuyla kapak resimlerini ekle
+                // AniList bulk sorgusuyla kapak + İngilizce/Japonca başlıkları ekle
+                // (başlık dili ayarı İngilizce/Japonca seçildiğinde Romaji'ye düşmesin).
                 if (list.isNotEmpty()) {
-                    val malIds = list.map { it.malId }
-                    val idsArray = JSONArray(malIds)
-                    val coverQuery = """
-                        query (${'$'}ids: [Int]) {
-                            Page(perPage: 50) {
-                                media(idMal_in: ${'$'}ids) {
-                                    idMal
-                                    coverImage { large }
-                                }
-                            }
-                        }
-                    """.trimIndent()
-                    val coverVars = JSONObject().put("ids", idsArray)
-                    val coverMap = mutableMapOf<Int, String>()
-                    runCatching {
-                        val coverResp = KitsugiApiBase.executeAniListQuery(coverQuery, coverVars)
-                        if (coverResp != null) {
-                            val coverRoot = JSONObject(coverResp)
-                            val mediaArr = coverRoot.optJSONObject("data")
-                                ?.optJSONObject("Page")
-                                ?.optJSONArray("media")
-                            if (mediaArr != null) {
-                                for (k in 0 until mediaArr.length()) {
-                                    val mi = mediaArr.optJSONObject(k) ?: continue
-                                    val mId = mi.optInt("idMal")
-                                    val img = mi.optJSONObject("coverImage")?.optNullableString("large")
-                                    if (mId > 0 && img != null) coverMap[mId] = img
-                                }
-                            }
-                        }
-                    }
+                    val infoMap = fetchAniListBulkInfoByMalIds(list.map { it.malId }.distinct())
                     list.replaceAll { rel ->
-                        coverMap[rel.malId]?.let { rel.copy(imageUrl = it) } ?: rel
+                        val info = infoMap[rel.malId] ?: return@replaceAll rel
+                        rel.copy(
+                            imageUrl = info.coverUrl ?: rel.imageUrl,
+                            titleRomaji = info.romaji ?: rel.title,
+                            titleEnglish = info.english,
+                            titleJapanese = info.native
+                        )
                     }
                 }
                 list
             }
         }.getOrElse { emptyList() }
+    }
+
+    /** AniList'ten toplu çekilen kapak + başlık bilgisi (MAL kimliğiyle eşlenir). */
+    private data class AniListBulkInfo(
+        val coverUrl: String?,
+        val romaji: String?,
+        val english: String?,
+        val native: String?
+    )
+
+    /**
+     * Verilen MAL kimliklerini TEK AniList sorgusuyla çözer (kapak + romaji/İngilizce/Japonca).
+     * Hata durumunda boş harita döner; çağıran liste yine de gösterilir.
+     */
+    private suspend fun fetchAniListBulkInfoByMalIds(malIds: List<Int>): Map<Int, AniListBulkInfo> {
+        val ids = malIds.filter { it > 0 }.distinct()
+        if (ids.isEmpty()) return emptyMap()
+        val query = """
+            query (${'$'}ids: [Int]) {
+                Page(perPage: 50) {
+                    media(idMal_in: ${'$'}ids) {
+                        idMal
+                        coverImage { large }
+                        title { romaji english native }
+                    }
+                }
+            }
+        """.trimIndent()
+        val out = HashMap<Int, AniListBulkInfo>()
+        runCatching {
+            val resp = KitsugiApiBase.executeAniListQuery(query, JSONObject().put("ids", JSONArray(ids)))
+                ?: return@runCatching
+            val mediaArr = JSONObject(resp).optJSONObject("data")
+                ?.optJSONObject("Page")
+                ?.optJSONArray("media") ?: return@runCatching
+            for (k in 0 until mediaArr.length()) {
+                val mi = mediaArr.optJSONObject(k) ?: continue
+                val malId = mi.optInt("idMal")
+                if (malId <= 0 || out.containsKey(malId)) continue
+                val titleObj = mi.optJSONObject("title")
+                out[malId] = AniListBulkInfo(
+                    coverUrl = mi.optJSONObject("coverImage")?.optNullableString("large"),
+                    romaji = titleObj?.optNullableString("romaji"),
+                    english = titleObj?.optNullableString("english"),
+                    native = titleObj?.optNullableString("native")
+                )
+            }
+        }
+        return out
     }
 
     private suspend fun fetchRelationsFromAniList(
@@ -469,6 +495,19 @@ class KitsugiMediaRelationsClient {
                         mediaType = mediaType,
                         source = "jikan"
                     ))
+                }
+
+                // Başlık dili İngilizce/Japonca iken Romaji'ye düşmemek için AniList'ten tamamla.
+                if (list.isNotEmpty()) {
+                    val infoMap = fetchAniListBulkInfoByMalIds(list.map { it.malId }.distinct())
+                    list.replaceAll { rec ->
+                        val info = infoMap[rec.malId] ?: return@replaceAll rec
+                        rec.copy(
+                            titleRomaji = info.romaji ?: rec.title,
+                            titleEnglish = info.english,
+                            titleJapanese = info.native
+                        )
+                    }
                 }
                 list
             }

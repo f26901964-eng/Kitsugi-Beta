@@ -463,6 +463,7 @@ internal fun DetailGalleryCard(
                                 "simkl"                       -> Color(0xFFE50914)
                                 "kitsu"                       -> Color(0xFFE35A02)
                                 "shikimori"                   -> Color(0xFF4C86C8)
+                                "bangumi", "bgm"               -> Color(0xFFF09199)
                                 "jikan", "jikan (mal)", "mal" -> Color(0xFF2E51A2)
                                 else                          -> accentColor
                             }

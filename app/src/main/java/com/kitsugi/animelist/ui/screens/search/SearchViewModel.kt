@@ -29,6 +29,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.ensureActive
 import com.kitsugi.animelist.data.local.KitsugiDatabase
 import com.kitsugi.animelist.data.repository.SearchHistoryRepository
+import com.kitsugi.animelist.data.remote.KitsugiBangumiClient
 import com.kitsugi.animelist.data.remote.KitsugiShikimoriClient
 import com.kitsugi.animelist.data.remote.KitsuExploreClient
 import com.kitsugi.animelist.data.remote.SimklApiClient
@@ -52,6 +53,12 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     private var searchHistoryEnabledState = true
     private var searchJob: Job? = null
 
+    private val mixedMediaEngines = setOf(
+        SearchSourceEngine.ANILIST, SearchSourceEngine.MAL,
+        SearchSourceEngine.SHIKIMORI, SearchSourceEngine.KITSU,
+        SearchSourceEngine.BANGUMI
+    )
+
     /**
      * Arama nesli (generation) sayacı.
      *
@@ -69,10 +76,6 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
      * Şeffaf yükleme durumu (shimmer) korunduğu için süre artışı UX'i bozmaz.
      */
     private val allSourceTimeoutMs = 20_000L
-    private val mixedMediaEngines = setOf(
-        SearchSourceEngine.ANILIST, SearchSourceEngine.MAL,
-        SearchSourceEngine.SHIKIMORI, SearchSourceEngine.KITSU
-    )
 
     /**
      * Arama ekranında kaynak seçimi kalıcılığı: kullanıcı hangi kaynağı/kapsamı seçtiyse
@@ -135,6 +138,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             SearchSourceEngine.SHIKIMORI -> SearchPlatform.Shikimori
             SearchSourceEngine.KITSU -> SearchPlatform.Kitsu
             SearchSourceEngine.SIMKL -> SearchPlatform.Simkl
+            SearchSourceEngine.BANGUMI -> SearchPlatform.Bangumi
         }
         val mediaType = when (scope) {
             SearchScope.MANGA, SearchScope.MANHWA, SearchScope.MANHUA, SearchScope.LIGHT_NOVEL -> MediaType.Manga
@@ -183,6 +187,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                                 SearchSourceEngine.SHIKIMORI -> KitsugiSearchTab.Shikimori
                                 SearchSourceEngine.KITSU -> KitsugiSearchTab.Kitsu
                                 SearchSourceEngine.SIMKL -> KitsugiSearchTab.Simkl
+                                SearchSourceEngine.BANGUMI -> KitsugiSearchTab.Bangumi
                             }
                         }
                     )
@@ -212,8 +217,15 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             searchGeneration.incrementAndGet()
             searchJob?.cancel()
             _uiState.update {
-                it.copy(query = value, results = emptyList(), multiResults = MultiPlatformResults(),
-                    isLoading = false, hasSearched = false, errorMessage = null, hasNextPage = false)
+                it.copy(
+                    query = value,
+                    results = emptyList(),
+                    multiResults = MultiPlatformResults(),
+                    isLoading = false,
+                    hasSearched = false,
+                    errorMessage = null,
+                    hasNextPage = false
+                )
             }
         }
         saveCurrentStateToCache()
@@ -223,10 +235,16 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             clearResults()
             return
         }
+        // AniHyou debounced live search
         debounceJob = viewModelScope.launch {
             kotlinx.coroutines.delay(400)
             search(resetPage = true)
         }
+    }
+
+    fun onSearchAction() {
+        debounceJob?.cancel()
+        search(resetPage = true)
     }
 
     /** Rafın sorgusunu, kapsamını ve gerçekten görünen kayıtlarını tek seferde devral. */
@@ -248,28 +266,34 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             SearchSourceEngine.SHIKIMORI -> KitsugiSearchTab.Shikimori
             SearchSourceEngine.KITSU -> KitsugiSearchTab.Kitsu
             SearchSourceEngine.SIMKL -> KitsugiSearchTab.Simkl
+            SearchSourceEngine.BANGUMI -> KitsugiSearchTab.Bangumi
             SearchSourceEngine.ALL -> KitsugiSearchTab.All
         }
         _uiState.update {
-            it.copy(query = query, selectedEngine = engine, selectedScope = selectedScope,
-                currentTab = tab, selectedPlatform = when (engine) {
+            it.copy(
+                query = query,
+                selectedEngine = engine,
+                selectedScope = selectedScope,
+                currentTab = tab,
+                selectedPlatform = when (engine) {
                     SearchSourceEngine.ANILIST -> SearchPlatform.AniList
                     SearchSourceEngine.MAL -> SearchPlatform.MAL
                     SearchSourceEngine.TMDB -> SearchPlatform.TMDB
                     SearchSourceEngine.SHIKIMORI -> SearchPlatform.Shikimori
                     SearchSourceEngine.KITSU -> SearchPlatform.Kitsu
                     SearchSourceEngine.SIMKL -> SearchPlatform.Simkl
+                    SearchSourceEngine.BANGUMI -> SearchPlatform.Bangumi
                     SearchSourceEngine.ALL -> SearchPlatform.All
-                }, selectedMediaType = mediaType,
-                results = shelf, hasSearched = shelf.isNotEmpty(), errorMessage = null,
-                page = 1, hasNextPage = false)
+                },
+                selectedMediaType = mediaType,
+                results = shelf,
+                hasSearched = shelf.isNotEmpty(),
+                errorMessage = null,
+                page = 1,
+                hasNextPage = false
+            )
         }
         if (query.isNotBlank()) search(seedResults = shelf)
-    }
-
-    fun onSearchAction() {
-        debounceJob?.cancel()
-        search(resetPage = true)
     }
 
     fun setTab(tab: KitsugiSearchTab) {
@@ -283,6 +307,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             KitsugiSearchTab.Kitsu -> SearchPlatform.Kitsu
             KitsugiSearchTab.Shikimori -> SearchPlatform.Shikimori
             KitsugiSearchTab.Simkl -> SearchPlatform.Simkl
+            KitsugiSearchTab.Bangumi -> SearchPlatform.Bangumi
             KitsugiSearchTab.Anime, KitsugiSearchTab.Manga -> SearchPlatform.AniList
             else -> SearchPlatform.All
         }
@@ -306,6 +331,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             currentQuery.isNotBlank() && tab == KitsugiSearchTab.Shikimori && currentMultiResults.shikimoriResults.isNotEmpty() -> currentMultiResults.shikimoriResults
             currentQuery.isNotBlank() && tab == KitsugiSearchTab.Kitsu && currentMultiResults.kitsuResults.isNotEmpty() -> currentMultiResults.kitsuResults
             currentQuery.isNotBlank() && tab == KitsugiSearchTab.Simkl && currentMultiResults.simklResults.isNotEmpty() -> currentMultiResults.simklResults
+            currentQuery.isNotBlank() && tab == KitsugiSearchTab.Bangumi && currentMultiResults.bangumiResults.isNotEmpty() -> currentMultiResults.bangumiResults
             else -> emptyList()
         }
 
@@ -546,6 +572,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             SearchSourceEngine.SHIKIMORI -> KitsugiSearchTab.Shikimori
             SearchSourceEngine.KITSU -> KitsugiSearchTab.Kitsu
             SearchSourceEngine.SIMKL -> KitsugiSearchTab.Simkl
+            SearchSourceEngine.BANGUMI -> KitsugiSearchTab.Bangumi
         }
         val mappedPlatform = when (engine) {
             SearchSourceEngine.ALL -> SearchPlatform.All
@@ -555,6 +582,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             SearchSourceEngine.SHIKIMORI -> SearchPlatform.Shikimori
             SearchSourceEngine.KITSU -> SearchPlatform.Kitsu
             SearchSourceEngine.SIMKL -> SearchPlatform.Simkl
+            SearchSourceEngine.BANGUMI -> SearchPlatform.Bangumi
         }
 
         _uiState.update {
@@ -630,6 +658,11 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         search(resetPage = true)
     }
 
+    fun updateBangumiFilters(filters: BangumiSpecificFilters) {
+        _uiState.update { it.copy(bangumiSpecificFilters = filters) }
+        search(resetPage = true)
+    }
+
     fun resetEngineFilters(engine: SearchSourceEngine) {
         _uiState.update {
             when (engine) {
@@ -639,13 +672,15 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 SearchSourceEngine.SHIKIMORI -> it.copy(shikimoriSpecificFilters = ShikimoriSpecificFilters())
                 SearchSourceEngine.KITSU -> it.copy(kitsuSpecificFilters = KitsuSpecificFilters())
                 SearchSourceEngine.SIMKL -> it.copy(simklSpecificFilters = SimklSpecificFilters())
+                SearchSourceEngine.BANGUMI -> it.copy(bangumiSpecificFilters = BangumiSpecificFilters())
                 SearchSourceEngine.ALL -> it.copy(
                     aniListSpecificFilters = AniListSpecificFilters(),
                     malSpecificFilters = MalSpecificFilters(),
                     tmdbSpecificFilters = TmdbSpecificFilters(),
                     shikimoriSpecificFilters = ShikimoriSpecificFilters(),
                     kitsuSpecificFilters = KitsuSpecificFilters(),
-                    simklSpecificFilters = SimklSpecificFilters()
+                    simklSpecificFilters = SimklSpecificFilters(),
+                    bangumiSpecificFilters = BangumiSpecificFilters()
                 )
             }
         }
@@ -661,6 +696,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             SearchSourceEngine.SHIKIMORI -> state.shikimoriSpecificFilters.activeCount
             SearchSourceEngine.KITSU -> state.kitsuSpecificFilters.activeCount
             SearchSourceEngine.SIMKL -> state.simklSpecificFilters.activeCount
+            SearchSourceEngine.BANGUMI -> state.bangumiSpecificFilters.activeCount
             SearchSourceEngine.ALL -> 0
         }
     }
@@ -752,6 +788,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             SearchSourceEngine.SHIKIMORI -> KitsugiSearchTab.Shikimori
             SearchSourceEngine.KITSU -> KitsugiSearchTab.Kitsu
             SearchSourceEngine.SIMKL -> KitsugiSearchTab.Simkl
+            SearchSourceEngine.BANGUMI -> KitsugiSearchTab.Bangumi
         }
         val mappedPlatform = when (targetEngine) {
             SearchSourceEngine.ALL -> SearchPlatform.All
@@ -761,6 +798,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             SearchSourceEngine.SHIKIMORI -> SearchPlatform.Shikimori
             SearchSourceEngine.KITSU -> SearchPlatform.Kitsu
             SearchSourceEngine.SIMKL -> SearchPlatform.Simkl
+            SearchSourceEngine.BANGUMI -> SearchPlatform.Bangumi
         }
 
         _uiState.update { current ->
@@ -890,6 +928,30 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                             country = request.countryCode,
                             subtype = request.format?.lowercase(),
                             sort = request.sortBy ?: currentF.sort
+                        )
+                    )
+                }
+                SearchSourceEngine.BANGUMI -> {
+                    val currentF = newState.bangumiSpecificFilters
+                    // Bangumi'de tür/tema adı ayrı bir filtre alanı değildir; wiki
+                    // etiketleri (tag) üzerinden aranır. Bu yüzden kanonik isimler
+                    // etiket listesine çevrilir.
+                    val bangumiTags = listOfNotNull(cleanGenre, cleanTheme, cleanDemographic, cleanTag)
+                        .map { it.trim() }
+                        .filter { it.isNotBlank() }
+                        .distinct()
+                    val bangumiSort = when {
+                        request.sortBy == null -> currentF.sort
+                        request.sortBy.contains("score", true) || request.sortBy.contains("rank", true) -> "rank"
+                        request.sortBy.contains("popular", true) -> "heat"
+                        else -> "match"
+                    }
+                    newState = newState.copy(
+                        bangumiSpecificFilters = currentF.copy(
+                            tags = bangumiTags,
+                            yearFrom = request.year,
+                            yearTo = request.year,
+                            sort = bangumiSort
                         )
                     )
                 }
@@ -1117,8 +1179,8 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 val (results, hasNext) = executeSearchForPage(rawQuery, page = 1, generation = generation)
 
                 ensureActive()
-
                 if (searchGeneration.get() != generation) return@launch
+
                 if (newHistoryItem != null && searchHistoryEnabledState && results.isNotEmpty()) {
                     searchHistoryRepository.insertSearchQuery(newHistoryItem)
                 }
@@ -1146,7 +1208,8 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                     if (searchGeneration.get() != generation) return@update it
                     it.copy(
                         isLoading = false,
-                        errorMessage = if (it.results.isEmpty()) e.message ?: "Arama sırasında bir hata oluştu." else null
+                        errorMessage = if (it.results.isEmpty()) e.message ?: "Arama sırasında bir hata oluştu." else null,
+                        hasNextPage = false
                     )
                 }
                 if (searchGeneration.get() == generation) saveCurrentStateToCache()
@@ -1351,6 +1414,39 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                         }
                     }
                 }
+                SearchSourceEngine.BANGUMI -> {
+                    val f = state.bangumiSpecificFilters
+                    when (scope) {
+                        SearchScope.CHARACTER -> {
+                            val res = KitsugiBangumiClient.searchCharacters(
+                                queryText, page = page, includeAdult = showAdult
+                            )
+                            return Pair(res, res.size >= 24)
+                        }
+                        SearchScope.STAFF -> {
+                            val res = KitsugiBangumiClient.searchPeople(
+                                queryText, page = page, career = f.career
+                            )
+                            return Pair(res, res.size >= 24)
+                        }
+                        else -> {
+                            val mediaType = if (scope in listOf(SearchScope.MANGA, SearchScope.MANHWA, SearchScope.MANHUA, SearchScope.LIGHT_NOVEL)) MediaType.Manga else MediaType.Anime
+                            val res = KitsugiBangumiClient.searchMediaAdvanced(
+                                mediaType = mediaType,
+                                query = queryText,
+                                page = page,
+                                limit = 24,
+                                sort = f.sort,
+                                tags = f.tags,
+                                yearFrom = f.yearFrom,
+                                yearTo = f.yearTo,
+                                minScore = f.minScore,
+                                includeAdult = f.nsfw || showAdult
+                            )
+                            return Pair(res, res.size >= 24)
+                        }
+                    }
+                }
                 SearchSourceEngine.KITSU -> {
                     val f = state.kitsuSpecificFilters
                     when (scope) {
@@ -1360,7 +1456,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                         }
                         else -> {
                             val mediaType = if (scope in listOf(SearchScope.MANGA, SearchScope.MANHWA, SearchScope.MANHUA, SearchScope.LIGHT_NOVEL)) MediaType.Manga else MediaType.Anime
-                            val subtypes = if (scope == SearchScope.MANGA) f.subtypes.ifEmpty { null }
+                            val subtypes = if (scope == SearchScope.MANGA) listOf("manga")
                                 else if (scope == SearchScope.MANHWA) listOf("manhwa")
                                 else if (scope == SearchScope.MANHUA) listOf("manhua")
                                 else if (scope == SearchScope.LIGHT_NOVEL) listOf("novel")
@@ -1477,7 +1573,8 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                         isLoadingTmdb = true,
                         isLoadingShikimori = true,
                         isLoadingKitsu = true,
-                        isLoadingSimkl = true
+                        isLoadingSimkl = true,
+                        isLoadingBangumi = true
                     )
                 )
             }
@@ -1682,6 +1779,36 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                     res
                 }
 
+                val bangumiDef = async(Dispatchers.IO) {
+                    val res = withTimeoutOrNull(allSourceTimeoutMs) {
+                        runCatching {
+                            if (scopeIsManga) {
+                                KitsugiBangumiClient.searchManga(queryText, limit = 10, includeAdult = showAdult)
+                            } else if (scopeIsMixed) {
+                                coroutineScope {
+                                    val animePart = async {
+                                        runCatching {
+                                            KitsugiBangumiClient.searchAnime(queryText, limit = 24, includeAdult = showAdult)
+                                        }.getOrDefault(emptyList())
+                                    }
+                                    val mangaPart = async {
+                                        runCatching {
+                                            KitsugiBangumiClient.searchManga(queryText, limit = 10, includeAdult = showAdult)
+                                        }.getOrDefault(emptyList())
+                                    }
+                                    (animePart.await() + mangaPart.await())
+                                        .distinctBy { "${it.source}_${it.malId}" }
+                                        .take(10)
+                                }
+                            } else {
+                                KitsugiBangumiClient.searchAnime(queryText, limit = 24, includeAdult = showAdult)
+                            }
+                        }.getOrElse { err -> if (err is kotlinx.coroutines.CancellationException) throw err; emptyList() }
+                    } ?: emptyList()
+                    onPlatformCompleted(res) { it.copy(bangumiResults = res, isLoadingBangumi = false) }
+                    res
+                }
+
                 val kitsuDef = async(Dispatchers.IO) {
                     val res = withTimeoutOrNull(allSourceTimeoutMs) {
                         runCatching {
@@ -1746,8 +1873,9 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 val shikimoriRes = runCatching { shikimoriDef.await() }.getOrDefault(emptyList())
                 val kitsuRes = runCatching { kitsuDef.await() }.getOrDefault(emptyList())
                 val simklRes = runCatching { simklDef.await() }.getOrDefault(emptyList())
+                val bangumiRes = runCatching { bangumiDef.await() }.getOrDefault(emptyList())
 
-                val finalCombined = (aniListRes + malRes + tmdbRes + shikimoriRes + kitsuRes + simklRes)
+                val finalCombined = (aniListRes + malRes + tmdbRes + shikimoriRes + kitsuRes + simklRes + bangumiRes)
                     .distinctBy { "${it.source}_${it.malId}" }
 
                 if (searchGeneration.get() != generation) {
@@ -1765,12 +1893,14 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                             shikimoriResults = shikimoriRes,
                             kitsuResults = kitsuRes,
                             simklResults = simklRes,
+                            bangumiResults = bangumiRes,
                             isLoadingAniList = false,
                             isLoadingMal = false,
                             isLoadingTmdb = false,
                             isLoadingShikimori = false,
                             isLoadingKitsu = false,
-                            isLoadingSimkl = false
+                            isLoadingSimkl = false,
+                            isLoadingBangumi = false
                         ),
                         results = finalCombined
                     )
@@ -1865,6 +1995,39 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 else -> null
             }
             val results = SimklApiClient().search(queryText, type = simklType, limit = 20, page = page)
+            return Pair(results, results.size >= 20)
+        }
+
+        // 4b. Bangumi (Çin / bgm.tv)
+        if (state.currentTab == KitsugiSearchTab.Bangumi || state.selectedPlatform == SearchPlatform.Bangumi) {
+            val f = state.bangumiSpecificFilters
+            val results = when (state.selectedScope) {
+                SearchScope.CHARACTER -> KitsugiBangumiClient.searchCharacters(
+                    queryText, page = page, limit = 24, includeAdult = showAdult
+                )
+                SearchScope.STAFF -> KitsugiBangumiClient.searchPeople(
+                    queryText, page = page, limit = 24, career = f.career
+                )
+                else -> {
+                    val targetType = if (state.selectedScope in listOf(SearchScope.MANGA, SearchScope.MANHWA, SearchScope.MANHUA, SearchScope.LIGHT_NOVEL) || state.selectedMediaType == MediaType.Manga) {
+                        MediaType.Manga
+                    } else {
+                        MediaType.Anime
+                    }
+                    KitsugiBangumiClient.searchMediaAdvanced(
+                        mediaType = targetType,
+                        query = queryText,
+                        page = page,
+                        limit = 24,
+                        sort = f.sort,
+                        tags = f.tags,
+                        yearFrom = f.yearFrom,
+                        yearTo = f.yearTo,
+                        minScore = f.minScore,
+                        includeAdult = f.nsfw || showAdult
+                    )
+                }
+            }
             return Pair(results, results.size >= 20)
         }
 

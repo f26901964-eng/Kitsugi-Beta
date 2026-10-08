@@ -91,10 +91,10 @@ internal fun sourceSections(platform: ExplorePlatform, p: ExplorePayload): List<
             section(ExploreCategoryType.SEASONAL_ANIME, "En Yüksek Puanlı Diziler", p.seasonalAnime)
         )
     } else listOf(
-        section(ExploreCategoryType.TOP_ANIME, if (platform == ExplorePlatform.MAL || platform == ExplorePlatform.SHIKIMORI) "En İyi Animeler" else "Popüler Animeler", p.topAnime),
+        section(ExploreCategoryType.TOP_ANIME, if (platform == ExplorePlatform.MAL || platform == ExplorePlatform.SHIKIMORI || platform == ExplorePlatform.BANGUMI) "En İyi Animeler" else "Popüler Animeler", p.topAnime),
         section(ExploreCategoryType.TOP_RATED_ANIME, "En Yüksek Puanlı Animeler", p.topRatedAnime.orEmpty()),
         section(ExploreCategoryType.TRENDING_ANIME, "Trend Animeler", p.trendingAnime),
-        section(ExploreCategoryType.TOP_MANGA, if (platform == ExplorePlatform.MAL || platform == ExplorePlatform.SHIKIMORI) "En İyi Mangalar" else "Popüler Mangalar", p.topManga),
+        section(ExploreCategoryType.TOP_MANGA, if (platform == ExplorePlatform.MAL || platform == ExplorePlatform.SHIKIMORI || platform == ExplorePlatform.BANGUMI) "En İyi Mangalar" else "Popüler Mangalar", p.topManga),
         section(ExploreCategoryType.TOP_RATED_MANGA, "En Yüksek Puanlı Mangalar", p.topRatedManga.orEmpty()),
         section(ExploreCategoryType.AIRING_ANIME, "Yayındaki Animeler", p.airingAnime),
         section(ExploreCategoryType.UPCOMING_ANIME, "Yaklaşan Animeler", p.upcomingAnime),
@@ -161,4 +161,4 @@ fun allSourceHeroes(
     .distinctBy { it.platform }
     .mapNotNull { it.results.firstOrNull() }
     .distinctBy { it.exploreIdentity() }
-    .take(6)
+    .take(ExplorePlatform.sources.size)

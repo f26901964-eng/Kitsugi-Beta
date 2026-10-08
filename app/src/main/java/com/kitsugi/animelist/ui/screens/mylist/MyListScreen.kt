@@ -72,6 +72,7 @@ import com.kitsugi.animelist.ui.components.KitsugiInfoDialog
 import com.kitsugi.animelist.ui.components.KitsugiImagePreviewDialog
 import com.kitsugi.animelist.ui.components.KitsugiMediaEntryEditorDialog
 import com.kitsugi.animelist.ui.components.KitsugiKitsuLoginDialog
+import com.kitsugi.animelist.ui.components.KitsugiBangumiLoginDialog
 import com.kitsugi.animelist.ui.components.KitsugiShikimoriLoginDialog
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
@@ -115,18 +116,22 @@ fun MyListScreen(
     isSimklSessionExpired: Boolean,
     isKitsuConnected: Boolean = false,
     isShikimoriConnected: Boolean = false,
+    isBangumiConnected: Boolean = false,
     onLoginAniList: () -> Unit,
     onLoginMal: () -> Unit,
     onLoginSimkl: () -> Unit,
     onLoginKitsu: () -> Unit = {},
     onLoginShikimori: () -> Unit = {},
+    onLoginBangumi: () -> Unit = {},
     onSyncAniList: () -> Unit,
     onSyncMal: () -> Unit,
     onSyncSimkl: () -> Unit,
     onSyncKitsu: () -> Unit = {},
     onSyncShikimori: () -> Unit = {},
+    onSyncBangumi: () -> Unit = {},
     onKitsuAuthSubmit: (username: String, password: String, onComplete: (Boolean, String?) -> Unit) -> Unit = { _, _, _ -> },
     onShikimoriAuthSubmit: (clientId: String, clientSecret: String, authCode: String, onComplete: (Boolean, String?) -> Unit) -> Unit = { _, _, _, _ -> },
+    onBangumiAuthSubmit: (clientId: String, clientSecret: String, authCode: String, onComplete: (Boolean, String?) -> Unit) -> Unit = { _, _, _, _ -> },
     onEntryClick: (MediaEntry) -> Unit,
     onSettingsClick: () -> Unit,
     isBottomBarVisible: Boolean = true,
@@ -165,6 +170,7 @@ fun MyListScreen(
     var showApiSearchDialog by rememberSaveable { mutableStateOf(false) }
     var showKitsuLoginDialog by rememberSaveable { mutableStateOf(false) }
     var showShikimoriLoginDialog by rememberSaveable { mutableStateOf(false) }
+    var showBangumiLoginDialog by rememberSaveable { mutableStateOf(false) }
     var activeZoomImageUrl by rememberSaveable { mutableStateOf<String?>(null) }
     var activeZoomTitle by rememberSaveable { mutableStateOf("") }
     var activeZoomIsAdult by rememberSaveable { mutableStateOf(false) }
@@ -433,11 +439,13 @@ fun MyListScreen(
                 isSimklConnected = isSimklConnected,
                 isKitsuConnected = isKitsuConnected,
                 isShikimoriConnected = isShikimoriConnected,
+                isBangumiConnected = isBangumiConnected,
                 anilistUsername = appSettings.anilistUsername,
                 malUsername = appSettings.malUsername,
                 simklUsername = appSettings.simklUsername,
                 kitsuUsername = appSettings.kitsuUsername,
                 shikimoriUsername = appSettings.shikimoriUsername,
+                bangumiUsername = appSettings.bangumiUsername,
                 onEntryClick = onEntryClick,
                 onExternalSyncMessage = onExternalSyncMessage,
                 accentColor = accentColor,
@@ -504,6 +512,7 @@ fun MyListScreen(
                     MY_LIST_SIMKL_TAB_INDEX -> isSimklConnected
                     MY_LIST_KITSU_TAB_INDEX -> isKitsuConnected
                     MY_LIST_SHIKIMORI_TAB_INDEX -> isShikimoriConnected
+                    MY_LIST_BANGUMI_TAB_INDEX -> isBangumiConnected
                     MY_LIST_ALL_TAB_INDEX -> true // A combined library also includes locally cached records.
                     else -> false
                 }
@@ -545,6 +554,10 @@ fun MyListScreen(
                                 if (isShikimoriConnected) onLoginShikimori()
                                 else showShikimoriLoginDialog = true
                             }
+                            MY_LIST_BANGUMI_TAB_INDEX -> {
+                                if (isBangumiConnected) onLoginBangumi()
+                                else showBangumiLoginDialog = true
+                            }
                         }
                     },
                     onRefresh = {
@@ -554,6 +567,7 @@ fun MyListScreen(
                             MY_LIST_SIMKL_TAB_INDEX -> onSyncSimkl()
                             MY_LIST_KITSU_TAB_INDEX -> onSyncKitsu()
                             MY_LIST_SHIKIMORI_TAB_INDEX -> onSyncShikimori()
+                            MY_LIST_BANGUMI_TAB_INDEX -> onSyncBangumi()
                             MY_LIST_ALL_TAB_INDEX -> {
                                 var startedSync = false
                                 if (isAniListConnected) { onSyncAniList(); startedSync = true }
@@ -561,6 +575,7 @@ fun MyListScreen(
                                 if (isSimklConnected && !isSimklSessionExpired) { onSyncSimkl(); startedSync = true }
                                 if (isKitsuConnected) { onSyncKitsu(); startedSync = true }
                                 if (isShikimoriConnected) { onSyncShikimori(); startedSync = true }
+                                if (isBangumiConnected) { onSyncBangumi(); startedSync = true }
                                 if (!startedSync) onExternalSyncMessage("Birleşik listeyi yenilemek için en az bir kaynağı bağla")
                             }
                         }
@@ -920,6 +935,20 @@ fun MyListScreen(
                     onComplete(success, error)
                     if (success) {
                         onSyncShikimori()
+                    }
+                }
+            }
+        )
+    }
+
+    if (showBangumiLoginDialog) {
+        KitsugiBangumiLoginDialog(
+            onDismiss = { showBangumiLoginDialog = false },
+            onLogin = { clientId, clientSecret, authCode, onComplete ->
+                onBangumiAuthSubmit(clientId, clientSecret, authCode) { success, error ->
+                    onComplete(success, error)
+                    if (success) {
+                        onSyncBangumi()
                     }
                 }
             }

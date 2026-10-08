@@ -11,7 +11,8 @@ enum class SearchSourceEngine(val id: String, val label: String, val emoji: Stri
     TMDB("tmdb", "TMDB", "🎬"),
     SHIKIMORI("shikimori", "Shikimori", "🌸"),
     KITSU("kitsu", "Kitsu", "🦊"),
-    SIMKL("simkl", "Simkl", "📺");
+    SIMKL("simkl", "Simkl", "📺"),
+    BANGUMI("bangumi", "Bangumi", "🎌");
 
     val displayLabel: String get() = "$emoji $label"
     val shortLabel: String get() = when (this) {
@@ -22,6 +23,7 @@ enum class SearchSourceEngine(val id: String, val label: String, val emoji: Stri
         SHIKIMORI -> "🌸 SHI"
         KITSU -> "🦊 KTS"
         SIMKL -> "📺 SMK"
+        BANGUMI -> "🎌 BGM"
     }
 }
 
@@ -75,6 +77,10 @@ fun SearchSourceEngine.availableScopes(): List<SearchScope> = when (this) {
     )
     SearchSourceEngine.SIMKL -> listOf(
         SearchScope.ALL_MIXED, SearchScope.ANIME, SearchScope.TV, SearchScope.MOVIE
+    )
+    SearchSourceEngine.BANGUMI -> listOf(
+        SearchScope.ALL_MIXED, SearchScope.ANIME, SearchScope.MANGA, SearchScope.MANHWA, SearchScope.MANHUA,
+        SearchScope.LIGHT_NOVEL, SearchScope.CHARACTER, SearchScope.STAFF
     )
 }
 
@@ -305,6 +311,34 @@ data class SimklSpecificFilters(
         if (country != null) count++
         if (year != null) count++
         if (minScore != null) count++
+        return count
+    }
+}
+
+/**
+ * 🎌 Bangumi (bgm.tv) Özel Filtreleri
+ * `POST /v0/search/subjects` gövdesindeki `filter` alanıyla birebir hizalıdır.
+ */
+data class BangumiSpecificFilters(
+    /** `match` | `heat` | `rank` | `score` */
+    val sort: String = "match",
+    val tags: List<String> = emptyList(),
+    val yearFrom: Int? = null,
+    val yearTo: Int? = null,
+    val minScore: Int? = null,
+    val nsfw: Boolean = false,
+    val comicsOnly: Boolean = true,
+    val career: List<String> = emptyList()
+) {
+    val activeCount: Int get() {
+        var count = 0
+        if (sort != "match") count++
+        if (tags.isNotEmpty()) count += tags.size
+        if (yearFrom != null || yearTo != null) count++
+        if (minScore != null) count++
+        if (nsfw) count++
+        if (!comicsOnly) count++
+        if (career.isNotEmpty()) count += career.size
         return count
     }
 }

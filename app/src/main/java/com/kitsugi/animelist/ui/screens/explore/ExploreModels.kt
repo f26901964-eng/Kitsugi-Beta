@@ -9,13 +9,14 @@ enum class ExplorePlatform(
     val shortName: String = label,
     val description: String = ""
 ) {
-    ALL("Tümü", "🌐", "Tümü", "6 kaynağı birlikte keşfet: anime, manga, film ve diziler"),
+    ALL("Tümü", "🌐", "Tümü", "7 kaynağı birlikte keşfet: anime, manga, film ve diziler"),
     AniList("AniList", "⚡", "AniList", "Trend, popüler ve güncel sezon anime & mangaları"),
     MAL("MyAnimeList", "🏆", "MAL", "En yüksek puanlı, yaklaşan ve klasik MyAnimeList arşivi"),
     TMDB("TMDB", "🎬", "TMDB", "Trend filmler, popüler diziler ve vizyondaki yapımlar"),
     SIMKL("Simkl", "📺", "Simkl", "Simkl en iyiler, TV dizileri ve anime listeleri"),
     KITSU("Kitsu", "🦊", "Kitsu", "Kitsu popüler, trend ve en sevilen içerikleri"),
-    SHIKIMORI("Shikimori", "🌸", "Shikimori", "Shikimori güncel anime ve manga sıralamaları");
+    SHIKIMORI("Shikimori", "🌸", "Shikimori", "Shikimori güncel anime ve manga sıralamaları"),
+    BANGUMI("Bangumi", "🎌", "Bangumi", "Bangumi (bgm.tv) güncel anime ve kitap/manga sıralamaları");
 
     companion object {
         val sources: List<ExplorePlatform> = entries.filter { it != ALL }

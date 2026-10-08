@@ -501,7 +501,7 @@ private fun AccountConnectionsTab(
                         crossSyncState.isRunning -> crossSyncState.currentStep +
                             if (crossSyncState.totalItems > 0) " (%${(crossSyncState.progressPercent * 100).toInt()})" else ""
                         crossSyncState.startedAt != null -> "Son eşitleme raporunu, sorunları ve platform ayrıntılarını görüntüle"
-                        else -> "$connectedNames verilerini karşılıklı senkronize edin (Asla silme yapılmaz)"
+                        else -> "Deneysel · $connectedNames verilerini karşılıklı senkronize edin (Asla silme yapılmaz)"
                     }
 
                     KitsugiSettingsItem(
@@ -519,6 +519,11 @@ private fun AccountConnectionsTab(
                                 onCrossSyncClick()
                             }
                         }
+                    )
+
+                    CrossSyncDisclaimerText(
+                        full = false,
+                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                     )
 
                     if (crossSyncState.isRunning) {

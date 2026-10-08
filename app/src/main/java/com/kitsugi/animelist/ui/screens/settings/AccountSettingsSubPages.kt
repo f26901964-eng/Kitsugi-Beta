@@ -104,6 +104,16 @@ internal fun AccountConnectionsHubContent(
                 isConnected = profile.isShikimoriConnected,
                 onClick = { onNavigate(SettingsRoute.ShikimoriSettings) }
             )
+            KitsugiSettingsDivider()
+
+            // Bangumi (bgm.tv)
+            AccountHubItem(
+                title = "Bangumi",
+                subtitle = if (profile.isBangumiConnected) "Bağlı (${profile.bangumiUsername})" else "Bağlı Değil",
+                platformId = "bangumi",
+                isConnected = profile.isBangumiConnected,
+                onClick = { onNavigate(SettingsRoute.BangumiSettings) }
+            )
         }
 
         SectionHeader("Senkronizasyon")
@@ -112,11 +122,12 @@ internal fun AccountConnectionsHubContent(
                     (if (profile.isMalConnected) 1 else 0) +
                     (if (profile.isSimklConnected) 1 else 0) +
                     (if (profile.isKitsuConnected) 1 else 0) +
-                    (if (profile.isShikimoriConnected) 1 else 0)
+                    (if (profile.isShikimoriConnected) 1 else 0) +
+                    (if (profile.isBangumiConnected) 1 else 0)
 
             AccountHubItem(
                 title = "Çapraz Eşitleme (Cross-Sync)",
-                subtitle = if (connectedCount >= 2) "$connectedCount hesap arasında karşılıklı senkronizasyon" else "En az 2 hesap bağlandığında etkinleşir",
+                subtitle = if (connectedCount >= 2) "Deneysel · $connectedCount hesap arasında karşılıklı senkronizasyon" else "Deneysel · En az 2 hesap bağlandığında etkinleşir",
                 icon = Icons.Rounded.CloudSync,
                 iconColor = KitsugiColors.AccentOrange,
                 isConnected = connectedCount >= 2,
@@ -559,6 +570,120 @@ internal fun ShikimoriSettingsContent(profile: ProfileSettings) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// 6b. Bangumi (bgm.tv) Alt Sayfası
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Bangumi hesap bağlantısı alt sayfası.
+
+ * Shikimori sayfasıyla aynı yapı; farkı, Bangumi'de paylaşılan varsayılan uygulama kaydı
+ * olmamasıdır. Kullanıcı önce https://bgm.tv/dev/app üzerinden kendi App ID / App Secret
+ * değerini almalıdır (bkz. KitsugiBangumiLoginDialog ve docs/bangumi/).
+ */
+@Composable
+internal fun BangumiSettingsContent(profile: ProfileSettings) {
+    var showBangumiLoginDialog by remember { mutableStateOf(false) }
+    val scrollState = rememberScrollState()
+    // Bangumi marka rengi: rgb(240,145,153)
+    val bangumiColor = Color(0xFFF09199)
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(scrollState)
+            .padding(vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        ConnectionStatusCard(
+            platformName = "Bangumi",
+            platformId = "bangumi",
+            username = profile.bangumiUsername,
+            isConnected = profile.isBangumiConnected
+        )
+
+        SectionHeader("İşlemler")
+        SettingsNavCard {
+            if (profile.isBangumiConnected) {
+                KitsugiSettingsItem(
+                    title = "Kütüphaneyi İçe Aktar",
+                    description = if (profile.isBangumiImportRunning) "Senkronize ediliyor..." else "Bangumi 收藏 (koleksiyon) listenizi içe aktarın",
+                    icon = Icons.Rounded.Sync,
+                    iconColor = KitsugiColors.AccentGreen,
+                    onClick = { if (!profile.isBangumiImportRunning) profile.onBangumiImportClick() }
+                )
+                KitsugiSettingsDivider()
+                KitsugiSettingsSwitchItem(
+                    title = "Otomatik Eşitleme",
+                    description = "Kitsugi'deki değişiklikleri Bangumi'ye anında yansıt",
+                    icon = Icons.Rounded.CloudSync,
+                    iconColor = bangumiColor,
+                    checked = profile.syncEnabledBangumi,
+                    onCheckedChange = profile.onSyncEnabledBangumiChanged
+                )
+                KitsugiSettingsDivider()
+                KitsugiSettingsItem(
+                    title = "Bangumi Bağlantısını Kes",
+                    description = "Hesabınızı uygulamadan kaldırır (App ID/Secret saklanır)",
+                    icon = Icons.Rounded.LinkOff,
+                    iconColor = KitsugiColors.AccentRed,
+                    onClick = profile.onBangumiAuthClick
+                )
+            } else {
+                KitsugiSettingsItem(
+                    title = "Bangumi Hesabını Bağla",
+                    description = "bgm.tv App ID / App Secret ve Yetki Kodu ile giriş yapın",
+                    icon = Icons.Rounded.Link,
+                    iconColor = bangumiColor,
+                    onClick = { showBangumiLoginDialog = true }
+                )
+            }
+        }
+
+        SectionHeader("Bangumi Hakkında")
+        Card(
+            shape = RoundedCornerShape(18.dp),
+            colors = CardDefaults.cardColors(containerColor = KitsugiColors.Surface),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        ) {
+            Column(
+                modifier = Modifier.padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    KitsugiPlatformLogo(platformId = "bangumi", size = 20.dp)
+                    Text(
+                        text = "Bangumi 番组计划 Entegrasyonu",
+                        color = KitsugiColors.TextPrimary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
+                }
+                Text(
+                    text = "Bangumi (bgm.tv) v0 API ile kayıt (条目) arama, sezon/sıra keşfi, bölüm listesi, " +
+                        "koleksiyon durumu (想看/在看/看过/搁置/抛弃), 0-10 puan ve bölüm bazlı " +
+                        "ilerleme (打格子) desteklenir. Giriş için kendi uygulamanızı " +
+                        "bgm.tv/dev/app adresinden kaydetmeniz gerekir.",
+                    color = KitsugiColors.TextSecondary,
+                    fontSize = 12.sp,
+                    lineHeight = 18.sp
+                )
+            }
+        }
+    }
+
+    if (showBangumiLoginDialog) {
+        KitsugiBangumiLoginDialog(
+            onDismiss = { showBangumiLoginDialog = false },
+            onLogin = profile.onLoginBangumi
+        )
+    }
+}
+// ─────────────────────────────────────────────────────────────────────────────
 // 7. Çapraz Eşitleme (Cross-Sync) Alt Sayfası
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -579,6 +704,7 @@ internal fun CrossSyncSettingsContent(profile: ProfileSettings) {
         if (profile.isSimklConnected) add("Simkl")
         if (profile.isKitsuConnected) add("Kitsu")
         if (profile.isShikimoriConnected) add("Shikimori")
+        if (profile.isBangumiConnected) add("Bangumi")
     }.joinToString(", ")
 
     Column(
@@ -641,6 +767,7 @@ internal fun CrossSyncSettingsContent(profile: ProfileSettings) {
                     fontSize = 13.sp,
                     lineHeight = 19.sp
                 )
+                CrossSyncDisclaimerText(full = true)
             }
         }
 
@@ -696,6 +823,11 @@ internal fun CrossSyncSettingsContent(profile: ProfileSettings) {
                 }
             }
 
+            CrossSyncDisclaimerText(
+                full = false,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+
             SectionHeader("Otomatik Eşitleme Tercihleri")
             SettingsNavCard {
                 if (profile.isAniListConnected) {
@@ -750,6 +882,17 @@ internal fun CrossSyncSettingsContent(profile: ProfileSettings) {
                         iconColor = Color(0xFF8E44AD),
                         checked = profile.syncEnabledShikimori,
                         onCheckedChange = profile.onSyncEnabledShikimoriChanged
+                    )
+                }
+                if (profile.isBangumiConnected) {
+                    KitsugiSettingsDivider()
+                    KitsugiSettingsSwitchItem(
+                        title = "Bangumi Otomatik Senkronizasyon",
+                        description = "Değişiklikleri Bangumi'ye anında aktar",
+                        icon = Icons.Rounded.CloudSync,
+                        iconColor = Color(0xFFF09199),
+                        checked = profile.syncEnabledBangumi,
+                        onCheckedChange = profile.onSyncEnabledBangumiChanged
                     )
                 }
             }

@@ -51,7 +51,7 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 
 /**
- * 7 Katalog Motoruna Özel Kapsamlı Filtreleme Bottom Sheet'i.
+ * 8 Katalog Motoruna Özel Kapsamlı Filtreleme Bottom Sheet'i.
  * Seçilen motora uygun ince ayarları (puan, yıl, süre, etiket güven oranı, yaş sınırı vb.) sunar.
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -237,6 +237,7 @@ fun SourceEngineFilterSheet(
                         SearchSourceEngine.SHIKIMORI -> ShikimoriQuickChips(uiState, viewModel)
                         SearchSourceEngine.KITSU -> KitsuQuickChips(uiState, viewModel)
                         SearchSourceEngine.SIMKL -> SimklQuickChips(uiState, viewModel)
+                        SearchSourceEngine.BANGUMI -> BangumiQuickChips(uiState, viewModel)
                         SearchSourceEngine.ALL -> Unit
                     }
                 }
@@ -250,6 +251,7 @@ fun SourceEngineFilterSheet(
                 SearchSourceEngine.SHIKIMORI -> ShikimoriFullFiltersContent(uiState, viewModel)
                 SearchSourceEngine.KITSU -> KitsuFullFiltersContent(uiState, viewModel)
                 SearchSourceEngine.SIMKL -> SimklFullFiltersContent(uiState, viewModel)
+                SearchSourceEngine.BANGUMI -> BangumiFullFiltersContent(uiState, viewModel)
                 SearchSourceEngine.ALL -> AllFullFiltersContent()
             }
 
@@ -1284,4 +1286,279 @@ private fun AllFullFiltersContent() {
         style = MaterialTheme.typography.bodyMedium.copy(color = KitsugiColors.TextSecondary),
         lineHeight = 20.sp
     )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 🎌 Bangumi (bgm.tv) Tam Filtreler
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Tek satırlık Bangumi çip grubu; [code] null ise "Tümü" seçeneğidir. */
+@Composable
+private fun BangumiChipRow(
+    title: String,
+    options: List<Pair<String?, String>>,
+    isSelected: (String?) -> Boolean,
+    onSelect: (String?) -> Unit
+) {
+    val accentColor = LocalKitsugiAccent.current
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            title,
+            style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary)
+        )
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            options.forEach { (code, label) ->
+                val selected = isSelected(code)
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(
+                            if (selected) accentColor.copy(alpha = 0.2f)
+                            else KitsugiColors.SurfaceElevated
+                        )
+                        .border(
+                            1.dp,
+                            if (selected) accentColor else Color.Transparent,
+                            RoundedCornerShape(10.dp)
+                        )
+                        .clickable { onSelect(code) }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        label,
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = if (selected) accentColor else KitsugiColors.TextSecondary
+                        )
+                    )
+                }
+            }
+        }
+    }
+}
+
+/** Bangumi anahtar/detik (switch) satırı. */
+@Composable
+private fun BangumiSwitchRow(
+    label: String,
+    hint: String,
+    checked: Boolean,
+    onCheckedChange: (Boolean) -> Unit
+) {
+    val accentColor = LocalKitsugiAccent.current
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                label,
+                style = MaterialTheme.typography.bodyMedium.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    color = KitsugiColors.TextPrimary
+                )
+            )
+            Text(
+                hint,
+                style = MaterialTheme.typography.labelSmall.copy(color = KitsugiColors.TextMuted),
+                fontSize = 11.sp
+            )
+        }
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(checkedTrackColor = accentColor)
+        )
+    }
+}
+
+/**
+ * Bangumi arama filtreleri.
+ *
+ * Bangumi'nin `POST /v0/search/subjects` gövdesi diğer motorlardan daha dardır:
+ * `sort`, `tag`, `air_date`, `rating`, `rank`, `type`, `nsfw`. Tür (动画/书籍) kapsam
+ * sekmesinden türetildiği için burada sunulmaz; yıl filtresi `air_date` aralığına,
+ * puan filtresi `rating` ifadesine çevrilir (bkz. KitsugiBangumiClient.searchMediaAdvanced).
+ */
+@Composable
+private fun BangumiFullFiltersContent(uiState: SearchUiState, viewModel: SearchViewModel) {
+    val filters = uiState.bangumiSpecificFilters
+
+    // 1. Sıralama ölçütü
+    BangumiChipRow(
+        title = "📊 Sıralama Ölçütü:",
+        options = listOf(
+            "match" to "🎯 En İyi Eşleşme",
+            "heat" to "🔥 İlgi (收藏热度)",
+            "rank" to "🏆 Sıra (Rank)",
+            "score" to "⭐ Puan"
+        ),
+        isSelected = { filters.sort == it },
+        onSelect = { code -> viewModel.updateBangumiFilters(filters.copy(sort = code ?: "match")) }
+    )
+
+    // 2. Wiki etiketleri — Bangumi'de tür/tema filtresi etiketler üzerinden yapılır.
+    val accentColor = LocalKitsugiAccent.current
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            "🏷️ Etiketler (wiki tag):",
+            style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary)
+        )
+        if (filters.tags.isNotEmpty()) {
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                filters.tags.forEach { tag ->
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(accentColor.copy(alpha = 0.25f))
+                            .border(1.dp, accentColor, RoundedCornerShape(10.dp))
+                            .clickable {
+                                viewModel.updateBangumiFilters(filters.copy(tags = filters.tags - tag))
+                            }
+                            .padding(horizontal = 10.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            "$tag  ✕",
+                            style = MaterialTheme.typography.labelSmall.copy(color = accentColor)
+                        )
+                    }
+                }
+            }
+        }
+        FlowRow(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            // Kısayol etiketleri: soldaki Türkçe açıklama, sağdaki Bangumi wiki etiketi.
+            val presets = listOf(
+                "科幻" to "Bilim Kurgu", "奇幻" to "Fantastik", "恋爱" to "Romantik",
+                "校园" to "Okul", "搞笑" to "Komedi", "治愈" to "Sakin/İyileştirici",
+                "日常" to "Günlük Yaşam", "机战" to "Mecha", "悬疑" to "Gizem",
+                "推理" to "Dedektif", "冒险" to "Macera", "战斗" to "Aksiyon",
+                "运动" to "Spor", "音乐" to "Müzik", "恐怖" to "Korku",
+                "后宫" to "Harem", "百合" to "Yuri", "耽美" to "BL",
+                "异世界" to "Isekai", "职场" to "İş Hayatı"
+            )
+            presets.forEach { (tag, label) ->
+                val selected = filters.tags.contains(tag)
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(
+                            if (selected) accentColor.copy(alpha = 0.2f)
+                            else KitsugiColors.SurfaceElevated
+                        )
+                        .border(
+                            1.dp,
+                            if (selected) accentColor else Color.Transparent,
+                            RoundedCornerShape(10.dp)
+                        )
+                        .clickable {
+                            val newTags = if (selected) filters.tags - tag else filters.tags + tag
+                            viewModel.updateBangumiFilters(filters.copy(tags = newTags))
+                        }
+                        .padding(horizontal = 10.dp, vertical = 6.dp)
+                ) {
+                    Text(
+                        "$label · $tag",
+                        style = MaterialTheme.typography.labelSmall.copy(
+                            color = if (selected) accentColor else KitsugiColors.TextSecondary
+                        )
+                    )
+                }
+            }
+        }
+    }
+
+    // 3. Yayın yılı
+    val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+    BangumiChipRow(
+        title = "📅 Yayın Yılı (air_date):",
+        options = buildList {
+            add(null to "Tümü")
+            (0 until 6).forEach { add((currentYear - it).toString() to (currentYear - it).toString()) }
+            add((currentYear - 10).toString() to "${currentYear - 10}+")
+            add((currentYear - 20).toString() to "${currentYear - 20}+")
+        },
+        // "+" ile biten ön ayarlar yalnız alt sınır koyar (yearFrom), diğerleri
+        // tek bir yılı seçer (yearFrom == yearTo).
+        isSelected = { code ->
+            when {
+                code == null -> filters.yearFrom == null && filters.yearTo == null
+                code.endsWith("+") -> filters.yearFrom == code.dropLast(1).toIntOrNull() && filters.yearTo == null
+                else -> filters.yearFrom == code.toIntOrNull() && filters.yearTo == code.toIntOrNull()
+            }
+        },
+        onSelect = { code ->
+            if (code == null) {
+                viewModel.updateBangumiFilters(filters.copy(yearFrom = null, yearTo = null))
+            } else if (code.endsWith("+")) {
+                val from = code.dropLast(1).toIntOrNull()
+                viewModel.updateBangumiFilters(filters.copy(yearFrom = from, yearTo = null))
+            } else {
+                val year = code.toIntOrNull()
+                viewModel.updateBangumiFilters(filters.copy(yearFrom = year, yearTo = year))
+            }
+        }
+    )
+
+    // 4. Puan alt sınırı
+    BangumiChipRow(
+        title = "⭐ Minimum Puan (rating):",
+        options = listOf(
+            null to "Tümü", "6" to "6+", "7" to "7+", "8" to "8+", "9" to "9+"
+        ),
+        isSelected = { code -> filters.minScore == code?.toIntOrNull() },
+        onSelect = { code -> viewModel.updateBangumiFilters(filters.copy(minScore = code?.toIntOrNull())) }
+    )
+
+    // 5. Personel mesleği — yalnız 人物 (STAFF) kapsamında etkili
+    if (uiState.selectedScope == SearchScope.STAFF) {
+        BangumiChipRow(
+            title = "🎙️ Meslek (career):",
+            options = listOf(
+                null to "Tümü",
+                "seiyu" to "Seslendirmen",
+                "mangaka" to "Mangaka",
+                "artist" to "Sanatçı",
+                "illustrator" to "Çizer",
+                "writer" to "Yazar",
+                "producer" to "Yapımcı",
+                "actor" to "Oyuncu"
+            ),
+            isSelected = { code ->
+                if (code == null) filters.career.isEmpty() else filters.career.contains(code)
+            },
+            onSelect = { code ->
+                viewModel.updateBangumiFilters(
+                    filters.copy(career = if (code == null) emptyList() else listOf(code))
+                )
+            }
+        )
+    }
+
+    // 6. İçerik anahtarları
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        BangumiSwitchRow(
+            label = "🔞 +18 (NSFW)条目'ları dahil et",
+            hint = "Kapalıyken Bangumi R18 sonuçları hiç döndürmez.",
+            checked = filters.nsfw,
+            onCheckedChange = { viewModel.updateBangumiFilters(filters.copy(nsfw = it)) }
+        )
+        BangumiSwitchRow(
+            label = "📖 Manga kapsamında yalnız 漫画",
+            hint = "Kapatınca roman (小说) ve çizim kitabı (画集)条目'ları da listelenir.",
+            checked = filters.comicsOnly,
+            onCheckedChange = { viewModel.updateBangumiFilters(filters.copy(comicsOnly = it)) }
+        )
+    }
 }

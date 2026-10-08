@@ -900,6 +900,10 @@ private fun SafetyNote() {
             maxLines = 2,
             overflow = TextOverflow.Ellipsis
         )
+        CrossSyncDisclaimerText(
+            full = true,
+            modifier = Modifier.padding(top = 4.dp)
+        )
     }
 }
 

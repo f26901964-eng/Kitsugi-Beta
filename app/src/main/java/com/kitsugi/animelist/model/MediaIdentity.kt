@@ -20,6 +20,7 @@ object MediaIdentity {
                 id in 100_000_001..299_999_999 && entry.source == "anilist" -> add("$prefix:anilist:${id - 100_000_000}")
                 id in 300_000_001..399_999_999 -> add("$prefix:kitsu:${id - 300_000_000}")
                 id in 400_000_001..499_999_999 -> add("$prefix:shikimori:${id - 400_000_000}")
+                id in 500_000_001..599_999_999 -> add("$prefix:bangumi:${id - 500_000_000}")
             }
         }
         entry.simklId?.takeIf { it > 0 }?.let { add("$prefix:simkl:$it") }

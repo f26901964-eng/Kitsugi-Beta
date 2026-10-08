@@ -29,12 +29,14 @@ object ExternalListSyncManager {
             val syncEnabledSimkl = settings?.syncEnabledSimkl ?: true
             val syncEnabledKitsu = settings?.syncEnabledKitsu ?: true
             val syncEnabledShikimori = settings?.syncEnabledShikimori ?: true
+            val syncEnabledBangumi = settings?.syncEnabledBangumi ?: true
 
             val aniListToken = ExternalAuthManager.getAniListToken(context)
             val malToken = ExternalAuthManager.getOrRefreshMalToken(context)
             val simklToken = ExternalAuthManager.getSimklToken(context)
             val kitsuToken = ExternalAuthManager.getKitsuToken(context)
             val shikimoriToken = ExternalAuthManager.getOrRefreshShikimoriToken(context)
+            val bangumiToken = if (syncEnabledBangumi) BangumiAuthStore.getValidToken(context) else null
 
             var realMalId = entry.malId?.takeIf { it.isRealMalId() }
 
@@ -218,6 +220,23 @@ object ExternalListSyncManager {
                 }
             }
 
+            // ── Bangumi Senkronizasyonu (Anime & Kitap/Manga) ────────────────────
+            val shouldSyncBangumi = syncEnabledBangumi && !bangumiToken.isNullOrBlank() && isAnimeOrManga
+
+            if (shouldSyncBangumi) {
+                runSyncCatching {
+                    BangumiSyncManager.syncEntryToBangumi(context, effectiveEntry)
+                }.onSuccess { bangumiResult ->
+                    if (bangumiResult.errors.isEmpty()) {
+                        syncedSources.add("Bangumi")
+                    } else {
+                        errors.addAll(bangumiResult.errors)
+                    }
+                }.onFailure { error ->
+                    errors.add("Bangumi: ${error.message}")
+                }
+            }
+
             if (syncEnabledMal && !malToken.isNullOrBlank() && isAnimeOrManga && realMalId == null) {
                 errors.add("MAL: doğrulanmış medya kimliği yok")
             }
@@ -249,12 +268,14 @@ object ExternalListSyncManager {
             val syncEnabledSimkl = settings?.syncEnabledSimkl ?: true
             val syncEnabledKitsu = settings?.syncEnabledKitsu ?: true
             val syncEnabledShikimori = settings?.syncEnabledShikimori ?: true
+            val syncEnabledBangumi = settings?.syncEnabledBangumi ?: true
 
             val aniListToken = ExternalAuthManager.getAniListToken(context)
             val malToken = ExternalAuthManager.getOrRefreshMalToken(context)
             val simklToken = ExternalAuthManager.getSimklToken(context)
             val kitsuToken = ExternalAuthManager.getKitsuToken(context)
             val shikimoriToken = ExternalAuthManager.getOrRefreshShikimoriToken(context)
+            val bangumiToken = if (syncEnabledBangumi) BangumiAuthStore.getValidToken(context) else null
 
             val realMalId = entry.malId?.takeIf { it.isRealMalId() }
             val isAnimeOrManga = entry.type == MediaType.Anime || entry.type == MediaType.Manga
@@ -264,6 +285,7 @@ object ExternalListSyncManager {
             val shouldDeleteSimkl = syncEnabledSimkl && !simklToken.isNullOrBlank() && entry.type != MediaType.Manga
             val shouldDeleteKitsu = syncEnabledKitsu && !kitsuToken.isNullOrBlank() && isAnimeOrManga
             val shouldDeleteShikimori = syncEnabledShikimori && !shikimoriToken.isNullOrBlank() && isAnimeOrManga
+            val shouldDeleteBangumi = syncEnabledBangumi && !bangumiToken.isNullOrBlank() && isAnimeOrManga
 
             if (shouldDeleteAniList) {
                 runSyncCatching {
@@ -330,6 +352,20 @@ object ExternalListSyncManager {
                     }
                 }.onFailure { error ->
                     errors.add("Shikimori silme: ${error.message}")
+                }
+            }
+
+            if (shouldDeleteBangumi) {
+                runSyncCatching {
+                    BangumiSyncManager.deleteEntryFromBangumi(context, entry)
+                }.onSuccess { bangumiResult ->
+                    if (bangumiResult.errors.isEmpty()) {
+                        deletedSources.add("Bangumi")
+                    } else {
+                        errors.addAll(bangumiResult.errors)
+                    }
+                }.onFailure { error ->
+                    errors.add("Bangumi silme: ${error.message}")
                 }
             }
 

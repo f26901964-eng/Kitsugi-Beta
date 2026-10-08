@@ -166,6 +166,22 @@ internal fun SettingsContext.buildSettingsParams() =
                     onSuccess = { onComplete(true, null) },
                     onError = { onComplete(false, it) }
                 )
+            },
+            isBangumiConnected = authViewModel.isBangumiConnected,
+            bangumiUsername = appSettings.bangumiUsername,
+            isBangumiImportRunning = authViewModel.isBangumiImportRunning,
+            onBangumiAuthClick = { authViewModel.disconnectExternalAccount("bangumi") },
+            onBangumiImportClick = { authViewModel.importBangumiList(mediaEntries, mediaRepository) },
+            syncEnabledBangumi = appSettings.syncEnabledBangumi,
+            onSyncEnabledBangumiChanged = { onSyncEnabledBangumiChanged(it) },
+            onLoginBangumi = { clientId, clientSecret, authCode, onComplete ->
+                authViewModel.loginBangumi(
+                    clientId = clientId,
+                    clientSecret = clientSecret,
+                    authCode = authCode,
+                    onSuccess = { onComplete(true, null) },
+                    onError = { onComplete(false, it) }
+                )
             }
         ),
         player = com.kitsugi.animelist.ui.screens.settings.PlayerSettings(
@@ -1019,6 +1035,13 @@ internal fun SettingsContext.onSyncEnabledShikimoriChanged(enabled: Boolean) {
     coroutineScope.launch {
         settingsDataStore.setSyncEnabledShikimori(enabled)
         appViewModel.showSnackbarMessage(if (enabled) "Shikimori eşitlemesi açıldı" else "Shikimori eşitlemesi kapatıldı")
+    }
+}
+
+internal fun SettingsContext.onSyncEnabledBangumiChanged(enabled: Boolean) {
+    coroutineScope.launch {
+        settingsDataStore.setSyncEnabledBangumi(enabled)
+        appViewModel.showSnackbarMessage(if (enabled) "Bangumi eşitlemesi açıldı" else "Bangumi eşitlemesi kapatıldı")
     }
 }
 

@@ -198,6 +198,7 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
             "shikimori" -> "Shikimori"
             "simkl" -> "Simkl"
             "tmdb" -> "TMDB"
+            "bangumi", "bgm" -> "Bangumi"
             "mal", "jikan" -> "MyAnimeList"
             else -> "Kişi"
         }

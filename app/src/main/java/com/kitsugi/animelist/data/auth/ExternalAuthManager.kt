@@ -82,7 +82,8 @@ object ExternalAuthManager {
         val isMalConnected: Boolean,
         val isSimklConnected: Boolean,
         val isKitsuConnected: Boolean = false,
-        val isShikimoriConnected: Boolean = false
+        val isShikimoriConnected: Boolean = false,
+        val isBangumiConnected: Boolean = false
     )
 
     sealed class AuthEvent {
@@ -107,7 +108,8 @@ object ExternalAuthManager {
             isMalConnected = prefs.getString(KEY_MAL_TOKEN, null) != null,
             isSimklConnected = prefs.getString(KEY_SIMKL_TOKEN, null) != null,
             isKitsuConnected = prefs.getString(KEY_KITSU_TOKEN, null) != null,
-            isShikimoriConnected = prefs.getString(KEY_SHIKIMORI_TOKEN, null) != null
+            isShikimoriConnected = prefs.getString(KEY_SHIKIMORI_TOKEN, null) != null,
+            isBangumiConnected = BangumiAuthStore.isConnected(context)
         )
     }
 
@@ -524,6 +526,28 @@ object ExternalAuthManager {
             return
         }
 
+        // Bangumi deep link (kitsugi://bangumi-auth veya aniyomi://bangumi-auth)
+        if ((uri.scheme == "kitsugi" || uri.scheme == "aniyomi") && uri.host == "bangumi-auth") {
+            val bangumiCode = uri.getQueryParameter("code")
+            if (bangumiCode == null) {
+                val error = uri.getQueryParameter("error") ?: "Bangumi yetkilendirme iptal edildi"
+                BangumiAuthStore.clearPendingRedirectUri(context)
+                onError(error)
+                _authEvents.tryEmit(AuthEvent.Error(error))
+                return
+            }
+            // Token isteğindeki redirect_uri, authorize adımındaki şemayla birebir eşleşmeli.
+            val bangumiRedirect = BangumiAuthStore.redirectUriForScheme(uri.scheme)
+            BangumiAuthManager.exchangeCode(
+                context = context,
+                code = bangumiCode,
+                redirectUri = bangumiRedirect,
+                onSuccess = onSuccess,
+                onError = onError
+            )
+            return
+        }
+
         if (uri.scheme != "malapp" || uri.host != "auth") return
 
         val code = uri.getQueryParameter("code")
@@ -702,6 +726,12 @@ object ExternalAuthManager {
                 editor.remove(KEY_SHIKIMORI_TOKEN_EXPIRES_AT)
                 editor.remove(KEY_SHIKIMORI_USER_ID)
                 editor.remove(KEY_SHIKIMORI_USERNAME)
+            }
+            "bangumi" -> {
+                // Bangumi oturumu kendi deposunda tutulur (bkz. BangumiAuthStore);
+                // App ID/Secret bilinçli olarak korunur.
+                BangumiAuthStore.logout(context)
+                return
             }
             else -> {
                 editor.remove(KEY_MAL_TOKEN)
@@ -1003,6 +1033,25 @@ object ExternalAuthManager {
                 }
             } catch (e: Exception) { onError("DoÄŸrulama hatasÄ±: ${e.message}") }
         }
+    }
+
+    // ── Bangumi (bgm.tv) olay yayını ─────────────────────────────────────────
+    // Bangumi oturumu BangumiAuthStore/BangumiAuthManager'da yönetilir; olaylar ise
+    // mevcut tek `authEvents` akışından yayınlanır ki arayüz tarafı tek dinleyici kalsın.
+
+    /** Bangumi bağlantısı kuruldu — otomatik içe aktarmayı tetikler. */
+    fun emitBangumiSuccess() {
+        _authEvents.tryEmit(AuthEvent.Success("bangumi"))
+    }
+
+    /** Bangumi akışında hata — giriş diyaloğu bu mesajı gösterir. */
+    fun emitBangumiError(message: String) {
+        _authEvents.tryEmit(AuthEvent.Error(message))
+    }
+
+    /** Bangumi oturumu düştü (refresh token geçersiz) — arayüz bağlantıyı kapatır. */
+    fun emitBangumiSessionExpired() {
+        _authEvents.tryEmit(AuthEvent.SessionExpired("bangumi"))
     }
 
     private fun prefs(context: Context): SharedPreferences {

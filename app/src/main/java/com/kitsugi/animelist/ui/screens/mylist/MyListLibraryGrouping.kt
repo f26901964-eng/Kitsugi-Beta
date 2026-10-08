@@ -13,7 +13,8 @@ internal const val MY_LIST_MAL_TAB_INDEX = 2
 internal const val MY_LIST_SIMKL_TAB_INDEX = 3
 internal const val MY_LIST_KITSU_TAB_INDEX = 4
 internal const val MY_LIST_SHIKIMORI_TAB_INDEX = 5
-internal const val MY_LIST_TAB_COUNT = 6
+internal const val MY_LIST_BANGUMI_TAB_INDEX = 6
+internal const val MY_LIST_TAB_COUNT = 7
 
 /** Eski sürümlerde "Tümü" sekmesinin index'i (0..4 = platformlar, 5 = Tümü). */
 private const val LEGACY_MY_LIST_ALL_TAB_INDEX = 5
@@ -34,6 +35,7 @@ internal fun myListTabIndexForSource(source: String): Int? = when (sourceBadgeId
     "simkl" -> MY_LIST_SIMKL_TAB_INDEX
     "kitsu" -> MY_LIST_KITSU_TAB_INDEX
     "shikimori" -> MY_LIST_SHIKIMORI_TAB_INDEX
+    "bangumi" -> MY_LIST_BANGUMI_TAB_INDEX
     else -> null
 }
 
@@ -50,6 +52,7 @@ internal fun defaultMyListSourceForTab(tabIndex: Int): String = when (tabIndex) 
     MY_LIST_SIMKL_TAB_INDEX -> "simkl"
     MY_LIST_KITSU_TAB_INDEX -> "kitsu"
     MY_LIST_SHIKIMORI_TAB_INDEX -> "shikimori"
+    MY_LIST_BANGUMI_TAB_INDEX -> "bangumi"
     else -> "anilist"
 }
 
@@ -60,6 +63,7 @@ internal fun myListSourceDisplayName(source: String): String = when (sourceBadge
     "simkl" -> "Simkl"
     "kitsu" -> "Kitsu"
     "shikimori" -> "Shikimori"
+    "bangumi" -> "Bangumi"
     "tmdb" -> "TMDB"
     else -> source
 }
@@ -76,9 +80,10 @@ internal fun myListRepresentativeRank(entry: MediaEntry): Int = when (sourceBadg
     "mal" -> 1
     "kitsu" -> 2
     "shikimori" -> 3
-    "simkl" -> 4
-    "tmdb" -> 5
-    else -> 6
+    "bangumi" -> 4
+    "simkl" -> 5
+    "tmdb" -> 6
+    else -> 7
 }
 
 /** Daha düşük öncelik numarası kazanır; eşitlikte en yeni kayıt temsilci olur. */
@@ -167,6 +172,7 @@ internal fun sourceBadgeId(source: String): String? = when (source.trim().lowerc
     "simkl" -> "simkl"
     "kitsu" -> "kitsu"
     "shikimori", "shiki" -> "shikimori"
+    "bangumi", "bgm", "bgm.tv" -> "bangumi"
     "tmdb", "themoviedb" -> "tmdb"
     else -> null
 }

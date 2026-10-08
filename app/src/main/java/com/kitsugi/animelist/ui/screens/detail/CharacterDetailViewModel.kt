@@ -210,6 +210,7 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
         "shikimori" -> "Shikimori"
         "simkl" -> "Simkl"
         "tmdb" -> "TMDB"
+        "bangumi", "bgm" -> "Bangumi"
         "mal", "jikan" -> "MyAnimeList"
         else -> "Karakter"
     }

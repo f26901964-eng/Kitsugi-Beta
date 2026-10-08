@@ -477,6 +477,7 @@ fun defaultSortKeyForEngine(engine: SearchSourceEngine): String = when (engine) 
     SearchSourceEngine.SHIKIMORI -> "popularity"
     SearchSourceEngine.KITSU -> "trending"
     SearchSourceEngine.SIMKL -> "rank"
+    SearchSourceEngine.BANGUMI -> "match"
 }
 
 fun getSortDisplayLabel(uiState: SearchUiState): String {
@@ -537,6 +538,15 @@ fun getSortDisplayLabel(uiState: SearchUiState): String {
                 else -> "🏆 Sıralama"
             }
         }
+        SearchSourceEngine.BANGUMI -> {
+            when (uiState.bangumiSpecificFilters.sort) {
+                "match" -> "🎯 Eşleşme"
+                "heat" -> "🔥 İlgi"
+                "rank" -> "🏆 Sıra"
+                "score" -> "⭐ Puan"
+                else -> "🎯 Eşleşme"
+            }
+        }
     }
 }
 
@@ -548,6 +558,7 @@ fun getCurrentSortKey(uiState: SearchUiState): String {
         SearchSourceEngine.SHIKIMORI -> uiState.shikimoriSpecificFilters.order
         SearchSourceEngine.KITSU -> uiState.kitsuSpecificFilters.sort
         SearchSourceEngine.SIMKL -> uiState.simklSpecificFilters.sort
+        SearchSourceEngine.BANGUMI -> uiState.bangumiSpecificFilters.sort
     }
 }
 
@@ -570,6 +581,9 @@ fun applyEngineSort(engine: SearchSourceEngine, sortKey: String, viewModel: Sear
         }
         SearchSourceEngine.SIMKL -> {
             viewModel.updateSimklFilters(viewModel.uiState.value.simklSpecificFilters.copy(sort = sortKey))
+        }
+        SearchSourceEngine.BANGUMI -> {
+            viewModel.updateBangumiFilters(viewModel.uiState.value.bangumiSpecificFilters.copy(sort = sortKey))
         }
     }
 }
@@ -617,6 +631,12 @@ fun sortOptionsForEngine(engine: SearchSourceEngine): List<Pair<String, String>>
             "rank" to "🏆 Genel Sıralama",
             "votes" to "👥 Oy Sayısı",
             "rating" to "⭐ Puan"
+        )
+        SearchSourceEngine.BANGUMI -> listOf(
+            "match" to "🎯 En İyi Eşleşme",
+            "heat" to "🔥 İlgi (收藏热度)",
+            "rank" to "🏆 Sıra (Rank)",
+            "score" to "⭐ Puan: Yüksekten Düşüğe"
         )
     }
 
@@ -679,6 +699,92 @@ fun SortOptionsContent(
                     )
                 }
             }
+        }
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// 🎌 Bangumi (bgm.tv) Hızlı Filtre Çipleri
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * Bangumi için hızlı filtre çipleri.
+ *
+ * Bangumi'nin `POST /v0/search/subjects` gövdesi Shikimori/AniList kadar zengin
+ * filtre alanı sunmaz; kullanılabilir olanlar sıralama, etiket (tag), yayın yılı
+ * aralığı, puan alt sınırı ve NSFW'dir.
+ */
+@Composable
+fun BangumiQuickChips(uiState: SearchUiState, viewModel: SearchViewModel) {
+    val filters = uiState.bangumiSpecificFilters
+
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            val sorts = listOf(
+                "match" to "🎯 Eşleşme", "heat" to "🔥 İlgi", "rank" to "🏆 Sıra", "score" to "⭐ Puan"
+            )
+            sorts.forEach { (key, label) ->
+                QuickFilterToggleChip(
+                    label = label,
+                    selected = filters.sort == key,
+                    onClick = { viewModel.updateBangumiFilters(filters.copy(sort = key)) }
+                )
+            }
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            // Tam yıl seçenekleri yearFrom == yearTo, "+" seçenekleri yalnız alt sınır koyar.
+            val currentYear = java.util.Calendar.getInstance().get(java.util.Calendar.YEAR)
+            val years = buildList<Pair<Int?, Int?>> {
+                add(null to null)
+                (0 until 4).forEach { add((currentYear - it) to (currentYear - it)) }
+                add((currentYear - 6) to null)
+                add((currentYear - 16) to null)
+                add((currentYear - 26) to null)
+            }
+            val yearLabels = listOf(
+                "📅 Tüm Yıllar",
+                currentYear.toString(), (currentYear - 1).toString(), (currentYear - 2).toString(),
+                (currentYear - 3).toString(), "${currentYear - 6}+", "${currentYear - 16}+", "${currentYear - 26}+"
+            )
+            years.forEachIndexed { index, (from, to) ->
+                QuickFilterToggleChip(
+                    label = yearLabels.getOrElse(index) { "?" },
+                    selected = filters.yearFrom == from && filters.yearTo == to,
+                    onClick = { viewModel.updateBangumiFilters(filters.copy(yearFrom = from, yearTo = to)) }
+                )
+            }
+        }
+
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            val scores = listOf(null to "⭐ Tüm Puanlar", 6 to "6+", 7 to "7+", 8 to "8+", 9 to "9+")
+            scores.forEach { (score, label) ->
+                QuickFilterToggleChip(
+                    label = label,
+                    selected = filters.minScore == score,
+                    onClick = { viewModel.updateBangumiFilters(filters.copy(minScore = score)) }
+                )
+            }
+            QuickFilterToggleChip(
+                label = "🔞 +18 Dahil",
+                selected = filters.nsfw,
+                onClick = { viewModel.updateBangumiFilters(filters.copy(nsfw = !filters.nsfw)) }
+            )
         }
     }
 }

@@ -128,6 +128,24 @@
                     android:host="shikimori-auth" />
             </intent-filter>
 
+            <!-- Bangumi (bgm.tv) OAuth callback deep links -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="kitsugi"
+                    android:host="bangumi-auth" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data
+                    android:scheme="aniyomi"
+                    android:host="bangumi-auth" />
+            </intent-filter>
+
             <!-- TV approval deep link -->
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />

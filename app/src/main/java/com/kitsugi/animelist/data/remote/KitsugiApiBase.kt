@@ -26,24 +26,87 @@ class ResourceNotFoundException(message: String) : java.io.IOException(message)
 class AniListServiceDownException(message: String) : Exception(message)
 
 object KitsugiApiBase {
-    private const val MIN_REQUEST_INTERVAL_MS = 450L
+    /**
+     * Host bazlı hız bütçesi. Jikan ve Shikimori'nin RESMİ limitleri ayrı ayrı uygulanır:
+     *  - Jikan (docs.api.jikan.moe): 3 istek/sn VE 60 istek/dk. Eski 450 ms aralık tek başına
+     *    dakikada ~133 istek üretiyordu → 60/dk aşılınca 429 geliyor, karakter/ekip/ilişki
+     *    listeleri boş ("bulunamadı") ya da skeleton'da kalıyordu. Artık hem aralık hem de
+     *    kayan 60 sn penceresi uygulanır (güvenlik payı ile 55/dk).
+     *  - Shikimori: 5 istek/sn sınırı için 450 ms aralık; dakika için güvenli üst sınır (80/dk).
+     */
+    private class HostBudget(
+        val minIntervalMs: Long,
+        val perMinute: Int
+    ) {
+        /** Bir sonraki isteğin başlayabileceği en erken an (ms). */
+        var nextSlotAt: Long = 0L
+        /** Son 60 sn içinde başlatılan isteklerin zamanları (kayan pencere). */
+        val recentStarts = ArrayDeque<Long>()
+    }
 
-    /** Slot zamanlayıcısının (ve 429 cezasının) geçerli olduğu hostlar. AnimeThemes/ARM gibi
-     *  diğer hostların 429'u Jikan/Shikimori isteklerini yavaşlatmamalı. */
-    private val SLOT_LIMITED_HOSTS = setOf("api.jikan.moe", "shikimori.io")
+    private val hostBudgets: Map<String, HostBudget> = mapOf(
+        "api.jikan.moe" to HostBudget(minIntervalMs = 340L, perMinute = 55),
+        // Aralık eskisi gibi (450 ms): Shikimori GraphQL (PlatformRateLimiter) aynı 5 istek/sn
+        // havuzunu paylaşıyor; REST aralığını kısaltmak toplamda 429 riskini artırır.
+        "shikimori.io" to HostBudget(minIntervalMs = 450L, perMinute = 80),
+        "shikimori.one" to HostBudget(minIntervalMs = 450L, perMinute = 80),
+        "shikimori.me" to HostBudget(minIntervalMs = 450L, perMinute = 80)
+    )
+
+    /** Hosttaki (bütçesi olan) bütçeyi döndürür; yoksa null. */
+    private fun budgetFor(host: String?): HostBudget? {
+        if (host == null) return null
+        return hostBudgets[host.lowercase()]
+    }
 
     /**
-     * Jikan/Shikimori istekleri için "slot" zamanlayıcısı: istek BAŞLANGIÇLARI arasında
-     * [MIN_REQUEST_INTERVAL_MS] bırakılır.
-     *
-     * ÖNEMLİ: Eski tasarımda tek bir Mutex, ağ çağrısının TAMAMI (retry'lar ve 429 beklemesi dâhil)
-     * boyunca tutuluyordu. Sonuç: uygulamadaki tüm Jikan çağrıları (karakter, ekip, ilişki, öneri,
-     * bölüm, istatistik, yorum, /full, /pictures) birbirinin arkasına dizilip dakikalarca bekliyor,
-     * sekmeler skeleton'da kalıyordu. Artık yalnızca slot ayrılır; ağ çağrısı kilit dışında yapılır.
-     * Başlangıç aralığı korunduğu için istek hızı yine sınırlıdır.
+     * Bu istek için gereken bekleme süresini (ms) hesaplayıp slotu REZERVE eder.
+     * Kilit yalnızca hesap için tutulur; bekleme çağıran tarafta yapılır.
      */
-    private val slotLock = Any()
-    private var nextRequestSlotAt: Long = 0L
+    private fun reserveSlotMs(budget: HostBudget): Long = synchronized(budget) {
+        val now = System.currentTimeMillis()
+        while (budget.recentStarts.isNotEmpty() && now - budget.recentStarts.first() >= 60_000L) {
+            budget.recentStarts.removeFirst()
+        }
+        var slotAt = maxOf(now, budget.nextSlotAt)
+        if (budget.recentStarts.size >= budget.perMinute) {
+            // Dakika penceresi dolu: en eski isteğin 60 sn'si dolana kadar bekle.
+            slotAt = maxOf(slotAt, budget.recentStarts.first() + 60_000L)
+        }
+        budget.nextSlotAt = slotAt + budget.minIntervalMs
+        budget.recentStarts.addLast(slotAt)
+        slotAt - now
+    }
+
+    /**
+     * Jikan/Shikimori isteğini hız bütçesine göre bekletir. Her HTTP denemesi (yeniden
+     * denemeler dâhil) tek slot tüketir; bu yüzden tüm GET yolları [performGet] içinde
+     * sınırlanır. Blok kendi kendine ek bekleme yapmaz (çift sayım olmasın diye pass-through).
+     *
+     * ÖNEMLİ: Yalnızca IO thread'lerinde çağrılmalıdır (bekleme `Thread.sleep` ile yapılır).
+     */
+    suspend fun <T> runWithRateLimit(block: suspend () -> T): T = block()
+
+    /** 429 yanıtında host bütçesinin [delayMs] kadar durmasını sağlar (ortak geri çekilme). */
+    private fun penalizeBudget(host: String?, delayMs: Long) {
+        val budget = budgetFor(host) ?: return
+        synchronized(budget) {
+            budget.nextSlotAt = maxOf(budget.nextSlotAt, System.currentTimeMillis() + delayMs)
+        }
+    }
+
+    /** Hız sınırlı host ise slotu bekler; değilse hemen döner. */
+    private fun awaitBudgetSync(host: String?) {
+        val budget = budgetFor(host) ?: return
+        val waitMs = reserveSlotMs(budget)
+        if (waitMs > 0) {
+            try {
+                Thread.sleep(waitMs)
+            } catch (_: InterruptedException) {
+                Thread.currentThread().interrupt()
+            }
+        }
+    }
 
     // ─── AniList'e özel hız sınırlama (Jikan'dan bağımsız) ──────────────────────
     // AniList resmi limiti dakikada ~90 istek; güvenli tarafta kalmak için
@@ -52,34 +115,6 @@ object KitsugiApiBase {
     private const val ANILIST_MAX_RETRIES = 3
     private val aniListMutex = Mutex()
     private var lastAniListRequestTime: Long = 0L
-
-    /**
-     * Jikan/Shikimori isteğini hız sınırı slotu alarak çalıştırır. Kilit yalnızca slot
-     * hesabı için tutulur; [block] (ağ çağrısı dâhil) kilit dışında çalışır.
-     */
-    suspend fun <T> runWithRateLimit(block: suspend () -> T): T {
-        reserveRequestSlot()
-        return block()
-    }
-
-    private suspend fun reserveRequestSlot() {
-        val waitMs = synchronized(slotLock) {
-            val now = System.currentTimeMillis()
-            val slotAt = maxOf(now, nextRequestSlotAt)
-            nextRequestSlotAt = slotAt + MIN_REQUEST_INTERVAL_MS
-            slotAt - now
-        }
-        if (waitMs > 0) {
-            delay(waitMs)
-        }
-    }
-
-    /** 429 yanıtında sonraki isteklerin de [delayMs] kadar beklemesini sağlar (ortak geri çekilme). */
-    private fun penalizeRequestSlot(delayMs: Long) {
-        synchronized(slotLock) {
-            nextRequestSlotAt = maxOf(nextRequestSlotAt, System.currentTimeMillis() + delayMs)
-        }
-    }
 
     private suspend fun waitForAniListWindow() {
         val now = System.currentTimeMillis()
@@ -100,6 +135,7 @@ object KitsugiApiBase {
     )
 
     private fun performGet(url: URL): RawGetResult {
+        awaitBudgetSync(url.host)
         val request = Request.Builder()
             .url(url)
             .header("Accept", "application/json")
@@ -113,9 +149,9 @@ object KitsugiApiBase {
                     val retryAfterSec = response.header("Retry-After")?.toLongOrNull()
                     retryAfterSec?.let { (it * 1_000L).coerceIn(0L, 10_000L) }
                 } else null
-                if (response.code == 429 && url.host in SLOT_LIMITED_HOSTS) {
-                    // Sunucu limiti aştı: aynı havuzdaki sonraki istekler de kısa süre beklesin.
-                    penalizeRequestSlot(retryAfterMs ?: 2_000L)
+                if (response.code == 429) {
+                    // Sunucu limiti aştı: aynı host'taki sonraki istekler de kısa süre beklesin.
+                    penalizeBudget(url.host, retryAfterMs ?: 2_000L)
                 }
                 if (body == null) {
                     if (response.code == 429) {
@@ -148,7 +184,7 @@ object KitsugiApiBase {
      *
      * NOT: `Dispatchers.IO` üzerinde çağrılmalıdır (suspend bekleme kullanır).
      */
-    suspend fun executeGetRequestResilient(url: URL, maxRetries: Int = 2): String? {
+    suspend fun executeGetRequestResilient(url: URL, maxRetries: Int = 3): String? {
         var attempt = 0
         while (true) {
             val result = performGet(url)
@@ -163,6 +199,7 @@ object KitsugiApiBase {
     }
 
     fun executeGetRequestOrThrow(url: URL): String {
+        awaitBudgetSync(url.host)
         val request = Request.Builder()
             .url(url)
             .header("Accept", "application/json")
@@ -174,11 +211,10 @@ object KitsugiApiBase {
                 return response.body?.string().orEmpty()
             } else {
                 if (response.code == 429) {
-                    if (url.host in SLOT_LIMITED_HOSTS) {
-                        penalizeRequestSlot(
-                            response.header("Retry-After")?.toLongOrNull()?.times(1_000L)?.coerceIn(0L, 10_000L) ?: 2_000L
-                        )
-                    }
+                    penalizeBudget(
+                        url.host,
+                        response.header("Retry-After")?.toLongOrNull()?.times(1_000L)?.coerceIn(0L, 10_000L) ?: 2_000L
+                    )
                     throw RateLimitException("HTTP 429 Too Many Requests: Rate limit hit for URL: $url")
                 } else if (response.code == 404) {
                     throw ResourceNotFoundException("HTTP 404 Not Found for URL: $url")

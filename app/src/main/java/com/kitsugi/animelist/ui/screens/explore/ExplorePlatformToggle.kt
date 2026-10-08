@@ -137,7 +137,7 @@ fun ExploreSourcePickerSheet(
                 )
             )
             Text(
-                text = "Tek bir kaynak seç veya Tümü ile 6 kaynağı birlikte keşfet.",
+                text = "Tek bir kaynak seç veya Tümü ile 7 kaynağı birlikte keşfet.",
                 style = MaterialTheme.typography.bodySmall.copy(
                     color = KitsugiColors.TextMuted
                 ),

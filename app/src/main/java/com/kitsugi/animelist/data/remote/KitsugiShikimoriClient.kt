@@ -707,7 +707,6 @@ object KitsugiShikimoriClient {
                         ShikiRelationSeed(
                             id = id,
                             title = title,
-                            russian = item.optString("russian").takeIf { it.isNotBlank() },
                             relationType = "Recommendation",
                             entryType = if (mediaType == MediaType.Manga) MediaType.Manga
                             else kindToMediaType(item.optString("kind", "tv")),
@@ -761,7 +760,6 @@ object KitsugiShikimoriClient {
                         ShikiRelationSeed(
                             id = id,
                             title = title,
-                            russian = sub.optString("russian").takeIf { it.isNotBlank() },
                             relationType = relationType,
                             entryType = if (kind == ShikimoriPosterResolver.Kind.MANGA) MediaType.Manga
                             else kindToMediaType(sub.optString("kind", "tv")),
@@ -777,32 +775,57 @@ object KitsugiShikimoriClient {
         }
     }
 
-    /** İlişki/öneri kayıtlarını toplayıp kapaklarını TOPLU çözer. */
+    /**
+     * İlişki/öneri kayıtlarını toplayıp kapaklarını VE İngilizce/Japonca başlıklarını
+     * eşzamanlı ve TOPLU çözer.
+     *
+     * - Başlık: Shikimori `name` (romaji). İngilizce/Japonca adlar [ShikimoriTitleResolver]'dan
+     *   gelir; başlık dili ayarı (Romaji / İngilizce / Japonca) bunlara göre seçilir.
+     * - Rusça (`russian`) alanı ARTIK KULLANILMAZ: eskiden `titleEnglish` olarak yazıldığı için
+     *   İngilizce başlık seçildiğinde kartlarda Rusça adlar görünüyordu.
+     * - İlişki tipi (Sequel, Side story, Adaptation …) Türkçeye çevrilir.
+     */
     private suspend fun buildRelationList(seeds: List<ShikiRelationSeed>): List<KitsugiRelation> {
         if (seeds.isEmpty()) return emptyList()
-        val posterCache = HashMap<ShikimoriPosterResolver.Kind, Map<Int, ShikimoriPosterResolver.Poster>>()
-        for (kind in seeds.map { it.kind }.distinct()) {
-            val ids = seeds.filter { it.kind == kind }.map { it.id }
-            posterCache[kind] = runCatching { ShikimoriPosterResolver.resolve(kind, ids) }.getOrNull().orEmpty()
-        }
-        return seeds.map { seed ->
-            KitsugiRelation(
-                malId = seed.id,
-                title = seed.title,
-                relationType = seed.relationType,
-                imageUrl = posterCache[seed.kind]?.get(seed.id)?.cardUrl,
-                mediaType = seed.entryType,
-                source = "shikimori",
-                titleEnglish = seed.russian
-            )
+        val kinds = seeds.map { it.kind }.distinct()
+        return coroutineScope {
+            val posterJobs = kinds.associateWith { kind ->
+                async {
+                    runCatching {
+                        ShikimoriPosterResolver.resolve(kind, seeds.filter { it.kind == kind }.map { it.id })
+                    }.getOrNull().orEmpty()
+                }
+            }
+            val nameJobs = kinds.associateWith { kind ->
+                async {
+                    runCatching {
+                        ShikimoriTitleResolver.resolve(kind, seeds.filter { it.kind == kind }.map { it.id })
+                    }.getOrNull().orEmpty()
+                }
+            }
+            val posters = posterJobs.mapValues { it.value.await() }
+            val names = nameJobs.mapValues { it.value.await() }
+            seeds.map { seed ->
+                val nameInfo = names[seed.kind]?.get(seed.id)
+                KitsugiRelation(
+                    malId = seed.id,
+                    title = seed.title,
+                    relationType = seed.relationType.toTurkishRelationType(),
+                    imageUrl = posters[seed.kind]?.get(seed.id)?.cardUrl,
+                    mediaType = seed.entryType,
+                    source = "shikimori",
+                    titleEnglish = nameInfo?.english,
+                    titleJapanese = nameInfo?.japanese,
+                    titleRomaji = seed.title
+                )
+            }
         }
     }
 
-    /** İlişki/öneri listesi için ham kayıt (kapak çözümü sonra toplu yapılır). */
+    /** İlişki/öneri listesi için ham kayıt (kapak ve başlık çözümü sonra toplu yapılır). */
     private data class ShikiRelationSeed(
         val id: Int,
         val title: String,
-        val russian: String?,
         val relationType: String,
         val entryType: MediaType,
         val kind: ShikimoriPosterResolver.Kind

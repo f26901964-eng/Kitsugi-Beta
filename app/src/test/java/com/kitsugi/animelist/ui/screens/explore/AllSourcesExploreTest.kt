@@ -15,9 +15,11 @@ class AllSourcesExploreTest {
         publishingManga = emptyList(), trendingAnime = emptyList(), movieAnime = emptyList(), seasonalAnime = emptyList()
     )
 
-    @Test fun allIsAModeNotASeventhApi() {
-        assertEquals(6, ExplorePlatform.sources.size)
+    @Test fun allIsAModeNotAnotherApi() {
+        // Tümü bir görünüm modudur; Bangumi eklendikten sonra 7 gerçek API kaynağı vardır.
+        assertEquals(7, ExplorePlatform.sources.size)
         assertFalse(ExplorePlatform.ALL in ExplorePlatform.sources)
+        assertTrue(ExplorePlatform.BANGUMI in ExplorePlatform.sources)
     }
 
     @Test fun categoriesStayGroupedUnderTheirSource() {
@@ -28,7 +30,7 @@ class AllSourcesExploreTest {
         val sections = allSourceSections(states, false)
         assertEquals(ExplorePlatform.sources.flatMap { listOf(it, it) }, sections.map { it.platform })
         assertEquals(sections.size, sections.map { it.key }.distinct().size)
-        assertEquals(6, allSourceHeroes(states, false).size)
+        assertEquals(ExplorePlatform.sources.size, allSourceHeroes(states, false).size)
     }
 
     @Test fun allSourceHeroIncludesOneAttributedHighlightFromEachProvider() {
@@ -99,11 +101,11 @@ class AllSourcesExploreTest {
         val states = ExplorePlatform.sources.associateWith { ExploreSourceState(payload(listOf(media(it.name.lowercase())))) }
         val sections = allSourceSections(states, false).groupBy { it.platform }
         val expanded = allSourceHeaderIndices(sections, emptySet(), startIndex = 2)
-        assertEquals(listOf(4, 7, 10, 13, 16, 19), ExplorePlatform.sources.map { expanded[it] })
+        assertEquals(listOf(4, 7, 10, 13, 16, 19, 22), ExplorePlatform.sources.map { expanded[it] })
         val collapsed = allSourceHeaderIndices(sections, setOf(ExplorePlatform.AniList), startIndex = 2)
         assertEquals(5, collapsed[ExplorePlatform.MAL])
         val empty = allSourceHeaderIndices(emptyMap(), emptySet(), startIndex = 1)
-        assertEquals(listOf(3, 5, 7, 9, 11, 13), ExplorePlatform.sources.map { empty[it] })
+        assertEquals(listOf(3, 5, 7, 9, 11, 13, 15), ExplorePlatform.sources.map { empty[it] })
     }
 
     @Test fun successfulCacheAvoidsNetwork() = runBlocking {
