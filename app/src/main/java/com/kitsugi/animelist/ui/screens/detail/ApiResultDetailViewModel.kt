@@ -107,6 +107,9 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
     /** Çalışan sekme yüklemeleri (sekme indeksi → iş). Tek uçuş ve iptal için. */
     private val tabJobs = HashMap<Int, Job>()
 
+    /** Sekme işlerinin hangi parametrelerle (kaynak + kimlik + MAL kimliği) çalıştığı. */
+    private val tabRequestKeys = HashMap<Int, String>()
+
     private val _targetSeason = MutableStateFlow<Int>(1)
     val targetSeason: StateFlow<Int> = _targetSeason.asStateFlow()
 
@@ -469,6 +472,16 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                         resolvedId = KitsugiEpisodeRatingsRepository.getResolvedTmdbIdForKitsu(kitsuId)
                     }
                 }
+                result.source.equals("shikimori", ignoreCase = true) -> {
+                    // Shikimori ID'si MAL ID'si DEĞİLDİR: bölüm puanları gerçek MAL ID'si
+                    // üzerinden alınır (aksi hâlde alakasız yapımın puanları gösteriliyordu).
+                    val malId = detail.realMalId?.takeIf { it > 0 }
+                        ?: KitsugiIdResolver.resolveMalIdFromShikimori(result.malId)
+                    if (malId != null && malId > 0) {
+                        foundRatings = KitsugiEpisodeRatingsRepository.getEpisodeRatingsByMalId(malId)
+                        resolvedId = KitsugiEpisodeRatingsRepository.getResolvedTmdbIdForMal(malId)
+                    }
+                }
                 else -> {
                     val malId = result.malId
                     if (malId > 0) {
@@ -546,9 +559,15 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
      * - [force] yalnızca kasıtlı yeniden yüklemede (ör. sezon değişimi) kullanılır.
      */
     fun loadTab(tabIndex: Int, result: JikanSearchResult, realMalId: Int?, force: Boolean = false) {
+        // Tek uçuş anahtarı: aynı parametrelerle çalışan istek varsa yenisini başlatma.
+        // Ancak parametreler iyileştiğinde (ör. detaydan gerçek MAL ID'si geldiğinde)
+        // eski isteği iptal edip yeniden denenir — aksi hâlde sekme, kimliksiz yapılan
+        // ilk denemenin boş sonucuyla ("bulunamadı" ekranı) kilitli kalıyordu.
+        val requestKey = "${result.source}|${result.malId}|${realMalId ?: 0}"
         val running = tabJobs[tabIndex]
-        if (!force && running != null && running.isActive) return
+        if (!force && running != null && running.isActive && tabRequestKeys[tabIndex] == requestKey) return
         running?.cancel()
+        tabRequestKeys[tabIndex] = requestKey
 
         val malId = result.malId
         val effectiveRealMalId = realMalId
@@ -791,6 +810,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
     private fun cancelTabLoads() {
         tabJobs.values.forEach { it.cancel() }
         tabJobs.clear()
+        tabRequestKeys.clear()
     }
 
     private suspend fun fetchMdbListRatings(result: JikanSearchResult) {
@@ -811,7 +831,15 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                 null
             }
             // stableId < 100M → AniList kaynaklı olsa bile MAL ID ile dönmüş
-            val realMalId = if (aniListId != null) null else if (!result.source.equals("anilist", ignoreCase = true)) malId else null
+            val realMalId = when {
+                aniListId != null -> null
+                result.source.equals("anilist", ignoreCase = true) -> null
+                // Shikimori ID'si MAL ID değildir → gerçek MAL ID'si çözülür.
+                result.source.equals("shikimori", ignoreCase = true) ->
+                    _detailState.value?.realMalId?.takeIf { it > 0 }
+                        ?: KitsugiIdResolver.resolveMalIdFromShikimori(malId)
+                else -> malId
+            }
 
             val detail = _detailState.value
             val tmdbId = detail?.tmdbId ?: result.tmdbId
@@ -898,6 +926,13 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                     val kitsuId = stableId - 300_000_000
                     KitsugiEpisodeRatingsRepository.resolveTmdbIdFromKitsu(kitsuId)
                 }
+                result.source.equals("shikimori", ignoreCase = true) -> {
+                    // Shikimori ID'si MAL ID değildir: TMDB kimliği gerçek MAL ID'si
+                    // üzerinden çözülür (aksi hâlde galeri alakasız yapımın görselleriyle doluyordu).
+                    val malId = _detailState.value?.realMalId?.takeIf { it > 0 }
+                        ?: KitsugiIdResolver.resolveMalIdFromShikimori(stableId)
+                    if (malId != null && malId > 0) KitsugiEpisodeRatingsRepository.resolveTmdbIdFromMal(malId) else null
+                }
                 stableId > 0 -> KitsugiEpisodeRatingsRepository.resolveTmdbIdFromMal(stableId)
                 else -> null
             }
@@ -910,6 +945,10 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         val fallbackMalId: Int? = when {
             result.source.equals("anilist", ignoreCase = true) -> result.realMalId
             result.source.equals("kitsu", ignoreCase = true) -> null
+            // Shikimori: result.malId Shikimori kimliğidir → gerçek MAL ID'si çözülür.
+            result.source.equals("shikimori", ignoreCase = true) ->
+                _detailState.value?.realMalId?.takeIf { it > 0 }
+                    ?: KitsugiIdResolver.resolveMalIdFromShikimori(result.malId)
             !result.source.equals("tmdb", ignoreCase = true) -> if (result.malId > 0) result.malId else null
             else -> null
         }

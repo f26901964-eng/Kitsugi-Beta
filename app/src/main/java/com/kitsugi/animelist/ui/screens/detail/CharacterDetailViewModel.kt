@@ -53,6 +53,14 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
     private var lastCharacterId: Int = 0
     private var lastSource: String = ""
     private var lastCharacterName: String? = null
+    private var lastIsRealMediaRole: Boolean = false
+
+    /**
+     * Arayüzden (karakter kartından) gelen görsel. Kaynak veride görsel yoksa detay
+     * sayfası bunu son çare olarak kullanır — bu sayede hem hayali hem gerçek kişi
+     * karakterlerinde sayfa resimsiz açılmaz.
+     */
+    private var lastHintImageUrl: String? = null
 
     fun translateBio() {
         val detail = (_state.value as? CharacterDetailState.Success)?.detail ?: return
@@ -68,12 +76,13 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
         }
     }
 
-    fun loadCharacter(characterId: Int, source: String, name: String? = null) {
+    fun loadCharacter(characterId: Int, source: String, name: String? = null, hintImageUrl: String? = null, isRealMediaRole: Boolean = false) {
         val newKey = if (source.equals("tmdb", ignoreCase = true) && !name.isNullOrBlank()) {
             "$source:${name.trim().lowercase()}"
         } else {
             "$source:$characterId"
         }
+        lastHintImageUrl = hintImageUrl ?: lastHintImageUrl
         if (newKey == currentFetchKey) {
             Log.d(TAG, "loadCharacter: Cache hit for key=$newKey — skipping")
             return
@@ -84,6 +93,7 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
         lastCharacterId = characterId
         lastSource = source
         lastCharacterName = name
+        lastIsRealMediaRole = isRealMediaRole
 
         val cachedCharacterDetail = DetailCache.getCharacterDetail(source, characterId)
         val cachedBioTranslation = DetailCache.getTranslation("bio_char", source, characterId)
@@ -91,8 +101,21 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
         _state.value = if (cachedCharacterDetail != null) CharacterDetailState.Success(cachedCharacterDetail) else CharacterDetailState.Loading
         _translatedBio.value = cachedBioTranslation
 
+        // Kartta gösterilen görsel anında galeriye konur: detay isteği gecikse/yavaş olsa
+        // bile sayfa resimsiz kalmaz.
+        if (hintImageUrl != null && hintImageUrl.isNotBlank()) {
+            _galleryItems.value = listOf(
+                GalleryItem(
+                    url = hintImageUrl,
+                    source = friendlySourceOf(source),
+                    category = GalleryCategory.CHARACTER,
+                    description = name
+                )
+            )
+        }
+
         viewModelScope.launch {
-            fetchCharacterDetail(characterId, source, name)
+            fetchCharacterDetail(characterId, source, name, isRealMediaRole = isRealMediaRole)
         }
     }
 
@@ -104,7 +127,7 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
             _state.value = CharacterDetailState.Loading
             _translatedBio.value = null
             viewModelScope.launch {
-                fetchCharacterDetail(characterId, source, name, force = true)
+                fetchCharacterDetail(characterId, source, name, force = true, isRealMediaRole = lastIsRealMediaRole)
             }
         }
     }
@@ -117,7 +140,7 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
             _isRefreshing.value = true
             viewModelScope.launch {
                 try {
-                    fetchCharacterDetail(characterId, source, name, force = true)
+                    fetchCharacterDetail(characterId, source, name, force = true, isRealMediaRole = lastIsRealMediaRole)
                 } finally {
                     _isRefreshing.value = false
                 }
@@ -125,7 +148,7 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
         }
     }
 
-    private suspend fun fetchCharacterDetail(characterId: Int, source: String, name: String? = null, force: Boolean = false) {
+    private suspend fun fetchCharacterDetail(characterId: Int, source: String, name: String? = null, force: Boolean = false, isRealMediaRole: Boolean = false) {
         if (force) {
             DetailCache.removeCharacterDetail(source, characterId)
         }
@@ -135,7 +158,7 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
         } else {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    apiClient.fetchCharacterDetail(source, characterId, name)
+                    apiClient.fetchCharacterDetail(source, characterId, name, fallbackImageUrl = lastHintImageUrl, isRealMediaRole = isRealMediaRole)
                 }
             }.onFailure { err ->
                 val msg = when (err) {
@@ -180,15 +203,29 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
         }
     }
 
+    /** Kaynak anahtarı → kullanıcıya gösterilen ad. */
+    private fun friendlySourceOf(source: String): String = when (source.lowercase().trim()) {
+        "kitsu" -> "Kitsu"
+        "anilist" -> "AniList"
+        "shikimori" -> "Shikimori"
+        "simkl" -> "Simkl"
+        "tmdb" -> "TMDB"
+        "mal", "jikan" -> "MyAnimeList"
+        else -> "Karakter"
+    }
+
     /**
      * Karakter görsellerini Jikan /pictures endpoint'inden alır ve GalleryItem listesi oluşturur.
      * Ana imageUrl'i POSTER olarak ekler, ek görseller de POSTER kategorisinde etiketlenir.
      */
     private suspend fun buildCharacterGallery(characterId: Int, source: String, mainImageUrl: String?) {
-        val jikanId = if (source.lowercase() == "anilist" && characterId >= 100_000_000) {
-            null // AniList-only ID, no MAL equivalent
-        } else {
-            characterId.takeIf { it > 0 }
+        // Jikan /pictures YALNIZCA kimliği MAL uzayında olan kaynaklarda anlamlıdır:
+        // TMDB kişi kimliği, Shikimori kimliği (MAL eşlemesi ayrıca gerekir) veya AniList
+        // offset'li kimliğiyle çağrılırsa 404 döner (boşuna istek + gecikme).
+        val jikanId = when (source.lowercase().trim()) {
+            "anilist" -> if (characterId in 1 until 100_000_000) characterId else null
+            "jikan", "mal" -> characterId.takeIf { it > 0 }
+            else -> null
         }
 
         val pictureUrls = if (jikanId != null && source.lowercase() != "anilist") {
@@ -197,15 +234,7 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
             }
         } else emptyList()
 
-        val friendlySource = when (source.lowercase().trim()) {
-            "kitsu" -> "Kitsu"
-            "anilist" -> "AniList"
-            "shikimori" -> "Shikimori"
-            "simkl" -> "Simkl"
-            "tmdb" -> "TMDB"
-            "mal", "jikan" -> "MyAnimeList"
-            else -> "Karakter"
-        }
+        val friendlySource = friendlySourceOf(source)
 
         val items = buildList {
             if (!mainImageUrl.isNullOrBlank()) {

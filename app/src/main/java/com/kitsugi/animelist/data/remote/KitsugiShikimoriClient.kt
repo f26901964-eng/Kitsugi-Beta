@@ -3,8 +3,11 @@ package com.kitsugi.animelist.data.remote
 import android.util.Log
 import com.kitsugi.animelist.model.MediaType
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONArray
 import org.json.JSONObject
 import java.net.URL
@@ -23,6 +26,22 @@ object KitsugiShikimoriClient {
      * seçtiyse o liste geçerlidir.
      */
     private const val ANIME_SEARCH_DEFAULT_KINDS = "tv,movie,ova,ona,special,tv_special"
+
+    /**
+     * Detay sayfasının çekirdek verisini (başlık, kapak, puan, özet) bloklamayan ikincil
+     * isteklerin (tanıtım videoları, harici linkler, tema müzikleri) süre tavanı.
+     * Bu istekler paralel çalışır; süre dolarsa sayfa onlarsız açılır.
+     */
+    private const val SHIKI_EXTRAS_TIMEOUT_MS = 3_500L
+
+    /** Özet/biyografi çevirisi için süre tavanı — sayfa çeviriyi beklemez. */
+    private const val SHIKI_TRANSLATE_TIMEOUT_MS = 3_000L
+
+    /** Kiril alfabesindeki karakter/kişi adlarının toplu çevirisi için toplam bütçe. */
+    private const val SHIKI_NAME_TRANSLATE_BUDGET_MS = 3_500L
+
+    /** Ad çevirisinde eşzamanlı istek sayısı (Google'ı boğmadan hız). */
+    private const val SHIKI_NAME_TRANSLATE_CONCURRENCY = 6
 
     private fun adultFlag(item: JSONObject): Boolean {
         val rating = item.optString("rating").takeIf { it.isNotBlank() && it != "null" }
@@ -472,26 +491,58 @@ object KitsugiShikimoriClient {
                         }
                     }
 
-                    val realMalId = data.optInt("myanimelist_id").takeIf { it > 0 } ?: externalId
+                    // NOT: Shikimori ID'si MAL ID'si DEĞİLDİR! Eski kod `myanimelist_id`
+                    // alanı boşken buraya Shikimori ID'sini yazıyordu; sonuç: Shikimori
+                    // kaydı MAL ID sanılıp alakasız yapımların puanı/bölümü/afişi çekiliyordu.
+                    val realMalId = data.optInt("myanimelist_id").takeIf { it > 0 }
+
+                    // ── İkincil veriler PARALEL ve ZAMAN TAVANLI ────────────────────────
+                    // Eskiden tanıtım videoları, harici linkler ve tema müzikleri sırayla
+                    // bekleniyordu (her biri 1-3 sn); detay sayfası bu yüzden 5-15 sn'de
+                    // açılıyordu. Artık üçü aynı anda başlar ve en fazla
+                    // SHIKI_EXTRAS_TIMEOUT_MS beklenir; gelmeyen bölüm atlanır.
+                    val extras = coroutineScope {
+                        val videosDef = async(Dispatchers.IO) {
+                            if (mediaType == MediaType.Manga) {
+                                emptyList<Pair<String, KitsugiTheme>>()
+                            } else {
+                                runCatching {
+                                    withTimeoutOrNull(SHIKI_EXTRAS_TIMEOUT_MS) { fetchShikimoriVideos(externalId) }
+                                }.getOrNull().orEmpty()
+                            }
+                        }
+                        val linksDef = async(Dispatchers.IO) {
+                            if (mediaType == MediaType.Manga) {
+                                emptyList<KitsugiExternalLink>()
+                            } else {
+                                runCatching {
+                                    withTimeoutOrNull(SHIKI_EXTRAS_TIMEOUT_MS) { fetchShikimoriExternalLinks(externalId) }
+                                }.getOrNull().orEmpty()
+                            }
+                        }
+                        val themesDef = async(Dispatchers.IO) {
+                            val malId = realMalId
+                            if (mediaType == MediaType.Manga || malId == null || malId <= 0) {
+                                Pair(emptyList<KitsugiTheme>(), emptyList<KitsugiTheme>())
+                            } else {
+                                runCatching {
+                                    withTimeoutOrNull(SHIKI_EXTRAS_TIMEOUT_MS) {
+                                        KitsugiAnimeThemesClient.fetchAnimeThemes(malId, "MyAnimeList")
+                                    }
+                                }.getOrNull() ?: Pair(emptyList<KitsugiTheme>(), emptyList<KitsugiTheme>())
+                            }
+                        }
+                        Triple(videosDef.await(), linksDef.await(), themesDef.await())
+                    }
 
                     // Shikimori ekstra videolar (PV, Teaser, Karakter tanıtımları, OP, ED)
-                    val shikiVideos = if (mediaType != MediaType.Manga) {
-                        fetchShikimoriVideos(externalId)
-                    } else emptyList()
+                    val shikiVideos = extras.first
 
                     // Shikimori harici ve yayın linkleri
-                    val shikiLinks = if (mediaType != MediaType.Manga) {
-                        fetchShikimoriExternalLinks(externalId)
-                    } else emptyList()
+                    val shikiLinks = extras.second
 
                     // AnimeThemes entegrasyonu (MyAnimeList ID üzerinden)
-                    val (themeOps, themeEds) = if (mediaType != MediaType.Manga && realMalId > 0) {
-                        try {
-                            KitsugiAnimeThemesClient.fetchAnimeThemes(realMalId, "MyAnimeList")
-                        } catch (e: Exception) {
-                            Pair(emptyList(), emptyList())
-                        }
-                    } else Pair(emptyList(), emptyList())
+                    val (themeOps, themeEds) = extras.third
 
                     // Fragman (PV)
                     var trailerUrl: String? = null
@@ -523,7 +574,9 @@ object KitsugiShikimoriClient {
                     val streamingLinks = shikiLinks.filter { link -> streamingSites.any { link.site.contains(it, ignoreCase = true) } }
 
                     val rawDesc = data.optNullableString("description")?.cleanApiText()
-                    val synopsis = translateIfRussian(rawDesc)
+                    // Çeviri sayfa açılışını bloklamaz: kısa bütçeyle denenir, olmazsa
+                    // özgün (Rusça) metin gösterilir ve arka planda çeviri önbelleğe girer.
+                    val synopsis = translateWithBudget(rawDesc)
 
                     KitsugiMediaDetail(
                         synopsis = synopsis,
@@ -618,6 +671,151 @@ object KitsugiShikimoriClient {
         }.getOrElse { emptyList() }
     }
 
+    // ─── İlişkiler / Öneriler ─────────────────────────────────────────────
+
+    /**
+     * `/animes/{id}/similar` — Shikimori'nin "benzer yapımlar" listesi.
+     *
+     * Bu uç MAL/ARM eşlemesi gerektirmez ve Öneriler sekmesini tek istekle doldurur;
+     * eskiden Shikimori kaydında bu sekme hiçbir veri kaynağına bağlı değildi ve
+     * "Benzer yapım önerisi bulunamadı." çıkıyordu.
+     */
+    suspend fun fetchSimilarRecommendations(
+        externalId: Int,
+        mediaType: MediaType = MediaType.Anime
+    ): List<KitsugiRelation> = withContext(Dispatchers.IO) {
+        if (externalId <= 0) return@withContext emptyList()
+        val endpoint = if (mediaType == MediaType.Manga) "mangas" else "animes"
+        val url = runCatching { URL("$BASE_URL/$endpoint/$externalId/similar") }.getOrNull()
+            ?: return@withContext emptyList()
+        runCatching {
+            KitsugiApiBase.runWithRateLimit {
+                val response = KitsugiApiBase.executeGetRequestResilient(url)
+                    ?: return@runWithRateLimit emptyList()
+                val array = runCatching { JSONArray(response) }.getOrNull()
+                    ?: return@runWithRateLimit emptyList()
+
+                // Önce ham kayıtlar toplanır, kapaklar TEK toplu GraphQL isteğiyle çözülür
+                // (her öğe için ayrı istek atmak öneri sekmesini dakikalarca bekletirdi).
+                val parsed = mutableListOf<ShikiRelationSeed>()
+                for (i in 0 until array.length()) {
+                    val item = array.optJSONObject(i) ?: continue
+                    val id = item.optInt("id")
+                    val title = item.optString("name").takeIf { it.isNotBlank() } ?: continue
+                    if (id <= 0) continue
+                    parsed.add(
+                        ShikiRelationSeed(
+                            id = id,
+                            title = title,
+                            russian = item.optString("russian").takeIf { it.isNotBlank() },
+                            relationType = "Recommendation",
+                            entryType = if (mediaType == MediaType.Manga) MediaType.Manga
+                            else kindToMediaType(item.optString("kind", "tv")),
+                            kind = if (mediaType == MediaType.Manga) ShikimoriPosterResolver.Kind.MANGA
+                            else ShikimoriPosterResolver.Kind.ANIME
+                        )
+                    )
+                }
+                buildRelationList(parsed)
+            }
+        }.getOrElse { err ->
+            Log.e(TAG, "Shikimori similar exception: ${err.message}", err)
+            emptyList()
+        }
+    }
+
+    /**
+     * `/animes/{id}/related` — Shikimori'nin ilişkili yapımları.
+     *
+     * Yanıt `[{relation, anime|{manga}, …}]` biçimindedir. İlişki tipi İngilizce gelir
+     * ("Prequel", "Sequel", "Side story" …) ve mevcut Türkçe eşleme tablosuyla gösterilir.
+     */
+    suspend fun fetchRelatedRelations(
+        externalId: Int,
+        mediaType: MediaType = MediaType.Anime
+    ): List<KitsugiRelation> = withContext(Dispatchers.IO) {
+        if (externalId <= 0) return@withContext emptyList()
+        val endpoint = if (mediaType == MediaType.Manga) "mangas" else "animes"
+        val url = runCatching { URL("$BASE_URL/$endpoint/$externalId/related") }.getOrNull()
+            ?: return@withContext emptyList()
+        runCatching {
+            KitsugiApiBase.runWithRateLimit {
+                val response = KitsugiApiBase.executeGetRequestResilient(url)
+                    ?: return@runWithRateLimit emptyList()
+                val array = runCatching { JSONArray(response) }.getOrNull()
+                    ?: return@runWithRateLimit emptyList()
+                val parsed = mutableListOf<ShikiRelationSeed>()
+                for (i in 0 until array.length()) {
+                    val item = array.optJSONObject(i) ?: continue
+                    val relationType = item.optString("relation").takeIf { it.isNotBlank() } ?: "Relation"
+                    // İlişkili kayıt anime ya da manga alt nesnesinde gelir.
+                    val animeObj = item.optJSONObject("anime")
+                    val mangaObj = item.optJSONObject("manga")
+                    val sub = animeObj ?: mangaObj ?: continue
+                    val kind = if (mangaObj != null && animeObj == null) ShikimoriPosterResolver.Kind.MANGA
+                    else ShikimoriPosterResolver.Kind.ANIME
+                    val id = sub.optInt("id")
+                    val title = sub.optString("name").takeIf { it.isNotBlank() } ?: continue
+                    if (id <= 0) continue
+                    parsed.add(
+                        ShikiRelationSeed(
+                            id = id,
+                            title = title,
+                            russian = sub.optString("russian").takeIf { it.isNotBlank() },
+                            relationType = relationType,
+                            entryType = if (kind == ShikimoriPosterResolver.Kind.MANGA) MediaType.Manga
+                            else kindToMediaType(sub.optString("kind", "tv")),
+                            kind = kind
+                        )
+                    )
+                }
+                buildRelationList(parsed).distinctBy { "${it.malId}_${it.relationType}" }
+            }
+        }.getOrElse { err ->
+            Log.e(TAG, "Shikimori related exception: ${err.message}", err)
+            emptyList()
+        }
+    }
+
+    /** İlişki/öneri kayıtlarını toplayıp kapaklarını TOPLU çözer. */
+    private suspend fun buildRelationList(seeds: List<ShikiRelationSeed>): List<KitsugiRelation> {
+        if (seeds.isEmpty()) return emptyList()
+        val posterCache = HashMap<ShikimoriPosterResolver.Kind, Map<Int, ShikimoriPosterResolver.Poster>>()
+        for (kind in seeds.map { it.kind }.distinct()) {
+            val ids = seeds.filter { it.kind == kind }.map { it.id }
+            posterCache[kind] = runCatching { ShikimoriPosterResolver.resolve(kind, ids) }.getOrNull().orEmpty()
+        }
+        return seeds.map { seed ->
+            KitsugiRelation(
+                malId = seed.id,
+                title = seed.title,
+                relationType = seed.relationType,
+                imageUrl = posterCache[seed.kind]?.get(seed.id)?.cardUrl,
+                mediaType = seed.entryType,
+                source = "shikimori",
+                titleEnglish = seed.russian
+            )
+        }
+    }
+
+    /** İlişki/öneri listesi için ham kayıt (kapak çözümü sonra toplu yapılır). */
+    private data class ShikiRelationSeed(
+        val id: Int,
+        val title: String,
+        val russian: String?,
+        val relationType: String,
+        val entryType: MediaType,
+        val kind: ShikimoriPosterResolver.Kind
+    )
+
+    /** Shikimori `kind` alanını uygulamanın [MediaType] değerine çevirir. */
+    private fun kindToMediaType(kind: String): MediaType = when (kind.lowercase()) {
+        "movie" -> MediaType.Movie
+        "manga", "manhwa", "manhua", "one_shot", "doujin" -> MediaType.Manga
+        "tv", "tv_special", "special", "ova", "ona", "music", "pv", "cm" -> MediaType.Anime
+        else -> MediaType.Anime
+    }
+
     // ─── Karakter / Ekip fonksiyonları ────────────────────────────────────
 
     suspend fun fetchCharacters(
@@ -648,7 +846,11 @@ object KitsugiShikimoriClient {
                             rolesArr.optString(0)
                         } else "Supporting"
 
-                        val charName = translateIfRussian(charObj.optString("name", "Bilinmeyen"))
+                        // Adlar burada ÇEVRİLMEZ: liste bittikten sonra toplu çevrilir
+                        // (bkz. aşağıdaki translateCyrillicNames). Eskiden her ad için
+                        // sırayla Google isteği atılıyordu; 24 karakter + 24 seiyuu'luk bir
+                        // kadroda sekme dakikalarca skeleton'da kalıyordu.
+                        val rawCharName = charObj.optString("name", "Bilinmeyen")
                         val relativeImg = charObj.optJSONObject("image")?.optString("original")
                         val imageUrl = ShikimoriPosterResolver.absoluteUrl(relativeImg)
 
@@ -657,7 +859,7 @@ object KitsugiShikimoriClient {
                         if (personObj != null) {
                             val vaId = personObj.optInt("id")
                             if (vaId > 0) {
-                                val vaName = translateIfRussian(personObj.optString("name", "Bilinmeyen"))
+                                val vaName = personObj.optString("name", "Bilinmeyen")
                                 val vaRelativeImg = personObj.optJSONObject("image")?.optString("original")
                                 val vaImageUrl = ShikimoriPosterResolver.absoluteUrl(vaRelativeImg)
                                 vaList.add(
@@ -679,7 +881,7 @@ object KitsugiShikimoriClient {
                         } else {
                             charactersMap[charId] = KitsugiCharacter(
                                 id = charId,
-                                name = charName,
+                                name = rawCharName,
                                 role = roleStr.toTurkishCharacterRole(),
                                 imageUrl = imageUrl,
                                 voiceActors = vaList,
@@ -687,7 +889,20 @@ object KitsugiShikimoriClient {
                             )
                         }
                     }
-                    withResolvedCharacterPosters(charactersMap.values.toList())
+                    // Tüm adları TEK seferde, sınırlı eşzamanlılıkla çevir
+                    val names = charactersMap.values.flatMap { character ->
+                        listOf(character.name) + character.voiceActors.map { it.name }
+                    }
+                    val translations = translateCyrillicNames(names)
+                    val localizedCharacters = charactersMap.values.map { character ->
+                        character.copy(
+                            name = translations[character.name] ?: character.name,
+                            voiceActors = character.voiceActors.map { actor ->
+                                translations[actor.name]?.let { actor.copy(name = it) } ?: actor
+                            }
+                        )
+                    }
+                    withResolvedCharacterPosters(localizedCharacters)
                 }
             }.getOrElse { err ->
                 Log.e(TAG, "Shikimori fetchCharacters exception: ${err.message}", err)
@@ -726,7 +941,8 @@ object KitsugiShikimoriClient {
                                 rolesArr.optString(0)
                             } else "Staff"
 
-                            val staffName = translateIfRussian(personObj.optString("name", "Bilinmeyen"))
+                            // Ad çevirisi liste bittikten SONRA toplu yapılır (aşağıda).
+                            val staffName = personObj.optString("name", "Bilinmeyen")
                             val relativeImg = personObj.optJSONObject("image")?.optString("original")
                             val imageUrl = ShikimoriPosterResolver.absoluteUrl(relativeImg)
 
@@ -741,7 +957,11 @@ object KitsugiShikimoriClient {
                             )
                         }
                     }
-                    withResolvedStaffPosters(staffList)
+                    val translations = translateCyrillicNames(staffList.map { it.name })
+                    val localizedStaff = staffList.map { person ->
+                        translations[person.name]?.let { person.copy(name = it) } ?: person
+                    }
+                    withResolvedStaffPosters(localizedStaff)
                 }
             }.getOrElse { err ->
                 Log.e(TAG, "Shikimori fetchStaff exception: ${err.message}", err)
@@ -759,7 +979,9 @@ object KitsugiShikimoriClient {
                     val response = KitsugiApiBase.executeGetRequestResilient(url) ?: return@runWithRateLimit null
                     val data = JSONObject(response)
 
-                    val charName = translateIfRussian(data.optString("name", "Bilinmeyen"))
+                    // Adlar ve açıklama burada çevrilmez; tüm liste toplandıktan sonra
+                    // TEK seferde (sınırlı eşzamanlılık + süre bütçesiyle) çevrilir.
+                    val rawCharName = data.optString("name", "Bilinmeyen")
                     val nativeName = data.optNullableString("japanese")
                     val alternativeNames = mutableListOf<String>()
                     val altname = data.optNullableString("altname")
@@ -769,7 +991,7 @@ object KitsugiShikimoriClient {
 
                     val relativeImg = data.optJSONObject("image")?.optString("original")
                     val imageUrl = ShikimoriPosterResolver.absoluteUrl(relativeImg)
-                    val biography = translateIfRussian(data.optNullableString("description")?.cleanApiText())
+                    val rawBiography = data.optNullableString("description")?.cleanApiText()
 
                     val gender = null
                     val age = null
@@ -784,7 +1006,7 @@ object KitsugiShikimoriClient {
                             val seyuId = seyuItem.optInt("id")
                             if (seyuId <= 0) continue
 
-                            val seyuName = translateIfRussian(seyuItem.optString("name", "Bilinmeyen"))
+                            val seyuName = seyuItem.optString("name", "Bilinmeyen")
                             val seyuRelativeImg = seyuItem.optJSONObject("image")?.optString("original")
                             val seyuImageUrl = ShikimoriPosterResolver.absoluteUrl(seyuRelativeImg)
 
@@ -809,7 +1031,7 @@ object KitsugiShikimoriClient {
                             val animeId = animeItem.optInt("id")
                             if (animeId <= 0) continue
 
-                            val animeTitle = translateIfRussian(animeItem.optString("name", "Bilinmeyen"))
+                            val animeTitle = animeItem.optString("name", "Bilinmeyen")
                             val animeRelativeImg = animeItem.optJSONObject("image")?.optString("original")
                             val animeImageUrl = ShikimoriPosterResolver.absoluteUrl(animeRelativeImg)
                             val kind = animeItem.optString("kind", "tv")
@@ -839,7 +1061,7 @@ object KitsugiShikimoriClient {
                             val mangaId = mangaItem.optInt("id")
                             if (mangaId <= 0) continue
 
-                            val mangaTitle = translateIfRussian(mangaItem.optString("name", "Bilinmeyen"))
+                            val mangaTitle = mangaItem.optString("name", "Bilinmeyen")
                             val mangaRelativeImg = mangaItem.optJSONObject("image")?.optString("original")
                             val mangaImageUrl = ShikimoriPosterResolver.absoluteUrl(mangaRelativeImg)
 
@@ -869,11 +1091,28 @@ object KitsugiShikimoriClient {
                     mangaAppearances.forEach { posters.need(ShikimoriPosterResolver.Kind.MANGA, it.mediaId, it.imageUrl) }
                     posters.resolve()
 
+                    // Kiril alfabesindeki adları ve yapım başlıklarını toplu çevir
+                    val translations = translateCyrillicNames(
+                        listOf(rawCharName) +
+                            voiceActors.map { it.name } +
+                            animeAppearances.map { it.title } +
+                            mangaAppearances.map { it.title }
+                    )
+                    val charName = translations[rawCharName] ?: rawCharName
+                    val localizedVoiceActors = voiceActors.map { actor ->
+                        translations[actor.name]?.let { actor.copy(name = it) } ?: actor
+                    }
                     val resolvedAppearances =
                         animeAppearances.map {
-                            it.copy(imageUrl = posters.url(ShikimoriPosterResolver.Kind.ANIME, it.mediaId, it.imageUrl))
+                            it.copy(
+                                title = translations[it.title] ?: it.title,
+                                imageUrl = posters.url(ShikimoriPosterResolver.Kind.ANIME, it.mediaId, it.imageUrl)
+                            )
                         } + mangaAppearances.map {
-                            it.copy(imageUrl = posters.url(ShikimoriPosterResolver.Kind.MANGA, it.mediaId, it.imageUrl))
+                            it.copy(
+                                title = translations[it.title] ?: it.title,
+                                imageUrl = posters.url(ShikimoriPosterResolver.Kind.MANGA, it.mediaId, it.imageUrl)
+                            )
                         }
 
                     KitsugiCharacterDetail(
@@ -886,12 +1125,13 @@ object KitsugiShikimoriClient {
                         age = age,
                         birthday = birthday,
                         bloodType = bloodType,
-                        biography = biography,
-                        voiceActors = voiceActors.map {
+                        biography = translateWithBudget(rawBiography),
+                        voiceActors = localizedVoiceActors.map {
                             it.copy(imageUrl = posters.url(ShikimoriPosterResolver.Kind.PERSON, it.id, it.imageUrl))
                         },
                         mediaAppearances = resolvedAppearances,
-                        isFavourite = false
+                        isFavourite = false,
+                        source = "shikimori"
                     )
                 }
             }.getOrNull()
@@ -907,10 +1147,12 @@ object KitsugiShikimoriClient {
                     val response = KitsugiApiBase.executeGetRequestResilient(url) ?: return@runWithRateLimit null
                     val data = JSONObject(response)
 
-                    val staffName = translateIfRussian(data.optString("name", "Bilinmeyen"))
+                    // Ad/biyografi/meslek metinleri tek tek değil, tüm liste toplandıktan
+                    // sonra toplu çevrilir (aşağıda).
+                    val rawStaffName = data.optString("name", "Bilinmeyen")
                     val nativeName = data.optNullableString("japanese")
                     val alternativeNames = mutableListOf<String>()
-                    val biography = translateIfRussian(data.optNullableString("biography")?.cleanApiText())
+                    val rawBiography = data.optNullableString("biography")?.cleanApiText()
 
                     val rawBirthdayObj = data.opt("birth_on")
                     val rawBirthday = when (rawBirthdayObj) {
@@ -927,10 +1169,9 @@ object KitsugiShikimoriClient {
                         else -> null
                     }
                     val (birthday, age) = com.kitsugi.animelist.utils.KitsugiDateUtils.formatBirthdayAndCalculateAge(rawBirthday, null)
-                    val homeTown = translateIfRussian(data.optNullableString("birth_place"))
+                    val rawHomeTown = data.optNullableString("birth_place")
                     val gender = null
                     val rawOccupation = data.optNullableString("job_title")
-                    val occupation = rawOccupation?.let { translateIfRussian(it).toTurkishStaffRole() }
 
                     val relativeImg = data.optJSONObject("image")?.optString("original")
                     val imageUrl = ShikimoriPosterResolver.absoluteUrl(relativeImg)
@@ -946,12 +1187,12 @@ object KitsugiShikimoriClient {
                             val animeObj = roleObj.optJSONObject("anime") ?: roleObj.optJSONObject("manga")
 
                             val charId = charObj.optInt("id")
-                            val charName = translateIfRussian(charObj.optString("name", "Bilinmeyen"))
+                            val charName = charObj.optString("name", "Bilinmeyen")
                             val charRelativeImg = charObj.optJSONObject("image")?.optString("original")
                             val charImg = ShikimoriPosterResolver.absoluteUrl(charRelativeImg)
 
                             val mediaId = animeObj?.optInt("id") ?: 0
-                            val mediaTitle = translateIfRussian(animeObj?.optString("name", "Bilinmeyen") ?: "Bilinmeyen")
+                            val mediaTitle = animeObj?.optString("name", "Bilinmeyen") ?: "Bilinmeyen"
                             val mediaRelativeImg = animeObj?.optJSONObject("image")?.optString("original")
                             val mediaImg = ShikimoriPosterResolver.absoluteUrl(mediaRelativeImg)
                             val mediaTypeStr = animeObj?.optString("kind", "tv") ?: "manga"
@@ -993,7 +1234,7 @@ object KitsugiShikimoriClient {
                             val mediaId = animeObj.optInt("id")
                             if (mediaId <= 0) continue
 
-                            val mediaTitle = translateIfRussian(animeObj.optString("name", "Bilinmeyen") ?: "Bilinmeyen")
+                            val mediaTitle = animeObj.optString("name", "Bilinmeyen") ?: "Bilinmeyen"
                             val mediaRelativeImg = animeObj.optJSONObject("image")?.optString("original")
                             val mediaImg = ShikimoriPosterResolver.absoluteUrl(mediaRelativeImg)
                             val mediaTypeStr = animeObj.optString("kind", "tv") ?: "tv"
@@ -1029,8 +1270,17 @@ object KitsugiShikimoriClient {
                     }
                     posters.resolve()
 
+                    // Tüm adları ve yapım başlıklarını TEK seferde çevir
+                    val translations = translateCyrillicNames(
+                        listOf(rawStaffName) +
+                            characterRoles.flatMap { listOf(it.characterName, it.mediaTitle) } +
+                            mediaWorks.map { it.mediaTitle }
+                    )
+                    val staffName = translations[rawStaffName] ?: rawStaffName
                     val resolvedRoles = characterRoles.mapIndexed { index, role ->
                         role.copy(
+                            characterName = translations[role.characterName] ?: role.characterName,
+                            mediaTitle = translations[role.mediaTitle] ?: role.mediaTitle,
                             characterImageUrl = posters.url(
                                 ShikimoriPosterResolver.Kind.CHARACTER, role.characterId, role.characterImageUrl
                             ),
@@ -1041,6 +1291,7 @@ object KitsugiShikimoriClient {
                     }
                     val resolvedWorks = mediaWorks.mapIndexed { index, work ->
                         work.copy(
+                            mediaTitle = translations[work.mediaTitle] ?: work.mediaTitle,
                             mediaImageUrl = posters.url(
                                 workMediaKinds.getOrNull(index), work.mediaId, work.mediaImageUrl
                             )
@@ -1053,12 +1304,12 @@ object KitsugiShikimoriClient {
                         nativeName = nativeName,
                         alternativeNames = alternativeNames,
                         imageUrl = posters.url(ShikimoriPosterResolver.Kind.PERSON, staffId, imageUrl),
-                        biography = biography,
-                        occupation = occupation,
+                        biography = translateWithBudget(rawBiography),
+                        occupation = rawOccupation?.let { (translations[it] ?: it).toTurkishStaffRole() },
                         birthday = birthday,
                         age = age,
                         gender = gender,
-                        homeTown = homeTown,
+                        homeTown = translateWithBudget(rawHomeTown),
                         characterRoles = resolvedRoles,
                         mediaWorks = resolvedWorks,
                         isFavourite = false
@@ -1155,6 +1406,71 @@ object KitsugiShikimoriClient {
             if (person.imageUrl != null) person
             else posters[person.id]?.cardUrl?.let { person.copy(imageUrl = it) } ?: person
         }
+    }
+
+    /**
+     * Kiril alfabesi içeren adları/başlıkları TEK toplu işte çevirir.
+     *
+     * Eski akış her ad için sırayla bir Google Translate isteği atıyordu; 24 karakter +
+     * 24 seiyuu içeren bir kadroda bu onlarca ardışık istek demekti ve Karakterler/Ekip
+     * sekmesi dakikalarca skeleton'da kalıyordu. Burada:
+     *  - yalnızca Kiril içeren metinler işlenir,
+     *  - en fazla [SHIKI_NAME_TRANSLATE_CONCURRENCY] istek paralel gider,
+     *  - toplam süre [SHIKI_NAME_TRANSLATE_BUDGET_MS] ile sınırlıdır; yetişmeyen adlar
+     *    özgün hâliyle gösterilir (sonraki açılışta Room önbelleğinden anında gelir).
+     */
+    private suspend fun translateCyrillicNames(
+        texts: List<String>,
+        budgetMs: Long = SHIKI_NAME_TRANSLATE_BUDGET_MS
+    ): Map<String, String> {
+        val targets = texts
+            .map { it.trim() }
+            .filter { it.isNotBlank() && it.any { ch -> ch in '\u0400'..'\u04FF' } }
+            .distinct()
+        if (targets.isEmpty()) return emptyMap()
+
+        val context = com.kitsugi.animelist.KitsugiApplication.getInstance()?.applicationContext
+            ?: return emptyMap()
+        val translationManager = com.kitsugi.animelist.data.local.TranslationManager(context)
+        val settings = runCatching {
+            com.kitsugi.animelist.data.settings.SettingsDataStore(context).settingsFlow.first()
+        }.getOrNull()
+        val targetLang = settings?.translateTargetLanguage?.ifBlank { "tr" } ?: "tr"
+
+        val result = java.util.concurrent.ConcurrentHashMap<String, String>()
+        runCatching {
+            withTimeoutOrNull(budgetMs) {
+                coroutineScope {
+                    targets.chunked(SHIKI_NAME_TRANSLATE_CONCURRENCY).forEach { chunk ->
+                        chunk.map { name ->
+                            async(Dispatchers.IO) {
+                                val translated = runCatching {
+                                    translationManager.translateTo(name, "auto", targetLang)
+                                }.getOrNull()
+                                if (!translated.isNullOrBlank()) result[name] = translated
+                            }
+                        }.forEach { it.await() }
+                    }
+                }
+            }
+        }
+        return result.toMap()
+    }
+
+    /**
+     * Uzun metni (özet/biyografi) süre bütçesiyle çevirir. Süre dolarsa veya çeviri
+     * başarısız olursa özgün metin döner — sayfa çeviriyi asla beklemez.
+     */
+    private suspend fun translateWithBudget(
+        text: String?,
+        budgetMs: Long = SHIKI_TRANSLATE_TIMEOUT_MS
+    ): String? {
+        if (text.isNullOrBlank()) return text
+        if (!text.any { it in '\u0400'..'\u04FF' }) return text
+        val translated = runCatching {
+            withTimeoutOrNull(budgetMs) { translateIfRussian(text) }
+        }.getOrNull()
+        return translated?.takeIf { it.isNotBlank() } ?: text
     }
 
     private suspend fun translateIfRussian(text: String?): String {

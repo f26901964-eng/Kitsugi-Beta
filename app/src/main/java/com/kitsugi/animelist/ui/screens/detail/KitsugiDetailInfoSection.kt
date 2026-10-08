@@ -93,7 +93,6 @@ internal fun QuickActions(
             onClick = onWatchClick,
             palette = UiverseButtonPalette.Default,
             modifier = Modifier
-                .fillMaxWidth()
                 .then(if (primaryFocusRequester != null) Modifier.focusRequester(primaryFocusRequester) else Modifier)
                 .then(if (tabBarFocusRequester != null) Modifier.focusProperties { right = tabBarFocusRequester } else Modifier)
         )
@@ -772,28 +771,28 @@ internal fun EntryInfoSection(
                 modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 8.dp)
             )
             val rows = buildList {
-                if (!detail.status.isNullOrBlank()) add("Durum" to detail.status)
-                if (!detail.season.isNullOrBlank()) add("Sezon" to detail.season)
-                if (!detail.startDate.isNullOrBlank()) add("Başlangıç" to detail.startDate)
-                if (!detail.endDate.isNullOrBlank()) add("Bitiş" to detail.endDate)
-                if (!detail.sourceMaterial.isNullOrBlank()) add("Kaynak" to detail.sourceMaterial)
+                if (!detail.status.isNullOrBlank()) add("Durum" to listOf(detail.status))
+                if (!detail.season.isNullOrBlank()) add("Sezon" to listOf(detail.season))
+                if (!detail.startDate.isNullOrBlank()) add("Başlangıç" to listOf(detail.startDate))
+                if (!detail.endDate.isNullOrBlank()) add("Bitiş" to listOf(detail.endDate))
+                if (!detail.sourceMaterial.isNullOrBlank()) add("Kaynak" to listOf(detail.sourceMaterial))
                 if (mediaType == MediaType.Anime) {
-                    if (detail.studios.isNotEmpty()) add("Stüdyo" to detail.studios.joinToString(", ") { it.name })
-                    if (!detail.episodeDuration.isNullOrBlank()) add("Süre" to detail.episodeDuration)
-                    if (!detail.broadcast.isNullOrBlank()) add("Yayın" to detail.broadcast)
-                    if (!detail.rating.isNullOrBlank()) add("Yaş Sınırı" to detail.rating)
+                    if (detail.studios.isNotEmpty()) add("Stüdyo" to detail.studios.map { it.name })
+                    if (!detail.episodeDuration.isNullOrBlank()) add("Süre" to listOf(detail.episodeDuration))
+                    if (!detail.broadcast.isNullOrBlank()) add("Yayın" to listOf(detail.broadcast))
+                    if (!detail.rating.isNullOrBlank()) add("Yaş Sınırı" to listOf(detail.rating))
                 }
-                if (!detail.titleEnglish.isNullOrBlank()) add("İngilizce" to detail.titleEnglish)
-                if (!detail.titleJapanese.isNullOrBlank()) add("Japonca" to detail.titleJapanese)
-                if (detail.synonyms.isNotEmpty()) add("Diğer Adlar" to detail.synonyms.joinToString(", "))
+                if (!detail.titleEnglish.isNullOrBlank()) add("İngilizce" to listOf(detail.titleEnglish))
+                if (!detail.titleJapanese.isNullOrBlank()) add("Japonca" to listOf(detail.titleJapanese))
+                if (detail.synonyms.isNotEmpty()) add("Diğer Adlar" to detail.synonyms)
             }
-            rows.forEachIndexed { index, (label, value) ->
+            rows.forEachIndexed { index, (label, values) ->
                 val onValueClick: (() -> Unit)? = if (label == "Sezon") {
-                    { onSearchQuery(value) }
+                    { onSearchQuery(values.joinToString(", ")) }
                 } else {
                     null
                 }
-                EntryInfoRow(label = label, value = value, onValueClick = onValueClick)
+                EntryInfoRow(label = label, values = values, onValueClick = onValueClick)
                 if (index < rows.lastIndex) {
                     HorizontalDivider(
                         modifier = Modifier.padding(horizontal = 16.dp),
@@ -808,7 +807,7 @@ internal fun EntryInfoSection(
 }
 
 @Composable
-private fun EntryInfoRow(label: String, value: String, onValueClick: (() -> Unit)? = null) {
+private fun EntryInfoRow(label: String, values: List<String>, onValueClick: (() -> Unit)? = null) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -823,29 +822,35 @@ private fun EntryInfoRow(label: String, value: String, onValueClick: (() -> Unit
             fontWeight = FontWeight.SemiBold,
             modifier = Modifier.weight(0.4f)
         )
-        Row(
+        Column(
             modifier = Modifier.weight(0.6f),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
+            verticalArrangement = Arrangement.spacedBy(4.dp)
         ) {
-            val valueColor = if (onValueClick != null) LocalKitsugiAccent.current else KitsugiColors.TextPrimary
-            val valueModifier = Modifier
-                .weight(1f, fill = false)
-                .let {
-                    if (onValueClick != null) {
-                        it.clip(RoundedCornerShape(4.dp)).tvClickable(shape = RoundedCornerShape(4.dp), onClick = onValueClick)
-                    } else {
-                        it
-                    }
+            values.forEach { value ->
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    val valueColor = if (onValueClick != null) LocalKitsugiAccent.current else KitsugiColors.TextPrimary
+                    val valueModifier = Modifier
+                        .weight(1f, fill = false)
+                        .let {
+                            if (onValueClick != null) {
+                                it.clip(RoundedCornerShape(4.dp)).tvClickable(shape = RoundedCornerShape(4.dp), onClick = onValueClick)
+                            } else {
+                                it
+                            }
+                        }
+                    Text(
+                        text = value,
+                        color = valueColor,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = if (onValueClick != null) FontWeight.Bold else FontWeight.Normal,
+                        modifier = valueModifier
+                    )
+                    KitsugiMiniCopyButton(text = value)
                 }
-            Text(
-                text = value,
-                color = valueColor,
-                style = MaterialTheme.typography.bodySmall,
-                fontWeight = if (onValueClick != null) FontWeight.Bold else FontWeight.Normal,
-                modifier = valueModifier
-            )
-            KitsugiMiniCopyButton(text = value)
+            }
         }
     }
 }

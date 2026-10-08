@@ -254,7 +254,13 @@ class JikanApiClient(
 
     // Characters & Staff
     suspend fun fetchCharacters(source: String, externalId: Int?, mediaType: MediaType, realMalId: Int? = null, tmdbId: Int? = null, title: String? = null) = characterClient.fetchCharacters(source, externalId, mediaType, realMalId, tmdbId, title)
-    suspend fun fetchCharacterDetail(source: String, characterId: Int, name: String? = null) = characterClient.fetchCharacterDetail(source, characterId, name)
+    suspend fun fetchCharacterDetail(
+        source: String,
+        characterId: Int,
+        name: String? = null,
+        fallbackImageUrl: String? = null,
+        isRealMediaRole: Boolean = false
+    ) = characterClient.fetchCharacterDetail(source, characterId, name, fallbackImageUrl, isRealMediaRole)
     suspend fun fetchStaff(source: String, externalId: Int?, mediaType: MediaType, tmdbId: Int? = null, realMalId: Int? = null) = staffClient.fetchStaff(source, externalId, mediaType, tmdbId, realMalId)
     suspend fun fetchStaffDetail(source: String, staffId: Int, name: String? = null) = staffClient.fetchStaffDetail(source, staffId, name)
     suspend fun fetchStudioDetail(source: String, studioId: Int, name: String? = null) = studioClient.fetchStudioDetail(source, studioId, name)

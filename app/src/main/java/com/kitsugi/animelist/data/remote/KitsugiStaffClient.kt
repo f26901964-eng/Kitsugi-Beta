@@ -24,7 +24,26 @@ class KitsugiStaffClient {
 
             when (source.lowercase()) {
                 "shikimori" -> {
-                    return@withContext KitsugiShikimoriClient.fetchStaff(mediaType, externalId)
+                    // 1) Shikimori'nin kendi `/roles` ucu personel kayıtlarını (yönetmen,
+                    //    senarist …) ve seiyuu kayıtlarını içerir.
+                    val shikiStaff = KitsugiShikimoriClient.fetchStaff(mediaType, externalId)
+                    if (shikiStaff.isNotEmpty()) return@withContext shikiStaff
+
+                    // 2) Shikimori'de personel kaydı YOKSA (küçük/az bakımlı yapımlarda sık
+                    //    görülür) Ekip sekmesi boş kalmasın: gerçek MAL ID'si çözülüp
+                    //    MAL/Jikan personel listesi gösterilir. Not: Shikimori ID'si MAL ID
+                    //    DEĞİLDİR; bu yüzden ARM/Shikimori API eşlemesi kullanılır.
+                    val malId = DetailCache.getMediaDetail("shikimori", externalId)?.realMalId?.takeIf { it > 0 }
+                        ?: KitsugiIdResolver.resolveMalIdFromShikimori(externalId)
+                    if (malId != null && malId > 0) {
+                        val jikanList = fetchStaff(
+                            source = "jikan",
+                            externalId = malId,
+                            mediaType = if (mediaType == MediaType.Manga) MediaType.Manga else MediaType.Anime
+                        )
+                        if (jikanList.isNotEmpty()) return@withContext jikanList
+                    }
+                    shikiStaff
                 }
                 "simkl" -> {
                     val malId = realMalId ?: DetailCache.getMediaDetail("simkl", externalId)?.realMalId

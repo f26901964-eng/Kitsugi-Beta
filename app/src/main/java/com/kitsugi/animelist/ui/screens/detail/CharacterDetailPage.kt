@@ -120,7 +120,8 @@ fun CharacterDetailPage(
     name: String? = null,
     imageUrl: String? = null,
     titleLanguage: String = "ROMAJI",
-    preferredTranslator: String = "DEFAULT"
+    preferredTranslator: String = "DEFAULT",
+    isRealMediaRole: Boolean = false
 ) {
     val accentColor = LocalKitsugiAccent.current
     val context = LocalContext.current
@@ -128,9 +129,10 @@ fun CharacterDetailPage(
     // Obtain ViewModel
     val viewModel: CharacterDetailViewModel = viewModel(key = "character_${source}_${characterId}")
 
-    // Load character in ViewModel
-    LaunchedEffect(characterId, source) {
-        viewModel.loadCharacter(characterId, source, name)
+    // Load character in ViewModel — kartta gösterilen görsel (imageUrl) ipucu olarak
+    // iletilir; kaynakta görsel yoksa detay sayfası resimsiz kalmaz.
+    LaunchedEffect(characterId, source, imageUrl, isRealMediaRole) {
+        viewModel.loadCharacter(characterId, source, name, hintImageUrl = imageUrl, isRealMediaRole = isRealMediaRole)
     }
 
     // Collect states from ViewModel

@@ -13,6 +13,26 @@ class KitsugiMediaSocialClient {
 
     private val relationsClient = KitsugiMediaRelationsClient()
 
+    /**
+     * Shikimori kayıtları için MAL ID'sini çözer (verilen değer → detay önbelleği → ARM →
+     * Shikimori API). Shikimori ID'si ASLA MAL ID yerine kullanılmaz; eşleme yoksa null döner.
+     */
+    private fun resolveMalIdForShikimori(shikimoriId: Int, realMalId: Int?): Int? {
+        realMalId?.takeIf { it > 0 }?.let { return it }
+        DetailCache.getMediaDetail("shikimori", shikimoriId)?.realMalId?.takeIf { it > 0 }?.let { return it }
+        return KitsugiIdResolver.resolveMalIdFromShikimori(shikimoriId)
+    }
+
+    /** Shikimori kaydı için AniList "stableId"si (100_000_000 + aniListId); yoksa null. */
+    private suspend fun resolveAniListStableIdForShikimori(malId: Int?): Int? {
+        if (malId == null || malId <= 0) return null
+        val resolved = runCatching {
+            KitsugiIdResolver.resolveIds(malId = malId, aniListId = null, tmdbId = null)
+        }.getOrNull() ?: return null
+        val aniListId = resolved.aniListId ?: return null
+        return if (aniListId > 0) 100_000_000 + aniListId else null
+    }
+
     // ─────────────────────────────────────────────────────────────────────────
     // Stats
     // ─────────────────────────────────────────────────────────────────────────
@@ -104,6 +124,22 @@ class KitsugiMediaSocialClient {
                     } else {
                         fetchStatsFromJikan(externalId, mediaType)
                     }
+                }
+                "shikimori" -> {
+                    // Shikimori ID'si MAL ID'si değildir. Gerçek MAL ID'si çözülür; istatistik
+                    // AniList'ten (varsa) yoksa MAL/Jikan'dan çekilir.
+                    val malId = resolveMalIdForShikimori(externalId, realMalId)
+                    val jikanType = if (mediaType == MediaType.Manga) MediaType.Manga else MediaType.Anime
+                    if (malId != null && malId > 0) {
+                        val aniListStableId = resolveAniListStableIdForShikimori(malId)
+                        if (aniListStableId != null) {
+                            val aniStats = fetchStatsFromAniList(aniListStableId, jikanType)
+                            if (aniStats != null && (aniStats.rankings.isNotEmpty() || aniStats.scoreDistribution.isNotEmpty())) {
+                                return@withContext aniStats
+                            }
+                        }
+                        fetchStatsFromJikan(malId, jikanType)
+                    } else null
                 }
                 "anilist"      -> fetchStatsFromAniList(externalId, mediaType)
                 else           -> null
@@ -307,6 +343,12 @@ class KitsugiMediaSocialClient {
                     }
 
                     emptyList()
+                }
+                "shikimori" -> {
+                    // Shikimori ID'si MAL ID'si değildir: gerçek MAL ID'si çözülür.
+                    val malId = resolveMalIdForShikimori(externalId, realMalId)
+                    val jikanType = if (mediaType == MediaType.Manga) MediaType.Manga else MediaType.Anime
+                    if (malId != null && malId > 0) fetchReviewsFromJikan(malId, jikanType, page) else emptyList()
                 }
                 "jikan", "mal" -> fetchReviewsFromJikan(externalId, mediaType, page)
                 "anilist"      -> fetchReviewsFromAniList(externalId, mediaType, page)

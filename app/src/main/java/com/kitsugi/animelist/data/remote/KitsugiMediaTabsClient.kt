@@ -103,6 +103,14 @@ class KitsugiMediaTabsClient {
                 return@withContext list
             }
 
+            // Shikimori: kimlik uzayı MAL'dan farklı olabilir. Bölüm listesi ve TMDB
+            // eşlemesi için gerçek MAL ID'si BİR KEZ çözülür ve iki adımda da kullanılır.
+            val shikimoriMalId = if (effectiveSource == "shikimori") {
+                realMalId?.takeIf { it > 0 }
+                    ?: DetailCache.getMediaDetail("shikimori", effectiveId)?.realMalId?.takeIf { it > 0 }
+                    ?: KitsugiIdResolver.resolveMalIdFromShikimori(effectiveId)
+            } else null
+
             val list: List<KitsugiStreamingEpisode> = when (effectiveSource) {
                 "kitsu" -> {
                     // externalId = kitsuStableId = kitsuNumericId + 300_000_000
@@ -120,6 +128,14 @@ class KitsugiMediaTabsClient {
                         if (jList.isNotEmpty()) return@withContext jList
                     }
                     emptyList()
+                }
+                "shikimori" -> {
+                    // Shikimori ID'si MAL ID'si DEĞİLDİR: bölüm listesi için gerçek MAL ID'si
+                    // kullanılır (yukarıda çözülür). Eşleme yoksa liste boş kalır — aksi hâlde
+                    // Shikimori ID'si MAL sanılıp ALAKASIZ bir yapımın bölümleri gösterilirdi.
+                    if (shikimoriMalId != null && shikimoriMalId > 0) {
+                        fetchEpisodesFromJikan(shikimoriMalId)
+                    } else emptyList()
                 }
                 else -> emptyList()
             }
@@ -142,6 +158,10 @@ class KitsugiMediaTabsClient {
                 // Fetch TMDB episodes if available
                 var tmdbEpisodes: List<KitsugiEpisodeRatingsRepository.TmdbEpisodeDto> = emptyList()
                 try {
+                    // NOT: Shikimori/Kitsu gibi kaynakların kimlikleri MAL ID'si değildir.
+                    // Bu yüzden TMDB çözümlemesi bu kaynaklarda yalnızca gerçek MAL ID'si
+                    // (realMalId) üzerinden yapılır; eskiden Shikimori ID'si MAL sanılıp
+                    // alakasız yapımların bölüm adları/görselleri gösteriliyordu.
                     val tmdbIdVal = when (effectiveSource) {
                         "simkl" -> {
                             if (tmdbId != null && tmdbId > 0) {
@@ -151,6 +171,20 @@ class KitsugiMediaTabsClient {
                             } else null
                         }
                         "tmdb" -> effectiveId
+                        "shikimori" -> {
+                            if (tmdbId != null && tmdbId > 0) {
+                                tmdbId
+                            } else if (shikimoriMalId != null && shikimoriMalId > 0) {
+                                KitsugiEpisodeRatingsRepository.getResolvedTmdbIdForMal(shikimoriMalId)
+                            } else null
+                        }
+                        "kitsu" -> {
+                            if (tmdbId != null && tmdbId > 0) {
+                                tmdbId
+                            } else if (realMalId != null && realMalId > 0) {
+                                KitsugiEpisodeRatingsRepository.getResolvedTmdbIdForMal(realMalId)
+                            } else null
+                        }
                         else -> KitsugiEpisodeRatingsRepository.getResolvedTmdbIdForMal(effectiveId)
                     }
 
@@ -164,6 +198,20 @@ class KitsugiMediaTabsClient {
                                 } else null
                             }
                             "tmdb" -> effectiveId
+                            "shikimori" -> {
+                                if (tmdbId != null && tmdbId > 0) {
+                                    tmdbId
+                                } else if (shikimoriMalId != null && shikimoriMalId > 0) {
+                                    KitsugiEpisodeRatingsRepository.resolveTmdbIdFromMal(shikimoriMalId)
+                                } else null
+                            }
+                            "kitsu" -> {
+                                if (tmdbId != null && tmdbId > 0) {
+                                    tmdbId
+                                } else if (realMalId != null && realMalId > 0) {
+                                    KitsugiEpisodeRatingsRepository.resolveTmdbIdFromMal(realMalId)
+                                } else null
+                            }
                             else -> KitsugiEpisodeRatingsRepository.resolveTmdbIdFromMal(effectiveId)
                         }
                     }

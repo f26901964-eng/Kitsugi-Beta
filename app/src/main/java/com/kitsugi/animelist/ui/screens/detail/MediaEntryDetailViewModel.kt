@@ -20,6 +20,7 @@ import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.data.remote.GalleryCategory
 import com.kitsugi.animelist.model.MediaType
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
@@ -37,7 +38,14 @@ import com.kitsugi.animelist.data.remote.MdbListRatings
 import com.kitsugi.animelist.data.remote.KitsugiIdResolver
 import com.kitsugi.animelist.data.settings.SettingsDataStore
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.first
+
+/** Sekme verisi için üst süre sınırı — süre dolarsa sekme hata durumuna düşer, asılı kalmaz. */
+private const val TAB_FETCH_TIMEOUT_MS = 25_000L
+
+/** Bölüm listesi (çok kaynaklı: Shikimori/TMDB/Jikan) daha uzun sürebilir. */
+private const val TAB_EPISODES_FETCH_TIMEOUT_MS = 45_000L
 
 class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -47,6 +55,15 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
     private val mangaRepository = MangaSourceRepository(context)
     private val settingsDataStore = SettingsDataStore(context)
     private val TAG = "MediaEntryDetailVM"
+
+    /**
+     * Sekme başına çalışan işler (tek uçuş). Sekme tetikleyicisi yeniden çalıştığında
+     * aynı sekme için istek birikmesini engeller ve yeni sonuç geldiğinde eskisini iptal eder.
+     */
+    private val tabJobs = mutableMapOf<Int, Job>()
+
+    /** Sekme işlerinin hangi parametrelerle (dış kimlik + MAL kimliği) çalıştığı. */
+    private val tabRequestKeys = mutableMapOf<Int, String>()
 
     // --- StateFlows ---
 
@@ -156,6 +173,9 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
         Log.d(TAG, "loadEntry: New key=$newKey (was $currentFetchKey)")
         currentFetchKey = newKey
         _pageResetTrigger.value += 1 // Signal UI to scroll back to first tab
+        // Eski kaydın sekme işleri iptal edilir: bit gecikmeli yanıtları yeni kaydın
+        // state'ine yazamaz (yanlış içerik göstermenin klasik yolu).
+        cancelTabLoads()
 
         // Reset states
         val cachedDetail = DetailCache.getMediaDetail(entry.source, stableId)
@@ -455,6 +475,17 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                         resolvedId = KitsugiEpisodeRatingsRepository.getResolvedTmdbIdForKitsu(kitsuId)
                     }
                 }
+                entry.source.equals("shikimori", ignoreCase = true) -> {
+                    // NOT: Shikimori ID'si MAL ID'si DEĞİLDİR. Önce gerçek MAL ID'si çözülür;
+                    // bulunamazsa bölüm puanları sessizce boş kalır (alakasız yapımın puanları
+                    // gösterilmez).
+                    val malId = detail.realMalId?.takeIf { it > 0 }
+                        ?: KitsugiIdResolver.resolveMalIdFromShikimori(entry.malId)
+                    if (malId != null && malId > 0) {
+                        foundRatings = KitsugiEpisodeRatingsRepository.getEpisodeRatingsByMalId(malId)
+                        resolvedId = KitsugiEpisodeRatingsRepository.getResolvedTmdbIdForMal(malId)
+                    }
+                }
                 else -> {
                     val malId = entry.malId
                     if (malId != null && malId > 0) {
@@ -512,9 +543,14 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                     }
                 }
                 entry.source.equals("jikan", ignoreCase = true) ||
-                entry.source.equals("mal", ignoreCase = true) ||
-                entry.source.equals("shikimori", ignoreCase = true) -> {
+                entry.source.equals("mal", ignoreCase = true) -> {
                     if (stableId > 0) KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId) else null
+                }
+                entry.source.equals("shikimori", ignoreCase = true) -> {
+                    // Shikimori ID'si MAL ID değildir: önce gerçek MAL ID'si çözülür.
+                    val malId = _detailState.value?.realMalId?.takeIf { it > 0 }
+                        ?: KitsugiIdResolver.resolveMalIdFromShikimori(stableId)
+                    if (malId != null && malId > 0) KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(malId) else null
                 }
                 stableId > 0 && !entry.source.equals("simkl", ignoreCase = true) &&
                     !entry.source.equals("kitsu", ignoreCase = true) -> {
@@ -589,6 +625,14 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                         if (malId != null && malId > 0) KitsugiEpisodeRatingsRepository.resolveTmdbIdFromMal(malId) else null
                     }
                 }
+                entry.source.equals("shikimori", ignoreCase = true) -> {
+                    // Shikimori ID'si MAL ID'si DEĞİLDİR: TMDB kimliği yalnızca çözülen
+                    // gerçek MAL ID'si üzerinden aranır (aksi hâlde galeri alakasız
+                    // yapımın görselleriyle doluyordu).
+                    val malId = _detailState.value?.realMalId?.takeIf { it > 0 }
+                        ?: KitsugiIdResolver.resolveMalIdFromShikimori(entry.malId)
+                    if (malId != null && malId > 0) KitsugiEpisodeRatingsRepository.resolveTmdbIdFromMal(malId) else null
+                }
                 else -> entry.malId?.let { KitsugiEpisodeRatingsRepository.resolveTmdbIdFromMal(it) }
             }
         }
@@ -604,6 +648,10 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             // kayıtlarda gerçek MAL ID. İkisini ayırıp yalnızca güvenli olanı kullanıyoruz.
             entry.source.equals("kitsu", ignoreCase = true) ->
                 if (com.kitsugi.animelist.data.remote.KitsuIdNamespace.isStableId(entry.malId)) _detailState.value?.realMalId else com.kitsugi.animelist.data.remote.KitsuIdNamespace.realMalIdOf(entry.malId)
+            // Shikimori: entry.malId Shikimori kimliğidir; MAL ID'si detaydan/çözümden gelir.
+            entry.source.equals("shikimori", ignoreCase = true) ->
+                _detailState.value?.realMalId?.takeIf { it > 0 }
+                    ?: KitsugiIdResolver.resolveMalIdFromShikimori(entry.malId)
             !entry.source.equals("tmdb", ignoreCase = true) -> entry.malId
             else -> null
         }
@@ -821,16 +869,36 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
     /**
      * Lazy-loads tabs data when a specific tab index is selected.
      */
+    /**
+     * Sekme verisini yükler.
+     *
+     * - Aynı sekme zaten yükleniyorsa yeni istek başlatılmaz (tek uçuş): sekme
+     *   tetikleyicisi birden çok kez çalışsa bile istekler birikmez.
+     * - Her veri çağrısı süre tavanıyla sınırlıdır; aksi hâlde yavaş bir zincir
+     *   (ör. Shikimori → MAL eşlemesi → Jikan) sekmeyi sonsuza dek skeleton'da bırakır.
+     */
     fun loadTab(tabIndex: Int, entry: MediaEntry, realMalId: Int?) {
         val effectiveExternalId = externalIdOf(entry)
+        // Tek uçuş anahtarı: aynı parametrelerle çalışan istek varsa yenisini başlatma;
+        // parametreler iyileştiğinde (ör. detaydan gerçek MAL ID'si geldiğinde) ise
+        // eski isteği iptal edip yeniden dene.
+        val requestKey = "$effectiveExternalId|${realMalId ?: 0}"
+        val running = tabJobs[tabIndex]
+        if (running != null && running.isActive && tabRequestKeys[tabIndex] == requestKey) return
+        running?.cancel()
+        tabRequestKeys[tabIndex] = requestKey
+
         // Önbellek anahtarı Kitsu'da kanonik kimlik üzerinden kurulur (bkz. cacheIdentityOf)
         val malId = cacheIdentityOf(entry)
+        // NOT: Shikimori ID'si MAL ID'si DEĞİLDİR. Bu yüzden Shikimori kayıtlarında
+        // entry.malId'yi MAL ID gibi kullanmıyoruz; gerçek MAL ID'si detaydan gelir ya da
+        // istemci tarafında (detay önbelleği → ARM → Shikimori API) çözülür.
         val effectiveRealMalId = realMalId
             ?: _detailState.value?.realMalId
-            ?: (if (entry.source.equals("mal", true) || entry.source.equals("jikan", true) || entry.source.equals("shikimori", true)) entry.malId else null)
+            ?: (if (entry.source.equals("mal", true) || entry.source.equals("jikan", true)) entry.malId else null)
         val isManga = entry.type == MediaType.Manga || _detailState.value?.type == MediaType.Manga
         val tmdbId = if (isManga) null else (entry.tmdbId ?: _detailState.value?.tmdbId ?: _resolvedTmdbId.value)
-        viewModelScope.launch {
+        tabJobs[tabIndex] = viewModelScope.launch {
             try {
                 when (tabIndex) {
                     1 -> {
@@ -846,7 +914,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                                 ?: _detailState.value?.titleEnglish
                                 ?: _detailState.value?.titleRomaji
                                 ?: entry.title
-                            val result = withContext(Dispatchers.IO) {
+                            val fetched = fetchTabWithTimeout {
                                 apiClient.fetchCharacters(
                                     source = entry.source,
                                     externalId = effectiveExternalId,
@@ -855,7 +923,11 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                                     tmdbId = tmdbId,
                                     title = resolvedTitle
                                 )
+                            } ?: run {
+                                _charactersState.value = DetailTabState.Error
+                                return@launch
                             }
+                            val result = fetched.value
                             if (result.isNotEmpty()) {
                                 DetailCache.putMediaCharacters(entry.source, malId, result)
                             }
@@ -868,9 +940,19 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                             (currentSuccess.data.isEmpty() && DetailCache.getMediaStaff(entry.source, malId) == null)
                         if (needsRefetch) {
                             _staffState.value = DetailTabState.Loading
-                            val result = withContext(Dispatchers.IO) {
-                                apiClient.fetchStaff(entry.source, effectiveExternalId, entry.type, tmdbId = tmdbId, realMalId = realMalId)
+                            val fetched = fetchTabWithTimeout {
+                                apiClient.fetchStaff(
+                                    entry.source,
+                                    effectiveExternalId,
+                                    entry.type,
+                                    tmdbId = tmdbId,
+                                    realMalId = effectiveRealMalId
+                                )
+                            } ?: run {
+                                _staffState.value = DetailTabState.Error
+                                return@launch
                             }
+                            val result = fetched.value
                             if (result.isNotEmpty()) {
                                 DetailCache.putMediaStaff(entry.source, malId, result)
                             }
@@ -883,9 +965,20 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                             (currentSuccess.data.isEmpty() && DetailCache.getMediaRecommendations(entry.source, malId) == null)
                         if (needsRefetch) {
                             _recommendationsState.value = DetailTabState.Loading
-                            val result = withContext(Dispatchers.IO) {
-                                apiClient.fetchRecommendations(entry.source, effectiveExternalId, entry.type, tmdbId = tmdbId, realMalId = realMalId, title = entry.title)
+                            val fetched = fetchTabWithTimeout {
+                                apiClient.fetchRecommendations(
+                                    entry.source,
+                                    effectiveExternalId,
+                                    entry.type,
+                                    tmdbId = tmdbId,
+                                    realMalId = effectiveRealMalId,
+                                    title = entry.title
+                                )
+                            } ?: run {
+                                _recommendationsState.value = DetailTabState.Error
+                                return@launch
                             }
+                            val result = fetched.value
                             if (result.isNotEmpty()) {
                                 DetailCache.putMediaRecommendations(entry.source, malId, result)
                             }
@@ -898,9 +991,20 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                             (currentSuccess.data.isEmpty() && DetailCache.getMediaRelations(entry.source, malId) == null)
                         if (needsRefetch) {
                             _relationsState.value = DetailTabState.Loading
-                            val result = withContext(Dispatchers.IO) {
-                                apiClient.fetchRelations(entry.source, effectiveExternalId, entry.type, tmdbId = tmdbId, realMalId = realMalId, title = entry.title)
+                            val fetched = fetchTabWithTimeout {
+                                apiClient.fetchRelations(
+                                    entry.source,
+                                    effectiveExternalId,
+                                    entry.type,
+                                    tmdbId = tmdbId,
+                                    realMalId = effectiveRealMalId,
+                                    title = entry.title
+                                )
+                            } ?: run {
+                                _relationsState.value = DetailTabState.Error
+                                return@launch
                             }
+                            val result = fetched.value
                             if (result.isNotEmpty()) {
                                 DetailCache.putMediaRelations(entry.source, malId, result)
                             }
@@ -910,9 +1014,18 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                     6 -> {
                         if (_statsState.value !is DetailTabState.Success) {
                             _statsState.value = DetailTabState.Loading
-                            val result = withContext(Dispatchers.IO) {
-                                apiClient.fetchStats(entry.source, effectiveExternalId, entry.type, realMalId = realMalId)
+                            val fetched = fetchTabWithTimeout {
+                                apiClient.fetchStats(
+                                    entry.source,
+                                    effectiveExternalId,
+                                    entry.type,
+                                    realMalId = effectiveRealMalId
+                                )
+                            } ?: run {
+                                _statsState.value = DetailTabState.Error
+                                return@launch
                             }
+                            val result = fetched.value
                             if (result != null) {
                                 DetailCache.putMediaStats(entry.source, malId, result)
                                 _statsState.value = DetailTabState.Success(result)
@@ -927,9 +1040,19 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                             (currentSuccess.data.isEmpty() && DetailCache.getMediaReviews(entry.source, malId) == null)
                         if (needsRefetch) {
                             _reviewsState.value = DetailTabState.Loading
-                            val result = withContext(Dispatchers.IO) {
-                                apiClient.fetchReviews(entry.source, effectiveExternalId, entry.type, tmdbId = tmdbId, realMalId = realMalId)
+                            val fetched = fetchTabWithTimeout {
+                                apiClient.fetchReviews(
+                                    entry.source,
+                                    effectiveExternalId,
+                                    entry.type,
+                                    tmdbId = tmdbId,
+                                    realMalId = effectiveRealMalId
+                                )
+                            } ?: run {
+                                _reviewsState.value = DetailTabState.Error
+                                return@launch
                             }
+                            val result = fetched.value
                             if (result.isNotEmpty()) {
                                 DetailCache.putMediaReviews(entry.source, malId, result)
                             }
@@ -942,18 +1065,22 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                             (currentEpisodes is DetailTabState.Success && currentEpisodes.data.isEmpty())
                         if (needsEpFetch) {
                             _episodesState.value = DetailTabState.Loading
-                            val result = withContext(Dispatchers.IO) {
+                            val fetched = fetchTabWithTimeout(TAB_EPISODES_FETCH_TIMEOUT_MS) {
                                 apiClient.fetchEpisodes(
                                     source = entry.source,
                                     externalId = effectiveExternalId,
                                     mediaType = entry.type,
-                                    realMalId = realMalId,
+                                    realMalId = effectiveRealMalId,
                                     totalEpisodes = maxOf(entry.total ?: _detailState.value?.total ?: 0, entry.progress),
                                     context = context,
                                     targetSeason = _targetSeason.value,
                                     tmdbId = tmdbId
                                 )
+                            } ?: run {
+                                _episodesState.value = DetailTabState.Error
+                                return@launch
                             }
+                            val result = fetched.value
                             if (result.isNotEmpty()) {
                                 DetailCache.putMediaEpisodes(entry.source, malId, result)
                             }
@@ -974,6 +1101,33 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                 }
             }
         }
+    }
+
+    /**
+     * Sekme veri çağrısını süre sınırıyla çalıştırır. Süre dolarsa null döner ve iş iptal edilir.
+     *
+     * ÖNEMLİ: `withTimeoutOrNull { withContext(IO) { bloklayan ağ çağrısı } }` sert bir sınır
+     * DEĞİLDİR; burada iş bir ÇOCUK `async` olarak başlatılır ve yalnızca `await()` sınırlanır,
+     * böylece yavaş bir ağ zinciri sekmeyi süresiz skeleton'da bırakamaz.
+     */
+    private suspend fun <T> CoroutineScope.fetchTabWithTimeout(
+        timeoutMs: Long = TAB_FETCH_TIMEOUT_MS,
+        block: suspend () -> T
+    ): TabFetch<T>? {
+        val work = async(Dispatchers.IO) { block() }
+        val fetched: TabFetch<T>? = withTimeoutOrNull(timeoutMs) { TabFetch(work.await()) }
+        if (fetched == null) work.cancel()
+        return fetched
+    }
+
+    /** Süre sınırlı sekme çağrısının sarmalayıcısı (null değerli sonuçları ayırt etmek için). */
+    private class TabFetch<T>(val value: T)
+
+    /** Önceki kaydın sekme yüklemelerini iptal eder; eski veri yeni kaydın state'ine yazılamaz. */
+    private fun cancelTabLoads() {
+        tabJobs.values.forEach { it.cancel() }
+        tabJobs.clear()
+        tabRequestKeys.clear()
     }
 
     fun deleteMangaMapping(mediaId: Int) {

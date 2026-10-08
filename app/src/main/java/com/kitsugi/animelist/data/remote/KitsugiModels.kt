@@ -182,7 +182,10 @@ data class KitsugiCharacter(
     val role: String,
     val imageUrl: String?,
     val voiceActors: List<KitsugiVoiceActor> = emptyList(),
-    val source: String = "jikan"
+    val source: String = "jikan",
+    // Canlı çekim (animasyon olmayan) dizi/film karakterleri: detay sayfası
+    // AniList/MAL/Kitsu araması yerine doğrudan TMDB/Simkl verisiyle açılır.
+    val isRealMediaRole: Boolean = false
 )
 
 data class KitsugiCharacterMediaAppearance(

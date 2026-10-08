@@ -24,6 +24,13 @@ object KitsugiIdResolver {
     private const val TAG = "KitsugiIdResolver"
 
     /**
+     * Shikimori ID → MAL ID eşleme önbelleği. Değer 0 ise "eşleme yok" (negatif önbellek):
+     * ARM ve Shikimori API'sine aynı ID için tekrar tekrar sorulmaz.
+     */
+    private val shikimoriMalIdCache = java.util.concurrent.ConcurrentHashMap<Int, Int>()
+    private const val SHIKIMORI_MAL_UNRESOLVED = 0
+
+    /**
      * Resolves both IMDb ID and Kitsu ID in a single ARM API call.
      * Falls back to TMDB for the IMDb ID if ARM doesn't have one.
      */
@@ -189,18 +196,65 @@ object KitsugiIdResolver {
      * MAL ID'si çözülmesi gerekir. Shikimori detayındaki myanimelist_id önbellekte
      * yoksa bu ARM dönüşümü kullanılır.
      */
+    /**
+     * Shikimori ID → MAL ID eşlemesi.
+     *
+     * ÖNEMLİ: Shikimori ID'si MAL ID'si DEĞİLDİR. Bu eşleme artık üç kademeli ve
+     * önbellekli çözülür; bulunamazsa `null` döner (eskiden çağıranlar Shikimori
+     * ID'sini MAL ID yerine kullanıp alakasız yapımların verisini çekiyordu):
+     *  1. Shikimori detay önbelleğindeki `myanimelist_id` (varsa hiç ağa çıkılmaz),
+     *  2. ARM haritası (`source=shikimori`),
+     *  3. doğrudan Shikimori REST yanıtındaki `myanimelist_id` (ARM'de harita yoksa).
+     */
     fun resolveMalIdFromShikimori(shikimoriId: Int?): Int? {
         if (shikimoriId == null || shikimoriId <= 0) return null
-        val malId = fetchArmJson("shikimori", shikimoriId)?.let {
-            val v = it.optInt("myanimelist", -1)
-            if (v > 0) v else null
+
+        // 0. Bellek içi önbellek — her sekmede tekrar tekrar ağa çıkılmasın.
+        shikimoriMalIdCache[shikimoriId]?.let { cached ->
+            return if (cached > 0) cached else null
         }
+
+        // 1. Detay önbelleği (myanimelist_id zaten biliniyorsa)
+        val fromDetailCache = DetailCache.getMediaDetail("shikimori", shikimoriId)?.realMalId?.takeIf { it > 0 }
+        if (fromDetailCache != null) {
+            shikimoriMalIdCache[shikimoriId] = fromDetailCache
+            Log.d(TAG, "Shikimori $shikimoriId → MAL $fromDetailCache (detay önbelleği)")
+            return fromDetailCache
+        }
+
+        // 2. Shikimori'nin KENDİ yanıtındaki `myanimelist_id` (yetkili kaynak; tek istek).
+        var malId = fetchMalIdFromShikimoriApi(shikimoriId)
+
+        // 3. Shikimori yanıt vermezse/alan boşsa ARM haritası.
+        if (malId == null) {
+            malId = fetchArmJson("shikimori", shikimoriId)?.let {
+                val v = it.optInt("myanimelist", -1)
+                if (v > 0) v else null
+            }
+        }
+
+        shikimoriMalIdCache[shikimoriId] = malId ?: SHIKIMORI_MAL_UNRESOLVED
         if (malId != null) {
-            Log.d(TAG, "Shikimori $shikimoriId → MAL $malId (ARM)")
+            Log.d(TAG, "Shikimori $shikimoriId → MAL $malId")
         } else {
-            Log.w(TAG, "MAL ID çözülmedi için Shikimori $shikimoriId (ARM haritası yok)")
+            Log.w(TAG, "Shikimori $shikimoriId için MAL eşlemesi bulunamadı (ARM + Shikimori API)")
         }
         return malId
+    }
+
+    /** Shikimori REST yanıtındaki `myanimelist_id` alanını okur (anime → manga sırasıyla). */
+    private fun fetchMalIdFromShikimoriApi(shikimoriId: Int): Int? {
+        for (endpoint in listOf("animes", "mangas")) {
+            val result = runCatching {
+                val url = URL("https://shikimori.io/api/$endpoint/$shikimoriId")
+                val response = KitsugiApiBase.executeGetRequest(url) ?: return@runCatching null
+                val json = JSONObject(response)
+                val v = json.optInt("myanimelist_id", -1)
+                if (v > 0) v else null
+            }.getOrNull()
+            if (result != null) return result
+        }
+        return null
     }
 
     /** Fetches the raw ARM JSON for a given source+id pair. Returns null on failure or missing id. */

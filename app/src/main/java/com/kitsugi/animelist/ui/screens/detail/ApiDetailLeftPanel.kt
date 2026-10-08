@@ -188,7 +188,6 @@ fun ApiDetailLeftPanel(
                         )
                     },
                     modifier = Modifier
-                        .fillMaxWidth()
                         .focusRequester(leftPanelFocusRequester)
                         .focusProperties { right = tabBarFocusRequester }
                 )

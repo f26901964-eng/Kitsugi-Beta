@@ -155,6 +155,23 @@ class KitsugiDetailClient {
 
                 "simkl" -> KitsugiSimklDetailClient.fetchSimklDetailDirect(externalId, mediaType)?.synopsis
 
+                "shikimori" -> {
+                    // Shikimori detayı özet taşır (Türkçeye çevrilir). Özet yoksa gerçek
+                    // MAL ID'si çözülüp MAL/Jikan özeti denenir — Shikimori ID'si MAL
+                    // ID'si yerine kullanılmaz.
+                    val shiki = KitsugiShikimoriClient.fetchDetail(externalId, mediaType)
+                    val shikiSynopsis = shiki?.synopsis?.takeIf { it.isNotBlank() }
+                    if (shikiSynopsis != null) {
+                        shikiSynopsis
+                    } else {
+                        val malId = shiki?.realMalId?.takeIf { it > 0 }
+                            ?: KitsugiIdResolver.resolveMalIdFromShikimori(externalId)
+                        if (malId != null && malId > 0) {
+                            KitsugiMalDetailClient.fetchSynopsis(malId = malId, mediaType = mediaType)
+                        } else null
+                    }
+                }
+
                 else -> null
             }
         }

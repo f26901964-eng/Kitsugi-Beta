@@ -3,12 +3,13 @@ package com.kitsugi.animelist.data.remote
 import android.util.Log
 import com.kitsugi.animelist.KitsugiApplication
 import com.kitsugi.animelist.model.MediaType
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.SupervisorJob
 import org.json.JSONObject
 import java.net.URL
 import com.kitsugi.animelist.utils.*
@@ -20,6 +21,24 @@ class KitsugiCharacterClient {
 
         /** Kitsu listesi VA'sızken MAL/AniList'ten VA eklemek için bekleme sınırı. */
         private const val KITSU_VA_MERGE_TIMEOUT_MS = 8_000L
+
+        /** Shikimori listesinde VA eksiği varsa MAL/AniList yedeği için bekleme sınırı. */
+        private const val SHIKIMORI_VA_MERGE_TIMEOUT_MS = 8_000L
+
+        /** Karakter görselleri için yapım düzeyinde denenecek en fazla başlık adayı. */
+        private const val MAX_ANILIST_TITLE_LOOKUPS = 4
+
+        /** Görseli boş kalan karakterler için yapılacak en fazla AniList ad araması. */
+        private const val MAX_ANILIST_CHAR_IMAGE_LOOKUPS = 8
+
+        /** Karakter adı aramaları için toplam süre bütçesi — sekme bunu beklemez. */
+        private const val ANILIST_CHAR_IMAGE_FALLBACK_BUDGET_MS = 6_000L
+
+        /** İsim eşleştirmede "aynı kişi mi" ayrımını bozan sıfatlar. */
+        private val ANI_CHAR_NAME_MODIFIERS = setOf(
+            "former", "self", "child", "young", "older", "future", "past",
+            "baby", "shadow", "clone", "alter", "dark", "fake"
+        )
     }
 
     /**
@@ -45,24 +64,47 @@ class KitsugiCharacterClient {
 
             when (srcLower) {
                 "shikimori" -> {
+                    // 1) Shikimori kendi karakter + seiyuu listesini verir: tek istek.
                     val shikiChars = KitsugiShikimoriClient.fetchCharacters(mediaType, externalId)
-                    // NOT: externalId burada Shikimori ID'sidir — MAL ID'si olarak KULLANILMAZ.
-                    // Gerçek MAL ID'si detay önbelleğinden (myanimelist_id) ya da ARM'den çözülür.
+
+                    // 2) Seslendirmen eksiği yoksa MAL/AniList birleştirmesi HİÇ yapılmaz.
+                    //    Eskiden her seferinde ARM + Jikan/AniList zinciri bekleniyordu ve
+                    //    sekme bu yüzden onlarca saniye skeleton'da kalıyordu.
+                    val needsVaMerge = shikiChars.isNotEmpty() && shikiChars.any { it.voiceActors.isEmpty() }
+                    if (!needsVaMerge || mediaType == MediaType.Manga) {
+                        return@withContext shikiChars
+                    }
+
+                    // 3) NOT: externalId burada Shikimori ID'sidir — MAL ID'si olarak KULLANILMAZ.
+                    //    Gerçek MAL ID'si detay önbelleğinden (myanimelist_id) ya da ARM/Shikimori
+                    //    API zincirinden çözülür.
                     val malId = realMalId?.takeIf { it > 0 }
                         ?: DetailCache.getMediaDetail("shikimori", externalId)?.realMalId
                         ?: KitsugiIdResolver.resolveMalIdFromShikimori(externalId)
-                    if (malId != null && shikiChars.isNotEmpty() && mediaType != MediaType.Manga) {
-                        val refChars = runCatching {
+                    if (malId == null || malId <= 0) {
+                        return@withContext shikiChars
+                    }
+
+                    // 4) Yedek liste AYRI kapsamda başlatılır ve süreyle sınırlanır; yavaşsa
+                    //    Shikimori listesi VA'sız hâliyle hemen gösterilir.
+                    val refDeferred = vaMergeScope.async {
+                        runCatching {
                             fetchCharacters("jikan", malId, mediaType, malId, tmdbId, title)
                         }.getOrNull()?.takeIf { it.isNotEmpty() }
                             ?: runCatching {
                                 fetchCharacters("anilist", malId, mediaType, malId, tmdbId, title)
                             }.getOrNull()
-                        if (!refChars.isNullOrEmpty()) {
-                            return@withContext mergeVoiceActorsIntoCharacters(shikiChars, refChars)
-                        }
                     }
-                    return@withContext shikiChars
+                    val refChars = withTimeoutOrNull(SHIKIMORI_VA_MERGE_TIMEOUT_MS) { refDeferred.await() }
+                        ?: run {
+                            refDeferred.cancel()
+                            emptyList<KitsugiCharacter>()
+                        }
+                    if (refChars.isEmpty()) {
+                        shikiChars
+                    } else {
+                        mergeVoiceActorsIntoCharacters(shikiChars, refChars)
+                    }
                 }
                 "simkl" -> {
                     val simklDetail = DetailCache.getMediaDetail("simkl", externalId)
@@ -79,9 +121,17 @@ class KitsugiCharacterClient {
                     }
                     if (resolvedTmdb != null && resolvedTmdb > 0) {
                         val isMovie = mediaType == MediaType.Movie
+                        val isRealMedia = simklDetail?.type == MediaType.TvShow || simklDetail?.type == MediaType.Movie ||
+                                          mediaType == MediaType.TvShow || (mediaType == MediaType.Movie && malId == null)
                         val (tmdbChars, _) = TmdbApiClient().fetchCredits(resolvedTmdb, isMovie)
-                        val animeTitle = title ?: simklDetail?.title ?: simklDetail?.titleEnglish ?: simklDetail?.titleJapanese
-                        if (tmdbChars.isNotEmpty()) return@withContext enrichCharactersWithAnimeImages(tmdbChars, animeTitle, malId)
+                        val titleCandidates = buildTitleCandidates(title, simklDetail)
+                        if (tmdbChars.isNotEmpty()) {
+                            return@withContext if (isRealMedia) {
+                                tmdbChars.map { it.copy(isRealMediaRole = true) }
+                            } else {
+                                enrichCharactersWithAnimeImages(tmdbChars, titleCandidates, malId)
+                            }
+                        }
                     }
                     emptyList()
                 }
@@ -90,15 +140,19 @@ class KitsugiCharacterClient {
                     val effectiveTmdbId = tmdbId ?: externalId
                     if (effectiveTmdbId > 0) {
                         val isMovie = mediaType == MediaType.Movie
+                        val isRealMedia = mediaType == MediaType.TvShow || (mediaType == MediaType.Movie && realMalId == null)
                         val (tmdbChars, _) = TmdbApiClient().fetchCredits(effectiveTmdbId, isMovie)
                         val mediaDetail = DetailCache.getMediaDetail("tmdb", effectiveTmdbId)
-                        val animeTitle = title
-                            ?: mediaDetail?.title
-                            ?: mediaDetail?.titleEnglish
-                            ?: mediaDetail?.titleJapanese
+                        // Başlık adayları: Türkçe başlık AniList'te bulunmaz; romaji/İngilizce/
+                        // Japonca başlıklar sırayla denenir (bkz. enrichCharactersWithAnimeImages).
+                        val titleCandidates = buildTitleCandidates(title, mediaDetail)
                         val effectiveMalId = realMalId ?: mediaDetail?.realMalId
                         if (tmdbChars.isNotEmpty()) {
-                            enrichCharactersWithAnimeImages(tmdbChars, animeTitle, effectiveMalId)
+                            if (isRealMedia) {
+                                tmdbChars.map { it.copy(isRealMediaRole = true) }
+                            } else {
+                                enrichCharactersWithAnimeImages(tmdbChars, titleCandidates, effectiveMalId)
+                            }
                         } else {
                             tmdbChars
                         }
@@ -371,7 +425,13 @@ class KitsugiCharacterClient {
     suspend fun fetchCharacterDetail(
         source: String,
         characterId: Int,
-        name: String? = null
+        name: String? = null,
+        /**
+         * Arayüzden gelen (kartta/tab'da gösterilmiş) görsel. Kaynak veride görsel yoksa
+         * karakter detay sayfası boş kalmasın diye son çare olarak kullanılır.
+         */
+        fallbackImageUrl: String? = null,
+        isRealMediaRole: Boolean = false
     ): KitsugiCharacterDetail? {
         return withContext(Dispatchers.IO) {
             if (characterId <= 0) return@withContext null
@@ -678,31 +738,52 @@ class KitsugiCharacterClient {
                     }.getOrNull()
                 }
                 "tmdb" -> {
+                    if (isRealMediaRole) {
+                        val personDetail = TmdbApiClient().fetchPersonCharacterDetail(characterId)
+                        return@withContext if (personDetail != null && personDetail.imageUrl.isNullOrBlank() && !fallbackImageUrl.isNullOrBlank()) {
+                            personDetail.copy(imageUrl = fallbackImageUrl, source = "tmdb")
+                        } else personDetail
+                    }
+
                     // Kurgusal/anime karakteri ise (name parametresi varsa) seslendirmen biyografisi yerine
                     // AniList veya Jikan üzerinden gerçek karakter profilini yükle
                     val cleanCharName = name?.replace(Regex("\\s*\\((?:voice|uncredited|uncredited voice|child)\\)", RegexOption.IGNORE_CASE), "")?.trim()
                     if (!cleanCharName.isNullOrBlank()) {
                         val aniDetail = fetchAniListCharacterByName(cleanCharName)
                         if (aniDetail != null) {
-                            return@withContext aniDetail
+                            // Kaynakta görsel yoksa arayüzden gelen görseli tamamla.
+                            return@withContext if (aniDetail.imageUrl.isNullOrBlank() && !fallbackImageUrl.isNullOrBlank()) {
+                                aniDetail.copy(imageUrl = fallbackImageUrl)
+                            } else aniDetail
                         }
                         val jikanDetail = runCatching {
                             val jikanSearch = JikanApiClient().searchMalCharacters(cleanCharName, page = 1)
                             val firstMalId = jikanSearch.firstOrNull()?.malId
                             if (firstMalId != null && firstMalId > 0) {
-                                fetchCharacterDetail("jikan", firstMalId, cleanCharName)
+                                fetchCharacterDetail("jikan", firstMalId, cleanCharName, fallbackImageUrl)
                             } else null
                         }.getOrNull()
                         if (jikanDetail != null) {
-                            return@withContext jikanDetail
+                            return@withContext if (jikanDetail.imageUrl.isNullOrBlank() && !fallbackImageUrl.isNullOrBlank()) {
+                                jikanDetail.copy(imageUrl = fallbackImageUrl)
+                            } else jikanDetail
                         }
                     }
 
-                    // Anime/kurgusal karakter harici kaynaklarda bulunamazsa (veya özel isimli ise)
-                    // Seslendirmenin biyografisini doğrudan karakter yapmak yerine, karakteri koruyup seslendirmeni voiceActor olarak iliştir
+                    // TMDB credits listesinde "karakter" kaydı, kaydın arkasındaki GERÇEK kişiyi
+                    // (oyuncu/seiyuu) taşır. Eski davranış bu ayrımı kaybediyordu:
+                    //  - görsel HER durumda null'lanıyordu → karakter sayfası resimsiz açılıyordu
+                    //    (kullanıcı şikâyeti: hayali karakterler ve gerçek kişiler dâhil),
+                    //  - gerçek kişi kaydı ile kurgusal karakter kaydı aynı biçimde dönüyordu.
                     val personDetail = TmdbApiClient().fetchPersonCharacterDetail(characterId)
                     if (personDetail != null) {
+                        // Son çare görsel sırası: karttan gelen görsel → kişinin TMDB fotoğrafı.
+                        val resolvedImage = fallbackImageUrl?.takeIf { it.isNotBlank() }
+                            ?: personDetail.imageUrl
+
                         if (!cleanCharName.isNullOrBlank()) {
+                            // KURGUSAL KARAKTER: kimlik karakter adıyla korunur, oyuncu/seiyuu
+                            // seslendirmen olarak iliştirilir. Görsel boş bırakılmaz.
                             val va = KitsugiVoiceActor(
                                 id = characterId,
                                 name = personDetail.name,
@@ -714,18 +795,23 @@ class KitsugiCharacterClient {
                                 id = characterId,
                                 name = cleanCharName,
                                 nativeName = null,
-                                alternativeNames = emptyList(),
-                                imageUrl = null,
-                                gender = personDetail.gender,
+                                alternativeNames = personDetail.alternativeNames,
+                                imageUrl = resolvedImage,
+                                gender = null,
                                 age = null,
                                 birthday = null,
                                 bloodType = null,
-                                biography = "Bu kurgusal karakter için ek biyografi bilgisi bulunmuyor.",
+                                biography = personDetail.biography
+                                    ?: "Bu kurgusal karakter için ek biyografi bilgisi bulunmuyor.",
                                 voiceActors = listOf(va),
-                                mediaAppearances = personDetail.mediaAppearances
+                                mediaAppearances = personDetail.mediaAppearances,
+                                source = "tmdb"
                             )
                         } else {
-                            personDetail
+                            // GERÇEK KİŞİ: sayfa kişinin kendi profili; görsel/biyografi ondan gelir.
+                            if (personDetail.imageUrl.isNullOrBlank() && !fallbackImageUrl.isNullOrBlank()) {
+                                personDetail.copy(imageUrl = fallbackImageUrl, source = "tmdb")
+                            } else personDetail
                         }
                     } else null
                 }
@@ -981,83 +1067,42 @@ class KitsugiCharacterClient {
 
     private suspend fun enrichCharactersWithAnimeImages(
         characters: List<KitsugiCharacter>,
-        title: String?,
+        titleCandidates: List<String>,
         realMalId: Int?
     ): List<KitsugiCharacter> {
         if (characters.isEmpty()) return characters
-        val cleanTitle = title?.replace(Regex("\\s*\\(.*?\\)"), "")?.trim()
-        if (cleanTitle.isNullOrBlank() && (realMalId == null || realMalId <= 0)) {
+        // Başlık adayları: TMDB kaynaklı içerikte başlık Türkçeleştirilmiş olabildiği için
+        // tek başlıkla arama sık sık boş dönüyor ve karakter görselleri hiç dolmuyordu.
+        val cleanTitles = titleCandidates
+            .map { it.replace(Regex("\\s*\\(.*?\\)"), "").trim() }
+            .filter { it.isNotBlank() }
+            .distinct()
+            .take(MAX_ANILIST_TITLE_LOOKUPS)
+        if (cleanTitles.isEmpty() && (realMalId == null || realMalId <= 0)) {
             return characters
         }
 
         return runCatching {
-            val query = """
-                query (${'$'}idMal: Int, ${'$'}search: String) {
-                    Media(idMal: ${'$'}idMal, search: ${'$'}search, type: ANIME) {
-                        characters(perPage: 50, sort: [ROLE, RELEVANCE]) {
-                            edges {
-                                role
-                                node {
-                                    id
-                                    name {
-                                        full
-                                        native
-                                        alternative
-                                    }
-                                    image {
-                                        large
-                                        medium
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            """.trimIndent()
-
-            val variables = JSONObject()
-            if (realMalId != null && realMalId > 0) {
-                variables.put("idMal", realMalId)
-            } else if (!cleanTitle.isNullOrBlank()) {
-                variables.put("search", cleanTitle)
+            // Aday sorgular: önce MAL ID'si (kesin), sonra başlık aramaları. Karakter
+            // adlarıyla eşleşme üreten İLK aday kullanılır — yanlış yapımın karakterleriyle
+            // görsel doldurmamak için eşleşme şartı aranır.
+            val lookups = buildList {
+                if (realMalId != null && realMalId > 0) add(JSONObject().put("idMal", realMalId))
+                cleanTitles.forEach { add(JSONObject().put("search", it)) }
             }
 
-            val response = KitsugiApiBase.executeAniListQuery(query, variables)
-            val aniChars = mutableListOf<AniCharInfo>()
-
-            if (response != null) {
-                val root = JSONObject(response)
-                val edges = root.optJSONObject("data")
-                    ?.optJSONObject("Media")
-                    ?.optJSONObject("characters")
-                    ?.optJSONArray("edges")
-
-                if (edges != null) {
-                    for (i in 0 until edges.length()) {
-                        val edge = edges.optJSONObject(i) ?: continue
-                        val node = edge.optJSONObject("node") ?: continue
-                        val nameObj = node.optJSONObject("name") ?: continue
-                        val full = nameObj.optString("full", "")
-                        val native = nameObj.optNullableString("native")
-                        val altArray = nameObj.optJSONArray("alternative")
-                        val alternatives = mutableListOf<String>()
-                        if (altArray != null) {
-                            for (j in 0 until altArray.length()) {
-                                val alt = altArray.optString(j)
-                                if (alt.isNotBlank()) alternatives.add(alt)
-                            }
-                        }
-                        val imageObj = node.optJSONObject("image")
-                        val img = imageObj?.optNullableString("large")
-                            ?: imageObj?.optNullableString("medium")
-
-                        val id = node.optInt("id", 0)
-                        if (full.isNotBlank() && !img.isNullOrBlank()) {
-                            aniChars.add(AniCharInfo(id, full, native, alternatives, img))
-                        }
-                    }
+            var aniChars: List<AniCharInfo> = emptyList()
+            var firstNonEmpty: List<AniCharInfo> = emptyList()
+            for (variables in lookups) {
+                val list = runCatching { fetchAniListMediaCharacters(variables) }.getOrNull().orEmpty()
+                if (list.isEmpty()) continue
+                if (firstNonEmpty.isEmpty()) firstNonEmpty = list
+                if (characters.any { char -> matchAniListCharacter(char.name, list) != null }) {
+                    aniChars = list
+                    break
                 }
             }
+            if (aniChars.isEmpty()) aniChars = firstNonEmpty
 
             fun norm(s: String) = s.lowercase()
                 .replace(Regex("\\s*\\((?:voice|uncredited|uncredited voice|child)\\)", RegexOption.IGNORE_CASE), "")
@@ -1073,7 +1118,7 @@ class KitsugiCharacterClient {
 
             val modifiers = setOf("former", "self", "child", "young", "older", "future", "past", "baby", "shadow", "clone", "alter", "dark", "fake")
 
-            characters.map { char ->
+            val fromAnime = characters.map { char ->
                 val cleanName = char.name
                     .replace(Regex("\\s*\\((?:voice|uncredited|uncredited voice|child)\\)", RegexOption.IGNORE_CASE), "")
                     .trim()
@@ -1086,8 +1131,9 @@ class KitsugiCharacterClient {
 
                 val targetNorm = norm(cleanName)
                 if (targetNorm.length < 2) {
-                    val finalImg = if (isActorImage) null else char.imageUrl
-                    return@map char.copy(name = cleanName, imageUrl = finalImg)
+                    // Eşleşme aranamayacak kadar kısa ad: mevcut görsel (gerçek kişi
+                    // kadrosunda oyuncu fotoğrafı) korunur — eskiden null'lanıyordu.
+                    return@map char.copy(name = cleanName)
                 }
 
                 val targetTokens = getTokens(cleanName)
@@ -1171,13 +1217,305 @@ class KitsugiCharacterClient {
                     )
                 }
 
-                val finalImg = if (isActorImage) null else char.imageUrl
-                char.copy(name = cleanName, imageUrl = finalImg)
+                // Eşleşme yok: MEVCUT görsel korunur. Gerçek kişi (live-action) kadrosunda
+                // karakter görseli yerine oyuncu fotoğrafı gösterilir; eskiden bu görsel
+                // null'lanıyor ve kartlarda yalnızca baş harfler kalıyordu.
+                char.copy(name = cleanName)
+            }
+            if (fromAnime.none { it.imageUrl.isNullOrBlank() }) {
+                fromAnime
+            } else {
+                // Anime düzeyindeki eşleşme görsel getirmediyse karakter ADIYLA AniList
+                // araması yapılır (sınırlı sayıda ve süre bütçesiyle).
+                enrichMissingImagesFromCharacterSearch(fromAnime, realMalId)
             }
         }.getOrElse { e ->
             Log.e(TAG, "AniList character image enrichment error: ${e.message}", e)
             characters
         }
+    }
+
+    /**
+     * AniList araması için başlık adayları: ekrandaki başlık + detaydaki tüm başlık
+     * varyantları (romaji/İngilizce/Japonca/eşanlamlılar). TMDB kaynaklı içerikte gösterilen
+     * başlık Türkçeleştirilmiş olabildiği için tek başlıkla arama sık sık boş dönüyor ve
+     * karakter görselleri hiç dolmuyordu.
+     */
+    private fun buildTitleCandidates(title: String?, detail: KitsugiMediaDetail?): List<String> {
+        val candidates = mutableListOf<String?>()
+        candidates.add(title)
+        detail?.let { d ->
+            candidates.add(d.title)
+            candidates.add(d.titleRomaji)
+            candidates.add(d.titleEnglish)
+            candidates.add(d.titleJapanese)
+            candidates.add(d.titleNative)
+            d.synonyms.forEach { candidates.add(it) }
+        }
+        return candidates
+            .mapNotNull { it?.trim() }
+            .filter { it.isNotEmpty() }
+            .distinct()
+    }
+
+    /** AniList `Media(idMal|search).characters` sorgusunu çalıştırıp karakterleri döner. */
+    private suspend fun fetchAniListMediaCharacters(variables: JSONObject): List<AniCharInfo> {
+        val query = """
+            query (${'$'}idMal: Int, ${'$'}search: String) {
+                Media(idMal: ${'$'}idMal, search: ${'$'}search, type: ANIME) {
+                    characters(perPage: 50, sort: [ROLE, RELEVANCE]) {
+                        edges {
+                            role
+                            node {
+                                id
+                                name {
+                                    full
+                                    native
+                                    alternative
+                                }
+                                image {
+                                    large
+                                    medium
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        """.trimIndent()
+
+        val response = KitsugiApiBase.executeAniListQuery(query, variables) ?: return emptyList()
+        val edges = runCatching {
+            JSONObject(response).optJSONObject("data")
+                ?.optJSONObject("Media")
+                ?.optJSONObject("characters")
+                ?.optJSONArray("edges")
+        }.getOrNull() ?: return emptyList()
+
+        val result = mutableListOf<AniCharInfo>()
+        for (i in 0 until edges.length()) {
+            val edge = edges.optJSONObject(i) ?: continue
+            val node = edge.optJSONObject("node") ?: continue
+            val nameObj = node.optJSONObject("name") ?: continue
+            val full = nameObj.optString("full", "")
+            val native = nameObj.optNullableString("native")
+            val altArray = nameObj.optJSONArray("alternative")
+            val alternatives = mutableListOf<String>()
+            if (altArray != null) {
+                for (j in 0 until altArray.length()) {
+                    val alt = altArray.optString(j)
+                    if (alt.isNotBlank()) alternatives.add(alt)
+                }
+            }
+            val imageObj = node.optJSONObject("image")
+            val img = imageObj?.optNullableString("large")
+                ?: imageObj?.optNullableString("medium")
+            val id = node.optInt("id", 0)
+            if (full.isNotBlank() && !img.isNullOrBlank()) {
+                result.add(AniCharInfo(id, full, native, alternatives, img))
+            }
+        }
+        return result
+    }
+
+    /**
+     * Bir karakter adını AniList karakter listesiyle eşler (birebir → token seti →
+     * altküme → alternatif isim sırası). Eşleşme yoksa null.
+     */
+    private fun matchAniListCharacter(
+        rawName: String,
+        aniChars: List<AniCharInfo>
+    ): AniCharInfo? {
+        if (aniChars.isEmpty()) return null
+
+        fun norm(s: String) = s.lowercase()
+            .replace(Regex("\\s*\\((?:voice|uncredited|uncredited voice|child)\\)", RegexOption.IGNORE_CASE), "")
+            .replace("ou", "o").replace("oo", "o").replace("oh", "o").replace("uu", "u")
+            .replace(Regex("[^a-z0-9]"), "")
+
+        fun getTokens(s: String): List<String> = s.lowercase()
+            .replace(Regex("\\s*\\((?:voice|uncredited|uncredited voice|child)\\)", RegexOption.IGNORE_CASE), "")
+            .replace("'", "")
+            .replace("’", "")
+            .split(Regex("[^a-z0-9]+"))
+            .filter { it.isNotBlank() }
+
+        val cleanName = rawName
+            .replace(Regex("\\s*\\((?:voice|uncredited|uncredited voice|child)\\)", RegexOption.IGNORE_CASE), "")
+            .trim()
+        val targetNorm = norm(cleanName)
+        if (targetNorm.length < 2) return null
+
+        val targetTokens = getTokens(cleanName)
+        val targetMods = targetTokens.filter { it in ANI_CHAR_NAME_MODIFIERS }.toSet()
+
+        // 1. Birebir tam eşleşme (tam ad veya alternatif isimler)
+        aniChars.firstOrNull { ani ->
+            val aniMods = getTokens(ani.full).filter { it in ANI_CHAR_NAME_MODIFIERS }.toSet()
+            if (targetMods != aniMods) return@firstOrNull false
+            norm(ani.full) == targetNorm || ani.alternatives.any { norm(it) == targetNorm }
+        }?.let { return it }
+
+        // 2. Token seti eşleşmesi (Japonca/Batı isim sırası tersliği)
+        aniChars.firstOrNull { ani ->
+            val aniTokens = getTokens(ani.full)
+            val aniMods = aniTokens.filter { it in ANI_CHAR_NAME_MODIFIERS }.toSet()
+            if (targetMods != aniMods) return@firstOrNull false
+            aniTokens.toSet() == targetTokens.toSet()
+        }?.let { return it }
+
+        // 3. İsim altkümesi eşleşmesi — ayırt edici ilk/öz isim paylaşılmalıdır.
+        aniChars.firstOrNull { ani ->
+            val aniTokens = getTokens(ani.full)
+            val aniMods = aniTokens.filter { it in ANI_CHAR_NAME_MODIFIERS }.toSet()
+            if (targetMods != aniMods) return@firstOrNull false
+            if (aniTokens.isEmpty() || targetTokens.isEmpty()) return@firstOrNull false
+            val sharesGivenName = (aniTokens.first() in targetTokens) || (targetTokens.first() in aniTokens)
+            if (!sharesGivenName) return@firstOrNull false
+            val intersection = aniTokens.toSet().intersect(targetTokens.toSet())
+            val union = aniTokens.toSet().union(targetTokens.toSet())
+            if (union.isEmpty()) return@firstOrNull false
+            intersection.size.toDouble() / union.size.toDouble() >= 0.5
+        }?.let { return it }
+
+        // 4. Alternatif isim (takma ad) eşleşmesi
+        return aniChars.firstOrNull { ani ->
+            val aniTokens = getTokens(ani.full)
+            val aniMods = aniTokens.filter { it in ANI_CHAR_NAME_MODIFIERS }.toSet()
+            if (targetMods != aniMods) return@firstOrNull false
+            ani.alternatives.any { alt ->
+                norm(alt) == targetNorm || getTokens(alt).toSet() == targetTokens.toSet()
+            }
+        }
+    }
+
+    /**
+     * Görseli boş kalan karakterler için AniList KARAKTER araması.
+     *
+     * Yapım düzeyindeki sorgu (MAL ID'si/başlık) tutmadığında ya da ad eşleşmediğinde
+     * karakter kartları baş harfe düşüyordu. Bu adım yalnızca:
+     *  - görseli boş, adı en az 3 karakter olan karakterler için,
+     *  - en fazla [MAX_ANILIST_CHAR_IMAGE_LOOKUPS] kayıt için,
+     *  - toplam [ANILIST_CHAR_IMAGE_FALLBACK_BUDGET_MS] bütçesiyle
+     * çalışır; sonuç gelmezse liste olduğu gibi kalır (sekme beklemez).
+     */
+    private suspend fun enrichMissingImagesFromCharacterSearch(
+        characters: List<KitsugiCharacter>,
+        realMalId: Int?
+    ): List<KitsugiCharacter> {
+        val targets = characters
+            .filter { it.imageUrl.isNullOrBlank() && it.name.trim().length >= 3 }
+            .take(MAX_ANILIST_CHAR_IMAGE_LOOKUPS)
+        if (targets.isEmpty()) return characters
+
+        val resolved = HashMap<Int, AniCharInfo>()
+        runCatching {
+            withTimeoutOrNull(ANILIST_CHAR_IMAGE_FALLBACK_BUDGET_MS) {
+                coroutineScope {
+                    for (char in targets) {
+                        val info = runCatching {
+                            searchAniListCharacterByName(char.name, realMalId)
+                        }.getOrNull()
+                        if (info != null) resolved[char.id] = info
+                    }
+                }
+            }
+        }
+        if (resolved.isEmpty()) return characters
+
+        return characters.map { char ->
+            val info = resolved[char.id] ?: return@map char
+            char.copy(
+                id = if (info.id > 0) info.id else char.id,
+                imageUrl = info.imageUrl,
+                source = if (info.id > 0) "anilist" else char.source
+            )
+        }
+    }
+
+    /**
+     * AniList `Page.characters(search:)` ile karakter arar; bulunan karakterin yer aldığı
+     * yapımlar [realMalId] ile (varsa) doğrulanır, böylece aynı adlı farklı karakterlerin
+     * görseli yanlış karta takılmaz.
+     */
+    private suspend fun searchAniListCharacterByName(name: String, realMalId: Int?): AniCharInfo? {
+        val query = """
+            query (${'$'}search: String) {
+                Page(perPage: 6) {
+                    characters(search: ${'$'}search, sort: [ROLE, RELEVANCE]) {
+                        id
+                        name {
+                            full
+                            native
+                            alternative
+                        }
+                        image {
+                            large
+                            medium
+                        }
+                        media(perPage: 8, sort: [POPULARITY_DESC]) {
+                            nodes {
+                                id
+                                idMal
+                                type
+                            }
+                        }
+                    }
+                }
+            }
+        """.trimIndent()
+
+        val variables = JSONObject().put("search", name.trim())
+        val response = KitsugiApiBase.executeAniListQuery(query, variables) ?: return null
+        val nodes = runCatching {
+            JSONObject(response).optJSONObject("data")
+                ?.optJSONObject("Page")
+                ?.optJSONArray("characters")
+        }.getOrNull() ?: return null
+
+        for (i in 0 until nodes.length()) {
+            val node = nodes.optJSONObject(i) ?: continue
+            val nameObj = node.optJSONObject("name") ?: continue
+            val full = nameObj.optString("full", "")
+            if (full.isBlank()) continue
+            val altArray = nameObj.optJSONArray("alternative")
+            val alternatives = mutableListOf<String>()
+            if (altArray != null) {
+                for (j in 0 until altArray.length()) {
+                    val alt = altArray.optString(j)
+                    if (alt.isNotBlank()) alternatives.add(alt)
+                }
+            }
+            val imageObj = node.optJSONObject("image")
+            val img = imageObj?.optNullableString("large")
+                ?: imageObj?.optNullableString("medium")
+            if (img.isNullOrBlank()) continue
+
+            val info = AniCharInfo(node.optInt("id", 0), full, nameObj.optNullableString("native"), alternatives, img)
+
+            // Ad eşleşmesi ZORUNLU: AniList araması alakasız karakterler döndürebilir.
+            if (matchAniListCharacter(name, listOf(info)) == null) continue
+
+            // Doğrulama: karakterin yer aldığı yapımlardan biri hedef yapım mı?
+            val mediaNodes = node.optJSONObject("media")?.optJSONArray("nodes")
+            if (realMalId != null && realMalId > 0 && mediaNodes != null) {
+                var matchesTarget = false
+                var hasIdMal = false
+                for (m in 0 until mediaNodes.length()) {
+                    val media = mediaNodes.optJSONObject(m) ?: continue
+                    val idMal = media.optInt("idMal", 0)
+                    if (idMal > 0) hasIdMal = true
+                    if (idMal == realMalId) {
+                        matchesTarget = true
+                        break
+                    }
+                }
+                // idMal bilgisi olan yapımlar var ama hedefle uyuşmuyorsa bu karakteri atla.
+                if (!matchesTarget && hasIdMal) continue
+            }
+            return info
+        }
+        return null
     }
 
     private fun mergeVoiceActorsIntoCharacters(

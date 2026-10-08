@@ -864,7 +864,7 @@ fun AppRoot(
                     navState.mangaSourceHealthOpen        -> AppStateKey.MangaSourceHealth(depth = currentDepth)
                     activeStudio != null         -> AppStateKey.StudioDetail(activeStudio.first, activeStudio.second, depth = currentDepth, name = (activeScreen as? DetailScreen.StudioDetail)?.name, imageUrl = (activeScreen as? DetailScreen.StudioDetail)?.imageUrl)
                     activeStaff != null          -> AppStateKey.StaffDetail(activeStaff.first, activeStaff.second, depth = currentDepth, name = (activeScreen as? DetailScreen.StaffDetail)?.name, imageUrl = (activeScreen as? DetailScreen.StaffDetail)?.imageUrl)
-                    activeCharacter != null      -> AppStateKey.CharacterDetail(activeCharacter.first, activeCharacter.second, depth = currentDepth, name = (activeScreen as? DetailScreen.CharacterDetail)?.name, imageUrl = (activeScreen as? DetailScreen.CharacterDetail)?.imageUrl)
+                    activeCharacter != null      -> AppStateKey.CharacterDetail(activeCharacter.first, activeCharacter.second, depth = currentDepth, name = (activeScreen as? DetailScreen.CharacterDetail)?.name, imageUrl = (activeScreen as? DetailScreen.CharacterDetail)?.imageUrl, isRealMediaRole = (activeScreen as? DetailScreen.CharacterDetail)?.isRealMediaRole ?: false)
                     activeApiResult != null      -> AppStateKey.ApiResultDetail(activeApiResult, depth = currentDepth)
                     activeDetailEntry != null    -> AppStateKey.MediaDetail(activeDetailEntry.id, depth = currentDepth)
                     activeFullScreenGrid != null ->

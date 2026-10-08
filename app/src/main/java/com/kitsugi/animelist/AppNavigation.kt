@@ -12,7 +12,7 @@ import com.kitsugi.animelist.ui.screens.search.SearchSourceEngine
 sealed interface DetailScreen {
     data class MediaDetail(val entryId: Int) : DetailScreen
     data class ApiResultDetail(val result: JikanSearchResult) : DetailScreen
-    data class CharacterDetail(val characterId: Int, val source: String, val name: String? = null, val imageUrl: String? = null) : DetailScreen
+    data class CharacterDetail(val characterId: Int, val source: String, val name: String? = null, val imageUrl: String? = null, val isRealMediaRole: Boolean = false) : DetailScreen
     data class StaffDetail(val staffId: Int, val source: String, val name: String? = null, val imageUrl: String? = null) : DetailScreen
     data class StudioDetail(val studioId: Int, val source: String, val name: String? = null, val imageUrl: String? = null) : DetailScreen
     data class AiringCalendar(val preferredSource: String? = null) : DetailScreen
@@ -38,7 +38,7 @@ sealed interface AppStateKey {
     }
     data class StudioDetail(val studioId: Int, val source: String, override val depth: Int, val name: String? = null, val imageUrl: String? = null) : AppStateKey
     data class StaffDetail(val staffId: Int, val source: String, override val depth: Int, val name: String? = null, val imageUrl: String? = null) : AppStateKey
-    data class CharacterDetail(val characterId: Int, val source: String, override val depth: Int, val name: String? = null, val imageUrl: String? = null) : AppStateKey
+    data class CharacterDetail(val characterId: Int, val source: String, override val depth: Int, val name: String? = null, val imageUrl: String? = null, val isRealMediaRole: Boolean = false) : AppStateKey
     data class ApiResultDetail(val result: JikanSearchResult, override val depth: Int) : AppStateKey
     data class MediaDetail(val entryId: Int, override val depth: Int) : AppStateKey
     data class FullScreenGrid(val state: FullScreenMediaGridState, override val depth: Int) : AppStateKey

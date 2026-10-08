@@ -143,6 +143,7 @@ fun AppRootDetailPages(
                 CharacterDetailPage(
                     characterId = key.characterId,
                     source = key.source,
+                    isRealMediaRole = key.isRealMediaRole,
                     onBackClick = { navState.popDetailStack() },
                     onStaffClick = { staffId, staffSource, staffName, staffImageUrl ->
                         navState.navigateToDetail(DetailScreen.StaffDetail(staffId, staffSource, staffName, staffImageUrl))
@@ -217,7 +218,7 @@ fun AppRootDetailPages(
                         }
                     },
                     onCharacterClick = { char ->
-                        navState.navigateToDetail(DetailScreen.CharacterDetail(char.id, char.source, char.name, char.imageUrl))
+                        navState.navigateToDetail(DetailScreen.CharacterDetail(char.id, char.source, char.name, char.imageUrl, isRealMediaRole = char.isRealMediaRole))
                     },
                     onStaffClick = { staffId, staffSource, staffName, staffImageUrl ->
                         navState.navigateToDetail(DetailScreen.StaffDetail(staffId, staffSource, staffName, staffImageUrl))
@@ -353,7 +354,7 @@ fun AppRootDetailPages(
                             }
                         },
                         onCharacterClick = { char ->
-                            navState.navigateToDetail(DetailScreen.CharacterDetail(char.id, char.source, char.name, char.imageUrl))
+                            navState.navigateToDetail(DetailScreen.CharacterDetail(char.id, char.source, char.name, char.imageUrl, isRealMediaRole = char.isRealMediaRole))
                         },
                         onStaffClick = { staffId, staffSource, staffName, staffImageUrl ->
                             navState.navigateToDetail(DetailScreen.StaffDetail(staffId, staffSource, staffName, staffImageUrl))

@@ -122,11 +122,48 @@ class KitsugiMediaRelationsClient {
 
                     emptyList()
                 }
+                "shikimori" -> {
+                    // 1) Shikimori'nin KENDİ `related` ucu: MAL/ARM eşlemesi gerektirmez,
+                    //    tek istek sürer ve sayfa açılır açılmaz dolar.
+                    val native = runCatching {
+                        KitsugiShikimoriClient.fetchRelatedRelations(externalId, mediaType)
+                    }.getOrNull().orEmpty()
+                    if (native.isNotEmpty()) return@withContext native
+
+                    // 2) Yedek: gerçek MAL ID'si çözülüp Jikan (MAL) ilişkileri kullanılır.
+                    //    MAL eşlemesi yoksa AniList (ARM ile çözülen AniList ID) denenir.
+                    val malId = resolveMalIdForShikimori(externalId, realMalId)
+                    if (malId != null && malId > 0) {
+                        val list = fetchRelationsFromJikan(malId, if (mediaType == MediaType.Manga) MediaType.Manga else MediaType.Anime)
+                        if (list.isNotEmpty()) return@withContext list
+                    }
+                    val aniListStableId = resolveAniListStableIdForShikimori(malId)
+                    if (aniListStableId != null) fetchRelationsFromAniList(aniListStableId, mediaType) else emptyList()
+                }
                 "jikan", "mal" -> fetchRelationsFromJikan(externalId, mediaType)
                 "anilist"      -> fetchRelationsFromAniList(externalId, mediaType)
                 else           -> emptyList()
             }
         }
+    }
+
+    /**
+     * Shikimori kayıtları için MAL ID'sini çözer (detay → ARM → Shikimori API zinciri).
+     * Çözülemezse null döner — Shikimori ID'si ASLA MAL ID yerine kullanılmaz.
+     */
+    private fun resolveMalIdForShikimori(shikimoriId: Int, realMalId: Int?): Int? {
+        realMalId?.takeIf { it > 0 }?.let { return it }
+        DetailCache.getMediaDetail("shikimori", shikimoriId)?.realMalId?.takeIf { it > 0 }?.let { return it }
+        return KitsugiIdResolver.resolveMalIdFromShikimori(shikimoriId)
+    }
+
+    /** Shikimori kaydı için AniList "stableId"si (100_000_000 + aniListId); yoksa null. */
+    private suspend fun resolveAniListStableIdForShikimori(malId: Int?): Int? {
+        val resolved = runCatching {
+            KitsugiIdResolver.resolveIds(malId = malId, aniListId = null, tmdbId = null)
+        }.getOrNull() ?: return null
+        val aniListId = resolved.aniListId ?: return null
+        return if (aniListId > 0) 100_000_000 + aniListId else null
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -376,6 +413,25 @@ class KitsugiMediaRelationsClient {
                     }
 
                     emptyList()
+                }
+                "shikimori" -> {
+                    // 1) Shikimori'nin KENDİ `similar` ucu: MAL/ARM eşlemesi gerektirmez.
+                    val native = runCatching {
+                        KitsugiShikimoriClient.fetchSimilarRecommendations(externalId, mediaType)
+                    }.getOrNull().orEmpty()
+                    if (native.isNotEmpty()) return@withContext native
+
+                    // 2) Yedek: gerçek MAL ID'si çözülür (Shikimori ID'si MAL ID değildir).
+                    val malId = resolveMalIdForShikimori(externalId, realMalId)
+                    if (malId != null && malId > 0) {
+                        val list = fetchRecommendationsFromJikan(
+                            malId,
+                            if (mediaType == MediaType.Manga) MediaType.Manga else MediaType.Anime
+                        )
+                        if (list.isNotEmpty()) return@withContext list
+                    }
+                    val aniListStableId = resolveAniListStableIdForShikimori(malId)
+                    if (aniListStableId != null) fetchRecommendationsFromAniList(aniListStableId, mediaType) else emptyList()
                 }
                 "anilist"      -> fetchRecommendationsFromAniList(externalId, mediaType)
                 else           -> emptyList()
