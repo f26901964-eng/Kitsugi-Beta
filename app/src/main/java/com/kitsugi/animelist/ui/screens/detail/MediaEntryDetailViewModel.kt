@@ -134,7 +134,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             }
         }
 
-        val stableId = entry.malId ?: 0
+        val stableId = cacheIdentityOf(entry)
         if (forceRefresh) {
             currentFetchKey = null
             DetailCache.removeMediaDetail(entry.source, stableId)
@@ -158,8 +158,8 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
         _pageResetTrigger.value += 1 // Signal UI to scroll back to first tab
 
         // Reset states
-        val cachedDetail = DetailCache.getMediaDetail(entry.source, entry.malId ?: 0)
-        val cachedSynopsisTranslation = DetailCache.getTranslation("synopsis", entry.source, entry.malId ?: 0)
+        val cachedDetail = DetailCache.getMediaDetail(entry.source, stableId)
+        val cachedSynopsisTranslation = DetailCache.getTranslation("synopsis", entry.source, stableId)
 
         _detailState.value = cachedDetail
         _detailLoading.value = cachedDetail == null
@@ -179,7 +179,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
         _galleryLoading.value = true
 
         // Reset tab states to either cached values or Loading
-        val malId = entry.malId ?: 0
+        val malId = stableId
         val cachedCharacters = DetailCache.getMediaCharacters(entry.source, malId)
         if (cachedCharacters != null && cachedCharacters.isEmpty()) {
             DetailCache.removeMediaCharacters(entry.source, malId)
@@ -278,12 +278,35 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
 
     }
 
+    /**
+     * Kitsu kayıtları için bellek-içi önbellek (DetailCache) anahtarının kanonik kimliği.
+     * Eski kayıtlarda `malId` gerçek MAL ID taşıyabildiğinden, anahtarı çözülen stableId
+     * üzerinden kurmak yanlış yapımın önbelleğe yazılmasını engeller.
+     */
+    private var canonicalKitsuIdForEntry: Pair<Int, Int>? = null
+
+    private fun cacheIdentityOf(entry: MediaEntry): Int {
+        val raw = entry.malId ?: entry.id
+        if (!entry.source.equals("kitsu", ignoreCase = true)) return raw
+        if (com.kitsugi.animelist.data.remote.KitsuIdNamespace.isStableId(raw)) return raw
+        canonicalKitsuIdForEntry?.let { (entryId, canonical) -> if (entryId == entry.id) return canonical }
+        // Çözülememiş Kitsu kimliği: önbelleği kayıt satırının kendi anahtarına bağla —
+        // böylece hiçbir zaman başka bir yapımın verisini okumayız.
+        return -entry.id
+    }
+
     private suspend fun fetchDetail(entry: MediaEntry) {
         val effectiveExternalId = when (entry.source.lowercase()) {
             "simkl" -> entry.simklId?.takeIf { it > 0 } ?: (if (entry.id > 0) entry.id else (entry.malId ?: 0))
             else -> entry.malId ?: entry.id
+            // NOT (Kitsu): kimlik alanı her zaman 300M aralığındaki stableId olmalıdır. Eski
+            // kayıtlarda bu alan gerçek MAL ID taşıyabiliyor; KitsugiDetailClient kimliği
+            // kanonikleştirir (eşleme önbelleği → Kitsu mappings → sıkı başlık araması).
         }
-        val stableId = effectiveExternalId
+        val stableId = cacheIdentityOf(entry)
+        if (entry.source.equals("kitsu", ignoreCase = true)) {
+            com.kitsugi.animelist.data.remote.KitsuIdNamespace.stableIdOrNull(effectiveExternalId)?.let { canonicalKitsuIdForEntry = entry.id to it }
+        }
         val cached = DetailCache.getMediaDetail(entry.source, stableId)
         val detail = if (cached != null) {
             cached
@@ -309,6 +332,9 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                                 val m = entry.malId
                                 if (m != null && m > 0 && m < 100_000_000) m else null
                             }
+                            // Kitsu: 300M aralığı Kitsu stableId'sidir; yalnızca aralık altındaki
+                            // (eski sürümlerin yazdığı) değer gerçek MAL ID sayılır.
+                            "kitsu" -> com.kitsugi.animelist.data.remote.KitsuIdNamespace.realMalIdOf(entry.malId)
                             else -> entry.malId
                         },
                         title = entry.title
@@ -408,9 +434,9 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                     }
                 }
                 entry.source.equals("kitsu", ignoreCase = true) -> {
-                    val stableId = entry.malId ?: 0
-                    val kitsuId = stableId - 300_000_000
-                    if (kitsuId > 0) {
+                    // Yalnızca 300M aralığındaki kanonik Kitsu stableId'si çözülür
+                    val kitsuId = com.kitsugi.animelist.data.remote.KitsuIdNamespace.rawIdFromStable(entry.malId)
+                    if (kitsuId != null && kitsuId > 0) {
                         foundRatings = KitsugiEpisodeRatingsRepository.getEpisodeRatingsByKitsuId(kitsuId)
                         resolvedId = KitsugiEpisodeRatingsRepository.getResolvedTmdbIdForKitsu(kitsuId)
                     }
@@ -451,8 +477,14 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                     }
                 }
                 entry.source.equals("kitsu", ignoreCase = true) -> {
-                    val kitsuId = if (stableId >= 300_000_000) stableId - 300_000_000 else stableId
-                    KitsugiEpisodeRatingsRepository.getLogoUrlByKitsuId(kitsuId)
+                    val kitsuId = com.kitsugi.animelist.data.remote.KitsuIdNamespace.rawIdFromStable(stableId)
+                    if (kitsuId != null && kitsuId > 0) {
+                        KitsugiEpisodeRatingsRepository.getLogoUrlByKitsuId(kitsuId)
+                    } else {
+                        // Kimlik Kitsu aralığında değil (eski kayıt) → MAL ID olarak dene
+                        val malId = com.kitsugi.animelist.data.remote.KitsuIdNamespace.realMalIdOf(stableId)
+                        if (malId != null && malId > 0) KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(malId) else null
+                    }
                 }
                 entry.source.equals("simkl", ignoreCase = true) -> {
                     val detail = _detailState.value
@@ -469,7 +501,8 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                 entry.source.equals("shikimori", ignoreCase = true) -> {
                     if (stableId > 0) KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId) else null
                 }
-                stableId > 0 && !entry.source.equals("simkl", ignoreCase = true) -> {
+                stableId > 0 && !entry.source.equals("simkl", ignoreCase = true) &&
+                    !entry.source.equals("kitsu", ignoreCase = true) -> {
                     KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId)
                 }
                 else -> null
@@ -499,9 +532,13 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                     }
                 }
                 entry.source.equals("kitsu", ignoreCase = true) -> {
-                    val stableId = entry.malId ?: 0
-                    val kitsuId = stableId - 300_000_000
-                    KitsugiEpisodeRatingsRepository.resolveTmdbIdFromKitsu(kitsuId)
+                    val kitsuId = com.kitsugi.animelist.data.remote.KitsuIdNamespace.rawIdFromStable(entry.malId)
+                    if (kitsuId != null && kitsuId > 0) {
+                        KitsugiEpisodeRatingsRepository.resolveTmdbIdFromKitsu(kitsuId)
+                    } else {
+                        val malId = com.kitsugi.animelist.data.remote.KitsuIdNamespace.realMalIdOf(entry.malId)
+                        if (malId != null && malId > 0) KitsugiEpisodeRatingsRepository.resolveTmdbIdFromMal(malId) else null
+                    }
                 }
                 else -> entry.malId?.let { KitsugiEpisodeRatingsRepository.resolveTmdbIdFromMal(it) }
             }
@@ -514,7 +551,10 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                 val m = entry.malId ?: 0
                 if (m > 0 && m < 100_000_000) m else _detailState.value?.realMalId
             }
-            entry.source.equals("kitsu", ignoreCase = true) -> null
+            // Kitsu kayıtlarında malId ya Kitsu stableId'dir (MAL ID değildir) ya da eski
+            // kayıtlarda gerçek MAL ID. İkisini ayırıp yalnızca güvenli olanı kullanıyoruz.
+            entry.source.equals("kitsu", ignoreCase = true) ->
+                if (com.kitsugi.animelist.data.remote.KitsuIdNamespace.isStableId(entry.malId)) _detailState.value?.realMalId else com.kitsugi.animelist.data.remote.KitsuIdNamespace.realMalIdOf(entry.malId)
             !entry.source.equals("tmdb", ignoreCase = true) -> entry.malId
             else -> null
         }
@@ -523,8 +563,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             if (m >= 100_000_000) m - 100_000_000 else null
         } else null
         val fallbackKitsuId: Int? = if (entry.source.equals("kitsu", ignoreCase = true)) {
-            val m = entry.malId ?: 0
-            if (m >= 300_000_000) m - 300_000_000 else null
+            com.kitsugi.animelist.data.remote.KitsuIdNamespace.rawIdFromStable(entry.malId)
         } else null
 
         val (fanartItems, tmdbItems, shikimoriItems) = coroutineScope {
@@ -738,7 +777,8 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             "simkl" -> entry.simklId?.takeIf { it > 0 } ?: (if (entry.id > 0) entry.id else (entry.malId ?: 0))
             else -> entry.malId ?: entry.id
         }
-        val malId = effectiveExternalId
+        // Önbellek anahtarı Kitsu'da kanonik kimlik üzerinden kurulur (bkz. cacheIdentityOf)
+        val malId = cacheIdentityOf(entry)
         val effectiveRealMalId = realMalId
             ?: _detailState.value?.realMalId
             ?: (if (entry.source.equals("mal", true) || entry.source.equals("jikan", true) || entry.source.equals("shikimori", true)) entry.malId else null)

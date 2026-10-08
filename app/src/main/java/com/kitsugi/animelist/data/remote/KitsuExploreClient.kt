@@ -336,12 +336,14 @@ object KitsuExploreClient {
      * stableId = kitsuId + 300_000_000 veya doğrudan kitsuId
      */
     suspend fun fetchDetailByStableId(stableId: Int, mediaType: MediaType): KitsugiMediaDetail? {
-        val kitsuNumericId = if (stableId >= KITSU_ID_OFFSET) {
-            stableId - KITSU_ID_OFFSET
-        } else {
-            stableId
+        // stableId her zaman offset'lü Kitsu aralığında (300M..399M) olmalı. Aralığın altındaki
+        // değerler MAL/AniList kimlik alanlarıyla çakışır; "ham Kitsu ID" diye yorumlanırsa
+        // alakasız bir yapımın verisi döner (Listem → Kitsu ayrıntı sayfası hatasının kökü).
+        val kitsuNumericId = KitsuIdNamespace.rawIdFromStable(stableId)
+        if (kitsuNumericId == null || kitsuNumericId <= 0) {
+            Log.w(TAG, "fetchDetailByStableId: $stableId Kitsu kimlik aralığında değil, reddedildi")
+            return null
         }
-        if (kitsuNumericId <= 0) return null
         return when (mediaType) {
             MediaType.Anime, MediaType.Movie, MediaType.TvShow ->
                 KitsuClient.fetchAnimeDetail(kitsuNumericId.toString())

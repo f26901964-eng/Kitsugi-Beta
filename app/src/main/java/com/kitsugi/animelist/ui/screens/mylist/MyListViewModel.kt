@@ -51,6 +51,9 @@ class MyListViewModel(application: Application) : AndroidViewModel(application) 
             val dao = KitsugiDatabase.getDatabase(context).mediaEntryDao()
             repairBrokenSimklSubtitles(dao)
             repairMisclassifiedSources(dao)
+            // Kitsu kimlik alanını kanonik stableId uzayına taşı (eski sürüm import'ları
+            // bu alana gerçek MAL ID yazıyordu → ayrıntı sayfası alakasız veri açıyordu)
+            KitsuIdentityMigration.runIfNeeded(context, dao)
         }
     }
 

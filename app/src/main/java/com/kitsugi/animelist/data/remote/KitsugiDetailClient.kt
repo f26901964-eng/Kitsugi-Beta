@@ -19,6 +19,7 @@ class KitsugiDetailClient {
             val malIdForResolve: Int? = when (source.lowercase()) {
                 "simkl" -> providedRealMalId
                 "jikan", "mal" -> externalId
+                "kitsu" -> providedRealMalId
                 "anilist" -> {
                     // stableId < 100_000_000 → AniList arama sonucu MAL ID ile döndü
                     // Bu durumda MAL ID olarak çözümle, AniList ID olarak değil
@@ -31,7 +32,9 @@ class KitsugiDetailClient {
                 externalId - 100_000_000
             } else null
             val kitsuIdForResolve: Int? = if (source.lowercase() == "kitsu") {
-                externalId - 300_000_000
+                // Yalnızca gerçek Kitsu stableId aralığındaki değer çözülür; altındaki
+                // değerler MAL ID'dir ve kitsuId olarak asla yorumlanmamalıdır.
+                KitsuIdNamespace.rawIdFromStable(externalId)
             } else null
             
             KitsugiIdResolver.resolveIds(
@@ -159,23 +162,52 @@ class KitsugiDetailClient {
         return withContext(Dispatchers.IO) {
             if (externalId == null || externalId <= 0) return@withContext null
 
+            val context = com.kitsugi.animelist.KitsugiApplication.getInstance()?.applicationContext
+
+            // Kitsu kayıtlarında kimlik alanı her zaman offset'li stableId taşımak zorunda.
+            // Eski sürümlerde (veya MAL eşleşmesi bilinen kayıtlarda) bu alana gerçek MAL ID
+            // yazıldığı için 35658 gibi bir MAL ID'si "Kitsu ID" diye yorumlanıp ALAKASIZ bir
+            // yapımın ayrıntısı açılıyordu. Kimliği önce Kitsu uzayına kanonikleştiriyoruz.
+            val isKitsuSource = source.lowercase() == "kitsu"
+            val kitsuCanonicalId = if (isKitsuSource) {
+                KitsuIdNamespace.stableIdOrNull(externalId)
+                    ?: KitsuIdNamespace.resolveCanonicalStableId(
+                        context = context,
+                        storedId = null, // çözümleme realMalId/başlık üzerinden yapılsın
+                        realMalId = realMalId ?: KitsuIdNamespace.realMalIdOf(externalId),
+                        isAnime = KitsuIdNamespace.isAnimeType(mediaType),
+                        title = title
+                    )
+            } else {
+                externalId
+            }
+
             val mediaTypeStr = mediaType.name.lowercase()
-            val cacheKey = "${source.lowercase()}_${mediaTypeStr}_$externalId"
-            val legacyKey = if (source.lowercase() == "tmdb") {
+            val keyId = if (isKitsuSource) kitsuCanonicalId ?: externalId else externalId
+            // Kimliği çözülememiş Kitsu kayıtlarında önbellek KULLANMIYORUZ: alan adı
+            // (source + id) tek başına kimliği garanti etmiyor ve yanlış anahtar, yanlış veriyi
+            // besleyebiliyor (gerçek hayatta görülen "alakasız veri" hatasının ikinci bacağı).
+            val cacheKey = if (isKitsuSource && kitsuCanonicalId == null) {
+                null
+            } else {
+                "${source.lowercase()}_${mediaTypeStr}_$keyId"
+            }
+            val legacyKey = if (cacheKey == null) {
+                null
+            } else if (source.lowercase() == "tmdb") {
                 val typeStr = if (mediaType == MediaType.Movie) "movie" else "tv"
                 "tmdb_${typeStr}_$externalId"
             } else {
-                "${source.lowercase()}_$externalId"
+                "${source.lowercase()}_$keyId"
             }
-            val context = com.kitsugi.animelist.KitsugiApplication.getInstance()?.applicationContext
             val db = context?.let { com.kitsugi.animelist.data.local.KitsugiDatabase.getDatabase(it) }
             val gson = com.google.gson.Gson()
 
             // 1. Fresh Cache Check (Room - 24 hours threshold)
-            if (db != null) {
+            if (db != null && !cacheKey.isNullOrBlank()) {
                 try {
-                    val cached = db.persistentDetailCacheDao().getDetail(cacheKey) 
-                        ?: db.persistentDetailCacheDao().getDetail(legacyKey)
+                    val cached = db.persistentDetailCacheDao().getDetail(cacheKey)
+                        ?: legacyKey?.let { db.persistentDetailCacheDao().getDetail(it) }
                     if (cached != null) {
                         val isFresh = (System.currentTimeMillis() - cached.cachedAtMs) < 24 * 60 * 60 * 1000L
                         if (isFresh) {
@@ -193,15 +225,21 @@ class KitsugiDetailClient {
                                     detail
                                 }
 
-                                if (!title.isNullOrBlank() && !detail.title.isNullOrBlank() && source.lowercase() == "tmdb") {
+                                if (!title.isNullOrBlank() && !detail.title.isNullOrBlank() &&
+                                    (source.lowercase() == "tmdb" || isKitsuSource)
+                                ) {
+                                    // TMDB ve Kitsu'da önbellek anahtarı yanlış kimlikten etkilenebildiği
+                                    // için başlık doğrulaması yapıyoruz; uyuşmazsa önbelleği tamamen siliyor,
+                                    // "geçersiz kılıp bir daha denemek"le uğraşmıyoruz.
                                     val orig = title.trim().lowercase()
                                     val dTitle = detail.title?.trim()?.lowercase().orEmpty()
                                     val dEnTitle = detail.titleEnglish?.trim()?.lowercase().orEmpty()
                                     val matches = dTitle.contains(orig) || orig.contains(dTitle) || dEnTitle.contains(orig) || orig.contains(dEnTitle)
                                     if (!matches) {
-                                        android.util.Log.w("KitsugiDetailClient", "Cached TMDB detail title mismatch: expected '$title', got '${detail.title}'. Invalidating cache.")
+                                        android.util.Log.w("KitsugiDetailClient", "Cached $source detail title mismatch: expected '$title', got '${detail.title}'. Invalidating cache.")
                                         db.persistentDetailCacheDao().deleteDetail(cacheKey)
-                                        db.persistentDetailCacheDao().deleteDetail("tmdb_$externalId")
+                                        legacyKey?.let { db.persistentDetailCacheDao().deleteDetail(it) }
+                                        if (source.lowercase() == "tmdb") db.persistentDetailCacheDao().deleteDetail("tmdb_$externalId")
                                     } else {
                                         android.util.Log.d("KitsugiDetailClient", "Serving fresh detail from Room cache for $cacheKey")
                                         return@withContext cleanDetail
@@ -225,16 +263,42 @@ class KitsugiDetailClient {
                 "anilist" -> KitsugiAniListDetailClient.fetchDetail(externalId, mediaType)
                 // Kitsu keşfet fallback öğeleri: stableId = kitsuId + 300_000_000
                 "kitsu" -> {
-                    android.util.Log.d("KitsugiDetailClient", "Fetching Kitsu detail for stableId=$externalId")
-                    val kitsuDetail = KitsuExploreClient.fetchDetailByStableId(externalId, mediaType)
+                    // Kanonik (300M aralığındaki) Kitsu stableId'si olmadan asla ham ID ile
+                    // çekmeyiz — olmayan bir kimlikle çekmek alakasız bir yapımın verisini getirir.
+                    val canonicalKitsuId = kitsuCanonicalId
+                    android.util.Log.d(
+                        "KitsugiDetailClient",
+                        if (canonicalKitsuId != null) "Fetching Kitsu detail for stableId=$canonicalKitsuId"
+                        else "Kitsu identity unresolved for stored id=$externalId ('$title'); skipping ID fetch"
+                    )
+                    val rawKitsuDetail = canonicalKitsuId?.let { KitsuExploreClient.fetchDetailByStableId(it, mediaType) }
+                    // Kimlik çözülemediyse: (a) eski kayıtların malId alanında gerçek bir MAL ID
+                    // duruyorsa Jikan/MAL üzerinden çek, (b) o da yoksa sıkı başlık eşleşmeli
+                    // Kitsu araması dene. Başlığı tutmayan hiçbir sonucu kabul etmiyoruz.
+                    val fallbackDetail = if (rawKitsuDetail != null) {
+                        rawKitsuDetail
+                    } else if (mediaType == MediaType.Movie || mediaType == MediaType.TvShow) {
+                        // Film/dizi kayıtlarında malId alanı TMDB kimliği taşıyabilir; MAL ID
+                        // diye yorumlamak yanlış yapımı getirir → denemiyoruz.
+                        null
+                    } else {
+                        KitsuIdNamespace.realMalIdOf(externalId)?.let { malId ->
+                            KitsugiMalDetailClient.fetchDetail(malId, mediaType)
+                        } ?: title?.trim()?.takeIf { it.isNotBlank() }?.let { expectedTitle ->
+                            KitsuClient.fetchAnimeDetailByTitle(expectedTitle)?.takeIf { fetched ->
+                                val expected = expectedTitle.lowercase()
+                                val gotTitle = fetched.title?.trim()?.lowercase().orEmpty()
+                                val gotEnTitle = fetched.titleEnglish?.trim()?.lowercase().orEmpty()
+                                gotTitle.isNotBlank() && (gotTitle.contains(expected) || expected.contains(gotTitle) ||
+                                    gotEnTitle.isNotBlank() && (gotEnTitle.contains(expected) || expected.contains(gotEnTitle)))
+                            }
+                        }
+                    }
+                    val kitsuDetail = fallbackDetail
                     // AnimeThemes entegrasyonu: Kitsu ID'si ile tema müziklerini çek
                     if (kitsuDetail != null && mediaType != MediaType.Manga) {
-                        val kitsuNumericId = if (externalId >= KitsuExploreClient.ID_OFFSET) {
-                            externalId - KitsuExploreClient.ID_OFFSET
-                        } else {
-                            externalId
-                        }
-                        if (kitsuNumericId > 0) {
+                        val kitsuNumericId = KitsuIdNamespace.rawIdFromStable(canonicalKitsuId ?: externalId)
+                        if (kitsuNumericId != null && kitsuNumericId > 0) {
                             try {
                                 val themes = KitsugiAnimeThemesClient.fetchAnimeThemes(kitsuNumericId, "Kitsu")
                                 if (themes.first.isNotEmpty() || themes.second.isNotEmpty()) {
@@ -308,7 +372,10 @@ class KitsugiDetailClient {
             var finalDetail = detail
             
             // 3. Fallback Client Chains (Live Backups)
-            if (finalDetail == null) {
+            // Kitsu kaynaklı kayıtlarda zincir yukarıda zaten kendi güvenli denemelerini yaptı
+            // (Kitsu → MAL/Jikan → sıkı başlık araması). Buradaki başlık bazlı jenerik zincir
+            // eşleşmeyen bir yapımı geri getirebildiği için Kitsu'da ayrıca denemiyoruz.
+            if (finalDetail == null && !isKitsuSource) {
                 if (mediaType == MediaType.Movie || mediaType == MediaType.TvShow) {
                     // TMDB Fallback: TVmaze for TV Shows
                     if (mediaType == MediaType.TvShow && !title.isNullOrBlank()) {
@@ -368,6 +435,8 @@ class KitsugiDetailClient {
             val currentDetail = finalDetail
             if (currentDetail != null && mediaType != MediaType.Manga) {
                 // TMDB zenginleştirmesi için en iyi MAL ID'yi bul
+                // Kitsu'da externalId ya 300M+ aralığındaki stableId'dir ya da (legacy kayıtlar)
+                // gerçek MAL ID. İkisini birbirine karıştırmak yanlış yapımın TMDB'sini çeker.
                 val effectiveRealMalId = realMalId
                     ?: currentDetail.realMalId
                     ?: if (source.lowercase() == "anilist" && externalId < 100_000_000) externalId else null
@@ -437,6 +506,7 @@ class KitsugiDetailClient {
                         "simkl" -> realMalId ?: mergedDetail.realMalId
                         "jikan", "mal" -> externalId
                         "anilist" -> if (externalId < 100_000_000) externalId else realMalId ?: mergedDetail.realMalId
+                        "kitsu" -> realMalId ?: mergedDetail.realMalId
                         else -> null
                     }
                     val resolvedAniListId = runCatching {
@@ -453,7 +523,7 @@ class KitsugiDetailClient {
             }
 
             // 4. Stale Cache Fallback (If all network attempts returned null, check cache again even if expired)
-            if (finalDetail == null && db != null) {
+            if (finalDetail == null && db != null && !cacheKey.isNullOrBlank()) {
                 try {
                     val cached = db.persistentDetailCacheDao().getDetail(cacheKey)
                     if (cached != null) {
@@ -468,7 +538,7 @@ class KitsugiDetailClient {
             }
 
             // 5. Cache update on success
-            if (finalDetail != null && db != null) {
+            if (finalDetail != null && db != null && !cacheKey.isNullOrBlank()) {
                 try {
                     val entity = com.kitsugi.animelist.data.local.PersistentDetailCacheEntity(
                         cacheKey = cacheKey,
