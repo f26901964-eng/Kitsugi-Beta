@@ -392,6 +392,7 @@ class KitsugiCharacterClient {
                     }
                 }
 
+                "bangumi", "bgm" -> KitsugiBangumiCreditsClient.fetchSubjectCharacters(externalId)
                 else -> {
                     // Bilinmeyen source — Jikan ile dene (MAL ID varsa)
                     val jikanId = realMalId?.takeIf { it > 0 } ?: externalId.takeIf { it > 0 && it < 100_000_000 }
@@ -896,6 +897,7 @@ class KitsugiCharacterClient {
                         null
                     }
                 }
+                "bangumi", "bgm" -> KitsugiBangumiCreditsClient.fetchCharacterDetail(characterId, name, fallbackImageUrl)
                 else -> null
             }
         }

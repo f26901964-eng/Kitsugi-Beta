@@ -997,6 +997,63 @@ object BangumiApiClient {
         }.getOrNull()
     }
 
+    /**
+     * Ham bir JSON dizisi uç noktası (`/v0/subjects/{id}/characters` gibi). Ağ veya HTTP hatasında
+     * `null` döner; çağıran taraf boş listeyle devam eder. Böylece tek bir ilişkili uç çökse bile
+     * ana detay sayfası açılır.
+     */
+    suspend fun getJsonArrayOrNull(path: String, token: String? = null): JSONArray? = withContext(Dispatchers.IO) {
+        runCatching {
+            get(path, token = token)?.let { JSONArray(it) }
+        }.getOrElse {
+            Log.w(TAG, "GET $path failed: ${it.message}")
+            null
+        }
+    }
+
+    /**
+     * `GET /v0/users/{username}/collections/-/characters/{id}` — karakter favori mi?
+     * Kayıt yoksa (404) `false`. `username` olarak token sahibi için `-` kullanılabilir.
+     */
+    suspend fun isCharacterFavourite(token: String, username: String, characterId: Int): Boolean =
+        isFavouriteEntity("characters", token, username, characterId)
+
+    /** `GET /v0/users/{username}/collections/-/persons/{id}` — kişi favori mi? */
+    suspend fun isPersonFavourite(token: String, username: String, personId: Int): Boolean =
+        isFavouriteEntity("persons", token, username, personId)
+
+    private suspend fun isFavouriteEntity(kind: String, token: String, username: String, id: Int): Boolean =
+        withContext(Dispatchers.IO) {
+            try {
+                val path = "/v0/users/${URLEncoder.encode(username, "UTF-8")}/collections/-/$kind/$id"
+                get(path, token = token) != null
+            } catch (e: BangumiApiException) {
+                if (e.isNotFound) false else throw e
+            }
+        }
+
+    /** `POST /v0/characters/{id}/collect` (favoriye ekle) veya `DELETE` (çıkar). Başarıda 204 döner. */
+    suspend fun setCharacterFavourite(token: String, characterId: Int, favourite: Boolean) {
+        setFavouriteEntity("characters", token, characterId, favourite)
+    }
+
+    /** `POST /v0/persons/{id}/collect` (favoriye ekle) veya `DELETE` (çıkar). */
+    suspend fun setPersonFavourite(token: String, personId: Int, favourite: Boolean) {
+        setFavouriteEntity("persons", token, personId, favourite)
+    }
+
+    private suspend fun setFavouriteEntity(kind: String, token: String, id: Int, favourite: Boolean) {
+        withContext(Dispatchers.IO) {
+            try {
+                send(if (favourite) "POST" else "DELETE", "/v0/$kind/$id/collect", null, token)
+            } catch (e: BangumiApiException) {
+                // Zaten favori olmayan kaydı silmek istenmiş gibi davranmak: başarı sayılır.
+                if (favourite || !e.isNotFound) throw e
+            }
+            Unit
+        }
+    }
+
     // ── Kullanıcı kütüphanesi (收藏) ─────────────────────────────────────────
 
     /**
@@ -1451,7 +1508,8 @@ object BangumiApiClient {
      * `infobox` wiki alanları `[{ "key": "别名", "value": [...] | "v": "..." }]` biçimindedir.
      * Türkçe/İngilizce başlık eşleştirmesi ve "diğer adlar" için kullanışlıdır.
      */
-    private fun parseInfobox(array: JSONArray?): Map<String, List<String>> {
+    /** Bangumi `infobox` dizisini `anahtar → değerler` haritasına çevirir (karakter/kişi detayı için). */
+    fun parseInfobox(array: JSONArray?): Map<String, List<String>> {
         if (array == null) return emptyMap()
         val result = linkedMapOf<String, MutableList<String>>()
         for (i in 0 until array.length()) {

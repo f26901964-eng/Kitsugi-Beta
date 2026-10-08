@@ -4,6 +4,8 @@ import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.kitsugi.animelist.data.auth.BangumiApiClient
+import com.kitsugi.animelist.data.auth.BangumiAuthStore
 import com.kitsugi.animelist.data.auth.ExternalAuthManager
 import com.kitsugi.animelist.data.local.TranslationManager
 import com.kitsugi.animelist.data.remote.DetailCache
@@ -178,6 +180,7 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
             DetailCache.putCharacterDetail(source, characterId, detail)
             _state.value = CharacterDetailState.Success(detail)
             _isFavourite.value = detail.isFavourite
+            if (isBangumiSource(source)) refreshBangumiFavourite(detail.id)
 
             // Build gallery from imageUrl + Jikan /pictures
             buildCharacterGallery(characterId, source, detail.imageUrl)
@@ -284,6 +287,10 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
      * Anında UI güncellemesi yapar, arka planda mutasyon çalışır.
      */
     fun toggleFavourite() {
+        if (isBangumiSource(lastSource)) {
+            toggleBangumiFavourite()
+            return
+        }
         ExternalAuthManager.getAniListToken(context) ?: return
         val currentState = _state.value as? CharacterDetailState.Success ?: return
         val detail = currentState.detail
@@ -300,6 +307,58 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
             val ok = mutationsClient.toggleFavourite("character", targetId)
             if (!ok) {
                 // rollback
+                _isFavourite.value = !newFav
+                val rolled = detail.copy(isFavourite = !newFav)
+                _state.value = CharacterDetailState.Success(rolled)
+                DetailCache.putCharacterDetail(lastSource, lastCharacterId, rolled)
+            }
+        }
+    }
+
+    private fun isBangumiSource(source: String): Boolean {
+        val key = source.trim().lowercase()
+        return key == "bangumi" || key == "bgm"
+    }
+
+    /** Bangumi karakterinde favori durumunu token sahibinin koleksiyonundan okur (bağlıysa). */
+    private fun refreshBangumiFavourite(characterId: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            if (!BangumiAuthStore.isConnected(context)) return@launch
+            val token = BangumiAuthStore.getValidToken(context) ?: return@launch
+            val username = BangumiAuthStore.getUsername(context)?.takeIf { it.isNotBlank() } ?: "-"
+            val favourite = runCatching {
+                BangumiApiClient.isCharacterFavourite(token, username, characterId)
+            }.getOrNull() ?: return@launch
+            _isFavourite.value = favourite
+            val current = (_state.value as? CharacterDetailState.Success)?.detail ?: return@launch
+            if (current.id != characterId) return@launch
+            val updated = current.copy(isFavourite = favourite)
+            _state.value = CharacterDetailState.Success(updated)
+            DetailCache.putCharacterDetail(lastSource, lastCharacterId, updated)
+        }
+    }
+
+    /**
+     * Bangumi karakter favorisi: `POST` / `DELETE /v0/characters/{id}/collect`.
+     * İyimser güncelleme yapılır; istek başarısız olursa önceki duruma dönülür.
+     */
+    private fun toggleBangumiFavourite() {
+        if (!BangumiAuthStore.isConnected(context)) return
+        val currentState = _state.value as? CharacterDetailState.Success ?: return
+        val detail = currentState.detail
+        val newFav = !_isFavourite.value
+        _isFavourite.value = newFav
+        val updated = detail.copy(isFavourite = newFav)
+        _state.value = CharacterDetailState.Success(updated)
+        DetailCache.putCharacterDetail(lastSource, lastCharacterId, updated)
+
+        viewModelScope.launch(Dispatchers.IO) {
+            val ok = runCatching {
+                val token = BangumiAuthStore.getValidToken(context) ?: return@runCatching false
+                BangumiApiClient.setCharacterFavourite(token, detail.id, newFav)
+                true
+            }.getOrDefault(false)
+            if (!ok) {
                 _isFavourite.value = !newFav
                 val rolled = detail.copy(isFavourite = !newFav)
                 _state.value = CharacterDetailState.Success(rolled)

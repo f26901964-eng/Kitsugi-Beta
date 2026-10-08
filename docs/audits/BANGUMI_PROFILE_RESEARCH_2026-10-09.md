@@ -17,7 +17,7 @@ Resmi v0 OpenAPI tanımı (`github.com/bangumi/api`, klonlandı ve incelendi) ş
 | Karakter favorileri | `GET /v0/users/{username}/collections/-/characters` | Favori karakterler — `getUserCharacterFavorites` (yeni) |
 | Kişi favorileri | `GET /v0/users/{username}/collections/-/persons` | Favori kişiler — `getUserPersonFavorites` (yeni) |
 | Konu detayı | `GET /v0/subjects/{id}` | Mevcut Bangumi detay akışı (ApiResultDetail) |
-| Karakter / kişi | `GET /v0/characters/{id}`, `GET /v0/persons/{id}` | Mevcut istemci fonksiyonları; uygulama içi ekran yok |
+| Karakter / kişi | `GET /v0/characters/{id}`, `GET /v0/persons/{id}` + ilişki uçları | Uygulama içi detay ekranı (`KitsugiBangumiCreditsClient`), bkz. "Karakter ve kişi detay sayfaları" |
 
 **Bildirim (notification) ucu yoktur.** v0 şemasında "notify", "notification", "pm", "inbox" gibi
 hiçbir yol bulunmadı. Bu nedenle bildirimler farklı bir kaynaktan gelmek zorunda.
@@ -57,7 +57,7 @@ yalnızca github.com, npm, pypi gibi hostlara erişebiliyor, bgm.tv'ye erişemiy
 | Tür ve durum filtreleri, özet, liste | Eklendi | `ui/screens/profile/BangumiProfileContent.kt` |
 | Anime / manga öğesi → uygulama içi detay | Mevcut `ApiResultDetail` (source = `bangumi`, kimlik = 500M + konu no) | `BangumiIdNamespace.stableIdFromRaw` |
 | Oyun / müzik / dizi-film öğesi → bgm.tv konu sayfası | Eklendi (uygulama içi detay yok) | `BangumiProfileContent.kt` |
-| Karakter / kişi favorisi → bgm.tv sayfası | Eklendi (uygulama içi detay yok) | `BangumiProfileContent.kt` |
+| Karakter / kişi favorisi → uygulama içi detay | Eklendi (favori ekleme/çıkarma dahil) | `BangumiProfileContent.kt` → `onFavoriteCharacterClick` / `onFavoriteStaffClick` |
 | Bildirimler | bgm.tv/notify/all uygulama içi WebView'de açılır | `KitsugiWebViewDialog` |
 
 ## Bildirimler hakkında karar
@@ -69,6 +69,29 @@ yalnızca github.com, npm, pypi gibi hostlara erişebiliyor, bgm.tv'ye erişemiy
   bgm.tv erişimiyle test edilmesi gerekir. Bu ortamdan yapılamadı.
 - Bildirim sayfasının web oturumu gerektirmesi nedeniyle OAuth token'ı tek başına yetmez.
 
+## Karakter ve kişi detay sayfaları (2026-10-09)
+
+Bangumi karakter ve kişi öğeleri artık bgm.tv yerine uygulama içi `CharacterDetailPage` /
+`StaffDetailPage` ekranlarında açılır. Kullanılan uçlar (resmî v0 OpenAPI şemasına göre):
+
+| Konu | Karar |
+|---|---|
+| Karakter detayı | `GET /v0/characters/{id}` + `/subjects` (yer aldığı konular) + `/persons` (seslendirmenler) |
+| Kişi detayı | `GET /v0/persons/{id}` + `/subjects` + `/characters` (canlandırdığı karakterler) |
+| Konu sekmeleri | `GET /v0/subjects/{id}/characters` ve `/persons` → ApiResultDetail "Karakterler" / "Ekip" sekmeleri (önceden `else` dalı nedeniyle boştu) |
+| Kimlik | Karakter ve kişi ID'leri **ham Bangumi ID'si** (arama sonuçlarıyla aynı, `source = "bangumi"`). Medya bağlantıları **stableId** (500M + konu no). |
+| Favori durumu | `GET /v0/users/{username}/collections/-/characters/{id}` (ve `persons`); 404 → favori değil. `username` yoksa `-` kullanılır (**doğrulanmadı**). |
+| Favori yazımı | `POST` / `DELETE /v0/characters/{id}/collect` (ve `persons`). İyimser güncelleme, hata olursa geri alınır. |
+| Paylaş bağlantısı | Bangumi için `bgm.tv/character/{id}` ve `bgm.tv/person/{id}` (önceden MAL bağlantısı üretiyordu). |
+| Etiketler | Karakter rolü 主角 / 配角 / 客串 → Ana / Yardımcı / Konuk Karakter. Meslek `career` enum'ları Türkçeye çevrilir. Kadro görevleri (原画, 导演 vb.) ham metin. |
+| Lisans | Kod resmî OpenAPI şemasından yeniden yazıldı. czy0729/Bangumi (MIT) ve xiaoyvyv/bangumi (GPL-3.0) kodu kopyalanmadı. |
+
+Bilinen eksikler:
+- Bangumi seslendirmenin dilini vermediği için seslendirmen satırında dil "Bilinmiyor" görünür.
+- Karakter-kişi rol kartlarında medya kapağı yok (`/persons/{id}/characters` kapak vermiyor).
+- Kadro görev etiketleri Çince/Japonca ham metin olarak gösterilir.
+- Canlı Bangumi çağrısı bu ortamdan yapılamadı; cihazda doğrulanmalı.
+
 ## Bilinen sınırlar ve doğrulanmayanlar
 
 - **Cihazda hiçbir şey test edilmedi.** Derleme ve birim testleri çalıştırılmadı (Java yok).
@@ -77,8 +100,8 @@ yalnızca github.com, npm, pypi gibi hostlara erişebiliyor, bgm.tv'ye erişemiy
   koleksiyonlarda hız sınırına dikkat edilmeli.
 - Favori uçlarının sayfalama parametresi yok; şemaya göre tek yanıtta `data` döner. Çok büyük favori
   listelerinde tek yanıt boyutu kontrol edilmeli.
-- Karakter ve kişi detayı için uygulama içi ekran yok (mevcut `CharacterDetailViewModel` Bangumi kaynağını
-  desteklemiyor, `else -> null`). Bu öğeler bgm.tv sayfasında açılıyor.
+- Karakter ve kişi detayının eksikleri (dil bilgisi, rol kartı kapakları, kadro etiketleri) için
+  "Karakter ve kişi detay sayfaları" bölümüne bakın.
 - Oyun, müzik ve dizi/film kayıtları için uygulama içi detay akışı yok.
 - Profilde "Bağlı değil" durumunda giriş diyaloğu açılır; çıkış yapıldığında önceki hesap verisi bellekten
   silinir (`BangumiProfileState` sıfırlanır).
@@ -90,6 +113,10 @@ yalnızca github.com, npm, pypi gibi hostlara erişebiliyor, bgm.tv'ye erişemiy
 3. Filtreler: tür (Anime / Manga-Kitap / Oyun / Müzik / Dizi-Film) ve durum chip'leri koleksiyonu doğru
    süzüyor mu; özet sayıları filtreyle uyumlu mu?
 4. Anime ve manga öğesine dokununca uygulama içi detay açılıyor mu?
-5. Oyun/müzik öğesi ve favori karakter/kişi bgm.tv sayfasını tarayıcıda açıyor mu?
+5. Oyun/müzik öğesi bgm.tv sayfasını tarayıcıda açıyor mu? Favori karakter/kişi uygulama içi detay sayfasını açıyor mu?
 6. "Bildirimler" penceresi açılıyor mu; giriş istiyorsa giriş sonrası sayfa görünüyor mu?
 7. Çıkış yapıp tekrar bağlanınca eski veri kalmıyor mu?
+8. Bangumi bağlıyken karakter/kişi detayındaki kalp düğmesi görünüyor mu; basınca bgm.tv hesabında favori ekleniyor/çıkarılıyor mu?
+9. Bir Bangumi anime/manga konusunun "Karakterler" ve "Ekip" sekmeleri dolu geliyor mu; karakter/kişiye dokununca uygulama içi sayfa açılıyor mu?
+10. Karakter/kişi detayındaki paylaş düğmesi `bgm.tv/character/…` ya da `bgm.tv/person/…` bağlantısı veriyor mu?
+11. Seslendirmen satırında dil "Bilinmiyor" görünmesi beklenen davranış; medya kartına dokununca ApiResultDetail açılıyor mu?

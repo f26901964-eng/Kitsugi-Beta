@@ -312,6 +312,12 @@ fun KitsugiProfileScreen(
                                     if (stableId != null) {
                                         onFavoriteMediaClick(stableId, mediaType, "bangumi", title, imageUrl)
                                     }
+                                },
+                                onCharacterClick = { charId, charName, charImageUrl ->
+                                    onFavoriteCharacterClick(charId, "bangumi", charName, charImageUrl)
+                                },
+                                onPersonClick = { personId, personName, personImageUrl ->
+                                    onFavoriteStaffClick(personId, "bangumi", personName, personImageUrl)
                                 }
                             )
                         }

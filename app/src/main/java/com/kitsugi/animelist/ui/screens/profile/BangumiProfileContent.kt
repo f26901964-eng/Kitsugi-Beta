@@ -133,6 +133,8 @@ fun BangumiProfileContent(
     state: BangumiProfileState,
     accentColor: Color,
     onOpenAnimeOrManga: (subjectId: Int, mediaType: MediaType, title: String, imageUrl: String?) -> Unit,
+    onCharacterClick: (charId: Int, name: String?, imageUrl: String?) -> Unit,
+    onPersonClick: (personId: Int, name: String?, imageUrl: String?) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val uriHandler = LocalUriHandler.current
@@ -250,7 +252,7 @@ fun BangumiProfileContent(
             item {
                 BangumiFavoriteRow(
                     favorites = state.characterFavorites,
-                    onClick = { id -> uriHandler.openUri("https://bgm.tv/character/$id") }
+                    onClick = { item -> onCharacterClick(item.id, item.name, item.imageUrl) }
                 )
             }
         }
@@ -262,7 +264,7 @@ fun BangumiProfileContent(
             item {
                 BangumiFavoriteRow(
                     favorites = state.personFavorites,
-                    onClick = { id -> uriHandler.openUri("https://bgm.tv/person/$id") }
+                    onClick = { item -> onPersonClick(item.id, item.name, item.imageUrl) }
                 )
             }
         }
@@ -561,14 +563,14 @@ private fun BangumiSectionTitle(text: String) {
 @Composable
 private fun BangumiFavoriteRow(
     favorites: List<BangumiFavoriteItem>,
-    onClick: (Int) -> Unit
+    onClick: (BangumiFavoriteItem) -> Unit
 ) {
     LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         items(favorites, key = { it.id }) { favorite ->
             Column(
                 modifier = Modifier
                     .width(84.dp)
-                    .clickable { onClick(favorite.id) },
+                    .clickable { onClick(favorite) },
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {

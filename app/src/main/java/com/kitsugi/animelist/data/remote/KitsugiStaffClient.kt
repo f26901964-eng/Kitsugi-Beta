@@ -200,6 +200,7 @@ class KitsugiStaffClient {
                     }.getOrElse { emptyList() }
                 }
 
+                "bangumi", "bgm" -> KitsugiBangumiCreditsClient.fetchSubjectStaff(externalId)
                 else -> emptyList()
             }
         }
@@ -589,6 +590,7 @@ class KitsugiStaffClient {
                         }.getOrNull()
                     } else null
                 }
+                "bangumi", "bgm" -> KitsugiBangumiCreditsClient.fetchPersonDetail(staffId, name)
                 else -> null
             }
         }

@@ -108,8 +108,8 @@ etiket/renk: `KitsugiHeroSection`, `KitsugiPlatformLogo`, `Character/StaffDetail
 
 ## 6. Bilinen kısıtlar
 
-1. Karakter/kişi sonucu tıklanınca detay sayfası AniList kimliği bekler → Bangumi karakter detay sayfası
-   henüz yok (Shikimori/Kitsu'da da aynı durum var).
+1. (2026-10-09 güncellemesi) Bangumi karakter ve kişi detayları artık uygulama içinde açılır (ham ID ile).
+   Shikimori/Kitsu için durum değişmedi.
 2. Bangumi'de stüdyo/yayıncı bazlı arama yok → filtre sheet'inde bu alanlar sunulmaz.
 3. `aniyomi://bangumi-auth` yedek şeması **kayıtlı redirect ile eşleşmediği için** artık çalışmaz
    (kayıt `kitsugi://bangumi-auth`). Diyaloğun "Alternatif Şema" düğmesi yalnız redirect alanı BOŞ
@@ -136,6 +136,8 @@ etiket/renk: `KitsugiHeroSection`, `KitsugiPlatformLogo`, `Character/StaffDetail
 
 - Profil kaynağı seçicisine **Bangumi** eklendi (profil, koleksiyon listesi, tür/durum filtreleri, favori karakter ve kişiler).
 - Bildirimler resmi API'de yok; uygulama içi WebView'de `bgm.tv/notify/all` açılıyor (bkz. araştırma notları).
-- Karakter ve kişi detayı için uygulama içi ekran henüz yok; bgm.tv sayfası açılıyor.
+- Karakter ve kişi detayı artık uygulama içinde (`KitsugiBangumiCreditsClient`). Favori ekleme/çıkarma
+  (`/collect`) ve konu "Karakterler" / "Ekip" sekmeleri Bangumi için bağlandı; paylaş bağlantısı bgm.tv'ye gidiyor.
+- Ayrıntılar ve bilinen eksikler: `docs/audits/BANGUMI_PROFILE_RESEARCH_2026-10-09.md`, "Karakter ve kişi detay sayfaları".
 - Ayrıntılı araştırma, lisans kararları ve cihaz test listesi: `docs/audits/BANGUMI_PROFILE_RESEARCH_2026-10-09.md`.
 - Derleme ve cihaz testleri bu oturumda çalıştırılmadı.

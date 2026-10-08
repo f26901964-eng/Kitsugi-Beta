@@ -147,6 +147,7 @@ object ShareUtils {
     fun buildCharacterUrl(source: String, characterId: Int): String {
         return when (source.lowercase()) {
             "anilist" -> "https://anilist.co/character/$characterId"
+            "bangumi", "bgm" -> "https://bgm.tv/character/$characterId"
             else -> "https://myanimelist.net/character/$characterId"
         }
     }
@@ -154,6 +155,7 @@ object ShareUtils {
     fun buildStaffUrl(source: String, staffId: Int): String {
         return when (source.lowercase()) {
             "anilist" -> "https://anilist.co/staff/$staffId"
+            "bangumi", "bgm" -> "https://bgm.tv/person/$staffId"
             else -> "https://myanimelist.net/people/$staffId"
         }
     }
