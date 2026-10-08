@@ -87,6 +87,7 @@ fun TvPlayerScreen(
             .focusRequester(tvRootFocus)
             .focusTarget()
     ) {
+        com.kitsugi.animelist.ui.screens.fullscreen.PlayerAccentTheme {
         KitsugiFullscreenPlayerScreen(
             videoId          = null,
             videoUrl         = videoUrl.ifBlank { null },
@@ -113,5 +114,6 @@ fun TvPlayerScreen(
             castList         = castList,
             onBack           = onBack
         )
+        }
     }
 }

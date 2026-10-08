@@ -1,4 +1,5 @@
 ﻿package com.kitsugi.animelist.ui.screens.fullscreen.controls
+import com.kitsugi.animelist.ui.screens.fullscreen.playerSurfaceColor
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.foundation.background
@@ -87,7 +88,7 @@ fun EpisodeListDialog(
         Card(
             shape = RoundedCornerShape(16.dp),
             colors = CardDefaults.cardColors(
-                containerColor = Color(0xFF16162A).copy(alpha = 0.95f),
+                containerColor = playerSurfaceColor(0.95f),
                 contentColor = Color.White
             ),
             modifier = modifier

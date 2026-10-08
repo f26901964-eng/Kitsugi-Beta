@@ -337,17 +337,18 @@ class Media3PlayerEngine(
                 // 3. Kullanıcı diğer tercih dilleri
                 // 4. Eşleşme yoksa: Devre dışı bırak (İtalyanca vb. yabancı diller ASLA seçilmez!)
                 if (!isSubtitleDisabled && textOptions.isNotEmpty()) {
+                    // Harici altyazı tespiti: ÖNCE track kimliği (setId ile verilen sub.url),
+                    // sonra birebir (büyük/küçük harf duyarsız) isim eşleşmesi.
+                    // Eskiden "contains" tabanlı eşleşme yüzünden dahili "Türkçe" parçası,
+                    // "Türkçe (addon)" adlı harici altyazıyla karıştırılıp harici sayılıyordu.
                     val isExternalTrack: (TrackOption) -> Boolean = { opt ->
                         val format = opt.group.getTrackFormat(opt.trackIndex)
-                        val lang = format.language ?: ""
                         val label = format.label ?: ""
                         val id = format.id ?: ""
-                        preparedSubtitles.any { sub ->
-                            sub.isExternal && (
-                                (id.isNotBlank() && (id == sub.url || id == "file://${sub.url}")) ||
-                                (label.isNotBlank() && (label == sub.name || label.contains(sub.name, ignoreCase = true))) ||
-                                (sub.name.isNotBlank() && sub.name.contains(label, ignoreCase = true))
-                            )
+                        val externals = preparedSubtitles.filter { it.isExternal }
+                        externals.any { sub ->
+                            (id.isNotBlank() && (id == sub.url || id == "file://${sub.url}")) ||
+                                (label.isNotBlank() && sub.name.isNotBlank() && label.equals(sub.name, ignoreCase = true))
                         }
                     }
 
@@ -738,7 +739,12 @@ class Media3PlayerEngine(
                         sub.url.contains(".ass", ignoreCase = true) || sub.url.contains(".ssa", ignoreCase = true) -> MimeTypes.TEXT_SSA
                         else -> MimeTypes.TEXT_VTT
                     }
-                    MediaItem.SubtitleConfiguration.Builder(Uri.parse(if (sub.url.startsWith("/")) "file://$sub.url" else sub.url))
+                    // NOT: "file://$sub.url" yanlış interpolasyondu (sub.toString() + ".url").
+                    // Yerel önbellek yolu için doğru şema "file://${sub.url}" olmalı.
+                    MediaItem.SubtitleConfiguration.Builder(Uri.parse(if (sub.url.startsWith("/")) "file://${sub.url}" else sub.url))
+                        // Harici altyazıyı track kimliğiyle eşleştirebilmek için benzersiz id:
+                        // isim benzerliğine (ör. "Türkçe" dahili / "Türkçe (addon)" harici) güvenmiyoruz.
+                        .setId(sub.url)
                         .setMimeType(mime)
                         .setLanguage(sub.lang)
                         .setLabel(sub.name)

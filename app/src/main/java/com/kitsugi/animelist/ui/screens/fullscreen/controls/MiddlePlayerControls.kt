@@ -130,7 +130,7 @@ fun MiddlePlayerControls(
                     MiddleControlState.Loading -> {
                         CircularProgressIndicator(
                             modifier = Modifier.size(80.dp),
-                            color = KitsugiColors.AccentBlue,
+                            color = KitsugiColors.Accent,
                             strokeWidth = 4.dp
                         )
                     }

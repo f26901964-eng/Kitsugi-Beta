@@ -101,12 +101,11 @@ class PlayerErrorRecoveryController(
             return
         }
 
-        // 2. Motor seviyesinde kurtarma: MEDIA3 → MPV → EXTERNAL
+        // 2. Motor seviyesinde kurtarma (yalnızca dahili motorlar): MEDIA3 ↔ MPV
         val currentEngine = getCurrentEngine?.invoke() ?: PlayerEngineType.MEDIA3
 
-        // Kodek hatasında aynı motorda tekrar denemek anlamsızdır: doğrudan MPV (varsa).
-        // `isMpvEnabled` geri çağrısı verilmemişse (null) MPV'nin kullanılabilir olduğu varsayılır;
-        // açıkça false verilmişse ZORLANMAZ (kullanıcı MPV'yi kapatmış olabilir).
+        // Kodek hatasında aynı motorda tekrar denemek anlamsızdır: doğrudan ikinci dahili motor MPV.
+        // MPV uygulamayla birlikte paketlidir; kullanıcı tercihinden bağımsız olarak kullanılabilir.
         val mpvUsable = isMpvEnabled?.invoke() ?: true
         if (isCodecFailure && currentEngine == PlayerEngineType.MEDIA3 && mpvUsable) {
             Log.w(TAG, "Kodek/çözücü hatası ($errorCode) — MPV motoruna geçiş zorlanıyor.")
@@ -118,11 +117,11 @@ class PlayerErrorRecoveryController(
             }
         }
 
-        val mpvEnabled = isMpvEnabled?.invoke() ?: false
+        // Motor kurtarma yalnızca dahili motorlar arasında (MEDIA3 ↔ MPV) yapılır.
         val nextEngine = engineFallback.getFallbackEngine(
             currentEngine = currentEngine,
             errorCode = errorCode,
-            mpvEnabled = mpvEnabled
+            mpvEnabled = mpvUsable
         )
 
         if (nextEngine != null) {

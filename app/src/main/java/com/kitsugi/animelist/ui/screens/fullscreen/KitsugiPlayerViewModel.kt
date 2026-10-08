@@ -1315,7 +1315,8 @@ class KitsugiPlayerViewModel(application: Application) : AndroidViewModel(applic
             onEngineSwitched(to)
         },
         getCurrentEngine = { _activeEngineType.value },
-        isMpvEnabled = { appSettings.value.playerPreference.equals("MPV", ignoreCase = true) }
+        // MPV dahili motoru paketle gelir; hata kurtarmada her zaman ikinci dahili motor olarak kullanılabilir.
+        isMpvEnabled = { true }
     )
 
     // --- Player Skip Settings (Intro/Outro Atlama) ---

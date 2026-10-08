@@ -53,8 +53,8 @@ object PlayerSubtitleUtils {
      * @param targetCode Karşılaştırılacak BCP-47 kodu (örn: "tr", "en")
      */
     fun matchesLanguageCode(rawLang: String, targetCode: String): Boolean {
-        val normalizedRaw = rawLang.trim().lowercase()
-        val normalizedTarget = targetCode.trim().lowercase()
+        val normalizedRaw = primarySubtag(rawLang)
+        val normalizedTarget = primarySubtag(targetCode)
 
         // Doğrudan eşleşme
         if (normalizedRaw == normalizedTarget) return true
@@ -223,6 +223,16 @@ object PlayerSubtitleUtils {
             }
         }
         return false
+    }
+
+    /**
+     * BCP-47 bölge/varyant etiketlerini atar: "tr-TR", "tr_TR", "TR" → "tr".
+     * Böylece bölgeli kodlar (tr-TR, tur-TUR) Türkçe olarak tanınır.
+     */
+    private fun primarySubtag(raw: String): String {
+        val trimmed = raw.trim().lowercase(java.util.Locale.ROOT)
+        val head = trimmed.split('-', '_').firstOrNull()?.trim().orEmpty()
+        return if (head.length in 2..3 && head.all { it.isLetter() }) head else trimmed
     }
 
     /** Verilen dil string'inin Türkçe olup olmadığını döner. */
