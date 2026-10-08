@@ -2,6 +2,8 @@ package com.kitsugi.animelist.data.auth
 
 import android.util.Log
 import com.kitsugi.animelist.core.network.KitsugiHttpClient
+import com.kitsugi.animelist.data.remote.KitsugiApiBase
+import com.kitsugi.animelist.data.remote.isShikimoriAdultContent
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okhttp3.FormBody
@@ -130,7 +132,10 @@ object ShikimoriApiClient {
         /** `aired_on` (anime) / `released_on` (manga) alanından yayın yılı */
         val startYear: Int? = null,
         /** Shikimori `english` dizisinin ilk öğesi (varsa); user_rates yanıtında her zaman gelmez */
-        val titleEnglish: String? = null
+        val titleEnglish: String? = null,
+        /** Shikimori rating, when included in the user-rate response. */
+        val ageRating: String? = null,
+        val isAdult: Boolean = false
     )
 
     const val DEFAULT_CLIENT_ID = "poB5DHHfiPP-DiphGJoelAnUeQ3PNkhPXwuUgXusl20"
@@ -648,6 +653,19 @@ object ShikimoriApiClient {
                                 ?.take(4)?.toIntOrNull()?.takeIf { it in 1900..2100 }
                             val englishTitle = mediaObj?.optJSONArray("english")
                                 ?.let { arr -> (0 until arr.length()).map { arr.optString(it, "") }.firstOrNull { it.isNotBlank() && it != "null" } }
+                            val ageRating = mediaObj?.optString("rating")
+                                ?.takeIf { it.isNotBlank() && it != "null" }
+                            val genres = mediaObj?.optJSONArray("genres")?.let { array ->
+                                (0 until array.length()).mapNotNull { index ->
+                                    val genre = array.opt(index)
+                                    when (genre) {
+                                        is JSONObject -> genre.optString("name").takeIf { it.isNotBlank() && it != "null" }
+                                        is String -> genre.takeIf { it.isNotBlank() && it != "null" }
+                                        else -> null
+                                    }
+                                }
+                            }.orEmpty()
+                            val isAdult = isShikimoriAdultContent(ageRating, genres)
 
                             rates.add(
                                 ShikimoriRate(
@@ -663,7 +681,9 @@ object ShikimoriApiClient {
                                     imageUrl = imgUrl,
                                     total = total,
                                     startYear = startYear,
-                                    titleEnglish = englishTitle
+                                    titleEnglish = englishTitle,
+                                    ageRating = ageRating,
+                                    isAdult = isAdult
                                 )
                             )
                         }
@@ -680,6 +700,64 @@ object ShikimoriApiClient {
         }
         rates
     }
+
+    /**
+     * User-rate responses often omit the anime/manga rating. Resolve only those unknown
+     * records in batches so list cards can correctly blur Rx/Hentai covers without one
+     * HTTP request per title. Failures are intentionally best-effort; list import remains
+     * usable and a later sync can retry the metadata lookup.
+     */
+    internal suspend fun fetchAdultMediaIds(targetType: String, ids: Collection<Int>): Set<Int> =
+        withContext(Dispatchers.IO) {
+            val endpoint = when (targetType) {
+                "Anime" -> "animes"
+                "Manga" -> "mangas"
+                else -> return@withContext emptySet()
+            }
+            val adultIds = linkedSetOf<Int>()
+            ids.asSequence().filter { it > 0 }.distinct().toList().chunked(50).forEach { batch ->
+                val idsQuery = batch.joinToString("&") { "ids%5B%5D=$it" }
+                val url = "$BASE_URL/api/$endpoint?$idsQuery&limit=${batch.size}&censored=false"
+                val request = Request.Builder()
+                    .url(url)
+                    .addHeader("User-Agent", USER_AGENT)
+                    .get()
+                    .build()
+                val body = try {
+                    KitsugiApiBase.runWithRateLimit {
+                        executeShikimori(request).use { response ->
+                            if (!response.isSuccessful) {
+                                Log.w(TAG, "fetchAdultMediaIds HTTP ${response.code} for $endpoint")
+                                null
+                            } else response.body?.string()
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "fetchAdultMediaIds failed for $endpoint: ${e.message}")
+                    null
+                } ?: return@forEach
+
+                runCatching {
+                    val array = JSONArray(body)
+                    for (index in 0 until array.length()) {
+                        val media = array.optJSONObject(index) ?: continue
+                        val id = media.optInt("id", 0)
+                        if (id <= 0) continue
+                        val rating = media.optString("rating").takeIf { it.isNotBlank() && it != "null" }
+                        val genres = media.optJSONArray("genres")?.let { genreArray ->
+                            (0 until genreArray.length()).mapNotNull { genreIndex ->
+                                genreArray.optJSONObject(genreIndex)?.optString("name")
+                                    ?.takeIf { it.isNotBlank() && it != "null" }
+                            }
+                        }.orEmpty()
+                        if (isShikimoriAdultContent(rating, genres)) adultIds += id
+                    }
+                }.onFailure { error ->
+                    Log.w(TAG, "fetchAdultMediaIds returned an unreadable payload: ${error.message}")
+                }
+            }
+            adultIds
+        }
 
     /**
      * Shikimori'de yeni bir liste kaydı oluşturur (POST).

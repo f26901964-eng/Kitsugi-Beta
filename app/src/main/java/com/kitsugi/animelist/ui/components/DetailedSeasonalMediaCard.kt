@@ -49,7 +49,8 @@ fun DetailedSeasonalMediaCard(
     alreadyInList: Boolean = false,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
-    titleLanguage: String = "ROMAJI"
+    titleLanguage: String = "ROMAJI",
+    blurAdultMedia: Boolean = false
 ) {
     val accentColor = LocalKitsugiAccent.current
     val displayTitle = result.getDisplayTitle(titleLanguage)
@@ -169,6 +170,7 @@ fun DetailedSeasonalMediaCard(
                         model = result.imageUrl,
                         contentDescription = displayTitle,
                         isAdult = result.isAdult,
+                        blurAdultMedia = blurAdultMedia,
                         modifier = Modifier.fillMaxSize(),
                         initials = displayTitle
                     )

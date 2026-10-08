@@ -60,7 +60,7 @@ object KitsuImportManager {
                         progress = entry.progress,
                         total = entry.total,
                         score = score,
-                        isAdult = false,
+                        isAdult = entry.isAdult,
                         malId = malIdToStore,
                         aniListEntryId = null,
                         source = "kitsu",

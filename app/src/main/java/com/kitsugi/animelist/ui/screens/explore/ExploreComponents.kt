@@ -188,6 +188,7 @@ fun AiringSoonHorizontalCard(
                     model = result.imageUrl,
                     contentDescription = displayTitle,
                     isAdult = result.isAdult,
+                    blurAdultMedia = blurAdultMedia,
                     modifier = Modifier.fillMaxSize(),
                     contentScale = ContentScale.Crop
                 )

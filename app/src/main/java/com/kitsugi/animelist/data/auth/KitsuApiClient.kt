@@ -2,6 +2,7 @@ package com.kitsugi.animelist.data.auth
 
 import android.util.Log
 import com.kitsugi.animelist.core.network.KitsugiHttpClient
+import com.kitsugi.animelist.data.remote.isKitsuAdultContent
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
@@ -76,7 +77,9 @@ object KitsuApiClient {
         /** Sonraki bölümün yayın zamanı (ISO-8601, Kitsu `nextRelease` alanı) */
         val nextRelease: String? = null,
         /** Kitsu `startDate` alanından yayın yılı (çapraz eşitlemede kimlik doğrulaması için). */
-        val startYear: Int? = null
+        val startYear: Int? = null,
+        /** Kitsu age rating, used to blur +18 entries in the combined list. */
+        val isAdult: Boolean = false
     )
 
     /**
@@ -245,7 +248,8 @@ object KitsuApiClient {
                     val mappingIds: List<String> = emptyList(),
                     /** Kitsu anime `nextRelease` (ISO-8601) — sonraki bölümün yayın zamanı. */
                     val nextRelease: String? = null,
-                    val startYear: Int? = null
+                    val startYear: Int? = null,
+                    val isAdult: Boolean = false
                 )
                 val mediaInfoMap = mutableMapOf<String, KitsuMediaInfo>()
                 val totalMap = mutableMapOf<String, Int?>()
@@ -293,6 +297,9 @@ object KitsuApiClient {
                     else incAttrs.optInt("chapterCount", 0).takeIf { it > 0 }
                     val startYear = incAttrs.optString("startDate", "").takeIf { it.isNotBlank() && it != "null" }
                         ?.take(4)?.toIntOrNull()?.takeIf { it in 1900..2100 }
+                    val ageRating = incAttrs.optString("ageRating", "")
+                    val ageRatingGuide = incAttrs.optString("ageRatingGuide", "")
+                    val isAdult = isKitsuAdultContent(ageRating, ageRatingGuide)
 
                     // mappings ilişkisinden bağlantılı mapping ID'lerini topla
                     val mappingRels = inc.optJSONObject("relationships")
@@ -313,7 +320,8 @@ object KitsuApiClient {
                         imageUrl = img,
                         mappingIds = mappingIds,
                         nextRelease = nextRelease,
-                        startYear = startYear
+                        startYear = startYear,
+                        isAdult = isAdult
                     )
                     totalMap[key] = total
                 }
@@ -359,7 +367,8 @@ object KitsuApiClient {
                             total = totalMap[mediaKey],
                             realMalId = realMalId,
                             nextRelease = info?.nextRelease,
-                            startYear = info?.startYear
+                            startYear = info?.startYear,
+                            isAdult = info?.isAdult ?: false
                         )
                     )
                 }

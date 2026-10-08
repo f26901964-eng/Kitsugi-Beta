@@ -229,6 +229,7 @@ fun ActivityCard(
                             model = activity.mediaImage ?: "",
                             contentDescription = "",
                             isAdult = (activity as? ProfileActivityItem.ListActivity)?.isAdult == true,
+                            blurAdultMedia = blurAdultMedia,
                             modifier = Modifier
                                 .size(45.dp, 64.dp)
                                 .clip(RoundedCornerShape(6.dp)),
@@ -407,6 +408,7 @@ fun FavoritesHorizontalSection(
                                 model = item.imageUrl,
                                 contentDescription = item.title,
                                 isAdult = item.isAdult,
+                                blurAdultMedia = blurAdultMedia,
                                 modifier = Modifier.fillMaxSize(),
                                 contentScale = ContentScale.Crop
                             )
@@ -531,6 +533,7 @@ fun FavoritesExpandedBottomSheet(
                                     model = item.imageUrl,
                                     contentDescription = item.title,
                                     isAdult = item.isAdult,
+                                    blurAdultMedia = blurAdultMedia,
                                     modifier = Modifier.fillMaxSize(),
                                     contentScale = ContentScale.Crop
                                 )

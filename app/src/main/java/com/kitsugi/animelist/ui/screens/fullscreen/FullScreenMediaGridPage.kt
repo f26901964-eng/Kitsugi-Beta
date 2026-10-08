@@ -187,7 +187,8 @@ fun FullScreenMediaGridPage(
         ExplorePlatform.SHIKIMORI -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(
             mediaType = com.kitsugi.animelist.model.MediaType.Anime, page = page, limit = 20,
             season = "${seasonalSeason.lowercase()}_$seasonalYear",
-            order = when (seasonalSort) { "SCORE_DESC" -> "ranked"; "START_DATE_DESC" -> "aired_on"; else -> "popularity" }
+            order = when (seasonalSort) { "SCORE_DESC" -> "ranked"; "START_DATE_DESC" -> "aired_on"; else -> "popularity" },
+            censored = !showAdultContent
         )
         else -> emptyList()
     }
@@ -265,15 +266,15 @@ fun FullScreenMediaGridPage(
                         else -> emptyList()
                     }
                     ExplorePlatform.SHIKIMORI -> when (categoryType) {
-                        ExploreCategoryType.TRENDING_ANIME -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.trendingAnime(limit = 20, page = np)
-                        ExploreCategoryType.MOVIE_ANIME -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.movieAnime(limit = 20, page = np)
+                        ExploreCategoryType.TRENDING_ANIME -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.trendingAnime(limit = 20, page = np, censored = !showAdultContent)
+                        ExploreCategoryType.MOVIE_ANIME -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.movieAnime(limit = 20, page = np, censored = !showAdultContent)
                         ExploreCategoryType.SEASONAL_ANIME -> fetchSeasonalPage(np)
-                        ExploreCategoryType.TRENDING_MANGA -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Manga, order = "popularity", page = np, limit = 20)
-                        ExploreCategoryType.TOP_ANIME -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Anime, order = "ranked", page = np, limit = 20)
-                        ExploreCategoryType.AIRING_ANIME -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.airingAnime(limit = 20, page = np)
-                        ExploreCategoryType.UPCOMING_ANIME -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Anime, statuses = listOf("anons"), order = "popularity", page = np, limit = 20)
-                        ExploreCategoryType.TOP_MANGA -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Manga, order = "ranked", page = np, limit = 20)
-                        ExploreCategoryType.PUBLISHING_MANGA -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Manga, statuses = listOf("ongoing"), order = "popularity", page = np, limit = 20)
+                        ExploreCategoryType.TRENDING_MANGA -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Manga, order = "popularity", page = np, limit = 20, censored = !showAdultContent)
+                        ExploreCategoryType.TOP_ANIME -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Anime, order = "ranked", page = np, limit = 20, censored = !showAdultContent)
+                        ExploreCategoryType.AIRING_ANIME -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.airingAnime(limit = 20, page = np, censored = !showAdultContent)
+                        ExploreCategoryType.UPCOMING_ANIME -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Anime, statuses = listOf("anons"), order = "popularity", page = np, limit = 20, censored = !showAdultContent)
+                        ExploreCategoryType.TOP_MANGA -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Manga, order = "ranked", page = np, limit = 20, censored = !showAdultContent)
+                        ExploreCategoryType.PUBLISHING_MANGA -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Manga, statuses = listOf("ongoing"), order = "popularity", page = np, limit = 20, censored = !showAdultContent)
                         else -> emptyList()
                     }
                     ExplorePlatform.SIMKL -> when (categoryType) {
@@ -778,7 +779,8 @@ fun FullScreenMediaGridPage(
                                 result = result,
                                 alreadyInList = alreadyInList(result),
                                 onClick = { onItemClick(result) },
-                                titleLanguage = titleLanguage
+                                titleLanguage = titleLanguage,
+                                blurAdultMedia = blurAdultMedia
                             )
                         } else {
                             KitsugiRankingMediaCard(

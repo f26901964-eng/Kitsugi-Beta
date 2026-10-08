@@ -11,10 +11,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.material.icons.rounded.ExpandMore
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
@@ -59,11 +61,22 @@ fun LazyListScope.allSourcesExploreSections(
         }
     }
     stickyHeader(key = "all_sources_navigation") {
-        Surface(color = KitsugiColors.Background) {
-            LazyRow(contentPadding = PaddingValues(horizontal = 20.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 20.dp, vertical = 4.dp)
+                .border(1.dp, KitsugiColors.SurfaceElevated.copy(alpha = 0.78f), RoundedCornerShape(18.dp)),
+            shape = RoundedCornerShape(18.dp),
+            color = KitsugiColors.Surface.copy(alpha = 0.96f),
+            tonalElevation = 2.dp
+        ) {
+            LazyRow(
+                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(7.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
                 item(key = "back_to_explore_top") {
-                    TextButton(onClick = { onJumpToIndex(0) }) { Text("↑ Keşfet") }
+                    BackToExploreChip { onJumpToIndex(0) }
                 }
                 items(ExplorePlatform.sources, key = { it.name }) { platform ->
                     SourceJumpChip(platform, states[platform]?.isLoading == true) {
@@ -156,17 +169,58 @@ private fun sourceColor(platform: ExplorePlatform): Color = when (platform) {
 }
 
 @Composable
-private fun SourceJumpChip(platform: ExplorePlatform, loading: Boolean, onClick: () -> Unit) {
+private fun BackToExploreChip(onClick: () -> Unit) {
+    val shape = RoundedCornerShape(13.dp)
     Row(
-        Modifier.border(1.dp, sourceColor(platform).copy(alpha = 0.35f), RoundedCornerShape(14.dp))
-            .background(sourceColor(platform).copy(alpha = 0.08f), RoundedCornerShape(14.dp))
-            .tvClickable(shape = RoundedCornerShape(14.dp), onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)
+        modifier = Modifier
+            .clip(shape)
+            .background(KitsugiColors.SurfaceElevated.copy(alpha = 0.82f))
+            .border(1.dp, KitsugiColors.TextMuted.copy(alpha = 0.20f), shape)
+            .tvClickable(shape = shape, onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        KitsugiPlatformLogo(platformId = platform.name, size = 20.dp)
-        Text(platform.shortName, color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.labelLarge)
-        if (loading) CircularProgressIndicator(Modifier.size(12.dp), color = sourceColor(platform), strokeWidth = 1.5.dp)
+        Icon(
+            imageVector = Icons.Rounded.KeyboardArrowUp,
+            contentDescription = null,
+            tint = KitsugiColors.TextSecondary,
+            modifier = Modifier.size(18.dp)
+        )
+        Text("Keşfet", color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+private fun SourceJumpChip(platform: ExplorePlatform, loading: Boolean, onClick: () -> Unit) {
+    val color = sourceColor(platform)
+    val shape = RoundedCornerShape(13.dp)
+    Row(
+        modifier = Modifier
+            .clip(shape)
+            .background(color.copy(alpha = 0.09f))
+            .border(1.dp, color.copy(alpha = 0.32f), shape)
+            .tvClickable(shape = shape, onClick = onClick)
+            .padding(horizontal = 10.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(7.dp)
+    ) {
+        KitsugiPlatformLogo(platformId = platform.name, size = 18.dp)
+        Text(
+            text = platform.shortName,
+            color = KitsugiColors.TextPrimary,
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.SemiBold,
+            maxLines = 1
+        )
+        if (loading) {
+            CircularProgressIndicator(
+                modifier = Modifier.size(12.dp),
+                color = color,
+                strokeWidth = 1.5.dp
+            )
+        }
     }
 }
 

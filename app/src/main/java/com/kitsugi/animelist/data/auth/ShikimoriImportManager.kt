@@ -29,6 +29,30 @@ object ShikimoriImportManager {
     suspend fun fetchAllLists(context: Context, token: String, userId: Int): List<MediaEntry> {
         return withContext(Dispatchers.IO) {
             val rates = fetchRatesWithRetry(context, token, userId)
+            val unresolvedAnimeIds = rates.asSequence()
+                .filter { it.targetType == "Anime" && it.ageRating.isNullOrBlank() && !it.isAdult }
+                .map { it.targetId }
+                .distinct()
+                .toList()
+            val unresolvedMangaIds = rates.asSequence()
+                .filter { it.targetType == "Manga" && it.ageRating.isNullOrBlank() && !it.isAdult }
+                .map { it.targetId }
+                .distinct()
+                .toList()
+            // List responses usually omit `rating`; fetch it in batches, without making import
+            // fail if Shikimori temporarily refuses this optional metadata request.
+            val adultAnimeIds = runCatching {
+                ShikimoriApiClient.fetchAdultMediaIds("Anime", unresolvedAnimeIds)
+            }.getOrElse { error ->
+                Log.w(TAG, "Shikimori anime adult metadata lookup failed: ${error.message}")
+                emptySet()
+            }
+            val adultMangaIds = runCatching {
+                ShikimoriApiClient.fetchAdultMediaIds("Manga", unresolvedMangaIds)
+            }.getOrElse { error ->
+                Log.w(TAG, "Shikimori manga adult metadata lookup failed: ${error.message}")
+                emptySet()
+            }
             val result = mutableListOf<MediaEntry>()
 
             for (rate in rates) {
@@ -55,7 +79,11 @@ object ShikimoriImportManager {
                         progress = progress,
                         total = rate.total,
                         score = rate.score.takeIf { it > 0 },
-                        isAdult = false,
+                        isAdult = rate.isAdult || when (rate.targetType) {
+                            "Anime" -> rate.targetId in adultAnimeIds
+                            "Manga" -> rate.targetId in adultMangaIds
+                            else -> false
+                        },
                         malId = malId,
                         aniListEntryId = null,
                         source = "shikimori",

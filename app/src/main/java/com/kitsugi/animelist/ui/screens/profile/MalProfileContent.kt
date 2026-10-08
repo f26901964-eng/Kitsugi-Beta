@@ -548,6 +548,7 @@ fun MalProfileContent(
                                                                     model = item.imageUrl,
                                                                     contentDescription = item.title,
                                                                     isAdult = item.isAdult,
+                                                                    blurAdultMedia = appSettings.blurAdultMedia,
                                                                     modifier = Modifier.fillMaxSize(),
                                                                     contentScale = ContentScale.Crop
                                                                 )

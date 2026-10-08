@@ -14,6 +14,17 @@ object KitsugiShikimoriClient {
     private const val TAG = "KitsugiShikimoriClient"
     private const val BASE_URL = "https://shikimori.one/api"
 
+    private fun adultFlag(item: JSONObject): Boolean {
+        val rating = item.optString("rating").takeIf { it.isNotBlank() && it != "null" }
+        val genres = item.optJSONArray("genres")?.let { array ->
+            (0 until array.length()).mapNotNull { index ->
+                array.optJSONObject(index)?.optString("name")
+                    ?.takeIf { it.isNotBlank() && it != "null" }
+            }
+        }.orEmpty()
+        return isShikimoriAdultContent(rating, genres)
+    }
+
     // ─── Arama fonksiyonları ───────────────────────────────────────────────
 
     /**
@@ -55,7 +66,7 @@ object KitsugiShikimoriClient {
                             type = mediaType,
                             total = episodes,
                             score = score,
-                            isAdult = false,
+                            isAdult = adultFlag(item),
                             imageUrl = imageUrl,
                             year = year,
                             source = "shikimori",
@@ -103,7 +114,7 @@ object KitsugiShikimoriClient {
                             type = com.kitsugi.animelist.model.MediaType.Manga,
                             total = chapters,
                             score = score,
-                            isAdult = false,
+                            isAdult = adultFlag(item),
                             imageUrl = imageUrl,
                             year = year,
                             source = "shikimori",
@@ -182,6 +193,7 @@ object KitsugiShikimoriClient {
                 val yr = item.optString("aired_on", "").take(4).toIntOrNull()
                 val episodes = item.optInt("episodes").takeIf { it > 0 }
                 val epOrCh = if (mediaType == com.kitsugi.animelist.model.MediaType.Manga) item.optInt("chapters").takeIf { it > 0 } else episodes
+                val isAdult = adultFlag(item)
                 results.add(
                     JikanSearchResult(
                         malId = id,
@@ -190,7 +202,7 @@ object KitsugiShikimoriClient {
                         type = mediaType,
                         total = epOrCh,
                         score = sc,
-                        isAdult = !censored,
+                        isAdult = isAdult,
                         imageUrl = imageUrl,
                         year = yr,
                         source = "shikimori",
@@ -203,32 +215,32 @@ object KitsugiShikimoriClient {
     }
 
     /** Shikimori Popüler / Trend Animeler */
-    suspend fun trendingAnime(limit: Int = 20, page: Int = 1): List<JikanSearchResult> =
-        searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Anime, order = "popularity", limit = limit, page = page)
+    suspend fun trendingAnime(limit: Int = 20, page: Int = 1, censored: Boolean = true): List<JikanSearchResult> =
+        searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Anime, order = "popularity", limit = limit, page = page, censored = censored)
 
     /** Shikimori Sezonluk Animeler (örn: "spring_2025", "winter_2025") */
-    suspend fun seasonalAnime(season: String, limit: Int = 20, page: Int = 1): List<JikanSearchResult> =
-        searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Anime, season = season, order = "popularity", limit = limit, page = page)
+    suspend fun seasonalAnime(season: String, limit: Int = 20, page: Int = 1, censored: Boolean = true): List<JikanSearchResult> =
+        searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Anime, season = season, order = "popularity", limit = limit, page = page, censored = censored)
 
     /** Shikimori Film Formatındaki Animeler */
-    suspend fun movieAnime(limit: Int = 20, page: Int = 1): List<JikanSearchResult> =
-        searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Anime, kinds = listOf("movie"), order = "popularity", limit = limit, page = page)
+    suspend fun movieAnime(limit: Int = 20, page: Int = 1, censored: Boolean = true): List<JikanSearchResult> =
+        searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Anime, kinds = listOf("movie"), order = "popularity", limit = limit, page = page, censored = censored)
 
     /** Shikimori En Yüksek Puanlı Animeler */
-    suspend fun topAnime(limit: Int = 20, page: Int = 1): List<JikanSearchResult> =
-        searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Anime, order = "ranked", limit = limit, page = page)
+    suspend fun topAnime(limit: Int = 20, page: Int = 1, censored: Boolean = true): List<JikanSearchResult> =
+        searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Anime, order = "ranked", limit = limit, page = page, censored = censored)
 
     /** Shikimori Yayında Olan Animeler */
-    suspend fun airingAnime(limit: Int = 20, page: Int = 1): List<JikanSearchResult> =
-        searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Anime, statuses = listOf("ongoing"), order = "popularity", limit = limit, page = page)
+    suspend fun airingAnime(limit: Int = 20, page: Int = 1, censored: Boolean = true): List<JikanSearchResult> =
+        searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Anime, statuses = listOf("ongoing"), order = "popularity", limit = limit, page = page, censored = censored)
 
     /** Shikimori En Popüler Mangalar */
-    suspend fun topManga(limit: Int = 20, page: Int = 1): List<JikanSearchResult> =
-        searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Manga, order = "ranked", limit = limit, page = page)
+    suspend fun topManga(limit: Int = 20, page: Int = 1, censored: Boolean = true): List<JikanSearchResult> =
+        searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Manga, order = "ranked", limit = limit, page = page, censored = censored)
 
     /** Shikimori Yayında Olan Mangalar */
-    suspend fun publishingManga(limit: Int = 20, page: Int = 1): List<JikanSearchResult> =
-        searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Manga, statuses = listOf("ongoing"), order = "popularity", limit = limit, page = page)
+    suspend fun publishingManga(limit: Int = 20, page: Int = 1, censored: Boolean = true): List<JikanSearchResult> =
+        searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Manga, statuses = listOf("ongoing"), order = "popularity", limit = limit, page = page, censored = censored)
 
     suspend fun searchCharacters(query: String, page: Int = 1, limit: Int = 24): List<JikanSearchResult> = withContext(Dispatchers.IO) {
         if (query.isBlank()) return@withContext emptyList()
@@ -405,9 +417,7 @@ object KitsugiShikimoriClient {
 
                     // SADECE "rx" (Hentai) veya hentai türü yetişkin (+18) olarak kabul edilir!
                     // "r" (17+ şiddet/aksiyon, PG-13 vb.) kesinlikle +18 DEĞİLDİR!
-                    val isAdult = ratingRaw == "rx" ||
-                        ratingRaw.contains("hentai") ||
-                        genresList.any { it.contains("hentai", ignoreCase = true) }
+                    val isAdult = isShikimoriAdultContent(ratingRaw, genresList)
 
                     val rating = when (ratingRaw) {
                         "g"      -> "G - All Ages"

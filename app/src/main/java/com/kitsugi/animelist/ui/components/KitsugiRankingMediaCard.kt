@@ -96,6 +96,7 @@ fun KitsugiRankingMediaCard(
                         model = result.imageUrl,
                         contentDescription = displayTitle,
                         isAdult = result.isAdult,
+                        blurAdultMedia = blurAdultMedia,
                         modifier = Modifier.fillMaxSize(),
                         initials = displayTitle
                     )

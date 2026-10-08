@@ -31,6 +31,16 @@ class AllSourcesExploreTest {
         assertEquals(6, allSourceHeroes(states, false).size)
     }
 
+    @Test fun allSourceHeroIncludesOneAttributedHighlightFromEachProvider() {
+        val states = ExplorePlatform.sources.associateWith { platform ->
+            ExploreSourceState(payload(listOf(media(platform.name.lowercase(), id = platform.ordinal + 1))))
+        }
+
+        val heroes = allSourceHeroes(states, showAdultContent = false)
+
+        assertEquals(ExplorePlatform.sources.map { it.name.lowercase() }, heroes.map { it.source })
+    }
+
     @Test fun movieAndTvIdsDoNotCollide() {
         val movie = media("tmdb", 10, MediaType.Movie)
         val show = media("tmdb", 10, MediaType.TvShow)

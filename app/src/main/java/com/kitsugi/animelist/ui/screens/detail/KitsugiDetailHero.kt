@@ -103,6 +103,7 @@ fun KitsugiDetailHero(
                 model = imageUrl,
                 contentDescription = title,
                 isAdult = isAdult,
+                blurAdultMedia = blurAdultMedia,
                 modifier = imageModifier,
                 contentScale = ContentScale.Crop
             )

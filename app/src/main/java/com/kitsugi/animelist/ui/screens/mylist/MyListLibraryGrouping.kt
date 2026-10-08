@@ -152,7 +152,9 @@ internal fun groupMyListEntries(entries: List<MediaEntry>): List<MyListLibraryIt
 
     return groups.map { group ->
         MyListLibraryItem(
-            entry = group.representative,
+            // Adult metadata from any linked provider is authoritative for the combined
+            // tile: don't let a non-adult representative unblur a copy flagged +18 elsewhere.
+            entry = group.representative.copy(isAdult = group.entries.any { it.isAdult }),
             sourceIds = group.sourceIds.toList()
         )
     }

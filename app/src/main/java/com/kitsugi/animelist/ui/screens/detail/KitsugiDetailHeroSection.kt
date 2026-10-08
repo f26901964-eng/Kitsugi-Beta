@@ -90,6 +90,7 @@ internal fun DetailHero(
                 model = entry.imageUrl,
                 contentDescription = entry.getDisplayTitle(titleLanguage),
                 isAdult = entry.isAdult,
+                blurAdultMedia = blurAdultMedia,
                 modifier = Modifier
                     .fillMaxSize()
                     .tvClickable { onPosterClick(entry.imageUrl) },

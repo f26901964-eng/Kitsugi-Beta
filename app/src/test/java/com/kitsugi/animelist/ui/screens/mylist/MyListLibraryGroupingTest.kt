@@ -45,6 +45,21 @@ class MyListLibraryGroupingTest {
         assertEquals(listOf("mal", "anilist", "kitsu"), grouped.single().sourceIds)
     }
 
+
+    @Test
+    fun combinedRepresentativeKeepsAdultFlagFromAnyProvider() {
+        val shikimori = entry(id = 12, title = "Same title", source = "shikimori", malId = 52991)
+            .copy(isAdult = true)
+        val anilist = entry(id = 10, title = "Same title", source = "anilist", malId = 52991)
+
+        val grouped = groupMyListEntries(listOf(shikimori, anilist))
+
+        assertEquals(1, grouped.size)
+        assertEquals(anilist.id, grouped.single().entry.id)
+        assertTrue("Combined card should stay blurred if any provider marks it adult", grouped.single().entry.isAdult)
+        assertEquals(listOf("shikimori", "anilist"), grouped.single().sourceIds)
+    }
+
     @Test
     fun doesNotGroupDifferentMediaTypesOrConflictingProviderIds() {
         val first = entry(id = 4, title = "Same Title", source = "mal", malId = 1234)

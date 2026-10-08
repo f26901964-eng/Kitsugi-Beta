@@ -46,12 +46,16 @@ fun KitsugiNsfwImage(
     contentScale: ContentScale = ContentScale.Crop,
     alignment: Alignment = Alignment.Center,
     blurRadius: Dp = 24.dp,
+    /** Explicit per-screen override; the app-wide setting remains enabled when true. */
+    blurAdultMedia: Boolean? = null,
     initials: String = "",
     initialsColor: Color? = null,
     initialsStyle: androidx.compose.ui.text.TextStyle? = null
 ) {
-    val blurAdultMedia = LocalBlurAdultMedia.current
-    val shouldBlur = blurAdultMedia && isAdult
+    // Components that already receive the setting pass it through explicitly. Keep the
+    // composition-local as a fallback (and OR it in) so nested screens cannot accidentally
+    // disable a user-enabled blur by relying on a default `false` parameter.
+    val shouldBlur = (LocalBlurAdultMedia.current || blurAdultMedia == true) && isAdult
     val accentColor = LocalKitsugiAccent.current
     val finalColor = initialsColor ?: accentColor
     val finalStyle = initialsStyle ?: MaterialTheme.typography.titleMedium

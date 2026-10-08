@@ -688,6 +688,9 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private suspend fun loadShikimoriData(): ExplorePayload = supervisorScope {
+        // Shikimori excludes Rx titles by default. Ask for uncensored results only when
+        // the user enabled adult content; each returned item is still rated individually.
+        val censored = !showAdultContentState
         val cal = java.util.Calendar.getInstance()
         val month = cal.get(java.util.Calendar.MONTH)
         val year = cal.get(java.util.Calendar.YEAR)
@@ -701,27 +704,27 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
 
         val topAnimeDeferred = async {
             runCatching {
-                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.topAnime(limit = 20)
+                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.topAnime(limit = 20, censored = censored)
             }.getOrDefault(emptyList())
         }
         val trendingAnimeDeferred = async {
             runCatching {
-                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.trendingAnime(limit = 20)
+                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.trendingAnime(limit = 20, censored = censored)
             }.getOrDefault(emptyList())
         }
         val seasonalAnimeDeferred = async {
             runCatching {
-                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.seasonalAnime(season = currentShikiSeason, limit = 20)
+                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.seasonalAnime(season = currentShikiSeason, limit = 20, censored = censored)
             }.getOrDefault(emptyList())
         }
         val movieAnimeDeferred = async {
             runCatching {
-                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.movieAnime(limit = 20)
+                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.movieAnime(limit = 20, censored = censored)
             }.getOrDefault(emptyList())
         }
         val airingAnimeDeferred = async {
             runCatching {
-                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.airingAnime(limit = 20)
+                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.airingAnime(limit = 20, censored = censored)
             }.getOrDefault(emptyList())
         }
         val upcomingAnimeDeferred = async {
@@ -730,18 +733,19 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                     com.kitsugi.animelist.model.MediaType.Anime,
                     statuses = listOf("anons"),
                     order = "popularity",
-                    limit = 20
+                    limit = 20,
+                    censored = censored
                 )
             }.getOrDefault(emptyList())
         }
         val topMangaDeferred = async {
             runCatching {
-                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.topManga(limit = 20)
+                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.topManga(limit = 20, censored = censored)
             }.getOrDefault(emptyList())
         }
         val publishingMangaDeferred = async {
             runCatching {
-                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.publishingManga(limit = 20)
+                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.publishingManga(limit = 20, censored = censored)
             }.getOrDefault(emptyList())
         }
         val trendingMangaDeferred = async {
@@ -749,7 +753,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                 com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(
                     com.kitsugi.animelist.model.MediaType.Manga,
                     order = "popularity",
-                    limit = 20
+                    limit = 20,
+                    censored = censored
                 )
             }.getOrDefault(emptyList())
         }

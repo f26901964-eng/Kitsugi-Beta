@@ -61,6 +61,7 @@ internal fun UserMediaGridCard(
                 model = item.imageUrl,
                 contentDescription = item.title,
                 isAdult = item.isAdult,
+                blurAdultMedia = blurAdultMedia,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )
@@ -162,6 +163,7 @@ internal fun UserMediaRowCard(
                 model = item.imageUrl,
                 contentDescription = item.title,
                 isAdult = item.isAdult,
+                blurAdultMedia = blurAdultMedia,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop
             )

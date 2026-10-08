@@ -98,6 +98,7 @@ fun RelationCard(
                 model = rel.imageUrl,
                 contentDescription = displayTitle,
                 isAdult = rel.isAdult,
+                blurAdultMedia = blurAdultMedia,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = ContentScale.Crop,
                 initials = displayTitle,

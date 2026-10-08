@@ -72,6 +72,42 @@ private const val HERO_BACKGROUND_PARALLAX = 0.055f
 private const val HERO_BACKGROUND_SCALE = 1.0f
 private const val HERO_CONTENT_PARALLAX = 0.18f
 
+private fun heroItemIdentity(item: JikanSearchResult): String =
+    "${item.source.trim().lowercase()}:${item.type.name}:${item.malId}"
+
+private fun heroSourceLabel(source: String): String? = when (source.trim().lowercase()) {
+    "anilist", "al" -> "AniList"
+    "mal", "jikan", "jikan (mal)", "mal (jikan)" -> "MAL"
+    "tmdb", "themoviedb" -> "TMDB"
+    "simkl" -> "Simkl"
+    "kitsu" -> "Kitsu"
+    "shikimori", "shiki" -> "Shikimori"
+    else -> null
+}
+
+@Composable
+private fun HeroSourcePill(source: String) {
+    val label = heroSourceLabel(source) ?: return
+    val shape = RoundedCornerShape(999.dp)
+    Row(
+        modifier = Modifier
+            .clip(shape)
+            .background(KitsugiColors.Background.copy(alpha = 0.72f))
+            .border(1.dp, KitsugiColors.TextPrimary.copy(alpha = 0.16f), shape)
+            .padding(horizontal = 8.dp, vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        KitsugiPlatformLogo(platformId = source, size = 17.dp)
+        Text(
+            text = label,
+            color = KitsugiColors.TextPrimary,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold
+        )
+    }
+}
+
 private data class HeroPageLayer(
     val page: Int,
     val visibility: Float,
@@ -109,14 +145,14 @@ fun KitsugiHeroSection(
     val coroutineScope = rememberCoroutineScope()
     val accentColor = LocalKitsugiAccent.current
 
-    var logos by remember { mutableStateOf<Map<Int, String?>>(emptyMap()) }
+    var logos by remember { mutableStateOf<Map<String, String?>>(emptyMap()) }
 
     LaunchedEffect(items, showAnimeLogos) {
         if (!showAnimeLogos) {
             logos = emptyMap()
             return@LaunchedEffect
         }
-        val logoMap = mutableMapOf<Int, String?>()
+        val logoMap = mutableMapOf<String, String?>()
 
         val priorityIndices = buildList {
             val cur = pagerState.currentPage.coerceIn(items.indices)
@@ -174,7 +210,7 @@ fun KitsugiHeroSection(
                 }
                 else -> null
             }
-            logoMap[item.malId] = logoUrl
+            logoMap[heroItemIdentity(item)] = logoUrl
         }
         logos = logoMap.toMap()
     }
@@ -392,6 +428,7 @@ fun KitsugiHeroSection(
                         model = heroImageModel,
                         contentDescription = displayTitle,
                         isAdult = item.isAdult,
+                        blurAdultMedia = blurAdultMedia,
                         modifier = Modifier
                             .fillMaxSize()
                             .graphicsLayer {
@@ -542,6 +579,8 @@ fun KitsugiHeroSection(
                                 fontWeight = FontWeight.Black
                             )
 
+                            HeroSourcePill(item.source)
+
                             if (alreadyInList) {
                                 Box(
                                     modifier = Modifier
@@ -561,7 +600,7 @@ fun KitsugiHeroSection(
 
                         Spacer(modifier = Modifier.height(if (layout.isLandscape) 4.dp else 8.dp))
 
-                        val logoUrl = if (showAnimeLogos) logos[item.malId] else null
+                        val logoUrl = if (showAnimeLogos) logos[heroItemIdentity(item)] else null
                         if (!logoUrl.isNullOrBlank()) {
                             var logoFailed by remember(logoUrl) { mutableStateOf(false) }
                             if (!logoFailed) {
