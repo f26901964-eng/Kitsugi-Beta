@@ -110,6 +110,15 @@ object CsPluginStatusTracker {
         }
     }
 
+    /**
+     * Atlama/engel bilgisini kullanıcıya gösterilecek şekilde kaydeder ama blok
+     * sayacını etkilemez. UI, boş sonuç durumunda bu mesajı gösterir.
+     * (v2.4.210: sessiz "akış bulunamadı" yerine gerçek sebep göstermek için.)
+     */
+    fun recordSkip(pluginId: String, reason: String) {
+        errorMessages[pluginId] = reason
+    }
+
     fun isBlocked(pluginId: String): Boolean = blocklist.contains(pluginId)
 
     fun getErrorMessage(pluginId: String): String? = errorMessages[pluginId]

@@ -183,11 +183,15 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                     )
                     csStreams.addAll(streams)
                 }
+                val diagMsg = if (csStreams.isEmpty()) {
+                    CsPluginStatusTracker.getErrorMessage(csPlugin.name)
+                        ?: CsPluginStatusTracker.getErrorMessage(apis.firstOrNull()?.name ?: csPlugin.name)
+                } else null
                 updateAddonStateSync(
                     dismissedDisplayName,
                     isLoading = false,
                     streams = csStreams,
-                    error = if (csStreams.isEmpty()) "Bu anime için akış bulunamadı" else null
+                    error = if (csStreams.isEmpty()) (diagMsg?.let { "⚠️ $it" } ?: "Bu anime için akış bulunamadı") else null
                 )
             } catch (e: Throwable) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
@@ -498,7 +502,16 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                                 csStreams.addAll(streams)
                             }
                             Log.d(TAG, "[$csDisplayName] Toplam ${csStreams.size} stream bulundu")
-                            updateAddonState(csDisplayName, isLoading = false, streams = csStreams)
+                            // Akış boşsa SESSİZ "akış bulunamadı" yerine tracker'daki GERÇEK
+                            // hatayı göster (DNS/CF/timeout/parse) — kullanıcı nedenini görsün.
+                            val diagMsg = if (csStreams.isEmpty()) {
+                                CsPluginStatusTracker.getErrorMessage(plugin.name)
+                                    ?: CsPluginStatusTracker.getErrorMessage(apis.firstOrNull()?.name ?: plugin.name)
+                            } else null
+                            updateAddonState(
+                                csDisplayName, isLoading = false, streams = csStreams,
+                                error = diagMsg?.let { "⚠️ $it" }
+                            )
 
                         } catch (e: Throwable) {
                             if (e is kotlinx.coroutines.CancellationException) throw e
