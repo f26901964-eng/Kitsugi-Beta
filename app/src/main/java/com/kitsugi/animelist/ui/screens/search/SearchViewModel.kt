@@ -1180,7 +1180,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                     }
                     val hasCustomFilters = f.subtype != null || f.genre != null || f.country != null || f.year != null
                     val res = if (queryText.isBlank() && !hasCustomFilters && f.trendingPeriod.isNotBlank()) {
-                        SimklApiClient().getTrendingPeriod(simklType, f.trendingPeriod)
+                        SimklApiClient().getTrendingPeriodPage(simklType, f.trendingPeriod, page, pageSize = 20)
                     } else {
                         SimklApiClient().searchAdvanced(
                             type = simklType,
@@ -1189,7 +1189,8 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                             genre = f.genre,
                             country = f.country,
                             year = f.year,
-                            sort = f.sort
+                            sort = f.sort,
+                            page = page
                         )
                     }
                     return Pair(res, res.size >= 20)
@@ -1471,7 +1472,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 MediaType.Anime -> "anime"
                 else -> null
             }
-            val results = SimklApiClient().search(queryText, type = simklType, limit = 20)
+            val results = SimklApiClient().search(queryText, type = simklType, limit = 20, page = page)
             return Pair(results, results.size >= 20)
         }
 
