@@ -221,6 +221,8 @@ object BangumiApiClient {
     data class BangumiEntity(
         val id: Int,
         val name: String,
+        /** Bazı arama yanıtlarında gelen Çince yerel ad (`name_cn` / `nameCN`). */
+        val nameCn: String = "",
         /** Karakter için `type` (角色/机体/舰船/组织), kişi için `type` (1=个人, 2=公司, 3=组合). */
         val type: Int = 0,
         val career: List<String> = emptyList(),
@@ -275,8 +277,8 @@ object BangumiApiClient {
         /** `infobox` wiki alanları (别名, 制作公司, 导演, 官方网站 ...). */
         val infobox: Map<String, List<String>>
     ) {
-        /** Görüntülenecek başlık: Çince ad varsa önce o (Aniyomi/Mihon ile aynı tercih). */
-        val displayTitle: String get() = nameCn.ifBlank { name }
+        /** Dil tercihi henüz uygulanmadığında güvenli varsayılan: özgün ad, yoksa Çince adı. */
+        val displayTitle: String get() = name.ifBlank { nameCn }
         val isAnime: Boolean get() = type == SubjectType.ANIME
         val isBook: Boolean get() = type == SubjectType.BOOK
         val webUrl: String get() = "$SITE_BASE/subject/$id"
@@ -298,7 +300,7 @@ object BangumiApiClient {
         val collectionTotal: Int,
         val tags: List<String>
     ) {
-        val displayTitle: String get() = nameCn.ifBlank { name }
+        val displayTitle: String get() = name.ifBlank { nameCn }
         val isAnime: Boolean get() = type == SubjectType.ANIME
         val isBook: Boolean get() = type == SubjectType.BOOK
         val webUrl: String get() = "$SITE_BASE/subject/$id"
@@ -314,7 +316,7 @@ object BangumiApiClient {
         val relation: String?,
         val image: String?
     ) {
-        val displayTitle: String get() = nameCn.ifBlank { name }
+        val displayTitle: String get() = name.ifBlank { nameCn }
         val webUrl: String get() = "$SITE_BASE/subject/$id"
     }
 
@@ -333,7 +335,7 @@ object BangumiApiClient {
         val desc: String?
     ) {
         val isMainStory: Boolean get() = type == 0
-        val displayTitle: String get() = nameCn.ifBlank { name }
+        val displayTitle: String get() = name.ifBlank { nameCn }
     }
 
     /** `GET /v0/users/{username}/collections` satırı. */
@@ -1510,6 +1512,7 @@ object BangumiApiClient {
                 BangumiEntity(
                     id = id,
                     name = obj.optString("name", ""),
+                    nameCn = obj.optString("name_cn", obj.optString("nameCN", "")),
                     type = obj.optInt("type", 0),
                     career = career,
                     summary = obj.optString("summary", "").ifBlank {

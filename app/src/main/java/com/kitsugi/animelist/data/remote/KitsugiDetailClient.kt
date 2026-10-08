@@ -729,9 +729,9 @@ class KitsugiDetailClient {
     private fun detailCacheKey(source: String, mediaTypeStr: String, keyId: Int): String {
         val base = "${source.lowercase()}_${mediaTypeStr}_$keyId"
         return when {
-            // v1: Bangumi'ye özgü detay hattı. Önceki sürümlerin Kitsu-başlık-araması kaynaklı
-            // (yanlış/eksik) önbellek satırları bu sürüm anahtarı sayesinde bir daha okunmaz.
-            source.equals("bangumi", ignoreCase = true) -> "${base}_bgm1"
+            // v2: Bangumi'nin English / romaji / özgün adları ayrı taşınır. Önceki
+            // sürümde Çince ad ana başlığa yazıldığı için eski satırlar okunmaz.
+            source.equals("bangumi", ignoreCase = true) -> "${base}_bgm2"
             MediaTitleResolver.isLatinPreferredSource(source) -> "${base}_vl${MediaTitleResolver.VERSION}"
             else -> base
         }

@@ -3,6 +3,7 @@ package com.kitsugi.animelist.data.auth
 import android.content.Context
 import android.util.Log
 import com.kitsugi.animelist.data.remote.BangumiIdNamespace
+import com.kitsugi.animelist.data.remote.BangumiNameLocalizer
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import kotlinx.coroutines.Dispatchers
@@ -94,6 +95,9 @@ object BangumiImportManager {
             }
             val mediaType = BangumiIdNamespace.mediaTypeFor(collection.subjectType)
             val isBookSubject = collection.subjectType == BangumiApiClient.SubjectType.BOOK
+            // Koleksiyon yanıtı kısa subject döndürür; eldeki English/romaji/özgün alanları
+            // kaybetmeden sakla ki Listem ekranı da Başlık Dili ayarına uyabilsin.
+            val localizedTitle = slim?.let { BangumiNameLocalizer.entity(it.name, it.nameCn) }
 
             // İlerleme: kitap条目'larında `ep_status` güvenilirdir.动画条目'larında sunucu,
             // bölüm işaretlerinden (`打格子`) tamamlanma oranını hesaplar ve aynı alanda tutar.
@@ -102,11 +106,10 @@ object BangumiImportManager {
 
             MediaEntry(
                 id = 0,
-                title = slim?.displayTitle ?: "Bangumi #${collection.subjectId}",
+                title = localizedTitle?.display ?: "Bangumi #${collection.subjectId}",
                 subtitle = BangumiIdNamespace.SOURCE,
-                titleEnglish = null,
-                // Bangumi'de `name` genelde Japonca orijinal addır.
-                titleJapanese = slim?.name?.takeIf { it.isNotBlank() && it != slim.nameCn },
+                titleEnglish = localizedTitle?.english,
+                titleJapanese = localizedTitle?.native,
                 imageUrl = BangumiApiClient.absoluteImageUrl(slim?.images?.poster) ?: "",
                 type = mediaType,
                 status = BangumiSyncManager.bangumiStatusToWatchStatus(collection.type),

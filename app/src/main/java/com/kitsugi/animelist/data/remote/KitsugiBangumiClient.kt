@@ -558,9 +558,10 @@ object KitsugiBangumiClient {
         }
         val ratingScore = rating?.score ?: 0.0
         val collectionTotal = collection?.total ?: 0
+        val localizedTitle = BangumiNameLocalizer.subject(name, nameCn, infobox)
         return JikanSearchResult(
             malId = BangumiIdNamespace.stableIdFromRaw(id) ?: id,
-            title = displayTitle,
+            title = localizedTitle.display,
             subtitle = (platform ?: subjectTypeLabel(type)).uppercase(),
             type = mediaType,
             total = eps.takeIf { it > 0 } ?: totalEpisodes.takeIf { it > 0 },
@@ -569,8 +570,9 @@ object KitsugiBangumiClient {
             imageUrl = BangumiApiClient.absoluteImageUrl(images?.poster),
             year = date?.take(4)?.toIntOrNull(),
             source = SOURCE,
-            titleEnglish = null,
-            titleJapanese = name.takeIf { it.isNotBlank() && it != nameCn },
+            titleEnglish = localizedTitle.english,
+            titleJapanese = localizedTitle.native,
+            titleRomaji = localizedTitle.romaji,
             backdropUrl = BangumiApiClient.absoluteImageUrl(images?.backdrop),
             rank = rating?.rank?.takeIf { it > 0 },
             members = rating?.total?.takeIf { it > 0 },
@@ -581,37 +583,48 @@ object KitsugiBangumiClient {
     }
 
     /** Koleksiyon satırındaki kısaltılmış条目 → [JikanSearchResult] (içe aktarma önizlemesi). */
-    fun BangumiApiClient.BangumiSlimSubject.toSearchResult(): JikanSearchResult = JikanSearchResult(
-        malId = BangumiIdNamespace.stableIdFromRaw(id) ?: id,
-        title = displayTitle,
-        subtitle = subjectTypeLabel(type).uppercase(),
-        type = BangumiIdNamespace.mediaTypeFor(type),
-        total = eps.takeIf { it > 0 },
-        score = if (score > 0) kotlin.math.round(score).toInt().coerceIn(0, 10) else null,
-        isAdult = false,
-        imageUrl = BangumiApiClient.absoluteImageUrl(images?.poster),
-        year = date?.take(4)?.toIntOrNull(),
-        source = SOURCE,
-        titleJapanese = name.takeIf { it.isNotBlank() && it != nameCn },
-        rank = rank.takeIf { it > 0 },
-        favorites = collectionTotal.takeIf { it > 0 },
-        rawScoreDouble = score.takeIf { it > 0 },
-        genres = tags.take(12)
-    )
+    fun BangumiApiClient.BangumiSlimSubject.toSearchResult(): JikanSearchResult {
+        val localizedTitle = BangumiNameLocalizer.entity(name, nameCn)
+        return JikanSearchResult(
+            malId = BangumiIdNamespace.stableIdFromRaw(id) ?: id,
+            title = localizedTitle.display,
+            subtitle = subjectTypeLabel(type).uppercase(),
+            type = BangumiIdNamespace.mediaTypeFor(type),
+            total = eps.takeIf { it > 0 },
+            score = if (score > 0) kotlin.math.round(score).toInt().coerceIn(0, 10) else null,
+            isAdult = false,
+            imageUrl = BangumiApiClient.absoluteImageUrl(images?.poster),
+            year = date?.take(4)?.toIntOrNull(),
+            source = SOURCE,
+            titleEnglish = localizedTitle.english,
+            titleJapanese = localizedTitle.native,
+            titleRomaji = localizedTitle.romaji,
+            rank = rank.takeIf { it > 0 },
+            favorites = collectionTotal.takeIf { it > 0 },
+            rawScoreDouble = score.takeIf { it > 0 },
+            genres = tags.take(12)
+        )
+    }
 
     /** Karakter/kişi arama sonucu → [JikanSearchResult] (kimlik + ad + görsel yeterli). */
-    private fun BangumiApiClient.BangumiEntity.toSearchResult(subtitle: String): JikanSearchResult = JikanSearchResult(
-        malId = id,
-        title = displayTitle,
-        subtitle = subtitle,
-        type = MediaType.Anime,
-        total = null,
-        score = null,
-        isAdult = false,
-        imageUrl = BangumiApiClient.absoluteImageUrl(images?.poster),
-        year = null,
-        source = SOURCE
-    )
+    private fun BangumiApiClient.BangumiEntity.toSearchResult(subtitle: String): JikanSearchResult {
+        val localizedName = BangumiNameLocalizer.entity(name, nameCn)
+        return JikanSearchResult(
+            malId = id,
+            title = localizedName.display,
+            subtitle = subtitle,
+            type = MediaType.Anime,
+            total = null,
+            score = null,
+            isAdult = false,
+            imageUrl = BangumiApiClient.absoluteImageUrl(images?.poster),
+            year = null,
+            source = SOURCE,
+            titleEnglish = localizedName.english,
+            titleJapanese = localizedName.native,
+            titleRomaji = localizedName.romaji
+        )
+    }
 
     private fun subjectTypeLabel(type: Int): String = when (type) {
         BangumiApiClient.SubjectType.BOOK -> "Kitap"

@@ -28,6 +28,7 @@ import com.kitsugi.animelist.ui.components.KitsugiShimmerBlock
 import com.kitsugi.animelist.ui.components.LocalShimmerBrush
 import com.kitsugi.animelist.ui.components.rememberKitsugiShimmerBrush
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.lazy.LazyRow
@@ -143,10 +144,7 @@ fun AiringSoonHorizontalCard(
     blurAdultMedia: Boolean = false,
     modifier: Modifier = Modifier
 ) {
-    val displayTitle = when (titleLanguage) {
-        "ENGLISH" -> result.titleEnglish ?: result.title
-        else      -> result.title
-    }
+    val displayTitle = result.getDisplayTitle(titleLanguage)
 
     val displayScore = when {
         result.rawScoreDouble != null -> "★ ${result.rawScoreDouble}"

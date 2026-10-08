@@ -543,7 +543,8 @@ fun MediaEntryDetailPage(
                             year = null, realMalId = rel.malId,
                             source = rel.source,
                             titleEnglish = rel.titleEnglish,
-                            titleJapanese = rel.titleJapanese
+                            titleJapanese = rel.titleJapanese,
+                            titleRomaji = rel.titleRomaji
                         ))
                     })
                     5 -> RelationsTabContent(state = relationsState, titleLanguage = titleLanguage, blurAdultMedia = blurAdultMedia, onRelationClick = { rel ->
@@ -564,7 +565,8 @@ fun MediaEntryDetailPage(
                             year = null, realMalId = rel.malId,
                             source = rel.source,
                             titleEnglish = rel.titleEnglish,
-                            titleJapanese = rel.titleJapanese
+                            titleJapanese = rel.titleJapanese,
+                            titleRomaji = rel.titleRomaji
                         ))
                     })
                     6 -> StatsTabContent(state = statsState)

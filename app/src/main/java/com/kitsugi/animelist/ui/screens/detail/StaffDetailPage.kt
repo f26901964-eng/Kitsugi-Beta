@@ -198,9 +198,19 @@ fun StaffDetailPage(
                 val rawDetail = currentState.detail
                 val detail = remember(rawDetail, titleLanguage) {
                     rawDetail.copy(
-                        name = displayPersonName(rawDetail.name, rawDetail.romanizedName, rawDetail.nativeName, titleLanguage),
+                        name = displayPersonName(
+                            rawDetail.name, rawDetail.romanizedName, rawDetail.nativeName, titleLanguage, rawDetail.englishName
+                        ),
                         characterRoles = rawDetail.characterRoles.map { role ->
-                            role.copy(characterName = displayPersonName(role.characterName, role.characterRomanizedName, role.characterNativeName, titleLanguage))
+                            role.copy(
+                                characterName = displayPersonName(
+                                    role.characterName,
+                                    role.characterRomanizedName,
+                                    role.characterNativeName,
+                                    titleLanguage,
+                                    role.characterEnglishName
+                                )
+                            )
                         }
                     )
                 }

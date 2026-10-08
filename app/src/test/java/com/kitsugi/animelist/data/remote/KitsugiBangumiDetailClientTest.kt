@@ -3,6 +3,7 @@ package com.kitsugi.animelist.data.remote
 import com.kitsugi.animelist.data.auth.BangumiApiClient
 import com.kitsugi.animelist.data.auth.BangumiApiClient.BangumiSubject
 import com.kitsugi.animelist.model.MediaType
+import com.kitsugi.animelist.utils.PreferenceHelpers
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -376,8 +377,8 @@ class KitsugiBangumiDetailClientTest {
         assertEquals(listOf("Japonca", "İngilizce"), nagisa.voiceActors.map { it.language })
         assertEquals("https://lain.bgm.tv/r/400/pic/crt/m/xx/yy/9_z.jpg", nagisa.voiceActors[0].imageUrl)
         assertNull(nagisa.voiceActors[1].imageUrl)
-        // nameCN doluysa o gösterilir
-        assertEquals("冈崎朋也", chars[1].name)
+        // Özgün Japonca ad korunur; Çince yerelleştirme ana adı ezmez.
+        assertEquals("岡崎朋也", chars[1].name)
         assertEquals("Supporting", chars[1].role)
         assertEquals("ゲスト", chars[2].name)
         assertEquals("Background", chars[2].role)
@@ -440,8 +441,9 @@ class KitsugiBangumiDetailClientTest {
         )
         val recs = KitsugiBangumiDetailClient.parseRecommendations(root)
         assertEquals(1, recs.size)
-        assertEquals("星际牛仔", recs[0].title)
+        assertEquals("Cowboy Bebop", recs[0].title)
         assertEquals("Cowboy Bebop", recs[0].titleJapanese)
+        assertEquals("Cowboy Bebop", recs[0].titleRomaji)
         assertEquals("Recommendation", recs[0].relationType)
         assertEquals(500_000_001, recs[0].malId)
     }
@@ -461,7 +463,8 @@ class KitsugiBangumiDetailClientTest {
         )
         val episodes = KitsugiBangumiDetailClient.parseEpisodes(root)
         assertEquals(listOf(1, 2), episodes.map { it.episodeNumber })
-        assertEquals("#1 – 樱花树下", episodes[0].title)
+        // API'nin Çince yerelleştirmesi yerine özgün bölüm adı önceliklidir.
+        assertEquals("#1 – 桜の下で", episodes[0].title)
         assertEquals("Bölüm 2", episodes[1].title)
         assertEquals("https://bgm.tv/ep/100", episodes[0].url)
         assertEquals("Bangumi", episodes[0].site)
@@ -566,5 +569,57 @@ class KitsugiBangumiDetailClientTest {
         assertEquals(4235, merged.tmdbId)
         assertEquals("CLANNAD 〜AFTER STORY〜", merged.title)
         assertTrue(merged.externalLinks.any { it.site == "MyAnimeList" })
+    }
+
+    @Test
+    fun bangumiLocalizedName_keepsEnglishRomajiAndNativeIndependent() {
+        val localized = BangumiNameLocalizer.subject(
+            name = "進撃の巨人",
+            nameCn = "进击的巨人",
+            infobox = mapOf(
+                "英文名" to listOf("Attack on Titan"),
+                "罗马字" to listOf("Shingeki no Kyojin"),
+                "别名" to listOf("AoT")
+            )
+        )
+
+        assertEquals("Attack on Titan", localized.displayFor("ENGLISH"))
+        assertEquals("Shingeki no Kyojin", localized.displayFor("ROMAJI"))
+        assertEquals("進撃の巨人", localized.displayFor("NATIVE"))
+        assertEquals("Shingeki no Kyojin", localized.display)
+        assertEquals(
+            "Attack on Titan",
+            PreferenceHelpers.getDisplayTitle(
+                localized.display, localized.english, localized.native, "ENGLISH", localized.romaji
+            )
+        )
+        assertEquals(
+            "Shingeki no Kyojin",
+            PreferenceHelpers.getDisplayTitle(
+                localized.display, localized.english, localized.native, "ROMAJI", localized.romaji
+            )
+        )
+        assertEquals(
+            "進撃の巨人",
+            PreferenceHelpers.getDisplayTitle(
+                localized.display, localized.english, localized.native, "NATIVE", localized.romaji
+            )
+        )
+        assertTrue(localized.alternatives.contains("进击的巨人"))
+    }
+
+    @Test
+    fun bangumiLocalizedName_usesSafeFallbackWhenRomajiIsUnavailable() {
+        val localized = BangumiNameLocalizer.entity(
+            name = "古河渚",
+            nameCn = "古河渚",
+            englishAliases = listOf("Nagisa Furukawa")
+        )
+
+        // Kaynak romaji alanı vermiyorsa English Latin adı hem English hem de güvenli
+        // romaji geri dönüşüdür; sahte kanji okunuşu oluşturulmaz.
+        assertEquals("Nagisa Furukawa", localized.displayFor("ENGLISH"))
+        assertEquals("Nagisa Furukawa", localized.displayFor("ROMAJI"))
+        assertEquals("古河渚", localized.displayFor("NATIVE"))
     }
 }

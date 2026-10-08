@@ -21,6 +21,8 @@ data class JikanSearchResult(
     val realMalId: Int? = null,
     val titleEnglish: String? = null,
     val titleJapanese: String? = null,
+    /** Latin özgün başlık (özellikle Bangumi / AniList kaynaklarında English'ten ayrıdır). */
+    val titleRomaji: String? = null,
     val tmdbId: Int? = null,
     val backdropUrl: String? = null,
     val rank: Int? = null,
@@ -175,7 +177,8 @@ data class KitsugiVoiceActor(
     val imageUrl: String?,
     val source: String = "jikan",
     val romanizedName: String? = null,
-    val nativeName: String? = null
+    val nativeName: String? = null,
+    val englishName: String? = null
 )
 
 data class KitsugiCharacter(
@@ -189,7 +192,8 @@ data class KitsugiCharacter(
     // AniList/MAL/Kitsu araması yerine doğrudan TMDB/Simkl verisiyle açılır.
     val isRealMediaRole: Boolean = false,
     val romanizedName: String? = null,
-    val nativeName: String? = null
+    val nativeName: String? = null,
+    val englishName: String? = null
 )
 
 data class KitsugiCharacterMediaAppearance(
@@ -220,7 +224,8 @@ data class KitsugiCharacterDetail(
     val isFavourite: Boolean = false,
     val aniListId: Int? = null,
     val source: String = "jikan",
-    val romanizedName: String? = null
+    val romanizedName: String? = null,
+    val englishName: String? = null
 )
 
 data class KitsugiStaff(
@@ -230,7 +235,8 @@ data class KitsugiStaff(
     val imageUrl: String?,
     val source: String = "jikan",
     val romanizedName: String? = null,
-    val nativeName: String? = null
+    val nativeName: String? = null,
+    val englishName: String? = null
 )
 
 data class KitsugiStaffCharacterRole(
@@ -245,7 +251,12 @@ data class KitsugiStaffCharacterRole(
     val characterRole: String,
     val mediaSource: String = "jikan",
     val characterRomanizedName: String? = null,
-    val characterNativeName: String? = null
+    val characterNativeName: String? = null,
+    val characterEnglishName: String? = null,
+    /** Rolün geçtiği eser için ayrı dil alanları (Bangumi p1 / v0 yanıtları). */
+    val mediaTitleEnglish: String? = null,
+    val mediaTitleJapanese: String? = null,
+    val mediaTitleRomaji: String? = null
 )
 
 data class KitsugiStaffMediaWork(
@@ -276,7 +287,8 @@ data class KitsugiStaffDetail(
     val mediaWorks: List<KitsugiStaffMediaWork> = emptyList(),
     val isFavourite: Boolean = false,
     val aniListId: Int? = null,
-    val romanizedName: String? = null
+    val romanizedName: String? = null,
+    val englishName: String? = null
 )
 
 data class KitsugiRelation(

@@ -5,6 +5,7 @@ import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.data.remote.KitsugiRelation
 import com.kitsugi.animelist.data.remote.KitsugiCharacterMediaAppearance
 import com.kitsugi.animelist.data.remote.KitsugiStaffMediaWork
+import com.kitsugi.animelist.data.remote.KitsugiStaffCharacterRole
 import com.kitsugi.animelist.KitsugiApplication
 import com.kitsugi.animelist.R
 
@@ -20,26 +21,36 @@ object PreferenceHelpers {
         }
     }
 
+    /**
+     * Başlık dili seçimini tüm kaynaklar için tek yerde uygular.
+     *
+     * `titleRomaji`, Bangumi gibi English ve Latin özgün başlığın farklı gelebildiği
+     * kaynaklarda zorunludur. Alan mevcut değilse eski model davranışı korunur.
+     */
     fun getDisplayTitle(
         title: String,
         titleEnglish: String?,
         titleJapanese: String?,
-        titleLanguage: String
+        titleLanguage: String,
+        titleRomaji: String? = null
     ): String {
+        fun nonBlank(value: String?): String? = value?.trim()?.takeIf { it.isNotEmpty() }
+        val english = nonBlank(titleEnglish)
+        val native = nonBlank(titleJapanese)
+        val romaji = nonBlank(titleRomaji)
+        val raw = nonBlank(title)
         return when (titleLanguage) {
-            "ENGLISH" -> {
-                titleEnglish?.takeIf { it.isNotBlank() } ?: title
-            }
-            "NATIVE", "JAPANESE_STAFF" -> {
-                titleJapanese?.takeIf { it.isNotBlank() } ?: title
-            }
+            "ENGLISH" -> english ?: romaji ?: raw ?: native ?: ""
+            "NATIVE", "JAPANESE_STAFF" -> native ?: raw ?: romaji ?: english ?: ""
             else -> {
-                // ROMAJI / varsayılan (Türkçe / Romaji): Eğer başlık Japonca/CJK karakter içeriyorsa ve İngilizce/Latin başlık varsa, Latin olanı önceliklendir
-                if (hasCjkCharacters(title) && !titleEnglish.isNullOrBlank() && !hasCjkCharacters(titleEnglish)) {
-                    titleEnglish
-                } else {
-                    title
-                }
+                // ROMAJI: Latin özgün ad varsa onu kullan. Kaynak romaji sağlamıyorsa
+                // İngilizce Latin ad güvenli geri dönüş olur; uydurma transliterasyon yapılmaz.
+                romaji
+                    ?: raw?.takeIf { !hasCjkCharacters(it) }
+                    ?: english?.takeIf { !hasCjkCharacters(it) }
+                    ?: raw
+                    ?: native
+                    ?: ""
             }
         }
     }
@@ -61,14 +72,15 @@ object PreferenceHelpers {
         if (MediaTitleResolver.isLatinPreferredSource(source)) {
             return when (titleLanguage) {
                 "NATIVE", "JAPANESE_STAFF" -> titleJapanese?.takeIf { it.isNotBlank() } ?: title
-                "ENGLISH" -> MediaTitleResolver.latin(titleEnglish) ?: MediaTitleResolver.latin(title) ?: title
-                else -> MediaTitleResolver.latin(title)
+                "ENGLISH" -> MediaTitleResolver.latin(titleEnglish) ?: MediaTitleResolver.latin(titleRomaji) ?: MediaTitleResolver.latin(title) ?: title
+                else -> MediaTitleResolver.latin(titleRomaji)
+                    ?: MediaTitleResolver.latin(title)
                     ?: MediaTitleResolver.latin(titleEnglish)
                     ?: MediaTitleResolver.latin(titleJapanese)
                     ?: title
             }
         }
-        return PreferenceHelpers.getDisplayTitle(title, titleEnglish, titleJapanese, titleLanguage)
+        return PreferenceHelpers.getDisplayTitle(title, titleEnglish, titleJapanese, titleLanguage, titleRomaji)
     }
 
     fun KitsugiRelation.getDisplayTitle(titleLanguage: String): String {
@@ -76,21 +88,31 @@ object PreferenceHelpers {
             return when (titleLanguage) {
                 "NATIVE", "JAPANESE_STAFF" -> titleJapanese?.takeIf { it.isNotBlank() } ?: title
                 "ENGLISH" -> MediaTitleResolver.latin(titleEnglish) ?: MediaTitleResolver.latin(titleRomaji) ?: MediaTitleResolver.latin(title) ?: title
-                else -> MediaTitleResolver.latin(title)
-                    ?: MediaTitleResolver.latin(titleRomaji)
+                else -> MediaTitleResolver.latin(titleRomaji)
+                    ?: MediaTitleResolver.latin(title)
                     ?: MediaTitleResolver.latin(titleEnglish)
                     ?: title
             }
         }
-        return PreferenceHelpers.getDisplayTitle(title, titleEnglish, titleJapanese, titleLanguage)
+        return PreferenceHelpers.getDisplayTitle(title, titleEnglish, titleJapanese, titleLanguage, titleRomaji)
     }
 
     fun KitsugiCharacterMediaAppearance.getDisplayTitle(titleLanguage: String): String {
-        return PreferenceHelpers.getDisplayTitle(title, titleEnglish, titleJapanese, titleLanguage)
+        return PreferenceHelpers.getDisplayTitle(title, titleEnglish, titleJapanese, titleLanguage, titleRomaji)
     }
 
     fun KitsugiStaffMediaWork.getDisplayTitle(titleLanguage: String): String {
-        return PreferenceHelpers.getDisplayTitle(mediaTitle, titleEnglish, titleJapanese, titleLanguage)
+        return PreferenceHelpers.getDisplayTitle(mediaTitle, titleEnglish, titleJapanese, titleLanguage, titleRomaji)
+    }
+
+    fun KitsugiStaffCharacterRole.getDisplayMediaTitle(titleLanguage: String): String {
+        return PreferenceHelpers.getDisplayTitle(
+            mediaTitle,
+            mediaTitleEnglish,
+            mediaTitleJapanese,
+            titleLanguage,
+            mediaTitleRomaji
+        )
     }
 
     fun formatScore(score: Int?, scoreFormat: String, hideScores: Boolean): String {

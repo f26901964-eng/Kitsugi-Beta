@@ -49,6 +49,7 @@ import com.kitsugi.animelist.data.auth.BangumiApiClient
 import com.kitsugi.animelist.data.auth.BangumiApiClient.BangumiFavoriteItem
 import com.kitsugi.animelist.data.auth.BangumiApiClient.BangumiUserCollection
 import com.kitsugi.animelist.data.remote.BangumiIdNamespace
+import com.kitsugi.animelist.data.remote.BangumiNameLocalizer
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.app.BangumiProfileState
 import com.kitsugi.animelist.ui.components.KitsugiWebViewDialog
@@ -132,6 +133,7 @@ private fun progressLabel(item: BangumiUserCollection): String? {
 fun BangumiProfileContent(
     state: BangumiProfileState,
     accentColor: Color,
+    titleLanguage: String = "ROMAJI",
     onOpenAnimeOrManga: (subjectId: Int, mediaType: MediaType, title: String, imageUrl: String?) -> Unit,
     onCharacterClick: (charId: Int, name: String?, imageUrl: String?) -> Unit,
     onPersonClick: (personId: Int, name: String?, imageUrl: String?) -> Unit,
@@ -227,6 +229,7 @@ fun BangumiProfileContent(
                 BangumiCollectionRow(
                     collection = collection,
                     accentColor = accentColor,
+                    titleLanguage = titleLanguage,
                     onClick = {
                         val isAnimeOrManga = collection.subjectType == BangumiApiClient.SubjectType.ANIME ||
                             collection.subjectType == BangumiApiClient.SubjectType.BOOK
@@ -234,7 +237,9 @@ fun BangumiProfileContent(
                             onOpenAnimeOrManga(
                                 collection.subjectId,
                                 BangumiIdNamespace.mediaTypeFor(collection.subjectType),
-                                collection.subject?.displayTitle ?: "#${collection.subjectId}",
+                                collection.subject?.let {
+                                    BangumiNameLocalizer.entity(it.name, it.nameCn).displayFor(titleLanguage)
+                                } ?: "#${collection.subjectId}",
                                 collection.subject?.images?.poster
                             )
                         } else {
@@ -252,7 +257,10 @@ fun BangumiProfileContent(
             item {
                 BangumiFavoriteRow(
                     favorites = state.characterFavorites,
-                    onClick = { item -> onCharacterClick(item.id, item.name, item.imageUrl) }
+                    titleLanguage = titleLanguage,
+                    onClick = { item ->
+                        onCharacterClick(item.id, BangumiNameLocalizer.entity(item.name).displayFor(titleLanguage), item.imageUrl)
+                    }
                 )
             }
         }
@@ -264,7 +272,10 @@ fun BangumiProfileContent(
             item {
                 BangumiFavoriteRow(
                     favorites = state.personFavorites,
-                    onClick = { item -> onPersonClick(item.id, item.name, item.imageUrl) }
+                    titleLanguage = titleLanguage,
+                    onClick = { item ->
+                        onPersonClick(item.id, BangumiNameLocalizer.entity(item.name).displayFor(titleLanguage), item.imageUrl)
+                    }
                 )
             }
         }
@@ -474,10 +485,12 @@ private fun BangumiChip(
 private fun BangumiCollectionRow(
     collection: BangumiUserCollection,
     accentColor: Color,
+    titleLanguage: String,
     onClick: () -> Unit
 ) {
     val subject = collection.subject
-    val title = subject?.displayTitle?.takeIf { it.isNotBlank() } ?: "#${collection.subjectId}"
+    val title = subject?.let { BangumiNameLocalizer.entity(it.name, it.nameCn).displayFor(titleLanguage) }
+        ?.takeIf { it.isNotBlank() } ?: "#${collection.subjectId}"
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -563,10 +576,12 @@ private fun BangumiSectionTitle(text: String) {
 @Composable
 private fun BangumiFavoriteRow(
     favorites: List<BangumiFavoriteItem>,
+    titleLanguage: String,
     onClick: (BangumiFavoriteItem) -> Unit
 ) {
     LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         items(favorites, key = { it.id }) { favorite ->
+            val displayName = BangumiNameLocalizer.entity(favorite.name).displayFor(titleLanguage)
             Column(
                 modifier = Modifier
                     .width(84.dp)
@@ -576,7 +591,7 @@ private fun BangumiFavoriteRow(
             ) {
                 AsyncImage(
                     model = favorite.imageUrl,
-                    contentDescription = favorite.name,
+                    contentDescription = displayName,
                     contentScale = ContentScale.Crop,
                     modifier = Modifier
                         .size(72.dp)
@@ -584,7 +599,7 @@ private fun BangumiFavoriteRow(
                         .background(KitsugiColors.SurfaceElevated)
                 )
                 Text(
-                    text = favorite.name,
+                    text = displayName,
                     style = MaterialTheme.typography.labelMedium.copy(
                         color = KitsugiColors.TextPrimary,
                         textAlign = TextAlign.Center
