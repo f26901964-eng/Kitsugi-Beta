@@ -148,6 +148,31 @@ object CsCfWarmupManager {
     }
 
     /**
+     * WebView'ı güvenli ve **tek seferlik** biçimde söker/serbest bırakır.
+     *
+     * Neden kritik: `WebView.destroy()` çağrıldıktan sonra aynı nesne üzerinde yapılan her
+     * çağrı (`stopLoading()` dahil) Chromium tarafında "Application attempted to call on a
+     * destroyed WebView" üretir ve **RenderThread içinde use-after-free (SIGSEGV)** riski
+     * yaratır. 2026-10-09 tarihli sessiz çökme raporlarında (pid 15790 / 18716 / 28270)
+     * çökme tam olarak `RenderThread` üzerinde, `libhwui.so` display-list oynatımı sırasında
+     * `fault_addr=0x20` ile gerçekleşti ve logcat'te bu uyarı her warmup sonrası tekrarladı.
+     *
+     * Bu yüzden: (1) `settled` bayrağı ile yalnızca bir kez çalışır, (2) view önce parent'tan
+     * sökülür, (3) yük durdurulur, (4) referanslar kesilir, (5) en son `destroy()` çağrılır.
+     */
+    private fun releaseWebView(webViewRef: WebView?, settled: java.util.concurrent.atomic.AtomicBoolean) {
+        if (!settled.compareAndSet(false, true)) return
+        if (webViewRef == null) return
+        try {
+            (webViewRef.parent as? android.view.ViewGroup)?.removeView(webViewRef)
+        } catch (_: Throwable) {}
+        try { webViewRef.stopLoading() } catch (_: Throwable) {}
+        try { webViewRef.loadUrl("about:blank") } catch (_: Throwable) {}
+        try { webViewRef.webViewClient = WebViewClient() } catch (_: Throwable) {}
+        try { webViewRef.destroy() } catch (_: Throwable) {}
+    }
+
+    /**
      * Tek bir siteyi WebView ile warmup eder.
      * Başarı durumunda cookie CloudflareKiller.savedCookies'e kaydedilir.
      */
@@ -162,6 +187,9 @@ object CsCfWarmupManager {
         var success = false
         val handler = Handler(Looper.getMainLooper())
         var webViewRef: WebView? = null
+        // Tek seferlik teardown garantisi — hem timeout yolu hem başarı yolu aynı nesneyi
+        // serbest bırakmaya çalışıyordu; bu çifte destroy çökme üretiyordu.
+        val settled = java.util.concurrent.atomic.AtomicBoolean(false)
         val startMs = System.currentTimeMillis()
 
         handler.post {
@@ -222,7 +250,7 @@ object CsCfWarmupManager {
 
                 // Timeout handler
                 handler.postDelayed({
-                    if (latch.count > 0) {
+                    if (!settled.get()) {
                         Log.w(TAG, "[$host] Warmup timeout (${timeoutMs}ms)")
                         // Timeout'ta bile var olan cookie'yi al
                         val cookieStr = CookieManager.getInstance().getCookie(url)
@@ -238,13 +266,16 @@ object CsCfWarmupManager {
                                 Log.d(TAG, "[$host] Timeout'ta cookie kurtarıldı: ${cookieMap.keys}")
                             }
                         }
-                        webViewRef?.stopLoading()
-                        webViewRef?.destroy()
-                        latch.countDown()
                     }
+                    // Başarı yolunda da timeout yolunda da teardown BURADAN ve TEK KEZ yapılır.
+                    releaseWebView(webViewRef, settled)
+                    webViewRef = null
+                    if (latch.count > 0) latch.countDown()
                 }, timeoutMs)
             } catch (e: Exception) {
                 Log.e(TAG, "[$host] WebView başlatma hatası: ${e.message}")
+                releaseWebView(webViewRef, settled)
+                webViewRef = null
                 latch.countDown()
             }
         }
@@ -252,13 +283,11 @@ object CsCfWarmupManager {
         // Main thread bloklamadan bekle
         latch.await(timeoutMs + 2000L, TimeUnit.MILLISECONDS)
 
-        // WebView'ı temizle
+        // Güvenlik ağı: latch herhangi bir sebeple sayılmadıysa WebView sızmasın.
+        // releaseWebView tek seferlik olduğu için burada çifte destroy oluşmaz.
         handler.post {
-            try {
-                webViewRef?.stopLoading()
-                webViewRef?.destroy()
-                webViewRef = null
-            } catch (_: Exception) {}
+            releaseWebView(webViewRef, settled)
+            webViewRef = null
         }
 
         success

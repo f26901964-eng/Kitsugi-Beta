@@ -61,6 +61,15 @@ class Media3PlayerEngine(
     private val settings: AppSettings
 ) : PlayerEngine {
 
+    private companion object {
+        /**
+         * Otomatik altyazı seçimi için izin verilen en fazla deneme sayısı.
+         * Harici altyazıların akışa geç bağlanması durumunda politikanın birkaç
+         * `onTracksChanged` turunda yeniden denemesine imkân verir; sonsuz döngüyü engeller.
+         */
+        const val MAX_AUTO_SUBTITLE_ATTEMPTS = 8
+    }
+
     private val TAG = "Media3PlayerEngine"
     private val mainHandler = android.os.Handler(android.os.Looper.getMainLooper())
     private fun runOnMainThread(block: () -> Unit) {
@@ -143,6 +152,25 @@ class Media3PlayerEngine(
     private var initialSelectionDone: Boolean = false
     private var initialAudioSelectionDone: Boolean = false
     private var userSelectedAudioTrack: Boolean = false
+
+    /**
+     * Kullanıcı altyazı parçasını ELLE seçti mi? true ise otomatik politika bir daha devreye
+     * girmez (kullanıcının seçimi ezilmez).
+     */
+    private var userSelectedTextTrack: Boolean = false
+
+    /**
+     * Otomatik Türkçe/tercih edilen altyazı seçimi sonuçlandı mı?
+     *
+     * Neden tek atımlık `initialSelectionDone` yetmiyordu: ExoPlayer ilk `onTracksChanged`
+     * olayını çoğu akışta **harici (sideloaded) altyazılar henüz bağlanmadan** verir. Politika
+     * o anda bir kez çalışıp `initialSelectionDone=true` yaptığı için, videonun kendi Türkçe
+     * parçası listeye bir tık geç düşünce seçilmiyor ve kullanıcı altyazısız kalıyordu.
+     * Artık seçim, hedef dil gerçekten seçilene (veya gerçekten hiç yok sayılana) kadar
+     * sınırlı sayıda yeniden denenir.
+     */
+    private var autoSubtitleSelectionSettled: Boolean = false
+    private var autoSubtitleAttemptCount: Int = 0
 
     override val activeStreamInfo: StreamInfoData
         get() = StreamInfoData(
@@ -325,9 +353,12 @@ class Media3PlayerEngine(
                 }
             }
 
-            // ── Otomatik altyazı seçimi — yalnızca ilk yükleme için (kullanıcı değişikliklerini ezmez) ──
-            if (!initialSelectionDone) {
-                initialSelectionDone = true
+            // ── Otomatik altyazı seçimi ────────────────────────────────────────────────
+            // Kullanıcının ELLE yaptığı seçim asla ezilmez; onun dışında hedef dil gerçekten
+            // seçilene kadar (sınırlı denemeyle) yeniden denenir. Tek atımlık eski davranış,
+            // harici altyazılar ilk onTracksChanged'e yetişmediğinde videonun kendi Türkçe
+            // parçasının hiç seçilmemesine yol açıyordu.
+            if (!userSelectedTextTrack && !autoSubtitleSelectionSettled) {
                 val preferredLangs = settings.preferredSubtitleLanguages
                     .split(",").map { it.trim().lowercase() }.filter { it.isNotEmpty() }
 
@@ -353,13 +384,23 @@ class Media3PlayerEngine(
                     }
 
                     val currentlySelected = textOptions.firstOrNull { it.isSelected }
-                    val isSelectedTurkishSource = currentlySelected != null && run {
+                    // Politikanın kabul ettiği bir parça seçili mi? (dahili/harici Türkçe ya da
+                    // kullanıcının tercih listesindeki bir dil)
+                    val currentSatisfiesPolicy = currentlySelected != null && run {
                         val format = currentlySelected.group.getTrackFormat(currentlySelected.trackIndex)
-                        !isExternalTrack(currentlySelected) &&
-                            com.kitsugi.animelist.core.player.PlayerSubtitleUtils.isTurkish(format.language, format.label)
+                        com.kitsugi.animelist.core.player.PlayerSubtitleUtils.isTurkish(format.language, format.label) ||
+                            com.kitsugi.animelist.core.player.SubtitleSelectionPolicy
+                                .effectiveLanguages(preferredLangs)
+                                .any { lang ->
+                                    com.kitsugi.animelist.core.player.PlayerSubtitleUtils
+                                        .matchesTrackLanguage(format.language, format.label, lang)
+                                }
                     }
 
-                    if (!isSelectedTurkishSource) {
+                    if (currentSatisfiesPolicy) {
+                        // Hedefe ulaşıldı — artık otomatik seçim devreye girmez.
+                        autoSubtitleSelectionSettled = true
+                    } else {
                         // Tek ortak politika (SubtitleSelectionPolicy) — MPV ile birebir aynı sonuç.
                         val candidates = textOptions.map { opt ->
                             val format = opt.group.getTrackFormat(opt.trackIndex)
@@ -372,14 +413,23 @@ class Media3PlayerEngine(
                         }
                         val bestSub = com.kitsugi.animelist.core.player.SubtitleSelectionPolicy.pick(candidates, preferredLangs)
                         if (bestSub != null) {
-                            if (currentlySelected != bestSub) {
-                                Log.i(TAG, "Auto-selecting best subtitle track: ${bestSub.label}")
+                            // Sınırlı yeniden deneme: override'ın bir sonraki onTracksChanged'e
+                            // yansıması gerekir; yansımazsa sonsuz döngü yerine pes edilir.
+                            if (currentlySelected != bestSub && autoSubtitleAttemptCount < MAX_AUTO_SUBTITLE_ATTEMPTS) {
+                                autoSubtitleAttemptCount++
+                                Log.i(
+                                    TAG,
+                                    "Auto-selecting best subtitle track (attempt $autoSubtitleAttemptCount): ${bestSub.label}"
+                                )
                                 selectTrack(bestSub)
+                            } else if (currentlySelected == bestSub || autoSubtitleAttemptCount >= MAX_AUTO_SUBTITLE_ATTEMPTS) {
+                                autoSubtitleSelectionSettled = true
                             }
                         } else {
                             // Türkçe veya tercih edilen dil yoksa yabancı dili (İtalyanca vb.) kapat
                             Log.i(TAG, "No Turkish/preferred subtitle found. Disabling non-preferred track: ${currentlySelected?.label}")
                             disableSubtitles()
+                            autoSubtitleSelectionSettled = true
                         }
                     }
                 }
@@ -587,6 +637,9 @@ class Media3PlayerEngine(
         this.initialSelectionDone = false
         this.initialAudioSelectionDone = false
         this.userSelectedAudioTrack = false
+        this.userSelectedTextTrack = false
+        this.autoSubtitleSelectionSettled = false
+        this.autoSubtitleAttemptCount = 0
 
         // ── T1.13: Start diagnostics & analytics session ──────────────────────
         val sessionId = java.util.UUID.randomUUID().toString().take(8)
@@ -872,6 +925,10 @@ class Media3PlayerEngine(
             val type = if (isSubtitle) C.TRACK_TYPE_TEXT else C.TRACK_TYPE_AUDIO
             if (type == C.TRACK_TYPE_AUDIO) {
                 userSelectedAudioTrack = true
+            } else {
+                // Kullanıcı altyazıyı elle seçti → otomatik politika bir daha karışmasın.
+                userSelectedTextTrack = true
+                autoSubtitleSelectionSettled = true
             }
             player.trackSelectionParameters = player.trackSelectionParameters
                 .buildUpon()
@@ -956,7 +1013,19 @@ class Media3PlayerEngine(
                 )
                 
                 val density = context.resources.displayMetrics.density
-                val translation = -currentSubtitleStyle.verticalOffset.toFloat() * density
+                val requested = -currentSubtitleStyle.verticalOffset.toFloat() * density
+                // Kullanıcı "Dikey Konum" kaydırıcısını eksiye çektiğinde altyazı görünür
+                // alanın dışına (alt barın arkasına / ekran dışına) itilebiliyordu. Çeviri
+                // miktarını altyazı alanının içine sabitliyoruz: alt kenarda 4dp pay kalır,
+                // üstte ise tüm alanı kaplayacak kadar ötelenemez.
+                val subHeight = subtitleView.height.takeIf { it > 0 }
+                    ?: (pv.height.takeIf { it > 0 } ?: 0)
+                val marginPx = 4f * density
+                val translation = if (subHeight > 0) {
+                    requested.coerceIn(-(subHeight - marginPx), subHeight - marginPx)
+                } else {
+                    requested
+                }
                 subtitleView.translationY = translation
                 assSubtitleView?.translationY = translation
             }

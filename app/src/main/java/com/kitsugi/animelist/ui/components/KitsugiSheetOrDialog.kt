@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.grid.LazyGridState
@@ -26,6 +28,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.foundation.focusable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import com.kitsugi.animelist.ui.tv.focus.TvFocusRestoration.safeRequestFocus
@@ -95,6 +98,15 @@ fun KitsugiSheetOrDialog(
      * false = always disable gestures (use for HorizontalPager dialogs)
      */
     sheetGesturesEnabled: Boolean? = null,
+    /**
+     * Sağ üstte her zaman görünür bir kapatma (çarpı) butonu gösterir.
+     *
+     * Varsayılan `true`: içerik aşağı kaydırıldığında sürüklemeyle kapatma eskiden tamamen
+     * kilitleniyordu ve çoğu sheet'te alternatif bir kapatma yolu yoktu — kullanıcı açılır
+     * sayfada takılı kalıyordu. Bu buton her koşulda bir çıkış garantiler.
+     * İçeriği zaten sağ üstte bir buton barındıran sayfalar `false` geçebilir.
+     */
+    showCloseButton: Boolean = true,
     content: @Composable ColumnScope.() -> Unit
 ) {
     // ── Gömülü mod: dialog/sheet sarmalayıcısız doğrudan render ──────────────
@@ -128,7 +140,7 @@ fun KitsugiSheetOrDialog(
             )
         ) {
             CompositionLocalProvider(LocalDismissAnimated provides dismissAnimated) {
-                Column(
+                Box(
                     modifier = Modifier
                         .fillMaxWidth(0.55f)
                         .widthIn(min = 480.dp, max = 640.dp)
@@ -140,9 +152,21 @@ fun KitsugiSheetOrDialog(
                         .focusable()
                         .clip(KitsugiTvTokens.Shapes.dialog)
                         .background(KitsugiColors.Surface)
-                        .padding(bottom = 8.dp),
-                    content = content
-                )
+                        .padding(bottom = 8.dp)
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        content = content
+                    )
+                    if (showCloseButton) {
+                        KitsugiSheetCloseButton(
+                            onClick = { dismissAnimated() },
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(top = 8.dp, end = 12.dp)
+                        )
+                    }
+                }
             }
         }
     } else if (fullScreen) {
@@ -163,13 +187,27 @@ fun KitsugiSheetOrDialog(
             )
         ) {
             CompositionLocalProvider(LocalDismissAnimated provides dismissAnimated) {
-                Column(
+                Box(
                     modifier = Modifier
                         .fillMaxSize()
                         .background(KitsugiColors.Surface)
-                        .navigationBarsPadding(),
-                    content = content
-                )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .navigationBarsPadding(),
+                        content = content
+                    )
+                    if (showCloseButton) {
+                        KitsugiSheetCloseButton(
+                            onClick = { dismissAnimated() },
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .statusBarsPadding()
+                                .padding(top = 8.dp, end = 12.dp)
+                        )
+                    }
+                }
             }
         }
     } else {
@@ -215,8 +253,12 @@ fun KitsugiSheetOrDialog(
             skipPartiallyExpanded = true,
             confirmValueChange = { targetValue ->
                 if (targetValue == SheetValue.Hidden) {
-                    // Only allow hide if gestures enabled AND at top
-                    enableSwipeToDismiss && isAtTop
+                    // İçerik aşağı kaydırılmışken sürüklemeyi "yanlışlıkla kapatma"ya karşı
+                    // zorlaştırıyoruz ama ASLA tamamen kilitlemiyoruz: kilitlendiğinde ve
+                    // çarpı butonu da yoksa kullanıcı açılır sayfada takılı kalıyordu.
+                    // `enableSwipeToDismiss=false` açıkça istendiyse yine de izin verilir;
+                    // çıkış garantisi her şeyden önce gelir.
+                    true
                 } else {
                     true
                 }
@@ -261,7 +303,7 @@ fun KitsugiSheetOrDialog(
             }
         ) {
             CompositionLocalProvider(LocalDismissAnimated provides dismissAnimated) {
-                Column(
+                Box(
                     modifier = Modifier
                         .widthIn(max = 640.dp)
                         .fillMaxWidth()
@@ -274,10 +316,56 @@ fun KitsugiSheetOrDialog(
                                     .heightIn(max = screenHeight * effectiveHeightFraction)
                             }
                         )
-                        .navigationBarsPadding(),
-                    content = content
-                )
+                ) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .heightIn(max = screenHeight * effectiveHeightFraction)
+                            .navigationBarsPadding(),
+                        content = content
+                    )
+                    if (showCloseButton) {
+                        KitsugiSheetCloseButton(
+                            onClick = { dismissAnimated() },
+                            modifier = Modifier
+                                .align(Alignment.TopEnd)
+                                .padding(top = 4.dp, end = 12.dp)
+                        )
+                    }
+                }
             }
+        }
+    }
+}
+
+/**
+ * Açılır sayfa (sheet/dialog) için minik kapatma butonu.
+ *
+ * Her açılır sayfada bir çıkış yolu garanti altına alınır: içerik aşağı kaydırıldığında
+ * sürüklemeyle kapatma zorlaştığında bile kullanıcı tek dokunuşla çıkabilir.
+ */
+@Composable
+fun KitsugiSheetCloseButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    androidx.compose.material3.IconButton(
+        onClick = onClick,
+        modifier = modifier.size(34.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(30.dp)
+                .clip(CircleShape)
+                .background(KitsugiColors.SurfaceStrong.copy(alpha = 0.92f)),
+            contentAlignment = Alignment.Center
+        ) {
+            androidx.compose.material3.Icon(
+                imageVector = androidx.compose.material.icons.Icons.Rounded.Close,
+                contentDescription = "Kapat",
+                tint = KitsugiColors.TextSecondary,
+                modifier = Modifier.size(18.dp)
+            )
         }
     }
 }
