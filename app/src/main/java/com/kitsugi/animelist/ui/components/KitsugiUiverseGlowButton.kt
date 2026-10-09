@@ -17,6 +17,7 @@ import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
@@ -33,7 +34,6 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.utils.tvClickable
@@ -156,7 +156,9 @@ fun KitsugiDetailActionButton(
     enabled: Boolean = true,
     icon: ImageVector? = null,
     @Suppress("UNUSED_PARAMETER") palette: UiverseButtonPalette = UiverseButtonPalette.Default,
-    shape: Shape = RoundedCornerShape(16.dp)
+    // Diğer detay aksiyon butonlarıyla (ApiActionButton / ActionButton) aynı hap formu:
+    // aynı köşe yarıçapı, aynı dolgu ve aynı yazı stili → görsel olarak tek aile.
+    shape: Shape = RoundedCornerShape(999.dp)
 ) {
     val accent = LocalKitsugiAccent.current
     val interactionSource = remember { MutableInteractionSource() }
@@ -181,23 +183,23 @@ fun KitsugiDetailActionButton(
             .clip(shape)
             .background(backgroundColor, shape)
             .then(if (enabled) Modifier.tvClickable(shape = shape, interactionSource = interactionSource, onClick = onClick) else Modifier)
-            .padding(horizontal = 20.dp, vertical = 14.dp),
+            .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterHorizontally)
+        horizontalArrangement = Arrangement.spacedBy(6.dp, Alignment.CenterHorizontally)
     ) {
         if (icon != null) {
             Icon(
                 imageVector = icon,
                 contentDescription = null,
                 tint = contentColor,
-                modifier = Modifier.size(20.dp)
+                modifier = Modifier.size(16.dp)
             )
         }
         Text(
             text = text,
             color = contentColor,
-            fontWeight = FontWeight.Bold,
-            fontSize = 16.sp
+            style = MaterialTheme.typography.labelMedium,
+            fontWeight = FontWeight.Bold
         )
     }
 }

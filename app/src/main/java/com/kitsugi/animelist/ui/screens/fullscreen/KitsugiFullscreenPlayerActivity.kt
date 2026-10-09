@@ -10,6 +10,7 @@ import android.os.Bundle
 import android.view.WindowManager
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import com.kitsugi.animelist.core.player.ExternalPlayerLauncher
 import com.kitsugi.animelist.core.player.PlayerMediaSessionHelper
@@ -414,6 +415,44 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
             )
             helper.updatePlaybackState(isPlaying = true, positionMs = 0L, hasNext = false)
         }
+
+        // ── Cihaz geri tuşu zinciri (jest + 3 tuşlu gezinme + donanım tuşu) ─────────
+        // Jest tabanlı gezinmede sistem KEYCODE_BACK üretmez; doğrudan OnBackPressedDispatcher
+        // çalışır. Compose'taki `onPreviewKeyEvent(Key.Back)` işleyicisi ise yalnızca odağı
+        // Compose aldığında (ve TV/donanım tuşlarında) devreye girer. Bu callback her iki
+        // yolu da kapsar ve deterministik zinciri garanti eder:
+        //   dialog → panel → sheet → kontrolleri gizle → oynatıcıdan çık.
+        // Böylece geri tuşu hiçbir durumda "algılanmamış" olmaz.
+        onBackPressedDispatcher.addCallback(
+            this,
+            object : OnBackPressedCallback(true) {
+                override fun handleOnBackPressed() {
+                    if (isInPipNow || isInPictureInPictureMode) {
+                        // PiP'te kapatma kararını sistem verir; zinciri by-pass et.
+                        isEnabled = false
+                        onBackPressedDispatcher.onBackPressed()
+                        isEnabled = true
+                        return
+                    }
+                    when {
+                        viewModel.dialogShown.value != KitsugiDialogs.None ->
+                            viewModel.showDialog(KitsugiDialogs.None)
+                        viewModel.panelShown.value != KitsugiPanels.None ->
+                            viewModel.showPanel(KitsugiPanels.None)
+                        viewModel.sheetShown.value != KitsugiSheets.None ->
+                            viewModel.showSheet(KitsugiSheets.None)
+                        viewModel.controlsShown.value ->
+                            viewModel.hideControls()
+                        else -> {
+                            // Zincir tükendi: Activity'nin kendi kapanışına bırak.
+                            isEnabled = false
+                            onBackPressedDispatcher.onBackPressed()
+                            isEnabled = true
+                        }
+                    }
+                }
+            }
+        )
 
         setContent {
             // Oynatıcı, ana uygulamayla AYNI tema ayarlarını kullanmalı (seçili tema rengi, AMOLED, tema modu).

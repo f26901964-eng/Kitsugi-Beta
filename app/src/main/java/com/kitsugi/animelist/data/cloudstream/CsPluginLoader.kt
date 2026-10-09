@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.res.AssetManager
 import android.content.res.Resources
 import android.util.Log
+import com.kitsugi.animelist.data.cloudstream.diag.CsTrace
 import com.lagradost.cloudstream3.APIHolder
 import com.lagradost.cloudstream3.MainAPI
 import com.lagradost.cloudstream3.plugins.BasePlugin
@@ -289,6 +290,7 @@ object CsPluginLoader {
         if (!cs3File.exists()) {
             Log.e(TAG, "Plugin file not found: ${cs3File.absolutePath}")
             Log.e(PLUGIN_DIAG, "❌ CS3 DOSYA YOK: $scraperId → ${cs3File.absolutePath}")
+            CsTrace.error(scraperId, "load", "CS3 dosyası yok: ${cs3File.absolutePath}")
             return@withLock emptyList()
         }
 
@@ -325,11 +327,13 @@ object CsPluginLoader {
         // Quick ZIP sanity-check before handing to classloader
         val isValidZip = try { ZipFile(cs3File).use { true } } catch (zipEx: Exception) {
             Log.e(PLUGIN_DIAG, "❌ CS3 ZIP BOZUK: $scraperId — ${zipEx.message}")
+            CsTrace.error(scraperId, "load", "CS3 ZIP bozuk: ${zipEx.message}", zipEx)
             false
         }
         if (!isValidZip) {
             Log.e(TAG, "CS3 file for $scraperId is not a valid ZIP — corrupt or not a DEX plugin. Re-install it.")
             Log.e(PLUGIN_DIAG, "❌ CS3 GEÇERSİZ ZIP: $scraperId — Yeniden yükleyin!")
+            CsTrace.error(scraperId, "load", "CS3 geçersiz ZIP — yeniden yükleyin")
             return@withLock emptyList()
         }
 
@@ -357,6 +361,7 @@ object CsPluginLoader {
             if (pluginClassName.isNullOrBlank()) {
                 Log.e(TAG, "manifest.json for $scraperId has no pluginClassName or pluginClass field")
                 Log.e(PLUGIN_DIAG, "❌ MANIFEST HATASI: $scraperId — pluginClassName/pluginClass alanı eksik!")
+                CsTrace.error(scraperId, "load", "manifest.json pluginClassName/pluginClass alanı eksik")
                 return@withLock emptyList()
             }
 
@@ -435,9 +440,11 @@ object CsPluginLoader {
                 if (loadErr is kotlinx.coroutines.TimeoutCancellationException) {
                     Log.e(TAG, "Plugin $scraperId load() TIMEOUT (30s) — eklenti çok uzun süre engelledi. Kaldırılıyor.")
                     Log.e(PLUGIN_DIAG, "⏱️ CS3 TIMEOUT: $scraperId — load() 30 saniyede tamamlanamadı (runBlocking deadlock?)")
+                    CsTrace.error(scraperId, "load", "load() 30 sn içinde bitmedi (zaman aşımı)")
                 } else {
                     Log.e(TAG, "Plugin $scraperId load() failed — unloading. Cause: $errType: $errMsg", loadErr)
                     Log.e(PLUGIN_DIAG, "❌ CS3 LOAD() HATASI: $scraperId — $errType: $errMsg")
+                    CsTrace.error(scraperId, "load", "load() hatası: $errType: $errMsg", loadErr)
                 }
                 unloadExtensionInternal(context, scraperId)
                 return@withLock emptyList()
@@ -622,8 +629,10 @@ object CsPluginLoader {
             if (allRegisteredApis.isEmpty()) {
                 Log.w(TAG, "Plugin loaded OK but registered 0 providers. allProviders size=${APIHolder.allProviders.size}")
                 Log.e(PLUGIN_DIAG, "⚠️ CS3 SIFIR PROVIDER: $scraperId yüklendi ama 0 API kaydetti! manifest.pluginClass=$pluginClassName")
+                CsTrace.error(scraperId, "load", "Eklenti yüklendi ama 0 provider kaydetti (pluginClass=$pluginClassName)")
             } else {
                 Log.i(PLUGIN_DIAG, "✅ CS3 BAŞARILI: $scraperId → ${allRegisteredApis.size} provider: ${allRegisteredApis.map { it.name }}")
+                CsTrace.info(scraperId, "load", "${allRegisteredApis.size} provider yüklendi: ${allRegisteredApis.map { it.name }}")
             }
 
             loadedPluginIds.value = loadedPluginIds.value + scraperId
@@ -633,6 +642,7 @@ object CsPluginLoader {
             // NoClassDefFoundError that plugins may throw if they depend on missing libs.
             Log.e(TAG, "Failed to load extension $scraperId: ${t.javaClass.simpleName}: ${t.message}", t)
             Log.e(PLUGIN_DIAG, "❌ CS3 YÜKLEME HATASI: $scraperId — ${t.javaClass.simpleName}: ${t.message}\n${android.util.Log.getStackTraceString(t)}")
+            CsTrace.error(scraperId, "load", "Yükleme istisnası: ${t.javaClass.simpleName}: ${t.message}", t)
             emptyList()
         }
     }

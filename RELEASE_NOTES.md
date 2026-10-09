@@ -1,5 +1,65 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.218)
+
+### 🔍 1. Cloudstream Canlı İzleme & Tanı Raporlama Sistemi (`CsTrace`)
+- **Otomatik Canlı Kayıt (`CsTrace.kt`, `CsTraceCore.kt`):** Eklenti yükleme, arama, başlık varyantları, eşleşme, bölüm bulma, doğrudan link ve embed çıkarma, `loadLinks` aşamaları `filesDir/cs_trace/` altında otomatik olarak kalıcı günlüğe yazılır.
+- **Eşleşme Reddi Şeffaflığı:** Hiçbir adayın eşleşme eşiğini geçemediği durumlarda hedef başlık, sezon/bölüm, yıl ve en iyi 5 adayın benzerlik skorları kaydedilir ("neden 0 sonuç" durumu netleşti).
+- **Hata & Çökme Takibi:** `loadLinks` zaman aşımları, DEX yükleme hataları ve kritik istisnalar izleme sistemine aktarılır.
+- **Yanıltıcı Durum Mesajı Düzeltildi:** `domain_fixes.json` engelli listesindeki eklentiler denenirken tracker'a yazılan yanıltıcı "skip" yerine durum yalnızca izleme günlüğüne yazılır.
+- **Canlı Rapor Paylaşımı:** Ayarlar > Eklenti Tanı ekranına **"Canlı İzleme Raporunu Paylaş (.md)"** düğmesi eklendi; oluşturulan Markdown raporu Android paylaşım penceresiyle doğrudan iletilebilir.
+
+### 🎬 2. Kapsamlı Fragman Zinciri (`DetailTrailerFallback.kt`)
+- **Çok Katmanlı Yedek Mekanizması:** Kaynak kendi YouTube fragmanını sağlamadığında arka planda sırayla **TMDB → Diğer Metadata Kaynakları (AniList, Jikan, Kitsu) → Cloudstream Eklentileri** (arama ve load yanıtındaki fragmanlar) taranır.
+- **Dinamik Ön İzleme Kartı:** Bulunan fragman detay durumuna ve önbelleğe yazılır; `ApiResultDetailViewModel` ve `MediaEntryDetailViewModel` üzerinden "Ön izleme" kartı otomatik olarak belirir.
+
+### 🔘 3. İzle Butonu Tasarım Hizalaması (`KitsugiUiverseGlowButton.kt`)
+- **Tek Tip Eylem Butonları:** `KitsugiDetailActionButton` artık `ApiActionButton` ve `ActionButton` ile tam uyumlu: 999dp hap form, 14×10dp dolgu, `labelMedium` tipografi ve 16dp ikon ile görsel bütünlük sağlandı.
+
+### ❌ 4. Açılır Sayfa ve Oynatıcı Kapatma Butonu Düzenlemeleri
+- **Player Dışındaki Yüzen Çarpılar Temizlendi (`KitsugiSheetOrDialog.kt`):** v2.4.215'te eklenen evrensel yüzen çarpı kaldırıldı; sayfaların kendi doğal başlık yapıları korundu.
+- **Player İçi Açılır Sayfalara Çarpı Butonu:** `PlayerSheet` sürükleme kolu satırına sağa hizalı kapatma çarpısı eklendi (Altyazılar, Ses, Kalite/Kaynak, Bölümler, Hız, Ekran Görüntüsü vb.).
+- `EpisodeListDialog` ve `QualityProfileDialog` için tek dokunuşluk kapatma butonları eklendi.
+
+### 🔙 5. Oynatıcı Geri Tuşu ve Jest Gezinme Zinciri (`KitsugiFullscreenPlayerActivity.kt`)
+- **Deterministik Çıkış Zinciri:** Jest gezinme, 3 tuşlu çubuk ve donanım geri tuşlarının tamamında çalışan `OnBackPressedDispatcher` callback'i kuruldu:
+  - `dialog` → `panel` → `sheet` → `kontrolleri gizle` → `oynatıcıdan çık`.
+
+### 📦 6. Dağıtım
+- Yalnızca **FOSS** sürümü (`assembleFossRelease`) derlendi (`Kitsugi-Beta-v2.4.218-foss.apk`).
+
+---
+
+## 🇬🇧 English (v2.4.218)
+
+### 🔍 1. Cloudstream Live Trace & Diagnostic Reporting (`CsTrace`)
+- **Automated Live Tracing (`CsTrace.kt`, `CsTraceCore.kt`):** Plugin loading, search query variants, title matching, episode extraction, direct links, embed scrapers, and `loadLinks` phases are persisted to `filesDir/cs_trace/`.
+- **Match Rejection Transparency:** When candidate items fail matching thresholds, the target title, season, episode, year, and similarity scores of top 5 candidates are logged to reveal the exact reason behind empty results.
+- **Fail-Safe Exception Recording:** `loadLinks` timeouts, DEX loading exceptions, and critical errors are automatically captured.
+- **Accurate Status Attribution:** Suppressed misleading "skip" tracker entries for plugins on domain blocklists that are still actively probed.
+- **One-Tap Report Sharing:** Added **"Share Live Trace Report (.md)"** button in Settings > Plugin Diagnostics to export markdown traces via Android share sheet.
+
+### 🎬 2. Universal Trailer Fallback Pipeline (`DetailTrailerFallback.kt`)
+- **Multi-Source Fallback Chain:** If the primary source lacks a YouTube trailer, a fallback ladder queries **TMDB → Metadata Sources (AniList, Jikan, Kitsu) → Cloudstream Plugins**.
+- **Dynamic Preview Card:** Resolved trailers are written to detail state and cached, automatically displaying the "Preview" card across `ApiResultDetailViewModel` and `MediaEntryDetailViewModel`.
+
+### 🔘 3. Action Button Visual Alignment (`KitsugiUiverseGlowButton.kt`)
+- **Unified Action Styling:** `KitsugiDetailActionButton` now aligns with `ApiActionButton` and `ActionButton`: 999dp pill form factor, 14×10dp padding, `labelMedium` typography, and 16dp icon.
+
+### ❌ 4. Sheet & Player Close Button Refinements
+- **Removed Extraneous Floating Close Buttons (`KitsugiSheetOrDialog.kt`):** Reverted universal floating close button outside the player, preserving native sheet headers.
+- **Player Sheet Close Buttons:** Added unified close buttons to the `PlayerSheet` header bar across all bottom sheets (Subtitles, Audio Tracks, Quality/Sources, Episodes, Playback Speed, Screenshot).
+- Added close buttons to `EpisodeListDialog` and `QualityProfileDialog`.
+
+### 🔙 5. Player Back Gesture & Navigation Dispatcher Chain (`KitsugiFullscreenPlayerActivity.kt`)
+- **Deterministic Back Key Handling:** Integrated an `OnBackPressedDispatcher` callback supporting gesture navigation, 3-button navigation, and hardware back keys:
+  - `dialog` → `panel` → `sheet` → `hide controls` → `exit player`.
+
+### 📦 6. Distribution
+- Strictly released the **FOSS variant only** (`assembleFossRelease` -> `Kitsugi-Beta-v2.4.218-foss.apk`).
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.217)
 
 ### 🚪 1. Merkezi Jikan Gateway (`JikanGateway.kt`) & MAL Trafik Optimizasyonu

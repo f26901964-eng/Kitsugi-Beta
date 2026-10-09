@@ -118,6 +118,9 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
         // Initialize custom FileLoggingTree
         com.kitsugi.animelist.core.diagnostics.FileLoggingTree.init(this)
 
+        // CS eklenti canlı izleyicisi (kalıcı trace + paylaşılabilir rapor)
+        try { com.kitsugi.animelist.data.cloudstream.diag.CsTrace.init(this) } catch (_: Throwable) {}
+
         // KitsugiCrashLogger'a başlatma zamanını bildir
         com.kitsugi.animelist.core.diagnostics.KitsugiCrashLogger.KitsugiApplication_LaunchTime = APP_LAUNCH_TIME
 
