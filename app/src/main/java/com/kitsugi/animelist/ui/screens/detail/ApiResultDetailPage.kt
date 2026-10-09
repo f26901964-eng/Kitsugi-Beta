@@ -406,7 +406,8 @@ fun ApiResultDetailPage(
                     onBackClick = onBackClick,
                     logoUrl = if (showAnimeLogos) logoUrl else null,
                     isAdult = displayResult.isAdult,
-                    blurAdultMedia = blurAdultMedia
+                    blurAdultMedia = blurAdultMedia,
+                    source = displayResult.source
                 )
             },
             errorScreen = {

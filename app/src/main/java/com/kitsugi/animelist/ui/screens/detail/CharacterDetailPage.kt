@@ -156,7 +156,8 @@ fun CharacterDetailPage(
                 KitsugiCinematicLoadingScreen(
                     title = name ?: stringResource(R.string.character_loading),
                     imageUrl = imageUrl,
-                    onBackClick = onBackClick
+                    onBackClick = onBackClick,
+                    source = source
                 )
             }
             is CharacterDetailState.Error -> {

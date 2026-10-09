@@ -42,7 +42,8 @@ fun KitsugiCinematicLoadingScreen(
     modifier: Modifier = Modifier,
     logoUrl: String? = null,
     isAdult: Boolean = false,
-    blurAdultMedia: Boolean = false
+    blurAdultMedia: Boolean = false,
+    source: String? = null
 ) {
     val accentColor = LocalKitsugiAccent.current
 
@@ -154,6 +155,12 @@ fun KitsugiCinematicLoadingScreen(
                     )
                 }
                 Spacer(modifier = Modifier.height(24.dp))
+            }
+
+            // Kaynak adı çipi (logo + isim) — vitrin ve detay sayfalarıyla aynı görsel dil
+            if (!source.isNullOrBlank()) {
+                KitsugiSourceNamePill(source = source)
+                Spacer(modifier = Modifier.height(12.dp))
             }
 
             // Title or Logo

@@ -77,16 +77,8 @@ private const val HERO_CONTENT_PARALLAX = 0.18f
 private fun heroItemIdentity(item: JikanSearchResult): String =
     "${item.source.trim().lowercase()}:${item.type.name}:${item.malId}"
 
-private fun heroSourceLabel(source: String): String? = when (source.trim().lowercase()) {
-    "anilist", "al" -> "AniList"
-    "mal", "jikan", "jikan (mal)", "mal (jikan)" -> "MAL"
-    "tmdb", "themoviedb" -> "TMDB"
-    "simkl" -> "Simkl"
-    "kitsu" -> "Kitsu"
-    "shikimori", "shiki" -> "Shikimori"
-    "bangumi", "bgm" -> "Bangumi"
-    else -> null
-}
+// Kaynak adı etiketleri artık ortak `toFriendlySourceLabel()` üzerinden üretilir;
+// vitrin çipi `KitsugiSourceNamePill` ile tüm kaynaklarda logo+isim gösterir.
 
 /**
  * Vitrin görsel adayları — ekran boyutu (vitirin kutusunun en-boy oranı) ve
@@ -139,25 +131,8 @@ internal fun heroImageAlignment(chosenIsPoster: Boolean, heroAspect: Float): Ali
 
 @Composable
 private fun HeroSourcePill(source: String) {
-    val label = heroSourceLabel(source) ?: return
-    val shape = RoundedCornerShape(999.dp)
-    Row(
-        modifier = Modifier
-            .clip(shape)
-            .background(KitsugiColors.Background.copy(alpha = 0.72f))
-            .border(1.dp, KitsugiColors.TextPrimary.copy(alpha = 0.16f), shape)
-            .padding(horizontal = 8.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
-    ) {
-        KitsugiPlatformLogo(platformId = source, size = 17.dp)
-        Text(
-            text = label,
-            color = KitsugiColors.TextPrimary,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold
-        )
-    }
+    // Tüm kaynaklarda logo + dostça isim gösteren ortak çip.
+    KitsugiSourceNamePill(source = source)
 }
 
 private data class HeroPageLayer(

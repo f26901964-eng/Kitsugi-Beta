@@ -335,8 +335,8 @@ internal fun DetailHero(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                DetailPill(
-                    text = entry.source.toFriendlySourceLabel().uppercase(),
+                DetailSourcePill(
+                    source = entry.source,
                     color = if (entry.source.equals("tmdb", ignoreCase = true)) Color(0xFFFFB800) else accentColor
                 )
 

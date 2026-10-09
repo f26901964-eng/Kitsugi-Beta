@@ -86,6 +86,43 @@ internal fun DetailPill(
 }
 
 /**
+ * Logo + isim içeren kaynak pill'i — detay sayfalarında kaynağı GÖRSEL olarak gösterir.
+ * Platformun orijinal logosu ve dostça adı (örn. "Bangumi", "MyAnimeList", "Shikimori")
+ * birlikte çizilir; böylece tüm kaynaklarda isim+logo tutarlı görünür.
+ */
+@Composable
+internal fun DetailSourcePill(
+    source: String,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    val label = source.toFriendlySourceLabel()
+    val hasLogo = KitsugiPlatformLogos.resFor(source) != null
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(999.dp))
+            .background(color.copy(alpha = 0.15f))
+            .padding(horizontal = 12.dp, vertical = 6.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            if (hasLogo) {
+                KitsugiPlatformLogo(platformId = source, size = 16.dp, cornerRadius = 3.dp)
+            }
+            Text(
+                text = label,
+                color = color,
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Black
+            )
+        }
+    }
+}
+
+/**
  * Platform logo rozeti — Karakter, Seslendirmen ve Detay sayfalarında
  * kaynak platformun resmi orijinal logosunu gösterir.
  */
