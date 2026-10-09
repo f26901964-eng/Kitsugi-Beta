@@ -24,6 +24,20 @@ object KitsugiHttpClient {
             .build()
     }
 
+    /**
+     * Jikan istemcisi: [metadataClient] ile aynı, ancak [RetryInterceptor] YOK.
+     *
+     * Neden: RetryInterceptor 429/5xx/ağ hatasında isteği kota kapısı (JikanGateway) dışında
+     * anında tekrar gönderiyordu. Her Jikan çağrısı böylece 3'e kadar gerçek HTTP isteği üretip
+     * dakikalık limiti tüketiyor, 429'u daha da artırıyordu. Jikan yeniden denemesi yalnızca
+     * JikanGateway içinde, kota ve soğuma kurallarına uyarak yapılır.
+     */
+    val jikanClient: OkHttpClient by lazy {
+        metadataClient.newBuilder()
+            .apply { interceptors().removeAll { it is RetryInterceptor } }
+            .build()
+    }
+
     val client: OkHttpClient by lazy {
         OkHttpClient.Builder()
             .dns(IPv4FirstDns())

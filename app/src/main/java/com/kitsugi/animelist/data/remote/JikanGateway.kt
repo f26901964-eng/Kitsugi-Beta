@@ -55,6 +55,11 @@ object JikanGateway {
     private const val LIST_TTL_MS = 30L * 60L * 1000L
     private const val MAX_CACHE_ENTRIES = 300
 
+    /** Art arda bu kadar sunucu/ağ hatasında devre açılır (Jikan kapalıyken her ekranın 20 sn beklemesini önler). */
+    private const val BREAKER_THRESHOLD = 3
+    private const val BREAKER_OPEN_MS = 5L * 60L * 1000L
+    private const val BREAKER_MSG = "Jikan geçici olarak devre dışı (art arda hata)"
+
     private val ID_DETAIL_REGEX = Regex("^(anime|manga|characters|people|producers)/\\d+(/.*)?$")
     private val VOLATILE_SUFFIXES = listOf("/reviews", "/forum", "/news", "/statistics")
 
@@ -71,6 +76,8 @@ object JikanGateway {
     private val lock = Any()
     private var nextSlotAt = 0L
     private var cooldownUntil = 0L
+    private var consecutiveFailures = 0
+    private var breakerOpenUntil = 0L
     private val recentStarts = ArrayDeque<Long>()
     private val inFlight = HashMap<String, CompletableDeferred<JikanResult>>()
     private val cache = object : LinkedHashMap<String, CacheEntry>(64, 0.75f, true) {
@@ -140,6 +147,32 @@ object JikanGateway {
         Log.w(TAG, "Jikan 429: ${cooldown}ms soğuma uygulandı")
     }
 
+    private fun isBreakerOpen(): Boolean = synchronized(lock) {
+        breakerOpenUntil > System.currentTimeMillis()
+    }
+
+    /** Sunucu/ağ hatası sonucunu kaydeder; eşik aşılınca devreyi [BREAKER_OPEN_MS] süreyle açar. */
+    private fun recordOutcome(result: JikanResult) {
+        val isServerFailure = result is JikanResult.Failed &&
+            result.message != CANCELLED &&
+            (result.code == 0 || result.code in 500..599)
+        val healthy = result is JikanResult.Ok || result is JikanResult.NotFound
+        if (!healthy && !isServerFailure) return
+        synchronized(lock) {
+            if (healthy) {
+                consecutiveFailures = 0
+            } else {
+                consecutiveFailures++
+                if (consecutiveFailures >= BREAKER_THRESHOLD) {
+                    breakerOpenUntil = System.currentTimeMillis() + BREAKER_OPEN_MS
+                    consecutiveFailures = 0
+                    Log.w(TAG, "Jikan devre açıldı: ${BREAKER_OPEN_MS / 1000}sn boyunca istek atılmayacak")
+                }
+            }
+            Unit
+        }
+    }
+
     private fun cacheGet(key: String): String? = synchronized(lock) {
         val entry = cache[key]
         when {
@@ -166,7 +199,7 @@ object JikanGateway {
             .header("User-Agent", USER_AGENT)
             .build()
         return try {
-            com.kitsugi.animelist.core.network.KitsugiHttpClient.metadataClient.newCall(request).execute().use { response ->
+            com.kitsugi.animelist.core.network.KitsugiHttpClient.jikanClient.newCall(request).execute().use { response ->
                 when {
                     response.isSuccessful -> JikanResult.Ok(response.body?.string().orEmpty())
                     response.code == 404 -> JikanResult.NotFound
@@ -214,6 +247,7 @@ object JikanGateway {
      */
     suspend fun fetch(url: String, priority: Priority = Priority.UI, maxRetries: Int = 2): JikanResult {
         cacheGet(url)?.let { return JikanResult.Ok(it) }
+        if (isBreakerOpen()) return JikanResult.Failed(0, BREAKER_MSG)
 
         val owned = CompletableDeferred<JikanResult>()
         val existing = synchronized(lock) {
@@ -235,6 +269,7 @@ object JikanGateway {
         var result: JikanResult = JikanResult.Failed(0, CANCELLED)
         try {
             result = fetchWithRetry(url, priority, maxRetries)
+            recordOutcome(result)
         } finally {
             synchronized(lock) { inFlight.remove(url) }
             owned.complete(result)
