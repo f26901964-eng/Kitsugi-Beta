@@ -21,4 +21,4 @@ simkl_client_secret=YOUR_SIMKL_CLIENT_SECRET
 
 # AnimeSkip — https://animeskip.app
 anime_skip_client_id=YOUR_ANIME_SKIP_CLIENT_ID
-miribyou_base_url=
+miribyou_base_url=https://miribyou-topaz.vercel.app

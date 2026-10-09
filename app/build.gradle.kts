@@ -21,8 +21,8 @@ android {
     val anilistClientId   = localProperties.getProperty("anilist_client_id")    ?: "32022"
     val anilistSecret     = localProperties.getProperty("anilist_client_secret") ?: "RwKJVnuh1B76AMKaWyEgsig6KwjGQpkpbMwJSi4j"
     val malClientId       = localProperties.getProperty("mal_client_id")         ?: "9dfa9b926eecef62128b6d464c7e33b9"
-    // Kendi kurduğun miribyou örneğinin kök adresi (ör. https://xxx.vercel.app). Boşsa atlanır.
-    val miribyouBaseUrl   = localProperties.getProperty("miribyou_base_url")     ?: ""
+    // miribyou kök adresi (Jikan uyumlu, açık kaynak). local.properties ile geçersiz kılınabilir; boşsa atlanır.
+    val miribyouBaseUrl   = localProperties.getProperty("miribyou_base_url")     ?: "https://miribyou-topaz.vercel.app"
     val simklClientId     = localProperties.getProperty("simkl_client_id")       ?: "650ad7c96b7e1ab1e0056f745708ee0d05558480e8e0c6ae80f1061d2ae31496"
     val simklSecret       = localProperties.getProperty("simkl_client_secret")   ?: "81d3253f90d1f2c0c4ea55af6ca317861e5f40d43c16255eeabd57fc51c73f1c"
     val animeSkipClientId = localProperties.getProperty("anime_skip_client_id")  ?: "5mpKIMeowxmJ4UvAWacdPEzNbfXEjZDv"
