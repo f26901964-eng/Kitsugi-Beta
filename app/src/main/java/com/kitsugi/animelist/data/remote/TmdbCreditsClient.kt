@@ -2,6 +2,9 @@ package com.kitsugi.animelist.data.remote
 
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import com.kitsugi.animelist.model.MediaType
@@ -18,6 +21,12 @@ internal object TmdbCreditsClient {
     private const val TAG = "TmdbCreditsClient"
     private const val IMG_W185 = "https://image.tmdb.org/t/p/w185"
     private const val IMG_W300 = "https://image.tmdb.org/t/p/w300"
+
+    /** Bir credits yanıtında romaji için en fazla kaç kişi detayı sorgulanır (ağ yükü sınırı). */
+    private const val MAX_PERSON_ROMAJI_LOOKUPS = 12
+
+    /** TMDB person id → also_known_as listesi (oturum boyunca önbellek). */
+    private val personAliasCache = java.util.concurrent.ConcurrentHashMap<Int, List<String>>()
 
     suspend fun fetchCredits(
         tmdbId: Int,
@@ -83,7 +92,31 @@ internal object TmdbCreditsClient {
                     )
                 }
             }
-            Pair(charList, staffList)
+            // TMDB isimleri çoğunlukla Japonca (CJK) döner; romaji/Latin ad kişinin
+            // also_known_as listesinden alınır. Kart ve listelerde romaji gösterilebilsin diye
+            // yalnızca CJK adı olan kişiler için romanizedName doldurulur.
+            val cjkPersonIds = charList.flatMap { it.voiceActors }
+                .filter { PreferenceHelpers.hasCjkCharacters(it.name) }
+                .map { it.id } +
+                staffList.filter { PreferenceHelpers.hasCjkCharacters(it.name) }.map { it.id }
+            val romajiByPerson: Map<Int, String> = if (cjkPersonIds.isEmpty()) emptyMap<Int, String>()
+                else resolvePersonRomaji(cjkPersonIds, apiKey, language, executeGet)
+            if (romajiByPerson.isEmpty()) {
+                Pair(charList, staffList)
+            } else {
+                Pair(
+                    charList.map { character ->
+                        character.copy(
+                            voiceActors = character.voiceActors.map { va ->
+                                romajiByPerson[va.id]?.let { va.copy(romanizedName = it) } ?: va
+                            }
+                        )
+                    },
+                    staffList.map { staff ->
+                        romajiByPerson[staff.id]?.let { staff.copy(romanizedName = it) } ?: staff
+                    }
+                )
+            }
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching credits: ${e.message}", e)
             Pair(emptyList(), emptyList())
@@ -288,7 +321,8 @@ internal object TmdbCreditsClient {
                 id = personId, name = name, nativeName = null,
                 alternativeNames = alternativeNames, imageUrl = imageUrl,
                 gender = gender, age = null, birthday = birthday, bloodType = null,
-                biography = biography, voiceActors = emptyList(), mediaAppearances = appearances
+                biography = biography, voiceActors = emptyList(), mediaAppearances = appearances,
+                romanizedName = if (PreferenceHelpers.hasCjkCharacters(name)) pickLatinAlias(alternativeNames) else null
             )
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching TMDB person details: ${e.message}", e)
@@ -373,7 +407,8 @@ internal object TmdbCreditsClient {
                 alternativeNames = alternativeNames, imageUrl = imageUrl,
                 biography = biography, occupation = department, birthday = birthday,
                 age = null, gender = gender, homeTown = placeOfBirth,
-                characterRoles = characterRoles, mediaWorks = works
+                characterRoles = characterRoles, mediaWorks = works,
+                romanizedName = if (PreferenceHelpers.hasCjkCharacters(name)) pickLatinAlias(alternativeNames) else null
             )
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching TMDB staff details: ${e.message}", e)
@@ -515,5 +550,55 @@ internal object TmdbCreditsClient {
             Log.e(TAG, "fetchStats TMDB error: ${e.message}", e)
             null
         }
+    }
+
+    /**
+     * Çoklu dilde TMDB kişi adlarından (CJK) Latin/romaji adayını seçer.
+     * Boşluk içeren ad ("Keitarou Motonaga") tercih edilir; yoksa ilk Latin ad.
+     */
+    internal fun pickLatinAlias(aliases: List<String>): String? {
+        val latin = aliases.filter { alias ->
+            alias.any { it.isLetter() } && !PreferenceHelpers.hasCjkCharacters(alias)
+        }
+        return latin.firstOrNull { it.contains(' ') } ?: latin.firstOrNull()
+    }
+
+    private suspend fun fetchPersonAliases(
+        personId: Int,
+        apiKey: String,
+        language: String,
+        executeGet: suspend (String) -> String?
+    ): List<String> {
+        personAliasCache[personId]?.let { return it }
+        val url = "https://api.themoviedb.org/3/person/$personId?api_key=$apiKey&language=$language"
+        return try {
+            val responseText = executeGet(url) ?: return emptyList()
+            val root = JSONObject(responseText)
+            val aka = root.optJSONArray("also_known_as")
+            val aliases: List<String> = if (aka == null) emptyList<String>() else
+                (0 until aka.length()).mapNotNull { i ->
+                    aka.optString(i, "").trim().takeIf { it.isNotEmpty() }
+                }
+            personAliasCache[personId] = aliases
+            aliases
+        } catch (e: Exception) {
+            Log.w(TAG, "Error fetching TMDB person aliases for $personId: ${e.message}")
+            emptyList()
+        }
+    }
+
+    /** Verilen kişi id'leri için romaji adlarını paralel ve üst sınırlı şekilde çözer. */
+    private suspend fun resolvePersonRomaji(
+        personIds: List<Int>,
+        apiKey: String,
+        language: String,
+        executeGet: suspend (String) -> String?
+    ): Map<Int, String> = coroutineScope {
+        personIds.filter { it > 0 }.distinct().take(MAX_PERSON_ROMAJI_LOOKUPS).map { id ->
+            async {
+                val romaji = pickLatinAlias(fetchPersonAliases(id, apiKey, language, executeGet))
+                id to romaji
+            }
+        }.awaitAll().mapNotNull { (id, romaji) -> romaji?.let { id to it } }.toMap()
     }
 }

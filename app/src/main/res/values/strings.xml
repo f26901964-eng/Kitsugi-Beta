@@ -893,6 +893,7 @@
 
     <!-- Common Staff/Crew Roles -->
     <string name="staff_role_director">Yönetmen</string>
+    <string name="staff_role_directing">Yönetmenlik</string>
     <string name="staff_role_producer">Yapımcı</string>
     <string name="staff_role_writer">Yazar</string>
     <string name="staff_role_creator">Yaratıcı</string>
