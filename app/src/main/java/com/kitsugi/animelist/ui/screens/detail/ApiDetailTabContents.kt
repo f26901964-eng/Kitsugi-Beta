@@ -137,6 +137,12 @@ internal fun ApiDetailOverviewTab(
             Spacer(modifier = Modifier.height(14.dp))
         }
 
+        // Yayın tarihi / sonraki bölüm / geri sayım — kaynak ne olursa olsun aynı açılır kart.
+        if (detail != null && buildUpcomingReleaseInfo(detail) != null) {
+            UpcomingReleaseCard(detail = detail)
+            Spacer(modifier = Modifier.height(14.dp))
+        }
+
         if (detail != null) {
             ApiInfoSection(
                 detail = detail,

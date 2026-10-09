@@ -239,7 +239,8 @@ internal fun parseNextAiring(raw: String): AiringInfo {
         val ep = parts.getOrNull(0)?.toIntOrNull()
         val epoch = parts.getOrNull(1)?.toLongOrNull()
         if (ep != null && epoch != null) {
-            return AiringInfo(ep, epoch, null)
+            // ep <= 0: TMDB film/dizi listesi ("-1|epoch") — bölüm numarası yok, yalnız tarih.
+            return AiringInfo(ep.takeIf { it > 0 }, epoch, null)
         }
     }
     return AiringInfo(null, null, raw)
@@ -251,7 +252,7 @@ internal fun rememberAiringCountdownText(nextAiring: String?): String {
     val info = remember(nextAiring) { parseNextAiring(nextAiring) }
     var displayText by remember(info) { mutableStateOf("") }
 
-    if (info.targetEpoch != null && info.episode != null) {
+    if (info.targetEpoch != null) {
         val targetEpoch = info.targetEpoch
         val episode = info.episode
 
@@ -260,18 +261,12 @@ internal fun rememberAiringCountdownText(nextAiring: String?): String {
                 val now = System.currentTimeMillis() / 1000L
                 val remaining = targetEpoch - now
                 if (remaining <= 0) {
-                    displayText = "Bölüm $episode yayınlandı!"
+                    displayText = com.kitsugi.animelist.utils.KitsugiReleaseDates.countdownText(targetEpoch, now, episode)
                     break
                 }
 
                 val days = remaining / 86400
-                displayText = if (days >= 1) {
-                    "Bölüm $episode, $days gün sonra yayında"
-                } else {
-                    val hours = remaining / 3600
-                    val minutes = (remaining % 3600) / 60
-                    String.format("Bölüm %d, %02d:%02d sonra yayınlanacak", episode, hours, minutes)
-                }
+                displayText = com.kitsugi.animelist.utils.KitsugiReleaseDates.countdownText(targetEpoch, now, episode)
                 val delayTime = if (days >= 1) 60000L else 10000L
                 kotlinx.coroutines.delay(delayTime)
             }
@@ -290,7 +285,7 @@ internal fun AiringCountdownCard(
     val info = remember(nextAiring) { parseNextAiring(nextAiring) }
     var displayText by remember(info) { mutableStateOf("") }
 
-    if (info.targetEpoch != null && info.episode != null) {
+    if (info.targetEpoch != null) {
         val targetEpoch = info.targetEpoch
         val episode = info.episode
 
@@ -299,18 +294,12 @@ internal fun AiringCountdownCard(
                 val now = System.currentTimeMillis() / 1000L
                 val remaining = targetEpoch - now
                 if (remaining <= 0) {
-                    displayText = "Bölüm $episode yayınlandı!"
+                    displayText = com.kitsugi.animelist.utils.KitsugiReleaseDates.countdownText(targetEpoch, now, episode)
                     break
                 }
 
                 val days = remaining / 86400
-                displayText = if (days >= 1) {
-                    "Bölüm $episode, $days gün sonra yayında"
-                } else {
-                    val hours = remaining / 3600
-                    val minutes = (remaining % 3600) / 60
-                    String.format("Bölüm %d, %02d:%02d sonra yayınlanacak", episode, hours, minutes)
-                }
+                displayText = com.kitsugi.animelist.utils.KitsugiReleaseDates.countdownText(targetEpoch, now, episode)
                 val delayTime = if (days >= 1) 60000L else 10000L
                 kotlinx.coroutines.delay(delayTime)
             }

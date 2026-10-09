@@ -115,8 +115,18 @@ internal object KitsugiSimklDetailClient {
                     rating = if (ratingScore > 0.0) ratingScore.toString() else null,
                     broadcast = null,
                     episodeDuration = if (runtime > 0) "$runtime min".toTurkishDuration() else null,
-                    startDate = null,
-                    endDate = null,
+                    // Simkl tarihleri: film → released (YYYY-MM-DD); dizi/anime → first_aired / last_aired
+                    // (ISO UTC). Anime tarihleri JST referanslı yorumlanır (MAL/AniList ile tutarlı).
+                    startDate = com.kitsugi.animelist.utils.KitsugiReleaseDates.isoToLocalDateString(
+                        raw = if (isTmdbMovie) obj.optString("released", "") else obj.optString("first_aired", ""),
+                        zone = if (mediaType == MediaType.Anime) com.kitsugi.animelist.utils.KitsugiReleaseDates.JST_ZONE
+                               else java.time.ZoneOffset.UTC
+                    ),
+                    endDate = if (isTmdbMovie) null else com.kitsugi.animelist.utils.KitsugiReleaseDates.isoToLocalDateString(
+                        raw = obj.optString("last_aired", ""),
+                        zone = if (mediaType == MediaType.Anime) com.kitsugi.animelist.utils.KitsugiReleaseDates.JST_ZONE
+                               else java.time.ZoneOffset.UTC
+                    ),
                     titleEnglish = resolvedTitleEnglish,
                     titleJapanese = resolvedTitleJapanese,
                     // TMDB/Simkl tarafında ayrı bir romaji alanı yoktur; detay ekranları

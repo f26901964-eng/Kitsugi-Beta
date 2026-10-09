@@ -131,10 +131,15 @@ internal object TmdbMediaDetailClient {
             val voteCount = if (features.useBasicInfo) finalJson.optInt("vote_count", 0).takeIf { it > 0 } else null
             val tmdbPopularity = if (features.useBasicInfo) finalJson.optDouble("popularity", 0.0).toInt().takeIf { it > 0 } else null
             val nextEpisodeObj = finalJson.optJSONObject("next_episode_to_air")
+            // Ortak biçim "bölüm|epoch" (AniList ile aynı): UI geri sayımı ve Türkçe tarih
+            // metni buradan üretilir. TMDB yalnız tarih verir → UTC gece yarısı epoch'u
+            // (KitsugiReleaseDates.isDateOnlyEpoch ile "saat bilinmiyor" olarak tanınır).
             val nextAiring = if (features.useReleaseDates && nextEpisodeObj != null) {
                 val ep = nextEpisodeObj.optInt("episode_number")
-                val dateStr = nextEpisodeObj.optString("air_date")
-                if (ep > 0 && dateStr.isNotBlank()) "Bölüm $ep, $dateStr tarihinde yayında" else null
+                val epoch = com.kitsugi.animelist.utils.KitsugiReleaseDates
+                    .utcMidnightEpoch(nextEpisodeObj.optString("air_date"))
+                val nowSec = System.currentTimeMillis() / 1000L
+                if (ep > 0 && epoch != null && epoch > nowSec) "$ep|$epoch" else null
             } else null
 
             val releaseDate = if (features.useReleaseDates) {

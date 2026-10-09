@@ -604,8 +604,9 @@ internal fun ApiInfoSection(
             val rows = buildList {
                 if (!detail.status.isNullOrBlank()) add("Durum" to detail.status)
                 if (!detail.season.isNullOrBlank()) add("Sezon" to detail.season)
-                if (!detail.startDate.isNullOrBlank()) add("Başlangıç" to detail.startDate)
-                if (!detail.endDate.isNullOrBlank()) add("Bitiş" to detail.endDate)
+                // Tüm kaynaklarda ortak Türkçe tarih biçimi (15 Ekim 2026 / Ekim 2026 / 2026)
+                if (!detail.startDate.isNullOrBlank()) add("Başlangıç" to (com.kitsugi.animelist.utils.KitsugiReleaseDates.formatTr(detail.startDate) ?: detail.startDate))
+                if (!detail.endDate.isNullOrBlank()) add("Bitiş" to (com.kitsugi.animelist.utils.KitsugiReleaseDates.formatTr(detail.endDate) ?: detail.endDate))
                 if (!detail.sourceMaterial.isNullOrBlank()) add("Kaynak" to detail.sourceMaterial)
                 if (mediaType == MediaType.Anime) {
                     if (detail.studios.isNotEmpty()) add("Stüdyo" to detail.studios.joinToString(", ") { it.name })
