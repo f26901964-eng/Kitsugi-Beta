@@ -112,10 +112,10 @@ internal object BangumiNameLocalizer {
         val romaji = explicitRomaji ?: nativeLatin ?: aliasLatin ?: explicitEnglish
         val english = explicitEnglish ?: nativeLatin ?: romaji
         val display = romaji ?: english ?: native ?: chinese ?: "?"
-        // Diğer adlar yalnızca Latin harfli olmalı: Japonca/Çince/Korece varyantlar kullanıcıya
-        // gösterilmez (özgün ad yalnızca başlığın kendisi için son çare olarak kalır).
+        // Diğer adlar: Eser veya kişi detayında tüm alternatif adlar (Japonca, Çince,
+        // Korece, İngilizce vb.) eksiksiz görünür; yalnızca ana gösterim adıyla aynı olanlar elenir.
         val alternatives = (listOfNotNull(native, chinese, english, romaji) + allAliases)
-            .filter { it.isNotBlank() && !it.equals(display, ignoreCase = true) && isLatinDisplayName(it) }
+            .filter { it.isNotBlank() && !it.equals(display, ignoreCase = true) }
             .distinctBy { it.lowercase() }
 
         return BangumiLocalizedName(

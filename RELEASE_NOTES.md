@@ -5,7 +5,7 @@
 ### 🌸 1. Bangumi Başlık Dili & Latin Ad Zenginleştirmesi (`KitsugiBangumiClient.kt`, `BangumiLocalizedName.kt`)
 - **Liste Kartlarında Latin Ad Desteği:** Bangumi liste ve arama uçları (`/v0/search`, `/v0/subjects`, sıralamalar vb.) infobox dönmediğinden Korece ve Çince dizi/anime başlıkları (ör. "김비서가 왜 그럴까", "눈물의 여왕") yerel dilde görünüyordu. Başlığı CJK olan kayıtlar için `withLatinBangumiNames` mekanizması devreye girerek arka planda (Semaphore 4 sınırlayıcı ile) subject detayını tek seferlik çeker, İngilizce/Romaji adları `BangumiTitleCache`'e yazar ve kart başlıklarını uygulama dil tercihine göre günceller.
 - **Tüm Bangumi Keşfet & Arama Listeleri:** En İyi Animeler/Mangalar, Popüler Listeler, Sezonluk Keşif, Real/Dizi Şeritleri ve Normal Arama dahil 15 farklı liste çağrısına uygulandı.
-- **Alternatif Adlar (Diğer İsimler) Filtresi:** Detay sayfalarındaki "Diğer Adlar" alanında Japonca, Çince ve Korece karakterli varyantlar gizlendi; kullanıcıya yalnızca temiz Latin harfli adlar sunulur.
+- **Alternatif Adlar (Diğer İsimler) Desteği:** Detay sayfalarındaki "Diğer Adlar" alanında Japonca, Çince, Korece ve Latin harfli tüm alternatif ad varyantları eksiksiz listelenir; her varyant kendi kopyalama butonuyla sunulur.
 
 ### 👤 2. Karakter & Kişi Detay Sayfası İyileştirmeleri (`CharacterDetailPage.kt`, `StaffDetailPage.kt`)
 - **Seçilen Dile Bağlı Japonca Alt Satır:** Karakter ve ekip detay sayfalarında adın altındaki Japonca yerel ad satırı, artık yalnızca kullanıcı uygulama dilini "Japonca/Yerel" seçtiğinde gösterilir. Diğer dillerde (İngilizce/Romaji) gereksiz tekrar engellendi.
@@ -24,7 +24,7 @@
 ### 🌸 1. Bangumi Title Localization & Latin Name Enrichment (`KitsugiBangumiClient.kt`, `BangumiLocalizedName.kt`)
 - **Latin Name Resolution for List Cards:** Bangumi list and search endpoints do not return infoboxes, previously causing Korean/CJK titles (e.g. "김비서가 왜 그럴까", "눈물의 여왕") to render in native script. The new `withLatinBangumiNames` pipeline queries subject details for CJK titles (rate-limited via Semaphore 4), caches English/Romaji names in `BangumiTitleCache`, and updates list cards to match user language preferences.
 - **Universal Coverage:** Covers Top Anime/Manga, Trending, Seasonal Browse, Real Drama/Movies, and Search lists (15 endpoints).
-- **Clean Alternative Names:** Filtered non-Latin scripts from "Other Names" on detail pages; CJK variants are excluded from alternative aliases.
+- **Comprehensive Alternative Names:** Preserved all alternative name variants (Japanese, Chinese, Korean, and Latin scripts) under "Other Names" on detail pages with individual copy actions.
 
 ### 👤 2. Character & Staff Detail Localization (`CharacterDetailPage.kt`, `StaffDetailPage.kt`)
 - **Language-Aware Native Subtitle:** The Japanese native name subtitle below character and staff headings is now only shown when the user has selected "Native / Japanese" as their display language.
