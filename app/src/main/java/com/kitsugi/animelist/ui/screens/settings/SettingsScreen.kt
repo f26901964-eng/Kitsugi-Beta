@@ -49,6 +49,7 @@ import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.BuildConfig
 import com.kitsugi.animelist.ui.components.BackupImportMode
 import com.kitsugi.animelist.ui.components.KitsugiAccountConnectionsDialog
+import com.kitsugi.animelist.ui.screens.account.KitsugiAccountContent
 import com.kitsugi.animelist.ui.components.KitsugiAddonsSettingsDialog
 import com.kitsugi.animelist.ui.components.KitsugiChoiceOption
 import com.kitsugi.animelist.ui.components.KitsugiConfirmDialog
@@ -68,6 +69,7 @@ internal enum class SettingsRoute {
     // Ana menü
     Main,
     // Alt sayfalar
+    KitsugiAccount,
     AccountConnections,
     AniListSettings,
     MalSettings,
@@ -150,6 +152,15 @@ fun SettingsScreen(
                     params = params,
                     onNavigate = { route = it }
                 )
+            }
+
+            SettingsRoute.KitsugiAccount -> {
+                SettingsSubPage(
+                    title = "Kitsugi Hesabı",
+                    onBack = { route = SettingsRoute.Main }
+                ) {
+                    KitsugiAccountContent()
+                }
             }
 
             SettingsRoute.AccountConnections -> {
@@ -441,10 +452,20 @@ private fun SettingsMainPage(
                 .fillMaxSize()
                 .navigationBarsPadding(),
         ) {
-            // ── Hesap Bağlantıları ──────────────────────────────────────────
+            // ── Hesap ───────────────────────────────────────────────────────
             item {
                 Spacer(Modifier.height(8.dp))
                 SectionHeader("Hesap")
+                SettingsNavCard {
+                    KitsugiSettingsItem(
+                        title = "Kitsugi Hesabı",
+                        description = "Giriş yap, arama geçmişini cihazlar arasında eşitle",
+                        icon = Icons.Rounded.AccountCircle,
+                        iconColor = KitsugiColors.AccentGreen,
+                        onClick = { onNavigate(SettingsRoute.KitsugiAccount) }
+                    )
+                }
+                Spacer(Modifier.height(8.dp))
                 SettingsNavCard {
                     KitsugiSettingsItem(
                         title = "Hesap Bağlantıları",
