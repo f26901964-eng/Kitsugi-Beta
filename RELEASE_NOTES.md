@@ -1,5 +1,57 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.216)
+
+### 🖼️ 1. Vitrin Cover / Baştan Sona Kaplama & Akıllı Görsel Seçimi
+- **Tam Ekran Kaplayan Vitrin (`ContentScale.Crop`):** Önceki "Fit + bulanık dolgu" katmanları tamamen kaldırıldı. Vitrin görseli artık ekranı baştan sona kaplar, kenarlarda boşluk veya bulanık zemin kalmaz.
+- **Ekran Boyutu ve Oranına Göre Akıllı Seçim (`heroImageCandidates`):**
+  - Geniş vitrin bandı (yatay telefon, tablet, TV — en/boy $\ge$ 1.1) $\rightarrow$ yatay dikdörtgen fanart / backdrop öncelikli.
+  - Dikey telefon vitrini (kareye yakın kutu) $\rightarrow$ dikey poster öncelikli.
+- **Dinamik Hata Yedekleme Zinciri (`onLoadingFailed`):** Birincil görsel yüklenemezse anında sıradaki adaya (backdrop $\leftrightarrow$ poster) geçilir.
+- **Kırpma Odak Hizalaması (`heroImageAlignment`):** Geniş vitrinde poster kullanılmak zorunda kalındığında karakter yüzü ve başlık bandının korunması için hafif yukarı bias (`BiasAlignment(0f, -0.2f)`), backdrop görsellerde merkez hizalama uygulandı.
+- **Çok Yönlü TMDB Backdrop Zenginleştirmesi:** Sadece yatay mod değil, dikey tablet ve geniş vitrin bantları da TMDB fanartlarından otomatik yararlanır.
+- **Yumuşatılmış Gradyanlar:** Metin okunabilirliğini korurken görselin merkezini ve detaylarını kapatmayan yumuşak renk geçişleri.
+- **HeroImageSelectionTest:** 13 birim testi %100 başarıyla doğrulandı.
+
+### 🇹🇷 2. Türkçe Akış & Eklenti Pipeline İyileştirmeleri
+- **Site Başlık Kirliliği Temizleme (`stripTurkishSiteNoise`):** Türkçe dizi/film sitelerinin başlıklara eklediği reklam ve gürültü metinleri ("Türkçe Dublaj 1080p izle" vb.) 16 regex kuralı ile filtrelenerek temiz başlık eşleştirmesi sağlandı.
+- **Genişletilmiş Dil & Arama Varyantları:** Başlık varyantları 8'den 12'ye, arama sorguları 12'den 18'e çıkarıldı; Türkçe karakter transliterasyonu (ğ $\rightarrow$ g, ş $\rightarrow$ s, ı $\rightarrow$ i) eklendi.
+- **Geniş Arama Fallback'i (`buildBroadSearchQueries`):** Tüm varyantlar boş döndüğünde anlamlı ilk 2-3 kelime üzerinden genişletilmiş arama yapılarak farklı Türkçe adlandırmalar yakalanır.
+- **45+ Yeni Türkçe CDN Tanıma:** AlionsPlayer, VidMoly, TRsTX, CloseLoad, Pichive, Rapidrame, VidGuard, TurboVid, HDVid, PlayTube, VidHide, Embedy gibi 45+ sağlayıcı `isEmbedUrl` kapsamına eklendi.
+- **Gelişmiş Stream Canlılık Doğrulaması (`tryGetRangeValidation`):** HEAD 400 hatası veren akışlarda doğrudan başarısız saymak yerine GET Range header ile doğrulama yapılır; zaman aşımı süresi 6s $\rightarrow$ 8s'ye yükseltildi.
+- **Türkçe Başlık Model Alanı (`titleTurkish`):** TMDB üzerinden Türkçe başlıklar çekilerek modele ve arama motoruna entegre edildi.
+
+### 📦 3. Dağıtım
+- Yalnızca **FOSS** sürümü (`assembleFossRelease`) derlendi (`Kitsugi-Beta-v2.4.216-foss.apk`).
+
+---
+
+## 🇬🇧 English (v2.4.216)
+
+### 🖼️ 1. Vitrin Cover Presentation & Responsive Hero Asset Selection
+- **Full Bleed Cover (`ContentScale.Crop`):** Completely removed letterboxed "Fit + ambient blur" layers. Hero artwork now stretches end-to-end across the banner container without blurred sidebars or margins.
+- **Aspect-Aware Asset Prioritization (`heroImageCandidates`):**
+  - Wide hero containers (landscape, tablets, TV — aspect $\ge$ 1.1) prioritize horizontal fanart / backdrop artwork.
+  - Portrait mobile phone boxes prioritize vertical posters.
+- **Resilient Fallback Chain (`onLoadingFailed`):** Automatically cascades to the alternative candidate (backdrop $\leftrightarrow$ poster) upon asset load failure.
+- **Focal Alignment Preservation (`heroImageAlignment`):** Applies slight top-vertical bias (`BiasAlignment(0f, -0.2f)`) when vertical posters are cropped in widescreen containers to prevent cropping faces and title text.
+- **Omni-Directional TMDB Backdrop Enrichment:** TMDB backdrop enrichment now activates across all orientations, including portrait tablets.
+- **Softened Gradients:** Refined horizontal and vertical gradient scrims to preserve artwork visibility while ensuring text readability.
+- **Unit Tests (`HeroImageSelectionTest`):** 13 unit tests passed with 100% success.
+
+### 🇹🇷 2. Turkish Stream & Extension Scraper Pipeline Optimization
+- **Stripped Turkish Title Noise (`stripTurkishSiteNoise`):** Cleans up title noise and metadata suffixes ("Türkçe Dublaj 1080p izle", etc.) via 16 regex patterns for accurate content matching.
+- **Expanded Query & Language Variants:** Increased title variants from 8 to 12 and search queries from 12 to 18 with ASCII transliteration (ğ $\rightarrow$ g, ş $\rightarrow$ s, ı $\rightarrow$ i).
+- **Broad Search Fallback (`buildBroadSearchQueries`):** Secondary search pass utilizing the first 2-3 significant title tokens when exact matches return empty.
+- **45+ Turkish Embed & CDN Patterns:** Integrated detection for AlionsPlayer, VidMoly, TRsTX, CloseLoad, Pichive, Rapidrame, VidGuard, TurboVid, HDVid, PlayTube, VidHide, Embedy, and others.
+- **Enhanced Stream Probing (`tryGetRangeValidation`):** Mitigates HEAD 400 rejections by falling back to GET requests with HTTP Range headers; increased probe timeout from 6s to 8s.
+- **Turkish Title Model Field (`titleTurkish`):** Added `titleTurkish` to `KitsugiMediaDetail` populated directly from TMDB localized payloads.
+
+### 📦 3. Distribution
+- Strictly released the **FOSS variant only** (`assembleFossRelease` -> `Kitsugi-Beta-v2.4.216-foss.apk`).
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.215)
 
 ### 🛡️ 1. Sessiz Çökme Kök Neden Çözümü (RenderThread SIGSEGV & WebView Teardown)

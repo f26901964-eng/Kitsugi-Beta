@@ -51,10 +51,86 @@ internal object CsTitleMatcher {
     )
     private val genericWords = setOf(
         "the", "and", "of", "a", "an", "to", "in", "on", "for", "from", "with",
-        "season", "seasons", "sezon", "sezonu", "part", "cour", "episode", "ep", "bölüm", "bolum",
+        "season", "seasons", "sezon", "sezonu", "sezonlar", "part", "cour", "episode", "ep", "bölüm", "bolum",
         "movie", "film", "series", "dizi", "anime", "izle", "watch", "full", "hd", "turkce",
-        "dublaj", "altyazi", "subtitle", "subbed", "dubbed"
+        "dublaj", "altyazi", "subtitle", "subbed", "dubbed",
+        // Turkish streaming site common suffixes/prefixes (noise words)
+        "fragman", "fragmani", "fragmanı", "orijinal", "orginal", "yerli", "yabanci", "yabanci",
+        "tum", "tumbolumler", "tumbolum", "tumsezonlar", "tumsezon", "hepsi", "tumu",
+        "bedava", "ucretsiz", "ucretsizizle", "online", "indir", "download", "mp4", "m3u8",
+        "yuksek", "kalite", "kaliteli", "yeni", "son", "eklenen", "2024", "2025", "2026",
+        "sadece", "burada", "sitemizde", "izle2", "izle3", "izle4", "izle5", "izle6",
+        "cizgifilm", "cizgi", "animeizle", "animeizle2", "animeizle3",
+        "altyazili", "altyazılı", "dublajli", "dublajlı", "sesli", "turkcedublaj", "turkcealtyazi",
+        "cokdilli", "çokdilli", "multidublaj", "multi", "dual", "orjinaldil", "orijinaldil",
+        "ses", "audio", "video", "bolumizle", "bolumizle2", "sezonizle", "filmizle", "diziizle",
+        "1080p", "720p", "480p", "360p", "4k", "uhd", "fhd", "hq", "lq", "sd",
+        "webrip", "webdl", "bluray", "bdrip", "hdrip", "dvdrip", "hdcam", "cam",
+        "tarz", "turu", "tur", "yapim", "yapimi", "yayin", "yayini",
+        "kanal", "kanali", "canli", "canlı", "tv", "televizyon"
     )
+
+    /**
+     * Turkish streaming sites append common noise patterns to titles.
+     * These patterns are stripped from search result names before matching
+     * to improve match accuracy against the canonical title.
+     *
+     * Examples:
+     *   "Spider-Man Örümcek-Adam izle" → "Spider-Man Örümcek-Adam"
+     *   "Naruto Türkçe Dublaj 1080p" → "Naruto"
+     *   "Dizi Full HD Altyazılı" → "Dizi"
+     */
+    private val turkishSiteNoisePatterns = listOf(
+        // Quality suffixes: "1080p", "720p Full HD", "4K Ultra HD"
+        Regex("""\s+(?:\d{3,4}p|4k|uhd|fhd|hd|hq|lq|sd)\b.*$""", RegexOption.IGNORE_CASE),
+        Regex("""\s+(?:full\s+)?(?:hd|hq|lq|sd|4k|uhd|fhd)\b.*$""", RegexOption.IGNORE_CASE),
+        // "izle" variants at end: "izle", "izle 2", "izle3", "film izle", "dizi izle"
+        Regex("""\s+(?:film|dizi|anime|video|bolum|bölüm|sezon)?\s*izle\s*\d*\s*$""", RegexOption.IGNORE_CASE),
+        Regex("""\s+izle\s*\d*\s*$""", RegexOption.IGNORE_CASE),
+        // "Türkçe Dublaj" / "Türkçe Altyazı" / "Altyazılı" / "Dublajlı"
+        Regex("""\s+(?:türkçe|turkce|turkish)\s+(?:dublaj|altyazı|altyazi|ses|audio)\b.*$""", RegexOption.IGNORE_CASE),
+        Regex("""\s+(?:dublaj|altyazı|altyazi|dublajlı|altyazılı|sesli)\b.*$""", RegexOption.IGNORE_CASE),
+        Regex("""\s+(?:türkçe|turkce|turkish)\b.*$""", RegexOption.IGNORE_CASE),
+        // "Full HD" / "Full" at end
+        Regex("""\s+full\b.*$""", RegexOption.IGNORE_CASE),
+        // "Online izle" / "Ücretsiz izle" / "Bedava izle"
+        Regex("""\s+(?:online|ücretsiz|ucretsiz|bedava|ücretsizizle|ucretsizizle)\s+(?:izle\s*)?$""", RegexOption.IGNORE_CASE),
+        // "Türkçe" alone at end
+        Regex("""\s+(?:türkçe|turkce)\s*$""", RegexOption.IGNORE_CASE),
+        // Year in title: "2024", "2025"
+        Regex("""\s+(?:19|20)\d{2}\s*$"""),
+        // "Yeni" / "Son" at end
+        Regex("""\s+(?:yeni|son|eklenen)\s*$""", RegexOption.IGNORE_CASE),
+        // Codec/format noise: "x264", "x265", "HEVC", "WEB-DL", "BluRay"
+        Regex("""\s+(?:x264|x265|h264|h265|hevc|avc|web-?dl|webrip|bluray|bdrip|hdrip|dvdrip)\b.*$""", RegexOption.IGNORE_CASE),
+        // "Canlı" / "TV" suffix
+        Regex("""\s+(?:canlı|canli|tv|kanal)\s*$""", RegexOption.IGNORE_CASE),
+        // "İzle" with site name: "Siteadi izle"
+        Regex("""\s+\w+\s+izle\s*$""", RegexOption.IGNORE_CASE),
+        // Multiple spaces cleanup will happen after
+    )
+
+    /**
+     * Strips common Turkish streaming site noise from a search result title.
+     * This improves matching when the provider returns titles like
+     * "Naruto Shippuden Türkçe Dublaj 1080p izle" for a search of "Naruto Shippuden".
+     */
+    fun stripTurkishSiteNoise(rawTitle: String): String {
+        if (rawTitle.isBlank()) return rawTitle
+        var clean = Normalizer.normalize(rawTitle, Normalizer.Form.NFKC).trim()
+        // Apply noise patterns iteratively (some may reveal more noise after removal)
+        var previous: String
+        var iterations = 0
+        do {
+            previous = clean
+            for (pattern in turkishSiteNoisePatterns) {
+                clean = clean.replace(pattern, " ")
+            }
+            clean = clean.replace(Regex("\\s+"), " ").trim()
+            iterations++
+        } while (clean != previous && iterations < 3)
+        return clean.trim(' ', '-', '–', '—', ':', '：')
+    }
 
     /**
      * Extracts a season/part number in common English, Turkish, Japanese, and Chinese formats.
@@ -112,11 +188,13 @@ internal object CsTitleMatcher {
     ): List<String> {
         val variants = linkedSetOf<String>()
         // Language aliases lead the query list; cap raw synonyms so provider requests remain bounded.
+        // Include ALL alternative titles (English, Romaji, Japanese, Chinese, Turkish, synonyms)
+        // — Turkish streaming sites often use Turkish-translated titles that only appear in synonyms.
         val fullTitles = (listOf(main) + alts)
             .map { Normalizer.normalize(it, Normalizer.Form.NFKC).trim() }
             .filter { normalizeTitleForMatch(it).length >= 2 }
             .distinctBy(::queryKey)
-            .take(8)
+            .take(12)  // Increased from 8 to 12 to include more language variants
 
         fun addVariant(value: String?) {
             val candidate = value?.trim().orEmpty()
@@ -129,12 +207,13 @@ internal object CsTitleMatcher {
             .distinctBy(::queryKey)
 
         if (!isMovie && season != null && season > 1) {
-            val primaryBases = (listOfNotNull(cleanedBases.firstOrNull()) + cleanedBases.drop(1).take(2))
+            val primaryBases = (listOfNotNull(cleanedBases.firstOrNull()) + cleanedBases.drop(1).take(3))
                 .distinctBy(::queryKey)
             val suffixes = buildList {
                 add("$season. Sezon")
                 add("Season $season")
                 add("S$season")
+                add("$season. sezon")
                 add(season.toString())
                 romanValues.firstOrNull { it.second == season }?.let { add(it.first.uppercase(Locale.ROOT)) }
                 val cjk = toCjkNumber(season)
@@ -152,6 +231,10 @@ internal object CsTitleMatcher {
             addVariant(simplifyTitle(base))
             addVariant(toAsciiTitle(base))
             addVariant(normalizeTitleForMatch(base))
+            // Turkish sites often don't handle Turkish characters well in search.
+            // Add a fully ASCII-transliterated variant (ğ→g, ş→s, ı→i, etc.)
+            val asciiBase = toAsciiTitle(base)
+            if (asciiBase != base) addVariant(asciiBase)
         }
 
         return variants.toList()
@@ -216,6 +299,9 @@ internal object CsTitleMatcher {
             }
 
             val resultName = Normalizer.normalize(result.name, Normalizer.Form.NFKC).trim()
+            // Strip Turkish streaming site noise (izle, full, hd, türkçe dublaj, 1080p, etc.)
+            // before matching — Turkish providers often append these to titles.
+            val resultNameCleaned = stripTurkishSiteNoise(resultName)
             val resultYear = getResultYear(result) ?: parseYearFromTitle(resultName)
             if (isMovie == true && targetYear != null && resultYear != null && kotlin.math.abs(resultYear - targetYear) > 5) {
                 Log.d(TAG, "  -> Movie year mismatch, rejecting '${result.name}' expected=$targetYear found=$resultYear")
@@ -243,7 +329,9 @@ internal object CsTitleMatcher {
             }
             val resultForms = linkedSetOf(
                 normalizeTitleForMatch(resultName),
-                normalizeTitleForMatch(extractCleanBaseTitle(resultName, preserveInstallment = isMovie == true))
+                normalizeTitleForMatch(resultNameCleaned),
+                normalizeTitleForMatch(extractCleanBaseTitle(resultName, preserveInstallment = isMovie == true)),
+                normalizeTitleForMatch(extractCleanBaseTitle(resultNameCleaned, preserveInstallment = isMovie == true))
             )
             resultForms.removeAll { it.isBlank() }
 
@@ -380,6 +468,7 @@ internal object CsTitleMatcher {
         isMovie: Boolean?
     ): Boolean {
         if (!isTypeCompatible(result.type, isMovie)) return false
+        // Use enhanced similarity that strips Turkish site noise (izle, full, hd, türkçe dublaj, etc.)
         if (getBestTitleSimilarity(result.name, mainTitle, altTitles, isMovie) < 0.90) return false
 
         val resultYear = getResultYear(result) ?: parseYearFromTitle(result.name)
@@ -412,6 +501,14 @@ internal object CsTitleMatcher {
         if (candidate.isBlank()) return 0.0
 
         val candidateForms = linkedSetOf(candidate)
+        // Strip Turkish streaming site noise from candidate (izle, full, hd, türkçe dublaj, 1080p, etc.)
+        val candidateCleaned = stripTurkishSiteNoise(candidateName)
+        if (candidateCleaned.isNotBlank() && candidateCleaned != candidateName) {
+            candidateForms.add(normalizeTitleForMatch(candidateCleaned))
+            if (isMovie != true) {
+                candidateForms.add(normalizeTitleForMatch(extractCleanBaseTitle(candidateCleaned)))
+            }
+        }
         if (isMovie != true) {
             candidateForms.add(normalizeTitleForMatch(extractCleanBaseTitle(candidateName)))
         }

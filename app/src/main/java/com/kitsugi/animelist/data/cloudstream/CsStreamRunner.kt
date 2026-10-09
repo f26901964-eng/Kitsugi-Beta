@@ -1077,7 +1077,10 @@ object CsStreamRunner {
         // is available or the bounded query budget is exhausted.
         val collectedResults = linkedMapOf<String, SearchResponse>()
         var searchedVariant = ""
-        val maxSearchVariants = minOf(titleVariants.size, 12)
+        // Increased from 12 to 18 — Turkish sites need more query variants because they
+        // often use Turkish-translated titles, ASCII-only transliterations, and different
+        // naming conventions than the canonical (English/Romaji/Japanese) titles.
+        val maxSearchVariants = minOf(titleVariants.size, 18)
         for (variant in titleVariants.take(maxSearchVariants)) {
             val variantResults = safeSearch(api, variant)
             if (variantResults.isNotEmpty()) {
@@ -1111,6 +1114,26 @@ object CsStreamRunner {
                 if (results.isNotEmpty()) {
                     searchedVariant = variant
                     Log.d(TAG, "[${api.name}] ✓ Özgün domainle '${variant}' için ${results.size} sonuç bulundu")
+                    break
+                }
+            }
+        }
+
+        // SON ÇARE 2 (geniş arama): Tüm varyantlar boş döndüyse, başlığın anlamlı
+        // kelimeleriyle (ilk 2-3 kelime) daha geniş bir arama dene. Türkçe siteler
+        // bazen tamamen farklı başlıklar kullanır (örn. "Örümcek-Adam" yerine "Spider-Man"
+        // veya tam tersi). Bu fallback, jenerik ama anlamlı kelimelerle arama yapar.
+        if (results.isEmpty()) {
+            val broadQueries = buildBroadSearchQueries(title, alternativeTitles)
+            Log.d(TAG, "[${api.name}] Geniş arama deneniyor (${broadQueries.size} sorgu): $broadQueries")
+            for (broadQuery in broadQueries) {
+                val broadResults = safeSearch(api, broadQuery)
+                if (broadResults.isNotEmpty()) {
+                    // Geniş aramada bulunan sonuçları direkt döndür — findBestMatch
+                    // zaten yanlış eşleşmeleri 걸 eer (MIN_MATCH_SCORE threshold).
+                    results = broadResults
+                    searchedVariant = "$broadQuery (geniş)"
+                    Log.d(TAG, "[${api.name}] ✓ Geniş arama '$broadQuery' için ${broadResults.size} sonuç buldu")
                     break
                 }
             }
@@ -1445,11 +1468,66 @@ object CsStreamRunner {
                clean.contains("wishembed.pro") ||     // StreamWish alt (Asyalog "Wish" player)
                clean.contains("awish.pro") ||         // StreamWish alt
                clean.contains("alions.pro") ||        // AlionsPlayer (yeni Türkiye CDN)
+               clean.contains("alions.net") ||        // AlionsPlayer alt domain
+               clean.contains("alions.tv") ||         // AlionsPlayer alt domain
                clean.contains("lionscdn.pro") ||      // LionsCDN (AlionsPlayer yedek)
+               clean.contains("lionscdn.com") ||      // LionsCDN alt domain
+               // Daha fazla Türkiye CDN pattern'leri
+               clean.contains("vidmoly.net") ||       // VidMoly alt domain
+               clean.contains("vidmoly.me") ||        // VidMoly alt domain
+               clean.contains("vidmoly.to") ||        // VidMoly ana domain
+               clean.contains("trstx.com") ||         // TRsTX alt domain
+               clean.contains("trstx.net") ||         // TRsTX alt domain
+               clean.contains("closeload.com") ||     // CloseLoad alt domain
+               clean.contains("closeload.site") ||    // CloseLoad alt domain
+               clean.contains("hdplayersystem.com") || // DiziMom CDN player alt
+               clean.contains("pichive.com") ||       // Pichive CDN alt domain
+               clean.contains("pichive.net") ||       // Pichive CDN alt domain
+               clean.contains("rapidrame.com") ||     // Rapidrame CDN alt domain
+               clean.contains("vslecter.com") ||      // Vslecter (Türkiye CDN)
+               clean.contains("videmo.com") ||        // Videmo (Türkiye CDN)
+               clean.contains("sendvid.com") ||       // SendVid embed
+               clean.contains("sendvid.net") ||       // SendVid embed alt
+               clean.contains("fembed.com") ||        // Fembed alt domain
+               clean.contains("fembed.net") ||        // Fembed alt domain
+               clean.contains("streamango.com") ||    // Streamango (eski, hala kullanılan)
+               clean.contains("yourupload.com") ||    // YourUpload embed
+               clean.contains("jawcloud.co") ||       // JawCloud embed
+               clean.contains("fastplay.to") ||       // FastPlay (Türkiye CDN)
+               clean.contains("fastplay.cc") ||       // FastPlay alt domain
+               clean.contains("uqload.is") ||         // Uqload yeni domain
+               clean.contains("uqload.to") ||         // Uqload alt domain
+               clean.contains("doodstream.com") ||    // Doodstream yeni domain
+               clean.contains("dood.watch") ||        // Doodstream alt domain
+               clean.contains("dood.re") ||           // Doodstream alt domain
+               clean.contains("mixdrop.to") ||        // Mixdrop alt domain
+               clean.contains("mixdrop.sx") ||        // Mixdrop alt domain
+               clean.contains("streamtape.com") ||    // StreamTape alt domain
+               clean.contains("streamtape.net") ||    // StreamTape alt domain
+               clean.contains("filemoon.sx") ||       // Filemoon alt domain
+               clean.contains("filemoon.to") ||       // Filemoon alt domain
+               clean.contains("filemoon.in") ||       // Filemoon alt domain
+               clean.contains("vidguard.to") ||       // VidGuard (Türkiye CDN)
+               clean.contains("vidguard.net") ||      // VidGuard alt domain
+               clean.contains("turbovid.net") ||      // TurboVid (Türkiye CDN)
+               clean.contains("turbovid.to") ||       // TurboVid alt domain
+               clean.contains("turboviplay.com") ||   // TurboViPlay (Türkiye CDN)
+               clean.contains("hdvid.tv") ||          // HDVid (Türkiye CDN)
+               clean.contains("hdvid.net") ||         // HDVid alt domain
+               clean.contains("playtube.site") ||     // PlayTube (Türkiye CDN)
+               clean.contains("vidhide.com") ||       // VidHide (Türkiye CDN)
+               clean.contains("vidhidepro.com") ||    // VidHide Pro (Türkiye CDN)
+               clean.contains("upstream.to") ||       // Upstream alt domain
+               clean.contains("embedy.cc") ||         // Embedy (Türkiye CDN)
+               clean.contains("embedy.net") ||        // Embedy alt domain
                clean.contains("embed") ||
                clean.contains("shell.php") ||
                clean.contains("video_ext.php") ||
                clean.contains("player.php") ||
+               clean.contains("/player/") ||
+               clean.contains("/embed/") ||
+               clean.contains("/e/") ||              // Kısa embed path (Türk CDN'ler)
+               clean.contains("/v/") ||              // Kısa video path (Türk CDN'ler)
                url.contains("href.li/?")
     }
 
@@ -2129,6 +2207,39 @@ object CsStreamRunner {
         return resolvedStreams
     }
 
+    /**
+     * HEAD isteği 400 (veya benzeri belirsiz) döndüğünde GET with Range header ile
+     * URL'nin gerçekten çalışıp çalışmadığını kontrol eder. Bazı CDN'ler HEAD'e
+     * yanıt vermez ama GET ile ilk byte'ları döndürür.
+     *
+     * Sadece ilk 1 byte istenir — tam dosya indirilmez (veri tasarrufu).
+     */
+    private suspend fun tryGetRangeValidation(url: String, referer: String?): Boolean {
+        return try {
+            val requestBuilder = okhttp3.Request.Builder()
+                .url(url)
+                .get()
+                .addHeader("Range", "bytes=0-0")  // Sadece ilk byte
+                .addHeader("User-Agent", com.lagradost.cloudstream3.network.CloudflareKiller.UNIFIED_USER_AGENT)
+            if (!referer.isNullOrBlank()) {
+                requestBuilder.addHeader("Referer", referer)
+            }
+            val response = com.kitsugi.animelist.core.network.KitsugiHttpClient.client
+                .newCall(requestBuilder.build()).execute()
+            val code = response.code
+            // Body'yi kapat (sadece header kontrolü yeterli)
+            response.close()
+            // 200 (tam dosya) veya 206 (partial content) → URL çalışıyor
+            val alive = code == 200 || code == 206
+            Log.d(TAG, "GET Range doğrulama: HTTP $code → ${if (alive) "✅ canlı" else "❌ ölü"}: ${url.take(60)}")
+            alive
+        } catch (e: Exception) {
+            Log.w(TAG, "GET Range doğrulama hatası: ${e.javaClass.simpleName}: ${url.take(60)}")
+            // Hata = belirsiz, iyimser ol
+            true
+        }
+    }
+
     private suspend fun extractStreamsFromEpisode(
         api: MainAPI,
         loadResponse: LoadResponse,
@@ -2368,7 +2479,9 @@ object CsStreamRunner {
             }
 
             // HTTP HEAD ile doğrula — 6 saniye timeout (HLS CDN'ler genelde hızlı yanıt verir)
-            val isAlive = withTimeoutOrNull(6_000L) {
+            // HEAD bazı CDN'lerde desteklenmez (405) veya farklı davranır; bu durumda
+            // GET with Range header ile doğrulama yap (daha güvenilir).
+            val isAlive = withTimeoutOrNull(8_000L) {
                 try {
                     val referer = stream.requestHeaders?.get("Referer")
                     val requestBuilder = okhttp3.Request.Builder()
@@ -2383,7 +2496,32 @@ object CsStreamRunner {
                         .newCall(headRequest).execute()
                     val code = response.code
                     response.close()
-                    val alive = code in 200..299 || code == 301 || code == 302 || code == 403 || code == 405 || code == 400 || code == 429 || code in 500..599
+
+                    // HTTP koduna göre canlılık kararı:
+                    // ✅ 200-299: Tamam, dosya mevcut
+                    // ✅ 301/302/307/308: Yönlendirme — player takip eder
+                    // ✅ 401/403: Yetki gerektirir — header ile player açabilir
+                    // ✅ 405/501: HEAD desteklenmiyor — GET ile çalışır
+                    // ✅ 429: Rate limit — geçici, player deneyebilir
+                    // ✅ 5xx: Sunucu hatası — geçici olabilir
+                    // ❌ 400: Bad Request — URL bozuk (ama yine de GET dene)
+                    // ❌ 404/410: Dosya yok — ölü
+                    val alive = when (code) {
+                        in 200..299 -> true
+                        301, 302, 307, 308 -> true
+                        401, 403 -> true   // Auth gerekli, player header ile deneyecek
+                        405, 501 -> true   // HEAD desteklenmiyor, GET ile açılır
+                        429 -> true        // Rate limit, geçici
+                        in 500..599 -> true // Sunucu hatası, geçici olabilir
+                        404, 410 -> false  // Dosya yok
+                        400 -> {
+                            // 400 Bad Request — bazı CDN'ler HEAD'e 400 döner ama GET çalışır.
+                            // GET with Range header ile tekrar dene.
+                            Log.d(TAG, "[${api.name}] HEAD 400 döndü, GET ile deneniyor: ${url.take(60)}")
+                            tryGetRangeValidation(url, referer)
+                        }
+                        else -> true  // Bilinmeyen kod — iyimser ol, player denesin
+                    }
                     Log.d(TAG, "[${api.name}] HEAD ${if (alive) "✅" else "❌"} HTTP $code: ${url.take(80)}")
                     alive
                 } catch (cancel: kotlinx.coroutines.CancellationException) {
@@ -2394,7 +2532,7 @@ object CsStreamRunner {
                     true
                 }
             } ?: run {
-                Log.w(TAG, "[${api.name}] HEAD timeout (6s): ${url.take(60)} — muhtemelen yavaş CDN, ekleniyor")
+                Log.w(TAG, "[${api.name}] HEAD timeout (8s): ${url.take(60)} — muhtemelen yavaş CDN, ekleniyor")
                 true  // Timeout = belirsiz, oynatmayı dene
             }
 
@@ -2439,6 +2577,68 @@ object CsStreamRunner {
         CsLanguageDetector.detectLanguageCode(lang)
     private fun buildTitleVariants(main: String, alts: List<String>, season: Int, isMovie: Boolean = false): List<String> =
         CsTitleMatcher.buildTitleVariants(main, alts, season, isMovie)
+
+    /**
+     * Geniş arama sorguları üretir — tüm başlık varyantları boş döndüğünde devreye girer.
+     *
+     * Strateji:
+     * 1. Ana başlığın ilk 2 anlamlı kelimesi (örn. "Spider-Man Brand New Day" → "Spider-Man Brand")
+     * 2. Ana başlığın ilk anlamlı kelimesi (örn. "Naruto Shippuden" → "Naruto")
+     * 3. Alternatif başlıkların ilk anlamlı kelimeleri
+     * 4. ASCII-transliterated versiyonlar (Türkçe karakterler sorun çıkarıyorsa)
+     *
+     * Bu sorgular jenerik olabilir ama `findBestMatch` yanlış eşleşmeleri
+     * MIN_MATCH_SCORE threshold'u ile eler (filtreler).
+     */
+    private fun buildBroadSearchQueries(main: String, alts: List<String>): List<String> {
+        val queries = linkedSetOf<String>()
+
+        fun significantWordsOf(title: String): List<String> {
+            val normalized = CsTitleMatcher.normalizeTitleForMatch(title)
+            return normalized.split(Regex("\\s+"))
+                .filter { it.isNotBlank() && it.length >= 3 }
+                .filter { word ->
+                    // Jenerik kelimeleri hariç tut
+                    word !in setOf("the", "and", "of", "a", "an", "to", "in", "on", "for",
+                        "sezon", "season", "bolum", "episode", "film", "dizi", "anime",
+                        "izle", "watch", "full", "hd", "turkce", "turkish", "dublaj", "altyazi")
+                }
+        }
+
+        // Ana başlıktan ilk 2-3 anlamlı kelime
+        val mainWords = significantWordsOf(main)
+        if (mainWords.size >= 2) {
+            queries.add(mainWords.take(2).joinToString(" "))
+        }
+        if (mainWords.size >= 3) {
+            queries.add(mainWords.take(3).joinToString(" "))
+        }
+        if (mainWords.isNotEmpty()) {
+            queries.add(mainWords.first())
+        }
+
+        // Alternatif başlıklardan ilk anlamlı kelime (en fazla 3 alternatif)
+        for (alt in alts.take(3)) {
+            val altWords = significantWordsOf(alt)
+            if (altWords.isNotEmpty()) {
+                queries.add(altWords.first())
+            }
+            if (altWords.size >= 2) {
+                queries.add(altWords.take(2).joinToString(" "))
+            }
+        }
+
+        // ASCII-only versiyonlar (Türkçe karakterler sorun çıkarıyorsa)
+        val asciiMain = CsTitleMatcher.toAsciiTitle(main)
+        if (asciiMain != main && asciiMain.isNotBlank()) {
+            val asciiWords = significantWordsOf(asciiMain)
+            if (asciiWords.size >= 2) {
+                queries.add(asciiWords.take(2).joinToString(" "))
+            }
+        }
+
+        return queries.filter { CsTitleMatcher.normalizeTitleForMatch(it).length >= 2 }.take(6)
+    }
 
     internal suspend fun safeSearch(api: MainAPI, query: String): List<SearchResponse> {
         ensurePluginReady(api)

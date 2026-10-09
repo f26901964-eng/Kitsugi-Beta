@@ -162,7 +162,8 @@ fun ExploreScreen(
         generateExploreEntryMap(currentEntries)
     }
 
-    // TMDB'den sonradan gelen vitrin arka planlarını (landscape'te kullanılır) birleştir.
+    // TMDB'den sonradan gelen vitrin arka planlarını (geniş vitrin bandında
+    // kaplayan görsel olarak kullanılır) birleştir.
     val displayHeroItems = remember(heroItems, viewModel.heroBackdropOverrides) {
         val overrides = viewModel.heroBackdropOverrides
         if (overrides.isEmpty()) {
@@ -234,9 +235,12 @@ fun ExploreScreen(
     val scope = rememberCoroutineScope()
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
-    // Yatay modda kullanılacak arka planlar eksikse seçilen vitrin öğeleri için TMDB'den tamamla.
-    LaunchedEffect(displayHeroItems, isLandscape) {
-        if (isLandscape && displayHeroItems.isNotEmpty()) {
+    // Seçilen vitrin öğelerinde eksik arka planları TMDB'den tamamla. Kaplayan
+    // vitrin sunumunda geniş bant (yatay mod + dikey tablet vb.) her yönde bu
+    // görsellerden yararlanır; sonuçlar önbellekli olduğu için rotasyonda
+    // ek çağrı oluşmaz.
+    LaunchedEffect(displayHeroItems) {
+        if (displayHeroItems.isNotEmpty()) {
             viewModel.enrichHeroBackdrops(displayHeroItems)
         }
     }

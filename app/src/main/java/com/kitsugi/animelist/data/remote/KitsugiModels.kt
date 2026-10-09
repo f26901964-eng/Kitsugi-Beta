@@ -94,6 +94,8 @@ data class KitsugiMediaDetail(
     val titleJapanese: String? = null,
     val titleRomaji: String? = null,
     val titleNative: String? = null,
+    /** Türkçe başlık (TMDB alternative_titles'dan TR kodlu başlık). Türk streaming siteleri için arama kritik. */
+    val titleTurkish: String? = null,
     val synonyms: List<String> = emptyList(),
     val openings: List<KitsugiTheme> = emptyList(),
     val endings: List<KitsugiTheme> = emptyList(),

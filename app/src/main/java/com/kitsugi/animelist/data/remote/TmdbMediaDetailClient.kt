@@ -89,6 +89,12 @@ internal object TmdbMediaDetailClient {
             val isJapanese = originalLang.equals("ja", ignoreCase = true) || com.kitsugi.animelist.utils.PreferenceHelpers.hasCjkCharacters(originalTitle)
             val titleJapanese = if (isJapanese) originalTitle.takeIf { it.isNotBlank() } else null
 
+            // Türkçe başlık: TMDB alternative_titles'dan TR kodlu başlık veya language=tr-TR ile
+            // çekilen başlık. Türk streaming siteleri için arama kritik — bu başlık
+            // alternativeTitles listesine eklenir ve CsStreamRunner tarafından aranır.
+            val titleTurkish = rawTrTitle?.takeIf { it.isNotBlank() && !localizedFallback }
+                ?: altTr?.takeIf { it.isNotBlank() }
+
             // TMDB'de ayrı bir "romaji" alanı yoktur. Latin alternatif başlıklar eşleştirme
             // (stream/eklenti arama) için synonyms'e taşınır; detay ekranları birincil başlık
             // olarak yerelleştirilmiş (Türkçe) başlığı korur.
@@ -183,6 +189,7 @@ internal object TmdbMediaDetailClient {
                 titleJapanese = titleJapanese,
                 titleRomaji = titleRomaji,
                 titleNative = originalTitle,
+                titleTurkish = titleTurkish,
                 synonyms = synonymList,
                 openings = videoThemes,
                 endings = emptyList(),
