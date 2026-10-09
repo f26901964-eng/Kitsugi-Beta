@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.kitsugi.animelist.data.remote.KitsugiReview
 import com.kitsugi.animelist.ui.components.KitsugiMarkdownText
+import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
@@ -170,6 +171,8 @@ internal fun KitsugiReviewCard(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.widthIn(max = 100.dp)
                 )
+                Spacer(modifier = Modifier.width(6.dp))
+                KitsugiPlatformLogo(platformId = rev.source, size = 14.dp)
             }
         }
     }

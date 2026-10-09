@@ -246,7 +246,7 @@ internal object TmdbCreditsClient {
                     KitsugiReview(
                         id = null, username = author, avatarUrl = avatarUrl,
                         score = score, summary = summary, fullText = content,
-                        dateText = dateText, helpfulCount = null, ratingAmount = null, userRating = null
+                        dateText = dateText, helpfulCount = null, ratingAmount = null, userRating = null, source = "tmdb"
                     )
                 )
             }

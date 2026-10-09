@@ -1267,7 +1267,8 @@ object KitsugiBangumiDetailClient {
             summary = (if (title.isNotEmpty()) title else summary).take(240),
             fullText = (if (title.isNotEmpty() && body.isNotEmpty()) "$title\n\n$body" else body.ifEmpty { title }),
             dateText = epochDate(entry.optLong("createdAt", 0L)),
-            helpfulCount = entry.optInt("replies", 0).takeIf { it > 0 }
+            helpfulCount = entry.optInt("replies", 0).takeIf { it > 0 },
+            source = "bangumi"
         )
     }
 
@@ -1283,7 +1284,8 @@ object KitsugiBangumiDetailClient {
             score = item.optInt("rate", 0).takeIf { it in 1..10 },
             summary = text.take(240),
             fullText = text,
-            dateText = epochDate(item.optLong("updatedAt", 0L))
+            dateText = epochDate(item.optLong("updatedAt", 0L)),
+            source = "bangumi"
         )
     }
 

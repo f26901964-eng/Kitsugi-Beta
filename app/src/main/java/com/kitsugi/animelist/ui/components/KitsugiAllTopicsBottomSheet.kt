@@ -29,6 +29,7 @@ import coil3.compose.AsyncImage
 import com.kitsugi.animelist.data.local.TranslationManager
 import com.kitsugi.animelist.data.remote.JikanApiClient
 import com.kitsugi.animelist.data.remote.KitsugiForumTopic
+import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
@@ -341,6 +342,8 @@ fun KitsugiAllTopicsBottomSheet(
                                         fontSize = 12.sp,
                                         fontWeight = FontWeight.Bold
                                     )
+                                    Spacer(modifier = Modifier.width(4.dp))
+                                    KitsugiPlatformLogo(platformId = topic.source, size = 12.dp)
                                 }
 
                                 Spacer(modifier = Modifier.weight(1f))
@@ -349,7 +352,7 @@ fun KitsugiAllTopicsBottomSheet(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
-                                    if (source.lowercase() != "jikan" && source.lowercase() != "mal") {
+                                    if (topic.userId != null) {
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
                                             modifier = Modifier.tvClickable(shape = RoundedCornerShape(8.dp)) {

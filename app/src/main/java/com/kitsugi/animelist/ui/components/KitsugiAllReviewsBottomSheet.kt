@@ -28,6 +28,7 @@ import coil3.compose.AsyncImage
 import com.kitsugi.animelist.data.local.TranslationManager
 import com.kitsugi.animelist.data.remote.JikanApiClient
 import com.kitsugi.animelist.data.remote.KitsugiReview
+import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
@@ -287,12 +288,16 @@ fun KitsugiAllReviewsBottomSheet(
                                     Spacer(modifier = Modifier.width(8.dp))
 
                                     Column {
-                                        Text(
-                                            text = rev.username,
-                                            color = KitsugiColors.TextPrimary,
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Bold
-                                        )
+                                        Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                                            Text(
+                                                text = rev.username,
+                                                color = KitsugiColors.TextPrimary,
+                                                fontSize = 12.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+                                            Spacer(modifier = Modifier.width(4.dp))
+                                            KitsugiPlatformLogo(platformId = rev.source, size = 12.dp)
+                                        }
                                         if (!rev.dateText.isNullOrBlank()) {
                                             Text(
                                                 text = rev.dateText,
@@ -365,8 +370,8 @@ fun KitsugiAllReviewsBottomSheet(
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         modifier = Modifier.tvClickable(shape = RoundedCornerShape(8.dp)) {
-                                            if (source.lowercase() == "jikan" || source.lowercase() == "mal") {
-                                                Toast.makeText(context, "Beğeni özelliği MAL kaynağı için desteklenmemektedir.", Toast.LENGTH_SHORT).show()
+                                            if (rev.source != "anilist" || rev.id == null) {
+                                                Toast.makeText(context, "Beğeni sadece AniList incelemelerinde desteklenir.", Toast.LENGTH_SHORT).show()
                                                 return@tvClickable
                                             }
                                             coroutineScope.launch {

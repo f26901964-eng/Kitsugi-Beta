@@ -43,6 +43,7 @@ import com.kitsugi.animelist.ui.components.KitsugiReviewDetailBottomSheet
 import com.kitsugi.animelist.ui.components.KitsugiTopicDetailBottomSheet
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.ui.components.KitsugiShimmerSearchResultList
 import androidx.compose.foundation.clickable
 import com.kitsugi.animelist.utils.ShareUtils
@@ -70,13 +71,12 @@ fun ReviewsTabContent(
 
     val handleUserProfileClick: (userId: Int?, username: String, avatarUrl: String?) -> Unit = { userId, username, avatarUrl ->
         if (userId != null) {
-            // AniList kullanıcısı (userId varsa) → uygulama içi profil, kaynak MAL bile olsa (birleştirilmiş liste)
+            // AniList kullanıcısı (userId varsa) → uygulama içi profil, hangi sekmede olursa olsun (evrensel birleştirme)
             onUserProfileClick(userId, username, avatarUrl)
         } else if (username.isNotBlank()) {
             try {
-                // MAL/Jikan kullanıcısı → dış tarayıcıda MAL profili (MAL API'si uygulama içi profil sağlamaz)
-                val profileSource = if (source.lowercase() == "anilist") "anilist" else "myanimelist"
-                val url = ShareUtils.buildProfileUrl(profileSource, username)
+                // Jikan/Bangumi/TMDB kullanıcısı → dış tarayıcıda ilgili profil (MAL varsayılan)
+                val url = ShareUtils.buildProfileUrl("myanimelist", username)
                 val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
                 context.startActivity(intent)
             } catch (e: Exception) {
@@ -89,23 +89,18 @@ fun ReviewsTabContent(
     var showAllActivitiesSheet by remember { mutableStateOf(false) }
     var showAllReviewsSheet by remember { mutableStateOf(false) }
 
-    val isTmdbOrSimkl = source.equals("tmdb", ignoreCase = true) || source.equals("simkl", ignoreCase = true)
-
     var forumTopics by remember { mutableStateOf<List<KitsugiForumTopic>>(emptyList()) }
     var activitiesList by remember { mutableStateOf<List<KitsugiActivity>>(emptyList()) }
 
-    // TMDB / Simkl kaynakları için forum/aktivite desteği yok — API çağrısını atla
     LaunchedEffect(source, externalId, mediaType) {
-        if (!isTmdbOrSimkl) {
-            coroutineScope.launch {
-                runCatching {
-                    forumTopics = apiClient.fetchForumTopics(source, externalId, mediaType)
-                }
+        coroutineScope.launch {
+            runCatching {
+                forumTopics = apiClient.fetchForumTopics(source, externalId, mediaType)
             }
-            coroutineScope.launch {
-                runCatching {
-                    activitiesList = apiClient.fetchActivities(source, externalId, mediaType = mediaType)
-                }
+        }
+        coroutineScope.launch {
+            runCatching {
+                activitiesList = apiClient.fetchActivities(source, externalId, mediaType = mediaType)
             }
         }
     }
@@ -371,8 +366,8 @@ fun ReviewsTabContent(
                                     onUserProfileClick = handleUserProfileClick,
                                     onClick = { activeReviewForDetail = rev },
                                     onHelpfulClick = {
-                                        if (rev.id == null) {
-                                            Toast.makeText(context, "Beğeni özelliği MAL kaynağı için desteklenmemektedir.", Toast.LENGTH_SHORT).show()
+                                        if (rev.id == null || rev.source != "anilist") {
+                                            Toast.makeText(context, "Beğeni sadece AniList incelemelerinde desteklenir.", Toast.LENGTH_SHORT).show()
                                             return@KitsugiReviewCard
                                         }
                                         coroutineScope.launch {
@@ -620,6 +615,8 @@ private fun TopicCard(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.widthIn(max = 80.dp)
                 )
+                Spacer(modifier = Modifier.width(4.dp))
+                KitsugiPlatformLogo(platformId = topic.source, size = 12.dp)
             }
         }
     }
@@ -782,6 +779,8 @@ private fun ActivityCard(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.widthIn(max = 80.dp)
                 )
+                Spacer(modifier = Modifier.width(4.dp))
+                KitsugiPlatformLogo(platformId = activity.source, size = 12.dp)
             }
         }
     }
