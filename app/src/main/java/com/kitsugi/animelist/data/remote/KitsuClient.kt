@@ -470,6 +470,18 @@ object KitsuClient {
         val episodeLength = attributes.optInt("episodeLength", 0)
         val duration = if (episodeLength > 0) "$episodeLength dk" else null
 
+        // Kitsu `nextRelease` alanını sadece ayrıntı sayfasında sunar. Eski akış bu alanı
+        // atladığı için Yakında Yayında rafından açılan Kitsu kayıtlarında yayın tarihi
+        // görünmüyordu. Kitsu gelecek bölüm numarasını ayrı vermediğinden, yayımlanan bölüm
+        // sayısının bir sonrasını kullanıyoruz; henüz hiç bölümü olmayan yapım için doğru
+        // başlangıç değeri 1'dir.
+        val nextRelease = attributes.optString("nextRelease", "").trim()
+            .takeIf { it.isNotBlank() && !it.equals("null", ignoreCase = true) }
+        val nextAiring = nextRelease?.let { release ->
+            val isoDate = release.take(10).takeIf { it.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) }
+            isoDate?.let { "Bölüm ${(episodeCount + 1).coerceAtLeast(1)}, $it tarihinde yayında" }
+        }
+
         val averageRating = attributes.optString("averageRating", "0")
         val ratingDouble = averageRating.toDoubleOrNull() ?: 0.0
         val scoreVal = if (ratingDouble > 0) (ratingDouble / 10.0).toInt().coerceIn(1, 10) else null
@@ -521,6 +533,7 @@ object KitsuClient {
             episodeDuration = duration,
             startDate = startDate,
             endDate = endDate,
+            nextAiringEpisode = nextAiring,
             trailerUrl = trailerUrl,
             externalLinks = links,
             synonyms = synonyms,

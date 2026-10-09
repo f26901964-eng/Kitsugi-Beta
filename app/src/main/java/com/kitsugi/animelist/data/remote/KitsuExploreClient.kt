@@ -131,9 +131,18 @@ object KitsuExploreClient {
         }
     }
 
-    /** Trend animeler (Kitsu trending endpoint) */
-    suspend fun trendingAnime(limit: Int = 20): List<JikanSearchResult> =
-        fetchAnimeList("$BASE/trending/anime?limit=$limit")
+    /**
+     * Trend animeler.
+     *
+     * `/trending/anime` uç noktası ilk sayfayı döndürse de offset'i güvenilir biçimde
+     * uygulamıyor; bu da “Tümünü Gör” ekranında 20. karttan sonra listenin bitmesine
+     * yol açıyordu. Aynı popülerlik sıralamasını destekleyen normal anime koleksiyonu
+     * sayfalanabilir olduğundan keşfet için onu kullanıyoruz.
+     */
+    suspend fun trendingAnime(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
+        fetchAnimeList(
+            "$BASE/anime?sort=-userCount&page[limit]=${limit.coerceIn(1, 20)}&page[offset]=${offset.coerceAtLeast(0)}"
+        )
 
     /** Sezonluk animeler (belirtilen mevsim ve yıl) */
     suspend fun seasonalAnime(season: String, year: Int, limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =

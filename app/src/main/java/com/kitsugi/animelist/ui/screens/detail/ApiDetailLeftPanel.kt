@@ -151,6 +151,7 @@ fun ApiDetailLeftPanel(
         } else null,
         totalEpisodes = displayResult.total,
         nextAiring = detailState?.nextAiringEpisode
+            ?: fallbackUpcomingAiring(detailState?.startDate, detailState?.status)
     )
 
     Column(modifier = Modifier.padding(horizontal = 16.dp)) {

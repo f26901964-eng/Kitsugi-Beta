@@ -38,6 +38,15 @@ internal object KitsugiSimklDetailClient {
                 val poster = obj.optString("poster", "")
                 val year = obj.optInt("year", 0)
                 val runtime = obj.optInt("runtime", 0)
+                // Simkl'nin kaynak türüne göre ilk yayın alanı değişir. Bunu ayrıntı
+                // modelinde korumak, açıkça "upcoming" olan kayıtlarda ortak ilk-bölüm
+                // geri dönüşünün de çalışmasını sağlar.
+                val startDate = listOf("release_date", "first_air_date", "first_aired", "released", "date")
+                    .firstNotNullOfOrNull { key ->
+                        obj.optString(key, "").trim().take(10)
+                            .takeIf { it.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) }
+                    }
+                val status = obj.optString("status", "").toTurkishStatus()
                 val genresArray = obj.optJSONArray("genres")
                 val genresList = mutableListOf<String>()
                 if (genresArray != null) {
@@ -95,6 +104,11 @@ internal object KitsugiSimklDetailClient {
 
                 val ratingObj = obj.optJSONObject("ratings")?.optJSONObject("simkl")
                 val ratingScore = ratingObj?.optDouble("rating", 0.0) ?: 0.0
+                // Simkl'in genişletilmiş yanıtında kaynak/sürümüne göre farklı anahtarlarla
+                // gelebilen sıradaki bölüm bilgisini koru. TMDB eşleştirmesi varsa
+                // enrichDetail daha zengin TMDB verisini de kullanır; TMDB kimliği olmayan
+                // Simkl kayıtları için bu, Yaklaşan Yayın satırının tek kaynağıdır.
+                val nextAiring = parseNextAiring(obj)
 
                 // Simkl pictures: büyük poster (_w.jpg) + orta poster (_m.jpg)
                 val simklPictures = if (poster.isNotEmpty()) {
@@ -107,7 +121,7 @@ internal object KitsugiSimklDetailClient {
                 KitsugiMediaDetail(
                     synopsis = overview,
                     genres = genresList.toTurkishGenres(),
-                    status = obj.optString("status", "").toTurkishStatus(),
+                    status = status,
                     season = null,
                     sourceMaterial = null,
                     studios = emptyList(),
@@ -115,7 +129,7 @@ internal object KitsugiSimklDetailClient {
                     rating = if (ratingScore > 0.0) ratingScore.toString() else null,
                     broadcast = null,
                     episodeDuration = if (runtime > 0) "$runtime min".toTurkishDuration() else null,
-                    startDate = null,
+                    startDate = startDate,
                     endDate = null,
                     titleEnglish = resolvedTitleEnglish,
                     titleJapanese = resolvedTitleJapanese,
@@ -144,7 +158,8 @@ internal object KitsugiSimklDetailClient {
                     streamingEpisodes = emptyList(),
                     tmdbId = if (tmdbId > 0) tmdbId else null,
                     tmdbSeason = 1,
-                    pictures = simklPictures
+                    pictures = simklPictures,
+                    nextAiringEpisode = nextAiring
                 )
             }
         } catch (e: Exception) {
@@ -152,6 +167,39 @@ internal object KitsugiSimklDetailClient {
             android.util.Log.e("KitsugiSimklDetailClient", "fetchSimklDetailDirect simklId=$simklId failed: ${e.message}", e)
             null
         }
+    }
+
+    /**
+     * Simkl genişletilmiş detayından sıradaki yayın bilgisini kaynak anahtarlarından bağımsız
+     * olarak okur. Bazı yanıtlarda bu veri nesne (`next_episode_to_air`), bazılarında ise
+     * düz tarih (`next_release` / `next_aired`) olarak gelir.
+     */
+    private fun parseNextAiring(obj: JSONObject): String? {
+        val candidates = listOf("next_episode_to_air", "next_episode", "next_aired")
+        for (key in candidates) {
+            val episode = obj.optJSONObject(key) ?: continue
+            val number = episode.optInt("episode_number", 0)
+                .takeIf { it > 0 }
+                ?: episode.optInt("number", 0).takeIf { it > 0 }
+                ?: episode.optInt("episode", 0).takeIf { it > 0 }
+            val date = listOf("air_date", "release_date", "released", "date")
+                .firstNotNullOfOrNull { dateKey ->
+                    episode.optString(dateKey, "").trim().takeIf { it.length >= 10 }
+                }
+                ?.take(10)
+            if (date != null && date.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))) {
+                return "Bölüm ${number ?: 1}, $date tarihinde yayında"
+            }
+        }
+
+        val directDate = listOf("next_release", "nextRelease", "next_aired", "next_air_date")
+            .firstNotNullOfOrNull { key -> obj.optString(key, "").trim().takeIf { it.length >= 10 } }
+            ?.take(10)
+        if (directDate == null || !directDate.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))) return null
+        val episode = obj.optInt("next_episode_number", 0).takeIf { it > 0 }
+            ?: obj.optInt("episode", 0).takeIf { it > 0 }
+            ?: 1
+        return "Bölüm $episode, $directDate tarihinde yayında"
     }
 
     /**

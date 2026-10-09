@@ -39,8 +39,17 @@ fun displayPersonName(
     native: String?,
     language: String,
     english: String? = null
-): String = when (language) {
-    "NATIVE", "JAPANESE_STAFF" -> native?.takeIf { it.isNotBlank() } ?: name
-    "ENGLISH" -> english?.takeIf { it.isNotBlank() } ?: romanized?.takeIf { it.isNotBlank() } ?: name
-    else -> romanized?.takeIf { it.isNotBlank() } ?: english?.takeIf { it.isNotBlank() } ?: name
+): String {
+    fun latin(value: String?): String? = value?.trim()?.takeIf {
+        it.isNotEmpty() && it.none { ch ->
+            ch in '\u3040'..'\u30ff' || ch in '\u3400'..'\u9fff' || ch in '\uac00'..'\ud7af'
+        }
+    }
+    val englishLatin = latin(english)
+    val romanizedLatin = latin(romanized)
+    return when (language) {
+        "NATIVE", "JAPANESE_STAFF" -> native?.takeIf { it.isNotBlank() } ?: name
+        "ENGLISH" -> englishLatin ?: romanizedLatin ?: latin(name) ?: name
+        else -> romanizedLatin ?: englishLatin ?: latin(name) ?: name
+    }
 }

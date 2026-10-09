@@ -852,9 +852,10 @@ class KitsugiDetailClient {
             // v2: Bangumi'nin English / romaji / özgün adları ayrı taşınır. Önceki
             // sürümde Çince ad ana başlığa yazıldığı için eski satırlar okunmaz.
             source.equals("bangumi", ignoreCase = true) -> "${base}_bgm2"
-            // ks1: bozuk Kitsu özetleri temizlenmeye başlandı (KitsuSynopsisValidator).
-            // Eski satırlar bozuk özet taşıyabileceği için yeni anahtar kullanılır.
-            source.equals("kitsu", ignoreCase = true) -> "${base}_ks1"
+            // ks2: Kitsu `nextRelease` artık ayrıntı önbelleğine de yazılır. Eski satırlar
+            // yayın tarihi taşımadığı için yeni anahtar kullanılır (aynı zamanda ks1'in bozuk
+            // özet temizleme sınırını korur).
+            source.equals("kitsu", ignoreCase = true) -> "${base}_ks2"
             MediaTitleResolver.isLatinPreferredSource(source) -> "${base}_vl${MediaTitleResolver.VERSION}"
             else -> base
         }

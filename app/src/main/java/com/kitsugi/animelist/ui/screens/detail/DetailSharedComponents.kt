@@ -233,6 +233,24 @@ internal fun InfoRow(label: String, value: String) {
 
 internal data class AiringInfo(val episode: Int?, val targetEpoch: Long?, val rawText: String?)
 
+/**
+ * Kaynak bir sonraki bölüm nesnesini sunmadığında, ancak yapım açıkça henüz yayınlanmamışsa
+ * başlangıç tarihini ilk bölümün yayın tarihi olarak gösterir. Bu özellikle Kitsu/Simkl gibi
+ * `next episode` alanı her kayıtta gelmeyen kaynaklarda Yakında Yayında bilgisinin kaybolmasını
+ * engeller. Yayındaki veya tamamlanmış kayıtların ilk yayın tarihi asla “yaklaşan” sayılmaz.
+ */
+internal fun fallbackUpcomingAiring(startDate: String?, status: String?): String? {
+    val date = startDate?.trim()?.take(10)
+        ?.takeIf { it.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) }
+        ?: return null
+    val normalizedStatus = status?.lowercase().orEmpty()
+    val isUpcoming = listOf(
+        "yakında", "yayınlanmadı", "henüz yayınlanmadı", "planlandı", "planned",
+        "upcoming", "not yet aired", "anons"
+    ).any(normalizedStatus::contains)
+    return if (isUpcoming) "Bölüm 1, $date tarihinde yayında" else null
+}
+
 internal fun parseNextAiring(raw: String): AiringInfo {
     if (raw.contains("|")) {
         val parts = raw.split("|")

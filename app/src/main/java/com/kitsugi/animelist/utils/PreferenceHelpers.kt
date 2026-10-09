@@ -39,15 +39,21 @@ object PreferenceHelpers {
         val native = nonBlank(titleJapanese)
         val romaji = nonBlank(titleRomaji)
         val raw = nonBlank(title)
+        // Bazı Bangumi kısa yanıtları eski önbelleklerden ya da hatalı alan adlarından
+        // CJK bir değeri `titleEnglish` / `titleRomaji` olarak taşıyabiliyor. Dil tercihi
+        // dışındaki yazıyı başlık diye kabul etmek yerine Latin alternatif zincirine in.
+        val englishLatin = english?.takeIf { !hasCjkCharacters(it) }
+        val romajiLatin = romaji?.takeIf { !hasCjkCharacters(it) }
+        val rawLatin = raw?.takeIf { !hasCjkCharacters(it) }
         return when (titleLanguage) {
-            "ENGLISH" -> english ?: romaji ?: raw ?: native ?: ""
-            "NATIVE", "JAPANESE_STAFF" -> native ?: raw ?: romaji ?: english ?: ""
+            "ENGLISH" -> englishLatin ?: romajiLatin ?: rawLatin ?: native ?: raw ?: ""
+            "NATIVE", "JAPANESE_STAFF" -> native ?: raw ?: romajiLatin ?: englishLatin ?: ""
             else -> {
                 // ROMAJI: Latin özgün ad varsa onu kullan. Kaynak romaji sağlamıyorsa
                 // İngilizce Latin ad güvenli geri dönüş olur; uydurma transliterasyon yapılmaz.
-                romaji
-                    ?: raw?.takeIf { !hasCjkCharacters(it) }
-                    ?: english?.takeIf { !hasCjkCharacters(it) }
+                romajiLatin
+                    ?: rawLatin
+                    ?: englishLatin
                     ?: raw
                     ?: native
                     ?: ""
