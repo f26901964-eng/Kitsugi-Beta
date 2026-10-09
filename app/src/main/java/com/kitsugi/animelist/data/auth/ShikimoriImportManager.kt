@@ -2,6 +2,7 @@ package com.kitsugi.animelist.data.auth
 
 import android.content.Context
 import android.util.Log
+import com.kitsugi.animelist.data.remote.ShikimoriAdultResolver
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import kotlinx.coroutines.Dispatchers
@@ -39,16 +40,24 @@ object ShikimoriImportManager {
                 .map { it.targetId }
                 .distinct()
                 .toList()
-            // List responses usually omit `rating`; fetch it in batches, without making import
-            // fail if Shikimori temporarily refuses this optional metadata request.
+            // `user_rates` yanıtındaki gömülü anime/manga nesneleri `AnimeSerializer`/
+            // `MangaSerializer` ile üretilir ve `rating`/`genres` alanlarını taşımaz;
+            // bu yüzden +18 bilgisi GraphQL üzerinden toplu çözülür (ShikimoriAdultResolver).
+            // Shikimori geçici olarak bu isteği reddederse import yine de devam eder.
             val adultAnimeIds = runCatching {
-                ShikimoriApiClient.fetchAdultMediaIds("Anime", unresolvedAnimeIds)
+                ShikimoriAdultResolver.resolveAdultIds(
+                    ShikimoriAdultResolver.Kind.ANIME,
+                    unresolvedAnimeIds
+                )
             }.getOrElse { error ->
                 Log.w(TAG, "Shikimori anime adult metadata lookup failed: ${error.message}")
                 emptySet()
             }
             val adultMangaIds = runCatching {
-                ShikimoriApiClient.fetchAdultMediaIds("Manga", unresolvedMangaIds)
+                ShikimoriAdultResolver.resolveAdultIds(
+                    ShikimoriAdultResolver.Kind.MANGA,
+                    unresolvedMangaIds
+                )
             }.getOrElse { error ->
                 Log.w(TAG, "Shikimori manga adult metadata lookup failed: ${error.message}")
                 emptySet()

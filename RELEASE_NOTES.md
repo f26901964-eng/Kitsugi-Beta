@@ -1,5 +1,25 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.226)
+### 🔞 Shikimori Listem Sayfasında +18 Bulanıklık Onarımı (Kök Neden Bulundu)
+- **Kök Neden (Shikimori sunucu kodu üzerinden doğrulandı):** Shikimori'nin REST liste yanıtları (`/api/animes`, `/api/mangas`) ve `user_rates` yanıtındaki gömülü `anime`/`manga` nesneleri `AnimeSerializer`/`MangaSerializer` ile üretilir; bu serializer'lar **`rating` ve `genres` alanlarını hiç taşımaz**. Eski `fetchAdultMediaIds` REST toplu sorgusu kayıtları döndürüyordu (Shikimori tarafında `ids` varlığı hentai filtrelemesini kapatır) ama yanıtta bakılan `rating` alanı olmadığı için `adultIds` hep **boş** dönüyordu. Sonuç: Shikimori içe aktarımındaki tüm kayıtlar `isAdult = false` ile veritabanına yazılıyor, `+18 blur` ayarı açık olsa bile Listem → Shikimori sekmesinde (ve "Tümü" sekmesinde) afişler bulanıklanmıyordu.
+- **Yeni GraphQL Çözümleyici (`ShikimoriAdultResolver`):** +18 tespiti artık Shikimori GraphQL üzerinden 50'lik toplu sorgularla yapılıyor: `{ animes(ids: "…", limit: 50, censored: false) { id rating genres { name } } }` (manga sorgusunda `rating` alanı şemada olmadığı için tür üzerinden). GraphQL okuma uçları kimlik doğrulaması istemez; `censored: false` + `ids` kombinasyonu sunucu tarafında hentai filtrelemesini devre dışı bırakır. Sonuçlar (olumlu/olumsuz) bellek önbelleğinde tutulur; ağ hatasında yeniden denenir. `PlatformRateLimiter` ile Shikimori'nin hız sınırına uyulur.
+- **İçe Aktarım Düzeltmesi (`ShikimoriImportManager`):** Kırık REST `fetchAdultMediaIds` kaldırıldı; `user_rates` listesinde çözülemeyen tüm kimlikler GraphQL üzerinden toplu kontrol ediliyor. Politika değişmedi: yalnızca `rx`/hentai +18 (r/r_plus hariç).
+- **Mevcut Kayıtlar İçin Tek Seferlik Onarım (`ShikimoriAdultFlagMigration`):** Veritabanında `source = "shikimori"` ve `isAdult = false` olan mevcut kayıtlar (Shikimori hedef kimliği = `malId`) Listem ekranı açıldığında GraphQL üzerinden yeniden kontrol edilip +18 olanlar işaretleniyor. Yalnızca `false → true` yönünde yazar; ağ kesilirse 12 saat sonra yeniden denenir. Böylece manuel senkronizasyon beklemeden blur hemen çalışmaya başlar.
+- **Testler:** `ShikimoriAdultResolverTest` — sorgu üretimi (anime `rating`+tür, manga tür-only, `censored: false`, limit üst sınırı), yanıt ayrıştırma (rx/hentai → +18; r/r_plus/pg_13 → değil), toplu sorgu + önbellek, ağ hatasının önbelleğe yazılmaması.
+
+---
+
+## 🇬🇧 English (v2.4.226)
+### 🔞 Shikimori My List +18 Blur Fix (Root Cause Identified)
+- **Root Cause (verified against Shikimori server source):** Shikimori's REST list responses (`/api/animes`, `/api/mangas`) and the embedded `anime`/`manga` objects in `user_rates` are rendered with `AnimeSerializer`/`MangaSerializer`, which **never include `rating` or `genres`**. The old `fetchAdultMediaIds` REST batch query did return the records (on Shikimori's side the presence of `ids` disables hentai filtering), but the response contained no `rating` field to inspect, so `adultIds` always came back **empty**. Result: every Shikimori import was persisted with `isAdult = false`, so the `+18 blur` setting never applied on My List → Shikimori tab (and the "All" tab).
+- **New GraphQL Resolver (`ShikimoriAdultResolver`):** +18 detection now uses batched Shikimori GraphQL queries of 50: `{ animes(ids: "…", limit: 50, censored: false) { id rating genres { name } } }` (the manga query omits `rating` since the schema's MangaType has no such field and detection is genre-based). GraphQL read endpoints require no authentication; `censored: false` + `ids` disables server-side hentai filtering. Results (positive and negative) are memory-cached; network failures are retried. Requests respect Shikimori's rate limit via `PlatformRateLimiter`.
+- **Import Fix (`ShikimoriImportManager`):** The broken REST `fetchAdultMediaIds` was removed; all unresolved ids from the `user_rates` list are now batch-checked over GraphQL. Policy unchanged: only `rx`/hentai count as +18 (r/r_plus excluded).
+- **One-Time Repair for Existing Records (`ShikimoriAdultFlagMigration`):** Existing database rows with `source = "shikimori"` and `isAdult = false` (Shikimori target id is stored in `malId`) are re-checked over GraphQL when the My List screen opens, and adult ones are flagged. Writes are strictly `false → true`; on network failure the run is retried after 12 hours. Blur therefore starts working immediately without waiting for a manual sync.
+- **Tests:** `ShikimoriAdultResolverTest` — query building (anime `rating`+genres, manga genres-only, `censored: false`, limit clamp), response parsing (rx/hentai → adult; r/r_plus/pg_13 → not), batching + caching, network failure not cached.
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.225)
 
 ### 🌸 1. Bangumi Başlık Dili & Latin Ad Zenginleştirmesi (`KitsugiBangumiClient.kt`, `BangumiLocalizedName.kt`)
