@@ -6,6 +6,7 @@ import com.kitsugi.animelist.data.auth.BangumiApiClient
 import com.kitsugi.animelist.data.auth.BangumiApiClient.BangumiSubject
 import com.kitsugi.animelist.data.auth.BangumiAuthStore
 import com.kitsugi.animelist.model.MediaType
+import com.kitsugi.animelist.utils.toLatinStudioName
 import com.kitsugi.animelist.utils.toTurkishBroadcast
 import com.kitsugi.animelist.utils.toTurkishCharacterRole
 import com.kitsugi.animelist.utils.toTurkishDuration
@@ -66,6 +67,16 @@ object KitsugiBangumiDetailClient {
 
     /** MAL/AniList/TMDB eşlik detayı için süre tavanı. */
     private const val COMPANION_TIMEOUT_MS = 7_000L
+
+    /** İlişki/öneri başlık zenginleştirmesi için tek kayıt başına süre tavanı. */
+    private const val RELATION_TITLE_TIMEOUT_MS = 8_000L
+
+    /**
+     * Başlık zenginleştirmesi için aynı anda sorgulanan en fazla ilişkili kayıt sayısı.
+     * Çok kalabalık listelerde (100 ilişki) tüm kayıtlar için istek atılmaz; ilk kayıtlar
+     * zenginleştirilir, gerisi slim (özgün ad) verisiyle gösterilir.
+     */
+    private const val RELATION_TITLE_ENRICH_LIMIT = 16
 
     /** Bulunamayan eşleşmeler için olumsuz önbellek süresi (tekrar tekrar arama yapılmasın). */
     private const val CROSS_MISS_TTL_MS = 20 * 60 * 1000L
@@ -307,19 +318,27 @@ object KitsugiBangumiDetailClient {
         val trackedTotal = collection?.total?.takeIf { it > 0 }
 
         // ── Stüdyo / yapımcı / kanal ─────────────────────────────────────────
-        val studios = splitCompanies(values("动画制作", "動畫製作", "动画制作公司", "アニメーション制作", "制作", "制作公司"))
+        // Stüdyo/şirket adları infobox'ta Japonca/Çince gelir — Latin ada çevrilir
+        // (örn. 京都アニメーション → Kyoto Animation); bilinmeyenler olduğu gibi kalır.
+        val studioNames = splitCompanies(values("动画制作", "動畫製作", "动画制作公司", "アニメーション制作", "制作", "制作公司"))
+            .map { it.toLatinStudioName() }
+        val studios = studioNames
             .map { KitsugiStudio(id = 0, name = it, isMain = true, source = SOURCE, role = StudioRole.STUDIO) }
         val producers = if (mediaType == MediaType.Manga) {
             splitCompanies(values("出版社", "出版"))
+                .map { it.toLatinStudioName() }
                 .map { KitsugiStudio(id = 0, name = it, isMain = true, source = SOURCE, role = StudioRole.PUBLISHER) }
         } else {
             splitCompanies(values("製作", "出品", "发行", "製作委员会", "制作委员会"))
-                .filter { name -> studios.none { it.name.equals(name, ignoreCase = true) } }
+                .map { it.toLatinStudioName() }
+                .filter { name -> studioNames.none { it.equals(name, ignoreCase = true) } }
                 .map { KitsugiStudio(id = 0, name = it, isMain = false, source = SOURCE, role = StudioRole.PRODUCER) }
         }
         val networks = splitNetworks(valuesAll("播放电视台", "播放電視台", "其他电视台", "其他電視台"))
+            .map { it.toLatinStudioName() }
             .map { KitsugiStudio(id = 0, name = it, isMain = false, source = SOURCE, role = StudioRole.NETWORK) }
         val serializations = splitCompanies(values("连载杂志", "連載雜誌", "杂志"))
+            .map { it.toLatinStudioName() }
             .map { KitsugiStudio(id = 0, name = it, isMain = true, source = SOURCE, role = StudioRole.MAGAZINE) }
 
         // ── Yayın bilgisi ────────────────────────────────────────────────────
@@ -909,7 +928,7 @@ object KitsugiBangumiDetailClient {
         withContext(Dispatchers.IO) {
             val rawId = rawIdOf(stableOrRawId) ?: return@withContext emptyList()
             val root = p1("/subjects/$rawId/relations", mapOf("limit" to "100")) ?: return@withContext emptyList()
-            parseRelations(root)
+            enrichRelationTitles(parseRelations(root))
         }
 
     /** `/p1/subjects/{id}/relations` yanıtı → ilişkili yapımlar. */
@@ -926,8 +945,48 @@ object KitsugiBangumiDetailClient {
         withContext(Dispatchers.IO) {
             val rawId = rawIdOf(stableOrRawId) ?: return@withContext emptyList()
             val root = p1("/subjects/$rawId/recs", mapOf("limit" to "10")) ?: return@withContext emptyList()
-            parseRecommendations(root)
+            enrichRelationTitles(parseRecommendations(root))
         }
+
+    /**
+     * İlişki/öneri başlıklarını tam条目 kaydıyla zenginleştirir. p1 liste uçlarındaki slim
+     * subject nesneleri infobox içermez; bu yüzden başlıklar özgün (kanji) adla kalıyordu.
+     * Her ilişkili kayıt için önbellekli [loadSubject] (`/v0/subjects/{id}`) çekilir ve
+     * infobox'taki İngilizce / romaji adlar başlık varyantı olarak doldurulur. Tek bir
+     * kayıt isteği yavaşsa ya da başarısızsa ilgili kayıt orijinal haliyle döner.
+     */
+    private suspend fun enrichRelationTitles(relations: List<KitsugiRelation>): List<KitsugiRelation> {
+        if (relations.isEmpty()) return relations
+        val limit = minOf(relations.size, RELATION_TITLE_ENRICH_LIMIT)
+        val enriched = coroutineScope {
+            relations.take(limit).map { rel ->
+                async(Dispatchers.IO) {
+                    runCatching {
+                        withTimeoutOrNull(RELATION_TITLE_TIMEOUT_MS) {
+                            val raw = BangumiIdNamespace.rawIdFromStable(rel.malId)
+                                ?: return@withTimeoutOrNull rel
+                            val subject = loadSubject(raw) ?: return@withTimeoutOrNull rel
+                            val localized = BangumiNameLocalizer.subject(
+                                subject.name,
+                                subject.nameCn,
+                                subject.infobox
+                            )
+                            if (localized.romaji == null && localized.english == null) {
+                                return@withTimeoutOrNull rel
+                            }
+                            rel.copy(
+                                title = localized.display.ifBlank { rel.title },
+                                titleEnglish = localized.english ?: rel.titleEnglish,
+                                titleJapanese = localized.native ?: rel.titleJapanese,
+                                titleRomaji = localized.romaji ?: rel.titleRomaji
+                            )
+                        } ?: rel
+                    }.getOrDefault(rel)
+                }
+            }.awaitAll()
+        }
+        return enriched + relations.drop(limit)
+    }
 
     /** `/p1/subjects/{id}/recs` yanıtı → öneriler. */
     internal fun parseRecommendations(root: JSONObject): List<KitsugiRelation> =

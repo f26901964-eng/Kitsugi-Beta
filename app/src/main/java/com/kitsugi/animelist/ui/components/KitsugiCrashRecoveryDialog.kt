@@ -71,7 +71,7 @@ fun KitsugiCrashRecoveryDialog(
                 Spacer(Modifier.height(4.dp))
 
                 Text(
-                    text = "Kitsugi son oturumda kapandı veya çöktü. Hata raporu cihazınıza kaydedildi. Paylaşarak sorunun hızlıca çözülmesini sağlayabilirsiniz.",
+                    text = "Kitsugi son oturumda kapandı veya çöktü. Hata raporu cihazınıza kaydedildi. Rapor dosyasını (.txt) paylaşarak sorunun hızlıca çözülmesini sağlayabilirsiniz.",
                     color = KitsugiColors.TextSecondary,
                     fontSize = 12.sp,
                     lineHeight = 17.sp
@@ -107,7 +107,7 @@ fun KitsugiCrashRecoveryDialog(
                     modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Satır 1: Kopyala + Paylaş
+                    // Satır 1: Kopyala + Hata dosyasını paylaş
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -130,12 +130,24 @@ fun KitsugiCrashRecoveryDialog(
 
                         KitsugiButton(
                             onClick = {
+                                // Hata raporu metin olarak değil, DOSYA (.txt) olarak paylaşılır.
+                                val file = KitsugiCrashLogger.ensureCrashLogFile(context)
+                                if (file == null) {
+                                    Toast.makeText(context, "Hata raporu dosyası oluşturulamadı", Toast.LENGTH_SHORT).show()
+                                    return@KitsugiButton
+                                }
+                                val uri = androidx.core.content.FileProvider.getUriForFile(
+                                    context,
+                                    "${context.packageName}.fileprovider",
+                                    file
+                                )
                                 val shareIntent = Intent(Intent.ACTION_SEND).apply {
                                     type = "text/plain"
-                                    putExtra(Intent.EXTRA_TEXT, crashLog)
+                                    putExtra(Intent.EXTRA_STREAM, uri)
                                     putExtra(Intent.EXTRA_SUBJECT, "Kitsugi Hata Raporu v${BuildConfig.VERSION_NAME}")
+                                    addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                 }
-                                context.startActivity(Intent.createChooser(shareIntent, "Çökme Raporunu Paylaş"))
+                                context.startActivity(Intent.createChooser(shareIntent, "Hata Dosyasını Paylaş"))
                                 KitsugiCrashLogger.markCrashAsRead(context)
                                 onDismiss()
                             },
@@ -144,7 +156,7 @@ fun KitsugiCrashRecoveryDialog(
                         ) {
                             Icon(Icons.Rounded.Share, null, modifier = Modifier.size(15.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text("Paylaş", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text("Dosyayı Paylaş", fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
 

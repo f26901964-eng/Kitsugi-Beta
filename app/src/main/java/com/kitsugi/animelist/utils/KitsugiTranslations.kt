@@ -108,9 +108,11 @@ private val genreMap = mapOf(
 
 /** API'dan gelen tür adını Türkçeye çevirir. Eşleme yoksa orijinali döner. */
 fun String.toTurkishGenre(): String {
-    if (!isTurkish()) return this
     val cleaned = this.trim()
     if (cleaned.isEmpty()) return cleaned
+    // Bangumi meta etiketleri Çince/Japonca gelir (恋爱, 日常, 游戏改 ...): önce bunlara bak.
+    cleaned.toLocalizedBangumiTagOrNull()?.let { return it }
+    if (!isTurkish()) return this
     val mapped = genreMap[cleaned]
         ?: genreMap[cleaned.lowercase()]
         ?: genreMap[cleaned.replaceFirstChar { if (it.isLowerCase()) it.titlecase(java.util.Locale.ROOT) else it.toString() }]
@@ -122,6 +124,152 @@ fun String.toTurkishGenre(): String {
 
 /** Tür listesini Türkçeye çevirir. */
 fun List<String>.toTurkishGenres(): List<String> = map { it.toTurkishGenre() }
+
+// ─── Bangumi Etiketleri (Çince / Japonca) ─────────────────────────────────────
+
+/**
+ * Bangumi etiketleri Çince ya da Japonca gelir (恋爱, 日常, 京阿尼, 神作, 麻枝准 ...).
+ * `resourceKey`, dil dosyasındaki `bangumi_tag_*` kaynağının adıdır; kaynak varsa cihaz
+ * diline göre doğru karşılık döner (values/strings.xml = Türkçe, values-en = İngilizce).
+ * Kaynak yoksa statik harita devreye girer (TR cihazda Türkçe, diğerlerinde İngilizce).
+ */
+private data class BangumiTag(val turkish: String, val english: String, val resourceKey: String)
+
+private val bangumiTagMap: Map<String, BangumiTag> = mapOf(
+    // ── Tür / meta etiketler ──
+    "恋爱" to BangumiTag("Romantik", "Romance", "romance"),
+    "恋愛" to BangumiTag("Romantik", "Romance", "romance"),
+    "日常" to BangumiTag("Günlük Yaşam", "Slice of Life", "slice_of_life"),
+    "游戏改" to BangumiTag("Oyun Uyarlaması", "Game Adaptation", "game_adaptation"),
+    "遊戲改" to BangumiTag("Oyun Uyarlaması", "Game Adaptation", "game_adaptation"),
+    "游戏改编" to BangumiTag("Oyun Uyarlaması", "Game Adaptation", "game_adaptation"),
+    "漫画改编" to BangumiTag("Manga Uyarlaması", "Manga Adaptation", "manga_adaptation"),
+    "小说改编" to BangumiTag("Roman Uyarlaması", "Novel Adaptation", "novel_adaptation"),
+    "小説改编" to BangumiTag("Roman Uyarlaması", "Novel Adaptation", "novel_adaptation"),
+    "轻小说" to BangumiTag("Hafif Roman", "Light Novel", "light_novel"),
+    "視覚小说" to BangumiTag("Görsel Roman", "Visual Novel", "visual_novel"),
+    "日本" to BangumiTag("Japonya", "Japan", "japan"),
+    "中国" to BangumiTag("Çin", "China", "china"),
+    "欧美" to BangumiTag("Batı", "Western", "western"),
+    "TV" to BangumiTag("TV", "TV", "tv"),
+    "剧场版" to BangumiTag("Film", "Movie", "movie"),
+    "劇場版" to BangumiTag("Film", "Movie", "movie"),
+    "OVA" to BangumiTag("OVA", "OVA", "ova"),
+    "ONA" to BangumiTag("ONA", "ONA", "ona"),
+    "科幻" to BangumiTag("Bilim Kurgu", "Sci-Fi", "sci_fi"),
+    "SF" to BangumiTag("Bilim Kurgu", "Sci-Fi", "sci_fi"),
+    "奇幻" to BangumiTag("Fantastik", "Fantasy", "fantasy"),
+    "悬疑" to BangumiTag("Gizem", "Mystery", "mystery"),
+    "推理" to BangumiTag("Dedektif", "Detective", "detective"),
+    "冒险" to BangumiTag("Macera", "Adventure", "adventure"),
+    "冒險" to BangumiTag("Macera", "Adventure", "adventure"),
+    "战斗" to BangumiTag("Aksiyon", "Action", "action"),
+    "热血" to BangumiTag("Aksiyon", "Action", "action"),
+    "熱血" to BangumiTag("Aksiyon", "Action", "action"),
+    "运动" to BangumiTag("Spor", "Sports", "sports"),
+    "運動" to BangumiTag("Spor", "Sports", "sports"),
+    "音乐" to BangumiTag("Müzik", "Music", "music"),
+    "音楽" to BangumiTag("Müzik", "Music", "music"),
+    "恐怖" to BangumiTag("Korku", "Horror", "horror"),
+    "后宫" to BangumiTag("Harem", "Harem", "harem"),
+    "百合" to BangumiTag("Yuri", "Yuri", "yuri"),
+    "耽美" to BangumiTag("BL", "BL", "bl"),
+    "异世界" to BangumiTag("Isekai", "Isekai", "isekai"),
+    "異世界" to BangumiTag("Isekai", "Isekai", "isekai"),
+    "职场" to BangumiTag("İş Hayatı", "Workplace", "workplace"),
+    "職場" to BangumiTag("İş Hayatı", "Workplace", "workplace"),
+    "校园" to BangumiTag("Okul", "School", "school"),
+    "校園" to BangumiTag("Okul", "School", "school"),
+    "学园" to BangumiTag("Okul", "School", "school"),
+    "搞笑" to BangumiTag("Komedi", "Comedy", "comedy"),
+    "治愈" to BangumiTag("İyileştirici", "Healing", "healing"),
+    "治癒" to BangumiTag("İyileştirici", "Healing", "healing"),
+    "人生" to BangumiTag("Yaşam", "Life", "life"),
+    "青春" to BangumiTag("Gençlik", "Youth", "youth"),
+    "机战" to BangumiTag("Mecha", "Mecha", "mecha"),
+    "機戦" to BangumiTag("Mecha", "Mecha", "mecha"),
+    "メカ" to BangumiTag("Mecha", "Mecha", "mecha"),
+    "少年" to BangumiTag("Shōnen", "Shounen", "shounen"),
+    "少女" to BangumiTag("Shōjo", "Shoujo", "shoujo"),
+    "青年" to BangumiTag("Seinen", "Seinen", "seinen"),
+    "女性" to BangumiTag("Josei", "Josei", "josei"),
+    "剧情" to BangumiTag("Dram", "Drama", "drama"),
+    "ドラマ" to BangumiTag("Dram", "Drama", "drama"),
+    "心理" to BangumiTag("Psikolojik", "Psychological", "psychological"),
+    "灵异" to BangumiTag("Doğaüstü", "Supernatural", "supernatural"),
+    "吸血鬼" to BangumiTag("Vampir", "Vampire", "vampire"),
+    "丧尸" to BangumiTag("Zombi", "Zombie", "zombie"),
+    "ゾンビ" to BangumiTag("Zombi", "Zombie", "zombie"),
+    "警察" to BangumiTag("Polis", "Police", "police"),
+    "黑帮" to BangumiTag("Mafya", "Mafia", "mafia"),
+    "マフィア" to BangumiTag("Mafya", "Mafia", "mafia"),
+    "战争" to BangumiTag("Savaş", "War", "war"),
+    "戦争" to BangumiTag("Savaş", "War", "war"),
+    "古代" to BangumiTag("Tarihi", "Historical", "historical"),
+    "時代劇" to BangumiTag("Tarihi", "Historical", "historical"),
+    "宇宙" to BangumiTag("Uzay", "Space", "space"),
+    "穿越" to BangumiTag("Zaman Yolculuğu", "Time Travel", "time_travel"),
+    "转生" to BangumiTag("Reenkarnasyon", "Reincarnation", "reincarnation"),
+    "転生" to BangumiTag("Reenkarnasyon", "Reincarnation", "reincarnation"),
+    "游戏" to BangumiTag("Oyun", "Game", "game"),
+    "遊戲" to BangumiTag("Oyun", "Game", "game"),
+    "ゲーム" to BangumiTag("Oyun", "Game", "game"),
+    "偶像" to BangumiTag("Idol", "Idol", "idol"),
+    "アイドル" to BangumiTag("Idol", "Idol", "idol"),
+    "原创" to BangumiTag("Orijinal", "Original", "original"),
+    "オリジナル" to BangumiTag("Orijinal", "Original", "original"),
+    // ── Sık kullanıcı etiketleri ──
+    "神作" to BangumiTag("Başyapıt", "Masterpiece", "masterpiece"),
+    "催涙" to BangumiTag("Duygusal", "Tearjerker", "tearjerker"),
+    "催泪" to BangumiTag("Duygusal", "Tearjerker", "tearjerker"),
+    "京阿尼" to BangumiTag("Kyoto Animation", "Kyoto Animation", "kyoto_animation"),
+    "京都アニメーション" to BangumiTag("Kyoto Animation", "Kyoto Animation", "kyoto_animation"),
+    "京都动画" to BangumiTag("Kyoto Animation", "Kyoto Animation", "kyoto_animation"),
+    "京都動画" to BangumiTag("Kyoto Animation", "Kyoto Animation", "kyoto_animation"),
+    "key" to BangumiTag("Key", "Key", "key_studio"),
+    "Key" to BangumiTag("Key", "Key", "key_studio"),
+    "麻枝准" to BangumiTag("Jun Maeda", "Jun Maeda", "jun_maeda"),
+    "新海诚" to BangumiTag("Makoto Shinkai", "Makoto Shinkai", "makoto_shinkai"),
+    "新海誠" to BangumiTag("Makoto Shinkai", "Makoto Shinkai", "makoto_shinkai"),
+    "物语" to BangumiTag("Monogatari", "Monogatari", "monogatari"),
+    "物語" to BangumiTag("Monogatari", "Monogatari", "monogatari"),
+)
+
+/** `bangumi_tag_*` dil dosyası kaynağını ismiyle okur; bulunamazsa null. */
+private fun getStringResourceByName(name: String): String? {
+    return try {
+        val context = com.kitsugi.animelist.KitsugiApplication.getInstance() ?: return null
+        val resId = context.resources.getIdentifier(name, "string", context.packageName)
+        if (resId != 0) context.getString(resId) else null
+    } catch (_: Throwable) { null }
+}
+
+private fun bangumiTagFor(label: String): BangumiTag? {
+    val cleaned = label.trim()
+    if (cleaned.isEmpty()) return null
+    return bangumiTagMap[cleaned]
+        ?: bangumiTagMap.entries.firstOrNull { it.key.equals(cleaned, ignoreCase = true) }?.value
+}
+
+/**
+ * Bangumi Çince/Japonca etiketini cihaz diline göre yerelleştirir.
+ * Önce dil dosyası (`bangumi_tag_*`), sonra statik harita (TR cihazda Türkçe,
+ * diğerlerinde İngilizce) kullanılır. Eşleme yoksa null döner.
+ */
+fun String.toLocalizedBangumiTagOrNull(): String? {
+    val tag = bangumiTagFor(this) ?: return null
+    getStringResourceByName("bangumi_tag_${tag.resourceKey}")?.let { return it }
+    return if (isTurkish()) tag.turkish else tag.english
+}
+
+/** Bangumi etiketini Türkçeye çevirir (eşleme yoksa orijinal metin döner). */
+fun String.toTurkishBangumiTag(): String = toLocalizedBangumiTagOrNull() ?: this
+
+/** Bangumi etiketinin İngilizce karşılığı; eşleme yoksa null döner. */
+fun bangumiTagEnglishOrNull(label: String): String? = bangumiTagFor(label)?.english
+
+/** Bangumi etiketini İngilizce arama terimine çevirir (eşleme yoksa orijinal metin döner). */
+fun String.toEnglishBangumiTag(): String = bangumiTagEnglishOrNull(this) ?: this
 
 // Tersine dönüşüm: Türkçe → İngilizce (arama API'ları için)
 private val reverseGenreMap: Map<String, String> by lazy {
@@ -135,6 +283,8 @@ private val reverseGenreMap: Map<String, String> by lazy {
 fun String.toEnglishGenreForSearch(): String {
     val cleaned = this.trim()
     if (cleaned.isEmpty()) return cleaned
+    // Bangumi Çince/Japonca tür etiketleri doğrudan İngilizce arama terimine çevrilir.
+    bangumiTagEnglishOrNull(cleaned)?.let { return it }
     val mapped = reverseGenreMap[cleaned.lowercase()]
         ?: reverseGenreMap.entries.find { it.key.equals(cleaned, ignoreCase = true) }?.value
     if (mapped != null) return mapped
@@ -686,6 +836,56 @@ private val staffRoleMap = mapOf(
     "Theme Song Arrangement" to "Tema Şarkısı Düzenlemesi",
     "Theme Song Composition" to "Tema Şarkısı Bestesi",
     "Theme Song Music" to "Tema Şarkısı Müziği",
+    // Bangumi p1 pozisyon etiketleri (en) — liste uçlarındaki ham karşılıklar
+    // (MAL/Jikan karşılıklarıyla aynı terimler kullanılır)
+    "Episode Direction" to "Bölüm Yönetmeni",
+    "Animation Direction" to "Animasyon Yönetmeni",
+    "Script/Screenplay" to "Senarist",
+    "Series Direction" to "Seri Yönetmeni",
+    "Unit Direction" to "Birim Yönetmeni",
+    "Action Direction" to "Aksiyon Yönetmeni",
+    // Bangumi v0 `relation` / p1 pozisyon etiketleri (jp / cn)
+    "監督" to "Yönetmen",
+    "演出" to "Bölüm Yönetmeni",
+    "脚本" to "Senarist",
+    "シリーズ構成" to "Seri Düzenlemesi",
+    "絵コンテ" to "Storyboard",
+    "分镜" to "Storyboard",
+    "作画監督" to "Animasyon Yönetmeni",
+    "作画监督" to "Animasyon Yönetmeni",
+    "総作画監督" to "Baş Animasyon Yönetmeni",
+    "キャラクターデザイン" to "Karakter Tasarımı",
+    "キャラデザイン" to "Karakter Tasarımı",
+    "人物设计" to "Karakter Tasarımı",
+    "色彩設計" to "Renk Tasarımı",
+    "色彩设计" to "Renk Tasarımı",
+    "撮影監督" to "Görüntü Yönetmeni",
+    "摄影监督" to "Görüntü Yönetmeni",
+    "原画" to "Anahtar Animasyon",
+    "動画" to "Ara Animasyon",
+    "音楽" to "Müzik",
+    "音楽制作" to "Müzik Yapımı",
+    "音乐" to "Müzik",
+    "音响监督" to "Ses Yönetmeni",
+    "音響監督" to "Ses Yönetmeni",
+    "美術監督" to "Sanat Yönetmeni",
+    "美术监督" to "Sanat Yönetmeni",
+    "アニメーション制作" to "Animasyon Yapımı",
+    "动画制作" to "Animasyon Yapımı",
+    "動畫製作" to "Animasyon Yapımı",
+    "製作" to "Yapım",
+    "制作" to "Yapım",
+    "製作委員会" to "Yapım Komitesi",
+    "制作委员会" to "Yapım Komitesi",
+    "企画" to "Planlama",
+    "企划" to "Planlama",
+    "原作" to "Orijinal Yaratıcı",
+    "原案" to "Orijinal Konsept",
+    "監修" to "Süpervizör",
+    "プロデューサー" to "Yapımcı",
+    "主題歌" to "Tema Şarkısı",
+    "主題歌歌唱" to "Tema Şarkısı Performansı",
+    "CGI" to "CGI",
 )
 
 private val commonPhrasesMap = mapOf(
@@ -906,6 +1106,11 @@ private val commonWordsMap = mapOf(
     "Lead" to "Baş",
     "Head" to "Şef/Baş",
     "Vocal" to "Vokal",
+    // Bangumi p1 pozisyon etiketlerinde geçen tekil sözcükler
+    "Direction" to "Yönetmeni",
+    "Script" to "Senarist",
+    "Screenplay" to "Senarist",
+    "Episode" to "Bölüm",
 )
 
 private fun translateSuffix(suffix: String): String {
@@ -946,9 +1151,10 @@ fun String.toTurkishStaffRole(): String {
         }
     }
 
-    // Check for comma-separated roles, e.g. "Director, Writer"
-    if (trimmed.contains(",")) {
-        return trimmed.split(",")
+    // Virgülle ayrılmış roller, örn. "Director, Writer". Bangumi v0 liste uçları
+    // görevleri " · " (ve Japonca 「、」) ile birleştirir — hepsi tek tek çevrilir.
+    if (trimmed.contains(",") || trimmed.contains("·") || trimmed.contains("、") || trimmed.contains("，")) {
+        return trimmed.split(Regex("[,·、，;；]"))
             .map { it.trim().toTurkishStaffRole() }
             .filter { it.isNotEmpty() }
             .joinToString(", ")
@@ -1028,5 +1234,57 @@ fun String.toFriendlySourceLabel(): String {
         "manual"       -> "Manual"
         else           -> this
     }
+}
+
+// ─── Stüdyo / Şirket Adları (Japonca/Çince → Latin) ───────────────────────────
+
+/**
+ * Bangumi infobox'ındaki stüdyo/şirket adları Japonca (京都アニメーション) ya da Çince
+ * gelir. Bu harita en bilinen şirketleri Latin ada çevirir; bilinmeyenler olduğu gibi
+ * kalır (uydurma çeviri üretilmez). Latin ad, stüdyo aramasında da daha iyi sonuç verir.
+ */
+private val studioLatinNameMap = mapOf(
+    "京都アニメーション" to "Kyoto Animation",
+    "京都动画" to "Kyoto Animation",
+    "京都動画" to "Kyoto Animation",
+    "東宝" to "Toho",
+    "松竹" to "Shochiku",
+    "ワーナー・ブラザース" to "Warner Bros.",
+    "ポニーキャニオン" to "Pony Canyon",
+    "ムービック" to "Movic",
+    "ジェネオン" to "Geneon",
+    "バンダイビジュアル" to "Bandai Visual",
+    "アニプレックス" to "Aniplex",
+    "キングレコード" to "King Records",
+    "ランティス" to "Lantis",
+    "フライングドッグ" to "FlyingDog",
+    "サンライズ" to "Sunrise",
+    "ボンズ" to "Bones",
+    "マッドハウス" to "Madhouse",
+    "プロダクション・アイジー" to "Production I.G",
+    "ウィットスタジオ" to "Wit Studio",
+    "シャフト" to "Shaft",
+    "トリガー" to "Trigger",
+    "クローバーワークス" to "CloverWorks",
+    "ピーエーワークス" to "P.A. Works",
+    "動画工房" to "Doga Kobo",
+    "ディオメディア" to "Diomedéa",
+    "シルバーリンク" to "Silver Link",
+    "テレコム・アニメーションフィルム" to "Telecom Animation Film",
+    "東映アニメーション" to "Toei Animation",
+    "タツノコプロ" to "Tatsunoko Production",
+    "日本アニメーション" to "Nippon Animation",
+    "J.C.STAFF" to "J.C.Staff",
+    "ジブリ" to "Studio Ghibli",
+    "スタジオジブリ" to "Studio Ghibli",
+)
+
+/** Stüdyo/şirket adını bilinen Japonca/Çince karşılıklardan Latin ada çevirir. */
+fun String.toLatinStudioName(): String {
+    val cleaned = this.trim()
+    if (cleaned.isEmpty()) return cleaned
+    return studioLatinNameMap[cleaned]
+        ?: studioLatinNameMap.entries.firstOrNull { it.key.equals(cleaned, ignoreCase = true) }?.value
+        ?: this
 }
 

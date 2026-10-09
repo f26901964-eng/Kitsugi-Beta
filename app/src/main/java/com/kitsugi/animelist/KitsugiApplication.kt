@@ -374,8 +374,14 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
                     kotlinx.coroutines.delay(200)
                     waited += 200
                 }
-                android.util.Log.i("KitsugiApplication", "Triggering proactive cookie warmup on startup (domains ready: ${com.kitsugi.animelist.data.cloudstream.CsStreamRunner.isDomainListReady()})...")
-                com.kitsugi.animelist.data.cloudstream.CsCfWarmupManager.runWarmup(this@KitsugiApplication)
+            // Warmup, her site için ana thread'de bir WebView oluşturur ve ağır JS/CF
+            // sayfaları yükler. Açılışta arayüzle yarışırsa RenderThread üzerinde ciddi
+            // baskı oluşturur (çökme raporlarında "Skipped 35 frames" ve
+            // "RenderInspector: DequeueBuffer time out" tam bu pencerede görülüyordu).
+            // Bu yüzden ilk kare oturduktan sonra başlatılır.
+            kotlinx.coroutines.delay(12_000)
+            android.util.Log.i("KitsugiApplication", "Triggering proactive cookie warmup on startup (domains ready: ${com.kitsugi.animelist.data.cloudstream.CsStreamRunner.isDomainListReady()})...")
+            com.kitsugi.animelist.data.cloudstream.CsCfWarmupManager.runWarmup(this@KitsugiApplication)
             } catch (e: Exception) {
                 android.util.Log.e("KitsugiApplication", "Proactive cookie warmup failed: ${e.message}", e)
             }

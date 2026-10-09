@@ -19,6 +19,12 @@ class KitsugiCharacterClient {
     companion object {
         private const val TAG = "KitsugiCharacterClient"
 
+        /**
+         * Bangumi karakter/seslendirmen adları için AniList köprüsü süre tavanı.
+         * Süre dolarsa ya da istek başarısız olursa liste orijinal (özgün) adlarla döner.
+         */
+        private const val BANGUMI_NAME_BRIDGE_TIMEOUT_MS = 8_000L
+
         /** Kitsu listesi VA'sızken MAL/AniList'ten VA eklemek için bekleme sınırı (yavaşsa VA'sız gösterilir). */
         private const val KITSU_VA_MERGE_TIMEOUT_MS = 5_000L
 
@@ -70,7 +76,15 @@ class KitsugiCharacterClient {
                         .ifEmpty {
                             runCatching { KitsugiBangumiCreditsClient.fetchSubjectCharacters(externalId) }.getOrNull().orEmpty()
                         }
-                    if (native.isNotEmpty()) return@withContext native
+                    if (native.isNotEmpty()) {
+                        // Bangumi liste uçları infobox döndürmez → adlar kanji kalır. AniList
+                        // köprüsüyle (özgün ada birebir eşleme) romaji/İngilizce adlar doldurulur;
+                        // başlık dili ROMAJI/ENGLISH olduğunda arayüz bunları gösterir.
+                        val malIdForNames = KitsugiBangumiDetailClient.sanitizeMalId(realMalId)
+                            ?: runCatching { KitsugiBangumiDetailClient.resolveCrossIds(externalId, mediaType) }
+                                .getOrNull()?.malId
+                        return@withContext enrichBangumiCharacterNames(native, mediaType, malIdForNames)
+                    }
 
                     // 2) Yedek: AniList araması → MAL kimliği çözülüp MAL/AniList karakterleri.
                     //    Bangumi stableId'si (500M+) ASLA MAL ID olarak kullanılmaz.
@@ -429,6 +443,51 @@ class KitsugiCharacterClient {
                     }
                 }
             }
+        }
+    }
+
+    /**
+     * Bangumi karakter/seslendirmen listesindeki CJK adlara AniList köprüsüyle romaji ve
+     * İngilizce karşılık ekler. Eşleme özgün (native) ada göredir; eşleşmeyen adlar olduğu
+     * gibi kalır. Tek önbellekli AniList sorgusu kullanılır; süre tavanı/başarısızlıkta
+     * liste orijinal haliyle döner (sekme kanji adlarla açılır, beklemez).
+     */
+    private suspend fun enrichBangumiCharacterNames(
+        characters: List<KitsugiCharacter>,
+        mediaType: MediaType,
+        malId: Int?
+    ): List<KitsugiCharacter> {
+        if (characters.isEmpty()) return characters
+        val needsEnrich = characters.any { char ->
+            PreferenceHelpers.hasCjkCharacters(char.name) ||
+                char.voiceActors.any { PreferenceHelpers.hasCjkCharacters(it.name) }
+        }
+        if (!needsEnrich || malId == null || malId <= 0) return characters
+        val names = runCatching {
+            withTimeoutOrNull(BANGUMI_NAME_BRIDGE_TIMEOUT_MS) {
+                KitsugiAniListPersonBridge.fetchMediaNames(malId, mediaType)
+            }
+        }.getOrNull() ?: return characters
+        if (names == null) return characters
+        return characters.map { char ->
+            val variant = if (PreferenceHelpers.hasCjkCharacters(char.name)) {
+                KitsugiAniListPersonBridge.findByNative(names.characters, char.nativeName, char.name)
+            } else null
+            val voiceActors = char.voiceActors.map { va ->
+                val vaVariant = if (PreferenceHelpers.hasCjkCharacters(va.name)) {
+                    KitsugiAniListPersonBridge.findByNative(names.voiceActors, va.nativeName, va.name)
+                } else null
+                if (vaVariant == null) va else va.copy(
+                    romanizedName = va.romanizedName ?: vaVariant.romaji,
+                    englishName = va.englishName ?: vaVariant.english
+                )
+            }
+            if (variant == null && voiceActors == char.voiceActors) return@map char
+            char.copy(
+                romanizedName = char.romanizedName ?: variant?.romaji,
+                englishName = char.englishName ?: variant?.english,
+                voiceActors = voiceActors
+            )
         }
     }
 

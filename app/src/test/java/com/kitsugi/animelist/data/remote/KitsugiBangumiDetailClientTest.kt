@@ -305,9 +305,10 @@ class KitsugiBangumiDetailClientTest {
         assertEquals(24, detail.total)
         assertEquals("Thursdays (TBS)", detail.broadcast)
         assertEquals("Key/VISUAL ARTS", detail.sourceMaterial)
-        assertEquals(listOf("京都アニメーション"), detail.studios.map { it.name })
+        // Stüdyo/şirket adları Japonca infobox'tan Latin ada çevrilir
+        assertEquals(listOf("Kyoto Animation"), detail.studios.map { it.name })
         assertEquals(
-            listOf("光坂高校演劇部", "TBS", "ポニーキャニオン", "ムービック"),
+            listOf("光坂高校演劇部", "TBS", "Pony Canyon", "Movic"),
             detail.producers.map { it.name }
         )
         // Ana + diğer kanallar birleşir

@@ -1,5 +1,69 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.215)
+
+### 🛡️ 1. Sessiz Çökme Kök Neden Çözümü (RenderThread SIGSEGV & WebView Teardown)
+- **Çifte Destroy ve Use-After-Free Giderildi (`CsCfWarmupManager.kt`):** Çökme raporlarındaki `cr_AwContents: Application attempted to call on a destroyed WebView` uyarıları ve ardından `RenderThread` display-list oynatımı sırasında oluşan `SIGSEGV` (null+0x20) hatası tamamen çözüldü.
+- **Güvenli Tek Seferlik Teardown (`releaseWebView`):** `AtomicBoolean` korumasıyla WebView yalnızca bir kez sökülür, durdurulur, `about:blank` yüklenir ve güvenle yok edilir.
+- **Açılış Rahatlatması (`KitsugiApplication.kt`):** Proaktif Cloudflare warmup işlemi ilk açılışta arayüzle yarışıp frame atlamalarına (`Skipped 35 frames`) ve `DequeueBuffer` zaman aşımlarına yol açmaması için 12 saniye gecikmeli başlatıldı.
+
+### 🎬 2. Oynatıcı, Altyazı ve PiP İyileştirmeleri
+- **Dahili Türkçe Altyazı Seçim Döngüsü (`Media3PlayerEngine.kt`):** Harici altyazılar bağlanmadan önce ilk `onTracksChanged` olayında seçimin sonlanması engellendi. Hedef Türkçe parça tespit edilene kadar (maksimum 8 deneme) otomatik seçim politikası çalışır. Kullanıcının elle yaptığı altyazı seçimi korunur (`userSelectedTextTrack`).
+- **Altyazı Taşma Koruması:** Dikey konum kaydırıldığında altyazının ekran dışına veya alt çubuğun altına kaçması engellendi; 4dp kenar payı ile görünür alana sabitlendi.
+- **PiP Kapatıldığında Sesin Devam Etmesi Engellendi (`KitsugiFullscreenPlayerActivity.kt`):** Mini pencere kapatıldığında veya odak kaybolduğunda sesin arkadan çalmaya devam etmesi çözüldü; `invokePipAction` yedek mekanizmasıyla doğrudan ViewModel'e iletildi, `KeepAliveService.stop()` ve temiz Activity sonlandırması (`finish()`) sağlandı.
+- **Kalıcı Tam Ekran (Immersive Mode):** MIUI ve HyperOS gibi arayüzlerde PiP veya odak değişimi sonrası alt gezinme çubuğunun ekranda asılı kalması giderildi (`onResume` ve `onWindowFocusChanged` üzerinde dinamik yenileme).
+
+### 📑 3. Açılır Sayfalar (Sheet/Dialog) ve Çarpı Butonu
+- **Kaydırma Kilidi Kaldırıldı (`KitsugiSheetOrDialog.kt`):** Açılır sayfalarda içerik aşağı kaydırıldığında kapatma hareketinin kilitlenmesi sorunu giderildi.
+- **Evrensel Kapatma Çarpısı (`KitsugiSheetCloseButton`):** Tüm açılır sayfalara sağ üstte şık ve her koşulda çalışan kapatma çarpısı eklendi.
+
+### 🌐 4. Bangumi Kapsamlı Türkçe Çeviri ve Metadata Zenginleştirmesi
+- **95+ Tür ve Etiket Çevirisi:** Çince ve Japonca tür/etiketler (恋爱 → Romantik, 日常 → Günlük Yaşam, 京阿尼 → Kyoto Animation, 神作 → Başyapıt vb.) Türkçe'ye çevrildi (`strings.xml` ve `values-en/strings.xml`). Tür etiketine tıklanarak arama yapıldığında İngilizce API terimine dönüştürme eklendi.
+- **Stüdyo Adları:** Çince/Japonca stüdyo adları Latin karşılıklarına dönüştürüldü (京都アニメーション → Kyoto Animation vb.).
+- **AniList Kişi & Karakter Köprüsü (`KitsugiAniListPersonBridge`):** Bangumi'de kanji kalan karakter ve seslendirmen isimleri AniList köprüsü üzerinden otomatik olarak Romaji ve İngilizce isimlerle eşleştirildi.
+- **Kadro Rolleri Çevirisi:** Episode Direction → Bölüm Yönetmeni, Animation Direction → Animasyon Yönetmeni, 監督 → Yönetmen vb. kadro rolleri eksiksiz Türkçeleştirildi.
+- **İlişki ve Öneri Başlıkları:** Önerilen ve ilişkili yapımların Japonca başlıkları İngilizce/Romaji karşılıklarıyla zenginleştirildi.
+
+### 📋 5. Çökme Raporu Dosya (.txt) Paylaşımı
+- **FileProvider ile Doğrudan Dosya Paylaşımı (`KitsugiCrashRecoveryDialog.kt`):** Çökme ekranındaki "Paylaş" butonu artık düz metin yerine doğrudan `crash_log.txt` dosyasını paylaştırır.
+
+### 📦 6. Dağıtım
+- Yalnızca **FOSS** sürümü (`assembleFossRelease`) derlendi (`Kitsugi-Beta-v2.4.215-foss.apk`).
+
+---
+
+## 🇬🇧 English (v2.4.215)
+
+### 🛡️ 1. Silent Crash Resolution (RenderThread SIGSEGV & WebView Teardown)
+- **Resolved Double-Destroy Use-After-Free (`CsCfWarmupManager.kt`):** Fixed the root cause of `cr_AwContents: Application attempted to call on a destroyed WebView` warnings and subsequent `RenderThread` display-list recursive traversal crashes (`SIGSEGV` at `fault_addr=0x20`).
+- **One-Shot Teardown Routine (`releaseWebView`):** Enforced atomic, single teardown guarded by `AtomicBoolean` ensuring WebView is unattached, halted, pointed to `about:blank`, and cleanly destroyed without race conditions.
+- **Warmup Startup Throttle (`KitsugiApplication.kt`):** Deferred proactive Cloudflare warmup by 12 seconds to prevent resource contention during initial frame rendering, eliminating frame drops and buffer timeouts.
+
+### 🎬 2. Player, Subtitle & PiP Architecture Fixes
+- **Embedded Subtitle Selection Convergence (`Media3PlayerEngine.kt`):** Resolved race condition where initial `onTracksChanged` fired before sideloaded/embedded Turkish subtitle tracks arrived. Retries up to 8 times until preferred language is settled; preserves manual user track overrides (`userSelectedTextTrack`).
+- **Subtitle Bounds Clamping:** Prevented vertical subtitle offset adjustments from translating text offscreen or underneath navigation chrome (clamped with 4dp margins).
+- **PiP Background Audio Leak Elimination (`KitsugiFullscreenPlayerActivity.kt`):** Fixed issue where closing the mini-player left playback audio active. Replaced dangling Compose callbacks with `invokePipAction` ViewModel fallbacks, stopped `KeepAliveService`, and terminated ghost player activities.
+- **Persistent Immersive Mode:** Re-applied system bar hiding on `onResume` and `onWindowFocusChanged` to fix persistent navigation bar overlays on MIUI/HyperOS devices.
+
+### 📑 3. Sheets & Universal Close Button
+- **Fixed Sheet Drag Lock (`KitsugiSheetOrDialog.kt`):** Removed bottom-sheet dismissal locking when scrolling content down.
+- **Universal Close Button (`KitsugiSheetCloseButton`):** Added persistent top-right close buttons across all sheets and dialogs.
+
+### 🌐 4. Bangumi Full Turkish Localization & Metadata Enrichment
+- **95+ Tag & Genre Translations:** Localized Chinese/Japanese Bangumi genres and tags into Turkish and English with fallback dictionaries and search query translation.
+- **Studio Name Latinization:** Converted Kanji studio names into recognized Latin branding (e.g. Kyoto Animation, Pony Canyon).
+- **AniList Person & Character Bridge (`KitsugiAniListPersonBridge`):** Automatically matches and hydrates Kanji character and voice actor names with Romaji/English names via AniList.
+- **Staff Role Translations:** Fully translated production credits (Episode Director, Animation Director, Script, etc.) into Turkish.
+- **Relation & Recommendation Title Hydration:** Hydrates Japanese titles in related and recommended lists with English/Romaji metadata.
+
+### 📋 5. Direct Crash Log File Sharing
+- **Crash Log File Provider (`KitsugiCrashRecoveryDialog.kt`):** "Share" action on the crash recovery dialog now shares the actual `crash_log.txt` file via FileProvider instead of raw text.
+
+### 📦 6. Distribution
+- Strictly released the **FOSS variant only** (`assembleFossRelease` -> `Kitsugi-Beta-v2.4.215-foss.apk`).
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.214)
 
 ### 🌟 1. Vitrin v2: Akıllı Seçim ve Skorlama Motoru (`HeroSelection.kt`)

@@ -4,11 +4,20 @@ import com.kitsugi.animelist.KitsugiApplication
 import com.kitsugi.animelist.model.MediaType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 import java.net.URL
 import com.kitsugi.animelist.utils.*
 
 class KitsugiStaffClient {
+
+    private companion object {
+        /**
+         * Bangumi ekip adları için AniList köprüsü süre tavanı. Süre dolarsa ya da istek
+         * başarısız olursa liste orijinal (özgün) adlarla döner.
+         */
+        const val BANGUMI_NAME_BRIDGE_TIMEOUT_MS = 8_000L
+    }
 
     suspend fun fetchStaff(
         source: String,
@@ -30,7 +39,15 @@ class KitsugiStaffClient {
                         .ifEmpty {
                             runCatching { KitsugiBangumiCreditsClient.fetchSubjectStaff(externalId) }.getOrNull().orEmpty()
                         }
-                    if (native.isNotEmpty()) return@withContext native
+                    if (native.isNotEmpty()) {
+                        // Bangumi liste uçları infobox döndürmez → ekip adları kanji kalır.
+                        // AniList köprüsüyle (özgün ada birebir eşleme) romaji/İngilizce
+                        // adlar doldurulur; başlık dili ROMAJI/ENGLISH olduğunda gösterilir.
+                        val malIdForNames = KitsugiBangumiDetailClient.sanitizeMalId(realMalId)
+                            ?: runCatching { KitsugiBangumiDetailClient.resolveCrossIds(externalId, mediaType) }
+                                .getOrNull()?.malId
+                        return@withContext enrichBangumiStaffNames(native, mediaType, malIdForNames)
+                    }
 
                     // 2) Yedek: Çözülen MAL kimliğiyle MAL/Jikan ekibi (stableId MAL ID değildir).
                     val cross = runCatching {
@@ -227,6 +244,37 @@ class KitsugiStaffClient {
 
                 else -> emptyList()
             }
+        }
+    }
+
+    /**
+     * Bangumi ekip listesindeki CJK adlara AniList köprüsüyle (özgün ada birebir eşleme)
+     * romaji/İngilizce karşılık ekler. Eşleşme bulunamazsa liste olduğu gibi döner.
+     * Tek önbellekli AniList sorgusu kullanılır; süre tavanı/başarısızlıkta orijinal
+     * liste döner (sekme beklemez).
+     */
+    private suspend fun enrichBangumiStaffNames(
+        staff: List<KitsugiStaff>,
+        mediaType: MediaType,
+        malId: Int?
+    ): List<KitsugiStaff> {
+        if (staff.isEmpty()) return staff
+        val needsEnrich = staff.any { PreferenceHelpers.hasCjkCharacters(it.name) }
+        if (!needsEnrich || malId == null || malId <= 0) return staff
+        val names = runCatching {
+            withTimeoutOrNull(BANGUMI_NAME_BRIDGE_TIMEOUT_MS) {
+                KitsugiAniListPersonBridge.fetchMediaNames(malId, mediaType)
+            }
+        }.getOrNull() ?: return staff
+        if (names == null) return staff
+        return staff.map { person ->
+            if (!PreferenceHelpers.hasCjkCharacters(person.name)) return@map person
+            val variant = KitsugiAniListPersonBridge.findByNative(names.staff, person.nativeName, person.name)
+                ?: return@map person
+            person.copy(
+                romanizedName = person.romanizedName ?: variant.romaji,
+                englishName = person.englishName ?: variant.english
+            )
         }
     }
 

@@ -48,6 +48,12 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
     /** PiP penceresinde miyiz? (onPictureInPictureModeChanged ile güncellenir) */
     private var isInPipNow = false
 
+    /**
+     * Harici (3. parti) oynatıcıya devredildi mi? true ise Activity'nin görünmez olması
+     * "mini pencere kapatıldı" anlamına gelmez; bu yüzden onStop'te kapanış tetiklenmez.
+     */
+    private var handedOffToExternalPlayer = false
+
     /** Son bilinen oynatma durumu — PiP'e geçerken RemoteAction ikonlarını doğru kurmak için. */
     private var lastKnownIsPlaying = false
     private var lastKnownHasNext = false
@@ -65,11 +71,70 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
     private val pipBroadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             when (intent.action) {
-                PlayerPipHelper.ACTION_PLAY -> pipPlayerCallback?.onPipPlay()
-                PlayerPipHelper.ACTION_PAUSE -> pipPlayerCallback?.onPipPause()
-                PlayerPipHelper.ACTION_SKIP_NEXT -> pipPlayerCallback?.onPipSkipNext()
+                PlayerPipHelper.ACTION_PLAY -> invokePipAction { it.onPipPlay() }
+                PlayerPipHelper.ACTION_PAUSE -> invokePipAction { it.onPipPause() }
+                PlayerPipHelper.ACTION_SKIP_NEXT -> invokePipAction { it.onPipSkipNext() }
             }
         }
+    }
+
+    /**
+     * PiP/bildirim tuşlarını oynatıcıya iletir.
+     *
+     * Compose köprüsü (`pipPlayerCallback`) yalnızca oynatıcı yüzeyi ağaçtayken kayıtlıdır;
+     * kaynak çözümleme/hata durumlarında `null` olabiliyordu ve bu yüzden PiP penceresindeki
+     * Oynat/Duraklat/Sonraki tuşları hiçbir şey yapmıyordu. Köprü yoksa doğrudan
+     * ViewModel'e düşüyoruz — ViewModel Activity ömrüne bağlı olduğu için her zaman canlıdır.
+     */
+    private fun invokePipAction(action: (PipPlayerCallback) -> Unit) {
+        val callback = pipPlayerCallback
+        if (callback != null) {
+            runCatching { action(callback) }
+            return
+        }
+        runCatching {
+            val fallback = object : PipPlayerCallback {
+                override fun onPipPlay() = viewModel.play()
+                override fun onPipPause() = viewModel.pause()
+                // "Sonraki bölüm" akışı ekran tarafındaki çözümleyiciye bağlıdır; köprü
+                // yokken güvenli bir karşılığı olmadığı için bilinçli olarak no-op.
+                override fun onPipSkipNext() = Unit
+            }
+            action(fallback)
+        }
+    }
+
+    /** Oynatmayı her koşulda durdurur (köprü olmasa bile ses arka planda devam etmesin). */
+    private fun stopPlaybackEverywhere() {
+        invokePipAction { it.onPipPause() }
+    }
+
+    /**
+     * Sistem çubuklarını (durum + alt gezinme çubuğu) gizler ve yalnızca kaydırmayla geçici
+     * olarak görünmelerine izin verir.
+     *
+     * Neden tekrar tekrar çağrılıyor: `onCreate` içinde tek sefer gizlemek yetmiyor. MIUI/HyperOS
+     * başta olmak üzere bazı kabuklarda PiP'e geçiş/çıkış, bölünmüş ekran ve odak değişimi
+     * sonrası alt gezinme çubuğu "geçici" olmaktan çıkıp kalıcı hâle geliyor ve video oynarken
+     * ekranın altında beliriyordu. Bu yüzden her odaklanma ve her onResume'da yeniden uygulanır.
+     */
+    private fun applyImmersiveMode() {
+        runCatching {
+            WindowInsetsControllerCompat(window, window.decorView).apply {
+                hide(WindowInsetsCompat.Type.systemBars())
+                systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+            }
+        }
+    }
+
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) applyImmersiveMode()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        applyImmersiveMode()
     }
 
     companion object {
@@ -216,6 +281,9 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
                     Toast.makeText(context, "Harici oynatıcı başlatılamadı.", Toast.LENGTH_SHORT).show()
                 }
             }
+            // Harici oynatıcıya devredildi: bu Activity artık "mini pencere kapatıldı" diye
+            // sonlandırılmamalı (kullanıcı geri döndüğünde yerinde bulsun).
+            (context as? KitsugiFullscreenPlayerActivity)?.handedOffToExternalPlayer = true
         }
     }
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -238,10 +306,7 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
         }
         WindowCompat.setDecorFitsSystemWindows(window, false)
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        WindowInsetsControllerCompat(window, window.decorView).apply {
-            hide(WindowInsetsCompat.Type.systemBars())
-            systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
-        }
+        applyImmersiveMode()
 
         val videoId  = intent.getStringExtra(EXTRA_VIDEO_ID)
         val videoUrl = intent.getStringExtra(EXTRA_VIDEO_URL)
@@ -338,9 +403,9 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
         mediaSessionHelper = PlayerMediaSessionHelper(
             context = this,
             title = animeTitle.ifBlank { title },
-            onPlay = { pipPlayerCallback?.onPipPlay() },
-            onPause = { pipPlayerCallback?.onPipPause() },
-            onSkipNext = { pipPlayerCallback?.onPipSkipNext() }
+            onPlay = { invokePipAction { it.onPipPlay() } },
+            onPause = { invokePipAction { it.onPipPause() } },
+            onSkipNext = { invokePipAction { it.onPipSkipNext() } }
         ).also { helper ->
             helper.setMetadata(
                 title = animeTitle.ifBlank { title },
@@ -427,8 +492,17 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
 
     override fun onPictureInPictureModeChanged(isInPictureInPictureMode: Boolean, newConfig: android.content.res.Configuration) {
         super.onPictureInPictureModeChanged(isInPictureInPictureMode, newConfig)
+        val wasInPip = isInPipNow
         isInPipNow = isInPictureInPictureMode
         PlayerPipHelper.onPipModeChanged(isInPictureInPictureMode) { /* Screen observes via ViewModel */ }
+
+        // Mini (PiP) penceresi çarpıya sürüklenip kapatıldığında veya "tam ekrana dön"
+        // sonrası sistem Activity'yi bitirmeye karar verdiğinde: oynatma derhal durdurulur.
+        // Eski davranışta Activity arka planda yaşamaya devam ediyor, ses ise çalmayı
+        // sürdürüyordu (kullanıcının "arka plandan sesi gelmeye devam ediyor" şikâyeti).
+        if (wasInPip && !isInPictureInPictureMode && isFinishing) {
+            stopPlaybackEverywhere()
+        }
     }
 
     /**
@@ -439,7 +513,18 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
     override fun onStop() {
         super.onStop()
         if (!isInPipNow && !isInPictureInPictureMode && !isChangingConfigurations) {
-            pipPlayerCallback?.onPipPause()
+            stopPlaybackEverywhere()
+            // PiP'te değilken görünmez olduysak (mini pencere kapatıldı) uygulama "arka plan
+            // oynatıcısı" gibi davranmamalı: keep-alive servisi de kapatılır, böylece medya
+            // bildirimi üzerinden sesin devam etmesi mümkün olmaz.
+            runCatching {
+                com.kitsugi.animelist.core.player.KeepAliveService.stop(this)
+            }
+            // Mini pencere kapatıldıktan sonra Activity arka planda hayalet olarak kalmasın.
+            // Harici oynatıcıya devredildiysek veya üzerimizde başka bir görev varsa dokunmayız.
+            if (!handedOffToExternalPlayer && !isFinishing && isTaskRoot) {
+                finish()
+            }
         }
     }
 
@@ -469,7 +554,8 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
         // Kaynakların serbest bırakılması Compose tarafındaki DisposableEffect'te yapılır;
         // burada yalnızca durdurma yapıyoruz ki kayıt (progress) işlemi bozulmasın.
         if (!isChangingConfigurations) {
-            runCatching { pipPlayerCallback?.onPipPause() }
+            // Köprü çoktan sökülmüş olsa bile ses kesin olarak durdurulur.
+            runCatching { stopPlaybackEverywhere() }
         }
         pipPlayerCallback = null
         super.onDestroy()

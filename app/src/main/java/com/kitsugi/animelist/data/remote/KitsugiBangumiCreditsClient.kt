@@ -229,8 +229,9 @@ object KitsugiBangumiCreditsClient {
         return KitsugiVoiceActor(
             id = id,
             name = name.display.ifBlank { "#$id" },
-            // Bangumi, seslendirmenin dilini ayrıca vermez; bilinmeyen değer olarak bırakılır.
-            language = "",
+            // Bangumi v0 liste uçları seslendirme dilini vermez; Japon yapımlarında
+            // varsayılan Japonca'dır — arayüz "Seslendirici (Japonca)" olarak gösterir.
+            language = "Japonca",
             imageUrl = pickImage(item.optJSONObject("images"), preferSmall = true),
             source = SOURCE,
             romanizedName = name.romaji,

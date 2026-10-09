@@ -367,6 +367,25 @@ object KitsugiCrashLogger {
         } catch (_: Throwable) { null }
     }
 
+    /**
+     * Paylaşım (share sheet) için kullanılacak çökme raporu dosyasını döndürür.
+     * Dosya yoksa ya da boşsa (örn. sessiz kapanma senaryosunda `crash_log.txt`
+     * yazılmamış olabilir) güncel rapor metni [readCrashLog] ile dosyaya yazılır.
+     * Dönen dosya FileProvider `files-path` köküyle (`${packageName}.fileprovider`)
+     * paylaşılabilir. Rapor metni de boşsa null döner.
+     */
+    fun ensureCrashLogFile(context: Context): File? {
+        return try {
+            val file = File(context.filesDir, CRASH_LOG_FILE)
+            if (!file.exists() || file.length() == 0L) {
+                val report = readCrashLog(context)
+                if (report.isBlank()) return null
+                file.writeText(report)
+            }
+            file
+        } catch (_: Throwable) { null }
+    }
+
     /** Metni İndirilenler/Kitsugi klasörüne kaydeder. @return kayıt konumu açıklaması */
     fun saveTextToDownloads(context: Context, displayName: String, text: String): String? {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {

@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.screens.search
 
+import com.kitsugi.animelist.utils.toLocalizedBangumiTagOrNull
+
 /**
  * Merkezi Türkçe ↔ İngilizce çeviri nesnesi.
  * AniList, MAL (Jikan) ve TMDB'nin tüm tür/etiketlerini kapsar.
@@ -398,6 +400,8 @@ object SearchTranslation {
         getLocalizedStringFromResource("genre", cleaned)?.let { return it }
         getLocalizedStringFromResource("tag", cleaned)?.let { return it }
         getLocalizedStringFromResource("staff_role", cleaned)?.let { return it }
+        // Bangumi Çince/Japonca etiketleri (dil dosyası + statik harita)
+        cleaned.toLocalizedBangumiTagOrNull()?.let { return it }
 
         val exact = englishToTurkish[cleaned]
         if (exact != null) return exact
@@ -409,6 +413,8 @@ object SearchTranslation {
     fun translateToEnglishForSearch(label: String): String {
         val cleaned = label.trim()
         if (englishToTurkish.containsKey(cleaned)) return cleaned
+        // Bangumi Çince/Japonca etiket → İngilizce arama terimi
+        com.kitsugi.animelist.utils.bangumiTagEnglishOrNull(cleaned)?.let { return it }
         val lower = cleaned.lowercase()
         aliases[lower]?.let { return it }
         turkishToEnglish[lower]?.let { return it }
@@ -422,6 +428,8 @@ object SearchTranslation {
         getLocalizedStringFromResource("genre", cleaned)?.let { return it }
         getLocalizedStringFromResource("tag", cleaned)?.let { return it }
         getLocalizedStringFromResource("staff_role", cleaned)?.let { return it }
+        // Bangumi Çince/Japonca etiketleri (dil dosyası + statik harita)
+        cleaned.toLocalizedBangumiTagOrNull()?.let { return it }
 
         val exact = englishToTurkish[cleaned]
         if (exact != null) return exact
