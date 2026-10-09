@@ -105,6 +105,13 @@ object KitsugiEpisodeRatingsRepository {
     private data class LogoRequestKey(val tmdbId: Int, val tmdbArtwork: Boolean, val fanart: Boolean)
     private val logoInFlight = mutableMapOf<LogoRequestKey, Deferred<String?>>()
 
+    // Film logoları (tmdbId → logo URL): TV logo önbelleğinden ayrı; aynı TMDB numarası iki türde de olabilir.
+    private val movieLogoCache: MutableMap<Int, String?> =
+        java.util.Collections.synchronizedMap(HashMap<Int, String?>())
+
+    // Kitsu kimliği → alt türü "movie" mi
+    private val kitsuMovieFlagCache = java.util.concurrent.ConcurrentHashMap<Int, Boolean>()
+
     data class TmdbEpisodeDto(
         val episodeNumber: Int,
         val name: String?,
@@ -279,6 +286,7 @@ object KitsugiEpisodeRatingsRepository {
         DetailCache.clear()
         inFlight.clear()
         logoInFlight.clear()
+        movieLogoCache.clear()
         tmdbEpisodesInFlight.clear()
     }
 
@@ -286,13 +294,22 @@ object KitsugiEpisodeRatingsRepository {
      * TMDB ID'ye göre anime logo URL'ini döner.
      * SeriesGraph /api/shows/{tmdbId} endpoint'inden logo_path çeker.
      * TMDB image CDN (image.tmdb.org) API key gerektirmez.
+     *
+     * [isMovie] = true: kaynak bir film. TMDB'de film ve TV dizisi kimlikleri aynı sayıyı
+     * paylaşabilir (örn. "Howl's Moving Castle" filmi ile "Roar" dizisi). Bu durumda TV uç
+     * noktaları (SeriesGraph, tv/images, TVDB tabanlı Fanart) filmin kaydına yanlış dizinin
+     * logosunu bağlar; film için yalnızca movie uç noktaları kullanılır.
      */
-    suspend fun getLogoUrl(tmdbId: Int): String? = withContext(Dispatchers.IO) {
+    suspend fun getLogoUrl(tmdbId: Int, isMovie: Boolean = false): String? = withContext(Dispatchers.IO) {
         if (tmdbId <= 0) return@withContext null
 
         val tmdbArtworkEnabled = isTmdbArtworkEnabled()
         val (fanartEnabled, fanartApiKey) = getFanartSettings()
         if (!tmdbArtworkEnabled && !fanartEnabled) return@withContext null
+
+        if (isMovie) {
+            return@withContext getMovieLogoUrl(tmdbId, tmdbArtworkEnabled, fanartEnabled, fanartApiKey)
+        }
 
         // The legacy Room/memory cache has no source metadata. Only use it when both
         // providers are enabled; otherwise an image from the disabled source could leak through.
@@ -368,10 +385,82 @@ object KitsugiEpisodeRatingsRepository {
     }
 
     /**
+     * Film kaydı için logo: yalnızca movie uç noktaları (SeriesGraph ve TV uç noktaları hariç).
+     * TV tarafındaki logoCache/Room önbelleği bu yolda okunmaz ve yazılmaz; film logoları
+     * ayrı bir bellek önbelleğinde tutulur. Film logosu bulunamazsa TV'ye düşülmez.
+     */
+    private suspend fun getMovieLogoUrl(
+        tmdbId: Int,
+        tmdbArtworkEnabled: Boolean,
+        fanartEnabled: Boolean,
+        fanartApiKey: String
+    ): String? {
+        if (movieLogoCache.containsKey(tmdbId)) return movieLogoCache[tmdbId]
+
+        val finalUrl = try {
+            val fanartLogoUrl = if (fanartEnabled) {
+                runCatching { FanartApiClient.fetchBestMovieLogo(tmdbId, fanartApiKey) }.getOrNull()
+            } else null
+            val tmdbLogoUrl = if (tmdbArtworkEnabled) {
+                runCatching { queryTmdbImages(tmdbId, "movie", TmdbApiClient.getActiveApiKey()) }
+                    .getOrNull()
+                    ?.let { "https://image.tmdb.org/t/p/w500$it" }
+            } else null
+            fanartLogoUrl ?: tmdbLogoUrl
+        } catch (e: Exception) {
+            // Geçici ağ hatasında önbelleğe alma: bir sonraki çağrıda yeniden denenir.
+            Log.w(TAG, "Movie logo fetch failed for tmdbId=$tmdbId: ${e.javaClass.simpleName}")
+            return null
+        }
+
+        movieLogoCache[tmdbId] = finalUrl
+        Log.d(TAG, "Movie logo: tmdbId=$tmdbId found=${finalUrl != null}")
+        return finalUrl
+    }
+
+    /**
+     * Kitsu kaydının alt türü "movie" mi? (Kitsu kimliği başına tek istek; sonuç bellekte tutulur.)
+     * Hata durumunda false döner ve önbelleğe alınmaz.
+     */
+    private suspend fun isKitsuMovie(kitsuId: Int): Boolean = withContext(Dispatchers.IO) {
+        kitsuMovieFlagCache[kitsuId]?.let { return@withContext it }
+        val subtype = runCatching {
+            val request = okhttp3.Request.Builder()
+                .url("https://kitsu.io/api/edge/anime/$kitsuId")
+                .header("Accept", "application/vnd.api+json")
+                .header("User-Agent", "Kitsugi/1.0 (Android)")
+                .build()
+            com.kitsugi.animelist.core.network.KitsugiHttpClient.metadataClient
+                .newCall(request)
+                .execute()
+                .use { response ->
+                    if (!response.isSuccessful) return@use null
+                    val body = response.body?.string() ?: return@use null
+                    JSONObject(body)
+                        .optJSONObject("data")
+                        ?.optJSONObject("attributes")
+                        ?.optString("subtype", "")
+                }
+        }.getOrNull()
+        if (subtype == null) return@withContext false
+        val isMovie = subtype.equals("movie", ignoreCase = true)
+        kitsuMovieFlagCache[kitsuId] = isMovie
+        isMovie
+    }
+
+    /** Tür bilgisi çağıran tarafta olmayan (ör. Kitsu listesi) kayıtlar için: Kitsu alt türü "movie" mi? */
+    suspend fun isKitsuMovieId(kitsuId: Int?): Boolean =
+        if (kitsuId == null || kitsuId <= 0) false else isKitsuMovie(kitsuId)
+
+    /**
      * MAL ID'ye göre anime logo URL'ini döner.
      * AniList kaynaklı animeler için fallbackAniListId verilebilir.
      */
-    suspend fun getLogoUrlByMalId(malId: Int, fallbackAniListId: Int? = null): String? = withContext(Dispatchers.IO) {
+    suspend fun getLogoUrlByMalId(
+        malId: Int,
+        fallbackAniListId: Int? = null,
+        isMovie: Boolean = false
+    ): String? = withContext(Dispatchers.IO) {
         if (!isAnyLogoSourceEnabled()) return@withContext null
         if (malId <= 0 && fallbackAniListId == null) return@withContext null
         var tmdbId: Int? = null
@@ -380,14 +469,18 @@ object KitsugiEpisodeRatingsRepository {
             tmdbId = resolveTmdbIdFromAniList(fallbackAniListId)
         }
         val resolvedId = tmdbId ?: return@withContext null
-        getLogoUrl(resolvedId)
+        getLogoUrl(resolvedId, isMovie)
     }
 
     /**
      * AniList ID'ye göre anime logo URL'ini döner.
      * ARM lookup başarısız olursa fallbackMalId ile tekrar dener.
      */
-    suspend fun getLogoUrlByAniListId(aniListId: Int, fallbackMalId: Int? = null): String? = withContext(Dispatchers.IO) {
+    suspend fun getLogoUrlByAniListId(
+        aniListId: Int,
+        fallbackMalId: Int? = null,
+        isMovie: Boolean = false
+    ): String? = withContext(Dispatchers.IO) {
         if (!isAnyLogoSourceEnabled()) return@withContext null
         var tmdbId: Int? = null
         if (aniListId > 0) tmdbId = resolveTmdbIdFromAniList(aniListId)
@@ -397,7 +490,7 @@ object KitsugiEpisodeRatingsRepository {
             tmdbId = resolveTmdbIdFromMal(fallbackMalId)
         }
         val resolvedId = tmdbId ?: return@withContext null
-        getLogoUrl(resolvedId)
+        getLogoUrl(resolvedId, isMovie)
     }
 
     private fun fetchLogoFromSeriesGraph(tmdbId: Int): String? {
@@ -652,34 +745,17 @@ object KitsugiEpisodeRatingsRepository {
             }
         }
 
-        // FALLBACK: Eğer ilk deneme boş döndüyse ve tmdbId varsa, diğer endpoint'i dene
-        if (result.isEmpty() && tmdbId > 0) {
-            if (isMovie) {
-                // Film olarak arandı ama bulunamadı -> TV olarak TVDB çözüp dene
-                var fallbackTvdbId = resolveTvdbIdFromTmdb(tmdbId, fallbackMalId, fallbackAniListId, fallbackKitsuId)
-                if (fallbackTvdbId == null || fallbackTvdbId <= 0) {
-                    if (fallbackMalId != null && fallbackMalId > 0) fallbackTvdbId = resolveTvdbIdFromMal(fallbackMalId)
-                }
-                if (fallbackTvdbId == null || fallbackTvdbId <= 0) {
-                    if (fallbackAniListId != null && fallbackAniListId > 0) fallbackTvdbId = resolveTvdbIdFromAniList(fallbackAniListId)
-                }
-                if (fallbackTvdbId == null || fallbackTvdbId <= 0) {
-                    if (fallbackKitsuId != null && fallbackKitsuId > 0) fallbackTvdbId = resolveTvdbIdFromKitsu(fallbackKitsuId)
-                }
-                if (fallbackTvdbId != null && fallbackTvdbId > 0) {
-                    result = runCatching {
-                        FanartApiClient.fetchTvImages(fallbackTvdbId, fanartApiKey)
-                    }.getOrElse { emptyList() }
-                }
-            } else {
-                // TV olarak arandı ama TVDB yoktu veya TV Fanart'ta bulunamadı (Örn: Anime filmleri fanart.tv'de Film altındadır)
-                // Doğrudan TMDB ID ile Film endpoint'ini dene!
-                result = runCatching {
-                    FanartApiClient.fetchMovieImages(tmdbId, fanartApiKey)
-                }.getOrElse {
-                    Log.w(TAG, "getFanartGalleryItems (movie fallback) failed: ${it.message}")
-                    emptyList()
-                }
+        // FALLBACK: Eğer ilk deneme boş döndüyse ve tmdbId varsa, diğer endpoint'i dene.
+        // Film kaydında TV uç noktasına DÜŞÜLMEZ: TMDB ID'si aynı sayıdaki bir diziye ait olabilir
+        // (örn. Howl's Moving Castle filmi ile "Roar" dizisi) ve o dizinin görselleri filme karışır.
+        if (result.isEmpty() && tmdbId > 0 && !isMovie) {
+            // TV olarak arandı ama TVDB yoktu veya TV Fanart'ta bulunamadı (Örn: Anime filmleri fanart.tv'de Film altındadır)
+            // Doğrudan TMDB ID ile Film endpoint'ini dene!
+            result = runCatching {
+                FanartApiClient.fetchMovieImages(tmdbId, fanartApiKey)
+            }.getOrElse {
+                Log.w(TAG, "getFanartGalleryItems (movie fallback) failed: ${it.message}")
+                emptyList()
             }
         }
 
@@ -1271,7 +1347,8 @@ object KitsugiEpisodeRatingsRepository {
         if (!isAnyLogoSourceEnabled()) return@withContext null
         if (kitsuId <= 0) return@withContext null
         val tmdbId = resolveTmdbIdFromKitsu(kitsuId) ?: return@withContext null
-        getLogoUrl(tmdbId)
+        // Kitsu kayıtlarında tür bilgisi çağıran tarafta yok; alt türü Kitsu'dan alıyoruz.
+        getLogoUrl(tmdbId, isMovie = isKitsuMovie(kitsuId))
     }
 
     suspend fun getResolvedTmdbIdForKitsu(kitsuId: Int): Int? = mutex.withLock {

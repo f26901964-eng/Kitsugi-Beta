@@ -564,14 +564,14 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
             when {
                 result.source.equals("tmdb", ignoreCase = true) -> {
                     val tmdbId = result.tmdbId ?: if (stableId > 0) stableId else null
-                    if (tmdbId != null && tmdbId > 0) KitsugiEpisodeRatingsRepository.getLogoUrl(tmdbId) else null
+                    if (tmdbId != null && tmdbId > 0) KitsugiEpisodeRatingsRepository.getLogoUrl(tmdbId, isMovie = result.type == MediaType.Movie) else null
                 }
                 result.source.equals("anilist", ignoreCase = true) -> {
                     if (stableId >= 100_000_000) {
                         val aniListId = stableId - 100_000_000
-                        KitsugiEpisodeRatingsRepository.getLogoUrlByAniListId(aniListId, fallbackMalId = result.realMalId)
+                        KitsugiEpisodeRatingsRepository.getLogoUrlByAniListId(aniListId, fallbackMalId = result.realMalId, isMovie = result.type == MediaType.Movie)
                     } else {
-                        KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId)
+                        KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId, isMovie = result.type == MediaType.Movie)
                     }
                 }
                 result.source.equals("kitsu", ignoreCase = true) -> {
@@ -582,14 +582,14 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                     val realMal = result.realMalId ?: _detailState.value?.realMalId
                     val tmdb = result.tmdbId ?: _detailState.value?.tmdbId
                     when {
-                        realMal != null && realMal > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(realMal)
-                        tmdb != null && tmdb > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrl(tmdb)
+                        realMal != null && realMal > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(realMal, isMovie = result.type == MediaType.Movie)
+                        tmdb != null && tmdb > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrl(tmdb, isMovie = result.type == MediaType.Movie)
                         else -> null
                     }
                 }
                 result.source.equals("jikan", ignoreCase = true) ||
                 result.source.equals("mal", ignoreCase = true) -> {
-                    if (stableId > 0) KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId) else null
+                    if (stableId > 0) KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId, isMovie = result.type == MediaType.Movie) else null
                 }
                 result.source.equals("bangumi", ignoreCase = true) -> {
                     // NOT: stableId burada Bangumi kimliğidir (500M+) — MAL ID'si olarak KULLANILMAZ.
@@ -602,9 +602,9 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                     val aniListId = cross?.aniListId
                     val tmdb = result.tmdbId ?: _detailState.value?.tmdbId ?: cross?.tmdbId
                     when {
-                        malId != null && malId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(malId)
-                        aniListId != null && aniListId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByAniListId(aniListId, fallbackMalId = null)
-                        tmdb != null && tmdb > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrl(tmdb)
+                        malId != null && malId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(malId, isMovie = result.type == MediaType.Movie)
+                        aniListId != null && aniListId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByAniListId(aniListId, fallbackMalId = null, isMovie = result.type == MediaType.Movie)
+                        tmdb != null && tmdb > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrl(tmdb, isMovie = result.type == MediaType.Movie)
                         else -> null
                     }
                 }
@@ -613,10 +613,10 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                     // Gerçek MAL ID'si result/detail/ARM zincirinden çözülür.
                     val malId = result.realMalId ?: _detailState.value?.realMalId
                         ?: KitsugiIdResolver.resolveMalIdFromShikimori(stableId)
-                    if (malId != null && malId > 0) KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(malId) else null
+                    if (malId != null && malId > 0) KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(malId, isMovie = result.type == MediaType.Movie) else null
                 }
                 stableId > 0 && !result.source.equals("simkl", ignoreCase = true) -> {
-                    KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId)
+                    KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId, isMovie = result.type == MediaType.Movie)
                 }
                 else -> null
             }
@@ -1070,11 +1070,15 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
             else -> null
         }
 
+        // Kitsu listesi/detayında tür "Anime" olarak gelir; film olan Kitsu kaydını alt türünden anlarız.
+        // Aksi halde film kaydının galerisine, TMDB ID'si aynı olan TV dizisinin görselleri karışır.
+        val galleryIsMovie = isMovie || KitsugiEpisodeRatingsRepository.isKitsuMovieId(fallbackKitsuId)
+
         val (fanartItems, tmdbItems, shikimoriItems) = coroutineScope {
             val fanartDef = async(Dispatchers.IO) {
                 KitsugiEpisodeRatingsRepository.getFanartGalleryItems(
                     tmdbId = tmdbId ?: 0,
-                    isMovie = isMovie,
+                    isMovie = galleryIsMovie,
                     fallbackMalId = fallbackMalId,
                     fallbackAniListId = fallbackAniListId,
                     fallbackKitsuId = fallbackKitsuId
@@ -1084,7 +1088,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                 if (tmdbId != null && tmdbId > 0) {
                     KitsugiEpisodeRatingsRepository.getTmdbGalleryItems(
                         tmdbId = tmdbId,
-                        isMovie = isMovie
+                        isMovie = galleryIsMovie
                     )
                 } else emptyList()
             }

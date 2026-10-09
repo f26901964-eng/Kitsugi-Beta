@@ -568,15 +568,15 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             when {
                 entry.source.equals("tmdb", ignoreCase = true) -> {
                     val tmdbId = entry.tmdbId ?: if (stableId > 0) stableId else null
-                    if (tmdbId != null && tmdbId > 0) KitsugiEpisodeRatingsRepository.getLogoUrl(tmdbId) else null
+                    if (tmdbId != null && tmdbId > 0) KitsugiEpisodeRatingsRepository.getLogoUrl(tmdbId, isMovie = entry.type == MediaType.Movie) else null
                 }
                 entry.source.equals("anilist", ignoreCase = true) -> {
                     if (stableId >= 100_000_000) {
                         val aniListId = stableId - 100_000_000
                         val realMal = _detailState.value?.realMalId
-                        KitsugiEpisodeRatingsRepository.getLogoUrlByAniListId(aniListId, fallbackMalId = realMal)
+                        KitsugiEpisodeRatingsRepository.getLogoUrlByAniListId(aniListId, fallbackMalId = realMal, isMovie = entry.type == MediaType.Movie)
                     } else {
-                        KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId)
+                        KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId, isMovie = entry.type == MediaType.Movie)
                     }
                 }
                 entry.source.equals("kitsu", ignoreCase = true) -> {
@@ -586,7 +586,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                     } else {
                         // Kimlik Kitsu aralığında değil (eski kayıt) → MAL ID olarak dene
                         val malId = com.kitsugi.animelist.data.remote.KitsuIdNamespace.realMalIdOf(stableId)
-                        if (malId != null && malId > 0) KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(malId) else null
+                        if (malId != null && malId > 0) KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(malId, isMovie = entry.type == MediaType.Movie) else null
                     }
                 }
                 entry.source.equals("simkl", ignoreCase = true) -> {
@@ -594,14 +594,14 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                     val realMalId = detail?.realMalId
                     val tmdbId = entry.tmdbId ?: detail?.tmdbId
                     when {
-                        realMalId != null && realMalId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(realMalId)
-                        tmdbId != null && tmdbId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrl(tmdbId)
+                        realMalId != null && realMalId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(realMalId, isMovie = entry.type == MediaType.Movie)
+                        tmdbId != null && tmdbId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrl(tmdbId, isMovie = entry.type == MediaType.Movie)
                         else -> null
                     }
                 }
                 entry.source.equals("jikan", ignoreCase = true) ||
                 entry.source.equals("mal", ignoreCase = true) -> {
-                    if (stableId > 0) KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId) else null
+                    if (stableId > 0) KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId, isMovie = entry.type == MediaType.Movie) else null
                 }
                 entry.source.equals("bangumi", ignoreCase = true) -> {
                     // Bangumi stableId'si MAL ID değildir: çözülen çapraz kimlik kullanılır.
@@ -612,9 +612,9 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                     val aniListId = cross?.aniListId
                     val tmdb = entry.tmdbId ?: _detailState.value?.tmdbId ?: cross?.tmdbId
                     when {
-                        malId != null && malId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(malId)
-                        aniListId != null && aniListId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByAniListId(aniListId, fallbackMalId = null)
-                        tmdb != null && tmdb > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrl(tmdb)
+                        malId != null && malId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(malId, isMovie = entry.type == MediaType.Movie)
+                        aniListId != null && aniListId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByAniListId(aniListId, fallbackMalId = null, isMovie = entry.type == MediaType.Movie)
+                        tmdb != null && tmdb > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrl(tmdb, isMovie = entry.type == MediaType.Movie)
                         else -> null
                     }
                 }
@@ -622,11 +622,11 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                     // Shikimori ID'si MAL ID değildir: önce gerçek MAL ID'si çözülür.
                     val malId = _detailState.value?.realMalId?.takeIf { it > 0 }
                         ?: KitsugiIdResolver.resolveMalIdFromShikimori(stableId)
-                    if (malId != null && malId > 0) KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(malId) else null
+                    if (malId != null && malId > 0) KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(malId, isMovie = entry.type == MediaType.Movie) else null
                 }
                 stableId > 0 && !entry.source.equals("simkl", ignoreCase = true) &&
                     !entry.source.equals("kitsu", ignoreCase = true) -> {
-                    KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId)
+                    KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId, isMovie = entry.type == MediaType.Movie)
                 }
                 else -> null
             }
@@ -760,11 +760,15 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             bangumiCross?.kitsuId
         } else null
 
+        // Kitsu listesi/detayında tür "Anime" olarak gelir; film olan Kitsu kaydını alt türünden anlarız.
+        // Aksi halde film kaydının galerisine, TMDB ID'si aynı olan TV dizisinin görselleri karışır.
+        val galleryIsMovie = isMovie || KitsugiEpisodeRatingsRepository.isKitsuMovieId(fallbackKitsuId)
+
         val (fanartItems, tmdbItems, shikimoriItems) = coroutineScope {
             val fanartDef = async(Dispatchers.IO) {
                 KitsugiEpisodeRatingsRepository.getFanartGalleryItems(
                     tmdbId = tmdbId ?: 0,
-                    isMovie = isMovie,
+                    isMovie = galleryIsMovie,
                     fallbackMalId = fallbackMalId,
                     fallbackAniListId = fallbackAniListId,
                     fallbackKitsuId = fallbackKitsuId
@@ -774,7 +778,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                 if (tmdbId != null && tmdbId > 0) {
                     KitsugiEpisodeRatingsRepository.getTmdbGalleryItems(
                         tmdbId = tmdbId,
-                        isMovie = isMovie
+                        isMovie = galleryIsMovie
                     )
                 } else emptyList()
             }

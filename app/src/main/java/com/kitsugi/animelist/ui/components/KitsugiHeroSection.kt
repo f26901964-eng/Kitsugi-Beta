@@ -194,17 +194,17 @@ fun KitsugiHeroSection(
             val logoUrl = when {
                 item.source.equals("tmdb", ignoreCase = true) -> {
                     val tmdbId = item.tmdbId ?: if (stableId > 0) stableId else null
-                    if (tmdbId != null && tmdbId > 0) KitsugiEpisodeRatingsRepository.getLogoUrl(tmdbId) else null
+                    if (tmdbId != null && tmdbId > 0) KitsugiEpisodeRatingsRepository.getLogoUrl(tmdbId, isMovie = item.type == MediaType.Movie) else null
                 }
                 item.source.equals("anilist", ignoreCase = true) -> {
                     if (stableId >= 100_000_000) {
                         val aniListId = stableId - 100_000_000
                         KitsugiEpisodeRatingsRepository.getLogoUrlByAniListId(
                             aniListId = aniListId,
-                            fallbackMalId = item.realMalId
+                            fallbackMalId = item.realMalId, isMovie = item.type == MediaType.Movie
                         )
                     } else {
-                        KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId)
+                        KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId, isMovie = item.type == MediaType.Movie)
                     }
                 }
                 item.source.equals("kitsu", ignoreCase = true) -> {
@@ -213,15 +213,15 @@ fun KitsugiHeroSection(
                         KitsugiEpisodeRatingsRepository.getLogoUrlByKitsuId(kitsuId)
                     } else if (stableId > 0) {
                         // malId gerçek MAL ID ise (Kitsu import onu saklamış olabilir)
-                        KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId)
+                        KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId, isMovie = item.type == MediaType.Movie)
                     } else null
                 }
                 item.source.equals("simkl", ignoreCase = true) -> {
                     val realMalId = item.realMalId
                     val tmdbId = item.tmdbId
                     when {
-                        realMalId != null && realMalId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(realMalId)
-                        tmdbId != null && tmdbId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrl(tmdbId)
+                        realMalId != null && realMalId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(realMalId, isMovie = item.type == MediaType.Movie)
+                        tmdbId != null && tmdbId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrl(tmdbId, isMovie = item.type == MediaType.Movie)
                         else -> null
                     }
                 }
@@ -231,14 +231,14 @@ fun KitsugiHeroSection(
                     val aniListFallback = if (stableId >= 100_000_000) stableId - 100_000_000 else null
                     KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(
                         malId = stableId,
-                        fallbackAniListId = aniListFallback
+                        fallbackAniListId = aniListFallback, isMovie = item.type == MediaType.Movie
                     )
                 }
                 stableId > 0 && !item.source.equals("simkl", ignoreCase = true) -> {
                     val aniListFallback = if (stableId >= 100_000_000) stableId - 100_000_000 else null
                     KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(
                         malId = stableId,
-                        fallbackAniListId = aniListFallback
+                        fallbackAniListId = aniListFallback, isMovie = item.type == MediaType.Movie
                     )
                 }
                 else -> null
