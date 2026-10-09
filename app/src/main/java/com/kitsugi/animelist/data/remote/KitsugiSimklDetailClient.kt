@@ -124,9 +124,10 @@ internal object KitsugiSimklDetailClient {
                     // titleRomaji null bırakılır, alternatifler synonyms'e taşınır.
                     titleRomaji = null,
                     titleNative = simklNative,
-                    // "Diğer Adlar" bölümünde ekrana düşeceği için yalnızca Latin alternatifler
+                    // "Diğer Adlar" bölümünde tüm alternatif varyantlar (CJK dahil) gösterilir.
                     synonyms = listOfNotNull(simklRomaji, simklTitle.takeIf { it != resolvedTitle })
-                        .mapNotNull { MediaTitleResolver.latin(it) }
+                        .map { it.trim() }
+                        .filter { it.isNotBlank() }
                         .distinct(),
                     openings = emptyList(),
                     endings = emptyList(),
