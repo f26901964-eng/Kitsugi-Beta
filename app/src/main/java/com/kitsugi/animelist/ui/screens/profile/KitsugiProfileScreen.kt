@@ -59,6 +59,8 @@ fun KitsugiProfileScreen(
     onFavoriteStaffClick: (staffId: Int, source: String, name: String?, imageUrl: String?) -> Unit,
     onFavoriteStudioClick: ((studioId: Int, source: String, name: String?, imageUrl: String?) -> Unit)? = null,
     onOpenStatsClick: (() -> Unit)? = null,
+    isNotificationsVisible: Boolean = false,
+    onOpenNotifications: (() -> Unit)? = null,
     onGenreClick: (String) -> Unit = {},
     onTagClick: (String) -> Unit = {},
     onLoginAniList: () -> Unit = {},
@@ -149,6 +151,21 @@ fun KitsugiProfileScreen(
                 )
 
                 Spacer(modifier = Modifier.weight(1f))
+
+                if (isNotificationsVisible && onOpenNotifications != null) {
+                    // 🔔 Bildirim butonu (Keşfet ile aynı kaynak koşulu: bir hesap bağlıysa)
+                    IconButton(
+                        onClick = onOpenNotifications,
+                        colors = IconButtonDefaults.iconButtonColors(containerColor = KitsugiColors.Surface),
+                        modifier = Modifier.size(40.dp).clip(RoundedCornerShape(16.dp))
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Notifications,
+                            contentDescription = "Bildirimler",
+                            tint = accentColor
+                        )
+                    }
+                }
 
                 if (onOpenStatsClick != null) {
                     IconButton(

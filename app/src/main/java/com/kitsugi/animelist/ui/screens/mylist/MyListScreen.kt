@@ -135,7 +135,9 @@ fun MyListScreen(
     onEntryClick: (MediaEntry) -> Unit,
     onSettingsClick: () -> Unit,
     isBottomBarVisible: Boolean = true,
-    onScrollReset: () -> Unit = {}
+    onScrollReset: () -> Unit = {},
+    isNotificationsVisible: Boolean = false,
+    onOpenNotifications: () -> Unit = {}
 ) {
     val context = LocalContext.current
     val coroutineScope = rememberCoroutineScope()
@@ -461,7 +463,9 @@ fun MyListScreen(
                 onEntryClick = onEntryClick,
                 onExternalSyncMessage = onExternalSyncMessage,
                 accentColor = accentColor,
-                horizontalPadding = horizontalPadding
+                horizontalPadding = horizontalPadding,
+                isNotificationsVisible = isNotificationsVisible,
+                onOpenNotifications = onOpenNotifications
             )
         }
 

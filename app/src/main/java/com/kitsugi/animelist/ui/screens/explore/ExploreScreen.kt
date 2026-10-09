@@ -416,6 +416,44 @@ fun ExploreScreen(
                                                     modifier = Modifier.weight(1f)
                                                 )
 
+                                                // 🎲 Rastgele keşfet butonu (bildirim açıkken de görünür)
+                                                Box(
+                                                    modifier = Modifier
+                                                        .size(38.dp)
+                                                        .clip(RoundedCornerShape(12.dp))
+                                                        .background(KitsugiColors.SurfaceElevated)
+                                                        .border(1.dp, KitsugiColors.SurfaceElevated.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
+                                                        .tvClickable(shape = RoundedCornerShape(12.dp)) {
+                                                            val randomPool = mutableListOf<JikanSearchResult>()
+                                                            randomPool.addAll(filteredTopAnime)
+                                                            randomPool.addAll(filteredAiringAnime)
+                                                            randomPool.addAll(filteredUpcomingAnime)
+                                                            randomPool.addAll(filteredTopManga)
+                                                            randomPool.addAll(filteredPublishingManga)
+                                                            randomPool.addAll(filteredTrendingAnime)
+                                                            randomPool.addAll(filteredMovieAnime)
+                                                            randomPool.addAll(filteredBangumiTvShows)
+                                                            randomPool.addAll(filteredBangumiMovies)
+                                                            randomPool.addAll(filteredSeasonalAnime)
+                                                            randomPool.addAll(viewModel.simklContinueMovies)
+                                                            randomPool.addAll(viewModel.simklPlannedMovies)
+                                                            randomPool.addAll(viewModel.simklContinueSeries)
+                                                            randomPool.addAll(viewModel.simklPlannedSeries)
+                                                            if (viewModel.selectedPlatform == ExplorePlatform.ALL) {
+                                                                randomPool.addAll(allSourceSections(viewModel.allSourceStates, showAdultContent)
+                                                                    .flatMap { it.results }.distinctBy { it.exploreIdentity() })
+                                                            }
+                                                            randomPool.filter { showAdultContent || !it.isAdult }
+                                                                .randomOrNull()?.let(onOpenApiDetail)
+                                                        },
+                                                    contentAlignment = Alignment.Center
+                                                ) {
+                                                    Text(
+                                                        text = "🎲",
+                                                        style = MaterialTheme.typography.bodyMedium
+                                                    )
+                                                }
+
                                                 if (isNotificationsVisible) {
                                                     // 🔔 Bildirim butonu
                                                     Box(
@@ -434,44 +472,6 @@ fun ExploreScreen(
                                                             contentDescription = "Bildirimler",
                                                             tint = KitsugiColors.TextPrimary,
                                                             modifier = Modifier.size(20.dp)
-                                                        )
-                                                    }
-                                                } else {
-                                                    // 🎲 Rastgele keşfet butonu
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .size(38.dp)
-                                                            .clip(RoundedCornerShape(12.dp))
-                                                            .background(KitsugiColors.SurfaceElevated)
-                                                            .border(1.dp, KitsugiColors.SurfaceElevated.copy(alpha = 0.6f), RoundedCornerShape(12.dp))
-                                                            .tvClickable(shape = RoundedCornerShape(12.dp)) {
-                                                                val randomPool = mutableListOf<JikanSearchResult>()
-                                                                randomPool.addAll(filteredTopAnime)
-                                                                randomPool.addAll(filteredAiringAnime)
-                                                                randomPool.addAll(filteredUpcomingAnime)
-                                                                randomPool.addAll(filteredTopManga)
-                                                                randomPool.addAll(filteredPublishingManga)
-                                                                randomPool.addAll(filteredTrendingAnime)
-                                                                randomPool.addAll(filteredMovieAnime)
-                                                                randomPool.addAll(filteredBangumiTvShows)
-                                                                randomPool.addAll(filteredBangumiMovies)
-                                                                randomPool.addAll(filteredSeasonalAnime)
-                                                                randomPool.addAll(viewModel.simklContinueMovies)
-                                                                randomPool.addAll(viewModel.simklPlannedMovies)
-                                                                randomPool.addAll(viewModel.simklContinueSeries)
-                                                                randomPool.addAll(viewModel.simklPlannedSeries)
-                                                                if (viewModel.selectedPlatform == ExplorePlatform.ALL) {
-                                                                    randomPool.addAll(allSourceSections(viewModel.allSourceStates, showAdultContent)
-                                                                        .flatMap { it.results }.distinctBy { it.exploreIdentity() })
-                                                                }
-                                                                randomPool.filter { showAdultContent || !it.isAdult }
-                                                                    .randomOrNull()?.let(onOpenApiDetail)
-                                                            },
-                                                        contentAlignment = Alignment.Center
-                                                    ) {
-                                                        Text(
-                                                            text = "🎲",
-                                                            style = MaterialTheme.typography.bodyMedium
                                                         )
                                                     }
                                                 }
