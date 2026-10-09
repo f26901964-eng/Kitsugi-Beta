@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.ui.screens.detail
 
 import com.kitsugi.animelist.data.remote.JikanGateway
+import com.kitsugi.animelist.data.remote.JikanResult
 import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
@@ -257,20 +258,12 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
 
     private fun fetchJikanPictures(id: Int, endpoint: String): List<String> {
         val url = URL("https://api.jikan.moe/v4/$endpoint/$id/pictures")
-        val request = okhttp3.Request.Builder()
-            .url(url)
-            .header("Accept", "application/json")
-            .header("User-Agent", "KitsugiAnimeList/1.0")
-            .build()
         // Bu yükleyici withContext(IO) içinden çağrılır; kota kapısı bloklayabilir.
-        JikanGateway.admitBlocking(JikanGateway.Priority.UI)
+        // Kota kapısı + host zinciri (miribyou → Tenrai) + önbellek JikanGateway'de.
         return runCatching {
-            com.kitsugi.animelist.core.network.KitsugiHttpClient.client.newCall(request).execute().use { response ->
-                if (response.code == 429) JikanGateway.reportRateLimited(
-                    response.header("Retry-After")?.toLongOrNull()?.times(1_000L)
-                )
-                if (!response.isSuccessful) return@runCatching emptyList()
-                val text = response.body?.string() ?: return@runCatching emptyList()
+            val text = (JikanGateway.fetchBlocking(url.toString(), JikanGateway.Priority.UI) as? JikanResult.Ok)?.body
+                ?: return@runCatching emptyList()
+            run {
                 val dataArr = JSONObject(text).optJSONArray("data") ?: return@runCatching emptyList()
                 val urls = mutableListOf<String>()
                 for (i in 0 until dataArr.length()) {

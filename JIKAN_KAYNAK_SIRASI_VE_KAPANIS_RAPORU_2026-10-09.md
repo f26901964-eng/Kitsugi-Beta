@@ -30,3 +30,33 @@
 - Android derlemesi bu ortamda yapılamadı (JDK/Gradle yok). `./gradlew :app:assembleDebug` ile derleme gerekli.
 - Jikan public API'si kapandığı için **Jikan adımı büyük olasılıkla boş dönecek**. Bu durumda MAL verisi resmi MAL v2 ve AniList'ten gelir. Karakter/ekip gibi MAL'a özgü veriler kısmen eksik kalabilir.
 - Uzun vadeli çözüm için kaynak sağlayıcısının değiştirilmesi gerekir (ör. Tenrai, resmi MAL v2'ye ağırlık verme, veya kendi Jikan örneğini barındırma). Bu bir ürün kararıdır.
+
+---
+
+## 4. Güncelleme: zincir MAL → miribyou → Tenrai → AniList
+
+**Uygulanan sıra (MyAnimeList verisi için):**
+1. Resmi MAL v2 (`api.myanimelist.net`)
+2. **miribyou** (kullanıcının kendi kurduğu, açık kaynak, Jikan v4 uyumlu API)
+3. **Tenrai** (`https://api.tenrai.org/v1`, Jikan v4 şeması, kimlik doğrulaması yok, beta)
+4. AniList (son çare)
+
+Çağıran kod hâlâ `https://api.jikan.moe/v4/...` adreslerini kullanır. `JikanGateway` bu adresi host'lara çevirir: miribyou (yapılandırılmışsa) → Tenrai. Host başına devre kesici ve 429 soğuması vardır.
+
+**Değişen dosyalar:**
+- `data/remote/JikanGateway.kt`: çok host'lu zincir, host başına devre kesici, Tenrai sorgu dönüşümü (`sfw=true` → `sfw`).
+- `data/remote/KitsugiMalDetailClient.kt`: `parseFullDetail` artık doğrudan HTTP yapmıyor, gateway üzerinden gidiyor.
+- `ui/screens/detail/CharacterDetailViewModel.kt`, `StaffDetailViewModel.kt`: görsel (`/pictures`) istekleri gateway üzerinden.
+- `app/build.gradle.kts`, `local.properties.example`: `miribyou_base_url` ayarı.
+
+**miribyou kurulumu (Vercel, en kolay yol):**
+1. https://github.com/nattadasu/miribyou sayfasında Fork'la.
+2. vercel.com → Add New → Project → forkladığın repo → Deploy.
+3. (İsteğe bağlı) Environment Variables'a `MAL_CLIENT_ID` ekle (MAL API config'ten Web tipinde ücretsiz).
+4. Verilen `https://<proje>.vercel.app` adresinde `/v4/` JSON döndürmeli.
+5. Adresi `local.properties` dosyasına `miribyou_base_url=https://<proje>.vercel.app` olarak yaz (sonunda `/v4` olmasın).
+
+**Bilinen sınırlar:**
+- Tenrai self-host edilemiyor; kullanıcı profili (`/users`, `/clubs`, `/watch`) uç noktaları ne Tenrai'de ne de bu gateway'de var. `KitsugiProfileViewModel` içindeki bu üç çağrı hâlâ `api.jikan.moe`'ye gider ve sessizce boş döner.
+- `miribyou_base_url` boşsa zincir Tenrai → AniList olarak çalışır.
+- Android derlemesi bu ortamda yapılamadı; `./gradlew :app:assembleDebug` gerekli.

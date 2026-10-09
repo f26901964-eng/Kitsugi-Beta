@@ -21,6 +21,8 @@ android {
     val anilistClientId   = localProperties.getProperty("anilist_client_id")    ?: "32022"
     val anilistSecret     = localProperties.getProperty("anilist_client_secret") ?: "RwKJVnuh1B76AMKaWyEgsig6KwjGQpkpbMwJSi4j"
     val malClientId       = localProperties.getProperty("mal_client_id")         ?: "9dfa9b926eecef62128b6d464c7e33b9"
+    // Kendi kurduğun miribyou örneğinin kök adresi (ör. https://xxx.vercel.app). Boşsa atlanır.
+    val miribyouBaseUrl   = localProperties.getProperty("miribyou_base_url")     ?: ""
     val simklClientId     = localProperties.getProperty("simkl_client_id")       ?: "650ad7c96b7e1ab1e0056f745708ee0d05558480e8e0c6ae80f1061d2ae31496"
     val simklSecret       = localProperties.getProperty("simkl_client_secret")   ?: "81d3253f90d1f2c0c4ea55af6ca317861e5f40d43c16255eeabd57fc51c73f1c"
     val animeSkipClientId = localProperties.getProperty("anime_skip_client_id")  ?: "5mpKIMeowxmJ4UvAWacdPEzNbfXEjZDv"
@@ -46,6 +48,7 @@ android {
         buildConfigField("String", "ANILIST_CLIENT_ID",      "\"$anilistClientId\"")
         buildConfigField("String", "ANILIST_CLIENT_SECRET",  "\"$anilistSecret\"")
         buildConfigField("String", "MAL_CLIENT_ID",          "\"$malClientId\"")
+        buildConfigField("String", "MIRIBYOU_BASE_URL",      "\"$miribyouBaseUrl\"")
         buildConfigField("String", "SIMKL_CLIENT_ID",        "\"$simklClientId\"")
         buildConfigField("String", "SIMKL_CLIENT_SECRET",    "\"$simklSecret\"")
         buildConfigField("String", "ANIME_SKIP_CLIENT_ID",   "\"$animeSkipClientId\"")

@@ -9,7 +9,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.Request
 import java.net.URL
 
-/** Jikan'ın (api.jikan.moe/v4) resmi kotaları ve sunucu tarafı önbelleği için sonuç tipi. */
+/** Jikan uyumlu MAL API'lerinin (miribyou, Tenrai) sonuç tipi. */
 sealed class JikanResult {
     class Ok(val body: String) : JikanResult()
     object NotFound : JikanResult()
@@ -18,32 +18,29 @@ sealed class JikanResult {
 }
 
 /**
- * Jikan için TEK merkezli istemci. Tüm MAL/Jikan çağrıları (detay, karakter, ekip, ilişki,
- * öneri, keşfet, arama, profil, yedek eşleştirme) bu kapıdan geçer; böylece:
+ * Jikan-uyumlu MyAnimeList verisi için TEK merkezli istemci.
  *
- *  1. **Hız limiti (resmi):** docs.api.jikan.moe → 3 istek/sn ve 60 istek/dk. Burada
- *     aralık 350 ms (≈2.85/sn) ve kayan 60 sn penceresinde en fazla [UI_PER_MINUTE]=55
- *     istek uygulanır. Arka plan işleri ([Priority.BACKGROUND]) pencerenin son 15 hakkına
- *     dokunamaz; kullanıcı ekranları (UI) her zaman yeterli kotaya sahip olur.
- *  2. **429 soğuması:** 429 gelirse TÜM Jikan istekleri `Retry-After` kadar (yoksa 2 sn,
- *     en fazla 10 sn) beklemeye alınır. Eski yapıda her çağrı kendi yeniden denemesini
- *     yapıp kotayı tekrar tüketiyordu.
- *  3. **Önbellek:** Jikan sunucuda 24 saat önbellekler. İstemci tarafında ID'li detay
- *     uçları (anime/manga/karakter/kişi `/full`, `/characters`, `/staff`, `/relations`,
- *     …) 6 saat, liste/arama uçları 30 dk tutulur. Aynı sayfayı birden çok sekme açarsa
- *     tekrar ağa çıkılmaz.
- *  4. **Tekilleştirme (singleflight):** Aynı URL için eşzamanlı istekler tek ağ çağrısını
- *     paylaşır. Bu, MAL detay açıldığında 5-6 sekmenin aynı `/full` uç noktasına aynı anda
- *     vurup kotayı yakmasını engeller.
+ * Çağıranlar hâlâ kanonik `https://api.jikan.moe/v4/...` adreslerini kullanır. Gateway bu adresi
+ * sırayla şu host'lara çevirip dener (kullanıcı kararı: MAL → miribyou → Tenrai → AniList):
  *
- * Not: Jikan kimlik doğrulamalı yazma yapmaz; yalnızca GET kullanılır.
+ *  1. **miribyou** — kullanıcının kendi kurduğu, açık kaynak Jikan-uyumlu API. Kök adresi
+ *     `miribyou_base_url` (local.properties) → `BuildConfig.MIRIBYOU_BASE_URL`. Boşsa atlanır.
+ *  2. **Tenrai** — `https://api.tenrai.org/v1` (Jikan v4 şeması, kimlik doğrulaması yok).
+ *
+ * Her host'un kendi devre kesicisi ve 429 soğuması vardır; biri çökerse diğeri denenir.
+ * AniList yedeği çağıran tarafta (JikanSearchClient / detay istemcileri) kalır.
+ *
+ * Kota: genel pencere (55 istek/dk UI, 40 arka plan) korunur; host limitleri de bu pencerenin
+ * içinde kalır, yani ölçü her zaman muhafazakârdır. 404 kalıcıdır ve bir sonraki host denenir.
  */
 object JikanGateway {
     private const val TAG = "JikanGateway"
-    private const val HOST = "api.jikan.moe"
+    private const val CANONICAL_PREFIX = "https://api.jikan.moe/v4/"
+    private const val CANONICAL_HOST = "api.jikan.moe"
+    private const val TENRAI_BASE = "https://api.tenrai.org/v1"
     private const val USER_AGENT = "KitsugiAnimeList/1.0"
 
-    /** Jikan 3 istek/sn sınırının altında kalmak için istekler arası minimum aralık. */
+    /** Host'lar arası istek aralığı: Jikan/Tenrai 3-4 istek/sn sınırının altında kalmak için. */
     const val MIN_INTERVAL_MS = 350L
     private const val WINDOW_MS = 60_000L
     private const val UI_PER_MINUTE = 55
@@ -55,10 +52,11 @@ object JikanGateway {
     private const val LIST_TTL_MS = 30L * 60L * 1000L
     private const val MAX_CACHE_ENTRIES = 300
 
-    /** Art arda bu kadar sunucu/ağ hatasında devre açılır (Jikan kapalıyken her ekranın 20 sn beklemesini önler). */
+    /** Art arda bu kadar sunucu/ağ hatasında o host 5 dk devre dışı kalır. */
     private const val BREAKER_THRESHOLD = 3
     private const val BREAKER_OPEN_MS = 5L * 60L * 1000L
-    private const val BREAKER_MSG = "Jikan geçici olarak devre dışı (art arda hata)"
+    private const val BREAKER_MSG = "Jikan uyumlu kaynaklar geçici olarak devre dışı (art arda hata)"
+    private const val CANCELLED = "cancelled"
 
     private val ID_DETAIL_REGEX = Regex("^(anime|manga|characters|people|producers)/\\d+(/.*)?$")
     private val VOLATILE_SUFFIXES = listOf("/reviews", "/forum", "/news", "/statistics")
@@ -71,44 +69,82 @@ object JikanGateway {
         BACKGROUND
     }
 
+    /** Bir denenecek host: [id] günlük loglar ve host bazlı durum için, [url] gerçek istek adresi. */
+    private class Host(val id: String, val url: String)
+
+    private class HostState {
+        var consecutiveFailures = 0
+        var breakerOpenUntil = 0L
+        var cooldownUntil = 0L
+    }
+
     private class CacheEntry(val body: String, val expiresAt: Long)
 
     private val lock = Any()
     private var nextSlotAt = 0L
-    private var cooldownUntil = 0L
-    private var consecutiveFailures = 0
-    private var breakerOpenUntil = 0L
+    private var globalCooldownUntil = 0L
     private val recentStarts = ArrayDeque<Long>()
+    private val hostStates = HashMap<String, HostState>()
     private val inFlight = HashMap<String, CompletableDeferred<JikanResult>>()
     private val cache = object : LinkedHashMap<String, CacheEntry>(64, 0.75f, true) {
         override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, CacheEntry>?): Boolean =
             size > MAX_CACHE_ENTRIES
     }
 
-    fun isJikanUrl(url: URL): Boolean = url.host.equals(HOST, ignoreCase = true)
+    private val miribyouBase: String
+        get() = com.kitsugi.animelist.BuildConfig.MIRIBYOU_BASE_URL.trim().trimEnd('/')
+
+    fun isJikanUrl(url: URL): Boolean = url.host.equals(CANONICAL_HOST, ignoreCase = true)
 
     /** Uç noktanın önbellek süresi: ID'li ve kararlı detay uçları uzun, liste/arama kısa tutulur. */
     internal fun ttlFor(url: String): Long {
         val path = url.substringAfter("/v4/", "").substringBefore("?")
-        if (VOLATILE_SUFFIXES.any { path.endsWith(it) }) {
-            return LIST_TTL_MS
-        }
+        if (VOLATILE_SUFFIXES.any { path.endsWith(it) }) return LIST_TTL_MS
         return if (ID_DETAIL_REGEX.matches(path)) DETAIL_TTL_MS else LIST_TTL_MS
     }
 
     /**
-     * Kilit altında bir gönderim slotu rezerve eder ve beklenecek süreyi (ms) döndürür.
-     * Slot zamanları monoton arttığı için `recentStarts` her zaman sıralıdır.
+     * Kanonik adresi denenecek host adreslerine çevirir: miribyou (yapılandırılmışsa) → Tenrai.
+     * Kanonik olmayan adresler (ör. başka bir domain) değiştirilmeden tek host olarak denenir.
      */
-    private fun reserveLocked(priority: Priority): Long {
+    private fun hostsFor(canonical: String): List<Host> {
+        if (!canonical.startsWith(CANONICAL_PREFIX)) return listOf(Host("direct", canonical))
+        val rest = canonical.removePrefix(CANONICAL_PREFIX)
+        val hosts = ArrayList<Host>(2)
+        if (miribyouBase.isNotEmpty()) hosts += Host("miribyou", "$miribyouBase/v4/$rest")
+        hosts += Host("tenrai", "$TENRAI_BASE/${tenraiRest(rest)}")
+        return hosts
+    }
+
+    /** Jikan sorgu parametrelerini Tenrai biçimine çevirir: `sfw=true` → `sfw`, `sfw=false` kaldırılır. */
+    internal fun tenraiRest(rest: String): String {
+        val path = rest.substringBefore('?')
+        val query = rest.substringAfter('?', "")
+        if (query.isEmpty()) return path
+        val params = query.split('&').mapNotNull { p ->
+            when (p) {
+                "sfw=true" -> "sfw"
+                "sfw=false" -> null
+                else -> p
+            }
+        }
+        return if (params.isEmpty()) path else "$path?${params.joinToString("&")}"
+    }
+
+    private fun stateFor(hostId: String): HostState = hostStates.getOrPut(hostId) { HostState() }
+
+    /**
+     * Kilit altında bir gönderim slotu rezerve eder ve beklenecek süreyi (ms) döndürür.
+     * Genel pencere tüm host'lar için ortaktır (muhafazakâr); host soğumaları ayrıca uygulanır.
+     */
+    private fun reserveLocked(priority: Priority, hostId: String): Long {
         val now = System.currentTimeMillis()
         while (recentStarts.isNotEmpty() && now - recentStarts.first() >= WINDOW_MS) {
             recentStarts.removeFirst()
         }
-        var slot = maxOf(now, nextSlotAt, cooldownUntil)
+        var slot = maxOf(now, nextSlotAt, globalCooldownUntil, stateFor(hostId).cooldownUntil)
         val ceiling = if (priority == Priority.BACKGROUND) BACKGROUND_PER_MINUTE else UI_PER_MINUTE
         if (recentStarts.size >= ceiling) {
-            // Pencerede yer açılması için en az (size - ceiling + 1)'inci eski isteğin 60 sn'si dolmalı.
             val blocker = recentStarts.elementAt(recentStarts.size - ceiling)
             slot = maxOf(slot, blocker + WINDOW_MS)
         }
@@ -117,15 +153,17 @@ object JikanGateway {
         return slot - now
     }
 
-    /** Askıya alınabilen (coroutine) kota kapısı. */
-    suspend fun admit(priority: Priority = Priority.UI) {
-        val wait = synchronized(lock) { reserveLocked(priority) }
+    private suspend fun admitHost(priority: Priority, hostId: String) {
+        val wait = synchronized(lock) { reserveLocked(priority, hostId) }
         if (wait > 0) delay(wait)
     }
 
+    /** Askıya alınabilen (coroutine) kota kapısı. */
+    suspend fun admit(priority: Priority = Priority.UI) = admitHost(priority, "")
+
     /** Thread bloklayan kota kapısı; yalnızca IO thread'lerinden çağrılmalıdır. */
     fun admitBlocking(priority: Priority = Priority.UI) {
-        val wait = synchronized(lock) { reserveLocked(priority) }
+        val wait = synchronized(lock) { reserveLocked(priority, "") }
         if (wait > 0) {
             try {
                 Thread.sleep(wait)
@@ -135,41 +173,50 @@ object JikanGateway {
         }
     }
 
-    /**
-     * Jikan 429 döndüğünde çağrılır. Soğuma süresi TÜM Jikan istekleri için geçerlidir,
-     * çünkü limit IP/istemci bazlıdır ve tek bir uç noktaya özgü değildir.
-     */
+    private fun clampCooldown(retryAfterMs: Long?): Long =
+        (retryAfterMs ?: DEFAULT_COOLDOWN_MS).coerceIn(MIN_COOLDOWN_MS, MAX_COOLDOWN_MS)
+
+    /** Dışarıdan (ör. profil ekranı) 429 bildirimi: tüm Jikan-uyumlu host'lar için soğuma. */
     fun reportRateLimited(retryAfterMs: Long? = null) {
-        val cooldown = (retryAfterMs ?: DEFAULT_COOLDOWN_MS).coerceIn(MIN_COOLDOWN_MS, MAX_COOLDOWN_MS)
+        val cooldown = clampCooldown(retryAfterMs)
         synchronized(lock) {
-            cooldownUntil = maxOf(cooldownUntil, System.currentTimeMillis() + cooldown)
+            globalCooldownUntil = maxOf(globalCooldownUntil, System.currentTimeMillis() + cooldown)
         }
-        Log.w(TAG, "Jikan 429: ${cooldown}ms soğuma uygulandı")
+        Log.w(TAG, "Jikan-uyumlu kaynak 429: ${cooldown}ms soğuma uygulandı")
     }
 
-    private fun isBreakerOpen(): Boolean = synchronized(lock) {
-        breakerOpenUntil > System.currentTimeMillis()
+    private fun reportHostRateLimited(hostId: String, retryAfterMs: Long?) {
+        val cooldown = clampCooldown(retryAfterMs)
+        synchronized(lock) {
+            val st = stateFor(hostId)
+            st.cooldownUntil = maxOf(st.cooldownUntil, System.currentTimeMillis() + cooldown)
+        }
+        Log.w(TAG, "$hostId 429: ${cooldown}ms soğuma")
     }
 
-    /** Sunucu/ağ hatası sonucunu kaydeder; eşik aşılınca devreyi [BREAKER_OPEN_MS] süreyle açar. */
-    private fun recordOutcome(result: JikanResult) {
-        val isServerFailure = result is JikanResult.Failed &&
+    private fun isHostBreakerOpen(hostId: String): Boolean = synchronized(lock) {
+        stateFor(hostId).breakerOpenUntil > System.currentTimeMillis()
+    }
+
+    /** Host'un nihai sonucunu kaydeder; sunucu/ağ hatası eşiği aşınca o host'u [BREAKER_OPEN_MS] kapatır. */
+    private fun recordHostOutcome(hostId: String, result: JikanResult) {
+        val healthy = result is JikanResult.Ok || result is JikanResult.NotFound
+        val serverFailure = result is JikanResult.Failed &&
             result.message != CANCELLED &&
             (result.code == 0 || result.code in 500..599)
-        val healthy = result is JikanResult.Ok || result is JikanResult.NotFound
-        if (!healthy && !isServerFailure) return
+        if (!healthy && !serverFailure) return
         synchronized(lock) {
+            val st = stateFor(hostId)
             if (healthy) {
-                consecutiveFailures = 0
+                st.consecutiveFailures = 0
             } else {
-                consecutiveFailures++
-                if (consecutiveFailures >= BREAKER_THRESHOLD) {
-                    breakerOpenUntil = System.currentTimeMillis() + BREAKER_OPEN_MS
-                    consecutiveFailures = 0
-                    Log.w(TAG, "Jikan devre açıldı: ${BREAKER_OPEN_MS / 1000}sn boyunca istek atılmayacak")
+                st.consecutiveFailures++
+                if (st.consecutiveFailures >= BREAKER_THRESHOLD) {
+                    st.breakerOpenUntil = System.currentTimeMillis() + BREAKER_OPEN_MS
+                    st.consecutiveFailures = 0
+                    Log.w(TAG, "$hostId devre açıldı: ${BREAKER_OPEN_MS / 1000}sn boyunca istek atılmayacak")
                 }
             }
-            Unit
         }
     }
 
@@ -214,40 +261,61 @@ object JikanGateway {
         }
     }
 
-    private suspend fun fetchWithRetry(url: String, priority: Priority, maxRetries: Int): JikanResult {
-        val ttl = ttlFor(url)
+    /** Bir host için yeniden denemeli istek. 404 kalıcıdır; 429/5xx/ağ hatası sınırlı sayıda denenir. */
+    private suspend fun fetchOnHost(host: Host, priority: Priority, maxRetries: Int): JikanResult {
         var attempt = 0
+        var result: JikanResult = JikanResult.Failed(0, CANCELLED)
         while (true) {
-            admit(priority)
-            val result = withContext(Dispatchers.IO) { executeOnce(url) }
+            admitHost(priority, host.id)
+            result = withContext(Dispatchers.IO) { executeOnce(host.url) }
             when (result) {
-                is JikanResult.Ok -> {
-                    cachePut(url, result.body, ttl)
-                    return result
-                }
-                is JikanResult.NotFound -> return result
+                is JikanResult.Ok, is JikanResult.NotFound -> break
                 is JikanResult.RateLimited -> {
-                    reportRateLimited(result.retryAfterMs)
-                    if (attempt >= maxRetries) return result
+                    reportHostRateLimited(host.id, result.retryAfterMs)
+                    if (attempt >= maxRetries) break
                 }
                 is JikanResult.Failed -> {
                     val retryable = result.code == 0 || result.code in 500..599
-                    if (!retryable || attempt >= maxRetries) return result
-                    Log.w(TAG, "HTTP ${result.code} → yeniden deneme ${attempt + 1}/$maxRetries: $url")
+                    if (!retryable || attempt >= maxRetries) break
+                    Log.w(TAG, "${host.id} HTTP ${result.code} → yeniden deneme ${attempt + 1}/$maxRetries")
                     delay(1_000L * (1 shl attempt))
                 }
             }
             attempt++
         }
+        recordHostOutcome(host.id, result)
+        return result
     }
 
     /**
-     * Jikan GET isteği: önbellek → tekilleştirme → kota kapısı → yeniden deneme.
-     * 404 kalıcıdır ve yeniden denenmez. 429/5xx/ağ hatası sınırlı sayıda denenir.
+     * Host zincirini sırayla dener (miribyou → Tenrai). İlk başarılı yanıt kazanır ve önbelleğe alınır.
+     * Hepsi 404 verirse NotFound, aksi halde son hata döner.
+     */
+    private suspend fun fetchChain(canonical: String, priority: Priority, maxRetries: Int): JikanResult {
+        val ttl = ttlFor(canonical)
+        var lastError: JikanResult = JikanResult.Failed(0, BREAKER_MSG)
+        var sawNotFound = false
+        for (host in hostsFor(canonical)) {
+            if (isHostBreakerOpen(host.id)) continue
+            val r = fetchOnHost(host, priority, maxRetries)
+            when (r) {
+                is JikanResult.Ok -> {
+                    cachePut(canonical, r.body, ttl)
+                    return r
+                }
+                is JikanResult.NotFound -> sawNotFound = true
+                else -> lastError = r
+            }
+        }
+        return if (sawNotFound) JikanResult.NotFound else lastError
+    }
+
+    /**
+     * Jikan-uyumlu GET isteği: önbellek → tekilleştirme → host zinciri (kota + yeniden deneme).
+     * [maxRetries] her host için geçerlidir.
      */
     suspend fun fetch(url: String, priority: Priority = Priority.UI, maxRetries: Int = 2): JikanResult {
         cacheGet(url)?.let { return JikanResult.Ok(it) }
-        if (isBreakerOpen()) return JikanResult.Failed(0, BREAKER_MSG)
 
         val owned = CompletableDeferred<JikanResult>()
         val existing = synchronized(lock) {
@@ -268,8 +336,7 @@ object JikanGateway {
 
         var result: JikanResult = JikanResult.Failed(0, CANCELLED)
         try {
-            result = fetchWithRetry(url, priority, maxRetries)
-            recordOutcome(result)
+            result = fetchChain(url, priority, maxRetries)
         } finally {
             synchronized(lock) { inFlight.remove(url) }
             owned.complete(result)
@@ -277,9 +344,7 @@ object JikanGateway {
         return result
     }
 
-    /** Bloklayan sürüm (eski `KitsugiApiBase` çağıranları için). IO thread'lerinde kullanın. */
+    /** Bloklayan sürüm (eski çağıranlar için). IO thread'lerinde kullanın. */
     fun fetchBlocking(url: String, priority: Priority = Priority.UI, maxRetries: Int = 2): JikanResult =
         runBlocking { fetch(url, priority, maxRetries) }
-
-    private const val CANCELLED = "cancelled"
 }

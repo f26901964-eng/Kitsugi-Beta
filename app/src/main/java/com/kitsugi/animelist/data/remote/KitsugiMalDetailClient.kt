@@ -196,38 +196,15 @@ internal object KitsugiMalDetailClient {
     }
 
     private suspend fun parseFullDetail(url: URL, mediaType: MediaType): KitsugiMediaDetail? {
-        val request = Request.Builder()
-            .url(url)
-            .header("Accept", "application/json")
-            .header("User-Agent", "KitsugiAnimeList/1.0")
-            .build()
-
         var lastException: Exception? = null
+
         for (attempt in 0 until MAX_RETRIES) {
             try {
-                val result = com.kitsugi.animelist.core.network.KitsugiHttpClient.client.newCall(request).execute().use { response ->
-                    val code = response.code
-                    Log.d(TAG, "parseFullDetail attempt=${attempt+1} → HTTP $code for $url")
-
-                    // Handle rate-limit / server errors with retry
-                    if (code == 429 || code in 500..599) {
-                        val retryAfterSec = response.header("Retry-After")?.toLongOrNull()
-                        val backoffMs = if (retryAfterSec != null) {
-                            retryAfterSec * 1_000L
-                        } else {
-                            1_000L * (1 shl attempt) // 1s, 2s, 4s
-                        }
-                        Log.w(TAG, "parseFullDetail: HTTP $code from Jikan, backing off ${backoffMs}ms (attempt ${attempt+1}/$MAX_RETRIES)")
-                        delay(backoffMs)
-                        return@use null // trigger retry
-                    }
-
-                    if (!response.isSuccessful) {
-                        Log.e(TAG, "parseFullDetail: HTTP $code for $url — non-retryable failure")
-                        return null // permanent failure, don't retry
-                    }
-
-                    val text = response.body?.string()
+                val result = run {
+                    // Jikan-uyumlu zincir (miribyou → Tenrai) KitsugiApiBase üzerinden gateway'e gider;
+                    // 429/5xx yeniden denemesi ve host geçişi gateway'de yapılır, burada tekrar edilmez.
+                    val text = KitsugiApiBase.runWithRateLimit { KitsugiApiBase.executeGetRequestResilient(url) }
+                    Log.d(TAG, "parseFullDetail attempt=${attempt+1} for $url")
                     if (text.isNullOrBlank()) {
                         Log.e(TAG, "parseFullDetail: empty/null response body for $url")
                         return null
