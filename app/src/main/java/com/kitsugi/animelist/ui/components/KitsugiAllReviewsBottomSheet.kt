@@ -335,7 +335,7 @@ fun KitsugiAllReviewsBottomSheet(
                                         verticalAlignment = Alignment.CenterVertically
                                     ) {
                                         IconButton(
-                                            onClick = { context.openTranslator(rev.summary) },
+                                            onClick = { context.openTranslator(rev.summary, sourceLanguage = rev.languageCode) },
                                             modifier = Modifier.size(28.dp)
                                         ) {
                                             Icon(

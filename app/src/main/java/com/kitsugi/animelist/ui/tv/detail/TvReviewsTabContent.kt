@@ -66,19 +66,17 @@ fun TvReviewsTabContent(
     var activeTopicForDetail by remember { mutableStateOf<KitsugiForumTopic?>(null) }
     var activeActivityIdForDetail by remember { mutableStateOf<Int?>(null) }
 
-    val isTmdbOrSimkl = source.equals("tmdb", ignoreCase = true) || source.equals("simkl", ignoreCase = true)
-
+    // Forum konuları ve aktiviteler kaynaktan bağımsız denenir: eşleme çözülebilirsen
+    // veri gelir (tüm dillerde), yoksa bölümler gizlenir (TMDB/SIMKL dahil).
     LaunchedEffect(source, externalId, mediaType) {
-        if (!isTmdbOrSimkl) {
-            coroutineScope.launch {
-                runCatching {
-                    forumTopics = apiClient.fetchForumTopics(source, externalId, mediaType)
-                }
+        coroutineScope.launch {
+            runCatching {
+                forumTopics = apiClient.fetchForumTopics(source, externalId, mediaType)
             }
-            coroutineScope.launch {
-                runCatching {
-                    activitiesList = apiClient.fetchActivities(source, externalId, mediaType = mediaType)
-                }
+        }
+        coroutineScope.launch {
+            runCatching {
+                activitiesList = apiClient.fetchActivities(source, externalId, mediaType = mediaType)
             }
         }
     }

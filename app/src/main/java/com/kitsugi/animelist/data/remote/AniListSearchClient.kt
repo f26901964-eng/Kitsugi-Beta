@@ -534,6 +534,25 @@ class AniListSearchClient(
         }
     }
 
+    /**
+     * AniList'in yerel "ek tür" rafı: NOVEL formatındaki light novel & romanlar.
+     * (Bangumi REAL raflarıyla aynı fikir — kaynağın kendi yerel kategorisi.)
+     */
+    suspend fun aniListNovels(page: Int = 1, showAdultContent: Boolean = false): List<JikanSearchResult> {
+        return withContext(Dispatchers.IO) {
+            requestAniList(
+                mediaType = MediaType.Manga,
+                search = null,
+                status = null,
+                sort = listOf("POPULARITY_DESC"),
+                perPage = 20,
+                format = "NOVEL",
+                page = page,
+                showAdultContent = showAdultContent
+            )
+        }
+    }
+
     suspend fun aniListSeasonalAnime(
         page: Int = 1,
         showAdultContent: Boolean = false,

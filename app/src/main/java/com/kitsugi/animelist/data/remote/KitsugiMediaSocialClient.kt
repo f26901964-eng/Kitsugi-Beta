@@ -350,7 +350,7 @@ class KitsugiMediaSocialClient {
 
                     if (resolvedTmdb != null && resolvedTmdb > 0) {
                         val isMovie = mediaType == MediaType.Movie
-                        val tmdbReviews = TmdbApiClient().fetchReviews(resolvedTmdb, isMovie)
+                        val tmdbReviews = TmdbApiClient().fetchReviews(resolvedTmdb, isMovie, page)
                         list.addAll(tmdbReviews)
                     }
 
@@ -362,7 +362,7 @@ class KitsugiMediaSocialClient {
                     val isMovie = mediaType == MediaType.Movie
 
                     if (effectiveTmdbId > 0) {
-                        val tmdbReviews = TmdbApiClient().fetchReviews(effectiveTmdbId, isMovie)
+                        val tmdbReviews = TmdbApiClient().fetchReviews(effectiveTmdbId, isMovie, page)
                         list.addAll(tmdbReviews)
                     }
 
@@ -524,6 +524,73 @@ class KitsugiMediaSocialClient {
     }
 
     // ─────────────────────────────────────────────────────────────────────────
+    // Cross-source ID resolution
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /**
+     * Her kaynak için GERÇEK MAL id'sini çözer. TMDB/SIMKL/Kitsu/Shikimori/Bangumi
+     * kimlikleri MAL id'si DEĞİLDİR; doğrudan kullanılmaz. Eşleme yoksa null döner.
+     */
+    private suspend fun resolveMalIdForSource(
+        source: String,
+        externalId: Int,
+        mediaType: MediaType,
+        realMalId: Int? = null
+    ): Int? {
+        if (externalId <= 0) return null
+        realMalId?.takeIf { it > 0 }?.let { return it }
+        return when (MalJikanMediaSupport.canonicalSource(source)) {
+            "jikan", "mal" -> externalId
+            "tmdb" -> DetailCache.getMediaDetail("tmdb", externalId)?.realMalId?.takeIf { it > 0 }
+                ?: runCatching {
+                    KitsugiIdResolver.resolveIds(malId = null, aniListId = null, tmdbId = externalId).malId
+                }.getOrNull()?.takeIf { it > 0 }
+            "simkl" -> DetailCache.getMediaDetail("simkl", externalId)?.realMalId?.takeIf { it > 0 }
+            "kitsu" -> {
+                val kitsuNumericId = if (externalId >= 300_000_000) externalId - 300_000_000 else externalId
+                runCatching {
+                    KitsugiIdResolver.resolveIds(malId = null, aniListId = null, kitsuId = kitsuNumericId).malId
+                }.getOrNull()?.takeIf { it > 0 }
+            }
+            "shikimori" -> resolveMalIdForShikimori(externalId, null)
+            "bangumi" -> runCatching { KitsugiBangumiDetailClient.resolveCrossIds(externalId, mediaType) }
+                .getOrNull()?.malId?.let { KitsugiBangumiDetailClient.sanitizeMalId(it) }
+            else -> null
+        }
+    }
+
+    /**
+     * Her kaynak için AniList id'sini çözer (aktiviteler ve forum başlıkları AniList'ten
+     * gelir). Kaynak hangi veritabanı olursa olsun eşleme varsa sosyal veri gösterilir.
+     */
+    private suspend fun resolveAniListIdForSource(
+        source: String,
+        externalId: Int,
+        mediaType: MediaType,
+        realMalId: Int? = null
+    ): Int? {
+        if (externalId <= 0) return null
+        when (MalJikanMediaSupport.canonicalSource(source)) {
+            "anilist" -> return if (externalId >= 100_000_000) externalId - 100_000_000 else externalId
+            "bangumi" -> runCatching { KitsugiBangumiDetailClient.resolveCrossIds(externalId, mediaType) }
+                .getOrNull()?.aniListStableId?.takeIf { it > 0 }
+                ?.let { return if (it >= 100_000_000) it - 100_000_000 else it }
+            "tmdb" -> runCatching {
+                KitsugiIdResolver.resolveIds(malId = null, aniListId = null, tmdbId = externalId).aniListId
+            }.getOrNull()?.takeIf { it > 0 }?.let { return it }
+            "kitsu" -> {
+                val kitsuNumericId = if (externalId >= 300_000_000) externalId - 300_000_000 else externalId
+                runCatching {
+                    KitsugiIdResolver.resolveIds(malId = null, aniListId = null, kitsuId = kitsuNumericId).aniListId
+                }.getOrNull()?.takeIf { it > 0 }?.let { return it }
+            }
+            else -> Unit
+        }
+        val malId = resolveMalIdForSource(source, externalId, mediaType, realMalId) ?: return null
+        return relationsClient.resolveAniListId(malId, mediaType)
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
     // Forum Topics
     // ─────────────────────────────────────────────────────────────────────────
 
@@ -534,25 +601,26 @@ class KitsugiMediaSocialClient {
         page: Int = 1
     ): List<KitsugiForumTopic> {
         return withContext(Dispatchers.IO) {
-            when (MalJikanMediaSupport.canonicalSource(source)) {
-                "jikan", "mal" -> {
-                    val aniListId = relationsClient.resolveAniListId(externalId, mediaType)
-                    if (aniListId != null) {
-                        return@withContext fetchForumTopics("anilist", aniListId, mediaType, page)
-                    }
-                    if (page > 1) return@withContext emptyList()
-                    fetchForumTopicsFromJikan(externalId, mediaType)
+            val canonical = MalJikanMediaSupport.canonicalSource(source)
+            if (canonical == "anilist") {
+                val aniListId = if (externalId >= 100_000_000) {
+                    externalId - 100_000_000
+                } else {
+                    relationsClient.resolveAniListId(externalId, mediaType) ?: externalId
                 }
-                "anilist" -> {
-                    val aniListId = if (externalId >= 100_000_000) {
-                        externalId - 100_000_000
-                    } else {
-                        relationsClient.resolveAniListId(externalId, mediaType) ?: externalId
-                    }
-                    fetchForumTopicsFromAniList(aniListId, page)
-                }
-                else -> emptyList()
+                return@withContext fetchForumTopicsFromAniList(aniListId, page)
             }
+            // Tüm diğer kaynaklar (TMDB, SIMKL, Kitsu, Shikimori, Bangumi, MAL):
+            // gerçek MAL id'si çözülür; varsa AniList başlıkları, yoksa MAL forumu.
+            // Eşleme yoksa boş döner — yani "varsa görünür, yoksa sessizce gizlenir".
+            val malId = resolveMalIdForSource(canonical, externalId, mediaType)
+                ?: return@withContext emptyList()
+            val aniListId = relationsClient.resolveAniListId(malId, mediaType)
+            if (aniListId != null) {
+                return@withContext fetchForumTopicsFromAniList(aniListId, page)
+            }
+            if (page > 1) return@withContext emptyList()
+            fetchForumTopicsFromJikan(malId, mediaType)
         }
     }
 
@@ -631,15 +699,10 @@ class KitsugiMediaSocialClient {
         mediaType: MediaType = MediaType.Anime
     ): List<KitsugiActivity> {
         return withContext(Dispatchers.IO) {
-            val aniListId = if (source.lowercase() == "anilist") {
-                if (externalId >= 100_000_000) {
-                    externalId - 100_000_000
-                } else {
-                    relationsClient.resolveAniListId(externalId, mediaType) ?: externalId
-                }
-            } else {
-                relationsClient.resolveAniListId(externalId, mediaType) ?: return@withContext emptyList()
-            }
+            // Kaynak fark etmeksizin (TMDB, SIMKL, Kitsu, Shikimori, Bangumi, MAL, AniList)
+            // AniList eşlemesi ÇÖZÜLEBİLİYORSA aktiviteler gösterilir; çözülemiyorsa boş.
+            val aniListId = resolveAniListIdForSource(source, externalId, mediaType)
+                ?: return@withContext emptyList()
 
             val query = """
                 query (${'$'}mediaId: Int, ${'$'}page: Int) {

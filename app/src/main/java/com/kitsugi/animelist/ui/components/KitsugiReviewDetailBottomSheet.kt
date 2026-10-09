@@ -1,4 +1,4 @@
-﻿package com.kitsugi.animelist.ui.components
+package com.kitsugi.animelist.ui.components
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.Context
@@ -195,7 +195,7 @@ fun KitsugiReviewDetailBottomSheet(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     IconButton(
-                        onClick = { context.openTranslator(review.fullText) },
+                        onClick = { context.openTranslator(review.fullText, sourceLanguage = review.languageCode) },
                         modifier = Modifier.size(36.dp)
                     ) {
                         Icon(

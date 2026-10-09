@@ -470,6 +470,8 @@
     <string name="explore_seasonal_anime">Mevsimlik Anime</string>
     <string name="explore_bangumi_tv">Bangumi Dizileri</string>
     <string name="explore_bangumi_movies">Bangumi Filmleri</string>
+    <string name="explore_manhwa_manhua">Manhwa &amp; Manhua</string>
+    <string name="explore_novels">Noveller &amp; Light Novel</string>
 
     <!-- TMDB / Simkl Explore Sections -->
     <string name="explore_tmdb_trending_all">Trend Her Şey</string>

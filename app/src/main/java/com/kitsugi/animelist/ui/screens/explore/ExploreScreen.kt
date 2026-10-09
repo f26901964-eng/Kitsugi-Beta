@@ -103,6 +103,8 @@ fun ExploreScreen(
     val filteredMovieAnime = remember(viewModel.movieAnime, showAdultContent) { viewModel.movieAnime.filter { showAdultContent || !it.isAdult } }
     val filteredBangumiTvShows = remember(viewModel.bangumiTvShows, showAdultContent) { viewModel.bangumiTvShows.filter { showAdultContent || !it.isAdult } }
     val filteredBangumiMovies = remember(viewModel.bangumiMovies, showAdultContent) { viewModel.bangumiMovies.filter { showAdultContent || !it.isAdult } }
+    val filteredManhwaManhua = remember(viewModel.manhwaManhua, showAdultContent) { viewModel.manhwaManhua.filter { showAdultContent || !it.isAdult } }
+    val filteredNovels = remember(viewModel.novels, showAdultContent) { viewModel.novels.filter { showAdultContent || !it.isAdult } }
     val filteredSeasonalAnime = remember(viewModel.seasonalAnime, showAdultContent) { viewModel.seasonalAnime.filter { showAdultContent || !it.isAdult } }
     val filteredTrendingManga = remember(viewModel.trendingManga, showAdultContent) { viewModel.trendingManga.filter { showAdultContent || !it.isAdult } }
     val filteredNewlyAddedAnime = remember(viewModel.newlyAddedAnime, showAdultContent) { viewModel.newlyAddedAnime.filter { showAdultContent || !it.isAdult } }
@@ -127,6 +129,8 @@ fun ExploreScreen(
         filteredMovieAnime,
         filteredBangumiTvShows,
         filteredBangumiMovies,
+        filteredManhwaManhua,
+        filteredNovels,
         filteredSeasonalAnime,
         filteredTrendingManga,
         filteredNewlyAddedAnime,
@@ -148,6 +152,8 @@ fun ExploreScreen(
                     movieAnime = filteredMovieAnime,
                     bangumiTvShows = filteredBangumiTvShows,
                     bangumiMovies = filteredBangumiMovies,
+                    manhwaManhua = filteredManhwaManhua,
+                    novels = filteredNovels,
                     seasonalAnime = filteredSeasonalAnime,
                     trendingManga = filteredTrendingManga,
                     newlyAddedAnime = filteredNewlyAddedAnime,
@@ -682,6 +688,25 @@ fun ExploreScreen(
                                         viewModel = viewModel,
                                         tvShows = filteredBangumiTvShows,
                                         movies = filteredBangumiMovies,
+                                        isAlreadyInList = isAlreadyInList,
+                                        getMediaEntry = getMediaEntry,
+                                        onItemClick = onOpenApiDetail,
+                                        onLongClickItem = onLongClickItem,
+                                        onSeeAllSection = onSeeAllForSelected,
+                                        titleLanguage = titleLanguage,
+                                        scoreFormat = scoreFormat,
+                                        hideScores = hideScores,
+                                        blurAdultMedia = blurAdultMedia,
+                                        context = context
+                                    )
+                                }
+                                // Yerel "ek tür" rafları (Manhwa & Manhua, Noveller):
+                                // kaynağın API'si destekliyorsa ve dolu geldiyse gösterilir.
+                                if (filteredManhwaManhua.isNotEmpty() || filteredNovels.isNotEmpty()) {
+                                    nativeKindExploreSections(
+                                        viewModel = viewModel,
+                                        manhwaManhua = filteredManhwaManhua,
+                                        novels = filteredNovels,
                                         isAlreadyInList = isAlreadyInList,
                                         getMediaEntry = getMediaEntry,
                                         onItemClick = onOpenApiDetail,

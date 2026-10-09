@@ -212,10 +212,15 @@ internal object TmdbCreditsClient {
         isMovie: Boolean,
         apiKey: String,
         language: String,
-        executeGet: suspend (String) -> String?
+        executeGet: suspend (String) -> String?,
+        page: Int = 1
     ): List<KitsugiReview> = withContext(Dispatchers.IO) {
         val typePath = if (isMovie) "movie" else "tv"
-        val url = "https://api.themoviedb.org/3/$typePath/$tmdbId/reviews?api_key=$apiKey&language=$language"
+        // İncelemeler kullanıcı içeriğidir ve TMDB bunları çevirmez; `language` parametresi
+        // bilinçli olarak GÖNDERİLMEZ ki Türkçe ya da tek bir dile sabitlenip diğer dillerde
+        // yazılmış incelemeler gizlenmesin. Tüm dillerdeki incelemeler oldukları gibi gelir.
+        val safePage = page.coerceAtLeast(1)
+        val url = "https://api.themoviedb.org/3/$typePath/$tmdbId/reviews?api_key=$apiKey&page=$safePage"
         try {
             val responseText = executeGet(url) ?: return@withContext emptyList()
             val root = JSONObject(responseText)
@@ -242,11 +247,14 @@ internal object TmdbCreditsClient {
                         sdfOut.format(sdfIn.parse(rawDate)!!)
                     } catch (_: Exception) { rawDate.take(10) }
                 } else null
+                val reviewLang = item.optNullableString("iso_639_1")
+                    ?.trim()?.takeIf { it.isNotEmpty() && it != "null" }?.lowercase(java.util.Locale.US)
                 list.add(
                     KitsugiReview(
                         id = null, username = author, avatarUrl = avatarUrl,
                         score = score, summary = summary, fullText = content,
-                        dateText = dateText, helpfulCount = null, ratingAmount = null, userRating = null
+                        dateText = dateText, helpfulCount = null, ratingAmount = null, userRating = null,
+                        languageCode = reviewLang
                     )
                 )
             }

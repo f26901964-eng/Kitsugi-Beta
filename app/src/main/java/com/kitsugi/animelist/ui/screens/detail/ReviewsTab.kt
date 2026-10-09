@@ -86,23 +86,21 @@ fun ReviewsTabContent(
     var showAllActivitiesSheet by remember { mutableStateOf(false) }
     var showAllReviewsSheet by remember { mutableStateOf(false) }
 
-    val isTmdbOrSimkl = source.equals("tmdb", ignoreCase = true) || source.equals("simkl", ignoreCase = true)
-
     var forumTopics by remember { mutableStateOf<List<KitsugiForumTopic>>(emptyList()) }
     var activitiesList by remember { mutableStateOf<List<KitsugiActivity>>(emptyList()) }
 
-    // TMDB / Simkl kaynakları için forum/aktivite desteği yok — API çağrısını atla
+    // Forum konuları ve aktiviteler artık KAYNAKTAN BAĞIMSIZ denenir: istemci tarafında
+    // kimlik eşlemesi çözülebilirsen veri gelir (tüm dillerde), çözülemezse boş döner ve
+    // bölüm gizlenir. TMDB/SIMKL için de "varsa görünür" kuralı geçerlidir.
     LaunchedEffect(source, externalId, mediaType) {
-        if (!isTmdbOrSimkl) {
-            coroutineScope.launch {
-                runCatching {
-                    forumTopics = apiClient.fetchForumTopics(source, externalId, mediaType)
-                }
+        coroutineScope.launch {
+            runCatching {
+                forumTopics = apiClient.fetchForumTopics(source, externalId, mediaType)
             }
-            coroutineScope.launch {
-                runCatching {
-                    activitiesList = apiClient.fetchActivities(source, externalId, mediaType = mediaType)
-                }
+        }
+        coroutineScope.launch {
+            runCatching {
+                activitiesList = apiClient.fetchActivities(source, externalId, mediaType = mediaType)
             }
         }
     }

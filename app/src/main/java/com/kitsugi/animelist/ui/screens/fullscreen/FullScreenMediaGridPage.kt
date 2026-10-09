@@ -330,6 +330,8 @@ fun FullScreenMediaGridPage(
                         ExploreCategoryType.TRENDING_MANGA -> apiClient.trendingManga(np)
                         ExploreCategoryType.NEWLY_ADDED_ANIME -> apiClient.newlyAddedAnime(np)
                         ExploreCategoryType.NEWLY_ADDED_MANGA -> apiClient.newlyAddedManga(np)
+                        ExploreCategoryType.MANHWA_MANHUA -> apiClient.manhwaManhua(np, showAdultContent)
+                        ExploreCategoryType.NOVELS -> apiClient.novelsShelf(np, showAdultContent)
                         ExploreCategoryType.BANGUMI_TV,
                         ExploreCategoryType.BANGUMI_MOVIES,
                         ExploreCategoryType.UPCOMING_MEDIA_TMDB -> emptyList()
@@ -348,6 +350,9 @@ fun FullScreenMediaGridPage(
                         ExploreCategoryType.TRENDING_MANGA -> apiClient.aniListTrendingManga(np)
                         ExploreCategoryType.NEWLY_ADDED_ANIME -> apiClient.aniListNewlyAddedAnime(np)
                         ExploreCategoryType.NEWLY_ADDED_MANGA -> apiClient.aniListNewlyAddedManga(np)
+                        // AniList manhwa/manhua'yı ayrı tür olarak sınıflandırmaz → raf yok.
+                        ExploreCategoryType.MANHWA_MANHUA -> emptyList()
+                        ExploreCategoryType.NOVELS -> apiClient.aniListNovels(np, showAdultContent)
                         ExploreCategoryType.BANGUMI_TV,
                         ExploreCategoryType.BANGUMI_MOVIES,
                         ExploreCategoryType.UPCOMING_MEDIA_TMDB -> emptyList()
@@ -395,6 +400,8 @@ fun FullScreenMediaGridPage(
                         ExploreCategoryType.UPCOMING_ANIME -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Anime, statuses = listOf("anons"), order = "popularity", page = np, limit = 20, censored = !showAdultContent)
                         ExploreCategoryType.TOP_MANGA -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Manga, order = "ranked", page = np, limit = 20, censored = !showAdultContent)
                         ExploreCategoryType.PUBLISHING_MANGA -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Manga, statuses = listOf("ongoing"), order = "popularity", page = np, limit = 20, censored = !showAdultContent)
+                        ExploreCategoryType.MANHWA_MANHUA -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Manga, kinds = listOf("manhwa", "manhua"), order = "popularity", page = np, limit = 20, censored = !showAdultContent)
+                        ExploreCategoryType.NOVELS -> com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(com.kitsugi.animelist.model.MediaType.Manga, kinds = listOf("light_novel", "novel"), order = "popularity", page = np, limit = 20, censored = !showAdultContent)
                         else -> emptyList()
                     }
                     ExplorePlatform.BANGUMI -> bangumiPage(np)

@@ -503,6 +503,31 @@ class JikanSearchClient {
         }
     }
 
+    /**
+     * MAL'in yerel "ek tür" rafı: Manhwa & Manhua (Jikan `top/manga?type=` filtresi).
+     * Bangumi REAL raflarıyla aynı fikir — kaynağın kendi yerel kategorisi.
+     */
+    suspend fun manhwaManhua(page: Int = 1, showAdultContent: Boolean = false): List<JikanSearchResult> =
+        mergedMangaTypeShelf(listOf("manhwa", "manhua"), page, showAdultContent)
+
+    /** MAL'in yerel "ek tür" rafı: Novel & Light Novel. */
+    suspend fun novelsShelf(page: Int = 1, showAdultContent: Boolean = false): List<JikanSearchResult> =
+        mergedMangaTypeShelf(listOf("novel", "lightnovel"), page, showAdultContent)
+
+    private suspend fun mergedMangaTypeShelf(
+        types: List<String>,
+        page: Int,
+        showAdultContent: Boolean
+    ): List<JikanSearchResult> = withContext(Dispatchers.IO) {
+        val safePage = page.coerceAtLeast(1)
+        val merged = types.flatMap { type ->
+            jikanListOrEmpty("top/manga?page=$safePage&type=$type", MediaType.Manga)
+        }
+        merged.distinctBy { it.malId }
+            .sortedByDescending { it.score ?: 0 }
+            .filter { showAdultContent || !it.isAdult }
+    }
+
     suspend fun topManga(page: Int = 1, showAdultContent: Boolean = false): List<JikanSearchResult> {
         return withContext(Dispatchers.IO) {
             val jikanFirst = jikanListOrEmpty("top/manga?page=$page", MediaType.Manga)

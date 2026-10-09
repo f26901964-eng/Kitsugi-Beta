@@ -334,7 +334,13 @@ data class KitsugiReview(
     val dateText: String? = null,
     val helpfulCount: Int? = null,
     val ratingAmount: Int? = null,
-    val userRating: String? = null
+    val userRating: String? = null,
+    /**
+     * İncellemenin YAZILDIĞI orijinal dil (ISO 639-1). Kaynak sağlayabiliyorsa doldurulur
+     * (TMDB `iso_639_1`). Dilden bağımsız tüm incelemeler gösterildiği için çeviri
+     * aracına kaynak dil olarak iletilir; null ise çeviri tarafı otomatik algılar.
+     */
+    val languageCode: String? = null
 )
 
 data class KitsugiForumTopic(

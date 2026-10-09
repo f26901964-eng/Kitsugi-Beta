@@ -325,8 +325,7 @@ class SettingsDataStore(
                     .putBoolean("splash_sound_enabled", sound)
                     .apply()
             }
-            emit(
-                AppSettings(
+            val parsedSettings = AppSettings(
                     selectedThemeId = preferences[Keys.SelectedThemeId] ?: "mint",
                     showAdultContent = preferences[Keys.ShowAdultContent] ?: false,
                     blurAdultMedia = preferences[Keys.BlurAdultMedia] ?: false,
@@ -408,7 +407,7 @@ class SettingsDataStore(
                     autoTranslateEnabled = preferences[Keys.AutoTranslateEnabled] ?: false,
                     preferredTranslator = preferences[Keys.PreferredTranslator] ?: "DEFAULT",
                     translateSourceLanguage = preferences[Keys.TranslateSourceLanguage] ?: "auto",
-                    translateTargetLanguage = preferences[Keys.TranslateTargetLanguage] ?: "tr",
+                    translateTargetLanguage = preferences[Keys.TranslateTargetLanguage] ?: defaultTranslateTarget(),
                     selectedHomeLayoutId = preferences[Keys.SelectedHomeLayoutId] ?: "classic",
                     frameRateMatchingMode = runCatching {
                         com.kitsugi.animelist.data.settings.FrameRateMatchingMode.valueOf(
@@ -540,9 +539,26 @@ class SettingsDataStore(
                     downloadNewUnreadChaptersOnly = preferences[Keys.DownloadNewUnreadChaptersOnly] ?: false,
                     downloadNewUnseenEpisodesOnly = preferences[Keys.DownloadNewUnseenEpisodesOnly] ?: false,
                     subtitleDownloadLanguages = preferences[Keys.SubtitleDownloadLanguages] ?: "tr"
-                )
             )
+            // Çeviri intent'leri (suspend olmayan bağlamlar) ayarlara senkron erişebilsin.
+            com.kitsugi.animelist.utils.KitsugiTranslatePrefs.update(
+                parsedSettings.translateSourceLanguage,
+                parsedSettings.translateTargetLanguage
+            )
+            emit(parsedSettings)
         }
+    }
+
+    /**
+     * Kullanıcı hiç hedef dil seçmediyse çeviri hedefi uygulamanın aktif dilidir —
+     * böylece çeviri tek bir dile (Türkçe) kilitlenmez, tüm dilleri destekler.
+     */
+    private fun defaultTranslateTarget(): String {
+        val tag = com.kitsugi.animelist.LocaleCache.localeTag
+        if (tag != com.kitsugi.animelist.LocaleCache.UNSET && tag.isNotBlank()) {
+            return tag.substringBefore('-')
+        }
+        return java.util.Locale.getDefault().language.ifBlank { "tr" }
     }
 
     suspend fun setCustomImageDownloadUri(uri: String) {

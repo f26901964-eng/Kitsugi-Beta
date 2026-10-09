@@ -101,6 +101,21 @@ internal fun KitsugiReviewCard(
                     }
                 }
 
+                // İncellemenin orijinal dili (TMDB sağlayabildiğinde) — çok dilli
+                // inceleme listesinin hangi dilde olduğunu kullanıcı görebilsin.
+                if (!rev.languageCode.isNullOrBlank()) {
+                    Text(
+                        text = rev.languageCode.uppercase(java.util.Locale.US),
+                        color = KitsugiColors.TextMuted,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(KitsugiColors.SurfaceSoft)
+                            .padding(horizontal = 5.dp, vertical = 2.dp)
+                    )
+                }
+
                 if ((rev.helpfulCount != null && rev.helpfulCount > 0) || rev.id != null) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,

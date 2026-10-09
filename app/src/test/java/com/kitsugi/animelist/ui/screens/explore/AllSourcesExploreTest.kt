@@ -182,6 +182,30 @@ class AllSourcesExploreTest {
         assertFalse(diskRead)
     }
 
+    @Test fun nativeKindShelvesAppearOnlyWhenSourceSupportsThem() {
+        // Desteklemeyen kaynak (Kitsu): raf null/boş → bölüm YOK.
+        val kitsuState = ExploreSourceState(payload(listOf(media("kitsu"))))
+        assertTrue(
+            allSourceSections(mapOf(ExplorePlatform.KITSU to kitsuState), false)
+                .none { it.category == ExploreCategoryType.MANHWA_MANHUA || it.category == ExploreCategoryType.NOVELS }
+        )
+
+        // Destekleyen kaynak (Shikimori): dolu raflar kendi kaynağı altında görünür.
+        val manhwa = media("shikimori", 7, MediaType.Manga)
+        val novel = media("shikimori", 8, MediaType.Manga)
+        val shikiState = ExploreSourceState(
+            payload(listOf(media("shikimori")))
+                .copy(manhwaManhua = listOf(manhwa), novels = listOf(novel))
+        )
+        val sections = allSourceSections(mapOf(ExplorePlatform.SHIKIMORI to shikiState), false)
+        assertEquals(
+            listOf(ExploreCategoryType.MANHWA_MANHUA, ExploreCategoryType.NOVELS),
+            sections.filter { it.category == ExploreCategoryType.MANHWA_MANHUA || it.category == ExploreCategoryType.NOVELS }
+                .map { it.category }
+        )
+        assertTrue(sections.all { it.platform == ExplorePlatform.SHIKIMORI })
+    }
+
     @Test fun fastAndFailedSourcesDoNotWaitForSlowSource() = runBlocking {
         val gate = CompletableDeferred<Unit>()
         val slow = async { loadExploreSource(null, false, { gate.await(); payload() }, { null }) }
