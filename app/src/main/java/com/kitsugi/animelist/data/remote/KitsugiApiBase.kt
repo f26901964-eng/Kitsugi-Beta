@@ -45,7 +45,8 @@ object KitsugiApiBase {
     }
 
     private val hostBudgets: Map<String, HostBudget> = mapOf(
-        "api.jikan.moe" to HostBudget(minIntervalMs = 340L, perMinute = 55),
+        // api.jikan.moe bilerek burada YOK: Jikan kotası JikanGateway tarafından yönetilir
+        // (tek kaynak, çift sayım ve çift bekleme olmasın diye).
         // Aralık eskisi gibi (450 ms): Shikimori GraphQL (PlatformRateLimiter) aynı 5 istek/sn
         // havuzunu paylaşıyor; REST aralığını kısaltmak toplamda 429 riskini artırır.
         "shikimori.io" to HostBudget(minIntervalMs = 450L, perMinute = 80),
@@ -135,6 +136,7 @@ object KitsugiApiBase {
     )
 
     private fun performGet(url: URL): RawGetResult {
+        if (JikanGateway.isJikanUrl(url)) return jikanRawGet(url)
         awaitBudgetSync(url.host)
         val request = Request.Builder()
             .url(url)
@@ -168,6 +170,19 @@ object KitsugiApiBase {
         }
     }
 
+    /**
+     * Jikan isteklerini [JikanGateway] üzerinden yapar. Yeniden deneme (429/5xx) çağıran
+     * tarafın `executeGetRequestResilient` döngüsünde kalır; kapı kendi içinde ayrıca
+     * denemediği için kota çarpanla tüketilmez.
+     */
+    private fun jikanRawGet(url: URL): RawGetResult =
+        when (val r = JikanGateway.fetchBlocking(url.toString(), maxRetries = 0)) {
+            is JikanResult.Ok -> RawGetResult(200, r.body, null)
+            is JikanResult.NotFound -> RawGetResult(404, null, null)
+            is JikanResult.RateLimited -> RawGetResult(429, null, r.retryAfterMs)
+            is JikanResult.Failed -> RawGetResult(r.code, null, null)
+        }
+
     fun executeGetRequest(url: URL): String? {
         val result = performGet(url)
         return result.body
@@ -199,6 +214,14 @@ object KitsugiApiBase {
     }
 
     fun executeGetRequestOrThrow(url: URL): String {
+        if (JikanGateway.isJikanUrl(url)) {
+            return when (val r = JikanGateway.fetchBlocking(url.toString(), maxRetries = 0)) {
+                is JikanResult.Ok -> r.body
+                is JikanResult.NotFound -> throw ResourceNotFoundException("HTTP 404 Not Found for URL: $url")
+                is JikanResult.RateLimited -> throw RateLimitException("HTTP 429 Too Many Requests: Rate limit hit for URL: $url")
+                is JikanResult.Failed -> throw java.io.IOException("HTTP Error ${r.code}: ${r.message} for URL: $url")
+            }
+        }
         awaitBudgetSync(url.host)
         val request = Request.Builder()
             .url(url)

@@ -388,7 +388,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         val searchTitle = entry.titleEnglish?.takeIf { it.isNotBlank() } ?: entry.title.takeIf { it.isNotBlank() }
         if (!searchTitle.isNullOrBlank()) {
             val jikanResults = runSyncCatching {
-                com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("jikan")
+                // Jikan kota kapısı (JikanGateway) searchMALOnly içinde uygulanır.
                 com.kitsugi.animelist.data.remote.JikanSearchClient().searchMALOnly(
                     query = searchTitle,
                     mediaType = entry.type

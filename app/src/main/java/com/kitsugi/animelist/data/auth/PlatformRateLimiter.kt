@@ -22,8 +22,8 @@ object PlatformRateLimiter {
         "mal" to 450L,         // ~133 req/dk (Limit ~150/dk)
         "kitsu" to 1100L,      // ~54 req/dk (Limit ~60/dk)
         "shikimori" to 350L,   // ~170 req/dk (Limit 5 req/sn)
-        "simkl" to 1250L,      // 0.8 req/sn (Limit 1 req/sn)
-        "jikan" to 400L        // 2.5 req/sn (Limit 3 req/sn)
+        "simkl" to 1250L       // 0.8 req/sn (Limit 1 req/sn)
+        // Jikan burada YOK: kotası JikanGateway'de (3/sn, 55/dk, 429 soğuması, önbellek) yönetilir.
     )
 
     private fun getMutex(platform: String): Mutex {

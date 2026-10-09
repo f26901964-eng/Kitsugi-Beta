@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.app
 
+import com.kitsugi.animelist.data.remote.JikanGateway
 import android.app.Application
 import android.content.Context
 import androidx.compose.runtime.getValue
@@ -1325,7 +1326,11 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                         .url("https://api.jikan.moe/v4/users/$username/statistics")
                         .build()
 
+                    JikanGateway.admit(JikanGateway.Priority.BACKGROUND)
                     client.newCall(statsRequest).execute().use { response ->
+                        if (response.code == 429) JikanGateway.reportRateLimited(
+                            response.header("Retry-After")?.toLongOrNull()?.times(1_000L)
+                        )
                         if (response.isSuccessful) {
                             val dataObj = JSONObject(response.body?.string().orEmpty()).optJSONObject("data")
 
@@ -1370,7 +1375,11 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                         .url("https://api.jikan.moe/v4/users/$username/favorites")
                         .build()
 
+                    JikanGateway.admit(JikanGateway.Priority.BACKGROUND)
                     client.newCall(favRequest).execute().use { response ->
+                        if (response.code == 429) JikanGateway.reportRateLimited(
+                            response.header("Retry-After")?.toLongOrNull()?.times(1_000L)
+                        )
                         if (response.isSuccessful) {
                             val dataObj = JSONObject(response.body?.string().orEmpty()).optJSONObject("data")
 
@@ -1435,7 +1444,11 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                         .url("https://api.jikan.moe/v4/users/$username/friends")
                         .build()
 
+                    JikanGateway.admit(JikanGateway.Priority.BACKGROUND)
                     client.newCall(friendsRequest).execute().use { response ->
+                        if (response.code == 429) JikanGateway.reportRateLimited(
+                            response.header("Retry-After")?.toLongOrNull()?.times(1_000L)
+                        )
                         if (response.isSuccessful) {
                             val responseText = response.body?.string().orEmpty()
                             val dataArr = JSONObject(responseText).optJSONArray("data")

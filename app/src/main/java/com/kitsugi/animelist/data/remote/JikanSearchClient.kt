@@ -15,6 +15,18 @@ import com.kitsugi.animelist.utils.*
 class JikanSearchClient {
     private val aniListSearchClient = AniListSearchClient()
 
+    private fun jikanSfw(showAdultContent: Boolean): String = if (showAdultContent) "false" else "true"
+
+    /**
+     * Jikan liste uç noktası (top / seasons / arama). Başarısızlıkta veya boş sonuçta boş döner;
+     * çağıran taraf resmi MAL API ve AniList zincirine devam eder (AniList koruması korunur).
+     */
+    private suspend fun jikanListOrEmpty(path: String, mediaType: MediaType): List<JikanSearchResult> {
+        val body = (JikanGateway.fetch("https://api.jikan.moe/v4/$path") as? JikanResult.Ok)?.body
+            ?: return emptyList()
+        return runCatching { parseJikanResponse(jsonText = body, mediaType = mediaType) }.getOrDefault(emptyList())
+    }
+
     suspend fun search(
         query: String,
         mediaType: MediaType,
@@ -30,7 +42,11 @@ class JikanSearchClient {
                 return@withContext emptyList()
             }
 
-            // 1. Resmi MyAnimeList v2 API'sini birincil çağır (150-200ms)
+            // 0. Jikan birincil (resmi MAL API anahtarına bağlı değil; kota kapısı JikanGateway'de)
+            val jikanFirst = runCatching { searchJikanFallback(query, mediaType, showAdultContent) }.getOrDefault(emptyList())
+            if (jikanFirst.isNotEmpty()) return@withContext jikanFirst
+
+            // 1. Resmi (yedek) MyAnimeList v2 API'sini birincil çağır (150-200ms)
             val officialResults = searchOfficialMal(
                 query = query,
                 mediaType = mediaType,
@@ -75,7 +91,14 @@ class JikanSearchClient {
                 return@withContext emptyList()
             }
 
-            // 1. Resmi MyAnimeList v2 API'sini doğrudan birincil çağır (anında yanıt ~200ms)
+            // 1. Jikan birincil: MAL kimliği ve MAL verisi doğrudan gelir.
+            val jikan = runCatching { searchJikanFallback(query, mediaType, showAdultContent, page) }
+                .getOrDefault(emptyList())
+            if (jikan.isNotEmpty()) {
+                return@withContext jikan
+            }
+
+            // 2. Jikan boş/başarısızsa resmi MyAnimeList v2 API'si (anahtar varsa).
             val official = searchOfficialMal(
                 query = query,
                 mediaType = mediaType,
@@ -85,15 +108,6 @@ class JikanSearchClient {
             )
             if (official.isNotEmpty()) {
                 return@withContext official
-            }
-
-            // 2. Resmî API boş/başarısız (anahtar, 429, bölgesel engel) → Jikan v4 yedeği.
-            // Jikan sonuçları da GERÇEK MAL kimlikleri taşır; bu yüzden "MyAnimeList"
-            // rafı boş kalmaz ve kimlik uzayı bozulmaz (AniList kimliği MAL diye gösterilmez).
-            val jikan = runCatching { searchJikanFallback(query, mediaType, showAdultContent, page) }
-                .getOrDefault(emptyList())
-            if (jikan.isNotEmpty()) {
-                return@withContext jikan
             }
 
             emptyList()
@@ -196,6 +210,8 @@ class JikanSearchClient {
 
             // 1. Sezon ve Yıl seçiliyse -> Resmi MAL Sezon API'si
             if (season != null && seasonYear != null && endpoint == "anime") {
+                val jikanSeason = jikanListOrEmpty("seasons/$seasonYear/${season.lowercase()}?page=$page", MediaType.Anime)
+                if (jikanSeason.isNotEmpty()) return@withContext jikanSeason
                 val offset = (page - 1).coerceAtLeast(0) * 24
                 val fields = "id,title,main_picture,alternative_titles,start_date,mean,num_episodes,media_type,genres,nsfw,rank,popularity,num_list_users"
                 val sUrl = "https://api.myanimelist.net/v2/anime/season/$seasonYear/${season.lowercase()}?limit=24&offset=$offset&fields=$fields"
@@ -205,6 +221,9 @@ class JikanSearchClient {
 
             // 2. Arama sorgusu varsa -> Resmi MAL Arama API'si
             if (query.isNotBlank()) {
+                val jikanQuery = runCatching { searchJikanFallback(query, mediaType, showAdultContent, page) }
+                    .getOrDefault(emptyList())
+                if (jikanQuery.isNotEmpty()) return@withContext jikanQuery
                 val results = searchOfficialMal(
                     query = query,
                     mediaType = mediaType,
@@ -232,6 +251,19 @@ class JikanSearchClient {
             }
             val offset = (page - 1).coerceAtLeast(0) * 24
             val fields = "id,title,main_picture,alternative_titles,start_date,mean,${if (mediaType == MediaType.Manga) "num_chapters" else "num_episodes"},media_type,genres,nsfw,rank,popularity,num_list_users"
+            val jikanRankingFilter = when {
+                rankingType == "airing" && endpoint == "anime" -> "airing"
+                rankingType == "airing" -> "publishing"
+                rankingType == "upcoming" -> "upcoming"
+                rankingType == "bypopularity" -> "bypopularity"
+                rankingType == "favorite" -> "favorite"
+                else -> null
+            }
+            val jikanRanking = jikanListOrEmpty(
+                "top/$endpoint?" + listOfNotNull(jikanRankingFilter?.let { "filter=$it" }, "page=$page").joinToString("&"),
+                mediaType
+            )
+            if (jikanRanking.isNotEmpty()) return@withContext jikanRanking
             val rankingUrl = "https://api.myanimelist.net/v2/$endpoint/ranking?ranking_type=$rankingType&limit=24&offset=$offset&fields=$fields"
             val rankingResults = getOfficialMalRankingOrSeason(rankingUrl, mediaType)
             if (rankingResults.isNotEmpty()) {
@@ -422,6 +454,8 @@ class JikanSearchClient {
 
     suspend fun topAnime(page: Int = 1, showAdultContent: Boolean = false): List<JikanSearchResult> {
         return withContext(Dispatchers.IO) {
+            val jikanFirst = jikanListOrEmpty("top/anime?page=$page", MediaType.Anime)
+            if (jikanFirst.isNotEmpty()) return@withContext jikanFirst
             val offset = (page - 1) * 20
             val fields = "id,title,main_picture,alternative_titles,start_date,mean,num_episodes,media_type,genres,nsfw"
             val url = "https://api.myanimelist.net/v2/anime/ranking?ranking_type=all&limit=20&offset=$offset&fields=$fields"
@@ -437,6 +471,8 @@ class JikanSearchClient {
 
     suspend fun airingAnime(page: Int = 1, showAdultContent: Boolean = false): List<JikanSearchResult> {
         return withContext(Dispatchers.IO) {
+            val jikanFirst = jikanListOrEmpty("top/anime?filter=airing&page=$page", MediaType.Anime)
+            if (jikanFirst.isNotEmpty()) return@withContext jikanFirst
             val offset = (page - 1) * 20
             val fields = "id,title,main_picture,alternative_titles,start_date,mean,num_episodes,media_type,genres,nsfw"
             val url = "https://api.myanimelist.net/v2/anime/ranking?ranking_type=airing&limit=20&offset=$offset&fields=$fields"
@@ -452,6 +488,8 @@ class JikanSearchClient {
 
     suspend fun upcomingAnime(page: Int = 1, showAdultContent: Boolean = false): List<JikanSearchResult> {
         return withContext(Dispatchers.IO) {
+            val jikanFirst = jikanListOrEmpty("top/anime?filter=upcoming&page=$page", MediaType.Anime)
+            if (jikanFirst.isNotEmpty()) return@withContext jikanFirst
             val offset = (page - 1) * 20
             val fields = "id,title,main_picture,alternative_titles,start_date,mean,num_episodes,media_type,genres,nsfw"
             val url = "https://api.myanimelist.net/v2/anime/ranking?ranking_type=upcoming&limit=20&offset=$offset&fields=$fields"
@@ -467,6 +505,8 @@ class JikanSearchClient {
 
     suspend fun topManga(page: Int = 1, showAdultContent: Boolean = false): List<JikanSearchResult> {
         return withContext(Dispatchers.IO) {
+            val jikanFirst = jikanListOrEmpty("top/manga?page=$page", MediaType.Manga)
+            if (jikanFirst.isNotEmpty()) return@withContext jikanFirst
             val offset = (page - 1) * 20
             val fields = "id,title,main_picture,alternative_titles,start_date,mean,num_chapters,media_type,genres,nsfw"
             val url = "https://api.myanimelist.net/v2/manga/ranking?ranking_type=all&limit=20&offset=$offset&fields=$fields"
@@ -482,6 +522,8 @@ class JikanSearchClient {
 
     suspend fun publishingManga(page: Int = 1, showAdultContent: Boolean = false): List<JikanSearchResult> {
         return withContext(Dispatchers.IO) {
+            val jikanFirst = jikanListOrEmpty("top/manga?filter=publishing&page=$page", MediaType.Manga)
+            if (jikanFirst.isNotEmpty()) return@withContext jikanFirst
             val offset = (page - 1) * 20
             val fields = "id,title,main_picture,alternative_titles,start_date,mean,num_chapters,media_type,genres,nsfw"
             val url = "https://api.myanimelist.net/v2/manga/ranking?ranking_type=manga&limit=20&offset=$offset&fields=$fields"
@@ -497,6 +539,8 @@ class JikanSearchClient {
 
     suspend fun completedManga(page: Int = 1, showAdultContent: Boolean = false): List<JikanSearchResult> {
         return withContext(Dispatchers.IO) {
+            val jikanFirst = jikanListOrEmpty("manga?status=complete&order_by=members&sort=desc&sfw=${jikanSfw(showAdultContent)}&page=$page", MediaType.Manga)
+            if (jikanFirst.isNotEmpty()) return@withContext jikanFirst
             val offset = (page - 1) * 20
             val fields = "id,title,main_picture,alternative_titles,start_date,mean,num_chapters,media_type,genres,nsfw"
             val url = "https://api.myanimelist.net/v2/manga/ranking?ranking_type=manga&limit=20&offset=$offset&fields=$fields"
@@ -512,6 +556,8 @@ class JikanSearchClient {
 
     suspend fun trendingAnime(page: Int = 1, showAdultContent: Boolean = false): List<JikanSearchResult> {
         return withContext(Dispatchers.IO) {
+            val jikanFirst = jikanListOrEmpty("top/anime?filter=bypopularity&page=$page", MediaType.Anime)
+            if (jikanFirst.isNotEmpty()) return@withContext jikanFirst
             val offset = (page - 1) * 20
             val fields = "id,title,main_picture,alternative_titles,start_date,mean,num_episodes,media_type,genres,nsfw"
             val url = "https://api.myanimelist.net/v2/anime/ranking?ranking_type=bypopularity&limit=20&offset=$offset&fields=$fields"
@@ -527,6 +573,8 @@ class JikanSearchClient {
 
     suspend fun movieAnime(page: Int = 1, showAdultContent: Boolean = false): List<JikanSearchResult> {
         return withContext(Dispatchers.IO) {
+            val jikanFirst = jikanListOrEmpty("top/anime?type=movie&page=$page", MediaType.Anime)
+            if (jikanFirst.isNotEmpty()) return@withContext jikanFirst
             val offset = (page - 1) * 20
             val fields = "id,title,main_picture,alternative_titles,start_date,mean,num_episodes,media_type,genres,nsfw"
             val url = "https://api.myanimelist.net/v2/anime/ranking?ranking_type=movie&limit=20&offset=$offset&fields=$fields"
@@ -542,6 +590,8 @@ class JikanSearchClient {
 
     suspend fun trendingManga(page: Int = 1, showAdultContent: Boolean = false): List<JikanSearchResult> {
         return withContext(Dispatchers.IO) {
+            val jikanFirst = jikanListOrEmpty("top/manga?filter=bypopularity&page=$page", MediaType.Manga)
+            if (jikanFirst.isNotEmpty()) return@withContext jikanFirst
             val offset = (page - 1) * 20
             val fields = "id,title,main_picture,alternative_titles,start_date,mean,num_chapters,media_type,genres,nsfw"
             val url = "https://api.myanimelist.net/v2/manga/ranking?ranking_type=bypopularity&limit=20&offset=$offset&fields=$fields"
@@ -557,6 +607,8 @@ class JikanSearchClient {
 
     suspend fun newlyAddedAnime(page: Int = 1, showAdultContent: Boolean = false): List<JikanSearchResult> {
         return withContext(Dispatchers.IO) {
+            val jikanFirst = jikanListOrEmpty("seasons/now?page=$page", MediaType.Anime)
+            if (jikanFirst.isNotEmpty()) return@withContext jikanFirst
             val offset = (page - 1).coerceAtLeast(0) * 20
             val fields = "id,title,main_picture,alternative_titles,start_date,mean,num_episodes,media_type,genres,nsfw"
             val url = "https://api.myanimelist.net/v2/anime/ranking?ranking_type=all&limit=20&offset=$offset&fields=$fields"
@@ -573,6 +625,8 @@ class JikanSearchClient {
 
     suspend fun newlyAddedManga(page: Int = 1, showAdultContent: Boolean = false): List<JikanSearchResult> {
         return withContext(Dispatchers.IO) {
+            val jikanFirst = jikanListOrEmpty("manga?status=publishing&order_by=start_date&sort=desc&sfw=${jikanSfw(showAdultContent)}&page=$page", MediaType.Manga)
+            if (jikanFirst.isNotEmpty()) return@withContext jikanFirst
             val offset = (page - 1).coerceAtLeast(0) * 20
             val fields = "id,title,main_picture,alternative_titles,start_date,mean,num_chapters,media_type,genres,nsfw"
             val url = "https://api.myanimelist.net/v2/manga/ranking?ranking_type=all&limit=20&offset=$offset&fields=$fields"
@@ -613,6 +667,9 @@ class JikanSearchClient {
                 "END_DATE_DESC" -> "anime_start_date"
                 else -> "anime_num_list_users"
             }
+
+            val jikanFirst = jikanListOrEmpty("seasons/$targetYear/$targetSeason?page=$page", MediaType.Anime)
+            if (jikanFirst.isNotEmpty()) return@withContext jikanFirst
 
             val offset = (page - 1) * 20
             val fields = "id,title,main_picture,alternative_titles,start_date,mean,num_episodes,media_type,genres,nsfw"
@@ -701,34 +758,20 @@ class JikanSearchClient {
         url: URL,
         mediaType: MediaType
     ): List<JikanSearchResult> {
-        val request = Request.Builder()
-            .url(url)
-            .header("Accept", "application/json")
-            .header("User-Agent", "KitsugiAnimeList/1.0")
-            .build()
-
-        try {
-            com.kitsugi.animelist.core.network.KitsugiHttpClient.client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) {
-                    val code = response.code
-                    val cleanMsg = when (code) {
-                        429 -> "Çok fazla istek yapıldı (Rate Limit). Lütfen birkaç saniye sonra tekrar dene."
-                        504, 503, 502 -> "MyAnimeList (MAL) sunucuları şu anda yanıt vermiyor veya bakımda. Lütfen daha sonra tekrar dene."
-                        else -> "Sunucu hatası oluştu (Kod: $code). Lütfen daha sonra tekrar dene."
-                    }
-                    throw IllegalStateException(cleanMsg)
+        val body = when (val r = JikanGateway.fetchBlocking(url.toString(), maxRetries = 0)) {
+            is JikanResult.Ok -> r.body
+            is JikanResult.NotFound -> return emptyList()
+            is JikanResult.RateLimited -> throw IllegalStateException(
+                "Çok fazla istek yapıldı (Rate Limit). Lütfen birkaç saniye sonra tekrar dene."
+            )
+            is JikanResult.Failed -> throw IllegalStateException(
+                when (r.code) {
+                    502, 503, 504 -> "MyAnimeList (MAL) sunucuları şu anda yanıt vermiyor veya bakımda. Lütfen daha sonra tekrar dene."
+                    else -> "Sunucu hatası oluştu (Kod: ${r.code}). Lütfen daha sonra tekrar dene."
                 }
-
-                val responseText = response.body?.string().orEmpty()
-                return parseJikanResponse(
-                    jsonText = responseText,
-                    mediaType = mediaType
-                )
-            }
-        } catch (e: Exception) {
-            if (e is IllegalStateException) throw e
-            throw IllegalStateException("MyAnimeList (MAL) bağlantı hatası. İnternet bağlantını kontrol edip tekrar dene.", e)
+            )
         }
+        return parseJikanResponse(jsonText = body, mediaType = mediaType)
     }
 
     private fun parseJikanResponse(

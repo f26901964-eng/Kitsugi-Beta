@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.screens.detail
 
+import com.kitsugi.animelist.data.remote.JikanGateway
 import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
@@ -231,8 +232,13 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
             .header("Accept", "application/json")
             .header("User-Agent", "KitsugiAnimeList/1.0")
             .build()
+        // Bu yükleyici withContext(IO) içinden çağrılır; kota kapısı bloklayabilir.
+        JikanGateway.admitBlocking(JikanGateway.Priority.UI)
         return runCatching {
             com.kitsugi.animelist.core.network.KitsugiHttpClient.client.newCall(request).execute().use { response ->
+                if (response.code == 429) JikanGateway.reportRateLimited(
+                    response.header("Retry-After")?.toLongOrNull()?.times(1_000L)
+                )
                 if (!response.isSuccessful) return@runCatching emptyList()
                 val text = response.body?.string() ?: return@runCatching emptyList()
                 val dataArr = JSONObject(text).optJSONArray("data") ?: return@runCatching emptyList()
