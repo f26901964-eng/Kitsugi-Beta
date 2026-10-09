@@ -133,22 +133,26 @@ fun KitsugiEditMediaSheet(
         "shikimori" -> true
         else -> initialEntry?.source?.lowercase() == "shikimori"
     }
+    val isBangumi = when (source.lowercase()) {
+        "bangumi", "bgm" -> true
+        else -> initialEntry?.source?.lowercase() == "bangumi"
+    }
     val isAniList = when (source.lowercase()) {
         "anilist" -> true
-        "mal", "jikan", "myanimelist", "kitsu", "shikimori", "simkl", "tmdb" -> false
-        else -> !isKitsu && !isShikimori && initialEntry?.aniListEntryId != null
+        "mal", "jikan", "myanimelist", "kitsu", "shikimori", "simkl", "tmdb", "bangumi", "bgm" -> false
+        else -> !isKitsu && !isShikimori && !isBangumi && initialEntry?.aniListEntryId != null
     }
     val isMal = when (source.lowercase()) {
         "mal", "jikan", "myanimelist" -> true
-        "anilist", "kitsu", "shikimori", "simkl", "tmdb" -> false
-        else -> !isKitsu && !isShikimori && !isAniList && (initialEntry?.malId != null || initialEntry?.source == "mal")
+        "anilist", "kitsu", "shikimori", "simkl", "tmdb", "bangumi", "bgm" -> false
+        else -> !isKitsu && !isShikimori && !isBangumi && !isAniList && (initialEntry?.malId != null || initialEntry?.source == "mal")
     }
     val isSimkl = when (source.lowercase()) {
         "simkl", "tmdb" -> true
-        "anilist", "mal", "jikan", "myanimelist", "kitsu", "shikimori" -> false
-        else -> !isKitsu && !isShikimori && !isAniList && !isMal && (initialEntry?.simklId != null || initialEntry?.source == "simkl")
+        "anilist", "mal", "jikan", "myanimelist", "kitsu", "shikimori", "bangumi", "bgm" -> false
+        else -> !isKitsu && !isShikimori && !isBangumi && !isAniList && !isMal && (initialEntry?.simklId != null || initialEntry?.source == "simkl")
     }
-    val isManual     = !isAniList && !isMal && !isSimkl && !isKitsu && !isShikimori
+    val isManual     = !isAniList && !isMal && !isSimkl && !isKitsu && !isShikimori && !isBangumi
 
     // ── State ──────────────────────────────────────────────────────────────
     var title      by rememberSaveable(initialEntry?.id) { mutableStateOf(initialEntry?.title.orEmpty()) }
@@ -279,6 +283,7 @@ fun KitsugiEditMediaSheet(
     val platformName = when {
         isKitsu     -> "Kitsu"
         isShikimori -> "Shikimori"
+        isBangumi   -> "Bangumi"
         isAniList   -> "AniList"
         isMal       -> "MyAnimeList"
         isSimkl     -> "Simkl"
@@ -287,6 +292,7 @@ fun KitsugiEditMediaSheet(
     val platformColor = when {
         isKitsu     -> Color(0xFFFD755C)
         isShikimori -> Color(0xFF8E44AD)
+        isBangumi   -> Color(0xFFF09199)
         isAniList   -> Color(0xFF02A9FF)
         isMal       -> Color(0xFF2E51A2)
         isSimkl     -> Color(0xFFE21926)
@@ -448,7 +454,7 @@ fun KitsugiEditMediaSheet(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     // AniList için Repeating ayrı bir status, MAL için flag
-                    val statusPills = if (isAniList) {
+                    val statusPills = if (isAniList || isShikimori) {
                         listOf(
                             WatchStatus.Watching  to Icons.Rounded.PlayArrow,
                             WatchStatus.Completed to Icons.Rounded.Check,
@@ -630,7 +636,7 @@ fun KitsugiEditMediaSheet(
                 )
 
                 // Manga volume progress (MAL & manual)
-                if (selectedType == MediaType.Manga && !isAniList) {
+                if (selectedType == MediaType.Manga && !isAniList && !isKitsu) {
                     SheetRow(
                         icon = Icons.Rounded.Bookmark, label = "Ciltler (Volume)",
                         value = volumeProgress.toString(),
@@ -711,6 +717,51 @@ fun KitsugiEditMediaSheet(
                         switchChecked = isHiddenFromStatusLists,
                         onSwitchCheckedChange = { isHiddenFromStatusLists = it }
                     )
+                }
+
+                // Kitsu: gizlilik (private) — tarih ve not zaten ortak alanlar
+                if (isKitsu) {
+                    SheetRow(
+                        icon = Icons.Rounded.Lock, label = "Gizli",
+                        switchChecked = isPrivate, onSwitchCheckedChange = { isPrivate = it }
+                    )
+                }
+
+                // Shikimori: "Yeniden İzleniyor" durumunda tekrar sayısı (user_rate.rewatches)
+                if (isShikimori && selectedStatus == WatchStatus.Repeating) {
+                    SheetRow(
+                        icon = Icons.Rounded.RepeatOne,
+                        label = if (selectedType == MediaType.Manga) "Toplam Tekrar Okuma" else "Toplam Tekrar İzleme",
+                        value = repeatCount.toString(),
+                        onDecrement = { repeatCount = (repeatCount - 1).coerceAtLeast(0) },
+                        onIncrement = { repeatCount++ }
+                    )
+                }
+
+                // Bangumi: gizlilik + etiketler (koleksiyon API'si bunları destekler)
+                if (isBangumi) {
+                    SheetRow(
+                        icon = Icons.Rounded.Lock, label = "Gizli",
+                        switchChecked = isPrivate, onSwitchCheckedChange = { isPrivate = it }
+                    )
+                    Spacer(modifier = Modifier.height(10.dp))
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Rounded.Label,
+                            contentDescription = "Etiketler",
+                            tint = KitsugiColors.TextSecondary,
+                            modifier = Modifier.size(24.dp)
+                        )
+                        Spacer(modifier = Modifier.width(16.dp))
+                        DialogTextField(
+                            value = tags, onValueChange = { tags = it },
+                            label = "Etiketler", placeholder = "Virgülle ayırın: Örn: sevilen, bilim-kurgu",
+                            modifier = Modifier.weight(1f)
+                        )
+                    }
                 }
 
                 // MAL only
@@ -865,9 +916,26 @@ fun KitsugiEditMediaSheet(
 
                 // ── Sync footer ────────────────────────────────────────────
                 Spacer(modifier = Modifier.height(18.dp))
+                // Bu platforma gönderilmeyen alanları açıkça belirt (kullanıcı yanılmasın)
+                val unsyncedHint = when {
+                    isShikimori -> "Tarihler ve favori Shikimori'ye gönderilmez; yalnızca Kitsugi'de saklanır."
+                    isBangumi   -> "Tarihler ve favori Bangumi'ye gönderilmez; yalnızca Kitsugi'de saklanır."
+                    isSimkl     -> "Not, tarih ve favori Simkl'e gönderilmez; yalnızca Kitsugi'de saklanır."
+                    isMal       -> "Favori MyAnimeList'e gönderilmez; yalnızca Kitsugi'de saklanır."
+                    else        -> ""
+                }
+                if (unsyncedHint.isNotBlank()) {
+                    Text(
+                        text = unsyncedHint,
+                        color = KitsugiColors.TextMuted,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp)
+                    )
+                }
                 val syncNote = when {
                     isKitsu     -> "Not: Değişiklikler otomatik olarak Kitsu hesabınızla senkronize edilecektir."
                     isShikimori -> "Not: Değişiklikler otomatik olarak Shikimori hesabınızla senkronize edilecektir."
+                    isBangumi   -> "Not: Değişiklikler otomatik olarak Bangumi hesabınızla senkronize edilecektir."
                     isAniList   -> "Not: Değişiklikler otomatik olarak AniList hesabınızla senkronize edilecektir."
                     isMal       -> "Not: Değişiklikler otomatik olarak MyAnimeList hesabınızla senkronize edilecektir."
                     isSimkl     -> "Not: Değişiklikler otomatik olarak Simkl hesabınızla senkronize edilecektir."

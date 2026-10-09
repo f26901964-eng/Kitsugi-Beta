@@ -137,7 +137,13 @@ object ShikimoriApiClient {
         /** Shikimori rating, when included in the user-rate response. */
         val ageRating: String? = null,
         /** +18 içerik mi? (`rating == "rx"` / hentai türü) — bulanıklık için kullanılır */
-        val isAdult: Boolean = false
+        val isAdult: Boolean = false,
+        /** Kullanıcı notu (`text`). */
+        val notes: String? = null,
+        /** Tekrar izleme/okuma sayısı (`rewatches`). */
+        val rewatches: Int = 0,
+        /** Okunan cilt sayısı (`volumes`, yalnızca manga). */
+        val volumes: Int = 0
     )
 
     const val DEFAULT_CLIENT_ID = "poB5DHHfiPP-DiphGJoelAnUeQ3PNkhPXwuUgXusl20"
@@ -630,6 +636,9 @@ object ShikimoriApiClient {
                             val score = item.optInt("score", 0)
                             val episodes = item.optInt("episodes", 0)
                             val chapters = item.optInt("chapters", 0)
+                            val rateNotes = if (item.isNull("text")) null else item.optString("text").takeIf { it.isNotBlank() }
+                            val rewatches = item.optInt("rewatches", 0)
+                            val volumes = item.optInt("volumes", 0)
                             val updatedAtStr = item.optString("updated_at", "")
                             val updatedAt = runCatching {
                                 java.time.Instant.parse(updatedAtStr).epochSecond
@@ -689,7 +698,10 @@ object ShikimoriApiClient {
                                     startYear = startYear,
                                     titleEnglish = englishTitle,
                                     ageRating = ageRating,
-                                    isAdult = isAdult
+                                    isAdult = isAdult,
+                                    notes = rateNotes,
+                                    rewatches = rewatches,
+                                    volumes = volumes
                                 )
                             )
                         }
@@ -805,7 +817,10 @@ object ShikimoriApiClient {
         targetType: String, // "Anime" veya "Manga"
         status: String,
         score: Int,
-        progress: Int
+        progress: Int,
+        text: String? = null,
+        rewatches: Int? = null,
+        volumes: Int? = null
     ): Int? = withContext(Dispatchers.IO) {
         val payload = JSONObject().apply {
             put("user_rate", JSONObject().apply {
@@ -816,6 +831,9 @@ object ShikimoriApiClient {
                 put("score", score.coerceIn(0, 10))
                 if (targetType == "Anime") put("episodes", progress)
                 else put("chapters", progress)
+                text?.takeIf { it.isNotBlank() }?.let { put("text", it) }
+                rewatches?.let { put("rewatches", it.coerceAtLeast(0)) }
+                if (targetType == "Manga") volumes?.let { put("volumes", it.coerceAtLeast(0)) }
             })
         }
 

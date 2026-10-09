@@ -160,6 +160,13 @@ object KitsuSyncManager {
 
         val status = watchStatusToKitsu(entry.status)
         val ratingTwenty = SyncScores.kitsuTwenty(entry.score)
+        // Tarih / not / gizlilik: yalnızca dolu değerler gönderilir (boş alan uzaktaki değeri silmez).
+        val kitsuExtras = KitsuApiClient.KitsuEntryExtras(
+            startedAt = KitsuApiClient.toKitsuDateTime(entry.startDate),
+            finishedAt = KitsuApiClient.toKitsuDateTime(entry.endDate),
+            notes = entry.notes?.takeIf { it.isNotBlank() },
+            isPrivate = entry.isPrivate
+        )
 
         val messages = mutableListOf<String>()
         val errors = mutableListOf<String>()
@@ -197,7 +204,8 @@ object KitsuSyncManager {
                     entryId = existingEntryId,
                     status = status,
                     progress = p,
-                    ratingTwenty = ratingTwenty
+                    ratingTwenty = ratingTwenty,
+                    extras = kitsuExtras
                 )
             }
             if (result.success) messages.add("Kitsu güncellendi (${entry.title})${cappedNote()}")
@@ -211,7 +219,8 @@ object KitsuSyncManager {
                     isAnime = isAnime,
                     status = status,
                     progress = p,
-                    ratingTwenty = ratingTwenty
+                    ratingTwenty = ratingTwenty,
+                    extras = kitsuExtras
                 )
             }
             if (created.success && created.entryId != null) {
@@ -230,7 +239,8 @@ object KitsuSyncManager {
                             entryId = fallbackId,
                             status = status,
                             progress = p,
-                            ratingTwenty = ratingTwenty
+                            ratingTwenty = ratingTwenty,
+                            extras = kitsuExtras
                         )
                     }
                     if (updated.success) messages.add("Kitsu güncellendi (${entry.title})${cappedNote()}")
