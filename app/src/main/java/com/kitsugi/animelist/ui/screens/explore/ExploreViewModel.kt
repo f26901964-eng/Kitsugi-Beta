@@ -579,6 +579,43 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     }
 
     /**
+     * Ortak "Yakında Yayında" (geri sayımlı) verisi.
+     *
+     * Kesin bölüm yayın saatleri yalnızca AniList `airingSchedules` üzerinde bulunur;
+     * Kitsu / Shikimori / Bangumi / Simkl gibi bu bilgiyi sağlamayan kaynaklarda da aynı
+     * takvim verisi gösterilir. Kimlikler gerçek AniList/MAL kimliğiyle taşınır — takvim
+     * sayfasının (`AiringEntry.toJikanSearchResult`) kullandığı sözleşmenin aynısı; karta
+     * tıklanınca detay AniList rotasından çözülür (kaynağa özel sözde kimlik ÜRETİLMEZ).
+     */
+    private suspend fun fetchSharedAiringSoon(): List<JikanSearchResult> {
+        val cal = com.kitsugi.animelist.data.remote.KitsugiAiringCalendarClient()
+        val upcoming = runCatching { cal.fetchUpcomingSchedule(limit = 40) }.getOrNull() ?: emptyList()
+        val nowSec = System.currentTimeMillis() / 1000L
+        return upcoming
+            .filter { it.airingAt > nowSec }
+            .sortedBy { it.airingAt }
+            .take(15)
+            .map { e ->
+                JikanSearchResult(
+                    malId = e.malId ?: e.aniListId,
+                    title = e.getDisplayTitle(),
+                    subtitle = "${e.episode}. Bölüm",
+                    type = MediaType.Anime,
+                    total = null,
+                    score = e.averageScore,
+                    isAdult = e.isAdult,
+                    imageUrl = e.coverUrl,
+                    year = null,
+                    source = "anilist",
+                    realMalId = e.malId,
+                    titleEnglish = e.titleEnglish,
+                    titleJapanese = e.titleNative,
+                    nextAiringEpisode = "${e.episode}|${e.airingAt}"
+                )
+            }
+    }
+
+    /**
      * TMDB tab için veri kaynağı — TMDB trending/popular içerikleri çeker.
      * Simkl API'si yalnızca giriş yapmış kullanıcının watchlist'ini çekmek için
      * (SimklSyncManager) çağrılır. Unauthenticated discovery tamamen TMDB'ye taşındı.
@@ -613,7 +650,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                     JikanSearchResult(
                         malId = entry.aniListId,
                         title = entry.title,
-                        subtitle = if (entry.episode == 0) "Film" else "${entry.episode}. Bölüm",
+                        subtitle = if (entry.episode == 0) "Film" else "Dizi",
                         type = finalType,
                         total = null,
                         score = entry.averageScore,
@@ -624,7 +661,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                         realMalId = null,
                         titleEnglish = entry.titleEnglish,
                         titleJapanese = entry.titleNative,
-                        nextAiringEpisode = "${entry.episode}|${entry.airingAt}",
+                        // "-1|epoch": TMDB upcoming konvansiyonu — geri sayım "çıkıyor" ifadesi kullanır
+                        nextAiringEpisode = "-1|${entry.airingAt}",
                         tmdbId = entry.aniListId
                     )
                 }
@@ -725,6 +763,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         val publishingMangaDeferred = async { runCatching { com.kitsugi.animelist.data.remote.KitsuExploreClient.publishingManga(20) }.getOrDefault(emptyList()) }
         val trendingMangaDeferred = async { runCatching { com.kitsugi.animelist.data.remote.KitsuExploreClient.trendingManga(20) }.getOrDefault(emptyList()) }
         val newlyAddedMangaDeferred = async { runCatching { com.kitsugi.animelist.data.remote.KitsuExploreClient.newlyAddedManga(20) }.getOrDefault(emptyList()) }
+        // Kitsu bölüm yayın saati sağlamaz → geri sayımlı şerit ortak takvim verisinden beslenir
+        val airingSoonDeferred = async { fetchSharedAiringSoon() }
 
         val rawTopAnime = runCatching { topAnimeDeferred.await() }.getOrDefault(emptyList())
         val enrichedTopAnime = if (rawTopAnime.isNotEmpty() && tmdbEnabledState) {
@@ -757,7 +797,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             movieAnime = movieAnimeDeferred.await(),
             seasonalAnime = seasonalAnimeDeferred.await(),
             topRatedAnime = topRatedAnimeDeferred.await(),
-            topRatedManga = topRatedMangaDeferred.await()
+            topRatedManga = topRatedMangaDeferred.await(),
+            airingSoonAnime = runCatching { airingSoonDeferred.await() }.getOrDefault(emptyList())
         )
     }
 
@@ -786,6 +827,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         val publishingMangaDeferred = async { runCatching { bangumi.publishingManga(20, context) }.getOrDefault(emptyList()) }
         val trendingMangaDeferred = async { runCatching { bangumi.trendingManga(20, context) }.getOrDefault(emptyList()) }
         val topRatedMangaDeferred = async { runCatching { bangumi.topRatedManga(20, context) }.getOrDefault(emptyList()) }
+        // Bangumi bölüm yayın saati sağlamaz → geri sayımlı şerit ortak takvim verisinden beslenir
+        val airingSoonDeferred = async { fetchSharedAiringSoon() }
 
         val rawTopAnime = runCatching { topAnimeDeferred.await() }.getOrDefault(emptyList())
         val enrichedTopAnime = if (rawTopAnime.isNotEmpty() && tmdbEnabledState) {
@@ -819,7 +862,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             trendingManga = trendingMangaDeferred.await(),
             newlyAddedAnime = newlyAddedAnimeDeferred.await(),
             topRatedAnime = topRatedAnimeDeferred.await(),
-            topRatedManga = topRatedMangaDeferred.await()
+            topRatedManga = topRatedMangaDeferred.await(),
+            airingSoonAnime = runCatching { airingSoonDeferred.await() }.getOrDefault(emptyList())
         )
     }
 
@@ -917,6 +961,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                 )
             }.getOrDefault(emptyList())
         }
+        // Shikimori bölüm yayın saati sağlamaz → geri sayımlı şerit ortak takvim verisinden beslenir
+        val airingSoonDeferred = async { fetchSharedAiringSoon() }
 
         val rawTopAnime = runCatching { topAnimeDeferred.await() }.getOrDefault(emptyList())
         val enrichedTopAnime = if (rawTopAnime.isNotEmpty() && tmdbEnabledState) {
@@ -947,7 +993,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             movieAnime = movieAnimeDeferred.await(),
             seasonalAnime = seasonalAnimeDeferred.await(),
             manhwaManhua = manhwaManhuaDeferred.await(),
-            novels = novelsDeferred.await()
+            novels = novelsDeferred.await(),
+            airingSoonAnime = runCatching { airingSoonDeferred.await() }.getOrDefault(emptyList())
         )
     }
 
@@ -964,6 +1011,9 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         val topAnimeDeferred = async { runCatching { simkl.getBestMedia("anime/best/all-time", com.kitsugi.animelist.model.MediaType.Anime, 20) }.getOrDefault(emptyList()) }
         val airingAnimeDeferred = async { runCatching { simkl.getBestMedia("anime/best/airing", com.kitsugi.animelist.model.MediaType.Anime, 20) }.getOrDefault(emptyList()) }
         val upcomingAnimeDeferred = async { runCatching { simkl.getBestMedia("anime/best/upcoming", com.kitsugi.animelist.model.MediaType.Anime, 20) }.getOrDefault(emptyList()) }
+        // Simkl "anime/best/upcoming" bölüm yayın saati taşımaz (geri sayım yok) →
+        // "Yakında Yayında" şeridi ortak takvim verisiyle gerçek geri sayım gösterir
+        val airingSoonDeferred = async { fetchSharedAiringSoon() }
 
         val simklToken = ExternalAuthManager.getSimklToken(context)
         val userMoviesDeferred = if (!simklToken.isNullOrBlank()) {
@@ -1002,12 +1052,12 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             seasonalAnime = topTvList,             // En Yüksek Puanlı Diziler
             newlyAddedAnime = topAnimeList,        // Popüler Animeler
             trendingManga = airingAnimeList,       // En Yüksek Puanlı Animeler
-            upcomingMediaTmdb = upcomingAnimeList, // Yakında Yayında
+            upcomingMediaTmdb = upcomingAnimeList, // Yakında Yayında (prömiyerler — "Tümü" sayfası)
             simklContinueMovies = continueMovies,
             simklPlannedMovies = plannedMovies,
             simklContinueSeries = continueSeries,
             simklPlannedSeries = plannedSeries,
-            airingSoonAnime = upcomingAnimeList
+            airingSoonAnime = runCatching { airingSoonDeferred.await() }.getOrDefault(emptyList())
         )
     }
 

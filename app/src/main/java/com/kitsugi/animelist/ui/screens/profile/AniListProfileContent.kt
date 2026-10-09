@@ -115,6 +115,28 @@ fun AniListProfileContent(
         viewModel.aniListActiveTab = pagerState.currentPage
     }
 
+    // Favoriler: kategori seçimi ve otomatik sayfalama (Daha Fazla Yükle butonu yok)
+    val favCategoryKey = ProfileFavoriteCategoryKeys.getOrElse(favoritesFilter) { "anime" }
+    val favHasNext = when (favoritesFilter) {
+        0 -> state.favAnimeHasNext; 1 -> state.favMangaHasNext; 2 -> state.favCharHasNext
+        3 -> state.favStaffHasNext; 4 -> state.favStudioHasNext; else -> false
+    }
+    val favCount = when (favoritesFilter) {
+        0 -> state.favoriteAnime.size; 1 -> state.favoriteManga.size; 2 -> state.favoriteCharacters.size
+        3 -> state.favoriteStaff.size; 4 -> state.favoriteStudios.size; else -> 0
+    }
+    val favCategoryCounts = listOf(
+        state.favoriteAnime.size, state.favoriteManga.size, state.favoriteCharacters.size,
+        state.favoriteStaff.size, state.favoriteStudios.size
+    )
+    ProfileFavoritesAutoLoad(
+        listState = listState,
+        enabled = activeTab == 3 && favHasNext,
+        count = favCount,
+        onLoadMore = { viewModel.loadMoreFavorites(favCategoryKey) }
+    )
+
+    Box(modifier = Modifier.fillMaxSize()) {
     LazyColumn(
         state = listState,
         modifier = Modifier
@@ -330,7 +352,10 @@ fun AniListProfileContent(
                             )
                             3 -> AniListFavoritesTab(
                                 state = state, accentColor = accentColor, isLandscape = isLandscape,
-                                favoritesFilter = favoritesFilter, viewModel = viewModel,
+                                favoritesFilter = favoritesFilter,
+                                layoutId = appSettings.selectedListLayoutId,
+                                blurAdultMedia = appSettings.blurAdultMedia,
+                                viewModel = viewModel,
                                 onFavoriteMediaClick = onFavoriteMediaClick,
                                 onFavoriteCharacterClick = onFavoriteCharacterClick,
                                 onFavoriteStaffClick = onFavoriteStaffClick,
@@ -348,5 +373,15 @@ fun AniListProfileContent(
         }
 
         item { Spacer(modifier = Modifier.height(80.dp)) }
+    }
+
+    ProfileFavoritesFloatingControls(
+        listState = listState,
+        visible = activeTab == 3,
+        selectedCategory = favoritesFilter,
+        categoryCounts = favCategoryCounts,
+        onCategorySelected = { favoritesFilter = it },
+        bottomOffset = 96.dp
+    )
     }
 }

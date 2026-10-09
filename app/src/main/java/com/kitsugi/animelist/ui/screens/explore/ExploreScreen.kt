@@ -112,6 +112,24 @@ fun ExploreScreen(
     val filteredAiringSoonAnime = remember(viewModel.airingSoonAnime, showAdultContent) { viewModel.airingSoonAnime.filter { showAdultContent || !it.isAdult } }
     val filteredUpcomingMediaTmdb = remember(viewModel.upcomingMediaTmdb, showAdultContent) { viewModel.upcomingMediaTmdb.filter { showAdultContent || !it.isAdult } }
 
+    // Tümü modunda tek ORTAK "Yakında Yayında" şeridi: her kaynak payload'ı aynı
+    // gerçek-kimlikli takvim verisini taşıdığı için dolu olan ilk payload yeterlidir
+    // (öncelik: AniList → MAL → TMDB → diğerleri).
+    val sharedAiringSoon = remember(viewModel.allSourceStates, showAdultContent) {
+        fun List<JikanSearchResult>?.ready() =
+            this.orEmpty().filter { showAdultContent || !it.isAdult }
+        val priority = viewModel.allSourceStates[ExplorePlatform.AniList]?.payload?.airingSoonAnime.ready()
+            .ifEmpty { viewModel.allSourceStates[ExplorePlatform.MAL]?.payload?.airingSoonAnime.ready() }
+            .ifEmpty { viewModel.allSourceStates[ExplorePlatform.TMDB]?.payload?.airingSoonAnime.ready() }
+        priority.ifEmpty {
+            ExplorePlatform.sources.firstNotNullOfOrNull { p ->
+                viewModel.allSourceStates[p]?.payload?.airingSoonAnime.ready()
+                    .takeIf { it.isNotEmpty() }
+            } ?: emptyList()
+        }
+    }
+    val airingSoonTitle = stringResource(R.string.explore_airing_soon)
+
     // Vitrin: tüm kaynak/kategori havuzundan sayısal metriklere göre seçim.
     //  - Tümü modu: her kaynaktan en az bir temsil + skor sıralı kontenjan (12'ye kadar).
     //  - Kaynak modu: o kaynağın tüm bölümleri (trend, yeni eklenen, manga, film...)
@@ -566,6 +584,9 @@ fun ExploreScreen(
                                 allSourcesExploreSections(
                                     states = viewModel.allSourceStates,
                                     showAdultContent = showAdultContent,
+                                    airingSoonShelf = sharedAiringSoon,
+                                    airingSoonTitle = airingSoonTitle,
+                                    onOpenAiringCalendar = onOpenAiringCalendar,
                                     collapsedSources = ExplorePlatform.sources.filter { it.name in collapsedSourceNames }.toSet(),
                                     onToggleSource = { source ->
                                         collapsedSourceNames = if (source.name in collapsedSourceNames) collapsedSourceNames - source.name
@@ -626,9 +647,11 @@ fun ExploreScreen(
                                             alreadyInList = isAlreadyInList,
                                             onItemClick = onOpenApiDetail,
                                             onLongClickItem = onLongClickItem,
-                                            onOpenAiringCalendar = {
-                                                onSeeAllForSelected(context.getString(R.string.explore_airing_soon), ExploreCategoryType.UPCOMING_MEDIA_TMDB, filteredUpcomingMediaTmdb)
-                                            },
+                                            // Şerit oku artık diğer kaynaklarla aynı sözleşmeyi izler:
+                                            // haftalık yayın takvimi sayfasını açar (TMDB için günlük
+                                            // bölüm bazlı gerçek veri). "Yakında Yayında" ızgara sayfası
+                                            // kategori çiplerinden erişilebilir durumda kalır.
+                                            onOpenAiringCalendar = onOpenAiringCalendar,
                                             accentColor = accentColor,
                                             titleLanguage = titleLanguage,
                                             blurAdultMedia = blurAdultMedia

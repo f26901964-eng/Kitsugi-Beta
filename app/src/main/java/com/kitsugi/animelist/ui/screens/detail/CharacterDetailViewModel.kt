@@ -1,7 +1,5 @@
 package com.kitsugi.animelist.ui.screens.detail
 
-import com.kitsugi.animelist.data.remote.JikanGateway
-import com.kitsugi.animelist.data.remote.JikanResult
 import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
@@ -14,8 +12,9 @@ import com.kitsugi.animelist.data.remote.DetailCache
 import com.kitsugi.animelist.data.remote.GalleryCategory
 import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.data.remote.JikanApiClient
-import com.kitsugi.animelist.data.remote.KitsugiApiBase
 import com.kitsugi.animelist.data.remote.KitsugiMediaMutationsClient
+import com.kitsugi.animelist.data.remote.KitsugiPersonImageAggregator
+import com.kitsugi.animelist.data.remote.MalJikanMediaSupport
 import com.kitsugi.animelist.data.remote.RateLimitException
 import com.kitsugi.animelist.data.remote.ResourceNotFoundException
 import com.kitsugi.animelist.data.settings.SettingsDataStore
@@ -26,8 +25,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
-import java.net.URL
 
 class CharacterDetailViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -221,64 +218,74 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
     }
 
     /**
-     * Karakter görsellerini Jikan /pictures endpoint'inden alır ve GalleryItem listesi oluşturur.
-     * Ana imageUrl'i POSTER olarak ekler, ek görseller de POSTER kategorisinde etiketlenir.
+     * Karakter galerisi: birincil görsel (sayfanın açıldığı kaynak) + **tüm kaynaklardan**
+     * toplanan ek görseller (bkz. [KitsugiPersonImageAggregator]).
+     *
+     * Kimlik çözüm kuralları:
+     *  - Jikan/MAL kaynağı: kimlik zaten MAL kimliğidir.
+     *  - Shikimori: karakter kimliği MAL kimliğiyle aynıdır (Shikimori MAL'i aynalar).
+     *  - Diğer kaynaklar (ör. Kitsu): detay Jikan dalına düştüyse detayın kimliği MAL
+     *    kimliğidir; aksi hâlde Jikan sorgusu yapılmaz (404 riski yok).
+     *  - AniList: detayın `aniListId`'si veya (kaynak anilist ise) sayfa kimliği.
      */
     private suspend fun buildCharacterGallery(characterId: Int, source: String, mainImageUrl: String?) {
-        // Jikan /pictures YALNIZCA kimliği MAL uzayında olan kaynaklarda anlamlıdır:
-        // TMDB kişi kimliği, Shikimori kimliği (MAL eşlemesi ayrıca gerekir) veya AniList
-        // offset'li kimliğiyle çağrılırsa 404 döner (boşuna istek + gecikme).
-        val jikanId = when (source.lowercase().trim()) {
-            "anilist" -> if (characterId in 1 until 100_000_000) characterId else null
-            "jikan", "mal" -> characterId.takeIf { it > 0 }
+        val detail = (_state.value as? CharacterDetailState.Success)?.detail
+        val canonical = MalJikanMediaSupport.canonicalSource(source)
+
+        val malId = when {
+            canonical == "jikan" -> characterId.takeIf { it > 0 }
+            // Shikimori karakter/kişi kimliği MAL kimliğiyle aynıdır (Shikimori MAL'i aynalar).
+            canonical == "shikimori" -> detail?.id?.takeIf { it > 0 }
+            // Kitsu dalı Jikan detayına düşmüşse detayın kimliği gerçek MAL kimliğidir.
+            // NOT: AniList/Bangumi/TMDB kimlikleri MAL uzayında DEĞİLDİR — detaydan MAL
+            // kimliği çıkarımı yalnızca bu güvenli dalda yapılır (yanlış galeri riski yok).
+            canonical == "kitsu" -> detail
+                ?.takeIf { MalJikanMediaSupport.isMalSource(it.source) && it.id != characterId }
+                ?.id?.takeIf { it > 0 }
             else -> null
         }
+        val aniListId = detail?.aniListId?.takeIf { it > 0 }
+            ?: if (canonical == "anilist") characterId.takeIf { it > 0 } else null
 
-        val pictureUrls = if (jikanId != null && source.lowercase() != "anilist") {
-            withContext(Dispatchers.IO) {
-                fetchJikanPictures(jikanId, "characters")
-            }
-        } else emptyList()
+        val names = buildList {
+            detail?.name?.let(::add)
+            lastCharacterName?.let(::add)
+            detail?.nativeName?.let(::add)
+            detail?.romanizedName?.let(::add)
+            detail?.englishName?.let(::add)
+            detail?.alternativeNames?.let(::addAll)
+        }.filter { it.isNotBlank() }.distinct()
+
+        val tmdbEnabled = runCatching { settingsDataStore.settingsFlow.first() }
+            .getOrNull()?.tmdbEnabled ?: true
 
         val friendlySource = friendlySourceOf(source)
+        val description = detail?.name ?: lastCharacterName
+
+        val aggregated = runCatching {
+            KitsugiPersonImageAggregator.aggregate(
+                kind = KitsugiPersonImageAggregator.PersonKind.CHARACTER,
+                source = source,
+                id = characterId,
+                malId = malId,
+                aniListId = aniListId,
+                names = names,
+                tmdbEnabled = tmdbEnabled
+            )
+        }.getOrDefault(emptyList())
 
         val items = buildList {
             if (!mainImageUrl.isNullOrBlank()) {
-                add(GalleryItem(url = mainImageUrl, source = friendlySource, category = GalleryCategory.CHARACTER, description = lastCharacterName))
+                add(GalleryItem(url = mainImageUrl, source = friendlySource, category = GalleryCategory.CHARACTER, description = description))
             }
-            for (url in pictureUrls) {
-                if (url != mainImageUrl && url.isNotBlank()) {
-                    add(GalleryItem(url = url, source = "MyAnimeList", category = GalleryCategory.CHARACTER, description = lastCharacterName))
+            for (img in aggregated) {
+                if (img.url != mainImageUrl && img.url.isNotBlank()) {
+                    add(GalleryItem(url = img.url, source = img.source, category = GalleryCategory.CHARACTER, description = description))
                 }
             }
         }.distinctBy { it.url }
 
         _galleryItems.value = items
-    }
-
-    private fun fetchJikanPictures(id: Int, endpoint: String): List<String> {
-        val url = URL("https://api.jikan.moe/v4/$endpoint/$id/pictures")
-        // Bu yükleyici withContext(IO) içinden çağrılır; kota kapısı bloklayabilir.
-        // Kota kapısı + host zinciri (miribyou → Tenrai) + önbellek JikanGateway'de.
-        return runCatching {
-            val text = (JikanGateway.fetchBlocking(url.toString(), JikanGateway.Priority.UI) as? JikanResult.Ok)?.body
-                ?: return@runCatching emptyList()
-            run {
-                val dataArr = JSONObject(text).optJSONArray("data") ?: return@runCatching emptyList()
-                val urls = mutableListOf<String>()
-                for (i in 0 until dataArr.length()) {
-                    val obj = dataArr.getJSONObject(i)
-                    val webp = obj.optJSONObject("webp")
-                    val jpg = obj.optJSONObject("jpg")
-                    val picUrl = webp?.optString("large_image_url")?.takeIf { it.isNotBlank() }
-                        ?: webp?.optString("image_url")?.takeIf { it.isNotBlank() }
-                        ?: jpg?.optString("large_image_url")?.takeIf { it.isNotBlank() }
-                        ?: jpg?.optString("image_url")?.takeIf { it.isNotBlank() }
-                    if (!picUrl.isNullOrBlank()) urls.add(picUrl)
-                }
-                urls
-            }
-        }.getOrElse { emptyList() }
     }
 
     /**

@@ -691,7 +691,11 @@ internal fun AiringEntryCard(
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Text(
-                        text = if (entry.episode == 0) "Film" else "Bölüm ${entry.episode}",
+                        text = when {
+                            entry.episode == 0 -> "Film"
+                            entry.episode < 0 -> "Dizi"   // TMDB: bölüm numarası bilinmiyor
+                            else -> "Bölüm ${entry.episode}"
+                        },
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Medium,
                         color = accentColor
@@ -781,9 +785,12 @@ private fun AiringTimeText(entry: AiringEntry, episode: Int? = null) {
         text = "${entry.formattedTime()} • Yayında"
     }
 
-    val displayText = if (episode != null) {
-        if (episode == 0) "Film • $text" else "$episode. Bölüm • $text"
-    } else text
+    val displayText = when {
+        episode == null -> text
+        episode == 0 -> "Film • $text"
+        episode < 0 -> "Dizi • $text"   // TMDB: bölüm numarası bilinmiyor
+        else -> "$episode. Bölüm • $text"
+    }
 
     Text(
         text = displayText,

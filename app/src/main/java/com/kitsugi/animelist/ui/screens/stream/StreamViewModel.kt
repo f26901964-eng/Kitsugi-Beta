@@ -174,6 +174,12 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                 val apis = withContext(Dispatchers.IO) {
                     CsPluginLoader.loadExtension(context, csPlugin.id)
                 }
+                // Tracker anahtarları api.name'le tutulur — yalnızca plugin.id temizlemek
+                // "Doğrula" sonrası tekrar denemede eklentinin hâlâ bloklu sanılmasına
+                // yol açıyordu. Bu yüzden id, eklenti adı ve yüklenen tüm api adları temizlenir.
+                CsPluginStatusTracker.clearPluginStatus(csPlugin.id)
+                CsPluginStatusTracker.clearPluginStatus(csPlugin.name)
+                apis.forEach { CsPluginStatusTracker.clearPluginStatus(it.name) }
                 val csStreams = mutableListOf<StreamSource>()
                 for (api in apis) {
                     val streams = CsStreamRunner.getStreams(
@@ -471,8 +477,11 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                     launch {
                         val csDisplayName = "⚡ ${plugin.name}"
                         try {
-                            if (CsPluginStatusTracker.isBlocked(plugin.id)) {
-                                val reason = CsPluginStatusTracker.getErrorMessage(plugin.id) ?: "Tekrarlı hata"
+                            // Tracker kayıtları api.name ile tutulur; plugin.id tek başına yetersizdir.
+                            if (CsPluginStatusTracker.isBlocked(plugin.id) || CsPluginStatusTracker.isBlocked(plugin.name)) {
+                                val reason = CsPluginStatusTracker.getErrorMessage(plugin.name)
+                                    ?: CsPluginStatusTracker.getErrorMessage(plugin.id)
+                                    ?: "Tekrarlı hata"
                                 Log.w(TAG, "[$csDisplayName] Engellendi: $reason")
                                 CsTrace.warn(plugin.name, "skip", "Engellendi: $reason")
                                 updateAddonState(csDisplayName, isLoading = false, error = "Engellendi: $reason")

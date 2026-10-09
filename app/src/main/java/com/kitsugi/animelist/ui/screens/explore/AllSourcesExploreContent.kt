@@ -34,6 +34,9 @@ import com.kitsugi.animelist.ui.utils.tvClickable
 fun LazyListScope.allSourcesExploreSections(
     states: Map<ExplorePlatform, ExploreSourceState>,
     showAdultContent: Boolean,
+    airingSoonShelf: List<JikanSearchResult> = emptyList(),
+    airingSoonTitle: String = "Yakında Yayında",
+    onOpenAiringCalendar: (() -> Unit)? = null,
     collapsedSources: Set<ExplorePlatform>,
     onToggleSource: (ExplorePlatform) -> Unit,
     startIndex: Int,
@@ -51,7 +54,10 @@ fun LazyListScope.allSourcesExploreSections(
     showSourceJumpBar: Boolean = true
 ) {
     val sections = allSourceSections(states, showAdultContent).groupBy { it.platform }
-    val headerIndices = allSourceHeaderIndices(sections, collapsedSources, startIndex, showSourceJumpBar)
+    val headerIndices = allSourceHeaderIndices(
+        sections, collapsedSources, startIndex, showSourceJumpBar,
+        extraItemsAfterIntro = if (airingSoonShelf.isNotEmpty()) 1 else 0
+    )
     item(key = "all_sources_intro") {
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 20.dp)) {
             Text("Altı kaynak. Tek keşif.", style = MaterialTheme.typography.headlineSmall,
@@ -59,6 +65,25 @@ fun LazyListScope.allSourcesExploreSections(
             Spacer(Modifier.height(6.dp))
             Text("Her platformun trendleri, en iyileri ve yeni keşifleri kendi alanında. Bir kaynağa atla veya aşağı kaydırarak hepsini gez.",
                 style = MaterialTheme.typography.bodyMedium, color = KitsugiColors.TextSecondary)
+        }
+    }
+    // Tümü modunda ortak geri sayımlı şerit — tek takvim verisi, tüm kaynakların üstünde.
+    if (airingSoonShelf.isNotEmpty()) {
+        item(key = "all_airing_soon") {
+            Column(Modifier.padding(bottom = 20.dp)) {
+                ExploreAiringSoonSection(
+                    title = airingSoonTitle,
+                    airingSoonAnime = airingSoonShelf,
+                    isLoading = false,
+                    alreadyInList = alreadyInList,
+                    onItemClick = onItemClick,
+                    onLongClickItem = onLongClickItem ?: {},
+                    onOpenAiringCalendar = onOpenAiringCalendar ?: {},
+                    accentColor = KitsugiColors.Accent,
+                    titleLanguage = titleLanguage,
+                    blurAdultMedia = blurAdultMedia
+                )
+            }
         }
     }
     if (showSourceJumpBar) {

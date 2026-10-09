@@ -1,5 +1,71 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.223)
+
+### 👤 1. Profil Favorileri & Listem Görünüm Uyarlaması (`ProfileFavoritesListemStyle.kt`, `AniListFavoritesTab.kt`, `KitsugiUserMediaListScreen.kt`)
+- **Listem Kart Düzenleri:** Kendi profilindeki ve diğer kullanıcıların profillerindeki favori kartları (Anime, Manga, Karakter, Kişi, Stüdyo) artık Listem ekranının kart düzenlerini (`compact`, `comfortable`, `minimalist`, `large`, `grid_2col`) ve kullanıcının Listem ayarlarını kullanır.
+- **Otomatik Sayfalama (Sonsuz Kaydırma):** Eski "Daha Fazla Yükle" butonu kaldırıldı; sayfa aşağı kaydırıldıkça sonraki sayfalar akıcı bir şekilde otomatik yüklenir.
+- **Dinamik Alt Kontroller:** Sol altta kategori seçici çipi (Anime, Manga, Karakterler, Ekip, Stüdyolar) ve sağ altta yukarı kaydırma butonu eklendi; aşağı kaydırırken kontroller otomatik gizlenir.
+- **Diğer Kullanıcıların Medya Listesi:** Diğer kullanıcıların anime/manga listeleri Listem'in yerel kart ve durum başlığı bileşenlerine geçirildi; kart düzeni Listem tercihlerine bağlandı.
+- **Stüdyo Görsel Yedekleri:** Görseli bulunmayan yapımcı/stüdyo kartlarında boş kutular yerine stüdyo adının baş harflerini içeren avatar rozetleri gösterilir.
+
+### 🌊 2. Cloudstream Akış Boru Hattı & Kısmi Sonuç Kurtarma (`CsStreamRunner.kt`, `StreamViewModel.kt`)
+- **Kısmi Sonuç Kurtarma (Partial Sink):** Eklentiler video linklerini bulmuş olsa bile işlem süresi zaman aşımına (timeout) uğradığında bulunan tüm verilerin silinmesi sorunu kökten çözüldü. Artık zaman aşımı gerçekleşse bile o ana kadar elde edilen kaynaklar (`partialSink`) kurtarılarak kullanıcıya sunulur.
+- **Paralel HEAD Canlılık Doğrulaması:** Medya linklerinin canlılık kontrolü eski sıralı (8 sn × N) yapıdan kurtarılarak 6 eşzamanlı worker ve 5 sn zaman aşımıyla paralel hale getirildi. 5 ölü CDN'in 40 saniye boyunca tüm aramayı kilitleyip bütçeyi patlatması engellendi.
+- **Zaman Kutulu & Paralel Varyant Araması:** 18 arama varyantı tek tek taranmak yerine 3'lü gruplar halinde paralel taranır. Katı zaman kutusu (normalde 20 sn, Cloudflare korumalı sitelerde 40 sn) uygulanarak bütçenin kalan kısmı `load` ve `loadLinks` (video çıkarma) aşamalarına saklanır.
+- **Üst Bütçe Uyarlaması:** Tek sağlayıcı zaman aşımı 40 sn'den 75 sn'ye, Cloudflare korumalı eklentiler için 90 sn'den 120 sn'ye çıkarıldı. Eklentiler paralel çalıştığı için kullanıcı fazladan bekletilmez.
+- **Doğrulama Sonrası Gerçek Temizleme:** `CsPluginStatusTracker` kayıtları `api.name` ile tutulduğundan, Cloudflare WebView doğrulamasından sonra sadece `plugin.id` değil; eklenti id'si, eklenti adı ve yüklenen tüm alt API adları temizlenerek eklentinin tekrar denemede bloklu kalması önlendi.
+- **Şeffaf Durum Bildirimi:** Arama başarısızlıklarında jenerik "akış bulunamadı" yerine gerçek nedenler kartlara yansıtılır (ör. *"Zaman aşımı — 3 kaynak kurtarıldı"*, *"S1E1 bölümü bulunamadı"*, *"Arama sonuç vermedi (site erişilemiyor veya CF korumalı)"*).
+
+### 🖼️ 3. Tüm Kaynaklardan Birleşik Karakter & Kişi Galerisi (`KitsugiPersonImageAggregator.kt`, `CharacterDetailViewModel.kt`, `StaffDetailViewModel.kt`)
+- **Evrensel Galeri Toplayıcı:** Karakter ve seslendirmen/personel detay sayfalarındaki galeri tek kaynak sınırından kurtarıldı.
+- **Katkı Sağlayan Kaynaklar:** MAL (Jikan `/pictures` çoklu görsel), AniList, Shikimori, Kitsu (karakterler), Bangumi ve TMDB (kişiler — 12'ye kadar profil fotoğrafı). Her görsel kendi kaynak rozetiyle galeri modalında gösterilir.
+- **Sıkı Kimlik & İsim Doğrulaması:** İsim bazlı çapraz aramalarda katı eşleşme (normalize eşitlik veya Doğu/Batı ad sırası jeton-kümesi) aranır; yanlış kişi/karakter görseli riski engellendi.
+- **Paralel & Dayanıklı:** Tüm kaynaklar eşzamanlı ~9 sn bütçeyle sorgulanır; süre dolarsa kısmi sonuçlar gösterilir.
+
+### 📅 4. "Yakında Yayında" Her Yerde & TMDB Haftalık Takvim Düzeltmesi (`KitsugiAiringCalendarClient.kt`, `ExploreViewModel.kt`, `AllSourcesExploreContent.kt`)
+- **TMDB Günlük Yayın Düzeltmesi:** Uzun soluklu dizilerin ilk yayın yıllarının gününe düşmesi hatası giderildi; `discover/tv?air_date` filtresi haftanın her günü için ayrı sorgulanarak yapımlar gerçek yayın günlerine yerleştirildi. Bilinmeyen bölüm numaraları için "Dizi" etiketi gösterilir.
+- **Ortak Geri Sayımlı Şerit (Tümü Keşfet Sayfası):** Keşfet ana sayfasında ("Tümü" modu) tüm kaynakların en üstünde tek ortak "Yakında Yayında" geri sayımlı şerit gösterilir.
+- **Tüm Platformlarda Kesintisiz Geri Sayım:** Kitsu, Shikimori, Bangumi ve Simkl sekmelerine de gerçek bölüm saatli takvim verisi entegre edildi. Şerit oku doğrudan haftalık yayın takvimini açar.
+
+### 📦 5. Dağıtım
+- Yalnızca **FOSS** sürümü (`assembleFossRelease`) derlendi (`Kitsugi-Beta-v2.4.223-foss.apk`).
+
+---
+
+## 🇬🇧 English (v2.4.223)
+
+### 👤 1. Profile Favorites & "My List" Layout Parity (`ProfileFavoritesListemStyle.kt`, `AniListFavoritesTab.kt`, `KitsugiUserMediaListScreen.kt`)
+- **"My List" Card Layouts:** Profile favorites (Anime, Manga, Characters, Staff, Studios) for both personal and public user profiles now mirror "My List" layout styles (`compact`, `comfortable`, `minimalist`, `large`, `grid_2col`) driven by the user's persistent display preferences.
+- **Infinite Scrolling:** Removed legacy "Load More" pagination buttons in favor of smooth automatic infinite scroll.
+- **Dynamic Floating Controls:** Added bottom floating category selector (Anime, Manga, Characters, Staff, Studios) and quick scroll-to-top button with scroll-aware auto-hiding.
+- **Public User Media Lists:** Third-party user anime/manga lists adopted "My List" native card layouts and section headers.
+- **Studio Avatar Fallbacks:** Studios lacking banner artwork display stylized monogram initials rather than blank tiles.
+
+### 🌊 2. Cloudstream Stream Pipeline & Partial Result Rescue (`CsStreamRunner.kt`, `StreamViewModel.kt`)
+- **Partial Result Rescue (Partial Sink):** Fixed a critical pipeline issue where found media streams were discarded if provider execution exceeded timeout. When a timeout occurs, any streams extracted up to that point (`partialSink`) are preserved and delivered to the player/user.
+- **Parallel HEAD Liveness Verification:** Replaced sequential HTTP HEAD checks (8s × N) with a 6-worker parallel pool (5s timeout). Prevents dead CDNs from burning the provider budget and triggering false negatives.
+- **Time-Boxed Parallel Search:** Query variants are now dispatched concurrently in batches of 3 within a strict time-box (20s standard, 40s CF). Early pruning preserves remaining execution budget for page loading and stream extraction.
+- **Extended Provider Budget:** Adjusted provider execution budget to 75s (standard) and 120s (Cloudflare-protected). As providers execute concurrently, overall user latency is unaffected.
+- **Complete Verification Reset:** Properly evicts `api.name`, `plugin.name`, and `plugin.id` from `CsPluginStatusTracker` following successful Cloudflare WebView verification, preventing false "blocked" state loops on retries.
+- **Diagnostic UI Badging:** Cards now articulate the exact underlying cause instead of generic "no streams found" (e.g., *"Timeout — 3 streams rescued"*, *"Episode S1E1 not found"*, *"Search returned 0 results (unreachable or CF/WAF)"*).
+
+### 🖼️ 3. Multi-Source Aggregated Character & Person Gallery (`KitsugiPersonImageAggregator.kt`, `CharacterDetailViewModel.kt`, `StaffDetailViewModel.kt`)
+- **Universal Image Aggregator:** Character and staff/voice actor gallery drawers aggregate photos across all connected databases.
+- **Integrated Sources:** MAL (Jikan `/pictures`), AniList, Shikimori, Kitsu (characters), Bangumi, and TMDB (persons — up to 12 profile stills). Every image features its respective platform badge.
+- **Strict Identity Matching:** Strict normalization and Japanese naming order token-set matching prevent cross-entity image misattribution.
+- **Concurrent & Resilient:** All sources query concurrently with a ~9s budget; partial results are gracefully rendered upon deadline.
+
+### 📅 4. "Airing Soon" Everywhere & TMDB Weekly Schedule Fix (`KitsugiAiringCalendarClient.kt`, `ExploreViewModel.kt`, `AllSourcesExploreContent.kt`)
+- **TMDB Per-Day Schedule Fix:** Fixed long-running series falling onto old historical premiere dates by querying `discover/tv?air_date` day-by-day for the current week. Unknown episode numbers clearly display "TV" badge.
+- **Unified Countdown Shelf on All Explore:** A shared, authoritative "Airing Soon" countdown shelf is rendered directly above sources on the "All" explore tab.
+- **Cross-Platform Parity:** Kitsu, Shikimori, Bangumi, and Simkl now feature genuine countdown airing data. Shelf header navigates directly to the weekly calendar view.
+
+### 📦 5. Distribution
+- Strictly released the **FOSS variant only** (`assembleFossRelease` -> `Kitsugi-Beta-v2.4.223-foss.apk`).
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.222)
 
 ### 🌟 1. Evrensel Sosyal Birleştirme & Platform Rozetleri (`KitsugiMediaSocialClient.kt`, `ReviewsTab.kt`, `KitsugiReviewCard.kt`)

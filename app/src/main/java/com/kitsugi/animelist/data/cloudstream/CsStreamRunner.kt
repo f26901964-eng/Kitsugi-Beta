@@ -73,8 +73,13 @@ object CsStreamRunner {
      */
     private val loadSemaphore = Semaphore(6)
 
-    /** Tek bir provider için stream getirme zaman aşımı — 40s yavaş/mobil ağlarda kesintileri önlemek için idealdir */
-    private const val PROVIDER_TIMEOUT_MS = 40_000L
+    /** Tek bir provider için stream getirme zaman aşımı.
+     *  İç aşamalar: arama ≤ 20 sn + load ≤ 15 sn + loadLinks ≤ 25 sn + embed/HEAD — 40 sn
+     *  bu toplamı karşılamıyordu; provider zaman aşımına düşünce BULUNMUŞ kaynaklar bile
+     *  çöpe gidiyordu. 75 sn'ye çıkarıldı; yine de zaman aşımı olursa kısmi sonuçlar
+     *  (partialSink) kurtarılıp döndürülür. Eklentiler paralel çalıştığı için kartlar
+     *  doldukça güncellenir; bu artış kullanıcıyı bekletmez. */
+    private const val PROVIDER_TIMEOUT_MS = 75_000L
 
     // ─── Derin embed çözümleme (Aşama 3/4) sabitleri ──────────────────────────
     /** iframe/AES zincirinin izin verilen en fazla derinliği (sonsuz döngü koruması). */
@@ -506,8 +511,8 @@ object CsStreamRunner {
         "TurkAnime"
     )
 
-    /** CF korumalı eklentiler için uzatılmış timeout (90 saniye) */
-    private const val CF_PROVIDER_TIMEOUT_MS = 90_000L
+    /** CF korumalı eklentiler için uzatılmış timeout (120 saniye — arama 40 sn + loadLinks 90 sn aşamaları) */
+    private const val CF_PROVIDER_TIMEOUT_MS = 120_000L
 
     private val dynamicDomains = java.util.concurrent.ConcurrentHashMap<String, String>()
     private val dynamicBlockedPlugins = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
@@ -1015,11 +1020,24 @@ object CsStreamRunner {
             Log.e(SERR, "🔐 CF_PROTECTED [${api.name}] — ${effectiveTimeout}ms timeout ile çalışıyor. title='$title' S${season}E${episode}")
         }
 
+        // KRİTİK DÜZELTME: eski davranışta provider zaman aşımına uğrayınca (40 sn) daha önce
+        // BULUNMUŞ tüm kaynaklar da çöpe gidiyordu (`return emptyList()`) — "hiçbir eklentiden
+        // veri gelmiyor" şikâyetinin ana kaynağı. Artık bulunan kaynaklar sink'e yazılır ve
+        // zaman aşımında kurtarılıp döndürülür; gerçek sebep tracker'a yazılır ki UI göstersin.
+        val partialSink = java.util.concurrent.CopyOnWriteArrayList<StreamSource>()
         val result = withTimeoutOrNull(effectiveTimeout) {
-            runGetStreams(api, title, alternativeTitles, year, season, episode, malId, aniListId, tmdbId, isMovie)
+            runGetStreams(api, title, alternativeTitles, year, season, episode, malId, aniListId, tmdbId, isMovie, partialSink)
         }
         if (result == null) {
+            val rescued = partialSink.toList()
+            if (rescued.isNotEmpty()) {
+                Log.w(TAG, "[${api.name}] Provider stream lookup exceeded ${effectiveTimeout}ms; ${rescued.size} kaynak kurtarılarak döndürülüyor.")
+                CsTrace.warn(api.name, "timeout", "Zaman aşımı (${effectiveTimeout} ms) — ${rescued.size} kaynak kurtarıldı")
+                return@withContext rescued
+            }
             Log.w(TAG, "[${api.name}] Provider stream lookup exceeded ${effectiveTimeout}ms; returning no matches.")
+            CsPluginStatusTracker.recordSkip(api.name, "Zaman aşımı (${effectiveTimeout / 1000} sn) — arama/çıkarma tamamlanamadı")
+            CsTrace.warn(api.name, "timeout", "Zaman aşımı (${effectiveTimeout} ms) — hiçbir kaynak çıkarılamadı")
             return@withContext emptyList()
         }
         result
@@ -1035,7 +1053,8 @@ object CsStreamRunner {
         malId: Int? = null,
         aniListId: Int? = null,
         tmdbId: Int? = null,
-        isMovie: Boolean? = null
+        isMovie: Boolean? = null,
+        partialSink: MutableList<StreamSource>? = null
     ): List<StreamSource> {
         // Resolve external IDs for validation
         val resolvedIds = if (malId != null || aniListId != null || tmdbId != null) {
@@ -1065,7 +1084,8 @@ object CsStreamRunner {
             kitsuId   = targetKitsu,
             season    = season,
             episode   = episode,
-            isMovie   = isMovie == true
+            isMovie   = isMovie == true,
+            partialSink = partialSink
         )
         if (nativeResult != null) {
             Log.d(TAG, "[${api.name}] ⚡ Native getLoadUrl çözümü başarılı — arama atlandı (${nativeResult.size} stream)")
@@ -1080,22 +1100,45 @@ object CsStreamRunner {
         // Search several strong title/alias queries and merge their results. A single early
         // provider hit can be the wrong sequel, so do not stop until a high-confidence result
         // is available or the bounded query budget is exhausted.
-        val collectedResults = linkedMapOf<String, SearchResponse>()
+        //
+        // DÜZELTME (zaman bütçesi): 18 varyantın SIRAYLA denenmesi (300 ms throttle + ağ × 18)
+        // tek başına 40 sn'lik provider bütçesini dolduruyor; sonuçta load/extract aşamasına
+        // hiç sıra gelmiyordu ve bulunanlar dış timeout'ta çöpe gidiyordu. Artık varyantlar
+        // 3'lü paralel gruplarla denenir, sert bir zaman kutusu uygulanır ve "yeterince iyi"
+        // bir eşleşme varsa kalan sorgular boşuna denenmez.
+        val collectedResults = java.util.concurrent.ConcurrentHashMap<String, SearchResponse>()
         var searchedVariant = ""
         // Increased from 12 to 18 — Turkish sites need more query variants because they
         // often use Turkish-translated titles, ASCII-only transliterations, and different
         // naming conventions than the canonical (English/Romaji/Japanese) titles.
         val maxSearchVariants = minOf(titleVariants.size, 18)
-        for (variant in titleVariants.take(maxSearchVariants)) {
-            val variantResults = safeSearch(api, variant)
-            if (variantResults.isNotEmpty()) {
-                if (searchedVariant.isBlank()) searchedVariant = variant
-                Log.d(TAG, "[${api.name}] ✓ '$variant' için ${variantResults.size} sonuç bulundu")
-                for (result in variantResults) {
-                    val key = "${result.type}:${result.url.trim().lowercase(Locale.ROOT)}"
-                    if (!collectedResults.containsKey(key)) collectedResults[key] = result
+        val searchTimeBudgetMs = if (api.name in CF_PROTECTED_PLUGINS) 40_000L else 20_000L
+        val searchStartMs = System.currentTimeMillis()
+        val searchVariants = titleVariants.take(maxSearchVariants)
+        var variantIndex = 0
+        searchLoop@ while (variantIndex < searchVariants.size) {
+            val elapsedNow = System.currentTimeMillis() - searchStartMs
+            if (elapsedNow > searchTimeBudgetMs) {
+                Log.w(TAG, "[${api.name}] Arama zaman bütçesi doldu (${elapsedNow}ms) — kalan varyantlar atlandı")
+                CsTrace.warn(api.name, "search", "Arama zaman bütçesi doldu (${elapsedNow} ms) — ${searchVariants.size - variantIndex} varyant atlandı")
+                break
+            }
+            val batch = searchVariants.drop(variantIndex).take(3)
+            variantIndex += batch.size
+            val batchResults = kotlinx.coroutines.coroutineScope {
+                batch.map { variant -> async { variant to safeSearch(api, variant) } }.awaitAll()
+            }
+            for ((variant, variantResults) in batchResults) {
+                if (variantResults.isNotEmpty()) {
+                    if (searchedVariant.isBlank()) searchedVariant = variant
+                    Log.d(TAG, "[${api.name}] ✓ '$variant' için ${variantResults.size} sonuç bulundu")
+                    for (result in variantResults) {
+                        val key = "${result.type}:${result.url.trim().lowercase(Locale.ROOT)}"
+                        collectedResults.putIfAbsent(key, result)
+                    }
                 }
-
+            }
+            if (collectedResults.isNotEmpty()) {
                 val bestSoFar = findBestMatch(
                     collectedResults.values.toList(), title, alternativeTitles, year, season, episode, isMovie
                 )
@@ -1103,10 +1146,16 @@ object CsStreamRunner {
                         bestSoFar, title, alternativeTitles, year, season, isMovie
                     )
                 ) {
-                    Log.d(TAG, "[${api.name}] High-confidence match found after '$variant'; remaining queries skipped")
-                    break
+                    Log.d(TAG, "[${api.name}] High-confidence match found; remaining queries skipped")
+                    break@searchLoop
                 }
-                if (collectedResults.size >= 40) break
+                // Makul bir aday varsa ve zaman kutusunun yarısı geçtiyse kalan sorguları
+                // boşuna deneme — bütçenin kalanını load/extract aşamasına bırak.
+                if (bestSoFar != null && System.currentTimeMillis() - searchStartMs > searchTimeBudgetMs / 2) {
+                    Log.d(TAG, "[${api.name}] Zaman kutusu içinde makul eşleşme bulundu — kalan sorgular atlandı")
+                    break@searchLoop
+                }
+                if (collectedResults.size >= 40) break@searchLoop
             }
         }
         var results = collectedResults.values.toList()
@@ -1128,7 +1177,8 @@ object CsStreamRunner {
         // kelimeleriyle (ilk 2-3 kelime) daha geniş bir arama dene. Türkçe siteler
         // bazen tamamen farklı başlıklar kullanır (örn. "Örümcek-Adam" yerine "Spider-Man"
         // veya tam tersi). Bu fallback, jenerik ama anlamlı kelimelerle arama yapar.
-        if (results.isEmpty()) {
+        // Zaman kutusu dolduysa denenmez — kalan bütçe load/extract için saklanır.
+        if (results.isEmpty() && System.currentTimeMillis() - searchStartMs < searchTimeBudgetMs) {
             val broadQueries = buildBroadSearchQueries(title, alternativeTitles)
             Log.d(TAG, "[${api.name}] Geniş arama deneniyor (${broadQueries.size} sorgu): $broadQueries")
             for (broadQuery in broadQueries) {
@@ -1148,8 +1198,14 @@ object CsStreamRunner {
             Log.w(TAG, "[${api.name}] ✗ ARAMA BAŞARISIZ: Hiçbir varyant sonuç döndürmedi. Site erişilemez veya CF korumalı.")
             Log.e(SERR, "❌ ARAMA SIFIR [${api.name}] — title='$title' S${season}E${episode} — Tüm ${titleVariants.size} varyant boş döndü. Site ölü/CF korumalı olabilir.")
             CsTrace.warn(api.name, "search", "ARAMA SIFIR: ${titleVariants.size} varyantın hiçbiri sonuç döndürmedi (ilk varyantlar: ${titleVariants.take(4)})")
-            // CF korumalı site tespiti: son hata mesajını kontrol et
+            // CF korumalı site tespiti: son hata mesajını kontrol et.
+            // ÖNEMLİ: recordSkip'ten ÖNCE oku — recordSkip errorMessages'ın üzerine yazar.
             val lastErr = CsPluginStatusTracker.getErrorMessage(api.name)
+            // UI "akış bulunamadı" demek yerine GERÇEK sebebi göstersin diye tracker'a yaz.
+            // Gerçek bir ağ hatası kayıtlıysa onun üzerine yazma (spesifik sebep daha değerli).
+            if (lastErr == null) {
+                CsPluginStatusTracker.recordSkip(api.name, "Arama sonuç vermedi (${titleVariants.size} varyant denendi) — site erişilemiyor veya CF/WAF korumalı olabilir")
+            }
             if (lastErr != null && isCloudflareLikelyBlocking(lastErr)) {
                 Log.e(SERR, "🔐 CLOUDFLARE BLOK [${api.name}] — Son hata: $lastErr")
                 throw CloudflareBlockException(
@@ -1278,10 +1334,10 @@ object CsStreamRunner {
                 Log.w(TAG, "[${api.name}] S${season}E${episode} ve URL fallback da başarısız.")
                 emptyList()
             } else {
-                extractStreamsFromEpisode(api, bestLoadResponse, episodeData)
+                extractStreamsFromEpisode(api, bestLoadResponse, episodeData, partialSink)
             }
         } else {
-            loadAndExtractStreams(api, finalMatch, season, episode, isMovie == true)
+            loadAndExtractStreams(api, finalMatch, season, episode, isMovie == true, partialSink)
         }
     }
 
@@ -1290,10 +1346,16 @@ object CsStreamRunner {
         match: SearchResponse,
         season: Int,
         episode: Int,
-        isMovie: Boolean = false
+        isMovie: Boolean = false,
+        partialSink: MutableList<StreamSource>? = null
     ): List<StreamSource> {
         val loadResponse = safeLoad(api, match.url) ?: run {
             Log.w(TAG, "[${api.name}] safeLoad null döndü: ${match.url}")
+            // safeLoad exception yolunda zaten recordFailure yapar; yalnızca timeout vb.
+            // mesajsız başarısızlıklarda sebep yaz (var olan spesifik hatanın üzerine yazma).
+            if (CsPluginStatusTracker.getErrorMessage(api.name) == null) {
+                CsPluginStatusTracker.recordSkip(api.name, "Detay sayfası yüklenemedi (load null — timeout olabilir)")
+            }
             return emptyList()
         }
 
@@ -1313,11 +1375,12 @@ object CsStreamRunner {
         if (episodeData == null) {
             Log.w(TAG, "[${api.name}] S${season}E${episode} bulunamadı. LoadResponse tipi: ${loadResponse.javaClass.simpleName}")
             CsTrace.warn(api.name, "episode", "S${season}E${episode} bölümü bulunamadı (LoadResponse=${loadResponse.javaClass.simpleName})")
+            CsPluginStatusTracker.recordSkip(api.name, "S${season}E${episode} bölümü bulunamadı (${loadResponse.javaClass.simpleName})")
             return emptyList()
         }
 
         Log.d(TAG, "[${api.name}] S${season}E${episode} için episodeData bulundu")
-        return extractStreamsFromEpisode(api, loadResponse, episodeData)
+        return extractStreamsFromEpisode(api, loadResponse, episodeData, partialSink)
     }
 
     /**
@@ -1336,7 +1399,8 @@ object CsStreamRunner {
         kitsuId: Int?,
         season: Int,
         episode: Int,
-        isMovie: Boolean = false
+        isMovie: Boolean = false,
+        partialSink: MutableList<StreamSource>? = null
     ): List<StreamSource>? {
         if (api.supportedSyncNames.isEmpty()) return null
 
@@ -1373,7 +1437,7 @@ object CsStreamRunner {
                         type = if (isMovie) com.lagradost.cloudstream3.TvType.Movie else com.lagradost.cloudstream3.TvType.Anime,
                         fix  = false
                     )
-                    return loadAndExtractStreams(api, fakeSearchResponse, season, episode, isMovie)
+                    return loadAndExtractStreams(api, fakeSearchResponse, season, episode, isMovie, partialSink)
                 } else {
                     Log.d(TAG, "[${api.name}] getLoadUrl($syncName, $syncId) → null (desteklenmiyor veya bulunamadı)")
                 }
@@ -2258,7 +2322,8 @@ object CsStreamRunner {
     private suspend fun extractStreamsFromEpisode(
         api: MainAPI,
         loadResponse: LoadResponse,
-        episodeData: String
+        episodeData: String,
+        partialSink: MutableList<StreamSource>? = null
     ): List<StreamSource> {
         // Kaynağa özgü kapak görseli — LoadResponse.posterUrl varsa StreamSource'a aktarılır
         val posterUrl = extractPosterUrl(loadResponse)
@@ -2349,8 +2414,7 @@ object CsStreamRunner {
                                 if (!headers.keys.any { it.equals("user-agent", ignoreCase = true) }) {
                                     headers["User-Agent"] = com.lagradost.cloudstream3.network.CloudflareKiller.UNIFIED_USER_AGENT
                                 }
-                                streams.add(
-                                    StreamSource(
+                                val newStream = StreamSource(
                                         addonName    = api.name,
                                         name         = "${api.name} • ${link.name}",
                                         title        = link.name,
@@ -2364,12 +2428,19 @@ object CsStreamRunner {
                                         subtitles    = emptyList(),
                                         thumbnailUrl = posterUrl,
                                         isAdultContent = ADULT_PLUGINS.contains(api.name)
-                                    )
                                 )
+                                streams.add(newStream)
+                                partialSink?.add(newStream)
                             }
                         }
                     )
-                } ?: run { CsTrace.warn(api.name, "loadLinks", "zaman aşımı (${loadLinksTimeoutMs / 1000}s), ${streams.size} link ile devam"); Log.w(TAG, "[${api.name}] loadLinks ${loadLinksTimeoutMs / 1000}s zaman aşımına uğradı, elde edilen ${streams.size} link döndürülüyor.") }
+                } ?: run {
+                    CsTrace.warn(api.name, "loadLinks", "zaman aşımı (${loadLinksTimeoutMs / 1000}s), ${streams.size} link ile devam")
+                    Log.w(TAG, "[${api.name}] loadLinks ${loadLinksTimeoutMs / 1000}s zaman aşımına uğradı, elde edilen ${streams.size} link döndürülüyor.")
+                    if (streams.isEmpty()) {
+                        CsPluginStatusTracker.recordSkip(api.name, "loadLinks zaman aşımı (${loadLinksTimeoutMs / 1000} sn) — hiç link alınamadı")
+                    }
+                }
             }
         } catch (e: Throwable) {
             if (e is kotlinx.coroutines.CancellationException) throw e
@@ -2413,6 +2484,7 @@ object CsStreamRunner {
             for ((rawUrl, linkName, resolved) in embedResults) {
                 if (resolved.isNotEmpty()) {
                     streams.addAll(resolved)
+                    partialSink?.addAll(resolved)
                 } else {
                     val clean = resolveHrefLi(rawUrl)
                     // Oynatıcıya HTML sayfası göndermek "oynatıcı hata veriyor" şikâyetinin
@@ -2428,8 +2500,7 @@ object CsStreamRunner {
                         com.kitsugi.animelist.data.cloudstream.embed.EmbedMediaScanner.looksLikeMediaUrl(clean)
                     if (!obviouslyHtml && looksPlayable) {
                         Log.w(TAG, "[${api.name}] Extractor çözemedi — medya URL'si olduğu için ekleniyor: $clean")
-                        streams.add(
-                            StreamSource(
+                        val fallbackStream = StreamSource(
                                 addonName      = api.name,
                                 name           = "${api.name} • $linkName",
                                 title          = linkName,
@@ -2447,8 +2518,9 @@ object CsStreamRunner {
                                 subtitles      = emptyList(),
                                 thumbnailUrl   = posterUrl,
                                 isAdultContent = ADULT_PLUGINS.contains(api.name)
-                            )
                         )
+                        streams.add(fallbackStream)
+                        partialSink?.add(fallbackStream)
                     } else {
                         Log.w(
                             TAG,
@@ -2466,9 +2538,11 @@ object CsStreamRunner {
         // Sadece doğrudan medya URL'leri kontrol edilir (.m3u8, .mp4, .mpd).
         // Embed/iframe URL'leri (zaten çözümlenmiş olmak zorunda) atlanır.
         // Bu adım kullanıcıya "video bulunamadı" yerine gerçekten çalışan kaynakları sunar.
-        val verifiedStreams = mutableListOf<StreamSource>()
-        val deadStreams = mutableListOf<StreamSource>()
-
+        val verifiedStreams = java.util.Collections.synchronizedList(mutableListOf<StreamSource>())
+        val deadStreams = java.util.Collections.synchronizedList(mutableListOf<StreamSource>())
+        // Hızlı ön-eleme (ağ yok): ÖLÜ KANAL etiketi, boş URL ve doğrudan-medya olmayanlar.
+        val passThrough = mutableListOf<StreamSource>()
+        val toCheck = mutableListOf<StreamSource>()
         for (stream in streams) {
             // ÖLÜ KANAL etiketli kaynakları doğrulama yapmadan düşür
             if (stream.name.contains("ÖLÜ KANAL", ignoreCase = true) ||
@@ -2481,7 +2555,7 @@ object CsStreamRunner {
             val url = stream.url.orEmpty()
             if (url.isBlank()) {
                 // URL yoksa (infoHash tabanlı?) dokunma
-                verifiedStreams.add(stream)
+                passThrough.add(stream)
                 continue
             }
 
@@ -2492,75 +2566,91 @@ object CsStreamRunner {
 
             if (!isDirectMedia) {
                 // Embed URL'leri doğrulamadan direkt ekle (extractor zaten işledi)
-                verifiedStreams.add(stream)
+                passThrough.add(stream)
                 continue
             }
 
-            // HTTP HEAD ile doğrula — 6 saniye timeout (HLS CDN'ler genelde hızlı yanıt verir)
-            // HEAD bazı CDN'lerde desteklenmez (405) veya farklı davranır; bu durumda
-            // GET with Range header ile doğrulama yap (daha güvenilir).
-            val isAlive = withTimeoutOrNull(8_000L) {
-                try {
-                    val referer = stream.requestHeaders?.get("Referer")
-                    val requestBuilder = okhttp3.Request.Builder()
-                        .url(url)
-                        .method("HEAD", null)
-                        .addHeader("User-Agent", com.lagradost.cloudstream3.network.CloudflareKiller.UNIFIED_USER_AGENT)
-                    if (!referer.isNullOrBlank()) {
-                        requestBuilder.addHeader("Referer", referer)
-                    }
-                    val headRequest = requestBuilder.build()
-                    val response = com.kitsugi.animelist.core.network.KitsugiHttpClient.client
-                        .newCall(headRequest).execute()
-                    val code = response.code
-                    response.close()
+            // HTTP HEAD ile doğrula — PARALEL (eski davranış: sıralı × 8 sn; ölü/çözümlenemeyen
+            // CDN'lerde tek başına saniyeler yutup dış provider zaman aşımını patlatıyor ve
+            // o ana kadar bulunan TÜM kaynaklar çöpe gidiyordu). Eşzamanlılık 6, deneme 5 sn.
+            toCheck.add(stream)
+        }
 
-                    // HTTP koduna göre canlılık kararı:
-                    // ✅ 200-299: Tamam, dosya mevcut
-                    // ✅ 301/302/307/308: Yönlendirme — player takip eder
-                    // ✅ 401/403: Yetki gerektirir — header ile player açabilir
-                    // ✅ 405/501: HEAD desteklenmiyor — GET ile çalışır
-                    // ✅ 429: Rate limit — geçici, player deneyebilir
-                    // ✅ 5xx: Sunucu hatası — geçici olabilir
-                    // ❌ 400: Bad Request — URL bozuk (ama yine de GET dene)
-                    // ❌ 404/410: Dosya yok — ölü
-                    val alive = when (code) {
-                        in 200..299 -> true
-                        301, 302, 307, 308 -> true
-                        401, 403 -> true   // Auth gerekli, player header ile deneyecek
-                        405, 501 -> true   // HEAD desteklenmiyor, GET ile açılır
-                        429 -> true        // Rate limit, geçici
-                        in 500..599 -> true // Sunucu hatası, geçici olabilir
-                        404, 410 -> false  // Dosya yok
-                        400 -> {
-                            // 400 Bad Request — bazı CDN'ler HEAD'e 400 döner ama GET çalışır.
-                            // GET with Range header ile tekrar dene.
-                            Log.d(TAG, "[${api.name}] HEAD 400 döndü, GET ile deneniyor: ${url.take(60)}")
-                            tryGetRangeValidation(url, referer)
+        if (toCheck.isNotEmpty()) {
+            kotlinx.coroutines.coroutineScope {
+                val gate = Semaphore(6)
+                toCheck.map { stream ->
+                    async {
+                        gate.withPermit {
+                            val url = stream.url.orEmpty()
+                            // HEAD bazı CDN'lerde desteklenmez (405) veya farklı davranır; bu durumda
+                            // GET with Range header ile doğrulama yap (daha güvenilir).
+                            val isAlive = withTimeoutOrNull(5_000L) {
+                                try {
+                                    val referer = stream.requestHeaders?.get("Referer")
+                                    val requestBuilder = okhttp3.Request.Builder()
+                                        .url(url)
+                                        .method("HEAD", null)
+                                        .addHeader("User-Agent", com.lagradost.cloudstream3.network.CloudflareKiller.UNIFIED_USER_AGENT)
+                                    if (!referer.isNullOrBlank()) {
+                                        requestBuilder.addHeader("Referer", referer)
+                                    }
+                                    val headRequest = requestBuilder.build()
+                                    val response = com.kitsugi.animelist.core.network.KitsugiHttpClient.client
+                                        .newCall(headRequest).execute()
+                                    val code = response.code
+                                    response.close()
+
+                                    // HTTP koduna göre canlılık kararı:
+                                    // ✅ 200-299: Tamam, dosya mevcut
+                                    // ✅ 301/302/307/308: Yönlendirme — player takip eder
+                                    // ✅ 401/403: Yetki gerektirir — header ile player açabilir
+                                    // ✅ 405/501: HEAD desteklenmiyor — GET ile çalışır
+                                    // ✅ 429: Rate limit — geçici, player deneyebilir
+                                    // ✅ 5xx: Sunucu hatası — geçici olabilir
+                                    // ❌ 400: Bad Request — URL bozuk (ama yine de GET dene)
+                                    // ❌ 404/410: Dosya yok — ölü
+                                    val alive = when (code) {
+                                        in 200..299 -> true
+                                        301, 302, 307, 308 -> true
+                                        401, 403 -> true   // Auth gerekli, player header ile deneyecek
+                                        405, 501 -> true   // HEAD desteklenmiyor, GET ile açılır
+                                        429 -> true        // Rate limit, geçici
+                                        in 500..599 -> true // Sunucu hatası, geçici olabilir
+                                        404, 410 -> false  // Dosya yok
+                                        400 -> {
+                                            // 400 Bad Request — bazı CDN'ler HEAD'e 400 döner ama GET çalışır.
+                                            Log.d(TAG, "[${api.name}] HEAD 400 döndü, GET ile deneniyor: ${url.take(60)}")
+                                            tryGetRangeValidation(url, referer)
+                                        }
+                                        else -> true  // Bilinmeyen kod — iyimser ol, player denesin
+                                    }
+                                    Log.d(TAG, "[${api.name}] HEAD ${if (alive) "✅" else "❌"} HTTP $code: ${url.take(80)}")
+                                    alive
+                                } catch (cancel: kotlinx.coroutines.CancellationException) {
+                                    throw cancel
+                                } catch (e: Exception) {
+                                    Log.w(TAG, "[${api.name}] HEAD kontrol hatası (${e.javaClass.simpleName}): ${url.take(60)}")
+                                    // Ağ hatası = URL'in dead olduğu anlamına gelmez (geçici), güvenli tarafta kal
+                                    true
+                                }
+                            } ?: run {
+                                Log.w(TAG, "[${api.name}] HEAD timeout (5s): ${url.take(60)} — muhtemelen yavaş CDN, ekleniyor")
+                                true  // Timeout = belirsiz, oynatmayı dene
+                            }
+
+                            if (isAlive) {
+                                verifiedStreams.add(stream)
+                            } else {
+                                Log.w(TAG, "[${api.name}] ❌ Dead stream tespit edildi, düşürülüyor: ${url.take(80)}")
+                                deadStreams.add(stream)
+                            }
                         }
-                        else -> true  // Bilinmeyen kod — iyimser ol, player denesin
                     }
-                    Log.d(TAG, "[${api.name}] HEAD ${if (alive) "✅" else "❌"} HTTP $code: ${url.take(80)}")
-                    alive
-                } catch (cancel: kotlinx.coroutines.CancellationException) {
-                    throw cancel
-                } catch (e: Exception) {
-                    Log.w(TAG, "[${api.name}] HEAD kontrol hatası (${e.javaClass.simpleName}): ${url.take(60)}")
-                    // Ağ hatası = URL'in dead olduğu anlamına gelmez (geçici), güvenli tarafta kal
-                    true
-                }
-            } ?: run {
-                Log.w(TAG, "[${api.name}] HEAD timeout (8s): ${url.take(60)} — muhtemelen yavaş CDN, ekleniyor")
-                true  // Timeout = belirsiz, oynatmayı dene
-            }
-
-            if (isAlive) {
-                verifiedStreams.add(stream)
-            } else {
-                Log.w(TAG, "[${api.name}] ❌ Dead stream tespit edildi, düşürülüyor: ${url.take(80)}")
-                deadStreams.add(stream)
+                }.awaitAll()
             }
         }
+        verifiedStreams.addAll(passThrough)
 
         if (deadStreams.isNotEmpty()) {
             Log.w(TAG, "[${api.name}] ${deadStreams.size} dead stream düşürüldü, ${verifiedStreams.size} aktif stream kaldı.")

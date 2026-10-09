@@ -35,25 +35,55 @@ class KitsugiAiringCalendarClient {
             scheduleMap[day] = mutableListOf()
         }
 
-        // Fetch TV Shows on the air
-        val tvUrl1 = "https://api.themoviedb.org/3/tv/on_the_air?api_key=$apiKey&language=$language&page=1"
-        val tvUrl2 = "https://api.themoviedb.org/3/tv/on_the_air?api_key=$apiKey&language=$language&page=2"
-        
-        // Fetch Upcoming Movies
-        val movieUrl = "https://api.themoviedb.org/3/movie/upcoming?api_key=$apiKey&language=$language&page=1"
+        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+        val weekStartCal = Calendar.getInstance().apply {
+            firstDayOfWeek = Calendar.MONDAY
+            set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+            set(Calendar.HOUR_OF_DAY, 0); set(Calendar.MINUTE, 0); set(Calendar.SECOND, 0); set(Calendar.MILLISECOND, 0)
+        }
+        val weekEndCal = (weekStartCal.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, 6) }
+        val weekStartStr = sdf.format(weekStartCal.time)
+        val weekEndStr = sdf.format(weekEndCal.time)
 
-        parseTmdbList(tvUrl1, isMovie = false, scheduleMap = scheduleMap)
-        parseTmdbList(tvUrl2, isMovie = false, scheduleMap = scheduleMap)
+        // DÜZELTME (eski davranış): tv/on_the_air + first_air_date kullanılıyordu; uzun soluklu
+        // diziler ilk yayın tarihlerinin (ör. yıllar önceki) hafta gününe düşüyor, geçmiş epoch
+        // taşıyordu → takvimde rastgele/yanlış günlere dağılmış eski kayıtlar görünüyordu.
+        //
+        // Yeni davranış: discover/tv'nin `air_date` filtresi "o gün bölümü yayınlanan dizileri"
+        // verir → haftanın her günü için ayrı sorgu yapılıp kayıt gerçek yayı gününe yerleştirilir.
+        // TMDB bölüm numarası vermediği için episode = -1 (bilinmiyor) işaretlenir.
+        for (offset in 0..6) {
+            val dayCal = (weekStartCal.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, offset) }
+            val dateStr = sdf.format(dayCal.time)
+            val tvUrl = "https://api.themoviedb.org/3/discover/tv?api_key=$apiKey&language=$language" +
+                "&air_date.gte=$dateStr&air_date.lte=$dateStr&sort_by=popularity.desc" +
+                "&include_null_first_air_dates=false&page=1"
+            parseTmdbList(tvUrl, isMovie = false, scheduleMap = scheduleMap, overrideDate = dateStr, overrideEpisode = -1)
+        }
+
+        // Bu hafta vizyona giren filmler — kendi vizyon günlerine yerleştirilir.
+        val movieUrl = "https://api.themoviedb.org/3/discover/movie?api_key=$apiKey&language=$language" +
+            "&primary_release_date.gte=$weekStartStr&primary_release_date.lte=$weekEndStr" +
+            "&sort_by=primary_release_date.asc&page=1"
         parseTmdbList(movieUrl, isMovie = true, scheduleMap = scheduleMap)
 
         return scheduleMap.mapValues { (_, list) -> list.toList() }
     }
 
+    /**
+     * @param overrideDate Verilirse kaydın gün/epoch bilgisi öğenin kendi tarihi yerine bu
+     *                     tarihten (yyyy-MM-dd) hesaplanır — per-gün `discover/tv?air_date=`
+     *                     sorgularının sonuçlarını gerçek yayın gününe yerleştirmek için.
+     * @param overrideEpisode Verilirse varsayılan bölüm numarası yerine kullanılır
+     *                        (-1 = TMDB bölüm numarası bilinmiyor).
+     */
     private fun parseTmdbList(
         urlStr: String,
         isMovie: Boolean,
         scheduleMap: MutableMap<Int, MutableList<AiringEntry>>? = null,
-        outList: MutableList<AiringEntry>? = null
+        outList: MutableList<AiringEntry>? = null,
+        overrideDate: String? = null,
+        overrideEpisode: Int? = null
     ) {
         try {
             val responseText = KitsugiApiBase.executeGetRequest(java.net.URL(urlStr)) ?: return
@@ -93,8 +123,9 @@ class KitsugiAiringCalendarClient {
                     .ifBlank { localizedTitle }
                     .takeIf { MediaTitleResolver.hasCjk(it) }
                 val posterPath = item.optNullableString("poster_path") ?: ""
-                val releaseDate = if (isMovie) item.optString("release_date", "") else item.optString("first_air_date", "")
-                
+                val releaseDate = overrideDate
+                    ?: if (isMovie) item.optString("release_date", "") else item.optString("first_air_date", "")
+
                 val (airingAt, dayOfWeek) = parseDateToAiringAtAndDayOfWeek(releaseDate)
                 val coverUrl = if (posterPath.isNotEmpty()) "https://image.tmdb.org/t/p/w500$posterPath" else null
                 val rating = item.optDouble("vote_average", 0.0)
@@ -107,21 +138,22 @@ class KitsugiAiringCalendarClient {
                     titleEnglish = resolvedTitleEnglish,
                     titleNative = resolvedTitleNative,
                     coverUrl = coverUrl,
-                    episode = if (isMovie) 0 else 1,
+                    episode = overrideEpisode ?: if (isMovie) 0 else 1,
                     airingAt = airingAt,
                     dayOfWeek = dayOfWeek,
                     averageScore = score,
                     isAdult = item.optBoolean("adult", false)
                 )
 
+                // TMDB film ve dizi kimlik alanları çakışabilir → dedupe anahtarı türle birlikte.
                 if (scheduleMap != null) {
                     val existingList = scheduleMap[dayOfWeek] ?: continue
-                    if (existingList.none { it.aniListId == tmdbId }) {
+                    if (existingList.none { it.aniListId == tmdbId && it.isMovieEntry() == isMovie }) {
                         existingList.add(entry)
                     }
                 }
                 if (outList != null) {
-                    if (outList.none { it.aniListId == tmdbId }) {
+                    if (outList.none { it.aniListId == tmdbId && it.isMovieEntry() == isMovie }) {
                         outList.add(entry)
                     }
                 }
@@ -130,6 +162,9 @@ class KitsugiAiringCalendarClient {
             android.util.Log.e("AiringCalendarClient", "parseTmdbList error: ${e.message}", e)
         }
     }
+
+    /** TMDB kayıtlarında film işareti: episode == 0 (diziler 1 veya -1 taşır). */
+    private fun AiringEntry.isMovieEntry(): Boolean = episode == 0
 
     /**
      * Aynı sayfanın İngilizce (en-US) başlıklarını id → başlık haritası olarak çeker.

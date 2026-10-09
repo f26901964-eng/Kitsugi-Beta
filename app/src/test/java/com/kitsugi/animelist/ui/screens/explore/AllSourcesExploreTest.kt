@@ -125,6 +125,30 @@ class AllSourcesExploreTest {
         assertEquals(listOf(3, 5, 7, 9, 11, 13, 15), ExplorePlatform.sources.map { empty[it] })
     }
 
+    @Test fun airingSoonShelfDataSurvivesSourceFiltering() {
+        // Ortak "Yakında Yayında" verisi gerçek kimliklerini taşır (anilist/mal/tmdb) ve hiçbir
+        // kaynağa ait etiketlenmediğinden owned() filtresi bu alanı boşaltmamalı — aksi hâlde
+        // Tümü modundan önbelleğe yazılan payload tek-kaynak görünümünde şeridi kaybederdi.
+        val shared = media("anilist", id = 77)
+        val kitsu = media("kitsu", id = 3)
+        val payload = payload(listOf(kitsu)).copy(airingSoonAnime = listOf(shared))
+        val filtered = payload.forSource(ExplorePlatform.KITSU)
+        assertEquals(listOf(shared), filtered.airingSoonAnime)
+        assertEquals(listOf(kitsu), filtered.topAnime)
+    }
+
+    @Test fun airingSoonShelfItemShiftsSourceJumpIndices() {
+        val states = ExplorePlatform.sources.associateWith { ExploreSourceState(payload(listOf(media(it.name.lowercase())))) }
+        val sections = allSourceSections(states, false).groupBy { it.platform }
+        val withoutShelf = allSourceHeaderIndices(sections, emptySet(), startIndex = 2, extraItemsAfterIntro = 0)
+        val withShelf = allSourceHeaderIndices(sections, emptySet(), startIndex = 2, extraItemsAfterIntro = 1)
+        ExplorePlatform.sources.forEach { platform ->
+            assertEquals(withoutShelf.getValue(platform) + 1, withShelf.getValue(platform))
+        }
+        // Şerit gösterilmiyorsa indeksler eski davranışla bire bir aynı kalır.
+        assertEquals(withoutShelf, allSourceHeaderIndices(sections, emptySet(), startIndex = 2))
+    }
+
     @Test fun successfulCacheAvoidsNetwork() = runBlocking {
         val cached = payload()
         val state = loadExploreSource(cached, false, { error("Network must not be called") }, { error("Disk must not be called") })

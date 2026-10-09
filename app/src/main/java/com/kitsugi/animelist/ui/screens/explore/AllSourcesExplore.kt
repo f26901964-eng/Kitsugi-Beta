@@ -132,10 +132,13 @@ internal fun allSourceHeaderIndices(
     sections: Map<ExplorePlatform, List<ExploreSourceSection>>,
     collapsed: Set<ExplorePlatform>,
     startIndex: Int,
-    hasJumpBar: Boolean = true
+    hasJumpBar: Boolean = true,
+    extraItemsAfterIntro: Int = 0
 ): Map<ExplorePlatform, Int> {
-    // intro her zaman var; yapışkan kaynak çubuğu yalnızca gösteriliyorsa eklenir.
+    // intro her zaman var; yapışkan kaynak çubuğu yalnızca gösteriliyorsa eklenir;
+    // ortak "Yakında Yayında" şeridi gibi intro sonrası ek öğeler de sayılır.
     var index = startIndex + if (hasJumpBar) 2 else 1
+    index += extraItemsAfterIntro
     return ExplorePlatform.sources.associateWith { platform ->
         val header = index++
         if (platform !in collapsed) index += sections[platform].orEmpty().size + 1
@@ -158,7 +161,11 @@ internal fun ExplorePayload.forSource(platform: ExplorePlatform): ExplorePayload
         movieAnime = movieAnime.owned(), seasonalAnime = seasonalAnime.owned(),
         trendingManga = trendingManga.owned(), newlyAddedAnime = newlyAddedAnime.owned(),
         newlyAddedManga = newlyAddedManga.owned(), upcomingMediaTmdb = upcomingMediaTmdb.owned(),
-        airingSoonAnime = airingSoonAnime.owned(),
+        // airingSoonAnime FİLTRELENMEZ: "Yakında Yayında" şeridi tüm kaynaklarda aynı ortak
+        // takvim verisini gerçek kimlikleriyle (anilist/mal/tmdb) taşır — kaynağa özel sözde
+        // kimlik bulunmadığından owned() filtresi bu alanı boşaltmak yerine olduğu gibi korur.
+        // Tümü modunda bu alan kaynak şeridi olarak RENDER EDİLMEZ (bak. allSourcesExploreSections).
+        airingSoonAnime = airingSoonAnime,
         topRatedAnime = topRatedAnime.orEmpty().owned(), topRatedManga = topRatedManga.orEmpty().owned(),
         bangumiTvShows = bangumiTvShows.orEmpty().owned(), bangumiMovies = bangumiMovies.orEmpty().owned(),
         manhwaManhua = manhwaManhua.orEmpty().owned(), novels = novels.orEmpty().owned()

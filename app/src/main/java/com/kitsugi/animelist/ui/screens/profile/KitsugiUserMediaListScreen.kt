@@ -17,9 +17,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -100,6 +98,8 @@ import com.kitsugi.animelist.ui.components.KitsugiSearchField
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.LocalIsTvDevice
+import com.kitsugi.animelist.ui.screens.mylist.MyListFlatContent
+import com.kitsugi.animelist.ui.screens.mylist.MyListGroupedContent
 import com.kitsugi.animelist.ui.utils.tvClickable
 import kotlinx.coroutines.launch
 
@@ -140,66 +140,42 @@ fun KitsugiUserMediaListScreen(
 
     var searchQuery by rememberSaveable { mutableStateOf("") }
     var selectedStatusFilter by rememberSaveable { mutableStateOf<WatchStatus?>(null) }
-    var isGridView by rememberSaveable { mutableStateOf(true) }
 
     var isFabVisible by rememberSaveable { mutableStateOf(true) }
     var isSearchBarVisible by rememberSaveable { mutableStateOf(true) }
     var prevIndex by rememberSaveable { mutableStateOf(0) }
     var prevOffset by rememberSaveable { mutableStateOf(0) }
 
-    val lazyGridState = rememberLazyGridState()
     val lazyListState = rememberLazyListState()
 
     val showScrollToTop by remember {
         derivedStateOf {
-            if (isGridView) {
-                lazyGridState.firstVisibleItemIndex > 3
-            } else {
-                lazyListState.firstVisibleItemIndex > 3
-            }
+            lazyListState.firstVisibleItemIndex > 3
         }
     }
 
-    LaunchedEffect(isGridView) {
+    LaunchedEffect(Unit) {
         isFabVisible = true
         prevIndex = 0
         prevOffset = 0
     }
 
-    LaunchedEffect(isGridView, lazyGridState, lazyListState) {
-        if (isGridView) {
-            snapshotFlow { lazyGridState.firstVisibleItemIndex to lazyGridState.firstVisibleItemScrollOffset }
-                .collect { (index, offset) ->
-                    if (index == 0 && offset < 40) {
-                        isFabVisible = true
-                        isSearchBarVisible = true
-                    } else if (index > prevIndex || (index == prevIndex && offset > prevOffset + 15)) {
-                        isFabVisible = false
-                        isSearchBarVisible = false
-                    } else if (index < prevIndex || (index == prevIndex && offset < prevOffset - 15)) {
-                        isFabVisible = true
-                        isSearchBarVisible = true
-                    }
-                    prevIndex = index
-                    prevOffset = offset
+    LaunchedEffect(lazyListState) {
+        snapshotFlow { lazyListState.firstVisibleItemIndex to lazyListState.firstVisibleItemScrollOffset }
+            .collect { (index, offset) ->
+                if (index == 0 && offset < 40) {
+                    isFabVisible = true
+                    isSearchBarVisible = true
+                } else if (index > prevIndex || (index == prevIndex && offset > prevOffset + 15)) {
+                    isFabVisible = false
+                    isSearchBarVisible = false
+                } else if (index < prevIndex || (index == prevIndex && offset < prevOffset - 15)) {
+                    isFabVisible = true
+                    isSearchBarVisible = true
                 }
-        } else {
-            snapshotFlow { lazyListState.firstVisibleItemIndex to lazyListState.firstVisibleItemScrollOffset }
-                .collect { (index, offset) ->
-                    if (index == 0 && offset < 40) {
-                        isFabVisible = true
-                        isSearchBarVisible = true
-                    } else if (index > prevIndex || (index == prevIndex && offset > prevOffset + 15)) {
-                        isFabVisible = false
-                        isSearchBarVisible = false
-                    } else if (index < prevIndex || (index == prevIndex && offset < prevOffset - 15)) {
-                        isFabVisible = true
-                        isSearchBarVisible = true
-                    }
-                    prevIndex = index
-                    prevOffset = offset
-                }
-        }
+                prevIndex = index
+                prevOffset = offset
+            }
     }
 
     // Sort: 0=Varsayılan, 1=A-Z, 2=Puan, 3=İlerleme
@@ -235,6 +211,17 @@ fun KitsugiUserMediaListScreen(
         WatchStatus.Dropped,
         WatchStatus.Completed
     )
+
+    // Listem (MyListScreen) bileşenleri için MediaEntry görünümü
+    val listemEntries = remember(filteredItems) { filteredItems.map { it.toListemMediaEntry() } }
+    val listemItemsById = remember(filteredItems) { filteredItems.associateBy { it.mediaId } }
+    val listemGrouped = remember(listemEntries) {
+        listOf(
+            WatchStatus.Watching, WatchStatus.Repeating, WatchStatus.Planned,
+            WatchStatus.Paused, WatchStatus.Dropped, WatchStatus.Completed
+        ).map { status -> status to listemEntries.filter { it.status == status } }
+            .filter { it.second.isNotEmpty() }
+    }
 
     val pullRefreshState = rememberPullToRefreshState()
 
@@ -309,13 +296,6 @@ fun KitsugiUserMediaListScreen(
                                     )
                                 }
                             }
-                        }
-                        IconButton(onClick = { isGridView = !isGridView }) {
-                            Icon(
-                                imageVector = if (isGridView) Icons.Rounded.List else Icons.Rounded.GridView,
-                                contentDescription = "Görünüm Değiştir",
-                                tint = accentColor
-                            )
                         }
                     }
                 }
@@ -431,133 +411,57 @@ fun KitsugiUserMediaListScreen(
                     }
                 }
 
-                if (isGridView) {
-                    LazyVerticalGrid(
-                        columns = GridCells.Fixed(if (isLandscape) 5 else 3),
-                        state = lazyGridState,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        items(listOf("__header__"), span = { GridItemSpan(maxLineSpan) }) {
-                            Text(
-                                text = "${filteredItems.size} sonuç",
-                                color = KitsugiColors.TextMuted,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
-                            )
-                        }
-                        if (selectedStatusFilter == null) {
-                            // Grouped by status
-                            statusOrder.forEach { status ->
-                                val groupItems = filteredItems.filter { it.status == status }
-                                if (groupItems.isNotEmpty()) {
-                                    items(
-                                        listOf("gh_${status.name}"),
-                                        key = { it },
-                                        span = { GridItemSpan(maxLineSpan) }
-                                    ) {
-                                        val headerLabel = when (status) {
-                                            WatchStatus.Watching -> if (selectedType == MediaType.Anime) "İzleniyor" else "Okunuyor"
-                                            WatchStatus.Completed -> "Tamamlandı"
-                                            WatchStatus.Planned -> "Planlandı"
-                                            WatchStatus.Paused -> "Durduruldu"
-                                            WatchStatus.Dropped -> "Bırakıldı"
-                                            else -> status.name
-                                        }
-                                        Text(
-                                            text = "$headerLabel (${groupItems.size})",
-                                            color = KitsugiColors.TextPrimary,
-                                            style = MaterialTheme.typography.titleSmall,
-                                            fontWeight = FontWeight.Black,
-                                            modifier = Modifier.padding(start = 4.dp, top = 16.dp, bottom = 6.dp)
-                                        )
-                                    }
-                                    items(groupItems, key = { "g_${it.mediaId}" }) { item ->
-                                        UserMediaGridCard(
-                                            item = item,
-                                            blurAdultMedia = appSettings.blurAdultMedia,
-                                            accentColor = accentColor,
-                                            onClick = { handleItemClick(item) }
-                                        )
-                                    }
-                                }
-                            }
-                        } else {
-                            items(filteredItems, key = { it.mediaId }) { item ->
-                                UserMediaGridCard(
-                                    item = item,
-                                    blurAdultMedia = appSettings.blurAdultMedia,
-                                    accentColor = accentColor,
-                                    onClick = { handleItemClick(item) }
-                                )
-                            }
-                        }
-                    }
+                val listemGridColumns = if (isLandscape) {
+                    if (configuration.screenWidthDp >= 900) 6 else 5
                 } else {
-                    LazyColumn(
-                        state = lazyListState,
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        item {
-                            Text(
-                                text = "${filteredItems.size} sonuç",
-                                color = KitsugiColors.TextMuted,
-                                style = MaterialTheme.typography.labelMedium,
-                                fontWeight = FontWeight.Bold,
-                                modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
-                            )
-                        }
-                        if (selectedStatusFilter == null) {
-                            // Grouped by status
-                            statusOrder.forEach { status ->
-                                val groupItems = filteredItems.filter { it.status == status }
-                                if (groupItems.isNotEmpty()) {
-                                    item(key = "rh_${status.name}") {
-                                        val headerLabel = when (status) {
-                                            WatchStatus.Watching -> if (selectedType == MediaType.Anime) "İzleniyor" else "Okunuyor"
-                                            WatchStatus.Completed -> "Tamamlandı"
-                                            WatchStatus.Planned -> "Planlandı"
-                                            WatchStatus.Paused -> "Durduruldu"
-                                            WatchStatus.Dropped -> "Bırakıldı"
-                                            else -> status.name
-                                        }
-                                        Text(
-                                            text = "$headerLabel (${groupItems.size})",
-                                            color = KitsugiColors.TextPrimary,
-                                            style = MaterialTheme.typography.titleSmall,
-                                            fontWeight = FontWeight.Black,
-                                            modifier = Modifier.padding(start = 4.dp, top = 16.dp, bottom = 6.dp)
-                                        )
-                                    }
-                                    items(groupItems, key = { "r_${it.mediaId}" }) { item ->
-                                        UserMediaRowCard(
-                                            item = item,
-                                            blurAdultMedia = appSettings.blurAdultMedia,
-                                            accentColor = accentColor,
-                                            onClick = { handleItemClick(item) }
-                                        )
-                                    }
-                                }
-                            }
-                        } else {
-                            items(filteredItems, key = { it.mediaId }) { item ->
-                                UserMediaRowCard(
-                                    item = item,
-                                    blurAdultMedia = appSettings.blurAdultMedia,
-                                    accentColor = accentColor,
-                                    onClick = { handleItemClick(item) }
-                                )
-                            }
-                        }
-                        item { Spacer(modifier = Modifier.height(80.dp)) }
+                    if (configuration.screenWidthDp >= 600) 4 else 3
+                }
+                LazyColumn(
+                    state = lazyListState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = if (isLandscape) 12.dp else 20.dp)
+                ) {
+                    item {
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text(
+                            text = "${filteredItems.size} sonuç",
+                            color = KitsugiColors.TextMuted,
+                            style = MaterialTheme.typography.labelMedium,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(start = 4.dp, bottom = 10.dp)
+                        )
                     }
+                    if (selectedStatusFilter == null) {
+                        MyListGroupedContent(
+                            groupedEntries = listemGrouped,
+                            selectedListLayoutId = appSettings.selectedListLayoutId,
+                            titleLanguage = appSettings.titleLanguage,
+                            scoreFormat = appSettings.scoreFormat,
+                            hideScores = appSettings.hideScores,
+                            blurAdultMedia = appSettings.blurAdultMedia,
+                            gridColumns = listemGridColumns,
+                            sourceBadgesByEntryId = emptyMap(),
+                            onEntryClick = { entry -> listemItemsById[entry.id]?.let(handleItemClick) },
+                            onIncrementProgress = { entry -> listemItemsById[entry.id]?.let(handleItemClick) },
+                            onPosterLongClick = { _ -> }
+                        )
+                    } else {
+                        MyListFlatContent(
+                            visibleEntries = listemEntries,
+                            selectedListLayoutId = appSettings.selectedListLayoutId,
+                            titleLanguage = appSettings.titleLanguage,
+                            scoreFormat = appSettings.scoreFormat,
+                            hideScores = appSettings.hideScores,
+                            blurAdultMedia = appSettings.blurAdultMedia,
+                            gridColumns = listemGridColumns,
+                            sourceBadgesByEntryId = emptyMap(),
+                            onEntryClick = { entry -> listemItemsById[entry.id]?.let(handleItemClick) },
+                            onIncrementProgress = { entry -> listemItemsById[entry.id]?.let(handleItemClick) },
+                            onPosterLongClick = { _ -> }
+                        )
+                    }
+                    item { Spacer(modifier = Modifier.height(90.dp)) }
                 }
             }
         }
@@ -633,11 +537,7 @@ fun KitsugiUserMediaListScreen(
                         .background(accentColor)
                         .tvClickable(shape = RoundedCornerShape(16.dp)) {
                             coroutineScope.launch {
-                                if (isGridView) {
-                                    lazyGridState.animateScrollToItem(0)
-                                } else {
-                                    lazyListState.animateScrollToItem(0)
-                                }
+                                lazyListState.animateScrollToItem(0)
                             }
                         },
                     contentAlignment = Alignment.Center
@@ -663,3 +563,20 @@ fun KitsugiUserMediaListScreen(
         )
     }
 }
+
+/** Diğer kullanıcının liste öğesini Listem kartlarının beklediği MediaEntry'e çevirir. */
+private fun UserMediaListItem.toListemMediaEntry(): MediaEntry = MediaEntry(
+    id = mediaId,
+    title = title,
+    subtitle = format.orEmpty(),
+    type = mediaType,
+    status = status,
+    score = score?.toInt(),
+    progress = progress,
+    total = total,
+    isAdult = isAdult,
+    source = "anilist",
+    malId = malId,
+    imageUrl = imageUrl,
+    year = year
+)

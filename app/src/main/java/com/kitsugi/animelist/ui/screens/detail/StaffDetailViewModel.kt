@@ -1,7 +1,5 @@
 package com.kitsugi.animelist.ui.screens.detail
 
-import com.kitsugi.animelist.data.remote.JikanGateway
-import com.kitsugi.animelist.data.remote.JikanResult
 import android.app.Application
 import android.util.Log
 import androidx.lifecycle.AndroidViewModel
@@ -15,6 +13,7 @@ import com.kitsugi.animelist.data.remote.GalleryCategory
 import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.data.remote.JikanApiClient
 import com.kitsugi.animelist.data.remote.KitsugiMediaMutationsClient
+import com.kitsugi.animelist.data.remote.KitsugiPersonImageAggregator
 import com.kitsugi.animelist.data.remote.RateLimitException
 import com.kitsugi.animelist.data.remote.ResourceNotFoundException
 import com.kitsugi.animelist.data.settings.SettingsDataStore
@@ -25,8 +24,6 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import org.json.JSONObject
-import java.net.URL
 
 class StaffDetailViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -181,25 +178,43 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
     }
 
     /**
-     * Ekip üyesi görsellerini Jikan /people/{id}/pictures endpoint'inden alır.
-     * Ana imageUrl dahil tüm görseller CHARACTER kategorisinde etiketlenir.
+     * Kişi (seslendirmen / oyuncu / personel) galerisi: birincil görsel + **tüm kaynaklardan**
+     * toplanan ek görseller (bkz. [KitsugiPersonImageAggregator]).
+     *
+     * Kimlik çözüm kuralları:
+     *  - Jikan/MAL: kimlik zaten MAL kişi kimliği.
+     *  - Shikimori: kişi kimliği MAL kimliğiyle aynıdır.
+     *  - AniList/Bangumi/TMDB/Kitsu kimlikleri MAL uzayında DEĞİLDİR — Jikan sorgusu yapılmaz
+     *    (eski koddaki 404/alakasız-kişi riski korunmuş olur).
+     *  - TMDB: kaynak tmdb ise kimlik TMDB kişi kimliğidir → profil fotoğrafı listesi açılır;
+     *    diğer kaynaklarda kimlik isimle (sıkı eşleşme) çözülür.
      */
     private suspend fun buildStaffGallery(staffId: Int, source: String, mainImageUrl: String?) {
-        val jikanId = if (source.lowercase() == "anilist" && staffId >= 100_000_000) {
-            null
-        } else if (source.equals("bangumi", ignoreCase = true)) {
-            // Bangumi kişi kimliği MAL uzayında DEĞİLDİR; Jikan /people/{id}/pictures alakasız
-            // bir kişinin görsellerini getirirdi.
-            null
-        } else {
-            staffId.takeIf { it > 0 }
+        val detail = (_state.value as? StaffDetailState.Success)?.detail
+        val canonical = when (source.lowercase().trim()) {
+            "mal", "jikan", "myanimelist" -> "jikan"
+            else -> source.lowercase().trim()
         }
 
-        val pictureUrls = if (jikanId != null && source.lowercase() != "anilist") {
-            withContext(Dispatchers.IO) {
-                fetchJikanPictures(jikanId, "people")
-            }
-        } else emptyList()
+        val malId = when (canonical) {
+            "jikan" -> staffId.takeIf { it > 0 }
+            "shikimori" -> detail?.id?.takeIf { it > 0 }
+            else -> null
+        }
+        val aniListId = detail?.aniListId?.takeIf { it > 0 }
+            ?: if (canonical == "anilist" && staffId < 100_000_000) staffId.takeIf { it > 0 } else null
+
+        val names = buildList {
+            detail?.name?.let(::add)
+            lastStaffName?.let(::add)
+            detail?.nativeName?.let(::add)
+            detail?.romanizedName?.let(::add)
+            detail?.englishName?.let(::add)
+            detail?.alternativeNames?.let(::addAll)
+        }.filter { it.isNotBlank() }.distinct()
+
+        val tmdbEnabled = runCatching { settingsDataStore.settingsFlow.first() }
+            .getOrNull()?.tmdbEnabled ?: true
 
         val friendlySource = when (source.lowercase().trim()) {
             "kitsu" -> "Kitsu"
@@ -211,44 +226,32 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
             "mal", "jikan" -> "MyAnimeList"
             else -> "Kişi"
         }
+        val description = detail?.name ?: lastStaffName
+
+        val aggregated = runCatching {
+            KitsugiPersonImageAggregator.aggregate(
+                kind = KitsugiPersonImageAggregator.PersonKind.PERSON,
+                source = source,
+                id = staffId,
+                malId = malId,
+                aniListId = aniListId,
+                names = names,
+                tmdbEnabled = tmdbEnabled
+            )
+        }.getOrDefault(emptyList())
 
         val items = buildList {
             if (!mainImageUrl.isNullOrBlank()) {
-                add(GalleryItem(url = mainImageUrl, source = friendlySource, category = GalleryCategory.PERSON, description = lastStaffName))
+                add(GalleryItem(url = mainImageUrl, source = friendlySource, category = GalleryCategory.PERSON, description = description))
             }
-            for (url in pictureUrls) {
-                if (url != mainImageUrl && url.isNotBlank()) {
-                    add(GalleryItem(url = url, source = "MyAnimeList", category = GalleryCategory.PERSON, description = lastStaffName))
+            for (img in aggregated) {
+                if (img.url != mainImageUrl && img.url.isNotBlank()) {
+                    add(GalleryItem(url = img.url, source = img.source, category = GalleryCategory.PERSON, description = description))
                 }
             }
         }.distinctBy { it.url }
 
         _galleryItems.value = items
-    }
-
-    private fun fetchJikanPictures(id: Int, endpoint: String): List<String> {
-        val url = URL("https://api.jikan.moe/v4/$endpoint/$id/pictures")
-        // Bu yükleyici withContext(IO) içinden çağrılır; kota kapısı bloklayabilir.
-        // Kota kapısı + host zinciri (miribyou → Tenrai) + önbellek JikanGateway'de.
-        return runCatching {
-            val text = (JikanGateway.fetchBlocking(url.toString(), JikanGateway.Priority.UI) as? JikanResult.Ok)?.body
-                ?: return@runCatching emptyList()
-            run {
-                val dataArr = JSONObject(text).optJSONArray("data") ?: return@runCatching emptyList()
-                val urls = mutableListOf<String>()
-                for (i in 0 until dataArr.length()) {
-                    val obj = dataArr.getJSONObject(i)
-                    val webp = obj.optJSONObject("webp")
-                    val jpg = obj.optJSONObject("jpg")
-                    val picUrl = webp?.optString("large_image_url")?.takeIf { it.isNotBlank() }
-                        ?: webp?.optString("image_url")?.takeIf { it.isNotBlank() }
-                        ?: jpg?.optString("large_image_url")?.takeIf { it.isNotBlank() }
-                        ?: jpg?.optString("image_url")?.takeIf { it.isNotBlank() }
-                    if (!picUrl.isNullOrBlank()) urls.add(picUrl)
-                }
-                urls
-            }
-        }.getOrElse { emptyList() }
     }
 
     /**
