@@ -1,5 +1,67 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.214)
+
+### 🌟 1. Vitrin v2: Akıllı Seçim ve Skorlama Motoru (`HeroSelection.kt`)
+- **Metrik Tabanlı Puanlama:** Vitrin (Hero Section) içerik seçimi rastgelelikten çıkarılıp ağırlıklı metrik algoritmasına geçirildi:
+  $$\text{Skor} = (\text{Puan} \times 10) + (\log_{10}(\text{Üye} + 1) \times 8) + (\log_{10}(\text{Favori} + 1) \times 6) + \text{Rank} + \text{Trend (15)} + \text{Sezon (10)} + \text{Manga (8)}$$
+- **Katalog ve Format Çeşitliliği:** Vitrinin tek bir türe veya kaynağa boğulması engellendi; en fazla 2 manga, en az 5 anime/dizi/film ve kaynak başına tavan sınırı (en fazla 3) ile dengeli bir vitrin akışı sağlandı.
+- **Kaynaklar Arası Metrik Normalizasyonu:** TMDB gibi üye/favori bilgisi içermeyen kaynaklarda oy sayısı (`voteCount`) ve oy ortalaması logaritmik olarak dengelenerek haksız puan kaybı önlendi.
+- **Görsel Kalite Filtresi:** Arka planı (backdrop) veya yüksek çözünürlüklü yatay görseli bulunmayan içerikler vitrin önceliğinde elenir.
+
+### 🖼️ 2. Fit + Bulanık Dolgu Katmanlı Görsel Mimarisi (Kırpma Düzeltmesi)
+- **Görsel Kırpma / Kesilme Sorunu Çözüldü (`KitsugiHeroSection.kt`):** Eski zorunlu kırpma (`ContentScale.Crop`) nedeniyle dikey afişlerin ve karakter yüzlerinin kesilme problemi tamamen ortadan kaldırıldı.
+- **Çift Katmanlı Sunum:**
+  - **Ön Plan:** Orijinal en-boy oranını tam koruyan (`ContentScale.Fit`) net ve keskin ana görsel.
+  - **Arka Plan:** Ekranı boşluk bırakmadan dolduran, ortam rengini yansıtan bulanık dolgu katmanı (`HeroAmbientBackground` — Crop + Blur + Karartma).
+- **Yumuşatılmış Gradyanlar:** Başlık ve meta metinlerinin okunabilirliğini artırırken görseli boğmayan yumuşak alt ve üst geçiş katmanları uygulandı.
+
+### 🔄 3. TMDB Arka Plan Entegrasyonu ve Birleştirme (`ExploreViewModel.kt`)
+- **Eksik Arka Planları Tamamlama (`enrichHeroBackdrops`):** MAL, Bangumi veya diğer kaynaklardan gelen popüler animelerde yatay backdrop bulunmadığında, TMDB üzerinden otomatik olarak yatay afiş temin edilir ve `heroBackdropOverrides` ile vitrinde kullanılır.
+- **Tüm Bölümlerden Havuz Oluşturma (`ExploreScreen.kt` & `AllSourcesExplore.kt`):** Trend, Popüler, Sezonluk ve Manga listelerinin tamamından tekilleştirilmiş zengin havuz toplanarak yeni vitrin motoruna teslim edildi.
+
+### 📊 4. Zengin Meta ve İstatistik Satırı (`HeroSectionComponents.kt`)
+- **Kompakt Metrik Bilgileri:** Vitrin kartlarının altındaki meta satırına "1.2M üye • 45.3K favori" şeklinde biçimlendirilmiş topluluk metrikleri eklendi.
+
+### 🧪 5. Testler ve Doğrulama (`HeroSelectionTest.kt`)
+- Vitrin seçim ve skorlama motoru için 10 adet birim testi eklendi; kaynak çeşitliliği, skor hesaplamaları, TMDB normalizasyonu ve fallback senaryoları %100 başarıyla doğrulandı.
+
+### 📦 6. Dağıtım
+- Yalnızca **FOSS** sürümü (`assembleFossRelease`) derlendi (`Kitsugi-Beta-v2.4.214-foss.apk`).
+
+---
+
+## 🇬🇧 English (v2.4.214)
+
+### 🌟 1. Vitrin / Hero Section v2: Intelligent Selection Engine (`HeroSelection.kt`)
+- **Weighted Metric Scoring:** Vitrin items are now selected through a multi-factor ranking algorithm:
+  $$\text{Score} = (\text{Score} \times 10) + (\log_{10}(\text{Members} + 1) \times 8) + (\log_{10}(\text{Favorites} + 1) \times 6) + \text{Rank} + \text{Trending Bonus (15)} + \text{Seasonal Bonus (10)} + \text{Manga Bonus (8)}$$
+- **Format & Source Diversity:** Guaranteed balanced representation across the carousel: max 2 manga, min 5 anime/shows, and provider caps (max 3 per provider) preventing single-source domination.
+- **Cross-Source Metric Normalization:** Sources lacking member/favorite counts (e.g. TMDB) are normalized using vote counts and ratings to maintain fair scoring.
+- **Backdrop Quality Gate:** Automatically prioritizes titles with high-resolution backdrops or landscape banners over raw vertical posters.
+
+### 🖼️ 2. Layered Fit + Ambient Blur Presentation (Cropping Fix)
+- **Eliminated Poster Cropping (`KitsugiHeroSection.kt`):** Fixed the aggressive `ContentScale.Crop` behavior that cropped character heads and vertical poster artwork.
+- **Dual-Layer Rendering:**
+  - **Foreground:** Pristine uncropped asset rendered with `ContentScale.Fit`, preserving the original aspect ratio.
+  - **Background:** Ambient blur fill (`HeroAmbientBackground` — Crop + Blur + Dim) that seamlessly expands to fill widescreen or ultra-wide viewport edges.
+- **Refined Gradients:** Softened multi-stop linear gradients ensuring text readability without obscuring artwork.
+
+### 🔄 3. TMDB Backdrop Enrichment (`ExploreViewModel.kt`)
+- **Backdrop Fallback Hydration (`enrichHeroBackdrops`):** When popular entries from MAL or Bangumi lack native horizontal backdrops, the ViewModel dynamically queries TMDB for matching fanart/backdrops, merging them via `heroBackdropOverrides`.
+- **Multi-Shelf Pool Aggregation (`ExploreScreen.kt` & `AllSourcesExplore.kt`):** Merged items across Trending, Popular, Seasonal, and Manga shelves into an enriched pool fed into the selection engine.
+
+### 📊 4. Compact Community Statistics (`HeroSectionComponents.kt`)
+- **Rich Meta Display:** Added formatted community engagement badges (e.g. "1.2M members • 45.3K favorites") to the hero meta bar.
+
+### 🧪 5. Testing & Validation (`HeroSelectionTest.kt`)
+- Added 10 unit tests covering selection diversity, score calculation, TMDB fallback normalization, and edge cases with 100% pass rate.
+
+### 📦 6. Distribution
+- Strictly released the **FOSS variant only** (`assembleFossRelease` -> `Kitsugi-Beta-v2.4.214-foss.apk`).
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.213)
 
 ### 🔍 1. Arama Ekranı: Yükleme Animasyonu Tutarlılığı (Shimmer Fix)

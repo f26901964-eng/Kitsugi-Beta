@@ -101,8 +101,18 @@ fun buildHeroMeta(
                 add(scoreStr)
             }
         }
+        // Vitrin seçim kriterlerini görünür kıl: üye/izlenme ve favorileme sayısı.
+        result.members?.takeIf { it > 0 }?.let { add("${compactStat(it)} üye") }
+        result.favorites?.takeIf { it > 0 }?.let { add("${compactStat(it)} favori") }
         if (result.total != null) add("Toplam ${result.total}")
     }
 
     return parts.joinToString(" • ")
+}
+
+/** Büyük sayıları kısa gösterir: 3_400_000 → "3.4M", 128_000 → "128K". */
+private fun compactStat(value: Int): String = when {
+    value >= 1_000_000 -> String.format(java.util.Locale.US, "%.1fM", value / 1_000_000.0)
+    value >= 1_000 -> String.format(java.util.Locale.US, "%.1fK", value / 1_000.0)
+    else -> value.toString()
 }

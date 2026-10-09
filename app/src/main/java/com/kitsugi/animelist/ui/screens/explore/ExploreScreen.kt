@@ -108,37 +108,73 @@ fun ExploreScreen(
     val filteredAiringSoonAnime = remember(viewModel.airingSoonAnime, showAdultContent) { viewModel.airingSoonAnime.filter { showAdultContent || !it.isAdult } }
     val filteredUpcomingMediaTmdb = remember(viewModel.upcomingMediaTmdb, showAdultContent) { viewModel.upcomingMediaTmdb.filter { showAdultContent || !it.isAdult } }
 
-    val heroItems = remember(viewModel.selectedPlatform, viewModel.allSourceStates, showAdultContent, filteredTopAnime, filteredAiringAnime, filteredMovieAnime) {
+    // Vitrin: tüm kaynak/kategori havuzundan sayısal metriklere göre seçim.
+    //  - Tümü modu: her kaynaktan en az bir temsil + skor sıralı kontenjan (12'ye kadar).
+    //  - Kaynak modu: o kaynağın tüm bölümleri (trend, yeni eklenen, manga, film...)
+    //    metrik tabanlı puanlanır; kategori tavanlarıyla çeşitlilik korunur (10'a kadar).
+    val heroItems = remember(
+        viewModel.selectedPlatform,
+        viewModel.allSourceStates,
+        showAdultContent,
+        filteredTopAnime,
+        filteredAiringAnime,
+        filteredUpcomingAnime,
+        filteredTopManga,
+        filteredPublishingManga,
+        filteredTrendingAnime,
+        filteredMovieAnime,
+        filteredSeasonalAnime,
+        filteredTrendingManga,
+        filteredNewlyAddedAnime,
+        filteredNewlyAddedManga,
+        filteredUpcomingMediaTmdb
+    ) {
         if (viewModel.selectedPlatform == ExplorePlatform.ALL) {
             allSourceHeroes(viewModel.allSourceStates, showAdultContent)
-        } else if (viewModel.selectedPlatform == ExplorePlatform.TMDB || viewModel.selectedPlatform == ExplorePlatform.SIMKL) {
-            val itemsMix = mutableListOf<JikanSearchResult>()
-            val topIt = filteredTopAnime.iterator()
-            val airIt = filteredAiringAnime.iterator()
-            val movIt = filteredMovieAnime.iterator()
-
-            val addedKeys = mutableSetOf<String>()
-            fun addIfUnique(item: JikanSearchResult) {
-                val key = item.exploreIdentity()
-                if (key !in addedKeys) {
-                    addedKeys.add(key)
-                    itemsMix.add(item)
-                }
-            }
-
-            while (itemsMix.size < 5 && (topIt.hasNext() || airIt.hasNext() || movIt.hasNext())) {
-                if (topIt.hasNext() && itemsMix.size < 5) addIfUnique(topIt.next())
-                if (airIt.hasNext() && itemsMix.size < 5) addIfUnique(airIt.next())
-                if (movIt.hasNext() && itemsMix.size < 5) addIfUnique(movIt.next())
-            }
-            itemsMix
         } else {
-            filteredTopAnime.take(5)
+            val sections = sourceSections(
+                viewModel.selectedPlatform,
+                ExplorePayload(
+                    topAnime = filteredTopAnime,
+                    airingAnime = filteredAiringAnime,
+                    upcomingAnime = filteredUpcomingAnime,
+                    topManga = filteredTopManga,
+                    publishingManga = filteredPublishingManga,
+                    trendingAnime = filteredTrendingAnime,
+                    movieAnime = filteredMovieAnime,
+                    seasonalAnime = filteredSeasonalAnime,
+                    trendingManga = filteredTrendingManga,
+                    newlyAddedAnime = filteredNewlyAddedAnime,
+                    newlyAddedManga = filteredNewlyAddedManga,
+                    upcomingMediaTmdb = filteredUpcomingMediaTmdb
+                )
+            ).filter { it.results.isNotEmpty() }
+            selectHeroItems(
+                sections = sections,
+                limit = HERO_LIMIT_SINGLE,
+                guaranteeSourceCoverage = false,
+                perCategoryCap = HERO_PER_CATEGORY_CAP
+            )
         }
     }
 
     val entryMap = remember(currentEntries) {
         generateExploreEntryMap(currentEntries)
+    }
+
+    // TMDB'den sonradan gelen vitrin arka planlarını (landscape'te kullanılır) birleştir.
+    val displayHeroItems = remember(heroItems, viewModel.heroBackdropOverrides) {
+        val overrides = viewModel.heroBackdropOverrides
+        if (overrides.isEmpty()) {
+            heroItems
+        } else {
+            heroItems.map { item ->
+                overrides[item.exploreIdentity()]
+                    ?.takeIf { it.isNotBlank() }
+                    ?.let { url -> item.copy(backdropUrl = url) }
+                    ?: item
+            }
+        }
     }
 
     val getMediaEntry = remember(entryMap) {
@@ -197,6 +233,13 @@ fun ExploreScreen(
     // ── "Yukarı Çık" FAB — arama/liste sayfalarıyla aynı davranış, alt barla uyumlu ──
     val scope = rememberCoroutineScope()
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
+
+    // Yatay modda kullanılacak arka planlar eksikse seçilen vitrin öğeleri için TMDB'den tamamla.
+    LaunchedEffect(displayHeroItems, isLandscape) {
+        if (isLandscape && displayHeroItems.isNotEmpty()) {
+            viewModel.enrichHeroBackdrops(displayHeroItems)
+        }
+    }
     val navigationBarsPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     val fabBottomPadding by animateDpAsState(
         targetValue = if (isLandscape) {
@@ -270,7 +313,7 @@ fun ExploreScreen(
                             if (heroItems.isNotEmpty()) {
                                 item {
                                     KitsugiHeroSection(
-                                        items = heroItems,
+                                        items = displayHeroItems,
                                         alreadyInList = isAlreadyInList,
                                         onInfoClick = onOpenApiDetail,
                                         titleLanguage = titleLanguage,

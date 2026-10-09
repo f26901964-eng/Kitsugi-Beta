@@ -19,6 +19,7 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withTimeoutOrNull
@@ -1123,6 +1124,54 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     }
 
 
+
+    // ── Vitrin arka plan (backdrop) tamamlama ──────────────────────────────
+    // Vitrin artık tüm bölümlerden seçildiği için yüklemenin ilk 5 öğesiyle
+    // sınırlı TMDB backdrop zenginleştirmesi yetmez. Seçilen vitrin
+    // öğelerinde eksik kalan yatay arka planlar, başlık üzerinden TMDB'den
+    // tamamlanır; sonuçlar exploreIdentity anahtarıyla önbelleklenir.
+    private val heroBackdropCache = mutableMapOf<String, String>() // "" = arama sonuçsuz
+    private val heroBackdropInFlight = mutableSetOf<String>()
+
+    /** identity → backdropUrl eşlemesi (eklendiğinde hero anında güncellenir). */
+    var heroBackdropOverrides by mutableStateOf<Map<String, String>>(emptyMap())
+        private set
+
+    /**
+     * Seçilen vitrin öğelerinde eksik yatay arka planları TMDB'den çözer.
+     * Manga öğeleri bilinçli atlanır (TMDB eşleşmesi uyarlama posterine
+     * kayabilir); başarısız aramalar da önbelleklenir, tekrar tetiklenmez.
+     */
+    fun enrichHeroBackdrops(items: List<JikanSearchResult>) {
+        if (!tmdbEnabledState || items.isEmpty()) return
+        val missing = items.filter { item ->
+            item.backdropUrl.isNullOrBlank() &&
+                item.type != MediaType.Manga &&
+                item.source.trim().lowercase() !in setOf("tmdb", "themoviedb") &&
+                item.exploreIdentity() !in heroBackdropCache &&
+                heroBackdropInFlight.add(item.exploreIdentity())
+        }
+        if (missing.isEmpty()) return
+        viewModelScope.launch {
+            coroutineScope {
+                missing.forEach { item ->
+                    launch {
+                        val identity = item.exploreIdentity()
+                        val url = try {
+                            tmdbApiClient.fetchBackdropByTitle(item.title)
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            null
+                        }
+                        heroBackdropInFlight.remove(identity)
+                        heroBackdropCache[identity] = url ?: ""
+                        heroBackdropOverrides = heroBackdropCache.toMap()
+                    }
+                }
+            }
+        }
+    }
 
     fun nextHero(heroCount: Int) {
         if (heroCount == 0) return

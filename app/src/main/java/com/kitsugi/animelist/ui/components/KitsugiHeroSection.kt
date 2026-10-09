@@ -49,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
@@ -57,10 +58,14 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
+import coil3.request.ImageRequest
+import coil3.request.transformations
+import com.kitsugi.animelist.ui.utils.BlurTransformation
 import com.kitsugi.animelist.ui.components.KitsugiNsfwImage
 import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.data.remote.matches
 import com.kitsugi.animelist.model.MediaEntry
+import com.kitsugi.animelist.ui.theme.LocalBlurAdultMedia
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalIsTvDevice
@@ -85,6 +90,55 @@ private fun heroSourceLabel(source: String): String? = when (source.trim().lower
     "shikimori", "shiki" -> "Shikimori"
     "bangumi", "bgm" -> "Bangumi"
     else -> null
+}
+
+/** Vitrin arka plan dolgusunun bulanıklık yarıçapı. */
+private val HERO_AMBIENT_BLUR: Dp = 32.dp
+/** Öndeki net Fit görselin öne çıkması için arka plan karartması. */
+private const val HERO_AMBIENT_DIM = 0.42f
+
+/**
+ * Vitrin arka plan dolgusu: aynı görselin Crop + bulanık hâli tüm kutuyu
+ * baştan sona doldurur. Öndeki Fit görselin etrafı bu sayede "boşluk"
+ * değil, yumuşak bir devam gibi görünür.
+ *
+ * API 31+ (RenderEffect) GPU bulanıklığı kullanır; altında bitmap
+ * bulanıklık (stack blur) uygulanır. NSFW bulanıklığı aktifken görsel
+ * zaten [KitsugiNsfwImage] içinde bulanıklaşır, burada ham model yeterlidir.
+ */
+@Composable
+private fun HeroAmbientBackground(
+    model: Any?,
+    isAdult: Boolean,
+    blurAdultMedia: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val density = LocalDensity.current
+    val useGpuBlur = KitsugiBlurSupport.hasRenderEffectBlur
+    val shouldBlurNsfw = (LocalBlurAdultMedia.current || blurAdultMedia) && isAdult
+    val bitmapBlurRadiusPx = with(density) { HERO_AMBIENT_BLUR.toPx() }.toInt()
+    val ambientModel = remember(model, useGpuBlur, shouldBlurNsfw, bitmapBlurRadiusPx) {
+        if (useGpuBlur || shouldBlurNsfw) {
+            model
+        } else {
+            ImageRequest.Builder(context)
+                .data(model)
+                .transformations(BlurTransformation(bitmapBlurRadiusPx))
+                .build()
+        }
+    }
+    KitsugiNsfwImage(
+        model = ambientModel,
+        contentDescription = null,
+        isAdult = isAdult,
+        blurAdultMedia = blurAdultMedia,
+        modifier = modifier
+            .fillMaxSize()
+            .then(if (useGpuBlur) Modifier.blur(HERO_AMBIENT_BLUR) else Modifier),
+        contentScale = ContentScale.Crop,
+        alignment = Alignment.Center
+    )
 }
 
 @Composable
@@ -431,12 +485,11 @@ fun KitsugiHeroSection(
                     item.imageUrl?.takeIf { it.isNotBlank() } ?: item.backdropUrl
                 }
                 if (!heroImageModel.isNullOrBlank()) {
-                    // 1. Ana net görsel — dikeyde üstten hizalı poster, yatayda ortalanmış sinematik görsel
-                    KitsugiNsfwImage(
-                        model = heroImageModel,
-                        contentDescription = displayTitle,
-                        isAdult = item.isAdult,
-                        blurAdultMedia = blurAdultMedia,
+                    // Katmanlı sunum:
+                    //  1) Dolgu — kırpmalı + bulanık + karartılmış aynı görsel (tüm alanı doldurur).
+                    //  2) Net görsel — ContentScale.Fit: dikey/yatay modda ve ekran oranına göre
+                    //     resmin SAĞ SOL ÜST ALT kenarları kesilmez, neredeyse tamamı görünür.
+                    Box(
                         modifier = Modifier
                             .fillMaxSize()
                             .graphicsLayer {
@@ -445,10 +498,29 @@ fun KitsugiHeroSection(
                                 translationY = heroScrollTranslationY
                                 scaleX = HERO_BACKGROUND_SCALE * heroScrollScale
                                 scaleY = HERO_BACKGROUND_SCALE * heroScrollScale
-                            },
-                        contentScale = ContentScale.Crop,
-                        alignment = if (layout.isLandscape) Alignment.Center else Alignment.TopCenter
-                    )
+                            }
+                    ) {
+                        HeroAmbientBackground(
+                            model = heroImageModel,
+                            isAdult = item.isAdult,
+                            blurAdultMedia = blurAdultMedia
+                        )
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .background(Color.Black.copy(alpha = HERO_AMBIENT_DIM))
+                        )
+                        // Yatayda metin bloğunun sol kalması için sağa yaslı, dikeyde üstten hizalı.
+                        KitsugiNsfwImage(
+                            model = heroImageModel,
+                            contentDescription = displayTitle,
+                            isAdult = item.isAdult,
+                            blurAdultMedia = blurAdultMedia,
+                            modifier = Modifier.fillMaxSize(),
+                            contentScale = ContentScale.Fit,
+                            alignment = if (layout.isLandscape) Alignment.CenterEnd else Alignment.TopCenter
+                        )
+                    }
                 } else {
                     Box(
                         modifier = Modifier
@@ -496,19 +568,20 @@ fun KitsugiHeroSection(
             )
         }
 
-        // 2. Üst durum çubuğu ve genel kart ton geçişi (yukarıda hafif gölge, ortada transparan, aşağıda soluk geçiş)
+        // 2. Üst durum çubuğu ve genel kart ton geçişi — resmin büyük kısmı net kalsın diye
+        //    (yukarıda durum çubuğu için hafif gölge, ortada transparan, aşağıda metin için geçiş)
         Box(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
                     Brush.verticalGradient(
                         colorStops = arrayOf(
-                            0.0f to KitsugiColors.Background.copy(alpha = 0.50f),
-                            0.18f to KitsugiColors.Background.copy(alpha = 0.15f),
+                            0.0f to KitsugiColors.Background.copy(alpha = 0.42f),
+                            0.15f to KitsugiColors.Background.copy(alpha = 0.10f),
                             0.35f to androidx.compose.ui.graphics.Color.Transparent,
-                            0.55f to KitsugiColors.Background.copy(alpha = 0.30f),
-                            0.72f to KitsugiColors.Background.copy(alpha = 0.65f),
-                            0.88f to KitsugiColors.Background.copy(alpha = 0.92f),
+                            0.58f to KitsugiColors.Background.copy(alpha = 0.10f),
+                            0.76f to KitsugiColors.Background.copy(alpha = 0.42f),
+                            0.90f to KitsugiColors.Background.copy(alpha = 0.78f),
                             1.0f to KitsugiColors.Background
                         )
                     )
@@ -525,8 +598,8 @@ fun KitsugiHeroSection(
                     Brush.verticalGradient(
                         colorStops = arrayOf(
                             0.0f to androidx.compose.ui.graphics.Color.Transparent,
-                            0.35f to KitsugiColors.Background.copy(alpha = 0.40f),
-                            0.70f to KitsugiColors.Background.copy(alpha = 0.85f),
+                            0.40f to KitsugiColors.Background.copy(alpha = 0.22f),
+                            0.72f to KitsugiColors.Background.copy(alpha = 0.58f),
                             1.0f to KitsugiColors.Background
                         )
                     )

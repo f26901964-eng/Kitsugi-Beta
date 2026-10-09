@@ -153,12 +153,23 @@ internal fun ExplorePayload.forSource(platform: ExplorePlatform): ExplorePayload
     )
 }
 
-/** One highlight per available source before selecting a second item from any source. */
+/**
+ * "Tümü" modu vitrini: adaylar tüm kaynakların tüm bölümlerinden sayısal
+ * metriklere (puan, üye, favori, rank + trend/yeni eklenen bonusu) göre
+ * puanlanır ve [selectHeroItems] ile seçilir.
+ *
+ * Sözleşme: her mevcut kaynaktan en az bir temsil garanti edilir (bir
+ * kaynaktan ikinci öğe seçilmeden önce diğer kaynaklar temsil edilir),
+ * kalan kontenjan en yüksek skorlu adaylarla doldurulur — böylece vitrin
+ * hem tüm kaynakları hem de en iyi içerikleri kapsar.
+ */
 fun allSourceHeroes(
     states: Map<ExplorePlatform, ExploreSourceState>,
     showAdultContent: Boolean
-): List<JikanSearchResult> = allSourceSections(states, showAdultContent)
-    .distinctBy { it.platform }
-    .mapNotNull { it.results.firstOrNull() }
-    .distinctBy { it.exploreIdentity() }
-    .take(ExplorePlatform.sources.size)
+): List<JikanSearchResult> = selectHeroItems(
+    sections = allSourceSections(states, showAdultContent),
+    limit = HERO_LIMIT_ALL,
+    guaranteeSourceCoverage = true,
+    perCategoryCap = HERO_PER_CATEGORY_CAP,
+    perSourceCap = HERO_PER_SOURCE_CAP
+)
