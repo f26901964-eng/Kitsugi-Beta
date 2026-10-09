@@ -11,7 +11,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Icon
-import androidx.compose.runtime.Composable
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -21,17 +22,29 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.kitsugi.animelist.data.remote.KitsugiStudioDetail
 import com.kitsugi.animelist.data.remote.KitsugiStaffMediaWork
 import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.data.remote.GalleryCategory
+import com.kitsugi.animelist.data.remote.JikanSearchResult
+import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
 import com.kitsugi.animelist.utils.toFriendlySourceLabel
+import com.kitsugi.animelist.utils.parseToMediaType
 import com.kitsugi.animelist.ui.components.KitsugiMarkdownText
+import com.kitsugi.animelist.ui.components.KitsugiSheetOrDialog
+import com.kitsugi.animelist.ui.components.KitsugiButton
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.FilterAlt
+import androidx.compose.material.icons.rounded.Sort
+import androidx.compose.ui.unit.sp
 
 // Icons
 import androidx.compose.material.icons.Icons
@@ -51,14 +64,15 @@ internal fun StudioHeroHeader(
     isFavourite: Boolean = false,
     showFavouriteButton: Boolean = false,
     onToggleFavourite: () -> Unit = {},
-    onGalleryClick: (() -> Unit)? = null
+    onGalleryClick: (() -> Unit)? = null,
+    height: Dp = 340.dp
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
 
     Box(
         modifier = Modifier
             .fillMaxWidth()
-            .height(340.dp)
+            .height(height)
     ) {
         // Logo / Fallback box
         if (!detail.imageUrl.isNullOrBlank()) {
@@ -214,8 +228,8 @@ internal fun StudioHeroHeader(
                     color = accentColor
                 )
 
-                DetailPill(
-                    text = source.toFriendlySourceLabel().uppercase(),
+                DetailSourcePill(
+                    source = source,
                     color = if (source.equals("tmdb", ignoreCase = true)) Color(0xFFFFB800) else KitsugiColors.TextSecondary
                 )
 
@@ -477,6 +491,263 @@ internal fun StudioDetailLeftPanel(
                     about = detail.about,
                     onGalleryClick = onGalleryClick
                 )
+            }
+        }
+    }
+}
+
+// ── Keşfet "Tümünü Gör" sayfalarıyla birebir aynı filtreleme dili ──────────────
+
+/** Stüdyo yapımları için tür çipi (keşfet sayfasındaki emojili tür çiplerinin karşılığı). */
+internal data class StudioTypeFilter(val id: String, val emoji: String, val name: String) {
+    val displayLabel: String get() = "$emoji $name"
+}
+
+internal val STUDIO_TYPE_FILTERS = listOf(
+    StudioTypeFilter("ALL", "✨", "Tümü"),
+    StudioTypeFilter("ANIME", "🎬", "Anime"),
+    StudioTypeFilter("MANGA", "📖", "Manga"),
+    StudioTypeFilter("MOVIE", "🎥", "Film"),
+    StudioTypeFilter("TV", "📺", "Dizi")
+)
+
+internal enum class StudioSortOption(val emoji: String, val title: String) {
+    DEFAULT("🏆", "Varsayılan Sıralama"),
+    TITLE_ASC("🔤", "İsim: A'dan Z'ye"),
+    TITLE_DESC("🔠", "İsim: Z'den A'ya");
+
+    val displayLabel: String get() = "$emoji $title"
+}
+
+/** Stüdyo yapımını keşfet kartlarıyla aynı görsel dili paylaşan JikanSearchResult'e çevirir. */
+internal fun KitsugiStaffMediaWork.toSearchResult(): JikanSearchResult = JikanSearchResult(
+    malId = mediaId,
+    title = mediaTitle,
+    subtitle = staffRole,
+    type = mediaType.parseToMediaType(),
+    total = null,
+    score = null,
+    isAdult = false,
+    imageUrl = mediaImageUrl,
+    year = null,
+    source = source,
+    titleEnglish = titleEnglish,
+    titleJapanese = titleJapanese,
+    titleRomaji = titleRomaji
+)
+
+internal fun studioTypeMatches(typeId: String, type: MediaType): Boolean = when (typeId) {
+    "ALL" -> true
+    "ANIME" -> type == MediaType.Anime
+    "MANGA" -> type == MediaType.Manga
+    "MOVIE" -> type == MediaType.Movie
+    "TV" -> type == MediaType.TvShow
+    else -> true
+}
+
+/**
+ * Stüdyo/yapımcı detay sayfası için "Filtre ve Sıralama" bottom sheet'i —
+ * [com.kitsugi.animelist.ui.components.KitsugiMediaFilterBottomSheet] ile aynı
+ * görsel dili kullanır (sıralama + tür çipleri), ancak stüdyo verisine uyarlanır.
+ */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+internal fun KitsugiStudioFilterBottomSheet(
+    initialTypeId: String,
+    initialSortOption: StudioSortOption,
+    onDismissRequest: () -> Unit,
+    onApply: (typeId: String, sortOption: StudioSortOption) -> Unit,
+    onReset: () -> Unit
+) {
+    val accentColor = LocalKitsugiAccent.current
+
+    var selectedTypeId by remember { mutableStateOf(initialTypeId) }
+    var selectedSortOption by remember { mutableStateOf(initialSortOption) }
+
+    KitsugiSheetOrDialog(onDismiss = onDismissRequest) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(bottom = 24.dp)
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 20.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                TextButton(
+                    onClick = {
+                        selectedTypeId = "ALL"
+                        selectedSortOption = StudioSortOption.DEFAULT
+                        onReset()
+                        onDismissRequest()
+                    }
+                ) {
+                    Text(
+                        text = "Sıfırla",
+                        color = KitsugiColors.TextMuted,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium
+                    )
+                }
+
+                Text(
+                    text = "Filtre ve Sıralama",
+                    color = KitsugiColors.TextPrimary,
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
+                )
+
+                KitsugiButton(
+                    onClick = {
+                        onApply(selectedTypeId, selectedSortOption)
+                        onDismissRequest()
+                    },
+                    shape = RoundedCornerShape(24.dp)
+                ) {
+                    Text(
+                        text = "Uygula",
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 20.dp)
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Rounded.Sort,
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "Sıralama",
+                        color = KitsugiColors.TextPrimary,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    StudioSortOption.entries.forEach { sort ->
+                        val isSelected = selectedSortOption == sort
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(
+                                    if (isSelected) accentColor.copy(alpha = 0.22f)
+                                    else KitsugiColors.SurfaceSoft
+                                )
+                                .border(
+                                    width = if (isSelected) 1.5.dp else 1.dp,
+                                    color = if (isSelected) accentColor else Color.Transparent,
+                                    shape = RoundedCornerShape(14.dp)
+                                )
+                                .clickable { selectedSortOption = sort }
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = sort.displayLabel,
+                                    color = if (isSelected) accentColor else KitsugiColors.TextPrimary,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    fontSize = 13.sp
+                                )
+                                if (isSelected) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Icon(
+                                        imageVector = Icons.Rounded.Check,
+                                        contentDescription = null,
+                                        tint = accentColor,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(20.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Rounded.FilterAlt,
+                        contentDescription = null,
+                        tint = accentColor,
+                        modifier = Modifier.size(18.dp)
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = "İçerik Türü",
+                        color = KitsugiColors.TextPrimary,
+                        style = MaterialTheme.typography.titleSmall,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    STUDIO_TYPE_FILTERS.forEach { typeFilter ->
+                        val isSelected = selectedTypeId == typeFilter.id
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(
+                                    if (isSelected) accentColor.copy(alpha = 0.22f)
+                                    else KitsugiColors.SurfaceSoft
+                                )
+                                .border(
+                                    width = if (isSelected) 1.5.dp else 1.dp,
+                                    color = if (isSelected) accentColor else Color.Transparent,
+                                    shape = RoundedCornerShape(14.dp)
+                                )
+                                .clickable { selectedTypeId = typeFilter.id }
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = typeFilter.displayLabel,
+                                    color = if (isSelected) accentColor else KitsugiColors.TextPrimary,
+                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                    fontSize = 13.sp
+                                )
+                                if (isSelected) {
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Icon(
+                                        imageVector = Icons.Rounded.Check,
+                                        contentDescription = null,
+                                        tint = accentColor,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
         }
     }

@@ -334,7 +334,14 @@ data class KitsugiReview(
     val dateText: String? = null,
     val helpfulCount: Int? = null,
     val ratingAmount: Int? = null,
-    val userRating: String? = null
+    val userRating: String? = null,
+    /**
+     * İncellemenin YAZILDIĞI orijinal dil (ISO 639-1). Kaynak sağlayabiliyorsa doldurulur
+     * (TMDB `iso_639_1`). Dilden bağımsız tüm incelemeler gösterildiği için çeviri
+     * aracına kaynak dil olarak iletilir; null ise çeviri tarafı otomatik algılar.
+     */
+    val languageCode: String? = null,
+    val source: String = "anilist"
 )
 
 data class KitsugiForumTopic(
@@ -347,7 +354,8 @@ data class KitsugiForumTopic(
     val dateText: String? = null,
     val likeCount: Int = 0,
     val isLiked: Boolean = false,
-    val userId: Int? = null
+    val userId: Int? = null,
+    val source: String = "anilist"
 )
 
 data class KitsugiForumReply(
@@ -380,7 +388,8 @@ data class KitsugiActivity(
     val mediaId: Int? = null,
     val mediaType: String? = null,
     val isAdult: Boolean = false,
-    val userId: Int? = null
+    val userId: Int? = null,
+    val source: String = "anilist"
 )
 
 data class KitsugiActivityReply(

@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.data.remote
 
+import com.kitsugi.animelist.core.memory.BoundedCache
+
 import android.util.Log
 import com.kitsugi.animelist.core.network.KitsugiHttpClient
 import kotlinx.coroutines.Dispatchers
@@ -54,7 +56,7 @@ object AniSkipClient {
     private data class CacheEntry(val intervals: List<SkipInterval>, val expiresAt: Long)
 
     // Anahtar: "$malId:$episode"
-    private val cache = ConcurrentHashMap<String, CacheEntry>()
+    private val cache = BoundedCache<String, CacheEntry>("aniSkip", 200)
 
     /** İstenen segment türleri — gereksinime göre genişletilebilir */
     private val TYPES = listOf("op", "ed", "recap", "mixed-op", "mixed-ed")

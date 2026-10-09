@@ -469,6 +469,8 @@
     <string name="explore_seasonal_anime">Seasonal Anime</string>
     <string name="explore_bangumi_tv">Bangumi TV Series</string>
     <string name="explore_bangumi_movies">Bangumi Movies</string>
+    <string name="explore_manhwa_manhua">Manhwa &amp; Manhua</string>
+    <string name="explore_novels">Novels &amp; Light Novels</string>
 
     <!-- TMDB / Simkl Explore Sections -->
     <string name="explore_tmdb_trending_all">Trending All</string>

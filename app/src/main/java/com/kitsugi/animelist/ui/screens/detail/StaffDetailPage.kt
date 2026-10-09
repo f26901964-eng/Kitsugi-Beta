@@ -153,7 +153,8 @@ fun StaffDetailPage(
                 KitsugiCinematicLoadingScreen(
                     title = name ?: stringResource(R.string.staff_loading),
                     imageUrl = imageUrl,
-                    onBackClick = onBackClick
+                    onBackClick = onBackClick,
+                    source = source
                 )
             }
             is StaffDetailState.Error -> {

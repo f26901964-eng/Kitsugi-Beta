@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.data.cloudstream.embed
 
+import com.kitsugi.animelist.core.memory.BoundedCache
+
 import android.util.Log
 import com.lagradost.cloudstream3.network.CloudflareKiller
 import com.lagradost.cloudstream3.network.WebViewResolver
@@ -37,7 +39,7 @@ object WebViewMediaSniffer {
     private val globalGate = Semaphore(1)
 
     /** Yakalanan medya istekleri (URL → referer) — aynı sayfa tekrar açılmasın diye önbellek. */
-    private val cache = java.util.concurrent.ConcurrentHashMap<String, String>()
+    private val cache = BoundedCache<String, String>("cs.webViewSniffer", 200)
 
     private val MEDIA_REGEX = Regex(
         """(?i).*\.(m3u8|mp4|mpd|mkv|webm|flv)(\?.*)?$"""

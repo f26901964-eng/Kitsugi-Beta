@@ -470,6 +470,8 @@
     <string name="explore_seasonal_anime">Mevsimlik Anime</string>
     <string name="explore_bangumi_tv">Bangumi Dizileri</string>
     <string name="explore_bangumi_movies">Bangumi Filmleri</string>
+    <string name="explore_manhwa_manhua">Manhwa &amp; Manhua</string>
+    <string name="explore_novels">Noveller &amp; Light Novel</string>
 
     <!-- TMDB / Simkl Explore Sections -->
     <string name="explore_tmdb_trending_all">Trend Her Şey</string>
@@ -893,6 +895,7 @@
 
     <!-- Common Staff/Crew Roles -->
     <string name="staff_role_director">Yönetmen</string>
+    <string name="staff_role_directing">Yönetmenlik</string>
     <string name="staff_role_producer">Yapımcı</string>
     <string name="staff_role_writer">Yazar</string>
     <string name="staff_role_creator">Yaratıcı</string>

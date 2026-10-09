@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.data.remote
 
+import com.kitsugi.animelist.core.memory.BoundedCache
+
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -24,7 +26,7 @@ internal object TmdbDiscoverClient {
     // ── In-memory TTL cache ─────────────────────────────────────────────────────
     private const val TTL_MS = 60 * 60 * 1_000L
     private data class CacheEntry(val data: List<JikanSearchResult>, val fetchedAt: Long)
-    private val cache = ConcurrentHashMap<String, CacheEntry>()
+    private val cache = BoundedCache<String, CacheEntry>("tmdb.discover", 60)
 
     /**
      * Önbellek anahtarı; dil ve başlık çözümleme sürümünü içerir.

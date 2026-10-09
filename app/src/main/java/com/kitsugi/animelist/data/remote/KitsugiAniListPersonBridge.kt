@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.data.remote
 
+import com.kitsugi.animelist.core.memory.BoundedCache
+
 import com.kitsugi.animelist.model.MediaType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -51,7 +53,7 @@ internal object KitsugiAniListPersonBridge {
         val staff: List<NameVariant>
     )
 
-    private val cache = ConcurrentHashMap<Int, MediaNames>()
+    private val cache = BoundedCache<Int, MediaNames>("anilist.personBridge", 500)
 
     private fun isLatinName(text: String): Boolean =
         text.any { it.isLetter() } &&

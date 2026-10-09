@@ -36,6 +36,7 @@ class KitsugiStudioClient {
                     } else detail
                 }
                 "anilist" -> fetchAniListStudioDetail(studioId)
+                "bangumi" -> fetchBangumiStudioDetail(studioId)
                 "tmdb" -> {
                     val tmdbRes = fetchTmdbStudioDetail(studioId)
                     if (tmdbRes != null && !tmdbRes.name.isNullOrBlank() &&
@@ -49,6 +50,33 @@ class KitsugiStudioClient {
                 else -> null
             }
         }
+    }
+
+    /**
+     * Bangumi'de stüdyo/şirketler ayrı bir kayıt türü değil, 人物 (kişi)条目'larının
+     * `type = 2` (公司) alt kümesidir. Bu yüzden kurum detayı, kişi ucu üzerinden okunur ve
+     * Kitsugi'nin stüdyo modeline çevrilir: açıklamalar infobox'dan, "Yapımlar" listesi
+     * `/persons/{id}/works` ucundan gelir.
+     */
+    private suspend fun fetchBangumiStudioDetail(personId: Int): KitsugiStudioDetail? {
+        val person = runCatching {
+            KitsugiBangumiDetailClient.fetchStaffDetail(personId)
+        }.getOrNull() ?: return null
+
+        val about = buildString {
+            if (!person.occupation.isNullOrBlank()) appendLine(person.occupation)
+            if (!person.homeTown.isNullOrBlank()) appendLine(person.homeTown)
+            if (!person.biography.isNullOrBlank()) append(person.biography)
+        }.trim().takeIf { it.isNotBlank() }
+
+        return KitsugiStudioDetail(
+            id = person.id,
+            name = person.englishName ?: person.name,
+            isMain = true,
+            imageUrl = person.imageUrl,
+            about = about,
+            mediaWorks = person.mediaWorks
+        )
     }
 
     private suspend fun fetchTmdbStudioDetail(studioId: Int): KitsugiStudioDetail? {

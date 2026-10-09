@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.data.trailer
 
+import com.kitsugi.animelist.core.memory.BoundedCache
+
 import android.content.Context
 import android.util.Log
 import com.kitsugi.animelist.data.remote.TmdbApiClient
@@ -35,11 +37,11 @@ class TrailerService(
     private val tmdbClient = TmdbApiClient()
 
     // Cache: "title|year|tmdbId|type" -> TrailerPlaybackSource (NEGATIVE_CACHE sentinel for misses)
-    private val cache = ConcurrentHashMap<String, TrailerPlaybackSource>()
+    private val cache = BoundedCache<String, TrailerPlaybackSource>("trailer.playback", 100)
     private val NEGATIVE_CACHE = TrailerPlaybackSource(videoUrl = "")
 
     // Time-bound cache: youtubeVideoId -> resolved playback source (success-only)
-    private val youtubeSourceCache = ConcurrentHashMap<String, CachedTrailerPlaybackSource>()
+    private val youtubeSourceCache = BoundedCache<String, CachedTrailerPlaybackSource>("trailer.youtube", 100)
 
     private data class CachedTrailerPlaybackSource(
         val playbackSource: TrailerPlaybackSource,

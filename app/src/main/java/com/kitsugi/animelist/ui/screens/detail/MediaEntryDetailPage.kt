@@ -314,7 +314,8 @@ fun MediaEntryDetailPage(
                     onBackClick = onBackClick,
                     logoUrl = if (showAnimeLogos) logoUrl else null,
                     isAdult = displayEntry.isAdult,
-                    blurAdultMedia = blurAdultMedia
+                    blurAdultMedia = blurAdultMedia,
+                    source = displayEntry.source
                 )
             },
             errorScreen = {

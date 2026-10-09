@@ -204,6 +204,8 @@ class JikanApiClient(
     suspend fun trendingManga(page: Int = 1, showAdultContent: Boolean = false) = jikanSearchClient.trendingManga(page, showAdultContent)
     suspend fun newlyAddedAnime(page: Int = 1, showAdultContent: Boolean = false) = jikanSearchClient.newlyAddedAnime(page, showAdultContent)
     suspend fun newlyAddedManga(page: Int = 1, showAdultContent: Boolean = false) = jikanSearchClient.newlyAddedManga(page, showAdultContent)
+    suspend fun manhwaManhua(page: Int = 1, showAdultContent: Boolean = false) = jikanSearchClient.manhwaManhua(page, showAdultContent)
+    suspend fun novelsShelf(page: Int = 1, showAdultContent: Boolean = false) = jikanSearchClient.novelsShelf(page, showAdultContent)
     suspend fun seasonalAnime(
         page: Int = 1,
         showAdultContent: Boolean = false,
@@ -226,6 +228,7 @@ class JikanApiClient(
     suspend fun aniListTrendingManga(page: Int = 1, showAdultContent: Boolean = false) = aniListSearchClient.aniListTrendingManga(page, showAdultContent)
     suspend fun aniListNewlyAddedAnime(page: Int = 1, showAdultContent: Boolean = false) = aniListSearchClient.aniListNewlyAddedAnime(page, showAdultContent)
     suspend fun aniListNewlyAddedManga(page: Int = 1, showAdultContent: Boolean = false) = aniListSearchClient.aniListNewlyAddedManga(page, showAdultContent)
+    suspend fun aniListNovels(page: Int = 1, showAdultContent: Boolean = false) = aniListSearchClient.aniListNovels(page, showAdultContent)
     suspend fun aniListSeasonalAnime(
         page: Int = 1,
         showAdultContent: Boolean = false,

@@ -212,9 +212,9 @@ class TmdbApiClient(
         TmdbCreditsClient.fetchRecommendations(tmdbId, isMovie, apiKey, language, ::executeGet)
     }
 
-    suspend fun fetchReviews(tmdbId: Int, isMovie: Boolean): List<KitsugiReview> = withContext(Dispatchers.IO) {
+    suspend fun fetchReviews(tmdbId: Int, isMovie: Boolean, page: Int = 1): List<KitsugiReview> = withContext(Dispatchers.IO) {
         if (!isTmdbEnabled()) return@withContext emptyList()
-        TmdbCreditsClient.fetchReviews(tmdbId, isMovie, apiKey, language, ::executeGet)
+        TmdbCreditsClient.fetchReviews(tmdbId, isMovie, apiKey, language, ::executeGet, page)
     }
 
     suspend fun fetchPersonCharacterDetail(personId: Int): KitsugiCharacterDetail? = withContext(Dispatchers.IO) {

@@ -162,19 +162,19 @@ internal fun EntryDetailOverviewTab(
                 producers = detail.producers,
                 networks = detail.networks,
                 onStudioClick = { studio ->
-                    val resolvedSource = when {
-                        entry.source.lowercase() == "anilist" -> "anilist"
-                        entry.type == MediaType.Anime || entry.type == MediaType.Manga -> "jikan"
-                        else -> "tmdb"
-                    }
+                    val resolvedSource = resolveStudioClickSource(
+                        studioSource = studio.source,
+                        mediaSource = entry.source.lowercase(),
+                        mediaType = entry.type
+                    )
                     onStudioClick(studio.id, resolvedSource, studio.name, null)
                 },
                 onProducerClick = { producer ->
-                    val resolvedSource = when {
-                        entry.source.lowercase() == "anilist" -> "anilist"
-                        entry.type == MediaType.Anime || entry.type == MediaType.Manga -> "jikan"
-                        else -> "tmdb"
-                    }
+                    val resolvedSource = resolveStudioClickSource(
+                        studioSource = producer.source,
+                        mediaSource = entry.source.lowercase(),
+                        mediaType = entry.type
+                    )
                     onStudioClick(producer.id, resolvedSource, producer.name, null)
                 }
             )

@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.data.remote
 
+import com.kitsugi.animelist.core.memory.BoundedCache
+
 import java.util.concurrent.ConcurrentHashMap
 
 object DetailCache {
@@ -9,17 +11,17 @@ object DetailCache {
         val ratings: Map<Pair<Int, Int>, Double>,
         val expiresAtMs: Long
     )
-    val episodeRatingsCache = ConcurrentHashMap<Int, RatingCacheEntry>()
+    val episodeRatingsCache = BoundedCache<Int, RatingCacheEntry>("detail.episodeRatings", 150)
 
     // ─── MAL ID → TMDB ID mapping ────────────────────────────────────────────
     // Negative keys = AniList IDs (stored as -aniListId)
-    val malToTmdbCache = java.util.Collections.synchronizedMap(HashMap<Int, Int?>())
+    val malToTmdbCache: MutableMap<Int, Int?> = BoundedCache<Int, Int?>("detail.malToTmdb", 3000)
 
     // ─── TMDB ID → TVDB ID mapping ───────────────────────────────────────────
-    val tmdbToTvdbCache = java.util.Collections.synchronizedMap(HashMap<Int, Int?>())
+    val tmdbToTvdbCache: MutableMap<Int, Int?> = BoundedCache<Int, Int?>("detail.tmdbToTvdb", 3000)
 
     // ─── TMDB ID → Logo URL mapping ──────────────────────────────────────────
-    val logoCache = java.util.Collections.synchronizedMap(HashMap<Int, String?>())
+    val logoCache: MutableMap<Int, String?> = BoundedCache<Int, String?>("detail.logo", 1500)
 
     // ─── TMDB (tmdbId, season) → episode DTOs ────────────────────────────────
     data class TmdbEpisodeDtoCached(
@@ -29,21 +31,21 @@ object DetailCache {
         val stillPath: String?,
         val airDate: String?
     )
-    val tmdbEpisodesCache = ConcurrentHashMap<Pair<Int, Int>, List<TmdbEpisodeDtoCached>>()
-    private val mediaDetails = ConcurrentHashMap<String, KitsugiMediaDetail>()
-    private val mediaCharacters = ConcurrentHashMap<String, List<KitsugiCharacter>>()
-    private val mediaStaff = ConcurrentHashMap<String, List<KitsugiStaff>>()
-    private val mediaRelations = ConcurrentHashMap<String, List<KitsugiRelation>>()
-    private val mediaStats = ConcurrentHashMap<String, KitsugiStats>()
-    private val mediaReviews = ConcurrentHashMap<String, List<KitsugiReview>>()
-    private val mediaEpisodes = ConcurrentHashMap<String, List<KitsugiStreamingEpisode>>()
-    private val mediaRecommendations = ConcurrentHashMap<String, List<KitsugiRelation>>()
+    val tmdbEpisodesCache = BoundedCache<Pair<Int, Int>, List<TmdbEpisodeDtoCached>>("detail.tmdbEpisodes", 80)
+    private val mediaDetails = BoundedCache<String, KitsugiMediaDetail>("detail.media", 160)
+    private val mediaCharacters = BoundedCache<String, List<KitsugiCharacter>>("detail.characters", 80)
+    private val mediaStaff = BoundedCache<String, List<KitsugiStaff>>("detail.staff", 80)
+    private val mediaRelations = BoundedCache<String, List<KitsugiRelation>>("detail.relations", 80)
+    private val mediaStats = BoundedCache<String, KitsugiStats>("detail.stats", 80)
+    private val mediaReviews = BoundedCache<String, List<KitsugiReview>>("detail.reviews", 40)
+    private val mediaEpisodes = BoundedCache<String, List<KitsugiStreamingEpisode>>("detail.episodes", 60)
+    private val mediaRecommendations = BoundedCache<String, List<KitsugiRelation>>("detail.recommendations", 60)
 
-    private val characterDetails = ConcurrentHashMap<String, KitsugiCharacterDetail>()
-    private val staffDetails = ConcurrentHashMap<String, KitsugiStaffDetail>()
-    private val studioDetails = ConcurrentHashMap<String, KitsugiStudioDetail>()
+    private val characterDetails = BoundedCache<String, KitsugiCharacterDetail>("detail.characterDetail", 60)
+    private val staffDetails = BoundedCache<String, KitsugiStaffDetail>("detail.staffDetail", 60)
+    private val studioDetails = BoundedCache<String, KitsugiStudioDetail>("detail.studioDetail", 30)
 
-    private val translations = ConcurrentHashMap<String, String>()
+    private val translations = BoundedCache<String, String>("detail.translations", 300)
 
     fun makeKey(source: String, id: Int, mediaType: String? = null): String {
         return if (!mediaType.isNullOrBlank()) {
@@ -209,8 +211,8 @@ object DetailCache {
         studioDetails[makeKey(source, id)] = detail
     }
 
-    private val fanartGalleryCache = ConcurrentHashMap<String, List<GalleryItem>>()
-    private val tmdbGalleryCache = ConcurrentHashMap<String, List<GalleryItem>>()
+    private val fanartGalleryCache = BoundedCache<String, List<GalleryItem>>("detail.fanartGallery", 20)
+    private val tmdbGalleryCache = BoundedCache<String, List<GalleryItem>>("detail.tmdbGallery", 20)
 
     // Translations (Synopsis / Biography)
     fun getTranslation(type: String, source: String, id: Int): String? {
@@ -269,7 +271,7 @@ object DetailCache {
     }
 
     // Shikimori Gallery Cache
-    private val shikimoriGalleryCache = ConcurrentHashMap<Int, List<GalleryItem>>()
+    private val shikimoriGalleryCache = BoundedCache<Int, List<GalleryItem>>("detail.shikimoriGallery", 20)
 
     fun getShikimoriGallery(id: Int): List<GalleryItem>? = shikimoriGalleryCache[id]
     fun putShikimoriGallery(id: Int, list: List<GalleryItem>) { shikimoriGalleryCache[id] = list }

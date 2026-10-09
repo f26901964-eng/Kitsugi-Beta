@@ -39,7 +39,7 @@ import com.kitsugi.animelist.data.remote.KitsugiStudio
 import com.kitsugi.animelist.data.remote.KitsugiTag
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
-import com.kitsugi.animelist.ui.screens.search.SearchTranslation
+import com.kitsugi.animelist.utils.toLocalizedTagLabel
 
 // ---------------------------------------------------------------------------
 //  Stüdyo / Yapımcı chips bölümü
@@ -135,12 +135,16 @@ fun KitsugiTagsCard(
     var showSpoilers by remember { mutableStateOf(false) }
     var expanded by remember { mutableStateOf(false) }
 
-    val visibleTags = tags
+    // Çeviriden sonra aynı anlama gelen yazımlar tek çipte toplanır: Bangumi'de
+    // 京阿尼 / 京都动画 / 京都アニメーション ve "Kyoto Animation" ayrı kayıtlar olarak gelir.
+    val distinctTags = tags.distinctByLocalizedLabel()
+
+    val visibleTags = distinctTags
         .filter { showSpoilers || !it.isSpoiler }
         .let { if (!expanded) it.take(10) else it }
 
-    val hasSpoilers = tags.any { it.isSpoiler }
-    val hasMore = tags.filter { showSpoilers || !it.isSpoiler }.size > 10
+    val hasSpoilers = distinctTags.any { it.isSpoiler }
+    val hasMore = distinctTags.filter { showSpoilers || !it.isSpoiler }.size > 10
 
     Column(
         modifier = Modifier
@@ -241,12 +245,21 @@ private fun TagChip(tag: KitsugiTag, accentColor: Color, onClick: (() -> Unit)? 
             )
         }
         Text(
-            text = SearchTranslation.translateToTurkishForDisplay(tag.name),
+            // Bangumi tür/etiketleri Çince/Japonca gelir; arayüz diline çevrilir, eşleme
+            // yoksa kaynak değeri gösterilir (arama her zaman orijinal etiketle yapılır).
+            text = tag.name.toLocalizedTagLabel(),
             color = chipColor,
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.SemiBold
         )
     }
+}
+
+/** Gösterim etiketi aynı olan çipleri tekilleştirir (ilk kayıt kalır). */
+private fun List<KitsugiTag>.distinctByLocalizedLabel(): List<KitsugiTag> {
+    if (size < 2) return this
+    val seen = HashSet<String>()
+    return filter { seen.add(it.name.toLocalizedTagLabel().trim().lowercase(java.util.Locale.ROOT)) }
 }
 
 // ---------------------------------------------------------------------------

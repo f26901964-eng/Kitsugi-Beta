@@ -213,8 +213,8 @@ internal fun ApiHero(
                     color = accentColor
                 )
 
-                ApiDetailPill(
-                    text = result.source.toFriendlySourceLabel().uppercase(),
+                DetailSourcePill(
+                    source = result.source,
                     color = if (result.source.equals("tmdb", ignoreCase = true)) Color(0xFFFFB800) else accentColor
                 )
 

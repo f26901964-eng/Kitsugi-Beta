@@ -344,8 +344,8 @@ fun KitsugiDetailHero(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                HeroDetailPill(
-                    text = source.toFriendlySourceLabel().uppercase(),
+                DetailSourcePill(
+                    source = source,
                     color = if (source.equals("tmdb", ignoreCase = true)) Color(0xFFFFB800) else accentColor
                 )
 

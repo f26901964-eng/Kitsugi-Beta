@@ -27,6 +27,7 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.kitsugi.animelist.data.remote.JikanApiClient
 import com.kitsugi.animelist.data.remote.KitsugiActivity
+import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
@@ -342,10 +343,6 @@ fun KitsugiAllActivitiesBottomSheet(
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier.tvClickable(shape = RoundedCornerShape(8.dp)) {
-                                        if (source.lowercase() == "jikan" || source.lowercase() == "mal") {
-                                            Toast.makeText(context, "Beğeni özelliği MAL kaynağı için desteklenmemektedir.", Toast.LENGTH_SHORT).show()
-                                            return@tvClickable
-                                        }
                                         coroutineScope.launch {
                                             val success = apiClient.toggleLike(act.id, "ACTIVITY")
                                             if (success) {

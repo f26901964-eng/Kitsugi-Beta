@@ -129,6 +129,12 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     var bangumiMovies by mutableStateOf<List<JikanSearchResult>>(initialPayload?.bangumiMovies.orEmpty())
         private set
 
+    var manhwaManhua by mutableStateOf<List<JikanSearchResult>>(initialPayload?.manhwaManhua.orEmpty())
+        private set
+
+    var novels by mutableStateOf<List<JikanSearchResult>>(initialPayload?.novels.orEmpty())
+        private set
+
     var seasonalAnime by mutableStateOf<List<JikanSearchResult>>(initialPayload?.seasonalAnime ?: emptyList())
         private set
 
@@ -294,6 +300,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         movieAnime = payload.movieAnime
         bangumiTvShows = payload.bangumiTvShows.orEmpty()
         bangumiMovies = payload.bangumiMovies.orEmpty()
+        manhwaManhua = payload.manhwaManhua.orEmpty()
+        novels = payload.novels.orEmpty()
         seasonalAnime = payload.seasonalAnime
         airingSoonAnime = payload.airingSoonAnime
         trendingManga = payload.trendingManga
@@ -319,6 +327,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         movieAnime = emptyList()
         bangumiTvShows = emptyList()
         bangumiMovies = emptyList()
+        manhwaManhua = emptyList()
+        novels = emptyList()
         seasonalAnime = emptyList()
         airingSoonAnime = emptyList()
         trendingManga = emptyList()
@@ -884,6 +894,29 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                 )
             }.getOrDefault(emptyList())
         }
+        // Shikimori'nin yerel ek tür rafları: manhwa/manhua ve light novel & romanlar.
+        val manhwaManhuaDeferred = async {
+            runCatching {
+                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(
+                    com.kitsugi.animelist.model.MediaType.Manga,
+                    kinds = listOf("manhwa", "manhua"),
+                    order = "popularity",
+                    limit = 20,
+                    censored = censored
+                )
+            }.getOrDefault(emptyList())
+        }
+        val novelsDeferred = async {
+            runCatching {
+                com.kitsugi.animelist.data.remote.KitsugiShikimoriClient.searchMediaAdvanced(
+                    com.kitsugi.animelist.model.MediaType.Manga,
+                    kinds = listOf("light_novel", "novel"),
+                    order = "popularity",
+                    limit = 20,
+                    censored = censored
+                )
+            }.getOrDefault(emptyList())
+        }
 
         val rawTopAnime = runCatching { topAnimeDeferred.await() }.getOrDefault(emptyList())
         val enrichedTopAnime = if (rawTopAnime.isNotEmpty() && tmdbEnabledState) {
@@ -912,7 +945,9 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             trendingManga = trendingMangaDeferred.await(),
             trendingAnime = trendingAnimeDeferred.await(),
             movieAnime = movieAnimeDeferred.await(),
-            seasonalAnime = seasonalAnimeDeferred.await()
+            seasonalAnime = seasonalAnimeDeferred.await(),
+            manhwaManhua = manhwaManhuaDeferred.await(),
+            novels = novelsDeferred.await()
         )
     }
 
@@ -989,6 +1024,9 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         val trendingMangaDeferred = async { withTimeoutOrNull(5000L) { runCatching { apiClient.trendingManga(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
         val newlyAddedAnimeDeferred = async { withTimeoutOrNull(5000L) { runCatching { apiClient.newlyAddedAnime(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
         val newlyAddedMangaDeferred = async { withTimeoutOrNull(5000L) { runCatching { apiClient.newlyAddedManga(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
+        // MAL'in yerel ek tür rafları (Bangumi REAL raflarının MAL karşılığı).
+        val manhwaManhuaDeferred = async { withTimeoutOrNull(5000L) { runCatching { apiClient.manhwaManhua(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
+        val novelsDeferred = async { withTimeoutOrNull(5000L) { runCatching { apiClient.novelsShelf(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
 
         val rawTopAnime = runCatching { topAnimeDeferred.await() }.getOrDefault(emptyList())
 
@@ -1050,7 +1088,9 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             trendingAnime = runCatching { trendingAnimeDeferred.await() }.getOrDefault(emptyList()),
             movieAnime = runCatching { movieAnimeDeferred.await() }.getOrDefault(emptyList()),
             seasonalAnime = runCatching { seasonalAnimeDeferred.await() }.getOrDefault(emptyList()),
-            airingSoonAnime = runCatching { airingSoonDeferred.await() }.getOrDefault(emptyList())
+            airingSoonAnime = runCatching { airingSoonDeferred.await() }.getOrDefault(emptyList()),
+            manhwaManhua = runCatching { manhwaManhuaDeferred.await() }.getOrDefault(emptyList()),
+            novels = runCatching { novelsDeferred.await() }.getOrDefault(emptyList())
         )
     }
 
@@ -1078,6 +1118,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         val trendingMangaDeferred = async { apiClient.aniListTrendingManga(showAdultContent = showAdult) }
         val newlyAddedAnimeDeferred = async { apiClient.aniListNewlyAddedAnime(showAdultContent = showAdult) }
         val newlyAddedMangaDeferred = async { apiClient.aniListNewlyAddedManga(showAdultContent = showAdult) }
+        // AniList'in yerel ek tür rafı: NOVEL formatı (light novel & romanlar).
+        val novelsDeferred = async { apiClient.aniListNovels(showAdultContent = showAdult) }
 
         val airingSoonDeferred = async {
             val cal = com.kitsugi.animelist.data.remote.KitsugiAiringCalendarClient()
@@ -1133,6 +1175,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             seasonalAnime = runCatching { seasonalAnimeDeferred.await() }.orDefaultTracking(emptyList()),
             topRatedAnime = runCatching { topRatedAnimeDeferred.await() }.orDefaultTracking(emptyList()),
             topRatedManga = runCatching { topRatedMangaDeferred.await() }.orDefaultTracking(emptyList()),
+            novels = runCatching { novelsDeferred.await() }.orDefaultTracking(emptyList()),
             airingSoonAnime = airingSoon
         )
     }

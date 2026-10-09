@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.data.remote
 
+import com.kitsugi.animelist.core.memory.BoundedCache
+
 import android.util.Log
 import com.kitsugi.animelist.KitsugiApplication
 import com.kitsugi.animelist.data.auth.BangumiApiClient
@@ -7,6 +9,8 @@ import com.kitsugi.animelist.data.auth.BangumiApiClient.BangumiSubject
 import com.kitsugi.animelist.data.auth.BangumiAuthStore
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.utils.toLatinStudioName
+import com.kitsugi.animelist.utils.localizedDistinctTags
+import com.kitsugi.animelist.utils.toLocalizedTagLabel
 import com.kitsugi.animelist.utils.toTurkishBroadcast
 import com.kitsugi.animelist.utils.toTurkishCharacterRole
 import com.kitsugi.animelist.utils.toTurkishDuration
@@ -83,15 +87,25 @@ object KitsugiBangumiDetailClient {
     private const val ENTITY_NAME_LOOKUP_TIMEOUT_MS = 3_500L
     private const val ENTITY_NAME_BATCH_TIMEOUT_MS = 6_500L
     private const val ENTITY_NAME_CACHE_TTL_MS = 6 * 60 * 60 * 1000L
-    private const val ENTITY_NAME_NEGATIVE_CACHE_TTL_MS = 10 * 60 * 1000L
+    private const val ENTITY_NAME_NEGATIVE_CACHE_TTL_MS = 10 * 60 * 60 * 1000L
     private val enrichmentRequestSemaphore = Semaphore(8)
+
+    /**
+     * Stüdyo/şirket adı → Bangumi kurum条目 kimliği (`/v0/search/persons`, `type = 2` 公司).
+     * Detay sayfasındaki çiplerin tıklanabilmesi için gerekir; bulunamayan adlar `0` ile
+     * işaretlenir ve tekrar tekrar aranmaz.
+     */
+    private const val STUDIO_LOOKUP_LIMIT = 8
+    private const val STUDIO_LOOKUP_BATCH_TIMEOUT_MS = 6_000L
+    private val studioLookupSemaphore = Semaphore(4)
+    private val studioPersonIdCache = BoundedCache<String, Int>("bangumi.studioPersonId", 256)
 
     private data class EntityNameCacheEntry(
         val name: BangumiLocalizedName?,
         val cachedAtMs: Long
     )
 
-    private val entityNameCache = ConcurrentHashMap<String, EntityNameCacheEntry>()
+    private val entityNameCache = BoundedCache<String, EntityNameCacheEntry>("bangumi.entityName", 1000)
 
     /** Bulunamayan eşleşmeler için olumsuz önbellek süresi (tekrar tekrar arama yapılmasın). */
     private const val CROSS_MISS_TTL_MS = 20 * 60 * 1000L
@@ -102,9 +116,9 @@ object KitsugiBangumiDetailClient {
 
     // ── Önbellekler ──────────────────────────────────────────────────────────
 
-    private val subjectCache = ConcurrentHashMap<Int, BangumiSubject>()
-    private val crossCache = ConcurrentHashMap<Int, CrossIds>()
-    private val crossMissAt = ConcurrentHashMap<Int, Long>()
+    private val subjectCache = BoundedCache<Int, BangumiSubject>("bangumi.subject", 80)
+    private val crossCache = BoundedCache<Int, CrossIds>("bangumi.cross", 1000)
+    private val crossMissAt = BoundedCache<Int, Long>("bangumi.crossMiss", 1000)
 
     /**
      * Çözümler çağıranın değil BU kapsamın içinde çalışır: detay (7 sn tavan), galeri (15 sn tavan) ve
@@ -238,8 +252,24 @@ object KitsugiBangumiDetailClient {
         withContext(Dispatchers.IO) {
             val rawId = rawIdOf(stableOrRawId) ?: return@withContext null
             val subject = loadSubject(rawId) ?: return@withContext null
-            buildNativeDetail(subject, mediaType)
+            val detail = buildNativeDetail(subject, mediaType)
+            rememberLatinTitle(rawId, detail)
+            detail
         }
+
+    /**
+     * Bir kaydın Latin (romaji / İngilizce) adını kalıcı önbelleğe yazar. Keşfet şeritleri ve
+     * ilişki/öneri listeleri Bangumi'den yalnızca özgün adı aldığı için, burada çözülen ad
+     * sonraki listelemelerde ağ isteği olmadan kullanılır.
+     */
+    private suspend fun rememberLatinTitle(rawId: Int, detail: KitsugiMediaDetail) {
+        BangumiTitleCache.put(
+            rawId = rawId,
+            romaji = detail.titleRomaji ?: detail.title,
+            english = detail.titleEnglish,
+            native = detail.titleNative ?: detail.titleJapanese
+        )
+    }
 
     /**
      * Bangumi detayını MAL / AniList / TMDB verisiyle tamamlar. Başarısız olursa [base] döner.
@@ -257,7 +287,12 @@ object KitsugiBangumiDetailClient {
                 null
             }
             val cross = resolved ?: CrossIds()
-            if (!cross.hasAnyId) return@withContext base
+            if (!cross.hasAnyId) {
+                // Eşleşme yoksa bile çözülen Latin ad kalıcı olur: listeler sonraki ziyarette
+                // İngilizce/romaji başlığı ağ isteği olmadan gösterir.
+                rememberLatinTitle(rawId, base)
+                return@withContext withStudioPersonIds(base)
+            }
             val companion: KitsugiMediaDetail? = try {
                 withTimeoutOrNull(COMPANION_TIMEOUT_MS) { fetchCompanionDetail(cross, mediaType) }
             } catch (e: CancellationException) {
@@ -266,7 +301,9 @@ object KitsugiBangumiDetailClient {
                 Log.w(TAG, "Eşlik detayı alınamadı: ${e.message}")
                 null
             }
-            mergeDetail(base, companion, cross, mediaType)
+            val merged = mergeDetail(base, companion, cross, mediaType)
+            rememberLatinTitle(rawId, merged)
+            withStudioPersonIds(merged)
         }
 
     private suspend fun fetchCompanionDetail(cross: CrossIds, mediaType: MediaType): KitsugiMediaDetail? =
@@ -373,7 +410,7 @@ object KitsugiBangumiDetailClient {
 
         return KitsugiMediaDetail(
             synopsis = subject.summary.replace("\r\n", "\n").replace('\r', '\n').trim().takeIf { it.isNotEmpty() },
-            genres = subject.metaTags.take(8),
+            genres = metaGenres(subject.metaTags),
             status = statusOf(subject, startIso, endIso, mediaType)?.toTurkishStatus(),
             season = seasonOf(startIso, mediaType)?.toTurkishSeason(),
             sourceMaterial = first("原作")?.takeIf { mediaType != MediaType.Manga },
@@ -395,7 +432,11 @@ object KitsugiBangumiDetailClient {
             year = year,
             total = total,
             isAdult = subject.nsfw,
-            tags = subject.tags.take(40).map { KitsugiTag(name = it, rank = null, isSpoiler = false, source = SOURCE) },
+            // Etiketler arayüz diline çevrilir ve çeviriden sonra aynı anlama gelen yazımlar
+            // (催泪 / 催涙 / Duygusal) tek çipe indirgenir. Modelde orijinal değer kalır; çip
+            // aramayı orijinaliyle yapar.
+            tags = subject.tags.localizedDistinctTags(40)
+                .map { KitsugiTag(name = it, rank = null, isSpoiler = false, source = SOURCE) },
             externalLinks = links,
             pictures = emptyList(),
             meanScore = ratingScore?.let { (it * 10).toInt() },
@@ -433,12 +474,22 @@ object KitsugiBangumiDetailClient {
                 externalLinks = links
             )
         }
-        val mergedTags = (other.tags + base.tags)
-            .distinctBy { it.name.trim().lowercase(Locale.ROOT) }
+        // Etiketler birleştirilirken modelde HER ZAMAN kaynağın özgün adı kalır (çipe
+        // tıklandığında arama o değerle yapılır); çeviri gösterim katmanındadır. Tekilleştirme
+        // ise çevrilmiş hâline göre yapılır, böylece 京都动画 / 京阿尼 / "Kyoto Animation"
+        // üçlüsü ekranda tek çip görünür.
+        val seenTagLabels = HashSet<String>()
+        val mergedTags = (base.tags + other.tags)
+            .filter { tag ->
+                val label = tag.name.trim().toLocalizedTagLabel().trim().lowercase(Locale.ROOT)
+                label.isNotEmpty() && seenTagLabels.add(label)
+            }
             .take(48)
         return base.copy(
-            // Bangumi'nin (Çince) özeti öncelikli; TMDB/Türkçe zenginleştirme ayrıca üstüne yazabilir.
-            synopsis = base.synopsis?.takeIf { it.isNotBlank() } ?: other.synopsis,
+            // Özet tercihi: Bangumi açıklaması Çince/Japonca geldiyse ve eşleşen kayıtta Latin
+            // (İngilizce) açıklama varsa O kullanılır — otomatik çeviri İngilizce kaynaktan
+            // belirgin şekilde daha iyi sonuç verir. Bangumi özgün dili Latinse Bangumi korunur.
+            synopsis = pickSynopsis(base.synopsis, other.synopsis),
             // Türler diğer platformdan (çevrilebilir, tıklanınca arama yapar); yoksa Bangumi meta etiketleri.
             genres = other.genres.ifEmpty { base.genres },
             status = base.status ?: other.status,
@@ -1107,58 +1158,86 @@ object KitsugiBangumiDetailClient {
     /**
      * İlişki/öneri başlıklarını tam条目 kaydıyla zenginleştirir. p1 liste uçlarındaki slim
      * subject nesneleri infobox içermez; bu yüzden başlıklar özgün (kanji) adla kalıyordu.
-     * Her ilişkili kayıt için önbellekli [loadSubject] (`/v0/subjects/{id}`) çekilir ve
-     * infobox'taki İngilizce / romaji adlar başlık varyantı olarak doldurulur. Tek bir
-     * kayıt isteği yavaşsa ya da başarısızsa ilgili kayıt orijinal haliyle döner.
+     *
+     * İki kademe çalışır:
+     *  1. [BangumiTitleCache] — kayıt daha önce herhangi bir yerde çözüldüyse Latin ad ağ
+     *     isteği olmadan yerleştirilir.
+     *  2. Yalnızca **hâlâ CJK görünen** kayıtlar için `/v0/subjects/{id}` çekilir; bulunan
+     *     İngilizce/romaji ad hem başlığa yazılır hem de önbelleğe kalıcılanır.
+     *
+     * Eskiden listenin tamamı (64 kayıt) indirilmeye çalışıldığı için süre bütçesi erken doluyor
+     * ve İngilizce adı mevcut olan kayıtlar ekranda Çince kalıyordu. Tek bir kayıt isteği
+     * başarısızsa ya da gecikirse ilgili kayıt orijinal haliyle döner.
      */
     private suspend fun enrichRelationTitles(relations: List<KitsugiRelation>): List<KitsugiRelation> {
         if (relations.isEmpty()) return relations
-        val limit = minOf(relations.size, RELATION_TITLE_ENRICH_LIMIT)
-        val enriched = ConcurrentHashMap<Int, KitsugiRelation>()
-        relations.take(limit).forEach { enriched[it.malId] = it }
 
-        // Large relation lists can contain dozens of records. Bound concurrency and total wait;
-        // anything still pending when the budget expires safely keeps its source-list title.
+        val cached = relations.map { relation -> withCachedLatinTitle(relation) }
+        val pending = cached.filter { needsLatinTitle(it) }.take(RELATION_TITLE_ENRICH_LIMIT)
+        if (pending.isEmpty()) return cached
+
+        val enriched = ConcurrentHashMap<Int, KitsugiRelation>()
         withTimeoutOrNull(RELATION_TITLE_BATCH_TIMEOUT_MS) {
             coroutineScope {
-                relations.take(limit).map { rel ->
+                pending.map { relation ->
                     async(Dispatchers.IO) {
                         val localizedRelation = try {
                             enrichmentRequestSemaphore.withPermit {
                                 withTimeoutOrNull(RELATION_TITLE_TIMEOUT_MS) {
-                                    val raw = BangumiIdNamespace.rawIdFromStable(rel.malId)
-                                        ?: return@withTimeoutOrNull rel
-                                    val subject = loadSubject(raw) ?: return@withTimeoutOrNull rel
+                                    val raw = BangumiIdNamespace.rawIdFromStable(relation.malId)
+                                        ?: return@withTimeoutOrNull relation
+                                    val subject = loadSubject(raw) ?: return@withTimeoutOrNull relation
                                     val localized = BangumiNameLocalizer.subject(
                                         subject.name,
                                         subject.nameCn,
                                         subject.infobox
                                     )
-                                    if (localized.romaji == null && localized.english == null) {
-                                        return@withTimeoutOrNull rel
-                                    }
-                                    rel.copy(
-                                        title = localized.display.ifBlank { rel.title },
-                                        titleEnglish = localized.english ?: rel.titleEnglish,
-                                        titleJapanese = localized.native ?: rel.titleJapanese,
-                                        titleRomaji = localized.romaji ?: rel.titleRomaji
+                                    BangumiTitleCache.put(
+                                        rawId = raw,
+                                        romaji = localized.romaji,
+                                        english = localized.english,
+                                        native = localized.native
                                     )
-                                } ?: rel
+                                    if (localized.romaji == null && localized.english == null) {
+                                        return@withTimeoutOrNull relation
+                                    }
+                                    relation.copy(
+                                        title = localized.display.ifBlank { relation.title },
+                                        titleEnglish = localized.english ?: relation.titleEnglish,
+                                        titleJapanese = localized.native ?: relation.titleJapanese,
+                                        titleRomaji = localized.romaji ?: relation.titleRomaji
+                                    )
+                                } ?: relation
                             }
                         } catch (cancelled: CancellationException) {
                             throw cancelled
                         } catch (_: Exception) {
-                            rel
+                            relation
                         }
-                        enriched[rel.malId] = localizedRelation
+                        enriched[relation.malId] = localizedRelation
                     }
                 }.awaitAll()
             }
         }
-        return relations.mapIndexed { index, relation ->
-            if (index < limit) enriched[relation.malId] ?: relation else relation
-        }
+        return cached.map { relation -> enriched[relation.malId] ?: relation }
     }
+
+    /** Başlıkta Latin bir karşılık biliniyorsa ilişki kaydına işler. */
+    private fun withCachedLatinTitle(relation: KitsugiRelation): KitsugiRelation {
+        val raw = BangumiIdNamespace.rawIdFromStable(relation.malId) ?: return relation
+        val latin = BangumiTitleCache.latinTitleFor(raw, relation.title) ?: return relation
+        return relation.copy(
+            title = latin,
+            titleEnglish = relation.titleEnglish ?: latin,
+            titleRomaji = relation.titleRomaji ?: latin
+        )
+    }
+
+    /** Çiplerde CJK başlık görünüyor ve kayıtta Latin varyant yoksa ek arama yapılır. */
+    private fun needsLatinTitle(relation: KitsugiRelation): Boolean =
+        usableLatinName(relation.title) == null &&
+            usableLatinName(relation.titleEnglish) == null &&
+            usableLatinName(relation.titleRomaji) == null
 
     /** `/p1/subjects/{id}/recs` yanıtı → öneriler. */
     internal fun parseRecommendations(root: JSONObject): List<KitsugiRelation> =
@@ -1176,16 +1255,19 @@ object KitsugiBangumiDetailClient {
         val rawId = optInt("id", 0).takeIf { it > 0 } ?: return null
         val stable = stableIdOf(rawId) ?: return null
         val localizedTitle = localizedName()
+        // Liste uçlarında infobox alanı dönmez; daha önce çözülmüş Latin ad önbellekten alınır.
+        val cachedLatin = BangumiTitleCache.latinTitleFor(rawId, localizedTitle.display)
         return KitsugiRelation(
             malId = stable,
-            title = localizedTitle.display.ifBlank { "Bangumi #$rawId" },
+            title = cachedLatin
+                ?: localizedTitle.display.ifBlank { "Bangumi #$rawId" },
             relationType = relationType,
             imageUrl = optJSONObject("images").image("common", "medium", "large", "grid", "small"),
             mediaType = BangumiIdNamespace.mediaTypeFor(type),
             source = SOURCE,
-            titleEnglish = localizedTitle.english,
+            titleEnglish = localizedTitle.english ?: cachedLatin,
             titleJapanese = localizedTitle.native,
-            titleRomaji = localizedTitle.romaji,
+            titleRomaji = localizedTitle.romaji ?: cachedLatin,
             isAdult = optBoolean("nsfw", false)
         )
     }
@@ -1267,7 +1349,8 @@ object KitsugiBangumiDetailClient {
             summary = (if (title.isNotEmpty()) title else summary).take(240),
             fullText = (if (title.isNotEmpty() && body.isNotEmpty()) "$title\n\n$body" else body.ifEmpty { title }),
             dateText = epochDate(entry.optLong("createdAt", 0L)),
-            helpfulCount = entry.optInt("replies", 0).takeIf { it > 0 }
+            helpfulCount = entry.optInt("replies", 0).takeIf { it > 0 },
+            source = "bangumi"
         )
     }
 
@@ -1283,7 +1366,8 @@ object KitsugiBangumiDetailClient {
             score = item.optInt("rate", 0).takeIf { it in 1..10 },
             summary = text.take(240),
             fullText = text,
-            dateText = epochDate(item.optLong("updatedAt", 0L))
+            dateText = epochDate(item.optLong("updatedAt", 0L)),
+            source = "bangumi"
         )
     }
 
@@ -1304,9 +1388,15 @@ object KitsugiBangumiDetailClient {
             if (sort.isNaN() || sort <= 0.0) return@mapNotNull null
             val number = sort.toInt()
             if (number <= 0 || !seen.add(number)) return@mapNotNull null
-            // Bölüm yanıtında ayrı English/romaji alanı yok; Çince yerelleştirmeyi
-            // zorunlu varsayılan yapmak yerine özgün adı kullan, yalnızca yoksa nameCN'e düş.
-            val name = ep.strOrNull("name") ?: ep.strOrNull("nameCN")
+            // Bölüm yanıtında ayrı English/romaji alanı yok. Özgün ad Latin harfliyse o kullanılır;
+            // CJK ise Çince yerelleştirme deneme sırasına girer (Latin ad, CJK'da tercih edilir).
+            // İkisi de CJK ise özgün ad olduğu gibi kalır — uydurma çeviri yapılmaz.
+            val rawName = ep.strOrNull("name")
+            val rawNameCn = ep.strOrNull("nameCN")
+            val latinName = listOfNotNull(rawName, rawNameCn).firstOrNull {
+                it.any(Char::isLetter) && !PreferenceHelpers.hasCjkCharacters(it)
+            }
+            val name = latinName ?: rawName ?: rawNameCn
             KitsugiStreamingEpisode(
                 title = if (name != null) "#$number – $name" else "Bölüm $number",
                 thumbnail = null,
@@ -1682,14 +1772,66 @@ object KitsugiBangumiDetailClient {
         return letters.count { it.code < 0x250 }.toDouble() / letters.length >= 0.9
     }
 
-    /** "A、B / C×D" gibi serbest metni şirket adlarına böler (etiket öneklerini atar). */
-    internal fun splitCompanies(values: List<String>): List<String> =
-        values.flatMap { it.split(Regex("[、,，/／×;；\\n]")) }
-            .map { token -> token.substringAfter('：').substringAfter(':').trim() }
-            .map { it.trim('(', ')', '（', '）', ' ') }
-            .filter { it.isNotEmpty() && it.length <= 40 }
-            .distinct()
-            .take(8)
+    /**
+     * "A、B / C×D" gibi serbest metni şirket adlarına böler (etiket öneklerini atar).
+     *
+     * Ayraçlar yalnızca PARANTEZ dışında bölme yapar: `ひぐらしのなく頃に解製作委員会
+     * 【フロンティアワークス、ジェネオンエンタテインメント、創通】` gibi değerlerde köşeli
+     * parantezin içeriği tek bir isimdir ve ortadan bölünürse ("…委員会【フロンティアワークス")
+     * ekranda bozuk, tıklanamaz bir çip görünür. Köşeli parantez grubu ayrı bir üretici olarak
+     * DE eklenir — komisyon ve üyeleri böylece iki ayrı çipte okunur.
+     */
+    internal fun splitCompanies(values: List<String>): List<String> {
+        val result = mutableListOf<String>()
+
+        fun add(raw: String) {
+            val cleaned = raw
+                .substringAfter('：')
+                .substringAfter(':')
+                .trim()
+                .trim('(', ')', '（', '）', ' ', '【', '】', '、', '，', ',')
+            if (cleaned.isEmpty()) return
+            if (cleaned.length > 60) return
+            if (result.none { it.equals(cleaned, ignoreCase = true) }) result += cleaned
+        }
+
+        for (value in values) {
+            var depth = 0
+            val current = StringBuilder()
+            val bracketGroups = mutableListOf<String>()
+            val bracket = StringBuilder()
+            for (ch in value) {
+                when (ch) {
+                    '【', '「', '『', '（', '(' -> {
+                        if (depth == 0) bracket.setLength(0)
+                        depth++
+                        if (depth > 1) bracket.append(ch)
+                    }
+                    '】', '」', '』', '）', ')' -> {
+                        if (depth > 0) depth--
+                        if (depth == 0) {
+                            bracketGroups += bracket.toString()
+                            bracket.setLength(0)
+                        } else {
+                            bracket.append(ch)
+                        }
+                    }
+                    else -> {
+                        if (depth > 0) bracket.append(ch) else current.append(ch)
+                    }
+                }
+            }
+            if (depth > 0 && bracket.isNotEmpty()) bracketGroups += bracket.toString()
+
+            // Parantez dışı metin ayraçlarla bölünür.
+            current.toString().split(Regex("[、,，/／×;；\\n]")).forEach { add(it) }
+            // "X制作委员会【A、B、C】" → komisyonun kendi adı + üyeleri.
+            bracketGroups.forEach { group ->
+                group.split(Regex("[、,，/／;；]")).forEach { add(it) }
+            }
+        }
+        return result.take(10)
+    }
 
     /** Kanal adları boşlukla ayrılmış gelebilir ("MBS RKB CBC BS-i/BS-TBS"). */
     internal fun splitNetworks(values: List<String>): List<String> =
@@ -1708,6 +1850,120 @@ object KitsugiBangumiDetailClient {
             .replace(Regex("[ \\t]{2,}"), " ")
             .replace(Regex("\\n{3,}"), "\n\n")
             .trim()
+
+    // ── Stüdyo / kurum kimliği (çiplerin tıklanabilmesi için) ────────────────
+
+    /**
+     * Bangumi infobox'ındaki stüdyo/üretici adları düz metindir; kimlik taşımaz. Bu yüzden
+     * çipler eskiden hiç tıklanamıyordu. Ad, Bangumi'nin kurum条目'larına (`/v0/search/persons`,
+     * `type = 2` 公司) çevrilir ve bulunan kimlik [KitsugiStudio.id] alanına yazılır — çip artık
+     * kurumun Bangumi sayfasını (aynı kişi detay şablonu) açar.
+     *
+     * Çağrı [enrich] içinde yapılır: ön izleme (Bangumi-yerel detay) ağ beklemeden çizilir,
+     * kimlikler zenginleştirme turunda eklenir. Eşleşmeyen adlar `0` olarak önbelleğe alınır.
+     */
+    private suspend fun withStudioPersonIds(detail: KitsugiMediaDetail): KitsugiMediaDetail {
+        val candidates = (detail.studios + detail.producers)
+            .filter { it.id <= 0 && it.source.equals(SOURCE, ignoreCase = true) && it.name.isNotBlank() }
+            .map { it.name }
+        if (candidates.isEmpty()) return detail
+        val resolved = resolveStudioPersonIds(candidates)
+        if (resolved.isEmpty()) return detail
+
+        fun apply(studio: KitsugiStudio): KitsugiStudio {
+            if (studio.id > 0 || !studio.source.equals(SOURCE, ignoreCase = true)) return studio
+            val personId = resolved[normalizeCompanyKey(studio.name)] ?: return studio
+            return studio.copy(id = personId)
+        }
+
+        return detail.copy(
+            studios = detail.studios.map(::apply),
+            producers = detail.producers.map(::apply)
+        )
+    }
+
+    private suspend fun resolveStudioPersonIds(names: List<String>): Map<String, Int> = coroutineScope {
+        val result = ConcurrentHashMap<String, Int>()
+        val pending = names
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .distinctBy { normalizeCompanyKey(it) }
+            .take(STUDIO_LOOKUP_LIMIT)
+        withTimeoutOrNull(STUDIO_LOOKUP_BATCH_TIMEOUT_MS) {
+            pending.map { name ->
+                async(Dispatchers.IO) {
+                    studioLookupSemaphore.withPermit {
+                        val personId = findStudioPersonId(name)
+                        if (personId != null) result[normalizeCompanyKey(name)] = personId
+                    }
+                }
+            }.awaitAll()
+        }
+        result
+    }
+
+    /** Kurum adını Bangumi kişi/şirket条目'ı ile eşler; bulunamazsa `null`. */
+    private suspend fun findStudioPersonId(name: String): Int? {
+        val key = normalizeCompanyKey(name)
+        if (key.isEmpty()) return null
+        studioPersonIdCache[key]?.let { cached -> return cached.takeIf { it > 0 } }
+        val token = tokenOrNull()
+        val candidates = runCatching {
+            BangumiApiClient.searchPersons(keyword = name, token = token, limit = 5).data
+        }.getOrDefault(emptyList())
+        // Önce birebir ad eşleşmesi; o yoksa aynı ada en yakın kurum条目'ı (type = 2, 公司).
+        val matched = candidates.firstOrNull { entity ->
+            val entityKey = normalizeCompanyKey(entity.name)
+            entityKey.isNotEmpty() &&
+                (entityKey == key || entityKey.contains(key) || key.contains(entityKey))
+        } ?: candidates.firstOrNull { it.type == 2 && normalizeCompanyKey(it.name).startsWith(key.take(4)) }
+        val id = matched?.id?.takeIf { it > 0 } ?: 0
+        if (studioPersonIdCache.size > 256) studioPersonIdCache.clear()
+        studioPersonIdCache[key] = id
+        return id.takeIf { it > 0 }
+    }
+
+    /**
+     * Bangumi `类型` (meta etiket) listesini gösterime hazırlar: Çince/Japonca değerler korunur
+     * (çip arayüz diline çevirir), yinelenen yazımlar atılır.
+     */
+    internal fun metaGenres(metaTags: List<String>): List<String> =
+        metaTags.localizedDistinctTags(12)
+
+    /**
+     * İki açıklama adayından gösterilecek olanı seçer.
+     *
+     * Latin (Çince/Japonca olmayan) metin önceliklidir: otomatik çeviri İngilizce kaynaktan
+     * çok daha temiz çıkar. Her iki aday da aynı dil grubundaysa Bangumi açıklaması korunur.
+     */
+    internal fun pickSynopsis(base: String?, other: String?): String? {
+        val native = base?.trim()?.takeIf { it.isNotEmpty() }
+        val companion = other?.trim()?.takeIf { it.isNotEmpty() }
+        return when {
+            native == null -> companion
+            companion == null -> native
+            PreferenceHelpers.hasCjkCharacters(native) && !PreferenceHelpers.hasCjkCharacters(companion) -> companion
+            else -> native
+        }
+    }
+
+    /** Şirket adı karşılaştırma anahtarı: unvan ekleri ve noktalama yok sayılır. */
+    internal fun normalizeCompanyKey(name: String): String {
+        var key = name.lowercase(Locale.ROOT)
+            .replace(Regex("【[^】]*】"), " ")
+            .replace(Regex("""\([^)]*\)"""), " ")
+            .filter { it.isLetterOrDigit() }
+        listOf(
+            "株式会社", "有限会社", "有限公司", "股份有限公司", "合同会社",
+            "制作委员会", "製作委员会", "制作委員會", "製作委員會",
+            "kabushikigaisha", "kabushiki", "kaisha", "yuugen", "goudou",
+            "incorporated", "inc", "limited", "ltd", "corporation", "corp",
+            "company", "co", "kaka", "kk"
+        ).forEach { suffix ->
+            while (key.endsWith(suffix)) key = key.removeSuffix(suffix)
+        }
+        return key.trim()
+    }
 
     private fun epochDate(seconds: Long): String? {
         if (seconds <= 0L) return null

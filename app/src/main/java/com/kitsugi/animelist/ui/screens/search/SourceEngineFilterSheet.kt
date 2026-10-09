@@ -48,6 +48,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import com.kitsugi.animelist.utils.toLocalizedTagLabel
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 
 /**
@@ -1426,7 +1427,7 @@ private fun BangumiFullFiltersContent(uiState: SearchUiState, viewModel: SearchV
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            "$tag  ✕",
+                            "${tag.toLocalizedTagLabel()}  ✕",
                             style = MaterialTheme.typography.labelSmall.copy(color = accentColor)
                         )
                     }
@@ -1438,17 +1439,15 @@ private fun BangumiFullFiltersContent(uiState: SearchUiState, viewModel: SearchV
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            // Kısayol etiketleri: soldaki Türkçe açıklama, sağdaki Bangumi wiki etiketi.
+            // Kısayol etiketleri: soldaki görünen ad arayüz diline göre dil dosyasından
+            // gelir (TR → Türkçe, EN → İngilizce), sağdaki değer Bangumi wiki etiketidir.
             val presets = listOf(
-                "科幻" to "Bilim Kurgu", "奇幻" to "Fantastik", "恋爱" to "Romantik",
-                "校园" to "Okul", "搞笑" to "Komedi", "治愈" to "Sakin/İyileştirici",
-                "日常" to "Günlük Yaşam", "机战" to "Mecha", "悬疑" to "Gizem",
-                "推理" to "Dedektif", "冒险" to "Macera", "战斗" to "Aksiyon",
-                "运动" to "Spor", "音乐" to "Müzik", "恐怖" to "Korku",
-                "后宫" to "Harem", "百合" to "Yuri", "耽美" to "BL",
-                "异世界" to "Isekai", "职场" to "İş Hayatı"
+                "科幻", "奇幻", "恋爱", "校园", "搞笑", "治愈", "日常", "机战", "悬疑",
+                "推理", "冒险", "战斗", "运动", "音乐", "恐怖", "后宫", "百合", "耽美",
+                "异世界", "职场"
             )
-            presets.forEach { (tag, label) ->
+            presets.forEach { tag ->
+                val label = tag.toLocalizedTagLabel()
                 val selected = filters.tags.contains(tag)
                 Box(
                     modifier = Modifier

@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.data.remote
 
+import com.kitsugi.animelist.core.memory.BoundedCache
+
 import android.util.Log
 import com.kitsugi.animelist.core.network.KitsugiHttpClient
 import kotlinx.coroutines.Dispatchers
@@ -74,7 +76,7 @@ object AnimeSkipClient {
     private data class CacheEntry(val intervals: List<SkipInterval>, val expiresAt: Long)
 
     // Anahtar: "$malId:$episode:$clientId"
-    private val cache = ConcurrentHashMap<String, CacheEntry>()
+    private val cache = BoundedCache<String, CacheEntry>("animeSkip", 200)
 
     /**
      * MAL ID ve bölüm numarasına göre anime-skip.com'dan skip aralıklarını getirir.

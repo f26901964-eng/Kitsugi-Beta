@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.data.remote
 
+import com.kitsugi.animelist.core.memory.BoundedCache
+
 import android.util.Log
 import com.kitsugi.animelist.core.network.KitsugiHttpClient
 import kotlinx.coroutines.Dispatchers
@@ -39,7 +41,7 @@ object MdbListClient {
     private val imdbIdPattern = Regex("^tt\\d{5,12}$", RegexOption.IGNORE_CASE)
 
     private data class CacheEntry(val ratings: MdbListRatings, val expiresAt: Long)
-    private val cache = ConcurrentHashMap<String, CacheEntry>()
+    private val cache = BoundedCache<String, CacheEntry>("mdbList", 300)
 
     /**
      * API anahtarını Matrix'in bilinen IMDb ID'si ile sınar.

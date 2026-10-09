@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.data.auth
 
+import com.kitsugi.animelist.core.memory.BoundedCache
+
 import com.kitsugi.animelist.data.remote.JikanGateway
 import com.kitsugi.animelist.data.remote.JikanResult
 import android.util.Log
@@ -231,7 +233,7 @@ object CrossSyncIdentityGuard {
 
     // ───────────────────────────── MAL kimlik doğrulama ─────────────────────────────
 
-    private val identityCache = ConcurrentHashMap<String, Optional<RemoteIdentity>>()
+    private val identityCache = BoundedCache<String, Optional<RemoteIdentity>>("crossSync.identity", 500)
 
     /**
      * Grubun MAL kimliğini kataloğa karşı doğrular. Ağ hatalarında istisna fırlatmaz; [Verdict.Unverifiable] döner.

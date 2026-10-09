@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.data.cloudstream
 
+import com.kitsugi.animelist.core.memory.BoundedCache
+
 import android.util.Base64
 import android.util.Log
 import com.kitsugi.animelist.data.cloudstream.diag.CsTrace
@@ -93,7 +95,7 @@ object CsStreamRunner {
      */
     private const val MAX_PROBE_CANDIDATES = 6
     /** Doğrulanmış aday önbelleği — aynı URL tekrar denendiğinde ağ harcanmaz. */
-    private val mediaProbeCache = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
+    private val mediaProbeCache = BoundedCache<String, Boolean>("cs.mediaProbe", 300)
 
     /**
      * Aynı anda çözülecek embed sayısı. Sıralı çözümleme (eski davranış) 20 sn timeout × N

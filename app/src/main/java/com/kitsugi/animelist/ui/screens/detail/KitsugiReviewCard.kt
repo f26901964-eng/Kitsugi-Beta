@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import coil3.compose.AsyncImage
 import com.kitsugi.animelist.data.remote.KitsugiReview
 import com.kitsugi.animelist.ui.components.KitsugiMarkdownText
+import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
@@ -101,6 +102,21 @@ internal fun KitsugiReviewCard(
                     }
                 }
 
+                // İncellemenin orijinal dili (TMDB sağlayabildiğinde) — çok dilli
+                // inceleme listesinin hangi dilde olduğunu kullanıcı görebilsin.
+                if (!rev.languageCode.isNullOrBlank()) {
+                    Text(
+                        text = rev.languageCode.uppercase(java.util.Locale.US),
+                        color = KitsugiColors.TextMuted,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(KitsugiColors.SurfaceSoft)
+                            .padding(horizontal = 5.dp, vertical = 2.dp)
+                    )
+                }
+
                 if ((rev.helpfulCount != null && rev.helpfulCount > 0) || rev.id != null) {
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
@@ -170,6 +186,8 @@ internal fun KitsugiReviewCard(
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.widthIn(max = 100.dp)
                 )
+                Spacer(modifier = Modifier.width(6.dp))
+                KitsugiPlatformLogo(platformId = rev.source, size = 14.dp)
             }
         }
     }

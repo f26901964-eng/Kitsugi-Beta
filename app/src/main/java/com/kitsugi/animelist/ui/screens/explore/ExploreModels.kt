@@ -47,6 +47,12 @@ data class ExplorePayload(
     val topRatedManga: List<JikanSearchResult>? = null,
     /** Bangumi REAL categories: live-action TV/drama and live-action films. */
     val bangumiTvShows: List<JikanSearchResult>? = null,
-    val bangumiMovies: List<JikanSearchResult>? = null
+    val bangumiMovies: List<JikanSearchResult>? = null,
+    /**
+     * Yerel "ek tür" rafları (Bangumi REAL raflarının diğer kaynaklardaki karşılığı):
+     * kaynak API'si desteklemiyorsa null kalır ve keşfet bölümü gösterilmez.
+     */
+    val manhwaManhua: List<JikanSearchResult>? = null,
+    val novels: List<JikanSearchResult>? = null
 )
 

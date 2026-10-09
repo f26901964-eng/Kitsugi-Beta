@@ -24,6 +24,13 @@ import java.util.Calendar
  * bir MAL anime'si ile bir Bangumi条目'su asla aynı içerik sayılmaz.
  */
 object KitsugiBangumiClient {
+
+    init {
+        // Keşfet/arama listeleri Latin adları önbellekten okur; ilk temasta diski UI
+        // thread'inde okumamak için bellek aynası şimdiden doldurulmaya başlanır.
+        BangumiTitleCache.warmUp()
+    }
+
     private const val TAG = "KitsugiBangumiClient"
 
     const val SOURCE = BangumiIdNamespace.SOURCE
@@ -590,9 +597,12 @@ object KitsugiBangumiClient {
         val ratingScore = rating?.score ?: 0.0
         val collectionTotal = collection?.total ?: 0
         val localizedTitle = BangumiNameLocalizer.subject(name, nameCn, infobox)
+        // Keşfet/arama uçları infobox dönürmez → İngilizce/romaji ad bilgisi ancak kayıt daha
+        // önce çözüldüyse vardır; kalıcı önbellek onu listeye de taşır.
+        val latinOverride = BangumiTitleCache.latinTitleFor(id, localizedTitle.display)
         return JikanSearchResult(
             malId = BangumiIdNamespace.stableIdFromRaw(id) ?: id,
-            title = localizedTitle.display,
+            title = latinOverride ?: localizedTitle.display,
             subtitle = displayPlatformLabel(platform, type, mediaType),
             type = mediaType,
             total = eps.takeIf { it > 0 } ?: totalEpisodes.takeIf { it > 0 },
@@ -601,9 +611,9 @@ object KitsugiBangumiClient {
             imageUrl = BangumiApiClient.absoluteImageUrl(images?.poster),
             year = date?.take(4)?.toIntOrNull(),
             source = SOURCE,
-            titleEnglish = localizedTitle.english,
+            titleEnglish = localizedTitle.english ?: latinOverride,
             titleJapanese = localizedTitle.native,
-            titleRomaji = localizedTitle.romaji,
+            titleRomaji = localizedTitle.romaji ?: latinOverride,
             backdropUrl = BangumiApiClient.absoluteImageUrl(images?.backdrop),
             rank = rating?.rank?.takeIf { it > 0 },
             members = rating?.total?.takeIf { it > 0 },
@@ -616,9 +626,10 @@ object KitsugiBangumiClient {
     /** Koleksiyon satırındaki kısaltılmış条目 → [JikanSearchResult] (içe aktarma önizlemesi). */
     fun BangumiApiClient.BangumiSlimSubject.toSearchResult(): JikanSearchResult {
         val localizedTitle = BangumiNameLocalizer.entity(name, nameCn)
+        val latinOverride = BangumiTitleCache.latinTitleFor(id, localizedTitle.display)
         return JikanSearchResult(
             malId = BangumiIdNamespace.stableIdFromRaw(id) ?: id,
-            title = localizedTitle.display,
+            title = latinOverride ?: localizedTitle.display,
             subtitle = subjectTypeLabel(type).uppercase(),
             type = BangumiIdNamespace.mediaTypeFor(type),
             total = eps.takeIf { it > 0 },
@@ -627,9 +638,9 @@ object KitsugiBangumiClient {
             imageUrl = BangumiApiClient.absoluteImageUrl(images?.poster),
             year = date?.take(4)?.toIntOrNull(),
             source = SOURCE,
-            titleEnglish = localizedTitle.english,
+            titleEnglish = localizedTitle.english ?: latinOverride,
             titleJapanese = localizedTitle.native,
-            titleRomaji = localizedTitle.romaji,
+            titleRomaji = localizedTitle.romaji ?: latinOverride,
             rank = rank.takeIf { it > 0 },
             favorites = collectionTotal.takeIf { it > 0 },
             rawScoreDouble = score.takeIf { it > 0 },

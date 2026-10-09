@@ -1,5 +1,160 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.222)
+
+### 🌟 1. Evrensel Sosyal Birleştirme & Platform Rozetleri (`KitsugiMediaSocialClient.kt`, `ReviewsTab.kt`, `KitsugiReviewCard.kt`)
+- **Evrensel İncelemeler & Konular:** Hangi kaynakta olunursa olunsun (AniList, MAL, TMDB, SIMKL, Kitsu, Shikimori, Bangumi), çapraz kimlikler çözülerek (ARM / KitsugiIdResolver / Bangumi cross-id) ilgili tüm platformlardaki incelemeler, forum konuları ve aktiviteler tek havuzda birleştirilir.
+- **Platform Rozetleri:** Yorum kartları, forum konuları ve aktivitelerde kullanıcı adının yanında platform logosu (`KitsugiPlatformLogo`) gösterilir.
+- **Akıllı Beğeni & Profil Yönlendirmesi:** AniList kullanıcıları doğrudan uygulama içi profile yönlendirilir; diğer platform kullanıcıları dış web profillerine açılır. Beğeni desteği AniList kaynaklı gönderiler için sorunsuz çalışır.
+- **Çok Dilli İncelemeler:** TMDB incelemelerindeki dil kilidi (`language=tr-TR`) kaldırıldı; tüm dillerdeki incelemeler orijinal dil rozetiyle (TR, EN, JA, DE...) gelir, sayfalama ve çeviri butonu entegre çalışır.
+
+### 🎬 2. Stüdyo & Yapımcı Sayfalarında Keşfet Paritesi (`StudioDetailPage.kt`, `StudioDetailComponents.kt`)
+- **Keşfet Tasarım Dili:** Stüdyo detay sayfaları ana keşfet açılır sayfalarıyla birebir görsel ve işlevsel pariteye kavuşturuldu.
+- **Grid ↔ Liste Modu & Kalıcı Tercih:** Keşfet poster kartları ile degrade şeritli ızgara modu ve detaylı liste modu arasında geçiş desteği.
+- **Duyarlı Kolon Düzeni:** Dikey ve yatay ekran modlarında genişliğe göre akıllı 3–5 kolon hesabı.
+- **Gelişmiş Filtreleme:** Üst çip şeridi (Tümü / Anime / Manga / Film / Dizi) ve "Filtre ve Sıralama" bottom sheet penceresi.
+
+### 🎭 3. TMDB Kişi Adlarında Romaji & "Yönetmenlik" Çevirisi (`TmdbCreditsClient.kt`, `strings.xml`)
+- **Romaji Önceliği:** TMDB'den Japonca (CJK) gelen yönetmen, oyuncu ve ekip adları için `also_known_as` listesinden Latin/romaji isimler otomatik seçilir (`romanizedName`).
+- **Sınırlı Bellek Önbelleği:** Kişi sorguları `BoundedCache` (LRU 500) ile tutulur, yanıt başına en fazla 12 sorgu yapılarak ağ yükü korunur.
+- **Rol Çevirisi:** "Directing" görevi için `staff_role_directing` ("Yönetmenlik") çevirisi eklendi.
+
+### 🧩 4. Kitsu Karakter Detayı & MAL İlişki Kapak İyileştirmeleri (`KitsugiCharacterClient.kt`, `KitsugiMediaRelationsClient.kt`)
+- **Kitsu Karakter Kurtarma:** Kitsu API'sinden 404/429 dönen veya eşleşmesi eksik yeni yapımdaki karakterlerde kart görseli, AniList isim araması ve Jikan yedekleri devreye girerek "Detaylar yüklenemedi" hatası engellendi.
+- **MAL İlişki Kapakları:** Jikan ilişkilerindeki eksik kapak görselleri AniList üzerinden toplu sorguyla çekilerek gri placeholder'lar kaldırıldı ve afişler eklendi.
+
+### 🏮 5. Bangumi Etiket Sözlüğü, Başlık Önbelleği & Tıklanabilir Stüdyolar (`BangumiTagDictionary.kt`, `BangumiTitleCache.kt`, `KitsugiBangumiDetailClient.kt`)
+- **Kapsamlı Etiket Sözlüğü:** 523 grup ve 2182 yazım içeren otoriter sözlük; takvim etiketleri regex ile çözülür, arayüz diline göre gösterilir.
+- **Kalıcı Latin Başlık Önbelleği:** Keşfet şeritleri ve ilişkilerdeki CJK başlıklar için kalıcı Latin önbellek (`BangumiTitleCache`, LRU 1500).
+- **Tıklanabilir Kurumlar & Kanonik Adlar:** Bangumi yapımcı/stüdyoları kişi arama API'siyle eşlenip tıklanabilir hale getirildi; tanınan stüdyolar için 117 kanonik Latin yazım eşlemesi uygulandı.
+
+### 🛡️ 6. Bellek Sızıntısı & Şişme Koruması (`BoundedCache.kt`, `KitsugiMemoryGuard.kt`)
+- **LRU Sınırlı Önbellekler:** 18 dosyadaki 30'dan fazla sınırsız harita LRU sınırlı `BoundedCache`'e geçirildi.
+- **Bellek Bekçisi:** Android'in `onTrimMemory`/`onLowMemory` geri çağrıları dinlenir; 15 saniyelik bekçi %80 heap doluluğunda %50, %90 doluluğunda %100 tahliye uygular.
+- **Negatif Fragman Önbelleği & Çökme Raporu:** Boş fragman sonuçlarının önbelleklenmesi düzeltildi; çökme raporlarına önbellek doluluk metrikleri eklendi.
+
+### ⚡ 7. Derleme Performansı & Gradle İyileştirmeleri (`gradle.properties`)
+- **Kotlin Incremental Build:** `kotlin.incremental=true` ve `kotlin.incremental.useClasspathSnapshot=true` aktif edildi.
+- **Paralel Görevler:** `kotlin.parallel.tasks.in.project=true` ve `android.r8.optimizedResourceShrinking=true` eklendi.
+
+### 📦 8. Dağıtım
+- Yalnızca **FOSS** sürümü (`assembleFossRelease`) derlendi (`Kitsugi-Beta-v2.4.222-foss.apk`).
+
+---
+
+## 🇬🇧 English (v2.4.222)
+
+### 🌟 1. Universal Social Merge & Platform Badges (`KitsugiMediaSocialClient.kt`, `ReviewsTab.kt`, `KitsugiReviewCard.kt`)
+- **Cross-Platform Reviews & Topics:** Regardless of current media source (AniList, MAL, TMDB, SIMKL, Kitsu, Shikimori, Bangumi), cross-ID resolution (ARM / KitsugiIdResolver / Bangumi cross-id) aggregates reviews, discussion topics, and activities from all connected databases into a unified feed.
+- **Platform Badges:** Display platform logos (`KitsugiPlatformLogo`) beside author usernames in review cards, discussion topics, and activity feeds.
+- **Intelligent Likes & Profile Navigation:** In-app navigation for AniList profiles; external browser intent for third-party platforms. Native liking enabled for AniList-sourced items.
+- **Multilingual Reviews:** Unlocked TMDB review language restrictions; reviews in all languages load with original language badges (TR, EN, JA, DE...) and integrated pagination/translation.
+
+### 🎬 2. Studio & Producer Explore Page Parity (`StudioDetailPage.kt`, `StudioDetailComponents.kt`)
+- **Explore Design Parity:** Studio detail screens upgraded to mirror explore category sheets with consistent typography and padding.
+- **Grid ↔ List View Persistence:** Toggle between poster gradient cards and detailed list rows with persistent user preferences.
+- **Responsive Layout:** Dynamic 3-5 column layout calculation for portrait and landscape orientations.
+- **Filters & Sorting:** Top chip filter row (All / Anime / Manga / Movie / TV) plus comprehensive sorting bottom sheet.
+
+### 🎭 3. TMDB Romaji Person Names & Directing Translation (`TmdbCreditsClient.kt`, `strings.xml`)
+- **Romaji Priority:** Automatic Latin/romaji name selection from `also_known_as` for CJK cast and crew in TMDB (`romanizedName`).
+- **Memory-Bounded Cache:** Cached in `BoundedCache` (LRU 500), limited to 12 lookups per credits response.
+- **Directing Role:** Added `staff_role_directing` translation ("Yönetmenlik").
+
+### 🧩 4. Kitsu Character Detail & MAL Relations Covers (`KitsugiCharacterClient.kt`, `KitsugiMediaRelationsClient.kt`)
+- **Kitsu Character Resiliency:** Fallback to card artwork, AniList name search, and Jikan search on Kitsu 404/429 errors.
+- **MAL Relations Cover Art:** Bulk AniList lookup for Jikan relation items to replace grey placeholders with posters.
+
+### 🏮 5. Bangumi Tag Dictionary & Title Cache (`BangumiTagDictionary.kt`, `BangumiTitleCache.kt`)
+- **Tag Dictionary:** Authoritative dictionary of 523 groups / 2182 variants with calendar regex translation.
+- **Persistent Latin Title Cache:** High-speed LRU-1500 caching for titles across explore and relations.
+- **Interactive Studios:** Resolution of Bangumi company entities into clickable studio profiles with 117 canonical name mappings.
+
+### 🛡️ 6. Memory Guard & Leak Protections (`BoundedCache.kt`, `KitsugiMemoryGuard.kt`)
+- **Bounded LRU Caches:** Replaced 30+ unbounded maps across 18 files with `BoundedCache`.
+- **System Memory Hooks:** Active hooks into `onTrimMemory`/`onLowMemory` with 15s heap watchdog.
+
+### ⚡ 7. Build Performance & Gradle Tuning (`gradle.properties`)
+- **Kotlin Incremental Build:** Enabled `kotlin.incremental=true` and `kotlin.incremental.useClasspathSnapshot=true`.
+- **Parallel Tasks:** Added `kotlin.parallel.tasks.in.project=true` and `android.r8.optimizedResourceShrinking=true`.
+
+### 📦 8. Distribution
+- Strictly released the **FOSS variant only** (`assembleFossRelease` -> `Kitsugi-Beta-v2.4.222-foss.apk`).
+
+---
+
+## 🇹🇷 Türkçe (v2.4.221)
+
+### 🌐 1. Çok Dilli İncelemeler & Orijinal Dil Rozetleri (`TmdbCreditsClient.kt`, `KitsugiReviewCard.kt`)
+- **Tüm Dillerde İncelemeler:** TMDB inceleme isteklerindeki sabit `language=tr-TR` filtresi kaldırıldı. İncelemeler hangi dilde yazıldıysa o dilde eksiksiz listelenir.
+- **TMDB İnceleme Sayfalaması:** "Tümünü Gör" ekranında TMDB incelemeleri için sayfalama desteği (`page`) eklendi.
+- **Orijinal Dil Rozeti:** İnceleme kartlarına orijinal dil kodu rozeti (EN, JA, DE vb.) eklendi ve çeviri motoruna kaynak dil olarak aktarıldı.
+
+### 💬 2. Evrensel Tartışma Konuları & Aktiviteler (`KitsugiMediaSocialClient.kt`, `ReviewsTab.kt`)
+- **TMDB & SIMKL Kısıtlaması Kaldırıldı:** Kaynak fark etmeksizin (TMDB, SIMKL, Kitsu, Shikimori, Bangumi, MAL) gerçek MAL/AniList kimlik eşlemesi çözülebildiğinde forum konuları ve aktiviteler dinamik olarak yüklenir; çözülemezse bölüm gizlenir ("varsa görünür" kuralı).
+
+### 🌍 3. Akıllı Çok Dilli Çeviri Motoru (`KitsugiTranslateUtils.kt`, `SettingsDataStore.kt`)
+- **Dinamik Çeviri:** Sabit `en -> tr` kuralı kaldırıldı; kaynak dil = otomatik algılama veya incelemenin dili, hedef dil = kullanıcının seçtiği hedef dil veya uygulamanın aktif dili.
+- **Evrensel Web Fallback:** Google Translate uygulaması kurulu olmadığında tüm dilleri destekleyen `translate.google.com/?sl=auto&tl=...` web arayüzü açılır.
+- **130+ Dil Desteği:** Ayarlar ekranındaki dil listeleri Google Translate'in 130+ diline genişletildi (kaynakta "Otomatik (Algıla)" seçeneği dahil).
+
+### 📚 4. Keşfet: Yeni Yerel Ek Tür Rafları (`NativeKindExploreSections.kt`, `ExploreViewModel.kt`)
+- **MAL:** "Manhwa & Manhua" ve "Noveller & Light Novel" rafları (Jikan filtreli).
+- **Shikimori:** "Manhwa & Manhua" (`kinds=manhwa,manhua`) ve "Noveller & Light Novel" (`kinds=light_novel,novel`) rafları.
+- **AniList:** "Noveller & Light Novel" (`format: NOVEL`) rafı.
+- Desteklemeyen kaynaklarda (Kitsu) raflar temiz bir şekilde gizlenir. Hem "Tümü" hem tek kaynak modunda "Tümünü Gör" sayfalaması ve vitrin puanlaması entegre edildi.
+
+### 🎨 5. Stüdyo & Yapımcı Sayfası Keşfet Paritesi (`StudioDetailPage.kt`, `StudioDetailComponents.kt`)
+- **Keşfet Sayfası Uyumlu Düzen:** Keşfet açılır sayfalarıyla ("Shikimori · En İyi Animeler") birebir aynı kolon hesabı, dikey/yatay mod duyarlılığı ve akıcı sayfa yapısı.
+- **Gelişmiş Filtreleme & Görünüm:** Emojili tür filtre çipleri (Tümü, Anime, Manga, Film, Dizi), Filtre ve Sıralama bottom sheet'i, içerik sayacı, yukarı kaydırma FAB'ı, kalıcı Grid ↔ Liste geçişi ve stüdyo açıklaması ("Hakkında") desteği.
+
+### 🏷️ 6. Ortak Kaynak Rozetleri & Logo Gösterimi (`KitsugiSourceBadge.kt`, `DetailSharedComponents.kt`)
+- **Logo + Doğru İsim Rozeti:** Vitrin (hero), detay açılışındaki yükleme ekranı ve detay sayfası başlığında ham metinler yerine logo + okunabilir isim gösteren `KitsugiSourceNamePill` ve `DetailSourcePill` entegrasyonu (AniList, MAL, TMDB, Kitsu, Shikimori, Simkl, Bangumi).
+
+### 🧪 7. Birim Testleri
+- `AllSourcesExploreTest.kt` ile yerel ek tür raflarının filtreleme ve görünürlük mantığı doğrulandı.
+
+### 📦 8. Dağıtım
+- Yalnızca **FOSS** sürümü (`assembleFossRelease`) derlendi (`Kitsugi-Beta-v2.4.221-foss.apk`).
+
+---
+
+## 🇬🇧 English (v2.4.221)
+
+### 🌐 1. Multilingual Reviews & Original Language Badges (`TmdbCreditsClient.kt`, `KitsugiReviewCard.kt`)
+- **Unrestricted Reviews:** Removed language lock (`language=tr-TR`) from TMDB review requests so reviews in all languages load intact.
+- **TMDB Review Pagination:** Added pagination (`page`) support for TMDB reviews in the "See all" sheet.
+- **Language Badge:** Display original language tag (EN, JA, DE, etc.) on review cards, passed as source language to translators.
+
+### 💬 2. Universal Forum Topics & Activities (`KitsugiMediaSocialClient.kt`, `ReviewsTab.kt`)
+- **Broadened Social Tabs:** Lifted TMDB/SIMKL restrictions; whenever MAL/AniList cross-mappings resolve, discussions and activities appear seamlessly across all sources.
+
+### 🌍 3. Smart Multilingual Translation Engine (`KitsugiTranslateUtils.kt`, `SettingsDataStore.kt`)
+- **Dynamic Language Pairs:** Replaced fixed `en -> tr` with dynamic auto-detection / original review language to user-selected target (or active app locale).
+- **Web Fallback:** Added graceful fallback to `translate.google.com/?sl=auto&tl=...` when Google Translate app is absent.
+- **130+ Languages:** Expanded language settings catalog to over 130 Google Translate locales.
+
+### 📚 4. Explore: Native Media Subcategory Shelves (`NativeKindExploreSections.kt`, `ExploreViewModel.kt`)
+- **MAL:** "Manhwa & Manhua" and "Novels & Light Novels" shelves.
+- **Shikimori:** "Manhwa & Manhua" and "Novels & Light Novels" shelves.
+- **AniList:** "Novels & Light Novels" shelf.
+- Automatically hidden on unsupported catalogs (Kitsu). Full support for "See all" pagination and hero scoring.
+
+### 🎨 5. Studio Detail Page Explore Parity (`StudioDetailPage.kt`, `StudioDetailComponents.kt`)
+- **Unified Explore Layout:** Matches explore category grid responsive columns, portrait/landscape continuity, and layout flow.
+- **Filtering & Views:** Added emoji chips (All, Anime, Manga, Movies, Series), Filter/Sort sheet, count indicator, scroll-to-top FAB, persistent Grid ↔ List toggle, and studio "About" section.
+
+### 🏷️ 6. Unified Source Badges & Logos (`KitsugiSourceBadge.kt`, `DetailSharedComponents.kt`)
+- **Logo + Friendly Name:** Hero showcase, loading screens, and detail headers now render unified `KitsugiSourceNamePill` and `DetailSourcePill` with crisp logos and standardized labels.
+
+### 🧪 7. Unit Tests
+- Verified with `AllSourcesExploreTest.kt`.
+
+### 📦 8. Distribution
+- Strictly released the **FOSS variant only** (`assembleFossRelease` -> `Kitsugi-Beta-v2.4.221-foss.apk`).
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.220)
 
 ### 🧹 1. Kitsu Bozuk Özet (Synopsis) Tespiti ve Temizliği (`KitsuSynopsisValidator.kt`, `KitsugiDetailClient.kt`)

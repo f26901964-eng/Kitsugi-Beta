@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.data.trailer
 
+import com.kitsugi.animelist.core.memory.BoundedCache
+
 import android.content.Context
 import android.util.Log
 import com.kitsugi.animelist.data.cloudstream.CsStreamRunner
@@ -41,7 +43,7 @@ private val YOUTUBE_VIDEO_ID_REGEX = Regex("^[a-zA-Z0-9_-]{11}$")
 object DetailTrailerFallback {
 
     // key -> YouTube trailer URL (null = zincir boş döndü, negatif önbellek)
-    private val cache = ConcurrentHashMap<String, String?>()
+    private val cache = BoundedCache<String, String?>("trailer.fallback", 300)
 
     /**
      * Verilen kimlikler için YouTube fragman URL'si çözümler; bulunamazsa null.

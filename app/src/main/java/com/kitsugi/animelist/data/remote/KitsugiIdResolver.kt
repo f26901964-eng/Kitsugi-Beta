@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.data.remote
 
+import com.kitsugi.animelist.core.memory.BoundedCache
+
 import android.util.Log
 import org.json.JSONObject
 import java.net.URL
@@ -27,7 +29,7 @@ object KitsugiIdResolver {
      * Shikimori ID → MAL ID eşleme önbelleği. Değer 0 ise "eşleme yok" (negatif önbellek):
      * ARM ve Shikimori API'sine aynı ID için tekrar tekrar sorulmaz.
      */
-    private val shikimoriMalIdCache = java.util.concurrent.ConcurrentHashMap<Int, Int>()
+    private val shikimoriMalIdCache = BoundedCache<Int, Int>("shikimori.malId", 3000)
     private const val SHIKIMORI_MAL_UNRESOLVED = 0
 
     /**

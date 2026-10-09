@@ -105,19 +105,19 @@ internal fun ApiDetailOverviewTab(
                 producers = detail.producers,
                 networks = detail.networks,
                 onStudioClick = { studio ->
-                    val resolvedSource = when {
-                        result.source.lowercase() == "anilist" -> "anilist"
-                        result.type == MediaType.Anime || result.type == MediaType.Manga -> "jikan"
-                        else -> "tmdb"
-                    }
+                    val resolvedSource = resolveStudioClickSource(
+                        studioSource = studio.source,
+                        mediaSource = result.source.lowercase(),
+                        mediaType = result.type
+                    )
                     onStudioClick(studio.id, resolvedSource, studio.name, null)
                 },
                 onProducerClick = { producer ->
-                    val resolvedSource = when {
-                        result.source.lowercase() == "anilist" -> "anilist"
-                        result.type == MediaType.Anime || result.type == MediaType.Manga -> "jikan"
-                        else -> "tmdb"
-                    }
+                    val resolvedSource = resolveStudioClickSource(
+                        studioSource = producer.source,
+                        mediaSource = result.source.lowercase(),
+                        mediaType = result.type
+                    )
                     onStudioClick(producer.id, resolvedSource, producer.name, null)
                 }
             )
@@ -160,6 +160,23 @@ internal fun ApiDetailOverviewTab(
                 endings = detail?.endings.orEmpty()
             )
         }
+    }
+}
+
+/**
+ * Stüdyo/üretici çipinin hangi kaynak detayını açacağını belirler.
+ *
+ * Bangumi infobox'ından gelen çiplerin kimliği kurum条目'ına (kişi, `type = 2`) işaret eder;
+ * bu kaynak "jikan" varsayımıyla açılırsa yanlış kayıt numaraları kullanılır. Bu yüzden
+ * çipin kendi kaynağı yalnızca `bangumi` olduğunda önceliklidir, diğer tüm durumlarda
+ * eski kaynak çıkarımı korunur.
+ */
+internal fun resolveStudioClickSource(studioSource: String?, mediaSource: String, mediaType: MediaType): String {
+    if (studioSource.equals("bangumi", ignoreCase = true)) return "bangumi"
+    return when {
+        mediaSource == "anilist" -> "anilist"
+        mediaType == MediaType.Anime || mediaType == MediaType.Manga -> "jikan"
+        else -> "tmdb"
     }
 }
 

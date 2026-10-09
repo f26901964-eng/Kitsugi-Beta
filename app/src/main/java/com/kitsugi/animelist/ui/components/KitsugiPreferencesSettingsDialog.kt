@@ -1063,34 +1063,18 @@ private fun ListScoreTab(
                 )
             }
 
+            // Google Translate'in desteklediği TÜM diller — kaynak tarafta ek olarak
+            // "Otomatik (Algıla)" vardır; hedef dil uygulama diline göre çözülür.
             val translateSourceLanguages = listOf(
-                KitsugiChoiceOption(id = "auto", title = "Otomatik (Algıla)", description = ""),
-                KitsugiChoiceOption(id = "tr", title = "Türkçe", description = ""),
-                KitsugiChoiceOption(id = "en", title = "İngilizce", description = ""),
-                KitsugiChoiceOption(id = "ja", title = "Japonca", description = ""),
-                KitsugiChoiceOption(id = "ko", title = "Korece", description = ""),
-                KitsugiChoiceOption(id = "zh", title = "Çince", description = ""),
-                KitsugiChoiceOption(id = "de", title = "Almanca", description = ""),
-                KitsugiChoiceOption(id = "fr", title = "Fransızca", description = ""),
-                KitsugiChoiceOption(id = "es", title = "İspanyolca", description = ""),
-                KitsugiChoiceOption(id = "ru", title = "Rusça", description = ""),
-                KitsugiChoiceOption(id = "it", title = "İtalyanca", description = ""),
-                KitsugiChoiceOption(id = "pt", title = "Portekizce", description = "")
-            )
+                KitsugiChoiceOption(id = "auto", title = "Otomatik (Algıla)", description = "")
+            ) + com.kitsugi.animelist.utils.KitsugiTranslateUtils.googleLanguageCatalog.map { (code, name) ->
+                KitsugiChoiceOption(id = code, title = name, description = "")
+            }
 
-            val translateTargetLanguages = listOf(
-                KitsugiChoiceOption(id = "tr", title = "Türkçe", description = ""),
-                KitsugiChoiceOption(id = "en", title = "İngilizce", description = ""),
-                KitsugiChoiceOption(id = "ja", title = "Japonca", description = ""),
-                KitsugiChoiceOption(id = "ko", title = "Korece", description = ""),
-                KitsugiChoiceOption(id = "zh", title = "Çince", description = ""),
-                KitsugiChoiceOption(id = "de", title = "Almanca", description = ""),
-                KitsugiChoiceOption(id = "fr", title = "Fransızca", description = ""),
-                KitsugiChoiceOption(id = "es", title = "İspanyolca", description = ""),
-                KitsugiChoiceOption(id = "ru", title = "Rusça", description = ""),
-                KitsugiChoiceOption(id = "it", title = "İtalyanca", description = ""),
-                KitsugiChoiceOption(id = "pt", title = "Portekizce", description = "")
-            )
+            val translateTargetLanguages =
+                com.kitsugi.animelist.utils.KitsugiTranslateUtils.googleLanguageCatalog.map { (code, name) ->
+                    KitsugiChoiceOption(id = code, title = name, description = "")
+                }
 
             var showSourceLangDialog by remember { mutableStateOf(false) }
             var showTargetLangDialog by remember { mutableStateOf(false) }

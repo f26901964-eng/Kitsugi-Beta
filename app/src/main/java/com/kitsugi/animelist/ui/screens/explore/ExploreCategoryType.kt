@@ -17,6 +17,14 @@ enum class ExploreCategoryType {
     /** Bangumi REAL (type=6) live-action shelves. */
     BANGUMI_TV,
     BANGUMI_MOVIES,
+    /**
+     * Kaynağın yerel "ek tür" rafları (Bangumi REAL raflarıyla aynı fikir):
+     * MANHWA_MANHUA = Kore/Çin çizgi romanları, NOVELS = light novel & romanlar.
+     * Yalnızca kaynağın API'si bu türleri destekliyorsa doldurulur (MAL, Shikimori,
+     * AniList); desteklemeyen kaynakta (Kitsu) bölüm kendiliğinden gizlenir.
+     */
+    MANHWA_MANHUA,
+    NOVELS,
     /** TMDB'ye özgü "Yakında Yayında" içerikleri — getUpcomingMedia() ile sayfalanır */
     UPCOMING_MEDIA_TMDB
 }

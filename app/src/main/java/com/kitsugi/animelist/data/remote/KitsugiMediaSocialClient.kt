@@ -334,15 +334,16 @@ class KitsugiMediaSocialClient {
                 }
                 "simkl" -> {
                     val list = mutableListOf<KitsugiReview>()
-                    if (mediaType == MediaType.Anime) {
-                        val malId = realMalId ?: DetailCache.getMediaDetail("simkl", externalId)?.realMalId
-                        if (malId != null && malId > 0) {
-                            val malList = fetchReviews("jikan", malId, mediaType, page, null, null)
-                            if (malList.isNotEmpty()) return@withContext malList
-                        }
+                    val malIdSimkl = realMalId ?: DetailCache.getMediaDetail("simkl", externalId)?.realMalId
+                    if (mediaType == MediaType.Anime && malIdSimkl != null && malIdSimkl > 0) {
+                        // Anime için evrensel: Jikan + AniList birleştir
+                        val jikanR = runCatching { fetchReviewsFromJikan(malIdSimkl, mediaType, page) }.getOrNull().orEmpty()
+                        val aniR = runCatching { fetchReviewsFromAniList(malIdSimkl, mediaType, page) }.getOrNull().orEmpty()
+                        val merged = (aniR + jikanR).distinctBy { it.username.lowercase().trim() + "_" + it.summary.take(20).lowercase().trim() }
+                        if (merged.isNotEmpty()) return@withContext merged
                     }
 
-                    // Film/Dizi ise veya anime için fallback olarak TMDB reviews çek
+                    // Film/Dizi ise veya anime için fallback olarak TMDB reviews çek + evrensel tamamla
                     val resolvedTmdb = tmdbId ?: run {
                         val malIdForResolve = realMalId ?: DetailCache.getMediaDetail("simkl", externalId)?.realMalId
                         KitsugiIdResolver.resolveIds(malId = malIdForResolve, aniListId = null, tmdbId = tmdbId).tmdbId
@@ -366,7 +367,8 @@ class KitsugiMediaSocialClient {
                         list.addAll(tmdbReviews)
                     }
 
-                    if (list.isEmpty() && mediaType == MediaType.Anime) {
+                    // Anime ise MAL + AniList ile de tamamla (evrensel rozetli)
+                    if (mediaType == MediaType.Anime) {
                         val malId = realMalId ?: DetailCache.getMediaDetail("tmdb", externalId)?.realMalId
                         val finalMalId = if (malId != null && malId > 0) {
                             malId
@@ -375,50 +377,75 @@ class KitsugiMediaSocialClient {
                             resolved.malId
                         }
                         if (finalMalId != null && finalMalId > 0) {
-                            return@withContext fetchReviews("jikan", finalMalId, mediaType, page, null, null)
+                            val jikanR = runCatching { fetchReviewsFromJikan(finalMalId, mediaType, page) }.getOrNull().orEmpty()
+                            val aniR = runCatching { fetchReviewsFromAniList(finalMalId, mediaType, page) }.getOrNull().orEmpty()
+                            list.addAll(aniR)
+                            list.addAll(jikanR)
                         }
                     }
 
-                    list.distinctBy { it.username + it.fullText.take(20) }
+                    list.distinctBy { it.username.lowercase().trim() + "_" + it.summary.take(20).lowercase().trim() }
                 }
                 "kitsu" -> {
                     val kitsuOffset = 300_000_000
                     val kitsuNumericId = if (externalId >= kitsuOffset) externalId - kitsuOffset else externalId
                     if (kitsuNumericId <= 0) return@withContext emptyList()
-
                     val resolved = runCatching {
                         KitsugiIdResolver.resolveIds(malId = realMalId, aniListId = null, kitsuId = kitsuNumericId)
                     }.getOrNull()
-
                     val aniListId = resolved?.aniListId
-                    if (aniListId != null && aniListId > 0) {
-                        val encoded = 100_000_000 + aniListId
-                        val list = fetchReviewsFromAniList(encoded, mediaType, page)
-                        if (list.isNotEmpty()) return@withContext list
-                    }
-
                     val jikanId = realMalId?.takeIf { it > 0 } ?: resolved?.malId?.takeIf { it > 0 }
-                    if (jikanId != null) {
-                        return@withContext fetchReviewsFromJikan(jikanId, mediaType, page)
-                    }
-
-                    emptyList()
+                    val aniReviews = if (aniListId != null && aniListId > 0) {
+                        val encoded = 100_000_000 + aniListId
+                        runCatching { fetchReviewsFromAniList(encoded, mediaType, page) }.getOrNull().orEmpty()
+                    } else if (jikanId != null) {
+                        runCatching { fetchReviewsFromAniList(jikanId, mediaType, page) }.getOrNull().orEmpty()
+                    } else emptyList()
+                    val jikanReviews = if (jikanId != null) runCatching { fetchReviewsFromJikan(jikanId, mediaType, page) }.getOrNull().orEmpty() else emptyList()
+                    val combined = (aniReviews + jikanReviews).distinctBy { it.username.lowercase().trim() + "_" + it.summary.take(20).lowercase().trim() }
+                    return@withContext combined
                 }
                 "shikimori" -> {
-                    // Shikimori ID'si MAL ID'si değildir: gerçek MAL ID'si çözülür.
                     val malId = resolveMalIdForShikimori(externalId, realMalId)
                     val jikanType = if (mediaType == MediaType.Manga) MediaType.Manga else MediaType.Anime
-                    if (malId != null && malId > 0) fetchReviewsFromJikan(malId, jikanType, page) else emptyList()
+                    val jikanReviews = if (malId != null && malId > 0) runCatching { fetchReviewsFromJikan(malId, jikanType, page) }.getOrNull().orEmpty() else emptyList()
+                    val aniReviews = if (malId != null && malId > 0) runCatching { fetchReviewsFromAniList(malId, jikanType, page) }.getOrNull().orEmpty() else emptyList()
+                    if (jikanReviews.isEmpty() && aniReviews.isEmpty()) emptyList()
+                    else (aniReviews + jikanReviews).distinctBy { it.username.lowercase().trim() + "_" + it.summary.take(20).lowercase().trim() }
                 }
                 "jikan", "mal" -> {
                     val malId = MalJikanMediaSupport.resolveMalId(source, externalId, realMalId)
                         ?: return@withContext emptyList()
-                    val jikanReviews = fetchReviewsFromJikan(malId, mediaType, page)
-                    if (jikanReviews.isNotEmpty()) jikanReviews
-                    else fetchReviewsFromAniList(malId, mediaType, page)
+                    // MAL için hem Jikan hem AniList incelemeleri birleştirilir: AniList incelemeleri beğeni/yanıt
+                    // desteklerken Jikan yerel MAL puanlarını sağlar. Kullanıcı her iki kaynağı tek sekmede görür.
+                    val jikanReviews = runCatching { fetchReviewsFromJikan(malId, mediaType, page) }.getOrNull().orEmpty()
+                    val aniReviews = runCatching { fetchReviewsFromAniList(malId, mediaType, page) }.getOrNull().orEmpty()
+                    if (jikanReviews.isEmpty()) return@withContext aniReviews
+                    if (aniReviews.isEmpty()) return@withContext jikanReviews
+                    val combined = (aniReviews + jikanReviews).distinctBy { (it.username.lowercase().trim() + "_" + it.summary.take(20).lowercase().trim()) }
+                    return@withContext combined
                 }
-                "anilist"      -> fetchReviewsFromAniList(externalId, mediaType, page)
-                else           -> emptyList()
+                "anilist" -> {
+                    // Evrensel: AniList kaynağında da MAL incelemeleri birleştirilir (rozetlerle)
+                    val aniListReviews = runCatching { fetchReviewsFromAniList(externalId, mediaType, page) }.getOrNull().orEmpty()
+                    val malId = runCatching { KitsugiIdResolver.resolveIds(aniListId = if (externalId >= 100_000_000) externalId - 100_000_000 else externalId, malId = null).malId }.getOrNull()
+                    val jikanReviews = if (malId != null && malId > 0) runCatching { fetchReviewsFromJikan(malId, mediaType, page) }.getOrNull().orEmpty() else emptyList()
+                    if (aniListReviews.isEmpty()) return@withContext jikanReviews
+                    if (jikanReviews.isEmpty()) return@withContext aniListReviews
+                    val combined = (aniListReviews + jikanReviews).distinctBy { (it.username.lowercase().trim() + "_" + it.summary.take(20).lowercase().trim()) }
+                    return@withContext combined
+                }
+                else -> {
+                    // Bilinmeyen kaynakta da evrensel deneme: MAL + AniList
+                    val malId = realMalId?.takeIf { it > 0 } ?: DetailCache.getMediaDetail(source, externalId)?.realMalId
+                        ?: runCatching { KitsugiIdResolver.resolveIds(malId = null, aniListId = null, kitsuId = null, tmdbId = tmdbId).malId }.getOrNull()
+                    val aniListStable = runCatching { KitsugiIdResolver.resolveIds(malId = malId, aniListId = null).aniListId?.let { 100_000_000 + it } }.getOrNull()
+                    val jikanReviews = if (malId != null && malId > 0) runCatching { fetchReviewsFromJikan(malId, mediaType, page) }.getOrNull().orEmpty() else emptyList()
+                    val aniReviews = if (aniListStable != null) runCatching { fetchReviewsFromAniList(aniListStable, mediaType, page) }.getOrNull().orEmpty()
+                        else if (malId != null && malId > 0) runCatching { fetchReviewsFromAniList(malId, mediaType, page) }.getOrNull().orEmpty() else emptyList()
+                    val combined = (aniReviews + jikanReviews).distinctBy { (it.username.lowercase().trim() + "_" + it.summary.take(20).lowercase().trim()) }
+                    if (combined.isNotEmpty()) return@withContext combined else emptyList()
+                }
             }
         }
     }
@@ -454,7 +481,7 @@ class KitsugiMediaSocialClient {
                         id = null, username = username, avatarUrl = avatarUrl,
                         score = score, summary = summary, fullText = reviewText,
                         dateText = dateText, helpfulCount = if (helpfulCount > 0) helpfulCount else null,
-                        ratingAmount = null, userRating = null
+                        ratingAmount = null, userRating = null, source = "jikan"
                     ))
                 }
                 list
@@ -516,7 +543,8 @@ class KitsugiMediaSocialClient {
                     dateText = dateText,
                     helpfulCount = node.optionalPositiveInt("rating"),
                     ratingAmount = node.optionalPositiveInt("ratingAmount"),
-                    userRating   = node.optNullableString("userRating")
+                    userRating   = node.optNullableString("userRating"),
+                    source = "anilist"
                 ))
             }
             list
@@ -537,11 +565,14 @@ class KitsugiMediaSocialClient {
             when (MalJikanMediaSupport.canonicalSource(source)) {
                 "jikan", "mal" -> {
                     val aniListId = relationsClient.resolveAniListId(externalId, mediaType)
-                    if (aniListId != null) {
-                        return@withContext fetchForumTopics("anilist", aniListId, mediaType, page)
-                    }
-                    if (page > 1) return@withContext emptyList()
-                    fetchForumTopicsFromJikan(externalId, mediaType)
+                    // MAL için hem Jikan hem AniList konuları birleştirilir: Jikan yerel MAL forumları,
+                    // AniList ise uluslararası tartışmaları sağlar. İkisi tek listede gösterilir.
+                    val jikanTopics = if (page == 1) runCatching { fetchForumTopicsFromJikan(externalId, mediaType) }.getOrNull().orEmpty() else emptyList()
+                    val aniTopics = if (aniListId != null) runCatching { fetchForumTopicsFromAniList(aniListId, page) }.getOrNull().orEmpty() else emptyList()
+                    if (jikanTopics.isEmpty()) return@withContext aniTopics
+                    if (aniTopics.isEmpty()) return@withContext jikanTopics
+                    val merged = (aniTopics + jikanTopics).distinctBy { it.title.lowercase().trim() }
+                    return@withContext merged.take(30)
                 }
                 "anilist" -> {
                     val aniListId = if (externalId >= 100_000_000) {
@@ -549,9 +580,45 @@ class KitsugiMediaSocialClient {
                     } else {
                         relationsClient.resolveAniListId(externalId, mediaType) ?: externalId
                     }
-                    fetchForumTopicsFromAniList(aniListId, page)
+                    val aniTopics = runCatching { fetchForumTopicsFromAniList(aniListId, page) }.getOrNull().orEmpty()
+                    // Evrensel: AniList kaynağında da MAL forumları gösterilir (rozetli)
+                    val malId = runCatching { KitsugiIdResolver.resolveIds(aniListId = aniListId, malId = null).malId }.getOrNull()
+                    val jikanTopics = if (malId != null && malId > 0 && page == 1) runCatching { fetchForumTopicsFromJikan(malId, mediaType) }.getOrNull().orEmpty() else emptyList()
+                    if (aniTopics.isEmpty()) return@withContext jikanTopics
+                    if (jikanTopics.isEmpty()) return@withContext aniTopics
+                    val merged = (aniTopics + jikanTopics).distinctBy { it.title.lowercase().trim() }
+                    return@withContext merged.take(30)
                 }
-                else -> emptyList()
+                else -> {
+                    // Diğer kaynaklar (kitsu, shikimori, bangumi, tmdb, simkl): ID çözümle, AniList+Jikan birleştir
+                    val resolved = runCatching {
+                        val src = MalJikanMediaSupport.canonicalSource(source)
+                        when (src) {
+                            "kitsu" -> {
+                                val off = 300_000_000
+                                val num = if (externalId >= off) externalId - off else externalId
+                                KitsugiIdResolver.resolveIds(malId = null, aniListId = null, kitsuId = num.takeIf { it > 0 })
+                            }
+                            "shikimori" -> {
+                                val malId = resolveMalIdForShikimori(externalId, null)
+                                KitsugiIdResolver.resolveIds(malId = malId, aniListId = null)
+                            }
+                            "bangumi" -> KitsugiBangumiDetailClient.resolveCrossIds(externalId, mediaType).let {
+                                KitsugiIdResolver.resolveIds(malId = it.malId, aniListId = it.aniListId)
+                            }
+                            else -> {
+                                val fallbackMal = DetailCache.getMediaDetail(source, externalId)?.realMalId
+                                KitsugiIdResolver.resolveIds(malId = fallbackMal, aniListId = null)
+                            }
+                        }
+                    }.getOrNull()
+                    val aniId = resolved?.aniListId
+                    val malId2 = resolved?.malId
+                    val aniTopics2 = if (aniId != null && aniId > 0) runCatching { fetchForumTopicsFromAniList(aniId, page) }.getOrNull().orEmpty() else emptyList()
+                    val jikanTopics2 = if (malId2 != null && malId2 > 0 && page == 1) runCatching { fetchForumTopicsFromJikan(malId2, mediaType) }.getOrNull().orEmpty() else emptyList()
+                    val merged2 = (aniTopics2 + jikanTopics2).distinctBy { it.title.lowercase().trim() }
+                    return@withContext merged2.take(30)
+                }
             }
         }
     }
@@ -574,7 +641,8 @@ class KitsugiMediaSocialClient {
                         viewCount = 0,
                         username = item.optString("author_username"),
                         avatarUrl = null,
-                        dateText = item.optNullableString("date")?.take(10)
+                        dateText = item.optNullableString("date")?.take(10),
+                        source = "jikan"
                     ))
                 }
                 list
@@ -613,7 +681,7 @@ class KitsugiMediaSocialClient {
                     avatarUrl = userObj?.optJSONObject("avatar")?.optNullableString("medium"),
                     dateText = dateText, likeCount = item.optInt("likeCount", 0),
                     isLiked = item.optBoolean("isLiked", false),
-                    userId = userObj?.optInt("id")
+                    userId = userObj?.optInt("id"), source = "anilist"
                 ))
             }
             list
@@ -631,15 +699,30 @@ class KitsugiMediaSocialClient {
         mediaType: MediaType = MediaType.Anime
     ): List<KitsugiActivity> {
         return withContext(Dispatchers.IO) {
-            val aniListId = if (source.lowercase() == "anilist") {
-                if (externalId >= 100_000_000) {
-                    externalId - 100_000_000
-                } else {
-                    relationsClient.resolveAniListId(externalId, mediaType) ?: externalId
+            val canonical = MalJikanMediaSupport.canonicalSource(source)
+            val aniListId: Int? = when (canonical) {
+                "anilist" -> if (externalId >= 100_000_000) externalId - 100_000_000 else relationsClient.resolveAniListId(externalId, mediaType) ?: externalId
+                "kitsu" -> {
+                    val off = 300_000_000
+                    val num = if (externalId >= off) externalId - off else externalId
+                    runCatching { KitsugiIdResolver.resolveIds(malId = null, aniListId = null, kitsuId = num.takeIf { it > 0 }) }.getOrNull()?.aniListId
+                        ?: relationsClient.resolveAniListId(externalId, mediaType)
                 }
-            } else {
-                relationsClient.resolveAniListId(externalId, mediaType) ?: return@withContext emptyList()
+                "shikimori" -> {
+                    val malId = resolveMalIdForShikimori(externalId, null)
+                    runCatching { KitsugiIdResolver.resolveIds(malId = malId, aniListId = null) }.getOrNull()?.aniListId
+                        ?: relationsClient.resolveAniListId(externalId, mediaType)
+                }
+                "bangumi" -> KitsugiBangumiDetailClient.resolveCrossIds(externalId, mediaType).aniListId
+                    ?: runCatching { KitsugiIdResolver.resolveIds(malId = DetailCache.getMediaDetail(source, externalId)?.realMalId, aniListId = null) }.getOrNull()?.aniListId
+                    ?: relationsClient.resolveAniListId(externalId, mediaType)
+                else -> {
+                    val fallbackMal = DetailCache.getMediaDetail(source, externalId)?.realMalId
+                    runCatching { KitsugiIdResolver.resolveIds(malId = fallbackMal, aniListId = null) }.getOrNull()?.aniListId
+                        ?: relationsClient.resolveAniListId(externalId, mediaType)
+                }
             }
+            if (aniListId == null || aniListId <= 0) return@withContext emptyList()
 
             val query = """
                 query (${'$'}mediaId: Int, ${'$'}page: Int) {
@@ -828,7 +911,7 @@ class KitsugiMediaSocialClient {
             mediaCoverUrl = mediaCoverUrl,
             likeCount = item.optInt("likeCount", 0), isLiked = item.optBoolean("isLiked", false),
             mediaId = mediaId, mediaType = mediaType, isAdult = isAdult,
-            userId = userObj?.optInt("id")
+            userId = userObj?.optInt("id"), source = "anilist"
         )
     }
 

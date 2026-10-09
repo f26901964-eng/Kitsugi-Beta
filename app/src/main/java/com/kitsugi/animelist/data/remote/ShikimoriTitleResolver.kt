@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.data.remote
 
+import com.kitsugi.animelist.core.memory.BoundedCache
+
 import android.util.Log
 import com.kitsugi.animelist.core.network.KitsugiHttpClient
 import com.kitsugi.animelist.data.auth.PlatformRateLimiter
@@ -40,7 +42,7 @@ object ShikimoriTitleResolver {
         val japanese: String? = null
     )
 
-    private val cache = ConcurrentHashMap<String, Names>()
+    private val cache = BoundedCache<String, Names>("shikimori.title", 1500)
 
     /**
      * Verilen Shikimori kimliklerinin İngilizce/Japonca adlarını çözer.
