@@ -455,6 +455,8 @@
     <string name="explore_trending_anime">Trending Anime</string>
     <string name="explore_movie_anime">Anime Movies</string>
     <string name="explore_seasonal_anime">Seasonal Anime</string>
+    <string name="explore_bangumi_tv">Bangumi TV Series</string>
+    <string name="explore_bangumi_movies">Bangumi Movies</string>
 
     <!-- TMDB / Simkl Explore Sections -->
     <string name="explore_tmdb_trending_all">Trending All</string>

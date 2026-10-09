@@ -333,6 +333,12 @@ class KitsugiMediaRelationsClient {
         title: String? = null
     ): List<KitsugiRelation> {
         return withContext(Dispatchers.IO) {
+            if (source.equals("anilist", ignoreCase = true) && (externalId == null || externalId <= 0)) {
+                // Kimliği bilinmeyen AniList kaydı: başlıkla ara (yanlış kimlikle veri getirme).
+                val cleanTitle = title?.replace(Regex("\\s*\\(.*?\\)"), "")?.trim()
+                if (cleanTitle.isNullOrBlank()) return@withContext emptyList()
+                return@withContext fetchRecommendationsFromAniListBySearch(cleanTitle, mediaType)
+            }
             if (externalId == null || externalId <= 0) return@withContext emptyList()
 
             when (MalJikanMediaSupport.canonicalSource(source)) {

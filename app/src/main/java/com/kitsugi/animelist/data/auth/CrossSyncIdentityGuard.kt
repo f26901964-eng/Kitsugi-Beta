@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.data.auth
 
+import com.kitsugi.animelist.data.remote.JikanGateway
+import com.kitsugi.animelist.data.remote.JikanResult
 import android.util.Log
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaIdentity
@@ -328,21 +330,21 @@ object CrossSyncIdentityGuard {
     }
 
     private suspend fun fetchFromJikan(malId: Int, endpoint: String): RemoteIdentity? {
-        PlatformRateLimiter.acquire("jikan")
-        val request = Request.Builder()
-            .url("https://api.jikan.moe/v4/$endpoint/$malId")
-            .header("Accept", "application/json")
-            .header("User-Agent", "KitsugiAnimeList/1.0")
-            .build()
+        // Kimlik doğrulaması arka plan işi: JikanGateway'de BACKGROUND önceliği (kullanıcı
+        // ekranlarının kotasını yemez) ve önbellek/tekilleştirme burada da geçerlidir.
         return try {
-            com.kitsugi.animelist.core.network.KitsugiHttpClient.client.newCall(request).execute().use { response ->
-                if (response.code == 429) PlatformRateLimiter.notifyRateLimited("jikan")
-                if (!response.isSuccessful) {
-                    Log.w(TAG, "Jikan identity HTTP ${response.code} for $endpoint/$malId")
+            val text = when (val r = JikanGateway.fetch(
+                "https://api.jikan.moe/v4/$endpoint/$malId",
+                JikanGateway.Priority.BACKGROUND
+            )) {
+                is JikanResult.Ok -> r.body
+                else -> {
+                    Log.w(TAG, "Jikan identity ${r.javaClass.simpleName} for $endpoint/$malId")
                     return null
                 }
-                val text = response.body?.string()
-                if (text.isNullOrBlank()) return null
+            }
+            if (text.isBlank()) return null
+            run {
                 val data = JSONObject(text).optJSONObject("data") ?: return null
                 val titles = mutableListOf<String>()
                 data.optString("title").takeIf { it.isNotBlank() }?.let { titles += it }

@@ -16,7 +16,7 @@ enum class ExplorePlatform(
     SIMKL("Simkl", "📺", "Simkl", "Simkl en iyiler, TV dizileri ve anime listeleri"),
     KITSU("Kitsu", "🦊", "Kitsu", "Kitsu popüler, trend ve en sevilen içerikleri"),
     SHIKIMORI("Shikimori", "🌸", "Shikimori", "Shikimori güncel anime ve manga sıralamaları"),
-    BANGUMI("Bangumi", "🎌", "Bangumi", "Bangumi (bgm.tv) güncel anime ve kitap/manga sıralamaları");
+    BANGUMI("Bangumi", "🎌", "Bangumi", "Bangumi (bgm.tv) anime, manga, canlı dizi ve film keşfi");
 
     companion object {
         val sources: List<ExplorePlatform> = entries.filter { it != ALL }
@@ -44,6 +44,9 @@ data class ExplorePayload(
     val upcomingMediaTmdb: List<JikanSearchResult> = emptyList(),
     // Nullable for older Gson disk caches which don't contain these fields.
     val topRatedAnime: List<JikanSearchResult>? = null,
-    val topRatedManga: List<JikanSearchResult>? = null
+    val topRatedManga: List<JikanSearchResult>? = null,
+    /** Bangumi REAL categories: live-action TV/drama and live-action films. */
+    val bangumiTvShows: List<JikanSearchResult>? = null,
+    val bangumiMovies: List<JikanSearchResult>? = null
 )
 

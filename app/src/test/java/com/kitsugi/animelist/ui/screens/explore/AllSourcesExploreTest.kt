@@ -88,6 +88,23 @@ class AllSourcesExploreTest {
         assertEquals(ExploreCategoryType.TOP_MANGA, section.category)
     }
 
+    @Test fun bangumiRealShelvesAreSeparateAndStayUnderBangumi() {
+        val tv = media("bangumi", id = 41, type = MediaType.TvShow)
+        val movie = media("bangumi", id = 42, type = MediaType.Movie)
+        val p = payload(emptyList()).copy(bangumiTvShows = listOf(tv), bangumiMovies = listOf(movie))
+
+        val sections = allSourceSections(mapOf(ExplorePlatform.BANGUMI to ExploreSourceState(p)), false)
+
+        assertEquals(
+            listOf(ExploreCategoryType.BANGUMI_TV, ExploreCategoryType.BANGUMI_MOVIES),
+            sections.map { it.category }
+        )
+        assertEquals(listOf("Bangumi Dizileri", "Bangumi Filmleri"), sections.map { it.title })
+        assertEquals(listOf(tv, movie), sections.map { it.results.single() })
+        assertTrue(p.hasCatalogContent())
+        assertTrue(p.forSource(ExplorePlatform.MAL).bangumiTvShows.orEmpty().isEmpty())
+    }
+
     @Test fun scoreChartsAreDistinctFromPopularityCharts() {
         val popular = media()
         val rated = media(id = 2)

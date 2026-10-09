@@ -573,6 +573,24 @@ class KitsugiBangumiDetailClientTest {
     }
 
     @Test
+    fun bangumiRealSubjectsMapToDistinctLiveActionTypesAndLabels() {
+        val realTv = KitsugiBangumiClient.run {
+            subject(platform = "电视剧").copy(type = BangumiApiClient.SubjectType.REAL)
+                .toSearchResult(MediaType.TvShow)
+        }
+        val realMovie = KitsugiBangumiClient.run {
+            subject(platform = "电影").copy(type = BangumiApiClient.SubjectType.REAL)
+                .toSearchResult(MediaType.Movie)
+        }
+
+        assertEquals(MediaType.TvShow, realTv.type)
+        assertEquals("DİZİ", realTv.subtitle)
+        assertEquals(MediaType.Movie, realMovie.type)
+        assertEquals("FİLM", realMovie.subtitle)
+        assertEquals(realTv.malId, realMovie.malId)
+    }
+
+    @Test
     fun bangumiLocalizedName_keepsEnglishRomajiAndNativeIndependent() {
         val localized = BangumiNameLocalizer.subject(
             name = "進撃の巨人",
@@ -622,5 +640,24 @@ class KitsugiBangumiDetailClientTest {
         assertEquals("Nagisa Furukawa", localized.displayFor("ENGLISH"))
         assertEquals("Nagisa Furukawa", localized.displayFor("ROMAJI"))
         assertEquals("古河渚", localized.displayFor("NATIVE"))
+    }
+
+    @Test
+    fun bangumiEntityInfobox_usesEnglishAndRomajiAliasesForPeople() {
+        val localized = BangumiNameLocalizer.entityFromInfobox(
+            name = "古河渚",
+            nameCn = "古河渚",
+            infobox = mapOf(
+                "英文名称" to listOf("Nagisa Furukawa"),
+                "罗马拼写" to listOf("Nagisa Furukawa"),
+                "别名" to listOf("Furukawa Nagisa")
+            )
+        )
+
+        assertEquals("Nagisa Furukawa", localized.display)
+        assertEquals("Nagisa Furukawa", localized.displayFor("ROMAJI"))
+        assertEquals("Nagisa Furukawa", localized.displayFor("ENGLISH"))
+        assertEquals("古河渚", localized.displayFor("NATIVE"))
+        assertTrue(localized.alternatives.contains("Furukawa Nagisa"))
     }
 }

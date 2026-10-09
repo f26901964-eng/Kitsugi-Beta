@@ -135,16 +135,18 @@ object KitsugiBangumiCreditsClient {
             subjectsCall.await() to personsCall.await()
         }
         val infobox = BangumiApiClient.parseInfobox(root.optJSONArray("infobox"))
-        val localized = BangumiNameLocalizer.entity(
+        val localized = BangumiNameLocalizer.entityFromInfobox(
             name = root.optString("name"),
-            nameCn = root.optString("name_cn", root.optString("nameCN", "")).ifBlank { infoboxFirst(infobox, CN_NAME_KEYS) ?: "" },
-            aliases = infobox[ALIAS_KEY].orEmpty(),
-            englishAliases = infobox["英文名"].orEmpty() + infobox["英語名"].orEmpty(),
-            romajiAliases = infobox["罗马字"].orEmpty() + infobox["羅馬字"].orEmpty()
+            nameCn = root.optString("name_cn", root.optString("nameCN", "")).ifBlank {
+                infoboxFirst(infobox, CN_NAME_KEYS) ?: ""
+            },
+            infobox = infobox
         )
         val primaryName = localized.display.takeIf { it.isNotBlank() && it != "?" }
             ?: name?.trim()?.ifBlank { null }
             ?: "Bilinmeyen"
+        val voiceActors = persons?.let { parseCharacterVoiceActors(it) }.orEmpty()
+        val localizedVoiceActors = KitsugiBangumiDetailClient.enrichVoiceActorNamesFromBangumi(voiceActors)
 
         return KitsugiCharacterDetail(
             id = rawCharacterId,
@@ -160,7 +162,7 @@ object KitsugiBangumiCreditsClient {
             bloodType = bloodTypeLabel(root.optInt("blood_type", 0))
                 ?: infoboxFirst(infobox, listOf("血型")),
             biography = root.optString("summary").trim().ifBlank { null },
-            voiceActors = persons?.let { parseCharacterVoiceActors(it) }.orEmpty(),
+            voiceActors = localizedVoiceActors,
             mediaAppearances = subjects?.let { parseCharacterAppearances(it) }.orEmpty(),
             isFavourite = false,
             aniListId = null,
@@ -188,12 +190,12 @@ object KitsugiBangumiCreditsClient {
             subjectsCall.await() to charactersCall.await()
         }
         val infobox = BangumiApiClient.parseInfobox(root.optJSONArray("infobox"))
-        val localized = BangumiNameLocalizer.entity(
+        val localized = BangumiNameLocalizer.entityFromInfobox(
             name = root.optString("name"),
-            nameCn = root.optString("name_cn", root.optString("nameCN", "")).ifBlank { infoboxFirst(infobox, CN_NAME_KEYS) ?: "" },
-            aliases = infobox[ALIAS_KEY].orEmpty(),
-            englishAliases = infobox["英文名"].orEmpty() + infobox["英語名"].orEmpty(),
-            romajiAliases = infobox["罗马字"].orEmpty() + infobox["羅馬字"].orEmpty()
+            nameCn = root.optString("name_cn", root.optString("nameCN", "")).ifBlank {
+                infoboxFirst(infobox, CN_NAME_KEYS) ?: ""
+            },
+            infobox = infobox
         )
         val primaryName = localized.display.takeIf { it.isNotBlank() && it != "?" }
             ?: name?.trim()?.ifBlank { null }

@@ -258,6 +258,8 @@ fun FullScreenMediaGridPage(
             ExploreCategoryType.AIRING_ANIME -> bangumi.airingAnime(limit)
             ExploreCategoryType.UPCOMING_ANIME -> bangumi.upcomingAnime(limit)
             ExploreCategoryType.MOVIE_ANIME -> bangumi.movieAnime(limit, offset = offset)
+            ExploreCategoryType.BANGUMI_TV -> bangumi.realTvShows(limit, offset = offset)
+            ExploreCategoryType.BANGUMI_MOVIES -> bangumi.realMovies(limit, offset = offset)
             ExploreCategoryType.SEASONAL_ANIME -> fetchSeasonalPage(page)
             ExploreCategoryType.NEWLY_ADDED_ANIME -> bangumi.newlyAddedAnime(limit, offset = offset)
             ExploreCategoryType.TOP_MANGA -> bangumi.topManga(limit, offset = offset)
@@ -328,6 +330,8 @@ fun FullScreenMediaGridPage(
                         ExploreCategoryType.TRENDING_MANGA -> apiClient.trendingManga(np)
                         ExploreCategoryType.NEWLY_ADDED_ANIME -> apiClient.newlyAddedAnime(np)
                         ExploreCategoryType.NEWLY_ADDED_MANGA -> apiClient.newlyAddedManga(np)
+                        ExploreCategoryType.BANGUMI_TV,
+                        ExploreCategoryType.BANGUMI_MOVIES,
                         ExploreCategoryType.UPCOMING_MEDIA_TMDB -> emptyList()
                     }
                     ExplorePlatform.AniList -> when (categoryType) {
@@ -344,6 +348,8 @@ fun FullScreenMediaGridPage(
                         ExploreCategoryType.TRENDING_MANGA -> apiClient.aniListTrendingManga(np)
                         ExploreCategoryType.NEWLY_ADDED_ANIME -> apiClient.aniListNewlyAddedAnime(np)
                         ExploreCategoryType.NEWLY_ADDED_MANGA -> apiClient.aniListNewlyAddedManga(np)
+                        ExploreCategoryType.BANGUMI_TV,
+                        ExploreCategoryType.BANGUMI_MOVIES,
                         ExploreCategoryType.UPCOMING_MEDIA_TMDB -> emptyList()
                     }
                     ExplorePlatform.TMDB -> {

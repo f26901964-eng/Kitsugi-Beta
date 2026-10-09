@@ -17,6 +17,7 @@ class KitsugiStaffClient {
          * başarısız olursa liste orijinal (özgün) adlarla döner.
          */
         const val BANGUMI_NAME_BRIDGE_TIMEOUT_MS = 8_000L
+        const val BANGUMI_INFOBOX_NAME_BRIDGE_TIMEOUT_MS = 7_500L
     }
 
     suspend fun fetchStaff(
@@ -258,16 +259,21 @@ class KitsugiStaffClient {
         mediaType: MediaType,
         malId: Int?
     ): List<KitsugiStaff> {
-        if (staff.isEmpty()) return staff
-        val needsEnrich = staff.any { PreferenceHelpers.hasCjkCharacters(it.name) }
-        if (!needsEnrich || malId == null || malId <= 0) return staff
-        val names = runCatching {
-            withTimeoutOrNull(BANGUMI_NAME_BRIDGE_TIMEOUT_MS) {
-                KitsugiAniListPersonBridge.fetchMediaNames(malId, mediaType)
+        if (staff.isEmpty() || staff.none { PreferenceHelpers.hasCjkCharacters(it.name) }) return staff
+
+        // AniList only has a partial staff list for some titles; use its match as a first pass.
+        val names = if (malId != null && malId > 0) {
+            try {
+                withTimeoutOrNull(BANGUMI_NAME_BRIDGE_TIMEOUT_MS) {
+                    KitsugiAniListPersonBridge.fetchMediaNames(malId, mediaType)
+                }
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                null
             }
-        }.getOrNull() ?: return staff
-        if (names == null) return staff
-        return staff.map { person ->
+        } else null
+        val anilistEnriched = if (names == null) staff else staff.map { person ->
             if (!PreferenceHelpers.hasCjkCharacters(person.name)) return@map person
             val variant = KitsugiAniListPersonBridge.findByNative(names.staff, person.nativeName, person.name)
                 ?: return@map person
@@ -275,6 +281,17 @@ class KitsugiStaffClient {
                 romanizedName = person.romanizedName ?: variant.romaji,
                 englishName = person.englishName ?: variant.english
             )
+        }
+
+        // Unlike AniList's media relationship, Bangumi's own person page exposes each infobox.
+        return try {
+            withTimeoutOrNull(BANGUMI_INFOBOX_NAME_BRIDGE_TIMEOUT_MS) {
+                KitsugiBangumiDetailClient.enrichStaffNamesFromBangumi(anilistEnriched)
+            } ?: anilistEnriched
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            anilistEnriched
         }
     }
 

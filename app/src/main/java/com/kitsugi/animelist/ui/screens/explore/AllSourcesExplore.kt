@@ -51,7 +51,8 @@ internal suspend fun loadExploreSource(
 internal fun ExplorePayload.hasCatalogContent(): Boolean = listOf(
     topAnime, airingAnime, upcomingAnime, topManga, publishingManga, trendingAnime,
     movieAnime, seasonalAnime, trendingManga, newlyAddedAnime,
-    newlyAddedManga, upcomingMediaTmdb, topRatedAnime.orEmpty(), topRatedManga.orEmpty()
+    newlyAddedManga, upcomingMediaTmdb, topRatedAnime.orEmpty(), topRatedManga.orEmpty(),
+    bangumiTvShows.orEmpty(), bangumiMovies.orEmpty()
 ).any { it.isNotEmpty() }
 
 /** Keep source/type/ID together: TMDB film and TV IDs can overlap. */
@@ -104,7 +105,10 @@ internal fun sourceSections(platform: ExplorePlatform, p: ExplorePayload): List<
         section(ExploreCategoryType.TRENDING_MANGA, "Trend Mangalar", p.trendingManga),
         section(ExploreCategoryType.NEWLY_ADDED_ANIME, "Yeni Eklenen Animeler", p.newlyAddedAnime),
         section(ExploreCategoryType.NEWLY_ADDED_MANGA, "Yeni Eklenen Mangalar", p.newlyAddedManga)
-    )
+    ) + if (platform == ExplorePlatform.BANGUMI) listOf(
+        section(ExploreCategoryType.BANGUMI_TV, "Bangumi Dizileri", p.bangumiTvShows.orEmpty()),
+        section(ExploreCategoryType.BANGUMI_MOVIES, "Bangumi Filmleri", p.bangumiMovies.orEmpty())
+    ) else emptyList()
 }
 
 /** Keep every category under its own source, in a stable source order. */
@@ -149,7 +153,8 @@ internal fun ExplorePayload.forSource(platform: ExplorePlatform): ExplorePayload
         trendingManga = trendingManga.owned(), newlyAddedAnime = newlyAddedAnime.owned(),
         newlyAddedManga = newlyAddedManga.owned(), upcomingMediaTmdb = upcomingMediaTmdb.owned(),
         airingSoonAnime = airingSoonAnime.owned(),
-        topRatedAnime = topRatedAnime.orEmpty().owned(), topRatedManga = topRatedManga.orEmpty().owned()
+        topRatedAnime = topRatedAnime.orEmpty().owned(), topRatedManga = topRatedManga.orEmpty().owned(),
+        bangumiTvShows = bangumiTvShows.orEmpty().owned(), bangumiMovies = bangumiMovies.orEmpty().owned()
     )
 }
 

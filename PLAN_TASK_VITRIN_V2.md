@@ -2,32 +2,25 @@
 
 İki sorun ve çözümleri:
 
-## 1) Görsel gösterim: vitrin resmi vitrini KAPLAMALI (Cover, yön/ekran boyutuna göre)
+## 1) Görsel gösterim: kenarlardan aşırı kırpma (portre + yatay mod)
 
-**Sorun:** Vitrin görseli önce `ContentScale.Crop` ile aşırı kırpılıyordu,
-ardından "Fit + bulanık dolgu" sunumuna geçilmişti; resim vitrini
-kaplamıyor, sağda küçük kalıyor + arkada bulanık zemin görünüyordu.
-İstenen: **vitrin resmi, ekran boyutu ve dikey/yatay moda göre vitrini
-baştan sona kaplamalı** — TMDB fanart'ın yatay dikdörtgen görselleri hem
-dikey hem yatay modda, posterler dikey ekranlar için kullanılmalı.
+**Sorun:** Vitrin görseli `ContentScale.Crop` ile sabit yükseklikli kutuya
+giriyordu; sağ/sol/üst/aşağı kesiliyor, yalnızca orta bant görünüyordu.
+Üst/alt gradyanlar da ortadaki bölgeyi daha da görünmez kılıyordu.
 
 **Çözüm (KitsugiHeroSection.kt):**
-- **Kaplayan sunum:** görsel `ContentScale.Crop` ile tüm vitrin kutusunu
-  doldurur. Fit/bulanık dolgu katmanları kaldırıldı.
-- **Kaynak seçimi `heroImageCandidates()`:** gerçek vitrin kutusunun
-  en-boy oranı (ekran boyutu) + yön bilgisiyle öncelik sırası:
-  1. Geniş vitrin bandı (en/boy ≥ 1.1 — yatay mod, dikey tablet bandı,
-     TV vb.) → yatay dikdörtgen fanart/backdrop önce (her iki yöne de uyumlu).
-  2. Dikey-telefon vitrini (kareye yakın/dar) → dikey poster önce.
-  3. Yüklenemeyen birincil görselde `onLoadingFailed` zinciriyle diğer
-     adaya düşülür (backdrop ↔ poster).
-- **Kırpma odağı `heroImageAlignment()`:** backdrop → merkez (özne bandı);
-  poster geniş bantta kırpılmak zorunda kalırsa hafif yukarı bias
-  (yüz/başlık bandı korunur); poster dikey kutuda → merkez.
-- Sol/üst/alt karartma gradyanları yumuşatıldı — kaplayan görsel
-  görünür kalsın, metin okunabilirliği korunsun.
-- `ExploreViewModel.enrichHeroBackdrops` artık her yönde tetiklenir
-  (geniş bandı olan dikey tablet de backdrop'tan yararlanır).
+- Katmanlı sunum:
+  1. **Arka dolgu:** aynı görsel Crop + bulanık (API 31+ `Modifier.blur`,
+     altında `BlurTransformation` bitmap blur) + %42 karartma → kutuyu
+     baştan sona doldurur, "siyah boşluk" olmaz.
+  2. **Ön plan:** aynı görsel `ContentScale.Fit` → resim ekran oranına,
+     yönüne (portre/yatay) göre **neredeyse tamamen görünür, kesilmez**.
+- Yatay modda ön plan `CenterEnd` (sağa yaslı) — sol taraftaki metin
+  bloğu görselin üstüne binmez; portrede `TopCenter`.
+- Üst/alt karartma gradyanları yumuşatıldı (resmin büyük kısmı net
+  kalsın, alt başlık/metin okunabilirliği korundu).
+- Otomatik görsel seçimi aynı kaldı: portre → `imageUrl` (poster),
+  yatay → `backdropUrl ?: imageUrl`.
 
 ## 2) Vitrin içeriği: daha fazla ve veriye dayalı seçim
 
@@ -55,8 +48,7 @@ modunda yalnızca ilk 5 top anime. Sıralama yoktu.
 **Ek iyileştirmeler:**
 - `ExploreViewModel.enrichHeroBackdrops(...)`: seçilen vitrin
   öğelerinde eksik yatay arka planlar TMDB'den tamamlanır (manga hariç;
-  sonuç `exploreIdentity` ile önbelleklenir; V2.1'den itibaren her yönde
-  tetiklenir — geniş vitrin bandı her yönde backdrop'tan yararlanır).
+  sonuç `exploreIdentity` ile önbelleklenir, sadece yatay modda tetiklenir).
 - `ExploreScreen`: `displayHeroItems` = seçilen öğeler + gelen
   backdrop'lar birleştirilmiş hâli.
 - `HeroSectionComponents.buildHeroMeta`: meta satırına `1.2M üye`,
@@ -68,13 +60,11 @@ modunda yalnızca ilk 5 top anime. Sıralama yoktu.
 |---|---|
 | `ui/screens/explore/HeroSelection.kt` | **YENİ** — skorlama + seçim motoru |
 | `ui/screens/explore/AllSourcesExplore.kt` | `allSourceHeroes` yeni motora devredildi (imza aynı) |
-| `ui/screens/explore/ExploreScreen.kt` | heroItems tüm bölümlerden seçim; displayHeroItems; backdrop LaunchedEffect (V2.1: her yön) |
+| `ui/screens/explore/ExploreScreen.kt` | heroItems tüm bölümlerden seçim; displayHeroItems; backdrop LaunchedEffect |
 | `ui/screens/explore/ExploreViewModel.kt` | `enrichHeroBackdrops` + `heroBackdropOverrides` state'i |
-| `ui/components/KitsugiHeroSection.kt` | V2.1: kaplayan sunum (Crop + yön/oran kaynak seçimi + yedek zinciri) |
-| `ui/components/KitsugiNsfwImage.kt` | V2.1: `onLoadingFailed` geri çağrısı (yedek görsel zinciri) |
+| `ui/components/KitsugiHeroSection.kt` | katmanlı görsel (Fit + bulanık dolgu), gradient yumuşama |
 | `ui/components/HeroSectionComponents.kt` | meta'ya üye/favori istatistikleri |
 | `test/.../HeroSelectionTest.kt` | **YENİ** — normalizasyon, tavan, garanti testleri |
-| `test/.../HeroImageSelectionTest.kt` | **YENİ (V2.1)** — yön/ekran boyutu kaynak seçimi + Crop odak testleri |
 
 Not: `AllSourcesExploreTest.kt` değişmedi; eski sözleşmeler (kaynak
 başı temsil, yetişkin filtresi) yeni mantıkla korunuyor.

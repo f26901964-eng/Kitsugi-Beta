@@ -24,6 +24,7 @@ class KitsugiCharacterClient {
          * Süre dolarsa ya da istek başarısız olursa liste orijinal (özgün) adlarla döner.
          */
         private const val BANGUMI_NAME_BRIDGE_TIMEOUT_MS = 8_000L
+        private const val BANGUMI_INFOBOX_NAME_BRIDGE_TIMEOUT_MS = 7_500L
 
         /** Kitsu listesi VA'sızken MAL/AniList'ten VA eklemek için bekleme sınırı (yavaşsa VA'sız gösterilir). */
         private const val KITSU_VA_MERGE_TIMEOUT_MS = 5_000L
@@ -462,14 +463,22 @@ class KitsugiCharacterClient {
             PreferenceHelpers.hasCjkCharacters(char.name) ||
                 char.voiceActors.any { PreferenceHelpers.hasCjkCharacters(it.name) }
         }
-        if (!needsEnrich || malId == null || malId <= 0) return characters
-        val names = runCatching {
-            withTimeoutOrNull(BANGUMI_NAME_BRIDGE_TIMEOUT_MS) {
-                KitsugiAniListPersonBridge.fetchMediaNames(malId, mediaType)
+        if (!needsEnrich) return characters
+
+        // AniList is useful when the Bangumi record has a cross-ID, but its first two pages
+        // don't cover every character/staff member. Keep it as the fast first pass only.
+        val names = if (malId != null && malId > 0) {
+            try {
+                withTimeoutOrNull(BANGUMI_NAME_BRIDGE_TIMEOUT_MS) {
+                    KitsugiAniListPersonBridge.fetchMediaNames(malId, mediaType)
+                }
+            } catch (cancelled: kotlinx.coroutines.CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                null
             }
-        }.getOrNull() ?: return characters
-        if (names == null) return characters
-        return characters.map { char ->
+        } else null
+        val anilistEnriched = if (names == null) characters else characters.map { char ->
             val variant = if (PreferenceHelpers.hasCjkCharacters(char.name)) {
                 KitsugiAniListPersonBridge.findByNative(names.characters, char.nativeName, char.name)
             } else null
@@ -488,6 +497,18 @@ class KitsugiCharacterClient {
                 englishName = char.englishName ?: variant?.english,
                 voiceActors = voiceActors
             )
+        }
+
+        // p1 person/character detail includes localized infobox aliases and also works when
+        // AniList has no matching record or its page-one result set omitted the name.
+        return try {
+            withTimeoutOrNull(BANGUMI_INFOBOX_NAME_BRIDGE_TIMEOUT_MS) {
+                KitsugiBangumiDetailClient.enrichCharacterNamesFromBangumi(anilistEnriched)
+            } ?: anilistEnriched
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            anilistEnriched
         }
     }
 

@@ -328,6 +328,10 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
     private fun externalIdOf(entry: MediaEntry): Int = when (entry.source.lowercase()) {
         "simkl" -> entry.simklId?.takeIf { it > 0 } ?: (if (entry.id > 0) entry.id else (entry.malId ?: 0))
         "kitsu" -> entry.malId?.takeIf { it > 0 } ?: 0
+        // AniList kayıtlarında yerel satır numarası (entry.id) dış kimlik DEĞİLDİR; manuel
+        // eklenen kayıtlarda malId boş olur ve satır numarası başka bir yapımın MAL ID'si
+        // gibi okunup alakasız öneriler/detay getiriliyordu.
+        "anilist" -> entry.malId?.takeIf { it > 0 } ?: 0
         else -> entry.malId ?: entry.id
     }
 

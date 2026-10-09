@@ -103,7 +103,9 @@ internal fun heroCategoryBoost(category: ExploreCategoryType): Double = when (ca
     ExploreCategoryType.TRENDING_MANGA -> 1.15
 
     ExploreCategoryType.TOP_RATED_ANIME,
-    ExploreCategoryType.TOP_RATED_MANGA -> 1.12
+    ExploreCategoryType.TOP_RATED_MANGA,
+    ExploreCategoryType.BANGUMI_TV,
+    ExploreCategoryType.BANGUMI_MOVIES -> 1.12
 
     ExploreCategoryType.TOP_ANIME,
     ExploreCategoryType.TOP_MANGA -> 1.05

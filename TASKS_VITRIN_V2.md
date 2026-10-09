@@ -2,14 +2,9 @@
 
 ## Yapılanlar (tamamlandı) ✅
 
-1. **Görsel kaplama (Cover) sunumu** — vitrin görseli artık `ContentScale.Crop`
-   ile vitrini BAŞTAN SONA KAPLAR (Fit/bulanık dolgu kaldırıldı). Kaynak
-   seçimi `heroImageCandidates()` ile ekran boyutu (vitrin kutusunun en-boy
-   oranı) ve dikey/yatay moda göre: geniş bantta yatay fanart/backdrop önce,
-   dikey telefon vitrininde poster önce; yükleme hatasında diğer adaya düşer
-   (`onLoadingFailed` zinciri). Kırpma odağı `heroImageAlignment()`: backdrop
-   merkez, poster geniş bantta hafif yukarı. Gradientler kaplayan görseli
-   öldürmeyecek şekilde yumuşatıldı.
+1. **Görsel kırpma düzeltmesi** — katmanlı sunum: bulanık arka dolgu +
+   önde `ContentScale.Fit` ile kesilmeyen net görsel; portre/yatay
+   yönlerine ve ekran oranına göre otomatik; gradientler yumuşatıldı.
 2. **Veriye dayalı vitrin seçimi** — `HeroSelection.kt`: puan, üye,
    favori, rank metrikleri normalize edilir; trend/yeni/manga kategori
    bonusları; Tümü modunda **her kaynaktan en az 1 garanti + 12'ye
@@ -31,12 +26,10 @@
       Kotlin 2.0.21 derleyicisiyle 41 iddiada ayrıca doğrulandı,
       Compose tarafı sadece kod incelemesiyle garantilendi.
 - [ ] **Manuel QA:**
-  - [ ] Vitrin görseli tüm alanı kaplıyor mu? (Cover — boşluk/bulanık dolgu yok)
-  - [ ] Yatay mod + geniş bantta yatay fanart/backdrop, dikey telefon vitrininde
-        poster seçiliyor mu? (ekran boyutuna göre tablet bandı da backdropta)
-  - [ ] Poster geniş bantta kırpılırken yüz/başlık bandı görünür kalıyor mu?
-  - [ ] Bozuk/yüklenemeyen görselde yedek adaya (backdrop ↔ poster) düşüyor mu?
-  - [ ] API < 31 cihaz/emülatörde NSFW bulanıklığı (bitmap blur) bozulmadı mı?
+  - [ ] Portrede poster: 4 kenar da görünüyor mu? (eski: sağ/sol/alt kesiliyordu)
+  - [ ] Yatay modda backdrop: tam görünüyor mu, sol metin bloğu görseli
+        örtüyor mu?
+  - [ ] API < 31 cihaz/emülatörde arka plan bulanıklığı (bitmap blur)
   - [ ] Tümü modu: her kaynak vitrinde temsil + 12 öğe
   - [ ] Kaynak modları (TMDB/SIMKL/MAL/AniList/Kitsu/Shikimori/Bangumi):
         10 öğe, manga/trend/yeni bölümlerden karışım

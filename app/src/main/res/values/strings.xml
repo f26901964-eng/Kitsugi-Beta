@@ -456,6 +456,8 @@
     <string name="explore_trending_anime">Trend Anime</string>
     <string name="explore_movie_anime">Anime Filmleri</string>
     <string name="explore_seasonal_anime">Mevsimlik Anime</string>
+    <string name="explore_bangumi_tv">Bangumi Dizileri</string>
+    <string name="explore_bangumi_movies">Bangumi Filmleri</string>
 
     <!-- TMDB / Simkl Explore Sections -->
     <string name="explore_tmdb_trending_all">Trend Her Şey</string>

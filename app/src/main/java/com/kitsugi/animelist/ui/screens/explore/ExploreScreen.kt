@@ -101,6 +101,8 @@ fun ExploreScreen(
     val filteredPublishingManga = remember(viewModel.publishingManga, showAdultContent) { viewModel.publishingManga.filter { showAdultContent || !it.isAdult } }
     val filteredTrendingAnime = remember(viewModel.trendingAnime, showAdultContent) { viewModel.trendingAnime.filter { showAdultContent || !it.isAdult } }
     val filteredMovieAnime = remember(viewModel.movieAnime, showAdultContent) { viewModel.movieAnime.filter { showAdultContent || !it.isAdult } }
+    val filteredBangumiTvShows = remember(viewModel.bangumiTvShows, showAdultContent) { viewModel.bangumiTvShows.filter { showAdultContent || !it.isAdult } }
+    val filteredBangumiMovies = remember(viewModel.bangumiMovies, showAdultContent) { viewModel.bangumiMovies.filter { showAdultContent || !it.isAdult } }
     val filteredSeasonalAnime = remember(viewModel.seasonalAnime, showAdultContent) { viewModel.seasonalAnime.filter { showAdultContent || !it.isAdult } }
     val filteredTrendingManga = remember(viewModel.trendingManga, showAdultContent) { viewModel.trendingManga.filter { showAdultContent || !it.isAdult } }
     val filteredNewlyAddedAnime = remember(viewModel.newlyAddedAnime, showAdultContent) { viewModel.newlyAddedAnime.filter { showAdultContent || !it.isAdult } }
@@ -123,6 +125,8 @@ fun ExploreScreen(
         filteredPublishingManga,
         filteredTrendingAnime,
         filteredMovieAnime,
+        filteredBangumiTvShows,
+        filteredBangumiMovies,
         filteredSeasonalAnime,
         filteredTrendingManga,
         filteredNewlyAddedAnime,
@@ -142,6 +146,8 @@ fun ExploreScreen(
                     publishingManga = filteredPublishingManga,
                     trendingAnime = filteredTrendingAnime,
                     movieAnime = filteredMovieAnime,
+                    bangumiTvShows = filteredBangumiTvShows,
+                    bangumiMovies = filteredBangumiMovies,
                     seasonalAnime = filteredSeasonalAnime,
                     trendingManga = filteredTrendingManga,
                     newlyAddedAnime = filteredNewlyAddedAnime,
@@ -203,7 +209,8 @@ fun ExploreScreen(
 
     val hasCatalogContent = heroItems.isNotEmpty() || filteredTopAnime.isNotEmpty() ||
         filteredAiringAnime.isNotEmpty() || filteredTopManga.isNotEmpty() ||
-        filteredTrendingAnime.isNotEmpty() || viewModel.simklContinueSeries.isNotEmpty()
+        filteredTrendingAnime.isNotEmpty() || filteredBangumiTvShows.isNotEmpty() ||
+        filteredBangumiMovies.isNotEmpty() || viewModel.simklContinueSeries.isNotEmpty()
     val lazyListState = com.kitsugi.animelist.ui.utils.rememberRetainedLazyListState(
         contentReady = hasCatalogContent,
         initialIndex = initialScrollIndex,
@@ -273,6 +280,7 @@ fun ExploreScreen(
         filteredUpcomingAnime.isEmpty() && filteredTopManga.isEmpty() &&
         filteredPublishingManga.isEmpty() && filteredTrendingAnime.isEmpty() &&
         filteredMovieAnime.isEmpty() && filteredSeasonalAnime.isEmpty() &&
+        filteredBangumiTvShows.isEmpty() && filteredBangumiMovies.isEmpty() &&
         viewModel.simklContinueSeries.isEmpty() && viewModel.simklContinueMovies.isEmpty() &&
         viewModel.simklPlannedSeries.isEmpty() && viewModel.simklPlannedMovies.isEmpty() &&
         filteredNewlyAddedAnime.isEmpty() && filteredNewlyAddedManga.isEmpty() &&
@@ -421,6 +429,8 @@ fun ExploreScreen(
                                                                 randomPool.addAll(filteredPublishingManga)
                                                                 randomPool.addAll(filteredTrendingAnime)
                                                                 randomPool.addAll(filteredMovieAnime)
+                                                                randomPool.addAll(filteredBangumiTvShows)
+                                                                randomPool.addAll(filteredBangumiMovies)
                                                                 randomPool.addAll(filteredSeasonalAnime)
                                                                 randomPool.addAll(viewModel.simklContinueMovies)
                                                                 randomPool.addAll(viewModel.simklPlannedMovies)
@@ -664,6 +674,23 @@ fun ExploreScreen(
                                         onOpenMangaReader = onOpenMangaReader
                                     )
                                     Spacer(modifier = Modifier.height(26.dp))
+                                }
+                                if (viewModel.selectedPlatform == ExplorePlatform.BANGUMI) {
+                                    bangumiRealExploreSections(
+                                        viewModel = viewModel,
+                                        tvShows = filteredBangumiTvShows,
+                                        movies = filteredBangumiMovies,
+                                        isAlreadyInList = isAlreadyInList,
+                                        getMediaEntry = getMediaEntry,
+                                        onItemClick = onOpenApiDetail,
+                                        onLongClickItem = onLongClickItem,
+                                        onSeeAllSection = onSeeAllForSelected,
+                                        titleLanguage = titleLanguage,
+                                        scoreFormat = scoreFormat,
+                                        hideScores = hideScores,
+                                        blurAdultMedia = blurAdultMedia,
+                                        context = context
+                                    )
                                 }
                                 if (filteredAiringSoonAnime.isNotEmpty()) {
                                     item {

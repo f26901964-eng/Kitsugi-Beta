@@ -1,5 +1,79 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.217)
+
+### 🚪 1. Merkezi Jikan Gateway (`JikanGateway.kt`) & MAL Trafik Optimizasyonu
+- **Merkezi Kota ve Hız Sınırı (Rate Limiting):** Tüm Jikan trafiği tek bir kapıdan yönetilir; saniyede 3 ve dakikada 55 istek sınırları aşılmaz.
+- **Toplu 429 Koruması:** Jikan'dan 429 (Too Many Requests) yanıtı geldiğinde tüm Jikan istekleri birlikte beklemeye geçer ve `Retry-After` başlığına uyulur.
+- **Akıllı Bellek Önbelleği (In-Memory Cache):** Detay uçları 6 saat, liste ve arama uçları 30 dakika boyunca önbelleğe alınır; gereksiz ağ istekleri önlenir.
+- **Eşzamanlı İstek Birleştirme (Single-Flight Deduplication):** Aynı URL'ye aynı anda gelen istekler tek bir ağ çağrısını paylaşır; sekmelerin eşzamanlı yüklenmesinde sunucuya tek istek gider.
+- **Öncelikli Trafik Yönetimi:** Arka plan görevleri (profil senkronizasyonu, kimlik eşleştirme) kullanıcının aktif gezindiği ekranların kotasını tüketmez.
+- **Keşfet & Arama MAL Önceliği:** MAL için Jikan önce denenir, resmi MAL API ikinci, AniList ise son yedek olarak çalışır. Karakter, ekip, ilişki, öneri ve bölüm istekleri gateway üzerinden güvenle akar.
+
+### 🎯 2. AniList Manuel Kayıtlarında Yanlış Öneri ve Kimlik Çakışması Düzeltmesi
+- **Kök Neden Giderildi (`MediaEntryDetailViewModel.kt`):** Manuel eklenen AniList kayıtlarında `malId` boş kaldığında yerel veritabanı satır numarasının (`entry.id`) dış servis kimliği gibi okunması ve başka bir yapımın MAL ID'siyle çakışarak alakasız öneriler getirmesi (ör. Rent-a-Girlfriend sayfasında farklı animelerin önerilerinin çıkması) engellendi.
+- **Yalnızca Gerçek Kimlik Kullanımı:** AniList kaynaklı kayıtlarda yerel satır numarası (`entry.id`) dış kimlik olarak kabul edilmez; yalnızca geçerli bir `malId` varsa dış ID olarak kullanılır.
+- **Başlık Tabanlı Arama Fallback'i (`KitsugiMediaRelationsClient.kt`):** Dış kimliği bulunmayan AniList kayıtlarında temizlenmiş başlık üzerinden doğrudan AniList API'sinde arama yapılarak (`fetchRecommendationsFromAniListBySearch`) doğru öneriler getirilir.
+
+### 🖼️ 3. Vitrin Kaplama & Responsive Görsel Sunumu (`KitsugiHeroSection.kt`)
+- **Tam Kaplayan Vitrin (Full Bleed Cover/Crop):** Bulanık arka plan dolgusu ve sığdırma (fit) yapısı kaldırılarak resmin tüm vitrin alanını kaplaması sağlandı (`ContentScale.Crop`).
+- **Responsive Kaynak Seçimi (`heroImageCandidates`):**
+  - Geniş vitrin bandında (en/boy $\ge$ 1.1, yatay ekran veya tablet): yatay dikdörtgen fanart/backdrop öncelikli.
+  - Dikey telefon modunda (en/boy < 1.1): dikey poster öncelikli.
+- **Akıllı Hizalama (`BiasAlignment(0f, -0.2f)`):** Yatay arka planlar üst gövde ve yüzleri koruyacak şekilde yukarıdan hafif odaklı hizalanır; dikey posterler ise üstten kırpılır.
+- **Yedek Görsel Zinciri:** Birincil görsel yüklenemediğinde otomatik olarak alternatif adaya (backdrop $\leftrightarrow$ poster) geçilir.
+
+### 🌸 4. Bangumi Keşfet, REAL Diziler/Filmler ve Yerelleştirme Güncellemeleri
+- **Canlı Çekim (REAL) Rafları (`BangumiRealExploreSections.kt`):** Bangumi TV dizileri/dramaları ve filmleri için Keşfet bölümüne özel raflar eklendi.
+- **Filtreleme & Sayfalama:** Yetişkin içerik filtreleme, vitrin ve rastgele yapım seçimi, kaynak belirtimi ve "Tümünü Gör" sayfalaması entegre edildi.
+- **Genişletilmiş İsim ve Çeviri Seçimi:** Karakter, seslendirmen ve ekip adları AniList'te eşleşmediğinde doğrudan Bangumi infobox yedeklerine başvurulur; AniList köprüsü 2. sayfayı da denetler.
+
+### 🌐 5. Türkçe Akış & Başlık Temizleme Düzeltmeleri
+- **Site Gürültüsü Temizleme (`stripTurkishSiteNoise`):** Türkçe sitelerin başlıklara eklediği gürültü kalıpları 16 özel regex ile ayıklandı.
+- **Genişletilmiş Sorgular:** Arama sorguları 12'den 18'e çıkarıldı, geniş arama fallback'i ve Türkçe CDN/Range optimizasyonları korundu.
+
+### 📦 6. Dağıtım
+- Yalnızca **FOSS** sürümü (`assembleFossRelease`) derlendi (`Kitsugi-Beta-v2.4.217-foss.apk`).
+
+---
+
+## 🇬🇧 English (v2.4.217)
+
+### 🚪 1. Centralized Jikan Gateway (`JikanGateway.kt`) & MAL Traffic Pipeline
+- **Unified Rate Limiting:** All Jikan traffic routes through a single gateway strictly bounded by 3 req/sec and 55 req/min token-bucket limits.
+- **Coordinated 429 Backoff:** Upon receiving HTTP 429 (Too Many Requests), all queued and concurrent Jikan requests hold together, respecting `Retry-After`.
+- **In-Memory Caching:** Detail endpoints cached for 6 hours; list and search endpoints cached for 30 minutes.
+- **Single-Flight Request Deduplication:** Concurrent identical URL requests share a single underlying network call, eliminating duplicate fetches during multi-tab screen initialization.
+- **Priority-Aware Traffic Budgeting:** Background workloads (profile sync, identity mapping) do not exhaust quota allocated for active user UI navigation.
+- **Explore & Search MAL Priority:** Jikan is tried first for MAL, with the official MAL API and AniList serving as reliable fallbacks.
+
+### 🎯 2. AniList Manual Entry False ID & Recommendation Mismatch Fix
+- **Resolved Database Row ID Leak (`MediaEntryDetailViewModel.kt`):** Fixed an issue where manual AniList entries without a `malId` mistakenly defaulted to using their local database row index (`entry.id`) as an external API identifier, causing erroneous recommendation lookups when clashing with other titles' MAL IDs.
+- **Strict External ID Resolution:** Explicitly decoupled internal database row IDs from external identifier logic for AniList sources; only valid `malId` values are passed.
+- **Title-Based Recommendation Fallback (`KitsugiMediaRelationsClient.kt`):** When external IDs are absent for AniList entries, recommendations are safely retrieved by title query (`fetchRecommendationsFromAniListBySearch`) instead of leaking erroneous IDs.
+
+### 🖼️ 3. Full Bleed Hero Cover & Responsive Presentation (`KitsugiHeroSection.kt`)
+- **Full Bleed Cover/Crop:** Replaced blur-filled letterboxing with edge-to-edge `ContentScale.Crop` presentation.
+- **Responsive Media Selection (`heroImageCandidates`):**
+  - Wide hero banners (aspect ratio $\ge$ 1.1, landscape & tablet): landscape backdrop/fanart first.
+  - Portrait mobile phone viewports: high-res vertical poster first.
+- **Smart Subject Framing (`BiasAlignment(0f, -0.2f)`):** Horizontal backdrops align with a slight upward bias to keep heads and focal subjects in frame; portrait posters align to top.
+- **Seamless Fallback Chain:** If the primary candidate fails to render, the hero automatically cascades to the alternate candidate (backdrop $\leftrightarrow$ poster).
+
+### 🌸 4. Bangumi Explore REAL Shelves & Localization Updates
+- **Live-Action REAL Sections (`BangumiRealExploreSections.kt`):** Introduced dedicated Explore shelves for Bangumi TV dramas and films.
+- **Filtering & Pagination:** Integrated adult content filters, hero & random selection, source attribution, and "See all" pagination.
+- **Expanded Infobox & Fallbacks:** Direct Bangumi fallback for character, voice-actor, and staff names when AniList lacks a match; AniList bridge checks second-page search results.
+
+### 🌐 5. Turkish Stream Scraper & Noise Cleaning
+- **Noise Stripping (`stripTurkishSiteNoise`):** Strips 16 regex noise patterns commonly found on Turkish streaming websites.
+- **Broad Search & Query Expansion:** Query variants expanded to 18 with intelligent fallback matching and CDN handling.
+
+### 📦 6. Distribution
+- Strictly released the **FOSS variant only** (`assembleFossRelease` -> `Kitsugi-Beta-v2.4.217-foss.apk`).
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.216)
 
 ### 🖼️ 1. Vitrin Cover / Baştan Sona Kaplama & Akıllı Görsel Seçimi

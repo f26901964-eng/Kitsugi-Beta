@@ -122,6 +122,12 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     var movieAnime by mutableStateOf<List<JikanSearchResult>>(initialPayload?.movieAnime ?: emptyList())
         private set
 
+    var bangumiTvShows by mutableStateOf<List<JikanSearchResult>>(initialPayload?.bangumiTvShows.orEmpty())
+        private set
+
+    var bangumiMovies by mutableStateOf<List<JikanSearchResult>>(initialPayload?.bangumiMovies.orEmpty())
+        private set
+
     var seasonalAnime by mutableStateOf<List<JikanSearchResult>>(initialPayload?.seasonalAnime ?: emptyList())
         private set
 
@@ -286,6 +292,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         publishingManga = payload.publishingManga
         trendingAnime = payload.trendingAnime
         movieAnime = payload.movieAnime
+        bangumiTvShows = payload.bangumiTvShows.orEmpty()
+        bangumiMovies = payload.bangumiMovies.orEmpty()
         seasonalAnime = payload.seasonalAnime
         airingSoonAnime = payload.airingSoonAnime
         trendingManga = payload.trendingManga
@@ -309,6 +317,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         publishingManga = emptyList()
         trendingAnime = emptyList()
         movieAnime = emptyList()
+        bangumiTvShows = emptyList()
+        bangumiMovies = emptyList()
         seasonalAnime = emptyList()
         airingSoonAnime = emptyList()
         trendingManga = emptyList()
@@ -759,6 +769,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         val airingAnimeDeferred = async { runCatching { bangumi.airingAnime(20, context) }.getOrDefault(emptyList()) }
         val upcomingAnimeDeferred = async { runCatching { bangumi.upcomingAnime(20, context) }.getOrDefault(emptyList()) }
         val movieAnimeDeferred = async { runCatching { bangumi.movieAnime(20, context) }.getOrDefault(emptyList()) }
+        val bangumiTvShowsDeferred = async { runCatching { bangumi.realTvShows(20, context) }.getOrDefault(emptyList()) }
+        val bangumiMoviesDeferred = async { runCatching { bangumi.realMovies(20, context) }.getOrDefault(emptyList()) }
         val newlyAddedAnimeDeferred = async { runCatching { bangumi.newlyAddedAnime(20, context) }.getOrDefault(emptyList()) }
         val topMangaDeferred = async { runCatching { bangumi.topManga(20, context) }.getOrDefault(emptyList()) }
         val publishingMangaDeferred = async { runCatching { bangumi.publishingManga(20, context) }.getOrDefault(emptyList()) }
@@ -791,6 +803,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             publishingManga = publishingMangaDeferred.await(),
             trendingAnime = trendingAnimeDeferred.await(),
             movieAnime = movieAnimeDeferred.await(),
+            bangumiTvShows = bangumiTvShowsDeferred.await(),
+            bangumiMovies = bangumiMoviesDeferred.await(),
             seasonalAnime = seasonalAnimeDeferred.await(),
             trendingManga = trendingMangaDeferred.await(),
             newlyAddedAnime = newlyAddedAnimeDeferred.await(),

@@ -6,6 +6,7 @@ import com.kitsugi.animelist.data.auth.BangumiApiClient
 import com.kitsugi.animelist.data.auth.BangumiApiClient.BangumiSubject
 import com.kitsugi.animelist.data.auth.BangumiAuthStore
 import com.kitsugi.animelist.model.MediaType
+import com.kitsugi.animelist.utils.PreferenceHelpers
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.util.Calendar
@@ -391,6 +392,32 @@ object KitsugiBangumiClient {
             ).data.map { it.toSearchResult(MediaType.Movie) }
         }.getOrElse { logAndEmpty("movieAnime", it) }
 
+    /** Bangumi REAL / 三次元 TV-drama şeridi (`type=6&cat=6001`). */
+    suspend fun realTvShows(limit: Int = 20, context: Context? = null, offset: Int = 0): List<JikanSearchResult> =
+        runCatching {
+            BangumiApiClient.browseSubjects(
+                type = BangumiApiClient.SubjectType.REAL,
+                token = tokenOrNull(context),
+                cat = BangumiApiClient.Category.REAL_TV,
+                sort = "rank",
+                limit = limit,
+                offset = offset
+            ).data.map { it.toSearchResult(MediaType.TvShow) }
+        }.getOrElse { logAndEmpty("realTvShows", it) }
+
+    /** Bangumi REAL film şeridi (`type=6&cat=6002`), anime filmlerinden ayrı tutulur. */
+    suspend fun realMovies(limit: Int = 20, context: Context? = null, offset: Int = 0): List<JikanSearchResult> =
+        runCatching {
+            BangumiApiClient.browseSubjects(
+                type = BangumiApiClient.SubjectType.REAL,
+                token = tokenOrNull(context),
+                cat = BangumiApiClient.Category.REAL_MOVIE,
+                sort = "rank",
+                limit = limit,
+                offset = offset
+            ).data.map { it.toSearchResult(MediaType.Movie) }
+        }.getOrElse { logAndEmpty("realMovies", it) }
+
     /** "Yeni Eklenen Animeler" — yayın tarihine göre en yeni条目'lar. */
     suspend fun newlyAddedAnime(limit: Int = 20, context: Context? = null, offset: Int = 0): List<JikanSearchResult> =
         runCatching {
@@ -464,6 +491,8 @@ object KitsugiBangumiClient {
             airingAnime = airingAnime(limit, context),
             upcomingAnime = seasonFor(next.first, next.second, limit, context),
             movieAnime = movieAnime(limit, context),
+            bangumiTvShows = realTvShows(limit, context),
+            bangumiMovies = realMovies(limit, context),
             newlyAddedAnime = newlyAddedAnime(limit, context),
             topManga = topManga(limit, context),
             publishingManga = publishingManga(limit, context),
@@ -481,6 +510,8 @@ object KitsugiBangumiClient {
         val airingAnime: List<JikanSearchResult> = emptyList(),
         val upcomingAnime: List<JikanSearchResult> = emptyList(),
         val movieAnime: List<JikanSearchResult> = emptyList(),
+        val bangumiTvShows: List<JikanSearchResult> = emptyList(),
+        val bangumiMovies: List<JikanSearchResult> = emptyList(),
         val newlyAddedAnime: List<JikanSearchResult> = emptyList(),
         val topManga: List<JikanSearchResult> = emptyList(),
         val publishingManga: List<JikanSearchResult> = emptyList(),
@@ -562,7 +593,7 @@ object KitsugiBangumiClient {
         return JikanSearchResult(
             malId = BangumiIdNamespace.stableIdFromRaw(id) ?: id,
             title = localizedTitle.display,
-            subtitle = (platform ?: subjectTypeLabel(type)).uppercase(),
+            subtitle = displayPlatformLabel(platform, type, mediaType),
             type = mediaType,
             total = eps.takeIf { it > 0 } ?: totalEpisodes.takeIf { it > 0 },
             score = if (ratingScore > 0) kotlin.math.round(ratingScore).toInt().coerceIn(0, 10) else null,
@@ -624,6 +655,21 @@ object KitsugiBangumiClient {
             titleJapanese = localizedName.native,
             titleRomaji = localizedName.romaji
         )
+    }
+
+    private fun displayPlatformLabel(platform: String?, subjectType: Int, mediaType: MediaType): String {
+        if (subjectType == BangumiApiClient.SubjectType.REAL) {
+            return if (mediaType == MediaType.Movie) "FİLM" else "DİZİ"
+        }
+        val value = platform?.trim().orEmpty()
+        if (value.isBlank()) return subjectTypeLabel(subjectType).uppercase()
+        return when (value) {
+            "剧场版", "電影", "电影", "映画" -> "FİLM"
+            "电视剧", "電視劇", "连续剧", "連續劇" -> "DİZİ"
+            "漫画", "漫畫" -> "MANGA"
+            else -> value.takeUnless { PreferenceHelpers.hasCjkCharacters(it) }?.uppercase()
+                ?: subjectTypeLabel(subjectType).uppercase()
+        }
     }
 
     private fun subjectTypeLabel(type: Int): String = when (type) {

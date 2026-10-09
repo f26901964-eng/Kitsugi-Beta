@@ -74,13 +74,26 @@ internal object KitsugiAniListPersonBridge {
         val query = """
             query (${'$'}idMal: Int, ${'$'}type: MediaType) {
                 Media(idMal: ${'$'}idMal, type: ${'$'}type) {
-                    characters(page: 1, perPage: 50, sort: [RELEVANCE, ROLE]) {
+                    # Bangumi p1 ekip/kadro uçları 60-100 öğe döndürebilir. İki sayfayı
+                    # aynı GraphQL isteğinde alarak 50'den sonraki adları da eşleştir.
+                    charactersPage1: characters(page: 1, perPage: 50, sort: [RELEVANCE, ROLE]) {
                         edges {
                             node { id name { full native alternative } }
                             voiceActors { id name { full native alternative } }
                         }
                     }
-                    staff(page: 1, perPage: 50) {
+                    charactersPage2: characters(page: 2, perPage: 50, sort: [RELEVANCE, ROLE]) {
+                        edges {
+                            node { id name { full native alternative } }
+                            voiceActors { id name { full native alternative } }
+                        }
+                    }
+                    staffPage1: staff(page: 1, perPage: 50) {
+                        edges {
+                            node { id name { full native alternative } }
+                        }
+                    }
+                    staffPage2: staff(page: 2, perPage: 50) {
                         edges {
                             node { id name { full native alternative } }
                         }
@@ -114,26 +127,33 @@ internal object KitsugiAniListPersonBridge {
             return NameVariant(full = full, native = native, alternatives = alternatives)
         }
 
-        fun parseEdges(edges: JSONArray?): List<NameVariant> =
-            edges?.let { arr ->
-                (0 until arr.length()).mapNotNull { i ->
-                    parseNameObject(arr.optJSONObject(i)?.optJSONObject("node")?.optJSONObject("name"))
+        fun mergedEdges(vararg pageKeys: String): JSONArray {
+            val merged = JSONArray()
+            pageKeys.forEach { key ->
+                val edges = media.optJSONObject(key)?.optJSONArray("edges") ?: return@forEach
+                for (index in 0 until edges.length()) {
+                    edges.optJSONObject(index)?.let { merged.put(it) }
                 }
-            }.orEmpty()
+            }
+            return merged
+        }
 
-        val charactersEdges = media.optJSONObject("characters")?.optJSONArray("edges")
-        val staffEdges = media.optJSONObject("staff")?.optJSONArray("edges")
+        fun parseEdges(edges: JSONArray): List<NameVariant> =
+            (0 until edges.length()).mapNotNull { i ->
+                parseNameObject(edges.optJSONObject(i)?.optJSONObject("node")?.optJSONObject("name"))
+            }
+
+        val charactersEdges = mergedEdges("charactersPage1", "charactersPage2")
+        val staffEdges = mergedEdges("staffPage1", "staffPage2")
         val characters = parseEdges(charactersEdges)
         val staff = parseEdges(staffEdges)
 
         val voiceActors = mutableListOf<NameVariant>()
-        if (charactersEdges != null) {
-            for (i in 0 until charactersEdges.length()) {
-                val vaArray = charactersEdges.optJSONObject(i)?.optJSONArray("voiceActors") ?: continue
-                for (j in 0 until vaArray.length()) {
-                    val variant = parseNameObject(vaArray.optJSONObject(j)?.optJSONObject("name")) ?: continue
-                    voiceActors.add(variant)
-                }
+        for (i in 0 until charactersEdges.length()) {
+            val vaArray = charactersEdges.optJSONObject(i)?.optJSONArray("voiceActors") ?: continue
+            for (j in 0 until vaArray.length()) {
+                val variant = parseNameObject(vaArray.optJSONObject(j)?.optJSONObject("name")) ?: continue
+                voiceActors.add(variant)
             }
         }
 

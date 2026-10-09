@@ -35,20 +35,33 @@ internal data class BangumiLocalizedName(
  */
 internal object BangumiNameLocalizer {
     private val englishKeys = setOf(
-        "英文名", "英語名", "英语名", "English", "English Name", "English Title", "English name", "English title"
+        "英文名", "英語名", "英语名", "英文名称", "英文名稱", "英文标题", "英文標題",
+        "英文译名", "英文譯名", "外文名", "英语", "英語", "英語タイトル",
+        "English", "English Name", "English Title", "English name", "English title", "English names"
     )
     private val romajiKeys = setOf(
-        "罗马字", "羅馬字", "罗马音", "羅馬音", "Romaji", "Romanized", "Romanisation", "Romanization"
+        "罗马字", "羅馬字", "罗马音", "羅馬音", "罗马拼写", "羅馬拼寫",
+        "罗马化", "羅馬化", "日文罗马字", "ローマ字",
+        "Romaji", "Romaji Name", "Romaji Title", "Romanized", "Romanized Name",
+        "Romanized Title", "Romanisation", "Romanization"
     )
     private val aliasKeys = setOf(
-        "别名", "別名", "又名", "原名", "别称", "別稱", "Aliases", "Alias", "Alternative title", "Alternative names"
+        "别名", "別名", "又名", "原名", "别称", "別稱", "别名列表", "其他名称", "其它名称",
+        "Alias", "Aliases", "Alternative title", "Alternative titles", "Alternative name", "Alternative names"
     )
 
-    /** Tam bir v0 subject için; infobox'taki tüm bilinen ad alanları kullanılır. */
+    /** Tam bir v0 subject ya da p1 entity için infobox'taki tüm bilinen ad alanlarını kullanır. */
     fun subject(
         name: String?,
         nameCn: String?,
         infobox: Map<String, List<String>> = emptyMap()
+    ): BangumiLocalizedName = entityFromInfobox(name, nameCn, infobox)
+
+    /** Karakter ve kişi ayrıntı uçları aynı infobox biçimini kullandığından ortak çözücü. */
+    fun entityFromInfobox(
+        name: String?,
+        nameCn: String?,
+        infobox: Map<String, List<String>>
     ): BangumiLocalizedName {
         val english = valuesFor(infobox, englishKeys)
         val romaji = valuesFor(infobox, romajiKeys)

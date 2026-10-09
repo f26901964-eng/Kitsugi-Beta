@@ -94,6 +94,8 @@ class HeroSelectionTest {
             heroCategoryBoost(ExploreCategoryType.TOP_RATED_MANGA) >
                 heroCategoryBoost(ExploreCategoryType.PUBLISHING_MANGA)
         )
+        assertEquals(1.12, heroCategoryBoost(ExploreCategoryType.BANGUMI_TV), 0.0001)
+        assertEquals(1.12, heroCategoryBoost(ExploreCategoryType.BANGUMI_MOVIES), 0.0001)
         assertTrue(
             heroCategoryBoost(ExploreCategoryType.UPCOMING_MEDIA_TMDB) <
                 heroCategoryBoost(ExploreCategoryType.TRENDING_ANIME)
