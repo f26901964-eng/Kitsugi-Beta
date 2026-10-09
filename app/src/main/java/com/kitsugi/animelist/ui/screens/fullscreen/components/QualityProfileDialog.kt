@@ -1,4 +1,4 @@
-﻿package com.kitsugi.animelist.ui.screens.fullscreen.components
+package com.kitsugi.animelist.ui.screens.fullscreen.components
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.animation.AnimatedVisibility
@@ -80,6 +80,20 @@ fun QualityProfileDialog(
                 .border(1.dp, KitsugiColors.Border, RoundedCornerShape(20.dp))
                 .padding(24.dp)
         ) {
+            // Kapatma çarpısı — oynatıcı içi açılır sayfalarda tek dokunuşluk çıkış garantisi
+            IconButton(
+                onClick = onDismiss,
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .size(32.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Close,
+                    contentDescription = "Kapat",
+                    tint = KitsugiColors.TextSecondary,
+                    modifier = Modifier.size(18.dp)
+                )
+            }
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(20.dp)

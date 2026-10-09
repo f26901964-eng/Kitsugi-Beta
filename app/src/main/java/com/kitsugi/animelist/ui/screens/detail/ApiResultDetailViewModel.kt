@@ -398,6 +398,36 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
             // Fetch episode ratings
             fetchEpisodeRatings(result, finalDetail)
 
+            // ── Fragman yedek zinciri ─────────────────────────────────────────
+            // Kaynağın kendisi YouTube fragmanı vermediyse (trailerUrl boş), arka planda
+            // sırayla TMDB → diğer metadata kaynakları → Cloudstream eklentileri denenir.
+            // Bulunan fragman detay durumuna ve önbelleğe yazılır; kart kendiliğinden belirir.
+            if (finalDetail.trailerUrl.isNullOrBlank()) {
+                viewModelScope.launch {
+                    try {
+                        val trailer = com.kitsugi.animelist.data.trailer.DetailTrailerFallback.resolve(
+                            context = getApplication(),
+                            title = finalDetail.title ?: result.title,
+                            year = finalDetail.year ?: result.year,
+                            type = result.type,
+                            tmdbId = finalDetail.tmdbId ?: result.tmdbId ?: _resolvedTmdbId.value,
+                            malId = finalDetail.realMalId ?: result.realMalId ?: result.malId,
+                            sourceName = result.source
+                        )
+                        if (!trailer.isNullOrBlank()) {
+                            val current = _detailState.value
+                            if (current != null && current.trailerUrl.isNullOrBlank()) {
+                                val updated = current.copy(trailerUrl = trailer)
+                                _detailState.value = updated
+                                DetailCache.putMediaDetail(result.source, result.malId, updated)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Fallback trailer resolution failed: ${e.message}")
+                    }
+                }
+            }
+
             // Logo güncelle — Simkl gibi kaynaklarda detaydan realMalId veya tmdbId geldiğinde logo çekilebilir
             if (_logoUrl.value == null) {
                 val showLogos = settings?.showAnimeLogos ?: true

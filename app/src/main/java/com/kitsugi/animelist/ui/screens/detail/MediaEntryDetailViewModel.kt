@@ -423,6 +423,36 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             // Fetch episode ratings
             fetchEpisodeRatings(entry, detail)
 
+            // ── Fragman yedek zinciri ─────────────────────────────────────────
+            // Kaynağın kendisi YouTube fragmanı vermediyse (trailerUrl boş), arka planda
+            // sırayla TMDB → diğer metadata kaynakları → Cloudstream eklentileri denenir.
+            // Bulunan fragman detay durumuna ve önbelleğe yazılır; kart kendiliğinden belirir.
+            if (detail.trailerUrl.isNullOrBlank()) {
+                viewModelScope.launch {
+                    try {
+                        val trailer = com.kitsugi.animelist.data.trailer.DetailTrailerFallback.resolve(
+                            context = getApplication(),
+                            title = detail.title ?: entry.title,
+                            year = detail.year ?: entry.year,
+                            type = entry.type,
+                            tmdbId = detail.tmdbId ?: entry.tmdbId,
+                            malId = detail.realMalId ?: entry.malId,
+                            sourceName = entry.source
+                        )
+                        if (!trailer.isNullOrBlank()) {
+                            val current = _detailState.value
+                            if (current != null && current.trailerUrl.isNullOrBlank()) {
+                                val updated = current.copy(trailerUrl = trailer)
+                                _detailState.value = updated
+                                DetailCache.putMediaDetail(entry.source, stableId, updated)
+                            }
+                        }
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Fallback trailer resolution failed: ${e.message}")
+                    }
+                }
+            }
+
             // Logo güncelle — Simkl gibi kaynaklarda detaydan realMalId veya tmdbId geldiğinde logo çekilebilir
             if (_logoUrl.value == null) {
                 val showLogos = runCatching { settingsDataStore.settingsFlow.first().showAnimeLogos }.getOrDefault(true)

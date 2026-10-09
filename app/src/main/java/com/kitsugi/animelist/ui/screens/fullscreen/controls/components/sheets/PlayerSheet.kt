@@ -12,6 +12,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -66,14 +70,35 @@ fun PlayerSheet(
             Column(
                 modifier = Modifier.padding(bottom = 24.dp)
             ) {
-                // Sürükleme kolu taklidi (Drag Handle)
+                // Sürükleme kolu taklidi (Drag Handle) + sağ üstte kapatma çarpısı.
+                // Oynatıcı içindeki TÜM alttan açılır sayfalarda tek dokunuşluk çıkış garantisi:
+                // çarpısı olmayan sheet'e buradan otomatik olarak eklenir.
                 Box(
                     modifier = Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(vertical = 12.dp)
-                        .size(width = 36.dp, height = 4.dp)
-                        .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(2.dp))
-                )
+                        .fillMaxWidth()
+                        .padding(top = 6.dp, end = 6.dp)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.Center)
+                            .padding(vertical = 6.dp)
+                            .size(width = 36.dp, height = 4.dp)
+                            .background(Color.White.copy(alpha = 0.2f), RoundedCornerShape(2.dp))
+                    )
+                    IconButton(
+                        onClick = onDismissRequest,
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .size(32.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Close,
+                            contentDescription = "Kapat",
+                            tint = Color.White.copy(alpha = 0.75f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
                 content()
             }
         }
