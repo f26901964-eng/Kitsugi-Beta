@@ -13,7 +13,16 @@ data class GalleryItem(
     val description: String? = null,
     val language: String? = null,
     val width: Int? = null,
-    val height: Int? = null
+    val height: Int? = null,
+    /**
+     * API'nin doğrudan sağladığı ek detay satırları (sıra korunur).
+     *
+     * Örn. Fanart.tv v3 API'si her görsel için `name` ve `iMDb` alanları döndürür;
+     * galeri bunları "Ad" / "IMDb ID" satırları olarak gösterir. API'de olmayan
+     * alanlar (yükleyen, indirme sayısı vb.) uydurulmaz — yalnızca gerçekten
+     * gelen veriler listelenir.
+     */
+    val details: Map<String, String> = emptyMap()
 )
 
 enum class GalleryCategory(val label: String) {

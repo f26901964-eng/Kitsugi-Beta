@@ -431,6 +431,11 @@
     <string name="notif_kitsu_in_list">Kitsu izleme listesinde</string>
     <string name="notif_notice_kitsu_not_connected">Kitsu hesabı bağlı değil; yalnızca yerel kayıtlar gösteriliyor. Kitsu\'nun genel API\'sinde bildirim ucu yoktur.</string>
     <string name="notif_notice_kitsu_api">Kitsu\'nun genel API\'sinde bildirim ucu yoktur; bu liste takip listeniz ve sonraki bölüm (nextRelease) tarihleridir.</string>
+    <string name="notif_login_required_bangumi">Bangumi\'ye giriş yapmanız gerekiyor</string>
+    <string name="notif_bangumi_in_list">Bangumi izleme listesinde (在看)</string>
+    <string name="notif_notice_bangumi_not_connected">Bangumi hesabı bağlı değil; yalnızca yerel kayıtlar gösteriliyor. Bangumi\'nin genel API\'sinde bildirim ucu yoktur.</string>
+    <string name="notif_notice_bangumi_no_list">Bangumi izleme listenizde (在看) kayıt bulunmuyor.</string>
+    <string name="notif_notice_bangumi_feed">Bangumi\'nin genel API\'sinde bildirim ucu yoktur; bu liste izleme listeniz (在看) ve yayın takvimi eşleşmesidir. %1$d izlenen yapım • %2$d yayın eşleşmesi.</string>
     <string name="notif_login_required_shikimori">Shikimori\'ye giriş yapmanız gerekiyor</string>
     <string name="notif_notice_shikimori_real">Shikimori gerçek bildirim akışı (bildirimler + haberler) • %1$d kayıt.</string>
     <string name="notif_notice_shikimori_unread"> Okunmamış: %1$d bildirim, %2$d haber.</string>
@@ -442,7 +447,7 @@
     <string name="notif_shikimori_kind_generic">Bildirim</string>
     <string name="notif_diag_action">Bildirim teşhisi</string>
     <string name="notif_diag_title">Bildirim Teşhisi</string>
-    <string name="notif_diag_subtitle">5 kaynağın bildirim altyapısını canlı isteklerle test eder.</string>
+    <string name="notif_diag_subtitle">6 kaynağın bildirim altyapısını canlı isteklerle test eder.</string>
     <string name="notif_diag_run">Testi Çalıştır</string>
     <string name="notif_diag_running">Test ediliyor…</string>
     <string name="notif_diag_close">Kapat</string>

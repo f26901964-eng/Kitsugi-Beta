@@ -1,5 +1,41 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.226)
+
+### 1. Resim Galerisi: Fanart API Detayları + Dikey Mod Ayrıntı Levhası (`FanartApiClient.kt`, `GalleryItem.kt`, `KitsugiImageGalleryDialog.kt`)
+- **Fanart.tv API Detayları Galeride:** Fanart.tv v3 API'si her görsel için `name` ve `iMDb` alanı döndürür; bu alanlar artık galerinin ayrıntı alanında "Ad" ve "IMDb ID" satırları olarak görünür (API'de olmayan "yükleyen/indirme sayısı" gibi alanlar uydurulmaz).
+- **Yatay Mod:** Sağ ayrıntı panelinde mevcut satırların (Kaynak, Tür, Dil, Boyut, Açıklama, Sayfa) altına API detay satırları eklendi.
+- **Dikey Mod Adaptasyonu:** Dikey ekranda ayrıntı paneline yer olmadığı için üst barda yeni bir "Detaylar" butonu açılan alt levhada (bottom sheet) tüm ayrıntılar toplanır: Kaynak (logo), Tür, Dil, Boyut, API detayları, Açıklama ve Sayfa.
+
+### 2. Bildirim Arşivi — Yedeklenmeyen Kaynakların Kalıcılığı (`NotificationArchiveStore.kt` [yeni], `KitsugiNotificationsViewModel.kt`, `KitsugiAccountRepository.kt`)
+- **Yerel Arşiv:** MAL, Simkl, Kitsu ve Bangumi gibi API'lerinde kişisel bildirim ucu OLMAYAN kaynakların üretilen bildirimleri (yayın takvimi + izleme listesi eşleşmeleri) artık `filesDir/notifications_archive.json` dosyasında kalıcı olarak tutulur (kaynak başına 300 kayıt, id ile tekilleştirme, yeni → eski sıralama). 7 günlük pencereden düşen bölümler artık kaybolmaz.
+- **Bulut Yedeği:** Kitsugi hesabına giriş yapılmışsa arşiv, hesap yedekleme mekanizmasındaki `user_data` tablosuna `notifications` anahtarıyla eşitlenir; giriş / "şimdi eşitle" akışlarında buluttan geri çekilip yerelle birleştirilir.
+
+### 3. Bangumi Bildirim Kaynağı (`KitsugiNotificationsScreen.kt`, `KitsugiNotificationsViewModel.kt`, `NotificationDiagnostics.kt`)
+- **Yeni Bildirim Sekmesi:** Bildirimler sayfasındaki "Bildirim Kaynağı Seç" paneline ve sayfaya Bangumi sekmesi eklendi (6. kaynak).
+- **Üretim Mantığı:** Bangumi API'sinde halka açık bildirim ucu bulunmadığından sekme diğer kaynaklarla aynı deseni izler: izleme listesi (在看/DOING) + önbellekli çapraz kimlik çözümü (MAL ID) + yayın takvimi eşleşmesi → "bölüm yayınlandı/yayınlanacak" bildirimleri; hesabı bağlı olmayanlarda yerel kayıtlar.
+- **Teşhis:** Bildirim Teşhisi paneline Bangumi satırı eklendi (6 kaynak).
+
+---
+
+## 🇬🇧 English (v2.4.226)
+
+### 1. Image Gallery: Fanart API Details + Portrait Details Sheet (`FanartApiClient.kt`, `GalleryItem.kt`, `KitsugiImageGalleryDialog.kt`)
+- **Fanart.tv API details in gallery:** The Fanart.tv v3 API returns `name` and `iMDb` per image; these now appear as "Ad" / "IMDb ID" rows in the gallery details (fields the API does not provide, e.g. uploader/downloads, are never faked).
+- **Landscape:** API detail rows added under the existing right-panel rows (Source, Category, Language, Size, Description, Page).
+- **Portrait adaptation:** Since portrait has no room for a side panel, a new "Details" button in the header opens a bottom sheet collecting all details: Source (logo), Category, Language, Size, API details, Description and Page.
+
+### 2. Notification Archive — Persistence for Non-Retaining Sources (`NotificationArchiveStore.kt` [new], `KitsugiNotificationsViewModel.kt`, `KitsugiAccountRepository.kt`)
+- **Local archive:** Notifications synthesized for sources with no personal notification endpoint (MAL, Simkl, Kitsu, Bangumi) are now persisted in `filesDir/notifications_archive.json` (300 entries per source, dedup by id, newest to oldest). Episodes that fall out of the 7-day window no longer disappear.
+- **Cloud backup:** When a Kitsugi account is signed in, the archive is synced to the account's `user_data` table under the `notifications` key; sign-in / "sync now" pulls it back and merges with local.
+
+### 3. Bangumi Notification Source (`KitsugiNotificationsScreen.kt`, `KitsugiNotificationsViewModel.kt`, `NotificationDiagnostics.kt`)
+- **New notification tab:** Bangumi added to the source picker panel and the pager (6th source).
+- **Feed logic:** Since Bangumi has no public notification endpoint, the tab follows the same pattern as the other sources: watch list (在看/DOING) + cached cross-ID resolution (MAL ID) + airing calendar match → "episode aired/upcoming" notifications; local entries when not connected.
+- **Diagnostics:** Bangumi row added to the Notification Diagnostics panel (6 sources).
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.225)
 
 ### 🌸 1. Bangumi Başlık Dili & Latin Ad Zenginleştirmesi (`KitsugiBangumiClient.kt`, `BangumiLocalizedName.kt`)

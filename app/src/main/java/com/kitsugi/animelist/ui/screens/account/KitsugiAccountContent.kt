@@ -81,6 +81,8 @@ fun KitsugiAccountContent() {
                         if (hasSession) {
                             loggedInEmail = KitsugiAccountRepository.currentEmail()
                             KitsugiAccountRepository.pullAndMergeSearchHistory(dao)
+                            // Kaynak tarafında tutulmayan bildirimlerin bulut yedeği de geri yüklensin
+                            KitsugiAccountRepository.pullAndMergeNotificationArchive(context)
                             isError = false
                             message = "Hesap oluşturuldu, giriş yapıldı."
                         } else {
@@ -96,6 +98,10 @@ fun KitsugiAccountContent() {
                         loggedInEmail = KitsugiAccountRepository.currentEmail()
                         KitsugiAccountRepository.pullAndMergeSearchHistory(dao)
                             .onFailure { e -> showError("Eşitleme başarısız", e) }
+                        // Bildirim arşivi (MAL/Simkl/Kitsu/Bangumi) buluttan birleştirilir;
+                        // başarısızlık giriş akışını bozmaz, yalnızca arşiv eski kalır.
+                        KitsugiAccountRepository.pullAndMergeNotificationArchive(context)
+                            .onFailure { android.util.Log.w("KitsugiAccount", "Bildirim arşivi çekilemedi: ${it.message}") }
                         if (!isError) {
                             isError = false
                             message = "Giriş yapıldı, veriler eşitlendi."
@@ -115,6 +121,8 @@ fun KitsugiAccountContent() {
             KitsugiAccountRepository.pullAndMergeSearchHistory(dao)
                 .onSuccess { isError = false; message = "Eşitlendi." }
                 .onFailure { showError("Eşitleme başarısız", it) }
+            // Bildirim arşivi de eşitlenir (başarısızlık UI'ı bozmaz)
+            KitsugiAccountRepository.pullAndMergeNotificationArchive(context)
             busy = false
         }
     }

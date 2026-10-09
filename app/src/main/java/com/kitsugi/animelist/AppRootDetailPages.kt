@@ -551,6 +551,7 @@ fun AppRootDetailPages(
                     isSimklConnected = authViewModel.isSimklConnected,
                     isKitsuConnected = authViewModel.isKitsuConnected,
                     isShikimoriConnected = authViewModel.isShikimoriConnected,
+                    isBangumiConnected = authViewModel.isBangumiConnected,
                     onBack = { navState.popDetailStack() },
                     onUserProfileClick = { userId, username, avatarUrl ->
                         navState.navigateToDetail(DetailScreen.UserProfile(userId, username, avatarUrl))

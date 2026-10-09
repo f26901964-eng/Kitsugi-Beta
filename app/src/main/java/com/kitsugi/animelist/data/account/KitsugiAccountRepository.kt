@@ -3,6 +3,7 @@ package com.kitsugi.animelist.data.account
 import android.content.Context
 import com.kitsugi.animelist.data.local.SearchHistoryDao
 import com.kitsugi.animelist.data.local.SearchHistoryEntity
+import com.kitsugi.animelist.data.notifications.NotificationArchiveStore
 import io.github.jan.supabase.auth.auth
 import io.github.jan.supabase.auth.providers.builtin.Email
 import io.github.jan.supabase.postgrest.from
@@ -24,7 +25,10 @@ import kotlinx.serialization.json.decodeFromJsonElement
  * Hesap işlemleri ve veri senkronizasyonu.
  *
  * Kullanıcı verisi `public.user_data` tablosunda (user_id, key, value) olarak tutulur.
- * Şu an senkronize edilen: arama geçmişi (key = "search_history").
+ * Şu an senkronize edilen:
+ *  • Arama geçmişi (key = "search_history")
+ *  • Bildirim arşivi (key = "notifications") — kaynak tarafında tutulmayan
+ *    bildirimlerin (MAL/Simkl/Kitsu/Bangumi) bulut yedeği.
  * Eklentiler ve ayarlar aynı mekanizmayla sonraki adımda eklenecek.
  */
 object KitsugiAccountRepository {
@@ -32,6 +36,12 @@ object KitsugiAccountRepository {
     private const val TABLE = "user_data"
     private const val KEY_SEARCH_HISTORY = "search_history"
     private const val SEARCH_HISTORY_LIMIT = 20
+
+    /**
+     * Kaynak tarafında tutulmayan bildirimlerin arşivi (MAL/Simkl/Kitsu/Bangumi).
+     * Değer: { "sources": { "<kaynak>": [ ArchivedNotif, ... ] } }
+     */
+    private const val KEY_NOTIFICATIONS = "notifications"
 
     private val json = Json { ignoreUnknownKeys = true }
 
@@ -134,6 +144,44 @@ object KitsugiAccountRepository {
     fun onSearchHistoryChanged(dao: SearchHistoryDao) {
         if (!isLoggedIn()) return
         scope.launch { pushSearchHistory(dao) }
+    }
+
+    // ─── Bildirim arşivi (kaynak tarafında tutulmayan bildirimlerin yedeği) ────
+
+    /**
+     * Yerel bildirim arşivini buluta yazar.
+     *
+     * MyAnimeList/Simkl/Kitsu/Bangumi gibi API'lerinde kişisel bildirim ucu olmayan
+     * kaynaklar için Kitsugi'nin ürettiği bildirimler (yayın takvimi + izleme listesi
+     * eşleşmeleri) sunucuda hiçbir yerde saklanmaz; bu yedek sayesinde hem cihazda
+     * hem hesapta kalıcı olurlar.
+     */
+    suspend fun pushNotificationArchive(context: Context): Result<Unit> = runCatching {
+        val uid = currentUserId() ?: return@runCatching
+        writeKey(uid, KEY_NOTIFICATIONS, NotificationArchiveStore.toJsonElement(context))
+    }
+
+    /**
+     * Buluttaki bildirim arşivini yerelle birleştirir.
+     *
+     * Birleştirme kuralı arşiv deposundadır ([NotificationArchiveStore.mergeLists]):
+     * aynı id için en yeni kayıt kazanır, kaynak başına üst sınıra kadar tutulur.
+     * Sonuç hem yerel dosyaya hem buluta geri yazılır.
+     */
+    suspend fun pullAndMergeNotificationArchive(context: Context): Result<Unit> = runCatching {
+        val uid = currentUserId() ?: return@runCatching
+        val rows = KitsugiAccountClient.client.from(TABLE)
+            .select(columns = Columns.list("user_id", "key", "value")) {
+                filter {
+                    eq("user_id", uid)
+                    eq("key", KEY_NOTIFICATIONS)
+                }
+            }
+            .decodeList<UserDataRow>()
+        val remote = NotificationArchiveStore.fromJsonElement(rows.firstOrNull()?.value)
+        // Birleştirme yerel dosyaya zaten yazıldı; buluta aynı hâli geri yaz.
+        NotificationArchiveStore.mergeSourcesBlocking(context, remote)
+        writeKey(uid, KEY_NOTIFICATIONS, NotificationArchiveStore.toJsonElement(context))
     }
 
     private suspend fun fetchRemoteSearchHistory(uid: String): List<RemoteSearchEntry> {

@@ -430,6 +430,11 @@
     <string name="notif_kitsu_in_list">In your Kitsu library</string>
     <string name="notif_notice_kitsu_not_connected">No Kitsu account connected; only local entries are shown. Kitsu\'s public API has no notification endpoint.</string>
     <string name="notif_notice_kitsu_api">Kitsu\'s public API has no notification endpoint; this list shows your library and upcoming episode (nextRelease) dates.</string>
+    <string name="notif_login_required_bangumi">You need to log in to Bangumi</string>
+    <string name="notif_bangumi_in_list">In your Bangumi watch list (在看)</string>
+    <string name="notif_notice_bangumi_not_connected">No Bangumi account connected; only local entries are shown. Bangumi\'s public API has no notification endpoint.</string>
+    <string name="notif_notice_bangumi_no_list">Your Bangumi watch list (在看) is empty.</string>
+    <string name="notif_notice_bangumi_feed">Bangumi\'s public API has no notification endpoint; this list is your watch list (在看) matched against the airing calendar. %1$d watched works • %2$d airing matches.</string>
     <string name="notif_login_required_shikimori">You need to log in to Shikimori</string>
     <string name="notif_notice_shikimori_real">Real Shikimori notification feed (notifications + news) • %1$d entries.</string>
     <string name="notif_notice_shikimori_unread"> Unread: %1$d notifications, %2$d news.</string>
@@ -441,7 +446,7 @@
     <string name="notif_shikimori_kind_generic">Notification</string>
     <string name="notif_diag_action">Notification diagnostics</string>
     <string name="notif_diag_title">Notification Diagnostics</string>
-    <string name="notif_diag_subtitle">Tests all 5 sources with live requests.</string>
+    <string name="notif_diag_subtitle">Tests all 6 sources with live requests.</string>
     <string name="notif_diag_run">Run Test</string>
     <string name="notif_diag_running">Testing…</string>
     <string name="notif_diag_close">Close</string>
