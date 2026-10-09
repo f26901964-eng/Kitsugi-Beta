@@ -46,7 +46,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -58,14 +57,10 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
-import coil3.request.ImageRequest
-import coil3.request.transformations
-import com.kitsugi.animelist.ui.utils.BlurTransformation
 import com.kitsugi.animelist.ui.components.KitsugiNsfwImage
 import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.data.remote.matches
 import com.kitsugi.animelist.model.MediaEntry
-import com.kitsugi.animelist.ui.theme.LocalBlurAdultMedia
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalIsTvDevice
@@ -92,53 +87,53 @@ private fun heroSourceLabel(source: String): String? = when (source.trim().lower
     else -> null
 }
 
-/** Vitrin arka plan dolgusunun bulanıklık yarıçapı. */
-private val HERO_AMBIENT_BLUR: Dp = 32.dp
-/** Öndeki net Fit görselin öne çıkması için arka plan karartması. */
-private const val HERO_AMBIENT_DIM = 0.42f
+/**
+ * Vitrin görsel adayları — ekran boyutu (vitirin kutusunun en-boy oranı) ve
+ * dikey/yatay moda göre ÖNCELİK SIRASIyla döndürülür:
+ *
+ * - Geniş vitrin bandı (yatay mod, dikey tablet bandı, TV vb. — en/boy ≥ 1.1):
+ *   yatay dikdörtgen fanart/backdrop önce gelir; hem dikey hem yatay modda
+ *   kutuyu kusursuz kaplar.
+ * - Dikey-telefon vitrini (kareye yakın / dar kutu): dikey poster önce gelir.
+ * - Her ikisi de mevcutsa diğeri yedek adaydır (yükleme başarısız olursa
+ *   [KitsugiNsfwImage.onLoadingFailed] ile zincir devreye girer).
+ * - İkisi de boşsa boş liste döner (başlık harfleriyle fallback çizilir).
+ */
+internal fun heroImageCandidates(
+    posterUrl: String?,
+    backdropUrl: String?,
+    heroWidthDp: Float,
+    heroHeightDp: Float,
+    isLandscape: Boolean
+): List<String> {
+    val poster = posterUrl?.trim()?.takeIf { it.isNotEmpty() }
+    val backdrop = backdropUrl?.trim()?.takeIf { it.isNotEmpty() }
+    if (poster == null) return listOfNotNull(backdrop)
+    if (backdrop == null) return listOf(poster)
+    // Ekran boyutuna göre gerçek vitrin kutusunun en-boy oranı; ölçüm yoksa
+    // yön bilgisinden makul bir oran türetilir.
+    val aspect = if (heroWidthDp > 0f && heroHeightDp > 0f) {
+        heroWidthDp / heroHeightDp
+    } else if (isLandscape) {
+        16f / 9f
+    } else {
+        9f / 16f
+    }
+    val preferBackdrop = aspect >= 1.1f || (isLandscape && aspect >= 0.95f)
+    return if (preferBackdrop) listOf(backdrop, poster) else listOf(poster, backdrop)
+}
 
 /**
- * Vitrin arka plan dolgusu: aynı görselin Crop + bulanık hâli tüm kutuyu
- * baştan sona doldurur. Öndeki Fit görselin etrafı bu sayede "boşluk"
- * değil, yumuşak bir devam gibi görünür.
- *
- * API 31+ (RenderEffect) GPU bulanıklığı kullanır; altında bitmap
- * bulanıklık (stack blur) uygulanır. NSFW bulanıklığı aktifken görsel
- * zaten [KitsugiNsfwImage] içinde bulanıklaşır, burada ham model yeterlidir.
+ * Kaplayan (Crop) kırpmanın odak noktası:
+ * - Yatay fanart/backdrop → merkez (özne bandı görselin ortasındadır).
+ * - Poster geniş bantta kullanılmak zorunda kalırsa hafif yukarı bias
+ *   (yüz/başlık bandı korunur, alt boşluklar kırpılır).
+ * - Poster dikey/kare vitrinde → merkez.
  */
-@Composable
-private fun HeroAmbientBackground(
-    model: Any?,
-    isAdult: Boolean,
-    blurAdultMedia: Boolean,
-    modifier: Modifier = Modifier
-) {
-    val context = LocalContext.current
-    val density = LocalDensity.current
-    val useGpuBlur = KitsugiBlurSupport.hasRenderEffectBlur
-    val shouldBlurNsfw = (LocalBlurAdultMedia.current || blurAdultMedia) && isAdult
-    val bitmapBlurRadiusPx = with(density) { HERO_AMBIENT_BLUR.toPx() }.toInt()
-    val ambientModel = remember(model, useGpuBlur, shouldBlurNsfw, bitmapBlurRadiusPx) {
-        if (useGpuBlur || shouldBlurNsfw) {
-            model
-        } else {
-            ImageRequest.Builder(context)
-                .data(model)
-                .transformations(BlurTransformation(bitmapBlurRadiusPx))
-                .build()
-        }
-    }
-    KitsugiNsfwImage(
-        model = ambientModel,
-        contentDescription = null,
-        isAdult = isAdult,
-        blurAdultMedia = blurAdultMedia,
-        modifier = modifier
-            .fillMaxSize()
-            .then(if (useGpuBlur) Modifier.blur(HERO_AMBIENT_BLUR) else Modifier),
-        contentScale = ContentScale.Crop,
-        alignment = Alignment.Center
-    )
+internal fun heroImageAlignment(chosenIsPoster: Boolean, heroAspect: Float): Alignment = when {
+    !chosenIsPoster -> Alignment.Center
+    heroAspect >= 1.15f -> Alignment(0f, -0.2f)
+    else -> Alignment.Center
 }
 
 @Composable
@@ -449,6 +444,10 @@ fun KitsugiHeroSection(
             .background(KitsugiColors.Background)
     ) {
         val heroWidthPx = with(LocalDensity.current) { maxWidth.toPx() }
+        // Ekran boyutuna göre gerçek vitrin kutusu ölçüsü — görsel seçimi ve
+        // kaplayan kırpma bu en-boy oranına göre uyarlanır.
+        val heroBoxWidthDp = maxWidth.value
+        val heroBoxHeightDp = maxHeight.value
         val heroScrollScale = 1f
         val heroScrollTranslationY = 0f
 
@@ -478,17 +477,26 @@ fun KitsugiHeroSection(
                         }
                     )
             ) {
-                // Dikey moddayken dikey poster görseli (imageUrl), yatay moddayken yatay arka plan (backdropUrl) önceliklidir
-                val heroImageModel = if (layout.isLandscape) {
-                    item.backdropUrl?.takeIf { it.isNotBlank() } ?: item.imageUrl
-                } else {
-                    item.imageUrl?.takeIf { it.isNotBlank() } ?: item.backdropUrl
+                // Vitrin görseli: ekran boyutu (kutu en-boy oranı) ve dikey/yatay moda göre
+                // seçilen kaynak — geniş bantta yatay fanart/backdrop önce, dikey vitrinde
+                // poster önce; kalan aday yükleme hatasında yedek olarak kullanılır.
+                val heroImagePlan = remember(item, heroBoxWidthDp, heroBoxHeightDp, layout.isLandscape) {
+                    heroImageCandidates(
+                        posterUrl = item.imageUrl,
+                        backdropUrl = item.backdropUrl,
+                        heroWidthDp = heroBoxWidthDp,
+                        heroHeightDp = heroBoxHeightDp,
+                        isLandscape = layout.isLandscape
+                    )
                 }
+                var heroImageIndex by remember(heroImagePlan) { mutableStateOf(0) }
+                val heroImageModel = heroImagePlan.getOrNull(heroImageIndex)
                 if (!heroImageModel.isNullOrBlank()) {
-                    // Katmanlı sunum:
-                    //  1) Dolgu — kırpmalı + bulanık + karartılmış aynı görsel (tüm alanı doldurur).
-                    //  2) Net görsel — ContentScale.Fit: dikey/yatay modda ve ekran oranına göre
-                    //     resmin SAĞ SOL ÜST ALT kenarları kesilmez, neredeyse tamamı görünür.
+                    val heroBoxAspect = if (heroBoxHeightDp > 0f) heroBoxWidthDp / heroBoxHeightDp else 1f
+                    val chosenIsPoster =
+                        heroImageModel == item.imageUrl?.trim()?.takeIf { it.isNotEmpty() }
+                    // Kaplayan sunum (Cover): seçilen görsel vitrini BAŞTAN SONA KAPLAR.
+                    // Fit/bulanık dolgu yok — yön ve ekran boyutu artık kırpma oranıyla uyumludur.
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -500,25 +508,21 @@ fun KitsugiHeroSection(
                                 scaleY = HERO_BACKGROUND_SCALE * heroScrollScale
                             }
                     ) {
-                        HeroAmbientBackground(
-                            model = heroImageModel,
-                            isAdult = item.isAdult,
-                            blurAdultMedia = blurAdultMedia
-                        )
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(Color.Black.copy(alpha = HERO_AMBIENT_DIM))
-                        )
-                        // Yatayda metin bloğunun sol kalması için sağa yaslı, dikeyde üstten hizalı.
                         KitsugiNsfwImage(
                             model = heroImageModel,
                             contentDescription = displayTitle,
                             isAdult = item.isAdult,
                             blurAdultMedia = blurAdultMedia,
                             modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Fit,
-                            alignment = if (layout.isLandscape) Alignment.CenterEnd else Alignment.TopCenter
+                            contentScale = ContentScale.Crop,
+                            alignment = heroImageAlignment(chosenIsPoster, heroBoxAspect),
+                            onLoadingFailed = {
+                                // Birincil görsel yüklenemezse sıradaki adaya düş
+                                // (ör. backdrop başarısız → poster, poster başarısız → backdrop).
+                                if (heroImageIndex < heroImagePlan.lastIndex) {
+                                    heroImageIndex += 1
+                                }
+                            }
                         )
                     }
                 } else {
@@ -554,10 +558,10 @@ fun KitsugiHeroSection(
                     .background(
                         Brush.horizontalGradient(
                             colorStops = arrayOf(
-                                0.0f to KitsugiColors.Background.copy(alpha = 0.95f),
-                                0.22f to KitsugiColors.Background.copy(alpha = 0.88f),
-                                0.44f to KitsugiColors.Background.copy(alpha = 0.52f),
-                                0.68f to KitsugiColors.Background.copy(alpha = 0.16f),
+                                0.0f to KitsugiColors.Background.copy(alpha = 0.92f),
+                                0.24f to KitsugiColors.Background.copy(alpha = 0.78f),
+                                0.48f to KitsugiColors.Background.copy(alpha = 0.46f),
+                                0.70f to KitsugiColors.Background.copy(alpha = 0.14f),
                                 0.88f to androidx.compose.ui.graphics.Color.Transparent,
                                 1.0f to androidx.compose.ui.graphics.Color.Transparent
                             ),
@@ -576,12 +580,12 @@ fun KitsugiHeroSection(
                 .background(
                     Brush.verticalGradient(
                         colorStops = arrayOf(
-                            0.0f to KitsugiColors.Background.copy(alpha = 0.42f),
-                            0.15f to KitsugiColors.Background.copy(alpha = 0.10f),
-                            0.35f to androidx.compose.ui.graphics.Color.Transparent,
-                            0.58f to KitsugiColors.Background.copy(alpha = 0.10f),
-                            0.76f to KitsugiColors.Background.copy(alpha = 0.42f),
-                            0.90f to KitsugiColors.Background.copy(alpha = 0.78f),
+                            0.0f to KitsugiColors.Background.copy(alpha = 0.36f),
+                            0.16f to KitsugiColors.Background.copy(alpha = 0.08f),
+                            0.38f to androidx.compose.ui.graphics.Color.Transparent,
+                            0.62f to KitsugiColors.Background.copy(alpha = 0.10f),
+                            0.78f to KitsugiColors.Background.copy(alpha = 0.42f),
+                            0.91f to KitsugiColors.Background.copy(alpha = 0.78f),
                             1.0f to KitsugiColors.Background
                         )
                     )

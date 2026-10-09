@@ -76,7 +76,9 @@ fun KitsugiNsfwImage(
     blurAdultMedia: Boolean? = null,
     initials: String = "",
     initialsColor: Color? = null,
-    initialsStyle: androidx.compose.ui.text.TextStyle? = null
+    initialsStyle: androidx.compose.ui.text.TextStyle? = null,
+    /** Görsel yüklenemezse çağrılır — çağıran taraf yedek bir kaynaka düşebilir. */
+    onLoadingFailed: (() -> Unit)? = null
 ) {
     // Components that already receive the setting pass it through explicitly. Keep the
     // composition-local as a fallback (and OR it in) so nested screens cannot accidentally
@@ -123,7 +125,8 @@ fun KitsugiNsfwImage(
                 contentDescription = contentDescription,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = contentScale,
-                alignment = alignment
+                alignment = alignment,
+                onError = { onLoadingFailed?.invoke() }
             )
         } else if (initials.isNotEmpty()) {
             Text(
