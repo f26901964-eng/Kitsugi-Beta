@@ -624,7 +624,11 @@ class KitsugiBangumiDetailClientTest {
                 localized.display, localized.english, localized.native, "NATIVE", localized.romaji
             )
         )
+        // Diğer adlar (alternatives) hem Japonca hem Çince hem de İngilizce varyantları içerir
+        assertTrue(localized.alternatives.contains("進撃の巨人"))
         assertTrue(localized.alternatives.contains("进击的巨人"))
+        assertTrue(localized.alternatives.contains("Attack on Titan"))
+        assertTrue(localized.alternatives.contains("AoT"))
     }
 
     @Test
