@@ -199,6 +199,11 @@ fun StaffDetailPage(
                 val rawDetail = currentState.detail
                 val detail = remember(rawDetail, titleLanguage) {
                     rawDetail.copy(
+                        // Japonca alt satır yalnızca özgün dil seçiliyken gösterilir; diğer dillerde
+                        // ad seçilen dile göre (İngilizce → Romaji → özgün son çare) çözülür.
+                        nativeName = rawDetail.nativeName.takeIf {
+                            titleLanguage == "NATIVE" || titleLanguage == "JAPANESE_STAFF"
+                        },
                         name = displayPersonName(
                             rawDetail.name, rawDetail.romanizedName, rawDetail.nativeName, titleLanguage, rawDetail.englishName
                         ),
