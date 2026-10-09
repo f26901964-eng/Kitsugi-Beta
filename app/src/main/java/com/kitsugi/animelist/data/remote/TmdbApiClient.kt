@@ -286,9 +286,19 @@ class TmdbApiClient(
         TmdbDiscoverClient.discoverByGenre(genreId, isMovie, apiKey, language, ::executeGet)
     }
 
-    suspend fun fetchBackdropByTitle(title: String): String? = withContext(Dispatchers.IO) {
+    suspend fun fetchBackdropByTitle(
+        title: String,
+        mediaType: MediaType? = null,
+        year: Int? = null
+    ): String? = withContext(Dispatchers.IO) {
         if (!isTmdbEnabled()) return@withContext null
-        TmdbDiscoverClient.fetchBackdropByTitle(title, apiKey, language, ::executeGet)
+        TmdbDiscoverClient.fetchBackdropByTitle(title, mediaType, year, apiKey, language, ::executeGet)
+    }
+
+    /** TMDB ID'si zaten biliniyorsa yanlış başlık eşleşmesi olmadan backdrop getirir. */
+    suspend fun fetchBackdropByTmdbId(tmdbId: Int, isMovie: Boolean): String? = withContext(Dispatchers.IO) {
+        if (!isTmdbEnabled()) return@withContext null
+        TmdbDiscoverClient.fetchBackdropByTmdbId(tmdbId, isMovie, apiKey, language, ::executeGet)
     }
 
     // ── Arama ───────────────────────────────────────────────────────────────────

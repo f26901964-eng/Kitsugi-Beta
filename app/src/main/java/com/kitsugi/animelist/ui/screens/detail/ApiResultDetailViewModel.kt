@@ -143,7 +143,11 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         val raw = _detailState.value?.synopsis ?: return
         viewModelScope.launch {
             val tr = withContext(Dispatchers.IO) {
-                translationManager.translateToTurkish(raw)
+                // Uzun özetlerde çeviri parça parça akıtılır: çevrilen kısım anında
+                // ekrana gelir, kalanı arka planda sırayla çevrilir.
+                translationManager.translateToTurkish(raw) { partial ->
+                    _translatedSynopsis.value = partial
+                }
             }
             if (!tr.isNullOrBlank() && tr != raw) {
                 DetailCache.putTranslation("synopsis", res.source, res.malId, tr)
@@ -160,7 +164,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
             DetailCache.removeMediaStaff(result.source, result.malId)
             DetailCache.removeMediaRelations(result.source, result.malId)
             DetailCache.removeMediaRecommendations(result.source, result.malId)
-            DetailCache.removeMediaReviews(result.source, result.malId)
+            DetailCache.removeMediaReviews(result.source, result.malId, result.type.name)
             DetailCache.removeMediaEpisodes(result.source, result.malId)
             DetailCache.clearFanartCache() // Fanart galeri önbelleğini temizle
         }
@@ -224,7 +228,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         val cachedStats = DetailCache.getMediaStats(result.source, result.malId)
         _statsState.value = if (DetailCache.hasMediaStats(result.source, result.malId)) DetailTabState.Success(cachedStats) else DetailTabState.Loading
 
-        val cachedReviews = DetailCache.getMediaReviews(result.source, result.malId)
+        val cachedReviews = DetailCache.getMediaReviews(result.source, result.malId, result.type.name)
         _reviewsState.value = if (cachedReviews != null) DetailTabState.Success(cachedReviews) else DetailTabState.Loading
 
         val cachedEpisodes = DetailCache.getMediaEpisodes(result.source, result.malId)
@@ -395,7 +399,11 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                         _translatedSynopsis.value = cachedTr
                     } else {
                         val tr = withContext(Dispatchers.IO) {
-                            translationManager.translateToTurkish(rawSynopsis)
+                            // Uzun özetlerde çeviri parça parça akıtılır: çevrilen kısım anında
+                            // ekrana gelir, kalanı arka planda sırayla çevrilir.
+                            translationManager.translateToTurkish(rawSynopsis) { partial ->
+                                _translatedSynopsis.value = partial
+                            }
                         }
                         if (!tr.isNullOrBlank() && tr != rawSynopsis) {
                             DetailCache.putTranslation("synopsis", result.source, result.malId, tr)
@@ -803,7 +811,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                     TAB_REVIEWS -> {
                         val currentSuccess = _reviewsState.value as? DetailTabState.Success
                         val needsRefetch = currentSuccess == null ||
-                            (currentSuccess.data.isEmpty() && DetailCache.getMediaReviews(result.source, malId) == null)
+                            (currentSuccess.data.isEmpty() && DetailCache.getMediaReviews(result.source, malId, result.type.name) == null)
                         if (needsRefetch) {
                             _reviewsState.value = DetailTabState.Loading
                             val fetched = fetchTabWithTimeout {
@@ -818,7 +826,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                             }
                             val data = fetched.value
                             if (data.isNotEmpty()) {
-                                DetailCache.putMediaReviews(result.source, malId, data)
+                                DetailCache.putMediaReviews(result.source, malId, data, result.type.name)
                             }
                             _reviewsState.value = DetailTabState.Success(data)
                         }

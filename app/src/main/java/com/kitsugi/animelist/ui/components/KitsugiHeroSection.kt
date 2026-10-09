@@ -176,14 +176,15 @@ internal fun heroImageCandidates(
     backdropUrl: String?,
     heroWidthDp: Float,
     heroHeightDp: Float,
-    isLandscape: Boolean
+    isLandscape: Boolean,
+    mediaType: MediaType = MediaType.Anime
 ): List<String> {
     val poster = posterUrl?.trim()?.takeIf { it.isNotEmpty() }
     val backdrop = backdropUrl?.trim()?.takeIf { it.isNotEmpty() }
     if (poster == null) return listOfNotNull(backdrop)
     if (backdrop == null) return listOf(poster)
-    // Ekran boyutuna göre gerçek vitrin kutusunun en-boy oranı; ölçüm yoksa
-    // yön bilgisinden makul bir oran türetilir.
+    if (poster == backdrop) return listOf(backdrop)
+
     val aspect = if (heroWidthDp > 0f && heroHeightDp > 0f) {
         heroWidthDp / heroHeightDp
     } else if (isLandscape) {
@@ -191,7 +192,8 @@ internal fun heroImageCandidates(
     } else {
         9f / 16f
     }
-    val preferBackdrop = aspect >= 1.1f || (isLandscape && aspect >= 0.95f)
+    val preferBackdrop = mediaType != MediaType.Manga ||
+        aspect >= 1.1f || (isLandscape && aspect >= 0.95f)
     return if (preferBackdrop) listOf(backdrop, poster) else listOf(poster, backdrop)
 }
 
@@ -501,7 +503,8 @@ fun KitsugiHeroSection(
                         backdropUrl = item.backdropUrl,
                         heroWidthDp = heroBoxWidthDp,
                         heroHeightDp = heroBoxHeightDp,
-                        isLandscape = layout.isLandscape
+                        isLandscape = layout.isLandscape,
+                        mediaType = item.type
                     )
                 }
                 var heroImageIndex by remember(heroImagePlan) { mutableStateOf(0) }

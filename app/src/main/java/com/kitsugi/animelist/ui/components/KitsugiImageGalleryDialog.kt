@@ -8,6 +8,8 @@ import androidx.compose.animation.core.*
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
@@ -31,6 +33,7 @@ import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Image
+import androidx.compose.material.icons.rounded.Info
 import androidx.compose.material.icons.rounded.Share
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -858,6 +861,13 @@ private fun GalleryLandscapeLayout(
                                 }
                             }
 
+                            // API'ye özgü detay satırları (örn. Fanart.tv: Ad, IMDb ID)
+                            currentItem.details.forEach { (label, value) ->
+                                item {
+                                    DetailRow(label = label, value = value)
+                                }
+                            }
+
                             // Separator
                             item { Spacer(modifier = Modifier.height(8.dp)) }
 
@@ -947,6 +957,11 @@ private fun GalleryPortraitLayout(
 ) {
     val scope = rememberCoroutineScope()
 
+    // Dikey modda ayrıntı paneli için yer yoktur (yatay modun sağ paneli gibi);
+    // bu yüzden tüm detaylar "Detaylar" butonuyla açılan alt levhada toplanır.
+    var showDetailsSheet by remember { mutableStateOf(false) }
+    val currentPortraitItem = filteredItems.getOrNull(pagerState.currentPage)
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -965,7 +980,9 @@ private fun GalleryPortraitLayout(
             onDismiss = onDismiss,
             isLandscape = false,
             showDownloadButton = showDownloadButton,
-            isAlreadyDownloaded = isAlreadyDownloaded
+            isAlreadyDownloaded = isAlreadyDownloaded,
+            showDetailsButton = currentPortraitItem != null,
+            onShowDetails = { showDetailsSheet = true }
         )
 
         // Categories filter (if multiple categories available)
@@ -1262,6 +1279,158 @@ private fun GalleryPortraitLayout(
             }
         }
     }
+
+    // ── Dikey mod detay levhası — yatay modun sağ panelinin uyarlanmış hâli ──
+    if (showDetailsSheet && currentPortraitItem != null) {
+        GalleryDetailsSheet(
+            item = currentPortraitItem,
+            page = pagerState.currentPage,
+            total = filteredItems.size,
+            onDismiss = { showDetailsSheet = false }
+        )
+    }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// PORTRAIT DETAILS SHEET
+//   Dikey (telefonsu) modda yatay düzenin sağ ayrıntı paneline yer yoktur.
+//   Bu alt levha aynı bilgileri mantıksal olarak uyarlar: Kaynak, Tür, Dil,
+//   Boyut, API detayları (örn. Fanart.tv Ad / IMDb ID), Açıklama ve Sayfa.
+// ─────────────────────────────────────────────────────────────────────────────
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun GalleryDetailsSheet(
+    item: GalleryItem,
+    page: Int,
+    total: Int,
+    onDismiss: () -> Unit
+) {
+    val accentColor = LocalKitsugiAccent.current
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+
+    val badgeBg = when (item.source.lowercase()) {
+        "tmdb"      -> Color(0xFFFFB800)
+        "fanart.tv" -> Color(0xFF9C27B0)
+        "anilist"   -> Color(0xFF02A9FF)
+        "simkl"     -> Color(0xFFE50914)
+        "kitsu"     -> Color(0xFFE35A02)
+        "shikimori" -> Color(0xFF4C86C8)
+        "bangumi"   -> Color(0xFFF09199)
+        "jikan", "jikan (mal)", "mal" -> Color(0xFF2E51A2)
+        else        -> accentColor
+    }
+
+    val catEmoji = when (item.category) {
+        GalleryCategory.POSTER    -> "📋"
+        GalleryCategory.BACKDROP  -> "🖼️"
+        GalleryCategory.LOGO      -> "🎨"
+        GalleryCategory.CLEARART  -> "✨"
+        GalleryCategory.CHARACTER -> "🎭"
+        GalleryCategory.PERSON    -> "👤"
+        GalleryCategory.THUMBNAIL -> "🌐"
+        GalleryCategory.BANNER    -> "🎫"
+        GalleryCategory.SQUARE    -> "🟩"
+        GalleryCategory.OTHER     -> "📁"
+    }
+
+    val langInfo = formatLanguage(item.language)
+    val resStr = formatResolution(item.width, item.height)
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        containerColor = KitsugiColors.Surface,
+        dragHandle = {
+            Box(
+                modifier = Modifier
+                    .padding(vertical = 10.dp)
+                    .width(36.dp)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(KitsugiColors.TextMuted.copy(alpha = 0.4f))
+            )
+        }
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 20.dp)
+                .padding(bottom = 32.dp)
+        ) {
+            Text(
+                text = "Resim Detayları",
+                color = KitsugiColors.TextPrimary,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold
+            )
+            Spacer(Modifier.height(12.dp))
+
+            // Kaynak (logo + ad)
+            DetailRow(label = "Kaynak", value = null, badge = {
+                val logoRes = KitsugiPlatformLogos.resFor(item.source)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    if (logoRes != null) {
+                        KitsugiPlatformLogo(
+                            platformId = item.source,
+                            size = 28.dp,
+                            cornerRadius = 6.dp
+                        )
+                    } else {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(badgeBg)
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Text(
+                                text = item.source,
+                                color = if (item.source.equals("tmdb", ignoreCase = true)) Color.Black else Color.White,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            })
+
+            // Tür
+            DetailRow(label = "Tür", value = "$catEmoji ${item.category.label}")
+
+            // Dil
+            if (langInfo != null) {
+                DetailRow(label = "Dil", value = "${langInfo.first} ${langInfo.second}")
+            } else if (item.language == null &&
+                (item.category == GalleryCategory.BACKDROP ||
+                 item.category == GalleryCategory.LOGO ||
+                 item.category == GalleryCategory.CLEARART)
+            ) {
+                DetailRow(label = "Dil", value = "✨ Metinsiz")
+            }
+
+            // Boyut (API/kaynak sağladıysa)
+            if (resStr != null) {
+                DetailRow(label = "Boyut", value = "📐 $resStr")
+            }
+
+            // API'ye özgü detay satırları (örn. Fanart.tv: Ad, IMDb ID)
+            item.details.forEach { (label, value) ->
+                DetailRow(label = label, value = value)
+            }
+
+            // Açıklama
+            if (!item.description.isNullOrBlank() &&
+                item.description != "TMDB Poster" &&
+                item.description != "TMDB Arka Plan" &&
+                item.description != "TMDB Logo"
+            ) {
+                DetailRow(label = "Açıklama", value = item.description)
+            }
+
+            Spacer(Modifier.height(4.dp))
+            DetailRow(label = "Sayfa", value = "${page + 1} / $total")
+        }
+    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -1476,7 +1645,9 @@ private fun KitsugiGalleryHeader(
     onDismiss: () -> Unit,
     isLandscape: Boolean,
     showDownloadButton: Boolean = true,
-    isAlreadyDownloaded: Boolean = false
+    isAlreadyDownloaded: Boolean = false,
+    showDetailsButton: Boolean = false,
+    onShowDetails: () -> Unit = {}
 ) {
     Box(
         modifier = Modifier
@@ -1568,6 +1739,33 @@ private fun KitsugiGalleryHeader(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    // Detaylar Butonu — dikey modda ayrıntı levhasını açar
+                    // (yatay modda bu bilgi zaten sağ panelde durur)
+                    if (showDetailsButton) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .background(
+                                    color = accentColor.copy(alpha = 0.12f),
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .border(
+                                    width = 1.dp,
+                                    color = accentColor.copy(alpha = 0.4f),
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .tvClickable(shape = RoundedCornerShape(12.dp), onClick = onShowDetails),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = Icons.Rounded.Info,
+                                contentDescription = "Detaylar",
+                                tint = accentColor,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+                    }
+
                     // İndirme Butonu — accent renkli, animasyonlu
                     // Yerel dosyalarda gizli; zaten indirilmişse tik işareti
                     if (showDownloadButton) {

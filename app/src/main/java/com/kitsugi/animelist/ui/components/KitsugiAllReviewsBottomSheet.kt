@@ -44,6 +44,8 @@ fun KitsugiAllReviewsBottomSheet(
     externalId: Int,
     mediaType: MediaType,
     apiClient: JikanApiClient,
+    tmdbId: Int? = null,
+    realMalId: Int? = null,
     onUserProfileClick: ((userId: Int?, username: String, avatarUrl: String?) -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
@@ -67,11 +69,16 @@ fun KitsugiAllReviewsBottomSheet(
     val listState = rememberLazyListState()
 
     // Initial Load
-    LaunchedEffect(externalId) {
+    LaunchedEffect(source, externalId, mediaType, tmdbId, realMalId) {
         isLoading = true
+        reviewsList = emptyList()
+        translatedSummaries.clear()
+        activeReviewForDetail = null
         page = 1
         hasMore = true
-        reviewsList = apiClient.fetchReviews(source, externalId, mediaType, page = 1)
+        reviewsList = apiClient.fetchReviews(
+            source, externalId, mediaType, page = 1, tmdbId = tmdbId, realMalId = realMalId
+        )
         isLoading = false
     }
 
@@ -90,7 +97,9 @@ fun KitsugiAllReviewsBottomSheet(
         coroutineScope.launch {
             try {
                 val nextPage = page + 1
-                val newReviews = apiClient.fetchReviews(source, externalId, mediaType, page = nextPage)
+                val newReviews = apiClient.fetchReviews(
+                    source, externalId, mediaType, page = nextPage, tmdbId = tmdbId, realMalId = realMalId
+                )
                 if (newReviews.isEmpty()) {
                     hasMore = false
                 } else {

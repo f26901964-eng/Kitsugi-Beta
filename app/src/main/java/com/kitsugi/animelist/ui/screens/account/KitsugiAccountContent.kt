@@ -92,6 +92,8 @@ fun KitsugiAccountContent() {
                             loggedInEmail = KitsugiAccountRepository.currentEmail()
                             KitsugiAccountRepository.pullAndMergeSearchHistory(dao)
                                 .onFailure { showError("Arama geçmişi eşitlenemedi", it) }
+                            // Bildirim arşivi de eşitlenir (arka planda)
+                            KitsugiAccountRepository.pullAndMergeNotificationArchive(context)
                             if (!isError) message = "Hesap oluşturuldu. Yedek durumunu aşağıdan kontrol edebilirsin."
                         } else {
                             isError = false
@@ -106,6 +108,8 @@ fun KitsugiAccountContent() {
                         loggedInEmail = KitsugiAccountRepository.currentEmail()
                         KitsugiAccountRepository.pullAndMergeSearchHistory(dao)
                             .onFailure { e -> showError("Eşitleme başarısız", e) }
+                        // Bildirim arşivi de eşitlenir (arka planda)
+                        KitsugiAccountRepository.pullAndMergeNotificationArchive(context)
                         if (!isError) {
                             isError = false
                             message = "Giriş yapıldı, arama geçmişi eşitlendi. Kasa durumu aşağıda."
@@ -126,9 +130,11 @@ fun KitsugiAccountContent() {
             KitsugiAccountRepository.pullAndMergeSearchHistory(dao)
                 .onSuccess { isError = false; message = "Eşitlendi." }
                 .onFailure { showError("Eşitleme başarısız", it) }
+            // Bildirim arşivi de eşitlenir (başarısızlık UI'ı bozmaz)
+            KitsugiAccountRepository.pullAndMergeNotificationArchive(context)
             LinkedAccountVault.backupNow(context)
                 .onFailure { showError("Şifreli yedek alınamadı", it) }
-            if (!isError) message = "Arama geçmişi eşitlendi; bağlı hesaplar ve taşınabilir ayarlar yedeklendi."
+            if (!isError) message = "Arama geçmişi eşitlendi; bildirim arşivi ve bağlı hesaplar yedeklendi."
             busy = false
         }
     }

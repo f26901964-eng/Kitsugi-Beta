@@ -9,7 +9,6 @@ import com.kitsugi.animelist.data.auth.BangumiApiClient.BangumiSubject
 import com.kitsugi.animelist.data.auth.BangumiAuthStore
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.utils.toLatinStudioName
-import com.kitsugi.animelist.utils.isUntranslatedCjkTag
 import com.kitsugi.animelist.utils.localizedDistinctTags
 import com.kitsugi.animelist.utils.toLocalizedTagLabel
 import com.kitsugi.animelist.utils.toTurkishBroadcast
@@ -100,6 +99,7 @@ object KitsugiBangumiDetailClient {
     private const val STUDIO_LOOKUP_BATCH_TIMEOUT_MS = 6_000L
     private val studioLookupSemaphore = Semaphore(4)
     private val studioPersonIdCache = BoundedCache<String, Int>("bangumi.studioPersonId", 256)
+    private val studioPersonImageCache = BoundedCache<String, String>("bangumi.studioPersonImage", 256)
 
     private data class EntityNameCacheEntry(
         val name: BangumiLocalizedName?,
@@ -485,8 +485,6 @@ object KitsugiBangumiDetailClient {
                 val label = tag.name.trim().toLocalizedTagLabel().trim().lowercase(Locale.ROOT)
                 label.isNotEmpty() && seenTagLabels.add(label)
             }
-            // Sözlükte karşılığı olmayan Çince/Japonca etiketler sona; önce okunabilir olanlar.
-            .sortedBy { if (isUntranslatedCjkTag(it.name)) 1 else 0 }
             .take(48)
         return base.copy(
             // Özet tercihi: Bangumi açıklaması Çince/Japonca geldiyse ve eşleşen kayıtta Latin
@@ -1875,8 +1873,12 @@ object KitsugiBangumiDetailClient {
 
         fun apply(studio: KitsugiStudio): KitsugiStudio {
             if (studio.id > 0 || !studio.source.equals(SOURCE, ignoreCase = true)) return studio
-            val personId = resolved[normalizeCompanyKey(studio.name)] ?: return studio
-            return studio.copy(id = personId)
+            val key = normalizeCompanyKey(studio.name)
+            val personId = resolved[key] ?: return studio
+            return studio.copy(
+                id = personId,
+                imageUrl = studio.imageUrl ?: studioPersonImageCache[key]
+            )
         }
 
         return detail.copy(
@@ -1914,13 +1916,21 @@ object KitsugiBangumiDetailClient {
         val candidates = runCatching {
             BangumiApiClient.searchPersons(keyword = name, token = token, limit = 5).data
         }.getOrDefault(emptyList())
-        // Önce birebir ad eşleşmesi; o yoksa aynı ada en yakın kurum条目'ı (type = 2, 公司).
-        val matched = candidates.firstOrNull { entity ->
-            val entityKey = normalizeCompanyKey(entity.name)
-            entityKey.isNotEmpty() &&
-                (entityKey == key || entityKey.contains(key) || key.contains(entityKey))
-        } ?: candidates.firstOrNull { it.type == 2 && normalizeCompanyKey(it.name).startsWith(key.take(4)) }
+        // Yalnızca şirket kayıtlarını (type = 2, 公司) eşleştir; kişi/artist sonuçları aynı
+        // ada sahip olsa bile studio ID'si olarak kullanılamaz.
+        val companies = candidates.filter { it.type == 2 }
+        val matched = companies.firstOrNull { entity ->
+            listOf(entity.name, entity.nameCn).any { candidateName ->
+                val entityKey = normalizeCompanyKey(candidateName)
+                entityKey.isNotEmpty() && entityKey == key
+            }
+        }
         val id = matched?.id?.takeIf { it > 0 } ?: 0
+        matched?.images?.let { images ->
+            BangumiApiClient.absoluteImageUrl(images.poster)?.let { imageUrl ->
+                studioPersonImageCache[key] = imageUrl
+            }
+        }
         if (studioPersonIdCache.size > 256) studioPersonIdCache.clear()
         studioPersonIdCache[key] = id
         return id.takeIf { it > 0 }

@@ -5,15 +5,25 @@ import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.data.account.KitsugiAccountRepository
+import com.kitsugi.animelist.data.auth.BangumiApiClient
+import com.kitsugi.animelist.data.auth.BangumiAuthStore
 import com.kitsugi.animelist.data.auth.ExternalAuthManager
 import com.kitsugi.animelist.data.auth.KitsuApiClient
 import com.kitsugi.animelist.data.auth.ShikimoriApiClient
+import com.kitsugi.animelist.data.notifications.NotificationArchiveStore
 import com.kitsugi.animelist.data.notifications.NotificationDiagnostics
+import com.kitsugi.animelist.data.remote.BangumiIdNamespace
 import com.kitsugi.animelist.data.remote.KitsugiAiringCalendarClient
 import com.kitsugi.animelist.data.remote.KitsugiAniListNotificationClient
+import com.kitsugi.animelist.data.remote.KitsugiBangumiDetailClient
 import com.kitsugi.animelist.data.remote.SimklCalendarClient
 import com.kitsugi.animelist.model.MediaEntry
+import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -51,7 +61,13 @@ data class NotifItem(
     val userId: Int? = null,
     val userName: String? = null,
     val userAvatarUrl: String? = null,
-    val source: String = "AniList"
+    val source: String = "AniList",
+    /**
+     * Sıralama ve arşiv birleştirme için epoch ms.
+     * Kaynak tarafında tutulmayan kaynaklarda (MAL/Simkl/Kitsu/Bangumi)
+     * arşiv listesi bu alanla yeni → eski sıralanır.
+     */
+    val tsMs: Long? = null
 )
 
 // ─── UI State ─────────────────────────────────────────────────────────────────
@@ -109,6 +125,10 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
     private val _shikimori = MutableStateFlow(NotifUiState())
     val shikimori: StateFlow<NotifUiState> = _shikimori.asStateFlow()
 
+    // ── Bangumi ──
+    private val _bangumi = MutableStateFlow(NotifUiState())
+    val bangumi: StateFlow<NotifUiState> = _bangumi.asStateFlow()
+
     // ── Teşhis ──
     private val _diagnostics = MutableStateFlow(NotifDiagnosticsUiState())
     val diagnostics: StateFlow<NotifDiagnosticsUiState> = _diagnostics.asStateFlow()
@@ -129,6 +149,72 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
             }
         }
     }
+
+    // ─── Bildirim Arşivi (kaynak tarafında tutulmayanların yedeği) ───────────
+
+    /**
+     * Kaynak tarafında kalıcı bildirim ucu OLMAYAN kaynaklar için (MAL, Simkl,
+     * Kitsu, Bangumi) canlı listeyi yerel arşivle birleştirir:
+     *
+     *  1. Yeni çekilen (canlı) kayıtlar arşive yazılır → 7 günlük pencereden
+     *     düşen bildirimler bile cihazda kalır.
+     *  2. Giriş yapılmışsa arşiv buluta (Kitsugi hesabı) yedeklenir.
+     *  3. Ekrana canlı liste + arşivde olup canlıda olmayan kayıtlar (ör.
+     *     günler önce yayınlanmış bölümler) gösterilir; id ile tekilleştirilir.
+     *
+     * AniList/Shikimori bunu KULLANMAZ — bunların bildirimleri kendi sunucularında
+     * tutulur, kaynağın akışı tek gerçek kaynaktır.
+     */
+    private fun archiveAndMerge(source: String, live: List<NotifItem>): List<NotifItem> {
+        val fresh = live.map { it.toArchived() }
+        NotificationArchiveStore.mergeSourceAsync(ctx, source, fresh)
+
+        // Bulut yedeği — giriş yoksa sessizce atlanır; akış asla beklemez.
+        if (KitsugiAccountRepository.isLoggedIn()) {
+            viewModelScope.launch(Dispatchers.IO) {
+                runCatching { KitsugiAccountRepository.pushNotificationArchive(ctx) }
+                    .onFailure { android.util.Log.w("KitsugiNotif", "Arşiv buluta yazılamadı: ${it.message}") }
+            }
+        }
+
+        val liveIds = live.map { it.id }.toSet()
+        val stored = NotificationArchiveStore.loadSource(ctx, source)
+        val fromArchive = stored
+            .filter { it.id !in liveIds }
+            .map { it.toNotifItem() }
+
+        val merged = live + fromArchive
+        return if (fromArchive.isEmpty()) merged
+        else merged.sortedWith(
+            compareByDescending<NotifItem> { it.tsMs ?: Long.MIN_VALUE }
+        )
+    }
+
+    private fun NotifItem.toArchived(): NotificationArchiveStore.ArchivedNotif =
+        NotificationArchiveStore.ArchivedNotif(
+            id = id,
+            source = source,
+            title = title,
+            body = body,
+            dateText = dateText,
+            tsMs = tsMs,
+            imageUrl = imageUrl,
+            mediaId = mediaId,
+            mediaType = mediaType
+        )
+
+    private fun NotificationArchiveStore.ArchivedNotif.toNotifItem(): NotifItem =
+        NotifItem(
+            id = id,
+            imageUrl = imageUrl,
+            title = title,
+            body = body,
+            dateText = dateText,
+            tsMs = tsMs,
+            mediaId = mediaId,
+            mediaType = mediaType,
+            source = source
+        )
 
     // ─── AniList Yükleyici ────────────────────────────────────────────────────
 
@@ -280,6 +366,7 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                         else
                             ctx.getString(R.string.notif_mal_episode_upcoming, entry.episode),
                         dateText = formatEpochSec(entry.airingAt),
+                        tsMs = entry.airingAt * 1000L,
                         mediaId = entry.malId,
                         mediaType = "anime",
                         source = "MyAnimeList"
@@ -293,7 +380,7 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                 }
 
                 _mal.value = NotifUiState(
-                    items = items,
+                    items = archiveAndMerge("MyAnimeList", items),
                     isLoading = false,
                     hasMore = false,
                     notice = notice
@@ -382,6 +469,7 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                                 if (entry.isFinale) append(" • ").append(ctx.getString(R.string.notif_badge_finale))
                             },
                             dateText = formatEpochMs(entry.airingAtMs),
+                            tsMs = entry.airingAtMs,
                             mediaId = entry.simklId,
                             mediaType = if (entry.isMovie) "movie" else "tv",
                             source = "Simkl"
@@ -389,7 +477,7 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                     }
 
                 _tmdbSimkl.value = NotifUiState(
-                    items = items,
+                    items = archiveAndMerge("Simkl", items),
                     isLoading = false,
                     hasMore = false,
                     notice = notice
@@ -445,6 +533,7 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                                     entry.progress + 1
                                 ),
                                 dateText = formatEpochMs(releaseMs),
+                                tsMs = releaseMs,
                                 mediaId = entry.animeId ?: entry.mangaId,
                                 mediaType = if (entry.animeId != null) "anime" else "manga",
                                 source = "Kitsu"
@@ -467,6 +556,7 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                                     else
                                         ctx.getString(R.string.notif_kitsu_in_list),
                                     dateText = null,
+                                    tsMs = null,
                                     mediaId = entry.animeId ?: entry.mangaId,
                                     mediaType = if (entry.animeId != null) "anime" else "manga",
                                     source = "Kitsu"
@@ -502,7 +592,7 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
                     ctx.getString(R.string.notif_notice_kitsu_api)
 
                 _kitsu.value = NotifUiState(
-                    items = items,
+                    items = archiveAndMerge("Kitsu", items),
                     isLoading = false,
                     hasMore = false,
                     notice = notice
@@ -510,6 +600,180 @@ class KitsugiNotificationsViewModel(application: Application) : AndroidViewModel
             } catch (e: Exception) {
                 android.util.Log.e("KitsugiNotif", "Kitsu load failed: ${e.message}", e)
                 _kitsu.value = NotifUiState(
+                    isLoading = false,
+                    error = ctx.getString(R.string.notif_error_load, e.message ?: e.javaClass.simpleName)
+                )
+            }
+        }
+    }
+
+    // ─── Bangumi Yükleyici ───────────────────────────────────────────────────
+
+    /**
+     * Bangumi (bgm.tv) API'sinde herkese açık bir bildirim ucu **yoktur**
+     * (kaynaklar: 条目, 章节, 人物, 角色, 收藏, 目录...). Bu sekme diğer
+     * "bildirim ucu olmayan" kaynaklarla (MAL, Kitsu) aynı mantığı izler:
+     *
+     *  1. Kullanıcının Bangumi'deki izleme listesi (在看 / DOING koleksiyonu);
+     *     hesap bağlı değilse yerel Kitsugi kayıtları.
+     *  2. Çapraz kimlik çözümü (önbellekli) ile MAL ID'leri.
+     *  3. Yayın takvimi (son 7 gün + yaklaşan) eşleşmesi → "bölüm yayınlandı /
+     *     yayınlanacak" bildirimleri.
+     *
+     * Üretilen kayıtlar [archiveAndMerge] ile yerel arşive + buluta yazılır;
+     * pencereden düşen bölümler kaybolmaz.
+     */
+    private data class BangumiWatching(
+        val stableId: Int,
+        val title: String,
+        val imageUrl: String?,
+        val progress: Int,
+        val updatedAtMs: Long?
+    )
+
+    fun loadBangumi(mediaEntries: List<MediaEntry> = emptyList()) {
+        if (_bangumi.value.isLoading) return
+        viewModelScope.launch {
+            _bangumi.value = NotifUiState(isLoading = true)
+            try {
+                val token = runCatching { BangumiAuthStore.getValidToken(ctx) }.getOrNull()
+                val username = if (!token.isNullOrBlank()) {
+                    runCatching { BangumiAuthStore.resolveUsername(ctx) }.getOrNull()
+                } else null
+
+                val watching = mutableListOf<BangumiWatching>()
+
+                // 1) Bağlıysa Bangumi'nin kendi izleme listesini çek (在看)
+                if (!token.isNullOrBlank() && !username.isNullOrBlank()) {
+                    runCatching {
+                        BangumiApiClient.getUserCollections(
+                            token = token,
+                            username = username,
+                            collectionType = BangumiApiClient.CollectionType.DOING,
+                            limit = 50
+                        )
+                    }.getOrNull()?.data?.forEach { col ->
+                        val stableId = BangumiIdNamespace.stableIdFromRaw(col.subjectId) ?: return@forEach
+                        watching.add(
+                            BangumiWatching(
+                                stableId = stableId,
+                                title = col.subject?.displayTitle ?: "Bangumi",
+                                imageUrl = col.subject?.images?.poster,
+                                progress = col.epStatus,
+                                updatedAtMs = parseIsoToEpochMs(col.updatedAt)
+                            )
+                        )
+                    }
+                }
+
+                // 2) API yok/boşsa yerel Bangumi kayıtları (malId zaten stableId'dir)
+                if (watching.isEmpty()) {
+                    mediaEntries
+                        .filter {
+                            it.source.equals(BangumiIdNamespace.SOURCE, ignoreCase = true) &&
+                                (it.status == WatchStatus.Watching || it.status == WatchStatus.Repeating)
+                        }
+                        .take(50)
+                        .forEach { me ->
+                            val stableId = me.malId ?: return@forEach
+                            if (BangumiIdNamespace.isStableId(stableId)) {
+                                watching.add(
+                                    BangumiWatching(
+                                        stableId = stableId,
+                                        title = me.title,
+                                        imageUrl = me.imageUrl,
+                                        progress = me.progress,
+                                        updatedAtMs = if (me.updatedAt > 0) me.updatedAt else null
+                                    )
+                                )
+                            }
+                        }
+                }
+
+                // 3) Çapraz kimlik → MAL ID (bellek + dosya önbellekli; paralel)
+                val resolved = coroutineScope {
+                    watching.take(50).map { w ->
+                        async(Dispatchers.IO) {
+                            val cross = runCatching {
+                                KitsugiBangumiDetailClient.resolveCrossIds(w.stableId, MediaType.Anime)
+                            }.getOrNull()
+                            w to cross?.malId?.takeIf { it in 1..99_999_999 }
+                        }
+                    }.map { it.await() }
+                }
+                val malToStable = resolved
+                    .filter { it.second != null }
+                    .associate { (w, mal) -> mal!! to w.stableId }
+                val malIds = malToStable.keys
+
+                // 4) Yayın takvimi eşleşmesi (son 7 gün + 2 saat sonrası)
+                val nowSec = System.currentTimeMillis() / 1000L
+                val airings = KitsugiAiringCalendarClient()
+                    .fetchAiringWindow(nowSec - 7L * 24 * 3600L, nowSec + 2L * 3600L)
+                val matched = airings
+                    .filter { it.malId != null && malIds.contains(it.malId) }
+                    .sortedByDescending { it.airingAt }
+
+                val items = mutableListOf<NotifItem>()
+                val matchedMalIds = matched.mapNotNull { it.malId }.toSet()
+
+                matched.forEach { entry ->
+                    val aired = entry.airingAt <= nowSec
+                    items.add(
+                        NotifItem(
+                            id = "bangumi_${entry.malId}_${entry.episode}",
+                            imageUrl = entry.coverUrl,
+                            title = entry.title,
+                            body = if (aired)
+                                ctx.getString(R.string.notif_mal_episode_released, entry.episode)
+                            else
+                                ctx.getString(R.string.notif_mal_episode_upcoming, entry.episode),
+                            dateText = formatEpochSec(entry.airingAt),
+                            tsMs = entry.airingAt * 1000L,
+                            mediaId = entry.malId?.let { malToStable[it] },
+                            mediaType = "anime",
+                            source = "Bangumi"
+                        )
+                    )
+                }
+
+                // Takvime düşmeyen izlenenler: ilerleme durumu olarak listelenir.
+                resolved
+                    .filter { (w, mal) -> mal == null || mal !in matchedMalIds }
+                    .forEach { (w, _) ->
+                        items.add(
+                            NotifItem(
+                                id = "bangumi_watching_${w.stableId}",
+                                imageUrl = w.imageUrl,
+                                title = w.title,
+                                body = if (w.progress > 0)
+                                    ctx.getString(R.string.notif_kitsu_progress, w.progress)
+                                else
+                                    ctx.getString(R.string.notif_bangumi_in_list),
+                                dateText = w.updatedAtMs?.let { formatEpochMs(it) },
+                                tsMs = w.updatedAtMs,
+                                mediaId = w.stableId,
+                                mediaType = "anime",
+                                source = "Bangumi"
+                            )
+                        )
+                    }
+
+                val notice = when {
+                    token.isNullOrBlank() -> ctx.getString(R.string.notif_notice_bangumi_not_connected)
+                    watching.isEmpty() -> ctx.getString(R.string.notif_notice_bangumi_no_list)
+                    else -> ctx.getString(R.string.notif_notice_bangumi_feed, watching.size, matched.size)
+                }
+
+                _bangumi.value = NotifUiState(
+                    items = archiveAndMerge("Bangumi", items),
+                    isLoading = false,
+                    hasMore = false,
+                    notice = notice
+                )
+            } catch (e: Exception) {
+                android.util.Log.e("KitsugiNotif", "Bangumi load failed: ${e.message}", e)
+                _bangumi.value = NotifUiState(
                     isLoading = false,
                     error = ctx.getString(R.string.notif_error_load, e.message ?: e.javaClass.simpleName)
                 )

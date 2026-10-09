@@ -6,6 +6,7 @@ import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
+import java.net.URLEncoder
 import com.kitsugi.animelist.utils.*
 
 class KitsugiStudioClient {
@@ -17,15 +18,20 @@ class KitsugiStudioClient {
     ): KitsugiStudioDetail? {
         return withContext(Dispatchers.IO) {
             if (studioId <= 0) return@withContext null
-            when (MalJikanMediaSupport.canonicalSource(source)) {
+            when (StudioSourceSupport.canonicalSource(source)) {
                 "jikan", "mal" -> {
-                    val jikanRes = fetchJikanStudioDetail(studioId)
-                    val detail = if (jikanRes != null) {
-                        jikanRes
-                    } else if (!name.isNullOrBlank()) {
-                        fetchAniListStudioByName(name)
-                    } else {
-                        null
+                    val byId = fetchJikanStudioDetail(studioId)
+                    // A producer ID from one namespace must never silently resolve to a different
+                    // company. If the clicked chip's label disagrees, recover by exact-name search
+                    // in Jikan rather than falling through to an unrelated AniList ID.
+                    val detail = when {
+                        byId != null && StudioSourceSupport.namesMatch(name, byId.name) -> byId
+                        !name.isNullOrBlank() -> {
+                            val matchedId = searchJikanProducerId(name)
+                            matchedId?.let { fetchJikanStudioDetail(it) }
+                                ?.takeIf { StudioSourceSupport.namesMatch(name, it.name) }
+                        }
+                        else -> byId
                     }
                     if (detail != null && !detail.name.isNullOrBlank() &&
                         com.kitsugi.animelist.KitsugiApplication.getInstance()?.let { com.kitsugi.animelist.data.auth.ExternalAuthManager.getAniListToken(it) } != null) {
@@ -37,6 +43,7 @@ class KitsugiStudioClient {
                 }
                 "anilist" -> fetchAniListStudioDetail(studioId)
                 "bangumi" -> fetchBangumiStudioDetail(studioId)
+                "shikimori" -> fetchShikimoriStudioDetail(studioId)
                 "tmdb" -> {
                     val tmdbRes = fetchTmdbStudioDetail(studioId)
                     if (tmdbRes != null && !tmdbRes.name.isNullOrBlank() &&
@@ -77,6 +84,102 @@ class KitsugiStudioClient {
             about = about,
             mediaWorks = person.mediaWorks
         )
+    }
+
+    private suspend fun searchJikanProducerId(expectedName: String): Int? = runCatching {
+        val query = URLEncoder.encode(expectedName.trim(), "UTF-8")
+        val url = URL("https://api.jikan.moe/v4/producers?q=$query&limit=25")
+        val response = KitsugiApiBase.runWithRateLimit {
+            KitsugiApiBase.executeGetRequest(url)
+        } ?: return@runCatching null
+        val data = JSONObject(response).optJSONArray("data") ?: return@runCatching null
+        var bestId: Int? = null
+        var bestScore = 0
+        val expectedKey = StudioSourceSupport.normalizeName(expectedName)
+
+        for (index in 0 until data.length()) {
+            val item = data.optJSONObject(index) ?: continue
+            val id = item.optInt("mal_id").takeIf { it > 0 } ?: continue
+            val names = buildList {
+                item.optNullableString("name")?.let(::add)
+                item.optJSONArray("titles")?.let { titles ->
+                    for (titleIndex in 0 until titles.length()) {
+                        titles.optJSONObject(titleIndex)?.optNullableString("title")?.let(::add)
+                    }
+                }
+            }
+            if (names.none { StudioSourceSupport.namesMatch(expectedName, it) }) continue
+            val exact = names.any { StudioSourceSupport.normalizeName(it) == expectedKey }
+            val score = if (exact) 2 else 1
+            if (score > bestScore) {
+                bestId = id
+                bestScore = score
+                if (exact) break
+            }
+        }
+        bestId
+    }.getOrNull()
+
+    private suspend fun fetchShikimoriStudioDetail(studioId: Int): KitsugiStudioDetail? = runCatching {
+        val infoUrl = URL("https://shikimori.io/api/studios/$studioId")
+        val infoResponse = KitsugiApiBase.executeGetRequestResilient(infoUrl) ?: return@runCatching null
+        val info = JSONObject(infoResponse)
+        val name = info.optNullableString("name")
+            ?: info.optNullableString("filtered_name")
+            ?: return@runCatching null
+        val imageUrl = info.optJSONObject("image")?.let { image ->
+            (image.optNullableString("original") ?: image.optNullableString("preview"))
+                ?.let(::absoluteShikimoriImageUrl)
+        }
+        val about = info.optNullableString("description")?.cleanApiText()?.takeIf { it.isNotBlank() }
+        val mediaWorks = mutableListOf<KitsugiStaffMediaWork>()
+        val worksUrl = URL("https://shikimori.io/api/animes?studio=$studioId&limit=50&order=aired_on")
+        val worksResponse = KitsugiApiBase.executeGetRequestResilient(worksUrl)
+        val works = worksResponse?.let { runCatching { org.json.JSONArray(it) }.getOrNull() }
+        if (works != null) {
+            for (index in 0 until works.length()) {
+                val item = works.optJSONObject(index) ?: continue
+                val mediaId = item.optInt("id").takeIf { it > 0 } ?: continue
+                val romajiTitle = item.optNullableString("name")
+                val englishTitle = item.optJSONArray("english")?.optString(0)?.takeIf { it.isNotBlank() && it != "null" }
+                val russianTitle = item.optNullableString("russian")
+                val title = russianTitle ?: englishTitle ?: romajiTitle ?: "Başlıksız"
+                val kind = item.optNullableString("kind").orEmpty().lowercase()
+                val mediaType = if (kind == "movie") MediaType.Movie else MediaType.Anime
+                val posterUrl = item.optJSONObject("image")
+                    ?.let { image -> (image.optNullableString("original") ?: image.optNullableString("preview")) }
+                    ?.let(::absoluteShikimoriImageUrl)
+                mediaWorks.add(
+                    KitsugiStaffMediaWork(
+                        mediaId = mediaId,
+                        mediaTitle = title,
+                        mediaImageUrl = posterUrl,
+                        mediaType = (if (kind == "movie") "movie" else "anime").toTurkishMediaTypeString(),
+                        staffRole = "Stüdyo",
+                        source = "shikimori",
+                        titleEnglish = englishTitle,
+                        titleRomaji = romajiTitle
+                    )
+                )
+            }
+        }
+
+        KitsugiStudioDetail(
+            id = studioId,
+            name = name,
+            isMain = true,
+            imageUrl = imageUrl,
+            about = about,
+            mediaWorks = mediaWorks.distinctBy { it.mediaId }
+        )
+    }.getOrNull()
+
+    private fun absoluteShikimoriImageUrl(value: String): String? = when {
+        value.isBlank() -> null
+        value.startsWith("https://", ignoreCase = true) || value.startsWith("http://", ignoreCase = true) -> value
+        value.startsWith("//") -> "https:$value"
+        value.startsWith("/") -> "https://shikimori.io$value"
+        else -> null
     }
 
     private suspend fun fetchTmdbStudioDetail(studioId: Int): KitsugiStudioDetail? {
@@ -368,7 +471,7 @@ class KitsugiStudioClient {
     private suspend fun fetchAniListStudioByName(name: String): KitsugiStudioDetail? {
         val query = """
             query (${'$'}search: String) {
-                Page(page: 1, perPage: 1) {
+                Page(page: 1, perPage: 10) {
                     studios(search: ${'$'}search) {
                         id
                         name
@@ -395,8 +498,13 @@ class KitsugiStudioClient {
             val response = KitsugiApiBase.executeAniListQuery(query, variables) ?: return@runCatching null
             val root = JSONObject(response)
             val studiosArr = root.optJSONObject("data")?.optJSONObject("Page")?.optJSONArray("studios") ?: return@runCatching null
-            if (studiosArr.length() == 0) return@runCatching null
-            val studioObj = studiosArr.getJSONObject(0)
+            val candidates = (0 until studiosArr.length()).mapNotNull { studiosArr.optJSONObject(it) }
+            val expectedName = StudioSourceSupport.normalizeName(name)
+            val studioObj = candidates.firstOrNull {
+                StudioSourceSupport.normalizeName(it.optString("name")) == expectedName
+            } ?: candidates.firstOrNull {
+                StudioSourceSupport.namesMatch(name, it.optString("name"))
+            } ?: return@runCatching null
 
             val studioId = studioObj.optInt("id")
             val studioName = studioObj.optString("name")

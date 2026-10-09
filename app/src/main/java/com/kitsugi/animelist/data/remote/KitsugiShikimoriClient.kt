@@ -43,6 +43,16 @@ object KitsugiShikimoriClient {
     /** Ad çevirisinde eşzamanlı istek sayısı (Google'ı boğmadan hız). */
     private const val SHIKI_NAME_TRANSLATE_CONCURRENCY = 6
 
+    private fun absoluteStudioImageUrl(value: String?): String? {
+        val path = value?.takeIf { it.isNotBlank() && it != "null" } ?: return null
+        return when {
+            path.startsWith("https://", ignoreCase = true) || path.startsWith("http://", ignoreCase = true) -> path
+            path.startsWith("//") -> "https:$path"
+            path.startsWith("/") -> "https://shikimori.io$path"
+            else -> null
+        }
+    }
+
     private fun adultFlag(item: JSONObject): Boolean {
         val rating = item.optString("rating").takeIf { it.isNotBlank() && it != "null" }
         val kind = item.optString("kind", "")
@@ -485,8 +495,12 @@ object KitsugiShikimoriClient {
                             val sObj = studiosArr.optJSONObject(i) ?: continue
                             val sId = sObj.optInt("id")
                             val sName = sObj.optString("name")
+                            val sImage = sObj.optJSONObject("image")?.let { image ->
+                                absoluteStudioImageUrl(image.optString("original").takeIf { it.isNotBlank() && it != "null" }
+                                    ?: image.optString("preview").takeIf { it.isNotBlank() && it != "null" })
+                            }
                             if (sId > 0 && sName.isNotBlank()) {
-                                studiosList.add(KitsugiStudio(id = sId, name = sName, isMain = true))
+                                studiosList.add(KitsugiStudio(id = sId, name = sName, isMain = true, source = "shikimori", imageUrl = sImage))
                             }
                         }
                     }
@@ -578,21 +592,6 @@ object KitsugiShikimoriClient {
                     // özgün (Rusça) metin gösterilir ve arka planda çeviri önbelleğe girer.
                     val synopsis = translateWithBudget(rawDesc)
 
-                    // Yayın tarihi: Shikimori "next_episode_at" (ISO-8601) → "ep|epoch".
-                    // Yoksa detay zenginleştirme (AniList fallback) devreye girer.
-                    val nextAiringEpisode = runCatching {
-                        val nextAt = data.optNullableString("next_episode_at")
-                        if (nextAt.isNullOrBlank()) return@runCatching null
-                        val epoch = runCatching {
-                            java.time.OffsetDateTime.parse(nextAt).toInstant().epochSecond
-                        }.getOrNull()
-                            ?: com.kitsugi.animelist.utils.NextAiringFormat.isoDateToEpoch(nextAt.take(10))
-                            ?: return@runCatching null
-                        val airedEp = data.optInt("episodes_aired", 0)
-                        val ep = if (airedEp > 0) airedEp + 1 else -1
-                        "$ep|$epoch"
-                    }.getOrNull()
-
                     KitsugiMediaDetail(
                         synopsis = synopsis,
                         genres = genresList.toTurkishGenres(),
@@ -618,8 +617,7 @@ object KitsugiShikimoriClient {
                         openings = finalOpenings,
                         endings = finalEndings,
                         externalLinks = shikiLinks,
-                        streamingLinks = streamingLinks,
-                        nextAiringEpisode = nextAiringEpisode
+                        streamingLinks = streamingLinks
                     )
                 }
             }.getOrElse { err ->

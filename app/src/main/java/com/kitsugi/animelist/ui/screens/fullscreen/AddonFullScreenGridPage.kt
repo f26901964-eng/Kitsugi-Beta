@@ -11,6 +11,8 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,19 +25,26 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
-import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.itemsIndexed as gridItemsIndexed
+import androidx.compose.foundation.lazy.grid.items as gridItems
 import androidx.compose.foundation.lazy.grid.rememberLazyGridState
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
+import androidx.compose.material.icons.automirrored.rounded.ListAlt
 import androidx.compose.material.icons.filled.Extension
+import androidx.compose.material.icons.rounded.FilterList
+import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.SearchOff
-import androidx.compose.material3.CircularProgressIndicator
-import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -49,10 +58,12 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -60,15 +71,22 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.data.cloudstream.CsPluginLoader
 import com.kitsugi.animelist.data.local.KitsugiDatabase
+import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.ui.app.AddonFullScreenGridState
 import com.kitsugi.animelist.ui.components.KitsugiEmptyState
-import com.kitsugi.animelist.ui.screens.search.components.ResultItemCard
+import com.kitsugi.animelist.ui.components.KitsugiExploreMediaCard
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
+import com.kitsugi.animelist.ui.components.KitsugiRankingMediaCard
+import com.kitsugi.animelist.ui.screens.detail.KitsugiStudioFilterBottomSheet
+import com.kitsugi.animelist.ui.screens.detail.StudioSortOption
+import com.kitsugi.animelist.ui.screens.detail.studioTypeMatches
+import com.kitsugi.animelist.ui.screens.search.components.ADDON_TYPE_FILTERS
+import com.kitsugi.animelist.ui.screens.search.components.toAddonSearchResult
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.utils.tvClickable
 import com.lagradost.cloudstream3.APIHolder
 import com.lagradost.cloudstream3.MainPageRequest
-import com.lagradost.cloudstream3.SearchResponse
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -76,14 +94,20 @@ import kotlinx.coroutines.withContext
 /**
  * Full-screen grid page for a single Cloudstream addon category.
  *
- * Replicates the feel of [FullScreenMediaGridPage] but sources content from a Cloudstream
- * [com.lagradost.cloudstream3.MainAPI] using [MainPageRequest]-based pagination instead of
- * Jikan/AniList/TMDB APIs.
+ * Ana sayfa / keşfet "Tümünü Gör" sayfalarıyla (FullScreenMediaGridPage,
+ * StudioDetailPage) BİREBİR aynı görsel dil: emojili tür çipleri, filtre +
+ * sıralama bottom sheet'i, grid ↔ liste görünümü, neon çerçeveli
+ * KitsugiExploreMediaCard kutucukları, kaydırınca beliren üst şerit ve
+ * yukarı kaydırma FAB'ı.
  */
 @Composable
 fun AddonFullScreenGridPage(
     state: AddonFullScreenGridState,
-    onBackClick: () -> Unit
+    onBackClick: () -> Unit,
+    titleLanguage: String = "ROMAJI",
+    scoreFormat: String = "POINT_10",
+    hideScores: Boolean = false,
+    blurAdultMedia: Boolean = false
 ) {
     val context = LocalContext.current
     val accentColor = LocalKitsugiAccent.current
@@ -109,7 +133,7 @@ fun AddonFullScreenGridPage(
         }
     }
 
-    // ── State ────────────────────────────────────────────────────────────────
+    // ── State ───────────────────────────────────────────────────────────────
     var loadedItems by remember { mutableStateOf(state.cachedItems ?: state.initialItems) }
     var currentPage by remember { mutableIntStateOf(state.cachedPage ?: if (state.initialItems.isEmpty()) 0 else 1) }
     var isLoadingMore by remember { mutableStateOf(false) }
@@ -121,8 +145,32 @@ fun AddonFullScreenGridPage(
         state.cachedHasMore = hasMorePages
     }
     var apiReady by remember { mutableStateOf(false) }
-    var activeDetailItem by remember { mutableStateOf<com.lagradost.cloudstream3.SearchResponse?>(null) }
+    var activeDetailUrl by remember { mutableStateOf<String?>(null) }
     var activeDetailApiName by remember { mutableStateOf<String?>(null) }
+
+    // ── Görünüm / filtre / sıralama (keşfet sayfalarıyla aynı sözleşme) ──────
+    val gridPrefs = remember(context) { context.getSharedPreferences("kitsugi_ui_prefs", android.content.Context.MODE_PRIVATE) }
+    var isGridView by remember { mutableStateOf(gridPrefs.getBoolean("addon_fullscreen_grid_is_grid_view", true)) }
+    LaunchedEffect(isGridView) {
+        gridPrefs.edit().putBoolean("addon_fullscreen_grid_is_grid_view", isGridView).apply()
+    }
+    var selectedTypeId by rememberSaveable { mutableStateOf("ALL") }
+    var selectedSortOption by rememberSaveable { mutableStateOf(StudioSortOption.DEFAULT) }
+    var showFilterSheet by remember { mutableStateOf(false) }
+    val hasActiveFilter = selectedTypeId != "ALL" || selectedSortOption != StudioSortOption.DEFAULT
+
+    // CS3 öğelerini ana sayfa kart modeliyle aynı dile çevir
+    val convertedResults = remember(loadedItems) {
+        loadedItems.map { it.toAddonSearchResult() }
+    }
+    val displayedResults = remember(convertedResults, selectedTypeId, selectedSortOption) {
+        val filtered = convertedResults.filter { studioTypeMatches(selectedTypeId, it.type) }
+        when (selectedSortOption) {
+            StudioSortOption.DEFAULT -> filtered
+            StudioSortOption.TITLE_ASC -> filtered.sortedBy { it.title.lowercase() }
+            StudioSortOption.TITLE_DESC -> filtered.sortedByDescending { it.title.lowercase() }
+        }
+    }
 
     // Resolve the MainAPI instance (may need to load the plugin first)
     LaunchedEffect(state.apiName) {
@@ -136,9 +184,6 @@ fun AddonFullScreenGridPage(
             }
         }
         apiReady = true
-        if (loadedItems.isEmpty()) {
-            // trigger first page load
-        }
     }
 
     fun resolveApi() = APIHolder.allProviders.firstOrNull { it.name.equals(state.apiName, ignoreCase = true) }
@@ -187,20 +232,242 @@ fun AddonFullScreenGridPage(
 
     // ── Grid scroll + auto-load trigger ─────────────────────────────────────
     val gridState = rememberLazyGridState()
+    val listState = rememberLazyListState()
 
     val shouldLoadMore by remember {
         derivedStateOf {
-            val last = gridState.layoutInfo.visibleItemsInfo.lastOrNull() ?: return@derivedStateOf false
-            last.index >= gridState.layoutInfo.totalItemsCount - 6
+            val info = if (isGridView) gridState.layoutInfo else null
+            if (info != null) {
+                val last = info.visibleItemsInfo.lastOrNull() ?: return@derivedStateOf false
+                last.index >= info.totalItemsCount - 6
+            } else {
+                val last = listState.layoutInfo.visibleItemsInfo.lastOrNull() ?: return@derivedStateOf false
+                last.index >= listState.layoutInfo.totalItemsCount - 6
+            }
         }
     }
     LaunchedEffect(shouldLoadMore) { if (shouldLoadMore && apiReady) loadNextPage() }
 
     val showFloatingHeader by remember {
-        derivedStateOf { gridState.firstVisibleItemIndex >= 1 }
+        derivedStateOf {
+            if (isGridView) gridState.firstVisibleItemIndex >= 1
+            else listState.firstVisibleItemIndex >= 1
+        }
     }
     val showScrollToTop by remember {
-        derivedStateOf { gridState.firstVisibleItemIndex > 3 }
+        derivedStateOf {
+            if (isGridView) gridState.firstVisibleItemIndex > 3
+            else listState.firstVisibleItemIndex > 3
+        }
+    }
+
+    val openDetail: (JikanSearchResult) -> Unit = { result ->
+        activeDetailUrl = result.cs3Url
+        activeDetailApiName = state.apiName
+    }
+
+    val toggleView: () -> Unit = {
+        scope.launch {
+            if (isGridView) {
+                val gridIndex = gridState.firstVisibleItemIndex
+                val gridOffset = gridState.firstVisibleItemScrollOffset
+                val listIndex = if (gridIndex == 0) 0 else gridIndex + 1
+                isGridView = false
+                kotlinx.coroutines.delay(10)
+                listState.scrollToItem(listIndex, gridOffset)
+            } else {
+                val listIndex = listState.firstVisibleItemIndex
+                val listOffset = listState.firstVisibleItemScrollOffset
+                val gridIndex = if (listIndex <= 1) 0 else listIndex - 1
+                isGridView = true
+                kotlinx.coroutines.delay(10)
+                gridState.scrollToItem(gridIndex, listOffset)
+            }
+        }
+    }
+
+    // ── Başlık + kontroller + çipler (keşfet "Tümünü Gör" başlığıyla aynı) ────
+    val controlsHeader: @Composable () -> Unit = {
+        Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 12.dp)) {
+            Row(modifier = Modifier.fillMaxWidth()) {
+                TextButton(onClick = onBackClick) {
+                    Text("Geri", color = accentColor, fontWeight = FontWeight.Bold)
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = state.title,
+                    color = KitsugiColors.TextPrimary,
+                    style = MaterialTheme.typography.headlineLarge,
+                    fontWeight = FontWeight.Black,
+                    modifier = Modifier.weight(1f)
+                )
+                // Eklenti adı badge
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(KitsugiColors.Surface)
+                        .padding(horizontal = 10.dp, vertical = 4.dp)
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Extension,
+                            contentDescription = null,
+                            tint = accentColor,
+                            modifier = Modifier.size(14.dp)
+                        )
+                        Text(
+                            text = state.apiName,
+                            color = accentColor,
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+                Spacer(modifier = Modifier.width(6.dp))
+                // Filtre ve Sıralama butonu
+                IconButton(
+                    onClick = { showFilterSheet = true },
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (hasActiveFilter) accentColor.copy(alpha = 0.25f) else KitsugiColors.Surface)
+                ) {
+                    Icon(
+                        Icons.Rounded.FilterList,
+                        contentDescription = "Filtre ve Sıralama",
+                        tint = if (hasActiveFilter) accentColor else KitsugiColors.TextPrimary
+                    )
+                }
+                Spacer(modifier = Modifier.width(6.dp))
+                // Grid ↔ Liste toggle
+                IconButton(
+                    onClick = toggleView,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(KitsugiColors.Surface)
+                ) {
+                    Icon(
+                        imageVector = if (isGridView) Icons.AutoMirrored.Rounded.ListAlt else Icons.Rounded.GridView,
+                        contentDescription = if (isGridView) "Liste Görünümü" else "Grid Görünümü",
+                        tint = accentColor
+                    )
+                }
+            }
+
+            // Emojili hızlı tür çipleri (keşfet sayfalarındaki şeridin aynısı)
+            LazyRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 12.dp, bottom = 4.dp)
+            ) {
+                items(ADDON_TYPE_FILTERS) { typeFilter ->
+                    val isSelected = selectedTypeId == typeFilter.id
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(20.dp))
+                            .background(
+                                if (isSelected) accentColor.copy(alpha = 0.22f)
+                                else KitsugiColors.Surface
+                            )
+                            .border(
+                                width = if (isSelected) 1.5.dp else 1.dp,
+                                color = if (isSelected) accentColor else Color.Transparent,
+                                shape = RoundedCornerShape(20.dp)
+                            )
+                            .clickable {
+                                selectedTypeId = if (isSelected && typeFilter.id != "ALL") "ALL" else typeFilter.id
+                            }
+                            .padding(horizontal = 13.dp, vertical = 7.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = typeFilter.displayLabel,
+                            color = if (isSelected) accentColor else KitsugiColors.TextPrimary,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            style = MaterialTheme.typography.labelMedium
+                        )
+                    }
+                }
+            }
+
+            // Sayaç + aktif filtre açıklaması + Temizle
+            val activeType = ADDON_TYPE_FILTERS.firstOrNull { it.id == selectedTypeId }
+            val activeFilterDesc = buildString {
+                if (activeType != null && activeType.id != "ALL") append(" • ${activeType.displayLabel}")
+                if (selectedSortOption != StudioSortOption.DEFAULT) append(" • ${selectedSortOption.displayLabel}")
+            }
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(top = 8.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "${displayedResults.size} içerik$activeFilterDesc",
+                    color = KitsugiColors.TextMuted,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f)
+                )
+                if (hasActiveFilter) {
+                    Text(
+                        text = "Temizle",
+                        color = accentColor,
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.clickable {
+                            selectedTypeId = "ALL"
+                            selectedSortOption = StudioSortOption.DEFAULT
+                        }
+                    )
+                }
+            }
+        }
+    }
+
+    val loadingFooter: @Composable () -> Unit = {
+        if (isLoadingMore) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp),
+                contentAlignment = Alignment.Center
+            ) { KitsugiPlasmaLoader(size = 46.dp) }
+        }
+    }
+
+    val errorFooter: @Composable () -> Unit = {
+        if (loadError != null) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 16.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = loadError ?: "Bir hata oluştu.",
+                    color = KitsugiColors.TextMuted,
+                    style = MaterialTheme.typography.bodyMedium
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                TextButton(onClick = { loadNextPage() }) {
+                    Text("Tekrar Dene", color = accentColor, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
     }
 
     // ── UI ───────────────────────────────────────────────────────────────────
@@ -210,134 +477,92 @@ fun AddonFullScreenGridPage(
             .background(KitsugiColors.Background),
         contentAlignment = Alignment.TopCenter
     ) {
-        LazyVerticalGrid(
-            columns = GridCells.Fixed(columnCount),
-            state = gridState,
-            modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 90.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            // ── Header ──────────────────────────────────────────────────────
-            item(key = "addon_grid_header", span = { GridItemSpan(maxLineSpan) }) {
-                Column(modifier = Modifier.padding(horizontal = 8.dp, vertical = 16.dp)) {
-                    // Geri butonu
-                    Row(modifier = Modifier.fillMaxWidth()) {
-                        TextButton(onClick = onBackClick) {
-                            Text("Geri", color = accentColor, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                    // Başlık + eklenti adı badge
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = state.title,
-                            color = KitsugiColors.TextPrimary,
-                            style = MaterialTheme.typography.headlineLarge,
-                            fontWeight = FontWeight.Black,
-                            modifier = Modifier.weight(1f)
+        if (isGridView) {
+            LazyVerticalGrid(
+                columns = GridCells.Fixed(columnCount),
+                state = gridState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(start = 12.dp, end = 12.dp, bottom = 90.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                // ── Header ──────────────────────────────────────────────────
+                item(key = "addon_grid_header", span = { GridItemSpan(maxLineSpan) }) {
+                    controlsHeader()
+                }
+
+                // ── Empty state ──────────────────────────────────────────────
+                if (displayedResults.isEmpty() && !isLoadingMore) {
+                    item(key = "addon_grid_empty", span = { GridItemSpan(maxLineSpan) }) {
+                        KitsugiEmptyState(
+                            title = "Henüz içerik yok",
+                            subtitle = "Bu kategoride gösterilecek içerik bulunamadı.",
+                            icon = Icons.Rounded.SearchOff
                         )
-                        // Eklenti adı badge
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(KitsugiColors.Surface)
-                                .padding(horizontal = 10.dp, vertical = 4.dp)
-                        ) {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp)
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.Extension,
-                                    contentDescription = null,
-                                    tint = accentColor,
-                                    modifier = Modifier.size(14.dp)
-                                )
-                                Text(
-                                    text = state.apiName,
-                                    color = accentColor,
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
                     }
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = "${loadedItems.size} içerik",
-                        color = KitsugiColors.TextMuted,
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold
+                }
+
+                // ── Items — ana sayfa kutucuklarıyla birebir aynı kart ───────
+                gridItems(
+                    displayedResults,
+                    key = { result -> "${state.apiName}_${result.cs3Url}" }
+                ) { result ->
+                    KitsugiExploreMediaCard(
+                        result = result,
+                        onClick = { openDetail(result) },
+                        titleLanguage = titleLanguage,
+                        scoreFormat = scoreFormat,
+                        hideScores = hideScores,
+                        blurAdultMedia = blurAdultMedia,
+                        forceVertical = !isLandscape
                     )
                 }
-            }
 
-            // ── Empty state ──────────────────────────────────────────────────
-            if (loadedItems.isEmpty() && !isLoadingMore) {
-                item(key = "addon_grid_empty", span = { GridItemSpan(maxLineSpan) }) {
-                    KitsugiEmptyState(
-                        title = "Henüz içerik yok",
-                        subtitle = "Bu kategoride gösterilecek içerik bulunamadı.",
-                        icon = Icons.Rounded.SearchOff
-                    )
-                }
-            }
-
-            // ── Items ────────────────────────────────────────────────────────
-            itemsIndexed(
-                loadedItems,
-                key = { idx, item -> "${state.apiName}_${item.url}_$idx" }
-            ) { _, item ->
-                ResultItemCard(
-                    title = item.name,
-                    imageUrl = item.posterUrl,
-                    apiName = state.apiName,
-                    quality = item.quality?.name,
-                    onClick = {
-                        activeDetailItem = item
-                        activeDetailApiName = state.apiName
-                    }
-                )
-            }
-
-            // ── Loading indicator ─────────────────────────────────────────────
-            if (isLoadingMore) {
+                // ── Loading indicator ─────────────────────────────────────────
                 item(key = "addon_grid_loading", span = { GridItemSpan(maxLineSpan) }) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 16.dp),
-                        contentAlignment = Alignment.Center
-                    ) { KitsugiPlasmaLoader(size = 46.dp) }
+                    loadingFooter()
+                }
+
+                // ── Error / retry ────────────────────────────────────────────
+                item(key = "addon_grid_error", span = { GridItemSpan(maxLineSpan) }) {
+                    errorFooter()
                 }
             }
+        } else {
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, bottom = 90.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                item(key = "addon_list_header") { controlsHeader() }
 
-            // ── Error / retry ────────────────────────────────────────────────
-            if (loadError != null) {
-                item(key = "addon_grid_error", span = { GridItemSpan(maxLineSpan) }) {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 16.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Text(
-                            text = loadError ?: "Bir hata oluştu.",
-                            color = KitsugiColors.TextMuted,
-                            style = MaterialTheme.typography.bodyMedium
+                if (displayedResults.isEmpty() && !isLoadingMore) {
+                    item(key = "addon_list_empty") {
+                        KitsugiEmptyState(
+                            title = "Henüz içerik yok",
+                            subtitle = "Bu kategoride gösterilecek içerik bulunamadı.",
+                            icon = Icons.Rounded.SearchOff
                         )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        TextButton(onClick = { loadNextPage() }) {
-                            Text("Tekrar Dene", color = accentColor, fontWeight = FontWeight.Bold)
-                        }
                     }
                 }
+
+                itemsIndexed(
+                    displayedResults,
+                    key = { idx, result -> "${state.apiName}_${result.cs3Url}_l$idx" }
+                ) { index, result ->
+                    KitsugiRankingMediaCard(
+                        result = result,
+                        rankIndex = index + 1,
+                        onClick = { openDetail(result) },
+                        titleLanguage = titleLanguage,
+                        hideScores = hideScores,
+                        blurAdultMedia = blurAdultMedia
+                    )
+                }
+
+                item(key = "addon_list_loading") { loadingFooter() }
+                item(key = "addon_list_error") { errorFooter() }
             }
         }
 
@@ -398,10 +623,30 @@ fun AddonFullScreenGridPage(
                         )
                     }
                 }
+                IconButton(
+                    onClick = { showFilterSheet = true },
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(if (hasActiveFilter) accentColor.copy(alpha = 0.25f) else androidx.compose.ui.graphics.Color.Transparent)
+                ) {
+                    Icon(
+                        Icons.Rounded.FilterList,
+                        contentDescription = "Filtre ve Sıralama",
+                        tint = if (hasActiveFilter) accentColor else KitsugiColors.TextPrimary
+                    )
+                }
+                Spacer(modifier = Modifier.width(4.dp))
+                IconButton(onClick = toggleView) {
+                    Icon(
+                        imageVector = if (isGridView) Icons.AutoMirrored.Rounded.ListAlt else Icons.Rounded.GridView,
+                        contentDescription = if (isGridView) "Liste" else "Grid",
+                        tint = accentColor
+                    )
+                }
             }
         }
 
-        // ── Scroll to top FAB ────────────────────────────────────────────────
+        // ── Scroll to top FAB ─────────────────────────────────────────────────
         AnimatedVisibility(
             visible = showScrollToTop,
             enter = fadeIn() + scaleIn(),
@@ -416,7 +661,10 @@ fun AddonFullScreenGridPage(
                     .clip(RoundedCornerShape(16.dp))
                     .background(accentColor)
                     .tvClickable(shape = RoundedCornerShape(16.dp)) {
-                        scope.launch { gridState.animateScrollToItem(0) }
+                        scope.launch {
+                            if (isGridView) gridState.animateScrollToItem(0)
+                            else listState.animateScrollToItem(0)
+                        }
                     },
                 contentAlignment = Alignment.Center
             ) {
@@ -430,16 +678,34 @@ fun AddonFullScreenGridPage(
         }
     }
 
+    // ── Filtre ve Sıralama bottom sheet (keşfet/stüdyo sayfalarıyla aynı) ─────
+    if (showFilterSheet) {
+        KitsugiStudioFilterBottomSheet(
+            initialTypeId = selectedTypeId,
+            initialSortOption = selectedSortOption,
+            onDismissRequest = { showFilterSheet = false },
+            onApply = { typeId, sortOption ->
+                selectedTypeId = typeId
+                selectedSortOption = sortOption
+            },
+            onReset = {
+                selectedTypeId = "ALL"
+                selectedSortOption = StudioSortOption.DEFAULT
+            },
+            typeFilters = ADDON_TYPE_FILTERS
+        )
+    }
+
     // ── Detail Dialog ───────────────────────────────────────────────────
-    activeDetailItem?.let { detailResponse ->
+    activeDetailUrl?.let { detailUrl ->
         val detailApi = remember(activeDetailApiName) {
             APIHolder.allProviders.firstOrNull { it.name.equals(activeDetailApiName, ignoreCase = true) }
         }
         if (detailApi != null) {
             com.kitsugi.animelist.ui.screens.search.components.KitsugiAddonDetailDialog(
                 api = detailApi,
-                url = detailResponse.url,
-                onDismissRequest = { activeDetailItem = null; activeDetailApiName = null }
+                url = detailUrl,
+                onDismissRequest = { activeDetailUrl = null; activeDetailApiName = null }
             )
         }
     }

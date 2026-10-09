@@ -51,6 +51,8 @@ fun TvReviewsTabContent(
     externalId: Int,
     mediaType: MediaType,
     apiClient: JikanApiClient,
+    tmdbId: Int? = null,
+    realMalId: Int? = null,
     titleLanguage: String = "ROMAJI",
     focusRequester: FocusRequester,
     focusUp: FocusRequester,
@@ -68,15 +70,22 @@ fun TvReviewsTabContent(
 
     // Forum konuları ve aktiviteler kaynaktan bağımsız denenir: eşleme çözülebilirsen
     // veri gelir (tüm dillerde), yoksa bölümler gizlenir (TMDB/SIMKL dahil).
-    LaunchedEffect(source, externalId, mediaType) {
-        coroutineScope.launch {
+    LaunchedEffect(source, externalId, mediaType, tmdbId, realMalId) {
+        // Clear stale rows before this detail's ID mapping is resolved.
+        forumTopics = emptyList()
+        activitiesList = emptyList()
+        launch {
             runCatching {
-                forumTopics = apiClient.fetchForumTopics(source, externalId, mediaType)
+                forumTopics = apiClient.fetchForumTopics(
+                    source, externalId, mediaType, tmdbId = tmdbId, realMalId = realMalId
+                )
             }
         }
-        coroutineScope.launch {
+        launch {
             runCatching {
-                activitiesList = apiClient.fetchActivities(source, externalId, mediaType = mediaType)
+                activitiesList = apiClient.fetchActivities(
+                    source, externalId, mediaType = mediaType, tmdbId = tmdbId, realMalId = realMalId
+                )
             }
         }
     }

@@ -167,7 +167,7 @@ internal fun EntryDetailOverviewTab(
                         mediaSource = entry.source.lowercase(),
                         mediaType = entry.type
                     )
-                    onStudioClick(studio.id, resolvedSource, studio.name, null)
+                    onStudioClick(studio.id, resolvedSource, studio.name, studio.imageUrl)
                 },
                 onProducerClick = { producer ->
                     val resolvedSource = resolveStudioClickSource(
@@ -175,7 +175,7 @@ internal fun EntryDetailOverviewTab(
                         mediaSource = entry.source.lowercase(),
                         mediaType = entry.type
                     )
-                    onStudioClick(producer.id, resolvedSource, producer.name, null)
+                    onStudioClick(producer.id, resolvedSource, producer.name, producer.imageUrl)
                 }
             )
         }

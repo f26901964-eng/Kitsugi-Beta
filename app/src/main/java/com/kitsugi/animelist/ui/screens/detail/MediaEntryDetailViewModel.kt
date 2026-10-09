@@ -160,7 +160,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             DetailCache.removeMediaStaff(entry.source, stableId)
             DetailCache.removeMediaRelations(entry.source, stableId)
             DetailCache.removeMediaRecommendations(entry.source, stableId)
-            DetailCache.removeMediaReviews(entry.source, stableId)
+            DetailCache.removeMediaReviews(entry.source, stableId, entry.type.name)
             DetailCache.removeMediaEpisodes(entry.source, stableId)
             DetailCache.clearFanartCache() // Fanart galeri önbelleğini temizle
         }
@@ -236,7 +236,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
         val cachedStats = DetailCache.getMediaStats(entry.source, malId)
         _statsState.value = if (DetailCache.hasMediaStats(entry.source, malId)) DetailTabState.Success(cachedStats) else DetailTabState.Loading
 
-        val cachedReviews = DetailCache.getMediaReviews(entry.source, malId)
+        val cachedReviews = DetailCache.getMediaReviews(entry.source, malId, entry.type.name)
         _reviewsState.value = if (cachedReviews != null) DetailTabState.Success(cachedReviews) else DetailTabState.Loading
 
         val cachedEpisodes = DetailCache.getMediaEpisodes(entry.source, malId)
@@ -946,7 +946,11 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             _synopsisState.value = SynopsisState.Success(rawText)
             _translatedSynopsis.value = rawText
             val tr = withContext(Dispatchers.IO) {
-                translationManager.translateToTurkish(rawText)
+                // Uzun özetlerde çeviri parça parça akıtılır: çevrilen kısım anında
+                // ekrana gelir, kalanı arka planda sırayla çevrilir.
+                translationManager.translateToTurkish(rawText) { partial ->
+                    _translatedSynopsis.value = partial
+                }
             }
             if (!tr.isNullOrBlank() && tr != rawText) {
                 DetailCache.putTranslation("synopsis", entry.source, stableId, tr)
@@ -964,7 +968,11 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
         val stableId = entry.malId ?: entry.id
         viewModelScope.launch {
             val tr = withContext(Dispatchers.IO) {
-                translationManager.translateToTurkish(raw)
+                // Uzun özetlerde çeviri parça parça akıtılır: çevrilen kısım anında
+                // ekrana gelir, kalanı arka planda sırayla çevrilir.
+                translationManager.translateToTurkish(raw) { partial ->
+                    _translatedSynopsis.value = partial
+                }
             }
             if (!tr.isNullOrBlank() && tr != raw) {
                 DetailCache.putTranslation("synopsis", entry.source, stableId, tr)

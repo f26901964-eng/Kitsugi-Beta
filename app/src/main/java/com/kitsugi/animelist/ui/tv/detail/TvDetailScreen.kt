@@ -918,6 +918,8 @@ fun TvDetailScreen(
                             externalId = displayResult.malId ?: 0,
                             mediaType = displayResult.type,
                             apiClient = apiClient,
+                            tmdbId = displayResult.tmdbId ?: detailState?.tmdbId,
+                            realMalId = displayResult.realMalId ?: detailState?.realMalId,
                             titleLanguage = titleLanguage,
                             focusRequester = reviewsRowFocusRequester,
                             focusUp = when {

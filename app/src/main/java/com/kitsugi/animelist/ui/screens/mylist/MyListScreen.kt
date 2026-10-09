@@ -739,10 +739,10 @@ fun MyListScreen(
                 }
 
                 // Duplicate kontrolü: herhangi bir platform ID'si üzerinden eşleşme yeter
-                val alreadyExists = entries.any { entry -> entry.matches(result) }
+                val alreadyExists = entries.firstOrNull { entry -> entry.matches(result) }
 
-                if (alreadyExists) {
-                    duplicateMessage = "\"${result.title}\" zaten listende var."
+                if (alreadyExists != null) {
+                    duplicateMessage = duplicateListMessage(alreadyExists)
                     showApiSearchDialog = false
                     return@KitsugiApiSearchDialog
                 }

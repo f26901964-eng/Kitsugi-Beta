@@ -589,6 +589,39 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     }
 
     /**
+     * Vitrin için yatay artwork'u kaynağın kimlik alanını koruyarak çözer.
+     * TMDB movie/TV ID'leri kendi türleriyle tam ID üzerinden kullanılır; Anime
+     * türündeki Simkl/diğer sonuçlarda TMDB movie-vs-TV namespace'i belirsiz
+     * olabileceğinden başlık + tür + yıl eşleşmesi kullanılır. Manga atlanır.
+     */
+    private suspend fun resolveHeroBackdrop(item: JikanSearchResult): String? {
+        item.backdropUrl?.trim()?.takeIf { it.isNotEmpty() }?.let { return it }
+        if (item.type == MediaType.Manga) return null
+
+        val source = item.source.trim().lowercase()
+        val tmdbId = item.tmdbId ?: item.malId.takeIf {
+            source == "tmdb" || source == "themoviedb"
+        }
+        if (tmdbId != null && tmdbId > 0) {
+            val isMovie = when (item.type) {
+                MediaType.Movie -> true
+                MediaType.TvShow -> false
+                else -> null
+            }
+            if (isMovie != null) {
+                val exactBackdrop = tmdbApiClient.fetchBackdropByTmdbId(tmdbId, isMovie)
+                if (!exactBackdrop.isNullOrBlank()) return exactBackdrop
+            }
+        }
+
+        return tmdbApiClient.fetchBackdropByTitle(
+            title = item.title,
+            mediaType = item.type,
+            year = item.year
+        )
+    }
+
+    /**
      * Ortak "Yakında Yayında" (geri sayımlı) verisi.
      *
      * Kesin bölüm yayın saatleri yalnızca AniList `airingSchedules` üzerinde bulunur;
@@ -782,7 +815,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             val backdropJobs = (0 until heroCount).map { index ->
                 val item = rawTopAnime[index]
                 async {
-                    val backdrop = tmdbApiClient.fetchBackdropByTitle(item.title)
+                    val backdrop = resolveHeroBackdrop(item)
                     if (backdrop != null) item.copy(backdropUrl = backdrop) else item
                 }
             }
@@ -846,7 +879,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             val backdropJobs = (0 until heroCount).map { index ->
                 val item = rawTopAnime[index]
                 async {
-                    val backdrop = tmdbApiClient.fetchBackdropByTitle(item.title)
+                    val backdrop = resolveHeroBackdrop(item)
                     if (backdrop != null) item.copy(backdropUrl = backdrop) else item
                 }
             }
@@ -980,7 +1013,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             val backdropJobs = (0 until heroCount).map { index ->
                 val item = rawTopAnime[index]
                 async {
-                    val backdrop = tmdbApiClient.fetchBackdropByTitle(item.title)
+                    val backdrop = resolveHeroBackdrop(item)
                     if (backdrop != null) item.copy(backdropUrl = backdrop) else item
                 }
             }
@@ -1096,7 +1129,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             val backdropJobs = (0 until heroCount).map { index ->
                 val item = rawTopAnime[index]
                 async {
-                    val backdrop = tmdbApiClient.fetchBackdropByTitle(item.title)
+                    val backdrop = resolveHeroBackdrop(item)
                     if (backdrop != null) item.copy(backdropUrl = backdrop) else item
                 }
             }
@@ -1264,7 +1297,6 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         val missing = items.filter { item ->
             item.backdropUrl.isNullOrBlank() &&
                 item.type != MediaType.Manga &&
-                item.source.trim().lowercase() !in setOf("tmdb", "themoviedb") &&
                 item.exploreIdentity() !in heroBackdropCache &&
                 heroBackdropInFlight.add(item.exploreIdentity())
         }
@@ -1275,7 +1307,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                     launch {
                         val identity = item.exploreIdentity()
                         val url = try {
-                            tmdbApiClient.fetchBackdropByTitle(item.title)
+                            resolveHeroBackdrop(item)
                         } catch (e: CancellationException) {
                             throw e
                         } catch (e: Exception) {

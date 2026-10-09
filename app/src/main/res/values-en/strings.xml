@@ -441,7 +441,7 @@
     <string name="notif_shikimori_kind_generic">Notification</string>
     <string name="notif_diag_action">Notification diagnostics</string>
     <string name="notif_diag_title">Notification Diagnostics</string>
-    <string name="notif_diag_subtitle">Tests all 5 sources with live requests.</string>
+    <string name="notif_diag_subtitle">Tests all 6 sources with live requests.</string>
     <string name="notif_diag_run">Run Test</string>
     <string name="notif_diag_running">Testing…</string>
     <string name="notif_diag_close">Close</string>
@@ -1391,4 +1391,11 @@
     <string name="bangumi_tag_ambient_music">Ambient</string>
     <string name="bangumi_tag_instrumental">Instrumental</string>
 
+    <string name="bangumi_tag_ona">ONA</string>
+    <string name="bangumi_tag_war">War</string>
+    <string name="notif_bangumi_in_list">In your Bangumi watch list (在看)</string>
+    <string name="notif_login_required_bangumi">You need to log in to Bangumi</string>
+    <string name="notif_notice_bangumi_feed">Bangumi\'s public API has no notification endpoint; this list is your watch list (在看) matched against the airing calendar. %1$d watched works • %2$d airing matches.</string>
+    <string name="notif_notice_bangumi_no_list">Your Bangumi watch list (在看) is empty.</string>
+    <string name="notif_notice_bangumi_not_connected">No Bangumi account connected; only local entries are shown. Bangumi\'s public API has no notification endpoint.</string>
 </resources>

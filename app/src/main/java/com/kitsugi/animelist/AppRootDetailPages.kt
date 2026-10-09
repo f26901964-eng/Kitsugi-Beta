@@ -89,7 +89,8 @@ fun AppRootDetailPages(
                     },
                     name = key.name,
                     imageUrl = key.imageUrl,
-                    titleLanguage = appSettings.titleLanguage
+                    titleLanguage = appSettings.titleLanguage,
+                    preferredTranslator = appSettings.preferredTranslator
                 )
             }
         }
@@ -197,6 +198,9 @@ fun AppRootDetailPages(
                 ApiResultDetailPage(
                     result = key.result,
                     existingEntry = existingApiEntry,
+                    // Ekleme akışı "zaten listende var" diyorsa buton da "Düzenle" demeli:
+                    // aynı eşleme (herhangi bir kaynak üzerinden) ile kontrol edilir.
+                    findExistingEntry = { r -> mediaEntries.firstOrNull { entry -> entry.matches(r) } },
                     onBackClick = { navState.popDetailStack() },
                     onAddClick = { selection ->
                         onAddApiSelectionToList(selection)
@@ -556,6 +560,7 @@ fun AppRootDetailPages(
                     isSimklConnected = authViewModel.isSimklConnected,
                     isKitsuConnected = authViewModel.isKitsuConnected,
                     isShikimoriConnected = authViewModel.isShikimoriConnected,
+                    isBangumiConnected = authViewModel.isBangumiConnected,
                     onBack = { navState.popDetailStack() },
                     onUserProfileClick = { userId, username, avatarUrl ->
                         navState.navigateToDetail(DetailScreen.UserProfile(userId, username, avatarUrl))

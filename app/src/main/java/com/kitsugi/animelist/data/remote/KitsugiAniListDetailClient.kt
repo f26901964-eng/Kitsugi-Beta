@@ -187,7 +187,7 @@ internal object KitsugiAniListDetailClient {
                     val id = obj.optInt("id")
                     val name = obj.optNullableString("name")
                     if (!name.isNullOrBlank()) {
-                        fallbackStudios.add(KitsugiStudio(id = id, name = name))
+                        fallbackStudios.add(KitsugiStudio(id = id, name = name, source = "anilist"))
                     }
                 }
             }
@@ -284,7 +284,7 @@ internal object KitsugiAniListDetailClient {
                     val id = node.optInt("id")
                     val name = node.optNullableString("name") ?: continue
                     val isMainStudio = edge.optBoolean("isMain", false)
-                    val studioObj = KitsugiStudio(id = id, name = name, isMain = isMainStudio)
+                    val studioObj = KitsugiStudio(id = id, name = name, isMain = isMainStudio, source = "anilist")
                     if (isMainStudio) parsedStudios.add(studioObj)
                     else parsedProducers.add(studioObj)
                 }

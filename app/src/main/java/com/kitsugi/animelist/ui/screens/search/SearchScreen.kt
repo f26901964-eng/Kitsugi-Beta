@@ -103,6 +103,7 @@ fun SearchScreen(
     // AniHyou Karakter ve Personel detay yönlendirmeleri
     onOpenCharacterDetail: ((characterId: Int, name: String?, imageUrl: String?) -> Unit)? = null,
     onOpenStaffDetail: ((staffId: Int, name: String?, imageUrl: String?) -> Unit)? = null,
+    onOpenStudioDetail: ((studioId: Int, source: String, name: String?, imageUrl: String?) -> Unit)? = null,
     isBottomBarVisible: Boolean = true,
     onScrollReset: (() -> Unit)? = null,
     // "Tümünü Gör" → kaynağa özel tam arama sayfasını ayrı ekranda açar
@@ -119,6 +120,14 @@ fun SearchScreen(
     val scope = rememberCoroutineScope()
     val keyboardController = LocalSoftwareKeyboardController.current
     val context = androidx.compose.ui.platform.LocalContext.current
+    val isStudioSearch = uiState.selectedScope == SearchScope.STUDIO
+    val onSearchResultClick: (JikanSearchResult) -> Unit = { result ->
+        if (isStudioSearch && onOpenStudioDetail != null) {
+            onOpenStudioDetail(result.malId, result.source, result.title, result.imageUrl)
+        } else {
+            onOpenApiDetail(result)
+        }
+    }
 
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val navigationBarsPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
@@ -245,6 +254,13 @@ fun SearchScreen(
         { result: JikanSearchResult ->
             getMediaEntry(result) != null
         }
+    }
+
+    val isSearchResultAlreadyInList: (JikanSearchResult) -> Boolean = { result ->
+        !isStudioSearch && isAlreadyInList(result)
+    }
+    val getSearchResultMediaEntry: (JikanSearchResult) -> MediaEntry? = { result ->
+        if (isStudioSearch) null else getMediaEntry(result)
     }
 
     val showIdleContent = !uiState.hasSearched && !uiState.isLoading
@@ -447,9 +463,9 @@ fun SearchScreen(
                         platformId = "anilist",
                         results = uiState.multiResults.aniListResults,
                         isLoading = uiState.multiResults.isLoadingAniList,
-                        isAlreadyInList = isAlreadyInList,
-                        getMediaEntry = getMediaEntry,
-                        onItemClick = onOpenApiDetail,
+                        isAlreadyInList = isSearchResultAlreadyInList,
+                        getMediaEntry = getSearchResultMediaEntry,
+                        onItemClick = onSearchResultClick,
                         onSeeAllClick = { onOpenSourceSearch(SearchSourceEngine.ANILIST, uiState.selectedScope, uiState.multiResults.aniListResults) },
                         titleLanguage = titleLanguage,
                         scoreFormat = scoreFormat,
@@ -463,9 +479,9 @@ fun SearchScreen(
                         platformId = "mal",
                         results = uiState.multiResults.malResults,
                         isLoading = uiState.multiResults.isLoadingMal,
-                        isAlreadyInList = isAlreadyInList,
-                        getMediaEntry = getMediaEntry,
-                        onItemClick = onOpenApiDetail,
+                        isAlreadyInList = isSearchResultAlreadyInList,
+                        getMediaEntry = getSearchResultMediaEntry,
+                        onItemClick = onSearchResultClick,
                         onSeeAllClick = { onOpenSourceSearch(SearchSourceEngine.MAL, uiState.selectedScope, uiState.multiResults.malResults) },
                         titleLanguage = titleLanguage,
                         scoreFormat = scoreFormat,
@@ -479,9 +495,9 @@ fun SearchScreen(
                         platformId = "tmdb",
                         results = uiState.multiResults.tmdbResults,
                         isLoading = uiState.multiResults.isLoadingTmdb,
-                        isAlreadyInList = isAlreadyInList,
-                        getMediaEntry = getMediaEntry,
-                        onItemClick = onOpenApiDetail,
+                        isAlreadyInList = isSearchResultAlreadyInList,
+                        getMediaEntry = getSearchResultMediaEntry,
+                        onItemClick = onSearchResultClick,
                         onSeeAllClick = { onOpenSourceSearch(SearchSourceEngine.TMDB, uiState.selectedScope, uiState.multiResults.tmdbResults) },
                         titleLanguage = titleLanguage,
                         scoreFormat = scoreFormat,
@@ -495,9 +511,9 @@ fun SearchScreen(
                         platformId = "shikimori",
                         results = uiState.multiResults.shikimoriResults,
                         isLoading = uiState.multiResults.isLoadingShikimori,
-                        isAlreadyInList = isAlreadyInList,
-                        getMediaEntry = getMediaEntry,
-                        onItemClick = onOpenApiDetail,
+                        isAlreadyInList = isSearchResultAlreadyInList,
+                        getMediaEntry = getSearchResultMediaEntry,
+                        onItemClick = onSearchResultClick,
                         onSeeAllClick = { onOpenSourceSearch(SearchSourceEngine.SHIKIMORI, uiState.selectedScope, uiState.multiResults.shikimoriResults) },
                         titleLanguage = titleLanguage,
                         scoreFormat = scoreFormat,
@@ -511,9 +527,9 @@ fun SearchScreen(
                         platformId = "kitsu",
                         results = uiState.multiResults.kitsuResults,
                         isLoading = uiState.multiResults.isLoadingKitsu,
-                        isAlreadyInList = isAlreadyInList,
-                        getMediaEntry = getMediaEntry,
-                        onItemClick = onOpenApiDetail,
+                        isAlreadyInList = isSearchResultAlreadyInList,
+                        getMediaEntry = getSearchResultMediaEntry,
+                        onItemClick = onSearchResultClick,
                         onSeeAllClick = { onOpenSourceSearch(SearchSourceEngine.KITSU, uiState.selectedScope, uiState.multiResults.kitsuResults) },
                         titleLanguage = titleLanguage,
                         scoreFormat = scoreFormat,
@@ -527,9 +543,9 @@ fun SearchScreen(
                         platformId = "simkl",
                         results = uiState.multiResults.simklResults,
                         isLoading = uiState.multiResults.isLoadingSimkl,
-                        isAlreadyInList = isAlreadyInList,
-                        getMediaEntry = getMediaEntry,
-                        onItemClick = onOpenApiDetail,
+                        isAlreadyInList = isSearchResultAlreadyInList,
+                        getMediaEntry = getSearchResultMediaEntry,
+                        onItemClick = onSearchResultClick,
                         onSeeAllClick = { onOpenSourceSearch(SearchSourceEngine.SIMKL, uiState.selectedScope, uiState.multiResults.simklResults) },
                         titleLanguage = titleLanguage,
                         scoreFormat = scoreFormat,
@@ -543,9 +559,9 @@ fun SearchScreen(
                         platformId = "bangumi",
                         results = uiState.multiResults.bangumiResults,
                         isLoading = uiState.multiResults.isLoadingBangumi,
-                        isAlreadyInList = isAlreadyInList,
-                        getMediaEntry = getMediaEntry,
-                        onItemClick = onOpenApiDetail,
+                        isAlreadyInList = isSearchResultAlreadyInList,
+                        getMediaEntry = getSearchResultMediaEntry,
+                        onItemClick = onSearchResultClick,
                         onSeeAllClick = { onOpenSourceSearch(SearchSourceEngine.BANGUMI, uiState.selectedScope, uiState.multiResults.bangumiResults) },
                         titleLanguage = titleLanguage,
                         scoreFormat = scoreFormat,
@@ -587,13 +603,13 @@ fun SearchScreen(
                 items(filteredResults, key = { "${it.source}_${it.type}_${it.malId}" }) { result ->
                     SearchResultRow(
                         result = result,
-                        alreadyInList = isAlreadyInList(result),
-                        mediaEntry = getMediaEntry(result),
+                        alreadyInList = isSearchResultAlreadyInList(result),
+                        mediaEntry = getSearchResultMediaEntry(result),
                         onItemClick = {
                             if (result.source == "cs3") {
                                 activeDetailCs3Item = result
                             } else {
-                                onOpenApiDetail(result)
+                                onSearchResultClick(result)
                             }
                         },
                         onAddClick = {
@@ -601,7 +617,8 @@ fun SearchScreen(
                         },
                         titleLanguage = titleLanguage,
                         scoreFormat = scoreFormat,
-                        hideScores = hideScores
+                        hideScores = hideScores,
+                        showAddButton = !isStudioSearch
                     )
                     Spacer(modifier = Modifier.height(10.dp))
                 }

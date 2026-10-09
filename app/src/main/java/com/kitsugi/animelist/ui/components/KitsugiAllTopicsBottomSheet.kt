@@ -45,6 +45,8 @@ fun KitsugiAllTopicsBottomSheet(
     externalId: Int,
     mediaType: MediaType,
     apiClient: JikanApiClient,
+    tmdbId: Int? = null,
+    realMalId: Int? = null,
     onUserProfileClick: ((userId: Int?, username: String, avatarUrl: String?) -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
@@ -68,11 +70,16 @@ fun KitsugiAllTopicsBottomSheet(
     val listState = rememberLazyListState()
 
     // Initial Load
-    LaunchedEffect(externalId) {
+    LaunchedEffect(source, externalId, mediaType, tmdbId, realMalId) {
         isLoading = true
+        topicsList = emptyList()
+        translatedTitles.clear()
+        activeTopicForDetail = null
         page = 1
         hasMore = true
-        topicsList = apiClient.fetchForumTopics(source, externalId, mediaType, page = 1)
+        topicsList = apiClient.fetchForumTopics(
+            source, externalId, mediaType, page = 1, tmdbId = tmdbId, realMalId = realMalId
+        )
         isLoading = false
     }
 
@@ -91,7 +98,9 @@ fun KitsugiAllTopicsBottomSheet(
         coroutineScope.launch {
             try {
                 val nextPage = page + 1
-                val newTopics = apiClient.fetchForumTopics(source, externalId, mediaType, page = nextPage)
+                val newTopics = apiClient.fetchForumTopics(
+                    source, externalId, mediaType, page = nextPage, tmdbId = tmdbId, realMalId = realMalId
+                )
                 if (newTopics.isEmpty()) {
                     hasMore = false
                 } else {

@@ -284,11 +284,23 @@ class JikanApiClient(
         tmdbId: Int? = null
     ) = mediaTabsClient.fetchEpisodes(source, externalId, mediaType, realMalId, totalEpisodes, context, targetSeason, tmdbId)
 
-    suspend fun fetchForumTopics(source: String, externalId: Int, mediaType: MediaType, page: Int = 1) =
-        mediaSocialClient.fetchForumTopics(source, externalId, mediaType, page)
+    suspend fun fetchForumTopics(
+        source: String,
+        externalId: Int,
+        mediaType: MediaType,
+        page: Int = 1,
+        tmdbId: Int? = null,
+        realMalId: Int? = null
+    ) = mediaSocialClient.fetchForumTopics(source, externalId, mediaType, page, tmdbId, realMalId)
 
-    suspend fun fetchActivities(source: String, externalId: Int, page: Int = 1, mediaType: MediaType = MediaType.Anime) =
-        mediaSocialClient.fetchActivities(source, externalId, page, mediaType)
+    suspend fun fetchActivities(
+        source: String,
+        externalId: Int,
+        page: Int = 1,
+        mediaType: MediaType = MediaType.Anime,
+        tmdbId: Int? = null,
+        realMalId: Int? = null
+    ) = mediaSocialClient.fetchActivities(source, externalId, page, mediaType, tmdbId, realMalId)
 
     suspend fun fetchActivityReplies(activityId: Int) =
         mediaSocialClient.fetchActivityReplies(activityId)

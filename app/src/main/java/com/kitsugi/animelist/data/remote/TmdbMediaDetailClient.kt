@@ -131,26 +131,10 @@ internal object TmdbMediaDetailClient {
             val voteCount = if (features.useBasicInfo) finalJson.optInt("vote_count", 0).takeIf { it > 0 } else null
             val tmdbPopularity = if (features.useBasicInfo) finalJson.optDouble("popularity", 0.0).toInt().takeIf { it > 0 } else null
             val nextEpisodeObj = finalJson.optJSONObject("next_episode_to_air")
-            // nextAiringEpisode makine biçimi: "episode|epoch" (tüm kaynaklarda ortak).
-            // Dizi: next_episode_to_air; bölüm numarası bilinmiyorsa -1 (Dizi işareti).
-            // Film: gelecek vizyon tarihi → 0 (Film işareti).
-            val nextAiring = if (features.useReleaseDates) {
-                if (nextEpisodeObj != null) {
-                    val epRaw = nextEpisodeObj.optInt("episode_number", 0)
-                    val ep = if (epRaw > 0) epRaw else -1
-                    val dateStr = nextEpisodeObj.optString("air_date")
-                    val epoch = com.kitsugi.animelist.utils.NextAiringFormat.isoDateToEpoch(dateStr)
-                    when {
-                        epoch != null -> "$ep|$epoch"
-                        // Tarih çözülemezse eski düz metin biçimi (NextAiringFormat.parse bunu da okur)
-                        ep > 0 && dateStr.isNotBlank() -> "Bölüm $ep, $dateStr tarihinde yayında"
-                        else -> null
-                    }
-                } else if (isMovie) {
-                    val movieDate = finalJson.optString("release_date", "")
-                    val epoch = com.kitsugi.animelist.utils.NextAiringFormat.isoDateToEpoch(movieDate)
-                    if (epoch != null && epoch > System.currentTimeMillis() / 1000L) "0|$epoch" else null
-                } else null
+            val nextAiring = if (features.useReleaseDates && nextEpisodeObj != null) {
+                val ep = nextEpisodeObj.optInt("episode_number")
+                val dateStr = nextEpisodeObj.optString("air_date")
+                if (ep > 0 && dateStr.isNotBlank()) "Bölüm $ep, $dateStr tarihinde yayında" else null
             } else null
 
             val releaseDate = if (features.useReleaseDates) {
@@ -188,11 +172,13 @@ internal object TmdbMediaDetailClient {
                         val company = productionCompanies.getJSONObject(i)
                         val id = company.optInt("id", 0)
                         val name = company.optString("name", "")
+                        val logoPath = company.optString("logo_path", "").takeIf { it.isNotBlank() && it != "null" }
+                        val companyLogoUrl = logoPath?.let { "https://image.tmdb.org/t/p/w300$it" }
                         if (name.isNotEmpty()) {
                             if (i == 0) {
-                                studiosList.add(KitsugiStudio(id = id, name = name, isMain = true, source = "tmdb"))
+                                studiosList.add(KitsugiStudio(id = id, name = name, isMain = true, source = "tmdb", imageUrl = companyLogoUrl))
                             } else {
-                                producersList.add(KitsugiStudio(id = id, name = name, isMain = false, source = "tmdb", role = com.kitsugi.animelist.data.remote.StudioRole.PRODUCER))
+                                producersList.add(KitsugiStudio(id = id, name = name, isMain = false, source = "tmdb", role = com.kitsugi.animelist.data.remote.StudioRole.PRODUCER, imageUrl = companyLogoUrl))
                             }
                         }
                     }

@@ -2,14 +2,15 @@ package com.kitsugi.animelist.ui.components
 
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.BiasAlignment
+import com.kitsugi.animelist.model.MediaType
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Vitrin görsel seçimi: ekran boyutu (vitirin kutusunun en-boy oranı) ve
- * dikey/yatay moda göre kaynak önceliği + kaplayan (Crop) kırpma odağı.
+ * Vitrin görsel seçimi: dizi/film/anime için yatay backdrop önceliği,
+ * manga için ekran oranına uygun kapak önceliği ve kaplayan kırpma odağı.
  */
 class HeroImageSelectionTest {
 
@@ -45,29 +46,44 @@ class HeroImageSelectionTest {
         assertEquals(listOf(backdrop, poster), candidates)
     }
 
-    // ── Dikey telefon vitrini → poster önce ────────────────────────────────────
+    // ── Anime / film / dizi: backdrop her telefon oranında önce ────────────────
 
     @Test
-    fun `portrait phone hero prefers poster then backdrop`() {
-        // Dikey telefon: 400dp x 430dp → en-boy ~0.93
+    fun `portrait phone hero prefers backdrop then poster`() {
+        // Dikey telefon: poster mevcut olsa da geniş hero'da yatay artwork önceliklidir.
         val candidates = heroImageCandidates(
             posterUrl = poster,
             backdropUrl = backdrop,
             heroWidthDp = 400f,
             heroHeightDp = 430f,
-            isLandscape = false
+            isLandscape = false,
+            mediaType = MediaType.TvShow
         )
-        assertEquals(listOf(poster, backdrop), candidates)
+        assertEquals(listOf(backdrop, poster), candidates)
     }
 
     @Test
-    fun `square-ish portrait hero prefers poster`() {
+    fun `square-ish portrait anime hero prefers backdrop`() {
         val candidates = heroImageCandidates(
             posterUrl = poster,
             backdropUrl = backdrop,
             heroWidthDp = 411f,
             heroHeightDp = 411f,
-            isLandscape = false
+            isLandscape = false,
+            mediaType = MediaType.Anime
+        )
+        assertEquals(listOf(backdrop, poster), candidates)
+    }
+
+    @Test
+    fun `portrait manga keeps its poster first`() {
+        val candidates = heroImageCandidates(
+            posterUrl = poster,
+            backdropUrl = backdrop,
+            heroWidthDp = 400f,
+            heroHeightDp = 430f,
+            isLandscape = false,
+            mediaType = MediaType.Manga
         )
         assertEquals(listOf(poster, backdrop), candidates)
     }
@@ -132,13 +148,13 @@ class HeroImageSelectionTest {
             heroHeightDp = 430f,
             isLandscape = false
         )
-        assertEquals(listOf(poster, backdrop), candidates)
+        assertEquals(listOf(backdrop, poster), candidates)
     }
 
     // ── Ölçüm yoksa yön bilgisinden oran türetilir ─────────────────────────────
 
     @Test
-    fun `zero dimensions use orientation to derive aspect`() {
+    fun `zero dimensions keep landscape artwork first for anime in both orientations`() {
         val landscape = heroImageCandidates(
             posterUrl = poster,
             backdropUrl = backdrop,
@@ -155,7 +171,7 @@ class HeroImageSelectionTest {
             heroHeightDp = 0f,
             isLandscape = false
         )
-        assertEquals(listOf(poster, backdrop), portrait)
+        assertEquals(listOf(backdrop, poster), portrait)
     }
 
     // ── Kaplayan kırpma odağı ──────────────────────────────────────────────────

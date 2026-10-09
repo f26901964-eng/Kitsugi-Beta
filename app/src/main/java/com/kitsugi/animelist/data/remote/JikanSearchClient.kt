@@ -399,6 +399,10 @@ class JikanSearchClient {
                         } else item.optString("name", "Stüdyo")
                         val favs = item.optInt("favorites", 0)
                         val count = item.optInt("count", 0)
+                        val imageUrl = item.optJSONObject("images")?.let { images ->
+                            images.optJSONObject("jpg")?.optNullableString("image_url")
+                                ?: images.optJSONObject("webp")?.optNullableString("image_url")
+                        }
                         list.add(
                             JikanSearchResult(
                                 malId = id,
@@ -408,7 +412,7 @@ class JikanSearchClient {
                                 total = count,
                                 score = null,
                                 isAdult = false,
-                                imageUrl = null,
+                                imageUrl = imageUrl,
                                 year = null,
                                 source = "mal",
                                 favorites = favs

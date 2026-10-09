@@ -61,6 +61,7 @@ fun SourceSearchPage(
     onOpenAddonExplore: (String) -> Unit = {},
     onOpenCharacterDetail: (Int, String?, String?) -> Unit = { _, _, _ -> },
     onOpenStaffDetail: (Int, String?, String?) -> Unit = { _, _, _ -> },
+    onOpenStudioDetail: (Int, String, String?, String?) -> Unit = { _, _, _, _ -> },
     retainedOwner: SourceSearchOwner? = null
 ) {
     // ── İzole ViewModel ────────────────────────────────────────────────────
@@ -129,6 +130,7 @@ fun SourceSearchPage(
             onOpenAddonExplore = onOpenAddonExplore,
             onOpenCharacterDetail = onOpenCharacterDetail,
             onOpenStaffDetail = onOpenStaffDetail,
+            onOpenStudioDetail = onOpenStudioDetail,
             // Bu sayfa içinde "Tümü" motoruna geçilirse rafların "Tümünü Gör"ü
             // sayfayı ilgili kaynağa geçirir (yeni sayfa yığmadan kaçınır).
             onOpenSourceSearch = { subEngine, scope, results ->

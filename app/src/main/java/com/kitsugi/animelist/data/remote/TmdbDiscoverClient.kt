@@ -332,49 +332,167 @@ internal object TmdbDiscoverClient {
 
 
 
-    // ── Backdrop by Title ───────────────────────────────────────────────────────
+    // ── Backdrop by Title & ID ──────────────────────────────────────────────────
 
     /**
-     * Anime/dizi başlığına göre TMDB'de arama yapıp ilk sonucun backdrop URL'sini döner.
-     * MAL (Jikan) platformunda vitrin öğeleri için kullanılır; Jikan API'si backdrop
-     * sağlamadığından en iyi eşleşme üzerinden TMDB'den yatay kapak çekilir.
+     * Başlığa göre backdrop çözer. Film/dizi sonuçları türüne göre aranır; anime
+     * başlıklarında film ve TV sonuçları birlikte değerlendirilir. Başlık ve yıl
+     * eşleşmesi zayıfsa yanlış bir serinin görselini göstermek yerine null döner.
      */
     suspend fun fetchBackdropByTitle(
         title: String,
+        mediaType: MediaType?,
+        year: Int?,
         apiKey: String,
         language: String,
         executeGet: suspend (String) -> String?
     ): String? = withContext(Dispatchers.IO) {
-        val cacheKey = cacheKey("backdrop", 1, language) + "_${title.lowercase().trim()}"
+        val cleanTitle = title.trim().take(100)
+        if (cleanTitle.isBlank() || mediaType == MediaType.Manga) return@withContext null
+        val typeKey = when (mediaType) {
+            MediaType.Movie -> "movie"
+            MediaType.TvShow -> "tv"
+            else -> "multi"
+        }
+        val normalizedKeyTitle = normalizeBackdropTitle(cleanTitle).replace(' ', '_')
+        val cacheKey = cacheKey("backdrop_$typeKey", 1, language) + "_${year ?: 0}_$normalizedKeyTitle"
         val cached = get(cacheKey)
         if (cached != null) return@withContext cached.firstOrNull()?.backdropUrl
 
-        return@withContext try {
-            val encodedTitle = java.net.URLEncoder.encode(title.take(60), "UTF-8")
-            val url = "https://api.themoviedb.org/3/search/multi?api_key=$apiKey&language=$language&query=$encodedTitle&page=1"
-            val responseText = executeGet(url) ?: return@withContext null
-            val root = JSONObject(responseText)
-            val results = root.optJSONArray("results") ?: return@withContext null
-            for (i in 0 until minOf(results.length(), 5)) {
-                val item = results.getJSONObject(i)
-                val mediaType = item.optString("media_type", "")
-                if (mediaType == "person") continue
-                val backdropPath = item.optNullableString("backdrop_path") ?: ""
-                if (backdropPath.isNotEmpty()) {
-                    val backdropUrl = "https://image.tmdb.org/t/p/w1280$backdropPath"
-                    put(cacheKey, listOf(JikanSearchResult(
-                        malId = 0, title = title, subtitle = "", type = MediaType.Anime,
-                        total = null, score = null, isAdult = false, imageUrl = null, year = null,
-                        source = "tmdb", backdropUrl = backdropUrl
-                    )))
-                    return@withContext backdropUrl
-                }
+        try {
+            val encodedTitle = java.net.URLEncoder.encode(cleanTitle, "UTF-8")
+            val endpoint = if (typeKey == "multi") "multi" else typeKey
+            val yearParam = when (typeKey) {
+                "movie" -> year?.let { "&year=$it" }.orEmpty()
+                "tv" -> year?.let { "&first_air_date_year=$it" }.orEmpty()
+                else -> ""
             }
-            null
+            val url = "https://api.themoviedb.org/3/search/$endpoint?api_key=$apiKey&language=$language&query=$encodedTitle&page=1$yearParam"
+            val responseText = executeGet(url) ?: return@withContext null
+            val results = JSONObject(responseText).optJSONArray("results") ?: return@withContext null
+
+            data class Match(val score: Int, val backdropUrl: String)
+            val matches = mutableListOf<Match>()
+            for (i in 0 until results.length()) {
+                val item = results.optJSONObject(i) ?: continue
+                val foundType = when (typeKey) {
+                    "movie" -> "movie"
+                    "tv" -> "tv"
+                    else -> item.optString("media_type", "")
+                }
+                if (foundType != "movie" && foundType != "tv") continue
+
+                val backdropPath = item.optNullableString("backdrop_path")?.takeIf { it.isNotBlank() } ?: continue
+                val candidateNames = listOfNotNull(
+                    item.optNullableString("title"),
+                    item.optNullableString("name"),
+                    item.optNullableString("original_title"),
+                    item.optNullableString("original_name")
+                )
+                val titleScore = candidateNames.maxOfOrNull { backdropTitleMatchScore(cleanTitle, it) } ?: 0
+                if (titleScore < 55) continue
+
+                val date = if (foundType == "movie") {
+                    item.optNullableString("release_date")
+                } else {
+                    item.optNullableString("first_air_date")
+                }
+                val resultYear = date?.take(4)?.toIntOrNull()
+                val yearScore = when {
+                    year == null || resultYear == null -> 0
+                    year == resultYear -> 20
+                    kotlin.math.abs(year - resultYear) == 1 -> 8
+                    else -> -20
+                }
+                if (year != null && yearScore < 0 && titleScore < 90) continue
+                matches += Match(titleScore + yearScore, "https://image.tmdb.org/t/p/w1280$backdropPath")
+            }
+
+            val best = matches.maxByOrNull { it.score }
+            if (best == null) {
+                put(cacheKey, emptyList())
+                return@withContext null
+            }
+            put(cacheKey, listOf(JikanSearchResult(
+                malId = 0, title = cleanTitle, subtitle = "", type = mediaType ?: MediaType.Anime,
+                total = null, score = null, isAdult = false, imageUrl = null, year = year,
+                source = "tmdb", backdropUrl = best.backdropUrl
+            )))
+            best.backdropUrl
         } catch (e: Exception) {
             Log.e(TAG, "fetchBackdropByTitle error: ${e.message}")
             null
         }
+    }
+
+    /** TMDB kaynaklı kayıtlar için başlık araması yerine tam ID'den yatay görsel alır. */
+    suspend fun fetchBackdropByTmdbId(
+        tmdbId: Int,
+        isMovie: Boolean,
+        apiKey: String,
+        language: String,
+        executeGet: suspend (String) -> String?
+    ): String? = withContext(Dispatchers.IO) {
+        if (tmdbId <= 0) return@withContext null
+        val mediaPath = if (isMovie) "movie" else "tv"
+        val key = cacheKey("backdrop_id_${mediaPath}", tmdbId, language)
+        get(key)?.let { return@withContext it.firstOrNull()?.backdropUrl }
+
+        try {
+            val url = "https://api.themoviedb.org/3/$mediaPath/$tmdbId/images?api_key=$apiKey&include_image_language=en,null"
+            val responseText = executeGet(url) ?: return@withContext null
+            val backdrops = JSONObject(responseText).optJSONArray("backdrops")
+            val candidates = mutableListOf<Triple<Double, Int, String>>()
+            if (backdrops != null) {
+                for (i in 0 until backdrops.length()) {
+                    val item = backdrops.optJSONObject(i) ?: continue
+                    val path = item.optNullableString("file_path")?.takeIf { it.isNotBlank() } ?: continue
+                    val aspect = item.optDouble("aspect_ratio", 0.0)
+                    if (aspect > 0.0 && aspect < 1.2) continue
+                    val rating = item.optDouble("vote_average", 0.0)
+                    val votes = item.optInt("vote_count", 0)
+                    candidates += Triple(rating, votes, "https://image.tmdb.org/t/p/w1280$path")
+                }
+            }
+            val selected = candidates
+                .sortedWith(compareByDescending<Triple<Double, Int, String>> { it.second }.thenByDescending { it.first })
+                .firstOrNull()
+                ?.third
+            put(key, selected?.let { image ->
+                listOf(JikanSearchResult(
+                    malId = tmdbId, title = "", subtitle = "",
+                    type = if (isMovie) MediaType.Movie else MediaType.TvShow,
+                    total = null, score = null, isAdult = false, imageUrl = null, year = null,
+                    source = "tmdb", backdropUrl = image, tmdbId = tmdbId
+                ))
+            }.orEmpty())
+            selected
+        } catch (e: Exception) {
+            Log.e(TAG, "fetchBackdropByTmdbId error (id=$tmdbId, movie=$isMovie): ${e.message}")
+            null
+        }
+    }
+
+    private fun normalizeBackdropTitle(value: String): String =
+        java.text.Normalizer.normalize(value.lowercase(java.util.Locale.ROOT), java.text.Normalizer.Form.NFD)
+            .replace(Regex("\\p{M}+"), "")
+            .replace(Regex("[^\\p{L}\\p{N}]+"), " ")
+            .trim()
+
+    private fun backdropTitleMatchScore(query: String, candidate: String): Int {
+        val queryNormalized = normalizeBackdropTitle(query)
+        val candidateNormalized = normalizeBackdropTitle(candidate)
+        if (queryNormalized.isBlank() || candidateNormalized.isBlank()) return 0
+        val queryCompact = queryNormalized.replace(" ", "")
+        val candidateCompact = candidateNormalized.replace(" ", "")
+        if (queryCompact == candidateCompact) return 100
+        if (candidateCompact.startsWith(queryCompact) || queryCompact.startsWith(candidateCompact)) return 88
+        if (candidateCompact.contains(queryCompact) || queryCompact.contains(candidateCompact)) return 78
+        val queryTokens = queryNormalized.split(' ').filter { it.length > 1 }.toSet()
+        val candidateTokens = candidateNormalized.split(' ').filter { it.length > 1 }.toSet()
+        if (queryTokens.isEmpty() || candidateTokens.isEmpty()) return 0
+        val overlap = queryTokens.intersect(candidateTokens).size.toDouble() / maxOf(queryTokens.size, candidateTokens.size)
+        return (overlap * 72).toInt()
     }
 
     // ── Private Parsers ─────────────────────────────────────────────────────────

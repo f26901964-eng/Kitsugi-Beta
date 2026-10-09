@@ -82,6 +82,7 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.utils.tvClickable
 import com.kitsugi.animelist.utils.parseToMediaType
+import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 import kotlinx.coroutines.launch
 
 sealed interface StudioDetailState {
@@ -98,7 +99,8 @@ fun StudioDetailPage(
     onMediaClick: (mediaId: Int, mediaType: String, mediaSource: String) -> Unit,
     name: String? = null,
     imageUrl: String? = null,
-    titleLanguage: String = "ROMAJI"
+    titleLanguage: String = "ROMAJI",
+    preferredTranslator: String = "DEFAULT"
 ) {
     val accentColor = LocalKitsugiAccent.current
 
@@ -106,7 +108,7 @@ fun StudioDetailPage(
     val viewModel: StudioDetailViewModel = viewModel(key = "studio_${source}_${studioId}")
 
     // Load studio in ViewModel
-    LaunchedEffect(studioId, source) {
+    LaunchedEffect(studioId, source, name) {
         viewModel.loadStudio(studioId, source, name)
     }
 
@@ -126,7 +128,7 @@ fun StudioDetailPage(
         when (val currentState = state) {
             is StudioDetailState.Loading -> {
                 KitsugiCinematicLoadingScreen(
-                    title = name ?: "Stüdyo Yükleniyor...",
+                    title = name?.takeIf { it.isNotBlank() } ?: "Stüdyo / Yapımcı Yükleniyor...",
                     imageUrl = imageUrl,
                     onBackClick = onBackClick,
                     source = source
@@ -173,6 +175,7 @@ fun StudioDetailPage(
             is StudioDetailState.Success -> {
                 val detail = currentState.detail
                 val galleryItems by viewModel.galleryItems.collectAsState()
+                val translatedAbout by viewModel.translatedAbout.collectAsState()
                 var activeGalleryItems by remember { mutableStateOf<List<GalleryItem>>(emptyList()) }
                 var activeGalleryIndex by remember { mutableStateOf(0) }
 
@@ -184,6 +187,9 @@ fun StudioDetailPage(
                     showFavouriteButton = showFavouriteButton,
                     galleryItems = galleryItems,
                     titleLanguage = titleLanguage,
+                    translatedAbout = translatedAbout,
+                    preferredTranslator = preferredTranslator,
+                    onTranslateAbout = { viewModel.translateAbout() },
                     onBackClick = onBackClick,
                     onToggleFavourite = { viewModel.toggleFavourite() },
                     onMediaClick = onMediaClick,
@@ -222,6 +228,9 @@ private fun StudioDetailSuccessContent(
     showFavouriteButton: Boolean,
     galleryItems: List<GalleryItem>,
     titleLanguage: String,
+    translatedAbout: String? = null,
+    preferredTranslator: String = "DEFAULT",
+    onTranslateAbout: () -> Unit = {},
     onBackClick: () -> Unit,
     onToggleFavourite: () -> Unit,
     onMediaClick: (mediaId: Int, mediaType: String, mediaSource: String) -> Unit,
@@ -230,6 +239,22 @@ private fun StudioDetailSuccessContent(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val isTv = LocalIsTv.current
+
+    // "Hakkında" kartı eylemleri — detay sayfasındaki Açıklama kartıyla aynı sözleşme:
+    // metin hâlâ ham ise uygulama içi çeviri, çevrilmişse 3. parti çevirmen açılır.
+    val onAboutTranslateClick: (String) -> Unit = { text ->
+        val currentText = translatedAbout ?: detail.about
+        if (currentText == detail.about) {
+            onTranslateAbout()
+        } else {
+            context.openTranslator(text, preferredTranslator)
+        }
+    }
+    val onAboutCopyClick: (String) -> Unit = { text ->
+        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("studio_about", text))
+        android.widget.Toast.makeText(context, "Panoya kopyalandı", android.widget.Toast.LENGTH_SHORT).show()
+    }
     val configuration = LocalConfiguration.current
     val screenWidthDp = configuration.screenWidthDp
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -461,7 +486,10 @@ private fun StudioDetailSuccessContent(
                             StudioAboutSection(
                                 about = detail.about,
                                 onGalleryClick = onGalleryClick,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp)
+                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 8.dp),
+                                translatedAbout = translatedAbout,
+                                onTranslateClick = onAboutTranslateClick,
+                                onCopyClick = onAboutCopyClick
                             )
                         }
                     }
@@ -519,7 +547,10 @@ private fun StudioDetailSuccessContent(
                             StudioAboutSection(
                                 about = detail.about,
                                 onGalleryClick = onGalleryClick,
-                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp)
+                                modifier = Modifier.padding(horizontal = 4.dp, vertical = 4.dp),
+                                translatedAbout = translatedAbout,
+                                onTranslateClick = onAboutTranslateClick,
+                                onCopyClick = onAboutCopyClick
                             )
                         }
                     }

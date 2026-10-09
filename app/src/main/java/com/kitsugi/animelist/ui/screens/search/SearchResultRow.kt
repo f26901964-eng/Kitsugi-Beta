@@ -61,7 +61,8 @@ fun SearchResultRow(
     modifier: Modifier = Modifier,
     titleLanguage: String = "ROMAJI",
     scoreFormat: String = "POINT_10",
-    hideScores: Boolean = false
+    hideScores: Boolean = false,
+    showAddButton: Boolean = true
 ) {
     val accentColor = LocalKitsugiAccent.current
     val displayTitle = result.getDisplayTitle(titleLanguage)
@@ -219,29 +220,31 @@ fun SearchResultRow(
             }
         }
 
-        // Ekle / Eklendi butonu (TV'de odaklanabilir Box + tvClickable)
-        val buttonShape = RoundedCornerShape(12.dp)
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .clip(buttonShape)
-                .background(
-                    if (alreadyInList) KitsugiColors.AccentGreen.copy(alpha = 0.20f)
-                    else accentColor.copy(alpha = 0.15f)
+        if (showAddButton) {
+            // Ekle / Eklendi butonu (TV'de odaklanabilir Box + tvClickable)
+            val buttonShape = RoundedCornerShape(12.dp)
+            Box(
+                modifier = Modifier
+                    .size(40.dp)
+                    .clip(buttonShape)
+                    .background(
+                        if (alreadyInList) KitsugiColors.AccentGreen.copy(alpha = 0.20f)
+                        else accentColor.copy(alpha = 0.15f)
+                    )
+                    .tvClickable(
+                        shape = buttonShape,
+                        enabled = !alreadyInList,
+                        onClick = onAddClick
+                    ),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (alreadyInList) Icons.Rounded.Check else Icons.Rounded.Add,
+                    contentDescription = if (alreadyInList) "Listede" else "Listeye ekle",
+                    tint = if (alreadyInList) KitsugiColors.AccentGreen else accentColor,
+                    modifier = Modifier.size(20.dp)
                 )
-                .tvClickable(
-                    shape = buttonShape,
-                    enabled = !alreadyInList,
-                    onClick = onAddClick
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = if (alreadyInList) Icons.Rounded.Check else Icons.Rounded.Add,
-                contentDescription = if (alreadyInList) "Listede" else "Listeye ekle",
-                tint = if (alreadyInList) KitsugiColors.AccentGreen else accentColor,
-                modifier = Modifier.size(20.dp)
-            )
+            }
         }
     }
 }

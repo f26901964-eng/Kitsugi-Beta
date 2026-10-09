@@ -2,6 +2,7 @@ package com.kitsugi.animelist.data.local
 
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
@@ -72,7 +73,12 @@ class TranslationManager(context: Context) {
         translateTo(text, sourceLang, targetLang)
     }
 
-    suspend fun translateTo(text: String?, sourceLang: String, targetLang: String): String = withContext(Dispatchers.IO) {
+    suspend fun translateTo(
+        text: String?,
+        sourceLang: String,
+        targetLang: String,
+        onPartial: ((String) -> Unit)? = null
+    ): String = withContext(Dispatchers.IO) {
         if (text.isNullOrBlank()) return@withContext ""
         
         val trimmed = text.trim().cleanShikimoriBbCode()
@@ -88,23 +94,33 @@ class TranslationManager(context: Context) {
             return@withContext cached.cleanShikimoriBbCode()
         }
 
-        // 2. If not cached, fetch translation from Google Translate
-        val translated = fetchFromGoogle(trimmed, sourceLang, targetLang).cleanShikimoriBbCode()
-        
-        // 3. Cache the success response in DB
-        if (translated.isNotBlank() && translated != trimmed) {
+        // 2. If not cached, fetch translation from Google Translate.
+        //    Uzun metinler parçalara bölünür; her parça tamamlandıkça [onPartial]
+        //    ile çevrilen kısım UI'ya akıtılır (kullanıcı beklemeden okumaya başlar).
+        val result = fetchFromGoogle(trimmed, sourceLang, targetLang, onPartial)
+        val translated = result.text.cleanShikimoriBbCode()
+
+        // 3. Cache the success response in DB — YALNIZCA tam başarıda.
+        //    Kısmî çeviriyi önbelleğe yazmayız; sonraki açılışta tam çeviri yeniden denenir.
+        if (result.fullyTranslated && translated.isNotBlank() && translated != trimmed) {
             runCatching {
                 dao.insertTranslation(TranslationCacheEntity(hash, translated))
             }
             return@withContext translated
         }
 
-        return@withContext trimmed
+        // Kısmî çeviri: parçaların bir kısmı çevrilemedi. Özgün metni döndür (böylece
+        // çağıran taraf bunu "çevrilemedi" sayar ve önbelleğe yazmaz); kısmî ilerleme
+        // zaten onPartial ile ekrana yansımış oldu.
+        if (!result.fullyTranslated) return@withContext trimmed
+
+        return@withContext translated
     }
 
     suspend fun translateTo(text: String?, targetLang: String): String = translateTo(text, "auto", targetLang)
 
-    suspend fun translateToTurkish(text: String?): String = translateTo(text, "tr")
+    suspend fun translateToTurkish(text: String?, onPartial: ((String) -> Unit)? = null): String =
+        translateTo(text, "auto", "tr", onPartial)
 
     suspend fun translateToEnglish(text: String?): String = translateTo(text, "en")
 
@@ -158,42 +174,123 @@ class TranslationManager(context: Context) {
     }
 
     /**
-     * Uzun metinleri Google Translate istek boyutu sınırını (~2500 karakter) aşmayacak paragraflara böler.
+     * Uzun metinleri Google Translate istek boyutu sınırını (~2500 karakter) aşmayacak parçalara böler.
+     *
+     * Bölme önceliği:
+     *  1. Paragraf (`\n\n`) sınırları,
+     *  2. Satır (`\n`) sınırları,
+     *  3. CÜMLE SONLARI (nokta, soru, ünlem, üç nokta, CJK noktalaması) —
+     *     tek paragraf/satır sınırı aştığında metni bozmamak için cümlelerden bölünür,
+     *  4. Kelime sınırları — tek cümle bile sınırı aşıyorsa.
+     *
+     * NOT: Eski sürüm 3. ve 4. adımları içermiyordu; satır sonu içermeyen 2000+
+     * karakterlik tek paragraflar (karakter biyografilerinde sık) TE PARÇA olarak
+     * gönderiliyor ve gtx ucu bunu sessizce reddediyordu → metin çevrilmeden kalıyordu.
      */
     private fun splitIntoChunks(text: String, maxChunkSize: Int = 2000): List<String> {
         if (text.length <= maxChunkSize) return listOf(text)
-        val paragraphs = text.split("\n\n")
         val chunks = mutableListOf<String>()
-        val currentChunk = StringBuilder()
+        var currentChunk = StringBuilder()
 
-        for (p in paragraphs) {
-            if (currentChunk.isNotEmpty() && (currentChunk.length + p.length + 2) > maxChunkSize) {
+        fun flush() {
+            if (currentChunk.isNotEmpty()) {
                 chunks.add(currentChunk.toString())
-                currentChunk.clear()
+                currentChunk = StringBuilder()
             }
-            if (p.length > maxChunkSize) {
-                // Paragraf tek başına çok uzunsa satırlara böl
-                val lines = p.split("\n")
-                for (l in lines) {
-                    if (currentChunk.isNotEmpty() && (currentChunk.length + l.length + 1) > maxChunkSize) {
-                        chunks.add(currentChunk.toString())
-                        currentChunk.clear()
+        }
+
+        fun addPiece(piece: String, separator: String) {
+            if (piece.isEmpty()) return
+            if (currentChunk.isNotEmpty() && currentChunk.length + separator.length + piece.length > maxChunkSize) {
+                flush()
+            }
+            if (currentChunk.isNotEmpty()) currentChunk.append(separator)
+            currentChunk.append(piece)
+        }
+
+        for (paragraph in text.split("\n\n")) {
+            if (paragraph.length > maxChunkSize) {
+                for (line in paragraph.split("\n")) {
+                    if (line.length > maxChunkSize) {
+                        // Satır tek başına sınırı aşıyor → cümle sonlarından böl
+                        for (sentence in splitOversizedLine(line, maxChunkSize)) {
+                            addPiece(sentence, " ")
+                        }
+                    } else {
+                        addPiece(line, "\n")
                     }
-                    if (currentChunk.isNotEmpty()) currentChunk.append("\n")
-                    currentChunk.append(l)
                 }
             } else {
-                if (currentChunk.isNotEmpty()) currentChunk.append("\n\n")
-                currentChunk.append(p)
+                addPiece(paragraph, "\n\n")
             }
         }
-        if (currentChunk.isNotEmpty()) {
-            chunks.add(currentChunk.toString())
-        }
+        flush()
+
         return if (chunks.isEmpty()) listOf(text) else chunks
     }
 
-    private fun fetchSingleChunk(text: String, sourceLang: String, targetLang: String): String {
+    /**
+     * Sınırı aşan tek satırı cümle sonlarından böler. Cümle sonu sayılması için
+     * noktlamadan sonra boşluk veya satır sonu gelmesi şarttır (ondalık sayılar
+     * "3.14" ve "Mr." gibi kısaltmalar yanlış bölünmesin diye). Cümle bile
+     * sınırdan uzunsa kelimeden, kelime devasaysa sert kesilir.
+     */
+    private fun splitOversizedLine(line: String, maxChunkSize: Int): List<String> {
+        val sentenceEnders = ".!?…。！？；"
+
+        // 1) Satırı cümlelere ayır
+        val sentences = mutableListOf<String>()
+        val sb = StringBuilder()
+        var i = 0
+        while (i < line.length) {
+            val c = line[i]
+            sb.append(c)
+            if (sentenceEnders.indexOf(c) >= 0) {
+                val next = line.getOrNull(i + 1)
+                if (next == null || next.isWhitespace()) {
+                    val s = sb.toString().trim()
+                    if (s.isNotEmpty()) sentences.add(s)
+                    sb.setLength(0)
+                }
+            }
+            i++
+        }
+        if (sb.isNotBlank()) sentences.add(sb.toString().trim())
+        sentences.removeAll { it.isBlank() }
+        if (sentences.isEmpty()) return listOf(line)
+
+        // 2) Sınırı aşan cümleleri kelimeden böl
+        val pieces = mutableListOf<String>()
+        for (sentence in sentences) {
+            if (sentence.length <= maxChunkSize) {
+                pieces.add(sentence)
+                continue
+            }
+            var wordChunk = StringBuilder()
+            for (word in sentence.split(" ")) {
+                if (wordChunk.isNotEmpty() && wordChunk.length + 1 + word.length > maxChunkSize) {
+                    pieces.add(wordChunk.toString())
+                    wordChunk = StringBuilder()
+                }
+                if (wordChunk.isNotEmpty()) wordChunk.append(' ')
+                wordChunk.append(word)
+                // Tek kelime bile devasaysa (aralıksız CJK vb.) sert kes
+                while (wordChunk.length > maxChunkSize) {
+                    pieces.add(wordChunk.substring(0, maxChunkSize))
+                    wordChunk.delete(0, maxChunkSize)
+                }
+            }
+            if (wordChunk.isNotEmpty()) pieces.add(wordChunk.toString())
+        }
+        return pieces
+    }
+
+    /**
+     * Tek parça çevirisi ister. Başarısızlıkta (HTTP hatası, bozuk JSON) **null** döner —
+     * orijinal metni döndürmek yerine null, çağıran tarafın başarısızlığı AYIRT edebilmesini
+     * sağlar (eski davranış: orijinal metin dönüyordu → sessiz "çevrilemedi").
+     */
+    private fun fetchSingleChunk(text: String, sourceLang: String, targetLang: String): String? {
         val formBody = okhttp3.FormBody.Builder()
             .add("q", text)
             .build()
@@ -205,11 +302,15 @@ class TranslationManager(context: Context) {
             .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
             .build()
 
-        return com.kitsugi.animelist.core.network.KitsugiHttpClient.client.newCall(request).execute().use { response ->
-            if (response.isSuccessful) {
-                val responseText = response.body?.string() ?: return text
+        return try {
+            com.kitsugi.animelist.core.network.KitsugiHttpClient.client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    android.util.Log.w("TranslationManager", "Çeviri isteği başarısız: HTTP ${response.code} (parça uzunluğu=${text.length})")
+                    return null
+                }
+                val responseText = response.body?.string() ?: return null
                 val jsonArray = JSONArray(responseText)
-                val sentences = jsonArray.optJSONArray(0) ?: return text
+                val sentences = jsonArray.optJSONArray(0) ?: return null
                 val result = StringBuilder()
                 for (i in 0 until sentences.length()) {
                     val sentence = sentences.optJSONArray(i)
@@ -219,24 +320,73 @@ class TranslationManager(context: Context) {
                     }
                 }
                 result.toString()
-            } else {
-                text
             }
+        } catch (e: Exception) {
+            android.util.Log.w("TranslationManager", "Çeviri isteği istisna üretti: ${e.message}")
+            null
         }
     }
 
-    private fun fetchFromGoogle(text: String, sourceLang: String, targetLang: String): String {
+    /**
+     * Tek parça için uygulama seviyesinde yeniden deneme. OkHttp RetryInterceptor
+     * 429/5xx/ağ hatasında zaten retry eder; buradaki ek denemeler kalıcı hâle gelen
+     * başarısızlıklar (ör. uzun istek sonrası geçici ret) için son bir şans daha verir.
+     */
+    private suspend fun fetchSingleChunkWithRetry(
+        text: String,
+        sourceLang: String,
+        targetLang: String,
+        maxAttempts: Int = 3
+    ): String? {
+        repeat(maxAttempts) { attempt ->
+            val result = runCatching { fetchSingleChunk(text, sourceLang, targetLang) }.getOrNull()
+            if (!result.isNullOrBlank()) return result
+            if (attempt < maxAttempts - 1) {
+                delay(600L * (attempt + 1))
+            }
+        }
+        android.util.Log.e("TranslationManager", "Çeviri parçası ${maxAttempts} denemede çevrilemedi (uzunluk=${text.length})")
+        return null
+    }
+
+    /** Google çevirisi sonucu: birleşik metin + tüm parçaların başarıp başarılmadığı. */
+    private class GoogleTranslationResult(val text: String, val fullyTranslated: Boolean)
+
+    private suspend fun fetchFromGoogle(
+        text: String,
+        sourceLang: String,
+        targetLang: String,
+        onPartial: ((String) -> Unit)? = null
+    ): GoogleTranslationResult {
         return try {
             val (maskedText, unmasker) = maskMarkdown(text)
             val chunks = splitIntoChunks(maskedText, maxChunkSize = 2000)
-            val translatedChunks = chunks.map { chunk ->
-                fetchSingleChunk(chunk, sourceLang, targetLang)
+            val translatedChunks = mutableListOf<String>()
+            var allSucceeded = true
+
+            for ((index, chunk) in chunks.withIndex()) {
+                val translated = fetchSingleChunkWithRetry(chunk, sourceLang, targetLang)
+                if (translated == null) {
+                    // Bu parça çevrilemedi → orijinal hâliyle birleştir (karışık dil olabilir)
+                    allSucceeded = false
+                    translatedChunks.add(chunk)
+                } else {
+                    translatedChunks.add(translated)
+                }
+                // Uzun metinlerde ilerleme: çevrilen kısım + henüz çevrilmemiş özgün kuyruk
+                // birlikte gösterilir — metin "büyüyüp küçülmez", dil kademeli değişir.
+                if (onPartial != null && index < chunks.lastIndex) {
+                    val remaining = chunks.subList(index + 1, chunks.size).joinToString("\n\n")
+                    runCatching {
+                        onPartial(unmasker(translatedChunks.joinToString("\n\n") + "\n\n" + remaining))
+                    }
+                }
             }
-            val combined = translatedChunks.joinToString("\n\n")
-            unmasker(combined)
+
+            GoogleTranslationResult(unmasker(translatedChunks.joinToString("\n\n")), allSucceeded)
         } catch (e: Exception) {
             android.util.Log.e("TranslationManager", "fetchFromGoogle failed: ${e.message}", e)
-            text
+            GoogleTranslationResult(text, false)
         }
     }
 

@@ -58,6 +58,8 @@ fun ReviewsTabContent(
     externalId: Int,
     mediaType: MediaType,
     apiClient: JikanApiClient,
+    tmdbId: Int? = null,
+    realMalId: Int? = null,
     titleLanguage: String = "ROMAJI",
     preferredTranslator: String = "DEFAULT",
     onUserProfileClick: (userId: Int, username: String, avatarUrl: String?) -> Unit,
@@ -92,15 +94,22 @@ fun ReviewsTabContent(
     var forumTopics by remember { mutableStateOf<List<KitsugiForumTopic>>(emptyList()) }
     var activitiesList by remember { mutableStateOf<List<KitsugiActivity>>(emptyList()) }
 
-    LaunchedEffect(source, externalId, mediaType) {
-        coroutineScope.launch {
+    LaunchedEffect(source, externalId, mediaType, tmdbId, realMalId) {
+        // A reused detail composable must not briefly show the previous title's social feed.
+        forumTopics = emptyList()
+        activitiesList = emptyList()
+        launch {
             runCatching {
-                forumTopics = apiClient.fetchForumTopics(source, externalId, mediaType)
+                forumTopics = apiClient.fetchForumTopics(
+                    source, externalId, mediaType, tmdbId = tmdbId, realMalId = realMalId
+                )
             }
         }
-        coroutineScope.launch {
+        launch {
             runCatching {
-                activitiesList = apiClient.fetchActivities(source, externalId, mediaType = mediaType)
+                activitiesList = apiClient.fetchActivities(
+                    source, externalId, mediaType = mediaType, tmdbId = tmdbId, realMalId = realMalId
+                )
             }
         }
     }
@@ -409,6 +418,8 @@ fun ReviewsTabContent(
             externalId = externalId,
             mediaType = mediaType,
             apiClient = apiClient,
+            tmdbId = tmdbId,
+            realMalId = realMalId,
             onUserProfileClick = handleUserProfileClick,
             onDismiss = { showAllTopicsSheet = false }
         )
@@ -420,6 +431,8 @@ fun ReviewsTabContent(
             externalId = externalId,
             mediaType = mediaType,
             apiClient = apiClient,
+            tmdbId = tmdbId,
+            realMalId = realMalId,
             titleLanguage = titleLanguage,
             onUserProfileClick = handleUserProfileClick,
             onDismiss = { showAllActivitiesSheet = false }
@@ -432,6 +445,8 @@ fun ReviewsTabContent(
             externalId = externalId,
             mediaType = mediaType,
             apiClient = apiClient,
+            tmdbId = tmdbId,
+            realMalId = realMalId,
             onUserProfileClick = handleUserProfileClick,
             onDismiss = { showAllReviewsSheet = false }
         )

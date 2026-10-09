@@ -89,6 +89,11 @@ private enum class NotifPlatform(
         label = "Shikimori",
         logoId = "shikimori",
         description = "Kullanıcı mesajları, kulüp ve yayın güncellemeleri"
+    ),
+    BANGUMI(
+        label = "Bangumi",
+        logoId = "bangumi",
+        description = "İzleme listesi (在看) + yayın takvimi bildirimleri"
     )
 }
 
@@ -103,6 +108,7 @@ fun KitsugiNotificationsScreen(
     isSimklConnected: Boolean,
     isKitsuConnected: Boolean = false,
     isShikimoriConnected: Boolean = false,
+    isBangumiConnected: Boolean = false,
     onBack: () -> Unit,
     onOpenApiDetail: ((mediaId: Int, source: String, mediaType: String?, title: String?, imageUrl: String?) -> Unit)? = null,
     onUserProfileClick: ((userId: Int, username: String, avatarUrl: String?) -> Unit)? = null,
@@ -124,6 +130,7 @@ fun KitsugiNotificationsScreen(
     val simklState     by viewModel.tmdbSimkl.collectAsState()
     val kitsuState     by viewModel.kitsu.collectAsState()
     val shikimoriState by viewModel.shikimori.collectAsState()
+    val bangumiState   by viewModel.bangumi.collectAsState()
     val aniListUnread  by viewModel.aniListUnread.collectAsState()
     val diagState      by viewModel.diagnostics.collectAsState()
 
@@ -135,9 +142,10 @@ fun KitsugiNotificationsScreen(
             isSimklConnected     -> 2
             isKitsuConnected     -> 3
             isShikimoriConnected -> 4
+            isBangumiConnected   -> 5
             else                 -> 0
         },
-        pageCount = { 5 }
+        pageCount = { 6 }
     )
 
     val aniListPagerState = rememberPagerState(
@@ -158,6 +166,7 @@ fun KitsugiNotificationsScreen(
             2 -> if (isSimklConnected) viewModel.loadTmdbSimkl(mediaEntries)
             3 -> if (isKitsuConnected) viewModel.loadKitsu(mediaEntries)
             4 -> if (isShikimoriConnected) viewModel.loadShikimori(mediaEntries)
+            5 -> if (isBangumiConnected) viewModel.loadBangumi(mediaEntries)
         }
     }
 
@@ -165,6 +174,7 @@ fun KitsugiNotificationsScreen(
     val tmdbSimklListState = rememberLazyListState()
     val kitsuListState     = rememberLazyListState()
     val shikimoriListState = rememberLazyListState()
+    val bangumiListState   = rememberLazyListState()
 
     val configuration = LocalConfiguration.current
     val isLandscape   = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
@@ -177,6 +187,7 @@ fun KitsugiNotificationsScreen(
             2 -> viewModel.loadTmdbSimkl(mediaEntries)
             3 -> viewModel.loadKitsu(mediaEntries)
             4 -> viewModel.loadShikimori(mediaEntries)
+            5 -> viewModel.loadBangumi(mediaEntries)
         }
     }
 
@@ -239,6 +250,7 @@ fun KitsugiNotificationsScreen(
             NotifPlatform.TMDB_SIMKL -> isSimklConnected
             NotifPlatform.KITSU      -> isKitsuConnected
             NotifPlatform.SHIKIMORI  -> isShikimoriConnected
+            NotifPlatform.BANGUMI    -> isBangumiConnected
         }
 
         // ── Platform Seçici Buton (Listem sayfası açılır panel tarzı) ──
@@ -422,6 +434,22 @@ fun KitsugiNotificationsScreen(
                         notif.mediaId?.let { id -> onOpenApiDetail?.invoke(id, "shikimori", notif.mediaType, notif.title, notif.imageUrl) }
                     }
                 )
+
+                // ──────────────── Page 5: Bangumi ────────────────
+                5 -> SourceNotifPage(
+                    state = bangumiState,
+                    isConnected = isBangumiConnected,
+                    loginRequiredMessage = stringResource(R.string.notif_login_required_bangumi),
+                    emptyMessage = stringResource(R.string.notif_empty_no_notifications),
+                    accentColor = accentColor,
+                    listState = bangumiListState,
+                    onUserProfileClick = onUserProfileClick,
+                    onItemClick = { notif ->
+                        // mediaId Bangumi stableId'sidir (500M+); detay yönlendirmesi
+                        // bu kimlikle yerel kaydı bulur, bulamazsa API detay açar.
+                        notif.mediaId?.let { id -> onOpenApiDetail?.invoke(id, "bangumi", notif.mediaType, notif.title, notif.imageUrl) }
+                    }
+                )
             }
         }
     }
@@ -458,11 +486,13 @@ fun KitsugiNotificationsScreen(
             isSimklConnected = isSimklConnected,
             isKitsuConnected = isKitsuConnected,
             isShikimoriConnected = isShikimoriConnected,
+            isBangumiConnected = isBangumiConnected,
             aniListUsername = appSettings.anilistUsername,
             malUsername = appSettings.malUsername,
             simklUsername = appSettings.simklUsername,
             kitsuUsername = appSettings.kitsuUsername,
             shikimoriUsername = appSettings.shikimoriUsername,
+            bangumiUsername = appSettings.bangumiUsername,
             aniListUnread = aniListUnread ?: 0,
             accentColor = accentColor,
             onSelectPlatform = { index ->
@@ -1071,11 +1101,13 @@ private fun NotificationSourcePickerSheet(
     isSimklConnected: Boolean,
     isKitsuConnected: Boolean,
     isShikimoriConnected: Boolean,
+    isBangumiConnected: Boolean,
     aniListUsername: String,
     malUsername: String,
     simklUsername: String,
     kitsuUsername: String,
     shikimoriUsername: String,
+    bangumiUsername: String,
     aniListUnread: Int,
     accentColor: Color,
     onSelectPlatform: (Int) -> Unit,
@@ -1125,6 +1157,7 @@ private fun NotificationSourcePickerSheet(
                     NotifPlatform.TMDB_SIMKL -> isSimklConnected
                     NotifPlatform.KITSU -> isKitsuConnected
                     NotifPlatform.SHIKIMORI -> isShikimoriConnected
+                    NotifPlatform.BANGUMI -> isBangumiConnected
                 }
                 val username = when (platform) {
                     NotifPlatform.ANILIST -> aniListUsername
@@ -1132,6 +1165,7 @@ private fun NotificationSourcePickerSheet(
                     NotifPlatform.TMDB_SIMKL -> simklUsername
                     NotifPlatform.KITSU -> kitsuUsername
                     NotifPlatform.SHIKIMORI -> shikimoriUsername
+                    NotifPlatform.BANGUMI -> bangumiUsername
                 }
 
                 Row(

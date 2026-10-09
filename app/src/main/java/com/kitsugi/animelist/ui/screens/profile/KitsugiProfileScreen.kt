@@ -73,6 +73,7 @@ fun KitsugiProfileScreen(
     onShikimoriAuthSubmit: ((String, String, String, (Boolean, String?) -> Unit) -> Unit)? = null,
     onBangumiAuthSubmit: ((String, String, String, (Boolean, String?) -> Unit) -> Unit)? = null,
     onUserProfileClick: (userId: Int, username: String, avatarUrl: String?) -> Unit = { _, _, _ -> },
+    isBottomBarVisible: Boolean = true,
     modifier: Modifier = Modifier
 ) {
     val accentColor = LocalKitsugiAccent.current
@@ -242,7 +243,8 @@ fun KitsugiProfileScreen(
                                 onFavoriteStudioClick = onFavoriteStudioClick,
                                 onUserProfileClick = onUserProfileClick,
                                 accentColor = accentColor,
-                                onImageClick = { urls, idx, title -> activeGalleryImages = Triple(urls, idx, title) }
+                                onImageClick = { urls, idx, title -> activeGalleryImages = Triple(urls, idx, title) },
+                                isBottomBarVisible = isBottomBarVisible
                             )
                         }
                         1 -> ExternalProfileWrapper(

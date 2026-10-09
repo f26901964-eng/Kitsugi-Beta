@@ -44,6 +44,8 @@ fun KitsugiAllActivitiesBottomSheet(
     externalId: Int,
     mediaType: MediaType = MediaType.Anime,
     apiClient: JikanApiClient,
+    tmdbId: Int? = null,
+    realMalId: Int? = null,
     titleLanguage: String = "ROMAJI",
     onUserProfileClick: ((userId: Int?, username: String, avatarUrl: String?) -> Unit)? = null,
     onDismiss: () -> Unit
@@ -63,11 +65,15 @@ fun KitsugiAllActivitiesBottomSheet(
     val listState = rememberLazyListState()
 
     // Initial Load
-    LaunchedEffect(externalId) {
+    LaunchedEffect(source, externalId, mediaType, tmdbId, realMalId) {
         isLoading = true
+        activitiesList = emptyList()
+        activeActivityIdForDetail = null
         page = 1
         hasMore = true
-        activitiesList = apiClient.fetchActivities(source, externalId, page = 1, mediaType = mediaType)
+        activitiesList = apiClient.fetchActivities(
+            source, externalId, page = 1, mediaType = mediaType, tmdbId = tmdbId, realMalId = realMalId
+        )
         isLoading = false
     }
 
@@ -86,7 +92,9 @@ fun KitsugiAllActivitiesBottomSheet(
         coroutineScope.launch {
             try {
                 val nextPage = page + 1
-                val newActs = apiClient.fetchActivities(source, externalId, page = nextPage, mediaType = mediaType)
+                val newActs = apiClient.fetchActivities(
+                    source, externalId, page = nextPage, mediaType = mediaType, tmdbId = tmdbId, realMalId = realMalId
+                )
                 if (newActs.isEmpty()) {
                     hasMore = false
                 } else {

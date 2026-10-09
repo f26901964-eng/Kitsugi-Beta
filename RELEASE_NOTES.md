@@ -57,7 +57,53 @@
 - **Kesintiye Dayanıklı Şifre Değiştirme & Keystore Şifreleme:** Kasa anahtarı işlem yarıda kalsa dahi korunur ve yerel anahtar Android Keystore ile şifrelenir.
 - **22 Taşınabilir Ayar:** Tema, liste düzeni ve dil ayarları şifreli yedek kapsamına alındı.
 
-### 📦 12. Dağıtım
+### 🧩 12. Eklenti Keşfet Portalı Ana Sayfa Paritesi & Stüdyo Detay İyileştirmeleri (`AddonExploreDialog.kt`, `AddonFullScreenGridPage.kt`, `AddonHomeParity.kt`, `StudioDetailPage.kt`, `StudioDetailComponents.kt`, `StudioDetailViewModel.kt`)
+- **Eklenti Vitrin ve Raf Paritesi:** Eklenti portalı içerisindeki eklenti keşfet sayfaları ana sayfa keşfet sayfasıyla birebir aynı görsel dile ve etkileşim standartlarına kavuştu (`KitsugiHeroSection` öne çıkan vitrini, otomatik kayan carousel, çizgi-nokta göstergeleri, neon çerçeveli `KitsugiExploreMediaCard`, snap-fling kaydırma ve "Tümünü Gör" sözleşmesi).
+- **"Tümünü Gör" Grid ve Liste Paritesi:** Eklenti keşfet ekranındaki "Tümünü Gör" açılır sayfası (`AddonFullScreenGridPage`), ana stüdyo ve keşfet grid sayfalarıyla aynı tasarım diline geçirildi: emojili tür filtre çipleri (✨ Tümü / 🎌 Anime / 🎥 Film / 📺 Dizi), Filtre+Sıralama alt sayfası (`KitsugiStudioFilterBottomSheet`), grid ↔ liste görünüm geçişi (kalıcı tercih hafızasıyla), içerik sayacı, kaydırınca beliren üst şerit ve hızlı yukarı FAB.
+- **CS3 Ortak Model Köprüsü & Temiz Eklenti Rozetleri:** CloudStream 3 arama sonuçları ortak `JikanSearchResult` modeline dönüştürülerek bilinmeyen kaynaklarda sahte `#id` gösterimi kaldırıldı; genel eklenti rozeti (`Icons.Default.Extension`) ve eklenti çipi ile vitrin çipinin boş kalması önlendi.
+- **Stüdyo Kuruluş Tarihi Formatı:** Stüdyo detay sayfasındaki ham ISO formatlı kuruluş tarihi (`1998-10-01T00:00:00+00:00`) `KitsugiDateUtils` ile *"Kuruluş: 1 Ekim 1998"* biçiminde okunabilir Türkçe tarihe dönüştürüldü (hem vitrin başlığında hem sol bilgi panelinde).
+- **Stüdyo "Hakkında" Kartı Tam Detay Paritesi:** Stüdyo sayfası "Hakkında" kartı medya detay sayfasındaki `DetailSynopsisCard` ile tam pariteye kavuşturuldu: otomatik Türkçe çeviri desteği (`autoTranslateEnabled` veya Rusça metin tespiti), `DetailCache` önbellekleme, uygulama içi çeviri ve 3. parti çevirmen butonu, tek dokunuşla panoya kopyalama ("Panoya kopyalandı") ve uzun metinlerde "Daha fazla / Daha az" genişletme kontrolü.
+
+### 🎯 13. "Listeye Ekle" & "Zaten Listede" Çelişkisi ve Arama Başlık Eşleşmesi (`KitsugiModels.kt`, `AppViewModel.kt`, `ApiResultDetailPage.kt`, `MyListFilterHelpers.kt`, `MyListLibraryGrouping.kt`, `MyListScreen.kt`)
+- **Buton ve Kontrol Tutarlılığı:** Detay sayfasındaki "Listeye Ekle" butonu ile ekleme akışındaki mükerrer kontrolü aynı eşleme sonucuna bağlandı (`findExistingEntry`). Kayıt kütüphanede zaten mevcutsa buton dinamik olarak **"✎ Düzenle"** durumuna geçer ve tıklandığında mevcut kaydı doğrudan açar.
+- **Açıklayıcı ve Hedef Gösteren Uyarı Mesajı:** Ekleme akışındaki uyarı mesajı artık gelen sorgu adını değil, listede bulunan asıl kaydın adını ve bulunduğu sekmeyi bildirir (*"\"Clannad: After Story\" zaten listende var (AniList sekmesi)."*).
+- **Çoklu Başlık Varyantı Eşleşmesi:** `MediaEntry.matches` kontrolü tüm başlık türevlerini (özgün ad, İngilizce, Japonca, Romaji) `MediaIdentity.normalizedTitle` standardıyla karşılaştırarak dil tercihlerinden kaynaklanan eşleşme kayıplarını giderir.
+- **Listem Gelişmiş Arama:** Listem ekranında arama yapılırken alternatif İngilizce/Japonca başlıklar ve noktalama/boşluk duyarsız normalleştirilmiş sorgular taranır ("clannad after story", "CLANNAD 〜AFTER STORY〜", "クラナド" gibi tüm yazım varyantları doğru kaydı bulur).
+- **Çözülmüş Kimliklerle Güvenlik Ağı:** Erken tıklama durumlarında çift kayıt oluşmaması için kimlik çözümleme sonrasında ikinci bir kontrol eklenerek veri tabanı bütünlüğü korundu (6 yeni birim testiyle doğrulandı).
+
+### 🏢 14. Stüdyo & Yapımcı Kaynak Kimliği Ayrıştırması & Şirket Arama Yönlendirmesi (`KitsugiStudioClient.kt`, `StudioSourceSupport.kt`, `JikanSearchClient.kt`, `SearchScreen.kt`, `SearchResultRow.kt`, `StudioDetailPage.kt`, `StudioDetailViewModel.kt`)
+- **Sağlayıcıya Özgü Stüdyo Kimlik Ayrıştırması:** Stüdyo ve yapımcı kimliklerinin farklı platformlarda çakışması (örneğin MAL üzerindeki Aniplex'in AniList ID çakışması nedeniyle Bones olarak açılması) engellendi; her stüdyo ve yapımcı öncelikle kendi kaynak kimliğiyle (`source`) sorgulanır.
+- **İsim Doğrulaması & Akıllı Yeniden Arama:** Jikan/MAL üzerinde dönen stüdyo adı tıklanan isimle uyuşmazsa şirket adıyla otomatik doğrulama araması yapılır; eşleşme teyit edilemeyen yanıltıcı stüdyo kayıtları önlenir.
+- **Çoklu Kaynak Desteği:** TMDB, Shikimori ve Bangumi stüdyo yolları normalize edildi; Bangumi için yalnızca şirket türündeki (`type = 2`) kayıtlar stüdyo olarak eşleştirilir.
+- **Doğrudan Stüdyo Detayına Yönlendirme:** Arama ekranında "Stüdyo" filtresiyle aranan kayıtlar anime/medya detayına değil, doğrudan ilgili sağlayıcının `StudioDetailPage` sayfasına yönlendirilir; stüdyo arama satırında yanıltıcı "listeye ekle" butonu gizlenir.
+- **Kesintisiz Yükleme Deneyimi & Görsel Aktarımı:** Stüdyo logosu ve adı navigasyon rotası üzerinden yükleme ekranına taşınarak beyaz/boş ekran titremesi engellenir.
+
+### 📱 15. Profil Favorilerinde Alt Bar (BottomBar) ile Uyumlu Kategori Butonu Hizalaması (`AniListProfileContent.kt`, `KitsugiProfileScreen.kt`, `AppRootTabPages.kt`)
+- **Dinamik Alt Gezinme Çubuğu Hizalaması:** Profil ekranı "Favoriler" sekmesinde yer alan yüzen kategori ("Anime" / `☰`) filtre butonu ve hızlı yukarı çıkma FAB'ı, alt gezinme çubuğunun (BottomBar) açık/kapalı durumuna göre dinamik olarak konumlandırılır (`isBottomBarVisible` etkinken `96.dp + insets`, kapalıyken veya yatay modda `16.dp / 20.dp + insets`).
+- **Görsel Çakışma ve Dokunma Engeli Giderildi:** Kategori butonunun "Keşfet" sekmesi üzerine binmesi, menü öğelerinin birbirini perdelemesi ve listenin son satırının alt barın altında kalması tamamen çözüldü (`Spacer(140.dp)`).
+
+### 📐 16. Dikey Mod Kenar Taşması (Peek) Düzeltmesi (`DetailPageScaffold.kt`)
+- **Kenar Boşluğu Temizliği:** Dikey mod detay sayfalarında (`DetailPageScaffold`), `HorizontalPager` üzerindeki `contentPadding = PaddingValues(horizontal = 16.dp)` kaldırıldı ve dolgu doğrudan sayfa `Box` bileşeni içine taşındı (`padding(horizontal = 16.dp)`).
+- **Komşu Sekmelerin Ekrana Taşması Engellendi:** Ekran kenarlarından komşu sekmelerin köşelerinin görünmesi ("peek" sorunu) tamamen giderildi; sekmeler ekran genişliğini tam kaplayarak kenarlardan taşma yapmaz.
+
+### 🌐 17. Cümle Sınırlarından Bölmeli ve Kademeli Uzun Biyografi & Özet Çevirisi (`TranslationManager.kt`, `CharacterDetailViewModel.kt`, `StaffDetailViewModel.kt`, `ApiResultDetailViewModel.kt`, `MediaEntryDetailViewModel.kt`)
+- **4 Kademeli Akıllı Metin Bölme:** 2000+ karakterlik uzun metinler (özellikle HTML'den gelen ve satır sonu içermeyen dev tek paragraf karakter/personel biyografileri) sırasıyla paragraf (`\n\n`) → satır (`\n`) → cümle (`. ! ? … 。！？；`) → kelime sınırlarından bölünür. Noktalama sonrası boşluk şartı aranarak `3.14` ve `Mr.` gibi kısaltmalar korunur.
+- **Kademeli Çeviri Akışı (Streaming UI):** Uzun metinlerde her parça çevrildikçe ekrana "çevrilen kısım + henüz çevrilmemiş orijinal kuyruk" anında yansıtılır; metin boyutu sıçramaz, dil kullanıcının gözü önünde akıcı şekilde Türkçeye dönüşür.
+- **Uygulama Seviyesinde Retry & Sessiz Hata Koruması:** Her parça için 3 denemeli üstel geri çekilme (`delay`) eklendi; HTTP durum kodları loglanır ve `fetchSingleChunk` hata durumunda `null` dönerek başarısızlıkları açıkça bildirir.
+- **Önbellek Hijyeni:** Room ve `DetailCache`'e yalnızca %100 eksiksiz tamamlanan çeviriler yazılır; yarım çeviriler önbelleğe alınmaz.
+
+### 🛡️ 18. Medya Detay Sosyal Eşleşme Güvenliği & Keşfet Vitrin Backdrop Önceliği (`KitsugiMediaSocialClient.kt`, `DetailCache.kt`, `KitsugiHeroSection.kt`, `TmdbDiscoverClient.kt`, `ExploreViewModel.kt`)
+- **Kaynak ve Tür Bazlı Sosyal Eşleşme:** Detay sayfalarındaki inceleme, forum ve aktivite akışlarında yabancı platform kimlikleri (TMDB, Simkl vb.) doğrudan MAL veya AniList ID'si olarak kabul edilmez. Yalnızca açık ve doğrulanmış çapraz kimlikler kullanılır.
+- **Aktivite ve İnceleme Filtresi:** Anime/Manga olmayan içeriklerde Jikan/AniList sosyal sorguları yapılmaz. Aktiviteler hedef AniList ID'si ve türüyle birebir eşleşmek zorundadır; medyasız serbest metin aktiviteleri filtrelenir.
+- **Review Cache Tür İzolasyonu:** `DetailCache.getMediaReviews` artık `source + ID + mediaType` üçlüsüyle izole edilir; dizi/anime incelemeleri birbirine taşmaz.
+- **Keşfet Vitrininde Yatay Backdrop Önceliği:** Anime, TV ve filmlerde dikey ekranlarda da mevcut yatay backdrop görselleri posterden önce denenir. TMDB movie/TV kayıtları exact ID ile, diğerleri tür ve yıl uyumlu başlık aramasıyla çözülür (Manga oran mantığını korur).
+
+### 🖼️ 19. Fanart API Galeri Detayları, Kalıcı Bildirim Arşivi ve Bangumi Bildirim Kaynağı (`FanartApiClient.kt`, `GalleryItem.kt`, `KitsugiImageGalleryDialog.kt`, `NotificationArchiveStore.kt`, `KitsugiNotificationsViewModel.kt`, `NotificationDiagnostics.kt`)
+- **Fanart API Detayları Galeride:** Fanart.tv v3 API'sinden gelen `name` ve `iMDb` alanları galeride "Ad" ve "IMDb ID" satırları olarak sunulur. Yatay modda sağ panelde yer alırken, dikey modda üst bara eklenen ℹ️ "Detaylar" butonuyla açılan alt levhada gösterilir.
+- **Kalıcı Bildirim Arşivi (`NotificationArchiveStore`):** MAL, Simkl, Kitsu ve Bangumi gibi API'sinde kişisel bildirim ucu bulunmayan kaynaklar için üretilen yayın takvimi ve izleme listesi bildirimleri yerel `notifications_archive.json` dosyasında (kaynak başına 300 kayıt) ve Kitsugi hesabı bulut yedeğinde (`user_data.notifications`) kalıcı olarak saklanır; 7 günlük takvim penceresinden düşen bildirimler kaybolmaz.
+- **Bangumi Bildirim Kaynağı:** Bildirim ekranı ve seçici paneline 6. kaynak olarak Bangumi eklendi. İzleme listesi (在看/DOING) + önbellekli MAL çapraz çözümü + yayın takvimi eşleşmesiyle bildirimler üretilir; hesap bağlı olmadığında yerel kayıtlar gösterilir. Bildirim Teşhis paneli 6 kaynağı canlı olarak test eder.
+
+### 📦 20. Dağıtım
 - Yalnızca **FOSS** sürümü (`assembleFossRelease`) derlendi (`Kitsugi-Beta-v2.4.226-foss.apk`).
 
 ---
@@ -117,7 +163,51 @@
 - **Keystore Encryption & Interruption-Proof Password Change:** Hardware-backed encryption and dual-wrap transitions.
 - **22 Portable Settings:** Encrypted alongside tokens.
 
-### 📦 12. Packaging
+### 🧩 12. Extension Explore Portal Home Parity & Studio Detail Polish (`AddonExploreDialog.kt`, `AddonFullScreenGridPage.kt`, `AddonHomeParity.kt`, `StudioDetailPage.kt`, `StudioDetailComponents.kt`, `StudioDetailViewModel.kt`)
+- **Extension Explore Home Screen Parity:** Extension explore pages within the Addon Portal now match the primary Home Explore screen in aesthetics and interaction (`KitsugiHeroSection` featured hero carousel, auto-advancing slides, line-dot indicators, neon-framed `KitsugiExploreMediaCard`, snap-fling physics, and standard "See All" contracts).
+- **"See All" Fullscreen Grid & List Parity:** The "See All" destination (`AddonFullScreenGridPage`) adopts the studio/explore grid architecture: emoji-annotated type filter chips (✨ All / 🎌 Anime / 🎥 Movie / 📺 Series), Filter & Sort bottom sheet (`KitsugiStudioFilterBottomSheet`), grid ↔ list view toggle (with persistent layout preference), item count indicator, sticky header on scroll, and scroll-to-top FAB.
+- **CS3 Unified Model Bridge & Clean Addon Badges:** CloudStream 3 search results map to standard `JikanSearchResult` models; redundant fake `#id` labels are removed from addon cards, and fallback extension badges/pills (`Icons.Default.Extension`) prevent blank source pills in hero headers.
+- **Studio Foundation Date Formatting:** Replaced raw ISO timestamps (`1998-10-01T00:00:00+00:00`) with localized date formatting (*"Founded: 1 October 1998"* via `KitsugiDateUtils`) across both hero and side panels.
+- **Studio "About" Synopsis Card Full Parity:** The studio "About" section now matches the media detail `DetailSynopsisCard`: automatic Turkish translation (`autoTranslateEnabled` or Cyrillic auto-detection) backed by `DetailCache`, in-app translation toggle with 3rd-party translator fallback, one-tap copy to clipboard toast, and expandable "Read more / Read less" controls.
+
+### 🎯 13. "Add to List" & "Already in List" Discrepancy & Search Title Matching (`KitsugiModels.kt`, `AppViewModel.kt`, `ApiResultDetailPage.kt`, `MyListFilterHelpers.kt`, `MyListLibraryGrouping.kt`, `MyListScreen.kt`)
+- **Button and Action Parity:** The detail page "Add to List" button now checks the exact same identity/duplicate match (`findExistingEntry`) as the add action. If the media entry already exists in the library, the button seamlessly turns into **"✎ Edit"** and opens the existing entry directly upon click.
+- **Descriptive Duplicate Notification:** The duplicate snackbar notification now references the existing library entry's title and its tab (*"\"Clannad: After Story\" already in your list (AniList tab)."*), eliminating confusion when names differ across providers.
+- **Multi-Variant Title Matching:** `MediaEntry.matches` checks all title variants (canonical, English, Japanese, Romaji) using `MediaIdentity.normalizedTitle` to prevent mismatches caused by display language choices.
+- **Robust "My List" Search:** Searching in "My List" scans English and Japanese alternative titles as well as punctuation- and spacing-insensitive normalized strings (e.g. queries for "clannad after story", "CLANNAD 〜AFTER STORY〜", and "クラナド" all find the target entry).
+- **Resolved ID Double-Check Safety Net:** Early clicks before cross-platform ID resolution completes are captured by a second check using resolved IDs, preventing duplicate entries (verified by 6 unit tests).
+
+### 🏢 14. Studio & Producer Provider Identity Isolation & Search Routing (`KitsugiStudioClient.kt`, `StudioSourceSupport.kt`, `JikanSearchClient.kt`, `SearchScreen.kt`, `SearchResultRow.kt`, `StudioDetailPage.kt`, `StudioDetailViewModel.kt`)
+- **Provider-Scoped Studio ID Resolution:** Cross-provider studio ID collisions (such as Aniplex opening Bones due to mismatched MAL and AniList numeric ID namespaces) are completely resolved; each studio is queried using its origin provider namespace.
+- **Name Verification & Fallback Search:** When Jikan returns a company name differing from the clicked label, an automatic name search verification is triggered, preventing incorrect company data from being shown.
+- **Multi-Source Support:** Normalized studio endpoints across TMDB, Shikimori, and Bangumi (filtering strictly for company records with `type = 2` on Bangumi).
+- **Direct Studio Search Routing:** Searching under the "Studio" scope routes directly to `StudioDetailPage` rather than media details, with "Add to List" buttons disabled for company entries.
+- **Seamless Loading Transition:** Studio logo and name are carried across navigation into the loading screen to prevent blank screen flicker.
+
+### 📱 15. Profile Favorites Bottom Navigation Bar Adaptive Alignment (`AniListProfileContent.kt`, `KitsugiProfileScreen.kt`, `AppRootTabPages.kt`)
+- **Bottom Bar Adaptive Floating Controls:** The floating category filter button ("Anime" / `☰`) and scroll-to-top FAB on the Profile "Favorites" tab now adapt dynamically to bottom navigation bar visibility (`isBottomBarVisible` sets `96.dp + insets` when visible, animating to `16.dp / 20.dp + insets` when hidden or in landscape).
+- **Eliminated Overlap & Click Blocking:** Resolves the visual collision where the floating button sat directly over the "Keşfet" tab, ensuring clean separation and sufficient list bottom padding (`Spacer(140.dp)`).
+
+### 📐 16. Portrait Mode Horizontal Tab Peek Elimination (`DetailPageScaffold.kt`)
+- **Clean Margins Without Leakage:** Removed `contentPadding = PaddingValues(horizontal = 16.dp)` on portrait `HorizontalPager` and applied 16.dp padding directly inside the page `Box`. Adjacent tabs no longer peek from the left/right screen edges.
+
+### 🌐 17. Long Biography & Synopsis Progressive Translation (`TranslationManager.kt`, `CharacterDetailViewModel.kt`, `StaffDetailViewModel.kt`, `ApiResultDetailViewModel.kt`, `MediaEntryDetailViewModel.kt`)
+- **4-Stage Text Chunking:** Texts exceeding 2000 characters are progressively split along paragraph (`\n\n`) → newline (`\n`) → sentence (`. ! ? … 。！？；`) → word boundaries, with punctuation-whitespace validation protecting numbers (e.g. `3.14`) and titles (e.g. `Mr.`).
+- **Progressive Streaming UI:** Translations stream chunk-by-chunk to the UI ("translated head + original tail"), avoiding layout jumps and translating smoothly before the user's eyes.
+- **Application-Level Retries & Error Visibility:** 3 attempts with exponential backoff on HTTP/translation failures; `null` return on failure avoids silent degradation, and only 100% complete translations are cached in Room and `DetailCache`.
+
+### 🛡️ 18. Media Detail Social Matching Safety & Explore Backdrop Prioritization (`KitsugiMediaSocialClient.kt`, `DetailCache.kt`, `KitsugiHeroSection.kt`, `TmdbDiscoverClient.kt`, `ExploreViewModel.kt`)
+- **Source & Type Isolated Social Mapping:** Forum topics, activities, and reviews no longer conflate third-party IDs (TMDB, Simkl) with MAL or AniList IDs; only verified cross-platform mappings are accepted.
+- **Strict Activity Verification:** Social queries are disabled for non-anime/manga media. Activities strictly match the destination AniList ID and media type; unlinked text posts are discarded.
+- **Review Cache Type Isolation:** `DetailCache.getMediaReviews` is strictly scoped by `source + ID + mediaType`, preventing cross-medium cache leakage.
+- **Explore Hero Backdrop Prioritization:** For anime, TV, and movies, horizontal backdrop artwork is prioritized over posters even on portrait screens. TMDB titles query exact TMDB IDs, while other sources use type- and year-aware matching (Manga preserves aspect-ratio priority).
+
+### 🖼️ 19. Gallery Fanart API Details, Persistent Notification Archive & Bangumi Notification Source (`FanartApiClient.kt`, `GalleryItem.kt`, `KitsugiImageGalleryDialog.kt`, `NotificationArchiveStore.kt`, `KitsugiNotificationsViewModel.kt`, `NotificationDiagnostics.kt`)
+- **Fanart API Metadata in Gallery:** Displays `name` and `iMDb` fields from the Fanart.tv v3 API as "Name" and "IMDb ID" metadata. Integrated into the landscape right inspector panel and accessible via a new ℹ️ "Details" top-bar button on portrait screens.
+- **Persistent Notification Archive (`NotificationArchiveStore`):** Airing and watchlist notifications generated for platforms without dedicated personal notification endpoints (MAL, Simkl, Kitsu, Bangumi) are stored persistently in `notifications_archive.json` (up to 300 items per provider) and backed up to Supabase (`user_data.notifications`). Notifications no longer vanish once they slide out of the 7-day airing window.
+- **Bangumi Notification Provider:** Added Bangumi as the 6th notification source with custom icon, login status, and username pill. Queries the user's DOING (在看) collection, resolves cross-platform IDs against the airing schedule, and displays local entries with helpful notes when unauthenticated. Diagnostics panel upgraded to verify all 6 providers live.
+
+### 📦 20. Packaging
 - Built exclusively as **FOSS** release (`assembleFossRelease`) (`Kitsugi-Beta-v2.4.226-foss.apk`).
 
 ---

@@ -25,6 +25,13 @@ internal object KitsugiMalDetailClient {
     private const val TAG = "KitsugiMalDetail"
     private const val MAX_RETRIES = 3
 
+    private fun studioImageUrl(item: JSONObject): String? = item.optJSONObject("images")?.let { images ->
+        images.optJSONObject("webp")?.optNullableString("large_image_url")
+            ?: images.optJSONObject("webp")?.optNullableString("image_url")
+            ?: images.optJSONObject("jpg")?.optNullableString("large_image_url")
+            ?: images.optJSONObject("jpg")?.optNullableString("image_url")
+    }
+
     /** Zenginleştirme işleri (tema, /pictures, ARM, Jikan destek) için en fazla bekleme. */
     private const val ENRICHMENT_WAIT_MS = 6_000L
 
@@ -279,7 +286,7 @@ internal object KitsugiMalDetailClient {
                             val id = obj.optInt("mal_id")
                             val name = obj.optNullableString("name")
                             if (!name.isNullOrBlank()) {
-                                studios.add(KitsugiStudio(id = id, name = name, isMain = true))
+                                studios.add(KitsugiStudio(id = id, name = name, isMain = true, source = "jikan", imageUrl = studioImageUrl(obj)))
                             }
                         }
                     }
@@ -378,7 +385,7 @@ internal object KitsugiMalDetailClient {
                             val obj = arr.getJSONObject(i)
                             val id = obj.optInt("mal_id")
                             val name = obj.optNullableString("name")
-                            if (!name.isNullOrBlank()) studios.add(KitsugiStudio(id = id, name = name, isMain = true))
+                            if (!name.isNullOrBlank()) studios.add(KitsugiStudio(id = id, name = name, isMain = true, source = "jikan", imageUrl = studioImageUrl(obj)))
                         }
                     }
                     data.optJSONArray("serializations")?.let { arr ->
@@ -386,7 +393,7 @@ internal object KitsugiMalDetailClient {
                             val obj = arr.getJSONObject(i)
                             val id = obj.optInt("mal_id")
                             val name = obj.optNullableString("name")
-                            if (!name.isNullOrBlank()) producers.add(KitsugiStudio(id = id, name = name, isMain = false))
+                            if (!name.isNullOrBlank()) producers.add(KitsugiStudio(id = id, name = name, isMain = false, source = "jikan", role = StudioRole.PRODUCER, imageUrl = studioImageUrl(obj)))
                         }
                     }
                 } else {
@@ -395,7 +402,7 @@ internal object KitsugiMalDetailClient {
                             val obj = arr.getJSONObject(i)
                             val id = obj.optInt("mal_id")
                             val name = obj.optNullableString("name")
-                            if (!name.isNullOrBlank()) producers.add(KitsugiStudio(id = id, name = name, isMain = false))
+                            if (!name.isNullOrBlank()) producers.add(KitsugiStudio(id = id, name = name, isMain = false, source = "jikan", role = StudioRole.PRODUCER, imageUrl = studioImageUrl(obj)))
                         }
                     }
                     data.optJSONArray("licensors")?.let { arr ->
@@ -403,7 +410,7 @@ internal object KitsugiMalDetailClient {
                             val obj = arr.getJSONObject(i)
                             val id = obj.optInt("mal_id")
                             val name = obj.optNullableString("name")
-                            if (!name.isNullOrBlank()) producers.add(KitsugiStudio(id = id, name = name, isMain = false))
+                            if (!name.isNullOrBlank()) producers.add(KitsugiStudio(id = id, name = name, isMain = false, source = "jikan", role = StudioRole.PRODUCER, imageUrl = studioImageUrl(obj)))
                         }
                     }
                 }
@@ -626,7 +633,7 @@ internal object KitsugiMalDetailClient {
                         val obj = arr.optJSONObject(i) ?: continue
                         val id = obj.optInt("id")
                         val name = obj.optNullableString("name")
-                        if (!name.isNullOrBlank()) studios.add(KitsugiStudio(id = id, name = name, isMain = true))
+                        if (!name.isNullOrBlank()) studios.add(KitsugiStudio(id = id, name = name, isMain = true, source = "jikan", imageUrl = studioImageUrl(obj)))
                     }
                 }
                 d.optJSONArray("producers")?.let { arr ->
@@ -634,7 +641,7 @@ internal object KitsugiMalDetailClient {
                         val obj = arr.optJSONObject(i) ?: continue
                         val id = obj.optInt("id")
                         val name = obj.optNullableString("name")
-                        if (!name.isNullOrBlank()) producers.add(KitsugiStudio(id = id, name = name, isMain = false))
+                        if (!name.isNullOrBlank()) producers.add(KitsugiStudio(id = id, name = name, isMain = false, source = "jikan", role = StudioRole.PRODUCER, imageUrl = studioImageUrl(obj)))
                     }
                 }
             } else {
@@ -646,7 +653,7 @@ internal object KitsugiMalDetailClient {
                         val first = obj.optString("first_name", "")
                         val last = obj.optString("last_name", "")
                         val name = "$first $last".trim()
-                        if (name.isNotBlank()) studios.add(KitsugiStudio(id = id, name = name, isMain = true))
+                        if (name.isNotBlank()) studios.add(KitsugiStudio(id = id, name = name, isMain = true, source = "jikan", imageUrl = studioImageUrl(obj)))
                     }
                 }
                 d.optJSONArray("serialization")?.let { arr ->
@@ -654,7 +661,7 @@ internal object KitsugiMalDetailClient {
                         val obj = arr.optJSONObject(i)?.optJSONObject("node") ?: continue
                         val id = obj.optInt("id")
                         val name = obj.optNullableString("name")
-                        if (!name.isNullOrBlank()) producers.add(KitsugiStudio(id = id, name = name, isMain = false))
+                        if (!name.isNullOrBlank()) producers.add(KitsugiStudio(id = id, name = name, isMain = false, source = "jikan", role = StudioRole.PRODUCER, imageUrl = studioImageUrl(obj)))
                     }
                 }
             }

@@ -117,7 +117,10 @@ object DetailCache {
 
     // Reviews Tab
     fun getMediaReviews(source: String, id: Int, mediaType: String? = null): List<KitsugiReview>? {
-        return mediaReviews[makeKey(source, id, mediaType)] ?: mediaReviews[makeKey(source, id)]
+        // Review results are source + format specific. Unlike general metadata, an
+        // untyped fallback can leak a show's/anime's reviews onto a different detail page.
+        val key = if (mediaType.isNullOrBlank()) makeKey(source, id) else makeKey(source, id, mediaType)
+        return mediaReviews[key]
     }
 
     fun putMediaReviews(source: String, id: Int, list: List<KitsugiReview>, mediaType: String? = null) {

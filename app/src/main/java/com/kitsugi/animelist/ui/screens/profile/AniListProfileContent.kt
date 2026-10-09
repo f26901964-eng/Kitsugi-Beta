@@ -5,6 +5,8 @@
 
 package com.kitsugi.animelist.ui.screens.profile
 
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -64,7 +66,8 @@ fun AniListProfileContent(
     onUserProfileClick: (userId: Int, username: String, avatarUrl: String?) -> Unit = { _, _, _ -> },
     isLandscape: Boolean,
     accentColor: Color,
-    onImageClick: ((urls: List<String>, initialIndex: Int, title: String) -> Unit)? = null
+    onImageClick: ((urls: List<String>, initialIndex: Int, title: String) -> Unit)? = null,
+    isBottomBarVisible: Boolean = true
 ) {
     val context = LocalContext.current
     var activeTab by rememberSaveable { mutableIntStateOf(viewModel.aniListActiveTab) }
@@ -372,8 +375,20 @@ fun AniListProfileContent(
             }
         }
 
-        item { Spacer(modifier = Modifier.height(80.dp)) }
+        item { Spacer(modifier = Modifier.height(if (isBottomBarVisible && !isLandscape) 140.dp else 80.dp)) }
     }
+
+    val bottomOffset by animateDpAsState(
+        targetValue = if (isLandscape) {
+            16.dp
+        } else if (isBottomBarVisible) {
+            96.dp
+        } else {
+            20.dp
+        },
+        animationSpec = tween(durationMillis = 200),
+        label = "profile_favorites_bottom_offset"
+    )
 
     ProfileFavoritesFloatingControls(
         listState = listState,
@@ -381,7 +396,7 @@ fun AniListProfileContent(
         selectedCategory = favoritesFilter,
         categoryCounts = favCategoryCounts,
         onCategorySelected = { favoritesFilter = it },
-        bottomOffset = 20.dp
+        bottomOffset = bottomOffset
     )
     }
 }

@@ -208,7 +208,8 @@ fun AppRootTabPages(
                     onTagClick = ctx.onSearchByTag,
                     onUserProfileClick = { userId, username, avatarUrl ->
                         ctx.navState.navigateToDetail(DetailScreen.UserProfile(userId, username, avatarUrl))
-                    }
+                    },
+                    isBottomBarVisible = ctx.isBottomBarVisible
                 )
             }
         }
@@ -339,6 +340,16 @@ private fun SearchTabPage(ctx: TabPagesContext) {
                 com.kitsugi.animelist.DetailScreen.StaffDetail(
                     staffId = staffId,
                     source = "anilist",
+                    name = name,
+                    imageUrl = imageUrl
+                )
+            )
+        },
+        onOpenStudioDetail = { studioId, source, name, imageUrl ->
+            ctx.navState.navigateToDetail(
+                com.kitsugi.animelist.DetailScreen.StudioDetail(
+                    studioId = studioId,
+                    source = source,
                     name = name,
                     imageUrl = imageUrl
                 )

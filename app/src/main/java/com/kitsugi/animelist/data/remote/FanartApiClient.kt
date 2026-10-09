@@ -311,12 +311,25 @@ object FanartApiClient {
             if (urlStr.isBlank()) continue
             val lang = obj.optString("lang", "").trim()
             val extractedName = extractNameFromUrl(urlStr)
+
+            // ── API'nin görsel başına sağladığı alanlar (fanart.tv v3: name, iMDb) ──
+            // Web sayfasındaki "Uploader / Copyright / Downloads" gibi alanlar v3 API
+            // yanıtında YOKTUR; bu yüzden yalnızca gerçekten gelenler detay olarak taşınır.
+            val apiName = obj.optString("name", "").trim()
+            val imdbId = obj.optString("iMDb", "").trim()
+            val details = linkedMapOf<String, String>()
+            if (apiName.isNotBlank()) details["Ad"] = apiName
+            if (imdbId.isNotBlank()) details["IMDb ID"] = imdbId
+
+            // API'nin `name` alanı (örn. CharacterART'te karakter adı) URL türetimi
+            // kadar güvenilir olduğundan Açıklama satırında önceliklidir.
             val item = GalleryItem(
                 url = urlStr,
                 source = "Fanart.tv",
                 category = category,
-                description = extractedName,
-                language = if (lang.isNotBlank() && lang != "00") lang else null
+                description = apiName.ifBlank { extractedName },
+                language = if (lang.isNotBlank() && lang != "00") lang else null,
+                details = details
             )
             when {
                 lang == preferredLanguage      -> preferred.add(item)

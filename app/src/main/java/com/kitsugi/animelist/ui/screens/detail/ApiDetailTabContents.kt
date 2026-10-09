@@ -17,6 +17,7 @@ import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.data.remote.MdbListRatings
 import com.kitsugi.animelist.data.remote.KitsugiMediaDetail
 import com.kitsugi.animelist.data.remote.KitsugiStreamingEpisode
+import com.kitsugi.animelist.data.remote.StudioSourceSupport
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.screens.stream.KitsugiStreamActivity
 import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
@@ -110,7 +111,7 @@ internal fun ApiDetailOverviewTab(
                         mediaSource = result.source.lowercase(),
                         mediaType = result.type
                     )
-                    onStudioClick(studio.id, resolvedSource, studio.name, null)
+                    onStudioClick(studio.id, resolvedSource, studio.name, studio.imageUrl)
                 },
                 onProducerClick = { producer ->
                     val resolvedSource = resolveStudioClickSource(
@@ -118,7 +119,7 @@ internal fun ApiDetailOverviewTab(
                         mediaSource = result.source.lowercase(),
                         mediaType = result.type
                     )
-                    onStudioClick(producer.id, resolvedSource, producer.name, null)
+                    onStudioClick(producer.id, resolvedSource, producer.name, producer.imageUrl)
                 }
             )
             Spacer(modifier = Modifier.height(14.dp))
@@ -163,22 +164,9 @@ internal fun ApiDetailOverviewTab(
     }
 }
 
-/**
- * Stüdyo/üretici çipinin hangi kaynak detayını açacağını belirler.
- *
- * Bangumi infobox'ından gelen çiplerin kimliği kurum条目'ına (kişi, `type = 2`) işaret eder;
- * bu kaynak "jikan" varsayımıyla açılırsa yanlış kayıt numaraları kullanılır. Bu yüzden
- * çipin kendi kaynağı yalnızca `bangumi` olduğunda önceliklidir, diğer tüm durumlarda
- * eski kaynak çıkarımı korunur.
- */
-internal fun resolveStudioClickSource(studioSource: String?, mediaSource: String, mediaType: MediaType): String {
-    if (studioSource.equals("bangumi", ignoreCase = true)) return "bangumi"
-    return when {
-        mediaSource == "anilist" -> "anilist"
-        mediaType == MediaType.Anime || mediaType == MediaType.Manga -> "jikan"
-        else -> "tmdb"
-    }
-}
+/** Resolve a studio/company ID using its own provider namespace before the media's source. */
+internal fun resolveStudioClickSource(studioSource: String?, mediaSource: String, mediaType: MediaType): String =
+    StudioSourceSupport.resolveClickSource(studioSource, mediaSource, mediaType)
 
 /**
  * Tab 6 — Episodes content for ApiResultDetailPage.

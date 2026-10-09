@@ -17,10 +17,10 @@ class KitsugiMediaRelationsClient {
      * Önce ARM API, ardından GraphQL fallback kullanır.
      */
     internal suspend fun resolveAniListId(malId: Int, mediaType: MediaType): Int? {
-        if (malId <= 0) return null
+        if (malId <= 0 || (mediaType != MediaType.Anime && mediaType != MediaType.Manga)) return null
         return withContext(Dispatchers.IO) {
             val armResolved = runCatching {
-                KitsugiIdResolver.resolveIds(malId, null).aniListId
+                KitsugiIdResolver.resolveIds(malId, null, mediaType = mediaType).aniListId
             }.getOrNull()
             if (armResolved != null && armResolved > 0) return@withContext armResolved
 

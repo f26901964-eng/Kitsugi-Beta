@@ -11,6 +11,8 @@ import com.kitsugi.animelist.data.remote.SimklCalendarClient
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.WatchStatus
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
@@ -33,6 +35,8 @@ import org.json.JSONObject
  *     Bu yüzden MAL için "yayın takvimi eşleşmesi" ölçülür.
  *   • Simkl'in de bildirim ucu yoktur; takvim (v2 CDN) + izleme listesi eşleşmesi ölçülür.
  *   • Kitsu'nun genel API'sinde bildirim kaynağı yoktur.
+ *   • Bangumi API'sinde (v0/p1) bildirim ucu yoktur; izleme listesi (DOING koleksiyonu)
+ *     + yayın takvimi eşleşmesi ölçülür.
  *   • Shikimori'de gerçek bildirim ucu vardır: GET /api/users/:id/messages?type=notifications
  *     ve `messages` OAuth izni gerektirir → burada izin durumu da ölçülür.
  */
@@ -60,6 +64,7 @@ object NotificationDiagnostics {
         rows += checkMal(context, mediaEntries)
         rows += checkSimkl(context, mediaEntries)
         rows += checkKitsu(context)
+        rows += checkBangumi(context, mediaEntries)
         rows += checkShikimori(context)
         rows.forEach { row ->
             Log.i(TAG, "${row.source}: ok=${row.ok} status=${row.httpStatus} count=${row.itemCount} " +
@@ -337,6 +342,89 @@ object NotificationDiagnostics {
             detail = "Kitaplıkta ${entries.size} kayıt • 'current' $active tanesi • sonraki bölüm tarihi olan $withNext",
             hint = "Kitsu'nun herkese açık bildirim API'si yok; bu liste yayın tarihi akışıdır."
         )
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Bangumi — bildirim ucu yok; DOING koleksiyonu + yayın takvimi ölçülür
+    // ─────────────────────────────────────────────────────────────────────────
+
+    private suspend fun checkBangumi(context: Context, mediaEntries: List<MediaEntry>): Row {
+        val started = System.currentTimeMillis()
+        val endpoint = "api.bgm.tv/v0/users/{u}/collections (bildirim ucu yok) + yayın takvimi"
+        val token = runCatching {
+            com.kitsugi.animelist.data.auth.BangumiAuthStore.getValidToken(context)
+        }.getOrNull()
+        val username = if (!token.isNullOrBlank()) {
+            runCatching {
+                com.kitsugi.animelist.data.auth.BangumiAuthStore.resolveUsername(context)
+            }.getOrNull()
+        } else null
+
+        if (token.isNullOrBlank() || username.isNullOrBlank()) {
+            val localWatching = mediaEntries.count {
+                it.source.equals("bangumi", true) &&
+                    (it.status == WatchStatus.Watching || it.status == WatchStatus.Repeating)
+            }
+            return Row(
+                source = "Bangumi",
+                connected = false,
+                endpoint = endpoint,
+                ok = false,
+                durationMs = System.currentTimeMillis() - started,
+                detail = "Hesap bağlı değil • yerelde $localWatching izlenen kayıt",
+                hint = "Ayarlar > Platformlar üzerinden Bangumi'ye giriş yapın."
+            )
+        }
+
+        return try {
+            val collection = com.kitsugi.animelist.data.auth.BangumiApiClient
+                .getUserCollections(token, username, collectionType = 3, limit = 50)
+            val watchingIds = collection.data.map { it.subjectId }
+
+            // Çapraz kimlik çözümü önbellekli; teşhis hızı için ilk 10 kayıt denir.
+            val resolvedMal: Set<Int> = coroutineScope {
+                watchingIds.take(10).map { rawId ->
+                    async(Dispatchers.IO) {
+                        runCatching {
+                            com.kitsugi.animelist.data.remote.KitsugiBangumiDetailClient
+                                .resolveCrossIds(
+                                    com.kitsugi.animelist.data.remote.BangumiIdNamespace.stableIdFromRaw(rawId),
+                                    com.kitsugi.animelist.model.MediaType.Anime
+                                )
+                        }.getOrNull()?.malId?.takeIf { it in 1..99_999_999 }
+                    }
+                }.mapNotNull { it.await() }.toSet()
+            }
+
+            val nowSec = System.currentTimeMillis() / 1000L
+            val window = KitsugiAiringCalendarClient()
+                .fetchAiringWindow(nowSec - 7 * 24 * 3600L, nowSec + 2 * 3600L)
+            val matched = window.count { it.malId != null && resolvedMal.contains(it.malId) }
+            val duration = System.currentTimeMillis() - started
+
+            Row(
+                source = "Bangumi",
+                connected = true,
+                endpoint = endpoint,
+                ok = true,
+                itemCount = matched,
+                durationMs = duration,
+                detail = "İzleme listesinde ${collection.total} yapım • örnekleme (${resolvedMal.size}/${watchingIds.take(10).size} çözüldü) • son 7 günde $matched yayın eşleşmesi",
+                hint = if (matched == 0 && resolvedMal.isEmpty())
+                    "Bangumi çapraz kimlik çözümü eşleşme bulamadı; bu, bildirim üretilemeyeceği anlamına gelebilir."
+                else null
+            )
+        } catch (e: Exception) {
+            Row(
+                source = "Bangumi",
+                connected = true,
+                endpoint = endpoint,
+                ok = false,
+                durationMs = System.currentTimeMillis() - started,
+                detail = "Bangumi izleme listesi okunamadı",
+                error = e.message ?: e.javaClass.simpleName
+            )
+        }
     }
 
     // ─────────────────────────────────────────────────────────────────────────

@@ -574,9 +574,17 @@ fun MediaEntryDetailPage(
                     7 -> ReviewsTabContent(
                         state = reviewsState,
                         source = displayEntry.source,
-                        externalId = displayEntry.malId ?: 0,
+                        externalId = if (displayEntry.source.equals("simkl", true)) {
+                            displayEntry.simklId ?: 0
+                        } else {
+                            displayEntry.malId ?: 0
+                        },
                         mediaType = displayEntry.type,
                         apiClient = apiClient,
+                        tmdbId = displayEntry.tmdbId ?: detailState?.tmdbId ?: resolvedTmdbId,
+                        realMalId = detailState?.realMalId ?: displayEntry.malId?.takeIf {
+                            displayEntry.source.equals("mal", true) || displayEntry.source.equals("jikan", true) || displayEntry.source.equals("myanimelist", true)
+                        },
                         titleLanguage = titleLanguage,
                         onUserProfileClick = onUserProfileClick,
                         preferredTranslator = preferredTranslator

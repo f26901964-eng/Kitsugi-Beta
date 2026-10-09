@@ -26,6 +26,7 @@ internal fun filterMyListEntries(
     val favoritesOnly = selectedFavoriteFilterId == "favorites" || selectedStatusFilterId == "favorites"
     val adultOnly = selectedStatusFilterId == "adult"
     val normalizedQuery = searchQuery.trim().lowercase()
+    val normQuery = com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(normalizedQuery)
 
     return entries.asSequence()
         .filter { entry -> selectedStatus == null || entry.status == selectedStatus }
@@ -60,16 +61,29 @@ internal fun filterMyListEntries(
             }
         }
         .filter { entry ->
-            normalizedQuery.isBlank() ||
+            if (normalizedQuery.isBlank()) {
+                true
+            } else {
+                val normQueryMatch = normQuery.length >= 2 && (
+                    com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(entry.title).contains(normQuery) ||
+                        entry.titleEnglish?.let {
+                            com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(it).contains(normQuery)
+                        } == true ||
+                        entry.titleJapanese?.let {
+                            com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(it).contains(normQuery)
+                        } == true
+                )
                 entry.title.lowercase().contains(normalizedQuery) ||
-                entry.titleEnglish?.lowercase()?.contains(normalizedQuery) == true ||
-                entry.titleJapanese?.lowercase()?.contains(normalizedQuery) == true ||
-                entry.subtitle.lowercase().contains(normalizedQuery) ||
-                entry.type.name.lowercase().contains(normalizedQuery) ||
-                entry.status.label.lowercase().contains(normalizedQuery) ||
-                entry.source.lowercase().contains(normalizedQuery) ||
-                entry.year?.toString()?.contains(normalizedQuery) == true ||
-                entry.malId?.toString()?.contains(normalizedQuery) == true
+                    entry.titleEnglish?.lowercase()?.contains(normalizedQuery) == true ||
+                    entry.titleJapanese?.lowercase()?.contains(normalizedQuery) == true ||
+                    entry.subtitle.lowercase().contains(normalizedQuery) ||
+                    entry.type.name.lowercase().contains(normalizedQuery) ||
+                    entry.status.label.lowercase().contains(normalizedQuery) ||
+                    entry.source.lowercase().contains(normalizedQuery) ||
+                    entry.year?.toString()?.contains(normalizedQuery) == true ||
+                    entry.malId?.toString()?.contains(normalizedQuery) == true ||
+                    normQueryMatch
+            }
         }
         .toList()
 }
