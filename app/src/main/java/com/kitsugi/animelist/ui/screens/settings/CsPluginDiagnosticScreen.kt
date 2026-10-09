@@ -27,6 +27,11 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.FileProvider
+import androidx.compose.runtime.rememberCoroutineScope
+import com.kitsugi.animelist.data.cloudstream.diag.CsTrace
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kitsugi.animelist.data.cloudstream.CsPluginDiagnosticRunner
 import com.kitsugi.animelist.data.cloudstream.CsPluginDiagnosticViewModel
@@ -54,6 +59,7 @@ fun CsPluginDiagnosticScreen(
     val results    by vm.results.collectAsState()
     val isRunning  by vm.isRunning.collectAsState()
     val reportPath by vm.reportPath.collectAsState()
+    val scope      = rememberCoroutineScope()
 
     // Özet sayaçlar
     val working   = results.count { it.streamCount > 0 }
@@ -219,6 +225,31 @@ fun CsPluginDiagnosticScreen(
                             Spacer(Modifier.width(6.dp))
                             Text("Durdur", fontWeight = FontWeight.Bold)
                         }
+                    }
+
+                    // Canlı izleme raporu (uygulama aramalarında otomatik kaydedilen hata izi)
+                    OutlinedButton(
+                        onClick = {
+                            scope.launch {
+                                val file = withContext(Dispatchers.IO) {
+                                    runCatching { CsTrace.writeReport(context) }.getOrNull()
+                                }
+                                if (file != null && file.exists()) {
+                                    shareCsReportFile(context, file)
+                                } else {
+                                    android.widget.Toast.makeText(
+                                        context, "Rapor oluşturulamadı", android.widget.Toast.LENGTH_SHORT
+                                    ).show()
+                                }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = RoundedCornerShape(12.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = accent)
+                    ) {
+                        Icon(Icons.Rounded.Share, contentDescription = null, modifier = Modifier.size(18.dp))
+                        Spacer(Modifier.width(6.dp))
+                        Text("Canlı İzleme Raporunu Paylaş (.md)", fontWeight = FontWeight.Bold)
                     }
 
                     // Raporu paylaş butonu
@@ -494,5 +525,22 @@ private fun ResultRow(
                 fontSize = 10.sp
             )
         }
+    }
+}
+
+
+/** Canlı izleme raporu dosyasını Android paylaşım penceresiyle paylaşır. */
+private fun shareCsReportFile(context: android.content.Context, file: File) {
+    try {
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        val shareIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            putExtra(Intent.EXTRA_SUBJECT, file.name)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(shareIntent, "Raporu Paylaş").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+    } catch (e: Exception) {
+        android.util.Log.e("CsPluginDiagnostic", "Canlı izleme raporu paylaşılamadı: ${e.message}")
     }
 }

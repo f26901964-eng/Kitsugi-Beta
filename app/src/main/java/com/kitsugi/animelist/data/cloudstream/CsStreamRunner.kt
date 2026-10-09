@@ -2,6 +2,7 @@ package com.kitsugi.animelist.data.cloudstream
 
 import android.util.Base64
 import android.util.Log
+import com.kitsugi.animelist.data.cloudstream.diag.CsTrace
 import com.lagradost.cloudstream3.MainAPI
 import com.lagradost.cloudstream3.SearchResponse
 import com.lagradost.cloudstream3.LoadResponse
@@ -616,8 +617,10 @@ object CsStreamRunner {
             dynamicBlockedPlugins.addAll(blockedSet)
 
             Log.i(TAG, "✅ Uzak domain listesi başarıyla yüklendi: $loaded eklenti domaini güncellendi, ${dynamicBlockedPlugins.size} eklenti engellendi.")
+            CsTrace.info("system", "domains", "domain_fixes.json yüklendi: $loaded domain, ${dynamicBlockedPlugins.size} engelli kayıt")
         } catch (e: Exception) {
             Log.e(TAG, "❌ Uzak domain listesi çekilemedi: ${e.message}")
+            CsTrace.warn("system", "domains", "domain_fixes.json çekilemedi: ${e.message}")
             // Bayrak sıfırlanır — bir sonraki açılışta tekrar denenecek
             isDomainListFetched.set(false)
         }
@@ -961,10 +964,8 @@ object CsStreamRunner {
         val nameKey = api.name.lowercase(Locale.ROOT)
         if (nameKey in dynamicBlockedPlugins) {
             Log.w(TAG, "[${api.name}] Dinamik engelli listesinde (domain_fixes.json) — yine de deneniyor.")
-            CsPluginStatusTracker.recordSkip(
-                api.name,
-                "domain_fixes.json blocked listesinde — yine de denendi (liste eskimiş olabilir)"
-            )
+            // Yalnızca gözlem: eklenti denenir, tracker'a "skip" durumu yazılmaz (gerçek sonuç ayrıca kaydedilir).
+            CsTrace.info(api.name, "blocklist", "domain_fixes.json blocked listesinde — yine de denendi (liste eskimiş olabilir)")
         }
 
         // Kalıcı bozuk olduğu bilinen plugin'leri direkt atla — ağ kaynağı harcama
@@ -1001,6 +1002,7 @@ object CsStreamRunner {
         if (CsPluginStatusTracker.isBlocked(api.name)) {
             val reason = CsPluginStatusTracker.getErrorMessage(api.name)
             Log.w(TAG, "[${api.name}] Engellendi (session block). Sebep: $reason — atlanıyor.")
+            CsTrace.warn(api.name, "skip", "Engellendi (oturum bloğu): $reason")
             return@withContext emptyList()
         }
 
@@ -1071,6 +1073,7 @@ object CsStreamRunner {
         // Preserve language aliases; include season-specific forms only for episodic content.
         val titleVariants = buildTitleVariants(title, alternativeTitles, season, isMovie == true)
         Log.d(TAG, "[${api.name}] Arama varyantları (${titleVariants.size}): ${titleVariants.take(6)}")
+        CsTrace.info(api.name, "variants", "${titleVariants.size} varyant: ${titleVariants.take(6)}")
 
         // Search several strong title/alias queries and merge their results. A single early
         // provider hit can be the wrong sequel, so do not stop until a high-confidence result
@@ -1142,6 +1145,7 @@ object CsStreamRunner {
         if (results.isEmpty()) {
             Log.w(TAG, "[${api.name}] ✗ ARAMA BAŞARISIZ: Hiçbir varyant sonuç döndürmedi. Site erişilemez veya CF korumalı.")
             Log.e(SERR, "❌ ARAMA SIFIR [${api.name}] — title='$title' S${season}E${episode} — Tüm ${titleVariants.size} varyant boş döndü. Site ölü/CF korumalı olabilir.")
+            CsTrace.warn(api.name, "search", "ARAMA SIFIR: ${titleVariants.size} varyantın hiçbiri sonuç döndürmedi (ilk varyantlar: ${titleVariants.take(4)})")
             // CF korumalı site tespiti: son hata mesajını kontrol et
             val lastErr = CsPluginStatusTracker.getErrorMessage(api.name)
             if (lastErr != null && isCloudflareLikelyBlocking(lastErr)) {
@@ -1154,6 +1158,7 @@ object CsStreamRunner {
         }
 
         Log.d(TAG, "[${api.name}] Arama sonuçları ('$searchedVariant' için ${results.size} adet):")
+        CsTrace.info(api.name, "search", "'$searchedVariant' → ${results.size} aday; ilk 5: ${results.take(5).map { it.name }}")
         results.take(5).forEachIndexed { i, r -> Log.d(TAG, "  [$i] '${r.name}' → ${r.url}") }
 
         // Match title aliases together with requested media kind, year, season, and episode.
@@ -1241,10 +1246,17 @@ object CsStreamRunner {
         val finalMatch = validatedMatch ?: bestMatch
         if (finalMatch == null) {
             Log.w(TAG, "[${api.name}] No title/type/year/season result passed the matching threshold; refusing unrelated fallback results.")
+            val topCandidates = results
+                .map { r -> Pair(r.name, getBestTitleSimilarity(r.name, title, alternativeTitles, isMovie)) }
+                .sortedByDescending { pair -> pair.second }
+                .take(5)
+                .joinToString(separator = ", ") { pair -> "'" + pair.first + "'=" + String.format("%.2f", pair.second) }
+            CsTrace.warn(api.name, "match", "EŞLEŞME YOK. Hedef='$title' S${season}E${episode} movie=$isMovie yıl=$year. En iyi adaylar: $topCandidates")
             return emptyList()
         }
 
         Log.d(TAG, "[${api.name}] ✓ Eşleşme: '${finalMatch.name}' → ${finalMatch.url}")
+        CsTrace.info(api.name, "match", "Eşleşme: '${finalMatch.name}' skor=${"%.2f".format(getBestTitleSimilarity(finalMatch.name, title, alternativeTitles, isMovie))}")
         
         // If we already loaded the correct LoadResponse, reuse it instead of reloading!
         return if (bestLoadResponse != null && finalMatch == validatedMatch) {
@@ -1298,6 +1310,7 @@ object CsStreamRunner {
         }
         if (episodeData == null) {
             Log.w(TAG, "[${api.name}] S${season}E${episode} bulunamadı. LoadResponse tipi: ${loadResponse.javaClass.simpleName}")
+            CsTrace.warn(api.name, "episode", "S${season}E${episode} bölümü bulunamadı (LoadResponse=${loadResponse.javaClass.simpleName})")
             return emptyList()
         }
 
@@ -2284,6 +2297,7 @@ object CsStreamRunner {
                         callback = { link ->
                             val cleanUrl = resolveHrefLi(link.url)
                             Log.d(TAG, "[${api.name}] Link bulundu: ${link.name} → $cleanUrl")
+                            CsTrace.info(api.name, "link", "${link.name} → $cleanUrl")
 
                             // Görüntü dosyalarını (logo, poster) video stream olarak ekleme — SAM lambda
                             // içinde return yasak, if-guard ile filtrele
@@ -2317,6 +2331,7 @@ object CsStreamRunner {
                                     Log.d(TAG, "[${api.name}] Bilinen ölü CDN — yine de çözümleme deneniyor: $cleanUrl")
                                 }
                                 Log.d(TAG, "[${api.name}] Embed URL tespit edildi — extractor kuyruğuna alınıyor: $cleanUrl")
+                                CsTrace.info(api.name, "embed", "Embed kuyruğa alındı: $cleanUrl")
                                 pendingEmbedUrls.add(Triple(link.url, link.name, link.headers))
                             } else {
                                 val headers = link.headers.toMutableMap()
@@ -2352,12 +2367,13 @@ object CsStreamRunner {
                             }
                         }
                     )
-                } ?: Log.w(TAG, "[${api.name}] loadLinks ${loadLinksTimeoutMs / 1000}s zaman aşımına uğradı, elde edilen ${streams.size} link döndürülüyor.")
+                } ?: run { CsTrace.warn(api.name, "loadLinks", "zaman aşımı (${loadLinksTimeoutMs / 1000}s), ${streams.size} link ile devam"); Log.w(TAG, "[${api.name}] loadLinks ${loadLinksTimeoutMs / 1000}s zaman aşımına uğradı, elde edilen ${streams.size} link döndürülüyor.") }
             }
         } catch (e: Throwable) {
             if (e is kotlinx.coroutines.CancellationException) throw e
             Log.e(TAG, "[${api.name}] loadLinks HATA: ${e.javaClass.simpleName}: ${e.message}", e)
             Log.e(SERR, "💥 LOAD_LINKS CRASH [${api.name}] — ${e.javaClass.simpleName}: ${e.message}\n${android.util.Log.getStackTraceString(e)}")
+            CsTrace.error(api.name, "loadLinks", "loadLinks istisnası: ${e.javaClass.simpleName}: ${e.message}", e)
         }
 
         // ── Embed URL'leri çözümleme aşaması (VK, Sibnet, Vidmoly, Filemoon, Okru vb.) ─────
@@ -2557,6 +2573,7 @@ object CsStreamRunner {
             verifiedStreams.sortedByDescending { it.qualityValue ?: 0 }
         }
 
+        CsTrace.info(api.name, "result", "Sonuç: ${finalStreams.size} doğrulanmış stream (ham ${streams.size}, ölü düşen ${deadStreams.size}), ${subtitleList.size} altyazı")
         // Dil bilgisi: sağlayıcının kendi meta verisinden (DubStatus) okunur — tahmin edilmez.
         val providerAudioKind = CsEpisodeMatcher.findDubStatusForEpisodeData(loadResponse, episodeData)
         Log.d(
@@ -3046,8 +3063,10 @@ object CsStreamRunner {
                 val finalResults = results ?: emptyList()
                 if (finalResults.isEmpty()) {
                     Log.d(TAG, "[$providerName] search('$query') → 0 sonuç")
+                    CsTrace.info(providerName, "search", "'$query' → 0 sonuç")
                 } else {
                     Log.d(TAG, "[$providerName] search('$query') → ${finalResults.size} sonuç")
+                    CsTrace.info(providerName, "search", "'$query' → ${finalResults.size} sonuç")
                 }
                 finalResults
             } catch (cancel: kotlinx.coroutines.CancellationException) {

@@ -1,6 +1,7 @@
 package com.kitsugi.animelist.data.cloudstream
 
 import android.util.Log
+import com.kitsugi.animelist.data.cloudstream.diag.CsTrace
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -69,6 +70,13 @@ object CsPluginStatusTracker {
         }
         errorMessages[pluginId] = message
 
+        // Otomatik izleme: her hata kalıcı trace'e yazılır (rapor paylaşımı için)
+        if (error is kotlin.NotImplementedError) {
+            CsTrace.info(pluginId, "notimpl", "Metot desteklenmiyor: ${error.message ?: "NotImplementedError"}")
+        } else {
+            CsTrace.error(pluginId, "fail", message, error)
+        }
+
         if (error is kotlin.NotImplementedError) {
             // One more search *method* returned "not implemented".
             // CsStreamRunner tries up to 3 methods, so block only when all 3 failed.
@@ -117,6 +125,7 @@ object CsPluginStatusTracker {
      */
     fun recordSkip(pluginId: String, reason: String) {
         errorMessages[pluginId] = reason
+        CsTrace.warn(pluginId, "skip", reason)
     }
 
     fun isBlocked(pluginId: String): Boolean = blocklist.contains(pluginId)

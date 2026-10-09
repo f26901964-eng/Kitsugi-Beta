@@ -27,6 +27,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import com.kitsugi.animelist.data.cloudstream.diag.CsTrace
 
 /**
  * ViewModel for the stream picker screen.
@@ -451,6 +452,8 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
 
             // CS plugin tasks
             val enabledCsPlugins = withContext(Dispatchers.IO) { db.csPluginDao().getEnabledPlugins() }
+            if (enabledCsPlugins.isNotEmpty()) CsTrace.setInventory(enabledCsPlugins.map { "${it.name} v${it.version} (id=${it.id}) ${it.downloadUrl}" })
+            if (enabledCsPlugins.isNotEmpty()) CsTrace.session("Arama: '$title' S${season}E${episode} movie=$isMovie yil=$startYear mal=$malId anilist=$aniListId tmdb=$tmdbId — ${enabledCsPlugins.size} aktif CS eklenti")
             if (enabledCsPlugins.isNotEmpty()) {
                 val csPlaceholders = enabledCsPlugins.map { plugin ->
                     AddonFetchState(
@@ -471,16 +474,19 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                             if (CsPluginStatusTracker.isBlocked(plugin.id)) {
                                 val reason = CsPluginStatusTracker.getErrorMessage(plugin.id) ?: "Tekrarlı hata"
                                 Log.w(TAG, "[$csDisplayName] Engellendi: $reason")
+                                CsTrace.warn(plugin.name, "skip", "Engellendi: $reason")
                                 updateAddonState(csDisplayName, isLoading = false, error = "Engellendi: $reason")
                                 return@launch
                             }
 
                             Log.d(TAG, "[$csDisplayName] loadExtension başlatılıyor...")
+                            CsTrace.info(plugin.name, "load", "loadExtension başlıyor")
                             val apis = withContext(Dispatchers.IO) {
                                 CsPluginLoader.loadExtension(context, plugin.id)
                             }
                             if (apis.isEmpty()) {
                                 Log.e(TAG, "[$csDisplayName] 0 API döndü — DEX yüklenemedi")
+                                CsTrace.error(plugin.name, "load", "0 API döndü — DEX/manifest yüklenemedi")
                                 updateAddonState(csDisplayName, isLoading = false, error = "Eklenti yüklenemedi (DEX/manifest hatası)")
                                 return@launch
                             }
@@ -502,6 +508,7 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                                 csStreams.addAll(streams)
                             }
                             Log.d(TAG, "[$csDisplayName] Toplam ${csStreams.size} stream bulundu")
+                            CsTrace.info(plugin.name, "result", "Toplam ${csStreams.size} stream bulundu")
                             // Akış boşsa SESSİZ "akış bulunamadı" yerine tracker'daki GERÇEK
                             // hatayı göster (DNS/CF/timeout/parse) — kullanıcı nedenini görsün.
                             val diagMsg = if (csStreams.isEmpty()) {
@@ -516,6 +523,7 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                         } catch (e: Throwable) {
                             if (e is kotlinx.coroutines.CancellationException) throw e
                             Log.e(TAG, "[$csDisplayName] KRİTİK HATA: ${e.javaClass.simpleName}: ${e.message}", e)
+                            CsTrace.error(plugin.name, "pipeline", "KRİTİK HATA: ${e.javaClass.simpleName}: ${e.message}", e)
 
                             val isBotKontrolCrash = e is android.view.WindowManager.BadTokenException ||
                                 e.cause is android.view.WindowManager.BadTokenException ||
