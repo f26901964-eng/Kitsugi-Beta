@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.data.remote
 
+import com.kitsugi.animelist.core.memory.BoundedCache
+
 import android.util.Log
 import com.kitsugi.animelist.KitsugiApplication
 import com.kitsugi.animelist.data.auth.BangumiApiClient
@@ -91,7 +93,7 @@ object KitsugiBangumiDetailClient {
         val cachedAtMs: Long
     )
 
-    private val entityNameCache = ConcurrentHashMap<String, EntityNameCacheEntry>()
+    private val entityNameCache = BoundedCache<String, EntityNameCacheEntry>("bangumi.entityName", 1000)
 
     /** Bulunamayan eşleşmeler için olumsuz önbellek süresi (tekrar tekrar arama yapılmasın). */
     private const val CROSS_MISS_TTL_MS = 20 * 60 * 1000L
@@ -102,9 +104,9 @@ object KitsugiBangumiDetailClient {
 
     // ── Önbellekler ──────────────────────────────────────────────────────────
 
-    private val subjectCache = ConcurrentHashMap<Int, BangumiSubject>()
-    private val crossCache = ConcurrentHashMap<Int, CrossIds>()
-    private val crossMissAt = ConcurrentHashMap<Int, Long>()
+    private val subjectCache = BoundedCache<Int, BangumiSubject>("bangumi.subject", 80)
+    private val crossCache = BoundedCache<Int, CrossIds>("bangumi.cross", 1000)
+    private val crossMissAt = BoundedCache<Int, Long>("bangumi.crossMiss", 1000)
 
     /**
      * Çözümler çağıranın değil BU kapsamın içinde çalışır: detay (7 sn tavan), galeri (15 sn tavan) ve

@@ -133,6 +133,9 @@ object KitsugiCrashLogger {
             appendLine("  Kullanılan : ${usedMb} MB / ${maxMb} MB (max)")
             appendLine("  Toplam JVM : ${totalMb} MB")
             appendLine("  Serbest    : ${freeMb} MB")
+            runCatching {
+                appendLine("  Önbellekler: ${com.kitsugi.animelist.core.memory.KitsugiMemoryGuard.describe()}")
+            }
             appendLine()
         } catch (_: Throwable) {}
 

@@ -109,6 +109,11 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
         instance = this
         super.onCreate()
 
+        // ── Bellek koruması ───────────────────────────────────────────────────────────
+        // Gezindikçe şişen bellek önbellekleri, heap tavanına yaklaşınca sistem uyarısını
+        // beklemeden 15 sn'de bir kontrol edilip küçültülür (bkz. KitsugiMemoryGuard).
+        startMemoryWatchdog()
+
         // Initialize AnimeDownloadManager
         com.kitsugi.animelist.data.local.AnimeDownloadManager.init(this)
 
@@ -539,7 +544,45 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
         LocaleCache.localeTag = tag ?: ""
     }
 
+    private fun startMemoryWatchdog() {
+        applicationScope.launch(Dispatchers.Default) {
+            while (true) {
+                kotlinx.coroutines.delay(15_000L)
+                try {
+                    com.kitsugi.animelist.core.memory.KitsugiMemoryGuard.watchdogTick()
+                } catch (_: Throwable) {}
+            }
+        }
+    }
+
+    /**
+     * Android bellek azaldığında bu geri çağrıyla uyarır. Eskiden dinlenmiyordu; uyarıya cevap
+     * vermeyen süreç LMKD tarafından hiçbir rapor bırakmadan öldürülüyordu.
+     */
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        try { com.kitsugi.animelist.core.memory.KitsugiMemoryGuard.onTrimMemory(level) } catch (_: Throwable) {}
+    }
+
+    @Deprecated("Deprecated in Java")
+    override fun onLowMemory() {
+        @Suppress("DEPRECATION")
+        super.onLowMemory()
+        try { com.kitsugi.animelist.core.memory.KitsugiMemoryGuard.onLowMemory() } catch (_: Throwable) {}
+    }
+
     override fun newImageLoader(context: Context): ImageLoader {
+        return buildImageLoader(context).also { loader ->
+            // Coil görsel önbelleği de bellek baskısında küçültülür / boşaltılır.
+            com.kitsugi.animelist.core.memory.KitsugiMemoryGuard.registerClearer("coil.memory") { fraction ->
+                val cache = loader.memoryCache ?: return@registerClearer
+                if (fraction <= 0f) cache.clear()
+                else cache.trimToSize((cache.size * fraction).toLong())
+            }
+        }
+    }
+
+    private fun buildImageLoader(context: Context): ImageLoader {
         return ImageLoader.Builder(this)
             .components {
                 if (android.os.Build.VERSION.SDK_INT >= 28) {

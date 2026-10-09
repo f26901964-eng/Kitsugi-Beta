@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.data.repository
 
+import com.kitsugi.animelist.core.memory.BoundedCache
+
 import android.util.Log
 import com.kitsugi.animelist.core.network.KitsugiHttpClient
 import kotlinx.coroutines.Dispatchers
@@ -29,7 +31,7 @@ object StreamProbe {
     private const val MAX_PLAYLIST_BYTES = 128 * 1024L
     private const val PROBE_TIMEOUT_MS = 8_000L
 
-    private val cache = ConcurrentHashMap<String, MeasuredStreamInfo>()
+    private val cache = BoundedCache<String, MeasuredStreamInfo>("streamProbe", 200)
     private val gate = Semaphore(3)
 
     /** Daha önce ölçülmüş sonuç (anında arayüze verilebilir). */

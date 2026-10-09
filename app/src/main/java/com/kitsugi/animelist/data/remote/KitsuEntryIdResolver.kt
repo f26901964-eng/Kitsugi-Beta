@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.data.remote
 
+import com.kitsugi.animelist.core.memory.BoundedCache
+
 import android.content.Context
 import com.kitsugi.animelist.data.auth.ExternalAuthManager
 import com.kitsugi.animelist.data.auth.KitsuApiClient
@@ -28,7 +30,7 @@ object KitsuEntryIdResolver {
     const val KITSU_OFFSET = 300_000_000
 
     /** raw MAL ID → çözülmüş stable Kitsu ID (process belleği) */
-    private val memoryCache = ConcurrentHashMap<Int, Int>()
+    private val memoryCache = BoundedCache<Int, Int>("kitsu.entryId", 3000)
     /** Çözülemeyen MAL ID'ler — tekrar tekrar ağ çağrısı yapmamak için */
     private val failedIds = ConcurrentHashMap.newKeySet<Int>()
 

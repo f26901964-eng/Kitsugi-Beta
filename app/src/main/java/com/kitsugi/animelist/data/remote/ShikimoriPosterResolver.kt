@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.data.remote
 
+import com.kitsugi.animelist.core.memory.BoundedCache
+
 import android.util.Log
 import com.kitsugi.animelist.core.network.KitsugiHttpClient
 import com.kitsugi.animelist.data.auth.PlatformRateLimiter
@@ -75,7 +77,7 @@ object ShikimoriPosterResolver {
     private val activeHost: String
         get() = hostOverride ?: HOST
 
-    private val cache = ConcurrentHashMap<String, Poster>()
+    private val cache = BoundedCache<String, Poster>("shikimori.poster", 1500)
 
     /** GraphQL'de poster taşıyan dört varlık türü. */
     enum class Kind(internal val field: String, internal val idsAsList: Boolean) {

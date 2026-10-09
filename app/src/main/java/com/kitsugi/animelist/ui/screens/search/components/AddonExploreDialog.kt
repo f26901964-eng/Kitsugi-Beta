@@ -1,6 +1,8 @@
 @file:Suppress("UNUSED_PARAMETER")
 package com.kitsugi.animelist.ui.screens.search.components
 
+import com.kitsugi.animelist.core.memory.BoundedCache
+
 import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.*
@@ -69,7 +71,7 @@ import java.util.concurrent.ConcurrentHashMap
 // ─────────────────────────────────────────────────────────────────────────────
 
 object AddonExploreCache {
-    private val cache = ConcurrentHashMap<String, List<HomePageList>>()
+    private val cache = BoundedCache<String, List<HomePageList>>("addon.explore", 12)
     fun get(apiName: String): List<HomePageList>? = cache[apiName]
     fun put(apiName: String, data: List<HomePageList>) { cache[apiName] = data }
     fun clear(apiName: String) { cache.remove(apiName) }
