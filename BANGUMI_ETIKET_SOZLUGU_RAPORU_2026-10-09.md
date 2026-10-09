@@ -14,7 +14,7 @@ Bangumi kaynaklı detay sayfalarında **Etiketler** bölümü yarım çeviriliyd
 
 ### 1. Sözlük genişletildi — `utils/BangumiTagDictionary.kt`
 
-Giriş sayısı **~530 → 771**. Yeni bölümler:
+Giriş sayısı **~530 → 817** (binlerce Çince/Japonca yazım varyantı). Yeni bölümler:
 
 | Bölüm | Örnek |
 | --- | --- |
@@ -45,7 +45,7 @@ Sözlükte karşılığı olmayan Çince/Japonca etiketler (uydurma çeviri üre
 artık listenin sonunda gösteriliyor: `isUntranslatedCjkTag()` + `localizedDistinctTags()`
 ve `mergeDetail()` sıralaması. Okunabilir etiketler önce görünür.
 
-### 4. Dil dosyaları — 771 etiketin tamamı TR + EN
+### 4. Dil dosyaları — 817 etiketin tamamı TR + EN
 
 `res/values/strings.xml` (Türkçe) ve `res/values-en/strings.xml` (İngilizce) dosyalarındaki
 `bangumi_tag_*` blokları sözlükten **otomatik üretiliyor**:
@@ -55,13 +55,27 @@ python3 scripts/sync_bangumi_tag_strings.py          # dosyaları günceller
 python3 scripts/sync_bangumi_tag_strings.py --check  # CI doğrulaması
 ```
 
-Önce 60 kaynak vardı, şimdi her iki dilde de 771. Çalışma zamanında dil dosyası sözlükten
+Önce 60 kaynak vardı, şimdi her iki dilde de 817. Çalışma zamanında dil dosyası sözlükten
 önceliklidir; çeviri düzeltmeleri kod değişikliği gerektirmez.
 
-### 5. Performans
+### 5. Bangumi resmî meta etiket sözlüğü: %100 kapsama
+
+Bangumi'nin `meta_tags` alanı kapalı bir sözlüktür (anime / book / game / real / music
+kategorileri: kaynak, tip, bölge, hedef kitle, tema, oyun türü, platform, müzik türü).
+`scripts/check_bangumi_meta_tag_coverage.py` bu listenin tamamını sözlüğe karşı sınar —
+ilk çalıştırmada **62 eksik** vardı (oyun türleri ADV/RPG/SLG/ACT/STG/FTG/RCG/RTS,
+platformlar PC/PS3-5/PSV/PSP/Switch/3DS/Xbox/iOS/Android/街机/掌机, kitap 写真集/杂志/文库,
+müzik Hip-hop/R&B/Metal/Folk/Ambient/Instrumental, hedef kitle 男性向/乙女/限制级,
+`其他`, `中国台湾`, `中国香港`, `同性`, `歌舞`, `西部`, `励志`, `动画`), hepsi eklendi.
+Betik artık **0 eksik** raporluyor ve CI'da regresyon koruması olarak çalıştırılabilir.
+
+> Kullanıcı etiketleri (`标签`) serbest metindir ve sayıları sınırsızdır; onlarda hedef
+> "tamamı" değil, yaygın olanların + ekran görüntülerindeki tüm örneklerin karşılanmasıdır.
+
+### 6. Performans
 
 `getStringResourceByName` her çip çiziminde `Resources.getIdentifier` çağırıyordu
-(771 kaynak × her recomposition). Sonuçlar `dil:kaynakAdı` anahtarıyla önbelleğe alındı
+(817 kaynak × her recomposition). Sonuçlar `dil:kaynakAdı` anahtarıyla önbelleğe alındı
 (negatif önbellek dahil); uygulama bağlamı yokken önbelleğe yazılmaz.
 
 ## Testler
