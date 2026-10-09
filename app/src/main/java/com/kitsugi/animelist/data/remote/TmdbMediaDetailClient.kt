@@ -13,6 +13,16 @@ import com.kitsugi.animelist.utils.*
  *
  * [TmdbApiClient] tarafından delegate olarak kullanılır; doğrudan çağrılmamalıdır.
  */
+internal data class TmdbDetailFeatures(
+    val useBasicInfo: Boolean = true,
+    val useDetails: Boolean = true,
+    val useReleaseDates: Boolean = true,
+    val useArtwork: Boolean = true,
+    val useTrailers: Boolean = true,
+    val useProductions: Boolean = true,
+    val useNetworks: Boolean = true
+)
+
 internal object TmdbMediaDetailClient {
 
     private const val TAG = "TmdbMediaDetailClient"
@@ -25,6 +35,7 @@ internal object TmdbMediaDetailClient {
         isMovie: Boolean,
         apiKey: String,
         language: String,
+        features: TmdbDetailFeatures = TmdbDetailFeatures(),
         executeGet: suspend (String) -> String?
     ): KitsugiMediaDetail? {
         val typePath = if (isMovie) "movie" else "tv"
@@ -42,11 +53,11 @@ internal object TmdbMediaDetailClient {
             val enResponse = if (lang.startsWith("en", ignoreCase = true)) trResponse else executeGet(enUrl)
             val enJson = if (lang.startsWith("en", ignoreCase = true)) trJson else enResponse?.let { JSONObject(it) }
 
-            val trOverview = trJson?.optString("overview", "")
-            val finalOverview = if (trOverview.isNullOrBlank()) {
-                enJson?.optString("overview", "").orEmpty()
+            val finalOverview = if (!features.useDetails) {
+                null
             } else {
-                trOverview
+                val trOverview = trJson?.optString("overview", "")
+                if (trOverview.isNullOrBlank()) enJson?.optString("overview", "").orEmpty() else trOverview
             }
 
             val finalJson = trJson ?: enJson ?: return null
@@ -106,32 +117,36 @@ internal object TmdbMediaDetailClient {
                 .take(12)
 
             val posterPath = finalJson.optNullableString("poster_path") ?: ""
-            val genresArray = finalJson.optJSONArray("genres")
             val genresList = mutableListOf<String>()
-            if (genresArray != null) {
-                for (i in 0 until genresArray.length()) {
-                    genresList.add(genresArray.getJSONObject(i).optString("name", ""))
+            if (features.useBasicInfo) {
+                val genresArray = finalJson.optJSONArray("genres")
+                if (genresArray != null) {
+                    for (i in 0 until genresArray.length()) {
+                        genresList.add(genresArray.getJSONObject(i).optString("name", ""))
+                    }
                 }
             }
 
-            val rating = finalJson.optDouble("vote_average", 0.0)
-            val voteCount = finalJson.optInt("vote_count", 0).takeIf { it > 0 }
-            val tmdbPopularity = finalJson.optDouble("popularity", 0.0).toInt().takeIf { it > 0 }
+            val rating = if (features.useBasicInfo) finalJson.optDouble("vote_average", 0.0) else 0.0
+            val voteCount = if (features.useBasicInfo) finalJson.optInt("vote_count", 0).takeIf { it > 0 } else null
+            val tmdbPopularity = if (features.useBasicInfo) finalJson.optDouble("popularity", 0.0).toInt().takeIf { it > 0 } else null
             val nextEpisodeObj = finalJson.optJSONObject("next_episode_to_air")
-            val nextAiring = if (nextEpisodeObj != null) {
+            val nextAiring = if (features.useReleaseDates && nextEpisodeObj != null) {
                 val ep = nextEpisodeObj.optInt("episode_number")
                 val dateStr = nextEpisodeObj.optString("air_date")
                 if (ep > 0 && dateStr.isNotBlank()) "Bölüm $ep, $dateStr tarihinde yayında" else null
             } else null
 
-            val releaseDate = if (isMovie) finalJson.optString("release_date", "") else finalJson.optString("first_air_date", "")
-            val status = finalJson.optString("status", "").toTurkishStatus()
-            val year = releaseDate.split("-").firstOrNull()?.toIntOrNull()
+            val releaseDate = if (features.useReleaseDates) {
+                if (isMovie) finalJson.optString("release_date", "") else finalJson.optString("first_air_date", "")
+            } else ""
+            val status = if (features.useBasicInfo) finalJson.optString("status", "").toTurkishStatus() else null
+            val year = if (features.useReleaseDates) releaseDate.split("-").firstOrNull()?.toIntOrNull() else null
 
-            val totalEpisodes = if (isMovie) 1 else finalJson.optInt("number_of_episodes", 0)
-            val totalSeasonsVal = if (isMovie) null else finalJson.optInt("number_of_seasons", 1)
+            val totalEpisodes = if (!features.useBasicInfo) null else if (isMovie) 1 else finalJson.optInt("number_of_episodes", 0)
+            val totalSeasonsVal = if (!features.useBasicInfo || isMovie) null else finalJson.optInt("number_of_seasons", 1)
 
-            val durationVal = if (isMovie) {
+            val durationVal = if (!features.useBasicInfo) null else if (isMovie) {
                 val runtime = finalJson.optInt("runtime", 0)
                 if (runtime > 0) "$runtime dk" else null
             } else {
@@ -142,33 +157,60 @@ internal object TmdbMediaDetailClient {
                 } else null
             }
 
-            val endDateVal = if (isMovie) {
-                releaseDate
+            val endDateVal = if (!features.useReleaseDates) null else if (isMovie) {
+                releaseDate.takeIf { it.isNotBlank() }
             } else {
                 finalJson.optString("last_air_date", "").takeIf { it.isNotEmpty() }
             }
 
-            val productionCompanies = finalJson.optJSONArray("production_companies")
             val studiosList = mutableListOf<KitsugiStudio>()
             val producersList = mutableListOf<KitsugiStudio>()
-            if (productionCompanies != null) {
-                for (i in 0 until productionCompanies.length()) {
-                    val company = productionCompanies.getJSONObject(i)
-                    val id = company.optInt("id", 0)
-                    val name = company.optString("name", "")
-                    if (name.isNotEmpty()) {
-                        if (i == 0) {
-                            studiosList.add(KitsugiStudio(id = id, name = name, isMain = true))
-                        } else {
-                            producersList.add(KitsugiStudio(id = id, name = name, isMain = false))
+            if (features.useProductions) {
+                val productionCompanies = finalJson.optJSONArray("production_companies")
+                if (productionCompanies != null) {
+                    for (i in 0 until productionCompanies.length()) {
+                        val company = productionCompanies.getJSONObject(i)
+                        val id = company.optInt("id", 0)
+                        val name = company.optString("name", "")
+                        if (name.isNotEmpty()) {
+                            if (i == 0) {
+                                studiosList.add(KitsugiStudio(id = id, name = name, isMain = true, source = "tmdb"))
+                            } else {
+                                producersList.add(KitsugiStudio(id = id, name = name, isMain = false, source = "tmdb", role = com.kitsugi.animelist.data.remote.StudioRole.PRODUCER))
+                            }
                         }
                     }
                 }
             }
 
-            val watchProviders = fetchWatchProviders(tmdbId, isMovie, apiKey, executeGet)
-            val mediaImages = fetchMediaImages(tmdbId, isMovie, apiKey, executeGet)
-            val (trailer, videoThemes) = fetchVideos(tmdbId, isMovie, apiKey, language, executeGet)
+            val networksList = mutableListOf<KitsugiStudio>()
+            if (features.useNetworks) {
+                val networksArray = finalJson.optJSONArray("networks")
+                if (networksArray != null) {
+                    for (i in 0 until networksArray.length()) {
+                        val network = networksArray.getJSONObject(i)
+                        val id = network.optInt("id", 0)
+                        val name = network.optString("name", "")
+                        if (name.isNotBlank()) {
+                            networksList.add(
+                                KitsugiStudio(
+                                    id = id,
+                                    name = name,
+                                    isMain = networksList.isEmpty(),
+                                    source = "tmdb",
+                                    role = com.kitsugi.animelist.data.remote.StudioRole.NETWORK
+                                )
+                            )
+                        }
+                    }
+                }
+            }
+
+            val watchProviders = if (features.useNetworks) fetchWatchProviders(tmdbId, isMovie, apiKey, executeGet) else emptyList()
+            val mediaImages = if (features.useArtwork) fetchMediaImages(tmdbId, isMovie, apiKey, executeGet) else emptyList()
+            val (trailer, videoThemes) = if (features.useTrailers) {
+                fetchVideos(tmdbId, isMovie, apiKey, language, executeGet)
+            } else Pair(null, emptyList())
 
             val score100 = (rating * 10).toInt().coerceIn(0, 100)
 
@@ -180,10 +222,11 @@ internal object TmdbMediaDetailClient {
                 sourceMaterial = null,
                 studios = studiosList,
                 producers = producersList,
-                rating = rating.toString(),
+                networks = networksList,
+                rating = rating.takeIf { features.useBasicInfo }?.toString(),
                 broadcast = null,
                 episodeDuration = durationVal,
-                startDate = releaseDate,
+                startDate = releaseDate.takeIf { features.useReleaseDates && it.isNotBlank() },
                 endDate = endDateVal,
                 titleEnglish = titleEnglish,
                 titleJapanese = titleJapanese,
@@ -195,11 +238,11 @@ internal object TmdbMediaDetailClient {
                 endings = emptyList(),
                 trailerUrl = trailer,
                 title = finalTitle,
-                imageUrl = if (posterPath.isNotEmpty()) "$IMG_W500$posterPath" else null,
-                score = (rating).toInt().coerceIn(0, 10),
+                imageUrl = if (features.useArtwork && posterPath.isNotEmpty()) "$IMG_W500$posterPath" else null,
+                score = if (features.useBasicInfo) rating.toInt().coerceIn(0, 10) else null,
                 year = year,
                 total = totalEpisodes,
-                isAdult = finalJson.optBoolean("adult", false),
+                isAdult = features.useBasicInfo && finalJson.optBoolean("adult", false),
                 realMalId = null,
                 tags = emptyList(),
                 externalLinks = watchProviders,
@@ -210,8 +253,8 @@ internal object TmdbMediaDetailClient {
                 pictures = mediaImages,
                 totalSeasons = totalSeasonsVal,
                 nextAiringEpisode = nextAiring,
-                meanScore = score100,
-                averageScore = score100,
+                meanScore = score100.takeIf { features.useBasicInfo },
+                averageScore = score100.takeIf { features.useBasicInfo },
                 popularity = tmdbPopularity,
                 scoredBy = voteCount
             )

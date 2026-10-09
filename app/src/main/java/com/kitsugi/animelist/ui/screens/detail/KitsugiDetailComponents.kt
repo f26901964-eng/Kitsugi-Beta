@@ -50,9 +50,10 @@ fun KitsugiStudiosCard(
     studios: List<KitsugiStudio>,
     producers: List<KitsugiStudio>,
     onStudioClick: (KitsugiStudio) -> Unit,
-    onProducerClick: (KitsugiStudio) -> Unit
+    onProducerClick: (KitsugiStudio) -> Unit,
+    networks: List<KitsugiStudio> = emptyList()
 ) {
-    if (studios.isEmpty() && producers.isEmpty()) return
+    if (studios.isEmpty() && producers.isEmpty() && networks.isEmpty()) return
     val accentColor = LocalKitsugiAccent.current
 
     Column(
@@ -96,6 +97,22 @@ fun KitsugiStudiosCard(
                         onClick = if (producer.id > 0 || !producer.source.equals("bangumi", ignoreCase = true)) {
                             { onProducerClick(producer) }
                         } else null
+                    )
+                }
+            }
+        }
+        if (networks.isNotEmpty()) {
+            SectionLabel("Yayıncı Ağlar")
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                networks.forEach { network ->
+                    KitsugiChip(
+                        text = network.name,
+                        color = accentColor,
+                        solid = false,
+                        onClick = null
                     )
                 }
             }

@@ -95,7 +95,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
 
     // TMDB entegrasyon durumu — settingsFlow'dan reaktif olarak güncellenir
     private var tmdbEnabledState = true
-    private var tmdbModernHomeEnabledState = false
+    var tmdbModernHomeEnabled by mutableStateOf(true)
+        private set
     private var tmdbEnrichContinueWatchingState = true
 
     private val initialPayload: ExplorePayload?
@@ -202,11 +203,10 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                 // TMDB toggle değişiklikleri
                 val userKey = settings.tmdbUserApiKey
                 val tmdbChanged = tmdbEnabledState != settings.tmdbEnabled ||
-                    tmdbModernHomeEnabledState != settings.tmdbModernHomeEnabled ||
                     tmdbEnrichContinueWatchingState != settings.tmdbEnrichContinueWatching ||
                     userKey != tmdbUserApiKeyState
                 tmdbEnabledState = settings.tmdbEnabled
-                tmdbModernHomeEnabledState = settings.tmdbModernHomeEnabled
+                tmdbModernHomeEnabled = settings.tmdbModernHomeEnabled
                 tmdbEnrichContinueWatchingState = settings.tmdbEnrichContinueWatching
 
                 // tmdbUserApiKey değişince TmdbApiClient'i yeniden oluştur

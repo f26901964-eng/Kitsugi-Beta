@@ -18,6 +18,8 @@ import androidx.compose.material.icons.rounded.Movie
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.Key
+import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -25,6 +27,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
@@ -359,6 +363,10 @@ private fun TmdbSettingsTab(
     scrollState: ScrollState = rememberScrollState()
 ) {
     var tempKey by remember(apiKey) { mutableStateOf(apiKey) }
+    var keyVisible by remember { mutableStateOf(false) }
+    var keyValidating by remember { mutableStateOf(false) }
+    var keyValidationPassed by remember(apiKey) { mutableStateOf<Boolean?>(null) }
+    val scope = rememberCoroutineScope()
     var showLanguageDialog by remember { mutableStateOf(false) }
 
     Column(
@@ -390,11 +398,43 @@ private fun TmdbSettingsTab(
                         value = tempKey,
                         onValueChange = {
                             tempKey = it
-                            onApiKeyChanged(it)
+                            keyValidationPassed = null
                         },
                         label = { Text(stringResource(R.string.tmdb_api_key)) },
                         placeholder = { Text(stringResource(R.string.tmdb_api_key_placeholder)) },
                         modifier = Modifier.fillMaxWidth(),
+                        enabled = !keyValidating,
+                        singleLine = true,
+                        visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(onClick = { keyVisible = !keyVisible }) {
+                                    Icon(
+                                        imageVector = if (keyVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                                        contentDescription = stringResource(
+                                            if (keyVisible) R.string.integration_hide_key else R.string.integration_show_key
+                                        ),
+                                        tint = KitsugiColors.TextSecondary
+                                    )
+                                }
+                                if (tempKey.isNotEmpty()) {
+                                    IconButton(
+                                        onClick = {
+                                            tempKey = ""
+                                            keyValidationPassed = null
+                                            onApiKeyChanged("")
+                                        },
+                                        enabled = !keyValidating
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Close,
+                                            contentDescription = stringResource(R.string.action_clear),
+                                            tint = KitsugiColors.TextSecondary
+                                        )
+                                    }
+                                }
+                            }
+                        },
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = accentColor,
                             unfocusedBorderColor = KitsugiColors.Border,
@@ -406,6 +446,44 @@ private fun TmdbSettingsTab(
                         ),
                         shape = RoundedCornerShape(12.dp)
                     )
+                    Text(
+                        text = stringResource(R.string.integration_shared_tmdb_key_info),
+                        color = KitsugiColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                    OutlinedButton(
+                        onClick = {
+                            keyValidating = true
+                            keyValidationPassed = null
+                            scope.launch {
+                                val valid = runCatching {
+                                    com.kitsugi.animelist.data.remote.TmdbApiClient.validateApiKey(tempKey)
+                                }.getOrDefault(false)
+                                if (valid) onApiKeyChanged(tempKey.trim())
+                                keyValidationPassed = valid
+                                keyValidating = false
+                            }
+                        },
+                        enabled = !keyValidating,
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = accentColor)
+                    ) {
+                        if (keyValidating) {
+                            KitsugiPlasmaLoader(size = 18.dp)
+                            Spacer(Modifier.width(8.dp))
+                        }
+                        Text(stringResource(R.string.action_validate_save))
+                    }
+                    keyValidationPassed?.let { passed ->
+                        Text(
+                            text = stringResource(
+                                if (passed) R.string.integration_key_validated else R.string.integration_key_failed
+                            ),
+                            color = if (passed) Color(0xFF76D49B) else KitsugiColors.TextSecondary,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
                 }
 
                 KitsugiSettingsDivider()
@@ -655,8 +733,6 @@ private fun MdbListSettingsTab(
     accentColor: Color,
     scrollState: ScrollState = rememberScrollState()
 ) {
-    var tempKey by remember(apiKey) { mutableStateOf(apiKey) }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -687,6 +763,14 @@ private fun MdbListSettingsTab(
                     iconColor = accentColor,
                     onClick = { showApiKeyDialog = true }
                 )
+                if (apiKey.isBlank()) {
+                    Text(
+                        text = stringResource(R.string.integration_mdb_key_required),
+                        color = KitsugiColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    )
+                }
 
                 if (showApiKeyDialog) {
                     MdbListApiKeyValidationDialog(
@@ -794,8 +878,6 @@ private fun AniSkipSettingsTab(
     accentColor: Color,
     scrollState: ScrollState = rememberScrollState()
 ) {
-    var tempClientId by remember(animeSkipClientId) { mutableStateOf(animeSkipClientId) }
-
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -823,6 +905,12 @@ private fun AniSkipSettingsTab(
                     iconColor = accentColor,
                     checked = autoSkip,
                     onCheckedChange = onAutoSkipChanged
+                )
+                Text(
+                    text = stringResource(R.string.integration_skip_sources_info),
+                    color = KitsugiColors.TextSecondary,
+                    style = MaterialTheme.typography.bodySmall,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
                 )
             }
         }
@@ -871,6 +959,7 @@ private fun MdbListApiKeyValidationDialog(
     accentColor: Color
 ) {
     var value by remember(currentValue) { mutableStateOf(currentValue) }
+    var keyVisible by remember { mutableStateOf(false) }
     var validating by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
@@ -901,6 +990,7 @@ private fun MdbListApiKeyValidationDialog(
                     label = { Text(stringResource(R.string.mdblist_api_key)) },
                     placeholder = { Text(stringResource(R.string.mdblist_api_key_hint)) },
                     modifier = Modifier.fillMaxWidth(),
+                    enabled = !validating,
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedBorderColor = accentColor,
                         unfocusedBorderColor = KitsugiColors.Border,
@@ -912,14 +1002,26 @@ private fun MdbListApiKeyValidationDialog(
                     ),
                     shape = RoundedCornerShape(12.dp),
                     singleLine = true,
+                    visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
                     trailingIcon = {
-                        if (value.isNotEmpty()) {
-                            IconButton(onClick = { value = "" }) {
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            IconButton(onClick = { keyVisible = !keyVisible }) {
                                 Icon(
-                                    imageVector = Icons.Rounded.Close,
-                                    contentDescription = stringResource(R.string.action_clear),
+                                    imageVector = if (keyVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                                    contentDescription = stringResource(
+                                        if (keyVisible) R.string.integration_hide_key else R.string.integration_show_key
+                                    ),
                                     tint = KitsugiColors.TextSecondary
                                 )
+                            }
+                            if (value.isNotEmpty()) {
+                                IconButton(onClick = { value = "" }) {
+                                    Icon(
+                                        imageVector = Icons.Rounded.Close,
+                                        contentDescription = stringResource(R.string.action_clear),
+                                        tint = KitsugiColors.TextSecondary
+                                    )
+                                }
                             }
                         }
                     }
@@ -937,7 +1039,7 @@ private fun MdbListApiKeyValidationDialog(
                             val valid = com.kitsugi.animelist.data.remote.MdbListClient.validateApiKey(value)
                             validating = false
                             if (valid) {
-                                onSave(value)
+                                onSave(value.trim())
                                 android.widget.Toast.makeText(context, context.getString(R.string.api_key_validated), android.widget.Toast.LENGTH_SHORT).show()
                             } else {
                                 android.widget.Toast.makeText(context, context.getString(R.string.api_key_invalid), android.widget.Toast.LENGTH_SHORT).show()
@@ -1088,6 +1190,10 @@ private fun FanartTvSettingsTab(
     scrollState: ScrollState = rememberScrollState()
 ) {
     var tempKey by remember(apiKey) { mutableStateOf(apiKey) }
+    var keyVisible by remember { mutableStateOf(false) }
+    var keyValidating by remember { mutableStateOf(false) }
+    var keyValidationPassed by remember(apiKey) { mutableStateOf<Boolean?>(null) }
+    val scope = rememberCoroutineScope()
 
     Column(
         modifier = Modifier
@@ -1096,10 +1202,10 @@ private fun FanartTvSettingsTab(
             .padding(vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        KitsugiSettingsSection(title = "Fanart.tv Ayarları") {
+        KitsugiSettingsSection(title = stringResource(R.string.fanart_settings_title)) {
             KitsugiSettingsSwitchItem(
                 title = "Etkinleştir",
-                description = "Fanart.tv entegrasyonunu etkinleştirerek yüksek kaliteli logo, karakter tasarımları ve arka plan görselleri çekin.",
+                description = stringResource(R.string.fanart_settings_desc),
                 icon = Icons.Rounded.Movie,
                 iconColor = accentColor,
                 checked = enabled,
@@ -1118,11 +1224,13 @@ private fun FanartTvSettingsTab(
                         value = tempKey,
                         onValueChange = {
                             tempKey = it
-                            onApiKeyChanged(it)
+                            keyValidationPassed = null
                         },
-                        label = { Text("Fanart.tv API Anahtarı") },
-                        placeholder = { Text("Kişisel Fanart.tv API anahtarınızı girin...") },
+                        label = { Text(stringResource(R.string.fanart_api_key)) },
+                        placeholder = { Text(stringResource(R.string.fanart_api_key_hint)) },
                         modifier = Modifier.fillMaxWidth(),
+                        enabled = !keyValidating,
+                        visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = accentColor,
                             unfocusedBorderColor = KitsugiColors.Border,
@@ -1135,20 +1243,77 @@ private fun FanartTvSettingsTab(
                         shape = RoundedCornerShape(12.dp),
                         singleLine = true,
                         trailingIcon = {
-                            if (tempKey.isNotEmpty()) {
-                                IconButton(onClick = {
-                                    tempKey = ""
-                                    onApiKeyChanged("")
-                                }) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                IconButton(onClick = { keyVisible = !keyVisible }) {
                                     Icon(
-                                        imageVector = Icons.Rounded.Close,
-                                        contentDescription = "Temizle",
+                                        imageVector = if (keyVisible) Icons.Rounded.VisibilityOff else Icons.Rounded.Visibility,
+                                        contentDescription = stringResource(
+                                            if (keyVisible) R.string.integration_hide_key else R.string.integration_show_key
+                                        ),
                                         tint = KitsugiColors.TextSecondary
                                     )
+                                }
+                                if (tempKey.isNotEmpty()) {
+                                    IconButton(
+                                        onClick = {
+                                            tempKey = ""
+                                            keyValidationPassed = null
+                                            onApiKeyChanged("")
+                                        },
+                                        enabled = !keyValidating
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Rounded.Close,
+                                            contentDescription = stringResource(R.string.action_clear),
+                                            tint = KitsugiColors.TextSecondary
+                                        )
+                                    }
                                 }
                             }
                         }
                     )
+                    Text(
+                        text = stringResource(R.string.integration_shared_fanart_key_info),
+                        color = KitsugiColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 8.dp)
+                    )
+                    OutlinedButton(
+                        onClick = {
+                            keyValidating = true
+                            keyValidationPassed = null
+                            scope.launch {
+                                val valid = runCatching {
+                                    com.kitsugi.animelist.data.remote.FanartApiClient.validateApiKey(tempKey)
+                                }.getOrDefault(false)
+                                if (valid) onApiKeyChanged(tempKey.trim())
+                                keyValidationPassed = valid
+                                keyValidating = false
+                            }
+                        },
+                        enabled = !keyValidating,
+                        modifier = Modifier.fillMaxWidth().padding(top = 4.dp),
+                        colors = ButtonDefaults.outlinedButtonColors(contentColor = accentColor)
+                    ) {
+                        if (keyValidating) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(18.dp),
+                                color = accentColor,
+                                strokeWidth = 2.dp
+                            )
+                            Spacer(Modifier.width(8.dp))
+                        }
+                        Text(stringResource(R.string.action_validate_save))
+                    }
+                    keyValidationPassed?.let { passed ->
+                        Text(
+                            text = stringResource(
+                                if (passed) R.string.integration_key_validated else R.string.integration_key_failed
+                            ),
+                            color = if (passed) Color(0xFF76D49B) else KitsugiColors.TextSecondary,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
                 }
             }
         }

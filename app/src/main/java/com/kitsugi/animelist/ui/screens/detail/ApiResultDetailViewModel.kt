@@ -658,6 +658,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
             val useCredits     = settings?.tmdbUseCredits  ?: true
             val useEpisodes    = settings?.tmdbUseEpisodes ?: true
             val useMoreLikeThis = settings?.tmdbUseMoreLikeThis ?: true
+            val useCollections = settings?.tmdbUseCollections ?: true
             try {
                 when (tabIndex) {
                     1 -> {
@@ -750,7 +751,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                             val fetched = fetchTabWithTimeout {
                                 apiClient.fetchRelations(
                                     result.source, result.malId, result.type,
-                                    tmdbId = if (tmdbEnabled && useMoreLikeThis) tmdbId else null,
+                                    tmdbId = if (tmdbEnabled && useCollections) tmdbId else null,
                                     realMalId = realMalId,
                                     title = result.title
                                 )
@@ -935,11 +936,15 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                 imdbId = resolved.imdbId
             }
 
-            if (!imdbId.isNullOrBlank()) {
-                val ratings = MdbListClient.fetchRatings(imdbId, settings.mdbListApiKey)
+            if (!imdbId.isNullOrBlank() || (tmdbId != null && tmdbId > 0)) {
+                val ratings = MdbListClient.fetchRatings(
+                    imdbId = imdbId,
+                    tmdbId = tmdbId,
+                    apiKey = settings.mdbListApiKey
+                )
                 _mdbListRatings.value = ratings
             } else {
-                Log.w(TAG, "MDBList: IMDb ID resolved to null")
+                Log.d(TAG, "MDBList skipped: no IMDb or TMDB identity is available")
                 _mdbListRatings.value = null
             }
         } catch (e: Exception) {

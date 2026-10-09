@@ -62,6 +62,16 @@ object KitsugiEpisodeRatingsRepository {
         }
     }
 
+    private suspend fun isTmdbArtworkEnabled(): Boolean {
+        val context = appContext ?: return true
+        return try {
+            val settings = com.kitsugi.animelist.data.settings.SettingsDataStore(context).settingsFlow.first()
+            settings.tmdbEnabled && settings.tmdbUseArtwork
+        } catch (e: Exception) {
+            true
+        }
+    }
+
     /** Fanart.tv ayarlarını döner (apiKey, enabled). Built-in API anahtarı her zaman fallback olarak kullanılır. */
     private suspend fun getFanartSettings(): Pair<Boolean, String> {
         val context = appContext ?: return Pair(true, FanartApiClient.getActiveApiKey())
@@ -76,6 +86,9 @@ object KitsugiEpisodeRatingsRepository {
         }
     }
 
+    private suspend fun isAnyLogoSourceEnabled(): Boolean =
+        isTmdbArtworkEnabled() || getFanartSettings().first
+
     // ── All caches are consolidated in DetailCache (app-lifetime singleton) ──
     // References kept as local aliases for readability
     private val ratingsCache get() = DetailCache.episodeRatingsCache
@@ -89,7 +102,8 @@ object KitsugiEpisodeRatingsRepository {
 
     // tmdbId → logo URL önbelleği
     private val logoCache get() = DetailCache.logoCache
-    private val logoInFlight = mutableMapOf<Int, Deferred<String?>>()
+    private data class LogoRequestKey(val tmdbId: Int, val tmdbArtwork: Boolean, val fanart: Boolean)
+    private val logoInFlight = mutableMapOf<LogoRequestKey, Deferred<String?>>()
 
     data class TmdbEpisodeDto(
         val episodeNumber: Int,
@@ -274,85 +288,81 @@ object KitsugiEpisodeRatingsRepository {
      * TMDB image CDN (image.tmdb.org) API key gerektirmez.
      */
     suspend fun getLogoUrl(tmdbId: Int): String? = withContext(Dispatchers.IO) {
-        if (!isTmdbEnabled()) return@withContext null
         if (tmdbId <= 0) return@withContext null
 
-        // Önbellekte varsa direkt dön — SADECE gerçek null (not found) için kabul et
-        val isCached = mutex.withLock { logoCache.containsKey(tmdbId) }
-        if (isCached) return@withContext mutex.withLock { logoCache[tmdbId] }
+        val tmdbArtworkEnabled = isTmdbArtworkEnabled()
+        val (fanartEnabled, fanartApiKey) = getFanartSettings()
+        if (!tmdbArtworkEnabled && !fanartEnabled) return@withContext null
 
-        // Room önbellek kontrolü
-        val cachedEntity = runCatching { dao?.getByTmdbId(tmdbId) }.getOrNull()
-        if (cachedEntity != null) {
-            if (cachedEntity.logoNotFound) {
-                mutex.withLock { logoCache[tmdbId] = null }
-                Log.d(TAG, "Room logo hit (not found): tmdbId=$tmdbId")
-                return@withContext null
-            }
-            if (!cachedEntity.logoUrl.isNullOrBlank()) {
-                mutex.withLock { logoCache[tmdbId] = cachedEntity.logoUrl }
-                Log.d(TAG, "Room logo hit (found): tmdbId=$tmdbId → ${cachedEntity.logoUrl}")
-                return@withContext cachedEntity.logoUrl
+        // The legacy Room/memory cache has no source metadata. Only use it when both
+        // providers are enabled; otherwise an image from the disabled source could leak through.
+        val useSharedCache = tmdbArtworkEnabled && fanartEnabled
+        val requestKey = LogoRequestKey(tmdbId, tmdbArtworkEnabled, fanartEnabled)
+        if (useSharedCache) {
+            val isCached = mutex.withLock { logoCache.containsKey(tmdbId) }
+            if (isCached) return@withContext mutex.withLock { logoCache[tmdbId] }
+
+            val cachedEntity = runCatching { dao?.getByTmdbId(tmdbId) }.getOrNull()
+            if (cachedEntity != null) {
+                if (cachedEntity.logoNotFound) {
+                    mutex.withLock { logoCache[tmdbId] = null }
+                    Log.d(TAG, "Room logo hit (not found): tmdbId=$tmdbId")
+                    return@withContext null
+                }
+                if (!cachedEntity.logoUrl.isNullOrBlank()) {
+                    mutex.withLock { logoCache[tmdbId] = cachedEntity.logoUrl }
+                    Log.d(TAG, "Room logo hit (found): tmdbId=$tmdbId → ${cachedEntity.logoUrl}")
+                    return@withContext cachedEntity.logoUrl
+                }
             }
         }
 
-        // In-flight dedup
+        // Include enabled providers in the in-flight key, so a setting change cannot
+        // accidentally join a request that is still fetching from a now-disabled source.
         val deferred = mutex.withLock {
-            logoInFlight[tmdbId] ?: scope.async {
+            logoInFlight[requestKey] ?: scope.async {
                 try {
-                    // 1. Fanart.tv (en yüksek kalite) — TVDB ID (TV) veya TMDB ID (Film)
-                    val (fanartEnabled, fanartApiKey) = getFanartSettings()
                     val fanartLogoUrl = if (fanartEnabled) {
                         val tvdbId = resolveTvdbIdFromTmdb(tmdbId)
                         val tvLogo = if (tvdbId != null && tvdbId > 0) {
-                            runCatching {
-                                FanartApiClient.fetchBestLogo(tvdbId, fanartApiKey)
-                            }.getOrNull()
+                            runCatching { FanartApiClient.fetchBestLogo(tvdbId, fanartApiKey) }.getOrNull()
                         } else null
-
-                        // TV logosu bulunamazsa veya film ise Fanart movie logo dene
                         tvLogo ?: runCatching {
                             FanartApiClient.fetchBestMovieLogo(tmdbId, fanartApiKey)
                         }.getOrNull()
                     } else null
 
-                    // 2. SeriesGraph fallback
-                    val seriesGraphUrl = if (fanartLogoUrl == null) fetchLogoFromSeriesGraph(tmdbId) else null
+                    val tmdbLogoUrl = if (tmdbArtworkEnabled) {
+                        fetchLogoFromSeriesGraph(tmdbId) ?: fetchLogoFromTmdbDirect(tmdbId)
+                    } else null
+                    val finalUrl = fanartLogoUrl ?: tmdbLogoUrl
 
-                    // 3. TMDB direct fallback
-                    val finalUrl = fanartLogoUrl
-                        ?: seriesGraphUrl
-                        ?: fetchLogoFromTmdbDirect(tmdbId)
-                    
-                    // Sadece gerçek sonucu önbelleğe yaz (null = bulunamadı anlamına gelir)
-                    mutex.withLock { logoCache[tmdbId] = finalUrl }
-                    
-                    // Room önbelleğe kaydet
-                    runCatching {
-                        val existing = dao?.getByTmdbId(tmdbId)
-                        val updated = existing?.copy(
-                            logoUrl = finalUrl,
-                            logoNotFound = finalUrl == null
-                        ) ?: MediaMetaCacheEntity(
-                            tmdbId = tmdbId,
-                            malId = null,
-                            aniListId = null,
-                            logoUrl = finalUrl,
-                            logoNotFound = finalUrl == null
-                        )
-                        dao?.insert(updated)
-                        Log.d(TAG, "Room logo write: tmdbId=$tmdbId → logoUrl=$finalUrl (notFound=${finalUrl == null})")
+                    if (useSharedCache) {
+                        mutex.withLock { logoCache[tmdbId] = finalUrl }
+                        runCatching {
+                            val existing = dao?.getByTmdbId(tmdbId)
+                            val updated = existing?.copy(
+                                logoUrl = finalUrl,
+                                logoNotFound = finalUrl == null
+                            ) ?: MediaMetaCacheEntity(
+                                tmdbId = tmdbId,
+                                malId = null,
+                                aniListId = null,
+                                logoUrl = finalUrl,
+                                logoNotFound = finalUrl == null
+                            )
+                            dao?.insert(updated)
+                            Log.d(TAG, "Room logo write: tmdbId=$tmdbId (notFound=${finalUrl == null})")
+                        }
                     }
-                    
                     finalUrl
                 } catch (e: Exception) {
-                    Log.w(TAG, "Logo fetch failed for tmdbId=$tmdbId: ${e.message}")
-                    // Hata durumunda null yazma — bir sonraki açılışta tekrar denensin
+                    Log.w(TAG, "Logo fetch failed for tmdbId=$tmdbId: ${e.javaClass.simpleName}")
                     null
                 } finally {
-                    mutex.withLock { logoInFlight.remove(tmdbId) }
+                    mutex.withLock { logoInFlight.remove(requestKey) }
                 }
-            }.also { logoInFlight[tmdbId] = it }
+            }.also { logoInFlight[requestKey] = it }
         }
         deferred.await()
     }
@@ -362,7 +372,7 @@ object KitsugiEpisodeRatingsRepository {
      * AniList kaynaklı animeler için fallbackAniListId verilebilir.
      */
     suspend fun getLogoUrlByMalId(malId: Int, fallbackAniListId: Int? = null): String? = withContext(Dispatchers.IO) {
-        if (!isTmdbEnabled()) return@withContext null
+        if (!isAnyLogoSourceEnabled()) return@withContext null
         if (malId <= 0 && fallbackAniListId == null) return@withContext null
         var tmdbId: Int? = null
         if (malId > 0) tmdbId = resolveTmdbIdFromMal(malId)
@@ -378,7 +388,7 @@ object KitsugiEpisodeRatingsRepository {
      * ARM lookup başarısız olursa fallbackMalId ile tekrar dener.
      */
     suspend fun getLogoUrlByAniListId(aniListId: Int, fallbackMalId: Int? = null): String? = withContext(Dispatchers.IO) {
-        if (!isTmdbEnabled()) return@withContext null
+        if (!isAnyLogoSourceEnabled()) return@withContext null
         var tmdbId: Int? = null
         if (aniListId > 0) tmdbId = resolveTmdbIdFromAniList(aniListId)
         // AniList ARM lookup boş döndüyse gerçek MAL ID ile tekrar dene
@@ -688,7 +698,7 @@ object KitsugiEpisodeRatingsRepository {
         tmdbId: Int,
         isMovie: Boolean = false
     ): List<GalleryItem> = withContext(Dispatchers.IO) {
-        if (tmdbId <= 0) return@withContext emptyList()
+        if (tmdbId <= 0 || !isTmdbArtworkEnabled()) return@withContext emptyList()
 
         val cached = DetailCache.getTmdbGallery(isMovie, tmdbId)
         if (cached != null) {
@@ -1258,7 +1268,7 @@ object KitsugiEpisodeRatingsRepository {
     }
 
     suspend fun getLogoUrlByKitsuId(kitsuId: Int): String? = withContext(Dispatchers.IO) {
-        if (!isTmdbEnabled()) return@withContext null
+        if (!isAnyLogoSourceEnabled()) return@withContext null
         if (kitsuId <= 0) return@withContext null
         val tmdbId = resolveTmdbIdFromKitsu(kitsuId) ?: return@withContext null
         getLogoUrl(tmdbId)

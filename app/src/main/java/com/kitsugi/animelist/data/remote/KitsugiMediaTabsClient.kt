@@ -4,7 +4,9 @@ import android.content.Context
 import android.util.Log
 import com.kitsugi.animelist.data.local.KitsugiDatabase
 import com.kitsugi.animelist.model.MediaType
+import com.kitsugi.animelist.data.settings.SettingsDataStore
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
 import java.net.URL
@@ -14,6 +16,16 @@ import java.net.URL
  * Diğer metotlar (social, relations, mutations client'larına) bölünmüştür.
  */
 class KitsugiMediaTabsClient {
+
+    private suspend fun isTmdbEpisodeFallbackEnabled(context: Context?): Boolean {
+        val appContext = context?.applicationContext
+            ?: com.kitsugi.animelist.KitsugiApplication.getInstance()?.applicationContext
+            ?: return true
+        return runCatching {
+            val settings = SettingsDataStore(appContext).settingsFlow.first()
+            settings.tmdbEnabled && settings.tmdbUseEpisodes
+        }.getOrDefault(true)
+    }
 
     suspend fun fetchEpisodes(
         source: String,
@@ -174,8 +186,8 @@ class KitsugiMediaTabsClient {
                 }
             }
 
-            if (mediaType == MediaType.Anime || mediaType == MediaType.TvShow) {
-                // Fetch TMDB episodes if available
+            if ((mediaType == MediaType.Anime || mediaType == MediaType.TvShow) && isTmdbEpisodeFallbackEnabled(context)) {
+                // TMDB-derived titles/stills are optional; preserve native source episode lists when disabled.
                 var tmdbEpisodes: List<KitsugiEpisodeRatingsRepository.TmdbEpisodeDto> = emptyList()
                 try {
                     // NOT: Shikimori/Kitsu gibi kaynakların kimlikleri MAL ID'si değildir.

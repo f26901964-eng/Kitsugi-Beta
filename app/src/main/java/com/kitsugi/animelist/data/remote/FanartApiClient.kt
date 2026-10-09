@@ -1,7 +1,11 @@
 package com.kitsugi.animelist.data.remote
 
 import android.util.Log
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import okhttp3.Request
 import org.json.JSONObject
+import java.util.concurrent.TimeUnit
 
 /**
  * Fanart.tv REST API istemcisi.
@@ -65,10 +69,47 @@ object FanartApiClient {
     fun getActiveApiKey(userKey: String = ""): String =
         userKey.trim().ifBlank { BUILT_IN_API_KEY }
 
+    /**
+     * Fanart.tv anahtarını gerçek bir, yaygın olarak bulunan film kaydıyla doğrular.
+     * Boş anahtarda uygulamanın paylaşılan anahtarı sınanır.
+     */
+    suspend fun validateApiKey(userKey: String): Boolean = withContext(Dispatchers.IO) {
+        val keyToCheck = getActiveApiKey(userKey)
+        val url = okhttp3.HttpUrl.Builder()
+            .scheme("https")
+            .host("webservice.fanart.tv")
+            .addPathSegments("v3/movies/550")
+            .addQueryParameter("api_key", keyToCheck)
+            .build()
+        val request = Request.Builder()
+            .url(url)
+            .header("Accept", "application/json")
+            .header("User-Agent", "KitsugiAnimeList/1.0")
+            .build()
+        val validationClient = com.kitsugi.animelist.core.network.KitsugiHttpClient.metadataClient
+            .newBuilder()
+            .callTimeout(10, TimeUnit.SECONDS)
+            .build()
+
+        try {
+            validationClient.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) {
+                    Log.w(TAG, "Fanart.tv key validation failed: HTTP ${response.code}")
+                    return@withContext false
+                }
+                val body = response.body?.string() ?: return@withContext false
+                runCatching { JSONObject(body) }.isSuccess
+            }
+        } catch (e: Exception) {
+            Log.w(TAG, "Fanart.tv key validation failed (${e.javaClass.simpleName})")
+            false
+        }
+    }
+
     private fun buildUrl(endpoint: String, id: Int, apiKey: String): java.net.URL {
         val trimmedKey = apiKey.trim().ifBlank { BUILT_IN_API_KEY }
         val urlString = "$BASE_URL/$endpoint/$id?api_key=$trimmedKey"
-        Log.d(TAG, "Fanart request URL: $urlString")
+        Log.d(TAG, "Fanart request: $endpoint/$id (API key redacted)")
         return java.net.URL(urlString)
     }
 

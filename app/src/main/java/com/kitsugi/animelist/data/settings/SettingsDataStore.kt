@@ -882,13 +882,15 @@ class SettingsDataStore(
 
     suspend fun setTmdbUserApiKey(key: String) {
         context.settingsDataStore.edit { preferences ->
-            preferences[Keys.TmdbUserApiKey] = key
+            preferences[Keys.TmdbUserApiKey] = key.trim()
         }
+        val language = context.settingsDataStore.data.first()[Keys.TmdbLanguage] ?: "tr"
+        com.kitsugi.animelist.data.remote.TmdbApiClient.updateCache(key, language)
     }
 
     suspend fun setMdbListApiKey(key: String) {
         context.settingsDataStore.edit { preferences ->
-            preferences[Keys.MdbListApiKey] = key
+            preferences[Keys.MdbListApiKey] = key.trim()
         }
     }
 
@@ -927,7 +929,7 @@ class SettingsDataStore(
     }
 
     suspend fun setFanartTvApiKey(key: String) {
-        context.settingsDataStore.edit { it[Keys.FanartTvApiKey] = key }
+        context.settingsDataStore.edit { it[Keys.FanartTvApiKey] = key.trim() }
     }
 
     suspend fun setFanartTvEnabled(enabled: Boolean) {

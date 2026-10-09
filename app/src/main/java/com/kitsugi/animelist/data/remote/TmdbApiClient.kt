@@ -41,8 +41,12 @@ class TmdbApiClient(
         .followRedirects(true)
         .followSslRedirects(true)
         .build()
-    private val apiKey = resolveApiKey(userApiKey)
-    private val language = userLanguage.trim().ifBlank { getActiveLanguage() }
+    // Most call sites use TmdbApiClient() and are not rebuilt when preferences change.
+    // Resolve the shared active key here so personal keys work consistently throughout the app.
+    private val apiKey: String
+        get() = userApiKey.trim().ifBlank { getActiveApiKey() }
+    private val language: String
+        get() = userLanguage.trim().ifBlank { getActiveLanguage() }
     private val TAG = "TmdbApiClient"
 
     companion object {
@@ -70,6 +74,43 @@ class TmdbApiClient(
         }
 
         fun resolveApiKey(userKey: String): String = userKey.trim().ifBlank { BUILT_IN_API_KEY }
+
+        /**
+         * API anahtarını hafif bir yetkilendirilmiş istekle doğrular.
+         * Boş anahtar, uygulamadaki ortak/built-in anahtarı test eder.
+         */
+        suspend fun validateApiKey(userKey: String): Boolean = withContext(Dispatchers.IO) {
+            val keyToCheck = resolveApiKey(userKey)
+            val url = okhttp3.HttpUrl.Builder()
+                .scheme("https")
+                .host("api.themoviedb.org")
+                .addPathSegments("3/configuration")
+                .addQueryParameter("api_key", keyToCheck)
+                .build()
+            val request = Request.Builder()
+                .url(url)
+                .header("Accept", "application/json")
+                .header("User-Agent", "KitsugiAnimeList/1.0")
+                .build()
+            val validationClient = com.kitsugi.animelist.core.network.KitsugiHttpClient.metadataClient
+                .newBuilder()
+                .callTimeout(10, TimeUnit.SECONDS)
+                .build()
+
+            try {
+                validationClient.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        Log.w("TmdbApiClient", "TMDB key validation failed: HTTP ${response.code}")
+                        return@withContext false
+                    }
+                    val body = response.body?.string() ?: return@withContext false
+                    JSONObject(body).optJSONObject("images") != null
+                }
+            } catch (e: Exception) {
+                Log.w("TmdbApiClient", "TMDB key validation failed (${e.javaClass.simpleName})")
+                false
+            }
+        }
 
         /**
          * Cache'lenmiş API key'i döner. runBlocking KULLANILMAZ.
@@ -104,53 +145,70 @@ class TmdbApiClient(
         }
     }
 
-    private suspend fun isTmdbEnabled(): Boolean {
-        val context = com.kitsugi.animelist.KitsugiApplication.getInstance()?.applicationContext ?: return true
+    private suspend fun currentSettings(): com.kitsugi.animelist.data.settings.AppSettings? {
+        val context = com.kitsugi.animelist.KitsugiApplication.getInstance()?.applicationContext ?: return null
         return try {
-            kotlinx.coroutines.withTimeoutOrNull(800L) {
-                com.kitsugi.animelist.data.settings.SettingsDataStore(context).settingsFlow.first().tmdbEnabled
-            } ?: true
+            withTimeoutOrNull(800L) {
+                com.kitsugi.animelist.data.settings.SettingsDataStore(context).settingsFlow.first()
+            }
         } catch (e: Exception) {
-            true
+            null
         }
+    }
+
+    private suspend fun isTmdbEnabled(): Boolean = currentSettings()?.tmdbEnabled ?: true
+
+    private suspend fun isTmdbFeatureEnabled(feature: (com.kitsugi.animelist.data.settings.AppSettings) -> Boolean): Boolean {
+        val settings = currentSettings() ?: return true
+        return settings.tmdbEnabled && feature(settings)
     }
 
     // ── Medya Detayı ────────────────────────────────────────────────────────────
 
     suspend fun fetchMediaDetail(tmdbId: Int, isMovie: Boolean): KitsugiMediaDetail? {
-        if (!isTmdbEnabled()) return null
-        return TmdbMediaDetailClient.fetchMediaDetail(tmdbId, isMovie, apiKey, language, ::executeGet)
+        val settings = currentSettings()
+        if (settings?.tmdbEnabled == false) return null
+        val features = TmdbDetailFeatures(
+            useBasicInfo = settings?.tmdbUseBasicInfo ?: true,
+            useDetails = settings?.tmdbUseDetails ?: true,
+            useReleaseDates = settings?.tmdbUseReleaseDates ?: true,
+            useArtwork = settings?.tmdbUseArtwork ?: true,
+            useTrailers = settings?.tmdbUseTrailers ?: true,
+            useProductions = settings?.tmdbUseProductions ?: true,
+            useNetworks = settings?.tmdbUseNetworks ?: true
+        )
+        return TmdbMediaDetailClient.fetchMediaDetail(tmdbId, isMovie, apiKey, language, features, ::executeGet)
     }
 
     suspend fun fetchMediaImages(tmdbId: Int, isMovie: Boolean): List<String> = withContext(Dispatchers.IO) {
-        if (!isTmdbEnabled()) return@withContext emptyList()
+        if (!isTmdbFeatureEnabled { it.tmdbUseArtwork }) return@withContext emptyList()
         TmdbMediaDetailClient.fetchMediaImages(tmdbId, isMovie, apiKey, ::executeGet)
     }
 
     suspend fun fetchWatchProviders(tmdbId: Int, isMovie: Boolean): List<KitsugiExternalLink> = withContext(Dispatchers.IO) {
-        if (!isTmdbEnabled()) return@withContext emptyList()
+        if (!isTmdbFeatureEnabled { it.tmdbUseNetworks }) return@withContext emptyList()
         TmdbMediaDetailClient.fetchWatchProviders(tmdbId, isMovie, apiKey, ::executeGet)
     }
 
     suspend fun fetchVideos(tmdbId: Int, isMovie: Boolean): Pair<String?, List<KitsugiTheme>> = withContext(Dispatchers.IO) {
-        if (!isTmdbEnabled()) return@withContext Pair(null, emptyList())
+        if (!isTmdbFeatureEnabled { it.tmdbUseTrailers }) return@withContext Pair(null, emptyList())
         TmdbMediaDetailClient.fetchVideos(tmdbId, isMovie, apiKey, language, ::executeGet)
     }
 
     // ── Oyuncu / Ekip / İçerik ─────────────────────────────────────────────────
 
     suspend fun fetchCredits(tmdbId: Int, isMovie: Boolean): Pair<List<KitsugiCharacter>, List<KitsugiStaff>> = withContext(Dispatchers.IO) {
-        if (!isTmdbEnabled()) return@withContext Pair(emptyList(), emptyList())
+        if (!isTmdbFeatureEnabled { it.tmdbUseCredits }) return@withContext Pair(emptyList(), emptyList())
         TmdbCreditsClient.fetchCredits(tmdbId, isMovie, apiKey, language, ::executeGet)
     }
 
     suspend fun fetchRelations(tmdbId: Int, isMovie: Boolean): List<KitsugiRelation> = withContext(Dispatchers.IO) {
-        if (!isTmdbEnabled()) return@withContext emptyList()
+        if (!isTmdbFeatureEnabled { it.tmdbUseCollections }) return@withContext emptyList()
         TmdbCreditsClient.fetchRelations(tmdbId, isMovie, apiKey, language, ::executeGet)
     }
 
     suspend fun fetchRecommendations(tmdbId: Int, isMovie: Boolean): List<KitsugiRelation> = withContext(Dispatchers.IO) {
-        if (!isTmdbEnabled()) return@withContext emptyList()
+        if (!isTmdbFeatureEnabled { it.tmdbUseMoreLikeThis }) return@withContext emptyList()
         TmdbCreditsClient.fetchRecommendations(tmdbId, isMovie, apiKey, language, ::executeGet)
     }
 
@@ -160,12 +218,12 @@ class TmdbApiClient(
     }
 
     suspend fun fetchPersonCharacterDetail(personId: Int): KitsugiCharacterDetail? = withContext(Dispatchers.IO) {
-        if (!isTmdbEnabled()) return@withContext null
+        if (!isTmdbFeatureEnabled { it.tmdbUseCredits }) return@withContext null
         TmdbCreditsClient.fetchPersonCharacterDetail(personId, apiKey, language, ::executeGet)
     }
 
     suspend fun fetchPersonStaffDetail(personId: Int): KitsugiStaffDetail? = withContext(Dispatchers.IO) {
-        if (!isTmdbEnabled()) return@withContext null
+        if (!isTmdbFeatureEnabled { it.tmdbUseCredits }) return@withContext null
         TmdbCreditsClient.fetchPersonStaffDetail(personId, apiKey, language, ::executeGet)
     }
 
@@ -553,12 +611,12 @@ class TmdbApiClient(
                     if (response.isSuccessful) {
                         response.body?.string()
                     } else {
-                        Log.e(TAG, "HTTP ${response.code} for $urlStr")
+                        Log.e(TAG, "HTTP ${response.code} for ${SensitiveUrlRedactor.redact(urlStr)}")
                         null
                     }
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "executeGet exception: ${e.message} — $urlStr")
+                Log.e(TAG, "executeGet failed (${e.javaClass.simpleName}) — ${SensitiveUrlRedactor.redact(urlStr)}")
                 null
             }
         }

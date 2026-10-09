@@ -1291,11 +1291,17 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                 imdbId = resolved.imdbId
             }
 
-            if (!imdbId.isNullOrBlank()) {
+            if (!imdbId.isNullOrBlank() || (tmdbId != null && tmdbId > 0)) {
                 val ratings = withContext(Dispatchers.IO) {
-                    MdbListClient.fetchRatings(imdbId, settings.mdbListApiKey)
+                    MdbListClient.fetchRatings(
+                        imdbId = imdbId,
+                        tmdbId = tmdbId,
+                        apiKey = settings.mdbListApiKey
+                    )
                 }
                 _mdbListRatings.value = ratings
+            } else {
+                _mdbListRatings.value = null
             }
         } catch (e: Exception) {
             Log.e(TAG, "MDBList entry rating fetch failed", e)

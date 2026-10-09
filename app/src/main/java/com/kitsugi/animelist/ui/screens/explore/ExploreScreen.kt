@@ -630,30 +630,32 @@ fun ExploreScreen(
                                         Spacer(modifier = Modifier.height(26.dp))
                                     }
                                 }
-                                tmdbExploreSections(
-                                    viewModel = viewModel,
-                                    filteredTrendingAnime = filteredTrendingAnime,
-                                    filteredNewlyAddedAnime = filteredNewlyAddedAnime,
-                                    filteredTrendingManga = filteredTrendingManga,
-                                    filteredTopAnime = filteredTopAnime,
-                                    filteredAiringAnime = filteredAiringAnime,
-                                    filteredMovieAnime = filteredMovieAnime,
-                                    filteredTopManga = filteredTopManga,
-                                    filteredUpcomingAnime = filteredUpcomingAnime,
-                                    filteredPublishingManga = filteredPublishingManga,
-                                    filteredSeasonalAnime = filteredSeasonalAnime,
-                                    isAlreadyInList = isAlreadyInList,
-                                    getMediaEntry = getMediaEntry,
-                                    onItemClick = onOpenApiDetail,
-                                    onLongClickItem = onLongClickItem,
-                                    onSeeAllSection = onSeeAllForSelected,
-                                    onNavigateToWatchHistory = onNavigateToWatchHistory,
-                                    titleLanguage = titleLanguage,
-                                    scoreFormat = scoreFormat,
-                                    hideScores = hideScores,
-                                    blurAdultMedia = blurAdultMedia,
-                                    context = context
-                                )
+                                if (viewModel.tmdbModernHomeEnabled) {
+                                    tmdbExploreSections(
+                                        viewModel = viewModel,
+                                        filteredTrendingAnime = filteredTrendingAnime,
+                                        filteredNewlyAddedAnime = filteredNewlyAddedAnime,
+                                        filteredTrendingManga = filteredTrendingManga,
+                                        filteredTopAnime = filteredTopAnime,
+                                        filteredAiringAnime = filteredAiringAnime,
+                                        filteredMovieAnime = filteredMovieAnime,
+                                        filteredTopManga = filteredTopManga,
+                                        filteredUpcomingAnime = filteredUpcomingAnime,
+                                        filteredPublishingManga = filteredPublishingManga,
+                                        filteredSeasonalAnime = filteredSeasonalAnime,
+                                        isAlreadyInList = isAlreadyInList,
+                                        getMediaEntry = getMediaEntry,
+                                        onItemClick = onOpenApiDetail,
+                                        onLongClickItem = onLongClickItem,
+                                        onSeeAllSection = onSeeAllForSelected,
+                                        onNavigateToWatchHistory = onNavigateToWatchHistory,
+                                        titleLanguage = titleLanguage,
+                                        scoreFormat = scoreFormat,
+                                        hideScores = hideScores,
+                                        blurAdultMedia = blurAdultMedia,
+                                        context = context
+                                    )
+                                }
                             } else {
                                 item {
                                     DefaultCategoriesSection(

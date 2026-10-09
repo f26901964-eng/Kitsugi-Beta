@@ -156,10 +156,11 @@ internal fun EntryDetailOverviewTab(
 
         // Stüdyolar + Yapımcılar
         if (detail != null &&
-            (detail.studios.isNotEmpty() || detail.producers.isNotEmpty())) {
+            (detail.studios.isNotEmpty() || detail.producers.isNotEmpty() || detail.networks.isNotEmpty())) {
             KitsugiStudiosCard(
                 studios = detail.studios,
                 producers = detail.producers,
+                networks = detail.networks,
                 onStudioClick = { studio ->
                     val resolvedSource = when {
                         entry.source.lowercase() == "anilist" -> "anilist"

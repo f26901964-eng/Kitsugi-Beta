@@ -1,5 +1,63 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.219)
+
+### 🔑 1. Harici API Entegrasyonları Doğrulama & Yönetim (`KitsugiIntegrationsSettingsDialog.kt`)
+- **Canlı Anahtar Doğrulama:** TMDB ve Fanart.tv kişisel API anahtarları için anlık servis bağlantı testi eklendi; yalnızca doğrulanmış anahtarlar kaydedilir.
+- **Güvenli Temizleme:** Alan temizlendiğinde uygulamanın yerleşik ortak anahtarına geri dönüş sağlanır.
+- **MDBList Anahtar Desteği:** Giriş sırasında boşluk kırpma ve doğrulama eklendi.
+- **Şifre / Maske Görünürlük Kontrolü:** API anahtarlarını gizleme ve gösterme kontrolleri entegre edildi.
+
+### 📊 2. MDBList TMDB ID Yedek Araması & Akıllı Ayrıştırma (`MdbListClient.kt`)
+- **Otomatik TMDB Yedeği:** IMDb kimliği bulunmayan içeriklerde pozitif TMDB ID ile otomatik puan sorgulama desteği eklendi.
+- **Genişletilmiş Yanıt Formatı:** Hem yeni dizi hem de eski üst-seviye alan formatları eksiksiz ayrıştırılır ve önbelleğe alınır.
+- `ApiResultDetailViewModel` ve `MediaEntryDetailViewModel` üzerinde IMDb/TMDB puan çağrıları bu yedek mekanizmasına bağlandı.
+
+### 🎬 3. TMDB Özellik Kapıları & Televizyon Ağları (`TmdbMediaDetailClient.kt`)
+- **Granüler İstek Kapıları:** Ayrıntı, afiş/arka plan, fragman, yapım şirketi, ağlar, oyuncu/ekip ve koleksiyon ayar kapıları API isteklerine ve model alanlarına bağlandı.
+- **Yayın Ağları (Networks):** TV içeriklerinde yapımcı televizyon kanalları ve yayın ağları detay kartlarına eklendi.
+- **Dinamik Keşfet Senkronizasyonu:** Keşfet sayfasındaki modern TMDB içerik rafları ayar değişikliğinde anında güncellenir (`tmdbModernHomeEnabled`).
+
+### 🛡️ 4. Hassas URL Maskeleme & İstek Güvenliği (`SensitiveUrlRedactor.kt`, `KitsugiApiBase.kt`)
+- **Günlük Güvenliği:** Ağ isteklerinde ve hata kayıtlarında API anahtarları, token'lar ve hassas parametreler otomatik olarak maskelenir (`***`).
+
+### 🧪 5. Test Kapsamı
+- `MdbListClientTest.kt` ve `TmdbMediaDetailClientTest.kt` ile MDBList URL/ayrıştırma ve TMDB özellik filtreleme mantığı için kapsamlı birim testleri eklendi.
+
+### 📦 6. Dağıtım
+- Yalnızca **FOSS** sürümü (`assembleFossRelease`) derlendi (`Kitsugi-Beta-v2.4.219-foss.apk`).
+
+---
+
+## 🇬🇧 English (v2.4.219)
+
+### 🔑 1. External API Integration Validation & Management (`KitsugiIntegrationsSettingsDialog.kt`)
+- **Live Key Validation:** Added in-place connection verification for personal TMDB and Fanart.tv API keys; unverified keys are never saved.
+- **Safe Key Reset:** Clearing key fields safely falls back to the app's built-in shared credentials.
+- **MDBList Trimming & Checks:** Key whitespace trimmed and sanitized automatically.
+- **Masking Controls:** Added show/hide toggle buttons for sensitive key fields.
+
+### 📊 2. MDBList TMDB ID Fallback & Smart Response Parsing (`MdbListClient.kt`)
+- **Automatic TMDB Fallback:** When IMDb identifiers are absent, ratings are queried via positive TMDB IDs (`/ratings/tmdb/...`).
+- **Unified Schema Support:** Smoothly parses both modern list schemas and legacy top-level rating structures with caching.
+- Integrated into `ApiResultDetailViewModel` and `MediaEntryDetailViewModel`.
+
+### 🎬 3. TMDB Feature Gating & TV Networks (`TmdbMediaDetailClient.kt`)
+- **Granular Feature Toggles:** Respects user toggles for basic info, release dates, artwork, trailers, productions, networks, credits, more-like-this, and collections.
+- **Broadcast Networks:** Added TV broadcast networks to detail metadata cards.
+- **Instant Explore Sync:** Modern TMDB rails in Explore react immediately to setting changes (`tmdbModernHomeEnabled`).
+
+### 🛡️ 4. Sensitive URL Redaction & Logging Safety (`SensitiveUrlRedactor.kt`, `KitsugiApiBase.kt`)
+- **Log Sanitization:** Automatically masks API keys, secrets, and authorization tokens in URLs across logs and exceptions (`***`).
+
+### 🧪 5. Test Suite
+- Added regression unit tests in `MdbListClientTest.kt` and `TmdbMediaDetailClientTest.kt`.
+
+### 📦 6. Distribution
+- Strictly released the **FOSS variant only** (`assembleFossRelease` -> `Kitsugi-Beta-v2.4.219-foss.apk`).
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.218)
 
 ### 🔍 1. Cloudstream Canlı İzleme & Tanı Raporlama Sistemi (`CsTrace`)

@@ -156,16 +156,18 @@ object KitsugiApiBase {
                     penalizeBudget(url.host, retryAfterMs ?: 2_000L)
                 }
                 if (body == null) {
+                    val safeUrl = SensitiveUrlRedactor.redact(url.toString())
                     if (response.code == 429) {
-                        android.util.Log.w("KitsugiApiBase", "HTTP 429 Too Many Requests: Rate limit hit for URL: $url")
+                        android.util.Log.w("KitsugiApiBase", "HTTP 429 Too Many Requests: Rate limit hit for URL: $safeUrl")
                     } else {
-                        android.util.Log.w("KitsugiApiBase", "HTTP Error: ${response.code} ${response.message} for URL: $url")
+                        android.util.Log.w("KitsugiApiBase", "HTTP Error: ${response.code} ${response.message} for URL: $safeUrl")
                     }
                 }
                 RawGetResult(response.code, body, retryAfterMs)
             }
         } catch (e: Exception) {
-            android.util.Log.e("KitsugiApiBase", "executeGetRequest Exception: ${e.message} for URL: $url", e)
+            val safeUrl = SensitiveUrlRedactor.redact(url.toString())
+            android.util.Log.e("KitsugiApiBase", "executeGetRequest failed (${e.javaClass.simpleName}) for URL: $safeUrl")
             RawGetResult(0, null, null)
         }
     }
@@ -207,7 +209,10 @@ object KitsugiApiBase {
             val retryable = result.code == 429 || result.code in 500..599
             if (!retryable || attempt >= maxRetries) return null
             val backoffMs = (result.retryAfterMs ?: (1_000L * (1 shl attempt))).coerceAtMost(5_000L)
-            android.util.Log.w("KitsugiApiBase", "HTTP ${result.code} → ${backoffMs}ms bekleme ile yeniden deneniyor (deneme ${attempt + 1}/$maxRetries): $url")
+            android.util.Log.w(
+                "KitsugiApiBase",
+                "HTTP ${result.code} → ${backoffMs}ms bekleme ile yeniden deneniyor (deneme ${attempt + 1}/$maxRetries): ${SensitiveUrlRedactor.redact(url.toString())}"
+            )
             kotlinx.coroutines.delay(backoffMs)
             attempt++
         }
@@ -215,11 +220,12 @@ object KitsugiApiBase {
 
     fun executeGetRequestOrThrow(url: URL): String {
         if (JikanGateway.isJikanUrl(url)) {
+            val safeUrl = SensitiveUrlRedactor.redact(url.toString())
             return when (val r = JikanGateway.fetchBlocking(url.toString(), maxRetries = 0)) {
                 is JikanResult.Ok -> r.body
-                is JikanResult.NotFound -> throw ResourceNotFoundException("HTTP 404 Not Found for URL: $url")
-                is JikanResult.RateLimited -> throw RateLimitException("HTTP 429 Too Many Requests: Rate limit hit for URL: $url")
-                is JikanResult.Failed -> throw java.io.IOException("HTTP Error ${r.code}: ${r.message} for URL: $url")
+                is JikanResult.NotFound -> throw ResourceNotFoundException("HTTP 404 Not Found for URL: $safeUrl")
+                is JikanResult.RateLimited -> throw RateLimitException("HTTP 429 Too Many Requests: Rate limit hit for URL: $safeUrl")
+                is JikanResult.Failed -> throw java.io.IOException("HTTP Error ${r.code}: ${r.message} for URL: $safeUrl")
             }
         }
         awaitBudgetSync(url.host)
@@ -229,6 +235,7 @@ object KitsugiApiBase {
             .header("User-Agent", "KitsugiAnimeList/1.0")
             .build()
 
+        val safeUrl = SensitiveUrlRedactor.redact(url.toString())
         com.kitsugi.animelist.core.network.KitsugiHttpClient.metadataClient.newCall(request).execute().use { response ->
             if (response.isSuccessful) {
                 return response.body?.string().orEmpty()
@@ -238,11 +245,11 @@ object KitsugiApiBase {
                         url.host,
                         response.header("Retry-After")?.toLongOrNull()?.times(1_000L)?.coerceIn(0L, 10_000L) ?: 2_000L
                     )
-                    throw RateLimitException("HTTP 429 Too Many Requests: Rate limit hit for URL: $url")
+                    throw RateLimitException("HTTP 429 Too Many Requests: Rate limit hit for URL: $safeUrl")
                 } else if (response.code == 404) {
-                    throw ResourceNotFoundException("HTTP 404 Not Found for URL: $url")
+                    throw ResourceNotFoundException("HTTP 404 Not Found for URL: $safeUrl")
                 } else {
-                    throw java.io.IOException("HTTP Error ${response.code}: ${response.message} for URL: $url")
+                    throw java.io.IOException("HTTP Error ${response.code}: ${response.message} for URL: $safeUrl")
                 }
             }
         }

@@ -99,10 +99,11 @@ internal fun ApiDetailOverviewTab(
             Spacer(modifier = Modifier.height(14.dp))
         }
 
-        if (detail != null && (detail.studios.isNotEmpty() || detail.producers.isNotEmpty())) {
+        if (detail != null && (detail.studios.isNotEmpty() || detail.producers.isNotEmpty() || detail.networks.isNotEmpty())) {
             KitsugiStudiosCard(
                 studios = detail.studios,
                 producers = detail.producers,
+                networks = detail.networks,
                 onStudioClick = { studio ->
                     val resolvedSource = when {
                         result.source.lowercase() == "anilist" -> "anilist"
