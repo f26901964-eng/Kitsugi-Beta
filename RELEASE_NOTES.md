@@ -103,7 +103,12 @@
 - **Kalıcı Bildirim Arşivi (`NotificationArchiveStore`):** MAL, Simkl, Kitsu ve Bangumi gibi API'sinde kişisel bildirim ucu bulunmayan kaynaklar için üretilen yayın takvimi ve izleme listesi bildirimleri yerel `notifications_archive.json` dosyasında (kaynak başına 300 kayıt) ve Kitsugi hesabı bulut yedeğinde (`user_data.notifications`) kalıcı olarak saklanır; 7 günlük takvim penceresinden düşen bildirimler kaybolmaz.
 - **Bangumi Bildirim Kaynağı:** Bildirim ekranı ve seçici paneline 6. kaynak olarak Bangumi eklendi. İzleme listesi (在看/DOING) + önbellekli MAL çapraz çözümü + yayın takvimi eşleşmesiyle bildirimler üretilir; hesap bağlı olmadığında yerel kayıtlar gösterilir. Bildirim Teşhis paneli 6 kaynağı canlı olarak test eder.
 
-### 📦 20. Dağıtım
+### 🔞 20. Shikimori Liste Kartları +18 (Adult) Blur Düzeltmesi & GraphQL Çözümlemesi (`ShikimoriAdultResolver.kt`, `ShikimoriImportManager.kt`, `ShikimoriAdultFlagMigration.kt`)
+- **Kök Neden Tespiti:** Shikimori'nin `user_rates` REST uç noktası gömülü anime/manga verilerini `AnimeSerializer` ve `MangaSerializer` ile döndürür; bu serializer'lar `rating` ve `genres` alanlarını hiç taşımaz. Eski `fetchAdultMediaIds` fonksiyonu da aynı kısıttan ötürü her zaman boş dönüyor ve Shikimori kayıtları `isAdult = false` olarak içe aktarılıyordu (blur ayarı açık olsa bile liste kartlarında uygulanmıyordu).
+- **Yeni `ShikimoriAdultResolver` (GraphQL):** 50'lik gruplar halinde `{ animes(ids: "...", limit: 50, censored: false) { id rating genres { name } } }` sorgusu koşturulur (`censored: false` ile hentai filtresi aşılır, manga için şemada `rating` bulunmadığından tür listesi kullanılır). Sonuçlar önbelleğe alınır ve hız sınırlarına uyulur.
+- **Mevcut Veritabanı Kayıtlarının Onarımı (`ShikimoriAdultFlagMigration`):** Listem ekranı açıldığında yerel veritabanında `isAdult = false` kalmış Shikimori kayıtları GraphQL üzerinden taranır ve +18 olanlar (rx/hentai) arka planda otomatik olarak `isAdult = true` yapılır.
+
+### 📦 21. Dağıtım
 - Yalnızca **FOSS** sürümü (`assembleFossRelease`) derlendi (`Kitsugi-Beta-v2.4.226-foss.apk`).
 
 ---
@@ -207,7 +212,12 @@
 - **Persistent Notification Archive (`NotificationArchiveStore`):** Airing and watchlist notifications generated for platforms without dedicated personal notification endpoints (MAL, Simkl, Kitsu, Bangumi) are stored persistently in `notifications_archive.json` (up to 300 items per provider) and backed up to Supabase (`user_data.notifications`). Notifications no longer vanish once they slide out of the 7-day airing window.
 - **Bangumi Notification Provider:** Added Bangumi as the 6th notification source with custom icon, login status, and username pill. Queries the user's DOING (在看) collection, resolves cross-platform IDs against the airing schedule, and displays local entries with helpful notes when unauthenticated. Diagnostics panel upgraded to verify all 6 providers live.
 
-### 📦 20. Packaging
+### 🔞 20. Shikimori List Card +18 (Adult) Blur Fix & GraphQL Resolution (`ShikimoriAdultResolver.kt`, `ShikimoriImportManager.kt`, `ShikimoriAdultFlagMigration.kt`)
+- **Root Cause Resolution:** Shikimori's `user_rates` endpoint serializes embedded anime and manga models without `rating` or `genres` fields, causing all imported entries to save with `isAdult = false` and bypassing the adult blur setting on library cards.
+- **New `ShikimoriAdultResolver` (GraphQL):** Batches up to 50 items per query using `{ animes(ids: "...", limit: 50, censored: false) { id rating genres { name } } }` (`censored: false` lifts the hentai filter; manga resolves via genre tags). In-memory caching, rate-limit awareness, and automatic retries ensure fast, resilient resolution.
+- **Database Backfill Migration (`ShikimoriAdultFlagMigration`):** Automatically migrates and flags existing library entries in the background upon opening "My List", immediately applying cover blur to adult media without requiring a manual re-sync.
+
+### 📦 21. Packaging
 - Built exclusively as **FOSS** release (`assembleFossRelease`) (`Kitsugi-Beta-v2.4.226-foss.apk`).
 
 ---

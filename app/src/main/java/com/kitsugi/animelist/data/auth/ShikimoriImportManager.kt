@@ -39,16 +39,24 @@ object ShikimoriImportManager {
                 .map { it.targetId }
                 .distinct()
                 .toList()
-            // List responses usually omit `rating`; fetch it in batches, without making import
-            // fail if Shikimori temporarily refuses this optional metadata request.
+            // `user_rates` yanıtındaki gömülü anime/manga nesneleri `AnimeSerializer`/
+            // `MangaSerializer` ile üretilir ve `rating`/`genres` alanlarını taşımaz;
+            // bu yüzden +18 bilgisi GraphQL üzerinden toplu çözülür (ShikimoriAdultResolver).
+            // Shikimori geçici olarak bu isteği reddederse import yine de devam eder.
             val adultAnimeIds = runCatching {
-                ShikimoriApiClient.fetchAdultMediaIds("Anime", unresolvedAnimeIds)
+                com.kitsugi.animelist.data.remote.ShikimoriAdultResolver.resolveAdultIds(
+                    com.kitsugi.animelist.data.remote.ShikimoriAdultResolver.Kind.ANIME,
+                    unresolvedAnimeIds
+                )
             }.getOrElse { error ->
                 Log.w(TAG, "Shikimori anime adult metadata lookup failed: ${error.message}")
                 emptySet()
             }
             val adultMangaIds = runCatching {
-                ShikimoriApiClient.fetchAdultMediaIds("Manga", unresolvedMangaIds)
+                com.kitsugi.animelist.data.remote.ShikimoriAdultResolver.resolveAdultIds(
+                    com.kitsugi.animelist.data.remote.ShikimoriAdultResolver.Kind.MANGA,
+                    unresolvedMangaIds
+                )
             }.getOrElse { error ->
                 Log.w(TAG, "Shikimori manga adult metadata lookup failed: ${error.message}")
                 emptySet()
