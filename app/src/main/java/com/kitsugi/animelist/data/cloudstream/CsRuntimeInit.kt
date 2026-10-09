@@ -7,11 +7,9 @@ import com.lagradost.cloudstream3.app
 import com.lagradost.cloudstream3.insecureApp
 import com.lagradost.nicehttp.ignoreAllSSLErrors
 import com.lagradost.cloudstream3.utils.extractorApis
-import okhttp3.Cache
 import okhttp3.OkHttpClient
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.ResponseBody.Companion.toResponseBody
-import java.io.File
 import java.util.concurrent.TimeUnit
 
 object CsRuntimeInit {
@@ -112,13 +110,15 @@ object CsRuntimeInit {
                 android.util.Log.w("CsRuntimeInit", "Failed to pre-seed DomainListesi: ${spEx.message}")
             }
 
-            // Build a standard OkHttp client with cache, timeouts and redirect handling.
+            // Build a standard OkHttp client with timeouts and redirect handling.
             // Android 10+ already includes Conscrypt as the default TLS provider natively;
             // no separate registration needed.
-            val httpCache = Cache(
-                directory = File(context.cacheDir, "cs_http_cache"),
-                maxSize = 50L * 1024L * 1024L // 50 MiB
-            )
+            //
+            // v2.4.226: OkHttp Cache KALDIRILDI. Eklenti istemcisi bir SCRAPER istemcisidir:
+            // arama/detay sayfaları sunucu tarafında `Cache-Control: max-age` taşıyabildiği için
+            // 50 MiB'lik disk önbelleği bayat (bazen boş/CF-challenge anında donmuş) arama
+            // sonuçlarını tekrar tekrar servis ediyor, eklentiler süresiz "0 sonuç" dönüyordu.
+            // Resmi CloudStream istemcisinde disk cache yoktur; tazelik esastır.
             val okHttpClient = OkHttpClient.Builder()
                 .dns(com.kitsugi.animelist.core.network.IPv4FirstDns())
                 .followRedirects(true)
@@ -239,7 +239,6 @@ object CsRuntimeInit {
                 }
                 .addInterceptor(com.lagradost.cloudstream3.network.CloudflareKiller())
                 .addInterceptor(com.lagradost.cloudstream3.network.DdosGuardKiller(alwaysBypass = false))
-                .cache(httpCache)
                 .build()
 
             // Build insecure OkHttp client to ignore SSL errors for insecureApp.

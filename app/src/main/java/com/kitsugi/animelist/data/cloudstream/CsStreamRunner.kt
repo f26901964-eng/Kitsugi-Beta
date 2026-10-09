@@ -62,10 +62,14 @@ object CsStreamRunner {
     private val yearRegex = Regex("\\b(19|20)\\d{2}\\b")
 
     /**
-     * Arama isteklerini throttle eder — aynı anda en fazla 12 sağlayıcı arama yapar.
+     * Arama isteklerini throttle eder — aynı anda en fazla 24 sağlayıcı arama yapar.
      * loadLinks/load için ayrı semaphore kullanıyoruz (deadlock önleme).
+     *
+     * v2.4.226: 12 → 24. Stream ekranı 30+ eklentiyi PARALEL başlatıyor ama bu semaphore
+     * GLOBAL olduğu için kuyruktaki eklentiler izin beklerken kendi 20 sn'lik arama
+     * bütçeleri doluyor ve daha tek sorgu atamadan "arama sıfır" dönüyordu.
      */
-    private val searchSemaphore = Semaphore(12)
+    private val searchSemaphore = Semaphore(24)
 
     /**
      * İçerik yükleme ve stream link çekme için ayrı semaphore.
@@ -711,25 +715,44 @@ object CsStreamRunner {
         if (api.name in domainRevertedPlugins && api.mainUrl.isNotBlank() && api.mainUrl != "/") return
         val nameKey = normalizePluginKey(api.name)
         val builtinFallback = resolveBuiltinDomain(nameKey)
-
         val dynamicUrl = dynamicDomains[nameKey]
-        val remoteUrl = dynamicUrl ?: builtinFallback
-        if (remoteUrl != null) {
-            val currentUrl = api.mainUrl
-            val normalize = { u: String -> u.replace("https://", "").replace("http://", "").replace("www.", "").trimEnd('/') }
-            if (currentUrl.isBlank() || currentUrl == "/" || currentUrl.contains("x.anizium.co") || currentUrl.contains("anizium.de") || normalize(currentUrl) != normalize(remoteUrl)) {
-                Log.w(TAG, "[${api.name}] Domain güncellendi: '$currentUrl' -> '$remoteUrl'")
-                // Uzak tablo da eskiyebilir (eklenti kendi içinde daha yeni bir domain taşıyabilir).
-                // Özgün domaini sakla: tablo domaini ile arama hiç sonuç vermezse bir kez geri dönülür.
+        val currentUrl = api.mainUrl
+        val normalize = { u: String -> u.replace("https://", "").replace("http://", "").replace("www.", "").trimEnd('/') }
+
+        // ── KURAL (v2.4.226): Yerleşik (hardcoded) domain tablosu, SAĞLIKLI bir
+        // mainUrl'ü ASLA ezemez. Eski davranış `normalize(current) != normalize(remote)`
+        // farkında tabloyu zorluyordu; tablo eskidiğinde eklentinin kendi canlı domaini
+        // (veya runtime domain çözümü) ölü bir adrese taşınıyor ve arama SIFIR dönüyordu.
+        // Resmi CloudStream davranışı: plugin kendi mainUrl'ini kendi yönetir.
+        //
+        // Tablolar yalnızca şu durumlarda devreye girer:
+        //   1) mainUrl boş / "/" / bilinen zehirli adres (x.anizium.co vb.),
+        //   2) mainUrl KNOWN_BROKEN_DOMAINS / eski domain eşlemesinde (ölü olduğu biliniyor),
+        //   3) TAZE uzak tablo (domain_fixes.json, açılışta çekilir) sağlıklı domain'den
+        //      farklı bir adres veriyorsa — o da revert güvenlik ağıyla (forcedDomainOriginals).
+        val currentIsBlankOrPoisoned = currentUrl.isBlank() || currentUrl == "/" ||
+            currentUrl.contains("x.anizium.co") || currentUrl.contains("anizium.de")
+        val currentIsKnownDead = !currentIsBlankOrPoisoned && isKnownBrokenDomainFor(api)
+
+        if (currentIsBlankOrPoisoned || currentIsKnownDead) {
+            val rescueUrl = dynamicUrl ?: builtinFallback
+            if (rescueUrl != null && normalize(currentUrl) != normalize(rescueUrl)) {
+                Log.w(TAG, "[${api.name}] Boş/ölü domain kurtarıldı: '$currentUrl' -> '$rescueUrl'")
                 if (currentUrl.isNotBlank() && currentUrl != "/") {
                     forcedDomainOriginals.putIfAbsent(api.name, currentUrl)
                 }
-                api.mainUrl = remoteUrl
+                api.mainUrl = rescueUrl
                 return
             }
+        } else if (dynamicUrl != null && normalize(currentUrl) != normalize(dynamicUrl)) {
+            // Yalnızca uygulama açılışında tazelenen uzak tablo sağlıklı domain'i geçebilir.
+            // Hardcoded BUILTIN_DEFAULT_DOMAINS burada KULLANILMAZ (eskiyebilir).
+            Log.w(TAG, "[${api.name}] Domain güncel uzak tabloyla hizalandı: '$currentUrl' -> '$dynamicUrl'")
+            forcedDomainOriginals.putIfAbsent(api.name, currentUrl)
+            api.mainUrl = dynamicUrl
+            return
         }
 
-        val currentUrl = api.mainUrl
         if (currentUrl.isBlank() || currentUrl == "/") {
             if (builtinFallback != null) {
                 Log.w(TAG, "[${api.name}] Boş domain geri kazanıldı: '$builtinFallback'")
@@ -1087,9 +1110,16 @@ object CsStreamRunner {
             isMovie   = isMovie == true,
             partialSink = partialSink
         )
-        if (nativeResult != null) {
+        // v2.4.226: BOŞ native sonuç artık aramayı KİLİTLEMEZ. getLoadUrl() URL döndürüp
+        // load/extract aşaması boş dönerse (site yapısı değişti, bölüm eşleşmedi vb.) eski
+        // davranış `return emptyList()` ile title-search fallback'i tamamen yok sayıyordu.
+        if (!nativeResult.isNullOrEmpty()) {
             Log.d(TAG, "[${api.name}] ⚡ Native getLoadUrl çözümü başarılı — arama atlandı (${nativeResult.size} stream)")
             return nativeResult
+        }
+        if (nativeResult != null) {
+            Log.w(TAG, "[${api.name}] Native getLoadUrl boş döndü — başlık bazlı aramaya geçiliyor.")
+            CsTrace.info(api.name, "search", "getLoadUrl boş → title-search fallback")
         }
 
         // Preserve language aliases; include season-specific forms only for episodic content.
