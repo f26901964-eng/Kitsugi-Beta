@@ -1313,9 +1313,13 @@ fun loadAllDownloadedSubtitles(
 fun loadAllDownloadedImages(context: Context): List<DownloadedImageItem> {
     val imageExtensions = setOf("jpg", "jpeg", "png", "webp", "gif")
     val results = mutableListOf<DownloadedImageItem>()
-    val dirsToScan = listOf(
+    val dirsToScan = listOfNotNull(
         File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "Kitsugi/Images"),
-        File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "Kitsugi")   // legacy
+        File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "Kitsugi"),   // legacy
+        File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "Kitsugi/Images"),
+        File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "Kitsugi"),
+        context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)?.let { File(it, "Kitsugi/Images") },
+        context.getExternalFilesDir(Environment.DIRECTORY_PICTURES)?.let { File(it, "Kitsugi/Images") }
     )
     for (dir in dirsToScan) {
         try {

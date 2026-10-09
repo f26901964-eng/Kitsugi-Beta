@@ -1,5 +1,33 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.212)
+
+### 📥 1. Android 10 (API 29) ve Üzeri İndirme / Kaydetme Düzeltmesi (ENOENT Fix)
+- **Kök Neden Giderildi:** Galeri ve detay ekranlarından görsel indirirken Android 10 ve üzeri Scoped Storage kısıtlamaları nedeniyle meydana gelen `open failed: ENOENT (No such file or directory)` hatası çözüldü.
+- **Doğru MediaStore Koleksiyonu:** `MediaStore.Images` yerine Android 10 standartlarına uygun olarak `MediaStore.Downloads.EXTERNAL_CONTENT_URI` ile `Download/Kitsugi/Images` yolu kullanıldı; alternatif olarak `Pictures/Kitsugi/Images` desteği eklendi.
+- **Kademeli Güvenli Kayıt (Fallback):** Scoped Storage veya özel ROM kısıtlaması olan cihazlarda doğrudan dosya yazımı engellense dahi `getExternalFilesDir` yedekleme mekanizmasıyla görsellerin her koşulda sıfır hatayla kaydedilmesi sağlandı.
+- **Depolama İzinleri & Bayraklar:** `AndroidManifest.xml` içerisine `requestLegacyExternalStorage="true"` eklendi ve `WRITE_EXTERNAL_STORAGE` izni Android 10 (`maxSdkVersion=29`) için de geçerli kılındı.
+- **Galeri Otomatik Tarama:** İndirilen resimler `MediaScannerConnection` ile anında taranarak cihazın yerel Galeri ve Fotoğraflar uygulamalarında hemen görünür hale getirildi.
+
+### 📦 2. Dağıtım
+- Yalnızca **FOSS** sürümü (`assembleFossRelease`) derlendi (`Kitsugi-Beta-v2.4.212-foss.apk`).
+
+---
+
+## 🇬🇧 English (v2.4.212)
+
+### 📥 1. Android 10+ (API 29) Image Download & Storage Fix (ENOENT Fix)
+- **Root Cause Resolved:** Fixed `open failed: ENOENT (No such file or directory)` occurring when downloading gallery artwork on Android 10+ due to Scoped Storage directory restrictions.
+- **Proper MediaStore Target:** Switched from `MediaStore.Images` (which rejects `DIRECTORY_DOWNLOADS` on Android 10) to `MediaStore.Downloads.EXTERNAL_CONTENT_URI` for `Download/Kitsugi/Images`, with `Pictures/Kitsugi/Images` fallback.
+- **Graceful Multi-Tier Fallback:** Implemented seamless fallback to app-specific external storage (`getExternalFilesDir`) if public storage creation is restricted on customized OEM ROMs, guaranteeing zero download failures.
+- **Manifest Storage Compatibility:** Added `requestLegacyExternalStorage="true"` and extended `WRITE_EXTERNAL_STORAGE` to `maxSdkVersion=29`.
+- **Immediate Gallery Indexing:** Invoked `MediaScannerConnection` after write so downloaded media shows up immediately in system Gallery and Photos apps.
+
+### 📦 2. Distribution
+- Strictly released the **FOSS variant only** (`assembleFossRelease` -> `Kitsugi-Beta-v2.4.212-foss.apk`).
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.211)
 
 ### 🎌 1. Kapsamlı Bangumi Başlık ve İsim Yerelleştirmesi (Bangumi Localization)

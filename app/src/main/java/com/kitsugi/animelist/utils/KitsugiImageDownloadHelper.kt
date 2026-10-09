@@ -4,16 +4,19 @@ import android.Manifest
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.ContentResolver
 import android.content.ContentValues
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import android.media.MediaScannerConnection
 import android.net.Uri
 import android.provider.MediaStore
 import android.os.Build
 import android.os.Environment
+import android.util.Log
 import android.widget.Toast
 import androidx.core.app.NotificationCompat
 import androidx.core.content.ContextCompat
@@ -210,9 +213,14 @@ object KitsugiImageDownloadHelper {
     /** İndirme varsayılan konuma kaydedildiyse dosyayı döner; SAF konumunda null döner. */
     fun findDownloadedImageFile(context: Context, url: String): File? {
         val rec = loadIndex(context.applicationContext)[url] ?: return null
-        if (rec.customUri.isNotBlank()) return null
-        return File(defaultImagesDir(), rec.fileName).takeIf { it.exists() }
-            ?: File(legacyImagesDir(), rec.fileName).takeIf { it.exists() }
+        if (rec.customUri.isNotBlank() && !rec.customUri.startsWith("mediastore:")) return null
+        val filename = rec.fileName
+        val picturesDir = File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES), "Kitsugi/Images")
+        val appExtDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)?.let { File(it, "Kitsugi/Images") }
+        return File(defaultImagesDir(), filename).takeIf { it.exists() }
+            ?: File(legacyImagesDir(), filename).takeIf { it.exists() }
+            ?: File(picturesDir, filename).takeIf { it.exists() }
+            ?: appExtDir?.let { File(it, filename) }?.takeIf { it.exists() }
     }
 
     /** Başarılı indirme sonrası URL'yi index'e işler. */
@@ -422,12 +430,33 @@ object KitsugiImageDownloadHelper {
                 }
 
                 // 3. Android 9 ve altı (veya MediaStore başarısız olduysa) → doğrudan dosya
-                val imagesDir = defaultImagesDir().also { it.mkdirs() }
-
-                val imageFile = File(imagesDir, filename)
+                var targetFile = File(defaultImagesDir(), filename)
+                var writeSuccess = false
                 try {
-                    imageFile.writeBytes(bytes)
+                    targetFile.parentFile?.mkdirs()
+                    targetFile.writeBytes(bytes)
+                    writeSuccess = true
+                } catch (e: Exception) {
+                    Log.w(TAG, "Genel indirme klasörüne doğrudan yazılamadı: ${e.message}, uygulama klasörüne deneniyor...")
+                    // Scoped Storage veya izin eksikliğinde garantili yedek: context.getExternalFilesDir
+                    try {
+                        val appExtDir = context.getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS)
+                            ?: context.filesDir
+                        val fallbackDir = File(appExtDir, "Kitsugi/Images").also { it.mkdirs() }
+                        val fallbackFile = File(fallbackDir, filename)
+                        fallbackFile.writeBytes(bytes)
+                        targetFile = fallbackFile
+                        writeSuccess = true
+                    } catch (e2: Exception) {
+                        e2.printStackTrace()
+                    }
+                }
+
+                if (writeSuccess) {
                     markImageDownloaded(context, url, filename, "")
+                    try {
+                        MediaScannerConnection.scanFile(context, arrayOf(targetFile.absolutePath), arrayOf("image/jpeg"), null)
+                    } catch (_: Throwable) {}
                     try {
                         com.kitsugi.animelist.core.diagnostics.KitsugiSessionSupervisor
                             .noteAction("resim indirme TAMAM (dosya): $filename")
@@ -435,10 +464,9 @@ object KitsugiImageDownloadHelper {
                     withContext(Dispatchers.Main) {
                         showCompletedNotification(context, notifId, title, filename, bytes.size.toLong(), thumbnail)
                     }
-                } catch (e: Exception) {
-                    e.printStackTrace()
+                } else {
                     withContext(Dispatchers.Main) {
-                        Toast.makeText(context, "Dosya kaydedilemedi: ${e.localizedMessage}", Toast.LENGTH_LONG).show()
+                        Toast.makeText(context, "Dosya kaydedilemedi: Depolama alanına erişilemiyor.", Toast.LENGTH_LONG).show()
                     }
                 }
             } finally {
@@ -451,24 +479,68 @@ object KitsugiImageDownloadHelper {
     // Private helpers
     // ─────────────────────────────────────────────────────────────────────────
 
-    /** Android 10+ için MediaStore tabanlı görsel kaydı. Başarılıysa content:// URI döner. */
+    private const val TAG = "KitsugiImageDownloader"
+
+    /**
+     * Android 10+ için MediaStore tabanlı görsel kaydı.
+     * Öncelik:
+     *  1. MediaStore.Downloads -> Download/Kitsugi/Images (Scoped Storage resmi indirme konumu)
+     *  2. MediaStore.Images -> Pictures/Kitsugi/Images (Galeri albüm konumu)
+     * Başarılıysa content:// URI döner.
+     */
     private fun saveImageViaMediaStore(context: Context, filename: String, bytes: ByteArray): Uri? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
+        val resolver = context.contentResolver
+
+        // 1. MediaStore.Downloads koleksiyonu (Android 10+ standart Download/Kitsugi/Images)
+        val downloadUri = trySaveToMediaStoreCollection(
+            context = context,
+            resolver = resolver,
+            collectionUri = MediaStore.Downloads.EXTERNAL_CONTENT_URI,
+            relativePath = "${Environment.DIRECTORY_DOWNLOADS}/Kitsugi/Images",
+            filename = filename,
+            bytes = bytes
+        )
+        if (downloadUri != null) return downloadUri
+
+        // 2. MediaStore.Images koleksiyonu (Pictures/Kitsugi/Images)
+        val picturesUri = trySaveToMediaStoreCollection(
+            context = context,
+            resolver = resolver,
+            collectionUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            relativePath = "${Environment.DIRECTORY_PICTURES}/Kitsugi/Images",
+            filename = filename,
+            bytes = bytes
+        )
+        if (picturesUri != null) return picturesUri
+
+        return null
+    }
+
+    private fun trySaveToMediaStoreCollection(
+        context: Context,
+        resolver: ContentResolver,
+        collectionUri: Uri,
+        relativePath: String,
+        filename: String,
+        bytes: ByteArray
+    ): Uri? {
         return try {
             val values = ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
                 put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
-                put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/Kitsugi/Images")
+                put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
                 put(MediaStore.MediaColumns.IS_PENDING, 1)
             }
-            val resolver = context.contentResolver
-            val uri = resolver.insert(MediaStore.Images.Media.EXTERNAL_CONTENT_URI, values) ?: return null
+            val uri = resolver.insert(collectionUri, values) ?: return null
             val written = try {
                 resolver.openOutputStream(uri)?.use { out ->
                     out.write(bytes)
                     out.flush()
                 }
                 true
-            } catch (_: Throwable) {
+            } catch (e: Throwable) {
+                Log.w(TAG, "openOutputStream hatası ($uri): ${e.message}")
                 false
             }
             if (!written) {
@@ -477,8 +549,21 @@ object KitsugiImageDownloadHelper {
             }
             val done = ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }
             try { resolver.update(uri, done, null, null) } catch (_: Throwable) {}
+
+            // Medya galerisinin dosyayı hemen tanıması için tarayıcıyı bilgilendir
+            try {
+                val primaryDir = relativePath.substringBefore("/")
+                val subDir = relativePath.substringAfter("/", "")
+                val targetDir = Environment.getExternalStoragePublicDirectory(primaryDir)
+                val fullFile = if (subDir.isNotBlank()) File(targetDir, "$subDir/$filename") else File(targetDir, filename)
+                if (fullFile.exists()) {
+                    MediaScannerConnection.scanFile(context, arrayOf(fullFile.absolutePath), arrayOf("image/jpeg"), null)
+                }
+            } catch (_: Throwable) {}
+
             uri
-        } catch (_: Throwable) {
+        } catch (e: Throwable) {
+            Log.w(TAG, "MediaStore kayıt hatası ($collectionUri, $relativePath): ${e.message}")
             null
         }
     }
