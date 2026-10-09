@@ -98,7 +98,8 @@ fun EntryDetailLeftPanel(
                 }
             }
         } else null,
-        nextAiring = detailState?.nextAiringEpisode,
+        nextAiring = detailState?.nextAiringEpisode
+            ?: fallbackUpcomingAiring(detailState?.startDate, detailState?.status),
         showFavoriteButton = showFavouriteButton,
         onToggleFavoriteClick = onToggleFavoriteClick
     )

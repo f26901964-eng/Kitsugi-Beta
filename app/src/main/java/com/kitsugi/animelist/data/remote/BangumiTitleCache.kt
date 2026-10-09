@@ -99,9 +99,11 @@ internal object BangumiTitleCache {
 
     private fun parse(rawId: Int, json: String): LatinTitles? = runCatching {
         val obj = JSONObject(json)
+        // Older app versions could persist a CJK value in the English/Romaji slots.
+        // Treat those entries as absent so they cannot outrank a valid Latin variant.
         val titles = LatinTitles(
-            romaji = obj.optString("r").takeIf { it.isNotBlank() },
-            english = obj.optString("e").takeIf { it.isNotBlank() },
+            romaji = usableLatin(obj.optString("r")),
+            english = usableLatin(obj.optString("e")),
             native = obj.optString("n").takeIf { it.isNotBlank() }
         )
         if (titles.isEmpty) {

@@ -186,7 +186,6 @@ fun FullScreenMediaGridPage(
         context.getString(com.kitsugi.animelist.R.string.explore_simkl_plantowatch_series),
         context.getString(com.kitsugi.animelist.R.string.explore_simkl_plantowatch_movies)
     ).any { title.contains(it, ignoreCase = true) }
-    val finiteChart = platform == ExplorePlatform.KITSU && categoryType == ExploreCategoryType.TRENDING_ANIME
     val simklCategoryUsesFiniteChart = platform == ExplorePlatform.SIMKL && categoryType in setOf(
         ExploreCategoryType.TOP_ANIME,
         ExploreCategoryType.MOVIE_ANIME,
@@ -202,7 +201,7 @@ fun FullScreenMediaGridPage(
     }
     var simklTrendingResults by remember(platform, categoryType) { mutableStateOf<List<JikanSearchResult>?>(null) }
     var hasMorePages by remember(platform, categoryType, isSimklPersonalList) {
-        mutableStateOf(session?.cachedHasMore ?: (!isSimklPersonalList && (platform == ExplorePlatform.SIMKL || !finiteChart || initialResults.isEmpty())))
+        mutableStateOf(session?.cachedHasMore ?: !isSimklPersonalList)
     }
     var loadError by remember { mutableStateOf<String?>(null) }
     androidx.compose.runtime.SideEffect {
@@ -233,10 +232,14 @@ fun FullScreenMediaGridPage(
                 "SUMMER" -> 7
                 else -> 10
             }
-            com.kitsugi.animelist.data.remote.KitsugiBangumiClient.seasonFor(
-                year = seasonalYear, month = bangumiMonth, limit = 20,
-                offset = (page - 1).coerceAtLeast(0) * 20
-            )
+            com.kitsugi.animelist.data.remote.KitsugiBangumiClient.run {
+                enrichLocalizedTitles(
+                    seasonFor(
+                        year = seasonalYear, month = bangumiMonth, limit = 20,
+                        offset = (page - 1).coerceAtLeast(0) * 20
+                    )
+                )
+            }
         }
         else -> emptyList()
     }
@@ -251,7 +254,7 @@ fun FullScreenMediaGridPage(
         val limit = 20
         val offset = (page - 1).coerceAtLeast(0) * limit
         val adult = showAdultContent
-        return when (categoryType) {
+        val pageResults = when (categoryType) {
             ExploreCategoryType.TOP_ANIME -> bangumi.topAnime(limit, offset = offset)
             ExploreCategoryType.TOP_RATED_ANIME -> bangumi.topRatedAnime(limit, offset = offset)
             ExploreCategoryType.TRENDING_ANIME -> bangumi.trendingAnime(limit, offset = offset)
@@ -269,6 +272,8 @@ fun FullScreenMediaGridPage(
             ExploreCategoryType.NEWLY_ADDED_MANGA -> bangumi.publishingManga(limit, offset = offset)
             else -> emptyList()
         }.filter { adult || !it.isAdult }
+        // Her sayfada tam subject başlıklarıyla English/Romaji varyantlarını doldur.
+        return bangumi.enrichLocalizedTitles(pageResults)
     }
 
     suspend fun fetchSimklPage(page: Int): List<JikanSearchResult> = when (categoryType) {
@@ -377,7 +382,7 @@ fun FullScreenMediaGridPage(
                     ExplorePlatform.KITSU -> when (categoryType) {
                         ExploreCategoryType.TOP_RATED_ANIME -> com.kitsugi.animelist.data.remote.KitsuExploreClient.topRatedAnime(20, offset = (np - 1) * 20)
                         ExploreCategoryType.TOP_RATED_MANGA -> com.kitsugi.animelist.data.remote.KitsuExploreClient.topRatedManga(20, offset = (np - 1) * 20)
-                        ExploreCategoryType.TRENDING_ANIME -> com.kitsugi.animelist.data.remote.KitsuExploreClient.trendingAnime(20)
+                        ExploreCategoryType.TRENDING_ANIME -> com.kitsugi.animelist.data.remote.KitsuExploreClient.trendingAnime(20, offset = (np - 1) * 20)
                         ExploreCategoryType.MOVIE_ANIME -> com.kitsugi.animelist.data.remote.KitsuExploreClient.movieAnime(20, offset = (np - 1) * 20)
                         ExploreCategoryType.SEASONAL_ANIME -> fetchSeasonalPage(np)
                         ExploreCategoryType.TOP_ANIME -> com.kitsugi.animelist.data.remote.KitsuExploreClient.topAnime(20, offset = (np - 1) * 20)
@@ -427,7 +432,7 @@ fun FullScreenMediaGridPage(
                         loadedResults = loadedResults + uniqueItems
                         currentPage = np
                     }
-                    if (uniqueItems.isEmpty() || finiteChart) hasMorePages = false
+                    if (uniqueItems.isEmpty()) hasMorePages = false
                     if (platform == ExplorePlatform.SIMKL && simklCategoryHasPagination &&
                         (newItems.size < SIMKL_EXPLORE_PAGE_SIZE ||
                             (!simklCategoryUsesFiniteChart && np >= SIMKL_MAX_API_PAGE))

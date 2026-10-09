@@ -628,6 +628,22 @@ class KitsugiBangumiDetailClientTest {
     }
 
     @Test
+    fun englishTitlePreference_ignoresCjkValuesStoredInLatinSlots() {
+        // Short Bangumi responses and old caches sometimes labelled the native CJK name as
+        // English/Romaji. A real Latin alternative must still win for the English preference.
+        assertEquals(
+            "Shingeki no Kyojin",
+            PreferenceHelpers.getDisplayTitle(
+                title = "進撃の巨人",
+                titleEnglish = "進撃の巨人",
+                titleJapanese = "進撃の巨人",
+                titleLanguage = "ENGLISH",
+                titleRomaji = "Shingeki no Kyojin"
+            )
+        )
+    }
+
+    @Test
     fun bangumiLocalizedName_usesSafeFallbackWhenRomajiIsUnavailable() {
         val localized = BangumiNameLocalizer.entity(
             name = "古河渚",

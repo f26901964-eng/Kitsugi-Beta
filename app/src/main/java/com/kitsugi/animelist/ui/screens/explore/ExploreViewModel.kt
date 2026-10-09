@@ -831,6 +831,12 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         val airingSoonDeferred = async { fetchSharedAiringSoon() }
 
         val rawTopAnime = runCatching { topAnimeDeferred.await() }.getOrDefault(emptyList())
+        // Bangumi kısa raf yanıtları English/Romaji alanlarını taşımaz. Canlı çekim,
+        // yaklaşan ve yayındaki rafları tam subject verisinden tamamlayıp kalıcı önbelleğe yaz.
+        val localizedAiringAnimeDeferred = async { bangumi.enrichLocalizedTitles(airingAnimeDeferred.await(), context) }
+        val localizedUpcomingAnimeDeferred = async { bangumi.enrichLocalizedTitles(upcomingAnimeDeferred.await(), context) }
+        val localizedBangumiTvShowsDeferred = async { bangumi.enrichLocalizedTitles(bangumiTvShowsDeferred.await(), context) }
+        val localizedBangumiMoviesDeferred = async { bangumi.enrichLocalizedTitles(bangumiMoviesDeferred.await(), context) }
         val enrichedTopAnime = if (rawTopAnime.isNotEmpty() && tmdbEnabledState) {
             val heroCount = minOf(rawTopAnime.size, 5)
             val backdropJobs = (0 until heroCount).map { index ->
@@ -850,14 +856,14 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
 
         ExplorePayload(
             topAnime = enrichedTopAnime,
-            airingAnime = airingAnimeDeferred.await(),
-            upcomingAnime = upcomingAnimeDeferred.await(),
+            airingAnime = localizedAiringAnimeDeferred.await(),
+            upcomingAnime = localizedUpcomingAnimeDeferred.await(),
             topManga = topMangaDeferred.await(),
             publishingManga = publishingMangaDeferred.await(),
             trendingAnime = trendingAnimeDeferred.await(),
             movieAnime = movieAnimeDeferred.await(),
-            bangumiTvShows = bangumiTvShowsDeferred.await(),
-            bangumiMovies = bangumiMoviesDeferred.await(),
+            bangumiTvShows = localizedBangumiTvShowsDeferred.await(),
+            bangumiMovies = localizedBangumiMoviesDeferred.await(),
             seasonalAnime = seasonalAnimeDeferred.await(),
             trendingManga = trendingMangaDeferred.await(),
             newlyAddedAnime = newlyAddedAnimeDeferred.await(),
