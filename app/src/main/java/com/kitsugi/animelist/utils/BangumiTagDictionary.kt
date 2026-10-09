@@ -11,8 +11,10 @@ import java.util.Locale
  * uygulamanın arayüz diline (Türkçe / İngilizce) çevirir.
  *
  * Kurallar:
- *  • **Uydurma çeviri yok.** Bilinmeyen etiket olduğu gibi döner; kişi adı (`石原立也`)
- *    çevrilmez. Yalnızca kurum takma adları Latin adına sabitlenir (`京阿尼` → Kyoto Animation).
+ *  • **Uydurma çeviri yok.** Bilinmeyen etiket olduğu gibi döner. Kişi, karakter, stüdyo ve
+ *    eser adları çevrilmez; yalnızca **Latin yazımına sabitlenir** (`石原立也` → Tatsuya Ishihara,
+ *    `京阿尼` → Kyoto Animation, `攻壳机动队` → Ghost in the Shell). Böylece aynı kişinin
+ *    basit/geleneksel Çince ve Japonca yazımları tek çipte toplanır (`菅野洋子` + `菅野よう子`).
  *  • Bir girişin `key` alanı `bangumi_tag_<key>` adlı dil dosyası kaynağıyla eşleşir; kaynak
  *    varsa (yalnızca tr/en arayüzünde) o tercih edilir, yoksa bu tablo kullanılır.
  *  • Eşleştirme normalize edilerek yapılır: boşluk, büyük/küçük harf, tam genişlikli noktalama
@@ -44,7 +46,7 @@ internal object BangumiTagDictionary {
         g("web", "Web", "Web", "Web", "WEB", "网络动画", "網絡動畫", "网番", "網番", "ONA", "ona", "网络番剧"),
         g("ova", "OVA", "OVA", "OVA", "ova", "Original Video Animation"),
         g("oad", "OAD", "OAD", "OAD", "oad", "OAD动画"),
-        g("movie", "Film", "Movie", "剧场版", "劇場版", "电影", "電影", "映画", "Movie", "Ani Movie"),
+        g("movie", "Film", "Movie", "剧场版", "劇場版", "剧场", "劇場", "剧场动画", "劇場アニメ", "劇場版アニメ", "电影", "電影", "映画", "Movie", "Ani Movie"),
         g("short_film", "Kısa Film", "Short Film", "短片", "短篇动画", "短篇動畫", "Short Film"),
         g("special", "Özel Bölüm", "Special", "SP", "特别篇", "特別篇", "Specials", "SP篇"),
         g("pv", "Tanıtım Videosu", "Promotion Video", "PV", "预告", "預告", "宣传片", "宣傳片"),
@@ -67,7 +69,7 @@ internal object BangumiTagDictionary {
 
         // ── Kaynak malzeme ──
         g("original", "Orijinal", "Original", "原创", "原創", "オリジナル", "Original Work"),
-        g("manga_adaptation", "Manga Uyarlaması", "Manga Adaptation", "漫画改", "漫畫改", "漫画改编", "漫畫改編", "コミック原作"),
+        g("manga_adaptation", "Manga Uyarlaması", "Manga Adaptation", "漫画改", "漫畫改", "漫改", "漫画改编", "漫畫改編", "漫画原作", "マンガ原作", "コミック原作"),
         g("game_adaptation", "Oyun Uyarlaması", "Game Adaptation", "游戏改", "遊戲改", "游戏改编", "遊戲改編", "ゲーム原作"),
         g("novel_adaptation", "Roman Uyarlaması", "Novel Adaptation", "小说改", "小說改", "小说改编", "小說改編", "小説原作"),
         g("light_novel", "Hafif Roman", "Light Novel", "轻小说", "輕小說", "ライトノベル", "Light Novel"),
@@ -159,7 +161,7 @@ internal object BangumiTagDictionary {
         g("space_opera", "Uzay Operası", "Space Opera", "太空歌剧", "スペースオペラ"),
         g("space_battle", "Uzay Savaşı", "Space Battle", "宇宙战", "宇宙戦争"),
         g("first_love", "İlk Aşk", "First Love", "初恋", "初戀", "ファースト・ラブ"),
-        g("love_polygon", "Aşk Üçgeni", "Love Polygon", "三角关系", "三角關係", "党争", "多角关系"),
+        g("love_polygon", "Aşk Çokgeni", "Love Polygon", "三角关系", "三角關係", "党争", "多角关系"),
         g("love_triangle", "Aşk Üçgeni", "Love Triangle", "三角恋", "三角戀愛"),
         g("unrequited_love", "Karşılıksız Aşk", "Unrequited Love", "单恋", "單戀", "片想い"),
         g("childhood_friends", "Çocukluk Arkadaşı", "Childhood Friend", "青梅竹马", "青梅竹馬", "幼馴染"),
@@ -243,7 +245,7 @@ internal object BangumiTagDictionary {
         g("combat_sports", "Dövüş Sporları", "Combat Sports", "拳击", "拳擊", "柔道", "空手道", "跆拳道", "综合格斗"),
         g("dance", "Dans", "Dance", "舞蹈", "ダンス"),
         g("performing_arts", "Sahne Sanatları", "Performing Arts", "演剧", "演劇", "宝塚", "歌舞伎"),
-        g("art", "Sanat", "Art", "美术", "美術", "绘画", "繪畫", "アート"),
+        g("art", "Sanat", "Art", "美术", "美術", "艺术", "藝術", "芸術", "绘画", "繪畫", "アート"),
         g("illustration", "İllüstrasyon", "Illustration", "插画", "插畫", "原画"),
         g("photography", "Fotoğrafçılık", "Photography", "摄影", "攝影", "カメラ"),
         g("writing", "Yazarlık", "Writing", "写作", "創作", "小说家", "小説家"),
@@ -274,7 +276,7 @@ internal object BangumiTagDictionary {
         g("recap", "Özet", "Recap", "回顾", "回顧"),
         g("behind_the_scenes", "Kamera Arkası", "Behind The Scenes", "幕后", "幕後", "花絮"),
         g("tragedy", "Trajedi", "Tragedy", "悲剧", "悲劇"),
-        g("revenge", "İntikam", "Revenge", "复仇", "復讐", "逆袭", "逆襲"),
+        g("revenge", "İntikam", "Revenge", "复仇", "復仇", "復讐", "报仇"),
         g("redemption", "Kefaret", "Redemption", "救赎", "贖罪"),
         g("friendship", "Dostluk", "Friendship", "友情", "伙伴", "夥伴", "羁绊", "羈絆"),
         g("rivals", "Rakiplik", "Rivalry", "宿敌", "宿敵", "对手"),
@@ -547,7 +549,7 @@ internal object BangumiTagDictionary {
         g("festival_winner", "Festival Ödüllü", "Festival Winner", "影展", "电影节获奖"),
 
         // ── Kurum takma adları (etiket olarak yazılanlar) ──
-        g("kyoto_animation", "Kyoto Animation", "Kyoto Animation", "京阿尼", "京都动画", "京都動畫", "京都動画", "京都アニメーション", "KyoAni"),
+        g("kyoto_animation", "Kyoto Animation", "Kyoto Animation", "京阿尼", "京都动画", "京都動畫", "京都動画", "京都アニメーション", "京アニ", "KyoAni", "Kyoto Animation"),
         g("key_studio", "Key", "Key", "key", "Key", "Key社", "K社"),
         g("type_moon", "Type-Moon", "Type-Moon", "型月", "TYPE-MOON", "型月世界"),
         g("ghibli", "Studio Ghibli", "Studio Ghibli", "吉卜力", "ジブリ", "吉卜力工作室"),
@@ -555,40 +557,315 @@ internal object BangumiTagDictionary {
         g("disney", "Disney", "Disney", "迪士尼", "迪斯尼", "ディズニー"),
         g("marvel", "Marvel", "Marvel", "漫威", "マーベル"),
         g("dc_comics", "DC", "DC", "DC漫画", "DC Comics"),
-        g("gainax", "GAINAX", "GAINAX", "ガンックス"),
-        g("trigger_studio", "TRIGGER", "TRIGGER", "トリガー社"),
-        g("ufotable", "ufotable", "ufotable", "幽浮社"),
-        g("wit_studio", "WIT STUDIO", "WIT STUDIO", "ウィットスタジオ"),
-        g("madhouse", "Madhouse", "Madhouse", "マッドハウス"),
-        g("bones_studio", "BONES", "BONES", "ボンズ社"),
-        g("shaft_studio", "SHAFT", "SHAFT", "シャフト社"),
-        g("p.a.works", "P.A.Works", "P.A.Works", "PAワークス", "ピーエーワークス"),
+        g("gainax", "GAINAX", "GAINAX", "ガイナックス", "ガンックス"),
+        g("trigger_studio", "TRIGGER", "TRIGGER", "扳机社", "扳機社", "トリガー", "トリガー社"),
+        g("ufotable", "ufotable", "ufotable", "幽浮社", "飞碟社", "飛碟社"),
+        g("wit_studio", "WIT STUDIO", "WIT STUDIO", "霸权社", "ウィットスタジオ"),
+        g("madhouse", "Madhouse", "Madhouse", "疯房子", "瘋房子", "マッドハウス"),
+        g("bones_studio", "BONES", "BONES", "骨头社", "骨頭社", "ボンズ", "ボンズ社"),
+        g("shaft_studio", "SHAFT", "SHAFT", "シャフト", "シャフト社"),
+        g("pa_works", "P.A.Works", "P.A.Works", "P.A.WORKS", "PA社", "PAワークス", "ピーエーワークス"),
         g("white_fox", "WHITE FOX", "WHITE FOX", "白狐社", "WHITEFOX"),
         g("jc_staff", "J.C.Staff", "J.C.Staff", "J.C.STAFF", "JC社"),
         g("toei_animation", "Toei Animation", "Toei Animation", "东映动画", "東映動畫"),
-        g("sunrise_studio", "Sunrise", "Sunrise", "サンライズ社", "日升动画"),
+        g("sunrise_studio", "Sunrise", "Sunrise", "サンライズ", "サンライズ社", "日升", "日昇", "日升动画"),
         g("a1_pictures", "A-1 Pictures", "A-1 Pictures", "A1社"),
         g("cloverworks", "CloverWorks", "CloverWorks", "Clover Works", "クローバーワークス"),
-        g("doga_kobo", "Doga Kobo", "Doga Kobo", "動画工房"),
+        g("doga_kobo", "Doga Kobo", "Doga Kobo", "动画工房", "動画工房"),
         g("diomedea", "Diomedéa", "Diomedéa", "ディオメディア"),
         g("silver_link", "Silver Link", "Silver Link", "シルバーリンク"),
         g("pierrot", "Studio Pierrot", "Studio Pierrot", "ぴえろ", "小丑社"),
         g("studio_deen", "Studio Deen", "Studio Deen", "スタジオディーン", "ディーン"),
         g("david_production", "David Production", "David Production", "ダビプロ"),
-        g("production_ig", "Production I.G", "Production I.G", "プロダクション・アイジー"),
+        g("production_ig", "Production I.G", "Production I.G", "Production.IG", "ProductionI.G", "Production IG", "IG社", "I.G", "プロダクション・アイジー"),
 
         // ── Kişi adları (etiket olarak geçen bilinen isimler) ──
         g("jun_maeda", "Jun Maeda", "Jun Maeda", "麻枝准", "麻枝準"),
         g("makoto_shinkai", "Makoto Shinkai", "Makoto Shinkai", "新海诚", "新海誠"),
         g("hayao_miyazaki", "Hayao Miyazaki", "Hayao Miyazaki", "宫崎骏", "宮崎駿"),
-        g("gen_urobuchi", "Gen Urobuchi", "Gen Urobuchi", "虚渊玄", "老虚"),
+        g("gen_urobuchi", "Gen Urobuchi", "Gen Urobuchi", "虚渊玄", "虚淵玄", "虛淵玄", "老虚"),
         g("hideaki_anno", "Hideaki Anno", "Hideaki Anno", "庵野秀明"),
         g("monogatari", "Monogatari", "Monogatari", "物语", "物語"),
 
         // ── Sık geçen tekil etiketler ──
         g("life", "Yaşam", "Life", "人生", "生命"),
         g("seasons", "Mevsimler", "Seasons", "四季", "春夏秋冬"),
-        g("cherry_blossom", "Kiraz Çiçeği", "Cherry Blossom", "樱花", "桜", "花见")
+        g("cherry_blossom", "Kiraz Çiçeği", "Cherry Blossom", "樱花", "桜", "花见"),
+
+        // ── Kaynak malzeme kısaltmaları (Bangumi kullanıcı etiketleri) ──
+        g("light_novel_adaptation", "Hafif Roman Uyarlaması", "Light Novel Adaptation",
+            "轻小说改", "輕小說改", "轻改", "輕改", "文库改", "ラノベ改", "ライトノベル原作"),
+        g("web_novel_adaptation", "Web Romanı Uyarlaması", "Web Novel Adaptation", "网文改", "網文改", "网络小说改"),
+        g("anime_adaptation", "Anime Uyarlaması", "Anime Adaptation", "动画改", "動畫改", "番改"),
+        g("drama_adaptation", "Dizi Uyarlaması", "Drama Adaptation", "剧改", "劇改", "电视剧改"),
+        g("toy_adaptation", "Oyuncak Uyarlaması", "Toy Adaptation", "玩具改", "模型改"),
+        g("original_work", "Orijinal Eser", "Original Story", "原作", "原著"),
+
+        // ── Fandom jargonu / değerlendirme etiketleri ──
+        g("profound", "Derin Anlatım", "Profound", "深度", "有深度", "深刻", "内涵", "內涵"),
+        g("ahead_of_its_time", "Çağının Ötesinde", "Ahead Of Its Time", "超前", "超前时代", "前卫", "前衛"),
+        g("iconic_scene", "Unutulmaz Sahneler", "Iconic Scenes", "名场面", "名場面", "名台词", "名台詞"),
+        g("legendary_episode", "Efsane Bölüm", "Legendary Episode", "神回", "名作之壁"),
+        g("nostalgia", "Nostalji", "Nostalgia", "情怀", "情懷", "怀旧", "懷舊", "回忆杀", "回憶殺"),
+        g("childhood_memory", "Çocukluk Anısı", "Childhood Memory", "童年", "童年回忆", "童年回憶", "童年阴影"),
+        g("good_work", "İyi Yapım", "Good Work", "良作", "佳作", "口碑佳", "高分"),
+        g("must_watch", "Mutlaka İzlenmeli", "Must Watch", "必看", "必刷", "推荐", "推薦"),
+        g("overrated", "Abartılmış", "Overrated", "过誉", "過譽"),
+        g("botched_ending", "Final Faciası", "Botched Ending", "烂尾", "爛尾", "结局崩坏"),
+        g("hype", "Coşkulu", "Hype", "燃", "燃向", "热血燃", "燃え"),
+        g("story_driven", "Hikâye Odaklı", "Story Driven", "剧情向", "劇情向", "故事性"),
+        g("worldbuilding", "Dünya Kurgusu", "Worldbuilding", "世界观", "世界觀", "世界观宏大", "设定党"),
+        g("setting_design", "Kurgu Tasarımı", "Setting Design", "设定", "設定", "设定考究"),
+        g("foreshadowing", "Önceden Serpiştirme", "Foreshadowing", "伏笔", "伏筆", "细节控"),
+        g("creative_premise", "Yaratıcı Kurgu", "Creative Premise", "脑洞", "腦洞", "脑洞大开", "脑洞清奇"),
+        g("homage", "Saygı Duruşu", "Homage", "致敬", "恶趣味致敬"),
+        g("social_realism", "Toplumsal Gerçekçilik", "Social Realism", "社会派", "社會派", "现实主义", "現實主義"),
+        g("orthodox", "Klasik Kalıp", "Orthodox", "王道", "王道热血"),
+        g("dark_and_brutal", "Karanlık ve Acımasız", "Dark And Brutal", "黑深残", "黑暗系"),
+        g("denpa", "Tuhaf/Deneysel", "Denpa", "电波", "電波", "电波系"),
+        g("pure_moe", "Saf Moe", "Pure Moe", "废萌", "廢萌", "萌系日常"),
+        g("fanservice", "Fan Servisi", "Fanservice", "福利", "福利向", "サービスシーン"),
+        g("female_lead", "Kadın Başrol", "Female Lead", "女主", "女主角", "大女主"),
+        g("male_lead", "Erkek Başrol", "Male Lead", "男主", "男主角"),
+        g("strong_protagonist", "Güçlü Başkahraman", "Strong Protagonist", "主角很强", "无敌流", "開掛"),
+        g("underdog", "Sıfırdan Yükseliş", "Underdog Story", "逆袭", "逆襲", "成长流", "成長流"),
+        g("slow_pace", "Ağır Tempo", "Slow Pace", "节奏慢", "節奏慢", "慢节奏"),
+        g("fast_pace", "Hızlı Tempo", "Fast Pace", "节奏快", "節奏快", "快节奏"),
+
+        // ── Yapım / teknik etiketler ──
+        g("animation_quality", "Animasyon Kalitesi", "Animation Quality", "作画", "作畫", "作画优秀", "作畫優秀"),
+        g("bad_animation", "Bozuk Animasyon", "Off-Model Animation", "作画崩坏", "作畫崩壞", "崩坏"),
+        g("storyboard_tag", "Storyboard", "Storyboard", "分镜", "分鏡", "絵コンテ"),
+        g("staging", "Sahneleme", "Direction", "演出", "演出优秀"),
+        g("director_tag", "Yönetmen", "Director", "监督", "監督", "导演", "導演"),
+        g("script_tag", "Senaryo", "Script", "脚本", "腳本", "剧本", "劇本"),
+        g("character_design", "Karakter Tasarımı", "Character Design", "人设", "人設", "人物设定", "キャラデザ"),
+        g("sound_direction", "Ses Yönetmenliği", "Sound Direction", "音响监督", "音響監督"),
+        g("production_tag", "Yapım", "Production", "制作公司", "製作公司", "製作"),
+        g("voice_cast", "Seslendirme Kadrosu", "Voice Cast", "声优阵容", "聲優陣容", "豪华声优"),
+
+        // ── Yönetmenler / senaristler / yapımcılar ──
+        g("nagaru_tanigawa", "Nagaru Tanigawa", "Nagaru Tanigawa", "谷川流", "谷川 流"),
+        g("tatsuya_ishihara", "Tatsuya Ishihara", "Tatsuya Ishihara", "石原立也"),
+        g("yasuhiro_takemoto", "Yasuhiro Takemoto", "Yasuhiro Takemoto", "武本康弘"),
+        g("naoko_yamada", "Naoko Yamada", "Naoko Yamada", "山田尚子"),
+        g("yoshiji_kigami", "Yoshiji Kigami", "Yoshiji Kigami", "木上益治"),
+        g("akiyuki_shinbo", "Akiyuki Shinbo", "Akiyuki Shinbo", "新房昭之"),
+        g("tatsuya_oishi", "Tatsuya Oishi", "Tatsuya Oishi", "尾石达也", "尾石達也"),
+        g("nisio_isin", "Nisio Isin", "Nisio Isin", "西尾维新", "西尾維新"),
+        g("kinoko_nasu", "Kinoko Nasu", "Kinoko Nasu", "奈须蘑菇", "奈須きのこ", "奈须きのこ"),
+        g("takashi_takeuchi", "Takashi Takeuchi", "Takashi Takeuchi", "武内崇", "武內崇"),
+        g("isao_takahata", "Isao Takahata", "Isao Takahata", "高畑勋", "高畑勲", "高畑勳"),
+        g("goro_miyazaki", "Goro Miyazaki", "Goro Miyazaki", "宫崎吾朗", "宮崎吾朗"),
+        g("toshio_suzuki", "Toshio Suzuki", "Toshio Suzuki", "铃木敏夫", "鈴木敏夫"),
+        g("satoshi_kon", "Satoshi Kon", "Satoshi Kon", "今敏", "今 敏"),
+        g("katsuhiro_otomo", "Katsuhiro Otomo", "Katsuhiro Otomo", "大友克洋"),
+        g("mamoru_oshii", "Mamoru Oshii", "Mamoru Oshii", "押井守"),
+        g("kenji_kamiyama", "Kenji Kamiyama", "Kenji Kamiyama", "神山健治"),
+        g("masamune_shirow", "Masamune Shirow", "Masamune Shirow", "士郎正宗"),
+        g("yoshiyuki_tomino", "Yoshiyuki Tomino", "Yoshiyuki Tomino", "富野由悠季", "富野喜幸"),
+        g("yoshiyuki_sadamoto", "Yoshiyuki Sadamoto", "Yoshiyuki Sadamoto", "贞本义行", "貞本義行"),
+        g("mamoru_hosoda", "Mamoru Hosoda", "Mamoru Hosoda", "细田守", "細田守"),
+        g("masaaki_yuasa", "Masaaki Yuasa", "Masaaki Yuasa", "汤浅政明", "湯浅政明", "湯淺政明"),
+        g("keiichi_hara", "Keiichi Hara", "Keiichi Hara", "原惠一", "原恵一"),
+        g("sunao_katabuchi", "Sunao Katabuchi", "Sunao Katabuchi", "片渊须直", "片渕須直"),
+        g("shinichiro_watanabe", "Shinichiro Watanabe", "Shinichiro Watanabe", "渡边信一郎", "渡辺信一郎"),
+        g("tetsuro_araki", "Tetsuro Araki", "Tetsuro Araki", "荒木哲郎"),
+        g("tsutomu_mizushima", "Tsutomu Mizushima", "Tsutomu Mizushima", "水岛努", "水島努"),
+        g("seiji_mizushima", "Seiji Mizushima", "Seiji Mizushima", "水岛精二", "水島精二"),
+        g("tatsuyuki_nagai", "Tatsuyuki Nagai", "Tatsuyuki Nagai", "长井龙雪", "長井龍雪"),
+        g("mari_okada", "Mari Okada", "Mari Okada", "冈田麿里", "岡田麿里", "冈田麻里"),
+        g("goro_taniguchi", "Goro Taniguchi", "Goro Taniguchi", "谷口悟朗"),
+        g("ichiro_okouchi", "Ichiro Okouchi", "Ichiro Okouchi", "大河内一楼", "大河內一樓"),
+        g("kunihiko_ikuhara", "Kunihiko Ikuhara", "Kunihiko Ikuhara", "几原邦彦", "幾原邦彦"),
+        g("shoji_kawamori", "Shoji Kawamori", "Shoji Kawamori", "河森正治"),
+        g("osamu_dezaki", "Osamu Dezaki", "Osamu Dezaki", "出崎统", "出崎統"),
+        g("yoshiaki_kawajiri", "Yoshiaki Kawajiri", "Yoshiaki Kawajiri", "川尻善昭"),
+        g("tomohiko_ito", "Tomohiko Ito", "Tomohiko Ito", "伊藤智彦"),
+        g("yasuhiro_yoshiura", "Yasuhiro Yoshiura", "Yasuhiro Yoshiura", "吉浦康裕"),
+        g("reiko_yoshida", "Reiko Yoshida", "Reiko Yoshida", "吉田玲子"),
+        g("jukki_hanada", "Jukki Hanada", "Jukki Hanada", "花田十辉", "花田十輝"),
+        g("chiyomaru_shikura", "Chiyomaru Shikura", "Chiyomaru Shikura", "志仓千代丸", "志倉千代丸"),
+        g("hiroyuki_imaishi", "Hiroyuki Imaishi", "Hiroyuki Imaishi", "今石洋之"),
+        g("kazuya_tsurumaki", "Kazuya Tsurumaki", "Kazuya Tsurumaki", "鹤卷和哉", "鶴巻和哉"),
+        g("yutaka_yamamoto", "Yutaka Yamamoto", "Yutaka Yamamoto", "山本宽", "山本寛"),
+        g("takahiro_omori", "Takahiro Omori", "Takahiro Omori", "大森贵弘", "大森貴弘"),
+
+        // ── Besteciler / müzik ekibi ──
+        g("yoko_kanno", "Yoko Kanno", "Yoko Kanno", "菅野洋子", "菅野よう子"),
+        g("kenji_kawai", "Kenji Kawai", "Kenji Kawai", "川井宪次", "川井憲次"),
+        g("joe_hisaishi", "Joe Hisaishi", "Joe Hisaishi", "久石让", "久石譲", "久石讓"),
+        g("yuki_kajiura", "Yuki Kajiura", "Yuki Kajiura", "梶浦由记", "梶浦由記"),
+        g("hiroyuki_sawano", "Hiroyuki Sawano", "Hiroyuki Sawano", "泽野弘之", "澤野弘之"),
+        g("shiro_sagisu", "Shiro Sagisu", "Shiro Sagisu", "鹭巣诗郎", "鷺巣詩郎"),
+        g("kohei_tanaka", "Kohei Tanaka", "Kohei Tanaka", "田中公平"),
+        g("satoru_kousaki", "Satoru Kousaki", "Satoru Kousaki", "神前晓", "神前暁"),
+        g("shinji_orito", "Shinji Orito", "Shinji Orito", "折户伸治", "折戸伸治"),
+        g("kensuke_ushio", "Kensuke Ushio", "Kensuke Ushio", "牛尾宪辅", "牛尾憲輔"),
+        g("taku_iwasaki", "Taku Iwasaki", "Taku Iwasaki", "岩崎琢"),
+        g("masaru_yokoyama", "Masaru Yokoyama", "Masaru Yokoyama", "横山克", "橫山克"),
+        g("yuki_hayashi", "Yuki Hayashi", "Yuki Hayashi", "林友树", "林ゆうき"),
+        g("origa_singer", "Origa", "Origa", "オリガ", "Origa"),
+
+        // ── Mangaka / roman yazarları ──
+        g("osamu_tezuka", "Osamu Tezuka", "Osamu Tezuka", "手冢治虫", "手塚治虫"),
+        g("akira_toriyama", "Akira Toriyama", "Akira Toriyama", "鸟山明", "鳥山明"),
+        g("eiichiro_oda", "Eiichiro Oda", "Eiichiro Oda", "尾田荣一郎", "尾田栄一郎"),
+        g("masashi_kishimoto", "Masashi Kishimoto", "Masashi Kishimoto", "岸本齐史", "岸本斉史"),
+        g("tite_kubo", "Tite Kubo", "Tite Kubo", "久保带人", "久保帯人"),
+        g("hajime_isayama", "Hajime Isayama", "Hajime Isayama", "谏山创", "諫山創"),
+        g("koyoharu_gotouge", "Koyoharu Gotouge", "Koyoharu Gotouge", "吾峠呼世晴"),
+        g("gege_akutami", "Gege Akutami", "Gege Akutami", "芥见下下", "芥見下々"),
+        g("hiromu_arakawa", "Hiromu Arakawa", "Hiromu Arakawa", "荒川弘"),
+        g("rumiko_takahashi", "Rumiko Takahashi", "Rumiko Takahashi", "高桥留美子", "高橋留美子"),
+        g("takehiko_inoue", "Takehiko Inoue", "Takehiko Inoue", "井上雄彦"),
+        g("kentaro_miura", "Kentaro Miura", "Kentaro Miura", "三浦建太郎"),
+        g("naoki_urasawa", "Naoki Urasawa", "Naoki Urasawa", "浦泽直树", "浦沢直樹"),
+        g("tatsuki_fujimoto", "Tatsuki Fujimoto", "Tatsuki Fujimoto", "藤本树", "藤本タツキ"),
+        g("aka_akasaka", "Aka Akasaka", "Aka Akasaka", "赤坂阿卡", "赤坂アカ"),
+        g("clamp", "CLAMP", "CLAMP", "CLAMP", "クランプ"),
+        g("fujiko_fujio", "Fujiko Fujio", "Fujiko Fujio", "藤子不二雄", "藤子・F・不二雄"),
+        g("yoshihiro_togashi", "Yoshihiro Togashi", "Yoshihiro Togashi", "富坚义博", "冨樫義博"),
+        g("tsugumi_ohba", "Tsugumi Ohba", "Tsugumi Ohba", "大场鸫", "大場つぐみ"),
+        g("takeshi_obata", "Takeshi Obata", "Takeshi Obata", "小畑健"),
+        g("hideaki_sorachi", "Hideaki Sorachi", "Hideaki Sorachi", "空知英秋"),
+        g("yasuhisa_hara", "Yasuhisa Hara", "Yasuhisa Hara", "原泰久"),
+        g("sui_ishida", "Sui Ishida", "Sui Ishida", "石田スイ"),
+        g("junji_ito", "Junji Ito", "Junji Ito", "伊藤润二", "伊藤潤二"),
+        g("tsutomu_nihei", "Tsutomu Nihei", "Tsutomu Nihei", "贰瓶勉", "弐瓶勉"),
+        g("yoshiki_tanaka", "Yoshiki Tanaka", "Yoshiki Tanaka", "田中芳树", "田中芳樹"),
+        g("fumiaki_maruto", "Fumiaki Maruto", "Fumiaki Maruto", "丸户史明", "丸戸史明"),
+        g("wataru_watari", "Wataru Watari", "Wataru Watari", "渡航"),
+        g("hajime_kamoshida", "Hajime Kamoshida", "Hajime Kamoshida", "鸭志田一", "鴨志田一"),
+        g("yuyuko_takemiya", "Yuyuko Takemiya", "Yuyuko Takemiya", "竹宫悠由子", "竹宮ゆゆこ"),
+        g("reki_kawahara", "Reki Kawahara", "Reki Kawahara", "川原砾", "川原礫"),
+        g("tappei_nagatsuki", "Tappei Nagatsuki", "Tappei Nagatsuki", "长月达平", "長月達平"),
+        g("fuse_author", "Fuse", "Fuse", "伏濑", "伏瀬"),
+        g("keiichi_sigsawa", "Keiichi Sigsawa", "Keiichi Sigsawa", "时雨泽惠一", "時雨沢恵一"),
+
+        // ── Seslendirme sanatçıları ──
+        g("aya_hirano", "Aya Hirano", "Aya Hirano", "平野绫", "平野綾"),
+        g("minori_chihara", "Minori Chihara", "Minori Chihara", "茅原实里", "茅原実里"),
+        g("yuko_goto", "Yuko Goto", "Yuko Goto", "后藤邑子", "後藤邑子"),
+        g("tomokazu_sugita", "Tomokazu Sugita", "Tomokazu Sugita", "杉田智和"),
+        g("daisuke_ono", "Daisuke Ono", "Daisuke Ono", "小野大辅", "小野大輔"),
+        g("atsuko_tanaka", "Atsuko Tanaka", "Atsuko Tanaka", "田中敦子"),
+        g("akio_otsuka", "Akio Otsuka", "Akio Otsuka", "大冢明夫", "大塚明夫"),
+        g("koichi_yamadera", "Koichi Yamadera", "Koichi Yamadera", "山寺宏一"),
+        g("hiroshi_kamiya", "Hiroshi Kamiya", "Hiroshi Kamiya", "神谷浩史"),
+        g("rie_kugimiya", "Rie Kugimiya", "Rie Kugimiya", "钉宫理惠", "釘宮理恵"),
+        g("nana_mizuki", "Nana Mizuki", "Nana Mizuki", "水树奈奈", "水樹奈々"),
+        g("megumi_hayashibara", "Megumi Hayashibara", "Megumi Hayashibara", "林原惠", "林原めぐみ"),
+        g("maaya_sakamoto", "Maaya Sakamoto", "Maaya Sakamoto", "坂本真绫", "坂本真綾"),
+        g("mamoru_miyano", "Mamoru Miyano", "Mamoru Miyano", "宫野真守", "宮野真守"),
+        g("yuki_kaji", "Yuki Kaji", "Yuki Kaji", "梶裕贵", "梶裕貴"),
+        g("aoi_yuuki", "Aoi Yuuki", "Aoi Yuuki", "悠木碧"),
+        g("saori_hayami", "Saori Hayami", "Saori Hayami", "早见沙织", "早見沙織"),
+        g("kana_hanazawa", "Kana Hanazawa", "Kana Hanazawa", "花泽香菜", "花澤香菜"),
+        g("miyuki_sawashiro", "Miyuki Sawashiro", "Miyuki Sawashiro", "泽城美雪", "沢城みゆき"),
+        g("takahiro_sakurai", "Takahiro Sakurai", "Takahiro Sakurai", "樱井孝宏", "櫻井孝宏"),
+        g("yuichi_nakamura", "Yuichi Nakamura", "Yuichi Nakamura", "中村悠一"),
+        g("akira_ishida", "Akira Ishida", "Akira Ishida", "石田彰"),
+        g("hikaru_midorikawa", "Hikaru Midorikawa", "Hikaru Midorikawa", "绿川光", "緑川光"),
+        g("maaya_uchida", "Maaya Uchida", "Maaya Uchida", "内田真礼", "内田真礼"),
+        g("aki_toyosaki", "Aki Toyosaki", "Aki Toyosaki", "丰崎爱生", "豊崎愛生"),
+        g("yoko_hikasa", "Yoko Hikasa", "Yoko Hikasa", "日笠阳子", "日笠陽子"),
+        g("ayana_taketatsu", "Ayana Taketatsu", "Ayana Taketatsu", "竹达彩奈", "竹達彩奈"),
+        g("ayane_sakura", "Ayane Sakura", "Ayane Sakura", "佐仓绫音", "佐倉綾音"),
+        g("sora_amamiya", "Sora Amamiya", "Sora Amamiya", "雨宫天", "雨宮天"),
+        g("ai_kayano", "Ai Kayano", "Ai Kayano", "茅野爱衣", "茅野愛衣"),
+        g("haruka_tomatsu", "Haruka Tomatsu", "Haruka Tomatsu", "户松遥", "戸松遥"),
+        g("sumire_uesaka", "Sumire Uesaka", "Sumire Uesaka", "上坂堇", "上坂すみれ"),
+
+        // ── Sık etiketlenen karakterler ──
+        g("haruhi_character", "Haruhi Suzumiya", "Haruhi Suzumiya",
+            "凉宫春日", "涼宮春日", "涼宮ハルヒ", "ハルヒ", "凉宫春日系列", "ハルヒシリーズ"),
+        g("yuki_nagato", "Yuki Nagato", "Yuki Nagato", "长门有希", "長門有希", "长门", "長門"),
+        g("mikuru_asahina", "Mikuru Asahina", "Mikuru Asahina", "朝比奈实玖瑠", "朝比奈みくる", "朝比奈"),
+        g("itsuki_koizumi", "Itsuki Koizumi", "Itsuki Koizumi", "古泉一树", "古泉一樹", "古泉"),
+        g("kyon", "Kyon", "Kyon", "阿虚", "阿虛", "囧虚", "囧虛", "キョン"),
+        g("moe_goddess", "Moe Tanrıçası", "Great Moe Goddess", "大萌神", "萌神"),
+        g("motoko_kusanagi", "Motoko Kusanagi", "Motoko Kusanagi", "草薙素子", "素子", "草薙"),
+        g("the_major", "Binbaşı", "The Major", "少佐"),
+        g("batou", "Batou", "Batou", "巴特", "バトー"),
+        g("togusa", "Togusa", "Togusa", "德古沙", "トグサ"),
+        g("tachikoma", "Tachikoma", "Tachikoma", "塔奇克马", "塔奇克馬", "タチコマ"),
+        g("daisuke_aramaki", "Daisuke Aramaki", "Daisuke Aramaki", "荒卷大辅", "荒巻大輔"),
+        g("laughing_man", "Gülen Adam", "Laughing Man", "笑面男", "笑い男"),
+        g("rei_ayanami", "Rei Ayanami", "Rei Ayanami", "绫波丽", "綾波レイ", "绫波"),
+        g("asuka_langley", "Asuka Langley", "Asuka Langley", "明日香", "アスカ", "惣流·明日香"),
+        g("shinji_ikari", "Shinji Ikari", "Shinji Ikari", "碇真嗣", "真嗣"),
+        g("lelouch", "Lelouch", "Lelouch", "鲁路修", "魯路修", "ルルーシュ"),
+        g("light_yagami", "Light Yagami", "Light Yagami", "夜神月"),
+        g("levi_ackerman", "Levi Ackerman", "Levi Ackerman", "利威尔", "リヴァイ", "兵长"),
+        g("saber_character", "Saber", "Saber", "赛巴", "セイバー", "阿尔托莉雅"),
+
+        // ── Sık etiketlenen eserler / seriler ──
+        g("sos_brigade", "SOS Tugayı", "SOS Brigade", "SOS团", "SOS団"),
+        g("haruhi_melancholy", "Haruhi Suzumiya'nın Melankolisi", "The Melancholy Of Haruhi Suzumiya",
+            "凉宫春日的忧郁", "涼宮春日的憂鬱", "涼宮ハルヒの憂鬱"),
+        g("haruhi_disappearance", "Haruhi Suzumiya'nın Kayboluşu", "The Disappearance Of Haruhi Suzumiya",
+            "凉宫春日的消失", "涼宮春日的消失", "涼宮ハルヒの消失"),
+        g("disappearance", "Kayboluş", "Disappearance", "消失"),
+        g("ghost_in_the_shell", "Ghost in the Shell", "Ghost in the Shell",
+            "攻壳机动队", "攻殻機動隊", "攻殼機動隊", "攻壳", "攻殻", "GITS"),
+        g("section_nine", "9. Şube", "Section 9", "公安九课", "公安9課", "公安九課"),
+        g("evangelion", "Evangelion", "Evangelion", "新世纪福音战士", "新世紀エヴァンゲリオン", "福音战士", "EVA", "エヴァ"),
+        g("gundam", "Gundam", "Gundam", "高达", "高達", "ガンダム", "敢达"),
+        g("naruto_series", "Naruto", "Naruto", "火影忍者", "火影", "NARUTO"),
+        g("one_piece", "One Piece", "One Piece", "海贼王", "海賊王", "航海王", "ONE PIECE"),
+        g("attack_on_titan", "Attack on Titan", "Attack on Titan", "进击的巨人", "進撃の巨人", "巨人"),
+        g("demon_slayer", "Demon Slayer", "Demon Slayer", "鬼灭之刃", "鬼滅の刃", "鬼灭"),
+        g("jujutsu_kaisen", "Jujutsu Kaisen", "Jujutsu Kaisen", "咒术回战", "呪術廻戦"),
+        g("spy_family", "SPY x FAMILY", "SPY x FAMILY", "间谍过家家", "間諜過家家", "SPY×FAMILY"),
+        g("dragon_ball", "Dragon Ball", "Dragon Ball", "龙珠", "龍珠", "ドラゴンボール"),
+        g("doraemon", "Doraemon", "Doraemon", "哆啦A梦", "多啦A夢", "ドラえもん"),
+        g("detective_conan", "Detective Conan", "Detective Conan", "名侦探柯南", "名探偵コナン", "柯南"),
+        g("fullmetal_alchemist", "Fullmetal Alchemist", "Fullmetal Alchemist", "钢之炼金术师", "鋼の錬金術師", "钢炼"),
+        g("death_note_series", "Death Note", "Death Note", "死亡笔记", "死亡筆記", "DEATH NOTE"),
+        g("fate_series", "Fate", "Fate", "命运之夜", "Fate系列", "フェイト"),
+        g("madoka_magica", "Puella Magi Madoka Magica", "Puella Magi Madoka Magica",
+            "魔法少女小圆", "魔法少女まどか☆マギカ", "まどマギ", "小圆"),
+        g("k_on", "K-On!", "K-On!", "轻音少女", "輕音少女", "けいおん"),
+        g("lucky_star", "Lucky Star", "Lucky Star", "幸运星", "幸運星", "らき☆すた"),
+        g("full_metal_panic", "Full Metal Panic!", "Full Metal Panic!", "全金属狂潮", "フルメタル・パニック"),
+        g("bakemonogatari", "Bakemonogatari", "Bakemonogatari", "化物语", "化物語"),
+        g("cowboy_bebop", "Cowboy Bebop", "Cowboy Bebop", "星际牛仔", "星際牛仔", "カウボーイビバップ"),
+        g("spirited_away", "Spirited Away", "Spirited Away", "千与千寻", "千と千尋の神隠し"),
+        g("totoro", "My Neighbor Totoro", "My Neighbor Totoro", "龙猫", "龍貓", "となりのトトロ"),
+        g("your_name", "Your Name", "Your Name", "你的名字", "君の名は"),
+        g("five_cm", "5 Centimeters per Second", "5 Centimeters per Second", "秒速五厘米", "秒速5センチメートル"),
+        g("garden_of_words", "The Garden of Words", "The Garden of Words", "言叶之庭", "言の葉の庭"),
+        g("psycho_pass", "Psycho-Pass", "Psycho-Pass", "心理测量者", "心理測量者", "PSYCHO-PASS"),
+        g("hyouka", "Hyouka", "Hyouka", "冰菓", "氷菓"),
+        g("sound_euphonium", "Sound! Euphonium", "Sound! Euphonium", "吹响吧上低音号", "響け！ユーフォニアム"),
+        g("a_silent_voice", "A Silent Voice", "A Silent Voice", "声之形", "聲之形", "聲の形"),
+        g("chunibyo_series", "Love, Chunibyo & Other Delusions", "Love, Chunibyo & Other Delusions",
+            "中二病也要谈恋爱", "中二病でも恋がしたい"),
+        g("your_lie_in_april", "Your Lie in April", "Your Lie in April", "四月是你的谎言", "四月は君の嘘"),
+        g("anohana", "Anohana", "Anohana", "未闻花名", "あの花"),
+        g("sword_art_online", "Sword Art Online", "Sword Art Online", "刀剑神域", "ソードアート・オンライン", "SAO"),
+        g("pokemon", "Pokémon", "Pokémon", "宝可梦", "寶可夢", "神奇宝贝", "ポケモン"),
+        g("digimon", "Digimon", "Digimon", "数码宝贝", "數碼寶貝", "デジモン"),
+        g("clannad_series", "CLANNAD", "CLANNAD", "小镇有你", "CLANNAD"),
+        g("steins_gate", "Steins;Gate", "Steins;Gate", "命运石之门", "命運石之門", "シュタインズ・ゲート"),
+        g("code_geass", "Code Geass", "Code Geass", "反叛的鲁路修", "コードギアス"),
+
+        // ── Yayıncı / yapımcı şirketler ──
+        g("kadokawa", "KADOKAWA", "KADOKAWA", "角川", "角川书店", "角川書店", "KADOKAWA"),
+        g("shueisha", "Shueisha", "Shueisha", "集英社"),
+        g("kodansha", "Kodansha", "Kodansha", "讲谈社", "講談社"),
+        g("shogakukan", "Shogakukan", "Shogakukan", "小学馆", "小學館"),
+        g("aniplex", "Aniplex", "Aniplex", "阿尼普", "アニプレックス"),
+        g("bandai", "Bandai", "Bandai", "万代", "萬代", "バンダイ"),
+        g("bandai_namco", "Bandai Namco", "Bandai Namco", "万代南梦宫", "バンダイナムコ"),
+        g("toho", "Toho", "Toho", "东宝", "東宝", "東寶"),
+        g("shochiku", "Shochiku", "Shochiku", "松竹"),
+        g("lantis", "Lantis", "Lantis", "兰迪斯", "ランティス"),
+        g("mappa", "MAPPA", "MAPPA", "マッパ", "MAPPA"),
+        g("studio_bind", "Studio Bind", "Studio Bind", "スタジオバインド"),
+        g("kinema_citrus", "Kinema Citrus", "Kinema Citrus", "キネマシトラス"),
+        g("klockworx", "THE KLOCKWORX", "THE KLOCKWORX", "克洛克沃克斯", "クロックワークス")
     )
 
     /** Normalleştirilmiş kaynak yazımı → giriş. İlk yazım kazanır (aynı anlam, birden çok yazım). */
@@ -601,6 +878,39 @@ internal object BangumiTagDictionary {
                 if (!map.containsKey(key)) map[key] = group
             }
         }
+        // Girişin Latin adı da bir eşleşme anahtarıdır: Bangumi'de aynı etiket hem Çince hem
+        // Latin yazımıyla bulunabiliyor (`京阿尼` + `Kyoto Animation`) — tek çipte buluşsunlar.
+        // Açık yazımlar önce işlendiği için bir ad asla gerçek bir etiketi gölgeleyemez.
+        for (group in groups) {
+            for (name in listOf(group.entry.english, group.entry.turkish)) {
+                val key = normalize(name)
+                if (key.isEmpty()) continue
+                if (!map.containsKey(key)) map[key] = group
+            }
+        }
+        map
+    }
+
+    /**
+     * Noktalama/boşluk duyarsız ikinci tur eşleşme anahtarı → giriş.
+     * `Production I.G`, `Production.IG` ve `ProductionI.G` aynı çipte toplansın diye.
+     */
+    private val byCompact: Map<String, Group> by lazy {
+        val map = HashMap<String, Group>(groups.sumOf { it.labels.size } * 2)
+        for (group in groups) {
+            for (label in group.labels) {
+                val key = compact(label)
+                if (key.length < 3) continue
+                if (!map.containsKey(key)) map[key] = group
+            }
+        }
+        for (group in groups) {
+            for (name in listOf(group.entry.english, group.entry.turkish)) {
+                val key = compact(name)
+                if (key.length < 3) continue
+                if (!map.containsKey(key)) map[key] = group
+            }
+        }
         map
     }
 
@@ -609,7 +919,10 @@ internal object BangumiTagDictionary {
         val raw = label?.trim().orEmpty()
         if (raw.isEmpty()) return null
         byLabel[normalize(raw)]?.let { return it.entry }
-        return patternEntry(raw)
+        patternEntry(raw)?.let { return it }
+        val compact = compact(raw)
+        if (compact.length >= 3) byCompact[compact]?.let { return it.entry }
+        return null
     }
 
     /** Sözlükteki tüm Çince/Japonca yazımlar (test ve araç kullanımı için). */
@@ -637,6 +950,14 @@ internal object BangumiTagDictionary {
             .trim()
             .replace(Regex("\\s+"), " ")
             .lowercase(Locale.ROOT)
+    }
+
+    /** Yalnızca harf/rakam bırakan sıkı anahtar: `Production.IG` → `productionig`. */
+    private fun compact(value: String): String {
+        if (value.isBlank()) return ""
+        val sb = StringBuilder(value.length)
+        for (ch in value) if (ch.isLetterOrDigit()) sb.append(ch)
+        return sb.toString().lowercase(Locale.ROOT)
     }
 
     private val YEAR_MONTH = Regex("^(\\d{4})\\s*年\\s*(\\d{1,2})\\s*月?$")
