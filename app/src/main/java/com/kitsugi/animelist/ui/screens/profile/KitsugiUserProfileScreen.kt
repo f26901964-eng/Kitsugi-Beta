@@ -144,6 +144,24 @@ fun KitsugiUserProfileScreen(
             }
         }
 
+        // ── Favoriler: otomatik sayfalama (Daha Fazla Yükle butonu yok) ──
+        val favFilter = viewModel.favoritesFilter
+        val favCategoryKey = ProfileFavoriteCategoryKeys.getOrElse(favFilter) { "anime" }
+        val favHasNext = when (favFilter) {
+            0 -> state.favAnimeHasNext; 1 -> state.favMangaHasNext; 2 -> state.favCharHasNext
+            3 -> state.favStaffHasNext; 4 -> state.favStudioHasNext; else -> false
+        }
+        val favCount = when (favFilter) {
+            0 -> state.favoriteAnime.size; 1 -> state.favoriteManga.size; 2 -> state.favoriteCharacters.size
+            3 -> state.favoriteStaff.size; 4 -> state.favoriteStudios.size; else -> 0
+        }
+        ProfileFavoritesAutoLoad(
+            listState = listState,
+            enabled = activeTab == 3 && favHasNext,
+            count = favCount,
+            onLoadMore = { viewModel.loadMoreFavorites(favCategoryKey) }
+        )
+
         // ── Content ──────────────────────────────────────────────────────────
         PullToRefreshBox(
             isRefreshing = state.isLoading && state.name.isNotBlank(),
@@ -157,6 +175,7 @@ fun KitsugiUserProfileScreen(
                 }
             } else {
                 val username = state.name.ifBlank { fallbackUsername ?: "Kullanıcı" }
+                Box(modifier = Modifier.fillMaxSize()) {
                 LazyColumn(
                     state = listState,
                     modifier = Modifier.fillMaxSize()
@@ -283,6 +302,20 @@ fun KitsugiUserProfileScreen(
                     }
 
                     item { Spacer(modifier = Modifier.height(80.dp)) }
+                }
+
+                // Listem tarzı alt kontroller: kategori (sol) + yukarı kaydırma (sağ)
+                ProfileFavoritesFloatingControls(
+                    listState = listState,
+                    visible = activeTab == 3,
+                    selectedCategory = favFilter,
+                    categoryCounts = listOf(
+                        state.favoriteAnime.size, state.favoriteManga.size, state.favoriteCharacters.size,
+                        state.favoriteStaff.size, state.favoriteStudios.size
+                    ),
+                    onCategorySelected = { viewModel.favoritesFilter = it },
+                    bottomOffset = 20.dp
+                )
                 }
             }
         }
