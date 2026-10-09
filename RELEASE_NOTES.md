@@ -1,5 +1,65 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.220)
+
+### 🧹 1. Kitsu Bozuk Özet (Synopsis) Tespiti ve Temizliği (`KitsuSynopsisValidator.kt`, `KitsugiDetailClient.kt`)
+- **Akıllı Bozuk Özet Tespiti:** Kitsu veritabanında vandalize edilmiş veya hatalı birleştirilmiş kayıtlar (örneğin 2004 yapımı anime olan "ROAR" kaydında 1997 yapımı Fox TV dizisi "Roar"ın özetinin bulunması) tespit edilir:
+  - Anime veya film türündeki kayıtlarda Amerikan/İngiliz canlı-aksiyon TV dizisi tarif eden ifadeler (`is an American television show`, `aired on the Fox network` vb.) şüpheli olarak yakalanır.
+  - Özet yayın tarihi bağlamında ("aired/premiered/released in 19XX") kayıt yılından 2 yıldan fazla sapan tarihler şüpheli kabul edilir.
+  - Canlı-aksiyon diziler (`TvShow`), Kore dizileri ve hikaye içi geçen geçmiş yıllar yanlış-pozitif üretmeyecek şekilde korunur.
+- **Doğrulanmış Kaynak İle Değiştirme:** Şüpheli Kitsu özetleri MAL/Jikan üzerinden doğrulanmış temiz özetle (`CrossSyncIdentityGuard` sıkı başlık kontrolüyle) otomatik değiştirilir; doğrulanamazsa özet boşaltılır ("Açıklama bulunamadı" gösterilir, alakasız özet engellenir).
+- **Önbellek Sürümleme & Çeviri Temizliği:** Kitsu detay önbellek anahtarı `_ks1` olarak sürümlendi; eski bozuk önbellekler geçersiz kılındı. Bozuk özetlerin çevirileri `DetailCache.removeTranslation` ile bellekten temizlenir.
+- **Yedek Zinciri Koruması:** AniList/MAL → Kitsu arama zinciri ve `fetchSynopsis` fonksiyonuna (listeye ekleme penceresi, hero önizleme) Kitsu özet doğrulama mantığı entegre edildi.
+
+### 🌐 2. MyAnimeList & Jikan Çoklu Host Zinciri (`JikanGateway.kt`, `JikanSearchClient.kt`)
+- **Yeni Kaynak Sıralaması:** Jikan genel API kesintileri ve kapanışına karşı arama ve keşfet zinciri optimize edildi:
+  1. Resmi MAL v2 (`api.myanimelist.net`)
+  2. miribyou (`https://miribyou-topaz.vercel.app` / `MIRIBYOU_BASE_URL`)
+  3. Tenrai (`https://api.tenrai.org/v1`)
+  4. AniList (son çare yedek)
+- **Çoklu Host Desteği & Devre Kesici:** `JikanGateway` üzerinden host bazında bağımsız hız sınırlaması, 429 soğuması ve 3 ardışık hatada devre kesici (circuit breaker) eklendi.
+- **Tenrai Uyumluluğu:** Tenrai API sorgu parametreleri (`sfw=true` → `sfw`) otomatik dönüştürülür.
+- **İstek Tekilleştirme & Özel İstemci:** `KitsugiHttpClient.jikanClient` ile harici `RetryInterceptor` devre dışı bırakılarak gereksiz kota tüketimi ve 429 tetiklemeleri engellendi.
+- **Detay ve Görsel Entegrasyonu:** `KitsugiMalDetailClient`, `CharacterDetailViewModel` ve `StaffDetailViewModel` `/pictures` istekleri merkezi `JikanGateway` üzerinden yönlendirildi.
+
+### 🧪 3. Birim Testleri
+- `KitsuSynopsisValidatorTest.kt` ile 15 birim testi tamamlandı ve başarıyla doğrulandı.
+
+### 📦 4. Dağıtım
+- Yalnızca **FOSS** sürümü (`assembleFossRelease`) derlendi (`Kitsugi-Beta-v2.4.220-foss.apk`).
+
+---
+
+## 🇬🇧 English (v2.4.220)
+
+### 🧹 1. Kitsu Corrupted Synopsis Detection & Sanitization (`KitsuSynopsisValidator.kt`, `KitsugiDetailClient.kt`)
+- **Smart Anomaly Detection:** Identifies vandalized or incorrectly merged Kitsu catalog entries (e.g., 2004 anime "ROAR" containing synopsis of the 1997 Fox TV live-action show "Roar"):
+  - Flags western live-action TV show phrasing (`is an American television show`, `aired on the Fox network`, etc.) for Anime and Movie media types.
+  - Flags broadcasting year discrepancies exceeding 2 years in release verbs (`aired/premiered/released in 19XX`).
+  - Safe against false-positives for legitimate `TvShow` entries, K-dramas, and in-universe fictional dates.
+- **Verified Replacement Fallback:** Suspicious synopses are replaced by verified summaries fetched from MAL/Jikan guarded by `CrossSyncIdentityGuard.titlesLookRelated`; unverified synopses are safely cleared to avoid misleading descriptions.
+- **Cache Versioning & Translation Eviction:** Kitsu detail cache keyed with `_ks1` to bypass contaminated cache entries. Stale synopsis translations are evicted via `DetailCache.removeTranslation`.
+- **Fallback Chain Protection:** Integrated into the AniList/MAL → Kitsu fallback chain (15s timeout) and `fetchSynopsis` (add-to-list dialog, hero preview).
+
+### 🌐 2. MyAnimeList & Jikan Multi-Host Chain (`JikanGateway.kt`, `JikanSearchClient.kt`)
+- **Optimized Fallback Hierarchy:** Resilient routing against public Jikan downtime:
+  1. Official MAL v2 (`api.myanimelist.net`)
+  2. miribyou (`https://miribyou-topaz.vercel.app` / `MIRIBYOU_BASE_URL`)
+  3. Tenrai (`https://api.tenrai.org/v1`)
+  4. AniList (ultimate fallback)
+- **Multi-Host Gateway & Circuit Breakers:** `JikanGateway` now coordinates host-level rate limiting, 429 cool-down, and circuit breakers (tripping on 3 consecutive server/network failures).
+- **Tenrai Compatibility:** Seamless parameter translation (`sfw=true` → `sfw`).
+- **Quota Leak Fix:** Introduced `KitsugiHttpClient.jikanClient` without `RetryInterceptor` to prevent quota burning outside the gateway.
+- **Detail & Asset Gateway Routing:** `KitsugiMalDetailClient`, `CharacterDetailViewModel`, and `StaffDetailViewModel` `/pictures` requests now traverse `JikanGateway`.
+
+### 🧪 3. Unit Tests
+- 15 unit tests in `KitsuSynopsisValidatorTest.kt` passed successfully.
+
+### 📦 4. Distribution
+- Strictly released the **FOSS variant only** (`assembleFossRelease` -> `Kitsugi-Beta-v2.4.220-foss.apk`).
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.219)
 
 ### 🔑 1. Harici API Entegrasyonları Doğrulama & Yönetim (`KitsugiIntegrationsSettingsDialog.kt`)

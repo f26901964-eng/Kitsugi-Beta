@@ -223,6 +223,11 @@ object DetailCache {
         translations[key] = translation
     }
 
+    fun removeTranslation(type: String, source: String, id: Int) {
+        val key = "${type.lowercase()}_${makeKey(source, id)}"
+        translations.remove(key)
+    }
+
     // Fanart.tv Gallery Cache
     fun getFanartGallery(isMovie: Boolean, id: Int): List<GalleryItem>? {
         val key = "${if (isMovie) "movie" else "tv"}_$id"

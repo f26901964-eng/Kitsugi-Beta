@@ -20,7 +20,9 @@ android {
     val tmdbApiKey        = localProperties.getProperty("tmdb_api_key")         ?: "YOUR_TMDB_API_KEY_HERE"
     val anilistClientId   = localProperties.getProperty("anilist_client_id")    ?: "32022"
     val anilistSecret     = localProperties.getProperty("anilist_client_secret") ?: "RwKJVnuh1B76AMKaWyEgsig6KwjGQpkpbMwJSi4j"
-    val malClientId       = localProperties.getProperty("mal_client_id")         ?: "9dfa9b926eecef62128b6d464c7e33b9"
+    val malClientId       = localProperties.getProperty("mal_client_id")         ?: "7b77365a6acb496a4af1c08a375c7a71"
+    // miribyou kök adresi (Jikan uyumlu, açık kaynak). local.properties ile geçersiz kılınabilir; boşsa atlanır.
+    val miribyouBaseUrl   = localProperties.getProperty("miribyou_base_url")     ?: "https://miribyou-topaz.vercel.app"
     val simklClientId     = localProperties.getProperty("simkl_client_id")       ?: "650ad7c96b7e1ab1e0056f745708ee0d05558480e8e0c6ae80f1061d2ae31496"
     val simklSecret       = localProperties.getProperty("simkl_client_secret")   ?: "81d3253f90d1f2c0c4ea55af6ca317861e5f40d43c16255eeabd57fc51c73f1c"
     val animeSkipClientId = localProperties.getProperty("anime_skip_client_id")  ?: "5mpKIMeowxmJ4UvAWacdPEzNbfXEjZDv"
@@ -28,7 +30,7 @@ android {
     val bangumiClientId     = localProperties.getProperty("bangumi_client_id")     ?: "YOUR_BANGUMI_CLIENT_ID"
     val bangumiClientSecret = localProperties.getProperty("bangumi_client_secret") ?: "YOUR_BANGUMI_CLIENT_SECRET"
 
-    val appVersionName = "2.4.219"
+    val appVersionName = "2.4.220"
 
     compileSdk = 36
 
@@ -42,10 +44,11 @@ android {
         versionName = "$appVersionName-beta.$timeVersionCode"
 
         buildConfigField("String", "TMDB_API_KEY", "\"$tmdbApiKey\"")
-        // â”€â”€ T3-01: OAuth / API secret'larÄ± â€” local.properties'den okunur â”€â”€â”€â”€â”€â”€
+        // ── T3-01: OAuth / API secret'ları — local.properties'den okunur ──────
         buildConfigField("String", "ANILIST_CLIENT_ID",      "\"$anilistClientId\"")
         buildConfigField("String", "ANILIST_CLIENT_SECRET",  "\"$anilistSecret\"")
         buildConfigField("String", "MAL_CLIENT_ID",          "\"$malClientId\"")
+        buildConfigField("String", "MIRIBYOU_BASE_URL",      "\"$miribyouBaseUrl\"")
         buildConfigField("String", "SIMKL_CLIENT_ID",        "\"$simklClientId\"")
         buildConfigField("String", "SIMKL_CLIENT_SECRET",    "\"$simklSecret\"")
         buildConfigField("String", "ANIME_SKIP_CLIENT_ID",   "\"$animeSkipClientId\"")

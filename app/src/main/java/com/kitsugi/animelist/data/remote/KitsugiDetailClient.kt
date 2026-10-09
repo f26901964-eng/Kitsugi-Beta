@@ -14,6 +14,13 @@ class KitsugiDetailClient {
      */
     private val PRIMARY_FETCH_TIMEOUT_MS = 45_000L
 
+    /**
+     * Kitsu özet temizliğinin (şüpheli özet → doğrulanmış kaynak) kendi zaman tavanı.
+     * Birincil zincirin tavanından AYRI tutulur: temizleme yarıda kesilirse bozuk özet
+     * yine de gösterilmez (özet boşaltılır), sayfa asla beklemez.
+     */
+    private val KITSU_SANITIZE_TIMEOUT_MS = 15_000L
+
     private suspend fun getTurkishMetadataFromTmdb(
         source: String,
         externalId: Int,
@@ -163,6 +170,25 @@ class KitsugiDetailClient {
 
                 "bangumi" -> KitsugiBangumiDetailClient.fetchDetail(externalId, mediaType)?.synopsis
 
+                "kitsu" -> {
+                    // Kitsu özeti ancak sağlıklıysa döner. Bozuk/alakasız özetler
+                    // (örn. "ROAR" 2004 kaydındaki 1997 Fox TV dizisi özeti) asla
+                    // gösterilmez — bu durumda null döner, UI "Açıklama bulunamadı" der.
+                    val kitsuDetail = KitsuExploreClient.fetchDetailByStableId(externalId, mediaType)
+                    val synopsis = kitsuDetail?.synopsis?.takeIf { it.isNotBlank() }
+                    if (synopsis != null &&
+                        KitsuSynopsisValidator.suspiciousReason(synopsis, kitsuDetail?.year, mediaType) != null
+                    ) {
+                        android.util.Log.w(
+                            "KitsugiDetailClient",
+                            "Kitsu fetchSynopsis: bozuk özet gösterilmedi ('${kitsuDetail?.title}', ${kitsuDetail?.year})"
+                        )
+                        null
+                    } else {
+                        synopsis
+                    }
+                }
+
                 "shikimori" -> {
                     // Shikimori detayı özet taşır (Türkçeye çevrilir). Özet yoksa gerçek
                     // MAL ID'si çözülüp MAL/Jikan özeti denenir — Shikimori ID'si MAL
@@ -248,6 +274,10 @@ class KitsugiDetailClient {
             } else if (source.lowercase() == "bangumi") {
                 // Eski sürümler Bangumi kayıtlarını Kitsu başlık aramasıyla (alakasız/eksik veri)
                 // önbelleğe yazıyordu; eski anahtar bilerek OKUNMAZ.
+                null
+            } else if (source.lowercase() == "kitsu") {
+                // ks1: bozuk Kitsu özetleri temizlenmeye başlandı — eski (sürüm suffix'i
+                // olmayan) anahtarlar bozuk özet taşıyabilir, bu yüzden bilerek OKUNMAZ.
                 null
             } else if (source.lowercase() == "tmdb") {
                 val typeStr = if (mediaType == MediaType.Movie) "movie" else "tv"
@@ -362,6 +392,10 @@ class KitsugiDetailClient {
                     if (resolved == null) {
                         resolved = fetchTmdbDetailByTitle(title, mediaType)
                     }
+                    // Bozuk/alakasız Kitsu özeti (örn. "ROAR" 2004 kaydı 1997 Fox TV dizisinin
+                    // özetini taşıyor): şüpheli özeti doğrulanmış bir kaynakla değiştirir;
+                    // doğrulanamazsa özet boşaltılır — asla alakasız özet gösterilmez.
+                    resolved = sanitizeKitsuSynopsis(resolved, mediaType, malIdFallback, title, keyId)
                     val kitsuDetail = resolved
                     // AnimeThemes entegrasyonu: Kitsu ID'si ile tema müziklerini çek
                     if (kitsuDetail != null && rawKitsuDetail != null && mediaType != MediaType.Manga) {
@@ -438,7 +472,10 @@ class KitsugiDetailClient {
             } }
 
             var finalDetail = detail
-            
+            // Yedek zincirde Kitsu'dan gelen detayların bozuk özet taşıyıp taşımadığını
+            // sonradan kontrol edebilmek için işaret.
+            var detailFromKitsuFallback = false
+
             // 3. Fallback Client Chains (Live Backups) — aynı tavanla sınırlı
             if (finalDetail == null && !isKitsuSource) {
                 withTimeoutOrNull(PRIMARY_FETCH_TIMEOUT_MS) {
@@ -472,10 +509,12 @@ class KitsugiDetailClient {
                         if (!kitsuId.isNullOrBlank()) {
                             android.util.Log.d("KitsugiDetailClient", "Fetching Kitsu detail via resolved kitsuId: $kitsuId")
                             finalDetail = KitsuClient.fetchAnimeDetail(kitsuId)
+                            detailFromKitsuFallback = finalDetail != null
                         }
                         if (finalDetail == null && !title.isNullOrBlank()) {
                             android.util.Log.d("KitsugiDetailClient", "Fetching Kitsu detail via title search: $title")
                             finalDetail = KitsuClient.fetchAnimeDetailByTitle(title)
+                            detailFromKitsuFallback = finalDetail != null
                         }
                         if (finalDetail == null && !title.isNullOrBlank()) {
                             runCatching {
@@ -496,6 +535,20 @@ class KitsugiDetailClient {
                             }
                         }
                     }
+                }
+            }
+
+            // 3b. Yedek zincir Kitsu'dan geldiyse ve özet şüpheliyse temizle.
+            // (AniList/MAL birincil veri vermediyse Kitsu yedeği devreye girer; o kayıt
+            // da bozuk/alakasız özet taşıyabilir — örn. başlık aramasıyla "ROAR".)
+            if (detailFromKitsuFallback) {
+                val current = finalDetail
+                if (current != null &&
+                    KitsuSynopsisValidator.suspiciousReason(current.synopsis, current.year, mediaType) != null
+                ) {
+                    finalDetail = withTimeoutOrNull(KITSU_SANITIZE_TIMEOUT_MS) {
+                        sanitizeKitsuSynopsis(current, mediaType, realMalId, title, keyId, source)
+                    } ?: current.copy(synopsis = null)
                 }
             }
 
@@ -524,6 +577,73 @@ class KitsugiDetailClient {
         }
     }
 
+
+    /**
+     * Kitsu kaydının özeti bozuksa düzeltir.
+     *
+     * Kitsu'de vandalize edilmiş/hatalı birleştirilmiş kayıtlar (örn. "ROAR" 2004 — özet
+     * 1997 Fox TV dizisini anlatıyor) bambaşka bir yapımın özetini taşıyabilir. Bu kayıtlar
+     * olduğu gibi gösterilmez:
+     *  1. Özet sağlıklıysa → dokunulmaz.
+     *  2. Şüpheliyse → MAL/Jikan'dan temiz özet aranır: önce kaydın gerçek MAL ID'si,
+     *     sonra sıkı başlık eşleşmesi. Aday özet de şüpheli ise ya da başlık bu kayıtla
+     *     akraba değilse (kimlik karışıklığı) reddedilir.
+     *  3. Doğrulanmış temiz özet bulunursa → yer değiştirir; bulunamazsa özet boşaltılır
+     *     (UI "Açıklama bulunamadı" gösterir — alakasız bir özeti göstermekten iyidir).
+     */
+    private suspend fun sanitizeKitsuSynopsis(
+        detail: KitsugiMediaDetail?,
+        mediaType: MediaType,
+        realMalId: Int?,
+        title: String?,
+        cacheId: Int,
+        cacheSource: String = "kitsu"
+    ): KitsugiMediaDetail? {
+        if (detail == null) return null
+        val reason = KitsuSynopsisValidator.suspiciousReason(detail.synopsis, detail.year, mediaType)
+        if (reason == null) return detail
+        android.util.Log.w(
+            "KitsugiDetailClient",
+            "Kitsu bozuk özet tespit edildi ('${detail.title}', ${detail.year}): $reason — düzeltme deneniyor"
+        )
+        // Bozuk özetin eski (otomatik) çevirisi de önbellekte kalmış olabilir — temizle.
+        DetailCache.removeTranslation("synopsis", cacheSource, cacheId)
+
+        // Adaylar: (a) gerçek MAL ID ile Jikan, (b) sıkı başlık eşleşmesi ile Jikan.
+        val candidates = mutableListOf<KitsugiMediaDetail>()
+        val malId = realMalId?.takeIf { it in 1..99_999_999 }
+        if (malId != null) {
+            runCatching { KitsugiMalDetailClient.fetchDetail(malId, mediaType) }
+                .getOrNull()?.let { candidates.add(it) }
+        }
+        if (candidates.isEmpty() && !title.isNullOrBlank()) {
+            runCatching { fetchMalDetailByTitle(title, mediaType) }
+                .getOrNull()?.let { candidates.add(it) }
+        }
+
+        val detailTitles = listOfNotNull(detail.title, detail.titleEnglish, detail.titleRomaji, detail.titleJapanese)
+        for (candidate in candidates) {
+            val candSynopsis = candidate.synopsis?.takeIf { it.isNotBlank() } ?: continue
+            // Aday özet de şüpheli mi? (MAL'deki kayıt da aynı yabancı diziyi anlatıyor olabilir.)
+            if (KitsuSynopsisValidator.suspiciousReason(candSynopsis, candidate.year, mediaType) != null) continue
+            // Kimlik karışıklığı olmasın: aday başlık bu kayıtla akraba olmalı.
+            val candTitles = listOfNotNull(candidate.title, candidate.titleEnglish, candidate.titleRomaji, candidate.titleJapanese)
+            val related = detailTitles.isNotEmpty() && candTitles.isNotEmpty() &&
+                com.kitsugi.animelist.data.auth.CrossSyncIdentityGuard.titlesLookRelated(detailTitles, candTitles, strict = true)
+            if (!related) continue
+            android.util.Log.i(
+                "KitsugiDetailClient",
+                "Kitsu özeti doğrulanmış kaynakla değiştirildi: '${detail.title}' ← '${candidate.title}' (MAL)"
+            )
+            return detail.copy(synopsis = candSynopsis)
+        }
+
+        android.util.Log.w(
+            "KitsugiDetailClient",
+            "Kitsu bozuk özeti doğrulanamadı; özet boşaltıldı ('${detail.title}')"
+        )
+        return detail.copy(synopsis = null)
+    }
 
     /**
      * MAL (Jikan) başlık araması: yalnızca başlığı **doğrulanan** ilk sonucu kabul eder.
@@ -732,6 +852,9 @@ class KitsugiDetailClient {
             // v2: Bangumi'nin English / romaji / özgün adları ayrı taşınır. Önceki
             // sürümde Çince ad ana başlığa yazıldığı için eski satırlar okunmaz.
             source.equals("bangumi", ignoreCase = true) -> "${base}_bgm2"
+            // ks1: bozuk Kitsu özetleri temizlenmeye başlandı (KitsuSynopsisValidator).
+            // Eski satırlar bozuk özet taşıyabileceği için yeni anahtar kullanılır.
+            source.equals("kitsu", ignoreCase = true) -> "${base}_ks1"
             MediaTitleResolver.isLatinPreferredSource(source) -> "${base}_vl${MediaTitleResolver.VERSION}"
             else -> base
         }
