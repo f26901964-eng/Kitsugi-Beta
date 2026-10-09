@@ -325,13 +325,30 @@ fun MyListScreen(
                     true
                 } else {
                     val query = searchQuery.trim().lowercase()
+                    // Ham başlıklar + alternatif başlıklar (English/Japonca) + noktalama/
+                    // boşluk-insensitive normalleştirilmiş sürüm: "clannad after story" gibi
+                    // sorgular "CLANNAD 〜AFTER STORY〜" / "Clannad: After Story" kayıtlarını,
+                    // "clannad" ise yalnızca Japonca saklanmış kayıtların İngilizce adını da bulur.
+                    val normQuery = com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(query)
+                    val normQueryMatch = normQuery.length >= 2 && (
+                        com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(entry.title).contains(normQuery) ||
+                            entry.titleEnglish?.let {
+                                com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(it).contains(normQuery)
+                            } == true ||
+                            entry.titleJapanese?.let {
+                                com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(it).contains(normQuery)
+                            } == true
+                        )
                     entry.title.lowercase().contains(query) ||
                         entry.subtitle.lowercase().contains(query) ||
                         entry.type.name.lowercase().contains(query) ||
                         entry.status.label.lowercase().contains(query) ||
                         entry.source.lowercase().contains(query) ||
+                        entry.titleEnglish?.lowercase()?.contains(query) == true ||
+                        entry.titleJapanese?.lowercase()?.contains(query) == true ||
                         entry.year?.toString()?.contains(query) == true ||
-                        entry.malId?.toString()?.contains(query) == true
+                        entry.malId?.toString()?.contains(query) == true ||
+                        normQueryMatch
                 }
             }
     }
@@ -809,10 +826,10 @@ fun MyListScreen(
                 }
 
                 // Duplicate kontrolü: herhangi bir platform ID'si üzerinden eşleşme yeter
-                val alreadyExists = entries.any { entry -> entry.matches(result) }
+                val alreadyExists = entries.firstOrNull { entry -> entry.matches(result) }
 
-                if (alreadyExists) {
-                    duplicateMessage = "\"${result.title}\" zaten listende var."
+                if (alreadyExists != null) {
+                    duplicateMessage = duplicateListMessage(alreadyExists)
                     showApiSearchDialog = false
                     return@KitsugiApiSearchDialog
                 }

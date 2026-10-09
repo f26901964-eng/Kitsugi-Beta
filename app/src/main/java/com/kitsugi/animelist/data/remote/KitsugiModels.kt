@@ -433,11 +433,23 @@ fun MediaEntry.matches(result: JikanSearchResult): Boolean {
         return true
     }
 
-    // 4. Göreceli başlık + yıl + tip eşleşmesi (Fuzzy fallback)
+    // 4. Başlık + yıl + tip eşleşmesi (Fuzzy fallback)
+    //
+    // Yalnızca `result.title`'a bakmak, ekranda seçili başlık diline göre değişen
+    // GÖRÜNEN başlığı kimlik sanmak demekti (örn. Bangumi sayfasında "CLANNAD 〜AFTER STORY〜"
+    // kayıtlı iken görünen başlık "Clannad: After Story" olabiliyor). Bu yüzden kayıt ve
+    // sonuç tarafındaki TÜM başlık varyantları (özgün/İngilizce/Japonca/romaji) normalize
+    // edilerek karşılaştırılır — MediaIdentity.sameMedia ile aynı sözleşme.
     if (this.type == result.type) {
-        val entryTitleNorm = this.title.lowercase().filter { it in 'a'..'z' || it in '0'..'9' }.trim()
-        val resultTitleNorm = result.title.lowercase().filter { it in 'a'..'z' || it in '0'..'9' }.trim()
-        if (entryTitleNorm.isNotEmpty() && entryTitleNorm == resultTitleNorm) {
+        val entryTitles = listOfNotNull(this.title, this.titleEnglish, this.titleJapanese)
+            .map { com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(it) }
+            .filter { it.length >= 2 }
+            .toSet()
+        val resultTitles = listOfNotNull(result.title, result.titleEnglish, result.titleJapanese, result.titleRomaji)
+            .map { com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(it) }
+            .filter { it.length >= 2 }
+            .toSet()
+        if (entryTitles.any { it in resultTitles }) {
             val y1 = this.year
             val y2 = result.year
             if (y1 == null || y2 == null || java.lang.Math.abs(y1 - y2) <= 1) {

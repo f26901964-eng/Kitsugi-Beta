@@ -69,6 +69,15 @@ internal fun myListSourceDisplayName(source: String): String = when (sourceBadge
 }
 
 /**
+ * "Zaten listende var" uyarısı tek yerde üretilir.
+ *
+ * Mesaj GELEN başlığı değil, listede BULUNAN kaydı ve hangi sekmede olduğunu söyler —
+ * kullanıcı uyarıyı görünce Listem'de tam olarak neyi, nerede arayacağını bilsin diye.
+ */
+internal fun duplicateListMessage(entry: MediaEntry): String =
+    "\"${entry.title}\" zaten listende var (${myListSourceDisplayName(entry.source)} sekmesi)."
+
+/**
  * Birleşik kütüphanede bir başlığın temsilci kaydının önceliği.
  * AniList en hızlı ve en zengin kaynak olduğu için ilk sırada, Simkl ise
  * (API'si gecikmeli yanıt verdiğinden) son sırada yer alır.

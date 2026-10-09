@@ -197,6 +197,9 @@ fun AppRootDetailPages(
                 ApiResultDetailPage(
                     result = key.result,
                     existingEntry = existingApiEntry,
+                    // Ekleme akışı "zaten listende var" diyorsa buton da "Düzenle" demeli:
+                    // aynı eşleme (herhangi bir kaynak üzerinden) ile kontrol edilir.
+                    findExistingEntry = { r -> mediaEntries.firstOrNull { entry -> entry.matches(r) } },
                     onBackClick = { navState.popDetailStack() },
                     onAddClick = { selection ->
                         onAddApiSelectionToList(selection)

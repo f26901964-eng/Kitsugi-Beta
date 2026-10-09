@@ -149,6 +149,12 @@ import com.kitsugi.animelist.ui.theme.LocalIsTv
 fun ApiResultDetailPage(
     result: JikanSearchResult,
     existingEntry: MediaEntry?,
+    /**
+     * Detay zenginleştirmesi (realMalId / tmdbId) tamamlandıktan SONRA da liste kontrolü
+     * yapılabilmesi için geri çağrı. Yoksa buton "Listeye Ekle" derken ekleme akışı
+     * "zaten listende var" diyebiliyordu (kimlikler tıklama anında daha yeni çözülmüş oluyor).
+     */
+    findExistingEntry: ((JikanSearchResult) -> MediaEntry?)? = null,
     onBackClick: () -> Unit,
     onAddClick: (ApiSearchSelection) -> Unit,
     onEditClick: (MediaEntry) -> Unit = {},
@@ -296,7 +302,10 @@ fun ApiResultDetailPage(
     }
 
     val showFavouriteButton = isSourceAniList || isAniListConnected
-    val isFavorite = existingEntry?.isFavorite ?: (detailState?.isFavourite ?: false)
+    // Buton durumu ("Düzenle" / "Listeye Ekle") ekleme akışının kullandığı kontrolle AYNI
+    // eşleme sonucundan beslenmeli; aksi halde "ekle" butonu + "zaten listede" hatası çelişir.
+    val effectiveExistingEntry = existingEntry ?: findExistingEntry?.invoke(displayResult)
+    val isFavorite = effectiveExistingEntry?.isFavorite ?: (detailState?.isFavourite ?: false)
 
     // State for tabs
     val isAnime = result.type == MediaType.Anime
@@ -423,7 +432,7 @@ fun ApiResultDetailPage(
                     detailState = detailState,
                     resolvedTmdbId = resolvedTmdbId,
                     galleryItems = galleryItems,
-                    existingEntry = existingEntry,
+                    existingEntry = effectiveExistingEntry,
                     isConnected = isConnected,
                     isFavorite = isFavorite,
                     showFavouriteButton = showFavouriteButton,
@@ -518,7 +527,7 @@ fun ApiResultDetailPage(
                         detailState = detailState,
                         resolvedTmdbId = resolvedTmdbId,
                         galleryItems = galleryItems,
-                        existingEntry = existingEntry,
+                        existingEntry = effectiveExistingEntry,
                         isConnected = isConnected,
                         isFavorite = isFavorite,
                         showFavouriteButton = showFavouriteButton,

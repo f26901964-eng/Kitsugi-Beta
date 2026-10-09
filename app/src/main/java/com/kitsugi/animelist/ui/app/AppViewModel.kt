@@ -21,6 +21,7 @@ import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_ALL_TAB_INDEX
 import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_ANILIST_TAB_INDEX
 import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_SIMKL_TAB_INDEX
 import com.kitsugi.animelist.ui.screens.mylist.MY_LIST_TAB_COUNT
+import com.kitsugi.animelist.ui.screens.mylist.duplicateListMessage
 import com.kitsugi.animelist.ui.screens.mylist.migrateLegacyMyListTabIndex
 import kotlinx.coroutines.launch
 import dagger.hilt.EntryPoint
@@ -375,9 +376,11 @@ class AppViewModel : ViewModel() {
         }
 
         // Ön kontrol: currentEntries içinde zaten var mı? (herhangi bir kaynak üzerinden)
-        val alreadyExists = currentEntries.any { entry -> entry.matches(result) }
-        if (alreadyExists) {
-            showSnackbarMessage("\"${result.title}\" zaten listende var.")
+        // Mesaj GELEN başlığı değil, listede BULUNAN kaydı göstermeli ki kullanıcı onu
+        // Listem'de arayıp bulabilsin (kaynak sekmesiyle birlikte).
+        val existingEntry = currentEntries.firstOrNull { entry -> entry.matches(result) }
+        if (existingEntry != null) {
+            showSnackbarMessage(duplicateListMessage(existingEntry))
             return
         }
 
@@ -402,6 +405,19 @@ class AppViewModel : ViewModel() {
 
             val finalMalId = resolvedIds?.malId ?: rawMalId ?: result.malId.takeIf { it in 1 until 100_000_000 }
             val finalTmdbId = resolvedIds?.tmdbId ?: result.tmdbId
+
+            // Çözülmüş kimliklerle ikinci kontrol: kullanıcı detay sayfasında zenginleştirme
+            // (realMalId / tmdbId) tamamlanmadan tıkladıysa ön kontrol kaçmış olabilir; bu
+            // kontrol çift kaydı engeller ve yine BULUNAN kaydı isimlendirir.
+            val resolvedProbe = result.copy(
+                realMalId = result.realMalId ?: finalMalId,
+                tmdbId = result.tmdbId ?: finalTmdbId
+            )
+            val existingAfterResolve = currentEntries.firstOrNull { entry -> entry.matches(resolvedProbe) }
+            if (existingAfterResolve != null) {
+                showSnackbarMessage(duplicateListMessage(existingAfterResolve))
+                return@launch
+            }
 
             // 2. Simkl bağlıysa Simkl ID'sini çöz
             val resolvedSimklId: Int? = if (isSimklConnected) {
