@@ -64,9 +64,6 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
     }
 
     override fun onCreate() {
-        // Bağlı servis token'larını (şifreli) otomatik yedekle — token değişince tetiklenir
-        runCatching { com.kitsugi.animelist.data.account.LinkedAccountVault.startAutoBackup(this) }
-
         // ── 0. :crash Süreci Koruması ────────────────────────────────────────────────
         // Eğer bu süreç çökme ekranı (:crash) için başlatılmışsa, arka plan işçilerini,
         // WorkManager'ı ve Room veritabanı senkronizasyonunu çalıştırma!
@@ -111,6 +108,9 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
 
         instance = this
         super.onCreate()
+
+        // Only the main process may register vault listeners and persistent WorkManager jobs.
+        runCatching { com.kitsugi.animelist.data.account.LinkedAccountVault.startAutoBackup(this) }
 
         // ── Bellek koruması ───────────────────────────────────────────────────────────
         // Gezindikçe şişen bellek önbellekleri, heap tavanına yaklaşınca sistem uyarısını

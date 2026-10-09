@@ -79,8 +79,41 @@ object KitsuApiClient {
         /** Kitsu `startDate` alanından yayın yılı (çapraz eşitlemede kimlik doğrulaması için). */
         val startYear: Int? = null,
         /** +18 içerik mi? (ageRating=R18 / nsfw / hentai) — bulanıklık için kullanılır */
-        val isAdult: Boolean = false
+        val isAdult: Boolean = false,
+        /** Kullanıcı notu (`notes`). */
+        val notes: String? = null,
+        /** Gizli kayıt mı (`private`). */
+        val isPrivate: Boolean = false,
+        /** Başlangıç tarihi, yyyy-MM-dd (`startedAt`). */
+        val startedAt: String? = null,
+        /** Bitiş tarihi, yyyy-MM-dd (`finishedAt`). */
+        val finishedAt: String? = null
     )
+
+    /**
+     * Kitsu kütüphane kaydında ana durum/ilerleme/puan dışında yazılabilen ek alanlar.
+     * Null olan alanlar istekte hiç gönderilmez (uzak değer değişmez).
+     */
+    data class KitsuEntryExtras(
+        val startedAt: String? = null,
+        val finishedAt: String? = null,
+        val notes: String? = null,
+        val isPrivate: Boolean? = null
+    )
+
+    /** `yyyy-MM-dd` → Kitsu'nun beklediği ISO-8601 datetime (`yyyy-MM-ddT00:00:00.000Z`). */
+    fun toKitsuDateTime(date: String?): String? {
+        val d = date?.trim().orEmpty()
+        return if (KITSU_DATE_REGEX.matches(d)) "${d}T00:00:00.000Z" else null
+    }
+
+    /** Kitsu'dan gelen ISO datetime → `yyyy-MM-dd` (yalnızca tarih kısmı). */
+    private fun fromKitsuDateTime(value: String?): String? {
+        val head = value?.trim().orEmpty().take(10)
+        return if (KITSU_DATE_REGEX.matches(head)) head else null
+    }
+
+    private val KITSU_DATE_REGEX = Regex("""\d{4}-\d{2}-\d{2}""")
 
     /**
      * Kullanıcı adı / e-posta ve şifre ile Kitsu OAuth Bearer token alır.
@@ -334,6 +367,10 @@ object KitsuApiClient {
                     val updatedAt = runCatching {
                         java.time.Instant.parse(updatedAtStr).epochSecond
                     }.getOrDefault(0L)
+                    val notes = if (attrs.isNull("notes")) null else attrs.optString("notes").takeIf { it.isNotBlank() }
+                    val isPrivate = attrs.optBoolean("private", false)
+                    val startedAt = fromKitsuDateTime(if (attrs.isNull("startedAt")) null else attrs.optString("startedAt"))
+                    val finishedAt = fromKitsuDateTime(if (attrs.isNull("finishedAt")) null else attrs.optString("finishedAt"))
 
                     val rels = item.optJSONObject("relationships")
                     val animeData = rels?.optJSONObject("anime")?.optJSONObject("data")
@@ -365,7 +402,11 @@ object KitsuApiClient {
                             realMalId = realMalId,
                             nextRelease = info?.nextRelease,
                             startYear = info?.startYear,
-                            isAdult = info?.isAdult == true
+                            isAdult = info?.isAdult == true,
+                            notes = notes,
+                            isPrivate = isPrivate,
+                            startedAt = startedAt,
+                            finishedAt = finishedAt
                         )
                     )
                 }
@@ -453,6 +494,15 @@ object KitsuApiClient {
         error("Kitsu kayıt sorgusu: HTTP 429 (hız sınırı, 3 deneme sonrası vazgeçildi)")
     }
 
+    /** Yalnızca null olmayan ek alanları JSON:API attributes nesnesine ekler. */
+    private fun JSONObject.applyKitsuExtras(extras: KitsuEntryExtras?) {
+        if (extras == null) return
+        extras.startedAt?.let { put("startedAt", it) }
+        extras.finishedAt?.let { put("finishedAt", it) }
+        extras.notes?.let { put("notes", it) }
+        extras.isPrivate?.let { put("private", it) }
+    }
+
     /**
      * Kitsu'da kütüphane kaydı oluşturur (POST). Başarıda yeni kaydın ID'sini döner.
      */
@@ -476,7 +526,8 @@ object KitsuApiClient {
         isAnime: Boolean,
         status: String,
         progress: Int,
-        ratingTwenty: Int?
+        ratingTwenty: Int?,
+        extras: KitsuEntryExtras? = null
     ): KitsuWriteResult = withContext(Dispatchers.IO) {
         val relType = if (isAnime) "anime" else "manga"
         val payload = JSONObject().apply {
@@ -488,6 +539,7 @@ object KitsuApiClient {
                     if (ratingTwenty != null && ratingTwenty > 0) {
                         put("ratingTwenty", ratingTwenty)
                     }
+                    applyKitsuExtras(extras)
                 })
                 put("relationships", JSONObject().apply {
                     put("user", JSONObject().apply {
@@ -601,7 +653,8 @@ object KitsuApiClient {
         entryId: String,
         status: String,
         progress: Int,
-        ratingTwenty: Int?
+        ratingTwenty: Int?,
+        extras: KitsuEntryExtras? = null
     ): KitsuWriteResult = withContext(Dispatchers.IO) {
         val payload = JSONObject().apply {
             put("data", JSONObject().apply {
@@ -615,6 +668,7 @@ object KitsuApiClient {
                     } else {
                         put("ratingTwenty", JSONObject.NULL)
                     }
+                    applyKitsuExtras(extras)
                 })
             })
         }

@@ -114,6 +114,86 @@ class AllSourcesExploreTest {
         assertEquals(listOf(rated), sections.last().results)
     }
 
+    @Test fun standardSourcesKeepAnimeAndMangaShelvesInALogicalStableOrder() {
+        val anime = media(id = 1)
+        val manga = media(id = 20, type = MediaType.Manga)
+        val p = payload(listOf(anime)).copy(
+            trendingAnime = listOf(media(id = 2)),
+            topRatedAnime = listOf(media(id = 3)),
+            airingAnime = listOf(media(id = 4)),
+            upcomingAnime = listOf(media(id = 5)),
+            movieAnime = listOf(media(id = 6, type = MediaType.Movie)),
+            seasonalAnime = listOf(media(id = 7)),
+            newlyAddedAnime = listOf(media(id = 8)),
+            topManga = listOf(manga),
+            trendingManga = listOf(media("anilist", 21, MediaType.Manga)),
+            topRatedManga = listOf(media("anilist", 22, MediaType.Manga)),
+            publishingManga = listOf(media("anilist", 23, MediaType.Manga)),
+            newlyAddedManga = listOf(media("anilist", 24, MediaType.Manga)),
+            manhwaManhua = listOf(media("anilist", 25, MediaType.Manga)),
+            novels = listOf(media("anilist", 26, MediaType.Manga))
+        )
+        val expected = listOf(
+            ExploreCategoryType.TOP_ANIME,
+            ExploreCategoryType.TRENDING_ANIME,
+            ExploreCategoryType.TOP_RATED_ANIME,
+            ExploreCategoryType.AIRING_ANIME,
+            ExploreCategoryType.UPCOMING_ANIME,
+            ExploreCategoryType.MOVIE_ANIME,
+            ExploreCategoryType.SEASONAL_ANIME,
+            ExploreCategoryType.NEWLY_ADDED_ANIME,
+            ExploreCategoryType.TOP_MANGA,
+            ExploreCategoryType.TRENDING_MANGA,
+            ExploreCategoryType.TOP_RATED_MANGA,
+            ExploreCategoryType.PUBLISHING_MANGA,
+            ExploreCategoryType.NEWLY_ADDED_MANGA,
+            ExploreCategoryType.MANHWA_MANHUA,
+            ExploreCategoryType.NOVELS
+        )
+
+        ExplorePlatform.sources
+            .filter { it != ExplorePlatform.TMDB && it != ExplorePlatform.SIMKL }
+            .forEach { platform ->
+                assertEquals(expected, sourceSections(platform, p).filter { it.results.isNotEmpty() }.map { it.category })
+            }
+    }
+
+    @Test fun tmdbAndAllUseTheSameTrendPopularAndRatedSectionOrder() {
+        val p = payload(listOf(media("tmdb", 1))).copy(
+            trendingAnime = listOf(media("tmdb", 2)),
+            airingAnime = listOf(media("tmdb", 3, MediaType.TvShow)),
+            movieAnime = listOf(media("tmdb", 4, MediaType.Movie)),
+            newlyAddedAnime = listOf(media("tmdb", 5)),
+            topManga = listOf(media("tmdb", 6, MediaType.TvShow)),
+            upcomingAnime = listOf(media("tmdb", 7, MediaType.Movie)),
+            trendingManga = listOf(media("tmdb", 8)),
+            seasonalAnime = listOf(media("tmdb", 9, MediaType.TvShow)),
+            publishingManga = listOf(media("tmdb", 10, MediaType.Movie)),
+            upcomingMediaTmdb = listOf(media("tmdb", 11, MediaType.Movie))
+        )
+        val expected = listOf(
+            ExploreCategoryType.TOP_ANIME,
+            ExploreCategoryType.TRENDING_ANIME,
+            ExploreCategoryType.AIRING_ANIME,
+            ExploreCategoryType.MOVIE_ANIME,
+            ExploreCategoryType.NEWLY_ADDED_ANIME,
+            ExploreCategoryType.TOP_MANGA,
+            ExploreCategoryType.UPCOMING_ANIME,
+            ExploreCategoryType.TRENDING_MANGA,
+            ExploreCategoryType.SEASONAL_ANIME,
+            ExploreCategoryType.PUBLISHING_MANGA,
+            ExploreCategoryType.UPCOMING_MEDIA_TMDB
+        )
+        val singleSource = sourceSections(ExplorePlatform.TMDB, p).filter { it.results.isNotEmpty() }
+        val allMode = allSourceSections(
+            mapOf(ExplorePlatform.TMDB to ExploreSourceState(p)),
+            showAdultContent = false
+        )
+
+        assertEquals(expected, singleSource.map { it.category })
+        assertEquals(singleSource.map { it.key }, allMode.map { it.key })
+    }
+
     @Test fun sourceJumpIndicesAccountForCollapsedAndEmptyGroups() {
         val states = ExplorePlatform.sources.associateWith { ExploreSourceState(payload(listOf(media(it.name.lowercase())))) }
         val sections = allSourceSections(states, false).groupBy { it.platform }

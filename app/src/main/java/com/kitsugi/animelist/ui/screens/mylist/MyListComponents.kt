@@ -30,12 +30,14 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.material.icons.rounded.ArrowDropDown
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.DensityMedium
 import androidx.compose.material.icons.rounded.FilterList
 import androidx.compose.material.icons.rounded.FormatListBulleted
 import androidx.compose.material.icons.rounded.GridView
+import androidx.compose.material.icons.rounded.Notifications
 import androidx.compose.material.icons.rounded.Search
 import androidx.compose.material.icons.rounded.ViewStream
 import androidx.compose.material3.HorizontalDivider
@@ -64,6 +66,7 @@ import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -104,7 +107,11 @@ fun MyListHeaderSection(
     activeTabScrollState: LazyListState,
     accentColor: Color,
     horizontalPadding: Dp,
-    hasActiveFilters: Boolean
+    hasActiveFilters: Boolean,
+    headerTitle: String = "Listem",
+    headerSubtitle: String? = null,
+    onBackClick: (() -> Unit)? = null,
+    searchPlaceholder: String = "Listende ara..."
 ) {
     val KitsugiColors = LocalKitsugiColors.current
     var showSortMenu by rememberSaveable { mutableStateOf(false) }
@@ -115,7 +122,8 @@ fun MyListHeaderSection(
         if (firstVisibleIndex > 0) 1f
         else (rawOffset.toFloat() / 100f).coerceIn(0f, 1f)
     }
-    val headerHeight = 60.dp * (1f - collapseProgress)
+    val expandedHeaderHeight = if (headerSubtitle.isNullOrBlank()) 60.dp else 68.dp
+    val headerHeight = expandedHeaderHeight * (1f - collapseProgress)
 
     Column {
         Box(
@@ -131,17 +139,46 @@ fun MyListHeaderSection(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(60.dp)
-                    .padding(start = horizontalPadding, end = 4.dp),
+                    .height(expandedHeaderHeight)
+                    .padding(start = if (onBackClick == null) horizontalPadding else 4.dp, end = 4.dp),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "Listem",
-                    color = KitsugiColors.textPrimary,
-                    style = MaterialTheme.typography.headlineLarge,
-                    fontWeight = FontWeight.Bold
-                )
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (onBackClick != null) {
+                        IconButton(onClick = onBackClick) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                                contentDescription = "Geri",
+                                tint = KitsugiColors.textPrimary
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(4.dp))
+                    }
+
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = headerTitle,
+                            color = KitsugiColors.textPrimary,
+                            style = MaterialTheme.typography.headlineLarge,
+                            fontWeight = FontWeight.Bold,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        if (!headerSubtitle.isNullOrBlank()) {
+                            Text(
+                                text = headerSubtitle,
+                                color = KitsugiColors.textMuted,
+                                style = MaterialTheme.typography.bodySmall,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                    }
+                }
 
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -247,7 +284,7 @@ fun MyListHeaderSection(
                 KitsugiSearchField(
                     value = searchQuery,
                     onValueChange = onSearchQueryChange,
-                    placeholder = "Listende ara...",
+                    placeholder = searchPlaceholder,
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -360,6 +397,81 @@ data class MyListPlatformSource(
     val description: String
 )
 
+/**
+ * Listem kaynak satırının tek bir uzak kaynağa ait, salt-okunur karşılığı.
+ * Profilde açılan kullanıcı listelerinde kaynak her zaman AniList olduğu için sahte
+ * platform seçenekleri göstermek yerine aynı hap ve rastgele seçim davranışı korunur.
+ */
+@Composable
+fun MyListSingleSourceBar(
+    sourceId: String,
+    sourceName: String,
+    visibleEntries: List<MediaEntry>,
+    onEntryClick: (MediaEntry) -> Unit,
+    onEmptyMessage: () -> Unit,
+    accentColor: Color,
+    horizontalPadding: Dp
+) {
+    val KitsugiColors = LocalKitsugiColors.current
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = horizontalPadding)
+            .padding(top = 8.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .clip(RoundedCornerShape(16.dp))
+                .background(KitsugiColors.surface)
+                .border(
+                    width = 1.dp,
+                    color = accentColor.copy(alpha = 0.5f),
+                    shape = RoundedCornerShape(16.dp)
+                )
+                .padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            KitsugiPlatformLogo(
+                platformId = sourceId,
+                size = 18.dp,
+                fallbackTint = accentColor
+            )
+            Text(
+                text = sourceName,
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = KitsugiColors.textPrimary
+                )
+            )
+        }
+
+        Spacer(modifier = Modifier.weight(1f))
+
+        Box(
+            modifier = Modifier
+                .size(38.dp)
+                .clip(RoundedCornerShape(14.dp))
+                .background(KitsugiColors.surface)
+                .border(
+                    width = 1.dp,
+                    color = KitsugiColors.border.copy(alpha = 0.2f),
+                    shape = RoundedCornerShape(14.dp)
+                )
+                .tvClickable(shape = RoundedCornerShape(14.dp)) {
+                    if (visibleEntries.isNotEmpty()) onEntryClick(visibleEntries.random())
+                    else onEmptyMessage()
+                },
+            contentAlignment = Alignment.Center
+        ) {
+            Text(text = "🎲", fontSize = 16.sp)
+        }
+    }
+}
+
 @Composable
 fun MyListTabBar(
     selectedTabIndex: Int,
@@ -382,7 +494,9 @@ fun MyListTabBar(
     onEntryClick: (MediaEntry) -> Unit,
     onExternalSyncMessage: (String) -> Unit,
     accentColor: Color,
-    horizontalPadding: Dp
+    horizontalPadding: Dp,
+    isNotificationsVisible: Boolean = false,
+    onOpenNotifications: () -> Unit = {}
 ) {
     val KitsugiColors = LocalKitsugiColors.current
     var showSourcePickerSheet by rememberSaveable { mutableStateOf(false) }
@@ -528,6 +642,30 @@ fun MyListTabBar(
 
         // Kaynak değişimi zaten soldaki açılır seçicide var; yinelenen sekme çubuğu kaldırıldı.
         Spacer(modifier = Modifier.weight(1f))
+
+        // Bildirim butonu (Keşfet ile aynı görünüm); yalnızca bir hesap bağlıyken gösterilir
+        if (isNotificationsVisible) {
+            Box(
+                modifier = Modifier
+                    .size(38.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(KitsugiColors.surface)
+                    .border(
+                        width = 1.dp,
+                        color = KitsugiColors.border.copy(alpha = 0.2f),
+                        shape = RoundedCornerShape(14.dp)
+                    )
+                    .tvClickable(shape = RoundedCornerShape(14.dp), onClick = onOpenNotifications),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Notifications,
+                    contentDescription = "Bildirimler",
+                    tint = KitsugiColors.textPrimary,
+                    modifier = Modifier.size(20.dp)
+                )
+            }
+        }
 
         // Rastgele öğe butonu
         Box(

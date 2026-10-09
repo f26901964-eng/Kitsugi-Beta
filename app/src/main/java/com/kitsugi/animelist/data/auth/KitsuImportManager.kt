@@ -67,6 +67,10 @@ object KitsuImportManager {
                         malId = malIdToStore, // her zaman Kitsu stableId (300M aralığı)
                         aniListEntryId = null,
                         source = "kitsu",
+                        notes = entry.notes,
+                        isPrivate = entry.isPrivate,
+                        startDate = entry.startedAt,
+                        endDate = entry.finishedAt,
                         updatedAt = entry.updatedAt,
                         // Yıl olmadan kimlik doğrulaması yapılamıyor; aynı isimli yapımlar
                         // çapraz eşitlemede "inceleme gerekli" diye atlanıyordu.

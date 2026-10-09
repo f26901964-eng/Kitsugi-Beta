@@ -1,108 +1,98 @@
-@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class, androidx.compose.foundation.ExperimentalFoundationApi::class)
+@file:OptIn(
+    androidx.compose.material3.ExperimentalMaterial3Api::class,
+    androidx.compose.foundation.ExperimentalFoundationApi::class
+)
 
 package com.kitsugi.animelist.ui.screens.profile
 
 import android.content.res.Configuration
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.grid.GridItemSpan
-import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.rounded.GridView
-import androidx.compose.material.icons.rounded.List
-import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.FormatListBulleted
-import androidx.compose.material.icons.rounded.PlayCircle
-import androidx.compose.material.icons.rounded.CheckCircle
-import androidx.compose.material.icons.rounded.Schedule
-import androidx.compose.material.icons.rounded.PauseCircle
-import androidx.compose.material.icons.rounded.StopCircle
-import com.kitsugi.animelist.ui.components.KitsugiSheetOrDialog
-import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
-import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
-import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.slideInVertically
-import androidx.compose.animation.slideOutVertically
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
-import androidx.compose.animation.core.animateDpAsState
-import androidx.compose.animation.core.tween
-import androidx.compose.foundation.layout.offset
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material.icons.rounded.KeyboardArrowUp
-import androidx.compose.runtime.derivedStateOf
-import androidx.compose.runtime.snapshotFlow
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.ui.zIndex
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import coil.compose.AsyncImage
+import androidx.compose.ui.zIndex
 import com.kitsugi.animelist.data.remote.JikanSearchResult
-import com.kitsugi.animelist.ui.components.KitsugiNsfwImage
 import com.kitsugi.animelist.data.remote.matches
 import com.kitsugi.animelist.data.settings.AppSettings
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
-import com.kitsugi.animelist.ui.components.KitsugiSearchField
-import com.kitsugi.animelist.ui.theme.KitsugiColors
-import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
-import com.kitsugi.animelist.ui.theme.LocalIsTvDevice
+import com.kitsugi.animelist.ui.components.KitsugiImagePreviewDialog
+import com.kitsugi.animelist.ui.components.KitsugiInfoDialog
+import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
+import com.kitsugi.animelist.ui.screens.mylist.EmptyListResultCard
 import com.kitsugi.animelist.ui.screens.mylist.MyListFlatContent
 import com.kitsugi.animelist.ui.screens.mylist.MyListGroupedContent
+import com.kitsugi.animelist.ui.screens.mylist.MyListHeaderSection
+import com.kitsugi.animelist.ui.screens.mylist.MyListSingleSourceBar
+import com.kitsugi.animelist.ui.screens.mylist.applySort
+import com.kitsugi.animelist.ui.screens.mylist.filterMyListEntries
+import com.kitsugi.animelist.ui.screens.mylist.groupMyListEntriesByStatus
+import com.kitsugi.animelist.ui.screens.mylist.components.KitsugiListStatusBottomSheet
+import com.kitsugi.animelist.ui.theme.LocalIsTvDevice
+import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
+import com.kitsugi.animelist.ui.theme.LocalKitsugiColors
+import com.kitsugi.animelist.ui.utils.dpadVerticalFastScroll
 import com.kitsugi.animelist.ui.utils.tvClickable
 import kotlinx.coroutines.launch
 
+/**
+ * Başka bir kullanıcının AniList kütüphanesi.
+ *
+ * Bu ekran ayrı bir "profil listesi" tasarımı üretmez; Listem'in üst alanını,
+ * filtreleme/sıralama sözleşmesini, kartlarını ve kayan kontrollerini doğrudan kullanır.
+ * Yalnızca başkasının ilerlemesini değiştirecek işlemler salt okunurdur.
+ */
 @Composable
 fun KitsugiUserMediaListScreen(
     userId: Int,
@@ -113,383 +103,394 @@ fun KitsugiUserMediaListScreen(
     onBackClick: () -> Unit,
     onMediaClick: (JikanSearchResult) -> Unit,
     onLocalEntryClick: (MediaEntry) -> Unit,
+    onListLayoutChange: (String) -> Unit = {},
     accentColor: Color = LocalKitsugiAccent.current,
     customViewModel: KitsugiUserMediaListViewModel? = null
 ) {
-    val viewModel: KitsugiUserMediaListViewModel = customViewModel ?: androidx.lifecycle.viewmodel.compose.viewModel(key = "user_media_list_${userId}_${initialMediaType.name}")
-
-    val pagerState = rememberPagerState(
-        initialPage = if (initialMediaType == MediaType.Anime) 0 else 1,
-        pageCount = { 2 }
-    )
-    var selectedType by rememberSaveable { mutableStateOf(initialMediaType) }
-
-    // Pager kaydırınca type güncelle
-    LaunchedEffect(pagerState.settledPage) {
-        selectedType = if (pagerState.settledPage == 0) MediaType.Anime else MediaType.Manga
-    }
-
-    LaunchedEffect(userId, selectedType) {
-        viewModel.loadUserMediaList(userId, selectedType)
-    }
-
+    val viewModel: KitsugiUserMediaListViewModel = customViewModel
+        ?: androidx.lifecycle.viewmodel.compose.viewModel(key = "user_media_list_$userId")
     val state by viewModel.uiState.collectAsState()
+    val colors = LocalKitsugiColors.current
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val horizontalPadding = if (isLandscape) 12.dp else 20.dp
+    val isTvDevice = LocalIsTvDevice.current
     val coroutineScope = rememberCoroutineScope()
+    val listState = rememberLazyListState()
 
-    var searchQuery by rememberSaveable { mutableStateOf("") }
-    var selectedStatusFilter by rememberSaveable { mutableStateOf<WatchStatus?>(null) }
+    var selectedListLayoutId by rememberSaveable(userId) {
+        mutableStateOf(appSettings.selectedListLayoutId)
+    }
+    LaunchedEffect(appSettings.selectedListLayoutId) {
+        selectedListLayoutId = appSettings.selectedListLayoutId
+    }
 
-    var isFabVisible by rememberSaveable { mutableStateOf(true) }
-    var isSearchBarVisible by rememberSaveable { mutableStateOf(true) }
-    var prevIndex by rememberSaveable { mutableStateOf(0) }
-    var prevOffset by rememberSaveable { mutableStateOf(0) }
+    var searchQuery by rememberSaveable(userId) { mutableStateOf("") }
+    var selectedStatusFilterId by rememberSaveable(userId) { mutableStateOf("all") }
+    var selectedTypeFilterId by rememberSaveable(userId, initialMediaType.name) {
+        mutableStateOf(if (initialMediaType == MediaType.Manga) "manga" else "anime")
+    }
+    var selectedFavoriteFilterId by rememberSaveable(userId) { mutableStateOf("all") }
+    var selectedScoreFilterId by rememberSaveable(userId) { mutableStateOf("all") }
+    var selectedYearFilterId by rememberSaveable(userId) { mutableStateOf("all") }
+    var selectedExtraFilterId by rememberSaveable(userId) { mutableStateOf("all") }
+    var selectedSortId by rememberSaveable(userId) { mutableStateOf("newest") }
 
-    val lazyListState = rememberLazyListState()
+    var showSearchField by rememberSaveable(userId) { mutableStateOf(false) }
+    var showFilterPanel by rememberSaveable(userId) { mutableStateOf(false) }
+    var showStatusBottomSheet by rememberSaveable(userId) { mutableStateOf(false) }
+    var isCategoryFabVisible by rememberSaveable(userId) { mutableStateOf(true) }
+    var previousIndex by remember { mutableIntStateOf(0) }
+    var previousOffset by remember { mutableIntStateOf(0) }
+    var activeZoomEntry by remember { mutableStateOf<MediaEntry?>(null) }
+    var infoMessage by rememberSaveable { mutableStateOf<String?>(null) }
 
-    val showScrollToTop by remember {
-        derivedStateOf {
-            lazyListState.firstVisibleItemIndex > 3
+    LaunchedEffect(userId) {
+        viewModel.loadUserMediaLibrary(userId)
+    }
+
+    val allListemEntries = remember(state.items, appSettings.showAdultContent) {
+        state.items
+            .asSequence()
+            .filter { appSettings.showAdultContent || !it.isAdult }
+            .map { it.toListemMediaEntry() }
+            .toList()
+    }
+    val sourceItemByListEntryId = remember(state.items) {
+        state.items.associateBy { it.listEntryId }
+    }
+
+    val filteredEntries = remember(
+        allListemEntries,
+        searchQuery,
+        selectedStatusFilterId,
+        selectedTypeFilterId,
+        selectedFavoriteFilterId,
+        selectedScoreFilterId,
+        selectedYearFilterId,
+        selectedExtraFilterId
+    ) {
+        filterMyListEntries(
+            entries = allListemEntries,
+            searchQuery = searchQuery,
+            selectedStatusFilterId = selectedStatusFilterId,
+            selectedTypeFilterId = selectedTypeFilterId,
+            selectedFavoriteFilterId = selectedFavoriteFilterId,
+            selectedScoreFilterId = selectedScoreFilterId,
+            selectedYearFilterId = selectedYearFilterId,
+            selectedExtraFilterId = selectedExtraFilterId
+        )
+    }
+    val visibleEntries = remember(filteredEntries, selectedSortId, sourceItemByListEntryId) {
+        when (selectedSortId) {
+            "newest" -> filteredEntries.sortedByDescending { entry ->
+                sourceItemByListEntryId[entry.id]?.createdAt?.takeIf { it > 0L } ?: entry.id.toLong()
+            }
+            "oldest" -> filteredEntries.sortedBy { entry ->
+                sourceItemByListEntryId[entry.id]?.createdAt?.takeIf { it > 0L } ?: entry.id.toLong()
+            }
+            else -> applySort(filteredEntries, selectedSortId)
         }
     }
-
-    LaunchedEffect(Unit) {
-        isFabVisible = true
-        prevIndex = 0
-        prevOffset = 0
+    val groupedVisibleEntries = remember(visibleEntries) {
+        groupMyListEntriesByStatus(visibleEntries)
     }
 
-    LaunchedEffect(lazyListState) {
-        snapshotFlow { lazyListState.firstVisibleItemIndex to lazyListState.firstVisibleItemScrollOffset }
+    val hasActiveFilters = selectedStatusFilterId != "all" ||
+        selectedTypeFilterId != "all" ||
+        selectedFavoriteFilterId != "all" ||
+        selectedScoreFilterId != "all" ||
+        selectedYearFilterId != "all" ||
+        selectedExtraFilterId != "all" ||
+        (selectedSortId != "newest" && selectedSortId != "added")
+
+    val showScrollToTop by remember {
+        derivedStateOf { listState.firstVisibleItemIndex > 3 }
+    }
+
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset }
             .collect { (index, offset) ->
-                if (index == 0 && offset < 40) {
-                    isFabVisible = true
-                    isSearchBarVisible = true
-                } else if (index > prevIndex || (index == prevIndex && offset > prevOffset + 15)) {
-                    isFabVisible = false
-                    isSearchBarVisible = false
-                } else if (index < prevIndex || (index == prevIndex && offset < prevOffset - 15)) {
-                    isFabVisible = true
-                    isSearchBarVisible = true
+                val scrollingDown = index > previousIndex ||
+                    (index == previousIndex && offset > previousOffset + 15)
+                val scrollingUp = index < previousIndex ||
+                    (index == previousIndex && offset < previousOffset - 15)
+
+                when {
+                    index == 0 && offset < 40 -> isCategoryFabVisible = true
+                    scrollingDown -> isCategoryFabVisible = false
+                    scrollingUp -> isCategoryFabVisible = true
                 }
-                prevIndex = index
-                prevOffset = offset
-            }
-    }
-
-    // Sort: 0=Varsayılan, 1=A-Z, 2=Puan, 3=İlerleme
-    var sortId by rememberSaveable { mutableStateOf(0) }
-    var showSortMenu by remember { mutableStateOf(false) }
-    var showStatusBottomSheet by remember { mutableStateOf(false) }
-
-    val sortLabels = listOf("Varsayılan", "A-Z", "Puana Göre ↓", "İlerleyeye Göre ↓")
-
-    val filteredItems = remember(state.items, searchQuery, selectedStatusFilter, sortId) {
-        state.items
-            .filter { item ->
-                if (selectedStatusFilter == null) true else item.status == selectedStatusFilter
-            }
-            .filter { item ->
-                if (searchQuery.isBlank()) true
-                else item.title.lowercase().contains(searchQuery.trim().lowercase())
-            }
-            .let { list ->
-                when (sortId) {
-                    1 -> list.sortedBy { it.title.lowercase() }
-                    2 -> list.sortedByDescending { it.score ?: -1.0 }
-                    3 -> list.sortedByDescending { it.progress }
-                    else -> list
+                if (scrollingDown && index >= 1) {
+                    showFilterPanel = false
+                    showSearchField = false
                 }
+                previousIndex = index
+                previousOffset = offset
             }
     }
 
-    val statusOrder = listOf(
-        WatchStatus.Watching,
-        WatchStatus.Paused,
-        WatchStatus.Planned,
-        WatchStatus.Dropped,
-        WatchStatus.Completed
-    )
-
-    // Listem (MyListScreen) bileşenleri için MediaEntry görünümü
-    val listemEntries = remember(filteredItems) { filteredItems.map { it.toListemMediaEntry() } }
-    val listemItemsById = remember(filteredItems) { filteredItems.associateBy { it.mediaId } }
-    val listemGrouped = remember(listemEntries) {
-        listOf(
-            WatchStatus.Watching, WatchStatus.Repeating, WatchStatus.Planned,
-            WatchStatus.Paused, WatchStatus.Dropped, WatchStatus.Completed
-        ).map { status -> status to listemEntries.filter { it.status == status } }
-            .filter { it.second.isNotEmpty() }
+    fun openEntry(entry: MediaEntry) {
+        val item = sourceItemByListEntryId[entry.id] ?: return
+        // AniList ayrıntısı her zaman AniList medya kimliğiyle açılır; MAL kimliği
+        // yalnızca çapraz eşleştirme için realMalId alanında tutulur.
+        val stableId = item.mediaId + 100_000_000
+        val result = JikanSearchResult(
+            malId = stableId,
+            title = item.title,
+            subtitle = item.format.orEmpty(),
+            type = item.mediaType,
+            total = item.total,
+            score = item.roundedScore(),
+            isAdult = item.isAdult,
+            imageUrl = item.imageUrl,
+            year = item.year,
+            source = "anilist",
+            realMalId = item.malId,
+            titleEnglish = item.titleEnglish,
+            titleJapanese = item.titleNative,
+            titleRomaji = item.title,
+            rawScoreDouble = item.score
+        )
+        val localEntry = mediaEntries.firstOrNull { it.matches(result) }
+        if (localEntry != null) onLocalEntryClick(localEntry) else onMediaClick(result)
     }
 
-    val pullRefreshState = rememberPullToRefreshState()
+    val headerSubtitle = when (selectedTypeFilterId) {
+        "anime" -> "AniList • Anime Listesi"
+        "manga" -> "AniList • Manga Listesi"
+        else -> "AniList • Anime & Manga Listesi"
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(KitsugiColors.Background)
+            .background(colors.background)
     ) {
-        // Sticky Header / Top Bar
         Surface(
             modifier = Modifier.fillMaxWidth(),
-            color = KitsugiColors.Surface,
-            shadowElevation = 2.dp
+            color = colors.background,
+            shadowElevation = 0.dp
         ) {
-            Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        IconButton(onClick = onBackClick) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                                contentDescription = "Geri",
-                                tint = KitsugiColors.TextPrimary
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Column {
-                            Text(
-                                text = username,
-                                color = KitsugiColors.TextPrimary,
-                                style = MaterialTheme.typography.titleMedium,
-                                fontWeight = FontWeight.Bold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            Text(
-                                text = if (selectedType == MediaType.Anime) "Anime Listesi" else "Manga Listesi",
-                                color = KitsugiColors.TextMuted,
-                                style = MaterialTheme.typography.bodySmall
-                            )
-                        }
-                    }
+            MyListHeaderSection(
+                selectedListLayoutId = selectedListLayoutId,
+                onListLayoutChange = { layoutId ->
+                    selectedListLayoutId = layoutId
+                    onListLayoutChange(layoutId)
+                },
+                searchQuery = searchQuery,
+                onSearchQueryChange = { searchQuery = it },
+                showSearchField = showSearchField,
+                onSearchFieldToggle = { showSearchField = !showSearchField },
+                showFilterPanel = showFilterPanel,
+                onFilterPanelToggle = { showFilterPanel = !showFilterPanel },
+                onHideFilters = { showFilterPanel = false },
+                selectedStatusFilterId = selectedStatusFilterId,
+                selectedTypeFilterId = selectedTypeFilterId,
+                selectedFavoriteFilterId = selectedFavoriteFilterId,
+                selectedScoreFilterId = selectedScoreFilterId,
+                selectedYearFilterId = selectedYearFilterId,
+                selectedExtraFilterId = selectedExtraFilterId,
+                selectedSortId = selectedSortId,
+                onStatusFilterChange = { selectedStatusFilterId = it },
+                onTypeFilterChange = { selectedTypeFilterId = it },
+                onFavoriteFilterChange = { selectedFavoriteFilterId = it },
+                onScoreFilterChange = { selectedScoreFilterId = it },
+                onYearFilterChange = { selectedYearFilterId = it },
+                onExtraFilterChange = { selectedExtraFilterId = it },
+                onSortChange = { selectedSortId = it },
+                activeTabScrollState = listState,
+                accentColor = accentColor,
+                horizontalPadding = horizontalPadding,
+                hasActiveFilters = hasActiveFilters,
+                headerTitle = username,
+                headerSubtitle = headerSubtitle,
+                onBackClick = onBackClick,
+                searchPlaceholder = "Kullanıcının listesinde ara..."
+            )
+        }
 
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        // Sort chip
-                        Box {
+        MyListSingleSourceBar(
+            sourceId = "anilist",
+            sourceName = "AniList",
+            visibleEntries = visibleEntries,
+            onEntryClick = ::openEntry,
+            onEmptyMessage = { infoMessage = "Gösterilecek bir öğe yok" },
+            accentColor = Color(0xFF02A9FF),
+            horizontalPadding = horizontalPadding
+        )
+
+        val refreshState = rememberPullToRefreshState()
+        val isRefreshing = state.isLoading && state.items.isNotEmpty()
+        PullToRefreshBox(
+            isRefreshing = isRefreshing,
+            onRefresh = { viewModel.loadUserMediaLibrary(userId, forceRefresh = true) },
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth(),
+            state = refreshState,
+            indicator = {
+                PullToRefreshDefaults.Indicator(
+                    state = refreshState,
+                    isRefreshing = isRefreshing,
+                    modifier = Modifier.align(Alignment.TopCenter),
+                    containerColor = colors.surface,
+                    color = accentColor
+                )
+            }
+        ) {
+            when {
+                state.isLoading && state.items.isEmpty() -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        KitsugiPlasmaLoader(size = 48.dp)
+                    }
+                }
+
+                state.error != null && state.items.isEmpty() -> {
+                    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text(
+                                text = state.error.orEmpty(),
+                                color = colors.textMuted,
+                                style = MaterialTheme.typography.bodyMedium
+                            )
                             Box(
                                 modifier = Modifier
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(KitsugiColors.SurfaceStrong)
-                                    .tvClickable(shape = RoundedCornerShape(12.dp)) { showSortMenu = true }
-                                    .padding(horizontal = 10.dp, vertical = 6.dp)
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(accentColor)
+                                    .tvClickable(shape = RoundedCornerShape(14.dp)) {
+                                        viewModel.loadUserMediaLibrary(userId, forceRefresh = true)
+                                    }
+                                    .padding(horizontal = 16.dp, vertical = 9.dp)
                             ) {
                                 Text(
-                                    text = "↕ ${sortLabels[sortId]}",
-                                    color = if (sortId != 0) accentColor else KitsugiColors.TextMuted,
-                                    style = MaterialTheme.typography.labelSmall,
+                                    text = "Tekrar Dene",
+                                    color = colors.background,
                                     fontWeight = FontWeight.Bold
                                 )
                             }
-                            androidx.compose.material3.DropdownMenu(
-                                expanded = showSortMenu,
-                                onDismissRequest = { showSortMenu = false }
-                            ) {
-                                sortLabels.forEachIndexed { idx, label ->
-                                    androidx.compose.material3.DropdownMenuItem(
-                                        text = { Text(text = label, color = if (sortId == idx) accentColor else KitsugiColors.TextPrimary) },
-                                        onClick = { sortId = idx; showSortMenu = false }
-                                    )
-                                }
+                        }
+                    }
+                }
+
+                else -> {
+                    val gridColumns = when {
+                        isLandscape && configuration.screenWidthDp >= 900 -> 6
+                        isLandscape -> 5
+                        configuration.screenWidthDp >= 600 -> 4
+                        else -> 3
+                    }
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = horizontalPadding)
+                            .then(if (isTvDevice) Modifier.dpadVerticalFastScroll(listState) else Modifier),
+                        verticalArrangement = Arrangement.Top
+                    ) {
+                        item {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Text(
+                                text = "${visibleEntries.size} sonuç",
+                                color = colors.textMuted,
+                                style = MaterialTheme.typography.labelMedium,
+                                fontWeight = FontWeight.Bold,
+                                modifier = Modifier.padding(start = 4.dp, bottom = 10.dp)
+                            )
+                            if (state.error != null) {
+                                Text(
+                                    text = state.error.orEmpty(),
+                                    color = accentColor,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier.padding(start = 4.dp, bottom = 8.dp)
+                                )
                             }
                         }
-                    }
-                }
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Anime / Manga Pager Tab (kaydırılabilir)
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(KitsugiColors.SurfaceStrong)
-                        .padding(4.dp)
-                ) {
-                    listOf("Anime Listesi", "Manga Listesi").forEachIndexed { idx, label ->
-                        val isSelected = pagerState.currentPage == idx
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(if (isSelected) accentColor else Color.Transparent)
-                                .tvClickable(shape = RoundedCornerShape(12.dp)) {
-                                    coroutineScope.launch { pagerState.animateScrollToPage(idx) }
+                        if (visibleEntries.isEmpty()) {
+                            item {
+                                EmptyListResultCard(
+                                    searchQuery = searchQuery,
+                                    selectedStatusFilterId = selectedStatusFilterId,
+                                    selectedTypeFilterId = selectedTypeFilterId,
+                                    selectedFavoriteFilterId = selectedFavoriteFilterId,
+                                    selectedScoreFilterId = selectedScoreFilterId,
+                                    selectedYearFilterId = selectedYearFilterId,
+                                    selectedExtraFilterId = selectedExtraFilterId,
+                                    selectedSortId = selectedSortId
+                                )
+                            }
+                        } else if (selectedStatusFilterId == "completed") {
+                            MyListFlatContent(
+                                visibleEntries = visibleEntries,
+                                selectedListLayoutId = selectedListLayoutId,
+                                titleLanguage = appSettings.titleLanguage,
+                                scoreFormat = appSettings.scoreFormat,
+                                hideScores = appSettings.hideScores,
+                                blurAdultMedia = appSettings.blurAdultMedia,
+                                gridColumns = gridColumns,
+                                onEntryClick = ::openEntry,
+                                // Başkasının listesi değiştirilemez; + ayrıntıyı açar.
+                                onIncrementProgress = ::openEntry,
+                                onPosterLongClick = { imageUrl ->
+                                    activeZoomEntry = visibleEntries.firstOrNull { it.imageUrl == imageUrl }
                                 }
-                                .padding(vertical = 8.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text(
-                                text = label,
-                                color = if (isSelected) KitsugiColors.Background else KitsugiColors.TextPrimary,
-                                fontWeight = FontWeight.Bold,
-                                fontSize = 13.sp
+                            )
+                        } else {
+                            MyListGroupedContent(
+                                groupedEntries = groupedVisibleEntries,
+                                selectedListLayoutId = selectedListLayoutId,
+                                titleLanguage = appSettings.titleLanguage,
+                                scoreFormat = appSettings.scoreFormat,
+                                hideScores = appSettings.hideScores,
+                                blurAdultMedia = appSettings.blurAdultMedia,
+                                gridColumns = gridColumns,
+                                onEntryClick = ::openEntry,
+                                // Başkasının listesi değiştirilemez; + ayrıntıyı açar.
+                                onIncrementProgress = ::openEntry,
+                                onPosterLongClick = { imageUrl ->
+                                    activeZoomEntry = visibleEntries.firstOrNull { it.imageUrl == imageUrl }
+                                }
                             )
                         }
-                    }
-                }
-
-                // Arama Kutusu - kaydırma yönüne göre gizlenir/görünür
-                AnimatedVisibility(
-                    visible = isSearchBarVisible,
-                    enter = slideInVertically(tween(200)) { -it } + fadeIn(tween(200)),
-                    exit = slideOutVertically(tween(200)) { -it } + fadeOut(tween(200))
-                ) {
-                    Column {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        KitsugiSearchField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            placeholder = "Kullanıcının listesinde ara...",
-                            modifier = Modifier.fillMaxWidth()
-                        )
+                        item { Spacer(modifier = Modifier.height(90.dp)) }
                     }
                 }
             }
         }
-
-        // Kaydırılabilir Pager İçeriği
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.weight(1f).fillMaxWidth(),
-            userScrollEnabled = true
-        ) { page ->
-        val pageMediaType = if (page == 0) MediaType.Anime else MediaType.Manga
-        LaunchedEffect(page) {
-            viewModel.loadUserMediaList(userId, pageMediaType)
-        }
-        PullToRefreshBox(
-            isRefreshing = state.isLoading && selectedType == pageMediaType,
-            onRefresh = {
-                viewModel.loadUserMediaList(userId, pageMediaType, forceRefresh = true)
-            },
-            modifier = Modifier.fillMaxSize(),
-            state = pullRefreshState
-        ) {
-            if (state.isLoading && state.items.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    KitsugiPlasmaLoader(size = 48.dp)
-                }
-            } else if (state.error != null && state.items.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(text = state.error!!, color = KitsugiColors.TextMuted)
-                }
-            } else if (filteredItems.isEmpty()) {
-                Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text(
-                        text = "Gösterilecek öğe bulunamadı",
-                        color = KitsugiColors.TextMuted,
-                        style = MaterialTheme.typography.bodyMedium
-                    )
-                }
-            } else {
-                val handleItemClick: (UserMediaListItem) -> Unit = { item ->
-                    val stableId = if (item.malId != null && item.malId > 0) item.malId else (item.mediaId + 100_000_000)
-                    val searchResult = JikanSearchResult(
-                        malId = stableId,
-                        title = item.title,
-                        subtitle = item.format ?: "",
-                        type = item.mediaType,
-                        total = item.total,
-                        score = item.score?.toInt(),
-                        isAdult = item.isAdult,
-                        imageUrl = item.imageUrl,
-                        year = item.year,
-                        source = "anilist",
-                        realMalId = item.malId,
-                        rawScoreDouble = item.score
-                    )
-                    val existing = mediaEntries.firstOrNull { it.matches(searchResult) }
-                    if (existing != null) {
-                        onLocalEntryClick(existing)
-                    } else {
-                        onMediaClick(searchResult)
-                    }
-                }
-
-                val listemGridColumns = if (isLandscape) {
-                    if (configuration.screenWidthDp >= 900) 6 else 5
-                } else {
-                    if (configuration.screenWidthDp >= 600) 4 else 3
-                }
-                LazyColumn(
-                    state = lazyListState,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(horizontal = if (isLandscape) 12.dp else 20.dp)
-                ) {
-                    item {
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(
-                            text = "${filteredItems.size} sonuç",
-                            color = KitsugiColors.TextMuted,
-                            style = MaterialTheme.typography.labelMedium,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.padding(start = 4.dp, bottom = 10.dp)
-                        )
-                    }
-                    if (selectedStatusFilter == null) {
-                        MyListGroupedContent(
-                            groupedEntries = listemGrouped,
-                            selectedListLayoutId = appSettings.selectedListLayoutId,
-                            titleLanguage = appSettings.titleLanguage,
-                            scoreFormat = appSettings.scoreFormat,
-                            hideScores = appSettings.hideScores,
-                            blurAdultMedia = appSettings.blurAdultMedia,
-                            gridColumns = listemGridColumns,
-                            sourceBadgesByEntryId = emptyMap(),
-                            onEntryClick = { entry -> listemItemsById[entry.id]?.let(handleItemClick) },
-                            onIncrementProgress = { entry -> listemItemsById[entry.id]?.let(handleItemClick) },
-                            onPosterLongClick = { _ -> }
-                        )
-                    } else {
-                        MyListFlatContent(
-                            visibleEntries = listemEntries,
-                            selectedListLayoutId = appSettings.selectedListLayoutId,
-                            titleLanguage = appSettings.titleLanguage,
-                            scoreFormat = appSettings.scoreFormat,
-                            hideScores = appSettings.hideScores,
-                            blurAdultMedia = appSettings.blurAdultMedia,
-                            gridColumns = listemGridColumns,
-                            sourceBadgesByEntryId = emptyMap(),
-                            onEntryClick = { entry -> listemItemsById[entry.id]?.let(handleItemClick) },
-                            onIncrementProgress = { entry -> listemItemsById[entry.id]?.let(handleItemClick) },
-                            onPosterLongClick = { _ -> }
-                        )
-                    }
-                    item { Spacer(modifier = Modifier.height(90.dp)) }
-                }
-            }
-        }
-        } // end HorizontalPager
     }
 
-    // ── Floating Status FAB (sağ alt köşe) ──
-    val isTv = LocalIsTvDevice.current
-    if (!isTv && !state.isLoading && state.items.isNotEmpty()) {
-        Box(
-            modifier = androidx.compose.ui.Modifier.fillMaxSize()
-        ) {
-            // Tümü (Kategori) button on the Bottom-Start (Bottom-Left)
+    if (!isTvDevice && state.items.isNotEmpty()) {
+        val navigationBarPadding = WindowInsets.navigationBars
+            .asPaddingValues()
+            .calculateBottomPadding()
+        val floatingBottomPadding by animateDpAsState(
+            targetValue = 16.dp + navigationBarPadding,
+            animationSpec = tween(durationMillis = 200),
+            label = "user_list_fab_bottom_padding"
+        )
+
+        Box(modifier = Modifier.fillMaxSize()) {
             AnimatedVisibility(
-                visible = isFabVisible,
-                enter = slideInVertically(initialOffsetY = { it }) + fadeIn(),
-                exit = slideOutVertically(targetOffsetY = { it }) + fadeOut(),
+                visible = isCategoryFabVisible,
+                enter = fadeIn() + scaleIn(),
+                exit = fadeOut() + scaleOut(),
                 modifier = Modifier
                     .align(Alignment.BottomStart)
-                    .padding(bottom = 20.dp, start = 20.dp)
+                    .padding(start = 20.dp, bottom = floatingBottomPadding)
                     .zIndex(10f)
             ) {
-                val fabLabel = when (selectedStatusFilter) {
-                    WatchStatus.Watching -> if (selectedType == MediaType.Anime) "İzleniyor" else "Okunuyor"
-                    WatchStatus.Completed -> "Tamamlandı"
-                    WatchStatus.Planned -> "Planlandı"
-                    WatchStatus.Paused -> "Durduruldu"
-                    WatchStatus.Dropped -> "Bırakıldı"
+                val activeStatusLabel = when (selectedStatusFilterId) {
+                    "watching" -> "İzleniyor"
+                    "completed" -> "Tamamlandı"
+                    "planned" -> "Planlandı"
+                    "dropped" -> "Bırakıldı"
+                    "paused" -> "Durduruldu"
+                    "adult" -> "Yetişkin"
+                    "favorites" -> "Favoriler"
                     else -> "Tümü"
                 }
                 Box(
@@ -504,15 +505,15 @@ fun KitsugiUserMediaListScreen(
                 ) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(
-                            imageVector = Icons.Rounded.List,
+                            imageVector = Icons.Rounded.FormatListBulleted,
                             contentDescription = "Kategori",
-                            tint = KitsugiColors.Background,
+                            tint = colors.background,
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
-                            text = fabLabel,
-                            color = KitsugiColors.Background,
+                            text = activeStatusLabel,
+                            color = colors.background,
                             style = MaterialTheme.typography.bodyMedium,
                             fontWeight = FontWeight.Black
                         )
@@ -520,14 +521,13 @@ fun KitsugiUserMediaListScreen(
                 }
             }
 
-            // Scroll to Top button on the Bottom-End (Bottom-Right)
             AnimatedVisibility(
                 visible = showScrollToTop,
                 enter = fadeIn() + scaleIn(),
                 exit = fadeOut() + scaleOut(),
                 modifier = Modifier
                     .align(Alignment.BottomEnd)
-                    .padding(bottom = 20.dp, end = 20.dp)
+                    .padding(end = 20.dp, bottom = floatingBottomPadding)
                     .zIndex(10f)
             ) {
                 Box(
@@ -536,16 +536,14 @@ fun KitsugiUserMediaListScreen(
                         .clip(RoundedCornerShape(16.dp))
                         .background(accentColor)
                         .tvClickable(shape = RoundedCornerShape(16.dp)) {
-                            coroutineScope.launch {
-                                lazyListState.animateScrollToItem(0)
-                            }
+                            coroutineScope.launch { listState.animateScrollToItem(0) }
                         },
                     contentAlignment = Alignment.Center
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.KeyboardArrowUp,
                         contentDescription = "Yukarı Git",
-                        tint = KitsugiColors.Background,
+                        tint = colors.background,
                         modifier = Modifier.size(24.dp)
                     )
                 }
@@ -554,29 +552,61 @@ fun KitsugiUserMediaListScreen(
     }
 
     if (showStatusBottomSheet) {
-        UserMediaListStatusBottomSheet(
-            items = state.items,
-            selectedStatus = selectedStatusFilter,
-            mediaType = selectedType,
-            onStatusSelected = { selectedStatusFilter = it },
+        KitsugiListStatusBottomSheet(
+            entries = allListemEntries,
+            selectedStatusFilterId = selectedStatusFilterId,
+            showAdultContent = appSettings.showAdultContent,
+            onStatusSelected = { selectedStatusFilterId = it },
             onDismissRequest = { showStatusBottomSheet = false }
+        )
+    }
+
+    activeZoomEntry?.let { entry ->
+        entry.imageUrl?.let { imageUrl ->
+            KitsugiImagePreviewDialog(
+                imageUrl = imageUrl,
+                title = entry.title,
+                isAdult = entry.isAdult,
+                onDismiss = { activeZoomEntry = null }
+            )
+        }
+    }
+
+    infoMessage?.let { message ->
+        KitsugiInfoDialog(
+            title = "Kullanıcı Listesi",
+            message = message,
+            onDismiss = { infoMessage = null }
         )
     }
 }
 
-/** Diğer kullanıcının liste öğesini Listem kartlarının beklediği MediaEntry'e çevirir. */
+/** AniList kullanıcı girdisini Listem kartlarının kullandığı ortak modele dönüştürür. */
 private fun UserMediaListItem.toListemMediaEntry(): MediaEntry = MediaEntry(
-    id = mediaId,
+    id = listEntryId,
     title = title,
     subtitle = format.orEmpty(),
     type = mediaType,
     status = status,
-    score = score?.toInt(),
+    score = roundedScore(),
     progress = progress,
     total = total,
+    isFavorite = isFavorite,
     isAdult = isAdult,
     source = "anilist",
-    malId = malId,
+    malId = mediaId + 100_000_000,
     imageUrl = imageUrl,
-    year = year
+    year = year,
+    startDate = startDate,
+    endDate = endDate,
+    priority = priority,
+    isRepeating = repeatCount > 0 || status == WatchStatus.Repeating,
+    repeatCount = repeatCount,
+    volumeProgress = volumeProgress,
+    isPrivate = isPrivate,
+    isHiddenFromStatusLists = isHiddenFromStatusLists,
+    updatedAt = updatedAt,
+    titleEnglish = titleEnglish,
+    titleJapanese = titleNative,
+    aniListEntryId = listEntryId
 )

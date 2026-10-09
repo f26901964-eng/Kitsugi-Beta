@@ -67,12 +67,13 @@ fun AiringSoonCountdownText(
 ) {
     if (nextAiringEpisode.isNullOrBlank()) return
 
-    val parts = remember(nextAiringEpisode) { nextAiringEpisode.split("|") }
-    val episode = remember(parts) { parts.getOrNull(0)?.toIntOrNull() } ?: return
-    val targetEpoch = remember(parts) { parts.getOrNull(1)?.toLongOrNull() } ?: return
+    val parsed = remember(nextAiringEpisode) { com.kitsugi.animelist.utils.NextAiringFormat.parse(nextAiringEpisode) }
+    val episode = parsed.episode ?: return
+    val targetEpoch = parsed.epoch ?: return
 
-    // episode == -1: TMDB "upcoming" listesinden gelen film/dizi (nextAiringEpisode = "-1|epoch")
-    val isTmdbUpcoming = episode == -1
+    // episode <= 0: TMDB "upcoming" listesinden gelen film/dizi (bölüm numarası bilinmiyor)
+    val isTmdbUpcoming = episode <= 0
+    val dateLabel = remember(targetEpoch) { com.kitsugi.animelist.utils.NextAiringFormat.formatDate(targetEpoch) }
 
     var countdownText by remember(episode, targetEpoch) { mutableStateOf("") }
 
@@ -121,8 +122,10 @@ fun AiringSoonCountdownText(
     if (countdownText.isNotBlank()) {
         // episode > 0: AniList countdown → turuncu; TMDB upcoming → mavi/accent
         val textColor = if (isTmdbUpcoming) KitsugiColors.Accent else KitsugiColors.AccentOrange
+        // Yayın tarihi + geri sayım — "Bölüm 5 · 2026-10-12 · 3 gün sonra yayınlanacak"
+        val fullText = if (episode > 0) "Bölüm $episode · $dateLabel · $countdownText" else "$dateLabel · $countdownText"
         Text(
-            text = countdownText,
+            text = fullText,
             color = textColor,
             style = MaterialTheme.typography.labelSmall,
             fontWeight = FontWeight.Bold,

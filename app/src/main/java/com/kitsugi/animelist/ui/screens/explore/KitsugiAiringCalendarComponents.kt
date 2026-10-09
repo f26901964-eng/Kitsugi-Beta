@@ -766,23 +766,27 @@ private fun Long.secondsToLegibleText(): String {
 
 @Composable
 private fun AiringTimeText(entry: AiringEntry, episode: Int? = null) {
-    var text by remember(entry) { mutableStateOf(entry.formattedTime()) }
+    // Yayın tarihi + saat + geri sayım — "2026-10-15 14:30 • 19 gün sonra yayında"
+    val datePrefix = remember(entry) {
+        com.kitsugi.animelist.utils.NextAiringFormat.formatDate(entry.airingAt) + " " + entry.formattedTime()
+    }
+    var text by remember(entry) { mutableStateOf(datePrefix) }
 
     if (!entry.hasAired()) {
         LaunchedEffect(entry) {
             while (true) {
                 val remaining = entry.airingAt - System.currentTimeMillis() / 1000L
                 if (remaining <= 0) {
-                    text = "${entry.formattedTime()} • Yayında"
+                    text = "$datePrefix • Yayında"
                     break
                 }
-                text = "${entry.formattedTime()} • ${remaining.secondsToLegibleText()}"
+                text = "$datePrefix • ${remaining.secondsToLegibleText()}"
                 val delayTime = if (remaining > 86400) 60000L else 10000L
                 delay(delayTime)
             }
         }
     } else {
-        text = "${entry.formattedTime()} • Yayında"
+        text = "$datePrefix • Yayında"
     }
 
     val displayText = when {

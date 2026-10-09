@@ -214,11 +214,15 @@ fun DefaultCategoriesSection(
     filteredSeasonalAnime: List<JikanSearchResult>,
     filteredTopAnime: List<JikanSearchResult>,
     filteredTrendingAnime: List<JikanSearchResult>,
+    filteredTopRatedAnime: List<JikanSearchResult> = emptyList(),
+    filteredAiringAnime: List<JikanSearchResult> = emptyList(),
+    filteredUpcomingAnime: List<JikanSearchResult> = emptyList(),
     filteredMovieAnime: List<JikanSearchResult>,
     filteredNewlyAddedAnime: List<JikanSearchResult>,
     filteredTopManga: List<JikanSearchResult>,
-    filteredPublishingManga: List<JikanSearchResult>,
     filteredTrendingManga: List<JikanSearchResult>,
+    filteredTopRatedManga: List<JikanSearchResult> = emptyList(),
+    filteredPublishingManga: List<JikanSearchResult>,
     filteredNewlyAddedManga: List<JikanSearchResult>,
     onSeeAllSection: (title: String, categoryType: ExploreCategoryType, results: List<JikanSearchResult>) -> Unit,
     onOpenAiringCalendar: () -> Unit,
@@ -286,18 +290,6 @@ fun DefaultCategoriesSection(
                 ) {
                     item {
                         ExploreCategoryChip(
-                            label = stringResource(R.string.explore_seasonal_anime),
-                            onClick = { onSeeAllSection(context.getString(R.string.explore_seasonal_anime), ExploreCategoryType.SEASONAL_ANIME, filteredSeasonalAnime) }
-                        )
-                    }
-                    item {
-                        ExploreCategoryChip(
-                            label = stringResource(R.string.explore_airing_soon),
-                            onClick = onOpenAiringCalendar
-                        )
-                    }
-                    item {
-                        ExploreCategoryChip(
                             label = stringResource(R.string.explore_top_anime),
                             onClick = { onSeeAllSection(context.getString(R.string.explore_top_anime), ExploreCategoryType.TOP_ANIME, filteredTopAnime) }
                         )
@@ -310,14 +302,44 @@ fun DefaultCategoriesSection(
                     }
                     item {
                         ExploreCategoryChip(
+                            label = stringResource(R.string.explore_top_rated_anime),
+                            onClick = { onSeeAllSection(context.getString(R.string.explore_top_rated_anime), ExploreCategoryType.TOP_RATED_ANIME, filteredTopRatedAnime) }
+                        )
+                    }
+                    item {
+                        ExploreCategoryChip(
+                            label = stringResource(R.string.explore_airing_anime),
+                            onClick = { onSeeAllSection(context.getString(R.string.explore_airing_anime), ExploreCategoryType.AIRING_ANIME, filteredAiringAnime) }
+                        )
+                    }
+                    item {
+                        ExploreCategoryChip(
+                            label = stringResource(R.string.explore_upcoming_anime),
+                            onClick = { onSeeAllSection(context.getString(R.string.explore_upcoming_anime), ExploreCategoryType.UPCOMING_ANIME, filteredUpcomingAnime) }
+                        )
+                    }
+                    item {
+                        ExploreCategoryChip(
                             label = stringResource(R.string.explore_movie_anime),
                             onClick = { onSeeAllSection(context.getString(R.string.explore_movie_anime), ExploreCategoryType.MOVIE_ANIME, filteredMovieAnime) }
                         )
                     }
                     item {
                         ExploreCategoryChip(
+                            label = stringResource(R.string.explore_seasonal_anime),
+                            onClick = { onSeeAllSection(context.getString(R.string.explore_seasonal_anime), ExploreCategoryType.SEASONAL_ANIME, filteredSeasonalAnime) }
+                        )
+                    }
+                    item {
+                        ExploreCategoryChip(
                             label = stringResource(R.string.explore_newly_added_anime),
                             onClick = { onSeeAllSection(context.getString(R.string.explore_newly_added_anime), ExploreCategoryType.NEWLY_ADDED_ANIME, filteredNewlyAddedAnime) }
+                        )
+                    }
+                    item {
+                        ExploreCategoryChip(
+                            label = stringResource(R.string.explore_airing_soon),
+                            onClick = onOpenAiringCalendar
                         )
                     }
                 }
@@ -343,14 +365,20 @@ fun DefaultCategoriesSection(
                     }
                     item {
                         ExploreCategoryChip(
-                            label = stringResource(R.string.explore_publishing_manga),
-                            onClick = { onSeeAllSection(context.getString(R.string.explore_publishing_manga), ExploreCategoryType.PUBLISHING_MANGA, filteredPublishingManga) }
+                            label = stringResource(R.string.explore_trending_manga),
+                            onClick = { onSeeAllSection(context.getString(R.string.explore_trending_manga), ExploreCategoryType.TRENDING_MANGA, filteredTrendingManga) }
                         )
                     }
                     item {
                         ExploreCategoryChip(
-                            label = stringResource(R.string.explore_trending_manga),
-                            onClick = { onSeeAllSection(context.getString(R.string.explore_trending_manga), ExploreCategoryType.TRENDING_MANGA, filteredTrendingManga) }
+                            label = stringResource(R.string.explore_top_rated_manga),
+                            onClick = { onSeeAllSection(context.getString(R.string.explore_top_rated_manga), ExploreCategoryType.TOP_RATED_MANGA, filteredTopRatedManga) }
+                        )
+                    }
+                    item {
+                        ExploreCategoryChip(
+                            label = stringResource(R.string.explore_publishing_manga),
+                            onClick = { onSeeAllSection(context.getString(R.string.explore_publishing_manga), ExploreCategoryType.PUBLISHING_MANGA, filteredPublishingManga) }
                         )
                     }
                     item {

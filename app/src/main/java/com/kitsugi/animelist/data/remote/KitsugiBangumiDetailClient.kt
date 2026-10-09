@@ -9,6 +9,7 @@ import com.kitsugi.animelist.data.auth.BangumiApiClient.BangumiSubject
 import com.kitsugi.animelist.data.auth.BangumiAuthStore
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.utils.toLatinStudioName
+import com.kitsugi.animelist.utils.isUntranslatedCjkTag
 import com.kitsugi.animelist.utils.localizedDistinctTags
 import com.kitsugi.animelist.utils.toLocalizedTagLabel
 import com.kitsugi.animelist.utils.toTurkishBroadcast
@@ -484,6 +485,8 @@ object KitsugiBangumiDetailClient {
                 val label = tag.name.trim().toLocalizedTagLabel().trim().lowercase(Locale.ROOT)
                 label.isNotEmpty() && seenTagLabels.add(label)
             }
+            // Sözlükte karşılığı olmayan Çince/Japonca etiketler sona; önce okunabilir olanlar.
+            .sortedBy { if (isUntranslatedCjkTag(it.name)) 1 else 0 }
             .take(48)
         return base.copy(
             // Özet tercihi: Bangumi açıklaması Çince/Japonca geldiyse ve eşleşen kayıtta Latin

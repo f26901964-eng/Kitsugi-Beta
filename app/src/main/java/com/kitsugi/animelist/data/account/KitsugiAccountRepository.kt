@@ -9,6 +9,7 @@ import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.serialization.KSerializer
@@ -28,6 +29,14 @@ import kotlinx.serialization.json.decodeFromJsonElement
  * Eklentiler ve ayarlar aynı mekanizmayla sonraki adımda eklenecek.
  */
 object KitsugiAccountRepository {
+
+    private suspend fun <T> accountResult(block: suspend () -> T): Result<T> = try {
+        Result.success(block())
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        Result.failure(e)
+    }
 
     private const val TABLE = "user_data"
     private const val KEY_SEARCH_HISTORY = "search_history"
@@ -63,42 +72,49 @@ object KitsugiAccountRepository {
     /**
      * Kayıt. E-posta doğrulama açıksa oturum hemen açılmaz; sonuç `needsConfirmation = true` döner.
      */
-    suspend fun signUp(context: Context, email: String, password: String): Result<Boolean> = runCatching {
+    suspend fun signUp(context: Context, email: String, password: String): Result<Boolean> = accountResult {
+        LinkedAccountVault.forgetLocalVault(context)
         val auth = KitsugiAccountClient.client.auth
-        auth.signUpWith(Email) {
-            this.email = email.trim()
-            this.password = password
+        LinkedAccountVault.changeSession {
+            auth.signUpWith(Email) {
+                this.email = email.trim()
+                this.password = password
+            }
         }
         // true → oturum açıldı, false → e-posta doğrulaması bekleniyor
         val hasSession = auth.currentUserOrNull() != null
         if (hasSession) {
-            // Kasa hatası girişi bozmaz; yalnızca kayıt altına alınır
+            // Auth başarılı kalır; kasa hatası ayrıca gözlemlenebilir durum akışında gösterilir
             LinkedAccountVault.onSignedIn(context, password)
-                .onFailure { android.util.Log.w("KitsugiAccount", "Kasa açılamadı: ${it.message}") }
+                .onFailure { android.util.Log.w("KitsugiAccount", "Kasa açılamadı: ${it.javaClass.simpleName}") }
         }
         hasSession
     }
 
-    suspend fun signIn(context: Context, email: String, password: String): Result<Unit> = runCatching {
-        KitsugiAccountClient.client.auth.signInWith(Email) {
-            this.email = email.trim()
-            this.password = password
+    suspend fun signIn(context: Context, email: String, password: String): Result<Unit> = accountResult {
+        LinkedAccountVault.changeSession {
+            KitsugiAccountClient.client.auth.signInWith(Email) {
+                this.email = email.trim()
+                this.password = password
+            }
         }
         // Bağlı servis token'larını yedekten geri yükle (şifre bu an elimizde)
         LinkedAccountVault.onSignedIn(context, password)
-            .onFailure { android.util.Log.w("KitsugiAccount", "Kasa açılamadı: ${it.message}") }
+            .onFailure { android.util.Log.w("KitsugiAccount", "Kasa açılamadı: ${it.javaClass.simpleName}") }
         Unit
     }
 
-    suspend fun signOut(context: Context): Result<Unit> = runCatching {
-        KitsugiAccountClient.client.auth.signOut()
+    suspend fun signOut(context: Context): Result<Unit> = accountResult {
+        // Do not erase the only decryption key while this device has unsent account changes.
+        if (LinkedAccountVault.hasLocalVault(context)) LinkedAccountVault.backupNow(context).getOrThrow()
+        LinkedAccountVault.changeSession { KitsugiAccountClient.client.auth.signOut() }
         LinkedAccountVault.forgetLocalVault(context)
         Unit
     }
 
     /** Yerel arama geçmişini buluta yazar (son [SEARCH_HISTORY_LIMIT] kayıt). */
-    suspend fun pushSearchHistory(dao: SearchHistoryDao): Result<Unit> = runCatching {
-        val uid = currentUserId() ?: return@runCatching
+    suspend fun pushSearchHistory(dao: SearchHistoryDao): Result<Unit> = accountResult {
+        val uid = currentUserId() ?: return@accountResult
         val local = dao.getRecentSearchHistory().first()
         val payload = local.map { RemoteSearchEntry(it.query, it.type, it.timestamp) }
         writeKey(uid, KEY_SEARCH_HISTORY, json.encodeToJsonElement(searchListSerializer, payload))
@@ -108,8 +124,8 @@ object KitsugiAccountRepository {
      * Buluttaki arama geçmişini yerelle birleştirir: aynı sorgu için en yeni zaman damgası kazanır,
      * sonra sonuç hem yerel veritabanına hem buluta yazılır.
      */
-    suspend fun pullAndMergeSearchHistory(dao: SearchHistoryDao): Result<Unit> = runCatching {
-        val uid = currentUserId() ?: return@runCatching
+    suspend fun pullAndMergeSearchHistory(dao: SearchHistoryDao): Result<Unit> = accountResult {
+        val uid = currentUserId() ?: return@accountResult
         val remote = fetchRemoteSearchHistory(uid)
         val local = dao.getRecentSearchHistory().first().map {
             RemoteSearchEntry(it.query, it.type, it.timestamp)

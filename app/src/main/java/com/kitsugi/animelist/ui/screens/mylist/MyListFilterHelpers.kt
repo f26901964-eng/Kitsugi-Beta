@@ -3,6 +3,91 @@ package com.kitsugi.animelist.ui.screens.mylist
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.model.MediaEntry
+import com.kitsugi.animelist.model.WatchStatus
+
+/**
+ * Listem ekranındaki bütün istemci tarafı filtrelerini tek bir sözleşmede uygular.
+ *
+ * Kendi listemiz ve salt-okunur kullanıcı listeleri aynı yardımcıyı kullanır. Böylece
+ * arama/filtre davranışı ekranlar arasında zamanla birbirinden kopmaz.
+ */
+internal fun filterMyListEntries(
+    entries: List<MediaEntry>,
+    searchQuery: String,
+    selectedStatusFilterId: String,
+    selectedTypeFilterId: String,
+    selectedFavoriteFilterId: String,
+    selectedScoreFilterId: String,
+    selectedYearFilterId: String,
+    selectedExtraFilterId: String
+): List<MediaEntry> {
+    val selectedStatus = statusFilters.firstOrNull { it.id == selectedStatusFilterId }?.status
+    val selectedType = typeFilters.firstOrNull { it.id == selectedTypeFilterId }?.type
+    val favoritesOnly = selectedFavoriteFilterId == "favorites" || selectedStatusFilterId == "favorites"
+    val adultOnly = selectedStatusFilterId == "adult"
+    val normalizedQuery = searchQuery.trim().lowercase()
+
+    return entries.asSequence()
+        .filter { entry -> selectedStatus == null || entry.status == selectedStatus }
+        .filter { entry -> selectedType == null || entry.type == selectedType }
+        .filter { entry -> !favoritesOnly || entry.isFavorite }
+        .filter { entry -> !adultOnly || entry.isAdult }
+        .filter { entry ->
+            when (selectedScoreFilterId) {
+                "high" -> (entry.score ?: 0) >= 8
+                "mid" -> (entry.score ?: 0) in 5..7
+                "low" -> (entry.score ?: 0) in 1..4
+                "unrated" -> entry.score == null || entry.score == 0
+                else -> true
+            }
+        }
+        .filter { entry ->
+            when (selectedYearFilterId) {
+                "new" -> (entry.year ?: 0) >= 2025
+                "2020s" -> (entry.year ?: 0) in 2020..2024
+                "2010s" -> (entry.year ?: 0) in 2010..2019
+                "2000s" -> (entry.year ?: 0) in 2000..2009
+                "classic" -> (entry.year ?: 0) in 1..1999
+                else -> true
+            }
+        }
+        .filter { entry ->
+            when (selectedExtraFilterId) {
+                "repeating" -> entry.isRepeating || entry.status == WatchStatus.Repeating
+                "private" -> entry.isPrivate
+                "ongoing" -> entry.status != WatchStatus.Completed && entry.status != WatchStatus.Dropped
+                else -> true
+            }
+        }
+        .filter { entry ->
+            normalizedQuery.isBlank() ||
+                entry.title.lowercase().contains(normalizedQuery) ||
+                entry.titleEnglish?.lowercase()?.contains(normalizedQuery) == true ||
+                entry.titleJapanese?.lowercase()?.contains(normalizedQuery) == true ||
+                entry.subtitle.lowercase().contains(normalizedQuery) ||
+                entry.type.name.lowercase().contains(normalizedQuery) ||
+                entry.status.label.lowercase().contains(normalizedQuery) ||
+                entry.source.lowercase().contains(normalizedQuery) ||
+                entry.year?.toString()?.contains(normalizedQuery) == true ||
+                entry.malId?.toString()?.contains(normalizedQuery) == true
+        }
+        .toList()
+}
+
+internal fun groupMyListEntriesByStatus(
+    entries: List<MediaEntry>
+): List<Pair<WatchStatus, List<MediaEntry>>> {
+    val statusOrder = listOf(
+        WatchStatus.Watching,
+        WatchStatus.Repeating,
+        WatchStatus.Planned,
+        WatchStatus.Paused,
+        WatchStatus.Dropped,
+        WatchStatus.Completed
+    )
+    return statusOrder.map { status -> status to entries.filter { it.status == status } }
+        .filter { (_, statusEntries) -> statusEntries.isNotEmpty() }
+}
 
 internal fun applySort(
     entries: List<MediaEntry>,

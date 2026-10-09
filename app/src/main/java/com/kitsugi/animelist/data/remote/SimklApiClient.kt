@@ -783,7 +783,12 @@ class SimklApiClient(
                     val title = resolveSimklTitle(obj)
                     if (title.isBlank()) continue
                     val ids = obj.optJSONObject("ids")
-                    val simklId = ids?.optInt("simkl_id", 0)?.takeIf { it > 0 } ?: (i + 1)
+                    val simklId = ids?.optInt("simkl_id", 0)?.takeIf { it > 0 }
+                        ?: ids?.optInt("simkl", 0)?.takeIf { it > 0 }
+                        ?: (i + 1)
+                    val tmdbId = ids?.optInt("tmdb_id", 0)?.takeIf { it > 0 }
+                        ?: ids?.optInt("tmdb", 0)?.takeIf { it > 0 }
+                    val malId = ids?.optInt("mal", 0)?.takeIf { it > 0 }
                     val poster = obj.optString("poster", "")
                     val imageUrl = if (poster.isNotBlank()) "https://simkl.in/posters/${poster}_m.webp" else null
                     val fanart = obj.optString("fanart", "")
@@ -820,9 +825,10 @@ class SimklApiClient(
                             imageUrl = imageUrl,
                             year = year,
                             source = "simkl",
-                            realMalId = ids?.optInt("mal", 0)?.takeIf { it > 0 },
+                            realMalId = malId,
                             titleEnglish = title,
                             titleJapanese = simklNativeTitle(obj),
+                            tmdbId = tmdbId,
                             backdropUrl = backdropUrl
                         )
                     )

@@ -1,22 +1,44 @@
 package com.kitsugi.animelist.data.account
 
+import com.kitsugi.animelist.data.account.VaultCrypto.CipherBlob
+import com.kitsugi.animelist.data.account.VaultCrypto.PasswordWrap
+import com.kitsugi.animelist.data.account.VaultCrypto.asBlob
+import com.kitsugi.animelist.data.account.VaultCrypto.wrap
+import com.kitsugi.animelist.data.account.VaultCrypto.unwrap
+import com.kitsugi.animelist.data.account.VaultCrypto.encrypt
+import com.kitsugi.animelist.data.account.VaultCrypto.decrypt
+import com.kitsugi.animelist.data.account.VaultCrypto.b64
+import com.kitsugi.animelist.data.account.VaultCrypto.unb64
 import android.content.Context
 import android.content.SharedPreferences
-import android.util.Base64
 import android.util.Log
 import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.providers.builtin.Email
+import io.github.jan.supabase.postgrest.postgrest
 import io.github.jan.supabase.postgrest.from
 import io.github.jan.supabase.postgrest.query.Columns
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import com.kitsugi.animelist.data.settings.SettingsDataStore
 import kotlinx.coroutines.launch
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
@@ -26,11 +48,6 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import java.security.SecureRandom
-import javax.crypto.Cipher
-import javax.crypto.SecretKeyFactory
-import javax.crypto.spec.GCMParameterSpec
-import javax.crypto.spec.PBEKeySpec
-import javax.crypto.spec.SecretKeySpec
 
 /**
  * Bağlı servis hesaplarının (AniList, MAL, Kitsu, Shikimori, Bangumi, Simkl) token'larını
@@ -51,17 +68,11 @@ object LinkedAccountVault {
     // Token'ların bulunduğu mevcut SharedPreferences dosyası (diğer auth sınıflarıyla aynı)
     private const val TOKEN_PREFS = "MyWebViewPrefs"
     // Kasa anahtarının cihaz kopyası (oturum kapanınca silinir)
-    private const val LOCAL_PREFS = "kitsugi_vault"
-    private const val LOCAL_VAULT_KEY = "vault_key_b64"
 
     private const val ROW_META = "vault_meta"
     private const val ROW_PAYLOAD = "linked_accounts_vault"
     private const val TABLE = "user_data"
 
-    private const val PBKDF2_ITERATIONS = 210_000
-    private const val SALT_BYTES = 16
-    private const val IV_BYTES = 12
-    private const val GCM_TAG_BITS = 128
 
     /** Yedeklenecek anahtar önekleri. Geçici alanlar (code_verifier, pending_redirect) HARİÇ. */
     private val ALLOWED_PREFIXES = listOf(
@@ -80,18 +91,49 @@ object LinkedAccountVault {
 
     private val json = Json { ignoreUnknownKeys = true }
     private val random = SecureRandom()
-    private val scope = CoroutineScope(Dispatchers.IO)
-    private var pendingBackup: Job? = null
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var settingsObserver: Job? = null
+    private val mutex = Mutex()
+    @Volatile private var restoring = false
+    private val _status = MutableStateFlow("Yedek durumu henüz doğrulanmadı.")
+    val status = _status.asStateFlow()
+    private val _conflicts = MutableStateFlow<Set<String>>(emptySet())
+    val conflicts = _conflicts.asStateFlow()
+    private var conflictRemote: JsonElement? = null
+
+    /** Auth must not replace the singleton client's JWT in the middle of an upload for another owner. */
+    suspend fun <T> changeSession(action: suspend () -> T): T = withContext(Dispatchers.IO) {
+        mutex.withLock { action() }
+    }
+
+    private suspend fun operation(block: suspend () -> Unit): Result<Unit> = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            try {
+                block()
+                Result.success(Unit)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                _status.value = when (e) {
+                    is VaultConflictException, is VaultLockedException -> e.message.orEmpty()
+                    else -> "İşlem tamamlanamadı. Açık kasa için bekleyen yedek işi yeniden denenir. Kasa açılmadıysa tekrar giriş yap; sunucu güncellemesini de kontrol et."
+                }
+                Result.failure(e)
+            }
+        }
+    }
+
+    private fun scheduleBackup() {
+        if (restoring) return
+        val uid = userId() ?: return
+        appContext?.let { VaultBackupWorker.enqueue(it, uid) }
+    }
 
     // Listener bir alanda tutulmalı: SharedPreferences listener'ları zayıf referansla saklar,
     // yerel değişkende tutulursa çöp toplayıcı tarafından silinir.
     private val autoBackupListener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key == null || !isAllowed(key)) return@OnSharedPreferenceChangeListener
-        pendingBackup?.cancel()
-        pendingBackup = scope.launch {
-            delay(3_000)
-            appContext?.let { backupNow(it) }
-        }
+        if (key != null && !isAllowed(key)) return@OnSharedPreferenceChangeListener
+        scheduleBackup()
     }
 
     @Volatile
@@ -104,50 +146,26 @@ object LinkedAccountVault {
         val value: JsonElement
     )
 
-    @Serializable
-    private data class CipherBlob(val salt: String = "", val iv: String, val ct: String)
-
-    // ─────────────────────────── Kriptografi ───────────────────────────
-
-    private fun deriveKek(password: String, salt: ByteArray): ByteArray {
-        val spec = PBEKeySpec(password.toCharArray(), salt, PBKDF2_ITERATIONS, 256)
-        return SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256").generateSecret(spec).encoded
-    }
-
-    private fun encrypt(key: ByteArray, plain: ByteArray): Pair<ByteArray, ByteArray> {
-        val iv = ByteArray(IV_BYTES).also { random.nextBytes(it) }
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.ENCRYPT_MODE, SecretKeySpec(key, "AES"), GCMParameterSpec(GCM_TAG_BITS, iv))
-        return iv to cipher.doFinal(plain)
-    }
-
-    private fun decrypt(key: ByteArray, iv: ByteArray, ct: ByteArray): ByteArray {
-        val cipher = Cipher.getInstance("AES/GCM/NoPadding")
-        cipher.init(Cipher.DECRYPT_MODE, SecretKeySpec(key, "AES"), GCMParameterSpec(GCM_TAG_BITS, iv))
-        return cipher.doFinal(ct)
-    }
-
-    private fun b64(bytes: ByteArray): String = Base64.encodeToString(bytes, Base64.NO_WRAP)
-    private fun unb64(text: String): ByteArray = Base64.decode(text, Base64.NO_WRAP)
-
     // ─────────────────────────── Token anlık görüntüsü ───────────────────────────
 
     private fun tokenPrefs(context: Context): SharedPreferences =
         context.applicationContext.getSharedPreferences(TOKEN_PREFS, Context.MODE_PRIVATE)
 
     /** Yedeklenecek token'ları tip bilgisiyle JSON dizisine çevirir. */
-    private fun snapshot(context: Context): ByteArray {
+    private suspend fun snapshot(context: Context): ByteArray {
         val all = tokenPrefs(context).all
+        val settings = SettingsDataStore(context).cloudSettingsFlow.first()
         val entries = buildJsonArray {
             all.forEach { (k, v) ->
                 if (!isAllowed(k) || v == null) return@forEach
                 addJsonObject(k, v)
             }
+            settings.forEach { (k, v) -> addJsonObject(k, v, "settings") }
         }
         return entries.toString().toByteArray(Charsets.UTF_8)
     }
 
-    private fun kotlinx.serialization.json.JsonArrayBuilder.addJsonObject(key: String, value: Any) {
+    private fun kotlinx.serialization.json.JsonArrayBuilder.addJsonObject(key: String, value: Any, section: String = "tokens") {
         val (type, v) = when (value) {
             is String -> "s" to JsonPrimitive(value)
             is Long -> "l" to JsonPrimitive(value)
@@ -157,6 +175,7 @@ object LinkedAccountVault {
             else -> return
         }
         add(buildJsonObject {
+            put("section", section)
             put("k", key)
             put("t", type)
             put("v", v)
@@ -164,12 +183,24 @@ object LinkedAccountVault {
     }
 
     /** Yedek verisini token dosyasına geri yazar. Sadece izinli anahtarlara dokunur. */
-    private fun restore(context: Context, plain: ByteArray) {
+    private suspend fun restore(context: Context, plain: ByteArray) {
         val arr = json.parseToJsonElement(plain.toString(Charsets.UTF_8)).jsonArray
         val editor = tokenPrefs(context).edit()
+        ALLOWED_PREFIXES.forEach { editor.remove(it) }
+        val settings = mutableMapOf<String, Any>()
         arr.forEach { el ->
             val obj = el.jsonObject
             val key = obj["k"]?.jsonPrimitive?.content ?: return@forEach
+            if (obj["section"]?.jsonPrimitive?.content == "settings") {
+                val value = obj["v"]?.jsonPrimitive ?: return@forEach
+                settings[key] = when (obj["t"]?.jsonPrimitive?.content) {
+                    "s" -> value.content
+                    "i" -> value.content.toInt()
+                    "b" -> value.content.toBooleanStrict()
+                    else -> return@forEach
+                }
+                return@forEach
+            }
             if (!isAllowed(key)) return@forEach
             val v = obj["v"]?.jsonPrimitive ?: return@forEach
             when (obj["t"]?.jsonPrimitive?.content) {
@@ -180,27 +211,29 @@ object LinkedAccountVault {
                 "f" -> editor.putFloat(key, v.content.toFloat())
             }
         }
-        // Yedekten gelen değerleri yazarken auto-backup dinleyicisi tetiklenir; bu zararsız (aynı içerik).
-        editor.commit()
+        // Restore runs under the vault mutex; no upload may race a partial restore.
+        check(editor.commit())
+        SettingsDataStore(context).restoreCloudSettings(settings)
     }
 
     // ─────────────────────────── Yerel kasa anahtarı ───────────────────────────
 
-    private fun localPrefs(context: Context): SharedPreferences =
-        context.applicationContext.getSharedPreferences(LOCAL_PREFS, Context.MODE_PRIVATE)
-
     private fun localVaultKey(context: Context): ByteArray? =
-        localPrefs(context).getString(LOCAL_VAULT_KEY, null)?.let { unb64(it) }
+        userId()?.let { LocalVaultKeyStore.load(context, it) }
 
-    private fun saveLocalVaultKey(context: Context, key: ByteArray) {
-        localPrefs(context).edit().putString(LOCAL_VAULT_KEY, b64(key)).apply()
-    }
+    fun hasLocalVault(context: Context): Boolean = runCatching {
+        val uid = userId() ?: return@runCatching false
+        localVaultKey(context) != null && LocalVaultKeyStore.baseline(context, uid) != null
+    }.getOrDefault(false)
 
-    fun hasLocalVault(context: Context): Boolean = localVaultKey(context) != null
-
-    /** Oturum kapanınca yerel kasa anahtarını siler (token'lar cihazda kalır). */
-    fun forgetLocalVault(context: Context) {
-        localPrefs(context).edit().remove(LOCAL_VAULT_KEY).apply()
+    suspend fun forgetLocalVault(context: Context) = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            LocalVaultKeyStore.owner(context)?.let { VaultBackupWorker.cancel(context, it) }
+            LocalVaultKeyStore.clear(context)
+            _conflicts.value = emptySet()
+            conflictRemote = null
+            _status.value = "Kasa kilitli. Giriş yaparak açabilirsin."
+        }
     }
 
     // ─────────────────────────── Bulut işlemleri ───────────────────────────
@@ -217,9 +250,16 @@ object LinkedAccountVault {
         return rows.firstOrNull()?.value
     }
 
-    private suspend fun upsertRow(uid: String, key: String, value: JsonElement) {
-        KitsugiAccountClient.client.from(TABLE).upsert(MetaRow(userId = uid, key = key, value = value))
-    }
+    /** Atomic comparison is executed on the server; a client-side read/check is not sufficient. */
+    private suspend fun compareAndSwap(key: String, expected: JsonElement?, value: JsonElement): Boolean =
+        KitsugiAccountClient.client.postgrest.rpc("kitsugi_vault_cas", buildJsonObject {
+            put("p_key", key); put("p_expected", expected ?: JsonNull); put("p_value", value)
+        }).decodeAs<Boolean>()
+
+    private fun blobJson(blob: CipherBlob): JsonElement = json.encodeToJsonElement(CipherBlob.serializer(), blob)
+    private fun blob(value: JsonElement): CipherBlob = json.decodeFromJsonElement(CipherBlob.serializer(), value)
+    private fun payload(value: JsonElement?, key: ByteArray): JsonArray = if (value == null) JsonArray(emptyList())
+        else blob(value).let { json.parseToJsonElement(decrypt(key, unb64(it.iv), unb64(it.ct)).toString(Charsets.UTF_8)).jsonArray }
 
     private fun userId(): String? =
         runCatching { KitsugiAccountClient.client.auth.currentUserOrNull()?.id }.getOrNull()
@@ -229,41 +269,102 @@ object LinkedAccountVault {
      *  • Yedek varsa: kasa anahtarını açar, token'ları geri yükler.
      *  • Yoksa: yeni kasa oluşturur ve mevcut token'ları yedekler.
      */
-    suspend fun onSignedIn(context: Context, password: String): Result<Unit> = runCatching {
-        val uid = userId() ?: error("Oturum bulunamadı")
-        val metaJson = fetchRow(uid, ROW_META)
-
-        if (metaJson == null) {
-            // İlk kez: yeni kasa anahtarı oluştur, şifreyle sar, yedek al
-            val vaultKey = ByteArray(32).also { random.nextBytes(it) }
-            val salt = ByteArray(SALT_BYTES).also { random.nextBytes(it) }
-            val kek = deriveKek(password, salt)
-            val (iv, ct) = encrypt(kek, vaultKey)
-            upsertRow(uid, ROW_META, json.encodeToJsonElement(CipherBlob.serializer(), CipherBlob(b64(salt), b64(iv), b64(ct))))
-            saveLocalVaultKey(context, vaultKey)
-            backupNow(context)
-        } else {
-            val meta = json.decodeFromJsonElement(CipherBlob.serializer(), metaJson)
-            val kek = deriveKek(password, unb64(meta.salt))
-            val vaultKey = decrypt(kek, unb64(meta.iv), unb64(meta.ct))
-            saveLocalVaultKey(context, vaultKey)
-
-            val payloadJson = fetchRow(uid, ROW_PAYLOAD)
-            if (payloadJson != null) {
-                val blob = json.decodeFromJsonElement(CipherBlob.serializer(), payloadJson)
-                val plain = decrypt(vaultKey, unb64(blob.iv), unb64(blob.ct))
-                restore(context, plain)
-                Log.i(TAG, "Bağlı hesap token'ları geri yüklendi")
+    suspend fun onSignedIn(context: Context, password: String): Result<Unit> = operation {
+        restoring = true
+        try {
+            val uid = userId() ?: error("Oturum bulunamadı")
+            LocalVaultKeyStore.owner(context)?.takeIf { it != uid }?.let { VaultBackupWorker.cancel(context, it) }
+            val metaJson = fetchRow(uid, ROW_META)
+            if (metaJson == null) {
+                check(fetchRow(uid, ROW_PAYLOAD) == null) { "Kasa metadatası eksik; mevcut yedek korunuyor" }
+                val key = ByteArray(32).also { random.nextBytes(it) }
+                check(compareAndSwap(ROW_META, null, blobJson(wrap(password, key)))) {
+                    "Başka cihaz kasayı oluşturdu. Tekrar giriş yap."
+                }
+                LocalVaultKeyStore.save(context, uid, key)
+                LocalVaultKeyStore.saveBaseline(context, uid, emptyMap(), emptyMap())
+                VaultBackupWorker.periodic(context, uid)
+                VaultBackupWorker.enqueue(context, uid)
+                backupUnlocked(context, uid)
+            } else {
+                val meta = blob(metaJson)
+                // After an interrupted password change either wrap can unlock the SAME vault key.
+                val pendingKey = meta.pending?.let { runCatching { unwrap(password, it.asBlob()) }.getOrNull() }
+                val key = pendingKey ?: unwrap(password, meta)
+                val cachedKey = runCatching { LocalVaultKeyStore.load(context, uid) }.getOrNull()
+                if (cachedKey != null && cachedKey.contentEquals(key) && LocalVaultKeyStore.baseline(context, uid) != null) {
+                    // Preserve unsent offline token rotations on this device instead of restoring stale cloud tokens.
+                    backupUnlocked(context, uid)
+                } else {
+                    val remoteJson = fetchRow(uid, ROW_PAYLOAD)
+                    val remote = payload(remoteJson, key)
+                    if (remoteJson != null) restore(context, remote.toString().toByteArray(Charsets.UTF_8))
+                    LocalVaultKeyStore.save(context, uid, key)
+                    val hashes = VaultMerge.hashes(VaultMerge.groups(remote))
+                    LocalVaultKeyStore.saveBaseline(context, uid, hashes, hashes)
+                    if (remoteJson == null) backupUnlocked(context, uid)
+                    else _status.value = "Bağlı hesapların şifreli yedeği geri yüklendi."
+                }
+                // Only a successfully authenticated NEW password may finalize a pending transition.
+                // An old-password login must not discard a staged new wrap while Auth update is in flight.
+                if (pendingKey != null) compareAndSwap(ROW_META, metaJson, blobJson(meta.pending!!.asBlob()))
             }
-        }
+            _conflicts.value = emptySet()
+            VaultBackupWorker.periodic(context, uid)
+            VaultBackupWorker.enqueue(context, uid)
+        } finally { restoring = false }
     }
 
-    /** Mevcut token'ları kasa anahtarıyla şifreleyip buluta yazar. Kasa yoksa hiçbir şey yapmaz. */
-    suspend fun backupNow(context: Context): Result<Unit> = runCatching {
-        val uid = userId() ?: return@runCatching
-        val vaultKey = localVaultKey(context) ?: return@runCatching
-        val (iv, ct) = encrypt(vaultKey, snapshot(context))
-        upsertRow(uid, ROW_PAYLOAD, json.encodeToJsonElement(CipherBlob.serializer(), CipherBlob("", b64(iv), b64(ct))))
+    /** Mevcut token ve taşınabilir ayarları şifreler. Kilitli kasa başarı sayılmaz. */
+    suspend fun backupNow(context: Context, expectedOwner: String? = null): Result<Unit> = operation {
+        backupUnlocked(context, expectedOwner ?: userId() ?: throw VaultLockedException())
+    }
+
+    private suspend fun backupUnlocked(context: Context, uid: String, preferLocal: Boolean? = null) {
+        check(userId() == uid) { "Oturum değişti" }
+        val key = localVaultKey(context) ?: throw VaultLockedException()
+        val base = LocalVaultKeyStore.baseline(context, uid) ?: throw VaultLockedException()
+        val local = VaultMerge.groups(json.parseToJsonElement(snapshot(context).toString(Charsets.UTF_8)).jsonArray)
+        // CAS retries refetch and merge. Never resend a stale encrypted full snapshot blindly.
+        repeat(4) {
+            val remoteJson = fetchRow(uid, ROW_PAYLOAD)
+            if (preferLocal != null && remoteJson != conflictRemote) {
+                _conflicts.value = emptySet()
+                error("Bulut yedeği seçim ekranı açıldıktan sonra değişti. Şimdi eşitle ile yeniden kontrol et.")
+            }
+            val remote = VaultMerge.groups(payload(remoteJson, key))
+            val merged = VaultMerge.merge(local, remote, base.local, base.remote, preferLocal)
+            if (merged.conflicts.isNotEmpty() && preferLocal == null) {
+                conflictRemote = remoteJson
+                _conflicts.value = merged.conflicts
+                throw VaultConflictException(merged.conflicts)
+            }
+            val mergedGroups = VaultMerge.groups(merged.payload)
+            val alreadyCurrent = preferLocal == null && remoteJson != null && mergedGroups == remote
+            val accepted = if (alreadyCurrent) true else {
+                val (iv, ct) = encrypt(key, merged.payload.toString().toByteArray(Charsets.UTF_8))
+                compareAndSwap(ROW_PAYLOAD, remoteJson, blobJson(CipherBlob(iv = b64(iv), ct = b64(ct))))
+            }
+            if (accepted) {
+                // Keep the two views separate: remote-only changes do not turn an unchanged,
+                // stale local session into a fresh local edit on the next upload.
+                LocalVaultKeyStore.saveBaseline(context, uid, VaultMerge.hashes(local),
+                    VaultMerge.remoteBaselineAfterUpload(local, mergedGroups, base.remote))
+                _conflicts.value = emptySet()
+                conflictRemote = null
+                _status.value = "Şifreli hesap yedeği güncel. Son başarı: " +
+                    java.text.DateFormat.getDateTimeInstance().format(java.util.Date(LocalVaultKeyStore.lastSuccess(context)))
+                return
+            }
+        }
+        error("Yedek başka cihazda güncelleniyor; işlem yeniden denenecek.")
+    }
+
+    /** Explicit user decision; no service credentials are displayed. Other service groups still merge. */
+    suspend fun resolveConflict(context: Context, keepThisDevice: Boolean): Result<Unit> = operation {
+        check(_conflicts.value.isNotEmpty()) { "Çözülecek çakışma yok" }
+        backupUnlocked(context, userId() ?: throw VaultLockedException(), keepThisDevice)
+        if (!keepThisDevice) _status.value = "Çakışan servislerin bulut kopyası korundu. Bu cihazda da kullanmak için çıkış yapıp tekrar giriş yap."
     }
 
     /**
@@ -274,17 +375,58 @@ object LinkedAccountVault {
         val app = context.applicationContext
         appContext = app
         tokenPrefs(app).registerOnSharedPreferenceChangeListener(autoBackupListener)
+        scope.launch {
+            try {
+                KitsugiAccountClient.client.auth.awaitInitialization()
+                userId()?.let {
+                    VaultBackupWorker.periodic(app, it)
+                    VaultBackupWorker.enqueue(app, it, startup = true)
+                }
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) { _status.value = "Oturum başlatılamadı; tekrar giriş yap." }
+        }
+        if (settingsObserver == null) settingsObserver = scope.launch {
+            try {
+                SettingsDataStore(app).cloudSettingsFlow.distinctUntilChanged().drop(1).collect { scheduleBackup() }
+            } catch (e: CancellationException) { throw e }
+            catch (e: Exception) { _status.value = "Ayar değişiklikleri izlenemedi; periyodik yedek tekrar deneyecek." }
+        }
     }
 
-    /**
-     * Şifre değiştiğinde kasa anahtarını YENİ şifreyle yeniden sarar. Veri yeniden şifrelenmez.
-     */
-    suspend fun rewrapWithNewPassword(context: Context, newPassword: String): Result<Unit> = runCatching {
-        val uid = userId() ?: error("Oturum bulunamadı")
-        val vaultKey = localVaultKey(context) ?: error("Yerel kasa anahtarı yok")
-        val salt = ByteArray(SALT_BYTES).also { random.nextBytes(it) }
-        val kek = deriveKek(newPassword, salt)
-        val (iv, ct) = encrypt(kek, vaultKey)
-        upsertRow(uid, ROW_META, json.encodeToJsonElement(CipherBlob.serializer(), CipherBlob(b64(salt), b64(iv), b64(ct))))
+    /** Durable two-phase wrap transition. Never roll back on ambiguous network failures. */
+    suspend fun changePassword(context: Context, currentPassword: String, newPassword: String): Result<Unit> = operation {
+        require(newPassword.length >= 8) { "Yeni şifre en az 8 karakter olmalı." }
+        val uid = userId() ?: throw VaultLockedException()
+        val auth = KitsugiAccountClient.client.auth
+        val email = auth.currentUserOrNull()?.email ?: throw VaultLockedException()
+        // Reauthenticate, not just trust an old cached session or an old password wrap.
+        auth.signInWith(Email) { this.email = email; password = currentPassword }
+        check(userId() == uid) { "Oturum değişti" }
+        val originalJson = fetchRow(uid, ROW_META) ?: throw VaultLockedException()
+        val original = blob(originalJson)
+        val key = original.pending?.let { runCatching { unwrap(currentPassword, it.asBlob()) }.getOrNull() }
+            ?: unwrap(currentPassword, original)
+        val newWrap: CipherBlob
+        val stagedJson: JsonElement
+        if (original.pending != null) {
+            // Resume exactly the previous transition. A competing device cannot stage a different password.
+            newWrap = original.pending.asBlob()
+            check(runCatching { unwrap(newPassword, newWrap).contentEquals(key) }.getOrDefault(false)) {
+                "Yarım kalan şifre değişikliği var. Önceki denemede seçtiğin yeni şifreyi kullan."
+            }
+            stagedJson = originalJson
+        } else {
+            require(currentPassword != newPassword) { "Yeni şifre mevcut şifreden farklı olmalı." }
+            newWrap = wrap(newPassword, key)
+            stagedJson = blobJson(original.copy(pending = PasswordWrap(newWrap.salt, newWrap.iv, newWrap.ct)))
+            check(compareAndSwap(ROW_META, originalJson, stagedJson)) { "Başka cihaz şifre işlemi yapıyor. Tekrar dene." }
+        }
+        // If process/network dies here, both old and new password wraps remain available.
+        // Neither password is stored locally, in WorkManager, or in the database.
+        if (currentPassword != newPassword) auth.updateUser { password = newPassword }
+        check(compareAndSwap(ROW_META, stagedJson, blobJson(newWrap))) {
+            "Şifre güncellendi; kasa geçişini tamamlamak için yeni şifrenle tekrar giriş yap."
+        }
+        _status.value = "Şifre değiştirildi; bağlı hesap yedeğinin anahtarı korundu."
     }
 }

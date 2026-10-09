@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.data.remote
 
+import com.kitsugi.animelist.utils.NextAiringFormat
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -87,6 +88,55 @@ class TmdbMediaDetailClientTest {
         assertEquals("The CW", detail.networks.single().name)
         assertEquals("Studio One", detail.studios.single().name)
         assertEquals("Studio Two", detail.producers.single().name)
+        // nextAiringEpisode ortak makine biçiminde: "episode|epoch"
+        assertEquals("25|${NextAiringFormat.isoDateToEpoch("2024-02-01")}", detail.nextAiringEpisode)
+    }
+
+    @Test
+    fun movieWithFutureReleaseDateProducesMovieAiringMarker() = runBlocking {
+        val detailResult = TmdbMediaDetailClient.fetchMediaDetail(
+            tmdbId = 55,
+            isMovie = true,
+            apiKey = "test-key",
+            language = "tr-TR",
+            features = TmdbDetailFeatures(
+                useBasicInfo = true,
+                useDetails = false,
+                useReleaseDates = true,
+                useArtwork = false,
+                useTrailers = false,
+                useProductions = false,
+                useNetworks = false
+            ),
+            executeGet = { baseMovieFutureResponse }
+        )
+
+        val detail = requireNotNull(detailResult)
+        // 0 = Film işareti; gelecek vizyon tarihi
+        assertEquals("0|${NextAiringFormat.isoDateToEpoch("2030-05-05")}", detail.nextAiringEpisode)
+    }
+
+    @Test
+    fun movieWithPastReleaseDateHasNoAiringMarker() = runBlocking {
+        val detailResult = TmdbMediaDetailClient.fetchMediaDetail(
+            tmdbId = 56,
+            isMovie = true,
+            apiKey = "test-key",
+            language = "tr-TR",
+            features = TmdbDetailFeatures(
+                useBasicInfo = true,
+                useDetails = false,
+                useReleaseDates = true,
+                useArtwork = false,
+                useTrailers = false,
+                useProductions = false,
+                useNetworks = false
+            ),
+            executeGet = { baseMoviePastResponse }
+        )
+
+        val detail = requireNotNull(detailResult)
+        assertNull(detail.nextAiringEpisode)
     }
 
     private val baseTvResponse = """
@@ -114,6 +164,36 @@ class TmdbMediaDetailClientTest {
           "networks":[{"id":20,"name":"The CW"}],
           "next_episode_to_air":{"episode_number":25,"air_date":"2024-02-01"},
           "alternative_titles":{"results":[{"iso_3166_1":"US","title":"Sample Series"}]}
+        }
+    """.trimIndent()
+
+    private val baseMovieFutureResponse = """
+        {
+          "id":55,
+          "title":"Future Movie",
+          "original_title":"Future Movie",
+          "original_language":"en",
+          "overview":"Soon.",
+          "poster_path":"/future.jpg",
+          "release_date":"2030-05-05",
+          "genres":[{"id":28,"name":"Action"}],
+          "vote_average":7.5,
+          "vote_count":10
+        }
+    """.trimIndent()
+
+    private val baseMoviePastResponse = """
+        {
+          "id":56,
+          "title":"Old Movie",
+          "original_title":"Old Movie",
+          "original_language":"en",
+          "overview":"Long ago.",
+          "poster_path":"/old.jpg",
+          "release_date":"1999-01-01",
+          "genres":[{"id":18,"name":"Drama"}],
+          "vote_average":8.0,
+          "vote_count":20
         }
     """.trimIndent()
 }

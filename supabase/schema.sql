@@ -1,12 +1,16 @@
 -- Kitsugi hesap senkronizasyonu şeması
 -- Supabase Dashboard → SQL Editor'da bir kez çalıştırılır.
+-- Ardından migrations/20261009_vault_compare_and_swap.sql uygulanmalıdır;
+-- güncel istemci kasa yazmalarında bu migration içindeki RPC'yi kullanır.
 --
 -- Tasarım:
 --  * Her kullanıcının verisi, anahtar (key) bazında JSON olarak tutulur:
 --      search_history, installed_plugins, settings, linked_accounts, ...
 --  * Yeni anahtar eklemek için şema değişikliği gerekmez.
 --  * Erişim Row Level Security ile yalnızca satır sahibine açıktır.
---  * Erişim token'ları (AniList/MAL/Kitsu vb.) BU TABLOYA YAZILMAZ.
+--  * Düz metin token/şifre yazılmaz. vault_meta: şifreyle sarılmış kasa anahtarı;
+--    linked_accounts_vault: AES-GCM şifreli token ve taşınabilir ayar yedeği.
+--    search_history şifreli değildir; RLS ile korunur.
 
 create table if not exists public.user_data (
     user_id    uuid        not null references auth.users(id) on delete cascade,

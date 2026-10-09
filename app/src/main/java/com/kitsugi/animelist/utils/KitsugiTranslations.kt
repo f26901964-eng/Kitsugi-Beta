@@ -136,13 +136,34 @@ fun List<String>.toTurkishGenres(): List<String> = map { it.toTurkishGenre() }
 /** Uygulama arayüzü İngilizce mi? (Ayar dili → [Locale.setDefault] ile senkron gelir.) */
 fun isEnglish(): Boolean = java.util.Locale.getDefault().language.equals("en", ignoreCase = true)
 
+/**
+ * `bangumi_tag_*` kaynak araması sonucu önbelleği (anahtar: `dil:kaynakAdı`).
+ *
+ * Sözlükte ~770 etiket var ve `getIdentifier` her çağrıda isimle arama yapar; detay
+ * sayfasındaki her çip her yeniden çizimde buraya uğradığı için sonuç önbelleğe alınır.
+ * Bulunamayan kaynaklar boş metinle işaretlenir (negatif önbellek). Anahtar arayüz dilini
+ * içerdiğinden dil değişince otomatik olarak yeni değerler okunur.
+ */
+private val bangumiTagResourceCache = java.util.concurrent.ConcurrentHashMap<String, String>()
+
 /** `bangumi_tag_*` dil dosyası kaynağını ismiyle okur; bulunamazsa null. */
 private fun getStringResourceByName(name: String): String? {
-    return try {
-        val context = com.kitsugi.animelist.KitsugiApplication.getInstance() ?: return null
-        val resId = context.resources.getIdentifier(name, "string", context.packageName)
-        if (resId != 0) context.getString(resId) else null
+    val cacheKey = java.util.Locale.getDefault().language + ":" + name
+    bangumiTagResourceCache[cacheKey]?.let { return it.takeIf { cached -> cached.isNotEmpty() } }
+    val resolved = try {
+        val context = com.kitsugi.animelist.KitsugiApplication.getInstance()
+        if (context == null) {
+            null
+        } else {
+            val resId = context.resources.getIdentifier(name, "string", context.packageName)
+            if (resId != 0) context.getString(resId) else null
+        }
     } catch (_: Throwable) { null }
+    // Uygulama bağlamı henüz yoksa önbelleğe yazma — ileride gerçek değer okunabilsin.
+    if (resolved != null || com.kitsugi.animelist.KitsugiApplication.getInstance() != null) {
+        bangumiTagResourceCache[cacheKey] = resolved.orEmpty()
+    }
+    return resolved
 }
 
 /** Bangumi etiketinin sözlük girişi (Türkçe + İngilizce karşılık); bilinmiyorsa null. */
@@ -192,14 +213,38 @@ fun String.toLocalizedTagLabel(): String {
     return com.kitsugi.animelist.ui.screens.search.SearchTranslation.translateToTurkishForDisplay(cleaned)
 }
 
+/** Metin Çince/Japonca karakter içeriyor mu? (CJK ideogram, hiragana, katakana) */
+private fun String.hasCjkCharacters(): Boolean = any { ch ->
+    val code = ch.code
+    code in 0x3040..0x30FF ||   // hiragana + katakana
+        code in 0x3400..0x4DBF || // CJK ext. A
+        code in 0x4E00..0x9FFF || // CJK ideogram
+        code in 0xF900..0xFAFF    // uyumluluk ideogramları
+}
+
+/**
+ * Etiket sözlükte yok ve hâlâ Çince/Japonca mı? Böyle etiketler çevrilemediği için
+ * (uydurma çeviri üretilmez) çip listesinin sonuna atılır — liste yarım yamalak görünmesin.
+ */
+fun isUntranslatedCjkTag(value: String): Boolean {
+    val cleaned = value.trim()
+    if (cleaned.isEmpty() || !cleaned.hasCjkCharacters()) return false
+    if (bangumiTagEntryOrNull(cleaned) != null) return false
+    return cleaned.toLocalizedTagLabel().trim() == cleaned
+}
+
 /**
  * Etiket/tür listesini gösterime hazırlar: çeviri yapılır ve çeviriden sonra aynı anlama
  * gelen yazımlar tekilleştirilir (例: `催泪` + `催涙` + `Duygusal` → tek çip).
  * Modelde orijinal değer kalır; arama çipi orijinaliyle çalışmaya devam eder.
+ *
+ * Sözlükte karşılığı olmayan Çince/Japonca etiketler listenin **sonuna** alınır; önce
+ * okunabilir (çevrilmiş) etiketler görünür.
  */
 fun List<String>.localizedDistinctTags(limit: Int = 48): List<String> {
     if (isEmpty()) return emptyList()
-    val result = ArrayList<String>(minOf(size, limit))
+    val translated = ArrayList<String>(minOf(size, limit))
+    val untranslated = ArrayList<String>()
     val seen = HashSet<String>()
     for (raw in this) {
         val value = raw.trim()
@@ -207,10 +252,11 @@ fun List<String>.localizedDistinctTags(limit: Int = 48): List<String> {
         val label = value.toLocalizedTagLabel().trim()
         if (label.isEmpty()) continue
         if (!seen.add(label.lowercase(java.util.Locale.ROOT))) continue
-        result += value
-        if (result.size >= limit) break
+        if (isUntranslatedCjkTag(value)) untranslated += value else translated += value
+        if (translated.size >= limit) break
     }
-    return result
+    if (translated.size >= limit) return translated
+    return (translated + untranslated).take(limit)
 }
 
 // Tersine dönüşüm: Türkçe → İngilizce (arama API'ları için)

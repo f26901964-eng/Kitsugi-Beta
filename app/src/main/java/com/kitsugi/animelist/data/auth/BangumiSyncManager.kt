@@ -107,7 +107,10 @@ object BangumiSyncManager {
             rate = rate,
             epStatus = if (isAnime) null else progress.takeIf { it > 0 },
             volStatus = if (isAnime) null else entry.volumeProgress.takeIf { it > 0 },
-            private = entry.isPrivate
+            // Not ve etiketler: yalnızca dolu değerler gönderilir (boş alan uzaktaki notu silmez).
+            comment = entry.notes?.takeIf { it.isNotBlank() },
+            private = entry.isPrivate,
+            tags = entry.tags?.split(',')?.map { it.trim() }?.filter { it.isNotEmpty() }?.takeIf { it.isNotEmpty() }
         )
         if (collectionUpdated) {
             messages += "Bangumi kaydı güncellendi (${entry.title})"

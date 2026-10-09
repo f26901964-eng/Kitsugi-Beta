@@ -76,39 +76,63 @@ internal fun sourceSections(platform: ExplorePlatform, p: ExplorePayload): List<
     require(platform != ExplorePlatform.ALL)
     fun section(category: ExploreCategoryType, title: String, items: List<JikanSearchResult>) =
         ExploreSourceSection(platform, category, title, items.distinctBy { it.exploreIdentity() })
-    return if (platform == ExplorePlatform.TMDB || platform == ExplorePlatform.SIMKL) {
-        val simkl = platform == ExplorePlatform.SIMKL
-        listOf(
-            section(ExploreCategoryType.TOP_ANIME, if (simkl) "Trend Diziler" else "Trend Her Şey", p.topAnime),
+
+    // Kaynak sayfası ve Tümü sayfası aynı sıralı bölüm listesini kullanır. Anime rafları
+    // önce kendi içinde, manga rafları sonra; kaynak-özel raflar en sonda yer alır.
+    if (platform == ExplorePlatform.TMDB) {
+        return listOf(
+            // Trend → popüler → en yüksek puanlı; yaklaşan film/dizi kataloğu en sonda.
+            section(ExploreCategoryType.TOP_ANIME, "Trend Her Şey", p.topAnime),
+            section(ExploreCategoryType.TRENDING_ANIME, "Trend Animeler", p.trendingAnime),
+            section(ExploreCategoryType.AIRING_ANIME, "Trend Diziler", p.airingAnime),
+            section(ExploreCategoryType.MOVIE_ANIME, "Trend Filmler", p.movieAnime),
+            section(ExploreCategoryType.NEWLY_ADDED_ANIME, "Popüler Animeler", p.newlyAddedAnime),
+            section(ExploreCategoryType.TOP_MANGA, "Popüler Diziler", p.topManga),
+            section(ExploreCategoryType.UPCOMING_ANIME, "Popüler Filmler", p.upcomingAnime),
+            section(ExploreCategoryType.TRENDING_MANGA, "En Yüksek Puanlı Animeler", p.trendingManga),
+            section(ExploreCategoryType.SEASONAL_ANIME, "En Yüksek Puanlı Diziler", p.seasonalAnime),
+            section(ExploreCategoryType.PUBLISHING_MANGA, "En Yüksek Puanlı Filmler", p.publishingManga),
+            section(ExploreCategoryType.UPCOMING_MEDIA_TMDB, "Yaklaşan Film ve Diziler", p.upcomingMediaTmdb)
+        )
+    }
+    if (platform == ExplorePlatform.SIMKL) {
+        return listOf(
+            // Önce trend ve yayındaki yapımlar, ardından popüler/öne çıkan kataloglar.
+            section(ExploreCategoryType.TOP_ANIME, "Trend Diziler", p.topAnime),
             section(ExploreCategoryType.TRENDING_ANIME, "Trend Animeler", p.trendingAnime),
             section(ExploreCategoryType.MOVIE_ANIME, "Trend Filmler", p.movieAnime),
-            section(ExploreCategoryType.AIRING_ANIME, if (simkl) "Yayındaki Diziler" else "Trend Diziler", p.airingAnime),
-            section(ExploreCategoryType.TOP_MANGA, if (simkl) "En İyi Diziler" else "Popüler Diziler", p.topManga),
-            section(ExploreCategoryType.UPCOMING_ANIME, if (simkl) "Yeni Filmler" else "Popüler Filmler", p.upcomingAnime),
+            section(ExploreCategoryType.AIRING_ANIME, "Yayındaki Diziler", p.airingAnime),
+            section(ExploreCategoryType.TRENDING_MANGA, "Yayındaki Animeler", p.trendingManga),
             section(ExploreCategoryType.NEWLY_ADDED_ANIME, "Popüler Animeler", p.newlyAddedAnime),
-            section(ExploreCategoryType.TRENDING_MANGA, if (simkl) "Yayındaki Animeler" else "En Yüksek Puanlı Animeler", p.trendingManga),
-            section(ExploreCategoryType.UPCOMING_MEDIA_TMDB, "Yakında Yayında", p.upcomingMediaTmdb)
-        ) + if (simkl) emptyList() else listOf(
-            section(ExploreCategoryType.PUBLISHING_MANGA, "En Yüksek Puanlı Filmler", p.publishingManga),
-            section(ExploreCategoryType.SEASONAL_ANIME, "En Yüksek Puanlı Diziler", p.seasonalAnime)
+            section(ExploreCategoryType.TOP_MANGA, "En İyi Diziler", p.topManga),
+            section(ExploreCategoryType.UPCOMING_ANIME, "Yeni Filmler", p.upcomingAnime)
         )
-    } else listOf(
-        section(ExploreCategoryType.TOP_ANIME, if (platform == ExplorePlatform.MAL || platform == ExplorePlatform.SHIKIMORI || platform == ExplorePlatform.BANGUMI) "En İyi Animeler" else "Popüler Animeler", p.topAnime),
-        section(ExploreCategoryType.TOP_RATED_ANIME, "En Yüksek Puanlı Animeler", p.topRatedAnime.orEmpty()),
+    }
+
+    val topAnimeTitle = if (
+        platform == ExplorePlatform.MAL || platform == ExplorePlatform.SHIKIMORI || platform == ExplorePlatform.BANGUMI
+    ) "En İyi Animeler" else "Popüler Animeler"
+    val topMangaTitle = if (
+        platform == ExplorePlatform.MAL || platform == ExplorePlatform.SHIKIMORI || platform == ExplorePlatform.BANGUMI
+    ) "En İyi Mangalar" else "Popüler Mangalar"
+
+    return listOf(
+        // Anime: popüler, trend/puan, yayın durumu ve sezon/yeni eklenen rafları.
+        section(ExploreCategoryType.TOP_ANIME, topAnimeTitle, p.topAnime),
         section(ExploreCategoryType.TRENDING_ANIME, "Trend Animeler", p.trendingAnime),
-        section(ExploreCategoryType.TOP_MANGA, if (platform == ExplorePlatform.MAL || platform == ExplorePlatform.SHIKIMORI || platform == ExplorePlatform.BANGUMI) "En İyi Mangalar" else "Popüler Mangalar", p.topManga),
-        section(ExploreCategoryType.TOP_RATED_MANGA, "En Yüksek Puanlı Mangalar", p.topRatedManga.orEmpty()),
+        section(ExploreCategoryType.TOP_RATED_ANIME, "En Yüksek Puanlı Animeler", p.topRatedAnime.orEmpty()),
         section(ExploreCategoryType.AIRING_ANIME, "Yayındaki Animeler", p.airingAnime),
         section(ExploreCategoryType.UPCOMING_ANIME, "Yaklaşan Animeler", p.upcomingAnime),
         section(ExploreCategoryType.MOVIE_ANIME, "Anime Filmleri", p.movieAnime),
         section(ExploreCategoryType.SEASONAL_ANIME, "Bu Sezon", p.seasonalAnime),
-        section(ExploreCategoryType.PUBLISHING_MANGA, "Yayındaki Mangalar", p.publishingManga),
-        section(ExploreCategoryType.TRENDING_MANGA, "Trend Mangalar", p.trendingManga),
         section(ExploreCategoryType.NEWLY_ADDED_ANIME, "Yeni Eklenen Animeler", p.newlyAddedAnime),
-        section(ExploreCategoryType.NEWLY_ADDED_MANGA, "Yeni Eklenen Mangalar", p.newlyAddedManga)
-    ) + listOf(
-        // Yerel "ek tür" rafları: kaynak API'si desteklemiyorsa liste boş gelir ve
-        // bölüm kendiliğinden gizlenir (destekleyenler: MAL, Shikimori, AniList).
+        // Manga: popüler, trend/puan, yayındaki ve yeni eklenen raflar.
+        section(ExploreCategoryType.TOP_MANGA, topMangaTitle, p.topManga),
+        section(ExploreCategoryType.TRENDING_MANGA, "Trend Mangalar", p.trendingManga),
+        section(ExploreCategoryType.TOP_RATED_MANGA, "En Yüksek Puanlı Mangalar", p.topRatedManga.orEmpty()),
+        section(ExploreCategoryType.PUBLISHING_MANGA, "Yayındaki Mangalar", p.publishingManga),
+        section(ExploreCategoryType.NEWLY_ADDED_MANGA, "Yeni Eklenen Mangalar", p.newlyAddedManga),
+        // Kaynağa özgü türler, genel anime/manga raflarını bölmeden en sona alınır.
         section(ExploreCategoryType.MANHWA_MANHUA, "Manhwa & Manhua", p.manhwaManhua.orEmpty()),
         section(ExploreCategoryType.NOVELS, "Noveller & Light Novel", p.novels.orEmpty())
     ) + if (platform == ExplorePlatform.BANGUMI) listOf(

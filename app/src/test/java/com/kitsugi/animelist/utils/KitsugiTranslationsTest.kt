@@ -66,8 +66,9 @@ class KitsugiTranslationsTest {
         assertEquals("İyileştirici", "治愈".toTurkishBangumiTag())
         assertEquals("Yaşam", "人生".toTurkishBangumiTag())
         assertEquals("Key", "key".toTurkishBangumiTag())
-        // Latin etiketler olduğu gibi kalır
-        assertEquals("Clannad", "Clannad".toTurkishBangumiTag())
+        // Eşleşen Latin etiket sözlükteki biçime normalize edilir
+        assertEquals("CLANNAD", "Clannad".toTurkishBangumiTag())
+        // Sözlükte olmayan Latin etiketler olduğu gibi kalır
         assertEquals("~After-Story~", "~After-Story~".toTurkishBangumiTag())
     }
 
@@ -77,6 +78,82 @@ class KitsugiTranslationsTest {
         assertEquals("Tearjerker", bangumiTagEnglishOrNull("催涙"))
         assertEquals("Kyoto Animation", bangumiTagEnglishOrNull("京阿尼"))
         assertEquals("Jun Maeda", bangumiTagEnglishOrNull("麻枝准"))
+    }
+
+    @Test
+    fun bangumiTags_translateAdaptationShorthands() {
+        assertEquals("Hafif Roman Uyarlaması", "轻小说改".toTurkishBangumiTag())
+        assertEquals("Hafif Roman Uyarlaması", "轻改".toTurkishBangumiTag())
+        assertEquals("Manga Uyarlaması", "漫改".toTurkishBangumiTag())
+        assertEquals("Film", "剧场".toTurkishBangumiTag())
+        assertEquals("Derin Anlatım", "深度".toTurkishBangumiTag())
+        assertEquals("Çağının Ötesinde", "超前".toTurkishBangumiTag())
+        assertEquals("Sanat", "艺术".toTurkishBangumiTag())
+    }
+
+    @Test
+    fun bangumiTags_romanizePeopleAndWorks() {
+        // Kişiler: basit/geleneksel Çince ve Japonca yazımlar tek Latin ada iner
+        assertEquals("Tatsuya Ishihara", "石原立也".toTurkishBangumiTag())
+        assertEquals("Yasuhiro Takemoto", "武本康弘".toTurkishBangumiTag())
+        assertEquals("Nagaru Tanigawa", "谷川流".toTurkishBangumiTag())
+        assertEquals("Yoko Kanno", "菅野洋子".toTurkishBangumiTag())
+        assertEquals("Yoko Kanno", "菅野よう子".toTurkishBangumiTag())
+        assertEquals("Kenji Kamiyama", "神山健治".toTurkishBangumiTag())
+        assertEquals("Masamune Shirow", "士郎正宗".toTurkishBangumiTag())
+        // Karakterler
+        assertEquals("Yuki Nagato", "长门有希".toTurkishBangumiTag())
+        assertEquals("Motoko Kusanagi", "草薙素子".toTurkishBangumiTag())
+        assertEquals("Kyon", "囧虚".toTurkishBangumiTag())
+        // Eserler
+        assertEquals("Ghost in the Shell", "攻壳机动队".toTurkishBangumiTag())
+        assertEquals("Ghost in the Shell", "攻殻機動隊".toTurkishBangumiTag())
+        assertEquals("Haruhi Suzumiya", "凉宫春日".toTurkishBangumiTag())
+    }
+
+    @Test
+    fun bangumiTags_matchLatinSpellingVariants() {
+        // Nokta/boşluk farkları aynı çipe iner (Production I.G / Production.IG / ProductionI.G)
+        assertEquals("Production I.G", "Production.IG".toLocalizedTagLabel())
+        assertEquals("Production I.G", "ProductionI.G".toLocalizedTagLabel())
+        assertEquals("Production I.G", "Production I.G".toLocalizedTagLabel())
+        assertEquals("THE KLOCKWORX", "THE KLOCKWORX".toLocalizedTagLabel())
+    }
+
+    @Test
+    fun bangumiTags_deduplicateAfterTranslation() {
+        // Ghost in the Shell S.A.C. detayındaki gerçek etiket listesinden kesit
+        val tags = listOf(
+            "攻殻機動隊", "攻壳机动队", "Production.IG", "Production I.G", "ProductionI.G",
+            "菅野洋子", "菅野よう子", "漫改", "漫画改", "科幻"
+        )
+        val labels = tags.localizedDistinctTags().map { it.toLocalizedTagLabel() }
+        assertEquals(
+            listOf("Ghost in the Shell", "Production I.G", "Yoko Kanno", "Manga Uyarlaması", "Bilim Kurgu"),
+            labels
+        )
+    }
+
+    @Test
+    fun bangumiTags_pushUnknownCjkTagsToEnd() {
+        // Sözlükte karşılığı olmayan Çince etiketler listenin sonuna iner
+        val tags = listOf("未知标签甲", "科幻", "未知标签乙", "日常", "Cyberpunk")
+        assertEquals(
+            listOf("科幻", "日常", "Cyberpunk", "未知标签甲", "未知标签乙"),
+            tags.localizedDistinctTags()
+        )
+        assertEquals(true, isUntranslatedCjkTag("未知标签甲"))
+        assertEquals(false, isUntranslatedCjkTag("科幻"))
+        assertEquals(false, isUntranslatedCjkTag("Cyberpunk"))
+    }
+
+    @Test
+    fun bangumiTags_useEnglishLabelsOnEnglishLocale() {
+        Locale.setDefault(Locale.ENGLISH)
+        assertEquals("Light Novel Adaptation", "轻小说改".toTurkishBangumiTag())
+        assertEquals("Profound", "深度".toTurkishBangumiTag())
+        assertEquals("Ghost in the Shell", "攻壳机动队".toTurkishBangumiTag())
+        assertEquals("Tatsuya Ishihara", "石原立也".toTurkishBangumiTag())
     }
 
     // ── Bangumi kadro / pozisyon rolleri ─────────────────────────────────────

@@ -36,6 +36,7 @@ fun LazyListScope.allSourcesExploreSections(
     showAdultContent: Boolean,
     airingSoonShelf: List<JikanSearchResult> = emptyList(),
     airingSoonTitle: String = "Yakında Yayında",
+    airingSoonIsLoading: Boolean = false,
     onOpenAiringCalendar: (() -> Unit)? = null,
     collapsedSources: Set<ExplorePlatform>,
     onToggleSource: (ExplorePlatform) -> Unit,
@@ -54,9 +55,10 @@ fun LazyListScope.allSourcesExploreSections(
     showSourceJumpBar: Boolean = true
 ) {
     val sections = allSourceSections(states, showAdultContent).groupBy { it.platform }
+    val hasAiringSoonItem = airingSoonShelf.isNotEmpty() || airingSoonIsLoading
     val headerIndices = allSourceHeaderIndices(
         sections, collapsedSources, startIndex, showSourceJumpBar,
-        extraItemsAfterIntro = if (airingSoonShelf.isNotEmpty()) 1 else 0
+        extraItemsAfterIntro = if (hasAiringSoonItem) 1 else 0
     )
     item(key = "all_sources_intro") {
         Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 20.dp)) {
@@ -68,13 +70,13 @@ fun LazyListScope.allSourcesExploreSections(
         }
     }
     // Tümü modunda ortak geri sayımlı şerit — tek takvim verisi, tüm kaynakların üstünde.
-    if (airingSoonShelf.isNotEmpty()) {
+    if (hasAiringSoonItem) {
         item(key = "all_airing_soon") {
             Column(Modifier.padding(bottom = 20.dp)) {
                 ExploreAiringSoonSection(
                     title = airingSoonTitle,
                     airingSoonAnime = airingSoonShelf,
-                    isLoading = false,
+                    isLoading = airingSoonIsLoading,
                     alreadyInList = alreadyInList,
                     onItemClick = onItemClick,
                     onLongClickItem = onLongClickItem ?: {},

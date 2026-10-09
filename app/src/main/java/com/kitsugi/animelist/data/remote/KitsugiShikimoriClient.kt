@@ -578,6 +578,21 @@ object KitsugiShikimoriClient {
                     // özgün (Rusça) metin gösterilir ve arka planda çeviri önbelleğe girer.
                     val synopsis = translateWithBudget(rawDesc)
 
+                    // Yayın tarihi: Shikimori "next_episode_at" (ISO-8601) → "ep|epoch".
+                    // Yoksa detay zenginleştirme (AniList fallback) devreye girer.
+                    val nextAiringEpisode = runCatching {
+                        val nextAt = data.optNullableString("next_episode_at")
+                        if (nextAt.isNullOrBlank()) return@runCatching null
+                        val epoch = runCatching {
+                            java.time.OffsetDateTime.parse(nextAt).toInstant().epochSecond
+                        }.getOrNull()
+                            ?: com.kitsugi.animelist.utils.NextAiringFormat.isoDateToEpoch(nextAt.take(10))
+                            ?: return@runCatching null
+                        val airedEp = data.optInt("episodes_aired", 0)
+                        val ep = if (airedEp > 0) airedEp + 1 else -1
+                        "$ep|$epoch"
+                    }.getOrNull()
+
                     KitsugiMediaDetail(
                         synopsis = synopsis,
                         genres = genresList.toTurkishGenres(),
@@ -603,7 +618,8 @@ object KitsugiShikimoriClient {
                         openings = finalOpenings,
                         endings = finalEndings,
                         externalLinks = shikiLinks,
-                        streamingLinks = streamingLinks
+                        streamingLinks = streamingLinks,
+                        nextAiringEpisode = nextAiringEpisode
                     )
                 }
             }.getOrElse { err ->

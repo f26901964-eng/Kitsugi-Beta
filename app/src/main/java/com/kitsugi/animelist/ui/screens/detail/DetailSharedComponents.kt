@@ -234,50 +234,32 @@ internal fun InfoRow(label: String, value: String) {
 internal data class AiringInfo(val episode: Int?, val targetEpoch: Long?, val rawText: String?)
 
 internal fun parseNextAiring(raw: String): AiringInfo {
-    if (raw.contains("|")) {
-        val parts = raw.split("|")
-        val ep = parts.getOrNull(0)?.toIntOrNull()
-        val epoch = parts.getOrNull(1)?.toLongOrNull()
-        if (ep != null && epoch != null) {
-            return AiringInfo(ep, epoch, null)
-        }
-    }
-    return AiringInfo(null, null, raw)
+    val parsed = com.kitsugi.animelist.utils.NextAiringFormat.parse(raw)
+    return AiringInfo(parsed.episode, parsed.epoch, parsed.legacyText)
 }
 
 @Composable
 internal fun rememberAiringCountdownText(nextAiring: String?): String {
     if (nextAiring.isNullOrBlank()) return ""
-    val info = remember(nextAiring) { parseNextAiring(nextAiring) }
-    var displayText by remember(info) { mutableStateOf("") }
+    val parsed = remember(nextAiring) { com.kitsugi.animelist.utils.NextAiringFormat.parse(nextAiring) }
+    var displayText by remember(parsed) { mutableStateOf("") }
 
-    if (info.targetEpoch != null && info.episode != null) {
-        val targetEpoch = info.targetEpoch
-        val episode = info.episode
+    if (parsed.isMachineFormat) {
+        val targetEpoch = parsed.epoch!!
 
-        LaunchedEffect(targetEpoch, episode) {
+        LaunchedEffect(parsed) {
             while (true) {
-                val now = System.currentTimeMillis() / 1000L
-                val remaining = targetEpoch - now
-                if (remaining <= 0) {
-                    displayText = "Bölüm $episode yayınlandı!"
-                    break
-                }
-
-                val days = remaining / 86400
-                displayText = if (days >= 1) {
-                    "Bölüm $episode, $days gün sonra yayında"
-                } else {
-                    val hours = remaining / 3600
-                    val minutes = (remaining % 3600) / 60
-                    String.format("Bölüm %d, %02d:%02d sonra yayınlanacak", episode, hours, minutes)
-                }
-                val delayTime = if (days >= 1) 60000L else 10000L
+                // Tüm kaynaklarda aynı tarihli biçim:
+                // "Bölüm 2, 2026-10-15 tarihinde yayında (6 gün sonra)"
+                displayText = com.kitsugi.animelist.utils.NextAiringFormat.detailText(parsed)
+                val remaining = targetEpoch - System.currentTimeMillis() / 1000L
+                if (remaining <= 0) break
+                val delayTime = if (remaining >= 86400) 60000L else 10000L
                 kotlinx.coroutines.delay(delayTime)
             }
         }
     } else {
-        displayText = info.rawText ?: ""
+        displayText = parsed.legacyText ?: ""
     }
     return displayText
 }
@@ -287,37 +269,7 @@ internal fun AiringCountdownCard(
     nextAiring: String,
     modifier: Modifier = Modifier
 ) {
-    val info = remember(nextAiring) { parseNextAiring(nextAiring) }
-    var displayText by remember(info) { mutableStateOf("") }
-
-    if (info.targetEpoch != null && info.episode != null) {
-        val targetEpoch = info.targetEpoch
-        val episode = info.episode
-
-        LaunchedEffect(targetEpoch, episode) {
-            while (true) {
-                val now = System.currentTimeMillis() / 1000L
-                val remaining = targetEpoch - now
-                if (remaining <= 0) {
-                    displayText = "Bölüm $episode yayınlandı!"
-                    break
-                }
-
-                val days = remaining / 86400
-                displayText = if (days >= 1) {
-                    "Bölüm $episode, $days gün sonra yayında"
-                } else {
-                    val hours = remaining / 3600
-                    val minutes = (remaining % 3600) / 60
-                    String.format("Bölüm %d, %02d:%02d sonra yayınlanacak", episode, hours, minutes)
-                }
-                val delayTime = if (days >= 1) 60000L else 10000L
-                kotlinx.coroutines.delay(delayTime)
-            }
-        }
-    } else {
-        displayText = info.rawText ?: ""
-    }
+    val displayText = rememberAiringCountdownText(nextAiring)
 
     if (displayText.isBlank()) return
 

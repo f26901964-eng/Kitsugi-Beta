@@ -2,6 +2,7 @@ package com.kitsugi.animelist.ui.screens.explore
 
 import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.model.MediaType
+import com.kitsugi.animelist.ui.components.shouldShowHeroLogo
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -40,6 +41,22 @@ class HeroSelectionTest {
         items: List<JikanSearchResult>,
         platform: ExplorePlatform = ExplorePlatform.AniList
     ) = ExploreSourceSection(platform, category, category.name, items)
+
+    // ── Vitrin logoları ───────────────────────────────────────────────────
+
+    @Test fun bangumiAndSimklShowAvailableHeroLogosWithoutChangingOtherSources() {
+        assertTrue(shouldShowHeroLogo(item(1, source = "bangumi"), showAnimeLogos = false))
+        assertTrue(shouldShowHeroLogo(item(2, source = "simkl"), showAnimeLogos = false))
+        assertEquals(false, shouldShowHeroLogo(item(3, source = "anilist"), showAnimeLogos = false))
+        assertTrue(shouldShowHeroLogo(item(4, source = "anilist"), showAnimeLogos = true))
+    }
+
+    @Test fun mangaDoesNotRequestAnimeLogoEvenWhenTheSettingIsEnabled() {
+        assertEquals(
+            false,
+            shouldShowHeroLogo(item(1, source = "bangumi", type = MediaType.Manga), showAnimeLogos = true)
+        )
+    }
 
     // ── Normalizasyon ──────────────────────────────────────────────────────
 

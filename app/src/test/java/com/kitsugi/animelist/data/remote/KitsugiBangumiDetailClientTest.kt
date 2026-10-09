@@ -521,7 +521,7 @@ class KitsugiBangumiDetailClientTest {
         val subject = BangumiApiClient.parseSubject(JSONObject(clannadAfterStoryJson))
         val base = KitsugiBangumiDetailClient.buildNativeDetail(subject, MediaType.Anime)
         val companion = KitsugiMediaDetail(
-            synopsis = "English synopsis",
+            synopsis = null,
             genres = listOf("Drama", "Romance"),
             studios = listOf(KitsugiStudio(id = 44, name = "Kyoto Animation")),
             rating = "PG-13",
@@ -531,7 +531,7 @@ class KitsugiBangumiDetailClientTest {
             imageUrl = "https://cdn.myanimelist.net/images/anime/1299/110774l.jpg",
             pictures = listOf("https://lain.bgm.tv/r/400/pic/cover/l/67/d1/876_dCfrd.jpg"),
             realMalId = 4181,
-            tags = listOf(KitsugiTag(name = "Tearjerker", rank = 90, isSpoiler = false))
+            tags = listOf(KitsugiTag(name = "Cyberpunk", rank = 90, isSpoiler = false))
         )
         val cross = KitsugiBangumiDetailClient.CrossIds(aniListId = 4181, malId = 4181, tmdbId = 4235, imdbId = "tt1234567")
         val merged = KitsugiBangumiDetailClient.mergeDetail(base, companion, cross, MediaType.Anime)
@@ -556,7 +556,7 @@ class KitsugiBangumiDetailClientTest {
         // Galeri: Bangumi kapağının kopyası eklenmez, MAL kapağı eklenir
         assertEquals(listOf("https://cdn.myanimelist.net/images/anime/1299/110774l.jpg"), merged.pictures)
         // Etiketler: diğer kaynak + Bangumi etiketleri, tekrarsız
-        assertEquals("Tearjerker", merged.tags.first().name)
+        assertTrue(merged.tags.any { it.name == "Cyberpunk" })
         assertTrue(merged.tags.any { it.name == "京阿尼" })
     }
 
@@ -659,5 +659,15 @@ class KitsugiBangumiDetailClientTest {
         assertEquals("Nagisa Furukawa", localized.displayFor("ENGLISH"))
         assertEquals("古河渚", localized.displayFor("NATIVE"))
         assertTrue(localized.alternatives.contains("Furukawa Nagisa"))
+    }
+
+    @Test
+    fun pickSynopsis_prefersLatinOverCjkForBetterTranslation() {
+        val cjk = "在某个小镇，主角经历了一段感人的故事..."
+        val latin = "In a certain town, the protagonist experiences an emotional story..."
+        assertEquals(latin, KitsugiBangumiDetailClient.pickSynopsis(cjk, latin))
+        assertEquals(cjk, KitsugiBangumiDetailClient.pickSynopsis(cjk, null))
+        assertEquals(latin, KitsugiBangumiDetailClient.pickSynopsis(null, latin))
+        assertEquals(cjk, KitsugiBangumiDetailClient.pickSynopsis(cjk, "另一个中文描述"))
     }
 }

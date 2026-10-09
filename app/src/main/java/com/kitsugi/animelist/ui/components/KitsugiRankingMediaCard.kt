@@ -256,7 +256,7 @@ fun KitsugiRankingMediaCard(
                     }
                 }
 
-                // Yayın geri sayımı — sadece AniList kaynaklı, nextAiringEpisode dolu ise
+                // Yayın geri sayımı — tüm kaynaklar (nextAiringEpisode dolu ise): tarih + geri sayım
                 if (!result.nextAiringEpisode.isNullOrBlank()) {
                     NextAiringChip(nextAiringEpisode = result.nextAiringEpisode)
                 }

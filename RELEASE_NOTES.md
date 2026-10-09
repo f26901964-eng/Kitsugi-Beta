@@ -1,5 +1,127 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.226)
+
+### 📝 1. Liste Düzenleme Ekranı & Platform Eşitlemesi (`KitsugiEditMediaSheet.kt`, `BangumiSyncManager.kt`, `KitsuSyncManager.kt`, `ShikimoriSyncManager.kt`)
+- **Bangumi Platform Entegrasyonu:** Bangumi kayıtları artık "Yerel/Manuel" kitaplık yerine gerçek Bangumi platform şablonuyla açılır; gereksiz manuel başlık ve +18 alanları yerine "Gizli" ve "Etiketler" alanları gösterilir. Notlar ve etiketler Bangumi API'sine senkronize edilir.
+- **Kitsu Gizlilik ve Tarih Senkronizasyonu:** Kitsu düzenleme sayfasına "Gizli" seçeneği eklendi. Başlangıç/bitiş tarihleri, kişisel notlar ve gizlilik ayarları hem import edilir hem de Kitsu API'sine gönderilir. Kitsu'da bulunmayan manga cilt satırı gizlendi.
+- **Shikimori "Yeniden İzleniyor" ve Tekrar Sayacı:** Shikimori için "Yeniden İzleniyor" durumu ve tekrar sayısı kontrolü eklendi; kişisel metin notu, tekrar sayısı ve cilt bilgileri hem içe aktarılır hem de uzaktaki Shikimori profiline iletilir.
+- **Platform Destek Rozetleri & Güvenli Güncelleme:** İlgili platform API'sinin desteklemediği alanlar için düzenleme sayfasında şeffaf bilgilendirme rozetleri gösterilir (örn. Simkl'de not/tarih/favori, MAL'de favori). Yalnızca doldurulan alanlar gönderilir, boş bırakılan alanlar uzaktaki veriyi ezmez.
+
+### 🚀 2. Eklenti Arama & Yayın Sağlayıcı İyileştirmeleri (`CsStreamRunner.kt`, `CsRuntimeInit.kt`)
+- **Canlı Domain Koruması & Tablo Güvenlik Ağı:** Yerleşik ve uzak domain tablolarının, eklentinin kendi sağlıklı canlı adresini veya çalışma zamanında bulduğu aynayı (örn. FilmMakinesi, Dizipal, SezonlukDizi) ezmesi engellendi. Eski tablolar artık yalnızca boş, zehirli veya bilinen ölü adresleri kurtarmak için devreye girer; sağlıklı domain'e yalnızca açılışta güncellenen uzak tablo geri-alma korumasıyla dokunabilir.
+- **Title-Search Fallback Koruması:** `getLoadUrl()` boş veya tanımsız döndüğünde arama sürecinin kilitlenmesi önlendi; boş dönen native sonuçlar otomatik olarak başlık bazlı aramaya yönlendirilir.
+- **Scraper Disk Önbelleği Kaldırıldı:** 50 MB'lık OkHttp disk önbelleği kaldırıldı. Bazı sitelerin arama sayfalarında döndürdüğü `max-age` başlıkları nedeniyle Cloudflare engeline veya boş sonuca takılan aramaların diske kalıcı olarak yazılıp süresiz "0 sonuç" dönmesi sorunu çözüldü (Resmi CloudStream mimarisine hizalandı).
+- **Arama Bütçesi & Eşzamanlılık Artışı:** Global `searchSemaphore` bütçesi 12'den 24'e çıkarıldı. 30+ eklenti paralel sorgulanırken sıradaki eklentilerin 20 saniyelik zaman aşımına uğraması engellendi.
+
+### 🎬 3. Kitsu Film Ayrıştırması & TMDB Çakışma Önlemi (`KitsugiEpisodeRatingsRepository.kt`, `ApiResultDetailViewModel.kt`, `MediaEntryDetailViewModel.kt`)
+- **Film ve Dizi Kimlik Çakışması Giderildi:** TMDB üzerinde aynı kimlik numarasını paylaşan film ve dizi kayıtları (örneğin *Howl's Moving Castle* filmi ile *Roar* dizisi) birbirinden tamamen ayrıldı. Film kayıtları yalnızca film uç noktalarını sorgular ve TV/SeriesGraph/TVDB yollarına düşmez.
+- **Kitsu Alt Tür Tespiti:** Kitsu listelerinde tür bilgisi bulunmayan kayıtlar için Kitsu API üzerinden `subtype` ("movie") sorgusu yapılıp kimlik başına önbelleklenir. Hero, detay logosu ve galeriler doğru türü kullanır.
+- **Temiz Medya Galerisi:** Film kayıtlarının Fanart galerilerine TV dizilerinin afiş ve ekran görüntülerinin karışması engellendi.
+
+### 🔔 4. Profil ve Listem Bildirim Butonları & Keşfet Zarı (`AppRootTabPages.kt`, `ExploreScreen.kt`, `MyListComponents.kt`, `MyListScreen.kt`, `KitsugiProfileScreen.kt`)
+- **Profil ve Listem Bildirim Entegrasyonu:** AniList, MAL veya Simkl hesaplarından biri bağlı olduğunda, Profil ekranında istatistik butonunun soluna ve Listem ekranında zar butonunun soluna bildirim butonu eklendi.
+- **Keşfet Zarı Bağımsızlaştırıldı:** Keşfet ekranında bildirim butonu açıkken de rastgele keşfet (🎲) zarı görünür kalır ve bildirimin solunda konumlandırılır.
+
+### 🌐 5. Bangumi "Diğer Adlar" & CJK Varyantları (`BangumiLocalizedName.kt`, `KitsugiSimklDetailClient.kt`)
+- **Japonca, Çince ve Korece Alternatif Adlar Geri Getirildi:** "Diğer Adlar" / eşanlamlılar listesindeki Latin-harf zorunluluğu kaldırılarak Japonca, Çince ve Korece özgün varyantlar yeniden görünür hale getirildi. Yalnızca ana başlıkla birebir aynı olan tekrarlar elenir.
+
+### 🏷️ 6. Bangumi Etiket & Tür Sözlüğü (`BangumiTagDictionary.kt`, `KitsugiTranslations.kt`, `strings.xml`)
+- **%100 Resmî Meta Etiket Kapsamı:** Bangumi'nin 158 resmî meta etiketi (kaynak, tip, bölge, tema, hedef kitle, oyun türü, platform, kitap, müzik) eksiksiz olarak Türkçe ve İngilizceye çevrildi.
+- **817 Kullanıcı Etiketi Desteği:** En popüler 817 kullanıcı etiketi Türkçe ve İngilizce karşılıklarıyla sözlüğe eklendi. Yazım varyantları (ör. `催泪` / `催涙` / `Duygusal`) tekilleştirildi.
+- **Okunabilirlik Sıralaması:** Çevrilmemiş CJK etiketler listenin sonuna ötelenerek önce kullanıcının dilindeki etiketlerin görünmesi sağlandı.
+
+### 🎨 7. Bangumi ve Simkl Vitrin Logoları & Çok Kaynaklı Zengin Galeriler (`HeroLogoPolicy.kt`, `MediaGalleryIdentity.kt`, `KitsugiPersonImageAggregator.kt`)
+- **Vitrin Görsel Logoları:** Bangumi ve Simkl vitrinlerinde grafik logo varsa metin başlık yerine logo gösterilir.
+- **Güvenli Çapraz Kimlik Eşleştirme:** Bangumi subject ID'si asla MAL ID olarak kullanılmaz; Simkl sonuçlarında TMDB kimliği korunur.
+- **Karakter, Ekip ve Seslendirmen Galerileri:** MAL ID yoksa ad ve alternatif adlarla Jikan eşleşmesi yapılarak zengin galeriler oluşturulur.
+
+### 🌟 8. Keşfet: "Yakında Yayında" Şeridi & Mantıksal Kaynak Rafları (`ExploreScreen.kt`, `AllSourcesExplore.kt`, `ExploreCategories.kt`)
+- **Şerit Konumlandırma Standardı:** "Yakında Yayında" geri sayımlı şeridi, tüm kaynak sayfalarında kategori kısayollarının hemen altına taşındı.
+- **Mantıksal Raf Hiyerarşisi:** Anime Rafları → Manga Rafları → Kaynağa Özgü Raflar (Manhwa, Novel, Simkl) düzenine kavuşturuldu.
+- **Eksik Kısayollar:** "En Yüksek Puanlı Animeler" ve "En Yüksek Puanlı Mangalar" kısayolları eklendi.
+
+### 🗓️ 9. Tüm Kaynaklarda Birleşik Yayın Tarihi ve Geri Sayım Mantığı (`NextAiringFormat.kt`, `DetailSharedComponents.kt`, `NextAiringChip.kt`)
+- **Tek Ortak Biçim Katmanı (`NextAiringFormat`):** AniList, MAL/Jikan, TMDB, Shikimori, Bangumi, Simkl ve Kitsu kaynaklarında yayın tarihi ve geri sayım tek standart formata getirildi.
+- **Detay Sayfaları:** *"Yaklaşan Yayın: Bölüm 2, 2026-10-15 tarihinde yayında (6 gün sonra)"* şeklinde hem tarih hem geri sayım gösterilir.
+
+### 📋 10. Kullanıcı Profili Anime/Manga Listesi ve "Listem" Tam Paritesi (`KitsugiUserMediaListScreen.kt`, `MyListFilterHelpers.kt`)
+- **Tasarım ve Üst Kontrol Paritesi:** Başka bir kullanıcının listesi ana Listem ekranıyla aynı başlık, görünüm değiştirici, arama ve filtre kontrollerine kavuştu.
+- **Birleşik Anime & Manga Veri Kümesi:** Anime ve Manga listeleri tek havuzda birleştirilerek filtreleme seçenekleri zenginleştirildi.
+- **Gelişmiş Filtreler:** Durum, medya türü, puan, yıl ve özel filtreler eklendi; poster önizleme ve rastgele seçim desteklendi.
+
+### 🔐 11. Kalıcı Kasa Yedekleme, Çoklu Cihaz Çakışma Yönetimi & Android Keystore (`VaultBackupWorker.kt`, `VaultMerge.kt`, `LocalVaultKeyStore.kt`)
+- **WorkManager Kalıcı Kuyruk:** Ağ kesintilerinde ve süreç kapanmalarında kasa yedekleri kaybolmaz.
+- **3 Yönlü Akıllı Birleştirme:** Farklı servis token'ları çakışmasız birleşir; aynı servis token çakışmalarında kullanıcıya seçim sunulur.
+- **Supabase CAS Koruması:** `kitsugi_vault_cas` veritabanı fonksiyonu ile yarış durumları engellenir.
+- **Kesintiye Dayanıklı Şifre Değiştirme & Keystore Şifreleme:** Kasa anahtarı işlem yarıda kalsa dahi korunur ve yerel anahtar Android Keystore ile şifrelenir.
+- **22 Taşınabilir Ayar:** Tema, liste düzeni ve dil ayarları şifreli yedek kapsamına alındı.
+
+### 📦 12. Dağıtım
+- Yalnızca **FOSS** sürümü (`assembleFossRelease`) derlendi (`Kitsugi-Beta-v2.4.226-foss.apk`).
+
+---
+
+## 🇬🇧 English (v2.4.226)
+
+### 📝 1. Media Entry Editor & Provider Parity (`KitsugiEditMediaSheet.kt`, `BangumiSyncManager.kt`, `KitsuSyncManager.kt`, `ShikimoriSyncManager.kt`)
+- **Bangumi Platform Alignment:** Bangumi entries open with genuine Bangumi platform templates rather than generic "local library" fields (title, +18, total counts); introduces "Private" and "Tags" fields with bidirectional sync to Bangumi API.
+- **Kitsu Privacy & Date Sync:** Added "Private" toggle to Kitsu editor. Start/finish dates, personal notes, and privacy settings are imported and synced to Kitsu; unsupported manga volume counter is hidden.
+- **Shikimori Rewatching & Counters:** Added "Rewatching" status and rewatch count field; personal notes, rewatch counts, and manga volume progress are fully synced bidirectionally.
+- **Platform Capability Indicators:** Explicit informational labels indicate fields unsupported by remote APIs (e.g. notes/dates on Simkl, favorites on MAL). Only populated values are synced to prevent remote data erasure.
+
+### 🚀 2. Extension Search & Stream Runner Overhaul (`CsStreamRunner.kt`, `CsRuntimeInit.kt`)
+- **Live Domain Protection & Table Safety Net:** Hardcoded and remote domain tables no longer overwrite healthy plugin domains or runtime-discovered mirrors (e.g., FilmMakinesi, Dizipal, SezonlukDizi). Stale tables are now only used to rescue empty, poisoned, or dead URLs.
+- **Title-Search Fallback Preservation:** Empty native `getLoadUrl()` resolution results no longer swallow the search pipeline; they cleanly fall back to title-based search.
+- **Scraper Disk Cache Removed:** Removed the 50 MB OkHttp disk cache from the scraper client. Websites serving `max-age` headers on search queries previously caused Cloudflare challenges or 0-result pages to be cached indefinitely on disk.
+- **Concurrency & Budget Increase:** Increased global `searchSemaphore` from 12 to 24 permits, preventing queued plugins from exhausting their 20-second timeout budgets during 30+ plugin parallel searches.
+
+### 🎬 3. Kitsu Movie Subtype Disambiguation & TMDB Conflict Prevention (`KitsugiEpisodeRatingsRepository.kt`, `ApiResultDetailViewModel.kt`, `MediaEntryDetailViewModel.kt`)
+- **Movie vs. TV ID Collision Prevention:** Media sharing identical TMDB IDs between movies and TV shows (e.g. *Howl's Moving Castle* film vs *Roar* series) are strictly isolated. Movie entries query only movie endpoints and avoid TV/SeriesGraph fallbacks.
+- **Kitsu Subtype Caching:** Queries and caches the Kitsu API `subtype` attribute per entry, allowing hero, detail logos, and galleries to use movie endpoints.
+- **Clean Media Galleries:** Prevents TV series artwork from polluting anime movie Fanart galleries.
+
+### 🔔 4. Profile & My List Notification Buttons & Explore Dice Button (`AppRootTabPages.kt`, `ExploreScreen.kt`, `MyListComponents.kt`, `MyListScreen.kt`, `KitsugiProfileScreen.kt`)
+- **Notification Navigation in Profile & My List:** When AniList, MAL, or Simkl is connected, a notification icon button appears in Profile (left of stats) and My List (left of the dice button).
+- **Independent Explore Dice:** The random picker dice button (🎲) in Explore remains visible even when notifications are active.
+
+### 🌐 5. Bangumi Alternate Titles & CJK Variants Restored (`BangumiLocalizedName.kt`, `KitsugiSimklDetailClient.kt`)
+- **CJK Alternate Titles Restored:** Lifted the Latin-only restriction on alternative titles in Bangumi and Simkl, re-enabling Japanese, Chinese, and Korean title variants in the "Other Names" section while discarding exact duplicates of the main title.
+
+### 🏷️ 6. Bangumi Tag & Genre Dictionary (`BangumiTagDictionary.kt`, `KitsugiTranslations.kt`, `strings.xml`)
+- **100% Official Meta Tag Coverage:** All 158 official Bangumi meta tags (sources, types, genres, themes, platforms, etc.) are localized in Turkish and English.
+- **817 User Tags Dictionary:** 817 popular user tags localized with spelling variant deduplication (e.g. `催泪` / `催涙` / `Tearjerker`).
+- **Readability Tag Sorting:** Unmapped CJK tags sort to the end of the tag cloud, prioritizing readable tags.
+
+### 🎨 7. Hero Logos & Multi-Source Galleries (`HeroLogoPolicy.kt`, `MediaGalleryIdentity.kt`, `KitsugiPersonImageAggregator.kt`)
+- **Hero Graphical Logos:** Displays graphic logos in the Hero spotlight for Bangumi and Simkl items when available.
+- **Cross-Source ID Segregation:** Bangumi subject IDs are never used as MAL IDs; Simkl entries retain valid TMDB IDs.
+- **Character, Staff & Voice Actor Galleries:** Resolves people missing MAL IDs using strict name matching against Jikan.
+
+### 🌟 8. Explore: Airing Soon Shelf & Ordered Categories (`ExploreScreen.kt`, `AllSourcesExplore.kt`, `ExploreCategories.kt`)
+- **Repositioned Airing Soon Banner:** Relocated immediately below category shortcuts across all views.
+- **Logical Shelf Ordering:** Standardized order: Anime shelves → Manga shelves → Source-specific shelves.
+- **Category Shortcuts:** Added "Top Rated Anime" and "Top Rated Manga" shortcuts.
+
+### 🗓️ 9. Universal Airing Dates & Countdowns (`NextAiringFormat.kt`, `DetailSharedComponents.kt`, `NextAiringChip.kt`)
+- **Unified Formatting Layer:** Standardized air dates and countdowns across AniList, MAL, TMDB, Shikimori, Bangumi, Simkl, and Kitsu.
+- **Detail Screens:** Unified label: *"Yaklaşan Yayın: Bölüm 2, 2026-10-15 tarihinde yayında (6 gün sonra)"*.
+
+### 📋 10. User Profile List & "My List" Full Parity (`KitsugiUserMediaListScreen.kt`, `MyListFilterHelpers.kt`)
+- **Full Header & Filter Parity:** Viewing another user's list now provides the complete header, view modes, search, and filtering capabilities of the main "My List" screen.
+- **Combined Anime & Manga Pool:** Both media lists are loaded concurrently and filterable on the fly.
+
+### 🔐 11. Hardened Account Backup, Multi-Device CAS & Keystore (`VaultBackupWorker.kt`, `VaultMerge.kt`, `LocalVaultKeyStore.kt`)
+- **WorkManager Persistent Queue:** Protects pending backups against network drops, process death, and reboots.
+- **3-Way Merge & CAS:** Automatic merging for distinct accounts and server-side compare-and-swap on Supabase.
+- **Keystore Encryption & Interruption-Proof Password Change:** Hardware-backed encryption and dual-wrap transitions.
+- **22 Portable Settings:** Encrypted alongside tokens.
+
+### 📦 12. Packaging
+- Built exclusively as **FOSS** release (`assembleFossRelease`) (`Kitsugi-Beta-v2.4.226-foss.apk`).
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.225)
 
 ### 🌸 1. Bangumi Başlık Dili & Latin Ad Zenginleştirmesi (`KitsugiBangumiClient.kt`, `BangumiLocalizedName.kt`)

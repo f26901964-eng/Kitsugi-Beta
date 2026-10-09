@@ -26,6 +26,37 @@ private val Context.settingsDataStore by preferencesDataStore(
 class SettingsDataStore(
     private val context: Context
 ) {
+    // Explicit portable-only allowlist. Never copy API keys, SAF/file URIs, caches or device flags.
+    private val cloudKeys = setOf(
+        "selected_theme_id", "show_adult_content", "blur_adult_media", "selected_list_layout_id",
+        "profile_name", "list_title", "title_language", "score_format", "hide_scores",
+        "show_anime_logos", "player_preference", "is_autoplay_enabled", "skip_intro_duration_sec",
+        "default_subtitle_size", "default_subtitle_color", "subtitle_bold", "subtitle_outline_enabled",
+        "manga_reading_mode", "manga_color_filter", "manga_fit_mode", "search_history_enabled",
+        "tmdb_language"
+    )
+
+    val cloudSettingsFlow: Flow<Map<String, Any>> = context.settingsDataStore.data.map { prefs ->
+        prefs.asMap().entries.filter { it.key.name in cloudKeys }.associate { it.key.name to it.value }
+    }
+
+    suspend fun restoreCloudSettings(values: Map<String, Any>) {
+        context.settingsDataStore.edit { prefs ->
+            values.forEach { (name, value) ->
+                if (name !in cloudKeys) return@forEach
+                // Require the locally declared type, rather than trusting a remote type tag.
+                when (name) {
+                    "show_adult_content", "blur_adult_media", "hide_scores", "show_anime_logos",
+                    "is_autoplay_enabled", "subtitle_bold", "subtitle_outline_enabled",
+                    "search_history_enabled" -> if (value is Boolean) prefs[booleanPreferencesKey(name)] = value
+                    "skip_intro_duration_sec", "default_subtitle_size", "default_subtitle_color" ->
+                        if (value is Int) prefs[intPreferencesKey(name)] = value
+                    else -> if (value is String) prefs[stringPreferencesKey(name)] = value
+                }
+            }
+        }
+    }
+
     private object Keys {
         val SelectedThemeId = stringPreferencesKey("selected_theme_id")
         val ShowAdultContent = booleanPreferencesKey("show_adult_content")

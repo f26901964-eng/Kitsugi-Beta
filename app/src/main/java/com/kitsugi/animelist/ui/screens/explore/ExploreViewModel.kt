@@ -120,6 +120,12 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     var trendingAnime by mutableStateOf<List<JikanSearchResult>>(initialPayload?.trendingAnime ?: emptyList())
         private set
 
+    var topRatedAnime by mutableStateOf<List<JikanSearchResult>>(initialPayload?.topRatedAnime.orEmpty())
+        private set
+
+    var topRatedManga by mutableStateOf<List<JikanSearchResult>>(initialPayload?.topRatedManga.orEmpty())
+        private set
+
     var movieAnime by mutableStateOf<List<JikanSearchResult>>(initialPayload?.movieAnime ?: emptyList())
         private set
 
@@ -297,6 +303,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         topManga = payload.topManga
         publishingManga = payload.publishingManga
         trendingAnime = payload.trendingAnime
+        topRatedAnime = payload.topRatedAnime.orEmpty()
+        topRatedManga = payload.topRatedManga.orEmpty()
         movieAnime = payload.movieAnime
         bangumiTvShows = payload.bangumiTvShows.orEmpty()
         bangumiMovies = payload.bangumiMovies.orEmpty()
@@ -324,6 +332,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         topManga = emptyList()
         publishingManga = emptyList()
         trendingAnime = emptyList()
+        topRatedAnime = emptyList()
+        topRatedManga = emptyList()
         movieAnime = emptyList()
         bangumiTvShows = emptyList()
         bangumiMovies = emptyList()
@@ -661,8 +671,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                         realMalId = null,
                         titleEnglish = entry.titleEnglish,
                         titleJapanese = entry.titleNative,
-                        // "-1|epoch": TMDB upcoming konvansiyonu — geri sayım "çıkıyor" ifadesi kullanır
-                        nextAiringEpisode = "-1|${entry.airingAt}",
+                        // "episode|epoch" — Film=0, prömiyer=Bölüm 1, bilinmeyen=-1
+                        nextAiringEpisode = "${entry.episode}|${entry.airingAt}",
                         tmdbId = entry.aniListId
                     )
                 }

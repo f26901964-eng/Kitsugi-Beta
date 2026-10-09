@@ -82,9 +82,13 @@ object ShikimoriSyncManager {
 
         // Official v2 create is an upsert by user_id + target_type + target_id.
         // It recovers safely from stale cached rate IDs without assuming a failed PATCH means absence.
+        // Not / tekrar sayısı / cilt: boş ya da sıfır değerler uzaktaki kaydı silmesin diye gönderilmez.
         val rateId = ShikimoriApiClient.createUserRate(
             token = token, userId = userId, targetId = targetId, targetType = targetType,
-            status = status, score = score, progress = progress
+            status = status, score = score, progress = progress,
+            text = entry.notes?.takeIf { it.isNotBlank() },
+            rewatches = entry.repeatCount.takeIf { it > 0 },
+            volumes = if (targetType == "Manga") entry.volumeProgress.takeIf { it > 0 } else null
         )
         if (rateId != null) {
             ExternalAuthManager.saveShikimoriRateId(context, targetId, targetType, rateId)

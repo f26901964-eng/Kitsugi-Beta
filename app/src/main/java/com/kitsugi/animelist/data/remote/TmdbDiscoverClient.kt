@@ -447,13 +447,11 @@ internal object TmdbDiscoverClient {
                 }
                 val nextAiringEpisode = try {
                     if (releaseDate.isNotEmpty()) {
-                        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
-                        sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
-                        val date = sdf.parse(releaseDate)
-                        val epoch = date?.time?.div(1000L)
+                        val epoch = com.kitsugi.animelist.utils.NextAiringFormat.isoDateToEpoch(releaseDate)
                         val nowSeconds = System.currentTimeMillis() / 1000L
                         if (epoch != null && epoch > nowSeconds) {
-                            "-1|$epoch"
+                            // 0 = Film (vizyon), -1 = bölüm numarası bilinmeyen dizi
+                            "${if (isMovie) 0 else -1}|$epoch"
                         } else null
                     } else null
                 } catch (e: Exception) {
@@ -525,13 +523,11 @@ internal object TmdbDiscoverClient {
                 }
                 val nextAiringEpisode = try {
                     if (releaseDate.isNotEmpty()) {
-                        val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
-                        sdf.timeZone = java.util.TimeZone.getTimeZone("UTC")
-                        val date = sdf.parse(releaseDate)
-                        val epoch = date?.time?.div(1000L)
+                        val epoch = com.kitsugi.animelist.utils.NextAiringFormat.isoDateToEpoch(releaseDate)
                         val nowSeconds = System.currentTimeMillis() / 1000L
                         if (epoch != null && epoch > nowSeconds) {
-                            "-1|$epoch"
+                            // 0 = Film (vizyon), -1 = bölüm numarası bilinmeyen dizi
+                            "${if (isMovie) 0 else -1}|$epoch"
                         } else null
                     } else null
                 } catch (e: Exception) {

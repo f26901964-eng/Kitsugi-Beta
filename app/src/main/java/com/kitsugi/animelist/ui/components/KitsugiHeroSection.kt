@@ -41,6 +41,8 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
 import com.kitsugi.animelist.data.remote.KitsugiEpisodeRatingsRepository
+import com.kitsugi.animelist.data.remote.KitsugiBangumiDetailClient
+import com.kitsugi.animelist.data.remote.KitsugiIdResolver
 import com.kitsugi.animelist.utils.copyOnDoubleTap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
@@ -66,8 +68,14 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalIsTvDevice
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
 import kotlin.math.abs
 
 private const val HERO_BACKGROUND_PARALLAX = 0.055f
@@ -76,6 +84,77 @@ private const val HERO_CONTENT_PARALLAX = 0.18f
 
 private fun heroItemIdentity(item: JikanSearchResult): String =
     "${item.source.trim().lowercase()}:${item.type.name}:${item.malId}"
+
+private suspend fun fetchHeroLogo(item: JikanSearchResult): String? = try {
+    val stableId = item.malId
+    val isMovie = item.type == MediaType.Movie
+    when {
+        item.source.equals("tmdb", ignoreCase = true) -> {
+            val tmdbId = item.tmdbId ?: stableId.takeIf { it > 0 }
+            tmdbId?.takeIf { it > 0 }?.let { KitsugiEpisodeRatingsRepository.getLogoUrl(it, isMovie = isMovie) }
+        }
+        item.source.equals("anilist", ignoreCase = true) -> {
+            if (stableId in 100_000_001..199_999_999) {
+                KitsugiEpisodeRatingsRepository.getLogoUrlByAniListId(
+                    aniListId = stableId - 100_000_000,
+                    fallbackMalId = item.realMalId,
+                    isMovie = isMovie
+                )
+            } else {
+                val malId = item.realMalId?.takeIf { it in 1..99_999_999 }
+                    ?: stableId.takeIf { it in 1..99_999_999 }
+                malId?.let { KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(it, isMovie = isMovie) }
+            }
+        }
+        item.source.equals("kitsu", ignoreCase = true) -> {
+            val kitsuLogo = if (stableId in 300_000_001..399_999_999) {
+                KitsugiEpisodeRatingsRepository.getLogoUrlByKitsuId(stableId - 300_000_000)
+            } else null
+            kitsuLogo?.takeIf { it.isNotBlank() }
+                ?: item.realMalId?.takeIf { it in 1..99_999_999 }
+                    ?.let { KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(it, isMovie = isMovie) }
+        }
+        item.source.equals("simkl", ignoreCase = true) -> {
+            val realMalId = item.realMalId?.takeIf { it in 1..99_999_999 }
+            val tmdbId = item.tmdbId?.takeIf { it > 0 }
+            tmdbId?.let { KitsugiEpisodeRatingsRepository.getLogoUrl(it, isMovie = isMovie) }
+                ?.takeIf { it.isNotBlank() }
+                ?: realMalId?.let { KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(it, isMovie = isMovie) }
+        }
+        item.source.equals("bangumi", ignoreCase = true) || item.source.equals("bgm", ignoreCase = true) -> {
+            // Bangumi kimliği 500M+ stableId'dir; MAL olarak kesinlikle kullanma.
+            val cross = KitsugiBangumiDetailClient.resolveCrossIds(stableId, item.type)
+            val realMalId = item.realMalId?.takeIf { it in 1..99_999_999 } ?: cross.malId
+            val malLogo = realMalId?.let { KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(it, isMovie = isMovie) }
+                ?.takeIf { it.isNotBlank() }
+            val aniListLogo = if (malLogo.isNullOrBlank()) {
+                cross.aniListId?.takeIf { it > 0 }
+                    ?.let { KitsugiEpisodeRatingsRepository.getLogoUrlByAniListId(it, isMovie = isMovie) }
+                    ?.takeIf { it.isNotBlank() }
+            } else null
+            malLogo ?: aniListLogo ?: cross.tmdbId?.takeIf { it > 0 }
+                ?.let { KitsugiEpisodeRatingsRepository.getLogoUrl(it, isMovie = isMovie) }
+        }
+        item.source.equals("jikan", ignoreCase = true) ||
+            item.source.equals("mal", ignoreCase = true) ||
+            item.source.equals("myanimelist", ignoreCase = true) -> {
+            stableId.takeIf { it in 1..99_999_999 }
+                ?.let { KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(it, isMovie = isMovie) }
+        }
+        item.source.equals("shikimori", ignoreCase = true) -> {
+            val realMalId = item.realMalId?.takeIf { it in 1..99_999_999 }
+                ?: withContext(kotlinx.coroutines.Dispatchers.IO) {
+                    KitsugiIdResolver.resolveMalIdFromShikimori(stableId)
+                }
+            realMalId?.let { KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(it, isMovie = isMovie) }
+        }
+        else -> null
+    }
+} catch (cancelled: CancellationException) {
+    throw cancelled
+} catch (_: Exception) {
+    null
+}
 
 // Kaynak adı etiketleri artık ortak `toFriendlySourceLabel()` üzerinden üretilir;
 // vitrin çipi `KitsugiSourceNamePill` ile tüm kaynaklarda logo+isim gösterir.
@@ -172,80 +251,40 @@ fun KitsugiHeroSection(
     val coroutineScope = rememberCoroutineScope()
     val accentColor = LocalKitsugiAccent.current
 
-    var logos by remember { mutableStateOf<Map<String, String?>>(emptyMap()) }
+    var logos by remember(items) { mutableStateOf<Map<String, String?>>(emptyMap()) }
 
     LaunchedEffect(items, showAnimeLogos) {
-        if (!showAnimeLogos) {
+        if (items.none { shouldShowHeroLogo(it, showAnimeLogos) }) {
             logos = emptyMap()
             return@LaunchedEffect
         }
-        val logoMap = mutableMapOf<String, String?>()
+        val logoMap = logos.toMutableMap()
+        val maxConcurrentLogoLookups = Semaphore(3)
 
-        val priorityIndices = buildList {
+        // Önce vitrinde açık olan öğeyi çöz; diğer kaynakların logoları, Bangumi'nin
+        // çapraz-kimlik araması sürerken paralel yüklenip tamamlandıkça gösterilebilir.
+        val priorityItems = buildList {
             val cur = pagerState.currentPage.coerceIn(items.indices)
-            add(cur)
-            items.indices.filter { it != cur }.forEach { add(it) }
+            add(items[cur])
+            items.indices.filter { it != cur }.forEach { add(items[it]) }
+        }.distinctBy { heroItemIdentity(it) }
+            .filter { shouldShowHeroLogo(it, showAnimeLogos) }
+            .filterNot { logoMap.containsKey(heroItemIdentity(it)) }
+
+        val logoCompletions = Channel<Pair<String, String?>>(Channel.UNLIMITED)
+        val pending = priorityItems.map { item ->
+            async {
+                maxConcurrentLogoLookups.withPermit {
+                    logoCompletions.send(heroItemIdentity(item) to fetchHeroLogo(item))
+                }
+            }
         }
 
-        for (idx in priorityIndices) {
-            val item = items[idx]
-            if (item.type == MediaType.Manga) continue
-            val stableId = item.malId
-            val logoUrl = when {
-                item.source.equals("tmdb", ignoreCase = true) -> {
-                    val tmdbId = item.tmdbId ?: if (stableId > 0) stableId else null
-                    if (tmdbId != null && tmdbId > 0) KitsugiEpisodeRatingsRepository.getLogoUrl(tmdbId) else null
-                }
-                item.source.equals("anilist", ignoreCase = true) -> {
-                    if (stableId >= 100_000_000) {
-                        val aniListId = stableId - 100_000_000
-                        KitsugiEpisodeRatingsRepository.getLogoUrlByAniListId(
-                            aniListId = aniListId,
-                            fallbackMalId = item.realMalId
-                        )
-                    } else {
-                        KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId)
-                    }
-                }
-                item.source.equals("kitsu", ignoreCase = true) -> {
-                    if (stableId >= 300_000_000) {
-                        val kitsuId = stableId - 300_000_000
-                        KitsugiEpisodeRatingsRepository.getLogoUrlByKitsuId(kitsuId)
-                    } else if (stableId > 0) {
-                        // malId gerçek MAL ID ise (Kitsu import onu saklamış olabilir)
-                        KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId)
-                    } else null
-                }
-                item.source.equals("simkl", ignoreCase = true) -> {
-                    val realMalId = item.realMalId
-                    val tmdbId = item.tmdbId
-                    when {
-                        realMalId != null && realMalId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(realMalId)
-                        tmdbId != null && tmdbId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrl(tmdbId)
-                        else -> null
-                    }
-                }
-                item.source.equals("jikan", ignoreCase = true) ||
-                item.source.equals("mal", ignoreCase = true) ||
-                item.source.equals("shikimori", ignoreCase = true) -> {
-                    val aniListFallback = if (stableId >= 100_000_000) stableId - 100_000_000 else null
-                    KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(
-                        malId = stableId,
-                        fallbackAniListId = aniListFallback
-                    )
-                }
-                stableId > 0 && !item.source.equals("simkl", ignoreCase = true) -> {
-                    val aniListFallback = if (stableId >= 100_000_000) stableId - 100_000_000 else null
-                    KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(
-                        malId = stableId,
-                        fallbackAniListId = aniListFallback
-                    )
-                }
-                else -> null
-            }
-            logoMap[heroItemIdentity(item)] = logoUrl
+        repeat(pending.size) {
+            val (identity, logoUrl) = logoCompletions.receive()
+            logoMap[identity] = logoUrl
+            logos = logoMap.toMap()
         }
-        logos = logoMap.toMap()
     }
 
     val configuration = androidx.compose.ui.platform.LocalConfiguration.current
@@ -661,7 +700,7 @@ fun KitsugiHeroSection(
 
                         Spacer(modifier = Modifier.height(if (layout.isLandscape) 4.dp else 8.dp))
 
-                        val logoUrl = if (showAnimeLogos) logos[heroItemIdentity(item)] else null
+                        val logoUrl = if (shouldShowHeroLogo(item, showAnimeLogos)) logos[heroItemIdentity(item)] else null
                         if (!logoUrl.isNullOrBlank()) {
                             var logoFailed by remember(logoUrl) { mutableStateOf(false) }
                             if (!logoFailed) {

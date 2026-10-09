@@ -305,3 +305,111 @@ fun LazyListScope.tmdbExploreSections(
         }
     }
 }
+
+/** Simkl account shelves remain separate from its public discovery catalog. */
+fun LazyListScope.simklUserExploreSections(
+    viewModel: ExploreViewModel,
+    isAlreadyInList: (JikanSearchResult) -> Boolean,
+    getMediaEntry: (JikanSearchResult) -> MediaEntry?,
+    onItemClick: (JikanSearchResult) -> Unit,
+    onLongClickItem: (JikanSearchResult) -> Unit,
+    onSeeAllSection: (title: String, categoryType: ExploreCategoryType, results: List<JikanSearchResult>) -> Unit,
+    onNavigateToWatchHistory: () -> Unit,
+    titleLanguage: String,
+    scoreFormat: String,
+    hideScores: Boolean,
+    blurAdultMedia: Boolean,
+    context: android.content.Context
+) {
+    if (viewModel.simklContinueSeries.isNotEmpty()) {
+        item(key = "simkl_continue_series") {
+            KitsugiHorizontalMediaSection(
+                title = stringResource(R.string.explore_simkl_continue_watching_series),
+                results = viewModel.simklContinueSeries,
+                isLoading = false,
+                alreadyInList = isAlreadyInList,
+                getMediaEntry = getMediaEntry,
+                onItemClick = onItemClick,
+                onLongClickItem = onLongClickItem,
+                onSeeAllClick = onNavigateToWatchHistory,
+                titleLanguage = titleLanguage,
+                scoreFormat = scoreFormat,
+                hideScores = hideScores,
+                blurAdultMedia = blurAdultMedia
+            )
+            Spacer(modifier = Modifier.height(26.dp))
+        }
+    }
+
+    if (viewModel.simklContinueMovies.isNotEmpty()) {
+        item(key = "simkl_continue_movies") {
+            KitsugiHorizontalMediaSection(
+                title = stringResource(R.string.explore_simkl_continue_watching_movies),
+                results = viewModel.simklContinueMovies,
+                isLoading = false,
+                alreadyInList = isAlreadyInList,
+                getMediaEntry = getMediaEntry,
+                onItemClick = onItemClick,
+                onLongClickItem = onLongClickItem,
+                onSeeAllClick = onNavigateToWatchHistory,
+                titleLanguage = titleLanguage,
+                scoreFormat = scoreFormat,
+                hideScores = hideScores,
+                blurAdultMedia = blurAdultMedia
+            )
+            Spacer(modifier = Modifier.height(26.dp))
+        }
+    }
+
+    if (viewModel.simklPlannedSeries.isNotEmpty()) {
+        item(key = "simkl_planned_series") {
+            KitsugiHorizontalMediaSection(
+                title = stringResource(R.string.explore_simkl_plantowatch_series),
+                results = viewModel.simklPlannedSeries,
+                isLoading = false,
+                alreadyInList = isAlreadyInList,
+                getMediaEntry = getMediaEntry,
+                onItemClick = onItemClick,
+                onLongClickItem = onLongClickItem,
+                onSeeAllClick = {
+                    onSeeAllSection(
+                        context.getString(R.string.explore_simkl_plantowatch_series),
+                        ExploreCategoryType.AIRING_ANIME,
+                        viewModel.simklPlannedSeries
+                    )
+                },
+                titleLanguage = titleLanguage,
+                scoreFormat = scoreFormat,
+                hideScores = hideScores,
+                blurAdultMedia = blurAdultMedia
+            )
+            Spacer(modifier = Modifier.height(26.dp))
+        }
+    }
+
+    if (viewModel.simklPlannedMovies.isNotEmpty()) {
+        item(key = "simkl_planned_movies") {
+            KitsugiHorizontalMediaSection(
+                title = stringResource(R.string.explore_simkl_plantowatch_movies),
+                results = viewModel.simklPlannedMovies,
+                isLoading = false,
+                alreadyInList = isAlreadyInList,
+                getMediaEntry = getMediaEntry,
+                onItemClick = onItemClick,
+                onLongClickItem = onLongClickItem,
+                onSeeAllClick = {
+                    onSeeAllSection(
+                        context.getString(R.string.explore_simkl_plantowatch_movies),
+                        ExploreCategoryType.MOVIE_ANIME,
+                        viewModel.simklPlannedMovies
+                    )
+                },
+                titleLanguage = titleLanguage,
+                scoreFormat = scoreFormat,
+                hideScores = hideScores,
+                blurAdultMedia = blurAdultMedia
+            )
+            Spacer(modifier = Modifier.height(26.dp))
+        }
+    }
+}

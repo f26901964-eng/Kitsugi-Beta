@@ -537,6 +537,11 @@ fun AppRootDetailPages(
                     },
                     onLocalEntryClick = { entry ->
                         navState.navigateToDetail(DetailScreen.MediaDetail(entry.id))
+                    },
+                    onListLayoutChange = { layoutId ->
+                        coroutineScope.launch {
+                            settingsDataStore.setSelectedListLayoutId(layoutId)
+                        }
                     }
                 )
             }

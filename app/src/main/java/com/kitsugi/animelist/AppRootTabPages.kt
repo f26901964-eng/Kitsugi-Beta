@@ -202,6 +202,8 @@ fun AppRootTabPages(
                     onOpenStatsClick = {
                         ctx.navState.navigateToDetail(DetailScreen.Stats)
                     },
+                    isNotificationsVisible = ctx.authViewModel.isAniListConnected || ctx.authViewModel.isMalConnected || ctx.authViewModel.isSimklConnected,
+                    onOpenNotifications = { ctx.navState.navigateToDetail(DetailScreen.Notifications) },
                     onGenreClick = ctx.onSearchByGenre,
                     onTagClick = ctx.onSearchByTag,
                     onUserProfileClick = { userId, username, avatarUrl ->
@@ -478,6 +480,8 @@ private fun MyListTabPageWrapper(
             appViewModel.selectTab(MainTab.Settings)
         },
         isBottomBarVisible = isBottomBarVisible,
-        onScrollReset = onScrollReset
+        onScrollReset = onScrollReset,
+        isNotificationsVisible = authViewModel.isAniListConnected || authViewModel.isMalConnected || authViewModel.isSimklConnected,
+        onOpenNotifications = { navState.navigateToDetail(DetailScreen.Notifications) }
     )
 }

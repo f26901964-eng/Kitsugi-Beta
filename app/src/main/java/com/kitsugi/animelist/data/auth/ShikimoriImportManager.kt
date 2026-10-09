@@ -87,6 +87,9 @@ object ShikimoriImportManager {
                         malId = malId,
                         aniListEntryId = null,
                         source = "shikimori",
+                        notes = rate.notes,
+                        repeatCount = rate.rewatches,
+                        volumeProgress = if (isManga) rate.volumes else 0,
                         updatedAt = rate.updatedAt,
                         year = rate.startYear
                     )

@@ -26,7 +26,8 @@ tvFoundation = "1.0.0-alpha11"
 tvProvider = "1.1.0-beta01"
 supabase = "3.0.3"
 zxing = "3.5.3"
-ktor = "2.3.12"
+# Supabase 3.0.3 is built against Ktor 3.0.2; the engine must use the same ABI.
+ktor = "3.0.2"
 haze = "0.7.3"
 nanohttpd = "2.3.1"
 playServicesCast = "21.5.0"
@@ -89,6 +90,7 @@ supabase-auth = { group = "io.github.jan-tennert.supabase", name = "auth-kt" }
 supabase-postgrest = { group = "io.github.jan-tennert.supabase", name = "postgrest-kt" }
 supabase-realtime = { group = "io.github.jan-tennert.supabase", name = "realtime-kt" }
 supabase-functions = { group = "io.github.jan-tennert.supabase", name = "functions-kt" }
+ktor-bom = { group = "io.ktor", name = "ktor-bom", version.ref = "ktor" }
 ktor-client-okhttp = { group = "io.ktor", name = "ktor-client-okhttp", version.ref = "ktor" }
 
 # ZXing QR

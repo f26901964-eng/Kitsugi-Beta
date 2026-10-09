@@ -309,7 +309,7 @@ internal fun RichMyListFilterPanel(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             val typeItems = listOf(
-                "anime" to "✓ Anime",
+                "anime" to "Anime",
                 "manga" to "Manga",
                 "characters" to "Karakterler",
                 "staff" to "Ekip",
@@ -327,7 +327,7 @@ internal fun RichMyListFilterPanel(
                         .padding(horizontal = 14.dp, vertical = 9.dp)
                 ) {
                     Text(
-                        text = label,
+                        text = if (isSelected) "✓ $label" else label,
                         color = if (isSelected) KitsugiColors.Background else KitsugiColors.TextPrimary,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold

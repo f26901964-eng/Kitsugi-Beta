@@ -169,6 +169,12 @@ internal object KitsugiMalDetailClient {
         }.getOrNull()
     }
 
+    /** Ek MAL/Jikan görselleri; başka kaynaktan açılan kayıtların galerisi de kullanabilir. */
+    suspend fun fetchGalleryPictures(malId: Int, mediaType: MediaType): List<String> = withContext(Dispatchers.IO) {
+        if (malId !in 1..99_999_999) return@withContext emptyList()
+        fetchPictures(malId, MalJikanMediaSupport.jikanEndpoint(mediaType))
+    }
+
     // ─── Private ─────────────────────────────────────────────────────────────
 
     private suspend fun fetchPictures(malId: Int, endpoint: String): List<String> {

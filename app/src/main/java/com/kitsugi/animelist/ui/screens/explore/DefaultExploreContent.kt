@@ -11,6 +11,52 @@ import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.ui.components.KitsugiHorizontalMediaSection
 
+/** Render the exact same ordered category model in a source page as in the All view. */
+fun LazyListScope.sourceExploreSections(
+    sections: List<ExploreSourceSection>,
+    isLoading: Boolean,
+    isAlreadyInList: (JikanSearchResult) -> Boolean,
+    getMediaEntry: (JikanSearchResult) -> MediaEntry?,
+    onItemClick: (JikanSearchResult) -> Unit,
+    onLongClickItem: (JikanSearchResult) -> Unit,
+    onSeeAllSection: (title: String, categoryType: ExploreCategoryType, results: List<JikanSearchResult>) -> Unit,
+    titleLanguage: String,
+    scoreFormat: String,
+    hideScores: Boolean,
+    blurAdultMedia: Boolean
+) {
+    val populated = sections.filter { it.results.isNotEmpty() }
+    // Keep a small, stable loading preview instead of expanding every unsupported
+    // category into an empty placeholder while the provider request is in flight.
+    val visibleSections = when {
+        populated.isNotEmpty() -> populated
+        isLoading -> sections.take(3)
+        else -> emptyList()
+    }
+
+    visibleSections.forEach { section ->
+        item(key = "source_category_${section.key}") {
+            KitsugiHorizontalMediaSection(
+                title = section.title,
+                results = section.results,
+                isLoading = isLoading,
+                alreadyInList = isAlreadyInList,
+                getMediaEntry = getMediaEntry,
+                onItemClick = onItemClick,
+                onLongClickItem = onLongClickItem,
+                onSeeAllClick = {
+                    onSeeAllSection(section.title, section.category, section.results)
+                },
+                titleLanguage = titleLanguage,
+                scoreFormat = scoreFormat,
+                hideScores = hideScores,
+                blurAdultMedia = blurAdultMedia
+            )
+            Spacer(modifier = Modifier.height(26.dp))
+        }
+    }
+}
+
 fun LazyListScope.defaultExploreSections(
     viewModel: ExploreViewModel,
     filteredTopAnime: List<JikanSearchResult>,

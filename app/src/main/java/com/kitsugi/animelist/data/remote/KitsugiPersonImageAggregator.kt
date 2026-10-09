@@ -1,15 +1,19 @@
 package com.kitsugi.animelist.data.remote
 
 import com.kitsugi.animelist.data.auth.BangumiApiClient
-import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
-import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.async
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
 import java.net.URL
 import java.net.URLEncoder
+import java.util.Locale
 
 /**
  * Karakter / kişi (seslendirmen, oyuncu, personel) görsellerini **tüm kaynaklardan birlikte**
@@ -43,7 +47,8 @@ object KitsugiPersonImageAggregator {
     private const val SRC_TMDB = "TMDB"
 
     private const val MAX_TMDB_PROFILES = 12
-    private const val SEARCH_NAME_ATTEMPTS = 2
+    private const val SEARCH_NAME_ATTEMPTS = 5
+    private const val JIKAN_SEARCH_LIMIT = 8
 
     /**
      * Tüm kaynaklardan görselleri toplar.
@@ -71,46 +76,142 @@ object KitsugiPersonImageAggregator {
         val isBangumiSource = canonical == "bangumi" || canonical == "bgm"
         val nameCandidates = names.filter { it.isNotBlank() }.map { it.trim() }.distinct()
             .take(SEARCH_NAME_ATTEMPTS)
+        val knownMalId = when {
+            MalJikanMediaSupport.isMalSource(source) ->
+                MalJikanMediaSupport.resolveMalId(source, id, malId)
+            canonical == "shikimori" -> malId?.takeIf { it in 1..99_999_999 }
+            else -> malId?.takeIf { it in 1..99_999_999 }
+        }
         val results = mutableListOf<SourceImage>()
         coroutineScope {
-            val tasks = mutableListOf<Deferred<List<SourceImage>>>()
+            val completedImages = Channel<List<SourceImage>>(Channel.UNLIMITED)
+            val scope = this
+            val tasks = mutableListOf<Job>()
+            fun enqueue(fetch: suspend () -> List<SourceImage>) {
+                tasks += scope.launch { completedImages.send(safeImages(fetch)) }
+            }
 
-            if (malId != null && malId > 0) {
-                tasks += async { jikanPictures(kind, malId) }
-                tasks += async { shikimoriImage(kind, malId) }
+            if (knownMalId != null || nameCandidates.isNotEmpty()) {
+                enqueue {
+                    malLinkedImages(
+                        kind = kind,
+                        knownMalId = knownMalId,
+                        names = nameCandidates
+                    )
+                }
             }
             if ((aniListId != null && aniListId > 0) || nameCandidates.isNotEmpty()) {
-                tasks += async { aniListImage(kind, aniListId, nameCandidates) }
+                enqueue { aniListImage(kind, aniListId, nameCandidates) }
             }
             when (kind) {
-                PersonKind.CHARACTER -> tasks += async {
-                    kitsuCharacterImage(knownId = id.takeIf { canonical == "kitsu" && it > 0 }, nameCandidates)
+                PersonKind.CHARACTER -> enqueue {
+                    kitsuCharacterImage(knownId = id.takeIf { canonical == "kitsu" && it > 0 }, names = nameCandidates)
                 }
                 PersonKind.PERSON -> Unit // Kitsu personel görseli sağlamaz
             }
-            tasks += async {
-                bangumiImage(kind, knownId = id.takeIf { isBangumiSource && it > 0 }, nameCandidates)
-            }
+            enqueue { bangumiImage(kind, knownId = id.takeIf { isBangumiSource && it > 0 }, names = nameCandidates) }
             if (kind == PersonKind.PERSON && tmdbEnabled) {
-                tasks += async {
-                    tmdbPersonImages(knownId = id.takeIf { canonical == "tmdb" && it > 0 }, nameCandidates)
-                }
+                enqueue { tmdbPersonImages(knownId = id.takeIf { canonical == "tmdb" && it > 0 }, names = nameCandidates) }
             }
 
-            // Kaynak önceliğini koruyarak sırayla topla; bütçe dolunca kalanı iptal et (kısmi sonuç).
+            // Kaynakları başlatıldığı sırayla değil tamamlandığı sırayla topla. Böylece yavaş
+            // Jikan araması, hazır AniList/Bangumi/TMDB görsellerinin süre bütçesi dolduğu için
+            // atlanmasına neden olmaz.
             val deadline = System.currentTimeMillis() + budgetMs
-            for (task in tasks) {
+            var collected = 0
+            while (collected < tasks.size) {
                 val remaining = deadline - System.currentTimeMillis()
-                if (remaining <= 300L) {
-                    task.cancel()
-                    continue
-                }
-                runCatching { withTimeout(remaining) { task.await() } }
-                    .onSuccess { results += it }
+                if (remaining <= 0L) break
+                val images = withTimeoutOrNull(remaining) { completedImages.receive() } ?: break
+                results += images
+                collected++
             }
+            tasks.forEach { it.cancel() }
         }
         return results.distinctBy { it.url }
     }
+
+    private suspend fun safeImages(fetch: suspend () -> List<SourceImage>): List<SourceImage> =
+        try {
+            fetch()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            emptyList()
+        }
+
+    /** MAL/Jikan görselleri ve Shikimori profil görseli; kimlik yoksa katı ad eşleşmesiyle çözülür. */
+    private suspend fun malLinkedImages(
+        kind: PersonKind,
+        knownMalId: Int?,
+        names: List<String>
+    ): List<SourceImage> {
+        val resolvedMalId = knownMalId?.takeIf { it in 1..99_999_999 }
+            ?: resolveMalIdByName(kind, names)
+            ?: return emptyList()
+
+        return coroutineScope {
+            val jikan = async { jikanPictures(kind, resolvedMalId) }
+            val shikimori = async { shikimoriImage(kind, resolvedMalId) }
+            jikan.await() + shikimori.await()
+        }
+    }
+
+    /**
+     * AniList/Bangumi/Kitsu/TMDB entity IDs eivät ole MAL-ID:itä. Adları Jikan'da aratıp
+     * yalnızca tam ad/alternatif ad eşleşmesi tek bir MAL sonucuna gidiyorsa ID'yi kullan.
+     */
+    private suspend fun resolveMalIdByName(kind: PersonKind, names: List<String>): Int? = withContext(Dispatchers.IO) {
+        val endpoint = if (kind == PersonKind.CHARACTER) "characters" else "people"
+        for (query in names.filter { it.isNotBlank() }.distinct().take(SEARCH_NAME_ATTEMPTS)) {
+            val url = "https://api.jikan.moe/v4/$endpoint?q=${URLEncoder.encode(query, "UTF-8")}&limit=$JIKAN_SEARCH_LIMIT"
+            val body = when (val response = JikanGateway.fetchBlocking(url, JikanGateway.Priority.UI)) {
+                is JikanResult.Ok -> response.body
+                else -> continue
+            }
+            val data = runCatching { JSONObject(body).optJSONArray("data") }.getOrNull() ?: continue
+            val exactMatches = (0 until data.length()).mapNotNull { index ->
+                val entry = data.optJSONObject(index) ?: return@mapNotNull null
+                val malId = entry.optInt("mal_id", 0).takeIf { it in 1..99_999_999 }
+                    ?: return@mapNotNull null
+                val candidates = jikanEntityNames(kind, entry)
+                malId.takeIf { candidates.any { candidate -> nameMatches(query, candidate) } }
+            }.distinct()
+            if (exactMatches.size == 1) return@withContext exactMatches.single()
+        }
+        null
+    }
+
+    private fun jikanEntityNames(kind: PersonKind, entry: JSONObject): List<String> = buildList {
+        fun addField(key: String) {
+            entry.optNullableString(key)?.takeIf { it.isNotBlank() }?.let(::add)
+        }
+        fun addArray(key: String) {
+            val array = entry.optJSONArray(key) ?: return
+            for (index in 0 until array.length()) {
+                array.optString(index).trim().takeIf { it.isNotBlank() && it != "null" }?.let(::add)
+            }
+        }
+
+        addField("name")
+        when (kind) {
+            PersonKind.CHARACTER -> {
+                addField("name_kanji")
+                addArray("nicknames")
+            }
+            PersonKind.PERSON -> {
+                addField("given_name")
+                addField("family_name")
+                val given = entry.optNullableString("given_name")
+                val family = entry.optNullableString("family_name")
+                if (!given.isNullOrBlank() && !family.isNullOrBlank()) {
+                    add("$given $family")
+                    add("$family $given")
+                }
+                addArray("alternate_names")
+            }
+        }
+    }.distinct()
 
     // ── MAL / Jikan — /pictures ekleri ──────────────────────────────────────────
 
@@ -146,48 +247,52 @@ object KitsugiPersonImageAggregator {
         names: List<String>
     ): List<SourceImage> = withContext(Dispatchers.IO) {
         val node = if (kind == PersonKind.CHARACTER) "Character" else "Staff"
-        runCatching {
-            if (aniListId != null && aniListId > 0) {
+        val directImage = if (aniListId != null && aniListId > 0) {
+            runCatching {
                 val query = "query (\$id: Int) { $node(id: \$id) { image { large } } }"
                 val response = KitsugiApiBase.executeAniListQuery(query, JSONObject().put("id", aniListId))
-                    ?: return@runCatching emptyList()
-                val img = JSONObject(response).optJSONObject("data")?.optJSONObject(node)
-                    ?.optJSONObject("image")?.optNullableString("large")
-                if (!img.isNullOrBlank()) listOf(SourceImage(img, SRC_ANILIST)) else emptyList()
-            } else if (names.isNotEmpty()) {
-                val pageField = if (kind == PersonKind.CHARACTER) "characters" else "staff"
-                for (name in names) {
-                    val query = """
-                        query (${'$'}search: String) {
-                            Page(page: 1, perPage: 5) {
-                                $pageField(search: ${'$'}search) {
-                                    id name { full userPreferred native } image { large }
-                                }
-                            }
-                        }
-                    """.trimIndent()
-                    val response = KitsugiApiBase.executeAniListQuery(query, JSONObject().put("search", name))
-                        ?: continue
-                    val arr = JSONObject(response).optJSONObject("data")?.optJSONObject("Page")
-                        ?.optJSONArray(pageField) ?: continue
-                    for (i in 0 until arr.length()) {
-                        val obj = arr.optJSONObject(i) ?: continue
-                        val nameObj = obj.optJSONObject("name")
-                        val candidateNames = listOfNotNull(
-                            nameObj?.optNullableString("userPreferred"),
-                            nameObj?.optNullableString("full"),
-                            nameObj?.optNullableString("native")
-                        )
-                        val matched = names.any { q -> candidateNames.any { nameMatches(q, it) } }
-                        if (matched) {
-                            val img = obj.optJSONObject("image")?.optNullableString("large")
-                            if (!img.isNullOrBlank()) return@runCatching listOf(SourceImage(img, SRC_ANILIST))
+                response?.let {
+                    JSONObject(it).optJSONObject("data")?.optJSONObject(node)
+                        ?.optJSONObject("image")?.optNullableString("large")
+                }
+            }.getOrNull()
+        } else null
+        if (!directImage.isNullOrBlank()) return@withContext listOf(SourceImage(directImage, SRC_ANILIST))
+        if (names.isEmpty()) return@withContext emptyList()
+
+        val pageField = if (kind == PersonKind.CHARACTER) "characters" else "staff"
+        for (name in names) {
+            val query = """
+                query (${'$'}search: String) {
+                    Page(page: 1, perPage: 5) {
+                        $pageField(search: ${'$'}search) {
+                            id name { full userPreferred native } image { large }
                         }
                     }
                 }
-                emptyList()
-            } else emptyList()
-        }.getOrElse { emptyList() }
+            """.trimIndent()
+            val response = runCatching {
+                KitsugiApiBase.executeAniListQuery(query, JSONObject().put("search", name))
+            }.getOrNull() ?: continue
+            val arr = runCatching {
+                JSONObject(response).optJSONObject("data")?.optJSONObject("Page")?.optJSONArray(pageField)
+            }.getOrNull() ?: continue
+            for (i in 0 until arr.length()) {
+                val obj = arr.optJSONObject(i) ?: continue
+                val nameObj = obj.optJSONObject("name")
+                val candidateNames = listOfNotNull(
+                    nameObj?.optNullableString("userPreferred"),
+                    nameObj?.optNullableString("full"),
+                    nameObj?.optNullableString("native")
+                )
+                val matched = names.any { requested -> candidateNames.any { candidate -> nameMatches(requested, candidate) } }
+                if (matched) {
+                    val image = obj.optJSONObject("image")?.optNullableString("large")
+                    if (!image.isNullOrBlank()) return@withContext listOf(SourceImage(image, SRC_ANILIST))
+                }
+            }
+        }
+        emptyList()
     }
 
     // ── Shikimori — kimlik MAL uzayıyla aynı ────────────────────────────────────
@@ -239,7 +344,6 @@ object KitsugiPersonImageAggregator {
                 val root = kitsuGet("https://kitsu.io/api/edge/characters/$knownId")
                 val attrs = root?.optJSONObject("data")?.optJSONObject("attributes")
                 kitsuImageOf(attrs)?.let { return@runCatching listOf(SourceImage(it, SRC_KITSU)) }
-                return@runCatching emptyList()
             }
             for (name in names) {
                 val encoded = URLEncoder.encode(name, "UTF-8")
@@ -289,7 +393,6 @@ object KitsugiPersonImageAggregator {
                 }
                 bangumiImageOf(root?.optJSONObject("images"))
                     ?.let { return@runCatching listOf(SourceImage(it, SRC_BANGUMI)) }
-                return@runCatching emptyList()
             }
             for (name in names) {
                 val page = if (kind == PersonKind.CHARACTER) {
@@ -363,15 +466,12 @@ object KitsugiPersonImageAggregator {
 
     // ── Sıkı isim eşleştirme ────────────────────────────────────────────────────
 
-    /**
-     * Diakritik-duyarsız, noktalama-duyarsız normalize; CJK karakterleri eler
-     * (orijinal Japonca/Çince adlarla muğlak eşleşme yapılmaz — yanlış görsel riski).
-     */
-    private fun normalizeName(value: String): String = java.text.Normalizer
-        .normalize(value, java.text.Normalizer.Form.NFD)
+    /** Diakritik ve noktalama duyarsız Unicode normalizasyonu; Japonca/Çince adları da korur. */
+    internal fun normalizeName(value: String): String = java.text.Normalizer
+        .normalize(java.text.Normalizer.normalize(value, java.text.Normalizer.Form.NFKC), java.text.Normalizer.Form.NFD)
         .replace("\\p{M}+".toRegex(), "")
-        .lowercase()
-        .replace(Regex("[^a-z0-9\\s]"), " ")
+        .lowercase(Locale.ROOT)
+        .replace(Regex("[^\\p{L}\\p{N}\\s]"), " ")
         .replace(Regex("\\s+"), " ")
         .trim()
 
@@ -380,7 +480,7 @@ object KitsugiPersonImageAggregator {
      * "Cid Kagenou" — Japonca ad sırası farkı). Kısmi/önek eşleşmeler kabul EDİLMEZ
      * (ör. "Yuki" ∉ "Yuki Takeya") — yanlış kişi/karakter görseli riskini dışlar.
      */
-    private fun nameMatches(query: String, candidate: String?): Boolean {
+    internal fun nameMatches(query: String, candidate: String?): Boolean {
         if (candidate.isNullOrBlank()) return false
         val q = normalizeName(query)
         val c = normalizeName(candidate)
