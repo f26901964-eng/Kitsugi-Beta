@@ -44,7 +44,16 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 fun SourceEngineSelectorPill(
     selectedEngine: SearchSourceEngine,
     onClick: () -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    /**
+     * `true` ise motor adı gizlenir, yalnızca logo + ok kalır.
+     *
+     * Kullanıcı yazarken arama çubuğunda yer açmak için: arama butonu eklendiğinde
+     * küçük ekranlarda metin alanı neredeyse sıfıra iniyordu. Ad gizlenince açılan
+     * ~30-60 dp doğrudan metin alanına kalır. Motor adı zaten çubuğun altındaki
+     * özet satırında ve seçici sayfada görünür.
+     */
+    compact: Boolean = false
 ) {
     val accentColor = LocalKitsugiAccent.current
 
@@ -67,13 +76,15 @@ fun SourceEngineSelectorPill(
             size = 18.dp,
             fallbackTint = accentColor
         )
-        Text(
-            text = selectedEngine.label,
-            style = MaterialTheme.typography.labelMedium.copy(
-                fontWeight = FontWeight.SemiBold,
-                color = KitsugiColors.TextPrimary
+        if (!compact) {
+            Text(
+                text = selectedEngine.label,
+                style = MaterialTheme.typography.labelMedium.copy(
+                    fontWeight = FontWeight.SemiBold,
+                    color = KitsugiColors.TextPrimary
+                )
             )
-        )
+        }
         Icon(
             imageVector = Icons.Rounded.ArrowDropDown,
             contentDescription = "Motor Seç",

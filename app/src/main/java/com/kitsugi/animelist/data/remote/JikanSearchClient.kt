@@ -103,6 +103,11 @@ class JikanSearchClient {
     /**
      * Jikan v4 arama uç noktası (`/anime|/manga?q=`) — resmî MAL API veri döndürmediğinde
      * kullanılan yedek. Dönen kayıtlar MAL kimlikleriyle işaretlenir (`source = "mal"`).
+     *
+     * Sıralama BİLEREK gönderilmiyor: eski `order_by=members&sort=desc` parametresi
+     * Jikan'ın kendi metin alakalılığını ezip sorguyla gevşek eşleşen EN POPÜLER
+     * kayıtları öne çıkarıyordu (resmî MAL anahtarı yokken "MyAnimeList" rafı alakasız
+     * popüler animeyle doluyordu). Parametre yoksa Jikan/MAL arama alakalılığı kullanılır.
      */
     private suspend fun searchJikanFallback(
         query: String,
@@ -114,7 +119,7 @@ class JikanSearchClient {
         val endpoint = if (mediaType == MediaType.Manga) "manga" else "anime"
         val encoded = URLEncoder.encode(query.trim(), "UTF-8")
         val sfw = if (showAdultContent) "false" else "true"
-        val url = URL("https://api.jikan.moe/v4/$endpoint?q=$encoded&limit=24&page=$page&sfw=$sfw&order_by=members&sort=desc")
+        val url = URL("https://api.jikan.moe/v4/$endpoint?q=$encoded&limit=24&page=$page&sfw=$sfw")
         val json = KitsugiApiBase.executeGetRequestResilient(url) ?: return@withContext emptyList()
         val root = JSONObject(json)
         val data = root.optJSONArray("data") ?: return@withContext emptyList()

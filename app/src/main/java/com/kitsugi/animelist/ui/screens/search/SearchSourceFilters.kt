@@ -85,6 +85,100 @@ fun SearchSourceEngine.availableScopes(): List<SearchScope> = when (this) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
+// KAPSAM → İÇERİK AİLESİ EŞLEMESİ
+// ─────────────────────────────────────────────────────────────────────────────
+
+/** Yazılı içerik kapsamları (manga/manhwa/manhua/light novel). */
+val SearchScope.isPrintScope: Boolean
+    get() = this == SearchScope.MANGA || this == SearchScope.MANHWA ||
+        this == SearchScope.MANHUA || this == SearchScope.LIGHT_NOVEL
+
+/** Gerçek çekim (live-action) film/dizi kapsamları. */
+val SearchScope.isLiveActionScope: Boolean
+    get() = this == SearchScope.TV || this == SearchScope.MOVIE || this == SearchScope.K_DRAMA
+
+/**
+ * "Tümü" (çoklu motor) aramasında bu kapsamın anime veritabanlarını isteyip istemediği.
+ *
+ * Gerçek çekim kapsamlarında (Diziler/Filmler/K-Drama) anime veritabanları sorgulanmaz:
+ * AniList/MAL/Shikimori/Kitsu/Bangumi bu kapsamlar için anime döndürüyordu ve
+ * "Diziler" rafının altında anime kartları görünüyordu.
+ */
+val SearchScope.wantsAnimeSources: Boolean
+    get() = this == SearchScope.ALL_MIXED || this == SearchScope.ANIME ||
+        this == SearchScope.CHARACTER || this == SearchScope.STAFF || this == SearchScope.STUDIO
+
+/** Bu kapsamın manga veritabanlarını isteyip istemediği. */
+val SearchScope.wantsMangaSources: Boolean
+    get() = this == SearchScope.ALL_MIXED || isPrintScope
+
+/**
+ * Bu kapsamın film/dizi (TMDB, Simkl) veritabanlarını isteyip istemediği.
+ *
+ * Manga/manhwa kapsamlarında TMDB ve Simkl sorgulanmaz: bu kaynaklar yalnızca
+ * film/dizi/anime döndürebildiği için "Manhwa" aramasının altına alakasız
+ * live-action filmler geliyordu. ANIME kapsamında da TMDB atlanır çünkü
+ * `search/multi` ucu anime ile live-action uyarlamaları ayırt edemez; Simkl ise
+ * `type=anime` süzgeci desteklediği için anime kapsamında aktif kalır.
+ */
+val SearchScope.wantsLiveActionSources: Boolean
+    get() = this == SearchScope.ALL_MIXED || isLiveActionScope
+
+/** Simkl arama ucuna gönderilecek tür süzgeci (`null` = tüm türler). */
+val SearchScope.simklTypeFilter: String?
+    get() = when (this) {
+        SearchScope.ANIME -> "anime"
+        SearchScope.TV, SearchScope.K_DRAMA -> "tv"
+        SearchScope.MOVIE -> "movie"
+        else -> null
+    }
+
+/**
+ * "Tümü" (çoklu motor) aramasında hangi kaynağın gerçekten sorgulanacağı.
+ *
+ * `false` olan kaynak için ağ isteği hiç yapılmaz; rafı boş + "yükleniyor değil"
+ * durumda kalır ve çizilmez. Böylece kapsamın üretemediği içerik ailesi rafta
+ * alakasız kayıt olarak görünmez (örn. Manhwa aramasının altında TMDB filmleri).
+ */
+internal data class AllSourcePlan(
+    val aniList: Boolean,
+    val mal: Boolean,
+    val tmdb: Boolean,
+    val shikimori: Boolean,
+    val kitsu: Boolean,
+    val simkl: Boolean,
+    val bangumi: Boolean
+) {
+    /** Yalnızca sorgulanacak kaynaklar "yükleniyor" işaretlenir (titremeyi önler). */
+    fun toLoadingState(): MultiPlatformResults = MultiPlatformResults.loading(
+        aniList = aniList,
+        mal = mal,
+        tmdb = tmdb,
+        shikimori = shikimori,
+        kitsu = kitsu,
+        simkl = simkl,
+        bangumi = bangumi
+    )
+}
+
+internal fun planAllSources(scope: SearchScope): AllSourcePlan {
+    // Anime/manga veritabanları gerçek çekim kapsamlarında hiç çalışmaz.
+    val mediaDb = (scope.wantsAnimeSources || scope.wantsMangaSources) && !scope.isLiveActionScope
+    return AllSourcePlan(
+        aniList = mediaDb,
+        mal = mediaDb,
+        // TMDB'nin search/multi ucu anime ile live-action uyarlamayı ayırt edemez;
+        // bu yüzden yalnızca film/dizi kapsamlarında sorgulanır.
+        tmdb = scope.wantsLiveActionSources,
+        shikimori = mediaDb,
+        kitsu = mediaDb,
+        // Simkl tür süzgeci (anime/tv/movie) desteklediği için anime kapsamında da aktif.
+        simkl = scope.wantsLiveActionSources || scope == SearchScope.ANIME,
+        bangumi = mediaDb
+    )
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // KAYNAĞA ÖZEL FİLTRE MODELLERİ
 // ─────────────────────────────────────────────────────────────────────────────
 

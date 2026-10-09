@@ -54,6 +54,35 @@ data class MultiPlatformResults(
     val isAnyLoading: Boolean get() =
         isLoadingAniList || isLoadingMal || isLoadingTmdb ||
         isLoadingShikimori || isLoadingKitsu || isLoadingSimkl || isLoadingBangumi
+
+    companion object {
+        /**
+         * Yalnızca gerçekten sorgulanacak kaynaklar "yükleniyor" işaretlenir.
+         *
+         * Arama başlarken tüm raflar boş + yüklenmiyor durumuna düşüyordu; gerçek
+         * yükleme bayrakları ancak ağ isteği kurulduktan sonra yazıldığı için araya
+         * tüm rafların kaybolduğu bir kare giriyordu (titreme). Ayrıca kapsamın
+         * desteklemediği kaynaklar (örn. Manga kapsamında TMDB) hiç sorgulanmadığı
+         * hâlde boşuna shimmer çiziyordu.
+         */
+        fun loading(
+            aniList: Boolean,
+            mal: Boolean,
+            tmdb: Boolean,
+            shikimori: Boolean,
+            kitsu: Boolean,
+            simkl: Boolean,
+            bangumi: Boolean
+        ): MultiPlatformResults = MultiPlatformResults(
+            isLoadingAniList = aniList,
+            isLoadingMal = mal,
+            isLoadingTmdb = tmdb,
+            isLoadingShikimori = shikimori,
+            isLoadingKitsu = kitsu,
+            isLoadingSimkl = simkl,
+            isLoadingBangumi = bangumi
+        )
+    }
 }
 
 /**
