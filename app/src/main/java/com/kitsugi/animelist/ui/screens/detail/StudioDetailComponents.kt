@@ -54,6 +54,17 @@ import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Share
 
+/**
+ * Stüdyo kuruluş tarihini "1 Ekim 1998" biçiminde gösterir — ham ISO
+ * ("1998-10-01T00:00:00+00:00") dizgesi asla olduğu gibi gösterilmez.
+ */
+internal fun formatStudioEstablished(raw: String?): String? {
+    if (raw.isNullOrBlank()) return null
+    return com.kitsugi.animelist.utils.KitsugiDateUtils
+        .formatBirthdayAndCalculateAge(raw, null)
+        .first ?: raw
+}
+
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 internal fun StudioHeroHeader(
@@ -235,7 +246,7 @@ internal fun StudioHeroHeader(
 
                 if (detail.established != null) {
                     DetailPill(
-                        text = "Kuruluş: ${detail.established}",
+                        text = "Kuruluş: ${formatStudioEstablished(detail.established) ?: detail.established}",
                         color = KitsugiColors.TextSecondary
                     )
                 }
@@ -307,28 +318,27 @@ internal fun StudioMediaGridItem(
     }
 }
 
+/**
+ * Stüdyo "Hakkında" kartı — detay sayfasındaki Açıklama kartıyla (DetailSynopsisCard)
+ * BİREBİR aynı davranış: otomatik çeviri açıksa çevrilmiş metin, çeviri (3. parti)
+ * butonu, kopyala butonu ve uzun metinlerde "Daha fazla / Daha az" genişletme.
+ */
 @Composable
 internal fun StudioAboutSection(
     about: String,
     onGalleryClick: (List<GalleryItem>, Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    translatedAbout: String? = null,
+    onTranslateClick: ((String) -> Unit)? = null,
+    onCopyClick: ((String) -> Unit)? = null
 ) {
-    Column(
-        modifier = modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(22.dp))
-            .background(KitsugiColors.Surface)
-            .padding(16.dp)
-    ) {
-        Text(
-            text = "Hakkında",
-            color = KitsugiColors.TextPrimary,
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold
-        )
-        Spacer(modifier = Modifier.height(10.dp))
-        KitsugiMarkdownText(
-            text = about,
+    Box(modifier = modifier) {
+        DetailSynopsisCard(
+            title = "Hakkında",
+            synopsisState = SynopsisState.Success(translatedAbout ?: about),
+            originalText = about,
+            onTranslateClick = onTranslateClick,
+            onCopyClick = onCopyClick,
             onImageGalleryRequest = { urls, idx ->
                 val items = urls.map { url -> GalleryItem(url = url, category = GalleryCategory.OTHER, source = "Hakkında") }
                 onGalleryClick(items, idx)
@@ -349,7 +359,10 @@ internal fun StudioDetailLeftPanel(
     onBackClick: () -> Unit,
     onToggleFavourite: () -> Unit,
     onGalleryClick: (List<GalleryItem>, Int) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    translatedAbout: String? = null,
+    onTranslateClick: ((String) -> Unit)? = null,
+    onCopyClick: ((String) -> Unit)? = null
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
     Column(
@@ -478,7 +491,10 @@ internal fun StudioDetailLeftPanel(
             DetailPill(text = if (detail.isMain) "Ana Stüdyo" else "Yapımcı", color = accentColor)
             Spacer(modifier = Modifier.height(8.dp))
             if (detail.established != null) {
-                DetailPill(text = "Kuruluş: ${detail.established}", color = KitsugiColors.TextSecondary)
+                DetailPill(
+                    text = "Kuruluş: ${formatStudioEstablished(detail.established) ?: detail.established}",
+                    color = KitsugiColors.TextSecondary
+                )
                 Spacer(modifier = Modifier.height(8.dp))
             }
             if (detail.favorites != null && detail.favorites > 0) {
@@ -489,7 +505,10 @@ internal fun StudioDetailLeftPanel(
                 Spacer(modifier = Modifier.height(12.dp))
                 StudioAboutSection(
                     about = detail.about,
-                    onGalleryClick = onGalleryClick
+                    onGalleryClick = onGalleryClick,
+                    translatedAbout = translatedAbout,
+                    onTranslateClick = onTranslateClick,
+                    onCopyClick = onCopyClick
                 )
             }
         }
@@ -557,7 +576,8 @@ internal fun KitsugiStudioFilterBottomSheet(
     initialSortOption: StudioSortOption,
     onDismissRequest: () -> Unit,
     onApply: (typeId: String, sortOption: StudioSortOption) -> Unit,
-    onReset: () -> Unit
+    onReset: () -> Unit,
+    typeFilters: List<StudioTypeFilter> = STUDIO_TYPE_FILTERS
 ) {
     val accentColor = LocalKitsugiAccent.current
 
@@ -710,7 +730,7 @@ internal fun KitsugiStudioFilterBottomSheet(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    STUDIO_TYPE_FILTERS.forEach { typeFilter ->
+                    typeFilters.forEach { typeFilter ->
                         val isSelected = selectedTypeId == typeFilter.id
                         Box(
                             modifier = Modifier

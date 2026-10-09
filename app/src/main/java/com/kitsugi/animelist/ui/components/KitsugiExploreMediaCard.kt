@@ -637,7 +637,8 @@ private fun buildMetaText(
         }
 
         val sourceLabel = result.source.toFriendlySourceLabel()
-        add("$sourceLabel #${result.malId}")
+        // Eklenti (CS3) sonuçlarında sahte ID gösterme — yalnızca eklenti adı yeterlidir.
+        if (result.cs3Url.isNullOrBlank()) add("$sourceLabel #${result.malId}") else add(sourceLabel)
         if (result.isAdult) add("+18")
     }
 

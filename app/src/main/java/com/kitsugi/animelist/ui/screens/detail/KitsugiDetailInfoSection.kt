@@ -553,7 +553,8 @@ internal fun DetailSynopsisCard(
     originalText: String? = null,
     onTranslateClick: ((String) -> Unit)? = null,
     onCopyClick: ((String) -> Unit)? = null,
-    onImageGalleryRequest: ((urls: List<String>, index: Int) -> Unit)? = null
+    onImageGalleryRequest: ((urls: List<String>, index: Int) -> Unit)? = null,
+    title: String = "Açıklama"
 ) {
     Column(
         modifier = Modifier
@@ -568,7 +569,7 @@ internal fun DetailSynopsisCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Açıklama",
+                text = title,
                 color = KitsugiColors.TextPrimary,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,

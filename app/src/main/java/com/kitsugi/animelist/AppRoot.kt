@@ -1195,7 +1195,11 @@ private fun AppNavigationContent(
                         onBackClick = {
                             navState.addonFullScreenGridState = null
                             navState.stateHolder.removeState(gridKey)
-                        }
+                        },
+                        titleLanguage = appSettings.titleLanguage,
+                        scoreFormat = appSettings.scoreFormat,
+                        hideScores = appSettings.hideScores,
+                        blurAdultMedia = appSettings.blurAdultMedia
                     )
                 }
             }
@@ -1220,6 +1224,10 @@ private fun AppNavigationContent(
                         com.kitsugi.animelist.ui.screens.search.components.AddonExplorePage(
                             api = api,
                             onBackClick = { navState.popDetailStack() },
+                            titleLanguage = appSettings.titleLanguage,
+                            scoreFormat = appSettings.scoreFormat,
+                            hideScores = appSettings.hideScores,
+                            blurAdultMedia = appSettings.blurAdultMedia,
                             onSeeAllClick = { title, mainPageData, horizontalImages, initialItems ->
                                 navState.addonFullScreenGridState = com.kitsugi.animelist.ui.app.AddonFullScreenGridState(
                                     title = title,

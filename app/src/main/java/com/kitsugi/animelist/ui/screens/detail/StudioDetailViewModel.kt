@@ -5,15 +5,18 @@ import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.kitsugi.animelist.data.auth.ExternalAuthManager
+import com.kitsugi.animelist.data.local.TranslationManager
 import com.kitsugi.animelist.data.remote.DetailCache
 import com.kitsugi.animelist.data.remote.GalleryCategory
 import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.data.remote.JikanApiClient
 import com.kitsugi.animelist.data.remote.KitsugiMediaMutationsClient
+import com.kitsugi.animelist.data.settings.SettingsDataStore
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -22,6 +25,8 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
     private val context = application.applicationContext
     private val apiClient = JikanApiClient()
     private val mutationsClient = KitsugiMediaMutationsClient()
+    private val translationManager = TranslationManager(context)
+    private val settingsDataStore = SettingsDataStore(context)
     private val TAG = "StudioDetailVM"
 
     private val _state = MutableStateFlow<StudioDetailState>(StudioDetailState.Loading)
@@ -32,6 +37,14 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
 
     private val _isFavourite = MutableStateFlow(false)
     val isFavourite: StateFlow<Boolean> = _isFavourite.asStateFlow()
+
+    /**
+     * "Hakkında" metninin gösterilecek hali — detay sayfasındaki Açıklama kartıyla
+     * aynı sözleşme: önce ham metin, otomatik çeviri açıksa (veya metin Rusça ise)
+     * Türkçe çevirisiyle değiştirilir.
+     */
+    private val _translatedAbout = MutableStateFlow<String?>(null)
+    val translatedAbout: StateFlow<String?> = _translatedAbout.asStateFlow()
 
     private var currentFetchKey: String? = null
     private var lastStudioId: Int = 0
@@ -90,6 +103,31 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
             _state.value = StudioDetailState.Success(detail)
             _isFavourite.value = detail.isFavourite
 
+            // "Hakkında" — önce ham metin; otomatik çeviri açıksa veya metin Rusça ise
+            // detay sayfasındaki Açıklama kartıyla aynı sözleşme izlenir ve Türkçeye çevrilir.
+            val rawAbout = detail.about
+            _translatedAbout.value = rawAbout
+            if (!rawAbout.isNullOrBlank()) {
+                val autoTranslate = runCatching {
+                    settingsDataStore.settingsFlow.first().autoTranslateEnabled
+                }.getOrDefault(false)
+                val isRussian = rawAbout.any { it in '\u0400'..'\u04FF' }
+                if (autoTranslate || isRussian) {
+                    val cachedTr = DetailCache.getTranslation("studio_about", source, studioId)
+                    if (cachedTr != null) {
+                        _translatedAbout.value = cachedTr
+                    } else {
+                        val tr = withContext(Dispatchers.IO) {
+                            translationManager.translateToTurkish(rawAbout)
+                        }
+                        if (!tr.isNullOrBlank() && tr != rawAbout) {
+                            DetailCache.putTranslation("studio_about", source, studioId, tr)
+                            _translatedAbout.value = tr
+                        }
+                    }
+                }
+            }
+
             // Build gallery from studio imageUrl (logo)
             val imageUrl = detail.imageUrl
             if (!imageUrl.isNullOrBlank()) {
@@ -106,6 +144,24 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
             }
         } else {
             _state.value = StudioDetailState.Error("Stüdyo detayları yüklenemedi.")
+        }
+    }
+
+    /**
+     * "Hakkında" metnini uygulama içi çeviri motoruyla Türkçeye çevirir —
+     * detay sayfasındaki translateSynopsis() ile aynı davranış.
+     */
+    fun translateAbout() {
+        val currentState = _state.value as? StudioDetailState.Success ?: return
+        val raw = currentState.detail.about ?: return
+        viewModelScope.launch {
+            val tr = withContext(Dispatchers.IO) {
+                translationManager.translateToTurkish(raw)
+            }
+            if (!tr.isNullOrBlank() && tr != raw) {
+                DetailCache.putTranslation("studio_about", lastSource, lastStudioId, tr)
+                _translatedAbout.value = tr
+            }
         }
     }
 

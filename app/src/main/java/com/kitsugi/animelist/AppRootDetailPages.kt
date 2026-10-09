@@ -89,7 +89,8 @@ fun AppRootDetailPages(
                     },
                     name = key.name,
                     imageUrl = key.imageUrl,
-                    titleLanguage = appSettings.titleLanguage
+                    titleLanguage = appSettings.titleLanguage,
+                    preferredTranslator = appSettings.preferredTranslator
                 )
             }
         }

@@ -86,7 +86,11 @@ object AddonExploreCache {
 fun AddonExplorePage(
     api: MainAPI,
     onBackClick: () -> Unit,
-    onSeeAllClick: ((title: String, mainPageData: String, horizontalImages: Boolean, initialItems: List<SearchResponse>) -> Unit)? = null
+    onSeeAllClick: ((title: String, mainPageData: String, horizontalImages: Boolean, initialItems: List<SearchResponse>) -> Unit)? = null,
+    titleLanguage: String = "ROMAJI",
+    scoreFormat: String = "POINT_10",
+    hideScores: Boolean = false,
+    blurAdultMedia: Boolean = false
 ) {
     val context = LocalContext.current
     val accentColor = LocalKitsugiAccent.current
@@ -163,8 +167,10 @@ fun AddonExplorePage(
         }
     }
 
-    val heroItems = remember(homeLists) {
-        homeLists.firstOrNull { it.list.isNotEmpty() }?.list?.take(8) ?: emptyList()
+    // Vitrin öğeleri — ana sayfa (Keşfet) vitriniyle aynı model üzerinden beslenir.
+    val heroResults = remember(homeLists) {
+        homeLists.firstOrNull { it.list.isNotEmpty() }?.list?.take(10)
+            ?.map { it.toAddonSearchResult() } ?: emptyList()
     }
     val isBlocked = remember(api.name) { CsPluginStatusTracker.isBlocked(api.name) }
     val isCfProtected = remember(api.name) {
@@ -226,14 +232,16 @@ fun AddonExplorePage(
                                         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                                             row.forEach { item ->
                                                 Box(Modifier.weight(1f)) {
-                                                    ResultItemCard(
-                                                        title = item.name,
-                                                        imageUrl = item.posterUrl,
-                                                        apiName = api.name,
-                                                        quality = item.quality?.name,
+                                                    com.kitsugi.animelist.ui.components.KitsugiExploreMediaCard(
+                                                        result = item.toAddonSearchResult(),
                                                         onClick = {
                                                             activeDetailUrl = item.url
-                                                        }
+                                                        },
+                                                        titleLanguage = titleLanguage,
+                                                        scoreFormat = scoreFormat,
+                                                        hideScores = hideScores,
+                                                        blurAdultMedia = blurAdultMedia,
+                                                        forceVertical = true
                                                     )
                                                 }
                                             }
@@ -246,20 +254,27 @@ fun AddonExplorePage(
                     }
 
                     else -> {
-                        // Home feed — CS3 style
+                        // Home feed — ana sayfa (Keşfet) ile birebir aynı bileşenler:
+                        // KitsugiHeroSection vitrini + KitsugiHorizontalMediaSection rafları.
                         LazyColumn(
                             modifier = Modifier.fillMaxSize(),
                             contentPadding = PaddingValues(bottom = 32.dp)
                         ) {
-                            // Hero banner carousel (full-width, no top padding — sits behind search bar)
+                            // Vitrin (hero carousel) — ana sayfadakiyle aynı sunum
                             item(key = "hero") {
-                                AddonHeroBannerCarousel(
-                                    items = heroItems,
-                                    apiName = api.name,
-                                    onItemClick = { item ->
-                                        activeDetailUrl = item.url
-                                    }
+                                com.kitsugi.animelist.ui.components.KitsugiHeroSection(
+                                    items = heroResults,
+                                    alreadyInList = { false },
+                                    onInfoClick = { item ->
+                                        item.cs3Url?.let { activeDetailUrl = it }
+                                    },
+                                    titleLanguage = titleLanguage,
+                                    scoreFormat = scoreFormat,
+                                    hideScores = hideScores,
+                                    blurAdultMedia = blurAdultMedia,
+                                    isVisible = true
                                 )
+                                Spacer(modifier = Modifier.height(6.dp))
                             }
 
                             // Warning pill (CF / blocked)
@@ -286,17 +301,41 @@ fun AddonExplorePage(
                                 }
                             }
 
-                            // Category rows
+                            // Kategori rafları — ana sayfadaki yatay medya raflarıyla aynı:
+                            // aynı kutucuk (KitsugiExploreMediaCard), aynı kaydırma/snap
+                            // mekaniği, aynı "Tümünü Gör" sözleşmesi.
                             items(homeLists, key = { "cat_${homeLists.indexOf(it)}_${it.name}" }) { homeList ->
                                 if (homeList.list.isNotEmpty()) {
-                                    AddonCategoryRow(
-                                        homeList = homeList,
-                                        api = api,
-                                        accentColor = accentColor,
-                                        onSeeAllClick = onSeeAllClick,
-                                        context = context,
-                                        onItemClick = { url -> activeDetailUrl = url }
+                                    val rowResults = remember(homeList) {
+                                        homeList.list.map { it.toAddonSearchResult() }
+                                    }
+                                    val matchingPage = remember(homeList.name) {
+                                        api.mainPage.firstOrNull { it.name == homeList.name }
+                                    }
+                                    com.kitsugi.animelist.ui.components.KitsugiHorizontalMediaSection(
+                                        title = homeList.name,
+                                        results = rowResults,
+                                        isLoading = isHomeLoading,
+                                        alreadyInList = { false },
+                                        onItemClick = { item ->
+                                            item.cs3Url?.let { activeDetailUrl = it }
+                                        },
+                                        onSeeAllClick = if (onSeeAllClick != null && matchingPage != null) {
+                                            {
+                                                onSeeAllClick(
+                                                    homeList.name,
+                                                    matchingPage.data,
+                                                    matchingPage.horizontalImages,
+                                                    homeList.list
+                                                )
+                                            }
+                                        } else null,
+                                        titleLanguage = titleLanguage,
+                                        scoreFormat = scoreFormat,
+                                        hideScores = hideScores,
+                                        blurAdultMedia = blurAdultMedia
                                     )
+                                    Spacer(modifier = Modifier.height(26.dp))
                                 }
                             }
                         }
@@ -356,249 +395,6 @@ fun AddonExploreDialog(
         onBackClick = onDismissRequest,
         onSeeAllClick = onSeeAllClick
     )
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Hero Banner Carousel — CS3 Ana Sayfa Hero (otomatik kaydırmalı vitrin)
-// ─────────────────────────────────────────────────────────────────────────────
-
-@OptIn(ExperimentalFoundationApi::class)
-@Composable
-private fun AddonHeroBannerCarousel(
-    items: List<SearchResponse>,
-    apiName: String,
-    onItemClick: (SearchResponse) -> Unit
-) {
-    if (items.isEmpty()) {
-        // Boş durum
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(390.dp)
-                .background(KitsugiColors.Surface)
-        )
-        return
-    }
-
-    val pagerState = rememberPagerState(pageCount = { items.size })
-    val scope = rememberCoroutineScope()
-
-    // 5 saniyede bir otomatik sayfa geçişi
-    LaunchedEffect(pagerState) {
-        while (true) {
-            delay(5000L)
-            val nextPage = (pagerState.currentPage + 1) % items.size
-            pagerState.animateScrollToPage(nextPage)
-        }
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(390.dp)
-    ) {
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxSize()
-        ) { page ->
-            val item = items[page]
-            AddonHeroBannerPage(
-                item = item,
-                apiName = apiName,
-                onItemClick = { onItemClick(item) }
-            )
-        }
-
-        // Alt sayfa göstergesi (indicator dots)
-        if (items.size > 1) {
-            Row(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter)
-                    .padding(bottom = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(5.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                repeat(items.size) { index ->
-                    val isSelected = pagerState.currentPage == index
-                    Box(
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .background(
-                                if (isSelected) Color.White
-                                else Color.White.copy(alpha = 0.35f)
-                            )
-                            .size(if (isSelected) 7.dp else 5.dp)
-                            .clickable {
-                                scope.launch { pagerState.animateScrollToPage(index) }
-                            }
-                    )
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun AddonHeroBannerPage(
-    item: SearchResponse,
-    apiName: String,
-    onItemClick: () -> Unit
-) {
-    val accentColor = LocalKitsugiAccent.current
-    val context = LocalContext.current
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .clickable { onItemClick() }   // Banner'a tıklayınca bilgi sayfası
-    ) {
-        // Poster görseli
-        if (!item.posterUrl.isNullOrBlank()) {
-            val imageReq = remember(item.posterUrl) {
-                coil.request.ImageRequest.Builder(context)
-                    .data(item.posterUrl)
-                    .addHeader("Referer", try {
-                        val u = android.net.Uri.parse(item.posterUrl)
-                        "${u.scheme}://${u.host}/"
-                    } catch (_: Exception) { item.posterUrl!! })
-                    .addHeader("User-Agent", "Mozilla/5.0 (Linux; Android 13) AppleWebKit/537.36")
-                    .crossfade(true)
-                    .build()
-            }
-            AsyncImage(
-                model = imageReq,
-                contentDescription = item.name,
-                modifier = Modifier.fillMaxSize(),
-                contentScale = ContentScale.Crop
-            )
-        } else {
-            Box(Modifier.fillMaxSize().background(KitsugiColors.Surface))
-        }
-
-        // Alt gradient (başlık için)
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        0f to Color.Transparent,
-                        0.4f to Color.Black.copy(0.25f),
-                        1f to Color.Black.copy(0.92f)
-                    )
-                )
-        )
-
-        // Üst gradient (arama barı okunabilirliği)
-        Box(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(130.dp)
-                .background(
-                    Brush.verticalGradient(
-                        listOf(Color.Black.copy(0.72f), Color.Transparent)
-                    )
-                )
-        )
-
-        // Sağ üst — eklenti ismi badge
-        Box(
-            modifier = Modifier
-                .align(Alignment.TopEnd)
-                .padding(top = 70.dp, end = 14.dp)
-                .clip(RoundedCornerShape(8.dp))
-                .background(Color.Black.copy(0.6f))
-                .padding(horizontal = 10.dp, vertical = 5.dp)
-        ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.Extension,
-                    contentDescription = null,
-                    tint = accentColor,
-                    modifier = Modifier.size(11.dp)
-                )
-                Text(
-                    text = apiName,
-                    color = accentColor,
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
-
-        // Alt içerik — başlık + butonlar
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .padding(horizontal = 20.dp, vertical = 18.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
-        ) {
-            Text(
-                text = item.name,
-                color = Color.White,
-                fontSize = 21.sp,
-                fontWeight = FontWeight.Bold,
-                textAlign = TextAlign.Center,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(bottom = 14.dp)
-            )
-            // Buton satırı: Ekle | ▶ Oynat | Bilgi
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(20.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                HeroIconButton(
-                    icon = { Icon(Icons.Default.Add, null, tint = Color.White, modifier = Modifier.size(22.dp)) },
-                    label = "Ekle"
-                ) { /* İleride listeye ekle */ }
-
-                // Birincil "Oynat" butonu — beyaz arka plan, siyah yazı
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(Color.White)
-                        .clickable { onItemClick() }
-                        .padding(horizontal = 26.dp, vertical = 10.dp)
-                ) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Icon(Icons.Rounded.PlayArrow, null, tint = Color.Black, modifier = Modifier.size(20.dp))
-                        Text("Oynat", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 14.sp)
-                    }
-                }
-
-                // Bilgi butonu — tıklayınca detay sayfası açar
-                HeroIconButton(
-                    icon = { Icon(Icons.Default.Info, null, tint = Color.White, modifier = Modifier.size(22.dp)) },
-                    label = "Bilgi"
-                ) { onItemClick() }
-            }
-        }
-    }
-}
-
-@Composable
-private fun HeroIconButton(
-    icon: @Composable () -> Unit,
-    label: String,
-    onClick: () -> Unit
-) {
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
-        modifier = Modifier
-            .clip(RoundedCornerShape(8.dp))
-            .clickable { onClick() }
-            .padding(horizontal = 8.dp, vertical = 6.dp)
-    ) {
-        icon()
-        Spacer(Modifier.height(4.dp))
-        Text(label, color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Medium)
-    }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -722,91 +518,3 @@ private fun AddonStatusPill(
         Text(text, color = borderColor, fontSize = 12.sp, fontWeight = FontWeight.Medium)
     }
 }
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Category Row — CS3 yatay satır (başlık + → ok + LazyRow)
-// ─────────────────────────────────────────────────────────────────────────────
-
-@Composable
-private fun AddonCategoryRow(
-    homeList: HomePageList,
-    api: MainAPI,
-    accentColor: androidx.compose.ui.graphics.Color,
-    onSeeAllClick: ((title: String, mainPageData: String, horizontalImages: Boolean, initialItems: List<SearchResponse>) -> Unit)?,
-    context: android.content.Context,
-    onItemClick: (url: String) -> Unit = {}
-) {
-    val matchingPage = remember(homeList.name) {
-        api.mainPage.firstOrNull { it.name == homeList.name }
-    }
-
-    Column(modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
-        // Başlık satırı
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 14.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text(
-                text = homeList.name,
-                color = KitsugiColors.TextPrimary,
-                fontSize = 16.sp,
-                fontWeight = FontWeight.Bold,
-                modifier = Modifier.weight(1f),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            if (onSeeAllClick != null && matchingPage != null) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable {
-                            onSeeAllClick(
-                                homeList.name,
-                                matchingPage.data,
-                                matchingPage.horizontalImages,
-                                homeList.list
-                            )
-                        }
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                ) {
-                    Text(
-                        text = "Tümü",
-                        color = accentColor,
-                        fontSize = 13.sp,
-                        fontWeight = FontWeight.SemiBold
-                    )
-                    Icon(
-                        imageVector = Icons.Default.ChevronRight,
-                        contentDescription = null,
-                        tint = accentColor,
-                        modifier = Modifier.size(18.dp)
-                    )
-                }
-            }
-        }
-
-        // Yatay poster listesi
-        LazyRow(
-            modifier = Modifier.fillMaxWidth(),
-            contentPadding = PaddingValues(horizontal = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(10.dp)
-        ) {
-            items(homeList.list) { item ->
-                ResultItemCard(
-                    title = item.name,
-                    imageUrl = item.posterUrl,
-                    apiName = api.name,
-                    quality = item.quality?.name,
-                    onClick = {
-                        onItemClick(item.url)
-                    }
-                )
-            }
-        }
-    }
-}
-
