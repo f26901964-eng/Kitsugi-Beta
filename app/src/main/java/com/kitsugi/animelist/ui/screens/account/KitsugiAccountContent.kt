@@ -36,6 +36,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.data.account.KitsugiAccountRepository
+import com.kitsugi.animelist.data.account.LinkedAccountVault
 import com.kitsugi.animelist.data.local.KitsugiDatabase
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
@@ -75,7 +76,7 @@ fun KitsugiAccountContent() {
         message = null
         scope.launch {
             if (isRegister) {
-                KitsugiAccountRepository.signUp(trimmed, password)
+                KitsugiAccountRepository.signUp(context, trimmed, password)
                     .onSuccess { hasSession ->
                         if (hasSession) {
                             loggedInEmail = KitsugiAccountRepository.currentEmail()
@@ -90,7 +91,7 @@ fun KitsugiAccountContent() {
                     }
                     .onFailure { showError("Kayıt başarısız", it) }
             } else {
-                KitsugiAccountRepository.signIn(trimmed, password)
+                KitsugiAccountRepository.signIn(context, trimmed, password)
                     .onSuccess {
                         loggedInEmail = KitsugiAccountRepository.currentEmail()
                         KitsugiAccountRepository.pullAndMergeSearchHistory(dao)
@@ -121,7 +122,7 @@ fun KitsugiAccountContent() {
     fun signOut() {
         busy = true
         scope.launch {
-            KitsugiAccountRepository.signOut()
+            KitsugiAccountRepository.signOut(context)
             loggedInEmail = null
             isError = false
             message = "Çıkış yapıldı. Yerel veriler cihazda kalır."

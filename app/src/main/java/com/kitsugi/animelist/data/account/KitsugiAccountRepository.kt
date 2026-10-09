@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.data.account
 
+import android.content.Context
 import com.kitsugi.animelist.data.local.SearchHistoryDao
 import com.kitsugi.animelist.data.local.SearchHistoryEntity
 import io.github.jan.supabase.gotrue.auth
@@ -62,26 +63,36 @@ object KitsugiAccountRepository {
     /**
      * Kayıt. E-posta doğrulama açıksa oturum hemen açılmaz; sonuç `needsConfirmation = true` döner.
      */
-    suspend fun signUp(email: String, password: String): Result<Boolean> = runCatching {
+    suspend fun signUp(context: Context, email: String, password: String): Result<Boolean> = runCatching {
         val auth = KitsugiAccountClient.client.auth
         auth.signUpWith(Email) {
             this.email = email.trim()
             this.password = password
         }
         // true → oturum açıldı, false → e-posta doğrulaması bekleniyor
-        auth.currentUserOrNull() != null
+        val hasSession = auth.currentUserOrNull() != null
+        if (hasSession) {
+            // Kasa hatası girişi bozmaz; yalnızca kayıt altına alınır
+            LinkedAccountVault.onSignedIn(context, password)
+                .onFailure { android.util.Log.w("KitsugiAccount", "Kasa açılamadı: ${it.message}") }
+        }
+        hasSession
     }
 
-    suspend fun signIn(email: String, password: String): Result<Unit> = runCatching {
+    suspend fun signIn(context: Context, email: String, password: String): Result<Unit> = runCatching {
         KitsugiAccountClient.client.auth.signInWith(Email) {
             this.email = email.trim()
             this.password = password
         }
+        // Bağlı servis token'larını yedekten geri yükle (şifre bu an elimizde)
+        LinkedAccountVault.onSignedIn(context, password)
+            .onFailure { android.util.Log.w("KitsugiAccount", "Kasa açılamadı: ${it.message}") }
         Unit
     }
 
-    suspend fun signOut(): Result<Unit> = runCatching {
+    suspend fun signOut(context: Context): Result<Unit> = runCatching {
         KitsugiAccountClient.client.auth.signOut()
+        LinkedAccountVault.forgetLocalVault(context)
         Unit
     }
 
