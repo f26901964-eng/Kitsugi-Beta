@@ -145,7 +145,7 @@
 - **Parallel Tasks:** Added `kotlin.parallel.tasks.in.project=true` and `android.r8.optimizedResourceShrinking=true`.
 
 ### 📦 8. Distribution
-- Strictly released the **FOSS variant only** (`assembleFossRelease` -> `Kitsugi-Beta-v2.4.222-foss.apk`).
+- Strictly released the **FOSS variant only** (`assembleFossRelease` -> `Kitsugi-Beta-v2.4.223-foss.apk`).
 
 ---
 
