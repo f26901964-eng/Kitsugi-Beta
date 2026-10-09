@@ -962,47 +962,104 @@ class KitsugiCharacterClient {
                         KitsuCharacterParsed(name, description, imageUrl, malId)
                     }.getOrNull()
 
-                    if (kitsuDetail != null && kitsuDetail.malId > 0) {
-                        val jikanDetail = runCatching {
-                            fetchCharacterDetail("jikan", kitsuDetail.malId)
-                        }.getOrNull()
-                        if (jikanDetail != null) {
-                            jikanDetail
+                    // Kitsu karakter detayında fallbackImageUrl/name desteği eklendi:
+                    // Kitsu API 404/429 veya malId eşleşmesi yoksa sayfa boş kalmasın diye
+                    // AniList → Jikan → kart görseli yedekleri sırayla denenir.
+                    if (kitsuDetail != null) {
+                        val resolvedKitsuImage = kitsuDetail.imageUrl?.takeIf { it.isNotBlank() } ?: fallbackImageUrl?.takeIf { it.isNotBlank() }
+                        if (kitsuDetail.malId > 0) {
+                            val jikanDetail = runCatching {
+                                fetchCharacterDetail("jikan", kitsuDetail.malId)
+                            }.getOrNull()
+                            if (jikanDetail != null) {
+                                val mergedImage = jikanDetail.imageUrl?.takeIf { it.isNotBlank() } ?: resolvedKitsuImage
+                                jikanDetail.copy(imageUrl = mergedImage, source = "kitsu")
+                            } else {
+                                KitsugiCharacterDetail(
+                                    id = characterId,
+                                    name = kitsuDetail.name,
+                                    nativeName = null,
+                                    alternativeNames = emptyList(),
+                                    imageUrl = resolvedKitsuImage,
+                                    gender = null,
+                                    age = null,
+                                    birthday = null,
+                                    bloodType = null,
+                                    biography = kitsuDetail.description,
+                                    voiceActors = emptyList(),
+                                    mediaAppearances = emptyList(),
+                                    source = "kitsu"
+                                )
+                            }
                         } else {
-                            KitsugiCharacterDetail(
-                                id = characterId,
-                                name = kitsuDetail.name,
-                                nativeName = null,
-                                alternativeNames = emptyList(),
-                                imageUrl = kitsuDetail.imageUrl,
-                                gender = null,
-                                age = null,
-                                birthday = null,
-                                bloodType = null,
-                                biography = kitsuDetail.description,
-                                voiceActors = emptyList(),
-                                mediaAppearances = emptyList(),
-                                source = "kitsu"
-                            )
+                            // MAL eşleşmesi yoksa AniList ismiyle zenginleştir
+                            val targetName = name?.takeIf { it.isNotBlank() } ?: kitsuDetail.name
+                            val aniEnriched = if (!targetName.isNullOrBlank()) {
+                                runCatching { fetchAniListCharacterByName(targetName) }.getOrNull()
+                            } else null
+                            if (aniEnriched != null) {
+                                val finalImage = aniEnriched.imageUrl?.takeIf { it.isNotBlank() } ?: resolvedKitsuImage
+                                aniEnriched.copy(imageUrl = finalImage, source = "kitsu")
+                            } else {
+                                KitsugiCharacterDetail(
+                                    id = characterId,
+                                    name = kitsuDetail.name,
+                                    nativeName = null,
+                                    alternativeNames = emptyList(),
+                                    imageUrl = resolvedKitsuImage,
+                                    gender = null,
+                                    age = null,
+                                    birthday = null,
+                                    bloodType = null,
+                                    biography = kitsuDetail.description,
+                                    voiceActors = emptyList(),
+                                    mediaAppearances = emptyList(),
+                                    source = "kitsu"
+                                )
+                            }
                         }
-                    } else if (kitsuDetail != null) {
-                        KitsugiCharacterDetail(
-                            id = characterId,
-                            name = kitsuDetail.name,
-                            nativeName = null,
-                            alternativeNames = emptyList(),
-                            imageUrl = kitsuDetail.imageUrl,
-                            gender = null,
-                            age = null,
-                            birthday = null,
-                            bloodType = null,
-                            biography = kitsuDetail.description,
-                            voiceActors = emptyList(),
-                            mediaAppearances = emptyList(),
-                            source = "kitsu"
-                        )
                     } else {
-                        null
+                        // Kitsu API tamamen başarısız: isim üzerinden AniList/Jikan yedekleri
+                        val targetName = name?.takeIf { it.isNotBlank() }
+                        val aniFallback = if (!targetName.isNullOrBlank()) {
+                            runCatching { fetchAniListCharacterByName(targetName) }.getOrNull()
+                        } else null
+                        if (aniFallback != null) {
+                            val finalImage = aniFallback.imageUrl?.takeIf { it.isNotBlank() } ?: fallbackImageUrl?.takeIf { it.isNotBlank() }
+                            aniFallback.copy(imageUrl = finalImage, source = "kitsu")
+                        } else {
+                            val jikanFallback = if (!targetName.isNullOrBlank()) {
+                                runCatching {
+                                    val searchResults = JikanApiClient().searchMalCharacters(targetName, page = 1)
+                                    val firstMalId = searchResults.firstOrNull()?.malId
+                                    if (firstMalId != null && firstMalId > 0) {
+                                        fetchCharacterDetail("jikan", firstMalId, targetName, fallbackImageUrl)
+                                    } else null
+                                }.getOrNull()
+                            } else null
+                            if (jikanFallback != null) {
+                                val finalImage = jikanFallback.imageUrl?.takeIf { it.isNotBlank() } ?: fallbackImageUrl?.takeIf { it.isNotBlank() }
+                                if (finalImage != null) jikanFallback.copy(imageUrl = finalImage, source = "kitsu") else jikanFallback
+                            } else if (!targetName.isNullOrBlank() && !fallbackImageUrl.isNullOrBlank()) {
+                                KitsugiCharacterDetail(
+                                    id = characterId,
+                                    name = targetName,
+                                    nativeName = null,
+                                    alternativeNames = emptyList(),
+                                    imageUrl = fallbackImageUrl,
+                                    gender = null,
+                                    age = null,
+                                    birthday = null,
+                                    bloodType = null,
+                                    biography = "Kitsu karakter detayları şu anda Kitsu API üzerinden alınamadı. Kartta görünen görsel yedek olarak gösteriliyor.",
+                                    voiceActors = emptyList(),
+                                    mediaAppearances = emptyList(),
+                                    source = "kitsu"
+                                )
+                            } else {
+                                null
+                            }
+                        }
                     }
                 }
                 else -> null

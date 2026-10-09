@@ -69,11 +69,14 @@ fun ReviewsTabContent(
     var activeActivityIdForDetail by remember { mutableStateOf<Int?>(null) }
 
     val handleUserProfileClick: (userId: Int?, username: String, avatarUrl: String?) -> Unit = { userId, username, avatarUrl ->
-        if (source.lowercase() == "anilist" && userId != null) {
+        if (userId != null) {
+            // AniList kullanıcısı (userId varsa) → uygulama içi profil, kaynak MAL bile olsa (birleştirilmiş liste)
             onUserProfileClick(userId, username, avatarUrl)
-        } else {
+        } else if (username.isNotBlank()) {
             try {
-                val url = ShareUtils.buildProfileUrl(source, username)
+                // MAL/Jikan kullanıcısı → dış tarayıcıda MAL profili (MAL API'si uygulama içi profil sağlamaz)
+                val profileSource = if (source.lowercase() == "anilist") "anilist" else "myanimelist"
+                val url = ShareUtils.buildProfileUrl(profileSource, username)
                 val intent = android.content.Intent(android.content.Intent.ACTION_VIEW, android.net.Uri.parse(url))
                 context.startActivity(intent)
             } catch (e: Exception) {
@@ -177,7 +180,8 @@ fun ReviewsTabContent(
                                 activeTopicForDetail = topic
                             },
                             backgroundColor = KitsugiColors.SurfaceSoft,
-                            onLikeClick = if (source.lowercase() != "jikan" && source.lowercase() != "mal") {
+                            // MAL kaynağında Jikan konuları (userId==null) beğenilemez, AniList'e çözülen konular (userId!=null) beğenilebilir
+                            onLikeClick = if (topic.userId != null) {
                                 {
                                     coroutineScope.launch {
                                         val success = apiClient.toggleLike(topic.id, "THREAD")
@@ -263,10 +267,7 @@ fun ReviewsTabContent(
                             },
                             backgroundColor = KitsugiColors.SurfaceSoft,
                             onLikeClick = {
-                                if (source.lowercase() == "jikan" || source.lowercase() == "mal") {
-                                    Toast.makeText(context, "Beğeni özelliği MAL kaynağı için desteklenmemektedir.", Toast.LENGTH_SHORT).show()
-                                    return@ActivityCard
-                                }
+                                // Aktiviteler her zaman AniList kaynaklıdır (MAL için de ARM ile çözülür) → beğeni her kaynakta denenir
                                 coroutineScope.launch {
                                     val success = apiClient.toggleLike(activity.id, "ACTIVITY")
                                     if (success) {

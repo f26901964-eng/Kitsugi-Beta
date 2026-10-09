@@ -167,10 +167,24 @@ class KitsugiMediaRelationsClient {
                     val malId = MalJikanMediaSupport.resolveMalId(source, externalId, realMalId)
                         ?: return@withContext emptyList()
                     val jikanRelations = fetchRelationsFromJikan(malId, mediaType)
-                    if (jikanRelations.isNotEmpty()) return@withContext jikanRelations
+                    if (jikanRelations.isNotEmpty()) {
+                        // Jikan relations kapak görseli içermez (imageUrl = null) → AniList kapaklarıyla zenginleştir
+                        val enriched = enrichJikanRelationsWithAniListCovers(jikanRelations, mediaType)
+                        val aniListRelations = fetchRelationsFromAniList(malId, mediaType)
+                        if (aniListRelations.isNotEmpty()) {
+                            val jikanTitles = enriched.map { it.title.lowercase().trim() }.toSet()
+                            val jikanIds = enriched.map { it.malId }.toSet()
+                            val extra = aniListRelations.filter { rel ->
+                                val t = rel.title.lowercase().trim()
+                                rel.malId !in jikanIds && t !in jikanTitles && rel.imageUrl != null
+                            }
+                            val combined = (enriched + extra).distinctBy { it.malId }
+                            return@withContext combined
+                        }
+                        return@withContext enriched
+                    }
 
-                    // Jikan is the canonical source for MAL records; use AniList by the exact
-                    // MAL ID only if Jikan has no relation data (never fuzzy-title match here).
+                    // Jikan boşsa AniList'e düş
                     val aniListRelations = fetchRelationsFromAniList(malId, mediaType)
                     if (aniListRelations.isNotEmpty()) return@withContext aniListRelations
 
@@ -244,12 +258,108 @@ class KitsugiMediaRelationsClient {
                     }
                 }
 
-                // Jikan'ın ilişki listesi zaten kullanılabilir temel veridir. Kapak/başlık
-                // zenginleştirmesini burada bekletmiyoruz; AniList'in yavaşlığı MAL listesinin
-                // ekrana ulaşmasını engellememeli.
+                // Kapak görselleri hemen zenginleştirilir: Jikan relations görsel içermez
+                // MAL/İlişkiler sekmesinde baş harf yerine kapak gösterilmesi için AniList kapakları eklenir.
+                if (list.isNotEmpty() && list.all { it.imageUrl.isNullOrBlank() }) {
+                    val enrichedOnce = runCatching { enrichJikanRelationsWithAniListCovers(list, mediaType) }.getOrNull()
+                    if (enrichedOnce != null && enrichedOnce.any { !it.imageUrl.isNullOrBlank() }) {
+                        return@runWithRateLimit enrichedOnce
+                    }
+                }
                 list
             }
         }.getOrElse { emptyList() }
+    }
+
+    /**
+     * Jikan ilişkilerindeki null kapakları AniList üzerinden topluca doldurur.
+     * Toplu sorgu: `Page { media(idMal_in: [...]) { idMal coverImage { large } title { romaji english native } } }`
+     * Frieren gibi popüler yapımlarda 5-15 ilişki için tek istek yeterlidir.
+     */
+    private suspend fun enrichJikanRelationsWithAniListCovers(
+        relations: List<KitsugiRelation>,
+        mediaType: MediaType
+    ): List<KitsugiRelation> {
+        if (relations.isEmpty()) return relations
+        val malIds = relations.map { it.malId }.filter { it > 0 }.distinct().take(25)
+        if (malIds.isEmpty()) return relations
+
+        val coversByMalId = fetchAniListCoversByMalIds(malIds, mediaType)
+        if (coversByMalId.isEmpty()) return relations
+
+        // Başlık alternatifleri de doldurulursa detay sayfasında dil tercihleri doğru çalışır
+        val titlesByMalId = fetchAniListTitlesByMalIds(malIds, mediaType)
+
+        return relations.map { rel ->
+            val cover = coversByMalId[rel.malId]
+            val titles = titlesByMalId[rel.malId]
+            if (cover != null) {
+                rel.copy(
+                    imageUrl = cover,
+                    titleEnglish = titles?.first ?: rel.titleEnglish,
+                    titleRomaji = titles?.second ?: rel.titleRomaji,
+                    titleJapanese = titles?.third ?: rel.titleJapanese
+                )
+            } else rel
+        }
+    }
+
+    private suspend fun fetchAniListCoversByMalIds(malIds: List<Int>, mediaType: MediaType): Map<Int, String> {
+        if (malIds.isEmpty()) return emptyMap()
+        val query = """
+            query (\$idsMal: [Int], \$type: MediaType) {
+                Page(page: 1, perPage: 50) {
+                    media(idMal_in: \$idsMal, type: \$type) {
+                        idMal
+                        coverImage { large }
+                    }
+                }
+            }
+        """.trimIndent()
+        val variables = JSONObject().put("idsMal", org.json.JSONArray(malIds)).put("type", MalJikanMediaSupport.aniListMediaType(mediaType))
+        return runCatching {
+            val response = KitsugiApiBase.executeAniListQuery(query, variables) ?: return@runCatching emptyMap<Int, String>()
+            val arr = JSONObject(response).optJSONObject("data")?.optJSONObject("Page")?.optJSONArray("media") ?: return@runCatching emptyMap<Int, String>()
+            val map = mutableMapOf<Int, String>()
+            for (i in 0 until arr.length()) {
+                val node = arr.optJSONObject(i) ?: continue
+                val idMal = node.optInt("idMal", 0)
+                val cover = node.optJSONObject("coverImage")?.optNullableString("large")?.takeIf { it.isNotBlank() } ?: continue
+                if (idMal > 0) map[idMal] = cover
+            }
+            map
+        }.getOrElse { emptyMap() }
+    }
+
+    private suspend fun fetchAniListTitlesByMalIds(malIds: List<Int>, mediaType: MediaType): Map<Int, Triple<String?, String?, String?>> {
+        if (malIds.isEmpty()) return emptyMap()
+        val query = """
+            query (\$idsMal: [Int], \$type: MediaType) {
+                Page(page: 1, perPage: 50) {
+                    media(idMal_in: \$idsMal, type: \$type) {
+                        idMal
+                        title { romaji english native }
+                    }
+                }
+            }
+        """.trimIndent()
+        val variables = JSONObject().put("idsMal", org.json.JSONArray(malIds)).put("type", MalJikanMediaSupport.aniListMediaType(mediaType))
+        return runCatching {
+            val response = KitsugiApiBase.executeAniListQuery(query, variables) ?: return@runCatching emptyMap<Int, Triple<String?, String?, String?>>()
+            val arr = JSONObject(response).optJSONObject("data")?.optJSONObject("Page")?.optJSONArray("media") ?: return@runCatching emptyMap<Int, Triple<String?, String?, String?>>()
+            val map = mutableMapOf<Int, Triple<String?, String?, String?>>()
+            for (i in 0 until arr.length()) {
+                val node = arr.optJSONObject(i) ?: continue
+                val idMal = node.optInt("idMal", 0)
+                if (idMal <= 0) continue
+                val titleObj = node.optJSONObject("title")
+                val romaji = titleObj?.optNullableString("romaji")?.takeIf { it.isNotBlank() }
+                val english = titleObj?.optNullableString("english")?.takeIf { it.isNotBlank() }
+                val native = titleObj?.optNullableString("native")?.takeIf { it.isNotBlank() }
+                map[idMal] = Triple(english, romaji, native)
+            }
+            map
+        }.getOrElse { emptyMap() }
     }
 
     private suspend fun fetchRelationsFromAniList(

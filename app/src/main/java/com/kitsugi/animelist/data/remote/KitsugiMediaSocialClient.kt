@@ -413,9 +413,14 @@ class KitsugiMediaSocialClient {
                 "jikan", "mal" -> {
                     val malId = MalJikanMediaSupport.resolveMalId(source, externalId, realMalId)
                         ?: return@withContext emptyList()
-                    val jikanReviews = fetchReviewsFromJikan(malId, mediaType, page)
-                    if (jikanReviews.isNotEmpty()) jikanReviews
-                    else fetchReviewsFromAniList(malId, mediaType, page)
+                    // MAL için hem Jikan hem AniList incelemeleri birleştirilir: AniList incelemeleri beğeni/yanıt
+                    // desteklerken Jikan yerel MAL puanlarını sağlar. Kullanıcı her iki kaynağı tek sekmede görür.
+                    val jikanReviews = runCatching { fetchReviewsFromJikan(malId, mediaType, page) }.getOrNull().orEmpty()
+                    val aniReviews = runCatching { fetchReviewsFromAniList(malId, mediaType, page) }.getOrNull().orEmpty()
+                    if (jikanReviews.isEmpty()) return@withContext aniReviews
+                    if (aniReviews.isEmpty()) return@withContext jikanReviews
+                    val combined = (aniReviews + jikanReviews).distinctBy { (it.username.lowercase().trim() + "_" + it.summary.take(20).lowercase().trim()) }
+                    return@withContext combined
                 }
                 "anilist"      -> fetchReviewsFromAniList(externalId, mediaType, page)
                 else           -> emptyList()
@@ -537,11 +542,14 @@ class KitsugiMediaSocialClient {
             when (MalJikanMediaSupport.canonicalSource(source)) {
                 "jikan", "mal" -> {
                     val aniListId = relationsClient.resolveAniListId(externalId, mediaType)
-                    if (aniListId != null) {
-                        return@withContext fetchForumTopics("anilist", aniListId, mediaType, page)
-                    }
-                    if (page > 1) return@withContext emptyList()
-                    fetchForumTopicsFromJikan(externalId, mediaType)
+                    // MAL için hem Jikan hem AniList konuları birleştirilir: Jikan yerel MAL forumları,
+                    // AniList ise uluslararası tartışmaları sağlar. İkisi tek listede gösterilir.
+                    val jikanTopics = if (page == 1) runCatching { fetchForumTopicsFromJikan(externalId, mediaType) }.getOrNull().orEmpty() else emptyList()
+                    val aniTopics = if (aniListId != null) runCatching { fetchForumTopicsFromAniList(aniListId, page) }.getOrNull().orEmpty() else emptyList()
+                    if (jikanTopics.isEmpty()) return@withContext aniTopics
+                    if (aniTopics.isEmpty()) return@withContext jikanTopics
+                    val merged = (aniTopics + jikanTopics).distinctBy { it.title.lowercase().trim() }
+                    return@withContext merged.take(30)
                 }
                 "anilist" -> {
                     val aniListId = if (externalId >= 100_000_000) {
