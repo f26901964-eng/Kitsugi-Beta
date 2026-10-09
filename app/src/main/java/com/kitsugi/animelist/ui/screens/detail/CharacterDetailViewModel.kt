@@ -68,7 +68,11 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
         val bio = detail.biography ?: return
         viewModelScope.launch {
             val tr = withContext(Dispatchers.IO) {
-                translationManager.translateToTurkish(bio)
+                // Uzun biyografilerde çeviri parça parça akıtılır: çevrilen kısım
+                // anında ekrana gelir, kalanı arka planda sırayla çevrilir.
+                translationManager.translateToTurkish(bio) { partial ->
+                    _translatedBio.value = partial
+                }
             }
             if (tr.isNotBlank() && tr != bio) {
                 DetailCache.putTranslation("bio_char", lastSource, detail.id, tr)
@@ -193,7 +197,11 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
                 _translatedBio.value = cachedTranslation
             } else if (!bio.isNullOrBlank() && (autoTranslate || isRussian)) {
                 val tr = withContext(Dispatchers.IO) {
-                    translationManager.translateToTurkish(bio)
+                    // Uzun biyografilerde çeviri parça parça akıtılır: çevrilen kısım
+                    // anında ekrana gelir, kalanı arka planda sırayla çevrilir.
+                    translationManager.translateToTurkish(bio) { partial ->
+                        _translatedBio.value = partial
+                    }
                 }
                 if (tr != bio) {
                     DetailCache.putTranslation("bio_char", source, characterId, tr)

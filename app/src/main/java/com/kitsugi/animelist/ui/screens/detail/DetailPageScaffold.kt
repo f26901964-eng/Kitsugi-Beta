@@ -336,7 +336,6 @@ fun DetailPageScaffold(
                                         state = pagerState,
                                         userScrollEnabled = !isTv,
                                         beyondViewportPageCount = 1,
-                                        contentPadding = PaddingValues(horizontal = 16.dp),
                                         pageSpacing = 12.dp,
                                         verticalAlignment = Alignment.Top,
                                         modifier = Modifier
@@ -359,6 +358,12 @@ fun DetailPageScaffold(
                                             modifier = Modifier
                                                 .fillMaxWidth()
                                                 .heightIn(min = 600.dp)
+                                                // Dikey modda komşu sekmelerin kenarlardan görünmesi
+                                                // (peek) contentPadding'den kaynaklanıyordu; 16dp iç
+                                                // boşluk artık sayfanın kendisine uygulanıyor. Böylece
+                                                // sayfa tam ekran genişlikte olur ve yan sayfalar
+                                                // tamamen ekran dışında kalır.
+                                                .padding(horizontal = 16.dp)
                                         ) {
                                             Column(
                                                 modifier = Modifier

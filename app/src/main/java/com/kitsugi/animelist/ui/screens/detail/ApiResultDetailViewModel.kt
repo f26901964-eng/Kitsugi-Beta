@@ -133,7 +133,11 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         val raw = _detailState.value?.synopsis ?: return
         viewModelScope.launch {
             val tr = withContext(Dispatchers.IO) {
-                translationManager.translateToTurkish(raw)
+                // Uzun özetlerde çeviri parça parça akıtılır: çevrilen kısım anında
+                // ekrana gelir, kalanı arka planda sırayla çevrilir.
+                translationManager.translateToTurkish(raw) { partial ->
+                    _translatedSynopsis.value = partial
+                }
             }
             if (!tr.isNullOrBlank() && tr != raw) {
                 DetailCache.putTranslation("synopsis", res.source, res.malId, tr)
@@ -385,7 +389,11 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                         _translatedSynopsis.value = cachedTr
                     } else {
                         val tr = withContext(Dispatchers.IO) {
-                            translationManager.translateToTurkish(rawSynopsis)
+                            // Uzun özetlerde çeviri parça parça akıtılır: çevrilen kısım
+                            // anında ekrana gelir, kalanı arka planda sırayla çevrilir.
+                            translationManager.translateToTurkish(rawSynopsis) { partial ->
+                                _translatedSynopsis.value = partial
+                            }
                         }
                         if (!tr.isNullOrBlank() && tr != rawSynopsis) {
                             DetailCache.putTranslation("synopsis", result.source, result.malId, tr)
