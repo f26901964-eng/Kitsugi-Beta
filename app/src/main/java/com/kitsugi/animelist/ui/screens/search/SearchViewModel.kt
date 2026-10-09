@@ -78,6 +78,18 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
      */
     private val allSourceTimeoutMs = 20_000L
 
+    /** "Tümü" rafında gösterilecek kart sayısı. */
+    private val allShelfLimit = 10
+
+    /**
+     * "Tümü" rafında kaynaklardan çekilecek aday havuzu.
+     *
+     * Gösterilenden geniş tutulur: alakalılık sıralamasının yeniden dizmeye alanı
+     * olur, böylece kaynağın popülerlik/gevşek eşleşme sıralaması rafın başını
+     * işgal edemez.
+     */
+    private val allShelfFetchLimit = 20
+
     /**
      * Arama ekranında kaynak seçimi kalıcılığı: kullanıcı hangi kaynağı/kapsamı seçtiyse
      * uygulama yeniden açıldığında oradan devam eder.
@@ -209,12 +221,10 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
-    private var debounceJob: Job? = null
-
     fun setQuery(value: String) {
         if (value != _uiState.value.query) {
             // Metin değiştiği anda eski sorgunun sonuç/isteklerini geçersiz kıl.
-            // Debounce sırasında eski sorgu yeni metin altında görünmemeli.
+            // Yazarken eski sorgunun sonuçları yeni metnin altında görünmemeli.
             searchGeneration.incrementAndGet()
             searchJob?.cancel()
             _uiState.update {
@@ -231,20 +241,20 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         }
         saveCurrentStateToCache()
 
-        debounceJob?.cancel()
         if (value.isBlank() && !_uiState.value.hasFiltersApplied) {
             clearResults()
-            return
         }
-        // AniHyou debounced live search
-        debounceJob = viewModelScope.launch {
-            kotlinx.coroutines.delay(400)
-            search(resetPage = true)
-        }
+        // NOT: Burada bilinçli olarak arama BAŞLATILMIYOR.
+        //
+        // Eski davranış her tuş vuruşundan 400 ms sonra `search()` çağırıyordu
+        // (debounced live search). Kullanıcı daha "naruto" yazarken "n", "na",
+        // "nar" ... sorguları yedi motora birden gidiyor, yarıda kesilen istekler
+        // raflarda alakasız/eksik sonuç bırakıyordu. Arama artık yalnızca açık bir
+        // onayla tetiklenir: klavyedeki "Ara" tuşu veya arama butonu → [onSearchAction].
     }
 
+    /** Klavyedeki "Ara" onay tuşu veya arama butonu: aramayı başlatan tek yol. */
     fun onSearchAction() {
-        debounceJob?.cancel()
         search(resetPage = true)
     }
 
@@ -252,7 +262,6 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     fun openSourceSearch(engine: SearchSourceEngine, query: String, scope: SearchScope, shelf: List<JikanSearchResult>) {
         searchGeneration.incrementAndGet()
         searchJob?.cancel()
-        debounceJob?.cancel()
         val selectedScope = scope.takeIf { it in engine.availableScopes() } ?: engine.availableScopes().first()
         val mediaType = when (selectedScope) {
             SearchScope.MANGA, SearchScope.MANHWA, SearchScope.MANHUA, SearchScope.LIGHT_NOVEL -> MediaType.Manga
@@ -1147,7 +1156,6 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         }
 
         searchJob?.cancel()
-        debounceJob?.cancel()
 
         // Bu çalışmanın nesli. Sonraki aramalar sayacı ilerletir; o anda hâlâ çalışan
         // (iptali yutan) eski çalışmalar UI durumuna yazamaz.
@@ -1170,14 +1178,24 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 hasNextPage = true,
                 results = seedResults,
                 hasSearched = seedResults.isNotEmpty(),
-                multiResults = if (state.selectedEngine == SearchSourceEngine.ALL) MultiPlatformResults() else it.multiResults
+                // "Tümü" aramasında yükleme bayrakları hemen (kapsama göre) yazılır:
+                // aksi halde raflar bir kare boyunca boş + yüklenmiyor görünüp
+                // kayboluyor, sonra shimmer ile geri geliyordu (titreme).
+                multiResults = if (state.selectedEngine == SearchSourceEngine.ALL) {
+                    planAllSources(state.selectedScope).toLoadingState()
+                } else {
+                    it.multiResults
+                }
             )
         }
 
         searchJob = viewModelScope.launch {
             try {
                 val rawQuery = state.query.trim()
-                val (results, hasNext) = executeSearchForPage(rawQuery, page = 1, generation = generation)
+                val (fetched, hasNext) = executeSearchForPage(rawQuery, page = 1, generation = generation)
+                // Kaynağın gevşek eşleşme/popülerlik kuyruğunu alta it; sorguyla
+                // gerçekten örtüşenleri öne al.
+                val results = SearchRelevance.rank(rawQuery, fetched)
 
                 ensureActive()
                 if (searchGeneration.get() != generation) return@launch
@@ -1233,8 +1251,8 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 _uiState.update { current ->
                     // Nesil değiştiyse (araya yeni bir arama girdiyse) sayfalamayı uygulama.
                     if (searchGeneration.get() != generation) return@update current
-                    val currentIds = current.results.map { "${it.source}_${it.type}_${it.malId}" }.toSet()
-                    val uniqueNew = moreResults.filter { !currentIds.contains("${it.source}_${it.type}_${it.malId}") }
+                    val currentIds = current.results.map { SearchRelevance.keyOf(it) }.toSet()
+                    val uniqueNew = moreResults.filter { SearchRelevance.keyOf(it) !in currentIds }
                     current.copy(
                         results = current.results + uniqueNew,
                         page = nextPage,
@@ -1576,30 +1594,24 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         }
 
         // 0. Seçenek C: "Tümü (All-in-One Çoklu Platform Arama)"
-        if (state.currentTab == KitsugiSearchTab.All || engine == SearchSourceEngine.ALL) {
-            _uiState.update {
-                it.copy(
-                    multiResults = MultiPlatformResults(
-                        isLoadingAniList = true,
-                        isLoadingMal = true,
-                        isLoadingTmdb = true,
-                        isLoadingShikimori = true,
-                        isLoadingKitsu = true,
-                        isLoadingSimkl = true,
-                        isLoadingBangumi = true
-                    )
-                )
-            }
+        //
+        // Karakter/Personel kapsamları bu dala GİRMEZ: "Tümü" motoru seçiliyken
+        // karakter araması da yedi medya rafını tetikliyordu ve Karakter sekmesi bu
+        // medya kayıtlarını kişi satırı gibi listeliyordu (alakasız sonuç).
+        val isShelfSearch = (state.currentTab == KitsugiSearchTab.All || engine == SearchSourceEngine.ALL) &&
+            scope != SearchScope.CHARACTER && scope != SearchScope.STAFF
+        if (isShelfSearch) {
+            val plan = planAllSources(scope)
+            _uiState.update { it.copy(multiResults = plan.toLoadingState()) }
             return supervisorScope {
-                // Kapsam duyarlı çoklu platform araması: Manga/Manhwa/Manhua/LN
-                // kapsamlarında yalnızca manga uçları, varsayılan "Tümü"
-                // (ALL_MIXED) kapsamında ise anime + manga uçları birlikte
-                // sorgulanır; böylece manhwa/manga başlıkları da sonuçlarda çıkar.
-                val mangaScopes = listOf(
-                    SearchScope.MANGA, SearchScope.MANHWA, SearchScope.MANHUA, SearchScope.LIGHT_NOVEL
-                )
-                val scopeIsManga = scope in mangaScopes
-                val scopeIsMixed = scope == SearchScope.ALL_MIXED
+                // Kapsam duyarlı çoklu platform araması: her kaynak yalnızca kapsamın
+                // gerçekten istediği içerik ailesini sorgular.
+                //   ALL_MIXED                → anime + manga (dönüşümlü birleştirilir)
+                //   ANIME                    → yalnızca anime
+                //   MANGA/MANHWA/MANHUA/LN   → yalnızca manga
+                //   TV/MOVIE/K_DRAMA         → yalnızca TMDB + Simkl (film/dizi)
+                val wantAnime = scope.wantsAnimeSources && !scope.isLiveActionScope
+                val wantManga = scope.wantsMangaSources && !scope.isLiveActionScope
                 val kitsuSubtypes = when (scope) {
                     SearchScope.MANHWA -> listOf("manhwa")
                     SearchScope.MANHUA -> listOf("manhua")
@@ -1611,11 +1623,30 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                     SearchScope.MANHUA -> "CN"
                     else -> null
                 }
+                // Film/dizi kapsamlarında TMDB'nin karma (movie+tv) yanıtı istenen
+                // türe süzülür; "Diziler" rafında film, "Filmler" rafında dizi çıkmaz.
+                val tmdbAllowedTypes: Set<MediaType>? = when (scope) {
+                    SearchScope.TV, SearchScope.K_DRAMA -> setOf(MediaType.TvShow)
+                    SearchScope.MOVIE -> setOf(MediaType.Movie)
+                    else -> null
+                }
+                // AniList'e sorgu varken POPULARITY_DESC gönderilmez: boş sort listesi
+                // değişkeni hiç yazmaz ve AniList kendi alakalılık (SEARCH_MATCH)
+                // sıralamasını kullanır. Popülerlik sıralaması, sorguyla gevşek
+                // eşleşen popüler kayıtları rafın başına taşıyordu.
+                val aniListShelfSort = if (queryText.isNotBlank()) emptyList() else listOf("POPULARITY_DESC")
 
                 val resultsLock = Any()
                 val combinedResults = mutableListOf<JikanSearchResult>()
 
-                fun onPlatformCompleted(platformResults: List<JikanSearchResult>, updater: (MultiPlatformResults) -> MultiPlatformResults) {
+                fun rethrowIfCancellation(error: Throwable) {
+                    if (error is kotlinx.coroutines.CancellationException) throw error
+                }
+
+                fun onPlatformCompleted(
+                    platformResults: List<JikanSearchResult>,
+                    updater: (MultiPlatformResults) -> MultiPlatformResults
+                ) {
                     // Bayat çalışma koruması: iptal edilen (artık geçersiz) bir arama,
                     // kaynak sonuçlarını yeni aramanın üzerine YAZAMAZ — aksi halde yeni
                     // sorgunun AniList/MAL satırları boşalırken Shikimori/Kitsu satırları
@@ -1631,7 +1662,11 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                         val newMulti = updater(current.multiResults)
                         val merged = synchronized(resultsLock) {
                             combinedResults.addAll(platformResults)
-                            combinedResults.distinctBy { "${it.source}_${it.malId}" }
+                            // Anahtara medya türü de girer: Kitsu, Shikimori, MAL ve
+                            // TMDB'de anime ile manga (film ile dizi) AYRI kimlik uzayı
+                            // kullanır, aynı numara iki farklı kayda aittir. Türsüz
+                            // anahtar karma aramada meşru kayıtları sessizce siliyordu.
+                            combinedResults.distinctBy { SearchRelevance.keyOf(it) }
                         }
                         current.copy(
                             multiResults = newMulti,
@@ -1641,240 +1676,189 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                     }
                 }
 
-                val aniListDef = async(Dispatchers.IO) {
-                    val res = withTimeoutOrNull(allSourceTimeoutMs) {
-                        runCatching {
-                            if (scopeIsManga) {
-                                apiClient.searchAniListPaged(
-                                    query = queryText,
-                                    mediaType = MediaType.Manga,
-                                    showAdultContent = showAdult,
-                                    country = aniListCountry,
-                                    page = 1,
-                                    perPage = 10
-                                ).results
-                            } else if (scopeIsMixed) {
-                                coroutineScope {
-                                    val animePart = async {
-                                        runCatching {
-                                            apiClient.searchAniListPaged(
-                                                query = queryText,
-                                                mediaType = MediaType.Anime,
-                                                showAdultContent = showAdult,
-                                                page = 1,
-                                                perPage = 10
-                                            ).results
-                                        }.getOrDefault(emptyList())
-                                    }
-                                    val mangaPart = async {
-                                        runCatching {
-                                            apiClient.searchAniListPaged(
-                                                query = queryText,
-                                                mediaType = MediaType.Manga,
-                                                showAdultContent = showAdult,
-                                                country = aniListCountry,
-                                                page = 1,
-                                                perPage = 10
-                                            ).results
-                                        }.getOrDefault(emptyList())
-                                    }
-                                    (animePart.await() + mangaPart.await())
-                                        .distinctBy { "${it.source}_${it.malId}" }
-                                        .take(10)
+                suspend fun fetchSource(block: suspend () -> List<JikanSearchResult>): List<JikanSearchResult> =
+                    runCatching { block() }.getOrElse { error ->
+                        rethrowIfCancellation(error)
+                        emptyList()
+                    }
+
+                /**
+                 * Bir kaynağın anime + manga uçlarını paralel çalıştırır, sonuçları
+                 * dönüşümlü birleştirir (manga, anime altında ezilmesin), sorguyla
+                 * örtüşenleri öne alır ve raf sınırına indirir.
+                 *
+                 * [active] false ise ağ isteği hiç yapılmaz: raf boş + yüklenmiyor
+                 * kalır ve çizilmez.
+                 */
+                suspend fun fetchMediaShelf(
+                    active: Boolean,
+                    anime: suspend () -> List<JikanSearchResult>,
+                    manga: suspend () -> List<JikanSearchResult>
+                ): List<JikanSearchResult> {
+                    if (!active || (!wantAnime && !wantManga)) return emptyList()
+                    val raw = withTimeoutOrNull(allSourceTimeoutMs) {
+                        fetchSource {
+                            coroutineScope {
+                                val animePart = if (wantAnime) {
+                                    async(Dispatchers.IO) { fetchSource(anime) }
+                                } else {
+                                    null
                                 }
-                            } else {
-                                apiClient.searchAniListPaged(
-                                    query = queryText,
-                                    mediaType = MediaType.Anime,
-                                    showAdultContent = showAdult,
-                                    page = 1,
-                                    perPage = 10
-                                ).results
+                                val mangaPart = if (wantManga) {
+                                    async(Dispatchers.IO) { fetchSource(manga) }
+                                } else {
+                                    null
+                                }
+                                SearchRelevance.interleave(
+                                    animePart?.await() ?: emptyList(),
+                                    mangaPart?.await() ?: emptyList()
+                                )
                             }
-                        }.getOrElse { err -> if (err is kotlinx.coroutines.CancellationException) throw err; emptyList() }
+                        }
                     } ?: emptyList()
+                    return SearchRelevance.refine(queryText, raw).take(allShelfLimit)
+                }
+
+                /** Tek içerik ailesi olan kaynaklar (TMDB, Simkl) için. */
+                suspend fun fetchSingleShelf(
+                    active: Boolean,
+                    block: suspend () -> List<JikanSearchResult>
+                ): List<JikanSearchResult> {
+                    if (!active) return emptyList()
+                    val raw = withTimeoutOrNull(allSourceTimeoutMs) { fetchSource(block) } ?: emptyList()
+                    return SearchRelevance.refine(queryText, raw).take(allShelfLimit)
+                }
+
+                val aniListDef = async(Dispatchers.IO) {
+                    val res = fetchMediaShelf(
+                        active = plan.aniList,
+                        anime = {
+                            apiClient.searchAniListPaged(
+                                query = queryText,
+                                mediaType = MediaType.Anime,
+                                showAdultContent = showAdult,
+                                sort = aniListShelfSort,
+                                page = 1,
+                                perPage = allShelfFetchLimit
+                            ).results
+                        },
+                        manga = {
+                            apiClient.searchAniListPaged(
+                                query = queryText,
+                                mediaType = MediaType.Manga,
+                                showAdultContent = showAdult,
+                                country = aniListCountry,
+                                sort = aniListShelfSort,
+                                page = 1,
+                                perPage = allShelfFetchLimit
+                            ).results
+                        }
+                    )
                     onPlatformCompleted(res) { it.copy(aniListResults = res, isLoadingAniList = false) }
                     res
                 }
 
                 val malDef = async(Dispatchers.IO) {
-                    val res = withTimeoutOrNull(allSourceTimeoutMs) {
-                        runCatching {
-                            if (scopeIsManga) {
-                                apiClient.searchMALOnly(
-                                    query = queryText,
-                                    mediaType = MediaType.Manga,
-                                    showAdultContent = showAdult
-                                ).take(10)
-                            } else if (scopeIsMixed) {
-                                coroutineScope {
-                                    val animePart = async {
-                                        runCatching {
-                                            apiClient.searchMALOnly(
-                                                query = queryText,
-                                                mediaType = MediaType.Anime,
-                                                showAdultContent = showAdult
-                                            ).take(10)
-                                        }.getOrDefault(emptyList())
-                                    }
-                                    val mangaPart = async {
-                                        runCatching {
-                                            apiClient.searchMALOnly(
-                                                query = queryText,
-                                                mediaType = MediaType.Manga,
-                                                showAdultContent = showAdult
-                                            ).take(10)
-                                        }.getOrDefault(emptyList())
-                                    }
-                                    (animePart.await() + mangaPart.await())
-                                        .distinctBy { "${it.source}_${it.malId}" }
-                                        .take(10)
-                                }
-                            } else {
-                                apiClient.searchMALOnly(
-                                    query = queryText,
-                                    mediaType = MediaType.Anime,
-                                    showAdultContent = showAdult
-                                ).take(10)
-                            }
-                        }.getOrElse { err -> if (err is kotlinx.coroutines.CancellationException) throw err; emptyList() }
-                    } ?: emptyList()
+                    val res = fetchMediaShelf(
+                        active = plan.mal,
+                        anime = {
+                            apiClient.searchMALOnly(
+                                query = queryText,
+                                mediaType = MediaType.Anime,
+                                showAdultContent = showAdult
+                            )
+                        },
+                        manga = {
+                            apiClient.searchMALOnly(
+                                query = queryText,
+                                mediaType = MediaType.Manga,
+                                showAdultContent = showAdult
+                            )
+                        }
+                    )
                     onPlatformCompleted(res) { it.copy(malResults = res, isLoadingMal = false) }
                     res
                 }
 
                 val tmdbDef = async(Dispatchers.IO) {
-                    val res = withTimeoutOrNull(allSourceTimeoutMs) {
-                        runCatching {
-                            TmdbApiClient().search(queryText).take(10)
-                        }.getOrElse { err -> if (err is kotlinx.coroutines.CancellationException) throw err; emptyList() }
-                    } ?: emptyList()
+                    val res = fetchSingleShelf(active = plan.tmdb) {
+                        val list = TmdbApiClient().search(queryText)
+                        val allowed = tmdbAllowedTypes
+                        if (allowed == null) list else list.filter { it.type in allowed }
+                    }
                     onPlatformCompleted(res) { it.copy(tmdbResults = res, isLoadingTmdb = false) }
                     res
                 }
 
                 val shikimoriDef = async(Dispatchers.IO) {
-                    val res = withTimeoutOrNull(allSourceTimeoutMs) {
-                        runCatching {
-                            if (scopeIsManga) {
-                                KitsugiShikimoriClient.searchMediaAdvanced(
-                                    mediaType = MediaType.Manga,
-                                    query = queryText,
-                                    limit = 10
-                                )
-                            } else if (scopeIsMixed) {
-                                coroutineScope {
-                                    val animePart = async {
-                                        runCatching {
-                                            KitsugiShikimoriClient.searchAnime(queryText, limit = 24)
-                                        }.getOrDefault(emptyList())
-                                    }
-                                    val mangaPart = async {
-                                        runCatching {
-                                            KitsugiShikimoriClient.searchMediaAdvanced(
-                                                mediaType = MediaType.Manga,
-                                                query = queryText,
-                                                limit = 10
-                                            )
-                                        }.getOrDefault(emptyList())
-                                    }
-                                    (animePart.await() + mangaPart.await())
-                                        .distinctBy { "${it.source}_${it.malId}" }
-                                        .take(10)
-                                }
-                            } else {
-                                KitsugiShikimoriClient.searchAnime(queryText, limit = 24)
-                            }
-                        }.getOrElse { err -> if (err is kotlinx.coroutines.CancellationException) throw err; emptyList() }
-                    } ?: emptyList()
+                    val res = fetchMediaShelf(
+                        active = plan.shikimori,
+                        anime = { KitsugiShikimoriClient.searchAnime(queryText, limit = allShelfFetchLimit * 2) },
+                        manga = {
+                            KitsugiShikimoriClient.searchMediaAdvanced(
+                                mediaType = MediaType.Manga,
+                                query = queryText,
+                                limit = allShelfFetchLimit
+                            )
+                        }
+                    )
                     onPlatformCompleted(res) { it.copy(shikimoriResults = res, isLoadingShikimori = false) }
                     res
                 }
 
                 val bangumiDef = async(Dispatchers.IO) {
-                    val res = withTimeoutOrNull(allSourceTimeoutMs) {
-                        runCatching {
-                            if (scopeIsManga) {
-                                KitsugiBangumiClient.searchManga(queryText, limit = 10, includeAdult = showAdult)
-                            } else if (scopeIsMixed) {
-                                coroutineScope {
-                                    val animePart = async {
-                                        runCatching {
-                                            KitsugiBangumiClient.searchAnime(queryText, limit = BangumiApiClient.SEARCH_PAGE_SIZE, includeAdult = showAdult)
-                                        }.getOrDefault(emptyList())
-                                    }
-                                    val mangaPart = async {
-                                        runCatching {
-                                            KitsugiBangumiClient.searchManga(queryText, limit = 10, includeAdult = showAdult)
-                                        }.getOrDefault(emptyList())
-                                    }
-                                    (animePart.await() + mangaPart.await())
-                                        .distinctBy { "${it.source}_${it.malId}" }
-                                        .take(10)
-                                }
-                            } else {
-                                KitsugiBangumiClient.searchAnime(queryText, limit = BangumiApiClient.SEARCH_PAGE_SIZE, includeAdult = showAdult)
-                            }
-                        }.getOrElse { err -> if (err is kotlinx.coroutines.CancellationException) throw err; emptyList() }
-                    } ?: emptyList()
+                    val res = fetchMediaShelf(
+                        active = plan.bangumi,
+                        anime = {
+                            KitsugiBangumiClient.searchAnime(
+                                queryText,
+                                limit = BangumiApiClient.SEARCH_PAGE_SIZE,
+                                includeAdult = showAdult
+                            )
+                        },
+                        manga = {
+                            KitsugiBangumiClient.searchManga(
+                                queryText,
+                                limit = allShelfFetchLimit,
+                                includeAdult = showAdult
+                            )
+                        }
+                    )
                     onPlatformCompleted(res) { it.copy(bangumiResults = res, isLoadingBangumi = false) }
                     res
                 }
 
                 val kitsuDef = async(Dispatchers.IO) {
-                    val res = withTimeoutOrNull(allSourceTimeoutMs) {
-                        runCatching {
-                            if (scopeIsManga) {
-                                KitsuExploreClient.searchMediaAdvanced(
-                                    mediaType = MediaType.Manga,
-                                    query = queryText,
-                                    limit = 10,
-                                    subtypes = kitsuSubtypes
-                                )
-                            } else if (scopeIsMixed) {
-                                coroutineScope {
-                                    val animePart = async {
-                                        runCatching {
-                                            KitsuExploreClient.searchMediaAdvanced(
-                                                mediaType = MediaType.Anime,
-                                                query = queryText,
-                                                limit = 10
-                                            )
-                                        }.getOrDefault(emptyList())
-                                    }
-                                    val mangaPart = async {
-                                        runCatching {
-                                            KitsuExploreClient.searchMediaAdvanced(
-                                                mediaType = MediaType.Manga,
-                                                query = queryText,
-                                                limit = 10,
-                                                subtypes = kitsuSubtypes
-                                            )
-                                        }.getOrDefault(emptyList())
-                                    }
-                                    (animePart.await() + mangaPart.await())
-                                        .distinctBy { "${it.source}_${it.malId}" }
-                                        .take(10)
-                                }
-                            } else {
-                                KitsuExploreClient.searchMediaAdvanced(
-                                    mediaType = MediaType.Anime,
-                                    query = queryText,
-                                    limit = 10
-                                )
-                            }
-                        }.getOrElse { err -> if (err is kotlinx.coroutines.CancellationException) throw err; emptyList() }
-                    } ?: emptyList()
+                    val res = fetchMediaShelf(
+                        active = plan.kitsu,
+                        anime = {
+                            KitsuExploreClient.searchMediaAdvanced(
+                                mediaType = MediaType.Anime,
+                                query = queryText,
+                                limit = allShelfFetchLimit
+                            )
+                        },
+                        manga = {
+                            KitsuExploreClient.searchMediaAdvanced(
+                                mediaType = MediaType.Manga,
+                                query = queryText,
+                                limit = allShelfFetchLimit,
+                                subtypes = kitsuSubtypes
+                            )
+                        }
+                    )
                     onPlatformCompleted(res) { it.copy(kitsuResults = res, isLoadingKitsu = false) }
                     res
                 }
 
                 val simklDef = async(Dispatchers.IO) {
-                    val res = withTimeoutOrNull(allSourceTimeoutMs) {
-                        runCatching {
-                            SimklApiClient().search(queryText, limit = 10)
-                        }.getOrElse { err -> if (err is kotlinx.coroutines.CancellationException) throw err; emptyList() }
-                    } ?: emptyList()
+                    val res = fetchSingleShelf(active = plan.simkl) {
+                        SimklApiClient().search(
+                            queryText,
+                            type = scope.simklTypeFilter,
+                            limit = allShelfFetchLimit
+                        )
+                    }
                     onPlatformCompleted(res) { it.copy(simklResults = res, isLoadingSimkl = false) }
                     res
                 }
@@ -1887,8 +1871,9 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 val simklRes = runCatching { simklDef.await() }.getOrDefault(emptyList())
                 val bangumiRes = runCatching { bangumiDef.await() }.getOrDefault(emptyList())
 
-                val finalCombined = (aniListRes + malRes + tmdbRes + shikimoriRes + kitsuRes + simklRes + bangumiRes)
-                    .distinctBy { "${it.source}_${it.malId}" }
+                val finalCombined = SearchRelevance.dedupe(
+                    aniListRes + malRes + tmdbRes + shikimoriRes + kitsuRes + simklRes + bangumiRes
+                )
 
                 if (searchGeneration.get() != generation) {
                     // Bu çalışma arada başlayan yeni bir arama tarafından geçersiz kılındı;
@@ -2222,7 +2207,6 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
      * Hem sorgu metnini hem arama sonuçlarını sıfırlar → geçmiş görünümüne dönüş.
      */
     fun clearQuery() {
-        debounceJob?.cancel()
         searchGeneration.incrementAndGet()
         searchJob?.cancel()
         _uiState.update {

@@ -75,7 +75,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
-import com.kitsugi.animelist.ui.components.KitsugiShimmerMediaRow
 import com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults
 import com.kitsugi.animelist.ui.utils.tvClickable
 import com.kitsugi.animelist.ui.utils.dpadVerticalFastScroll
@@ -326,7 +325,9 @@ fun SearchScreen(
                         query = uiState.query,
                         onQueryChange = viewModel::setQuery,
                         onSearch = {
-                            viewModel.search()
+                            // Arama yalnızca burada tetiklenir (buton veya klavyedeki
+                            // "Ara" onay tuşu) — yazarken kendiliğinden arama yok.
+                            viewModel.onSearchAction()
                             keyboardController?.hide()
                         },
                         onClearQuery = {
@@ -337,7 +338,9 @@ fun SearchScreen(
                         leadingContent = {
                             SourceEngineSelectorPill(
                                 selectedEngine = uiState.selectedEngine,
-                                onClick = { showEnginePickerSheet = true }
+                                onClick = { showEnginePickerSheet = true },
+                                // Yazarken motor adı gizlenir → arama butonuna yer açılır.
+                                compact = uiState.query.isNotBlank()
                             )
                         },
                         onFilterClick = {
@@ -393,42 +396,23 @@ fun SearchScreen(
             }
 
             // Shimmer Loading State
-            if (uiState.isLoading) {
-                if (uiState.currentTab == KitsugiSearchTab.All) {
-                    item {
-                        MultiSearchShelfShimmer(
-                            title = "AniList",
-                            platformId = "anilist"
-                        )
-                    }
-                    item {
-                        MultiSearchShelfShimmer(
-                            title = "MyAnimeList",
-                            platformId = "mal"
-                        )
-                    }
-                    item {
-                        MultiSearchShelfShimmer(
-                            title = "TMDB (Film & Dizi)",
-                            platformId = "tmdb"
-                        )
-                    }
-                    item {
-                        MultiSearchShelfShimmer(
-                            title = "Shikimori",
-                            platformId = "shikimori"
-                        )
-                    }
-                    item {
-                        MultiSearchShelfShimmer(
-                            title = "Bangumi",
-                            platformId = "bangumi"
-                        )
-                    }
-                } else {
-                    item {
-                        KitsugiShimmerSearchResultList(itemCount = 4)
-                    }
+            //
+            // "Tümü" sekmesinde AYRICA kopya shimmer rafları çizilmez: her raf kendi
+            // yükleme bayrağını (multiResults.isLoading*) zaten taşıyor ve
+            // MultiSearchSection verisi gelene kadar kendi shimmer'ını gösteriyor.
+            // Eski kod `uiState.isLoading` boyunca üste 5 sabit shimmer rafı koyuyordu;
+            // yedi kaynak tek tek tamamlandıkça gelmiş veriler bu animasyonlu
+            // placeholder'ların ALTINDA birikiyor, yani verisi gelmiş rafın animasyonu
+            // görünmeye devam ediyordu (üstelik Kitsu/Simkl listede yoktu → tutarsız).
+            //
+            // Diğer sekmelerde shimmer yalnızca henüz hiç sonuç yokken çizilir; aksi
+            // halde yenileme/sayfalama sırasında mevcut satırların üstüne biniyordu.
+            val showResultShimmer = uiState.isLoading &&
+                uiState.currentTab != KitsugiSearchTab.All &&
+                uiState.results.isEmpty()
+            if (showResultShimmer) {
+                item {
+                    KitsugiShimmerSearchResultList(itemCount = 4)
                 }
             }
 
@@ -1010,46 +994,6 @@ fun ActiveFilterChip(
                 modifier = Modifier.size(14.dp)
             )
         }
-    }
-}
-
-@Composable
-private fun MultiSearchShelfShimmer(
-    title: String,
-    platformId: String
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 12.dp)
-    ) {
-        // Platform Logosu + Başlık
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 4.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            KitsugiPlatformLogo(
-                platformId = platformId,
-                size = 24.dp,
-                cornerRadius = 6.dp
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = title,
-                color = KitsugiColors.TextPrimary,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Yatay kartlar için animasyonlu shimmer efekti
-        KitsugiShimmerMediaRow(cardCount = 5)
     }
 }
 

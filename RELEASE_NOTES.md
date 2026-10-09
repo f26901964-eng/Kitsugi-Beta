@@ -1,5 +1,57 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.213)
+
+### 🔍 1. Arama Ekranı: Yükleme Animasyonu Tutarlılığı (Shimmer Fix)
+- **Kopya Shimmer Kaldırıldı:** "Tümü" sekmesinde verisi gelmiş rafların üstüne binen 5 sabit shimmer rafı tamamen kaldırıldı. Artık raf başına tek görsel durum var: Verisi gelmeyen raf kendi shimmer'ını gösterir, verisi gelen raf anında karta dönüşür.
+- **Titreme Giderildi:** Arama başladığında yükleme bayrakları kapsama göre anında yazılır; ara "boş + yüklenmiyor" karesi ve rafların kaybolup geri gelmesi (titreme) engellendi.
+- **Sayfalama Shimmer Çakışması:** Diğer sekmelerde shimmer yalnızca henüz hiç sonuç yokken çizilir; sayfalama ve yenilemede mevcut sonuçların üstüne binmez.
+
+### 🎯 2. Veri Doğruluğu, Kapsam Süzme ve Alakalılık (`SearchRelevance`)
+- **Doğru Kapsam Planlaması (`planAllSources`):**
+  - Manhwa / Manga / Manhua / Light Novel kapsamında TMDB ve Simkl'e istek atılmaz; çizgi roman aramalarında alakasız live-action filmler çıkmaz.
+  - Diziler / Filmler / K-Drama aramaları anime veritabanlarına düşürülmez; yalnızca TMDB ve Simkl sorgulanır.
+  - Karakter / Personel araması "Tümü" motorunda medya raflarını tetiklemez.
+- **Türe Duyarlı Tekilleştirme:** Aynı ID'ye sahip anime ve manga kayıtlarının birbirini ezmesi (`kaynak_tur_kimlik`) önlendi; Manhwa ve Manga kayıtları anime altında kaybolmaz (dönüşümlü `interleave` birleştirme).
+- **Yeni Alakalılık Motoru (`SearchRelevance`):** Sorguyla doğrudan eşleşen başlıklar en öne alınır, kayıt silinmez. Türkçe karakter ve aksan indirgeme ("İstanbul" ↔ "istanbul") ve yabancı takma ad koruması eklendi.
+- **Jikan & AniList İyileştirmesi:** Arama sonuçlarını bozan zorunlu popülerlik sıralaması kaldırıldı, metin alakalılığı ön plana çıkarıldı.
+
+### ⌨️ 3. Onaysız Arama Kaldırıldı (Onaylı & Butonlu Arama)
+- **Yazarken Kendiliğinden Arama Engellendi:** Her tuş vuruşunda sorgu atan debounce kaldırıldı. Arama artık yalnızca klavyedeki "Ara" onay tuşuna veya arama butonuna basıldığında tetiklenir.
+- **Arama Onay Butonu:** Arama çubuğuna metin yazıldığında görünen arama butonu eklendi.
+- **Kompakt Motor Hapı:** Küçük ekranlarda metin alanının daralmaması için yazma esnasında motor seçici kompakt moda geçer.
+
+### 📦 4. Dağıtım
+- Yalnızca **FOSS** sürümü (`assembleFossRelease`) derlendi (`Kitsugi-Beta-v2.4.213-foss.apk`).
+
+---
+
+## 🇬🇧 English (v2.4.213)
+
+### 🔍 1. Search Screen: Shelf Shimmer Consistency (Shimmer Fix)
+- **Eliminated Duplicate Shimmers:** Removed the redundant 5-shelf shimmer overlay on the "All" tab. Each provider shelf now owns its visual state: displaying shimmer until its data arrives, then immediately transforming into content.
+- **Flicker Elimination:** Loading flags are populated immediately upon search initiation, removing the intermediate "empty/idle" flicker frame.
+- **Pagination Shimmer Overlap:** Shimmer placeholders in single-engine tabs only render when the result set is completely empty, preventing overlay during pagination.
+
+### 🎯 2. Data Accuracy, Scope Routing & Relevance (`SearchRelevance`)
+- **Scoped Provider Planning (`planAllSources`):**
+  - Manga / Manhwa / Manhua / Light Novel scopes bypass TMDB and Simkl completely, eliminating live-action film bleed into print searches.
+  - TV Shows / Movies / K-Drama queries route exclusively to TMDB and Simkl without querying anime databases.
+  - Character / Staff scopes never trigger media shelves.
+- **Type-Aware Deduplication:** Multi-engine keys now include media type (`source_type_id`), preventing legitimate manga records from being dropped when sharing an ID with an anime. Anime and manga are interleaved in mixed searches.
+- **Search Relevance Engine (`SearchRelevance`):** Query matches are ranked to the top without pruning non-exact matches (preserving synonyms, romaji, and alternate titles). Added Turkish diacritic folding ("İstanbul" ↔ "istanbul").
+- **Jikan & AniList Ranking Fix:** Stripped artificial popularity overrides on search queries in favor of pure text relevance.
+
+### ⌨️ 3. Explicit Search Triggering (Debounce Removed)
+- **No Keystroke Auto-Search:** Eliminated automatic debounced searching while typing. Searches only execute upon tapping the keyboard action button or the search icon.
+- **Search Action Button:** Added an explicit search trigger button in the search bar when query text is present.
+- **Compact Engine Selector:** Engine selector switches to compact mode while typing on small screens to preserve input field width.
+
+### 📦 4. Distribution
+- Strictly released the **FOSS variant only** (`assembleFossRelease` -> `Kitsugi-Beta-v2.4.213-foss.apk`).
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.212)
 
 ### 📥 1. Android 10 (API 29) ve Üzeri İndirme / Kaydetme Düzeltmesi (ENOENT Fix)

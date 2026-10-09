@@ -44,7 +44,6 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -79,15 +78,11 @@ import com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults
 import com.kitsugi.animelist.ui.utils.dpadVerticalFastScroll
 import com.kitsugi.animelist.ui.utils.requestFocusAfterFrames
 import com.kitsugi.animelist.ui.utils.tvClickable
-import kotlinx.coroutines.FlowPreview
-import kotlinx.coroutines.flow.debounce
-import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 
 private val TvChipShape = RoundedCornerShape(20.dp)
 
-@OptIn(ExperimentalTvMaterial3Api::class, ExperimentalFoundationApi::class, FlowPreview::class)
+@OptIn(ExperimentalTvMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun TvSearchScreen(
     searchViewModel: SearchViewModel = viewModel(),
@@ -97,14 +92,10 @@ fun TvSearchScreen(
     val state by searchViewModel.uiState.collectAsStateWithLifecycle()
     val searchBarFocusRequester = remember { FocusRequester() }
 
-    // ── Debounce: 500ms sonra otomatik ara ────────────────────────────────────
-    LaunchedEffect(Unit) {
-        snapshotFlow { state.query }
-            .debounce(500L)
-            .distinctUntilChanged()
-            .filter { it.isNotBlank() }
-            .collect { searchViewModel.search() }
-    }
+    // NOT: Eskiden burada 500 ms debounce ile otomatik arama vardı; kullanıcı daha
+    // yazarken yarım kelimeler aranıyor ve alakasız sonuçlar listeleniyordu.
+    // Arama artık yalnızca açık onayla tetiklenir: klavyedeki "Ara" tuşu
+    // (TvSearchBar → onSearch) veya temizle/geçmiş gibi doğrudan eylemler.
 
     // ── Ekran ilk açıldığında arama kutusuna focus ver ────────────────────────
     // requestFocusAfterFrames: layout attach olduktan sonra focus istiyor,

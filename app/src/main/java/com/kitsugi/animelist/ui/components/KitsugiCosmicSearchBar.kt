@@ -163,6 +163,30 @@ fun KitsugiCosmicSearchBar(
                 }
             )
 
+            // Arama Butonu (onay) — aramayı başlatan tek dokunmatik yol.
+            // Klavyesi olmayan/donanım klavyesi "Ara" tuşu göndermeyen cihazlarda
+            // da arama tetiklenebilsin diye metin doluyken görünür.
+            AnimatedVisibility(
+                visible = query.isNotBlank(),
+                enter = fadeIn() + scaleIn(),
+                exit = fadeOut() + scaleOut()
+            ) {
+                IconButton(
+                    onClick = {
+                        onSearch()
+                        keyboardController?.hide()
+                    },
+                    modifier = Modifier.size(34.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.Search,
+                        contentDescription = "Ara",
+                        tint = accentColor,
+                        modifier = Modifier.size(18.dp)
+                    )
+                }
+            }
+
             // Temizle Butonu ("X")
             AnimatedVisibility(
                 visible = query.isNotEmpty(),
