@@ -8,6 +8,11 @@ import com.kitsugi.animelist.data.auth.BangumiAuthStore
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.utils.PreferenceHelpers
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import java.util.Calendar
 
@@ -75,7 +80,7 @@ object KitsugiBangumiClient {
                 includeAdult = includeAdult,
                 limit = limit,
                 offset = offset
-            ).filter { includeAdult || !it.nsfw }.map { it.toSearchResult(MediaType.Anime) }
+            ).filter { includeAdult || !it.nsfw }.map { it.toSearchResult(MediaType.Anime) }.withLatinBangumiNames(context)
         }.getOrElse { error ->
             Log.e(TAG, "Bangumi searchAnime failed: ${error.message}", error)
             emptyList()
@@ -107,7 +112,7 @@ object KitsugiBangumiClient {
             )
                 .filter { includeAdult || !it.nsfw }
                 .filter { !comicsOnly || it.platform == null || it.platform == "漫画" }
-                .map { it.toSearchResult(MediaType.Manga) }
+                .map { it.toSearchResult(MediaType.Manga) }.withLatinBangumiNames(context)
         }.getOrElse { error ->
             Log.e(TAG, "Bangumi searchManga failed: ${error.message}", error)
             emptyList()
@@ -222,7 +227,7 @@ object KitsugiBangumiClient {
             }
             subjects
                 .filter { includeAdult || !it.nsfw }
-                .map { it.toSearchResult(mediaType) }
+                .map { it.toSearchResult(mediaType) }.withLatinBangumiNames(context)
         } catch (error: kotlinx.coroutines.CancellationException) {
             throw error
         } catch (error: Exception) {
@@ -305,20 +310,52 @@ object KitsugiBangumiClient {
         return emptyList()
     }
 
+    /**
+     * Bangumi liste/arama uçları (`/v0/search`, `/v0/subjects` vb.) infobox döndürmez; İngilizce
+     * ve romaji ad yalnızca subject detayında bulunur. Başlığı hâlâ CJK (Japonca/Çince/Korece)
+     * olan satırlar için subject bir kez çekilir, Latin adlar [BangumiTitleCache]'e yazılır ve
+     * satır o adlarla güncellenir. Böylece liste kartları da uygulama dil tercihine uyar.
+     * Latin ad bulunamazsa satır olduğu gibi kalır (son çare orijinal ad).
+     */
+    internal suspend fun List<JikanSearchResult>.withLatinBangumiNames(context: Context? = null): List<JikanSearchResult> {
+        if (none { it.source == SOURCE && PreferenceHelpers.hasCjkCharacters(it.title) }) return this
+        val limiter = Semaphore(4)
+        return coroutineScope {
+            map { item ->
+                async {
+                    if (item.source != SOURCE || !PreferenceHelpers.hasCjkCharacters(item.title)) return@async item
+                    val rawId = BangumiIdNamespace.rawIdFromStable(item.malId) ?: item.malId
+                    if (rawId <= 0) return@async item
+                    val subject = limiter.withPermit {
+                        runCatching { BangumiApiClient.getSubject(rawId, tokenOrNull(context)) }.getOrNull()
+                    } ?: return@async item
+                    val localized = BangumiNameLocalizer.subject(subject.name, subject.nameCn, subject.infobox)
+                    BangumiTitleCache.put(rawId, localized.romaji, localized.english, localized.native)
+                    val latinTitle = localized.romaji ?: localized.english
+                    if (latinTitle == null) item else item.copy(
+                        title = latinTitle,
+                        titleEnglish = localized.english ?: item.titleEnglish,
+                        titleRomaji = localized.romaji ?: item.titleRomaji
+                    )
+                }
+            }.awaitAll()
+        }
+    }
+
     // ── Keşfet kategorileri ──────────────────────────────────────────────────
 
     /** "En İyi Animeler" — `sort=rank` ile kategori sıralaması (排行榜). */
     suspend fun topAnime(limit: Int = 20, context: Context? = null, offset: Int = 0): List<JikanSearchResult> =
         runCatching {
             BangumiApiClient.topRanked(BangumiApiClient.SubjectType.ANIME, tokenOrNull(context), limit, offset)
-                .data.map { it.toSearchResult(MediaType.Anime) }
+                .data.map { it.toSearchResult(MediaType.Anime) }.withLatinBangumiNames(context)
         }.getOrElse { logAndEmpty("topAnime", it) }
 
     /** "Popüler Animeler" — koleksiyon sayısı (收藏人数) sıralaması. */
     suspend fun trendingAnime(limit: Int = 20, context: Context? = null, offset: Int = 0): List<JikanSearchResult> =
         runCatching {
             BangumiApiClient.mostCollected(BangumiApiClient.SubjectType.ANIME, tokenOrNull(context), limit, offset)
-                .data.map { it.toSearchResult(MediaType.Anime) }
+                .data.map { it.toSearchResult(MediaType.Anime) }.withLatinBangumiNames(context)
         }.getOrElse { logAndEmpty("trendingAnime", it) }
 
     /** "En Yüksek Puanlı Animeler" — `sort=score` araması. */
@@ -334,7 +371,7 @@ object KitsugiBangumiClient {
                     nsfw = false,
                     limit = limit,
                     offset = offset
-                ).data.map { it.toSearchResult(MediaType.Anime) }
+                ).data.map { it.toSearchResult(MediaType.Anime) }.withLatinBangumiNames(context)
             }.getOrDefault(emptyList())
                 .ifEmpty { topAnime(limit, context, offset) }
         }.getOrElse { logAndEmpty("topRatedAnime", it) }
@@ -362,7 +399,7 @@ object KitsugiBangumiClient {
         offset: Int = 0
     ): List<JikanSearchResult> = runCatching {
         BangumiApiClient.browseSeason(year, month, tokenOrNull(context), limit, offset)
-            .data.map { it.toSearchResult(MediaType.Anime) }
+            .data.map { it.toSearchResult(MediaType.Anime) }.withLatinBangumiNames(context)
     }.getOrElse { logAndEmpty("seasonFor($year-$month)", it) }
 
     /** "Şu An Yayında" — bu ay + geçen ay birleşimi (Bangumi'de airing durumu yoktur). */
@@ -396,7 +433,7 @@ object KitsugiBangumiClient {
                 sort = "rank",
                 limit = limit,
                 offset = offset
-            ).data.map { it.toSearchResult(MediaType.Movie) }
+            ).data.map { it.toSearchResult(MediaType.Movie) }.withLatinBangumiNames(context)
         }.getOrElse { logAndEmpty("movieAnime", it) }
 
     /** Bangumi REAL / 三次元 TV-drama şeridi (`type=6&cat=6001`). */
@@ -409,7 +446,7 @@ object KitsugiBangumiClient {
                 sort = "rank",
                 limit = limit,
                 offset = offset
-            ).data.map { it.toSearchResult(MediaType.TvShow) }
+            ).data.map { it.toSearchResult(MediaType.TvShow) }.withLatinBangumiNames(context)
         }.getOrElse { logAndEmpty("realTvShows", it) }
 
     /** Bangumi REAL film şeridi (`type=6&cat=6002`), anime filmlerinden ayrı tutulur. */
@@ -422,7 +459,7 @@ object KitsugiBangumiClient {
                 sort = "rank",
                 limit = limit,
                 offset = offset
-            ).data.map { it.toSearchResult(MediaType.Movie) }
+            ).data.map { it.toSearchResult(MediaType.Movie) }.withLatinBangumiNames(context)
         }.getOrElse { logAndEmpty("realMovies", it) }
 
     /** "Yeni Eklenen Animeler" — yayın tarihine göre en yeni条目'lar. */
@@ -434,14 +471,14 @@ object KitsugiBangumiClient {
                 sort = "date",
                 limit = limit,
                 offset = offset
-            ).data.map { it.toSearchResult(MediaType.Anime) }
+            ).data.map { it.toSearchResult(MediaType.Anime) }.withLatinBangumiNames(context)
         }.getOrElse { logAndEmpty("newlyAddedAnime", it) }
 
     /** "En İyi Mangalar" — 书籍 kategori sıralaması. */
     suspend fun topManga(limit: Int = 20, context: Context? = null, offset: Int = 0): List<JikanSearchResult> =
         runCatching {
             BangumiApiClient.topRanked(BangumiApiClient.SubjectType.BOOK, tokenOrNull(context), limit, offset)
-                .data.map { it.toSearchResult(MediaType.Manga) }
+                .data.map { it.toSearchResult(MediaType.Manga) }.withLatinBangumiNames(context)
         }.getOrElse { logAndEmpty("topManga", it) }
 
     /** "Yayınlanan Mangalar" — en yeni书籍条目'ları. */
@@ -454,14 +491,14 @@ object KitsugiBangumiClient {
                 sort = "date",
                 limit = limit,
                 offset = offset
-            ).data.map { it.toSearchResult(MediaType.Manga) }
+            ).data.map { it.toSearchResult(MediaType.Manga) }.withLatinBangumiNames(context)
         }.getOrElse { logAndEmpty("publishingManga", it) }
 
     /** "Popüler Mangalar" — koleksiyon sayısı sıralaması. */
     suspend fun trendingManga(limit: Int = 20, context: Context? = null, offset: Int = 0): List<JikanSearchResult> =
         runCatching {
             BangumiApiClient.mostCollected(BangumiApiClient.SubjectType.BOOK, tokenOrNull(context), limit, offset)
-                .data.map { it.toSearchResult(MediaType.Manga) }
+                .data.map { it.toSearchResult(MediaType.Manga) }.withLatinBangumiNames(context)
         }.getOrElse { logAndEmpty("trendingManga", it) }
 
     /** "En Yüksek Puanlı Mangalar". */
@@ -474,7 +511,7 @@ object KitsugiBangumiClient {
                 sort = BangumiApiClient.SearchSort.SCORE,
                 limit = limit,
                 offset = offset
-            ).data.map { it.toSearchResult(MediaType.Manga) }
+            ).data.map { it.toSearchResult(MediaType.Manga) }.withLatinBangumiNames(context)
                 .ifEmpty { topManga(limit, context) }
         }.getOrElse { logAndEmpty("topRatedManga", it) }
 

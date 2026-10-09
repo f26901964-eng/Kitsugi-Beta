@@ -1,5 +1,43 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.225)
+
+### 🌸 1. Bangumi Başlık Dili & Latin Ad Zenginleştirmesi (`KitsugiBangumiClient.kt`, `BangumiLocalizedName.kt`)
+- **Liste Kartlarında Latin Ad Desteği:** Bangumi liste ve arama uçları (`/v0/search`, `/v0/subjects`, sıralamalar vb.) infobox dönmediğinden Korece ve Çince dizi/anime başlıkları (ör. "김비서가 왜 그럴까", "눈물의 여왕") yerel dilde görünüyordu. Başlığı CJK olan kayıtlar için `withLatinBangumiNames` mekanizması devreye girerek arka planda (Semaphore 4 sınırlayıcı ile) subject detayını tek seferlik çeker, İngilizce/Romaji adları `BangumiTitleCache`'e yazar ve kart başlıklarını uygulama dil tercihine göre günceller.
+- **Tüm Bangumi Keşfet & Arama Listeleri:** En İyi Animeler/Mangalar, Popüler Listeler, Sezonluk Keşif, Real/Dizi Şeritleri ve Normal Arama dahil 15 farklı liste çağrısına uygulandı.
+- **Alternatif Adlar (Diğer İsimler) Filtresi:** Detay sayfalarındaki "Diğer Adlar" alanında Japonca, Çince ve Korece karakterli varyantlar gizlendi; kullanıcıya yalnızca temiz Latin harfli adlar sunulur.
+
+### 👤 2. Karakter & Kişi Detay Sayfası İyileştirmeleri (`CharacterDetailPage.kt`, `StaffDetailPage.kt`)
+- **Seçilen Dile Bağlı Japonca Alt Satır:** Karakter ve ekip detay sayfalarında adın altındaki Japonca yerel ad satırı, artık yalnızca kullanıcı uygulama dilini "Japonca/Yerel" seçtiğinde gösterilir. Diğer dillerde (İngilizce/Romaji) gereksiz tekrar engellendi.
+
+### 📱 3. Profil & Favoriler UI Düzeltmeleri (`AniListProfileContent.kt`, `ProfileFavoritesListemStyle.kt`)
+- **AniList Profil Kategori Butonu Hizalaması:** AniList profil favorilerindeki kategori filtre butonu (`bottomOffset = 96.dp`), kullanıcı profiliyle uyumlu olacak şekilde `20.dp`'ye indirilerek ekranın alt kenarıyla hizalandı.
+- **Hızlı Yukarı Kaydırma Butonu:** Favoriler listesinde yukarı dön butonu, kullanıcının 3 öğe beklemesine gerek kalmadan ilk öğeden çıkıldığı anda (~240px kaydırmada) anında görünür hale getirildi.
+
+### 📦 4. Dağıtım
+- Yalnızca **FOSS** sürümü (`assembleFossRelease`) derlendi (`Kitsugi-Beta-v2.4.225-foss.apk`).
+
+---
+
+## 🇬🇧 English (v2.4.225)
+
+### 🌸 1. Bangumi Title Localization & Latin Name Enrichment (`KitsugiBangumiClient.kt`, `BangumiLocalizedName.kt`)
+- **Latin Name Resolution for List Cards:** Bangumi list and search endpoints do not return infoboxes, previously causing Korean/CJK titles (e.g. "김비서가 왜 그럴까", "눈물의 여왕") to render in native script. The new `withLatinBangumiNames` pipeline queries subject details for CJK titles (rate-limited via Semaphore 4), caches English/Romaji names in `BangumiTitleCache`, and updates list cards to match user language preferences.
+- **Universal Coverage:** Covers Top Anime/Manga, Trending, Seasonal Browse, Real Drama/Movies, and Search lists (15 endpoints).
+- **Clean Alternative Names:** Filtered non-Latin scripts from "Other Names" on detail pages; CJK variants are excluded from alternative aliases.
+
+### 👤 2. Character & Staff Detail Localization (`CharacterDetailPage.kt`, `StaffDetailPage.kt`)
+- **Language-Aware Native Subtitle:** The Japanese native name subtitle below character and staff headings is now only shown when the user has selected "Native / Japanese" as their display language.
+
+### 📱 3. Profile & Favorites Layout Polish (`AniListProfileContent.kt`, `ProfileFavoritesListemStyle.kt`)
+- **AniList Profile Category Button Position:** Adjusted `bottomOffset` from `96.dp` to `20.dp` on the AniList profile tab, matching the user profile layout.
+- **Responsive Scroll-to-Top:** The floating scroll-to-top button now activates immediately after passing the first item (~240px) rather than waiting for item 4.
+
+### 📦 4. Distribution
+- Strictly released the **FOSS variant only** (`assembleFossRelease` -> `Kitsugi-Beta-v2.4.225-foss.apk`).
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.224)
 
 ### 🔐 1. Kitsugi Hesap Senkronizasyonu & Güvenli Kasa (`LinkedAccountVault.kt`, `KitsugiAccountRepository.kt`, `KitsugiAccountContent.kt`)

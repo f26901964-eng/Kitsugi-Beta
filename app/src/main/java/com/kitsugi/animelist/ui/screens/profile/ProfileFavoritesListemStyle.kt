@@ -435,7 +435,8 @@ fun BoxScope.ProfileFavoritesFloatingControls(
             }
     }
 
-    val showScrollToTop = visible && listState.firstVisibleItemIndex > 3
+    // Aşağı inildiği anda görünür olsun: ilk öğe dışına çıkmış ya da birkaç yüz piksel kaydırılmış olması yeterli
+    val showScrollToTop = visible && (listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 240)
 
     // Sol alt: kategori (Tümü butonunun karşılığı)
     AnimatedVisibility(

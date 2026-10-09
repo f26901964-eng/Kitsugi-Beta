@@ -381,7 +381,7 @@ fun AniListProfileContent(
         selectedCategory = favoritesFilter,
         categoryCounts = favCategoryCounts,
         onCategorySelected = { favoritesFilter = it },
-        bottomOffset = 96.dp
+        bottomOffset = 20.dp
     )
     }
 }
