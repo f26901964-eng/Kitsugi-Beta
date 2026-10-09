@@ -35,6 +35,44 @@ import org.json.JSONObject
 import java.io.File
 import java.net.URL
 
+/** İndirilen görselin gerçek formatı (dosya uzantısı + MIME). */
+data class ImageFormat(val extension: String, val mimeType: String)
+
+/**
+ * Görselin ORİJİNAL formatını baytlardan (magic number) tespit eder.
+ * GIF hareketli kalsın diye GIF olarak, PNG şeffaflığı korunsun diye PNG olarak kaydedilir.
+ * Tanınmazsa URL uzantısına, o da yoksa JPEG'e düşer.
+ */
+internal fun detectImageFormat(bytes: ByteArray, url: String = ""): ImageFormat {
+    fun startsWith(vararg sig: Int, offset: Int = 0): Boolean {
+        if (bytes.size < offset + sig.size) return false
+        return sig.indices.all { i -> (bytes[offset + i].toInt() and 0xFF) == sig[i] }
+    }
+    fun ascii(text: String, offset: Int = 0): Boolean {
+        if (bytes.size < offset + text.length) return false
+        return text.indices.all { i -> bytes[offset + i] == text[i].code.toByte() }
+    }
+    return when {
+        ascii("GIF87a") || ascii("GIF89a") -> ImageFormat("gif", "image/gif")
+        startsWith(0x89, 0x50, 0x4E, 0x47) -> ImageFormat("png", "image/png")
+        startsWith(0xFF, 0xD8, 0xFF) -> ImageFormat("jpg", "image/jpeg")
+        ascii("RIFF") && ascii("WEBP", 8) -> ImageFormat("webp", "image/webp")
+        ascii("ftyp", 4) && (ascii("avif", 8) || ascii("avis", 8)) -> ImageFormat("avif", "image/avif")
+        ascii("BM") -> ImageFormat("bmp", "image/bmp")
+        else -> {
+            val ext = url.substringBefore('?').substringAfterLast('.', "").lowercase()
+            when (ext) {
+                "gif" -> ImageFormat("gif", "image/gif")
+                "png" -> ImageFormat("png", "image/png")
+                "webp" -> ImageFormat("webp", "image/webp")
+                "avif" -> ImageFormat("avif", "image/avif")
+                "bmp" -> ImageFormat("bmp", "image/bmp")
+                else -> ImageFormat("jpg", "image/jpeg")
+            }
+        }
+    }
+}
+
 object KitsugiImageDownloadHelper {
 
     private const val CHANNEL_ID    = "kitsugi_image_downloads"
@@ -264,14 +302,14 @@ object KitsugiImageDownloadHelper {
             runCatching {
                 val cacheDir = File(context.cacheDir, "shared_images").also { it.mkdirs() }
                 val sanitizedTitle = title.replace(Regex("[^a-zA-Z0-9_]"), "_")
-                val imageFile = File(cacheDir, "Kitsugi_${sanitizedTitle}_${System.currentTimeMillis()}.jpg")
-
                 val connection = URL(url).openConnection()
                 connection.connectTimeout = 15_000
                 connection.readTimeout    = 15_000
-                connection.inputStream.use { input ->
-                    imageFile.outputStream().use { output -> input.copyTo(output) }
-                }
+                val bytes = connection.inputStream.use { it.readBytes() }
+                // Paylaşımda da orijinal format korunur (GIF hareketli kalır)
+                val format = detectImageFormat(bytes, url)
+                val imageFile = File(cacheDir, "Kitsugi_${sanitizedTitle}_${System.currentTimeMillis()}.${format.extension}")
+                imageFile.writeBytes(bytes)
 
                 val contentUri: Uri = FileProvider.getUriForFile(
                     context,
@@ -279,7 +317,7 @@ object KitsugiImageDownloadHelper {
                     imageFile
                 )
                 val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                    type = "image/*"
+                    type = format.mimeType
                     putExtra(Intent.EXTRA_STREAM, contentUri)
                     putExtra(Intent.EXTRA_TEXT, "$title\n$url")
                     addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
@@ -368,11 +406,9 @@ object KitsugiImageDownloadHelper {
                     .replace(Regex("[^\\p{L}\\p{N}_]"), "_")
                     .replace(Regex("_+"), "_")
                     .trim('_')
-                val filename       = "Kitsugi_${sanitizedTitle}_${System.currentTimeMillis()}.jpg"
-
-                // Show "downloading…" notification
+                // Show "downloading…" notification (dosya adı indirme bitince belli olur)
                 val notifId = (url.hashCode() and 0x7fffffff) + NOTIF_ID_BASE
-                showProgressNotification(context, notifId, title, filename)
+                showProgressNotification(context, notifId, title, "Kitsugi_${sanitizedTitle}")
 
                 // Download bytes — MAKSİMUM 48 MB (devasa görseller bellek tüketip
                 // LMKD/OOM ile süreci sessizce öldürüyordu: "resim indirirken pat diye kapanma")
@@ -396,13 +432,17 @@ object KitsugiImageDownloadHelper {
                     return@launch
                 }
 
+                // Orijinal format korunur (GIF → .gif, PNG → .png, ...). Hareketli GIF düz JPG'ye çevrilmez.
+                val format   = detectImageFormat(bytes, url)
+                val filename = "Kitsugi_${sanitizedTitle}_${System.currentTimeMillis()}.${format.extension}"
+
                 // Bildirim simgesi için KÜÇÜLTÜLMÜŞ bitmap — tam boy decode (ör. 4000x6000 JPEG)
                 // 96 MB'a kadar bellek istiyor ve süreci OOM ile öldürebiliyordu.
                 val thumbnail: Bitmap? = decodeSampledThumbnail(bytes)
 
                 // 1. Save to custom SAF folder
                 if (uriToUse.isNotBlank()) {
-                    val saved = saveToCustumUri(context, uriToUse, filename, bytes)
+                    val saved = saveToCustumUri(context, uriToUse, filename, bytes, format.mimeType)
                     if (saved) {
                         markImageDownloaded(context, url, filename, uriToUse)
                         withContext(Dispatchers.Main) {
@@ -415,7 +455,7 @@ object KitsugiImageDownloadHelper {
                 // 2. Android 10+ → MediaStore ile İndirilenler/Kitsugi/Images (izin gerekmez,
                 //    dosya galeri uygulamalarında ve dosya yöneticilerinde görünür)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    val savedUri = saveImageViaMediaStore(context, filename, bytes)
+                    val savedUri = saveImageViaMediaStore(context, filename, bytes, format.mimeType)
                     if (savedUri != null) {
                         markImageDownloaded(context, url, filename, "mediastore:$savedUri")
                         try {
@@ -455,7 +495,7 @@ object KitsugiImageDownloadHelper {
                 if (writeSuccess) {
                     markImageDownloaded(context, url, filename, "")
                     try {
-                        MediaScannerConnection.scanFile(context, arrayOf(targetFile.absolutePath), arrayOf("image/jpeg"), null)
+                        MediaScannerConnection.scanFile(context, arrayOf(targetFile.absolutePath), arrayOf(format.mimeType), null)
                     } catch (_: Throwable) {}
                     try {
                         com.kitsugi.animelist.core.diagnostics.KitsugiSessionSupervisor
@@ -488,7 +528,7 @@ object KitsugiImageDownloadHelper {
      *  2. MediaStore.Images -> Pictures/Kitsugi/Images (Galeri albüm konumu)
      * Başarılıysa content:// URI döner.
      */
-    private fun saveImageViaMediaStore(context: Context, filename: String, bytes: ByteArray): Uri? {
+    private fun saveImageViaMediaStore(context: Context, filename: String, bytes: ByteArray, mimeType: String): Uri? {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return null
         val resolver = context.contentResolver
 
@@ -499,7 +539,8 @@ object KitsugiImageDownloadHelper {
             collectionUri = MediaStore.Downloads.EXTERNAL_CONTENT_URI,
             relativePath = "${Environment.DIRECTORY_DOWNLOADS}/Kitsugi/Images",
             filename = filename,
-            bytes = bytes
+            bytes = bytes,
+            mimeType = mimeType
         )
         if (downloadUri != null) return downloadUri
 
@@ -510,7 +551,8 @@ object KitsugiImageDownloadHelper {
             collectionUri = MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
             relativePath = "${Environment.DIRECTORY_PICTURES}/Kitsugi/Images",
             filename = filename,
-            bytes = bytes
+            bytes = bytes,
+            mimeType = mimeType
         )
         if (picturesUri != null) return picturesUri
 
@@ -523,12 +565,13 @@ object KitsugiImageDownloadHelper {
         collectionUri: Uri,
         relativePath: String,
         filename: String,
-        bytes: ByteArray
+        bytes: ByteArray,
+        mimeType: String
     ): Uri? {
         return try {
             val values = ContentValues().apply {
                 put(MediaStore.MediaColumns.DISPLAY_NAME, filename)
-                put(MediaStore.MediaColumns.MIME_TYPE, "image/jpeg")
+                put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
                 put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
                 put(MediaStore.MediaColumns.IS_PENDING, 1)
             }
@@ -557,7 +600,7 @@ object KitsugiImageDownloadHelper {
                 val targetDir = Environment.getExternalStoragePublicDirectory(primaryDir)
                 val fullFile = if (subDir.isNotBlank()) File(targetDir, "$subDir/$filename") else File(targetDir, filename)
                 if (fullFile.exists()) {
-                    MediaScannerConnection.scanFile(context, arrayOf(fullFile.absolutePath), arrayOf("image/jpeg"), null)
+                    MediaScannerConnection.scanFile(context, arrayOf(fullFile.absolutePath), arrayOf(mimeType), null)
                 }
             } catch (_: Throwable) {}
 
@@ -594,13 +637,14 @@ object KitsugiImageDownloadHelper {
         context: Context,
         uriString: String,
         filename: String,
-        bytes: ByteArray
+        bytes: ByteArray,
+        mimeType: String
     ): Boolean {
         return try {
             val treeUri  = Uri.parse(uriString)
             val pickedDir = DocumentFile.fromTreeUri(context, treeUri)
             if (pickedDir != null && pickedDir.exists() && pickedDir.isDirectory) {
-                val imageFile = pickedDir.createFile("image/jpeg", filename)
+                val imageFile = pickedDir.createFile(mimeType, filename)
                 if (imageFile != null) {
                     context.contentResolver.openOutputStream(imageFile.uri)?.use { out ->
                         out.write(bytes)

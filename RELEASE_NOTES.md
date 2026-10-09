@@ -1,5 +1,61 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.224)
+
+### 🔐 1. Kitsugi Hesap Senkronizasyonu & Güvenli Kasa (`LinkedAccountVault.kt`, `KitsugiAccountRepository.kt`, `KitsugiAccountContent.kt`)
+- **Uçtan Uca Şifreli Bağlı Hesap Yedekleme:** AniList, MyAnimeList, Kitsu, Shikimori, Bangumi ve Simkl bağlantı token'ları (erişim ve yenileme anahtarları ile kullanıcı ID'leri) cihazdan çıkmadan önce istemci tarafında AES-256-GCM ile şifrelenir.
+- **Sıfır Bilgi Güvenlik Modeli:** Supabase ve sunucu tarafı yalnızca şifreli veriyi (`CipherBlob`) görür; düz metin token'lar sunucuya asla iletilmez.
+- **Şifreden Türetilen Kasa Anahtarı:** Rastgele 256-bit kasa anahtarı üretilir ve kullanıcının Kitsugi hesap şifresinden PBKDF2-SHA256 (210.000 iterasyon) ile türetilen anahtarla sarılarak saklanır (`vault_meta`). Kitsugi şifresi hiçbir yerde saklanmaz.
+- **Tek Girişle Otomatik Geri Yükleme:** Yeni bir cihazda veya yeniden kurulumda Kitsugi hesabına giriş yapıldığında, bağlı tüm servis hesapları otomatik olarak çözülüp geri yüklenir; servislere tek tek tekrar giriş yapma ihtiyacı ortadan kalkar.
+- **Otomatik Canlı Yedekleme:** Bağlı bir serviste token yenilendiğinde (`refresh_token` rotasyonu dahil), `LinkedAccountVault` değişikliği algılar ve 3 saniyelik güvenli gecikmeyle bulut yedeğini otomatik günceller.
+- **Geçici/Hassas Alan İzolasyonu:** OAuth geçici PKCE doğrulayıcıları (`*_code_verifier`, `*_pending_redirect_uri`) ve hesap şifreleri yedekleme kapsamı dışında tutulur.
+
+### 🔍 2. Bulut Arama Geçmişi & Kompakt Arama Çipleri (`SearchHistoryRepository.kt`, `SearchHistorySection.kt`)
+- **Cihazlar Arası Geçmiş Senkronizasyonu:** Arama yapıldığında, silindiğinde veya temizlendiğinde arama geçmişi otomatik olarak Kitsugi hesabına aktarılır (`user_data` tablosu `search_history` anahtarı).
+- **Zaman Damgalı İki Yönlü Birleştirme:** Giriş yapıldığında yerel ve bulut geçmişi zaman damgalarına göre akıllıca harmanlanır (`pullAndMergeSearchHistory`).
+- **Kompakt Arama Geçmişi Tasarımı:** Arama ekranındaki geçmiş çipleri modernize edildi; tek harfli/gürültülü sorgular filtrelenir, ilk 8 çip kompakt blokta gösterilir ve fazla sorgular "+N / Daha az" butonuyla açılıp kapanabilir.
+
+### ⚙️ 3. Ayarlar Menüsü Entegrasyonu (`SettingsScreen.kt`)
+- **"Kitsugi Hesabı" Menü Sayfası:** Ayarlar > Hesap altına "Kitsugi Hesabı" alt sayfası eklendi.
+- **Hesap Yönetimi:** E-posta ve şifre ile doğrudan kayıt olma, giriş yapma, anlık eşitleme ("Şimdi eşitle") ve güvenli çıkış yapma kontrolleri sağlandı.
+
+### 🖼️ 4. Orijinal Formatında Medya İndirme & Paylaşma (`KitsugiImageDownloadHelper.kt`)
+- **Magic Number Format Tespiti:** İndirilen görsellerin gerçek MIME ve formatı bayt başlıklarından (magic number) tespit edilir.
+- **Hareketli GIF & Şeffaf PNG Koruması:** Animasyonlu GIF'lerin düz JPEG'e dönüştürülmesi önlendi; GIF'ler `.gif`, PNG'ler `.png`, WebP'ler `.webp` olarak orijinal kalitesinde kaydedilir ve paylaşılır.
+
+### 📦 5. Dağıtım
+- Yalnızca **FOSS** sürümü (`assembleFossRelease`) derlendi (`Kitsugi-Beta-v2.4.224-foss.apk`).
+
+---
+
+## 🇬🇧 English (v2.4.224)
+
+### 🔐 1. Kitsugi Account Synchronization & Secure Vault (`LinkedAccountVault.kt`, `KitsugiAccountRepository.kt`, `KitsugiAccountContent.kt`)
+- **End-to-End Encrypted Linked Account Backup:** Access/refresh tokens and user IDs for connected platforms (AniList, MyAnimeList, Kitsu, Shikimori, Bangumi, Simkl) are encrypted on-device via AES-256-GCM before syncing to the cloud.
+- **Zero-Knowledge Security Architecture:** Supabase stores only ciphertext blobs; raw authentication tokens are never exposed to the server.
+- **Key Wrapping with PBKDF2:** A random 256-bit vault key encrypts token data and is wrapped using a key derived from the user's Kitsugi account password via PBKDF2-SHA256 (210,000 iterations). Passwords are never stored.
+- **Seamless Single-Sign-On Restoration:** Logging into a Kitsugi account on a new device automatically unwraps the vault and restores all connected service integrations without manual re-authentication.
+- **Real-Time Auto-Backup:** When service tokens refresh, changes trigger an automatic debounced backup (3-second window) to keep cloud vaults up-to-date.
+- **Transient Field Isolation:** Ephemeral OAuth data (`*_code_verifier`, `*_pending_redirect_uri`) and user passwords are strictly excluded from backups.
+
+### 🔍 2. Cloud Search History & Compact History Chips (`SearchHistoryRepository.kt`, `SearchHistorySection.kt`)
+- **Cross-Device Search Synchronization:** Search additions, deletions, and purges automatically sync with cloud storage under `search_history`.
+- **Timestamped Bidirectional Merge:** Account sign-in performs a smart conflict-free merge of local and remote search entries (`pullAndMergeSearchHistory`).
+- **Compact Search UI Redesign:** Replaced full-size chips with streamlined, responsive chips. Single-character queries are omitted, queries collapse to 8 items with "+N / Show less" expansion.
+
+### ⚙️ 3. Settings Interface Integration (`SettingsScreen.kt`)
+- **"Kitsugi Account" Section:** Added a dedicated "Kitsugi Account" settings destination under Settings > Account.
+- **Account Actions:** Sign-up, sign-in, manual forced synchronization ("Sync now"), and secure sign-out.
+
+### 🖼️ 4. True Format Media Preservation (`KitsugiImageDownloadHelper.kt`)
+- **Magic Number File Type Detection:** Inspects binary headers to accurately detect image MIME types and extensions.
+- **Animated GIF & PNG Preservation:** Prevents animated GIFs and transparent PNGs from being flattened into JPEGs; saves and shares media in its native format (.gif, .png, .webp).
+
+### 📦 5. Distribution
+- Strictly released the **FOSS variant only** (`assembleFossRelease` -> `Kitsugi-Beta-v2.4.224-foss.apk`).
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.223)
 
 ### 👤 1. Profil Favorileri & Listem Görünüm Uyarlaması (`ProfileFavoritesListemStyle.kt`, `AniListFavoritesTab.kt`, `KitsugiUserMediaListScreen.kt`)

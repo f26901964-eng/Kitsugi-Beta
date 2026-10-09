@@ -31,12 +31,26 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.material.icons.rounded.ExpandMore
+import androidx.compose.material.icons.rounded.ExpandLess
+import androidx.compose.foundation.clickable
 import com.kitsugi.animelist.model.MediaType
 
+/** Varsayılan olarak gösterilecek çip sayısı; gerisi "Daha fazla" ile açılır. */
+private const val COLLAPSED_CHIP_COUNT = 8
+
 /**
- * Arama geçmişi bölümü.
- * Modern, akışkan (wrapping) yatay çip tasarımıyla yer tasarrufu sağlar ve şık görünür.
+ * Arama geçmişi bölümü — kompakt tasarım.
+ * • Kısa (1 harf) ve tekrar eden sorgular gizlenir.
+ * • Varsayılan olarak tek bloğa sığan [COLLAPSED_CHIP_COUNT] çip gösterilir; geri kalanı açılır.
+ * • Çipler ince ve küçük; dokunma alanları korunur.
  */
 @OptIn(androidx.compose.foundation.layout.ExperimentalLayoutApi::class)
 @Composable
@@ -49,10 +63,25 @@ fun SearchHistorySection(
 ) {
     val accentColor = LocalKitsugiAccent.current
 
-    if (history.isEmpty()) return
+    // Gürültüyü azalt: boş/1 harfli sorguları at, büyük-küçük harf farkı olan tekrarları birleştir
+    val visibleHistory = remember(history) {
+        val seen = HashSet<String>()
+        history.filter { item ->
+            val q = item.query.trim()
+            q.length >= 2 && seen.add(q.lowercase())
+        }
+    }
+
+    if (visibleHistory.isEmpty()) return
+
+    var expanded by rememberSaveable { mutableStateOf(false) }
+    val canCollapse = visibleHistory.size > COLLAPSED_CHIP_COUNT
+    val shownItems = if (expanded || !canCollapse) visibleHistory
+                     else visibleHistory.take(COLLAPSED_CHIP_COUNT)
+    val hiddenCount = visibleHistory.size - shownItems.size
 
     Column(modifier = modifier.fillMaxWidth()) {
-        // Başlık satırı
+        // Başlık satırı (ince)
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -60,72 +89,89 @@ fun SearchHistorySection(
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Icon(
                     imageVector = Icons.Rounded.History,
                     contentDescription = null,
                     tint = KitsugiColors.TextSecondary,
-                    modifier = Modifier.size(18.dp)
+                    modifier = Modifier.size(14.dp)
                 )
                 Text(
                     text = "Son Aramalar",
                     color = KitsugiColors.TextSecondary,
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold
                 )
             }
 
-            IconButton(
-                onClick = onClearAll,
-                modifier = Modifier.size(36.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Rounded.Delete,
-                    contentDescription = "Tümünü temizle",
-                    tint = KitsugiColors.TextMuted,
-                    modifier = Modifier.size(16.dp)
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        FlowRow(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            history.forEach { item ->
-                Row(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
-                        .background(KitsugiColors.SurfaceSoft)
-                        .tvClickable(shape = RoundedCornerShape(12.dp)) { onHistoryItemClick(item) }
-                        .padding(start = 10.dp, end = 6.dp, top = 6.dp, bottom = 6.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (canCollapse) {
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(8.dp))
+                            .clickable { expanded = !expanded }
+                            .padding(horizontal = 6.dp, vertical = 2.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = if (expanded) "Daha az" else "+$hiddenCount",
+                            color = accentColor,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Icon(
+                            imageVector = if (expanded) Icons.Rounded.ExpandLess else Icons.Rounded.ExpandMore,
+                            contentDescription = null,
+                            tint = accentColor,
+                            modifier = Modifier.size(14.dp)
+                        )
+                    }
+                }
+                IconButton(
+                    onClick = onClearAll,
+                    modifier = Modifier.size(28.dp)
                 ) {
                     Icon(
-                        imageVector = Icons.Rounded.History,
-                        contentDescription = null,
+                        imageVector = Icons.Rounded.Delete,
+                        contentDescription = "Tümünü temizle",
                         tint = KitsugiColors.TextMuted,
                         modifier = Modifier.size(14.dp)
                     )
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            shownItems.forEach { item ->
+                Row(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(KitsugiColors.SurfaceSoft)
+                        .tvClickable(shape = RoundedCornerShape(8.dp)) { onHistoryItemClick(item) }
+                        .padding(start = 8.dp, end = 2.dp, top = 3.dp, bottom = 3.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
                     Text(
-                        text = item.query,
+                        text = item.query.trim(),
                         color = KitsugiColors.TextPrimary,
-                        style = MaterialTheme.typography.bodySmall,
+                        style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Medium,
                         maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.widthIn(max = 180.dp)
                     )
-
-                    Spacer(modifier = Modifier.width(2.dp))
 
                     IconButton(
                         onClick = { onRemoveItem(item) },
-                        modifier = Modifier.size(18.dp)
+                        modifier = Modifier.size(22.dp)
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Close,
