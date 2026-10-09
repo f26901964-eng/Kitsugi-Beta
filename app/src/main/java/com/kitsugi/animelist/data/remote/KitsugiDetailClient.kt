@@ -797,6 +797,10 @@ class KitsugiDetailClient {
                 "anilist" -> if (externalId < 100_000_000) externalId else realMalId ?: mergedDetail.realMalId
                 "kitsu" -> realMalId ?: mergedDetail.realMalId
                 "bangumi" -> mergedDetail.realMalId
+                // Shikimori kimlik uzayı MAL DEĞİLDİR — önce gerçek MAL kimliğine çözümlenir.
+                "shikimori" -> runCatching { KitsugiIdResolver.resolveMalIdFromShikimori(externalId) }.getOrNull()
+                    ?: mergedDetail.realMalId
+                "tmdb" -> realMalId ?: mergedDetail.realMalId
                 else -> null
             }
             val resolvedAniListId = runCatching {

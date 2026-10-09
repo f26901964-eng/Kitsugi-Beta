@@ -24,11 +24,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import com.kitsugi.animelist.utils.NextAiringFormat
 import kotlinx.coroutines.delay
 
 /**
- * FP-44 – "episode|airingAtEpoch" formatındaki string'i parse eden,
- * canlı geri sayım gösteren chip bileşeni.
+ * "episode|airingAtEpoch" formatındaki string'i parse eden, canlı geri sayım
+ * gösteren chip bileşeni. Tüm kaynaklar için aynı mantık:
+ * `"Bölüm 2 · 2026-10-15 · 6 gün sonra yayında"` (yayın tarihi + geri sayım).
+ *
+ * Bölüm numarası bilinmiyorsa `"Dizi · 2026-10-15 · …"`, film ise `"Film · …"`.
  *
  * @param nextAiringEpisode "episode|airingAtEpoch" formatında string. null ise gösterilmez.
  * @param accentColor Chip rengi (varsayılan: AccentOrange)
@@ -41,35 +45,19 @@ fun NextAiringChip(
 ) {
     if (nextAiringEpisode.isNullOrBlank()) return
 
-    val parts = remember(nextAiringEpisode) { nextAiringEpisode.split("|") }
-    val episode = remember(parts) { parts.getOrNull(0)?.toIntOrNull() } ?: return
-    val targetEpoch = remember(parts) { parts.getOrNull(1)?.toLongOrNull() } ?: return
+    val parsed = remember(nextAiringEpisode) { NextAiringFormat.parse(nextAiringEpisode) }
+    if (!parsed.isMachineFormat && parsed.legacyText.isNullOrBlank()) return
 
-    var countdownText by remember(episode, targetEpoch) { mutableStateOf("") }
+    var countdownText by remember(parsed) { mutableStateOf("") }
 
-    LaunchedEffect(episode, targetEpoch) {
+    LaunchedEffect(parsed) {
         while (true) {
-            val now = System.currentTimeMillis() / 1000L
-            val remaining = targetEpoch - now
-            countdownText = when {
-                remaining <= 0L -> "Bölüm $episode yayınlandı"
-                remaining < 3600L -> {
-                    val mins = (remaining / 60).toInt()
-                    val secs = (remaining % 60).toInt()
-                    "Bölüm $episode · %02d:%02d".format(mins, secs)
-                }
-                remaining < 86400L -> {
-                    val hours = (remaining / 3600).toInt()
-                    val mins = ((remaining % 3600) / 60).toInt()
-                    "Bölüm $episode · %02d:%02d sonra yayında".format(hours, mins)
-                }
-                else -> {
-                    val days = (remaining / 86400).toInt()
-                    "Bölüm $episode · $days gün sonra yayında"
-                }
-            }
+            countdownText = NextAiringFormat.chipText(parsed)
+            val targetEpoch = parsed.epoch
+            if (targetEpoch == null) break
+            val remaining = targetEpoch - System.currentTimeMillis() / 1000L
             if (remaining <= 0L) break
-            val delayMs = if (remaining < 3600L) 1_000L
+            val delayMs = if (remaining < 3600L) 30_000L
                           else if (remaining < 86400L) 10_000L
                           else 60_000L
             delay(delayMs)
@@ -112,32 +100,9 @@ fun NextAiringChip(
     modifier: Modifier = Modifier,
     accentColor: Color = KitsugiColors.AccentOrange
 ) {
-    val days = airingInSeconds / 86400
-    val hours = (airingInSeconds % 86400) / 3600
-    val timeText = when {
-        days > 0 -> "${days}g ${hours}sa"
-        hours > 0 -> "${hours} saat"
-        else -> "Yakında"
-    }
-    Row(
-        modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(accentColor.copy(alpha = 0.15f))
-            .padding(horizontal = 7.dp, vertical = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        Icon(
-            imageVector = Icons.Rounded.Schedule,
-            contentDescription = null,
-            tint = accentColor,
-            modifier = Modifier.size(11.dp)
-        )
-        Text(
-            text = "Bölüm $episodeNumber · $timeText sonra yayında",
-            color = accentColor,
-            style = MaterialTheme.typography.labelSmall,
-            fontWeight = FontWeight.Bold
-        )
-    }
+    NextAiringChip(
+        nextAiringEpisode = "$episodeNumber|$airingInSeconds",
+        modifier = modifier,
+        accentColor = accentColor
+    )
 }

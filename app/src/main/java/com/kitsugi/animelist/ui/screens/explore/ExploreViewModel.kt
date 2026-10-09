@@ -661,8 +661,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                         realMalId = null,
                         titleEnglish = entry.titleEnglish,
                         titleJapanese = entry.titleNative,
-                        // "-1|epoch": TMDB upcoming konvansiyonu — geri sayım "çıkıyor" ifadesi kullanır
-                        nextAiringEpisode = "-1|${entry.airingAt}",
+                        // "episode|epoch" — Film=0, prömiyer=Bölüm 1, bilinmeyen=-1
+                        nextAiringEpisode = "${entry.episode}|${entry.airingAt}",
                         tmdbId = entry.aniListId
                     )
                 }

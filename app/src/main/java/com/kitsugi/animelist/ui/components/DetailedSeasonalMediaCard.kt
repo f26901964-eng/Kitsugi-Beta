@@ -55,44 +55,28 @@ fun DetailedSeasonalMediaCard(
     val accentColor = LocalKitsugiAccent.current
     val displayTitle = result.getDisplayTitle(titleLanguage)
 
-    // Airing countdown logic
+    // Yayın geri sayımı — NextAiringFormat ile tüm kaynaklarda aynı:
+    // "Bölüm 2 · 2026-10-15 · 6 gün sonra yayında" (yayın tarihi + geri sayım)
     val nextAiringEpisode = result.nextAiringEpisode
     var airingText by remember(nextAiringEpisode) { mutableStateOf("") }
 
     if (!nextAiringEpisode.isNullOrBlank()) {
-        val parts = remember(nextAiringEpisode) { nextAiringEpisode.split("|") }
-        val episode = remember(parts) { parts.getOrNull(0)?.toIntOrNull() }
-        val targetEpoch = remember(parts) { parts.getOrNull(1)?.toLongOrNull() }
-
-        if (episode != null && targetEpoch != null) {
-            LaunchedEffect(episode, targetEpoch) {
+        val parsed = remember(nextAiringEpisode) { com.kitsugi.animelist.utils.NextAiringFormat.parse(nextAiringEpisode) }
+        if (parsed.isMachineFormat) {
+            LaunchedEffect(parsed) {
                 while (true) {
-                    val now = System.currentTimeMillis() / 1000L
-                    val remaining = targetEpoch - now
-                    val timeText = when {
-                        remaining <= 0L -> "yayınlandı"
-                        remaining < 3600L -> {
-                            val mins = (remaining / 60).toInt()
-                            "${mins} dk sonra"
-                        }
-                        remaining < 86400L -> {
-                            val hours = (remaining / 3600).toInt()
-                            val mins = ((remaining % 3600) / 60).toInt()
-                            "%02d:%02d sonra".format(hours, mins)
-                        }
-                        else -> {
-                            val days = (remaining / 86400).toInt()
-                            "$days gün sonra"
-                        }
-                    }
-                    airingText = "Bölüm $episode, $timeText yayında"
+                    airingText = com.kitsugi.animelist.utils.NextAiringFormat.chipText(parsed)
+                    val targetEpoch = parsed.epoch ?: break
+                    val remaining = targetEpoch - System.currentTimeMillis() / 1000L
                     if (remaining <= 0L) break
-                    val delayMs = if (remaining < 3600L) 1_000L
+                    val delayMs = if (remaining < 3600L) 30_000L
                                   else if (remaining < 86400L) 10_000L
                                   else 60_000L
                     kotlinx.coroutines.delay(delayMs)
                 }
             }
+        } else {
+            airingText = parsed.legacyText.orEmpty()
         }
     }
 

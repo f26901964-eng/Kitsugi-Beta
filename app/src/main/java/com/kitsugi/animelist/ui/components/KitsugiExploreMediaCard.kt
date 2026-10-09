@@ -359,7 +359,7 @@ fun KitsugiExploreMediaCard(
                         )
                     }
 
-                    // Yayın geri sayımı — sadece AniList kaynaklı, nextAiringEpisode dolu ise
+                    // Yayın geri sayımı — tüm kaynaklar (nextAiringEpisode dolu ise): tarih + geri sayım
                     if (!result.nextAiringEpisode.isNullOrBlank()) {
                         Spacer(modifier = Modifier.height(5.dp))
                         NextAiringChip(
@@ -496,7 +496,7 @@ fun KitsugiExploreMediaCard(
                     )
                 }
 
-                // Yayın geri sayımı — sadece AniList kaynaklı, nextAiringEpisode dolu ise
+                // Yayın geri sayımı — tüm kaynaklar (nextAiringEpisode dolu ise): tarih + geri sayım
                 if (!result.nextAiringEpisode.isNullOrBlank()) {
                     Spacer(modifier = Modifier.height(6.dp))
                     NextAiringChip(

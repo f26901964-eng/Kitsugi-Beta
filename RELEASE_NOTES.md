@@ -1,5 +1,53 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.225)
+
+### 🗓️ 1. Yayın Tarihi Mantığı Tüm Kaynaklarda Birleştirildi (`NextAiringFormat.kt`)
+- **Tek Biçim Katmanı:** `nextAiringEpisode` alanının "bölüm|epoch" makine biçimi ve eski TMDB düz metni (`Bölüm 2, 2026-10-15 tarihinde yayında`) tek bir yardımcıda toplandı; tüm kaynaklar (AniList, MAL/Jikan, TMDB, Kitsu, Shikimori, Bangumi, Simkl) aynı mantıkla çalışır.
+- **Detay Sayfaları:** "Yaklaşan Yayın" satırı artık her kaynakta hem yayın tarihini hem geri sayımı gösterir: `Bölüm 2, 2026-10-15 tarihinde yayında (6 gün sonra)`. Filmlerde `Film, 2026-10-28 tarihinde vizyonda`, bölüm numarası bilinmeyen dizilerde `Dizi, …` etiketi kullanılır.
+- **Kartlar/Çipler:** "Yakında Yayında" listeleri ve tüm keşif kartlarındaki geri sayım çipleri artık yayın tarihini de taşır: `Bölüm 2 · 2026-10-15 · 6 gün sonra yayında`. Anlamsız `Bölüm -1` ibaresi yerine `Dizi` / `Film` etiketleri gösterilir.
+- **Haftalık Takvim:** Yayın kartlarında tarih + saat birlikte görünür (`2026-10-15 14:30 • 19 gün sonra yayında`).
+
+### 🔌 2. Kaynak Tarafı Kapsam
+- **TMDB Detay:** `next_episode_to_air` ortak "bölüm|epoch" biçiminde üretilir; vizyon tarihi gelecekte olan filmler `0|epoch` (Film) işaretini alır — film detay sayfalarında da yaklaşan vizyon tarihi görünür.
+- **TMDB Listeler:** Film kayıtlarındaki sahte `Bölüm -1` yerine `Film` işareti; vizyon tarihleri kartlarda görünür.
+- **Shikimori:** `next_episode_at` alanından doğrudan yayın tarihi üretilir; erişilemezse AniList yedek zinciri devreye girer.
+- **Ortak Yedek Zincir:** `enrichDetail` artık Shikimori (MAL kimliği çözümlenerek) ve TMDB kaynaklarında da eksik yayın bilgisini AniList üzerinden tamamlar; Kitsu/Bangumi/Simkl/MAL akışları mevcut yedeği korur.
+- **Önbellek Uyumu:** Eski TMDB düz metni biçimindeki önbellek kayıtları tarihe indirgenerek aynı görüntüleme biçimine dönüştürülür.
+
+### 🧪 3. Testler
+- `NextAiringFormatTest`: biçim çözümleme, tarih yuvarlak dönüşümü, detay/çip metinleri, film/dizi etiketleri ve geri sayım skalası için 15 yeni birim testi.
+- `TmdbMediaDetailClientTest`: makine biçimi `25|epoch` doğrulaması + gelecek vizyon tarihli film (`0|epoch`) ve geçmiş tarihli film (boş) testleri.
+
+### 📦 4. Dağıtım
+- Sürüm: **v2.4.225** (`versionCode` zaman damgasından türetilir).
+
+---
+
+## 🇬🇧 English (v2.4.225)
+
+### 🗓️ 1. Unified Air-Date Logic Across All Sources (`NextAiringFormat.kt`)
+- **Single Format Layer:** The `nextAiringEpisode` "episode|epoch" machine format and legacy TMDB text (`Bölüm 2, 2026-10-15 tarihinde yayında`) now share one formatter; every source (AniList, MAL/Jikan, TMDB, Kitsu, Shikimori, Bangumi, Simkl) follows the same logic.
+- **Detail Pages:** The "Upcoming Air" line shows both the air date and countdown on every source: `Bölüm 2, 2026-10-15 tarihinde yayında (6 gün sonra)` — `Film, … tarihinde vizyonda` for movies, `Dizi, …` when the episode number is unknown.
+- **Cards/Chips:** Countdown chips on "Coming Soon" lists and all explore cards now carry the air date: `Bölüm 2 · 2026-10-15 · 6 gün sonra yayında`. The meaningless `Bölüm -1` label is replaced with `Dizi` / `Film` tags.
+- **Weekly Calendar:** Air cards show date + time together (`2026-10-15 14:30 • 19 gün sonra yayında`).
+
+### 🔌 2. Source Coverage
+- **TMDB Detail:** `next_episode_to_air` is emitted in the shared "episode|epoch" format; movies with future release dates get the `0|epoch` (Film) marker so upcoming releases appear on movie detail pages too.
+- **TMDB Lists:** Fake `Bölüm -1` on movie cards replaced with the `Film` tag; release dates visible on cards.
+- **Shikimori:** Air dates are derived directly from `next_episode_at`, with the AniList fallback chain as backup.
+- **Shared Fallback:** `enrichDetail` now completes missing air info via AniList for Shikimori (after MAL-ID resolution) and TMDB sources too; Kitsu/Bangumi/Simkl/MAL flows keep their existing fallback.
+- **Cache Compatibility:** Cached legacy TMDB text entries are normalized into the same display format.
+
+### 🧪 3. Tests
+- `NextAiringFormatTest`: 15 new unit tests covering parsing, date round-trip, detail/chip texts, movie/series labels and countdown scale.
+- `TmdbMediaDetailClientTest`: asserts the `25|epoch` machine format + movie future-release (`0|epoch`) and past-release (empty) cases.
+
+### 📦 4. Distribution
+- Version: **v2.4.225** (`versionCode` is timestamp-derived).
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.224)
 
 ### 🔐 1. Kitsugi Hesap Senkronizasyonu & Güvenli Kasa (`LinkedAccountVault.kt`, `KitsugiAccountRepository.kt`, `KitsugiAccountContent.kt`)
