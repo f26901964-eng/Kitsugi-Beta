@@ -78,7 +78,11 @@ android {
     }
 
     androidResources {
-        generateLocaleConfig = true
+        // OTOMATIK üretim KAPALI: `values/` niteliksiz olduğu için AGP onu bir yerel
+        // saymıyor ve yalnızca `en` içeren bir config üretiyordu. Android 13+ 'da
+        // Türkçe bu yüzden hiç seçilemiyordu. Beyanı elle veriyoruz:
+        // bkz. res/xml/locales_config.xml + AndroidManifest android:localeConfig
+        generateLocaleConfig = false
     }
 
     buildFeatures {

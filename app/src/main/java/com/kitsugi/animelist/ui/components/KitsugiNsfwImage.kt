@@ -35,12 +35,54 @@ object KitsugiBlurSupport {
     val hasRenderEffectBlur: Boolean = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
 
     /**
+     * RenderEffect yarıçapı için güvenli üst sınır.
+     *
+     * Özelleştirilmiş `libhwui` sürümlerinde (özellikle MIUI/HyperOS) büyük yarıçaplı
+     * bulanıklıklar GPU katmanı ayırırken RenderThread içinde SIGSEGV üretebiliyor.
+     * 24dp ve üzeri değerler çökme raporlarında görülen senaryolarla örtüşüyor.
+     */
+    val MAX_SAFE_BLUR_RADIUS: Dp = 16.dp
+
+    /**
      * Bitmap fallback bulanıklığı için Coil dönüşümü (stack blur).
      * Cihaz desteklemiyorsa otomatik olarak resme uygulanır; Coil disk belleğinde
      * cacheKey ile saklandığı için yalnızca bir kez hesaplanır.
      */
     fun bitmapBlurTransformation(radiusPx: Int): BlurTransformation =
         BlurTransformation(radiusPx.coerceIn(1, 250))
+}
+
+/**
+ * GÜVENLİ BULANIKLIK — `Modifier.blur()` yerine BUNU kullanın.
+ *
+ * NEDEN VAR?
+ * ──────────
+ * `Modifier.blur()` arka planda `RenderEffect.createBlurEffect()` çağırır ve
+ * GPU'da ayrı bir katman (layer) açar. Kullanıcıdan gelen çökme raporunda
+ * **7/7 native çökme birebir aynı imzaya** sahipti:
+ *
+ *     signal=SIGSEGV (11)   fault_addr=0x20
+ *     thread=RenderThread
+ *     /system/lib64/libhwui.so  (+0x1ff650, +0x779c4, +0x109550, ...)
+ *
+ * `fault_addr=0x20`, null bir RenderNode/SkImageFilter üzerinden alan okuma
+ * demektir — yani RenderThread yok edilmiş (ya da hiç oluşturulmamış) bir GPU
+ * katmanını çizmeye çalışıyor. Activity yeniden kurulurken (dil değişimi →
+ * `recreate()`), ekran dönerken veya büyük yarıçaplı katman ayrılırken olur.
+ *
+ * Bu sarmalayıcı üç şey yapar:
+ *   1. API 31 altında hiçbir şey uygulamaz (RenderEffect yok, boşa katman açmasın)
+ *   2. Yarıçapı [KitsugiBlurSupport.MAX_SAFE_BLUR_RADIUS] ile sınırlar
+ *   3. `enabled=false` ile tamamen devre dışı bırakılabilir
+ */
+fun Modifier.safeBlur(radius: Dp, enabled: Boolean = true): Modifier {
+    if (!enabled) return this
+    if (!KitsugiBlurSupport.hasRenderEffectBlur) return this
+    if (radius <= 0.dp) return this
+    return this.blur(
+        if (radius > KitsugiBlurSupport.MAX_SAFE_BLUR_RADIUS) KitsugiBlurSupport.MAX_SAFE_BLUR_RADIUS
+        else radius
+    )
 }
 
 /**
@@ -114,8 +156,10 @@ fun KitsugiNsfwImage(
     // Apply the blur at the Box level so that BOTH the placeholder background/shimmer
     // AND the loaded image are blurred — nothing leaks through during loading.
     Box(
+        // ÇÖKME ÖNLEMİ: doğrudan Modifier.blur() yerine güvenli sarmalayıcı.
+        // RenderEffect katmanı yalnızca API 31+ ve sınırlanmış yarıçapla açılır.
         modifier = modifier.then(
-            if (useRenderEffectBlur) Modifier.blur(blurRadius) else Modifier
+            Modifier.safeBlur(blurRadius, enabled = useRenderEffectBlur)
         ),
         contentAlignment = Alignment.Center
     ) {

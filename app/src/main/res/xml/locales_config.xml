@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Uygulama içi dil desteği beyanı (Android 13 / API 33+ per-app languages).
+
+  NEDEN GEREKLİ?
+  ──────────────
+  `androidResources { generateLocaleConfig = true }` ayarı bu beyanı `values-*`
+  klasörlerinden OTOMATIK üretiyordu. Projede yalnızca iki kaynak kökü var:
+    • values/     → niteliksiz (Türkçe metinler burada yaşıyor)
+    • values-en/  → İngilizce
+
+  Niteliksiz `values/` bir dil niteleyicisi TAŞIMADIĞI için AGP onu bir yerel
+  (locale) olarak saymıyordu. Sonuç: üretilen locale-config'te TEK bir dil
+  kalıyordu → `en`.
+
+  Android 13+ üzerinde çerçeve (LocaleManager) yalnızca beyan edilmiş dilleri
+  kabul eder. Bu yüzden:
+    • Sistem "Uygulama dili" ayarında Türkçe hiç görünmüyordu.
+    • `AppCompatDelegate.setApplicationLocales("tr")` çağrısı Türkçe beyan
+      edilmediği için filtreleniyor / yok sayılıyordu → arayüz İngilizce'de
+      takılıp kalıyordu ("İngilizce seçili ama her yer Türkçe" döngüsü).
+
+  Türkçe metinler niteliksiz `values/` altında olduğu için `tr` seçildiğinde
+  kaynak çözümlemesi yine doğru yere (Türkçe'ye) düşer; ek bir `values-tr/`
+  klasörü kopyalamaya gerek yoktur.
+-->
+<locale-config xmlns:android="http://schemas.android.com/apk/res/android">
+    <locale android:name="en" />
+    <locale android:name="tr" />
+</locale-config>
