@@ -38,6 +38,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.kitsugi.animelist.data.account.AccountErrorFormatter
 import com.kitsugi.animelist.data.account.KitsugiAccountClient
 import com.kitsugi.animelist.data.account.KitsugiAccountRepository
 import com.kitsugi.animelist.data.account.LinkedAccountVault
@@ -91,7 +92,7 @@ fun KitsugiAccountContent() {
 
     fun showError(prefix: String, e: Throwable) {
         isError = true
-        message = "$prefix: ${e.message ?: "bilinmeyen hata"}"
+        message = "$prefix: ${AccountErrorFormatter.userMessage(e)}"
     }
 
     fun submit() {
