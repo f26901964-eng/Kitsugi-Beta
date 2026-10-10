@@ -1067,10 +1067,36 @@ class KitsugiCharacterClient {
         }
     }
 
+    /**
+     * AniList karakter düğümü: adı sorguyla eşleşiyor mu (birebir / jeton kümesi) ve
+     * karakterin yer aldığı yapımlardan hiçbiri +18 değil mi?
+     */
+    private fun isVerifiedAniListCharacterNode(node: JSONObject, query: String): Boolean {
+        val nameObj = node.optJSONObject("name") ?: return false
+        val candidates = mutableListOf<String>()
+        nameObj.optNullableString("userPreferred")?.let { candidates.add(it) }
+        nameObj.optNullableString("full")?.let { candidates.add(it) }
+        nameObj.optNullableString("native")?.let { candidates.add(it) }
+        val alts = nameObj.optJSONArray("alternative")
+        if (alts != null) {
+            for (i in 0 until alts.length()) {
+                val alt = alts.optString(i)
+                if (alt.isNotBlank() && alt != "null") candidates.add(alt)
+            }
+        }
+        if (candidates.none { KitsugiPersonImageAggregator.nameMatches(query, it) }) return false
+        val edges = node.optJSONObject("media")?.optJSONArray("edges") ?: return true
+        for (i in 0 until edges.length()) {
+            val media = edges.optJSONObject(i)?.optJSONObject("node") ?: continue
+            if (media.optBoolean("isAdult", false)) return false
+        }
+        return true
+    }
+
     private suspend fun fetchAniListCharacterByName(name: String): KitsugiCharacterDetail? {
         val query = """
             query (${'$'}search: String) {
-                Page(page: 1, perPage: 1) {
+                Page(page: 1, perPage: 8) {
                     characters(search: ${'$'}search) {
                         id
                         isFavourite
@@ -1099,6 +1125,7 @@ class KitsugiCharacterClient {
                                 node {
                                     id
                                     idMal
+                                    isAdult
                                     title { userPreferred english romaji native }
                                     coverImage { large }
                                     type
@@ -1116,13 +1143,20 @@ class KitsugiCharacterClient {
                 }
             }
         """.trimIndent()
+        // Kimliksiz isim araması yalnızca ayırt edici adlarla yapılır (ör. "Suzu" değil).
+        if (!KitsugiPersonImageAggregator.isUnambiguousName(name)) return null
         val variables = JSONObject().put("search", name)
         return runCatching {
             val response = KitsugiApiBase.executeAniListQuery(query, variables) ?: return@runCatching null
             val root = JSONObject(response)
             val charactersArr = root.optJSONObject("data")?.optJSONObject("Page")?.optJSONArray("characters") ?: return@runCatching null
             if (charactersArr.length() == 0) return@runCatching null
-            val data = charactersArr.getJSONObject(0)
+            // İlk sonuç körlemesine alınmaz: yalnızca adı sorguyla eşleşen ve +18 yapımda
+            // geçmeyen karakter kabul edilir (aynı isimli başka karakterin verisi karışmaz).
+            val data = (0 until charactersArr.length())
+                .mapNotNull { charactersArr.optJSONObject(it) }
+                .firstOrNull { node -> isVerifiedAniListCharacterNode(node, name) }
+                ?: return@runCatching null
 
             val nameObj = data.optJSONObject("name")
             val personName = nameObj.aniListPersonName()
@@ -1281,7 +1315,9 @@ class KitsugiCharacterClient {
             for (variables in lookups) {
                 val list = runCatching { fetchAniListMediaCharacters(variables) }.getOrNull().orEmpty()
                 if (list.isEmpty()) continue
-                if (firstNonEmpty.isEmpty()) firstNonEmpty = list
+                // Yalnızca MAL ID ile gelen liste kesin yapımdır; başlık aramasının ilk sonucu
+                // yanlış bir yapım olabileceği için geri dönüş olarak kullanılmaz.
+                if (firstNonEmpty.isEmpty() && variables.has("idMal")) firstNonEmpty = list
                 if (characters.any { char -> matchAniListCharacter(char.name, list) != null }) {
                     aniChars = list
                     break
@@ -1681,23 +1717,19 @@ class KitsugiCharacterClient {
             // Ad eşleşmesi ZORUNLU: AniList araması alakasız karakterler döndürebilir.
             if (matchAniListCharacter(name, listOf(info)) == null) continue
 
-            // Doğrulama: karakterin yer aldığı yapımlardan biri hedef yapım mı?
-            val mediaNodes = node.optJSONObject("media")?.optJSONArray("nodes")
-            if (realMalId != null && realMalId > 0 && mediaNodes != null) {
-                var matchesTarget = false
-                var hasIdMal = false
-                for (m in 0 until mediaNodes.length()) {
-                    val media = mediaNodes.optJSONObject(m) ?: continue
-                    val idMal = media.optInt("idMal", 0)
-                    if (idMal > 0) hasIdMal = true
-                    if (idMal == realMalId) {
-                        matchesTarget = true
-                        break
-                    }
+            // Doğrulama ZORUNLU: karakterin yer aldığı yapımlardan biri hedef yapım (MAL ID) olmalı.
+            // Hedef yapım bilinmiyorsa veya yapım MAL ID'si yoksa isimle eşleşme kabul edilmez.
+            if (realMalId == null || realMalId <= 0) return null
+            val mediaNodes = node.optJSONObject("media")?.optJSONArray("nodes") ?: continue
+            var matchesTarget = false
+            for (m in 0 until mediaNodes.length()) {
+                val media = mediaNodes.optJSONObject(m) ?: continue
+                if (media.optInt("idMal", 0) == realMalId) {
+                    matchesTarget = true
+                    break
                 }
-                // idMal bilgisi olan yapımlar var ama hedefle uyuşmuyorsa bu karakteri atla.
-                if (!matchesTarget && hasIdMal) continue
             }
+            if (!matchesTarget) continue
             return info
         }
         return null

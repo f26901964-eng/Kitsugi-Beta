@@ -5,6 +5,8 @@
 
 package com.kitsugi.animelist.ui.screens.detail
 
+import com.kitsugi.animelist.ui.components.LocalKitsugiGalleryLoading
+import com.kitsugi.animelist.ui.components.KitsugiGalleryIconButton
 import android.content.Intent
 import android.net.Uri
 import androidx.compose.foundation.background
@@ -206,6 +208,7 @@ fun MediaEntryDetailPage(
     val targetSeason by viewModel.targetSeason.collectAsState()
     val galleryItems by viewModel.galleryItems.collectAsState()
     val galleryLoading by viewModel.galleryLoading.collectAsState()
+    CompositionLocalProvider(LocalKitsugiGalleryLoading provides galleryLoading) {
     val pageResetTrigger by viewModel.pageResetTrigger.collectAsState()
 
     // Sadece detay verisi hazır olana kadar yükleme ekranı göster.
@@ -346,7 +349,7 @@ fun MediaEntryDetailPage(
                     onUnlinkMangaClick = { viewModel.deleteMangaMapping(displayEntry.id) },
                     onGalleryOpen = { items, idx ->
                         activeGalleryCategory = items.getOrNull(idx)?.category ?: GalleryCategory.POSTER
-                        activeGalleryItems = items
+                        if (!galleryLoading) activeGalleryItems = items
                         activeGalleryIndex = idx
                     },
                     leftPanelFocusRequester = lpFocus,
@@ -367,7 +370,7 @@ fun MediaEntryDetailPage(
                     )
                 }
                 if (galleryItems.isNotEmpty() || !displayEntry.imageUrl.isNullOrBlank()) {
-                    IconButton(onClick = {
+                    KitsugiGalleryIconButton(onClick = {
                         val clickedUrl = displayEntry.imageUrl
                         val index = if (!clickedUrl.isNullOrBlank()) {
                             galleryItems.indexOfFirst { item ->
@@ -377,7 +380,7 @@ fun MediaEntryDetailPage(
                         } else -1
                         if (index >= 0) {
                             activeGalleryCategory = GalleryCategory.POSTER
-                            activeGalleryItems = galleryItems
+                            if (!galleryLoading) activeGalleryItems = galleryItems
                             activeGalleryIndex = index
                         } else if (!clickedUrl.isNullOrBlank()) {
                             val coverItem = GalleryItem(
@@ -386,21 +389,15 @@ fun MediaEntryDetailPage(
                                 source = displayEntry.source
                             )
                             activeGalleryCategory = GalleryCategory.POSTER
-                            activeGalleryItems = listOf(coverItem) + galleryItems
+                            if (!galleryLoading) activeGalleryItems = listOf(coverItem) + galleryItems
                             activeGalleryIndex = 0
                         } else {
                             val posterIndex = galleryItems.indexOfFirst { it.category == GalleryCategory.POSTER }.coerceAtLeast(0)
                             activeGalleryCategory = GalleryCategory.POSTER
-                            activeGalleryItems = galleryItems
+                            if (!galleryLoading) activeGalleryItems = galleryItems
                             activeGalleryIndex = posterIndex
                         }
-                    }) {
-                        Icon(
-                            imageVector = Icons.Rounded.Image,
-                            contentDescription = "Galeri",
-                            tint = accentColor
-                        )
-                    }
+                    }, accentColor = accentColor)
                 }
                 if (showFavouriteButton) {
                     IconButton(onClick = onToggleFavoriteClick) {
@@ -434,7 +431,7 @@ fun MediaEntryDetailPage(
                         onUnlinkMangaClick = { viewModel.deleteMangaMapping(displayEntry.id) },
                         onGalleryOpen = { items, idx ->
                             activeGalleryCategory = items.getOrNull(idx)?.category ?: GalleryCategory.POSTER
-                            activeGalleryItems = items
+                            if (!galleryLoading) activeGalleryItems = items
                             activeGalleryIndex = idx
                         },
                         leftPanelFocusRequester = lpFocus,
@@ -470,7 +467,7 @@ fun MediaEntryDetailPage(
                                 { showIntegrationsDialog = true }
                             } else null,
                             onImageGalleryRequest = { urls, index ->
-                                activeGalleryItems = urls.map { url ->
+                                if (!galleryLoading) activeGalleryItems = urls.map { url ->
                                     GalleryItem(url = url, category = GalleryCategory.OTHER, source = "Açıklama")
                                 }
                                 activeGalleryIndex = index
@@ -478,7 +475,7 @@ fun MediaEntryDetailPage(
                             galleryItems = galleryItems,
                             galleryLoading = galleryLoading,
                             onGalleryItemRequest = { items, index ->
-                                activeGalleryItems = items
+                                if (!galleryLoading) activeGalleryItems = items
                                 activeGalleryIndex = index
                             },
                             onTranslateClick = { viewModel.translateSynopsis(displayEntry) }
@@ -496,14 +493,14 @@ fun MediaEntryDetailPage(
                                     items = galleryItems,
                                     isAdult = displayEntry.isAdult,
                                     onItemClick = { index ->
-                                        activeGalleryItems = galleryItems
+                                        if (!galleryLoading) activeGalleryItems = galleryItems
                                         activeGalleryIndex = index
                                     },
                                     onOpenGallery = { category ->
                                         val startIndex = if (category == null) 0
                                         else galleryItems.indexOfFirst { it.category == category }.coerceAtLeast(0)
                                         activeGalleryCategory = category
-                                        activeGalleryItems = galleryItems
+                                        if (!galleryLoading) activeGalleryItems = galleryItems
                                         activeGalleryIndex = startIndex
                                     }
                                 )
@@ -656,6 +653,7 @@ fun MediaEntryDetailPage(
                 onDismiss = { showIntegrationsDialog = false }
             )
         }
+    }
     }
 
 

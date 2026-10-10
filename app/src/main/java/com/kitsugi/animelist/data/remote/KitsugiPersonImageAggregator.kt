@@ -74,7 +74,11 @@ object KitsugiPersonImageAggregator {
     ): List<SourceImage> {
         val canonical = MalJikanMediaSupport.canonicalSource(source)
         val isBangumiSource = canonical == "bangumi" || canonical == "bgm"
+        // İsimle (kimliksiz) arama yalnızca AYIRT EDİCİ adlarla yapılır: "Suzu", "Ayane" gibi
+        // tek kelimelik adlar binlerce farklı yapımın karakterinde geçer; bu adlarla yapılan
+        // aramalar alakasız karakterin görselini getiriyordu.
         val nameCandidates = names.filter { it.isNotBlank() }.map { it.trim() }.distinct()
+            .filter { isUnambiguousName(it) }
             .take(SEARCH_NAME_ATTEMPTS)
         val knownMalId = when {
             MalJikanMediaSupport.isMalSource(source) ->
@@ -261,12 +265,15 @@ object KitsugiPersonImageAggregator {
         if (names.isEmpty()) return@withContext emptyList()
 
         val pageField = if (kind == PersonKind.CHARACTER) "characters" else "staff"
+        // Karakterlerde yapım bilgisi (+18 kontrolü için) de istenir.
+        val mediaField = if (kind == PersonKind.CHARACTER) "media(perPage: 10) { nodes { isAdult } }" else ""
         for (name in names) {
             val query = """
                 query (${'$'}search: String) {
                     Page(page: 1, perPage: 5) {
                         $pageField(search: ${'$'}search) {
                             id name { full userPreferred native } image { large }
+                            $mediaField
                         }
                     }
                 }
@@ -287,6 +294,9 @@ object KitsugiPersonImageAggregator {
                 )
                 val matched = names.any { requested -> candidateNames.any { candidate -> nameMatches(requested, candidate) } }
                 if (matched) {
+                    // Kimliksiz isim eşleşmesi: +18 bir yapımda geçen karakter, sayfanın karakteri
+                    // olmayabilir (aynı isimli farklı karakter) → atlanır.
+                    if (kind == PersonKind.CHARACTER && hasAdultAniListMedia(obj)) continue
                     val image = obj.optJSONObject("image")?.optNullableString("large")
                     if (!image.isNullOrBlank()) return@withContext listOf(SourceImage(image, SRC_ANILIST))
                 }
@@ -456,6 +466,8 @@ object KitsugiPersonImageAggregator {
         for (name in names) {
             val results = runCatching { client.searchPerson(name) }.getOrNull().orEmpty()
             for (result in results) {
+                // TMDB'nin yetişkin (+18) işaretli kişileri isimle eşleştirmede asla kullanılmaz.
+                if (result.isAdult) continue
                 if (names.any { nameMatches(it, result.title) }) {
                     return result.malId.takeIf { it > 0 }
                 }
@@ -474,6 +486,29 @@ object KitsugiPersonImageAggregator {
         .replace(Regex("[^\\p{L}\\p{N}\\s]"), " ")
         .replace(Regex("\\s+"), " ")
         .trim()
+
+    /** AniList karakter düğümünün yapımlarından herhangi biri +18 ise true (kimliksiz eşleşmede elenir). */
+    internal fun hasAdultAniListMedia(node: JSONObject): Boolean {
+        val nodes = node.optJSONObject("media")?.optJSONArray("nodes") ?: return false
+        for (i in 0 until nodes.length()) {
+            if (nodes.optJSONObject(i)?.optBoolean("isAdult", false) == true) return true
+        }
+        return false
+    }
+
+    /**
+     * Kimliksiz (isimle) aramada kullanılabilecek kadar ayırt edici mi?
+     *  - En az iki kelime (ad + soyad / "Takeshi Gouda") → kabul.
+     *  - Tek kelime ise yalnızca Japonca/Çince (CJK) ve en az 3 karakterli ad kabul edilir
+     *    (ör. "森田鈴"). Latin tek kelimeli adlar ("Suzu", "Ayane") belirsizdir → reddedilir.
+     */
+    internal fun isUnambiguousName(value: String): Boolean {
+        val normalized = normalizeName(value)
+        val tokens = normalized.split(" ").filter { it.isNotBlank() }
+        if (tokens.size >= 2) return true
+        val single = tokens.firstOrNull() ?: return false
+        return single.length >= 3 && single.any { it.code >= 0x2E80 }
+    }
 
     /**
      * Sıkı eşleşme: tam normalize eşitlik veya aynı jeton kümesi (ör. "Kagenou Cid" ≡

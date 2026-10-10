@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.PhotoLibrary
 import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
+import com.kitsugi.animelist.ui.components.LocalKitsugiGalleryLoading
 import com.kitsugi.animelist.ui.components.KitsugiPlatformLogos
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -36,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -239,6 +241,8 @@ internal fun DetailGalleryCard(
     isAdult: Boolean = false
 ) {
     val accentColor = LocalKitsugiAccent.current
+    // Galeri tüm kaynaklardan yüklenene kadar görseller ve kategori butonu tıklanamaz.
+    val galleryLoading = LocalKitsugiGalleryLoading.current
 
     Column(
         modifier = Modifier
@@ -292,7 +296,8 @@ internal fun DetailGalleryCard(
             // Kategori seçici buton
             Box {
                 IconButton(
-                    onClick = { showCategoryMenu = true }
+                    onClick = { showCategoryMenu = true },
+                    enabled = !galleryLoading
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.PhotoLibrary,
@@ -475,7 +480,8 @@ internal fun DetailGalleryCard(
                                     .aspectRatio(aspectRatio)
                                     .clip(RoundedCornerShape(12.dp))
                                     .border(1.dp, KitsugiColors.Border, RoundedCornerShape(12.dp))
-                                    .tvClickable(shape = RoundedCornerShape(12.dp)) { onItemClick(mainIndex) }
+                                    .alpha(if (galleryLoading) 0.5f else 1f)
+                                    .tvClickable(enabled = !galleryLoading, shape = RoundedCornerShape(12.dp)) { onItemClick(mainIndex) }
                             ) {
                                 com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
                                     model = item.url,

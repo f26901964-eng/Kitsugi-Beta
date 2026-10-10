@@ -5,6 +5,8 @@
 
 package com.kitsugi.animelist.ui.screens.detail
 
+import androidx.compose.runtime.CompositionLocalProvider
+import com.kitsugi.animelist.ui.components.LocalKitsugiGalleryLoading
 import androidx.compose.foundation.background
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.horizontalScroll
@@ -129,6 +131,8 @@ fun CharacterDetailPage(
 
     // Obtain ViewModel
     val viewModel: CharacterDetailViewModel = viewModel(key = "character_${source}_${characterId}")
+    val galleryLoading by viewModel.galleryLoading.collectAsState()
+    CompositionLocalProvider(LocalKitsugiGalleryLoading provides galleryLoading) {
 
     // Load character in ViewModel — kartta gösterilen görsel (imageUrl) ipucu olarak
     // iletilir; kaynakta görsel yoksa detay sayfası resimsiz kalmaz.
@@ -284,7 +288,7 @@ fun CharacterDetailPage(
                                     onBackClick = onBackClick,
                                     onToggleFavourite = { viewModel.toggleFavourite() },
                                     onGalleryClick = { items, idx ->
-                                        activeGalleryItems = items
+                                        if (!galleryLoading) activeGalleryItems = items
                                         activeGalleryIndex = idx
                                     },
                                     modifier = Modifier.weight(leftPanelWeight)
@@ -353,7 +357,7 @@ fun CharacterDetailPage(
                                                     preferredTranslator = preferredTranslator,
                                                     accentColor = accentColor,
                                                     onGalleryClick = { items, idx ->
-                                                        activeGalleryItems = items
+                                                        if (!galleryLoading) activeGalleryItems = items
                                                         activeGalleryIndex = idx
                                                     },
                                                     onTranslateClick = { viewModel.translateBio() }
@@ -410,7 +414,7 @@ fun CharacterDetailPage(
                                     onBackClick = onBackClick,
                                     onToggleFavourite = { viewModel.toggleFavourite() },
                                     onGalleryOpen = { items, idx ->
-                                        activeGalleryItems = items
+                                        if (!galleryLoading) activeGalleryItems = items
                                         activeGalleryIndex = idx
                                     }
                                 )
@@ -432,7 +436,7 @@ fun CharacterDetailPage(
                                     onBackClick = onBackClick,
                                     onToggleFavourite = { viewModel.toggleFavourite() },
                                     onGalleryOpen = { items, idx ->
-                                        activeGalleryItems = items
+                                        if (!galleryLoading) activeGalleryItems = items
                                         activeGalleryIndex = idx
                                     },
                                     onTabSelected = { coroutineScope.launch { pagerState.animateScrollToPage(it) } }
@@ -509,7 +513,7 @@ fun CharacterDetailPage(
                                                         preferredTranslator = preferredTranslator,
                                                         accentColor = accentColor,
                                                         onGalleryClick = { items, idx ->
-                                                            activeGalleryItems = items
+                                                            if (!galleryLoading) activeGalleryItems = items
                                                             activeGalleryIndex = idx
                                                         },
                                                         onTranslateClick = { viewModel.translateBio() }
@@ -554,6 +558,7 @@ fun CharacterDetailPage(
                 } // end PullToRefreshBox
             }
         }
+    }
     }
 }
 

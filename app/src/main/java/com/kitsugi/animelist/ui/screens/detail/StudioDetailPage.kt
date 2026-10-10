@@ -1,5 +1,8 @@
 package com.kitsugi.animelist.ui.screens.detail
 
+import androidx.compose.runtime.CompositionLocalProvider
+import com.kitsugi.animelist.ui.components.LocalKitsugiGalleryLoading
+import com.kitsugi.animelist.ui.components.KitsugiGalleryIconButton
 import android.content.res.Configuration
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -106,6 +109,8 @@ fun StudioDetailPage(
 
     // Obtain ViewModel
     val viewModel: StudioDetailViewModel = viewModel(key = "studio_${source}_${studioId}")
+    val galleryLoading by viewModel.galleryLoading.collectAsState()
+    CompositionLocalProvider(LocalKitsugiGalleryLoading provides galleryLoading) {
 
     // Load studio in ViewModel
     LaunchedEffect(studioId, source, name) {
@@ -194,7 +199,7 @@ fun StudioDetailPage(
                     onToggleFavourite = { viewModel.toggleFavourite() },
                     onMediaClick = onMediaClick,
                     onGalleryClick = { items, idx ->
-                        activeGalleryItems = items
+                        if (!galleryLoading) activeGalleryItems = items
                         activeGalleryIndex = idx
                     }
                 )
@@ -209,6 +214,7 @@ fun StudioDetailPage(
                 }
             }
         }
+    }
     }
 }
 
@@ -615,13 +621,7 @@ private fun StudioDetailSuccessContent(
                         modifier = Modifier.weight(1f)
                     )
                     if (onOpenGallery != null) {
-                        IconButton(onClick = onOpenGallery) {
-                            Icon(
-                                imageVector = Icons.Rounded.Image,
-                                contentDescription = "Galeri",
-                                tint = accentColor
-                            )
-                        }
+                        KitsugiGalleryIconButton(onClick = onOpenGallery, accentColor = accentColor)
                     }
                     if (showFavouriteButton) {
                         IconButton(onClick = onToggleFavourite) {

@@ -129,8 +129,9 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
     private val _galleryItems = MutableStateFlow<List<GalleryItem>>(emptyList())
     val galleryItems: StateFlow<List<GalleryItem>> = _galleryItems.asStateFlow()
 
-    private val _galleryLoading = MutableStateFlow(true)
-    val galleryLoading: StateFlow<Boolean> = _galleryLoading.asStateFlow()
+    /** Galeri tüm kaynaklardan (detay + galeri + yenileme) bitene kadar true. */
+    private val galleryTracker = GalleryLoadTracker()
+    val galleryLoading: StateFlow<Boolean> = galleryTracker.loading
 
     /** Her yeni entry navigasyonunda artar — UI bu trigger’ı izleyerek tab’ı 0’a sıfırlar. */
     private val _pageResetTrigger = MutableStateFlow(0)
@@ -197,7 +198,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
         _episodeRatings.value = emptyMap()
         _resolvedTmdbId.value = null
         _galleryItems.value = emptyList()
-        _galleryLoading.value = true
+        galleryTracker.reset()
 
         // Reset tab states to either cached values or Loading
         val malId = stableId
@@ -248,7 +249,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
         }
 
         // Detail fetch — sayfa render için kritik; öncelikli coroutine
-        viewModelScope.launch {
+        val detailJob = viewModelScope.launch {
             try {
                 fetchDetail(entry)
             } catch (e: Exception) {
@@ -257,16 +258,17 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             }
         }
 
-        // Galeri + Fanart.tv — detail ile paralel; tamamlandığında sayfa
-        // zaten açık olduğundan sadece galeri bölümü güncellenir.
+        // Galeri + Fanart.tv: galeri, detay verisine (banner, tanıtım görselleri, TMDB kimliği)
+        // bağlı olduğu için detay bitince başlar. Galeri tüm kaynaklarla bitene kadar "yükleniyor".
+        val galleryToken = galleryTracker.begin()
         viewModelScope.launch {
             try {
-                _galleryLoading.value = true
+                detailJob.join()
                 fetchFanartGallery(entry)
             } catch (e: Exception) {
                 Log.e(TAG, "Error fetching Fanart gallery (post-detail): ${e.message}", e)
             } finally {
-                _galleryLoading.value = false
+                galleryTracker.end(galleryToken)
             }
         }
 
@@ -415,11 +417,14 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             // Detaydan gelen TMDB ID veya resimler varsa ve galeri henüz kısıtlıysa galeriyi zenginleştir.
             // Bangumi'de çapraz kimlikler detayla birlikte çözüldüğü için galeri her zaman bir kez yenilenir.
             if (_galleryItems.value.size <= 2 || entry.source.equals("bangumi", ignoreCase = true)) {
+                val refreshToken = galleryTracker.begin()
                 viewModelScope.launch {
                     try {
                         fetchFanartGallery(entry)
                     } catch (e: Exception) {
                         Log.e(TAG, "Post-detail gallery refresh failed: ${e.message}")
+                    } finally {
+                        galleryTracker.end(refreshToken)
                     }
                 }
             }

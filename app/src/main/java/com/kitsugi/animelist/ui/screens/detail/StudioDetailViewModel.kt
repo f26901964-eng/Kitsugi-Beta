@@ -35,6 +35,10 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
     private val _galleryItems = MutableStateFlow<List<GalleryItem>>(emptyList())
     val galleryItems: StateFlow<List<GalleryItem>> = _galleryItems.asStateFlow()
 
+    /** Galeri tüm kaynaklardan (detay + galeri + yenileme) bitene kadar true. */
+    private val galleryTracker = GalleryLoadTracker()
+    val galleryLoading: StateFlow<Boolean> = galleryTracker.loading
+
     private val _isFavourite = MutableStateFlow(false)
     val isFavourite: StateFlow<Boolean> = _isFavourite.asStateFlow()
 
@@ -70,6 +74,7 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
         _state.value = if (cachedStudioDetail != null) StudioDetailState.Success(cachedStudioDetail) else StudioDetailState.Loading
         if (cachedStudioDetail != null) _isFavourite.value = cachedStudioDetail.isFavourite
 
+        galleryTracker.reset()
         viewModelScope.launch {
             fetchStudioDetail(studioId, source, expectedFetchKey = newKey, name = lastStudioName)
         }
@@ -88,7 +93,23 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
+    /** Stüdyo detayı + galerisi bitene kadar galeri yükleniyor sayılır. */
     private suspend fun fetchStudioDetail(
+        studioId: Int,
+        source: String,
+        expectedFetchKey: String,
+        name: String? = null,
+        force: Boolean = false
+    ) {
+        val token = galleryTracker.begin()
+        try {
+            fetchStudioDetailInternal(studioId, source, expectedFetchKey, name, force)
+        } finally {
+            galleryTracker.end(token)
+        }
+    }
+
+    private suspend fun fetchStudioDetailInternal(
         studioId: Int,
         source: String,
         expectedFetchKey: String,

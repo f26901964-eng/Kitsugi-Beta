@@ -41,6 +41,10 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
     private val _galleryItems = MutableStateFlow<List<GalleryItem>>(emptyList())
     val galleryItems: StateFlow<List<GalleryItem>> = _galleryItems.asStateFlow()
 
+    /** Galeri tüm kaynaklardan (detay + galeri + yenileme) bitene kadar true. */
+    private val galleryTracker = GalleryLoadTracker()
+    val galleryLoading: StateFlow<Boolean> = galleryTracker.loading
+
     private val _translatedBio = MutableStateFlow<String?>(null)
     val translatedBio: StateFlow<String?> = _translatedBio.asStateFlow()
 
@@ -95,6 +99,7 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
 
         Log.d(TAG, "loadCharacter: New key=$newKey (was $currentFetchKey)")
         currentFetchKey = newKey
+        galleryTracker.reset()
         lastCharacterId = characterId
         lastSource = source
         lastCharacterName = name
@@ -153,7 +158,17 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
         }
     }
 
+    /** Detay + galeri işinin tamamını izler; galeri bitmeden [galleryLoading] false olmaz. */
     private suspend fun fetchCharacterDetail(characterId: Int, source: String, name: String? = null, force: Boolean = false, isRealMediaRole: Boolean = false) {
+        val token = galleryTracker.begin()
+        try {
+            fetchCharacterDetailInternal(characterId, source, name, force, isRealMediaRole)
+        } finally {
+            galleryTracker.end(token)
+        }
+    }
+
+    private suspend fun fetchCharacterDetailInternal(characterId: Int, source: String, name: String? = null, force: Boolean = false, isRealMediaRole: Boolean = false) {
         if (force) {
             DetailCache.removeCharacterDetail(source, characterId)
         }

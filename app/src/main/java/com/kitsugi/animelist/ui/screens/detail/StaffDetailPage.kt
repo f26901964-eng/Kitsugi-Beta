@@ -5,6 +5,8 @@
 
 package com.kitsugi.animelist.ui.screens.detail
 
+import androidx.compose.runtime.CompositionLocalProvider
+import com.kitsugi.animelist.ui.components.LocalKitsugiGalleryLoading
 import androidx.compose.foundation.background
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.horizontalScroll
@@ -127,6 +129,8 @@ fun StaffDetailPage(
 
     // Obtain ViewModel
     val viewModel: StaffDetailViewModel = viewModel(key = "staff_${source}_${staffId}")
+    val galleryLoading by viewModel.galleryLoading.collectAsState()
+    CompositionLocalProvider(LocalKitsugiGalleryLoading provides galleryLoading) {
 
     // Load staff in ViewModel
     LaunchedEffect(staffId, source) {
@@ -285,7 +289,7 @@ fun StaffDetailPage(
                                     onBackClick = onBackClick,
                                     onToggleFavourite = { viewModel.toggleFavourite() },
                                     onGalleryClick = { items, idx ->
-                                        activeGalleryItems = items
+                                        if (!galleryLoading) activeGalleryItems = items
                                         activeGalleryIndex = idx
                                     },
                                     modifier = Modifier.weight(leftPanelWeight)
@@ -338,7 +342,7 @@ fun StaffDetailPage(
                                                     preferredTranslator = preferredTranslator,
                                                     accentColor = accentColor,
                                                     onGalleryClick = { items, idx ->
-                                                        activeGalleryItems = items
+                                                        if (!galleryLoading) activeGalleryItems = items
                                                         activeGalleryIndex = idx
                                                     },
                                                     onTranslateClick = { viewModel.translateBio() }
@@ -396,7 +400,7 @@ fun StaffDetailPage(
                                     onBackClick = onBackClick,
                                     onToggleFavourite = { viewModel.toggleFavourite() },
                                     onGalleryOpen = { items, idx ->
-                                        activeGalleryItems = items
+                                        if (!galleryLoading) activeGalleryItems = items
                                         activeGalleryIndex = idx
                                     }
                                 )
@@ -423,7 +427,7 @@ fun StaffDetailPage(
                                     onBackClick = onBackClick,
                                     onToggleFavourite = { viewModel.toggleFavourite() },
                                     onGalleryOpen = { items, idx ->
-                                        activeGalleryItems = items
+                                        if (!galleryLoading) activeGalleryItems = items
                                         activeGalleryIndex = idx
                                     },
                                     onTabSelected = { index ->
@@ -502,7 +506,7 @@ fun StaffDetailPage(
                                                         preferredTranslator = preferredTranslator,
                                                         accentColor = accentColor,
                                                         onGalleryClick = { items, idx ->
-                                                            activeGalleryItems = items
+                                                            if (!galleryLoading) activeGalleryItems = items
                                                             activeGalleryIndex = idx
                                                         },
                                                         onTranslateClick = { viewModel.translateBio() }
@@ -548,5 +552,6 @@ fun StaffDetailPage(
         } // end Success
     } // end when
 } // end outer Box
+    }
 } // end StaffDetailPage
 
