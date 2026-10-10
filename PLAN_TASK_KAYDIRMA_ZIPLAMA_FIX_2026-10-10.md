@@ -37,3 +37,12 @@ Sayfalar ve kutucuklar ileri-geri zıplıyor, uygulama kasıyor/donuyor, yukarı
 ## Paket notu
 
 Bu dosya ile birlikte ZIP'teki `app/src/...` yolları depo köküne göredir. Paket tam proje/APK değil; bu görevde değişen kaynak dosyalarını içerir.
+
+## Güncelleme — Yatay satırlarda sola yapışan kaydırma geri geldi
+
+Snap fling yalnızca satırın kendi yatay ekseninde çalışır. Dikey kaydırmayı çalan asıl sebepler `BringIntoView` ve yükseklik animasyonlarıydı, onlar zaten düzeltildi. Bu yüzden "tık tık" sola yapışma geri eklendi.
+
+- [x] `KitsugiScrollDefaults.rememberRowSnapFling(state)` eklendi (`SnapPosition.Start`).
+- [x] Kaldırılan tüm satırlara geri eklendi: `ModernHomeRows`, `ExploreComponents`, `ReviewsTab`, `KitsugiHorizontalMediaSection`, `SearchScreen`, `KitsugiUserProfileScreen`, `UserProfileStatsTab`, `AniListProfileContent`, `MalProfileContent`.
+- [x] Diğer kart satırlarına da eklendi: detay galeri satırları, eklenti keşfet/arama poster satırları, profil aktivite ve Bangumi favori satırları.
+- TV satırları dokunulmadı (D-pad odak spec'i kullanılıyor).

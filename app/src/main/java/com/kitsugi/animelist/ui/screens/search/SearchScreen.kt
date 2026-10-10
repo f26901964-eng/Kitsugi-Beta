@@ -1119,6 +1119,7 @@ private fun MultiSearchSection(
                 } else {
                     LazyRow(
                         state = lazyListState,
+                        flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(lazyListState),
                         contentPadding = PaddingValues(horizontal = 4.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {

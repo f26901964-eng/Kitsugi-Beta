@@ -100,6 +100,7 @@ fun ModernHomeRows(
             else -> {
                 LazyRow(
                     state = rowState,
+                    flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(rowState),
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
@@ -196,7 +197,10 @@ fun ModernHomeRows(
             color = KitsugiColors.TextPrimary,
             modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp)
         )
+        val snapRowState = androidx.compose.foundation.lazy.rememberLazyListState()
         LazyRow(
+            state = snapRowState,
+            flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(snapRowState),
             contentPadding = PaddingValues(horizontal = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {

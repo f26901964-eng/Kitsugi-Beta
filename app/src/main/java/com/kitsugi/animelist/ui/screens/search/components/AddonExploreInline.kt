@@ -414,7 +414,10 @@ private fun InlineCategoryRow(
         }
 
         // Yatay poster listesi
+        val snapRowState = androidx.compose.foundation.lazy.rememberLazyListState()
         LazyRow(
+            state = snapRowState,
+            flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(snapRowState),
             modifier = Modifier.fillMaxWidth(),
             contentPadding = PaddingValues(horizontal = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp)

@@ -242,6 +242,7 @@ fun MalProfileContent(
                         val favoritesFilterState = rememberLazyListState()
                         androidx.compose.foundation.lazy.LazyRow(
                             state = favoritesFilterState,
+                            flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(favoritesFilterState),
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
@@ -260,6 +261,7 @@ fun MalProfileContent(
                         val socialFilterState = rememberLazyListState()
                         androidx.compose.foundation.lazy.LazyRow(
                             state = socialFilterState,
+                            flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(socialFilterState),
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {

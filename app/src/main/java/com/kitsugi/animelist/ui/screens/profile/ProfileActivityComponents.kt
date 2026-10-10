@@ -393,7 +393,11 @@ fun FavoritesHorizontalSection(
             }
         }
         Spacer(modifier = Modifier.height(10.dp))
-        LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        val snapRowState = androidx.compose.foundation.lazy.rememberLazyListState()
+        LazyRow(
+            state = snapRowState,
+            flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(snapRowState),
+            horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             items(
                 items = items,
                 key = { item -> item.id.ifBlank { item.title } }
