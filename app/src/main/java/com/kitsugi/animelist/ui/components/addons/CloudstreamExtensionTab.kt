@@ -1,4 +1,5 @@
-﻿package com.kitsugi.animelist.ui.components.addons
+package com.kitsugi.animelist.ui.components.addons
+import com.kitsugi.animelist.R
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.foundation.background
@@ -20,6 +21,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -71,6 +73,7 @@ internal fun CloudstreamExtensionsTab(
 
     val pluginInstallStates = remember { mutableStateMapOf<String, PluginInstallState>() }
     val reinstallStates = remember { mutableStateMapOf<String, PluginInstallState>() }
+    val disabledPluginCount = csPlugins.count { !it.enabled }
     val clipboardManager = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
 
@@ -142,7 +145,7 @@ internal fun CloudstreamExtensionsTab(
                             fontSize = 13.sp
                         )
                         Text(
-                            "Tüm 201 eklentiyi CF bypass ile test et — uygulama açıkken çalışır",
+                            stringResource(R.string.inline_test_all_201_extensions_with_3be6c40),
                             color = KitsugiColors.TextMuted,
                             fontSize = 10.sp
                         )
@@ -488,6 +491,34 @@ internal fun CloudstreamExtensionsTab(
                     }
                 }
             } else {
+                if (disabledPluginCount > 0) {
+                    item(key = "reenable_all_disabled_cs_plugins") {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(accentColor.copy(alpha = 0.10f))
+                                .border(1.dp, accentColor.copy(alpha = 0.30f), RoundedCornerShape(12.dp))
+                                .tvClickable(shape = RoundedCornerShape(12.dp)) {
+                                    csPlugins.filterNot { it.enabled }.forEach { onToggleCsPlugin(it, true) }
+                                }
+                                .padding(horizontal = 14.dp, vertical = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Icon(Icons.Rounded.CheckCircle, contentDescription = null, tint = accentColor, modifier = Modifier.size(20.dp))
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(stringResource(R.string.cs_reenable_disabled_plugins_title), color = accentColor, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                                Text(
+                                    stringResource(R.string.cs_reenable_disabled_plugins_description, disabledPluginCount),
+                                    color = KitsugiColors.TextMuted,
+                                    fontSize = 11.sp
+                                )
+                            }
+                            Icon(Icons.Rounded.ChevronRight, contentDescription = null, tint = accentColor, modifier = Modifier.size(20.dp))
+                        }
+                    }
+                }
                 items(csPlugins, key = { it.id }) { plugin ->
                     val reinstallState = reinstallStates[plugin.id] ?: PluginInstallState.IDLE
                     val latestPlugin = repoPlugins.values.filterNotNull().flatten().find { it.internalName == plugin.id }

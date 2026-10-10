@@ -1726,7 +1726,7 @@
     <string name="inline_installation_has_started_if_the_69e7de1">Kurulum başlatıldı. Kurulum ekranı otomatik açılmazsa aşağıdaki butona tıklayın.</string>
     <string name="inline_start_installation_ba7e65d">Kurulumu Başlat</string>
     <string name="inline_update_download_failed_12173c1">Güncelleme İndirilemedi</string>
-    <string name="inline_test_all_201_extensions_with_3be6c40">Tüm 201 eklentiyi CF bypass ile test et — uygulama açıkken çalışır</string>
+    <string name="inline_test_all_201_extensions_with_3be6c40">Tüm eklentileri uygulamanın mevcut ağ ve doğrulama işleyişiyle test et — uygulama açıkken çalışır</string>
     <string name="inline_you_can_update_everything_with_cce121c">Tümünü tek dokunuşla güncelleyebilirsiniz.</string>
     <string name="inline_update_all_da07683">Tümünü Güncelle</string>
     <string name="inline_add_video_provider_repository_cs_1231a08">Video Sağlayıcı Deposu (CS) Ekle</string>
@@ -2009,7 +2009,7 @@
     <string name="inline_share_live_monitoring_report_md_ff2cf01">Canlı İzleme Raporunu Paylaş (.md)</string>
     <string name="inline_share_report_md_79b230f">Raporu Paylaş (.md)</string>
     <string name="inline_in_app_plugin_diagnostics_152efe2">🔬 In-App Plugin Tanı</string>
-    <string name="inline_this_diagnostic_runs_while_the_fd1b85d">Bu tanı, uygulama açıkken çalışır — CloudflareKiller aktif session cookies ile CF/WAF engellerini </string>
+    <string name="inline_this_diagnostic_runs_while_the_fd1b85d">Bu tanı, uygulamanın mevcut ağ ve WebView doğrulama katmanını kullanır; CF/WAF bekleme sürelerini zorla kapatmaz.</string>
     <string name="inline_developer_logs_1c5507d">Geliştirici Günlükleri</string>
     <string name="inline_in_app_logcat_and_error_268f061">Uygulama içi Logcat ve hata kayıtları</string>
     <string name="inline_search_logs_e_g_turkanime_fea64cb">Loglarda ara (örn. TurkAnime, Hata, Extractor...)</string>
@@ -2233,13 +2233,7 @@
     <string name="cs_diag_unique_plugins_found">📦 %1$d benzersiz eklenti bulundu.</string>
     <string name="cs_diag_tests_complete">Tüm testler tamamlandı!</string>
     <string name="cs_diag_completed">Tamamlandı</string>
-    <string name="cs_diag_dead_plugin_disabled">[Layer 2] DEAD eklenti pasifleştirildi: %1$s</string>
-    <string name="cs_diag_dead_plugins_disabled_count">[Layer 2] %1$d DEAD eklenti pasifleştirildi.</string>
     <string name="cs_diag_network_failure_plugins_count">[Layer 3] Ağ hatası olan NO_STREAMS %1$d eklenti tespit edildi.</string>
-    <string name="cs_diag_network_failure_plugin_disabled">[Layer 3] NO_STREAMS+NetworkFail eklenti pasifleştirildi: %1$s</string>
-    <string name="cs_diag_network_failure_plugins_disabled_count">[Layer 3] %1$d NO_STREAMS+NetworkFail eklenti pasifleştirildi.</string>
-    <string name="cs_diag_auto_pruning_complete">✂️ Auto-pruning tamamlandı: %1$d eklenti pasifleştirildi (K2=%2$d K3=%3$d).</string>
-    <string name="cs_diag_auto_pruning_failed">Otomatik pasifleştirme (pruning) sırasında hata: %1$s</string>
     <string name="cs_diag_run_complete_report">✅ Tanı tamamlandı. %1$d sonuç. Rapor: %2$s</string>
     <string name="cs_diag_run_failed">Tanı çalıştırma hatası: %1$s</string>
     <string name="cs_diag_cancelled">Tanı iptal edildi.</string>
@@ -2253,10 +2247,13 @@
     <string name="cs_diag_checking_episode_data">Bölüm verisi kontrol ediliyor</string>
     <string name="cs_diag_no_episode_data">findEpisodeData boş döndü; loadResponse.url boş</string>
     <string name="cs_diag_fetching_streams">Stream çekiliyor</string>
+    <string name="cs_all_plugins_disabled_error">Tüm kurulu CloudStream eklentileri devre dışı; eklenti kaynakları aranamaz. Ayarlar &gt; Video Sağlayıcıları &gt; Kurulu bölümünden etkinleştirin.</string>
+    <string name="cs_reenable_disabled_plugins_title">Devre dışı eklentileri yeniden etkinleştir</string>
+    <string name="cs_reenable_disabled_plugins_description">%1$d kurulu sağlayıcı şu anda devre dışı. Hepsini açmak için dokunun.</string>
     <string name="cs_diag_null_stream">%1$s: (null/boş)</string>
     <string name="cs_diag_report_title"># Kitsugi In-App CS Eklenti Tanı Raporu</string>
     <string name="cs_diag_report_date">**Tarih:** %1$s</string>
-    <string name="cs_diag_report_mode">**Mod:** In-App (CF bypass aktif) • %1$s | Paralel MAX_CONCURRENT=%2$d</string>
+    <string name="cs_diag_report_mode">**Mod:** In-App (mevcut WebView/cookie koruması kullanılır; CF/WAF cooldown’ları korunur) • %1$s | Paralel MAX_CONCURRENT=%2$d</string>
     <string name="cs_diag_local_plugins">Yerel Eklentiler (Kurulu)</string>
     <string name="cs_diag_all_plugins">Tüm Havuz Eklentileri</string>
     <string name="cs_diag_report_total">**Toplam:** %1$d eklenti</string>
@@ -2264,12 +2261,15 @@
     <string name="cs_diag_report_status_count">| Durum | Sayı |</string>
     <string name="cs_diag_report_working">| ✅ Çalışıyor (stream bulundu) | %1$d |</string>
     <string name="cs_diag_report_no_streams">| ⚠️ Arama var ama stream yok | %1$d |</string>
-    <string name="cs_diag_report_cf_blocked">| 🔍 Arama boş (CF/WAF) | %1$d |</string>
-    <string name="cs_diag_report_dead">| ❌ Bozuk / İndirilemedi | %1$d |</string>
+    <string name="cs_diag_report_cf_blocked">| 🔐 Açık CF/WAF/DDoS imzası doğrulandı | %1$d |</string>
+    <string name="cs_diag_report_search_empty">| 🔎 Arama sonucu yok (CF/WAF imzası yok) | %1$d |</string>
+    <string name="cs_diag_report_load_failed">| ⚠️ Detay/bölüm yükleme başarısız | %1$d |</string>
+    <string name="cs_diag_report_dead">| ❌ Eklenti/ağ hatası veya timeout | %1$d |</string>
     <string name="cs_diag_report_detailed_results">## Detaylı Sonuçlar</string>
-    <string name="cs_diag_report_plugin_table_header">| Plugin | Repo | mainUrl | DL | Load | Sorgu | Hits | LoadOK | Ep | Str | CF | TO | Durum |</string>
+    <string name="cs_diag_report_plugin_table_header">| Plugin | Repo | mainUrl | DL | Load | Sorgu | Hits | LoadOK | Ep | Str | Koruma | TO | Durum |</string>
     <string name="cs_diag_status_no_streams">Akış Yok</string>
-    <string name="cs_diag_status_load_failed">Yükleme Başarısız</string>
+    <string name="cs_diag_status_load_failed">Detay Yükleme Başarısız</string>
+    <string name="cs_diag_status_search_empty">Arama boş (CF/WAF imzası yok)</string>
     <string name="cs_diag_status_broken">Bozuk</string>
     <string name="cs_diag_report_error_details">## Hata Detayları (Faz Bazında)</string>
     <string name="cs_diag_report_no_errors">_Tüm eklentiler hatasız çalıştı._</string>
@@ -2285,8 +2285,8 @@
     <string name="cs_diag_report_written">Rapor yazıldı: %1$s</string>
     <string name="cs_diag_report_write_failed">Rapor yazılamadı: %1$s</string>
     <string name="cs_diag_http_fetch_failed">HTTP fetch hatası: %1$s — %2$s</string>
-    <string name="cs_diag_header_installed_subtitle">CF bypass aktif • Sadece yüklü eklentiler</string>
-    <string name="cs_diag_header_all_subtitle">CF bypass aktif • %1$d repo • Tüm havuz</string>
+    <string name="cs_diag_header_installed_subtitle">Mevcut WebView koruması • Cooldown’lar korunur • Yüklü eklentiler</string>
+    <string name="cs_diag_header_all_subtitle">Mevcut WebView koruması • Cooldown’lar korunur • %1$d repo • Tüm havuz</string>
     <string name="cs_diag_start">🔬 Tanıyı Başlat</string>
     <string name="cs_diag_restart">🔄 Yeniden Başlat</string>
     <string name="cs_diag_stop">Durdur</string>
@@ -2298,10 +2298,13 @@
     <string name="cs_diag_progress_completed">Test Tamamlandı</string>
     <string name="cs_diag_plugins_progress_count">%1$d / %2$d eklenti</string>
     <string name="cs_diag_summary_working">Çalışıyor</string>
-    <string name="cs_diag_summary_no_streams">0 Stream</string>
-    <string name="cs_diag_summary_cf_blocked">CF Engel</string>
+    <string name="cs_diag_summary_no_streams">Stream yok</string>
+    <string name="cs_diag_summary_cf_blocked">CF/WAF/DDoS</string>
+    <string name="cs_diag_summary_search_empty">Arama boş</string>
+    <string name="cs_diag_summary_load_failed">Detay hatası</string>
+    <string name="cs_diag_result_search_empty">CF/WAF imzası yok</string>
     <string name="cs_diag_summary_broken">Bozuk</string>
-    <string name="cs_diag_info_description">Bu tanı, uygulama açıkken çalışır; CloudflareKiller aktif oturum çerezlerini kullanarak CF/WAF engellerini büyük ölçüde aşar. Arka plan (ADB) testinden çok daha fazla eklentiyi çalıştırabilir.</string>
+    <string name="cs_diag_info_description">Bu tanı, eklenti arama → detay → stream akışını uygulamanın mevcut ağ ve WebView/cookie işleyişiyle test eder. Bu katman bazı doğrulama sayfalarını işleyebilir; tanı CF/WAF bekleme sürelerini zorla kapatmaz. CF/WAF sayısı yalnızca açık koruma imzası saptandığında artar; sağlayıcı erişimi yine de reddedebilir. Tanı eklentileri otomatik olarak devre dışı bırakmaz.</string>
     <string name="cs_diag_info_installed_bullets">• Sadece yüklü/aktif eklentiler yerel olarak test edilir (hızlı)
 • Search → Load → Stream zinciri (indirme aşaması atlanır)
 • Sonuç: .md rapor + uygulama içi görünüm</string>

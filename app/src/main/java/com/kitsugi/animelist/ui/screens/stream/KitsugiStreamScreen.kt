@@ -177,7 +177,7 @@ fun KitsugiStreamScreen(
     }
 
     // ── Trigger fetch — ViewModel guards against duplicate/redundant calls ────
-    LaunchedEffect(malId, aniListId, tmdbId, episode, season, cs3Url, isMovie, title, startYear, alternativeTitles) {
+    LaunchedEffect(malId, aniListId, tmdbId, episode, season, cs3Url, cs3ApiName, isMovie, title, startYear, alternativeTitles) {
         viewModel.startFetch(
             malId             = malId,
             aniListId         = aniListId,

@@ -16,18 +16,20 @@ import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 /**
- * Türk Cloudstream eklentilerinin kullandığı CF/WAF korumalı siteleri
- * uygulama başladığında arka planda proaktif olarak ziyaret eder ve
- * CloudflareKiller.savedCookies'e cookie yükler.
+ * Optional WebView warm-up for Cloudstream provider sites; cookies are saved for the
+ * existing CloudflareKiller interceptor to reuse.
  *
- * Bu sayede kullanıcı ilk aramayı yaptığında cookie hazır olur,
- * arama başarısız olmaz veya hızlı tamamlanır.
+ * This manager is not called during normal application startup: KitsugiApplication
+ * intentionally disabled the batch warm-up after it created substantial Chromium
+ * renderer/memory pressure. Production requests still use CloudflareKiller's lazy,
+ * per-host challenge handling. The explicit warm-up remains available to instrumented
+ * tests or a deliberate future on-demand flow.
  *
- * Çalışma şekli:
- *   - Her site için gizli bir WebView açılır
- *   - CF challenge sayfası çözülür (cf_clearance veya WAF session cookie beklenir)
- *   - Cookie CloudflareKiller.savedCookies'e kaydedilir
- *   - WebView kapatılır, bellek serbest bırakılır
+ * When invoked, this manager:
+ *   - opens one hidden WebView at a time
+ *   - waits for a usable cookie or the per-site timeout
+ *   - stores cookies for CloudflareKiller
+ *   - tears down the WebView
  */
 object CsCfWarmupManager {
 

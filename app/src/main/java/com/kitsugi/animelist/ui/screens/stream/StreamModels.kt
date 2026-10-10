@@ -10,7 +10,8 @@ data class AddonFetchState(
     val manifestUrl: String = "",
     val isLoading: Boolean = true,
     val streams: List<StreamSource> = emptyList(),
-    val error: String? = null
+    val error: String? = null,
+    val requiresVerification: Boolean = false
 )
 
 /**

@@ -1262,21 +1262,19 @@ object CsStreamRunner {
         }
 
         if (results.isEmpty()) {
-            Log.w(TAG, "[${api.name}] ✗ ARAMA BAŞARISIZ: Hiçbir varyant sonuç döndürmedi. Site erişilemez veya CF korumalı.")
-            Log.e(SERR, "❌ ARAMA SIFIR [${api.name}] — title='$title' S${season}E${episode} — Tüm ${titleVariants.size} varyant boş döndü. Site ölü/CF korumalı olabilir.")
-            CsTrace.warn(api.name, "search", "ARAMA SIFIR: ${titleVariants.size} varyantın hiçbiri sonuç döndürmedi (ilk varyantlar: ${titleVariants.take(4)})")
-            // CF korumalı site tespiti: son hata mesajını kontrol et.
+            Log.w(TAG, "[${api.name}] ✗ Arama sonucu yok: ${titleVariants.size} varyant denendi; koruma türü ayrıca doğrulanmadıkça bilinmiyor.")
+            Log.e(SERR, "🔎 ARAMA SIFIR [${api.name}] — title='$title' S${season}E${episode} — ${titleVariants.size} varyantta sonuç yok; bu tek başına CF/WAF kanıtı değildir.")
+            CsTrace.warn(api.name, "search", "ARAMA SIFIR: ${titleVariants.size} varyantın hiçbiri sonuç döndürmedi (ilk varyantlar: ${titleVariants.take(4)}); CF/WAF yalnız açık imzayla sınıflandırılır")
             // ÖNEMLİ: recordSkip'ten ÖNCE oku — recordSkip errorMessages'ın üzerine yazar.
             val lastErr = CsPluginStatusTracker.getErrorMessage(api.name)
-            // UI "akış bulunamadı" demek yerine GERÇEK sebebi göstersin diye tracker'a yaz.
-            // Gerçek bir ağ hatası kayıtlıysa onun üzerine yazma (spesifik sebep daha değerli).
+            // Boş arama CF kanıtı değildir. Yalnızca açık challenge/WAF imzasında doğrulama açılır.
             if (lastErr == null) {
-                CsPluginStatusTracker.recordSkip(api.name, "Arama sonuç vermedi (${titleVariants.size} varyant denendi) — site erişilemiyor veya CF/WAF korumalı olabilir")
+                CsPluginStatusTracker.recordSkip(api.name, "Arama sonucu yok (${titleVariants.size} varyant denendi); erişim/boş sonuç nedeni doğrulanamadı")
             }
-            if (lastErr != null && isCloudflareLikelyBlocking(lastErr)) {
-                Log.e(SERR, "🔐 CLOUDFLARE BLOK [${api.name}] — Son hata: $lastErr")
+            if (lastErr != null && isBotProtectionChallenge(lastErr)) {
+                Log.e(SERR, "🔐 Açık bot-koruma imzası [${api.name}] — Son hata: $lastErr")
                 throw CloudflareBlockException(
-                    "🔐 Cloudflare koruması tespit edildi. Doğrulama gerekiyor. (${api.name})"
+                    "🔐 Bot-koruma doğrulaması tespit edildi. Doğrulama gerekiyorsa açılan sayfayı tamamlayın. (${api.name})"
                 )
             }
             return emptyList()
@@ -1579,7 +1577,6 @@ object CsStreamRunner {
             val candidates = results.filter { it.url != current.url }
             if (candidates.isEmpty()) continue
             val match = findBestMatch(candidates, title, alternativeTitles, year, season, episode, false)
-                ?: candidates.firstOrNull()
                 ?: continue
             val resp = safeLoad(api, match.url) ?: continue
             val data = findEpisodeData(resp, season, episode) ?: continue
@@ -3533,25 +3530,11 @@ object CsStreamRunner {
     ): Double = CsTitleMatcher.getBestTitleSimilarity(candidateName, mainTitle, altTitles, isMovie)
 
     /**
-     * HTTP yanıt kodu veya hata mesajından Cloudflare/ağ engelinin olup olmadığını tahmin eder.
-     * Tier 2 eklentiler (TurkAnime, Dizilla, FilmMakinesi gibi) CF korumalı sitelere bağlanır.
-     *
-     * @param errorMsg Önceki istekte yakalanan hata mesajı veya exception açıklaması
+     * Manual verification is offered only for explicit bot/WAF challenge signatures.
+     * Generic 403/503, DNS, TLS and timeout errors must remain ordinary network failures.
      */
-    // Delegated to CsTitleMatcher — see CsTitleMatcher.kt
-    private fun isCloudflareLikelyBlocking(errorMsg: String): Boolean {
-        val lower = errorMsg.lowercase(Locale.ROOT)
-        return lower.contains("403") ||
-               lower.contains("503") ||
-               lower.contains("cloudflare") ||
-               lower.contains("challenge") ||
-               lower.contains("cf-ray") ||
-               lower.contains("just a moment") ||
-               lower.contains("connection refused") ||
-               lower.contains("timeout") ||
-               lower.contains("ssl handshake") ||
-               lower.contains("unable to resolve host")
-    }
+    private fun isBotProtectionChallenge(errorMsg: String): Boolean =
+        CsProtectionClassifier.isWafChallenge(errorMsg) || CsProtectionClassifier.isDdosGuard(errorMsg)
 
     // Delegated to CsTitleMatcher — see CsTitleMatcher.kt
     private fun findBestMatch(

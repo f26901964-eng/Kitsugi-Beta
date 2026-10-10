@@ -24,9 +24,10 @@ import java.util.concurrent.atomic.AtomicInteger
 /**
  * In-app CS eklenti tanı motoru.
  *
- * CsDeepStreamTest (instrumented test) ile aynı E2E mantığını uygulama içinde çalıştırır.
- * Avantajı: Uygulama açıkken çalıştığı için CloudflareKiller aktif session cookie'lerini
- * kullanır → CF/WAF korumalı 160 eklentinin büyük çoğunluğu engeli geçer.
+ * CsDeepStreamTest (instrumented test) ile aynı E2E akışını uygulama içinde çalıştırır.
+ * Uygulamanın mevcut ağ/WebView-cookie koruma katmanını kullanır fakat CF/WAF cooldown'larını
+ * zorla kapatmaz. Bu katman bazı doğrulama sayfalarını işleyebilir; başarı sağlayıcıya bağlıdır.
+ * Rapor yalnızca açıkça tespit edilen imzaları CF/WAF olarak sınıflandırır.
  *
  * Kullanım:
  *   CsPluginDiagnosticRunner.startDiagnostic(context)
@@ -135,22 +136,21 @@ object CsPluginDiagnosticRunner {
         val error:         String?           // genel/son hata özeti
     ) {
         val status: ResultStatus get() = when {
+            streamCount > 0 -> ResultStatus.WORKING
+            hasCfBlock || hasDdosGuard -> ResultStatus.CF_BLOCKED
             !downloaded || !loaded -> ResultStatus.DEAD
             searchCount == 0       -> {
-                if (hasCfBlock || hasDdosGuard) {
-                    ResultStatus.CF_BLOCKED
-                } else if (hasNetworkFail || hasTimeout) {
+                if (hasNetworkFail || hasTimeout) {
                     ResultStatus.DEAD
                 } else {
-                    ResultStatus.LOAD_FAILED
+                    ResultStatus.SEARCH_EMPTY
                 }
             }
             !loadOk                -> ResultStatus.LOAD_FAILED
-            streamCount == 0       -> ResultStatus.NO_STREAMS
-            else                   -> ResultStatus.WORKING
+            else                   -> ResultStatus.NO_STREAMS
         }
 
-        /** CF/WAF engeli var mı — herhangi bir fazda tespit edilmişse true */
+        /** CF/WAF engeli var mı — herhangi bir fazda açık bir imza tespit edilmişse true */
         val hasCfBlock: Boolean get() = phaseErrors.any { it.isCfPattern }
         val hasDdosGuard: Boolean get() = phaseErrors.any { it.isDdosGuard }
         val hasTimeout: Boolean get() = phaseErrors.any { it.isTimeout }
@@ -158,34 +158,38 @@ object CsPluginDiagnosticRunner {
     }
 
     enum class ResultStatus {
-        WORKING, NO_STREAMS, CF_BLOCKED, LOAD_FAILED, DEAD
+        WORKING, NO_STREAMS, SEARCH_EMPTY, CF_BLOCKED, LOAD_FAILED, DEAD
+    }
+
+    /** Consistent counters shared by the in-app summary and exported report. */
+    data class DiagnosticSummary(
+        val working: Int,
+        val noStreams: Int,
+        val searchEmpty: Int,
+        val cfBlocked: Int,
+        val loadFailed: Int,
+        val dead: Int
+    )
+
+    fun summarize(results: List<DiagnosticResult>): DiagnosticSummary {
+        val counts = results.groupingBy { it.status }.eachCount()
+        return DiagnosticSummary(
+            working = counts[ResultStatus.WORKING] ?: 0,
+            noStreams = counts[ResultStatus.NO_STREAMS] ?: 0,
+            searchEmpty = counts[ResultStatus.SEARCH_EMPTY] ?: 0,
+            cfBlocked = counts[ResultStatus.CF_BLOCKED] ?: 0,
+            loadFailed = counts[ResultStatus.LOAD_FAILED] ?: 0,
+            dead = counts[ResultStatus.DEAD] ?: 0
+        )
     }
 
     // ─── Hata Analiz Yardımcıları ─────────────────────────────────────────────
 
-    /** Cloudflare / WAF imzalarını string içinde arar */
-    private fun isCfPattern(msg: String): Boolean {
-        val m = msg.lowercase()
-        return m.contains("cloudflare") ||
-               m.contains("cf-ray") ||
-               m.contains("cf_clearance") ||
-               m.contains("turnstile") ||
-               m.contains("just a moment") ||
-               m.contains("challenge-platform") ||
-               m.contains("403") && (m.contains("forbidden") || m.contains("blocked")) ||
-               m.contains("captcha") ||
-               m.contains("security check") ||
-               m.contains("access denied")
-    }
+    /** Explicit Cloudflare/WAF challenge markers only; generic HTTP errors are not evidence. */
+    private fun isCfPattern(msg: String): Boolean = CsProtectionClassifier.isWafChallenge(msg)
 
     /** DDoS-Guard imzasını kontrol eder */
-    private fun isDdosGuard(msg: String): Boolean {
-        val m = msg.lowercase()
-        return m.contains("ddos-guard") ||
-               m.contains("ddosguard") ||
-               m.contains("d-d-o-s") ||
-               m.contains("anti-ddos")
-    }
+    private fun isDdosGuard(msg: String): Boolean = CsProtectionClassifier.isDdosGuard(msg)
 
     /** Hata mesajından HTTP durum kodunu çıkarmaya çalışır */
     private fun extractHttpCode(t: Throwable): Int? {
@@ -299,8 +303,8 @@ object CsPluginDiagnosticRunner {
     // ─── Entry point ──────────────────────────────────────────────────────────
 
     /**
-     * Tüm 201 Türkçe CS eklentisini veya sadece yüklü olanları E2E olarak test eder.
-     * Uygulama açıkken çağrılmalı — CF bypass için.
+     * Tüm depo eklentilerini veya yalnızca yüklü olanları E2E olarak test eder.
+     * Uygulama açıkken çağrılır; CF/WAF cooldown'ları atlanmaz.
      */
     suspend fun startDiagnostic(context: Context, onlyInstalled: Boolean = false) = withContext(Dispatchers.IO) {
         if (_isRunning.value) {
@@ -339,7 +343,8 @@ object CsPluginDiagnosticRunner {
         }
 
         try {
-            com.lagradost.cloudstream3.network.CloudflareKiller.ignoreCooldowns = true
+            // Keep CloudflareKiller's normal per-host cooldowns intact during diagnostics.
+            // Forcing ignoreCooldowns=true can trigger repeated challenge requests and skew results.
             val allPlugins = mutableListOf<PluginEntry>()
 
             if (onlyInstalled) {
@@ -463,65 +468,13 @@ object CsPluginDiagnosticRunner {
                 _results.value = sorted
                 _progress.value = DiagnosticProgress(uniquePlugins.size, uniquePlugins.size, "Tüm testler tamamlandı!", "Tamamlandı")
 
-                // 3. Auto-pruning — üç katmanlı strateji
-                try {
-                    val db = com.kitsugi.animelist.data.local.KitsugiDatabase.getDatabase(context)
-                    val dao = db.csPluginDao()
-
-                    // NOT: KNOWN_BROKEN_PLUGINS listesi sadece CsStreamRunner pipeline'ında
-                    // (stream çekme, arama, detay yükleme) skip için kullanılır.
-                    // Plugin yönetim ekranında kullanıcı bu eklentileri kurabilmeli —
-                    // bu yüzden burada DB'de pasifleştirme YAPILMIYOR.
-
-                    // Katman 2: Bu tanı çalışmasında DEAD durumundaki eklentileri pasifleştir.
-                    // DEAD = plugin indirilemedi / yüklenemedi / ağ hatası ile tamamen çöktü.
-                    // GÜNCELLEME: Sadece timeout olmayan ve yapısal olarak indirilemeyen/yüklenemeyen (dead) eklentileri pasifleştir.
-                    val deadPlugins = sorted.filter { 
-                        it.status == ResultStatus.DEAD && 
-                        !it.hasTimeout && 
-                        (!it.loaded || !it.downloaded)
-                    }
-                    Log.i(TAG, "[Katman-2] DEAD durumunda ${deadPlugins.size} eklenti tespit edildi.")
-                    var deadPruned = 0
-                    for (dead in deadPlugins) {
-                        val entity = dao.getPluginById(dead.pluginId)
-                        if (entity != null && entity.enabled) {
-                            dao.upsert(entity.copy(enabled = false))
-                            deadPruned++
-                            Log.i(TAG, "[Katman-2] DEAD eklenti pasifleştirildi: ${dead.pluginId}")
-                        }
-                    }
-                    if (deadPruned > 0)
-                        Log.i(TAG, "[Katman-2] $deadPruned DEAD eklenti pasifleştirildi.")
-
-                    // Katman 3: NO_STREAMS olan ve kesin ağ hatası (DNS/ConnectException) yaşayan
-                    // eklentileri pasifleştir. CF block olanları pasifleştirme — geçici olabilir.
-                    // GÜNCELLEME: Timeout yaşayanları pasifleştirme.
-                    val noStreamNetFail = sorted.filter { result ->
-                        result.status == ResultStatus.NO_STREAMS &&
-                        result.hasNetworkFail &&
-                        !result.hasTimeout &&
-                        !result.hasCfBlock &&
-                        !result.hasDdosGuard
-                    }
-                    Log.i(TAG, "[Katman-3] Ağ hatası olan NO_STREAMS ${noStreamNetFail.size} eklenti tespit edildi.")
-                    var netFailPruned = 0
-                    for (netFail in noStreamNetFail) {
-                        val entity = dao.getPluginById(netFail.pluginId)
-                        if (entity != null && entity.enabled) {
-                            dao.upsert(entity.copy(enabled = false))
-                            netFailPruned++
-                            Log.i(TAG, "[Katman-3] NO_STREAMS+NetworkFail eklenti pasifleştirildi: ${netFail.pluginId}")
-                        }
-                    }
-                    if (netFailPruned > 0)
-                        Log.i(TAG, "[Katman-3] $netFailPruned NO_STREAMS+NetworkFail eklenti pasifleştirildi.")
-
-                    val totalPruned = deadPruned + netFailPruned
-                    Log.i(TAG, "✂️ Auto-pruning tamamlandı: $totalPruned eklenti pasifleştirildi (K2=$deadPruned K3=$netFailPruned).")
-                } catch (e: Exception) {
-                    Log.e(TAG, "Otomatik pasifleştirme (pruning) sırasında hata: ${e.message}", e)
-                }
+                // Tanı salt-okunurdur: geçici DNS/HTTP/provider hatalarına bakarak
+                // Room'daki kullanıcı tarafından etkinleştirilmiş eklentileri kapatma.
+                // Önceki otomatik pruning, tek bir ağ kesintisi/yanlış negatif sonrası
+                // birçok sağlayıcıyı `enabled=false` yapabiliyordu; normal kaynak araması
+                // yalnızca enabled kayıtlarını okuduğundan kullanıcı her başlıkta sıfır sonuç
+                // görebiliyordu. Eklenti durumu yalnızca kullanıcı eklenti yönetiminden değiştirir.
+                Log.i(TAG, "Tanı salt-okunur tamamlandı; hiçbir kurulu eklenti otomatik olarak devre dışı bırakılmadı.")
 
                 // 4. Raporu yaz
                 val file = writeReport(context, sorted)
@@ -534,7 +487,6 @@ object CsPluginDiagnosticRunner {
         } finally {
             _isRunning.value = false
             CsStreamRunner.embedResolveListener = null
-            com.lagradost.cloudstream3.network.CloudflareKiller.ignoreCooldowns = false
         }
     }
 
@@ -839,41 +791,46 @@ object CsPluginDiagnosticRunner {
 
     private fun writeReport(context: Context, results: List<DiagnosticResult>): File? {
         return try {
-            val working    = results.count { it.streamCount > 0 }
-            val noStream   = results.count { it.loaded && it.searchCount > 0 && it.streamCount == 0 }
-            val cfBlocked  = results.count { it.loaded && it.searchCount == 0 }
-            val dead       = results.count { !it.loaded }
+            val summary = summarize(results)
 
             val sb = StringBuilder()
             sb.appendLine("# Kitsugi In-App CS Plugin Tanı Raporu")
             sb.appendLine()
             sb.appendLine("**Tarih:** ${java.time.LocalDateTime.now()}")
             val modeStr = if (results.any { it.repoSlug == "Yerel" }) "Yerel Eklentiler (Kurulu)" else "Tüm Havuz Eklentileri"
-            sb.appendLine("**Mod:** In-App (CF bypass aktif) • $modeStr | Paralel MAX_CONCURRENT=$MAX_CONCURRENT")
+            sb.appendLine("**Mod:** In-App (mevcut WebView/cookie koruması; CF/WAF cooldown'ları korunur) • $modeStr | Paralel MAX_CONCURRENT=$MAX_CONCURRENT")
             sb.appendLine("**Toplam:** ${results.size} eklenti")
             sb.appendLine()
             sb.appendLine("## Özet")
             sb.appendLine("| Durum | Sayı |")
             sb.appendLine("|---|---|")
-            sb.appendLine("| ✅ Çalışıyor (stream bulundu) | $working |")
-            sb.appendLine("| ⚠️ Arama var ama stream yok | $noStream |")
-            sb.appendLine("| 🔍 Arama boş (CF/WAF) | $cfBlocked |")
-            sb.appendLine("| ❌ Bozuk / İndirilemedi | $dead |")
+            sb.appendLine("| ✅ Çalışıyor (stream bulundu) | ${summary.working} |")
+            sb.appendLine("| ⚠️ Arama sonucu var ama stream yok | ${summary.noStreams} |")
+            sb.appendLine("| 🔐 CF/WAF/DDoS imzası doğrulandı | ${summary.cfBlocked} |")
+            sb.appendLine("| 🔎 Arama sonucu boş (CF/WAF imzası yok) | ${summary.searchEmpty} |")
+            sb.appendLine("| ⚠️ Detay yükleme başarısız | ${summary.loadFailed} |")
+            sb.appendLine("| ❌ Eklenti/ağ hatası veya timeout | ${summary.dead} |")
             sb.appendLine()
             sb.appendLine("## Detaylı Sonuçlar")
             sb.appendLine()
-            sb.appendLine("| Plugin | Repo | mainUrl | DL | Load | Sorgu | Hits | LoadOK | Ep | Str | CF | TO | Durum |")
+            sb.appendLine("| Plugin | Repo | mainUrl | DL | Load | Sorgu | Hits | LoadOK | Ep | Str | Koruma | TO | Durum |")
             sb.appendLine("|---|---|---|---|---|---|---|---|---|---|---|---|---|")
             for (r in results) {
                 val urlShort = r.mainUrl.removePrefix("https://").removePrefix("http://").trimEnd('/').take(32)
                 val statusStr = when (r.status) {
-                    ResultStatus.WORKING     -> "✅ ${r.streamCount}"
-                    ResultStatus.NO_STREAMS  -> "⚠️ ${r.error?.take(35) ?: "No Streams"}"
-                    ResultStatus.CF_BLOCKED  -> "🔍 CF/WAF"
-                    ResultStatus.LOAD_FAILED -> "⚠️ Load Fail"
-                    ResultStatus.DEAD        -> "❌ ${r.error?.take(35) ?: "Bozuk"}"
+                    ResultStatus.WORKING      -> "✅ ${r.streamCount}"
+                    ResultStatus.NO_STREAMS   -> "⚠️ ${r.error?.take(35) ?: "No Streams"}"
+                    ResultStatus.SEARCH_EMPTY -> "🔎 Empty search (no CF/WAF signature)"
+                    ResultStatus.CF_BLOCKED   -> "🔐 Confirmed CF/WAF/DDoS"
+                    ResultStatus.LOAD_FAILED  -> "⚠️ Load Fail"
+                    ResultStatus.DEAD         -> "❌ ${r.error?.take(35) ?: "Bozuk"}"
                 }
-                sb.appendLine("| **${r.pluginId}** | ${r.repoSlug} | `$urlShort` | ${if (r.downloaded) "✅" else "❌"} | ${if (r.loaded) "✅" else "❌"} | `${r.searchQuery}` | ${r.searchCount} | ${if (r.loadOk) "✅" else "❌"} | ${if (r.episodeFound) "✅" else "❌"} | ${r.streamCount} | ${if (r.hasCfBlock) "⚠️" else "-"} | ${if (r.hasTimeout) "⏱" else "-"} | $statusStr |")
+                val protection = when {
+                    r.hasCfBlock -> "CF/WAF"
+                    r.hasDdosGuard -> "DDoS"
+                    else -> "-"
+                }
+                sb.appendLine("| **${r.pluginId}** | ${r.repoSlug} | `$urlShort` | ${if (r.downloaded) "✅" else "❌"} | ${if (r.loaded) "✅" else "❌"} | `${r.searchQuery}` | ${r.searchCount} | ${if (r.loadOk) "✅" else "❌"} | ${if (r.episodeFound) "✅" else "❌"} | ${r.streamCount} | $protection | ${if (r.hasTimeout) "⏱" else "-"} | $statusStr |")
             }
             // ── Hata Detayları ─────────────────────────────────────────
             sb.appendLine()

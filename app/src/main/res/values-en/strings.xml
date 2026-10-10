@@ -1726,7 +1726,7 @@
     <string name="inline_installation_has_started_if_the_69e7de1">Installation has started. If the installer doesn\'t open automatically, tap the button below.</string>
     <string name="inline_start_installation_ba7e65d">Start Installation</string>
     <string name="inline_update_download_failed_12173c1">Update Download Failed</string>
-    <string name="inline_test_all_201_extensions_with_3be6c40">Test all 201 extensions with CF bypass — runs while the app is open</string>
+    <string name="inline_test_all_201_extensions_with_3be6c40">Test all plugins using the app’s existing network and verification handling — runs while the app is open</string>
     <string name="inline_you_can_update_everything_with_cce121c">You can update everything with one tap.</string>
     <string name="inline_update_all_da07683">Update All</string>
     <string name="inline_add_video_provider_repository_cs_1231a08">Add Video Provider Repository (CS)</string>
@@ -2009,7 +2009,7 @@
     <string name="inline_share_live_monitoring_report_md_ff2cf01">Share Live Monitoring Report (.md)</string>
     <string name="inline_share_report_md_79b230f">Share Report (.md)</string>
     <string name="inline_in_app_plugin_diagnostics_152efe2">🔬 In-App Plugin Diagnostics</string>
-    <string name="inline_this_diagnostic_runs_while_the_fd1b85d">This diagnostic runs while the app is open — CloudflareKiller checks CF/WAF blocks using active session cookies </string>
+    <string name="inline_this_diagnostic_runs_while_the_fd1b85d">This diagnostic uses the app’s existing network and WebView verification layer; it does not force-disable CF/WAF cooldowns.</string>
     <string name="inline_developer_logs_1c5507d">Developer Logs</string>
     <string name="inline_in_app_logcat_and_error_268f061">In-app Logcat and error records</string>
     <string name="inline_search_logs_e_g_turkanime_fea64cb">Search logs (e.g. TurkAnime, Error, Extractor...)</string>
@@ -2233,13 +2233,7 @@
     <string name="cs_diag_unique_plugins_found">📦 Found %1$d unique plugins.</string>
     <string name="cs_diag_tests_complete">All tests are complete!</string>
     <string name="cs_diag_completed">Completed</string>
-    <string name="cs_diag_dead_plugin_disabled">[Layer 2] Disabled DEAD plugin: %1$s</string>
-    <string name="cs_diag_dead_plugins_disabled_count">[Layer 2] Disabled %1$d DEAD plugins.</string>
     <string name="cs_diag_network_failure_plugins_count">[Layer 3] Found %1$d NO_STREAMS plugins with network failures.</string>
-    <string name="cs_diag_network_failure_plugin_disabled">[Layer 3] Disabled NO_STREAMS+NetworkFail plugin: %1$s</string>
-    <string name="cs_diag_network_failure_plugins_disabled_count">[Layer 3] Disabled %1$d NO_STREAMS+NetworkFail plugins.</string>
-    <string name="cs_diag_auto_pruning_complete">✂️ Auto-pruning complete: disabled %1$d plugins (K2=%2$d, K3=%3$d).</string>
-    <string name="cs_diag_auto_pruning_failed">Auto-pruning failed: %1$s</string>
     <string name="cs_diag_run_complete_report">✅ Diagnostics complete. %1$d results. Report: %2$s</string>
     <string name="cs_diag_run_failed">Diagnostic run failed: %1$s</string>
     <string name="cs_diag_cancelled">Diagnostics cancelled.</string>
@@ -2253,10 +2247,13 @@
     <string name="cs_diag_checking_episode_data">Checking episode data</string>
     <string name="cs_diag_no_episode_data">findEpisodeData returned no result; loadResponse.url is empty</string>
     <string name="cs_diag_fetching_streams">Fetching streams</string>
+    <string name="cs_all_plugins_disabled_error">All installed CloudStream plugins are disabled, so plugin sources cannot be searched. Enable them in Settings &gt; Video Providers &gt; Installed.</string>
+    <string name="cs_reenable_disabled_plugins_title">Re-enable disabled plugins</string>
+    <string name="cs_reenable_disabled_plugins_description">%1$d installed providers are currently disabled. Tap to enable all.</string>
     <string name="cs_diag_null_stream">%1$s: (null/empty)</string>
     <string name="cs_diag_report_title"># Kitsugi In-App CS Plugin Diagnostic Report</string>
     <string name="cs_diag_report_date">**Date:** %1$s</string>
-    <string name="cs_diag_report_mode">**Mode:** In-App (CF bypass active) • %1$s | Parallel MAX_CONCURRENT=%2$d</string>
+    <string name="cs_diag_report_mode">**Mode:** In-App (existing WebView/cookie handling; CF/WAF cooldowns respected) • %1$s | Parallel MAX_CONCURRENT=%2$d</string>
     <string name="cs_diag_local_plugins">Local Plugins (Installed)</string>
     <string name="cs_diag_all_plugins">All Repository Plugins</string>
     <string name="cs_diag_report_total">**Total:** %1$d plugins</string>
@@ -2264,12 +2261,15 @@
     <string name="cs_diag_report_status_count">| Status | Count |</string>
     <string name="cs_diag_report_working">| ✅ Working (stream found) | %1$d |</string>
     <string name="cs_diag_report_no_streams">| ⚠️ Search found results but no stream | %1$d |</string>
-    <string name="cs_diag_report_cf_blocked">| 🔍 No search results (CF/WAF) | %1$d |</string>
-    <string name="cs_diag_report_dead">| ❌ Broken / Download failed | %1$d |</string>
+    <string name="cs_diag_report_cf_blocked">| 🔐 Confirmed CF/WAF/DDoS signature | %1$d |</string>
+    <string name="cs_diag_report_search_empty">| 🔎 Empty search (no CF/WAF signature) | %1$d |</string>
+    <string name="cs_diag_report_load_failed">| ⚠️ Detail/episode load failed | %1$d |</string>
+    <string name="cs_diag_report_dead">| ❌ Plugin/network error or timeout | %1$d |</string>
     <string name="cs_diag_report_detailed_results">## Detailed Results</string>
-    <string name="cs_diag_report_plugin_table_header">| Plugin | Repo | mainUrl | DL | Load | Query | Hits | LoadOK | Ep | Str | CF | TO | Status |</string>
+    <string name="cs_diag_report_plugin_table_header">| Plugin | Repo | mainUrl | DL | Load | Query | Hits | LoadOK | Ep | Str | Protection | TO | Status |</string>
     <string name="cs_diag_status_no_streams">No Streams</string>
-    <string name="cs_diag_status_load_failed">Load Failed</string>
+    <string name="cs_diag_status_load_failed">Detail Load Failed</string>
+    <string name="cs_diag_status_search_empty">Empty search (no CF/WAF signature)</string>
     <string name="cs_diag_status_broken">Broken</string>
     <string name="cs_diag_report_error_details">## Error Details (By Phase)</string>
     <string name="cs_diag_report_no_errors">_All plugins completed without errors._</string>
@@ -2285,8 +2285,8 @@
     <string name="cs_diag_report_written">Report written: %1$s</string>
     <string name="cs_diag_report_write_failed">Could not write report: %1$s</string>
     <string name="cs_diag_http_fetch_failed">HTTP fetch failed: %1$s — %2$s</string>
-    <string name="cs_diag_header_installed_subtitle">CF bypass active • Installed plugins only</string>
-    <string name="cs_diag_header_all_subtitle">CF bypass active • %1$d repositories • All plugins</string>
+    <string name="cs_diag_header_installed_subtitle">Existing WebView handling • Cooldowns respected • Installed plugins only</string>
+    <string name="cs_diag_header_all_subtitle">Existing WebView handling • Cooldowns respected • %1$d repositories • All plugins</string>
     <string name="cs_diag_start">🔬 Start Diagnostics</string>
     <string name="cs_diag_restart">🔄 Restart</string>
     <string name="cs_diag_stop">Stop</string>
@@ -2298,10 +2298,13 @@
     <string name="cs_diag_progress_completed">Test Complete</string>
     <string name="cs_diag_plugins_progress_count">%1$d / %2$d plugins</string>
     <string name="cs_diag_summary_working">Working</string>
-    <string name="cs_diag_summary_no_streams">0 Streams</string>
-    <string name="cs_diag_summary_cf_blocked">CF Blocked</string>
+    <string name="cs_diag_summary_no_streams">No streams</string>
+    <string name="cs_diag_summary_cf_blocked">CF/WAF/DDoS</string>
+    <string name="cs_diag_summary_search_empty">Empty search</string>
+    <string name="cs_diag_summary_load_failed">Load failed</string>
+    <string name="cs_diag_result_search_empty">No CF/WAF signature</string>
     <string name="cs_diag_summary_broken">Broken</string>
-    <string name="cs_diag_info_description">This diagnostic runs while the app is open and uses CloudflareKiller\'s active session cookies to bypass most CF/WAF challenges. It can get through many more plugins than the background (ADB) test.</string>
+    <string name="cs_diag_info_description">This diagnostic tests the plugin search → detail → stream flow using the app’s existing network and WebView/cookie handling. That layer may process some challenge pages, but diagnostics do not force-disable per-host cooldowns. CF/WAF is counted only when an explicit protection signature is detected; providers may still deny access. Diagnostics never automatically disable plugins.</string>
     <string name="cs_diag_info_installed_bullets">• Only installed/active plugins are tested locally (fast)
 • Search → Load → Stream pipeline (download is skipped)
 • Result: .md report + in-app view</string>

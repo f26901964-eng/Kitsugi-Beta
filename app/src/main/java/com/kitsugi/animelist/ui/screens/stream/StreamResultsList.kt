@@ -70,7 +70,13 @@ fun LazyListScope.renderStreamResultsItems(
             }
         } else if (addonState.error != null) {
             item(key = "err_${addonIdx}_${addonState.addonName}") {
-                StreamErrorCard(addonState = addonState, accentColor = accentColor, onVerify = onVerifyPlugin?.let { cb -> { cb(addonState.addonName) } })
+                StreamErrorCard(
+                    addonState = addonState,
+                    accentColor = accentColor,
+                    onVerify = if (addonState.requiresVerification) {
+                        onVerifyPlugin?.let { callback -> { callback(addonState.addonName) } }
+                    } else null
+                )
             }
         }
     }

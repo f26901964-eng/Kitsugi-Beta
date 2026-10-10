@@ -19,6 +19,34 @@ import org.junit.Test
  */
 class CsTitleMatcherTest {
 
+    @Test
+    fun testPlainTitleVariantsStartWithRawTitleBeforeAliases() {
+        val variants = CsTitleMatcher.buildPlainTitleVariants(
+            main = "The Raw Title",
+            alts = listOf("Localized Alias"),
+            isMovie = false
+        )
+
+        assertEquals("The Raw Title", variants.first())
+        assertTrue(variants.contains("Localized Alias"))
+        assertFalse(variants.any { it.contains("S2", ignoreCase = true) || it.contains("episode 3", ignoreCase = true) })
+    }
+
+    @Test
+    fun testFindBestMatchRejectsUnrelatedSeasonNavigationResult() {
+        val match = CsTitleMatcher.findBestMatch(
+            results = listOf(createSearchResponse("Dragon Ball", 1986)),
+            mainTitle = "Spy x Family",
+            altTitles = listOf("Spy Family"),
+            targetYear = 2022,
+            targetSeason = 2,
+            targetEpisode = 1,
+            isMovie = false
+        )
+
+        assertNull("An unrelated fallback result must not be loaded", match)
+    }
+
     // ─── Season-Specific Anime Variant Tests ─────────────────────────────────
 
     @Test

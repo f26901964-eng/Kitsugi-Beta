@@ -99,7 +99,7 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
         cs3ApiName: String? = null,
         isMovie: Boolean = false
     ) {
-        val newKey = "$malId:$aniListId:$tmdbId:$isMovie:$season:$episode:$startYear:$cs3Url:${title.hashCode()}:${alternativeTitles.hashCode()}"
+        val newKey = "$malId:$aniListId:$tmdbId:$isMovie:$season:$episode:$startYear:$cs3ApiName:$cs3Url:${title.hashCode()}:${alternativeTitles.hashCode()}"
 
         // ── Cache hit: same combination, data already present ─────────────────
         if (newKey == currentFetchKey) {
@@ -260,53 +260,54 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
         cs3ApiName: String? = null,
         isMovie: Boolean = false
     ) {
-        if (cs3Url != null && cs3ApiName != null) {
-            _isResolvingId.value = false
-            _addonStates.value = listOf(AddonFetchState(cs3ApiName, isLoading = true))
+        val directUrl = cs3Url?.trim()?.takeIf { it.isNotBlank() }
+        val directApiName = cs3ApiName?.trim()?.takeIf { it.isNotBlank() }
+        if (directUrl != null && directApiName != null) {
+            _addonStates.value = listOf(AddonFetchState(directApiName, isLoading = true))
+            var directFailure: String? = null
             try {
                 val db = KitsugiDatabase.getDatabase(context)
                 val csPlugin = db.csPluginDao().getEnabledPlugins()
-                    .firstOrNull { it.name.equals(cs3ApiName, ignoreCase = true) }
+                    .firstOrNull {
+                        it.id.equals(directApiName, ignoreCase = true) ||
+                            it.name.equals(directApiName, ignoreCase = true)
+                    }
                 if (csPlugin != null) {
                     withContext(Dispatchers.IO) {
                         CsPluginLoader.loadExtension(context, csPlugin.id)
                     }
                 }
                 val activeApi = com.lagradost.cloudstream3.APIHolder.allProviders.firstOrNull {
-                    it.name.equals(cs3ApiName, ignoreCase = true)
+                    it.name.equals(directApiName, ignoreCase = true)
                 }
                 if (activeApi != null) {
                     val resolved = CsStreamRunner.getStreamsForUrl(
                         api = activeApi,
-                        url = cs3Url,
+                        url = directUrl,
                         season = season,
                         episode = episode,
                         isMovie = isMovie
                     )
-                    updateAddonStateSync(
-                        cs3ApiName,
-                        isLoading = false,
-                        streams = resolved,
-                        error = if (resolved.isEmpty()) "Bu kaynak için akış bulunamadı" else null
-                    )
+                    if (resolved.isNotEmpty()) {
+                        _isResolvingId.value = false
+                        updateAddonStateSync(directApiName, isLoading = false, streams = resolved)
+                        return
+                    }
+                    directFailure = "the selected provider URL returned no streams"
                 } else {
-                    updateAddonStateSync(
-                        cs3ApiName,
-                        isLoading = false,
-                        streams = emptyList(),
-                        error = "Eklenti yüklenemedi: $cs3ApiName"
-                    )
+                    directFailure = "the selected provider is not loaded"
                 }
             } catch (e: Throwable) {
                 if (e is kotlinx.coroutines.CancellationException) throw e
-                updateAddonStateSync(
-                    cs3ApiName,
-                    isLoading = false,
-                    streams = emptyList(),
-                    error = "Hata: ${e.localizedMessage ?: e.javaClass.simpleName}"
-                )
+                directFailure = e.localizedMessage ?: e.javaClass.simpleName
             }
-            return
+
+            // A provider/search-result URL is an optimization, not a reason to stop the
+            // shared title-first search. If that one route is stale, mismatched for this
+            // episode, or temporarily unavailable, continue through every enabled plugin.
+            Log.w(TAG, "[$directApiName] Direct source fetch failed ($directFailure); falling back to all enabled providers")
+            CsTrace.warn(directApiName, "direct-url", "$directFailure; falling back to shared title/episode search")
+            _addonStates.value = emptyList()
         }
 
         // ── 1. Resolve IDs ────────────────────────────────────────────────────
@@ -457,9 +458,27 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
             }
 
             // CS plugin tasks
-            val enabledCsPlugins = withContext(Dispatchers.IO) { db.csPluginDao().getEnabledPlugins() }
-            if (enabledCsPlugins.isNotEmpty()) CsTrace.setInventory(enabledCsPlugins.map { "${it.name} v${it.version} (id=${it.id}) ${it.downloadUrl}" })
-            if (enabledCsPlugins.isNotEmpty()) CsTrace.session("Arama: '$title' S${season}E${episode} movie=$isMovie yil=$startYear mal=$malId anilist=$aniListId tmdb=$tmdbId — ${enabledCsPlugins.size} aktif CS eklenti")
+            val installedCsPlugins = withContext(Dispatchers.IO) { db.csPluginDao().getAllPlugins() }
+            val enabledCsPlugins = installedCsPlugins.filter { it.enabled }
+            CsTrace.setInventory(installedCsPlugins.map {
+                "${it.name} v${it.version} (id=${it.id}) enabled=${it.enabled} ${it.downloadUrl}"
+            })
+            CsTrace.session(
+                "Arama: '$title' S${season}E${episode} movie=$isMovie yil=$startYear mal=$malId anilist=$aniListId tmdb=$tmdbId — " +
+                    "CloudStream ${enabledCsPlugins.size}/${installedCsPlugins.size} etkin"
+            )
+            if (enabledCsPlugins.isEmpty() && installedCsPlugins.isNotEmpty()) {
+                val message = context.getString(com.kitsugi.animelist.R.string.cs_all_plugins_disabled_error)
+                Log.w(TAG, "${installedCsPlugins.size} kurulu CloudStream eklentisinin tamamı devre dışı")
+                CsTrace.warn("CloudStream", "inventory", message)
+                stateUpdateMutex.withLock {
+                    _addonStates.value = _addonStates.value + AddonFetchState(
+                        addonName = "CloudStream video sağlayıcıları",
+                        isLoading = false,
+                        error = message
+                    )
+                }
+            }
             if (enabledCsPlugins.isNotEmpty()) {
                 val csPlaceholders = enabledCsPlugins.map { plugin ->
                     AddonFetchState(
@@ -534,26 +553,46 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                             Log.e(TAG, "[$csDisplayName] KRİTİK HATA: ${e.javaClass.simpleName}: ${e.message}", e)
                             CsTrace.error(plugin.name, "pipeline", "KRİTİK HATA: ${e.javaClass.simpleName}: ${e.message}", e)
 
-                            val isBotKontrolCrash = e is android.view.WindowManager.BadTokenException ||
+                            val isWebViewUiFailure = e is android.view.WindowManager.BadTokenException ||
                                 e.cause is android.view.WindowManager.BadTokenException ||
                                 e.message?.contains("token null", ignoreCase = true) == true ||
                                 e.message?.contains("BadTokenException", ignoreCase = true) == true ||
                                 e.message?.contains("activity running", ignoreCase = true) == true
 
-                            val isCfBlock  = e is CloudflareBlockException
-                            val isTimeout  = e is java.util.concurrent.TimeoutException ||
+                            val isCfBlock = e is CloudflareBlockException
+                            val isTimeout = e is java.util.concurrent.TimeoutException ||
                                 e.message?.contains("zaman aşımı", ignoreCase = true) == true ||
                                 e.message?.contains("timeout", ignoreCase = true) == true
 
-                            if (isBotKontrolCrash || isCfBlock || isTimeout) {
-                                Log.w(TAG, "[$csDisplayName] CF/CAPTCHA/Timeout engeli tespit edildi")
-                                updateAddonState(
-                                    csDisplayName, isLoading = false,
-                                    error = "🔐 Cloudflare doğrulaması gerekiyor (Doğrula butonuna bas)"
-                                )
-                            } else {
-                                updateAddonState(
-                                    csDisplayName, isLoading = false,
+                            when {
+                                isCfBlock -> {
+                                    Log.w(TAG, "[$csDisplayName] Açık bot/WAF challenge tespit edildi")
+                                    updateAddonState(
+                                        csDisplayName,
+                                        isLoading = false,
+                                        error = "🔐 Bot/WAF doğrulaması gerekiyor (Doğrula butonuna bas)",
+                                        requiresVerification = true
+                                    )
+                                }
+                                isTimeout -> {
+                                    Log.w(TAG, "[$csDisplayName] Ağ/site zaman aşımı; CF/WAF olarak sınıflandırılmadı")
+                                    updateAddonState(
+                                        csDisplayName,
+                                        isLoading = false,
+                                        error = "⏱ İstek zaman aşımına uğradı; ağ veya sağlayıcı yanıt vermedi."
+                                    )
+                                }
+                                isWebViewUiFailure -> {
+                                    Log.w(TAG, "[$csDisplayName] WebView doğrulama penceresi açılamadı")
+                                    updateAddonState(
+                                        csDisplayName,
+                                        isLoading = false,
+                                        error = "Doğrulama penceresi açılamadı; ekrandan yeniden deneyin."
+                                    )
+                                }
+                                else -> updateAddonState(
+                                    csDisplayName,
+                                    isLoading = false,
                                     error = "Hata: ${e.localizedMessage ?: e.message ?: e.javaClass.simpleName}"
                                 )
                             }
@@ -570,7 +609,8 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
         addonName: String,
         isLoading: Boolean,
         streams: List<StreamSource> = emptyList(),
-        error: String? = null
+        error: String? = null,
+        requiresVerification: Boolean = false
     ) {
         stateUpdateMutex.withLock {
             withContext(Dispatchers.Main) {
@@ -580,7 +620,8 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
                         list[i] = list[i].copy(
                             isLoading = isLoading,
                             streams   = streams,
-                            error     = if (error == null && streams.isEmpty()) "Bu anime için akış bulunamadı" else error
+                            error     = if (error == null && streams.isEmpty()) "Bu anime için akış bulunamadı" else error,
+                            requiresVerification = requiresVerification
                         )
                     }
                 }
@@ -592,7 +633,8 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
         addonName: String,
         isLoading: Boolean,
         streams: List<StreamSource> = emptyList(),
-        error: String? = null
+        error: String? = null,
+        requiresVerification: Boolean = false
     ) {
         val current = _addonStates.value.toMutableList()
         val i = current.indexOfFirst { it.addonName == addonName }
@@ -600,7 +642,8 @@ class StreamViewModel(application: Application) : AndroidViewModel(application) 
             current[i] = current[i].copy(
                 isLoading = isLoading,
                 streams   = streams,
-                error     = error
+                error     = error,
+                requiresVerification = requiresVerification
             )
             _addonStates.value = current
         }
