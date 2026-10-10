@@ -1,4 +1,7 @@
 ﻿package com.kitsugi.animelist.ui.components
+
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.Context
@@ -253,7 +256,7 @@ fun KitsugiPlayerSettingsDialog(
                         IconButton(onClick = { activeSubScreen = PlayerSettingsSubScreen.Main }) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                                contentDescription = "Geri",
+                                contentDescription = stringResource(R.string.notif_action_back),
                                 tint = KitsugiColors.TextPrimary
                             )
                         }
@@ -262,7 +265,7 @@ fun KitsugiPlayerSettingsDialog(
                         IconButton(onClick = onDismiss) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                                contentDescription = "Geri",
+                                contentDescription = stringResource(R.string.notif_action_back),
                                 tint = KitsugiColors.TextPrimary
                             )
                         }
@@ -270,15 +273,15 @@ fun KitsugiPlayerSettingsDialog(
                     }
                     Text(
                         text = when (activeSubScreen) {
-                            PlayerSettingsSubScreen.Main -> "Oynatıcı Ayarları"
-                            PlayerSettingsSubScreen.DahiliOynatici -> "Dahili oynatıcı"
-                            PlayerSettingsSubScreen.Hareketler -> "Hareketler"
-                            PlayerSettingsSubScreen.KodCozucu -> "Kod çözücü"
-                            PlayerSettingsSubScreen.Altyazilar -> "Alt yazılar"
-                            PlayerSettingsSubScreen.Ses -> "Ses"
-                            PlayerSettingsSubScreen.OzelButonlar -> "Özel butonlar"
-                            PlayerSettingsSubScreen.KodDuzenleyici -> "Kod düzenleyici"
-                            PlayerSettingsSubScreen.Gelismis -> "Gelişmiş"
+                            PlayerSettingsSubScreen.Main -> stringResource(R.string.pd_title)
+                            PlayerSettingsSubScreen.DahiliOynatici -> stringResource(R.string.pd_tab_internal)
+                            PlayerSettingsSubScreen.Hareketler -> stringResource(R.string.pd_sub_gestures)
+                            PlayerSettingsSubScreen.KodCozucu -> stringResource(R.string.pd_tab_decoder)
+                            PlayerSettingsSubScreen.Altyazilar -> stringResource(R.string.pd_tab_subtitles)
+                            PlayerSettingsSubScreen.Ses -> stringResource(R.string.pd_sub_audio)
+                            PlayerSettingsSubScreen.OzelButonlar -> stringResource(R.string.pd_tab_custom_buttons)
+                            PlayerSettingsSubScreen.KodDuzenleyici -> stringResource(R.string.pd_tab_code_editor)
+                            PlayerSettingsSubScreen.Gelismis -> stringResource(R.string.pd_tab_advanced)
                         },
                         color = KitsugiColors.TextPrimary,
                         style = MaterialTheme.typography.titleLarge,
@@ -289,7 +292,7 @@ fun KitsugiPlayerSettingsDialog(
                     IconButton(onClick = onDismiss) {
                         Icon(
                             imageVector = Icons.Rounded.Close,
-                            contentDescription = "Kapat",
+                            contentDescription = stringResource(R.string.settings_close),
                             tint = KitsugiColors.TextSecondary
                         )
                     }
@@ -323,8 +326,8 @@ fun KitsugiPlayerSettingsDialog(
                         ) {
                             item {
                                 KitsugiSettingsItem(
-                                    title = "Dahili oynatıcı",
-                                    description = "Varsayılan oynatıcı, otomatik oynatma, intro atlama ve başlık görünümü",
+                                    title = stringResource(R.string.pd_tab_internal),
+                                    description = stringResource(R.string.pd_tab_internal_desc),
                                     icon = Icons.Rounded.PlayCircle,
                                     iconColor = accentColor,
                                     onClick = { activeSubScreen = PlayerSettingsSubScreen.DahiliOynatici }
@@ -333,8 +336,8 @@ fun KitsugiPlayerSettingsDialog(
                             }
                             item {
                                 KitsugiSettingsItem(
-                                    title = "Hareketler",
-                                    description = "Dikey ve yatay kaydırma, çift dokunma süresi, basılı tutma hızı ve arama jestleri",
+                                    title = stringResource(R.string.pd_sub_gestures),
+                                    description = stringResource(R.string.pd_tab_gestures_desc),
                                     icon = Icons.Rounded.Swipe,
                                     iconColor = accentColor,
                                     onClick = { activeSubScreen = PlayerSettingsSubScreen.Hareketler }
@@ -343,8 +346,8 @@ fun KitsugiPlayerSettingsDialog(
                             }
                             item {
                                 KitsugiSettingsItem(
-                                    title = "Kod çözücü",
-                                    description = "MPV GPU renderer, donanım kod çözücü (hwdec), debanding ve Dolby Vision",
+                                    title = stringResource(R.string.pd_tab_decoder),
+                                    description = stringResource(R.string.pd_tab_decoder_desc),
                                     icon = Icons.Rounded.Memory,
                                     iconColor = accentColor,
                                     onClick = { activeSubScreen = PlayerSettingsSubScreen.KodCozucu }
@@ -353,8 +356,8 @@ fun KitsugiPlayerSettingsDialog(
                             }
                             item {
                                 KitsugiSettingsItem(
-                                    title = "Alt yazılar",
-                                    description = "Altyazı boyutu, rengi, yazı kalınlığı, gölge, arka plan ve dil tercihleri",
+                                    title = stringResource(R.string.pd_tab_subtitles),
+                                    description = stringResource(R.string.pd_tab_subtitles_desc),
                                     icon = Icons.Rounded.Subtitles,
                                     iconColor = accentColor,
                                     onClick = { activeSubScreen = PlayerSettingsSubScreen.Altyazilar }
@@ -363,8 +366,8 @@ fun KitsugiPlayerSettingsDialog(
                             }
                             item {
                                 KitsugiSettingsItem(
-                                    title = "Ses",
-                                    description = "Ses güçlendirme sınırı, rota bazlı ses gecikmeleri ve gecikme ayarları",
+                                    title = stringResource(R.string.pd_sub_audio),
+                                    description = stringResource(R.string.pd_tab_audio_desc),
                                     icon = Icons.Rounded.VolumeUp,
                                     iconColor = accentColor,
                                     onClick = { activeSubScreen = PlayerSettingsSubScreen.Ses }
@@ -373,8 +376,8 @@ fun KitsugiPlayerSettingsDialog(
                             }
                             item {
                                 KitsugiSettingsItem(
-                                    title = "Özel butonlar",
-                                    description = "Oynatıcı içi kontrol paneline yeni özel lua/mpv tetikleyici butonları ekleyin ve düzenleyin",
+                                    title = stringResource(R.string.pd_tab_custom_buttons),
+                                    description = stringResource(R.string.pd_tab_custom_buttons_desc),
                                     icon = Icons.Rounded.SmartButton,
                                     iconColor = accentColor,
                                     onClick = { activeSubScreen = PlayerSettingsSubScreen.OzelButonlar }
@@ -383,8 +386,8 @@ fun KitsugiPlayerSettingsDialog(
                             }
                             item {
                                 KitsugiSettingsItem(
-                                    title = "Kod düzenleyici",
-                                    description = "Uygulama dizinindeki özel Lua script dosyalarını ve Conf seçeneklerini düzenleyin",
+                                    title = stringResource(R.string.pd_tab_code_editor),
+                                    description = stringResource(R.string.pd_tab_code_editor_desc),
                                     icon = Icons.Rounded.Code,
                                     iconColor = accentColor,
                                     onClick = { activeSubScreen = PlayerSettingsSubScreen.KodDuzenleyici }
@@ -393,8 +396,8 @@ fun KitsugiPlayerSettingsDialog(
                             }
                             item {
                                 KitsugiSettingsItem(
-                                    title = "Gelişmiş",
-                                    description = "ExoPlayer arabellek sınırları, paralel indirme, mpv.conf ve input.conf dosyaları",
+                                    title = stringResource(R.string.pd_tab_advanced),
+                                    description = stringResource(R.string.pd_tab_advanced_desc),
                                     icon = Icons.Rounded.Settings,
                                     iconColor = accentColor,
                                     onClick = { activeSubScreen = PlayerSettingsSubScreen.Gelismis }
@@ -411,19 +414,19 @@ fun KitsugiPlayerSettingsDialog(
                             contentPadding = PaddingValues(16.dp)
                         ) {
                             item {
-                                KitsugiSettingsSection(title = "Oynatma Motoru") {
+                                KitsugiSettingsSection(title = stringResource(R.string.pd_section_engine)) {
                                     // Player Preference Selection
                                     Box {
                                         val playerOptions = listOf(
-                                            "MPV"      to "Dahili Oynatıcı (MPV)",
-                                            "INTERNAL" to "Dahili Oynatıcı (ExoPlayer)",
-                                            "EXTERNAL" to "Harici Oynatıcı (MPV/VLC vb.)",
-                                            "ASK"      to "Her Seferinde Sor"
+                                            "MPV"      to stringResource(R.string.player_engine_internal_mpv),
+                                            "INTERNAL" to stringResource(R.string.player_engine_internal_exo),
+                                            "EXTERNAL" to stringResource(R.string.player_engine_external),
+                                            "ASK"      to stringResource(R.string.player_engine_ask)
                                         )
-                                        val currentPlayerName = playerOptions.find { it.first == playerPreference }?.second ?: "Dahili Oynatıcı (MPV)"
+                                        val currentPlayerName = playerOptions.find { it.first == playerPreference }?.second ?: stringResource(R.string.player_engine_internal_mpv)
                                         KitsugiSettingsListItem(
-                                            title = "Varsayılan Video Oynatıcı",
-                                            description = "Hangi oynatma motorunun kullanılacağını seçin",
+                                            title = stringResource(R.string.pd_default_video_player),
+                                            description = stringResource(R.string.pd_default_video_player_desc),
                                             value = currentPlayerName,
                                             icon = Icons.Rounded.PlayArrow,
                                             iconColor = accentColor,
@@ -447,17 +450,17 @@ fun KitsugiPlayerSettingsDialog(
                                         KitsugiSettingsDivider()
                                         Box {
                                             val extOptions = listOf(
-                                                "" to "Seçilmedi (Varsayılan Sistem Oynatıcısı)",
+                                                "" to stringResource(R.string.pd_not_selected),
                                                 "com.mxtech.videoplayer.ad" to "MX Player",
                                                 "com.mxtech.videoplayer.pro" to "MX Player Pro",
                                                 "org.videolan.vlc" to "VLC Player",
                                                 "is.xyz.mpv" to "MPV Player",
                                                 "com.brouken.player" to "Just Player"
                                             )
-                                            val currentExtName = extOptions.find { it.first == preferredExternalPlayerPackage }?.second ?: "Harici Sistem Oynatıcısı"
+                                            val currentExtName = extOptions.find { it.first == preferredExternalPlayerPackage }?.second ?: stringResource(R.string.pd_external_system_player)
                                             KitsugiSettingsListItem(
-                                                title = "Harici Oynatıcı Uygulaması",
-                                                description = "Oynatma için hedeflenecek varsayılan harici paket",
+                                                title = stringResource(R.string.pd_external_player_app),
+                                                description = stringResource(R.string.pd_external_player_app_desc),
                                                 value = currentExtName,
                                                 icon = Icons.Rounded.SettingsInputComponent,
                                                 iconColor = accentColor,
@@ -481,10 +484,10 @@ fun KitsugiPlayerSettingsDialog(
                             }
                             
                             item {
-                                KitsugiSettingsSection(title = "Otomatik Oynatma & Geçişler") {
+                                KitsugiSettingsSection(title = stringResource(R.string.pd_autoplay_transitions)) {
                                     KitsugiSettingsSwitchItem(
-                                        title = "Otomatik Oynatma",
-                                        description = "Sonraki bölüme otomatik olarak geçiş yap",
+                                        title = stringResource(R.string.pd_autoplay),
+                                        description = stringResource(R.string.pd_autoplay_next),
                                         checked = isAutoplayEnabled,
                                         icon = Icons.Rounded.FastForward,
                                         iconColor = accentColor,
@@ -495,16 +498,16 @@ fun KitsugiPlayerSettingsDialog(
                                     
                                     Box {
                                         val introOptions = listOf(
-                                            0 to "Devre Dışı",
-                                            3 to "3 Saniye",
-                                            5 to "5 Saniye",
-                                            10 to "10 Saniye",
-                                            15 to "15 Saniye"
+                                            0 to stringResource(R.string.player_intro_off),
+                                            3 to stringResource(R.string.player_intro_3),
+                                            5 to stringResource(R.string.player_intro_5),
+                                            10 to stringResource(R.string.player_intro_10),
+                                            15 to stringResource(R.string.player_intro_15)
                                         )
-                                        val currentIntroName = introOptions.find { it.first == skipIntroDurationSec }?.second ?: "5 Saniye"
+                                        val currentIntroName = introOptions.find { it.first == skipIntroDurationSec }?.second ?: stringResource(R.string.player_intro_5)
                                         KitsugiSettingsListItem(
-                                            title = "İntro Atlama Süresi",
-                                            description = "+85s atlama butonunun başlangıçta intro süresine göre ayarlanması",
+                                            title = stringResource(R.string.pd_intro_skip_duration),
+                                            description = stringResource(R.string.pd_intro_skip_desc),
                                             value = currentIntroName,
                                             icon = Icons.Rounded.SkipNext,
                                             iconColor = accentColor,
@@ -527,10 +530,10 @@ fun KitsugiPlayerSettingsDialog(
                             }
 
                             item {
-                                KitsugiSettingsSection(title = "Oynatıcı Arayüzü Bilgileri") {
+                                KitsugiSettingsSection(title = stringResource(R.string.pd_player_ui_info)) {
                                     KitsugiSettingsSwitchItem(
-                                        title = "Bölüm Başlığını Göster",
-                                        description = "Üst kontrolde oynatılan medyanın adını göster",
+                                        title = stringResource(R.string.pd_show_episode_title),
+                                        description = stringResource(R.string.pd_show_episode_title_desc),
                                         checked = showPlayerTitle,
                                         icon = Icons.Rounded.Title,
                                         iconColor = accentColor,
@@ -538,8 +541,8 @@ fun KitsugiPlayerSettingsDialog(
                                     )
                                     KitsugiSettingsDivider()
                                     KitsugiSettingsSwitchItem(
-                                        title = "Çözünürlük Göster",
-                                        description = "Üst kontrolde video çözünürlüğünü göster (örn: 1080p)",
+                                        title = stringResource(R.string.pd_show_resolution),
+                                        description = stringResource(R.string.pd_show_resolution_desc),
                                         checked = showPlayerResolution,
                                         icon = Icons.Rounded.Hd,
                                         iconColor = accentColor,
@@ -547,8 +550,8 @@ fun KitsugiPlayerSettingsDialog(
                                     )
                                     KitsugiSettingsDivider()
                                     KitsugiSettingsSwitchItem(
-                                        title = "Medya / Codec Bilgisi",
-                                        description = "Video codec, fps ve bitrate bilgilerini göster",
+                                        title = stringResource(R.string.pd_media_codec_info),
+                                        description = stringResource(R.string.pd_show_media_info_desc),
                                         checked = showMediaInfo,
                                         icon = Icons.Rounded.Info,
                                         iconColor = accentColor,
@@ -558,10 +561,10 @@ fun KitsugiPlayerSettingsDialog(
                             }
 
                             item {
-                                KitsugiSettingsSection(title = "Hareketsizlik ve Oynatma Kuralları") {
+                                KitsugiSettingsSection(title = stringResource(R.string.pd_inactivity_rules)) {
                                     KitsugiSettingsSwitchItem(
-                                        title = "Hâlâ İzliyor musun?",
-                                        description = "Belirli bir süre hareketsizlik sonrası oynatmayı durdur ve sor",
+                                        title = stringResource(R.string.pd_still_watching),
+                                        description = stringResource(R.string.pd_still_watching_desc),
                                         checked = stillWatchingEnabled,
                                         icon = Icons.Rounded.QuestionMark,
                                         iconColor = accentColor,
@@ -571,15 +574,15 @@ fun KitsugiPlayerSettingsDialog(
                                         KitsugiSettingsDivider()
                                         Box {
                                             val thresholdOptions = listOf(
-                                                45 to "45 Dakika",
-                                                90 to "90 Dakika (Varsayılan)",
-                                                120 to "120 Dakika",
-                                                180 to "180 Dakika"
+                                                45 to stringResource(R.string.pd_threshold_45),
+                                                90 to stringResource(R.string.pd_threshold_90),
+                                                120 to stringResource(R.string.pd_threshold_120),
+                                                180 to stringResource(R.string.pd_threshold_180)
                                             )
                                             val currentThresholdName = thresholdOptions.find { it.first == stillWatchingThresholdMinutes }?.second ?: "${stillWatchingThresholdMinutes} Dakika"
                                             KitsugiSettingsListItem(
-                                                title = "Hareketsizlik Eşiği",
-                                                description = "Ne kadar süre sonra uyarı gösterileceğini seçin",
+                                                title = stringResource(R.string.player_inactivity_threshold),
+                                                description = stringResource(R.string.pd_threshold_desc),
                                                 value = currentThresholdName,
                                                 icon = Icons.Rounded.HourglassEmpty,
                                                 iconColor = accentColor,
@@ -604,14 +607,14 @@ fun KitsugiPlayerSettingsDialog(
 
                                     Box {
                                         val postOptions = listOf(
-                                            "MANUAL" to "Bölüm bittiğinde manuel geçiş yap",
-                                            "AUTO_PLAY_NEXT" to "Doğrudan sonraki bölümü oynat",
-                                            "BINGE_PROMPT" to "Sonraki bölüm için sor"
+                                            "MANUAL" to stringResource(R.string.pd_post_play_manual),
+                                            "AUTO_PLAY_NEXT" to stringResource(R.string.pd_post_play_direct),
+                                            "BINGE_PROMPT" to stringResource(R.string.pd_post_play_ask)
                                         )
-                                        val currentPostName = postOptions.find { it.first == postPlayMode }?.second ?: "Doğrudan sonraki bölümü oynat"
+                                        val currentPostName = postOptions.find { it.first == postPlayMode }?.second ?: stringResource(R.string.pd_post_play_direct)
                                         KitsugiSettingsListItem(
-                                            title = "Sonraki Bölüm Modu",
-                                            description = "Bölüm bittiğinde yapılacak varsayılan eylem",
+                                            title = stringResource(R.string.player_post_play_mode),
+                                            description = stringResource(R.string.player_post_play_mode_desc),
                                             value = currentPostName,
                                             icon = Icons.Rounded.QueuePlayNext,
                                             iconColor = accentColor,
@@ -635,16 +638,16 @@ fun KitsugiPlayerSettingsDialog(
 
                                     Box {
                                         val limitOptions = listOf(
-                                            0 to "Sınırsız (Otomatik Oynat)",
-                                            1 to "1 Bölüm",
-                                            2 to "2 Bölüm",
-                                            3 to "3 Bölüm",
-                                            5 to "5 Bölüm"
+                                            0 to stringResource(R.string.pd_session_unlimited),
+                                            1 to stringResource(R.string.pd_session_1),
+                                            2 to stringResource(R.string.pd_session_2),
+                                            3 to stringResource(R.string.player_limit_3),
+                                            5 to stringResource(R.string.player_limit_5)
                                         )
-                                        val currentLimitName = limitOptions.find { it.first == autoplaySessionLimit }?.second ?: "${autoplaySessionLimit} Bölüm"
+                                        val currentLimitName = limitOptions.find { it.first == autoplaySessionLimit }?.second ?: stringResource(R.string.pd_session_n, autoplaySessionLimit)
                                         KitsugiSettingsListItem(
-                                            title = "Otomatik Oynatma Limiti",
-                                            description = "Kullanıcı etkileşimi olmadan art arda kaç bölüm oynatılabileceğini sınırlayın",
+                                            title = stringResource(R.string.pd_autoplay_limit),
+                                            description = stringResource(R.string.pd_session_limit_desc),
                                             value = currentLimitName,
                                             icon = Icons.Rounded.Timer,
                                             iconColor = accentColor,
@@ -676,10 +679,10 @@ fun KitsugiPlayerSettingsDialog(
                             contentPadding = PaddingValues(16.dp)
                         ) {
                             item {
-                                KitsugiSettingsSection(title = "Kaydırma Jesti Kontrolleri") {
+                                KitsugiSettingsSection(title = stringResource(R.string.pd_scroll_gesture_controls)) {
                                     KitsugiSettingsSwitchItem(
-                                        title = "Ses Kaydırma Jesti",
-                                        description = "Ekranın dikey kaydırılmasıyla ses seviyesini ayarla",
+                                        title = stringResource(R.string.pd_volume_gesture),
+                                        description = stringResource(R.string.pd_volume_gesture_desc),
                                         checked = gestureVolumeEnabled,
                                         icon = Icons.Rounded.VolumeUp,
                                         iconColor = accentColor,
@@ -687,8 +690,8 @@ fun KitsugiPlayerSettingsDialog(
                                     )
                                     KitsugiSettingsDivider()
                                     KitsugiSettingsSwitchItem(
-                                        title = "Parlaklık Kaydırma Jesti",
-                                        description = "Ekranın dikey kaydırılmasıyla ekran parlaklığını ayarla",
+                                        title = stringResource(R.string.pd_brightness_gesture),
+                                        description = stringResource(R.string.pd_brightness_gesture_desc),
                                         checked = gestureBrightnessEnabled,
                                         icon = Icons.Rounded.BrightnessMedium,
                                         iconColor = accentColor,
@@ -696,8 +699,8 @@ fun KitsugiPlayerSettingsDialog(
                                     )
                                     KitsugiSettingsDivider()
                                     KitsugiSettingsSwitchItem(
-                                        title = "Çimdikleme (Pinch-to-Zoom)",
-                                        description = "İki parmakla yakınlaştırarak ekran modunu ayarla",
+                                        title = stringResource(R.string.pd_pinch_zoom),
+                                        description = stringResource(R.string.pd_pinch_zoom_desc),
                                         checked = gestureZoomEnabled,
                                         icon = Icons.Rounded.ZoomIn,
                                         iconColor = accentColor,
@@ -707,11 +710,11 @@ fun KitsugiPlayerSettingsDialog(
                             }
 
                             item {
-                                KitsugiSettingsSection(title = "Jest Hassasiyetleri") {
+                                KitsugiSettingsSection(title = stringResource(R.string.pd_gesture_sensitivities)) {
                                     // Scroll Sensitivity Slider
                                     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                                         Text(
-                                            text = "Kaydırma Hassasiyeti: ${"%.1f".format(gestureScrollSensitivity)}x",
+                                            text = stringResource(R.string.pd_scroll_sens, "%.1f".format(gestureScrollSensitivity)),
                                             color = KitsugiColors.TextPrimary,
                                             fontWeight = FontWeight.SemiBold
                                         )
@@ -733,8 +736,8 @@ fun KitsugiPlayerSettingsDialog(
                                     Box {
                                         val seekSecOptions = listOf(5, 10, 15, 20, 30)
                                         KitsugiSettingsListItem(
-                                            title = "Çift Dokunma Arama Süresi",
-                                            description = "Ekranın sağına/soluna çift dokunulduğunda atlanacak saniye",
+                                            title = stringResource(R.string.pd_double_tap_seek),
+                                            description = stringResource(R.string.pd_double_tap_seek_desc),
                                             value = "${doubleTapSeekSeconds} Saniye",
                                             icon = Icons.Rounded.DoubleArrow,
                                             iconColor = accentColor,
@@ -743,7 +746,7 @@ fun KitsugiPlayerSettingsDialog(
                                         KitsugiDropdownMenu(expanded = doubleTapSeekDropdownExpanded, onDismissRequest = { doubleTapSeekDropdownExpanded = false }) {
                                             seekSecOptions.forEach { seconds ->
                                                 KitsugiDropdownItem(
-                                                    text = "$seconds Saniye",
+                                                    text = stringResource(R.string.pd_seconds, seconds),
                                                     selected = seconds == doubleTapSeekSeconds,
                                                     onClick = {
                                                         onDoubleTapSeekSecondsSelected(seconds)
@@ -760,8 +763,8 @@ fun KitsugiPlayerSettingsDialog(
                                     Box {
                                         val holdOptions = listOf(1.5f, 2.0f, 2.5f, 3.0f)
                                         KitsugiSettingsListItem(
-                                            title = "Basılı Tutma Hız Çarpanı",
-                                            description = "Ekrana uzun basıldığında oynatılacak video hızı çarpanı",
+                                            title = stringResource(R.string.player_hold_speed),
+                                            description = stringResource(R.string.pd_hold_speed_desc),
                                             value = "${holdSpeedMultiplier}x",
                                             icon = Icons.Rounded.Speed,
                                             iconColor = accentColor,
@@ -784,11 +787,11 @@ fun KitsugiPlayerSettingsDialog(
                             }
 
                             item {
-                                KitsugiSettingsSection(title = "Gelişmiş Jestler") {
+                                KitsugiSettingsSection(title = stringResource(R.string.pd_advanced_gestures)) {
                                     val swipeSides = appSettings?.swipeVolumeBrightnessSides ?: true
                                     KitsugiSettingsSwitchItem(
-                                        title = "Jest Yönlerini Ters Çevir",
-                                        description = if (swipeSides) "Sol: Parlaklık, Sağ: Ses (Varsayılan)" else "Sol: Ses, Sağ: Parlaklık",
+                                        title = stringResource(R.string.pd_invert_gestures),
+                                        description = if (swipeSides) stringResource(R.string.pd_invert_off) else stringResource(R.string.pd_invert_on),
                                         checked = !swipeSides,
                                         icon = Icons.Rounded.CompareArrows,
                                         iconColor = accentColor,
@@ -803,8 +806,8 @@ fun KitsugiPlayerSettingsDialog(
 
                                     val horizontalSeek = appSettings?.horizontalSeekGestureEnabled ?: true
                                     KitsugiSettingsSwitchItem(
-                                        title = "Yatay Arama Jesti",
-                                        description = "Ekranda yatay sürükleme ile ileri/geri sar",
+                                        title = stringResource(R.string.pd_horizontal_seek_gesture),
+                                        description = stringResource(R.string.pd_horizontal_seek),
                                         checked = horizontalSeek,
                                         icon = Icons.Rounded.SettingsEthernet,
                                         iconColor = accentColor,
@@ -819,8 +822,8 @@ fun KitsugiPlayerSettingsDialog(
 
                                     val preciseSeek = appSettings?.preciseSeeking ?: false
                                     KitsugiSettingsSwitchItem(
-                                        title = "Hassas Arama Modu",
-                                        description = "Yatay sürüklemede kare kare yavaş/hassas hareket et",
+                                        title = stringResource(R.string.pd_precise_seek_mode),
+                                        description = stringResource(R.string.pd_precise_seek),
                                         checked = preciseSeek,
                                         icon = Icons.Rounded.CenterFocusWeak,
                                         iconColor = accentColor,
@@ -845,13 +848,13 @@ fun KitsugiPlayerSettingsDialog(
 
 
                             item {
-                                KitsugiSettingsSection(title = "MPV Motoru Konfigürasyonları") {
+                                KitsugiSettingsSection(title = stringResource(R.string.pd_mpv_configs)) {
                                     Box {
                                         val hwdecOptions = listOf("auto", "auto-safe", "no")
                                         val currentHwdec = appSettings?.mpvHwdecMode ?: "auto-safe"
                                         KitsugiSettingsListItem(
-                                            title = "MPV Donanım Hızlandırma (hwdec)",
-                                            description = "MPV donanım video çözücü modu",
+                                            title = stringResource(R.string.pd_mpv_hwdec),
+                                            description = stringResource(R.string.pd_mpv_hwdec_desc),
                                             value = currentHwdec,
                                             icon = Icons.Rounded.Memory,
                                             iconColor = accentColor,
@@ -878,7 +881,7 @@ fun KitsugiPlayerSettingsDialog(
                                         val currentGpu = appSettings?.mpvGpuRenderer ?: "gpu"
                                         KitsugiSettingsListItem(
                                             title = "MPV GPU Renderer Backend",
-                                            description = "Yüksek kaliteli render motoru backend seçimi",
+                                            description = stringResource(R.string.pd_mpv_gpu_desc),
                                             value = currentGpu,
                                             icon = Icons.Rounded.SettingsApplications,
                                             iconColor = accentColor,
@@ -904,8 +907,8 @@ fun KitsugiPlayerSettingsDialog(
                                         val debandOptions = listOf("none", "cpu", "gpu")
                                         val currentDeband = appSettings?.mpvDebandMode ?: "none"
                                         KitsugiSettingsListItem(
-                                            title = "Video Debanding (Bantlaşmayı Önleme)",
-                                            description = "Renk geçişlerindeki çizgileri yumuşatır",
+                                            title = stringResource(R.string.pd_mpv_deband),
+                                            description = stringResource(R.string.pd_mpv_deband_desc),
                                             value = currentDeband,
                                             icon = Icons.Rounded.BlurOn,
                                             iconColor = accentColor,
@@ -929,8 +932,8 @@ fun KitsugiPlayerSettingsDialog(
 
                                     val forceYuv = appSettings?.mpvForceYuv420p ?: false
                                     KitsugiSettingsSwitchItem(
-                                        title = "YUV420P Renk Düzenini Zorla",
-                                        description = "Eski cihazlarda yeşil ekran/çökme sorunlarını giderir",
+                                        title = stringResource(R.string.pd_mpv_yuv),
+                                        description = stringResource(R.string.pd_mpv_yuv_desc),
                                         checked = forceYuv,
                                         icon = Icons.Rounded.ColorLens,
                                         iconColor = accentColor,
@@ -944,7 +947,7 @@ fun KitsugiPlayerSettingsDialog(
                                     val demuxerCache = appSettings?.mpvDemuxerCacheMb ?: 64
                                     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                                         Text(
-                                            text = "MPV Demuxer Önbelleği: ${demuxerCache} MB",
+                                            text = stringResource(R.string.pd_mpv_demuxer, demuxerCache),
                                             color = KitsugiColors.TextPrimary,
                                             fontWeight = FontWeight.SemiBold
                                         )
@@ -975,20 +978,20 @@ fun KitsugiPlayerSettingsDialog(
                             contentPadding = PaddingValues(16.dp)
                         ) {
                             item {
-                                KitsugiSettingsSection(title = "Altyazı Stili") {
+                                KitsugiSettingsSection(title = stringResource(R.string.pd_sub_style)) {
                                     Box {
                                         val sizeOptions = listOf(
-                                            12 to "12sp (Çok Küçük)",
-                                            14 to "14sp (Küçük)",
-                                            16 to "16sp (Normal)",
-                                            18 to "18sp (Büyük)",
-                                            20 to "20sp (Çok Büyük)",
-                                            24 to "24sp (Devasa)"
+                                            12 to stringResource(R.string.sub_size_12),
+                                            14 to stringResource(R.string.sub_size_14),
+                                            16 to stringResource(R.string.sub_size_16),
+                                            18 to stringResource(R.string.sub_size_18),
+                                            20 to stringResource(R.string.sub_size_20),
+                                            24 to stringResource(R.string.sub_size_24)
                                         )
                                         val currentSizeLabel = sizeOptions.find { it.first == defaultSubtitleSize }?.second ?: "${defaultSubtitleSize}sp"
                                         KitsugiSettingsListItem(
-                                            title = "Yazı Boyutu",
-                                            description = "Altyazı ekran heights oranlama boyutu",
+                                            title = stringResource(R.string.pd_sub_font_size),
+                                            description = stringResource(R.string.pd_sub_font_size_desc),
                                             value = currentSizeLabel,
                                             icon = Icons.Rounded.TextFields,
                                             iconColor = accentColor,
@@ -1012,16 +1015,16 @@ fun KitsugiPlayerSettingsDialog(
 
                                     Box {
                                         val colorOptions = listOf(
-                                            0xFFFFFFFF.toInt() to "Beyaz",
-                                            0xFFFFFF00.toInt() to "Sarı",
-                                            0xFF00FF00.toInt() to "Yeşil",
-                                            0xFF00FFFF.toInt() to "Mavi",
-                                            0xFFFF0000.toInt() to "Kırmızı"
+                                            0xFFFFFFFF.toInt() to stringResource(R.string.sub_color_white),
+                                            0xFFFFFF00.toInt() to stringResource(R.string.color_yellow),
+                                            0xFF00FF00.toInt() to stringResource(R.string.color_green),
+                                            0xFF00FFFF.toInt() to stringResource(R.string.color_blue),
+                                            0xFFFF0000.toInt() to stringResource(R.string.color_red)
                                         )
-                                        val currentColorLabel = colorOptions.find { it.first == defaultSubtitleColor }?.second ?: "Özel"
+                                        val currentColorLabel = colorOptions.find { it.first == defaultSubtitleColor }?.second ?: stringResource(R.string.pd_custom)
                                         KitsugiSettingsListItem(
-                                            title = "Yazı Rengi",
-                                            description = "Altyazıların birincil yazı rengi",
+                                            title = stringResource(R.string.pd_sub_font_color),
+                                            description = stringResource(R.string.pd_sub_font_color_desc),
                                             value = currentColorLabel,
                                             icon = Icons.Rounded.ColorLens,
                                             iconColor = accentColor,
@@ -1044,8 +1047,8 @@ fun KitsugiPlayerSettingsDialog(
                                     KitsugiSettingsDivider()
 
                                     KitsugiSettingsSwitchItem(
-                                        title = "Altyazıları Kalınlaştır (Bold)",
-                                        description = "Yazı tipini kalınlaştırır",
+                                        title = stringResource(R.string.pd_sub_bold),
+                                        description = stringResource(R.string.pd_sub_bold_desc),
                                         checked = subtitleBold,
                                         icon = Icons.Rounded.FormatBold,
                                         iconColor = accentColor,
@@ -1056,8 +1059,8 @@ fun KitsugiPlayerSettingsDialog(
 
                                     val italicSub = appSettings?.subtitleItalic ?: false
                                     KitsugiSettingsSwitchItem(
-                                        title = "Altyazıları İtalik Yap",
-                                        description = "Yazı tipini italik moduna geçirir",
+                                        title = stringResource(R.string.pd_sub_italic),
+                                        description = stringResource(R.string.pd_sub_italic_desc),
                                         checked = italicSub,
                                         icon = Icons.Rounded.FormatItalic,
                                         iconColor = accentColor,
@@ -1069,8 +1072,8 @@ fun KitsugiPlayerSettingsDialog(
                                     KitsugiSettingsDivider()
 
                                     KitsugiSettingsSwitchItem(
-                                        title = "Altyazı Metin Kenarlığı (Outline)",
-                                        description = "Metnin okunabilirliğini artırmak için siyah kenarlık ekler",
+                                        title = stringResource(R.string.pd_sub_outline),
+                                        description = stringResource(R.string.pd_sub_outline_desc),
                                         checked = subtitleOutlineEnabled,
                                         icon = Icons.Rounded.FormatPaint,
                                         iconColor = accentColor,
@@ -1081,15 +1084,15 @@ fun KitsugiPlayerSettingsDialog(
 
                                     Box {
                                         val justificationOptions = listOf(
-                                            "left" to "Sol",
-                                            "center" to "Orta (Varsayılan)",
-                                            "right" to "Sağ"
+                                            "left" to stringResource(R.string.pd_left),
+                                            "center" to stringResource(R.string.pd_align_mid),
+                                            "right" to stringResource(R.string.pd_align_right)
                                         )
                                         val currentJust = appSettings?.subtitleJustification ?: "center"
                                         val currentJustLabel = justificationOptions.find { it.first == currentJust }?.second ?: "Orta"
                                         KitsugiSettingsListItem(
-                                            title = "Altyazı Hizalaması",
-                                            description = "Altyazı satırlarının hizalanacağı yön",
+                                            title = stringResource(R.string.pd_sub_alignment),
+                                            description = stringResource(R.string.pd_sub_alignment_desc),
                                             value = currentJustLabel,
                                             icon = Icons.Rounded.FormatAlignLeft,
                                             iconColor = accentColor,
@@ -1113,15 +1116,15 @@ fun KitsugiPlayerSettingsDialog(
 
                                     Box {
                                         val bgColors = listOf(
-                                            0 to "Şeffaf (Yok)",
-                                            0xFF000000.toInt() to "Siyah",
-                                            0x80000000.toInt() to "Yarı Şeffaf Siyah"
+                                            0 to stringResource(R.string.pd_bg_transparent),
+                                            0xFF000000.toInt() to stringResource(R.string.pd_black),
+                                            0x80000000.toInt() to stringResource(R.string.pd_bg_semi_black)
                                         )
                                         val currentBg = appSettings?.subtitleBackgroundColor ?: 0
-                                        val currentBgLabel = bgColors.find { it.first == currentBg }?.second ?: "Özel"
+                                        val currentBgLabel = bgColors.find { it.first == currentBg }?.second ?: stringResource(R.string.pd_custom)
                                         KitsugiSettingsListItem(
-                                            title = "Arka Plan Rengi",
-                                            description = "Altyazı arkasındaki kutu veya şerit rengi",
+                                            title = stringResource(R.string.pd_bg_color),
+                                            description = stringResource(R.string.pd_bg_color_desc),
                                             value = currentBgLabel,
                                             icon = Icons.Rounded.SelectAll,
                                             iconColor = accentColor,
@@ -1146,7 +1149,7 @@ fun KitsugiPlayerSettingsDialog(
                                     val shadowOffset = appSettings?.subtitleShadowOffset ?: 1.5f
                                     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                                         Text(
-                                            text = "Gölge Uzaklığı: ${"%.1f".format(shadowOffset)} dp",
+                                            text = stringResource(R.string.pd_shadow_offset, "%.1f".format(shadowOffset)),
                                             color = KitsugiColors.TextPrimary,
                                             fontWeight = FontWeight.SemiBold
                                         )
@@ -1166,14 +1169,14 @@ fun KitsugiPlayerSettingsDialog(
 
                                     Box {
                                         val borderColors = listOf(
-                                            0xFF000000.toInt() to "Siyah (Varsayılan)",
-                                            0xFFFFFFFF.toInt() to "Beyaz"
+                                            0xFF000000.toInt() to stringResource(R.string.pd_border_black),
+                                            0xFFFFFFFF.toInt() to stringResource(R.string.sub_color_white)
                                         )
                                         val currentBorderColor = appSettings?.subtitleBorderColor ?: 0xFF000000.toInt()
-                                        val currentBorderColorLabel = borderColors.find { it.first == currentBorderColor }?.second ?: "Özel"
+                                        val currentBorderColorLabel = borderColors.find { it.first == currentBorderColor }?.second ?: stringResource(R.string.pd_custom)
                                         KitsugiSettingsListItem(
-                                            title = "Kenarlık / Gölge Rengi",
-                                            description = "Altyazı gölgesinin veya dış kenarlığının rengi",
+                                            title = stringResource(R.string.pd_border_color),
+                                            description = stringResource(R.string.pd_border_color_desc),
                                             value = currentBorderColorLabel,
                                             icon = Icons.Rounded.BorderOuter,
                                             iconColor = accentColor,
@@ -1198,7 +1201,7 @@ fun KitsugiPlayerSettingsDialog(
                                     val borderSize = appSettings?.subtitleBorderSize ?: 1.5f
                                     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                                         Text(
-                                            text = "Kenarlık Kalınlığı: ${"%.1f".format(borderSize)} dp",
+                                            text = stringResource(R.string.pd_border_size, "%.1f".format(borderSize)),
                                             color = KitsugiColors.TextPrimary,
                                             fontWeight = FontWeight.SemiBold
                                         )
@@ -1217,38 +1220,38 @@ fun KitsugiPlayerSettingsDialog(
                             }
 
                             item {
-                                KitsugiSettingsSection(title = "Altyazı Dil Tercihleri") {
+                                KitsugiSettingsSection(title = stringResource(R.string.pd_sub_lang_prefs)) {
                                     // ── Chip tabanlı çok-seçimli dil seçici ──────────────────
                                     // Dil kodları ISO 639-1 standardında virgülle ayrılmış string
                                     // olarak kaydedilir (örn: "tr,en"). Varsayılan: "tr"
                                     val allSubtitleLanguages = remember {
                                         listOf(
-                                            "tr" to "Türkçe",
-                                            "en" to "İngilizce",
-                                            "ja" to "Japonca",
-                                            "ar" to "Arapça",
-                                            "zh" to "Çince",
-                                            "ko" to "Korece",
-                                            "fr" to "Fransızca",
-                                            "de" to "Almanca",
-                                            "es" to "İspanyolca",
-                                            "pt" to "Portekizce",
-                                            "it" to "İtalyanca",
-                                            "ru" to "Rusça",
-                                            "nl" to "Hollandaca",
-                                            "pl" to "Lehçe",
-                                            "sv" to "İsveççe",
-                                            "no" to "Norveççe",
-                                            "da" to "Danca",
-                                            "fi" to "Fince",
-                                            "uk" to "Ukraynaca",
-                                            "ro" to "Romence",
-                                            "cs" to "Çekçe",
-                                            "hu" to "Macarca",
-                                            "he" to "İbranice",
-                                            "id" to "Endonezyaca",
-                                            "th" to "Tayca",
-                                            "vi" to "Vietnamca"
+                                            "tr" to stringResource(R.string.pd_lang_tr),
+                                            "en" to stringResource(R.string.option_title_lang_english),
+                                            "ja" to stringResource(R.string.option_title_lang_native),
+                                            "ar" to stringResource(R.string.pd_lang_ar),
+                                            "zh" to stringResource(R.string.pd_lang_zh),
+                                            "ko" to stringResource(R.string.pd_lang_ko),
+                                            "fr" to stringResource(R.string.pd_lang_fr),
+                                            "de" to stringResource(R.string.pd_lang_de),
+                                            "es" to stringResource(R.string.pd_lang_es),
+                                            "pt" to stringResource(R.string.pd_lang_pt),
+                                            "it" to stringResource(R.string.pd_lang_it),
+                                            "ru" to stringResource(R.string.pd_lang_ru),
+                                            "nl" to stringResource(R.string.pd_lang_nl),
+                                            "pl" to stringResource(R.string.pd_lang_pl),
+                                            "sv" to stringResource(R.string.pd_lang_sv),
+                                            "no" to stringResource(R.string.pd_lang_no),
+                                            "da" to stringResource(R.string.pd_lang_da),
+                                            "fi" to stringResource(R.string.pd_lang_fi),
+                                            "uk" to stringResource(R.string.pd_lang_uk),
+                                            "ro" to stringResource(R.string.pd_lang_ro),
+                                            "cs" to stringResource(R.string.pd_lang_cs),
+                                            "hu" to stringResource(R.string.pd_lang_hu),
+                                            "he" to stringResource(R.string.pd_lang_he),
+                                            "id" to stringResource(R.string.pd_lang_id),
+                                            "th" to stringResource(R.string.pd_lang_th),
+                                            "vi" to stringResource(R.string.pd_lang_vi)
                                         )
                                     }
                                     val selectedLangs = remember(preferredSubtitleLanguages) {
@@ -1272,16 +1275,16 @@ fun KitsugiPlayerSettingsDialog(
                                             Spacer(modifier = Modifier.width(8.dp))
                                             Column {
                                                 Text(
-                                                    text = "Tercih Edilen Altyazı Dilleri",
+                                                    text = stringResource(R.string.sub_preferred_langs),
                                                     color = KitsugiColors.TextPrimary,
                                                     fontWeight = FontWeight.SemiBold,
                                                     fontSize = 14.sp
                                                 )
                                                 Text(
                                                     text = if (selectedLangs.value.isEmpty())
-                                                        "Dil seçilmedi — tüm diller indirilir"
+                                                        stringResource(R.string.pd_lang_none)
                                                     else
-                                                        "Seçili: ${selectedLangs.value.joinToString(", ").uppercase()} · Öncelik: ilk seçilen",
+                                                        stringResource(R.string.pd_lang_selection_info, selectedLangs.value.joinToString(", ").uppercase()),
                                                     color = KitsugiColors.TextSecondary,
                                                     fontSize = 12.sp
                                                 )
@@ -1335,13 +1338,13 @@ fun KitsugiPlayerSettingsDialog(
 
                                     Box {
                                         val startupModeOptions = listOf(
-                                            "ALL_SUBTITLES" to "Tüm Altyazıları Yükle",
-                                            "PREFERRED_ONLY" to "Yalnızca Tercih Edilen Dilleri Yükle"
+                                            "ALL_SUBTITLES" to stringResource(R.string.sub_load_all),
+                                            "PREFERRED_ONLY" to stringResource(R.string.sub_load_preferred)
                                         )
-                                        val currentStartupModeName = startupModeOptions.find { it.first == addonSubtitleStartupMode }?.second ?: "Yalnızca Tercih Edilen Dilleri Yükle"
+                                        val currentStartupModeName = startupModeOptions.find { it.first == addonSubtitleStartupMode }?.second ?: stringResource(R.string.sub_load_preferred)
                                         KitsugiSettingsListItem(
-                                            title = "Altyazı Yükleme Başlangıç Modu",
-                                            description = "Eklentiden altyazıların nasıl çekileceği",
+                                            title = stringResource(R.string.pd_sub_load_mode),
+                                            description = stringResource(R.string.pd_sub_load_mode_desc),
                                             value = currentStartupModeName,
                                             icon = Icons.Rounded.FilterList,
                                             iconColor = accentColor,
@@ -1373,13 +1376,13 @@ fun KitsugiPlayerSettingsDialog(
                             contentPadding = PaddingValues(16.dp)
                         ) {
                             item {
-                                KitsugiSettingsSection(title = "Ses Güçlendirme (Boost)") {
+                                KitsugiSettingsSection(title = stringResource(R.string.pd_audio_boost)) {
                                     Box {
                                         val capOptions = listOf(100, 120, 150, 180, 200)
                                         val currentCap = appSettings?.volumeBoostCap ?: 200
                                         KitsugiSettingsListItem(
-                                            title = "Maksimum Ses Limit Sınırı (Cap)",
-                                            description = "Oynatıcının ses açma limit tavanı (%100 - %200)",
+                                            title = stringResource(R.string.pd_volume_cap),
+                                            description = stringResource(R.string.pd_volume_cap_desc),
                                             value = "%$currentCap",
                                             icon = Icons.Rounded.Equalizer,
                                             iconColor = accentColor,
@@ -1403,16 +1406,16 @@ fun KitsugiPlayerSettingsDialog(
 
                                     Box {
                                         val boostOptions = listOf(
-                                            0.0f to "Normal (%0)",
-                                            0.25f to "Düşük (%25)",
-                                            0.5f to "Orta (%50)",
-                                            0.75f to "Yüksek (%75)",
-                                            1.0f to "Maksimum (%100)"
+                                            0.0f to stringResource(R.string.sub_opacity_normal),
+                                            0.25f to stringResource(R.string.sub_opacity_low),
+                                            0.5f to stringResource(R.string.sub_opacity_mid),
+                                            0.75f to stringResource(R.string.sub_opacity_high),
+                                            1.0f to stringResource(R.string.sub_opacity_max)
                                         )
-                                        val currentBoostName = boostOptions.find { it.first == defaultAudioBoost }?.second ?: "Normal (%0)"
+                                        val currentBoostName = boostOptions.find { it.first == defaultAudioBoost }?.second ?: stringResource(R.string.sub_opacity_normal)
                                         KitsugiSettingsListItem(
-                                            title = "Varsayılan Ses Güçlendirme (Boost)",
-                                            description = "Ses seviyesini ekstra yükseltme oranı",
+                                            title = stringResource(R.string.pd_default_boost),
+                                            description = stringResource(R.string.pd_default_boost_desc),
                                             value = currentBoostName,
                                             icon = Icons.Rounded.VolumeUp,
                                             iconColor = accentColor,
@@ -1435,10 +1438,10 @@ fun KitsugiPlayerSettingsDialog(
                             }
 
                             item {
-                                KitsugiSettingsSection(title = "Ses Gecikmesi (Audio Delay)") {
+                                KitsugiSettingsSection(title = stringResource(R.string.pd_section_audio_delay)) {
                                     Box {
                                         val delayOptions = listOf(
-                                            0L to "Zamanında (0ms)",
+                                            0L to stringResource(R.string.sub_delay_ontime),
                                             -100L to "-100 ms",
                                             -200L to "-200 ms",
                                             -300L to "-300 ms",
@@ -1450,8 +1453,8 @@ fun KitsugiPlayerSettingsDialog(
                                         )
                                         val currentDelayName = delayOptions.find { it.first == defaultAudioDelayMs }?.second ?: "${defaultAudioDelayMs} ms"
                                         KitsugiSettingsListItem(
-                                            title = "Varsayılan Ses Gecikmesi",
-                                            description = "Altyazı ve video ile senkronize etmek için genel ses kaydırma",
+                                            title = stringResource(R.string.sub_audio_delay),
+                                            description = stringResource(R.string.pd_default_audio_delay_desc),
                                             value = currentDelayName,
                                             icon = Icons.Rounded.AvTimer,
                                             iconColor = accentColor,
@@ -1474,11 +1477,11 @@ fun KitsugiPlayerSettingsDialog(
                             }
 
                             item {
-                                KitsugiSettingsSection(title = "Çıkış Rotalarına Göre Gecikme") {
+                                KitsugiSettingsSection(title = stringResource(R.string.pd_route_delays)) {
                                     // Speaker Delay Slider
                                     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                                         Text(
-                                            text = "Dahili Hoparlör Gecikmesi: ${speakerDelayMs} ms",
+                                            text = stringResource(R.string.pd_speaker_delay, speakerDelayMs),
                                             color = KitsugiColors.TextPrimary,
                                             fontWeight = FontWeight.SemiBold
                                         )
@@ -1499,7 +1502,7 @@ fun KitsugiPlayerSettingsDialog(
                                     // Bluetooth Delay Slider
                                     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                                         Text(
-                                            text = "Bluetooth Kulaklık Gecikmesi: ${bluetoothDelayMs} ms",
+                                            text = stringResource(R.string.pd_bt_delay, bluetoothDelayMs),
                                             color = KitsugiColors.TextPrimary,
                                             fontWeight = FontWeight.SemiBold
                                         )
@@ -1520,7 +1523,7 @@ fun KitsugiPlayerSettingsDialog(
                                     // Wired Headphones Delay Slider
                                     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                                         Text(
-                                            text = "Kablolu Kulaklık Gecikmesi: ${wiredDelayMs} ms",
+                                            text = stringResource(R.string.pd_wired_delay, wiredDelayMs),
                                             color = KitsugiColors.TextPrimary,
                                             fontWeight = FontWeight.SemiBold
                                         )
@@ -1541,7 +1544,7 @@ fun KitsugiPlayerSettingsDialog(
                                     // HDMI Output Delay Slider
                                     Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) {
                                         Text(
-                                            text = "HDMI / TV Gecikmesi: ${hdmiDelayMs} ms",
+                                            text = stringResource(R.string.pd_hdmi_delay, hdmiDelayMs),
                                             color = KitsugiColors.TextPrimary,
                                             fontWeight = FontWeight.SemiBold
                                         )
@@ -1576,7 +1579,7 @@ fun KitsugiPlayerSettingsDialog(
                             ) {
                                 Icon(Icons.Rounded.Add, contentDescription = null, tint = Color.White)
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Yeni Özel Buton Ekle", color = Color.White)
+                                Text(stringResource(R.string.pd_add_custom_button), color = Color.White)
                             }
 
                             LazyColumn(
@@ -1593,7 +1596,7 @@ fun KitsugiPlayerSettingsDialog(
                                             contentAlignment = Alignment.Center
                                         ) {
                                             Text(
-                                                "Henüz özel bir buton eklenmedi.",
+                                                stringResource(R.string.pd_no_custom_buttons),
                                                 color = KitsugiColors.TextSecondary
                                             )
                                         }
@@ -1623,7 +1626,7 @@ fun KitsugiPlayerSettingsDialog(
                                                     )
                                                     Spacer(modifier = Modifier.height(4.dp))
                                                     Text(
-                                                        text = "Tıklama: ${btn.content}",
+                                                        text = stringResource(R.string.pd_button_click, btn.content),
                                                         color = KitsugiColors.TextSecondary,
                                                         maxLines = 1,
                                                         fontSize = 12.sp
@@ -1633,7 +1636,7 @@ fun KitsugiPlayerSettingsDialog(
                                                     IconButton(onClick = { showButtonEditDialog = btn }) {
                                                         Icon(
                                                             Icons.Rounded.Edit,
-                                                            contentDescription = "Düzenle",
+                                                            contentDescription = stringResource(R.string.pd_edit),
                                                             tint = KitsugiColors.TextSecondary
                                                         )
                                                     }
@@ -1646,7 +1649,7 @@ fun KitsugiPlayerSettingsDialog(
                                                     ) {
                                                         Icon(
                                                             Icons.Rounded.Delete,
-                                                            contentDescription = "Sil",
+                                                            contentDescription = stringResource(R.string.action_delete),
                                                             tint = accentColor
                                                         )
                                                     }
@@ -1719,7 +1722,7 @@ fun KitsugiPlayerSettingsDialog(
                             ) {
                                 Icon(Icons.Rounded.Add, contentDescription = null, tint = Color.White)
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Yeni Dosya Oluştur", color = Color.White)
+                                Text(stringResource(R.string.pd_new_file), color = Color.White)
                             }
 
                             LazyColumn(
@@ -1772,7 +1775,7 @@ fun KitsugiPlayerSettingsDialog(
                                                     ) {
                                                         Icon(
                                                             Icons.Rounded.Edit,
-                                                            contentDescription = "Düzenle",
+                                                            contentDescription = stringResource(R.string.pd_edit),
                                                             tint = KitsugiColors.TextSecondary
                                                         )
                                                     }
@@ -1784,7 +1787,7 @@ fun KitsugiPlayerSettingsDialog(
                                                     ) {
                                                         Icon(
                                                             Icons.Rounded.Delete,
-                                                            contentDescription = "Sil",
+                                                            contentDescription = stringResource(R.string.action_delete),
                                                             tint = accentColor
                                                         )
                                                     }
@@ -1802,12 +1805,12 @@ fun KitsugiPlayerSettingsDialog(
                             AlertDialog(
                                 onDismissRequest = { showCreateFileDialog = false },
                                 containerColor = KitsugiColors.Surface,
-                                title = { Text("Yeni Dosya Oluştur", color = KitsugiColors.TextPrimary) },
+                                title = { Text(stringResource(R.string.pd_new_file), color = KitsugiColors.TextPrimary) },
                                 text = {
                                     OutlinedTextField(
                                         value = newFileName,
                                         onValueChange = { newFileName = it },
-                                        label = { Text("Dosya Adı") },
+                                        label = { Text(stringResource(R.string.pd_file_name)) },
                                         placeholder = { Text(if (scriptFolderState == "scripts") "script.lua" else "opts.conf") },
                                         modifier = Modifier.fillMaxWidth(),
                                         colors = OutlinedTextFieldDefaults.colors(
@@ -1830,12 +1833,12 @@ fun KitsugiPlayerSettingsDialog(
                                             showCreateFileDialog = false
                                         }
                                     ) {
-                                        Text("Oluştur", color = accentColor)
+                                        Text(stringResource(R.string.pd_create), color = accentColor)
                                     }
                                 },
                                 dismissButton = {
                                     TextButton(onClick = { showCreateFileDialog = false }) {
-                                        Text("Vazgeç", color = KitsugiColors.TextSecondary)
+                                        Text(stringResource(R.string.pd_cancel), color = KitsugiColors.TextSecondary)
                                     }
                                 }
                             )
@@ -1850,14 +1853,14 @@ fun KitsugiPlayerSettingsDialog(
                             contentPadding = PaddingValues(16.dp)
                         ) {
                             item {
-                                KitsugiSettingsSection(title = "Kullanıcı MPV Yapılandırma Dosyaları") {
+                                KitsugiSettingsSection(title = stringResource(R.string.pd_user_mpv_files)) {
                                     val prefs = remember(context) { context.getSharedPreferences("kitsugi_prefs", Context.MODE_PRIVATE) }
                                     var userFilesEnabled by remember {
                                         mutableStateOf(prefs.getBoolean("mpv_user_files_enabled", true))
                                     }
                                     KitsugiSettingsSwitchItem(
-                                        title = "Kullanıcı Dosyalarını Etkinleştir",
-                                        description = "mpv.conf, input.conf ve lua scriptlerinin yüklenmesini kontrol eder",
+                                        title = stringResource(R.string.pd_enable_user_files),
+                                        description = stringResource(R.string.pd_enable_user_files_desc),
                                         checked = userFilesEnabled,
                                         icon = Icons.Rounded.FolderOpen,
                                         iconColor = accentColor,
@@ -1870,8 +1873,8 @@ fun KitsugiPlayerSettingsDialog(
                                     KitsugiSettingsDivider()
 
                                     KitsugiSettingsItem(
-                                        title = "mpv.conf Düzenle",
-                                        description = "Gelişmiş MPV render ve oynatma parametrelerini yapılandırın",
+                                        title = stringResource(R.string.pd_edit_mpv_conf),
+                                        description = stringResource(R.string.pd_edit_mpv_conf_desc),
                                         icon = Icons.Rounded.EditNote,
                                         iconColor = accentColor,
                                         onClick = {
@@ -1885,8 +1888,8 @@ fun KitsugiPlayerSettingsDialog(
                                     KitsugiSettingsDivider()
 
                                     KitsugiSettingsItem(
-                                        title = "input.conf Düzenle",
-                                        description = "Oynatıcı içi buton ve jest kısayol eşlemelerini tanımlayın",
+                                        title = stringResource(R.string.pd_edit_input_conf),
+                                        description = stringResource(R.string.pd_edit_input_conf_desc),
                                         icon = Icons.Rounded.Keyboard,
                                         iconColor = accentColor,
                                         onClick = {
@@ -1916,7 +1919,7 @@ fun KitsugiPlayerSettingsDialog(
                     horizontalArrangement = Arrangement.End
                 ) {
                     TextButton(onClick = onDismiss) {
-                        Text("Tamam", color = accentColor, fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.settings_ok), color = accentColor, fontWeight = FontWeight.SemiBold)
                     }
                 }
             }
@@ -1942,14 +1945,14 @@ fun KitsugiPlayerSettingsDialog(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = editingFile?.name ?: "Kod Düzenleyici",
+                            text = editingFile?.name ?: stringResource(R.string.pd_code_editor),
                             color = KitsugiColors.TextPrimary,
                             fontWeight = FontWeight.Bold,
                             style = MaterialTheme.typography.titleMedium
                         )
                         Row {
                             TextButton(onClick = { editingFile = null }) {
-                                Text("İptal", color = KitsugiColors.TextSecondary)
+                                Text(stringResource(R.string.settings_cancel), color = KitsugiColors.TextSecondary)
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             KitsugiButton(
@@ -1995,34 +1998,34 @@ fun KitsugiPlayerSettingsDialog(
         AlertDialog(
             onDismissRequest = { showButtonEditDialog = null },
             containerColor = KitsugiColors.Surface,
-            title = { Text("Özel Butonu Düzenle", color = KitsugiColors.TextPrimary) },
+            title = { Text(stringResource(R.string.pd_edit_custom_button), color = KitsugiColors.TextPrimary) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = name,
                         onValueChange = { name = it },
-                        label = { Text("Buton İsmi") },
+                        label = { Text(stringResource(R.string.pd_button_name)) },
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = accentColor, cursorColor = accentColor, focusedLabelColor = accentColor, focusedTextColor = KitsugiColors.TextPrimary, unfocusedTextColor = KitsugiColors.TextPrimary)
                     )
                     OutlinedTextField(
                         value = contentVal,
                         onValueChange = { contentVal = it },
-                        label = { Text("Basınca Çalışacak Kod (Lua / MPV)") },
+                        label = { Text(stringResource(R.string.pd_code_on_click)) },
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = accentColor, cursorColor = accentColor, focusedLabelColor = accentColor, focusedTextColor = KitsugiColors.TextPrimary, unfocusedTextColor = KitsugiColors.TextPrimary)
                     )
                     OutlinedTextField(
                         value = longPressContentVal,
                         onValueChange = { longPressContentVal = it },
-                        label = { Text("Basılı Tutunca Çalışacak Kod") },
+                        label = { Text(stringResource(R.string.pd_code_on_hold)) },
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = accentColor, cursorColor = accentColor, focusedLabelColor = accentColor, focusedTextColor = KitsugiColors.TextPrimary, unfocusedTextColor = KitsugiColors.TextPrimary)
                     )
                     OutlinedTextField(
                         value = onStartupVal,
                         onValueChange = { onStartupVal = it },
-                        label = { Text("Başlangıçta Çalışacak Kod") },
+                        label = { Text(stringResource(R.string.pd_code_on_start)) },
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = accentColor, cursorColor = accentColor, focusedLabelColor = accentColor, focusedTextColor = KitsugiColors.TextPrimary, unfocusedTextColor = KitsugiColors.TextPrimary)
                     )
@@ -2049,7 +2052,7 @@ fun KitsugiPlayerSettingsDialog(
             },
             dismissButton = {
                 TextButton(onClick = { showButtonEditDialog = null }) {
-                    Text("İptal", color = KitsugiColors.TextSecondary)
+                    Text(stringResource(R.string.settings_cancel), color = KitsugiColors.TextSecondary)
                 }
             }
         )
@@ -2065,34 +2068,34 @@ fun KitsugiPlayerSettingsDialog(
         AlertDialog(
             onDismissRequest = { showButtonAddDialog = false },
             containerColor = KitsugiColors.Surface,
-            title = { Text("Yeni Özel Buton Ekle", color = KitsugiColors.TextPrimary) },
+            title = { Text(stringResource(R.string.pd_add_custom_button), color = KitsugiColors.TextPrimary) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     OutlinedTextField(
                         value = name,
                         onValueChange = { name = it },
-                        label = { Text("Buton İsmi") },
+                        label = { Text(stringResource(R.string.pd_button_name)) },
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = accentColor, cursorColor = accentColor, focusedLabelColor = accentColor, focusedTextColor = KitsugiColors.TextPrimary, unfocusedTextColor = KitsugiColors.TextPrimary)
                     )
                     OutlinedTextField(
                         value = contentVal,
                         onValueChange = { contentVal = it },
-                        label = { Text("Basınca Çalışacak Kod (Lua / MPV)") },
+                        label = { Text(stringResource(R.string.pd_code_on_click)) },
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = accentColor, cursorColor = accentColor, focusedLabelColor = accentColor, focusedTextColor = KitsugiColors.TextPrimary, unfocusedTextColor = KitsugiColors.TextPrimary)
                     )
                     OutlinedTextField(
                         value = longPressContentVal,
                         onValueChange = { longPressContentVal = it },
-                        label = { Text("Basılı Tutunca Çalışacak Kod") },
+                        label = { Text(stringResource(R.string.pd_code_on_hold)) },
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = accentColor, cursorColor = accentColor, focusedLabelColor = accentColor, focusedTextColor = KitsugiColors.TextPrimary, unfocusedTextColor = KitsugiColors.TextPrimary)
                     )
                     OutlinedTextField(
                         value = onStartupVal,
                         onValueChange = { onStartupVal = it },
-                        label = { Text("Başlangıçta Çalışacak Kod") },
+                        label = { Text(stringResource(R.string.pd_code_on_start)) },
                         modifier = Modifier.fillMaxWidth(),
                         colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = accentColor, cursorColor = accentColor, focusedLabelColor = accentColor, focusedTextColor = KitsugiColors.TextPrimary, unfocusedTextColor = KitsugiColors.TextPrimary)
                     )
@@ -2122,7 +2125,7 @@ fun KitsugiPlayerSettingsDialog(
             },
             dismissButton = {
                 TextButton(onClick = { showButtonAddDialog = false }) {
-                    Text("İptal", color = KitsugiColors.TextSecondary)
+                    Text(stringResource(R.string.settings_cancel), color = KitsugiColors.TextSecondary)
                 }
             }
         )
