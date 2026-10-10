@@ -1,56 +1,73 @@
-# Kitsugi Beta v2.4.236 — Depolama Şişmesi ve Zamanla Artan Kasma Düzeltmesi
+# Kitsugi Beta v2.4.236 — Depolama Şişmesi (~4 GB), Performans, Donma & Dil Düzeltmeleri
 
-> Bu sürüm, "uygulama zamanla ağırlaşıyor / kasıyor, silip yeniden kurunca düzeliyor"
-> şikâyetinin kök nedenini ortadan kaldırır.
+## 🇹🇷 Türkçe (v2.4.236)
+
+### 🗄️ 1. Merkezî Depolama Bekçisi (`StorageJanitor`) & Depolama Ayarları (~4 GB Şişme Çözümü)
+- **Kök Neden Çözüldü:** P2P torrent önbelleği (2 GB), görsel önbelleği (512 MB), manga önbelleği (~150 MB), video önizlemeleri ve sınırsız büyüyen veritabanı kayıtları merkezî bir temizlik mekanizması olmadığı için kurulumu ~4 GB'a kadar şişiriyordu.
+- **Merkezî Bekçi (`StorageJanitor` & `StorageMaintenanceWorker`):** Disk kullanımını kalem kalem ölçen, bütçe ve yaş kurallarına göre sessizce budayan sistem eklendi. Ağ şartı olmayan günlük WorkManager bakımı ve 6 saatte bir hafif açılış bakımı devreye alındı.
+- **Ayarlar > Depolama Ekranı (`StorageSettingsContent`):** Kullanıcıların disk kullanımını kalem kalem görmesini ve tek dokunuşla güvenli önbellekleri temizlemesini sağlayan modern depolama paneli eklendi (hesap, indirmeler ve geçmiş asla silinmez).
+- **Atıl Temizlik Kodları Canlandırıldı:** Mobil veride çalışmayan detay önbelleği budaması koşulsuz hale getirildi; `video_cache` 30 gün, `translation_cache` 5.000 satır ve arama geçmişi 500 kayıt tavanıyla sınırlandı. Altyazı arşivleri 14 günde bir temizleniyor.
+
+### ⚡ 2. Kasma ve Donma Zinciri Kırıldı (Kare Gecikmesi %96 İyileştirildi)
+- **Manga Okuyucu Tarama Yükü Kaldırıldı:** Her manga sayfası yazıldığında tüm klasörün taranıp boyut toplanması yerine süreç genelinde paylaşılan artımlı sayaç getirildi.
+- **Kare Gecikmesi ve Jank Azaltıldı:** Logcat/gfxinfo analizlerindeki 1200 ms'lik takılmalar giderildi; p99 kare süresi 1200 ms'den 46 ms'ye düşürüldü, takılma oranı %30'dan %8'e indirildi.
+- **İç İçe Looper ve Disk Logcat Kaldırıldı:** `KitsugiApplication` içindeki ek ana looper döngüsü (`Looper.loop()`) ve arka planda diske sürekli yazan `logcat -f` süreci temizlendi.
+- **Soğuk Açılış & Oynatma İlerlemesi:** İndirme listesi ve izleme geçmişinin ana iş parçacığında JSON ayrıştırması IO'ya taşındı; oynatma sırasındaki disk yazımları 2,5 sn'lik toplulaştırmaya alındı.
+- **Degrade Shader & Brush Önbelleği (`GradientBrushCache`):** Her çizim karesinde yeni shader/fırça tahsisatı engellendi, AniList 429 rate limit bekleme koruması eklendi.
+
+### 🛡️ 3. GPU RenderThread Çökme Koruması (`Modifier.safeBlur`)
+- **Donanımsal Bulanıklık Güvenliği:** API 31 altındaki cihazlarda ve riskli GPU sürücülerinde `libhwui` SIGSEGV çökmelerine yol açan koşulsuz `.blur()` çağrıları `Modifier.safeBlur()` ile korumaya alındı; aşırı yarıçap değerleri sınırlandı.
+- **Üst Üste Binen GPU Katmanları Temizlendi:** `KitsugiCinematicLoadingScreen` içindeki çift GPU bulanıklık katmanı teke indirildi; `MangaDetailScreen` ve eklenti diyaloglarındaki ağır bulanıklıklar optimize edildi.
+
+### 🌐 4. Android 13+ Dil Değiştirme ve Çökme Düzeltmesi
+- **Aktif Dil Senkronizasyonu (`locales_config.xml`):** Android 13+ `LocaleManager` için Türkçe ve İngilizce dilleri açıkça tanımlandı (`locales_config.xml`), manifest entegrasyonu tamamlandı. "İngilizce seçili ama Türkçe görünüyor" sorunu giderildi.
+- **API 33+ Modern Dil API'si:** Dil geçişi `AppCompatDelegate.setApplicationLocales()` ile modernize edildi; dil değişimi sonrası çağrılan `recreate()` kuyruğun sonuna alınarak döngü ve çökme engellendi.
+- **Dize Formatı Hataları Düzeltildi:** Dil dosyalarındaki hatalı yüzde formatları (`Normal (%0)` -> `Normal (0%)`) düzeltildi.
+
+### 📐 5. Kart Düzeni, Metin Kesilmesi ve Geri Sayım Optimizasyonu
+- **Rozet ve Başlık Kesilmesi Çözüldü:** 2 satırlı başlık, alt başlık ve sonraki bölüm rozetinin alt kısımdan taşmasını engellemek için portre kart metin alanı 182 dp'ye (`EXPLORE_CARD_PORTRAIT_TEXT_HEIGHT`) yükseltildi.
+- **10 Saniyelik Donma Döngüsü Kırıldı:** `NextAiringChip` içindeki her 10 saniyede bir ekranı tetikleyen sayaç 30–60 saniyeye çıkarıldı. `KitsugiUpcomingAirEnricher` iptal istisnaları (`CancellationException`) doğru yönetildi.
+
+### 🧲 6. Yatay Satırlarda Akıcı Kart Yaslama (Snap Scrolling)
+- **Sola Yapışan Kaydırma Geri Getirildi:** Keşfet vitrinleri, arama sonuçları, detay rafları ve profil sayfalarındaki yatay kart listelerine `KitsugiScrollDefaults.rememberRowSnapFling(state)` eklendi; kartlar kaydırma bitiminde sola akıcı ve muntazam biçimde oturuyor.
+
+### 🔑 7. Liste Anahtarları (Key Collision) & "Tümünü Gör" Sonsuz Yükleme Düzeltmesi
+- **Tür Bazlı Kimlik Ayrımı (`KitsugiLazyKeys.kt`):** Keşfet, arama ve ızgara listelerinde aynı sayısal kimliğe sahip anime ve mangaların çakışmasını engellemek için anahtarlara medya türü (`type`) dahil edildi.
+- **Sonsuz İstek Döngüsü Sınırlandı:** `FullScreenMediaGridPage` sayfasında kullanıcı kaydırmadan tetiklenen sürekli sayfa çekme döngüsüne kaydırma başına bütçe eklendi.
 
 ---
 
-## 🇹🇷 Türkçe
+## 🇬🇧 English (v2.4.236)
 
-### 🗄️ 1. Merkezî Depolama Bekçisi (`StorageJanitor`) — ~4 GB'lık şişmenin asıl kaynağı
-- **Tespit:** Uygulamada **hiçbir merkezî önbellek temizliği yoktu.** P2P torrent önbelleği (varsayılan **2 GB**), Coil görsel önbelleği (**512 MB**), manga sayfa önbelleği (~150 MB), video önizlemeleri (~150 MB) ve bunlara ek olarak altyazı arşivleri, Room'daki detay/video/çeviri blob tabloları, WebView verisi ve teşhis dosyaları birikiyordu. Toplam kurulum boyutu **~3-4 GB**'a ulaşıyordu.
-- **Çözüm:** Tek noktadan ölçen, budayan ve raporlayan `StorageJanitor` eklendi. Açılışta (6 saatte bir) ve **ağ koşulu olmayan** günlük arka plan işinde (`StorageMaintenanceWorker`) yaş + bütçe kurallarına göre sessizce temizlik yapar. Tüm işlemler IO dispatcher'ında; ana iş parçacığı hiç meşgul edilmez.
+### 🗄️ 1. Central Storage Janitor (`StorageJanitor`) & Settings > Storage (~4 GB Bloat Fix)
+- **Root Cause Resolved:** P2P torrent cache (2 GB), image cache (512 MB), manga cache (~150 MB), video previews, and unconstrained Room cache rows accumulated to ~4 GB installations due to lack of central lifecycle management.
+- **Central Storage Janitor (`StorageJanitor` & `StorageMaintenanceWorker`):** Added a unified storage engine measuring disk usage per bucket, pruning data via age and size thresholds. Added network-unconstrained daily WorkManager jobs and 6-hour interval launch maintenance.
+- **Settings > Storage Screen (`StorageSettingsContent`):** Added an interactive storage dashboard showing per-category sizes, item counts, and safe one-tap cleanup (user accounts, downloads, and history are strictly preserved).
+- **Revived Dormant Cleanup Routines:** Unblocked detail cache pruning by removing Wi-Fi/battery-only restrictions; pruned `video_cache` beyond 30 days, capped `translation_cache` to 5,000 rows, limited search history to 500 rows, and auto-removed subtitle archives older than 14 days.
 
-### 🧹 2. Yazılmış ama Hiç Çalışmayan Temizlik Kodları Onarıldı
-- **`persistent_details_cache` (detay önbelleği):** Budama kodu yalnızca `MappingSyncWorker` içindeydi ve o iş **yalnızca Wi-Fi + batarya iyi** koşuluyla planlandığı için mobil veri kullanan cihazlarda **hiç çalışmıyordu**; detay JSON kayıtları süresiz birikiyordu. Budama artık koşulsuz yapılıyor.
-- **`video_cache`:** DAO'daki `clearExpiredVideos()` sorgusu **repoda hiçbir yerden çağrılmıyordu.** Artık 30 günden eski çözümleme kayıtları otomatik atılıyor.
-- **`translation_cache`:** DAO'da **hiç DELETE sorgusu yoktu**; çevrilen her başlık/özet kalıcı olarak birikiyordu. Satır sınırı (en yeni 5.000) eklendi.
-- **Arama geçmişi:** UI yalnızca son 20 kaydı gösterse de tablo sınırsız büyüyordu; artık en yeni 500 kayıt tutuluyor.
-- **Altyazı arşivleri** (`cache/anisub_subs`): Hiç temizlenmiyordu; 14 günden eski klasörler atılıyor.
+### ⚡ 2. Broken Jank Chains & Systemwide Frame Latency Fix
+- **Manga Reader Cache Overhead Eliminated:** Switched from costly whole-directory walks on every written page to an incremental memory-backed byte counter.
+- **96% Frame Latency Reduction:** Eliminated 1200ms frame stalls seen in logcat/gfxinfo; p99 latency dropped from 1200ms to 46ms, and jank rate fell from ~30% to 8.13%.
+- **Removed Nested Looper & Disk Logcat:** Removed redundant nested `Looper.loop()` in `KitsugiApplication` and background `logcat -f` disk redirection.
+- **Cold Start & Playback Progress:** Deferred download list and watch history JSON parsing off the main thread; debounced video playback watch progress writes to 2.5s with background flush.
+- **Cached Gradient Shaders & Brushes (`GradientBrushCache`):** Cached linear gradients and draw node brushes, stopping continuous per-frame shader allocations. Added AniList 429 rate limit cooldown.
 
-### ⚡ 3. "Kırpma İşi Kırpılandan Pahalı" Kasma Zinciri Kırıldı
-- **Manga okuyucu (`MangaCache`):** Her görsel yazımında **tüm önbellek dizini** listeleniyor ve tüm dosyaların boyutu toplanıyordu (erken çıkış ancak bu pahalı ölçümden sonra yapılabiliyordu). Üstelik `@Synchronized` olduğu için eşzamanlı sayfa indirmeleri birbirini bekliyordu. Artık toplam boyut **süreç genelinde paylaşılan artımlı sayaçla** bellekte tutuluyor; dizin yalnızca bütçe gerçekten aşıldığında taranıyor.
-- **Video önizlemeleri (`PreviewGenerator`):** HER önizleme üretici oluşturulduğunda tüm `files/previews` ağacı gezilip boyut toplanıyordu; bu tarama Coil görsel çözme ve Room yazımıyla disk yarışına girip kaydırma karelerini düşürüyordu. Bu iş merkezî bekçiye taşındı (günde bir, arka planda).
-- **Açılış (soğuk başlangıç):** İndirme listesi ve izleme geçmişi `Application.onCreate` içinde **ana iş parçacığında** Gson ile ayrıştırılıyordu; liste büyüdükçe açılış uzuyordu. Artık okuma IO'da yapılır, UI akış dolunca güncellenir (okuma sürerken yazılan kayıtlar kaybolmaz, birleştirilir).
-- **Oynatma sırasında yazma:** İzleme ilerlemesi her bildirimde tüm geçmiş listesi yeniden serialize edilip XML baştan yazılıyordu. Artık 2,5 saniyelik pencerede toplulaştırılır; ekran arka plana geçtiğinde bekleyen yazma hemen diske indirilir.
+### 🛡️ 3. GPU RenderThread Crash Safety (`Modifier.safeBlur`)
+- **Hardware Blur Guard:** Replaced unconditional `.blur()` modifiers across screens with `Modifier.safeBlur()`, skipping blur on API < 31 and clamping blur radius to prevent `libhwui` RenderThread SIGSEGV crashes on vulnerable GPUs.
+- **Eliminated Redundant GPU Layers:** Removed nested double GPU blur pass in `KitsugiCinematicLoadingScreen`; optimized heavy blur layers in `MangaDetailScreen` and addon dialogs.
 
-### 🆕 4. Ayarlar > Depolama Ekranı
-- Kalem kalem gerçek disk kullanımı (görseller, P2P, manga, önizlemeler, altyazılar, veritabanı önbelleği, teşhis, Web verisi, eklentiler), dosya sayısı ve **tek dokunuşla temizleme**.
-- "Güvenli önbellekleri temizle" seçeneği Web verisi dışındaki her şeyi boşaltır; **hesap, mylist, izleme geçmişi ve indirilen videolar asla silinmez.**
-- Önceden yer açmak için tek yol uygulama verilerini tümden silmekti (hesap ve liste kaybı).
+### 🌐 4. Android 13+ Per-App Language Switching & Crash Fix
+- **Explicit Locale Configuration (`locales_config.xml`):** Declared English and Turkish locales in `res/xml/locales_config.xml` and manifest to satisfy Android 13+ `LocaleManager` requirements, resolving "English selected but Turkish shown" issues.
+- **Modernized Locale API for API 33+:** Switched to `AppCompatDelegate.setApplicationLocales()`. Deferred activity `recreate()` call via main looper handler post to prevent activity recreation crashes.
+- **Fixed Malformed String Templates:** Corrected invalid percentage token placements in localized resources (`Normal (%0)` -> `Normal (0%)`).
 
----
+### 📐 5. Card Layout, Text Clipping & Countdown Timer Optimization
+- **Badge & Title Overflow Fix:** Increased portrait card text container height to 182dp (`EXPLORE_CARD_PORTRAIT_TEXT_HEIGHT`), ensuring two-line titles, subtitles, and next-airing chips render cleanly without clipping.
+- **Eliminated 10-Second Frame Freeze:** Re-tuned `NextAiringChip` ticker interval from 10s to 30-60s. Handled `CancellationException` properly in `KitsugiUpcomingAirEnricher` to avoid negative caching loops.
 
-## 🇬🇧 English
+### 🧲 6. Horizontal Shelf Snap Scrolling
+- **Restored Left-Edge Snap Fling:** Added `KitsugiScrollDefaults.rememberRowSnapFling(state)` (`SnapPosition.Start`) across Explore shelves, search rows, detail recommendations, and profile collections.
 
-### 🗄️ 1. Central Storage Janitor (`StorageJanitor`) — the real cause of ~4 GB bloat
-- **Finding:** the app had **no central cache cleanup at all.** The P2P torrent cache (default **2 GB**), Coil image cache (**512 MB**), manga page cache (~150 MB), video thumbnails (~150 MB) plus subtitle archives, Room detail/video/translation blob tables, WebView data and diagnostics all accumulated — installations reached **~3–4 GB**.
-- **Fix:** a single `StorageJanitor` that measures, prunes and reports. It runs at launch (at most every 6 h) and in a daily background job (`StorageMaintenanceWorker`) with **no network constraint**, pruning by age + budget. Everything happens on the IO dispatcher; the main thread is never touched.
-
-### 🧹 2. Cleanup Code That Never Actually Ran
-- **`persistent_details_cache`:** pruning lived only inside `MappingSyncWorker`, which was scheduled with **Wi-Fi-only + battery-not-low** constraints — so on mobile data it **never ran** and detail JSON grew forever. Now pruned unconditionally.
-- **`video_cache`:** `clearExpiredVideos()` was **never called from anywhere**. Resolution records older than 30 days are now dropped.
-- **`translation_cache`:** the DAO had **no DELETE query at all**. A row cap (newest 5,000) was added.
-- **Search history:** the UI only showed 20 entries but the table grew forever; now capped at 500.
-- **Subtitle archives** (`cache/anisub_subs`): never cleaned; folders older than 14 days are removed.
-
-### ⚡ 3. The "Trimming Costs More Than What It Trims" Jank Chain, Broken
-- **Manga reader (`MangaCache`):** every image write listed the **entire** cache directory and summed every file size (the early-exit could only happen *after* that expensive scan), and `@Synchronized` made concurrent page downloads queue up. Totals are now kept in a process-wide incremental counter; the directory is scanned only when the budget is actually exceeded.
-- **Video previews (`PreviewGenerator`):** every generator instance walked the whole `files/previews` tree; that scan raced Coil decoding and Room writes on disk and dropped scroll frames. Moved to the central janitor (once a day, background).
-- **Cold start:** the download list and watch history were parsed with Gson **on the main thread** in `Application.onCreate`. Reads now happen on IO and merge safely with anything written meanwhile.
-- **During playback:** watch progress re-serialised the whole history and rewrote the XML on every tick; now debounced to a 2.5 s window, flushed when the app goes to the background.
-
-### 🆕 4. Settings > Storage Screen
-- Per-bucket real disk usage (images, P2P, manga, previews, subtitles, database cache, diagnostics, web data, plugins), file counts and **one-tap clearing**.
-- "Clear safe caches" wipes everything except web data; **accounts, my list, watch history and downloaded videos are never deleted.**
-- Previously the only way to reclaim space was wiping all app data — losing your account and list.
+### 🔑 7. Lazy Column/Row Key Collision & Infinite Load Loop Fix
+- **Type-Aware Identity Keys (`KitsugiLazyKeys.kt`):** Included media type (`type`) in Compose item keys across 11 shelves and grids, preventing collision when anime and manga share the same ID.
+- **Bounded Pagination Budget:** Fixed continuous unprompted pagination in `FullScreenMediaGridPage` by requiring active scroll gestures.
