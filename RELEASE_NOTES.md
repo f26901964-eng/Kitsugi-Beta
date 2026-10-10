@@ -1,5 +1,31 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.230)
+
+### ⚡ 1. Keşfet Kaynak Yükleme ve Arayüz Performansı İyileştirmeleri
+- **AniList Çoklu Raf Toplu GraphQL Sorgusu (4× Hızlanma):** 14 rafın tek tek 700ms hız sınırlı kuyrukta ~11 saniye beklemesi yerine, 3 toplu GraphQL sorgusuyla paralel çekilmesi sağlandı (~2-3 saniyeye indi) (`AniListSearchClient.kt`).
+- **MyAnimeList (MAL) Zaman Aşımı ve Raf Güvencesi:** 13 istek ve 350ms kuyruk gecikmesinde 5 saniyelik timeout kuyruktaki süreyi de tükettiğinden son rafların boş kalması engellendi; zaman aşımı 20 saniyeye çıkarılarak tüm rafların eksiksiz dolması sağlandı (`JikanApiClient.kt`).
+- **Bangumi İstek Sınırı ve Önbellek Önceliği:** 14 raf için ~56 eşzamanlı istek atılarak bgm.tv tarafından 429/retry döngüsüne ve dakikalarca takılmaya yol açan yapı düzenlendi; paylaşılan 3 eşzamanlılık sınırı, kayıt tekilleştirmesi ve önbellek öncelikli mimari uygulandı (`KitsugiBangumiClient.kt`).
+- **Asenkron Vitrin Arka Planı:** Kitsu, Shikimori, MAL ve Bangumi yüklenirken vitrin arka planı için atılan 5 TMDB aramasının sayfayı bloke etmesi engellendi; arka planda asenkron çözülüyor (`ExploreViewModel.kt`).
+- **Takvim Sorgusu Tekilleştirmesi:** "Tümü" modunda aynı "Yakında Yayında" takvim sorgusunun 7 kez atılması yerine 90 saniyelik önbellek ve tekilleştirme sağlandı (`KitsugiAiringCalendarClient.kt`).
+- **Kompozisyon ve Çizim Hızlandırması:** `allSourceSections()` 7 kaynak filtre ve string hesaplamaları her ekranda baştan hesaplanmak yerine `remember` ile önbelleğe alındı; geri sayım kartlarının saniyede bir tetiklenen 15 zamanlayıcısı 15 saniyelik aralığa optimize edildi (`ExploreComponents.kt`, `AllSourcesExploreContent.kt`).
+- **Teşhis Raporu:** `KESFET_KAYNAK_YUKLEME_PERFORMANS_RAPORU_2026-10-10.md`.
+
+---
+
+## 🇬🇧 English (v2.4.230)
+
+### ⚡ 1. Explore Source Loading & Rendering Performance Optimizations
+- **AniList Batch GraphQL Queries (~4× Faster):** Replaced 14 sequential queries (which took ~11s over the 700ms rate-limited queue) with 3 batched GraphQL queries, reducing loading time to ~2-3s (`AniListSearchClient.kt`).
+- **MyAnimeList (MAL) Shelf Reliability & Timeout Extension:** Increased request timeout from 5s to 20s so queued requests on the 350ms rate limiter don't prematurely time out, preventing missing or empty shelves (`JikanApiClient.kt`).
+- **Bangumi Concurrency Throttling & Cache-First Strategy:** Eliminated severe 429/retry loops on bgm.tv caused by up to 56 concurrent detail requests across 14 shelves; added shared 3-concurrency limiting, request deduplication, and cache-first fetching (`KitsugiBangumiClient.kt`).
+- **Non-blocking Hero Backdrop:** Decoupled 5 blocking TMDB searches from initial shelf loading in Kitsu, Shikimori, MAL, and Bangumi; hero images are now resolved asynchronously in the background (`ExploreViewModel.kt`).
+- **Airing Calendar Deduplication:** Consolidated 7 redundant airing calendar queries in "All" mode into a single query with 90s in-memory caching (`KitsugiAiringCalendarClient.kt`).
+- **UI Composition & Frame Drops Elimination:** Cached `allSourceSections()` via `remember` across 7 sources to stop expensive re-computations on every recomposition pass; lowered countdown chip timer ticks from 1s to 15s to eliminate 15 separate per-second render timers (`ExploreComponents.kt`, `AllSourcesExploreContent.kt`).
+- **Diagnostic Report:** `KESFET_KAYNAK_YUKLEME_PERFORMANS_RAPORU_2026-10-10.md`.
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.229)
 
 ### 📖 1. Manga KeiSource & OkHttp 5 Uyumluluk Onarımı (72/77 TR Eklentisi Kurtarıldı)
