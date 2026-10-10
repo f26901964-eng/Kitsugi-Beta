@@ -25,6 +25,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.*
+import com.kitsugi.animelist.ui.components.KitsugiDropdownMenu
+import com.kitsugi.animelist.ui.components.KitsugiMenuItem
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -171,12 +173,11 @@ fun ActivityCard(
                                 modifier = Modifier.size(18.dp)
                             )
                         }
-                        DropdownMenu(
+                        KitsugiDropdownMenu(
                             expanded = showMenu,
-                            onDismissRequest = { showMenu = false },
-                            modifier = Modifier.background(KitsugiColors.SurfaceStrong)
+                            onDismissRequest = { showMenu = false }
                         ) {
-                            DropdownMenuItem(
+                            KitsugiMenuItem(
                                 text = { Text("Sil", color = KitsugiColors.AccentRed, fontSize = 13.sp, fontWeight = FontWeight.Bold) },
                                 leadingIcon = {
                                     Icon(

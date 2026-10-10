@@ -214,17 +214,17 @@ fun DialogWithYearSeasonSelection(
                             ) {
                                 Text(text = tempStartYear?.toString() ?: "Seçilmedi", fontSize = 14.sp)
                             }
-                            DropdownMenu(
+                            KitsugiDropdownMenu(
                                 expanded = startYearExpanded,
                                 onDismissRequest = { startYearExpanded = false },
                                 modifier = Modifier.heightIn(max = 240.dp)
                             ) {
-                                DropdownMenuItem(
+                                KitsugiMenuItem(
                                     text = { Text("Seçilmedi") },
                                     onClick = { tempStartYear = null; startYearExpanded = false }
                                 )
                                 years.forEach { y ->
-                                    DropdownMenuItem(
+                                    KitsugiMenuItem(
                                         text = { Text(y.toString()) },
                                         onClick = { tempStartYear = y; startYearExpanded = false }
                                     )
@@ -252,17 +252,17 @@ fun DialogWithYearSeasonSelection(
                             ) {
                                 Text(text = tempEndYear?.toString() ?: "Seçilmedi", fontSize = 14.sp)
                             }
-                            DropdownMenu(
+                            KitsugiDropdownMenu(
                                 expanded = endYearExpanded,
                                 onDismissRequest = { endYearExpanded = false },
                                 modifier = Modifier.heightIn(max = 240.dp)
                             ) {
-                                DropdownMenuItem(
+                                KitsugiMenuItem(
                                     text = { Text("Seçilmedi") },
                                     onClick = { tempEndYear = null; endYearExpanded = false }
                                 )
                                 years.forEach { y ->
-                                    DropdownMenuItem(
+                                    KitsugiMenuItem(
                                         text = { Text(y.toString()) },
                                         onClick = { tempEndYear = y; endYearExpanded = false }
                                     )
@@ -291,16 +291,16 @@ fun DialogWithYearSeasonSelection(
                                 val display = seasons.firstOrNull { it.first == tempSeason }?.second ?: "Seçilmedi"
                                 Text(text = display, fontSize = 14.sp)
                             }
-                            DropdownMenu(
+                            KitsugiDropdownMenu(
                                 expanded = seasonExpanded,
                                 onDismissRequest = { seasonExpanded = false }
                             ) {
-                                DropdownMenuItem(
+                                KitsugiMenuItem(
                                     text = { Text("Seçilmedi") },
                                     onClick = { tempSeason = null; seasonExpanded = false }
                                 )
                                 seasons.forEach { s ->
-                                    DropdownMenuItem(
+                                    KitsugiMenuItem(
                                         text = { Text(s.second) },
                                         onClick = { tempSeason = s.first; seasonExpanded = false }
                                     )

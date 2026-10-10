@@ -8,8 +8,8 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import com.kitsugi.animelist.ui.components.KitsugiDropdownMenu
+import com.kitsugi.animelist.ui.components.KitsugiMenuItem
 import com.kitsugi.animelist.ui.theme.gradient.FilterChip
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
@@ -22,7 +22,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.AssistChip
 import com.kitsugi.animelist.ui.theme.gradient.RangeSlider
 import androidx.compose.foundation.layout.Column
@@ -53,7 +52,7 @@ fun <T> KitsugiChipWithMenu(
             onClick = { menuOpened = true },
             label = { Text(text = selectedValue?.let { valueString(it) } ?: title) }
         )
-        DropdownMenu(
+        KitsugiDropdownMenu(
             expanded = menuOpened,
             onDismissRequest = { menuOpened = false },
             modifier = Modifier
@@ -61,21 +60,11 @@ fun <T> KitsugiChipWithMenu(
                 .heightIn(max = 280.dp)
         ) {
             values.forEach { item ->
-                DropdownMenuItem(
+                KitsugiMenuItem(
                     text = {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            if (selectedValue == item) {
-                                Icon(
-                                    imageVector = Icons.Default.Check,
-                                    contentDescription = null,
-                                    modifier = Modifier.padding(end = 8.dp)
-                                )
-                            }
-                            Text(text = valueString(item))
-                        }
+                        Text(text = valueString(item))
                     },
+                    selected = selectedValue == item,
                     onClick = {
                         onValueSelected(item.takeIf { it != selectedValue })
                         menuOpened = false
