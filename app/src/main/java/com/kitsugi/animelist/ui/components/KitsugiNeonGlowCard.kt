@@ -6,8 +6,8 @@ import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.spring
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import com.kitsugi.animelist.ui.theme.gradient.background
+import com.kitsugi.animelist.ui.theme.gradient.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
@@ -72,13 +72,14 @@ fun KitsugiNeonGlowCard(
     val isInteracting = isPressed || isHovered || isFocused
 
     val accentColor = LocalKitsugiAccent.current
+    val accent2 = com.kitsugi.animelist.ui.theme.LocalKitsugiAccent2.current
     val framesEnabled = LocalCardFramesEnabled.current
 
     // Uiverse'in 163 derece degrade renk paleti (Temanın accent rengiyle uyumlu dinamik harman)
-    val gradientColors = customGradientColors ?: remember(accentColor) {
+    val gradientColors = customGradientColors ?: remember(accentColor, accent2) {
         listOf(
             accentColor,
-            Color(0xFF3700FF) // Electric blue / purple
+            accent2 ?: Color(0xFF3700FF) // Electric blue / purple
         )
     }
 
@@ -172,9 +173,10 @@ fun Modifier.kitsugiNeonGlow(
     customGradientColors: List<Color>? = null
 ): Modifier {
     val accentColor = LocalKitsugiAccent.current
+    val accent2 = com.kitsugi.animelist.ui.theme.LocalKitsugiAccent2.current
     val framesEnabled = LocalCardFramesEnabled.current
-    val gradientColors = customGradientColors ?: remember(accentColor) {
-        listOf(accentColor, Color(0xFF3700FF))
+    val gradientColors = customGradientColors ?: remember(accentColor, accent2) {
+        listOf(accentColor, accent2 ?: Color(0xFF3700FF))
     }
     val gradientBrush = remember(gradientColors) {
         Brush.linearGradient(

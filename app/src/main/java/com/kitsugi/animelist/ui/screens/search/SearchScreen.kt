@@ -2,11 +2,15 @@
 
 package com.kitsugi.animelist.ui.screens.search
 
+import com.kitsugi.animelist.ui.theme.gradient.FloatingActionButton
+import com.kitsugi.animelist.ui.theme.gradient.Icon
+import com.kitsugi.animelist.ui.theme.gradient.Text
+
 import androidx.compose.animation.*
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import com.kitsugi.animelist.ui.theme.gradient.background
+import com.kitsugi.animelist.ui.theme.gradient.border
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import android.content.res.Configuration

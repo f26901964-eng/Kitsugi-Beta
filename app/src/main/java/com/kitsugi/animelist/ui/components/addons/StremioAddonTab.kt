@@ -2,7 +2,7 @@
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.Context
-import androidx.compose.foundation.background
+import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn

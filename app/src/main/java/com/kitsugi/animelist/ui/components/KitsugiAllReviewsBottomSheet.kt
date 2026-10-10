@@ -1,8 +1,11 @@
 package com.kitsugi.animelist.ui.components
 
+import com.kitsugi.animelist.ui.theme.gradient.Icon
+import com.kitsugi.animelist.ui.theme.gradient.Text
+
 import android.content.Context
 import android.widget.Toast
-import androidx.compose.foundation.background
+import com.kitsugi.animelist.ui.theme.gradient.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import com.kitsugi.animelist.ui.utils.tvClickable

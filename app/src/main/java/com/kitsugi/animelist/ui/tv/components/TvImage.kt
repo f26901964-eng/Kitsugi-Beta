@@ -1,6 +1,6 @@
 package com.kitsugi.animelist.ui.tv.components
 
-import androidx.compose.foundation.background
+import com.kitsugi.animelist.ui.theme.gradient.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable

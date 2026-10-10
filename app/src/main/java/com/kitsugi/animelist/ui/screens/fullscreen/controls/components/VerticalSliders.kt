@@ -6,7 +6,7 @@ package com.kitsugi.animelist.ui.screens.fullscreen.controls.components
 // ─────────────────────────────────────────────────────────────────────────────
 
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.background
+import com.kitsugi.animelist.ui.theme.gradient.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,9 +25,9 @@ import androidx.compose.material.icons.filled.BrightnessHigh
 import androidx.compose.material.icons.filled.BrightnessLow
 import androidx.compose.material.icons.filled.BrightnessMedium
 import androidx.compose.material.icons.filled.ModeNight
-import androidx.compose.material3.Icon
+import com.kitsugi.animelist.ui.theme.gradient.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.kitsugi.animelist.ui.theme.gradient.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -97,11 +97,12 @@ private fun VerticalSliderInternal(
             contentAlignment = Alignment.BottomCenter,
         ) {
             val targetHeight by animateFloatAsState(percentage, label = "vsliderheight")
+            val accentBrush = com.kitsugi.animelist.ui.theme.KitsugiColors.AccentBrush
             Box(
                 modifier = Modifier
                     .fillMaxWidth()
                     .fillMaxHeight(targetHeight)
-                    .background(MaterialTheme.colorScheme.primary),
+                    .background(accentBrush),
             )
             if (overflowPercentage != null) {
                 val overflowHeight by animateFloatAsState(overflowPercentage, label = "vslideroverflowheight")

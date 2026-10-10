@@ -1,11 +1,14 @@
 package com.kitsugi.animelist.ui.components
 
+import com.kitsugi.animelist.ui.theme.gradient.Icon
+import com.kitsugi.animelist.ui.theme.gradient.Text
+
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.BorderStroke
 
 import android.content.Context
 import android.content.res.Configuration
-import androidx.compose.foundation.background
+import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*

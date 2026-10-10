@@ -1,7 +1,13 @@
 package com.kitsugi.animelist.ui.components
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import com.kitsugi.animelist.ui.theme.gradient.Icon
+import com.kitsugi.animelist.ui.theme.gradient.RadioButton
+import com.kitsugi.animelist.ui.theme.gradient.Slider
+import com.kitsugi.animelist.ui.theme.gradient.TabRow
+import com.kitsugi.animelist.ui.theme.gradient.Text
+
+import com.kitsugi.animelist.ui.theme.gradient.background
+import com.kitsugi.animelist.ui.theme.gradient.border
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -474,7 +480,7 @@ private fun AppearanceTab(
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     themeOptions.forEach { themeOpt ->
-                        val isSelected = themeOpt.id == selectedThemeId && customAccentColor == 0
+                        val isSelected = themeOpt.id == selectedThemeId && customAccentColor == 0 && appSettings.customAccentColor2 == 0
                         Box(
                             modifier = Modifier
                                 .size(50.dp)
@@ -484,6 +490,7 @@ private fun AppearanceTab(
                                 )
                                 .tvClickable(shape = RoundedCornerShape(14.dp)) {
                                     onCustomAccentColorChanged(0)
+                                    onCustomAccentColor2Changed(0)
                                     onThemeSelected(themeOpt.id)
                                 }
                                 .padding(5.dp),
@@ -498,7 +505,7 @@ private fun AppearanceTab(
                     }
 
                     // Özel Renk Seçici Kutusu
-                    val isCustomSelected = customAccentColor != 0
+                    val isCustomSelected = customAccentColor != 0 || appSettings.customAccentColor2 != 0
                     val customAccentEnd = if (isCustomSelected && appSettings.customAccentColor2 != 0) Color(appSettings.customAccentColor2) else null
                     val customSwatchBrush = if (isCustomSelected) {
                         com.kitsugi.animelist.ui.theme.accentBackgroundBrush(
@@ -664,8 +671,9 @@ private fun AppearanceTab(
     }
 
     if (showColorPicker) {
+        val fallbackArgb = androidx.compose.ui.graphics.Color(accentColor.value).toArgb()
         KitsugiAccentColorPickerDialog(
-            initialColor = customAccentColor,
+            initialColor = if (customAccentColor != 0) customAccentColor else fallbackArgb,
             initialColor2 = appSettings.customAccentColor2,
             initialAngle = appSettings.customAccentGradientAngle,
             onDismissRequest = { showColorPicker = false },

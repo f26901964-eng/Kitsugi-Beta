@@ -1,5 +1,8 @@
 package com.kitsugi.animelist.ui.screens.stream
 
+import com.kitsugi.animelist.ui.theme.gradient.Icon
+import com.kitsugi.animelist.ui.theme.gradient.Text
+
 import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.runtime.*
@@ -50,8 +53,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import com.kitsugi.animelist.ui.theme.gradient.background
+import com.kitsugi.animelist.ui.theme.gradient.border
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Search
@@ -820,12 +823,12 @@ private fun TvStreamSettingsDialog(
         var tokenInput by remember { mutableStateOf(addonViewModel.debridToken) }
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { showDebridDialog = false },
-            title = { androidx.compose.material3.Text("Debrid Tokeni Gir", color = Color.White) },
+            title = { com.kitsugi.animelist.ui.theme.gradient.Text("Debrid Tokeni Gir", color = Color.White) },
             text = {
                 androidx.compose.material3.OutlinedTextField(
                     value = tokenInput,
                     onValueChange = { tokenInput = it },
-                    label = { androidx.compose.material3.Text("Token") },
+                    label = { com.kitsugi.animelist.ui.theme.gradient.Text("Token") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
@@ -844,12 +847,12 @@ private fun TvStreamSettingsDialog(
                         showDebridDialog = false
                     }
                 ) {
-                    androidx.compose.material3.Text("Kaydet", color = androidx.tv.material3.MaterialTheme.colorScheme.primary)
+                    com.kitsugi.animelist.ui.theme.gradient.Text("Kaydet", color = androidx.tv.material3.MaterialTheme.colorScheme.primary)
                 }
             },
             dismissButton = {
                 androidx.compose.material3.TextButton(onClick = { showDebridDialog = false }) {
-                    androidx.compose.material3.Text("Vazgeç", color = Color.White.copy(alpha = 0.6f))
+                    com.kitsugi.animelist.ui.theme.gradient.Text("Vazgeç", color = Color.White.copy(alpha = 0.6f))
                 }
             },
             containerColor = KitsugiColors.BackgroundElevated,
@@ -861,12 +864,12 @@ private fun TvStreamSettingsDialog(
         var repoUrlInput by remember { mutableStateOf("") }
         androidx.compose.material3.AlertDialog(
             onDismissRequest = { showAddRepoDialog = false },
-            title = { androidx.compose.material3.Text("Yeni Repo Ekle", color = Color.White) },
+            title = { com.kitsugi.animelist.ui.theme.gradient.Text("Yeni Repo Ekle", color = Color.White) },
             text = {
                 androidx.compose.material3.OutlinedTextField(
                     value = repoUrlInput,
                     onValueChange = { repoUrlInput = it },
-                    label = { androidx.compose.material3.Text("Repo URL") },
+                    label = { com.kitsugi.animelist.ui.theme.gradient.Text("Repo URL") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
@@ -887,12 +890,12 @@ private fun TvStreamSettingsDialog(
                         showAddRepoDialog = false
                     }
                 ) {
-                    androidx.compose.material3.Text("Ekle", color = androidx.tv.material3.MaterialTheme.colorScheme.primary)
+                    com.kitsugi.animelist.ui.theme.gradient.Text("Ekle", color = androidx.tv.material3.MaterialTheme.colorScheme.primary)
                 }
             },
             dismissButton = {
                 androidx.compose.material3.TextButton(onClick = { showAddRepoDialog = false }) {
-                    androidx.compose.material3.Text("Vazgeç", color = Color.White.copy(alpha = 0.6f))
+                    com.kitsugi.animelist.ui.theme.gradient.Text("Vazgeç", color = Color.White.copy(alpha = 0.6f))
                 }
             },
             containerColor = KitsugiColors.BackgroundElevated,

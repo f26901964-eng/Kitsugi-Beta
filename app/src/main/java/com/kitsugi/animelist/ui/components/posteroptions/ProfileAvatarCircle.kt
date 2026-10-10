@@ -1,6 +1,8 @@
 package com.kitsugi.animelist.ui.components.posteroptions
 
-import androidx.compose.foundation.background
+import com.kitsugi.animelist.ui.theme.gradient.Text
+
+import com.kitsugi.animelist.ui.theme.gradient.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.*

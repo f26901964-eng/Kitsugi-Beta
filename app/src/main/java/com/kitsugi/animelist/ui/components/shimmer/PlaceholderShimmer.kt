@@ -1,7 +1,7 @@
 package com.kitsugi.animelist.ui.components.shimmer
 
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.background
+import com.kitsugi.animelist.ui.theme.gradient.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme

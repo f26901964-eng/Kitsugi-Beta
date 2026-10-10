@@ -1,6 +1,5 @@
 package com.kitsugi.animelist.ui.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
@@ -43,16 +42,6 @@ private val LightColorScheme = lightColorScheme(
     primary = Purple40,
     secondary = PurpleGrey40,
     tertiary = Pink40
-
-    /* Other default colors to override
-    background = Color(0xFFFFFBFE),
-    surface = Color(0xFFFFFBFE),
-    onPrimary = Color.White,
-    onSecondary = Color.White,
-    onTertiary = Color.White,
-    onBackground = Color(0xFF1C1B1F),
-    onSurface = Color(0xFF1C1B1F),
-    */
 )
 
 @OptIn(androidx.tv.material3.ExperimentalTvMaterial3Api::class)
@@ -83,14 +72,16 @@ fun KitsugiAnimeListTheme(
     }
 
     // Gradyan bitiş rengi (0 = düz renk)
-    val accentColor2 = if (customAccentColor != 0 && customAccentColor2 != 0) {
+    val accentColor2 = if (customAccentColor2 != 0) {
         androidx.compose.ui.graphics.Color(customAccentColor2)
     } else {
         null
     }
 
+    val angleFloat = customAccentGradientAngle.toFloat()
+
     // Vurgu arka plan fırçası: düz veya açılı lineer gradyan
-    val accentBrush = accentBackgroundBrush(accentColor, accentColor2, customAccentGradientAngle.toFloat())
+    val accentBrush = accentBackgroundBrush(accentColor, accentColor2, angleFloat)
 
     // Vurgu zeminindeki TÜM yazı/ikonlar için otomatik siyah-beyaz kontrast rengi
     val onAccent = onAccentColor(accentColor, accentColor2)
@@ -101,10 +92,12 @@ fun KitsugiAnimeListTheme(
         LocalIsTvDevice provides isTv,
         LocalKitsugiColors provides KitsugiColors,
         LocalKitsugiAccent provides accentColor,
+        LocalKitsugiAccent2 provides accentColor2,
+        LocalKitsugiAccentAngle provides angleFloat,
         LocalKitsugiAccentBrush provides accentBrush,
         LocalKitsugiOnAccent provides onAccent
     ) {
-        val colorScheme = when {
+        val baseScheme = when {
             dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {
                 val context = LocalContext.current
                 if (darkTheme) dynamicDarkColorScheme(context) else dynamicLightColorScheme(context)
@@ -112,6 +105,20 @@ fun KitsugiAnimeListTheme(
             darkTheme -> DarkColorScheme
             else -> LightColorScheme
         }
+        val secondaryAccent = accentColor2 ?: accentColor
+        val colorScheme = baseScheme.copy(
+            primary = accentColor,
+            onPrimary = onAccent,
+            primaryContainer = accentColor.copy(alpha = 0.22f),
+            onPrimaryContainer = KitsugiColors.textPrimary,
+            secondary = secondaryAccent,
+            onSecondary = onAccent,
+            secondaryContainer = secondaryAccent.copy(alpha = 0.22f),
+            onSecondaryContainer = KitsugiColors.textPrimary,
+            tertiary = secondaryAccent,
+            onTertiary = onAccent,
+            surfaceTint = accentColor
+        )
         MaterialTheme(
             colorScheme = colorScheme,
             typography = Typography,

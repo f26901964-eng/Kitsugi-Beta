@@ -3,9 +3,8 @@ package com.kitsugi.animelist.ui.theme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -26,9 +25,12 @@ import kotlin.math.sin
  *
  * - [onAccentColor]: Vurgu rengi üzerine çizilen TÜM yazı/ikonların rengi, zeminin
  *   koyuluğuna/açıklığına göre siyah ↔ beyaz arasında yumuşak bir geçişle otomatik seçilir.
+ * - [LocalKitsugiAccent2]: Gradyan bitiş rengi (`null` ise düz renk).
+ * - [LocalKitsugiAccentAngle]: Gradyan açısı (derece).
  * - [LocalKitsugiOnAccent]: Tema kökünde hesaplanan, o anki vurgu rengine göre
  *   zıt kontrastlı metin rengi.
  * - [LocalKitsugiAccentBrush]: Düz veya açılı lineer gradyan vurgu fırçası.
+ * - [LocalInsideAccentSurface]: Dolgulu vurgu yüzeyi (buton/rozet) içindeyken true.
  * - [Modifier.accentBackground]: Vurgu arka planlarını (düz/gradyan) tek noktadan çizer.
  */
 
@@ -54,12 +56,77 @@ fun onAccentColor(background: Color): Color {
 fun onAccentColor(start: Color, end: Color?): Color =
     onAccentColor(if (end == null) start else lerp(start, end, 0.5f))
 
+/** Gradyan bitiş rengi (`null` ise düz vurgu rengi aktif). */
+val LocalKitsugiAccent2 = compositionLocalOf<Color?> { null }
+
+/** Gradyan açısı (derece, varsayılan 135°). */
+val LocalKitsugiAccentAngle = compositionLocalOf { 135f }
+
 /** Vurgu rengi üstündeki metin/ikon rengi — temada hesaplanmış hâli. */
 val LocalKitsugiOnAccent = compositionLocalOf { Color.White }
 
 /** Vurgu rengi arka plan fırçası — düz renk veya açılı lineer gradyan. */
 val LocalKitsugiAccentBrush = compositionLocalOf<Brush> {
     SolidColor(Color(0xFFC8F4EF))
+}
+
+/**
+ * Vurgu rengiyle tam doldurulmuş bir buton/rozet yüzeyi içindeyken `true` olur;
+ * içerideki yazı ve ikonların otomatik olarak [LocalKitsugiOnAccent] kontrast
+ * rengini almasını sağlar.
+ */
+val LocalInsideAccentSurface = compositionLocalOf { false }
+
+/**
+ * Verilen [Color] değerinin o anki tema vurgu rengiyle (veya `accent.copy(alpha = ...)`
+ * ile türetilmiş yarı saydam bir kopyasıyla) aynı RGB tonuna sahip olup olmadığını döner.
+ */
+fun Color.isSameAccentRgb(accent: Color): Boolean {
+    if (this == Color.Unspecified || this.alpha <= 0f) return false
+    return (this.toArgb() and 0x00FFFFFF) == (accent.toArgb() and 0x00FFFFFF)
+}
+
+/**
+ * Gradyan aktifse ve [color] tema vurgu renginin (tam veya yarı saydam) bir varyantıysa
+ * aynı alfa değerine sahip açılı gradyan fırçasını döner; aksi halde `null` döner.
+ */
+fun resolveAccentBrush(
+    color: Color,
+    accent: Color,
+    accent2: Color?,
+    angleDegrees: Float
+): Brush? {
+    if (accent2 == null || color == Color.Unspecified || color.alpha <= 0f) return null
+    if (!color.isSameAccentRgb(accent)) return null
+    val a = color.alpha.coerceIn(0f, 1f)
+    return if (a >= 0.999f) {
+        AngleLinearGradientBrush(listOf(accent, accent2), angleDegrees)
+    } else {
+        AngleLinearGradientBrush(
+            listOf(accent.copy(alpha = a), accent2.copy(alpha = a)),
+            angleDegrees
+        )
+    }
+}
+
+/** Composable bağlamda [color] için aktif gradyan fırçasını çözer. */
+@Composable
+fun resolveCurrentAccentBrush(color: Color): Brush? =
+    resolveAccentBrush(
+        color = color,
+        accent = LocalKitsugiAccent.current,
+        accent2 = LocalKitsugiAccent2.current,
+        angleDegrees = LocalKitsugiAccentAngle.current
+    )
+
+/** İstenen [alpha] saydamlığında düz veya gradyan vurgu fırçası üretir. */
+@Composable
+fun accentBrushWithAlpha(alpha: Float = 1f): Brush {
+    val a = alpha.coerceIn(0f, 1f)
+    val c1 = LocalKitsugiAccent.current.copy(alpha = a)
+    val c2 = LocalKitsugiAccent2.current?.copy(alpha = a)
+    val angle = LocalKitsugiAccentAngle.current
+    return accentBackgroundBrush(c1, c2, angle)
 }
 
 /** Açılı lineer gradyan fırçası — çizim alanının gerçek boyutuna göre hesaplanır. */

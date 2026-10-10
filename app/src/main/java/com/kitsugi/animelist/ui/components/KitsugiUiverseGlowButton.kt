@@ -2,8 +2,6 @@ package com.kitsugi.animelist.ui.components
 
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.Arrangement
@@ -15,10 +13,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ButtonColors
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Icon
+import com.kitsugi.animelist.ui.theme.gradient.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.kitsugi.animelist.ui.theme.gradient.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
@@ -35,8 +33,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import com.kitsugi.animelist.ui.theme.LocalInsideAccentSurface
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccentBrush
+import com.kitsugi.animelist.ui.theme.LocalKitsugiOnAccent
+import com.kitsugi.animelist.ui.theme.gradient.background
+import com.kitsugi.animelist.ui.theme.gradient.border
+import com.kitsugi.animelist.ui.theme.isSameAccentRgb
 import com.kitsugi.animelist.ui.utils.tvClickable
 
 /**
@@ -45,12 +48,7 @@ import com.kitsugi.animelist.ui.utils.tvClickable
  */
 @Composable
 private fun Modifier.kitsugiAccentButtonBackground(backgroundColor: Color, shape: Shape): Modifier {
-    val accent = LocalKitsugiAccent.current
-    return if (backgroundColor == accent) {
-        this.background(LocalKitsugiAccentBrush.current, shape)
-    } else {
-        this.background(backgroundColor, shape)
-    }
+    return this.background(backgroundColor, shape)
 }
 
 /**
@@ -138,7 +136,8 @@ fun KitsugiUiverseGlowButton(
         isPressed -> accent.copy(alpha = 0.85f)
         else -> accent
     }
-    val contentColor = if (enabled) backgroundColor.onAccentColor() else KitsugiColors.TextMuted
+    val onAccent = LocalKitsugiOnAccent.current
+    val contentColor = if (enabled) onAccent else KitsugiColors.TextMuted
 
     Row(
         modifier = modifier
@@ -149,7 +148,10 @@ fun KitsugiUiverseGlowButton(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
     ) {
-        CompositionLocalProvider(LocalContentColor provides contentColor) {
+        CompositionLocalProvider(
+            LocalContentColor provides contentColor,
+            LocalInsideAccentSurface provides enabled
+        ) {
             Row(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = contentPadding),
                 verticalAlignment = Alignment.CenterVertically,
@@ -176,6 +178,7 @@ fun KitsugiDetailActionButton(
     shape: Shape = RoundedCornerShape(999.dp)
 ) {
     val accent = LocalKitsugiAccent.current
+    val onAccent = LocalKitsugiOnAccent.current
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
@@ -190,7 +193,7 @@ fun KitsugiDetailActionButton(
         isPressed -> accent.copy(alpha = 0.85f)
         else -> accent
     }
-    val contentColor = if (enabled) backgroundColor.onAccentColor() else KitsugiColors.TextMuted
+    val contentColor = if (enabled) onAccent else KitsugiColors.TextMuted
 
     Row(
         modifier = modifier
@@ -241,6 +244,7 @@ fun KitsugiButton(
     content: @Composable RowScope.() -> Unit
 ) {
     val accent = LocalKitsugiAccent.current
+    val onAccent = LocalKitsugiOnAccent.current
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
 
@@ -259,7 +263,9 @@ fun KitsugiButton(
         isPressed -> accent.copy(alpha = 0.85f)
         else -> accent
     }
+    val isAccentFill = enabled && backgroundColor.isSameAccentRgb(accent)
     val contentColor = when {
+        isAccentFill -> onAccent
         specifiedContent != Color.Unspecified -> specifiedContent
         !enabled -> KitsugiColors.TextMuted
         else -> backgroundColor.onAccentColor()
@@ -274,7 +280,10 @@ fun KitsugiButton(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
     ) {
-        CompositionLocalProvider(LocalContentColor provides contentColor) {
+        CompositionLocalProvider(
+            LocalContentColor provides contentColor,
+            LocalInsideAccentSurface provides isAccentFill
+        ) {
             Row(
                 modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,

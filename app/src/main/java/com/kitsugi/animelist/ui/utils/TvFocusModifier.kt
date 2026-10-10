@@ -1,7 +1,7 @@
 package com.kitsugi.animelist.ui.utils
 
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.foundation.border
+import com.kitsugi.animelist.ui.theme.gradient.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.getValue

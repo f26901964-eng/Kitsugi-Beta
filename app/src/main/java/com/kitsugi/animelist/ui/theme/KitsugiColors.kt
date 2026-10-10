@@ -32,6 +32,21 @@ object KitsugiColors {
         @Composable
         get() = LocalKitsugiAccent.current
 
+    /** Gradyan bitiş rengi (`null` ise düz renk modu). */
+    val Accent2: Color?
+        @Composable
+        get() = LocalKitsugiAccent2.current
+
+    /** Gradyan vurgu modunun aktif olup olmadığı. */
+    val IsGradient: Boolean
+        @Composable
+        get() = LocalKitsugiAccent2.current != null
+
+    /** Gradyan açısı (derece). */
+    val AccentGradientAngle: Float
+        @Composable
+        get() = LocalKitsugiAccentAngle.current
+
     /** Vurgu zeminindeki yazı/ikonlar için otomatik siyah-beyaz kontrast rengi. */
     val OnAccent: Color
         @Composable

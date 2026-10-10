@@ -34,8 +34,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
+import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent2
+import com.kitsugi.animelist.ui.theme.LocalKitsugiAccentAngle
+import com.kitsugi.animelist.ui.theme.LocalKitsugiAccentBrush
 import com.kitsugi.animelist.ui.theme.LocalKitsugiColors
+import com.kitsugi.animelist.ui.theme.LocalKitsugiOnAccent
 import com.kitsugi.animelist.ui.theme.accentBackgroundBrush
+import com.kitsugi.animelist.ui.theme.gradient.Slider
+import com.kitsugi.animelist.ui.theme.gradient.Switch
+import com.kitsugi.animelist.ui.theme.gradient.Text
 import com.kitsugi.animelist.ui.theme.onAccentColor
 import kotlin.math.roundToInt
 
@@ -91,6 +99,13 @@ fun KitsugiAccentColorPickerDialog(
         onDismissRequest = onDismissRequest,
         properties = DialogProperties(usePlatformDefaultWidth = false)
     ) {
+        CompositionLocalProvider(
+            LocalKitsugiAccent provides color1,
+            LocalKitsugiAccent2 provides (if (gradientEnabled) color2 else null),
+            LocalKitsugiAccentAngle provides angle.toFloat(),
+            LocalKitsugiAccentBrush provides previewBrush,
+            LocalKitsugiOnAccent provides previewOnColor
+        ) {
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -227,6 +242,7 @@ fun KitsugiAccentColorPickerDialog(
                     }
                 }
             }
+        }
         }
     }
 }
@@ -565,11 +581,16 @@ private fun GradientSettingsPanel(
             ) {
                 presets.forEach { (arrow, deg) ->
                     val selected = angle == deg
+                    val presetBrush = LocalKitsugiAccentBrush.current
+                    val presetOnColor = LocalKitsugiOnAccent.current
                     Box(
                         modifier = Modifier
                             .size(40.dp)
                             .clip(RoundedCornerShape(10.dp))
-                            .background(if (selected) color1 else KitsugiColors.surfaceSoft)
+                            .then(
+                                if (selected) Modifier.background(presetBrush)
+                                else Modifier.background(KitsugiColors.surfaceSoft)
+                            )
                             .pointerInput(deg) {
                                 detectTapGestures { onAngleChange(deg) }
                             },
@@ -577,7 +598,7 @@ private fun GradientSettingsPanel(
                     ) {
                         Text(
                             arrow,
-                            color = if (selected) onAccentColor(color1) else KitsugiColors.textPrimary,
+                            color = if (selected) presetOnColor else KitsugiColors.textPrimary,
                             fontSize = 17.sp,
                             fontWeight = FontWeight.Bold
                         )
@@ -639,16 +660,19 @@ private fun TargetSwatchButton(
     onClick: () -> Unit
 ) {
     val KitsugiColors = LocalKitsugiColors.current
+    val activeBrush = LocalKitsugiAccentBrush.current
     Row(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         modifier = Modifier
             .clip(RoundedCornerShape(12.dp))
             .background(if (selected) KitsugiColors.surfaceSoft else Color.Transparent)
-            .border(
-                width = if (selected) 2.dp else 1.dp,
-                color = if (selected) color else KitsugiColors.border,
-                shape = RoundedCornerShape(12.dp)
+            .then(
+                if (selected) {
+                    Modifier.border(width = 2.dp, brush = activeBrush, shape = RoundedCornerShape(12.dp))
+                } else {
+                    Modifier.border(width = 1.dp, color = KitsugiColors.border, shape = RoundedCornerShape(12.dp))
+                }
             )
             .pointerInput(label) { detectTapGestures { onClick() } }
             .padding(horizontal = 12.dp, vertical = 8.dp)
@@ -662,7 +686,7 @@ private fun TargetSwatchButton(
         )
         Text(
             label,
-            color = if (selected) KitsugiColors.textPrimary else KitsugiColors.textSecondary,
+            color = if (selected) LocalKitsugiAccent.current else KitsugiColors.textSecondary,
             style = MaterialTheme.typography.labelLarge,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
         )
@@ -687,7 +711,7 @@ private fun PickerTabButton(
     ) {
         Text(
             label,
-            color = if (selected) KitsugiColors.textPrimary else KitsugiColors.textSecondary,
+            color = if (selected) LocalKitsugiAccent.current else KitsugiColors.textSecondary,
             fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
             style = MaterialTheme.typography.bodyMedium
         )
@@ -697,8 +721,9 @@ private fun PickerTabButton(
                 .width(28.dp)
                 .height(3.dp)
                 .clip(RoundedCornerShape(2.dp))
-                .background(
-                    if (selected) LocalKitsugiColors.current.textPrimary else Color.Transparent
+                .then(
+                    if (selected) Modifier.background(LocalKitsugiAccentBrush.current)
+                    else Modifier.background(Color.Transparent)
                 )
         )
     }

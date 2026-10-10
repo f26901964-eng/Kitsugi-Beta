@@ -1,7 +1,7 @@
 ﻿package com.kitsugi.animelist.ui.screens.fullscreen.components
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
-import androidx.compose.foundation.background
+import com.kitsugi.animelist.ui.theme.gradient.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -19,7 +19,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
 
-import androidx.compose.foundation.border
+import com.kitsugi.animelist.ui.theme.gradient.border
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.material.icons.rounded.PlayArrow

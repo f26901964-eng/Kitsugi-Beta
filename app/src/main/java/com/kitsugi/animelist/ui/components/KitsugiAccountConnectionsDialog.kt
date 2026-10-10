@@ -1,6 +1,9 @@
 package com.kitsugi.animelist.ui.components
 
-import androidx.compose.foundation.background
+import com.kitsugi.animelist.ui.theme.gradient.Icon
+import com.kitsugi.animelist.ui.theme.gradient.Text
+
+import com.kitsugi.animelist.ui.theme.gradient.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -533,7 +536,7 @@ private fun AccountConnectionsTab(
                     if (crossSyncState.isRunning) {
                         Spacer(modifier = Modifier.height(4.dp))
                         if (crossSyncState.totalItems <= 0) {
-                            androidx.compose.material3.LinearProgressIndicator(
+                            com.kitsugi.animelist.ui.theme.gradient.LinearProgressIndicator(
                                 modifier = Modifier
                                     .fillMaxWidth()
                                     .height(4.dp)
@@ -542,7 +545,7 @@ private fun AccountConnectionsTab(
                                 trackColor = androidx.compose.material3.MaterialTheme.colorScheme.surfaceVariant
                             )
                         } else {
-                            androidx.compose.material3.LinearProgressIndicator(
+                            com.kitsugi.animelist.ui.theme.gradient.LinearProgressIndicator(
                                 progress = { crossSyncState.progressPercent },
                                 modifier = Modifier
                                     .fillMaxWidth()

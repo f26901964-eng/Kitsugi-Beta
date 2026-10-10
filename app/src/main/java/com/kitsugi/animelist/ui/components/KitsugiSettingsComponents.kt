@@ -1,7 +1,5 @@
 package com.kitsugi.animelist.ui.components
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.focusable
@@ -27,9 +25,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
-import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -48,7 +44,12 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccentBrush
 import com.kitsugi.animelist.ui.theme.LocalKitsugiOnAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
-import androidx.compose.material3.Icon
+import com.kitsugi.animelist.ui.theme.gradient.Icon
+import com.kitsugi.animelist.ui.theme.gradient.Switch
+import com.kitsugi.animelist.ui.theme.gradient.Text
+import com.kitsugi.animelist.ui.theme.gradient.background
+import com.kitsugi.animelist.ui.theme.gradient.border
+import com.kitsugi.animelist.ui.theme.isSameAccentRgb
 import androidx.compose.ui.graphics.vector.ImageVector
 
 @Composable
@@ -484,7 +485,7 @@ private fun SettingsIcon(
     // Vurgu rengi kullanılıyorsa düz/gradyan tema fırçası; aksi halde düz renk.
     // İkon tint'i, zeminin koyuluğuna göre otomatik siyah-beyaz kontrast alır.
     val accentColor = LocalKitsugiAccent.current
-    val isAccent = color == accentColor
+    val isAccent = color.isSameAccentRgb(accentColor)
     val bgBrush = if (isAccent) LocalKitsugiAccentBrush.current else androidx.compose.ui.graphics.SolidColor(color)
     val tint = if (isAccent) LocalKitsugiOnAccent.current else com.kitsugi.animelist.ui.theme.onAccentColor(color)
     Box(

@@ -1,10 +1,14 @@
 package com.kitsugi.animelist.ui.screens.settings
 
+import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
+import com.kitsugi.animelist.ui.theme.gradient.Icon
+import com.kitsugi.animelist.ui.theme.gradient.Text
+
 import com.kitsugi.animelist.R
 import androidx.compose.ui.res.stringResource
 import android.content.Context
 import android.widget.Toast
-import androidx.compose.foundation.background
+import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*

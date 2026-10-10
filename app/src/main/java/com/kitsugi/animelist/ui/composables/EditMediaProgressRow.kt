@@ -1,5 +1,8 @@
 package com.kitsugi.animelist.ui.composables
 
+import com.kitsugi.animelist.ui.theme.gradient.Button
+import com.kitsugi.animelist.ui.theme.gradient.Text
+
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable

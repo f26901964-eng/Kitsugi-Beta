@@ -16,7 +16,7 @@ import com.kitsugi.animelist.ui.components.detailEnterContentTransform
 import com.kitsugi.animelist.ui.components.detailExitContentTransform
 import com.kitsugi.animelist.ui.components.tabContentTransform
 import android.content.res.Configuration
-import androidx.compose.foundation.background
+import com.kitsugi.animelist.ui.theme.gradient.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -41,9 +41,9 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.LinearProgressIndicator
+import com.kitsugi.animelist.ui.theme.gradient.LinearProgressIndicator
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.FloatingActionButton
+import com.kitsugi.animelist.ui.theme.gradient.FloatingActionButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.graphics.graphicsLayer
@@ -55,7 +55,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Snackbar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
-import androidx.compose.material3.Text
+import com.kitsugi.animelist.ui.theme.gradient.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -240,7 +240,7 @@ fun AppRoot(
     val importMode = appViewModel.importMode
     val snackbarMessage = appViewModel.snackbarMessage
 
-    val activeAccentColor = KitsugiAccentForThemeId(appSettings.selectedThemeId)
+    val activeAccentColor = LocalKitsugiAccent.current
 
     var pendingExportText by remember {
         mutableStateOf("")
@@ -732,7 +732,6 @@ fun AppRoot(
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     CompositionLocalProvider(
-        LocalKitsugiAccent provides activeAccentColor,
         LocalBlurAdultMedia provides appSettings.blurAdultMedia
     ) {
         Scaffold(
