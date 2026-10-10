@@ -787,6 +787,18 @@
     <string name="bangumi_tag_villain">Villain</string>
     <string name="bangumi_tag_anti_hero">Anti-Hero</string>
     <string name="bangumi_tag_ensemble_cast">Ensemble Cast</string>
+    <string name="bangumi_tag_heterosexual">Heterosexual</string>
+    <string name="bangumi_tag_male_protagonist">Male Protagonist</string>
+    <string name="bangumi_tag_female_protagonist">Female Protagonist</string>
+    <string name="bangumi_tag_female_harem">Female Harem</string>
+    <string name="bangumi_tag_primarily_male_cast">Primarily Male Cast</string>
+    <string name="bangumi_tag_primarily_female_cast">Primarily Female Cast</string>
+    <string name="bangumi_tag_primarily_teen_cast">Primarily Teen Cast</string>
+    <string name="bangumi_tag_primarily_adult_cast">Primarily Adult Cast</string>
+    <string name="bangumi_tag_primarily_child_cast">Primarily Child Cast</string>
+    <string name="bangumi_tag_clones">Clones</string>
+    <string name="bangumi_tag_aliens">Aliens</string>
+    <string name="bangumi_tag_polyamorous">Polyamorous</string>
     <string name="bangumi_tag_slow_burn">Slow Burn</string>
     <string name="bangumi_tag_power_fantasy">Power Fantasy</string>
     <string name="bangumi_tag_episodic">Episodic</string>
@@ -1391,11 +1403,4 @@
     <string name="bangumi_tag_ambient_music">Ambient</string>
     <string name="bangumi_tag_instrumental">Instrumental</string>
 
-    <string name="bangumi_tag_ona">ONA</string>
-    <string name="bangumi_tag_war">War</string>
-    <string name="notif_bangumi_in_list">In your Bangumi watch list (在看)</string>
-    <string name="notif_login_required_bangumi">You need to log in to Bangumi</string>
-    <string name="notif_notice_bangumi_feed">Bangumi\'s public API has no notification endpoint; this list is your watch list (在看) matched against the airing calendar. %1$d watched works • %2$d airing matches.</string>
-    <string name="notif_notice_bangumi_no_list">Your Bangumi watch list (在看) is empty.</string>
-    <string name="notif_notice_bangumi_not_connected">No Bangumi account connected; only local entries are shown. Bangumi\'s public API has no notification endpoint.</string>
 </resources>

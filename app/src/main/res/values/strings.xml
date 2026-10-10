@@ -505,9 +505,9 @@
     <string name="genre_music">Müzik</string>
     <string name="genre_mystery">Gizem</string>
     <string name="genre_psychological">Psikolojik</string>
-    <string name="genre_romance">Romantizm</string>
+    <string name="genre_romance">Romantik</string>
     <string name="genre_sci_fi">Bilim Kurgu</string>
-    <string name="genre_slice_of_life">Yaşamdan Kesitler</string>
+    <string name="genre_slice_of_life">Günlük Yaşam</string>
     <string name="genre_sports">Spor</string>
     <string name="genre_supernatural">Doğaüstü</string>
     <string name="genre_thriller">Gerilim</string>
@@ -517,7 +517,7 @@
     <string name="genre_shoujo">Shōjo</string>
     <string name="genre_seinen">Seinen</string>
     <string name="genre_josei">Josei</string>
-    <string name="genre_kids">Çocuk</string>
+    <string name="genre_kids">Çocuklara Yönelik</string>
 
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <!-- Search — Tags (Etiketler)                                          -->
@@ -536,10 +536,10 @@
     <!-- Fantazi Etiketleri -->
     <string name="tag_alchemy">Simya</string>
     <string name="tag_body_swapping">Beden Değişimi</string>
-    <string name="tag_cultivation">Kültivation</string>
+    <string name="tag_cultivation">Kültivasyon</string>
     <string name="tag_curses">Lanetler</string>
-    <string name="tag_exorcism">Cin Kovma</string>
-    <string name="tag_fairy_tale">Masal</string>
+    <string name="tag_exorcism">Şeytan Kovma</string>
+    <string name="tag_fairy_tale">Peri Masalı</string>
     <string name="tag_henshin">Henshin</string>
     <string name="tag_isekai">Isekai</string>
     <string name="tag_kaiju">Kaiju</string>
@@ -555,18 +555,18 @@
     <string name="tag_youkai">Youkai</string>
 
     <!-- Bilim Kurgu Etiketleri -->
-    <string name="tag_cyberpunk">Siberpunk</string>
+    <string name="tag_cyberpunk">Cyberpunk</string>
     <string name="tag_space_opera">Uzay Operası</string>
     <string name="tag_time_loop">Zaman Döngüsü</string>
     <string name="tag_time_manipulation">Zaman Manipülasyonu</string>
     <string name="tag_time_travel">Zaman Yolculuğu</string>
-    <string name="tag_post_apocalyptic">Post-Apokaliptik</string>
+    <string name="tag_post_apocalyptic">Kıyamet Sonrası</string>
     <string name="tag_tokusatsu">Tokusatsu</string>
     <string name="tag_real_robot">Gerçek Robot</string>
     <string name="tag_super_robot">Süper Robot</string>
 
     <!-- Korku / Gerilim Etiketleri -->
-    <string name="tag_gore">Kan / Şiddet</string>
+    <string name="tag_gore">Kan ve Şiddet</string>
     <string name="tag_body_horror">Vücut Korkusu</string>
     <string name="tag_cosmic_horror">Kozmik Korku</string>
     <string name="tag_survival">Hayatta Kalma</string>
@@ -588,11 +588,11 @@
     <string name="tag_matchmaking">Görücü Usulü</string>
     <string name="tag_interspecies">Türler Arası Aşk</string>
     <string name="tag_cheating">Aldatma</string>
-    <string name="tag_polyamorous">Poliamorös</string>
+    <string name="tag_polyamorous">Poliamori</string>
     <string name="tag_teens_love">Gençlik Aşkı</string>
 
     <!-- Dram Etiketleri -->
-    <string name="tag_coming_of_age">Büyüme</string>
+    <string name="tag_coming_of_age">Olgunlaşma</string>
     <string name="tag_revenge">İntikam</string>
     <string name="tag_tragedy">Trajedi</string>
     <string name="tag_conspiracy">Komplo</string>
@@ -617,7 +617,7 @@
     <string name="tag_band">Müzik Grubu</string>
     <string name="tag_dancing">Dans</string>
     <string name="tag_idols">İdoller</string>
-    <string name="tag_showbiz">Şovbiz</string>
+    <string name="tag_showbiz">Şov Dünyası</string>
     <string name="tag_performing_arts">Sahne Sanatları</string>
     <string name="tag_fashion">Moda</string>
     <string name="tag_photography">Fotoğrafçılık</string>
@@ -698,13 +698,13 @@
     <string name="tag_ninja">Ninja</string>
     <string name="tag_pirates">Korsanlar</string>
     <string name="tag_vikings">Vikingler</string>
-    <string name="tag_demon">Şeytan / İblis</string>
+    <string name="tag_demon">İblis</string>
     <string name="tag_angel">Melek</string>
     <string name="tag_ghost">Hayalet</string>
     <string name="tag_tsundere">Tsundere</string>
     <string name="tag_yandere">Yandere</string>
     <string name="tag_villainess">Kötü Kadın</string>
-    <string name="tag_tomboy">Erkek Gibi Kız</string>
+    <string name="tag_tomboy">Tomboy</string>
     <string name="tag_vtuber">VTuber</string>
     <string name="tag_twins">İkizler</string>
     <string name="tag_teacher">Öğretmen</string>
@@ -734,7 +734,7 @@
     <string name="tag_workplace">İş Yeri</string>
     <string name="tag_dungeon">Zindan</string>
     <string name="tag_prison">Hapishane</string>
-    <string name="tag_medieval">Ortaçağ</string>
+    <string name="tag_medieval">Orta Çağ</string>
     <string name="tag_historical">Tarihi</string>
     <string name="tag_dystopian">Distopik</string>
     <string name="tag_space">Uzay</string>
@@ -775,7 +775,7 @@
     <string name="tag_environmental">Çevre</string>
     <string name="tag_economics">Ekonomi</string>
     <string name="tag_marriage">Evlilik</string>
-    <string name="tag_travel">Seyahat</string>
+    <string name="tag_travel">Gezi</string>
     <string name="tag_educational">Eğitici</string>
     <string name="tag_delinquents">Asi Gençler</string>
     <string name="tag_gender_bending">Cinsiyet Değişimi</string>
@@ -999,7 +999,7 @@
     <string name="bangumi_tag_hentai">Hentai</string>
     <string name="bangumi_tag_erotic">Erotik</string>
     <string name="bangumi_tag_gore">Kan ve Şiddet</string>
-    <string name="bangumi_tag_nudity">Müstehcenlik</string>
+    <string name="bangumi_tag_nudity">Çıplaklık</string>
     <string name="bangumi_tag_seinen">Seinen</string>
     <string name="bangumi_tag_shounen">Shōnen</string>
     <string name="bangumi_tag_shoujo">Shōjo</string>
@@ -1056,7 +1056,7 @@
     <string name="bangumi_tag_super_power">Süper Güç</string>
     <string name="bangumi_tag_psychological">Psikolojik</string>
     <string name="bangumi_tag_mental_illness">Akıl Sağlığı</string>
-    <string name="bangumi_tag_medical">Tıbbi</string>
+    <string name="bangumi_tag_medical">Tıp</string>
     <string name="bangumi_tag_legal">Hukuk</string>
     <string name="bangumi_tag_prison">Hapishane</string>
     <string name="bangumi_tag_escape">Kaçış</string>
@@ -1067,7 +1067,7 @@
     <string name="bangumi_tag_ninjas">Ninja</string>
     <string name="bangumi_tag_samurai">Samuray</string>
     <string name="bangumi_tag_martial_arts">Dövüş Sanatları</string>
-    <string name="bangumi_tag_swordplay">Kılıç Düellosu</string>
+    <string name="bangumi_tag_swordplay">Kılıç Dövüşü</string>
     <string name="bangumi_tag_demons">İblisler</string>
     <string name="bangumi_tag_angels">Melekler</string>
     <string name="bangumi_tag_vampire">Vampir</string>
@@ -1090,7 +1090,7 @@
     <string name="bangumi_tag_school_festival">Okul Şenliği</string>
     <string name="bangumi_tag_coming_of_age">Olgunlaşma</string>
     <string name="bangumi_tag_youth">Gençlik</string>
-    <string name="bangumi_tag_workplace">İş Hayatı</string>
+    <string name="bangumi_tag_workplace">İş Yeri</string>
     <string name="bangumi_tag_social_issues">Toplumsal</string>
     <string name="bangumi_tag_family">Aile</string>
     <string name="bangumi_tag_marriage">Evlilik</string>
@@ -1137,7 +1137,19 @@
     <string name="bangumi_tag_tokusatsu">Tokusatsu</string>
     <string name="bangumi_tag_villain">Kötü Adam</string>
     <string name="bangumi_tag_anti_hero">Anti-Kahraman</string>
-    <string name="bangumi_tag_ensemble_cast">Ansambıl Kadro</string>
+    <string name="bangumi_tag_ensemble_cast">Ansambl Kadro</string>
+    <string name="bangumi_tag_heterosexual">Heteroseksüel</string>
+    <string name="bangumi_tag_male_protagonist">Erkek Baş Karakter</string>
+    <string name="bangumi_tag_female_protagonist">Kadın Baş Karakter</string>
+    <string name="bangumi_tag_female_harem">Ters Harem</string>
+    <string name="bangumi_tag_primarily_male_cast">Ağırlıklı Erkek Kadro</string>
+    <string name="bangumi_tag_primarily_female_cast">Ağırlıklı Kadın Kadro</string>
+    <string name="bangumi_tag_primarily_teen_cast">Ağırlıklı Genç Kadro</string>
+    <string name="bangumi_tag_primarily_adult_cast">Ağırlıklı Yetişkin Kadro</string>
+    <string name="bangumi_tag_primarily_child_cast">Ağırlıklı Çocuk Kadro</string>
+    <string name="bangumi_tag_clones">Klonlar</string>
+    <string name="bangumi_tag_aliens">Uzaylılar</string>
+    <string name="bangumi_tag_polyamorous">Poliamori</string>
     <string name="bangumi_tag_slow_burn">Yavaş İşleyen</string>
     <string name="bangumi_tag_power_fantasy">Güç Fantezisi</string>
     <string name="bangumi_tag_episodic">Vaka Anlatısı</string>
@@ -1212,7 +1224,7 @@
     <string name="bangumi_tag_genius">Dahi</string>
     <string name="bangumi_tag_idiot_character">Saf Karakter</string>
     <string name="bangumi_tag_tsundere">Tsundere</string>
-    <string name="bangumi_tag_kuudere">Soğuk Karakter</string>
+    <string name="bangumi_tag_kuudere">Kuudere</string>
     <string name="bangumi_tag_yandere">Yandere</string>
     <string name="bangumi_tag_genki">Hareketli Karakter</string>
     <string name="bangumi_tag_chunibyo">Orta 2 Sendromu</string>
@@ -1237,14 +1249,14 @@
     <string name="bangumi_tag_xianxia">Xianxia</string>
     <string name="bangumi_tag_wuxia">Wuxia</string>
     <string name="bangumi_tag_gods">Tanrılar</string>
-    <string name="bangumi_tag_afterlife">Öteki Dünya</string>
+    <string name="bangumi_tag_afterlife">Öte Dünya</string>
     <string name="bangumi_tag_yokai">Yokai</string>
     <string name="bangumi_tag_spirit">Ruh</string>
     <string name="bangumi_tag_immortality">Ölümsüzlük</string>
     <string name="bangumi_tag_contract">Sözleşme</string>
     <string name="bangumi_tag_sacrifice">Kurban</string>
     <string name="bangumi_tag_medieval">Orta Çağ</string>
-    <string name="bangumi_tag_urban_fantasy">Kent Fantastiği</string>
+    <string name="bangumi_tag_urban_fantasy">Şehir Fantezisi</string>
     <string name="bangumi_tag_japanese_ancient">Japon Tarihi</string>
     <string name="bangumi_tag_ancient_china">Antik Çin</string>
     <string name="bangumi_tag_era_meiji">Meiji Dönemi</string>
@@ -1287,7 +1299,7 @@
     <string name="bangumi_tag_experimental">Deneysel</string>
     <string name="bangumi_tag_beautiful_scenery">Güzel Manzaralar</string>
     <string name="bangumi_tag_dark_comedy">Kara Mizah</string>
-    <string name="bangumi_tag_slapstick">Fiziksel Komedi</string>
+    <string name="bangumi_tag_slapstick">Kaba Komedi</string>
     <string name="bangumi_tag_moe">Moe</string>
     <string name="bangumi_tag_voting">Seçim</string>
     <string name="bangumi_tag_politics">Siyaset</string>
@@ -1328,7 +1340,7 @@
     <string name="bangumi_tag_thailand">Tayland</string>
     <string name="bangumi_tag_asia">Asya</string>
     <string name="bangumi_tag_europe">Avrupa</string>
-    <string name="bangumi_tag_western">Batı</string>
+    <string name="bangumi_tag_western">Western</string>
     <string name="bangumi_tag_middle_east">Ortadoğu</string>
     <string name="bangumi_tag_africa">Afrika</string>
     <string name="bangumi_tag_co_production">Ortak Yapım</string>
@@ -1742,11 +1754,4 @@
     <string name="bangumi_tag_ambient_music">Ambient</string>
     <string name="bangumi_tag_instrumental">Enstrümantal</string>
 
-    <string name="bangumi_tag_ona">ONA</string>
-    <string name="bangumi_tag_war">Savaş</string>
-    <string name="notif_bangumi_in_list">Bangumi izleme listesinde (在看)</string>
-    <string name="notif_login_required_bangumi">Bangumi\'ye giriş yapmanız gerekiyor</string>
-    <string name="notif_notice_bangumi_feed">Bangumi\'nin genel API\'sinde bildirim ucu yoktur; bu liste izleme listeniz (在看) ve yayın takvimi eşleşmesidir. %1$d izlenen yapım • %2$d yayın eşleşmesi.</string>
-    <string name="notif_notice_bangumi_no_list">Bangumi izleme listenizde (在看) kayıt bulunmuyor.</string>
-    <string name="notif_notice_bangumi_not_connected">Bangumi hesabı bağlı değil; yalnızca yerel kayıtlar gösteriliyor. Bangumi\'nin genel API\'sinde bildirim ucu yoktur.</string>
 </resources>
