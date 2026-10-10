@@ -20,4 +20,17 @@ interface SearchHistoryDao {
 
     @Query("DELETE FROM search_history")
     suspend fun clearSearchHistory()
+
+    /**
+     * Arama geçmişini en yeni [keep] kayda indirir.
+     *
+     * UI yalnızca son 20 kaydı gösterse de tablo her aramada bir satır büyüyordu ve hiçbir
+     * budama yoktu (bulut senkronizasyonu ile birleşen kayıtlar dâhil). Zaman damgası kolonu
+     * bulunduğu için en eskiler atılır; kullanıcı deneyimi değişmez.
+     */
+    @Query(
+        "DELETE FROM search_history WHERE rowid NOT IN " +
+            "(SELECT rowid FROM search_history ORDER BY timestamp DESC LIMIT :keep)"
+    )
+    suspend fun pruneToLimit(keep: Int): Int
 }

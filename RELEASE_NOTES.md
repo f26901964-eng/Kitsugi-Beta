@@ -1,5 +1,53 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.236) — Depolama Şişmesi ve Zamanla Artan Kasma Düzeltmesi
+
+### 🗄️ 1. Merkezî Depolama Bekçisi (`StorageJanitor`) — ~4 GB'lık şişmenin asıl kaynağı
+- **Tespit:** Uygulamada **hiçbir merkezî önbellek temizliği yoktu.** P2P torrent önbelleği (varsayılan **2 GB**), Coil görsel önbelleği (**512 MB**), manga sayfa önbelleği (~150 MB), video önizlemeleri (~150 MB) ve bunlara ek olarak altyazı arşivleri, Room blob tabloları (detay/video/çeviri), WebView verisi ve teşhis dosyaları birikiyordu; kurulum boyutu **~3-4 GB**'a ulaşıyordu.
+- **Çözüm:** Tek noktadan ölçen, budayan ve raporlayan `StorageJanitor` eklendi. Açılışta (6 saatte bir) ve **ağ koşulu olmayan** günlük arka plan işinde (`StorageMaintenanceWorker`) yaş + bütçe kurallarına göre sessizce temizlik yapar; tüm işlemler IO dispatcher'ında çalışır.
+
+### 🧹 2. Yazılmış ama Hiç Çalışmayan Temizlik Kodları Onarıldı
+- **Detay önbelleği:** Budama yalnızca `MappingSyncWorker` içindeydi ve o iş **yalnızca Wi-Fi + batarya iyi** koşuluyla planlandığı için mobil veride **hiç çalışmıyordu**; artık koşulsuz budanıyor.
+- **`video_cache`:** `clearExpiredVideos()` **hiçbir yerden çağrılmıyordu**; 30 günden eski kayıtlar artık atılıyor.
+- **`translation_cache`:** DAO'da **hiç DELETE sorgusu yoktu**; en yeni 5.000 satır sınırı eklendi.
+- **Arama geçmişi:** UI son 20 kaydı gösterse de tablo sınırsız büyüyordu; 500 kayıtla sınırlandı.
+- **Altyazı arşivleri** (`cache/anisub_subs`): 14 günden eski klasörler temizleniyor.
+
+### ⚡ 3. "Kırpma İşi Kırpılandan Pahalı" Kasma Zinciri Kırıldı
+- **Manga okuyucu:** Her görsel yazımında tüm önbellek dizini listeleniyor ve toplam boyut hesaplanıyordu (erken çıkış ancak pahalı ölçümden sonra). Artık süreç genelinde paylaşılan **artımlı sayaç** kullanılıyor; dizin yalnızca bütçe aşıldığında taranıyor.
+- **Video önizlemeleri:** Her önizleme üretici oluşturulduğunda tüm `files/previews` ağacı geziliyordu; bu iş merkezî bekçiye taşındı.
+- **Soğuk açılış:** İndirme listesi ve izleme geçmişi `Application.onCreate` içinde **ana iş parçacığında** Gson ile ayrıştırılıyordu; okuma artık IO'da.
+- **Oynatma:** İzleme ilerlemesi her bildirimde tüm geçmişi yeniden yazıyordu; 2,5 sn'lik toplulaştırma + arka plana geçişte anında boşaltma eklendi.
+
+### 🆕 4. Ayarlar > Depolama Ekranı
+- Kalem kalem disk kullanımı, dosya sayısı ve tek dokunuşla temizleme; "Güvenli önbellekleri temizle" hesap/mylist/geçmiş/indirmeleri **silmez**.
+
+---
+
+## 🇬🇧 English (v2.4.236) — Storage Bloat & Progressive Jank Fix
+
+### 🗄️ 1. Central Storage Janitor (`StorageJanitor`) — the real cause of ~4 GB bloat
+- **Finding:** there was **no central cache cleanup at all.** P2P torrent cache (default **2 GB**), Coil image cache (**512 MB**), manga pages (~150 MB), previews (~150 MB) plus subtitle archives, Room blob tables, WebView data and diagnostics accumulated to **~3-4 GB** installations.
+- **Fix:** a single janitor that measures, prunes and reports — at launch (max every 6 h) and in a daily `StorageMaintenanceWorker` job with **no network constraint**. All work runs on the IO dispatcher.
+
+### 🧹 2. Cleanup Code That Never Actually Ran
+- **Detail cache:** pruning only lived in `MappingSyncWorker`, gated behind **Wi-Fi-only + battery-not-low** constraints, so it **never ran on mobile data**.
+- **`video_cache`:** `clearExpiredVideos()` was **never called**; records older than 30 days are now dropped.
+- **`translation_cache`:** the DAO had **no DELETE query at all**; a 5,000-row cap was added.
+- **Search history:** capped at 500 rows (UI only ever showed 20).
+- **Subtitle archives:** folders older than 14 days are now removed.
+
+### ⚡ 3. The "Trimming Costs More Than What It Trims" Jank Chain, Broken
+- **Manga reader:** every image write scanned the whole cache directory. A process-wide **incremental counter** now short-circuits the check.
+- **Video previews:** the whole previews tree was walked per generator instance — moved to the janitor.
+- **Cold start:** download list and watch history were parsed with Gson **on the main thread** in `Application.onCreate`; reads moved to IO.
+- **Playback:** watch progress rewrote the entire history on every tick; now debounced to 2.5 s with a flush on background.
+
+### 🆕 4. Settings > Storage Screen
+- Per-bucket usage, file counts and one-tap clearing; "Clear safe caches" never touches accounts, my list, history or downloads.
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.235)
 
 ### 🎨 1. Premium Açılır Menü Tasarımı (`KitsugiDropdownMenu`)

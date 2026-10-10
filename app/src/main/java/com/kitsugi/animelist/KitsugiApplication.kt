@@ -240,6 +240,23 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
             }
         }
 
+        // ── Depolama bakımı (StorageJanitor) ───────────────────────────────────────
+        // Uygulamada daha önce HİÇBİR merkezî önbellek temizliği yoktu: P2P disk önbelleği
+        // (varsayılan 2 GB), Coil görselleri (512 MB), manga sayfaları, video önizlemeleri,
+        // altyazı zip'leri ve Room'daki önbellek tabloları zamanla birikip kurulumu ~4 GB'a
+        // çıkarıyor, artan disk G/Ç'si de kaydırma/gezinme kasmasına dönüşüyordu. Üstelik
+        // budama kodu MappingSyncWorker içinde yalnızca "Wi-Fi + batarya iyi" koşuluyla
+        // planlandığı için mobil veride hiç çalışmıyordu.
+        //
+        // Burada: açılışta IO dispatcher'da (6 saatte bir, ilk açılışta hemen) hafif bakım;
+        // ayrıca ağ koşulu OLMAYAN günlük WorkManager işi planlanır.
+        applicationScope.launch {
+            runCatching { com.kitsugi.animelist.core.storage.StorageJanitor.runMaintenance(this@KitsugiApplication) }
+                .onFailure { android.util.Log.w("KitsugiStorage", "Açılış bakımı hatası: ${it.message}") }
+        }
+        runCatching { com.kitsugi.animelist.core.storage.StorageMaintenanceWorker.schedule(this) }
+            .onFailure { android.util.Log.w("KitsugiStorage", "Bakım işi planlanamadı: ${it.message}") }
+
         // ── Otomatik Arka Plan Liste Yenileme ──────────────────────────────────────
         // AniHyou / MoeList gibi: uygulama açıldığında bağlı platformların listelerini
         // sessizce arka planda yeniler. Son yenilemeden 24 saat geçmemişse atlar.
@@ -492,6 +509,11 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         try { com.kitsugi.animelist.core.memory.KitsugiMemoryGuard.onTrimMemory(level) } catch (_: Throwable) {}
+        // UI görünmez olduğunda bekleyen izleme ilerlemesi diske indirilir: süreç bu noktadan
+        // sonra öldürülürse son konum kaybolmaz (toplulaştırılmış yazma penceresi boşaltılır).
+        if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_UI_HIDDEN) {
+            try { com.kitsugi.animelist.data.local.WatchHistoryManager.flush() } catch (_: Throwable) {}
+        }
     }
 
     @Deprecated("Deprecated in Java")

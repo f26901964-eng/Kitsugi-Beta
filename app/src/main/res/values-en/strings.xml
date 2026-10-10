@@ -4330,4 +4330,42 @@
     <string name="detail_openings">Openings</string>
     <string name="detail_endings">Endings</string>
     <string name="detail_ratings_loading">Loading ratings...</string>
+
+    <!-- ─── Storage Management (StorageJanitor) ─────────────────────────────── -->
+    <string name="storage_title">Storage</string>
+    <string name="storage_section_buckets">Caches and Data</string>
+    <string name="storage_menu_desc">View cache sizes and free up space</string>
+    <string name="storage_total">Total usage</string>
+    <string name="storage_calculating">Calculating…</string>
+    <string name="storage_clear_all">Clear safe caches</string>
+    <string name="storage_clear">Clear</string>
+    <string name="storage_clearing">Clearing…</string>
+    <string name="storage_cleared_amount">%1$s reclaimed</string>
+    <string name="storage_cleared_nothing">Nothing to delete</string>
+    <string name="storage_clear_all_confirm_title">Clear caches?</string>
+    <string name="storage_clear_all_confirm_message">Image, manga, preview and subtitle caches plus detail/video resolution records are deleted. Your list, account info, watch history and downloaded videos are KEPT — only re-downloadable temporary data is removed.</string>
+    <string name="storage_clear_webview_confirm_title">Clear web data?</string>
+    <string name="storage_clear_webview_confirm_message">Cloud stream plugin session cookies and local storage are deleted. You may need to sign in to plugins again.</string>
+    <string name="storage_confirm_clear">Clear</string>
+    <string name="storage_protected_note">Your account info, lists and downloaded videos are never deleted from this screen.</string>
+    <string name="storage_files_count">%1$d files</string>
+    <string name="storage_info_only">Info</string>
+    <string name="storage_bucket_images">Image cache</string>
+    <string name="storage_bucket_images_desc">Poster and cover images (Coil disk cache)</string>
+    <string name="storage_bucket_p2p">P2P torrent cache</string>
+    <string name="storage_bucket_p2p_desc">Disk space reserved for torrent streams (change size in Settings &gt; P2P)</string>
+    <string name="storage_bucket_manga">Manga page cache</string>
+    <string name="storage_bucket_manga_desc">Downloaded copies of manga pages you read</string>
+    <string name="storage_bucket_previews">Video previews</string>
+    <string name="storage_bucket_previews_desc">Thumbnails shown on the player seek bar</string>
+    <string name="storage_bucket_subtitles">Subtitle cache</string>
+    <string name="storage_bucket_subtitles_desc">Downloaded and extracted subtitle archives</string>
+    <string name="storage_bucket_database">Database cache</string>
+    <string name="storage_bucket_database_desc">Detail, video resolution and translation records (older than 30 days are dropped automatically)</string>
+    <string name="storage_bucket_diagnostics">Diagnostics</string>
+    <string name="storage_bucket_diagnostics_desc">Crash reports and debug logs</string>
+    <string name="storage_bucket_webview">Web data</string>
+    <string name="storage_bucket_webview_desc">Plugin sessions, cookies and WebView cache</string>
+    <string name="storage_bucket_extensions">Plugin files</string>
+    <string name="storage_bucket_extensions_desc">Installed Cloudstream/Manga plugins — managed from Settings &gt; Addons</string>
 </resources>

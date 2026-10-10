@@ -9,11 +9,21 @@ import java.io.InputStream
 /**
  * Manga sayfası resimlerini diske önbellekleyen (cache) sınıf.
  *
- * Her sayfa resmi URL'nin SHA-1 hash'i ile adlandırılarak
- * `filesDir/manga_cache/` altına kaydedilir.
+ * Her sayfa resmi URL'nin SHA-1 hash'i ile adlandırılarak `filesDir/manga_cache/` altına kaydedilir.
  * Önbellek boyutu aşıldığında en eski dosyalar silinir (LRU yaklaşımı).
+ *
+ * ## Performans notu (2026-10-11 düzeltmesi)
+ * Önceki sürümde `trimIfNeeded()` **her** `putImageToCache()` çağrısında tüm dizini
+ * `listFiles()` ile listeliyor ve `sumOf { it.length() }` ile boyutlarını topluyordu. Erken çıkış
+ * ("bütçe aşılmadı") ancak bu pahalı ölçümden **sonra** yapılabildiği için, önbellek 150 MB'ın
+ * altındayken bile her manga sayfasında on binlerce dosya taranıyordu. Üstelik metod
+ * `@Synchronized` olduğundan eşzamanlı sayfa indirmeleri birbirini bekliyordu. Biriken önbellek
+ * ile birlikte bu tarama, okuyucuda gözle görülür kasmanın ana sebebiydi.
+ *
+ * Yeni sürüm toplam boyutu **artımlı sayaçla** bellekte tutar: ölçüm yalnızca ilk erişimde bir kez
+ * ve bütçe aşıldığında yapılır. Davranış (dosya adlandırma, LRU, geçerlilik kontrolü) aynıdır.
  */
-class MangaCache(context: Context) {
+class MangaCache(private val context: Context) {
 
     private val cacheDir = File(context.filesDir, "manga_cache").also {
         if (!it.exists()) it.mkdirs()
@@ -23,6 +33,20 @@ class MangaCache(context: Context) {
         private const val TAG          = "MangaCache"
         private const val MAX_SIZE_MB  = 150L               // Maksimum 150 MB önbellek
         private const val MAX_BYTES    = MAX_SIZE_MB * 1024 * 1024
+
+        /**
+         * Artımlı toplam boyut — **süreç genelinde paylaşılır**.
+         *
+         * MangaCache birden çok yerde (okuyucu ViewModel'i, kaynak deposu, StorageJanitor)
+         * ayrı ayrı örnekleniyor ve hepsi AYNI dizini kullandığı için sayaç örnek başına
+         * tutulursa örnekler birbirinin yazdığını göremez ve bütçe kontrolü gecikir.
+         * -1 → henüz ölçülmedi.
+         */
+        @Volatile
+        private var cachedTotalBytes: Long = -1L
+
+        /** Aynı anda tek okuma/hesaplama yapılsın; sayaç tutarlılığı korunur. */
+        private val sizeLock = Any()
     }
 
     // ─── Kontrol ─────────────────────────────────────────────────────────────
@@ -32,7 +56,9 @@ class MangaCache(context: Context) {
         val file = cacheFile(imageUrl)
         if (!file.isFile) return false
         if (isDecodableImage(file)) return true
-        file.delete() // Evict old HTML/error responses, not just empty downloads.
+        // Evict old HTML/error responses, not just empty downloads.
+        val size = file.length()
+        if (file.delete()) adjustSize(-size)
         return false
     }
 
@@ -68,9 +94,17 @@ class MangaCache(context: Context) {
         try {
             FileOutputStream(temp).use { out -> stream.copyTo(out) }
             if (!isDecodableImage(temp)) throw java.io.IOException("Kaynak geçerli bir görsel yerine boş/HTML veya desteklenmeyen veri döndürdü")
+
+            val previousLength = if (target.isFile) target.length() else 0L
+            // Linux/Android'de renameTo hedefin üzerine atomik olarak yazar.
             if (!temp.renameTo(target)) throw java.io.IOException("Görsel önbelleğe taşınamadı")
+
+            // PERF: tam dizin taraması yerine yalnızca farkı işle.
+            adjustSize(target.length() - previousLength)
             Log.v(TAG, "Önbelleğe kaydedildi: ${target.name} (${target.length()} bytes)")
-            trimIfNeeded()
+
+            // ERKEN ÇIKIŞ: sayaç artık bellekte olduğu için bütçe kontrolü bedavadır.
+            if (totalBytes() > MAX_BYTES) trimIfNeeded()
         } catch (e: Exception) {
             Log.e(TAG, "Önbellek yazma hatası [$imageUrl]: ${e.message}")
             if (temp.exists()) temp.delete()
@@ -82,36 +116,74 @@ class MangaCache(context: Context) {
 
     /** Önbellek boyutu MAX_BYTES'ı aşarsa en eski dosyaları siler. */
     private fun trimIfNeeded() {
-        val files = cacheDir.listFiles()?.filterNot { it.name.endsWith(".tmp") }?.toMutableList() ?: return
+        trimToBudget(MAX_BYTES)
+    }
+
+    /**
+     * Önbelleği [budget] bayta indirir (bütçenin %85'ine kadar). Silinen bayt miktarını döner.
+     *
+     * [com.kitsugi.animelist.core.storage.StorageJanitor] arka plan bakımında da çağırır.
+     */
+    @Synchronized
+    fun trimToBudget(budget: Long): Long {
+        val files = cacheDir.listFiles()?.filterNot { it.name.endsWith(".tmp") }?.toMutableList() ?: return 0L
         var totalSize = files.sumOf { it.length() }
-        if (totalSize <= MAX_BYTES) return
+        if (totalSize <= budget) {
+            setSize(totalSize)
+            return 0L
+        }
 
         // En eskiden en yeniye sırala
         files.sortBy { it.lastModified() }
+        var freed = 0L
         for (file in files) {
-            if (totalSize <= MAX_BYTES * 0.85) break   // %85'e düş
+            if (totalSize <= budget * 0.85) break   // %85'e düş
             val size = file.length()
             if (file.delete()) {
                 totalSize -= size
+                freed += size
                 Log.v(TAG, "Önbellek kırpıldı: ${file.name}")
             }
         }
+        setSize(totalSize)
+        return freed
     }
 
     /** Tüm önbelleği temizler. */
+    @Synchronized
     fun clearAll() {
         cacheDir.listFiles()?.forEach { it.delete() }
+        setSize(0L)
         Log.i(TAG, "Önbellek tamamen temizlendi")
     }
 
-    /** Önbelleğin o anki boyutunu MB cinsinden döndürür. */
-    fun currentSizeMb(): Float =
-        (cacheDir.listFiles()?.sumOf { it.length() } ?: 0L)
-            .toFloat() / (1024f * 1024f)
+    /** Önbelleğin o anki boyutunu MB cinsinden döndürür (bellekteki sayaçtan, G/Ç yok). */
+    fun currentSizeMb(): Float = totalBytes().toFloat() / (1024f * 1024f)
+
+    // ─── Artımlı boyut sayacı ─────────────────────────────────────────────────
+
+    /** Sayaç henüz yoksa bir kez hesaplanır; sonraki çağrılar G/Ç yapmaz. */
+    private fun totalBytes(): Long = synchronized(sizeLock) {
+        if (cachedTotalBytes < 0) cachedTotalBytes = computeTotalBytes()
+        cachedTotalBytes
+    }
+
+    private fun computeTotalBytes(): Long =
+        cacheDir.listFiles()?.filterNot { it.name.endsWith(".tmp") }?.sumOf { it.length() } ?: 0L
+
+    /** Sayaç biliniyorsa [delta] kadar kaydır; bilinmiyorsa bir sonraki erişimde hesaplanır. */
+    private fun adjustSize(delta: Long) = synchronized(sizeLock) {
+        if (cachedTotalBytes >= 0) cachedTotalBytes = (cachedTotalBytes + delta).coerceAtLeast(0L)
+    }
+
+    /** Sayaç o an için kesin bilinen bir değere ayarlanır (tarama sonrası). */
+    private fun setSize(known: Long) = synchronized(sizeLock) {
+        cachedTotalBytes = known.coerceAtLeast(0L)
+    }
 
     // ─── Yardımcılar ─────────────────────────────────────────────────────────
 
-    // F8: Dosya uzantısı ekle — Android baz\u0131 JPEG dosyalar\u0131n\u0131 uzants\u0131z okuyamayabilir
+    // F8: Dosya uzantısı ekle — Android bazı JPEG dosyalarını uzantısız okuyamayabilir
     private fun cacheFile(imageUrl: String): File {
         val hash = sha1(imageUrl)
         val ext = imageUrl.substringBefore("?").substringAfterLast(".").lowercase()
