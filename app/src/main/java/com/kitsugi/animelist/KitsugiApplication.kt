@@ -137,73 +137,18 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
         // yakalayabilmek için). Burada yalnızca garantiye alıyoruz.
         com.kitsugi.animelist.core.diagnostics.KitsugiCrashHandler.install(this)
 
-        // ── Ana UI iş parçacığı koruması (Cockroach Looper) ───────────────────────────
-        // Bu koruma artık SESSİZCE YUTMUYOR:
-        //   • yalnızca çağrı zincirinin İLK kareleri eklenti/cloudstream içindeyse kurtarılır
-        //     (eskiden stack trace'in HERHANGİ bir yerinde "com.lagradost.cloudstream3"
-        //      geçmesi yeterliydi → uygulamanın kendi gerçek çökmeleri de yutuluyordu),
-        //   • kurtarılan her hata çökme raporuna + eylem izine yazılır,
-        //   • oturumda en fazla 5 kurtarma yapılır (bozuk/zombi arayüz birikmesin),
-        //   • Looper.loop() geri dönerse (kuyruk kapanıyor) döngüden ÇIKILIR — eski kod
-        //     burada sonsuz CPU döngüsüne girip ANR üretiyordu ("donup pat diye kapanma").
-        android.os.Handler(android.os.Looper.getMainLooper()).post {
-            var rescued = 0
-            while (rescued < 5) {
-                try {
-                    android.os.Looper.loop()
-                    // Kuyruk kapandı/dispose edildi → ActivityThread'in kendi döngüsüne dön.
-                    return@post
-                } catch (t: Throwable) {
-                    val trace = android.util.Log.getStackTraceString(t)
-                    val topFrames = trace.lineSequence().take(14).joinToString("\n")
-                    val isPluginFrame = topFrames.contains("com.lagradost.cloudstream3") ||
-                        topFrames.contains("CsStreamRunner") ||
-                        topFrames.contains("CsPluginLoader") ||
-                        topFrames.contains("com.kitsugi.animelist.data.cloudstream")
-                    val isWindowError = t is android.view.WindowManager.BadTokenException ||
-                        t is kotlinx.coroutines.CancellationException ||
-                        trace.contains("not attached to window manager") ||
-                        trace.contains("has already been added")
-
-                    if (isPluginFrame || isWindowError) {
-                        rescued++
-                        android.util.Log.e("KitsugiApplication",
-                            "Cockroach ($rescued/5): Kurtarılabilir hata bastırıldı — ${t.javaClass.simpleName}: ${t.message}", t)
-                        try {
-                            com.kitsugi.animelist.core.diagnostics.KitsugiCrashLogger
-                                .writeCrashReport(this@KitsugiApplication, Thread.currentThread(), t, isForeground = false)
-                        } catch (_: Throwable) {}
-                        try {
-                            com.kitsugi.animelist.core.diagnostics.KitsugiSessionSupervisor
-                                .noteAction("KURTARILDI(${rescued}): ${t.javaClass.simpleName} @ ${KitsugiApplication.activeActivity?.javaClass?.simpleName ?: "?"}")
-                        } catch (_: Throwable) {}
-                    } else {
-                        // Gerçek uygulama hatası — UncaughtExceptionHandler'a ilet.
-                        throw t
-                    }
-                }
-            }
-            android.util.Log.e("KitsugiApplication",
-                "Cockroach: kurtarma limiti (5) doldu — sonraki hatalar normal şekilde raporlanacak.")
-        }
-
-        // Start background logcat redirection to app_logs.txt only in debug mode to save IO performance
-        if (BuildConfig.DEBUG) {
-            try {
-                val logFile = java.io.File(filesDir, "app_logs.txt")
-                // Run logcat redirection: max 2MB per file, keep 2 rotated backups
-                Runtime.getRuntime().exec(arrayOf(
-                    "logcat",
-                    "-f", logFile.absolutePath,
-                    "-r", "2048",
-                    "-n", "2",
-                    "-v", "time",
-                    "*:D"
-                ))
-            } catch (e: Exception) {
-                android.util.Log.e("KitsugiApplication", "Failed to start logcat file redirection: ${e.message}")
-            }
-        }
+        // Ana Looper'ın içine ikinci bir Looper.loop() KESİNLİKLE kurma.
+        // Önceki "Cockroach" yaklaşımı ActivityThread'in gerçek mesaj döngüsünü kalıcı
+        // olarak iç içe bir döngünün arkasında bırakıyordu. Ayrıca UI callback'lerinden
+        // kaçan hataları yutup yarım kalmış Compose/Window durumuyla uygulamayı canlı
+        // tutuyordu; kullanıcı bunu çökme yerine bütün uygulamada donma/jank olarak
+        // görüyordu. Eklenti işleri zaten izole dispatcher/thread'lerde çalışıyor ve
+        // normal uncaught handler gerçek hatayı güvenli biçimde raporluyor.
+        //
+        // Aynı nedenle uygulama içinden `logcat -f *:D` süreci de başlatmıyoruz. Özellikle
+        // debug APK'da yüzlerce ayrıntılı kayıt sürekli diske yazılıyor, görsel decode ve
+        // Room trafiğiyle I/O yarışına girerek kaydırma karelerini düşürüyordu. Gerektiğinde
+        // logcat Android Studio/adb üzerinden, yalnız ilgili tag'lerle toplanmalıdır.
 
         // Initialize ratings repository room cache context
         KitsugiEpisodeRatingsRepository.init(this)
