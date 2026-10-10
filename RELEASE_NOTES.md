@@ -4,11 +4,23 @@
 
 ### 📖 1. Manga KeiSource & OkHttp 5 Uyumluluk Onarımı (72/77 TR Eklentisi Kurtarıldı)
 - **3 Zorunlu KeiSource Interceptor'ı Eklendi:** Keiyoushi `KeiSource` tabanlı eklentilerin host istemcisinden sınıf adına göre şart koştuğu `UncaughtExceptionInterceptor`, `UserAgentInterceptor` ve `CloudflareInterceptor` sınıfları `NetworkHelper` varsayılan zincirine bağlandı. İsimsiz lambda veya sınıf uyuşmazlığı nedeniyle oluşan `IllegalStateException` ve arama/bölüm listesinin boş kalması sorunu giderildi (`NetworkHelper.kt`, `UncaughtExceptionInterceptor.kt`, `UserAgentInterceptor.kt`).
-- **OkHttp 5.4 & Brotli/Zstd Stub Uyumluluğu:** Keiyoushi lib 1.6 eklentilerinin talep ettiği `CompressionInterceptor(Brotli, Gzip, Zstd)` ve `zstd-kmp-okio` çağrıları için eksik OkHttp 5 / Zstd uyumluluk stub'ları eklendi. `NoClassDefFoundError: okhttp3.CompressionInterceptor` çökmesi engellendi (`CompressionInterceptor.kt`, `Brotli.kt`, `Zstd.kt`).
+- **OkHttp 5.4 & Brotli/Zstd Uyumluluğu:** Keiyoushi lib 1.6 eklentilerinin talep ettiği `CompressionInterceptor(Brotli, Gzip, Zstd)` ve `zstd-kmp-okio` çağrıları için eksik Brotli / Zstd köprüleri bağlandı; `okhttp-android:5.3.2` ile ikili çakışmalar giderildi.
 - **ProGuard Keep Kuralları:** R8 derlemesi sırasında interceptor sınıf adlarının ve OkHttp 5 köprülerinin korunması sağlandı (`proguard-rules.pro`).
 - **Bölüm Listesi Hata Şeffaflığı:** `MihonSourceWrapper.fetchChapterList` içerisindeki hatalar artık sessizce yutulup boş liste döndürülmüyor; hata açıkça yüzeye çıkarılarak hatalı kaynak istatistikleri ve sahte "bölüm yok" durumları engellendi (`MihonSourceWrapper.kt`).
 - **Kaynak Sağlık Sorgusu Çeşitlendirmesi:** `SourceHealthService` içinde sabit tek sorgu ("one piece") yerine dile göre 3 aday arama sorgusu tanımlandı (`SourceHealthService.kt`).
 - **Uçtan Uca Doğrulama & Envanter Raporu:** 1431 eklenti, 2419 kaynak ve 93 Türkçe kaynağın incelendiği teknik rapor ve otomatik tarama script'i eklendi (`docs/audits/MANGA_KAYNAK_UCTAN_UCA_DOGRULAMA_2026-10-10.md`, `scripts/audit_manga_sources.py`).
+
+### 🎬 2. Video Eklenti Kurtarma, Güvenli Arama & Doğru CF Tespiti
+- **Otomatik Eklenti Devre Dışı Bırakma Kaldırıldı:** Tanı aracının ağ veya sağlayıcı hatası alan eklentileri veritabanında otomatik kapatarak akış aramasının tamamen boş dönmesine yol açan mekanizma kaldırıldı (`CsPluginDiagnosticRunner.kt`).
+- **Tüm Eklentilerin Kapalı Olması Durumu:** Kurulu eklentilerin tamamı kapalıysa akış ekranında net bilgilendirme gösteriliyor; eklenti ayarlarına tüm devre dışı eklentileri tek dokunuşla geri açma seçeneği eklendi (`CloudstreamExtensionTab.kt`, `KitsugiStreamScreen.kt`).
+- **Kesintisiz Arama (Failover Search):** Doğrudan seçilen bir eklentinin URL'sinden kaynak çıkmazsa arama orada kesilmiyor; aynı başlık, sezon ve bölüm bilgileriyle etkin tüm eklentilerde aramaya devam ediliyor (`StreamViewModel.kt`).
+- **Daraltılmış ve Doğru Cloudflare Tespiti:** Arama sonucu boş olan her eklenti artık CF/WAF engeli sayılmıyor. Yalnızca doğrulanmış bot/WAF koruma imzası saptandığında "Doğrula" butonu gösteriliyor; genel 403/503, DNS veya zaman aşımı hataları ayrı sınıflandırılıyor (`CsProtectionClassifier.kt`).
+- **Sunucu Cooldown Süreleri Korunuyor:** Tanı aracı artık yeniden deneme bekleme sürelerini zorla devre dışı bırakmıyor; sunuculara aşırı istek yüklenmesi önlendi.
+- **Güvenli Sezon Seçimi:** Sezon aramasında başlıkla eşleşen sonuç bulunamazsa listedeki ilk ilgisiz adayın yüklenmesi engellendi (`CsStreamRunner.kt`).
+
+### 🔐 3. Kullanıcı Hesap Güvenliği ve Veri Erişim Yetkileri
+- **Kimliği Doğrulanmış Kullanıcı Veri Erişimi:** Supabase `user_data` tablosuna kimliği doğrulanmış kullanıcılar için CRUD yetkileri ve RLS izinleri tanımlandı (`20261010_user_data_authenticated_grants.sql`).
+- **Yedekleme ve Vault CAS Güvenliği:** Hesap senkronizasyonunda Compare-and-Swap güvenlik kontrolleri ve kullanıcı dostu hata mesajı biçimlendiricisi eklendi (`AccountErrorFormatter.kt`, `KitsugiAccountContent.kt`).
 
 ---
 
@@ -16,11 +28,23 @@
 
 ### 📖 1. Manga KeiSource & OkHttp 5 Compatibility Fixes (Unblocked 72/77 TR Extensions)
 - **Added 3 Required KeiSource Interceptors:** Keiyoushi `KeiSource` extensions enforce strict class-name checks on the host client for `UncaughtExceptionInterceptor`, `UserAgentInterceptor`, and `CloudflareInterceptor`. All three are now properly provided by `NetworkHelper`, eliminating `IllegalStateException` crashes that caused silent empty search and chapter results (`NetworkHelper.kt`, `UncaughtExceptionInterceptor.kt`, `UserAgentInterceptor.kt`).
-- **OkHttp 5.4 & Brotli/Zstd Compatibility Stubs:** Added drop-in ABI-compatible stubs for `CompressionInterceptor(Brotli, Gzip, Zstd)` and `zstd-kmp-okio` APIs expected by extensionLib 1.6, preventing runtime `NoClassDefFoundError: okhttp3.CompressionInterceptor` crashes (`CompressionInterceptor.kt`, `Brotli.kt`, `Zstd.kt`).
+- **OkHttp 5.4 & Brotli/Zstd Compatibility:** Provided bridge stubs for `CompressionInterceptor(Brotli, Gzip, Zstd)` and `zstd-kmp-okio` APIs expected by extensionLib 1.6; resolved duplicate binary symbols against `okhttp-android:5.3.2`.
 - **ProGuard Keep Rules:** Added ProGuard keep entries ensuring interceptor class names and OkHttp 5 bridge classes are preserved during R8 optimization (`proguard-rules.pro`).
 - **Chapter Fetch Error Transparency:** `MihonSourceWrapper.fetchChapterList` no longer swallows exceptions into an empty list, ensuring genuine error surfacing and accurate source health metrics (`MihonSourceWrapper.kt`).
 - **Localized Health Check Queries:** Enhanced `SourceHealthService` with language-specific candidate query pools instead of a hardcoded single query (`SourceHealthService.kt`).
 - **End-to-End Audit & Inventory Report:** Added comprehensive analysis and audit tooling covering 1,431 extensions, 2,419 sources, and 93 Turkish sources (`docs/audits/MANGA_KAYNAK_UCTAN_UCA_DOGRULAMA_2026-10-10.md`, `scripts/audit_manga_sources.py`).
+
+### 🎬 2. Video Plugin Source Recovery & Accurate Protection Classification
+- **Removed Auto-Disabling of Plugins:** Diagnostic test runs no longer auto-disable plugins upon network or provider errors, which previously caused all stream sources to go silent (`CsPluginDiagnosticRunner.kt`).
+- **Disabled Plugins Safeguard:** Stream screen clearly notifies when all installed plugins are disabled; added a one-tap action in extension settings to re-enable all installed providers (`CloudstreamExtensionTab.kt`, `KitsugiStreamScreen.kt`).
+- **Failover Search Across Active Plugins:** If a directly selected plugin URL returns no streams, search continues across all active plugins for the matching title, season, and episode (`StreamViewModel.kt`).
+- **Narrowed Cloudflare Classification:** Empty search results are no longer misclassified as Cloudflare/WAF blocks. Verification triggers only on verified bot/WAF challenge signatures; generic 403/503, DNS, and timeouts are reported accurately (`CsProtectionClassifier.kt`).
+- **Respected Server Cooldowns:** Diagnostic tool no longer overrides cooldown timers (`ignoreCooldowns = false`), preventing server-side bans.
+- **Safe Season Matching:** Prevents loading arbitrary non-matching candidates when season title matching yields no hits (`CsStreamRunner.kt`).
+
+### 🔐 3. Authenticated User Data Access & Account Vault Security
+- **User Data Table Permissions:** Added explicit CRUD grants and RLS policies for authenticated users on the `user_data` table (`20261010_user_data_authenticated_grants.sql`).
+- **Account Backup Vault CAS:** Integrated compare-and-swap checks and user-friendly error formatting for account sync and backup (`AccountErrorFormatter.kt`, `KitsugiAccountContent.kt`).
 
 ---
 
