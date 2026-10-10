@@ -68,7 +68,7 @@ data class TabPagesContext(
     val onEditEntry: (MediaEntry) -> Unit,
     val onSearchByGenre: (String) -> Unit = {},
     val onSearchByTag: (String) -> Unit = {},
-    val isBottomBarVisible: Boolean = true,
+    val bottomBarScrollState: com.kitsugi.animelist.utils.ScrollVisibilityState,
     val onScrollReset: () -> Unit = {}
 )
 
@@ -102,7 +102,7 @@ fun AppRootTabPages(
                     authViewModel = ctx.authViewModel,
                     navState = ctx.navState,
                     context = context,
-                    isBottomBarVisible = ctx.isBottomBarVisible,
+                    isBottomBarVisible = ctx.bottomBarScrollState.isVisible,
                     onScrollReset = ctx.onScrollReset
                 )
             }
@@ -221,7 +221,7 @@ fun AppRootTabPages(
                     onUserProfileClick = { userId, username, avatarUrl ->
                         ctx.navState.navigateToDetail(DetailScreen.UserProfile(userId, username, avatarUrl))
                     },
-                    isBottomBarVisible = ctx.isBottomBarVisible,
+                    isBottomBarVisible = ctx.bottomBarScrollState.isVisible,
                     onScrollReset = ctx.onScrollReset
                 )
             }
@@ -272,8 +272,8 @@ private fun ExploreTabPage(ctx: TabPagesContext) {
         onScrollPositionChange = { index, offset ->
             ctx.appViewModel.updateExploreScrollPosition(index, offset)
         },
-        // "Yukarı Çık" FAB'ının alt barla ortak çalışması için:
-        isBottomBarVisible = ctx.isBottomBarVisible,
+        // Görünürlük state holder olarak geçirilir; burada okumak tüm sayfayı recompose eder.
+        bottomBarScrollState = ctx.bottomBarScrollState,
         onScrollReset = ctx.onScrollReset,
         viewModel = ctx.exploreViewModel,
         titleLanguage = ctx.appSettings.titleLanguage,
@@ -314,7 +314,7 @@ private fun SearchTabPage(ctx: TabPagesContext) {
         staffNameLanguage = ctx.appSettings.staffNameLanguage,
         scoreFormat = ctx.appSettings.scoreFormat,
         hideScores = ctx.appSettings.hideScores,
-        isBottomBarVisible = ctx.isBottomBarVisible,
+        bottomBarScrollState = ctx.bottomBarScrollState,
         onScrollReset = ctx.onScrollReset,
         onOpenSourceSearch = { engine, scope, shelfResults ->
             // "Tümünü Gör": kaynağın filtreleri + sonuçları ayrı sayfada açılır
