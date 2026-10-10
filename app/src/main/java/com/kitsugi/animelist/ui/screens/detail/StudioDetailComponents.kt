@@ -18,6 +18,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.res.stringResource
+import androidx.annotation.StringRes
+import com.kitsugi.animelist.R
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
@@ -150,7 +153,7 @@ internal fun StudioHeroHeader(
                 IconButton(onClick = onBackClick) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                        contentDescription = "Geri",
+                        contentDescription = stringResource(R.string.action_back),
                         tint = KitsugiColors.TextPrimary
                     )
                 }
@@ -184,7 +187,7 @@ internal fun StudioHeroHeader(
                     }) {
                         Icon(
                             imageVector = Icons.Rounded.Share,
-                            contentDescription = "Paylaş",
+                            contentDescription = stringResource(R.string.action_share),
                             tint = KitsugiColors.TextPrimary
                         )
                     }
@@ -201,7 +204,7 @@ internal fun StudioHeroHeader(
                         IconButton(onClick = onToggleFavourite) {
                             Icon(
                                 imageVector = if (isFavourite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                contentDescription = if (isFavourite) "Favoriden Çıkar" else "Favori Yap",
+                                contentDescription = if (isFavourite) stringResource(R.string.action_favourite_remove) else stringResource(R.string.action_favourite_add),
                                 tint = if (isFavourite) accentColor else KitsugiColors.TextPrimary
                             )
                         }
@@ -230,7 +233,7 @@ internal fun StudioHeroHeader(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 DetailPill(
-                    text = if (detail.isMain) "Ana Stüdyo" else "Yapımcı",
+                    text = if (detail.isMain) stringResource(R.string.studio_hero_main) else stringResource(R.string.studio_hero_producer),
                     color = accentColor
                 )
 
@@ -241,14 +244,14 @@ internal fun StudioHeroHeader(
 
                 if (detail.established != null) {
                     DetailPill(
-                        text = "Kuruluş: ${formatStudioEstablished(detail.established) ?: detail.established}",
+                        text = stringResource(R.string.studio_hero_established, formatStudioEstablished(detail.established) ?: detail.established),
                         color = KitsugiColors.TextSecondary
                     )
                 }
 
                 if (detail.favorites != null && detail.favorites > 0) {
                     DetailPill(
-                        text = "★ ${detail.favorites} Favori",
+                        text = stringResource(R.string.studio_hero_favorites, detail.favorites),
                         color = accentColor
                     )
                 }
@@ -329,13 +332,13 @@ internal fun StudioAboutSection(
 ) {
     Box(modifier = modifier) {
         DetailSynopsisCard(
-            title = "Hakkında",
+            title = stringResource(R.string.studio_about_title),
             synopsisState = SynopsisState.Success(translatedAbout ?: about),
             originalText = about,
             onTranslateClick = onTranslateClick,
             onCopyClick = onCopyClick,
             onImageGalleryRequest = { urls, idx ->
-                val items = urls.map { url -> GalleryItem(url = url, category = GalleryCategory.OTHER, source = "Hakkında") }
+                val items = urls.map { url -> GalleryItem(url = url, category = GalleryCategory.OTHER, source = stringResource(R.string.studio_about_title)) }
                 onGalleryClick(items, idx)
             }
         )
@@ -412,7 +415,7 @@ internal fun StudioDetailLeftPanel(
                     IconButton(onClick = onBackClick) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = "Geri",
+                            contentDescription = stringResource(R.string.action_back),
                             tint = KitsugiColors.TextPrimary
                         )
                     }
@@ -448,7 +451,7 @@ internal fun StudioDetailLeftPanel(
                         }) {
                             Icon(
                                 imageVector = Icons.Rounded.Share,
-                                contentDescription = "Paylaş",
+                                contentDescription = stringResource(R.string.action_share),
                                 tint = KitsugiColors.TextPrimary
                             )
                         }
@@ -465,7 +468,7 @@ internal fun StudioDetailLeftPanel(
                             IconButton(onClick = onToggleFavourite) {
                                 Icon(
                                     imageVector = if (isFavourite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                    contentDescription = if (isFavourite) "Favoriden Çıkar" else "Favori Yap",
+                                    contentDescription = if (isFavourite) stringResource(R.string.action_favourite_remove) else stringResource(R.string.action_favourite_add),
                                     tint = if (isFavourite) accentColor else KitsugiColors.TextPrimary
                                 )
                             }
@@ -477,17 +480,17 @@ internal fun StudioDetailLeftPanel(
         Column(modifier = Modifier.padding(16.dp)) {
             Text(detail.name, color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black)
             Spacer(modifier = Modifier.height(12.dp))
-            DetailPill(text = if (detail.isMain) "Ana Stüdyo" else "Yapımcı", color = accentColor)
+            DetailPill(text = if (detail.isMain) stringResource(R.string.studio_hero_main) else stringResource(R.string.studio_hero_producer), color = accentColor)
             Spacer(modifier = Modifier.height(8.dp))
             if (detail.established != null) {
                 DetailPill(
-                    text = "Kuruluş: ${formatStudioEstablished(detail.established) ?: detail.established}",
+                    text = stringResource(R.string.studio_hero_established, formatStudioEstablished(detail.established) ?: detail.established),
                     color = KitsugiColors.TextSecondary
                 )
                 Spacer(modifier = Modifier.height(8.dp))
             }
             if (detail.favorites != null && detail.favorites > 0) {
-                DetailPill(text = "★ ${detail.favorites} Favori", color = accentColor)
+                DetailPill(text = stringResource(R.string.studio_hero_favorites, detail.favorites), color = accentColor)
                 Spacer(modifier = Modifier.height(8.dp))
             }
             if (!detail.about.isNullOrBlank()) {
@@ -507,24 +510,28 @@ internal fun StudioDetailLeftPanel(
 // ── Keşfet "Tümünü Gör" sayfalarıyla birebir aynı filtreleme dili ──────────────
 
 /** Stüdyo yapımları için tür çipi (keşfet sayfasındaki emojili tür çiplerinin karşılığı). */
-internal data class StudioTypeFilter(val id: String, val emoji: String, val name: String) {
-    val displayLabel: String get() = "$emoji $name"
+internal data class StudioTypeFilter(val id: String, val emoji: String, @StringRes val nameRes: Int) {
+    @Composable
+    @ReadOnlyComposable
+    fun displayLabel(): String = "$emoji ${stringResource(nameRes)}"
 }
 
 internal val STUDIO_TYPE_FILTERS = listOf(
-    StudioTypeFilter("ALL", "✨", "Tümü"),
-    StudioTypeFilter("ANIME", "🎬", "Anime"),
-    StudioTypeFilter("MANGA", "📖", "Manga"),
-    StudioTypeFilter("MOVIE", "🎥", "Film"),
-    StudioTypeFilter("TV", "📺", "Dizi")
+    StudioTypeFilter("ALL", "✨", R.string.studio_type_all),
+    StudioTypeFilter("ANIME", "🎬", R.string.studio_type_anime),
+    StudioTypeFilter("MANGA", "📖", R.string.studio_type_manga),
+    StudioTypeFilter("MOVIE", "🎥", R.string.studio_type_movie),
+    StudioTypeFilter("TV", "📺", R.string.studio_type_tv)
 )
 
-internal enum class StudioSortOption(val emoji: String, val title: String) {
-    DEFAULT("🏆", "Varsayılan Sıralama"),
-    TITLE_ASC("🔤", "İsim: A'dan Z'ye"),
-    TITLE_DESC("🔠", "İsim: Z'den A'ya");
+internal enum class StudioSortOption(val emoji: String, @StringRes val titleRes: Int) {
+    DEFAULT("🏆", R.string.studio_sort_default),
+    TITLE_ASC("🔤", R.string.studio_sort_title_asc),
+    TITLE_DESC("🔠", R.string.studio_sort_title_desc);
 
-    val displayLabel: String get() = "$emoji $title"
+    @Composable
+    @ReadOnlyComposable
+    fun displayLabel(): String = "$emoji ${stringResource(titleRes)}"
 }
 
 /** Stüdyo yapımını keşfet kartlarıyla aynı görsel dili paylaşan JikanSearchResult'e çevirir. */
@@ -595,7 +602,7 @@ internal fun KitsugiStudioFilterBottomSheet(
                     }
                 ) {
                     Text(
-                        text = "Sıfırla",
+                        text = stringResource(R.string.inline_reset_8fb7f0b),
                         color = KitsugiColors.TextMuted,
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Medium
@@ -603,7 +610,7 @@ internal fun KitsugiStudioFilterBottomSheet(
                 }
 
                 Text(
-                    text = "Filtre ve Sıralama",
+                    text = stringResource(R.string.inline_filter_sort_dfe53ba),
                     color = KitsugiColors.TextPrimary,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
@@ -617,7 +624,7 @@ internal fun KitsugiStudioFilterBottomSheet(
                     shape = RoundedCornerShape(24.dp)
                 ) {
                     Text(
-                        text = "Uygula",
+                        text = stringResource(R.string.action_apply),
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold
                     )
@@ -641,7 +648,7 @@ internal fun KitsugiStudioFilterBottomSheet(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "Sıralama",
+                        text = stringResource(R.string.inline_sort_ad5c074),
                         color = KitsugiColors.TextPrimary,
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold
@@ -675,7 +682,7 @@ internal fun KitsugiStudioFilterBottomSheet(
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    text = sort.displayLabel,
+                                    text = sort.displayLabel(),
                                     color = if (isSelected) accentColor else KitsugiColors.TextPrimary,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                     fontSize = 13.sp
@@ -705,7 +712,7 @@ internal fun KitsugiStudioFilterBottomSheet(
                     )
                     Spacer(modifier = Modifier.width(8.dp))
                     Text(
-                        text = "İçerik Türü",
+                        text = stringResource(R.string.inline_content_type_a4a22c7),
                         color = KitsugiColors.TextPrimary,
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold
@@ -739,7 +746,7 @@ internal fun KitsugiStudioFilterBottomSheet(
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    text = typeFilter.displayLabel,
+                                    text = typeFilter.displayLabel(),
                                     color = if (isSelected) accentColor else KitsugiColors.TextPrimary,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                     fontSize = 13.sp

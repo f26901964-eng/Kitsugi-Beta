@@ -70,6 +70,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -134,7 +136,7 @@ fun StudioDetailPage(
         when (val currentState = state) {
             is StudioDetailState.Loading -> {
                 KitsugiCinematicLoadingScreen(
-                    title = name?.takeIf { it.isNotBlank() } ?: "Stüdyo / Yapımcı Yükleniyor...",
+                    title = name?.takeIf { it.isNotBlank() } ?: stringResource(R.string.studio_page_loading),
                     imageUrl = imageUrl,
                     onBackClick = onBackClick,
                     source = source
@@ -150,7 +152,7 @@ fun StudioDetailPage(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = "Geri",
+                            contentDescription = stringResource(R.string.action_back),
                             tint = KitsugiColors.TextPrimary
                         )
                     }
@@ -173,7 +175,7 @@ fun StudioDetailPage(
                                 viewModel.retry()
                             }
                         ) {
-                            Text("Yeniden Dene", color = accentColor, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.action_retry), color = accentColor, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -268,7 +270,7 @@ private fun StudioDetailSuccessContent(
     val onAboutCopyClick: (String) -> Unit = { text ->
         val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
         clipboard.setPrimaryClip(android.content.ClipData.newPlainText("studio_about", text))
-        android.widget.Toast.makeText(context, "Panoya kopyalandı", android.widget.Toast.LENGTH_SHORT).show()
+        android.widget.Toast.makeText(context, context.getString(R.string.toast_copied_clipboard), android.widget.Toast.LENGTH_SHORT).show()
     }
     val configuration = LocalConfiguration.current
     val screenWidthDp = configuration.screenWidthDp
@@ -360,7 +362,7 @@ private fun StudioDetailSuccessContent(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Yapımlar (${detail.mediaWorks.size})",
+                    text = stringResource(R.string.studio_page_works_title, detail.mediaWorks.size),
                     color = KitsugiColors.TextPrimary,
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Black,
@@ -375,7 +377,7 @@ private fun StudioDetailSuccessContent(
                 ) {
                     Icon(
                         Icons.Rounded.FilterList,
-                        contentDescription = "Filtre ve Sıralama",
+                        contentDescription = stringResource(R.string.inline_filter_sort_dfe53ba),
                         tint = if (hasActiveFilter) accentColor else KitsugiColors.TextPrimary
                     )
                 }
@@ -407,7 +409,7 @@ private fun StudioDetailSuccessContent(
                 ) {
                     Icon(
                         imageVector = if (isGridView) Icons.AutoMirrored.Rounded.ListAlt else Icons.Rounded.GridView,
-                        contentDescription = if (isGridView) "Liste Görünümü" else "Grid Görünümü",
+                        contentDescription = if (isGridView) stringResource(R.string.cd_list_view) else stringResource(R.string.cd_grid_view),
                         tint = accentColor
                     )
                 }
@@ -441,7 +443,7 @@ private fun StudioDetailSuccessContent(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = typeFilter.displayLabel,
+                            text = typeFilter.displayLabel(),
                             color = if (isSelected) accentColor else KitsugiColors.TextPrimary,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                             style = MaterialTheme.typography.labelMedium
@@ -452,9 +454,12 @@ private fun StudioDetailSuccessContent(
 
             // Sayaç + aktif filtre açıklaması + Temizle
             val activeType = STUDIO_TYPE_FILTERS.firstOrNull { it.id == selectedTypeId }
+            val activeTypeLabel = activeType?.takeIf { it.id != "ALL" }?.displayLabel()
+            val activeSortLabel =
+                if (selectedSortOption != StudioSortOption.DEFAULT) selectedSortOption.displayLabel() else null
             val activeFilterDesc = buildString {
-                if (activeType != null && activeType.id != "ALL") append(" • ${activeType.displayLabel}")
-                if (selectedSortOption != StudioSortOption.DEFAULT) append(" • ${selectedSortOption.displayLabel}")
+                activeTypeLabel?.let { append(" • $it") }
+                activeSortLabel?.let { append(" • $it") }
             }
             Row(
                 modifier = Modifier
@@ -464,7 +469,7 @@ private fun StudioDetailSuccessContent(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "${displayedWorks.size} içerik$activeFilterDesc",
+                    text = stringResource(R.string.studio_page_item_count, displayedWorks.size) + activeFilterDesc,
                     color = KitsugiColors.TextMuted,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
@@ -474,7 +479,7 @@ private fun StudioDetailSuccessContent(
                 )
                 if (hasActiveFilter) {
                     Text(
-                        text = "Temizle",
+                        text = stringResource(R.string.action_clear),
                         color = accentColor,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
@@ -534,8 +539,8 @@ private fun StudioDetailSuccessContent(
                     if (displayedWorks.isEmpty()) {
                         item(key = "studio_empty", span = { GridItemSpan(maxLineSpan) }) {
                             KitsugiEmptyState(
-                                title = "Henüz içerik yok",
-                                subtitle = "Bu stüdyo için gösterilecek yapım bulunamadı.",
+                                title = stringResource(R.string.studio_page_empty_title),
+                                subtitle = stringResource(R.string.studio_page_empty_subtitle),
                                 icon = Icons.Rounded.SearchOff
                             )
                         }
@@ -595,8 +600,8 @@ private fun StudioDetailSuccessContent(
                     if (displayedWorks.isEmpty()) {
                         item(key = "studio_empty_list") {
                             KitsugiEmptyState(
-                                title = "Henüz içerik yok",
-                                subtitle = "Bu stüdyo için gösterilecek yapım bulunamadı.",
+                                title = stringResource(R.string.studio_page_empty_title),
+                                subtitle = stringResource(R.string.studio_page_empty_subtitle),
                                 icon = Icons.Rounded.SearchOff
                             )
                         }
@@ -644,7 +649,7 @@ private fun StudioDetailSuccessContent(
                     IconButton(onClick = onBackClick) {
                         Icon(
                             Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = "Geri",
+                            contentDescription = stringResource(R.string.action_back),
                             tint = KitsugiColors.TextPrimary
                         )
                     }
@@ -665,7 +670,7 @@ private fun StudioDetailSuccessContent(
                         IconButton(onClick = onToggleFavourite) {
                             Icon(
                                 imageVector = if (isFavourite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                contentDescription = if (isFavourite) "Favoriden Çıkar" else "Favori Yap",
+                                contentDescription = if (isFavourite) stringResource(R.string.action_favourite_remove) else stringResource(R.string.action_favourite_add),
                                 tint = if (isFavourite) accentColor else KitsugiColors.TextSecondary
                             )
                         }
@@ -678,7 +683,7 @@ private fun StudioDetailSuccessContent(
                     ) {
                         Icon(
                             Icons.Rounded.FilterList,
-                            contentDescription = "Filtre ve Sıralama",
+                            contentDescription = stringResource(R.string.inline_filter_sort_dfe53ba),
                             tint = if (hasActiveFilter) accentColor else KitsugiColors.TextPrimary
                         )
                     }
@@ -704,7 +709,7 @@ private fun StudioDetailSuccessContent(
                     }) {
                         Icon(
                             imageVector = if (isGridView) Icons.AutoMirrored.Rounded.ListAlt else Icons.Rounded.GridView,
-                            contentDescription = if (isGridView) "Liste" else "Grid",
+                            contentDescription = if (isGridView) stringResource(R.string.cd_list_view) else stringResource(R.string.cd_grid_view),
                             tint = accentColor
                         )
                     }
@@ -735,7 +740,7 @@ private fun StudioDetailSuccessContent(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.KeyboardArrowUp,
-                        contentDescription = "Yukarı Git",
+                        contentDescription = stringResource(R.string.cd_scroll_top),
                         tint = KitsugiColors.Background,
                         modifier = Modifier.size(28.dp)
                     )
@@ -784,7 +789,7 @@ private fun StudioLoadMoreIndicator(
         }
         failed -> TextButton(onClick = onRetry, modifier = modifier) {
             Text(
-                text = "Devamı yüklenemedi · Tekrar dene",
+                text = stringResource(R.string.studio_page_load_more_failed),
                 color = accentColor,
                 fontWeight = FontWeight.Bold
             )

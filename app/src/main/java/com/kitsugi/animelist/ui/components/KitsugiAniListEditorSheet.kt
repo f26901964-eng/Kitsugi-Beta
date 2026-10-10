@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.components
 
+import com.kitsugi.animelist.ui.utils.localizedLabel
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -258,7 +259,7 @@ internal fun KitsugiAniListMediaEntryEditorSheet(
                         ) {
                             Icon(
                                 imageVector = icon,
-                                contentDescription = status.label,
+                                contentDescription = status.localizedLabel(),
                                 tint = if (selected) KitsugiColors.Background else KitsugiColors.TextSecondary,
                                 modifier = Modifier.size(24.dp)
                             )

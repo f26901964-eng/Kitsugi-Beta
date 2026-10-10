@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.screens.detail
 
+import com.kitsugi.animelist.R
+import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.ui.components.KitsugiGalleryIconButton
 
 import com.kitsugi.animelist.ui.theme.gradient.background
@@ -286,9 +288,9 @@ fun KitsugiDetailHero(
                 val isMangaType = typeLabel.contains("MANGA", ignoreCase = true)
                 val formatIcon = if (isMangaType) Icons.Rounded.Book else Icons.Rounded.Tv
                 val formatText = when {
-                    typeLabel.contains("FİLM", ignoreCase = true) || typeLabel.contains("MOVIE", ignoreCase = true) -> "Film"
-                    typeLabel.contains("DİZİ", ignoreCase = true) || typeLabel.contains("TVSHOW", ignoreCase = true) -> "Dizi"
-                    isMangaType -> "Manga"
+                    typeLabel.contains("FİLM", ignoreCase = true) || typeLabel.contains("MOVIE", ignoreCase = true) -> stringResource(R.string.media_type_movie)
+                    typeLabel.contains("DİZİ", ignoreCase = true) || typeLabel.contains("TVSHOW", ignoreCase = true) -> stringResource(R.string.media_type_tv)
+                    isMangaType -> stringResource(R.string.media_type_manga)
                     else -> "TV"
                 }
                 MetadataIconText(icon = formatIcon, text = formatText, tint = accentColor)
@@ -298,9 +300,11 @@ fun KitsugiDetailHero(
                 if (formatText != "Film") {
                     val countIcon = if (isMangaType) Icons.Rounded.MenuBook else Icons.Rounded.Schedule
                     val countText = if (totalEpisodes != null && totalEpisodes > 0) {
-                        if (isMangaType) "$totalEpisodes Cilt/Bölüm" else "$totalEpisodes Bölüm"
+                        if (isMangaType) stringResource(R.string.hero_count_volumes_chapters, totalEpisodes)
+                        else stringResource(R.string.hero_count_episodes, totalEpisodes)
                     } else {
-                        if (isMangaType) "- Cilt" else "- Bölüm"
+                        if (isMangaType) stringResource(R.string.hero_count_no_volumes)
+                        else stringResource(R.string.hero_count_no_episodes)
                     }
                     MetadataIconText(icon = countIcon, text = countText, tint = accentColor)
                 }
@@ -324,12 +328,12 @@ fun KitsugiDetailHero(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Schedule,
-                        contentDescription = "Yaklaşan Yayın",
+                        contentDescription = stringResource(R.string.cd_airing_soon),
                         tint = KitsugiColors.AccentOrange,
                         modifier = Modifier.size(16.dp)
                     )
                     Text(
-                        text = "Yaklaşan Yayın: $airingText",
+                        text = stringResource(R.string.hero_airing_soon, airingText),
                         color = KitsugiColors.AccentOrange,
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold

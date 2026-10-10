@@ -5,6 +5,7 @@
 
 package com.kitsugi.animelist.ui.screens.profile
 
+import com.kitsugi.animelist.ui.utils.localizedLabel
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
 
@@ -380,7 +381,7 @@ fun MalProfileContent(
                                             ProfileActivityRow(
                                                 title = entry.title,
                                                 imageUrl = entry.imageUrl,
-                                                statusStr = entry.status.label,
+                                                statusStr = entry.status.localizedLabel(),
                                                 progressStr = "Bölüm: ${entry.progress}",
                                                 onClick = { onEntryClick(entry) }
                                             )

@@ -14,6 +14,8 @@ import com.kitsugi.animelist.ui.theme.gradient.border
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import com.kitsugi.animelist.ui.utils.tvClickable
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.calculateCentroidSize
@@ -64,6 +66,7 @@ import androidx.compose.ui.window.DialogProperties
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.data.remote.GalleryCategory
+import com.kitsugi.animelist.ui.utils.localizedLabel
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.utils.KitsugiImageDownloadHelper
 import kotlinx.coroutines.delay
@@ -593,7 +596,7 @@ private fun GalleryLandscapeLayout(
                         itemsIndexed(availableCategories) { _, cat ->
                             val isSelected = selectedCategoryFilter == cat
                             val count = if (cat == null) galleryItems.size else galleryItems.count { it.category == cat }
-                            val label = if (cat == null) "Tümü ($count)" else "${cat.label} ($count)"
+                            val label = if (cat == null) stringResource(R.string.action_all_count, count) else "${cat.localizedLabel()} ($count)"
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(999.dp))
@@ -956,7 +959,7 @@ private fun GalleryLandscapeLayout(
                                 GalleryCategory.OTHER     -> "📁"
                             }
                             item {
-                                DetailRow(label = "Tür", value = "$catEmoji ${currentItem.category.label}")
+                                DetailRow(label = stringResource(R.string.gallery_field_type), value = "$catEmoji ${currentItem.category.localizedLabel()}")
                             }
 
                             // Language
@@ -1143,7 +1146,7 @@ private fun GalleryPortraitLayout(
                 itemsIndexed(availableCategories) { _, cat ->
                     val isSelected = selectedCategoryFilter == cat
                     val count = if (cat == null) galleryItems.size else galleryItems.count { it.category == cat }
-                    val label = if (cat == null) "Tümü ($count)" else "${cat.label} ($count)"
+                    val label = if (cat == null) stringResource(R.string.action_all_count, count) else "${cat.localizedLabel()} ($count)"
 
                     Box(
                         modifier = Modifier
@@ -1258,7 +1261,7 @@ private fun GalleryPortraitLayout(
                                     .padding(horizontal = 7.dp, vertical = 3.dp)
                             ) {
                                 Text(
-                                    text = "$catEmoji ${item.category.label}",
+                                    text = "$catEmoji ${item.category.localizedLabel()}",
                                     color = KitsugiColors.TextPrimary,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold
@@ -1560,7 +1563,7 @@ private fun GalleryDetailsSheet(
             })
 
             // Tür
-            DetailRow(label = "Tür", value = "$catEmoji ${item.category.label}")
+            DetailRow(label = stringResource(R.string.gallery_field_type), value = "$catEmoji ${item.category.localizedLabel()}")
 
             // Sezon
             val seasonLabel = formatGallerySeason(item.season)

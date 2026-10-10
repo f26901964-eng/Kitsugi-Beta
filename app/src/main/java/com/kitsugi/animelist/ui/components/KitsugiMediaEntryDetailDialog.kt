@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.components
 
+import com.kitsugi.animelist.ui.utils.localizedLabel
 import com.kitsugi.animelist.ui.theme.gradient.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -229,7 +230,7 @@ fun KitsugiMediaEntryDetailDialog(
                             )
 
                             DetailPill(
-                                text = entry.status.label,
+                                text = entry.status.localizedLabel(),
                                 color = statusColor
                             )
 
@@ -301,7 +302,7 @@ fun KitsugiMediaEntryDetailDialog(
                         )
 
                         DetailPill(
-                            text = entry.status.label,
+                            text = entry.status.localizedLabel(),
                             color = statusColor
                         )
 

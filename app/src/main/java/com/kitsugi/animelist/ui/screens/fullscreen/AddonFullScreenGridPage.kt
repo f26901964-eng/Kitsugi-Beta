@@ -65,6 +65,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -191,7 +193,7 @@ fun AddonFullScreenGridPage(
     fun loadNextPage() {
         if (isLoadingMore || !hasMorePages) return
         val api = resolveApi() ?: run {
-            loadError = "Eklenti bulunamadı: ${state.apiName}"
+            loadError = context.getString(R.string.addon_page_not_found, state.apiName)
             return
         }
         isLoadingMore = true
@@ -216,7 +218,7 @@ fun AddonFullScreenGridPage(
                 }
             } catch (e: Exception) {
                 Log.e("AddonFullScreenGridPage", "Pagination failed: ${e.message}")
-                loadError = e.message ?: "Yükleme hatası"
+                loadError = e.message ?: context.getString(R.string.addon_page_load_error)
             } finally {
                 isLoadingMore = false
             }
@@ -343,7 +345,7 @@ fun AddonFullScreenGridPage(
                 ) {
                     Icon(
                         Icons.Rounded.FilterList,
-                        contentDescription = "Filtre ve Sıralama",
+                        contentDescription = stringResource(R.string.inline_filter_sort_dfe53ba),
                         tint = if (hasActiveFilter) accentColor else KitsugiColors.TextPrimary
                     )
                 }
@@ -357,7 +359,7 @@ fun AddonFullScreenGridPage(
                 ) {
                     Icon(
                         imageVector = if (isGridView) Icons.AutoMirrored.Rounded.ListAlt else Icons.Rounded.GridView,
-                        contentDescription = if (isGridView) "Liste Görünümü" else "Grid Görünümü",
+                        contentDescription = if (isGridView) stringResource(R.string.cd_list_view) else stringResource(R.string.cd_grid_view),
                         tint = accentColor
                     )
                 }
@@ -391,7 +393,7 @@ fun AddonFullScreenGridPage(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = typeFilter.displayLabel,
+                            text = typeFilter.displayLabel(),
                             color = if (isSelected) accentColor else KitsugiColors.TextPrimary,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                             style = MaterialTheme.typography.labelMedium
@@ -402,9 +404,12 @@ fun AddonFullScreenGridPage(
 
             // Sayaç + aktif filtre açıklaması + Temizle
             val activeType = ADDON_TYPE_FILTERS.firstOrNull { it.id == selectedTypeId }
+            val activeTypeLabel = activeType?.takeIf { it.id != "ALL" }?.displayLabel()
+            val activeSortLabel =
+                if (selectedSortOption != StudioSortOption.DEFAULT) selectedSortOption.displayLabel() else null
             val activeFilterDesc = buildString {
-                if (activeType != null && activeType.id != "ALL") append(" • ${activeType.displayLabel}")
-                if (selectedSortOption != StudioSortOption.DEFAULT) append(" • ${selectedSortOption.displayLabel}")
+                activeTypeLabel?.let { append(" • $it") }
+                activeSortLabel?.let { append(" • $it") }
             }
             Row(
                 modifier = Modifier
@@ -414,7 +419,7 @@ fun AddonFullScreenGridPage(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "${displayedResults.size} içerik$activeFilterDesc",
+                    text = stringResource(R.string.studio_page_item_count, displayedResults.size) + activeFilterDesc,
                     color = KitsugiColors.TextMuted,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,
@@ -458,7 +463,7 @@ fun AddonFullScreenGridPage(
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
                 Text(
-                    text = loadError ?: "Bir hata oluştu.",
+                    text = loadError ?: stringResource(R.string.addon_page_generic_error),
                     color = KitsugiColors.TextMuted,
                     style = MaterialTheme.typography.bodyMedium
                 )
@@ -495,8 +500,8 @@ fun AddonFullScreenGridPage(
                 if (displayedResults.isEmpty() && !isLoadingMore) {
                     item(key = "addon_grid_empty", span = { GridItemSpan(maxLineSpan) }) {
                         KitsugiEmptyState(
-                            title = "Henüz içerik yok",
-                            subtitle = "Bu kategoride gösterilecek içerik bulunamadı.",
+                            title = stringResource(R.string.studio_page_empty_title),
+                            subtitle = stringResource(R.string.addon_page_empty_subtitle),
                             icon = Icons.Rounded.SearchOff
                         )
                     }
@@ -540,8 +545,8 @@ fun AddonFullScreenGridPage(
                 if (displayedResults.isEmpty() && !isLoadingMore) {
                     item(key = "addon_list_empty") {
                         KitsugiEmptyState(
-                            title = "Henüz içerik yok",
-                            subtitle = "Bu kategoride gösterilecek içerik bulunamadı.",
+                            title = stringResource(R.string.studio_page_empty_title),
+                            subtitle = stringResource(R.string.addon_page_empty_subtitle),
                             icon = Icons.Rounded.SearchOff
                         )
                     }
@@ -631,7 +636,7 @@ fun AddonFullScreenGridPage(
                 ) {
                     Icon(
                         Icons.Rounded.FilterList,
-                        contentDescription = "Filtre ve Sıralama",
+                        contentDescription = stringResource(R.string.inline_filter_sort_dfe53ba),
                         tint = if (hasActiveFilter) accentColor else KitsugiColors.TextPrimary
                     )
                 }
@@ -670,7 +675,7 @@ fun AddonFullScreenGridPage(
             ) {
                 Icon(
                     imageVector = Icons.Rounded.KeyboardArrowUp,
-                    contentDescription = "Yukarı Git",
+                    contentDescription = stringResource(R.string.cd_scroll_top),
                     tint = KitsugiColors.Background,
                     modifier = Modifier.size(28.dp)
                 )

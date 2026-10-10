@@ -31,9 +31,11 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kitsugi.animelist.R
 import com.kitsugi.animelist.data.remote.KitsugiExternalLink
 import com.kitsugi.animelist.data.remote.KitsugiStudio
 import com.kitsugi.animelist.data.remote.KitsugiTag
@@ -66,7 +68,7 @@ fun KitsugiStudiosCard(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         if (studios.isNotEmpty()) {
-            SectionLabel("Stüdyolar")
+            SectionLabel(stringResource(R.string.detail_section_studios))
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -76,8 +78,9 @@ fun KitsugiStudiosCard(
                         text = studio.name,
                         color = accentColor,
                         solid = true,
-                        // Bangumi-yerel stüdyoların (infobox adı) detay kimliği yoktur → tıklanamaz.
-                        onClick = if (studio.id > 0 || !studio.source.equals("bangumi", ignoreCase = true)) {
+                        // Kimliği henüz çözülmemiş Bangumi yerel kayıtları da tıklanabilir:
+                        // ad taşınır, hedef sayfa kurumu adıyla çözümler (bkz. KitsugiStudioClient).
+                        onClick = if (studio.name.isNotBlank()) {
                             { onStudioClick(studio) }
                         } else null
                     )
@@ -85,7 +88,7 @@ fun KitsugiStudiosCard(
             }
         }
         if (producers.isNotEmpty()) {
-            SectionLabel("Yapımcılar")
+            SectionLabel(stringResource(R.string.detail_section_producers))
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -95,7 +98,7 @@ fun KitsugiStudiosCard(
                         text = producer.name,
                         color = accentColor,
                         solid = false,
-                        onClick = if (producer.id > 0 || !producer.source.equals("bangumi", ignoreCase = true)) {
+                        onClick = if (producer.name.isNotBlank()) {
                             { onProducerClick(producer) }
                         } else null
                     )
@@ -103,7 +106,7 @@ fun KitsugiStudiosCard(
             }
         }
         if (networks.isNotEmpty()) {
-            SectionLabel("Yayıncı Ağlar")
+            SectionLabel(stringResource(R.string.detail_section_networks))
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -113,9 +116,9 @@ fun KitsugiStudiosCard(
                         text = network.name,
                         color = accentColor,
                         solid = false,
-                        // Bangumi-yerel yayıncı ağlar da enrich ile kimlik alabilir;
-                        // id > 0 ise tıklanabilir, aksi halde pasif çip.
-                        onClick = if (network.id > 0 || !network.source.equals("bangumi", ignoreCase = true)) {
+                        // Yayıncı ağlar da Bangumi'de şirket (type=2) kaydıdır; kimlik
+                        // çözülmemişse ad ile çözümleme hedef sayfada yapılır.
+                        onClick = if (network.name.isNotBlank()) {
                             { onNetworkClick(network) }
                         } else null
                     )
@@ -164,7 +167,7 @@ fun KitsugiTagsCard(
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            SectionLabel("Etiketler")
+            SectionLabel(stringResource(R.string.detail_section_tags))
             if (hasSpoilers) {
                 Row(
                     modifier = Modifier
@@ -181,7 +184,7 @@ fun KitsugiTagsCard(
                         modifier = Modifier.size(13.dp)
                     )
                     Text(
-                        text = if (showSpoilers) "Spoiler'ı Gizle" else "Spoiler'ı Göster",
+                        text = if (showSpoilers) stringResource(R.string.ui_spoiler_hide) else stringResource(R.string.ui_spoiler_show),
                         color = KitsugiColors.TextSecondary,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.SemiBold
@@ -215,7 +218,7 @@ fun KitsugiTagsCard(
                     modifier = Modifier.size(18.dp)
                 )
                 Text(
-                    text = if (expanded) "Daha az" else "Daha fazla",
+                    text = if (expanded) stringResource(R.string.action_see_less) else stringResource(R.string.action_see_more),
                     color = accentColor,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold
@@ -289,7 +292,7 @@ fun KitsugiLinksCard(
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         if (streamingLinks.isNotEmpty()) {
-            SectionLabel("Yayınlayan platformlar")
+            SectionLabel(stringResource(R.string.detail_section_streaming))
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -305,7 +308,7 @@ fun KitsugiLinksCard(
             }
         }
         if (externalLinks.isNotEmpty()) {
-            SectionLabel("Harici bağlantılar")
+            SectionLabel(stringResource(R.string.detail_section_external))
             FlowRow(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)

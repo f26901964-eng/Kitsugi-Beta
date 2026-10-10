@@ -662,7 +662,7 @@ fun FullScreenMediaGridPage(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = genre.displayLabel,
+                                        text = genre.displayLabel(),
                                         color = if (isSelected) accentColor else KitsugiColors.TextPrimary,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                         style = MaterialTheme.typography.labelMedium
@@ -672,9 +672,12 @@ fun FullScreenMediaGridPage(
                         }
 
                         val activeGenre = KITSUGI_MEDIA_GENRES.firstOrNull { it.id == selectedGenreId }
+                        val activeGenreLabel = activeGenre?.takeIf { it.id != "ALL" }?.displayLabel()
+                        val activeSortLabel =
+                            if (selectedSortOption != KitsugiGridSortOption.DEFAULT) selectedSortOption.displayLabel() else null
                         val activeFilterDesc = buildString {
-                            if (activeGenre != null && activeGenre.id != "ALL") append(" • ${activeGenre.displayLabel}")
-                            if (selectedSortOption != KitsugiGridSortOption.DEFAULT) append(" • ${selectedSortOption.displayLabel}")
+                            activeGenreLabel?.let { append(" • $it") }
+                            activeSortLabel?.let { append(" • $it") }
                         }
 
                         Row(
@@ -860,7 +863,7 @@ fun FullScreenMediaGridPage(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = genre.displayLabel,
+                                        text = genre.displayLabel(),
                                         color = if (isSelected) accentColor else KitsugiColors.TextPrimary,
                                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                         style = MaterialTheme.typography.labelMedium
@@ -874,9 +877,12 @@ fun FullScreenMediaGridPage(
                 item(key = "list_count") {
                     val hasActiveFilter = selectedGenreId != "ALL" || selectedSortOption != KitsugiGridSortOption.DEFAULT
                     val activeGenre = KITSUGI_MEDIA_GENRES.firstOrNull { it.id == selectedGenreId }
+                    val activeGenreLabel = activeGenre?.takeIf { it.id != "ALL" }?.displayLabel()
+                    val activeSortLabel =
+                        if (selectedSortOption != KitsugiGridSortOption.DEFAULT) selectedSortOption.displayLabel() else null
                     val activeFilterDesc = buildString {
-                        if (activeGenre != null && activeGenre.id != "ALL") append(" • ${activeGenre.displayLabel}")
-                        if (selectedSortOption != KitsugiGridSortOption.DEFAULT) append(" • ${selectedSortOption.displayLabel}")
+                        activeGenreLabel?.let { append(" • $it") }
+                        activeSortLabel?.let { append(" • $it") }
                     }
 
                     Column {

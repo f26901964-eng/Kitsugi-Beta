@@ -1,6 +1,10 @@
 ﻿@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 
 package com.kitsugi.animelist.ui.components
+import com.kitsugi.animelist.R
+import androidx.compose.ui.res.stringResource
+import androidx.compose.runtime.ReadOnlyComposable
+import androidx.annotation.StringRes
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import com.kitsugi.animelist.ui.theme.gradient.background
@@ -48,46 +52,50 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 data class KitsugiGenreItem(
     val id: String,
     val emoji: String,
-    val name: String,
+    @StringRes val nameRes: Int,
     val keywords: List<String>
 ) {
-    val displayLabel: String get() = "$emoji $name"
+    @Composable
+    @ReadOnlyComposable
+    fun displayLabel(): String = "$emoji ${stringResource(nameRes)}"
 }
 
 val KITSUGI_MEDIA_GENRES = listOf(
-    KitsugiGenreItem("ALL", "✨", "Tümü", emptyList()),
-    KitsugiGenreItem("DRAMA", "🎭", "Drama", listOf("drama", "dram")),
-    KitsugiGenreItem("ACTION", "💥", "Aksiyon", listOf("action", "aksiyon")),
-    KitsugiGenreItem("ROMANCE", "💖", "Romantik", listOf("romance", "romantik", "romantizm")),
-    KitsugiGenreItem("COMEDY", "😂", "Komedi", listOf("comedy", "komedi")),
-    KitsugiGenreItem("FANTASY", "🧙‍♂️", "Fantastik", listOf("fantasy", "fantastik")),
-    KitsugiGenreItem("SCIFI", "🚀", "Bilim Kurgu", listOf("sci-fi", "scifi", "science fiction", "bilim kurgu")),
-    KitsugiGenreItem("MYSTERY", "🔍", "Gizem", listOf("mystery", "gizem")),
-    KitsugiGenreItem("HORROR", "👻", "Korku", listOf("horror", "korku")),
-    KitsugiGenreItem("SLICEOFLIFE", "☕", "Günlük Yaşam", listOf("slice of life", "günlük yaşam", "iyileştirici", "iyilestirici")),
-    KitsugiGenreItem("ADVENTURE", "🧭", "Macera", listOf("adventure", "macera")),
-    KitsugiGenreItem("SUPERNATURAL", "🔮", "Doğaüstü", listOf("supernatural", "doğaüstü", "dogaustu")),
-    KitsugiGenreItem("PSYCHOLOGICAL", "🧠", "Psikolojik", listOf("psychological", "psikolojik")),
-    KitsugiGenreItem("SPORTS", "⚽", "Spor", listOf("sports", "spor")),
-    KitsugiGenreItem("THRILLER", "🕵️‍♂️", "Gerilim", listOf("thriller", "suspense", "gerilim")),
-    KitsugiGenreItem("MECHA", "🤖", "Mecha", listOf("mecha", "robot")),
-    KitsugiGenreItem("MUSIC", "🎵", "Müzik", listOf("music", "müzik", "muzik")),
-    KitsugiGenreItem("HISTORICAL", "📜", "Tarihi", listOf("historical", "tarihi", "tarih")),
-    KitsugiGenreItem("MILITARY", "⚔️", "Askeri / Savaş", listOf("military", "askeri", "savaş", "savas")),
-    KitsugiGenreItem("SCHOOL", "🎒", "Okul", listOf("school", "okul"))
+    KitsugiGenreItem("ALL", "✨", R.string.studio_type_all, emptyList()),
+    KitsugiGenreItem("DRAMA", "🎭", R.string.genre_drama, listOf("drama", "dram")),
+    KitsugiGenreItem("ACTION", "💥", R.string.genre_action, listOf("action", "aksiyon")),
+    KitsugiGenreItem("ROMANCE", "💖", R.string.genre_romance, listOf("romance", "romantik", "romantizm")),
+    KitsugiGenreItem("COMEDY", "😂", R.string.genre_comedy, listOf("comedy", "komedi")),
+    KitsugiGenreItem("FANTASY", "🧙‍♂️", R.string.genre_fantasy, listOf("fantasy", "fantastik")),
+    KitsugiGenreItem("SCIFI", "🚀", R.string.genre_scifi, listOf("sci-fi", "scifi", "science fiction", "bilim kurgu")),
+    KitsugiGenreItem("MYSTERY", "🔍", R.string.genre_mystery, listOf("mystery", "gizem")),
+    KitsugiGenreItem("HORROR", "👻", R.string.genre_horror, listOf("horror", "korku")),
+    KitsugiGenreItem("SLICEOFLIFE", "☕", R.string.genre_slice_of_life, listOf("slice of life", "günlük yaşam", "iyileştirici", "iyilestirici")),
+    KitsugiGenreItem("ADVENTURE", "🧭", R.string.genre_adventure, listOf("adventure", "macera")),
+    KitsugiGenreItem("SUPERNATURAL", "🔮", R.string.genre_supernatural, listOf("supernatural", "doğaüstü", "dogaustu")),
+    KitsugiGenreItem("PSYCHOLOGICAL", "🧠", R.string.genre_psychological, listOf("psychological", "psikolojik")),
+    KitsugiGenreItem("SPORTS", "⚽", R.string.genre_sports, listOf("sports", "spor")),
+    KitsugiGenreItem("THRILLER", "🕵️‍♂️", R.string.genre_thriller, listOf("thriller", "suspense", "gerilim")),
+    KitsugiGenreItem("MECHA", "🤖", R.string.genre_mecha, listOf("mecha", "robot")),
+    KitsugiGenreItem("MUSIC", "🎵", R.string.genre_music, listOf("music", "müzik", "muzik")),
+    KitsugiGenreItem("HISTORICAL", "📜", R.string.genre_historical, listOf("historical", "tarihi", "tarih")),
+    KitsugiGenreItem("MILITARY", "⚔️", R.string.genre_military, listOf("military", "askeri", "savaş", "savas")),
+    KitsugiGenreItem("SCHOOL", "🎒", R.string.genre_school, listOf("school", "okul"))
 )
 
-enum class KitsugiGridSortOption(val emoji: String, val title: String) {
-    DEFAULT("🏆", "Varsayılan Sıralama"),
-    SCORE_DESC("⭐", "Puan: Yüksekten Düşüğe"),
-    SCORE_ASC("📉", "Puan: Düşükten Yükseğe"),
-    POPULARITY_DESC("👥", "Popülerlik: En Çok Takip"),
-    YEAR_DESC("📅", "Yıl: Yeniden Eskiye"),
-    YEAR_ASC("⏳", "Yıl: Eskiden Yeniye"),
-    TITLE_ASC("🔤", "İsim: A'dan Z'ye"),
-    TITLE_DESC("🔠", "İsim: Z'den A'ya");
+enum class KitsugiGridSortOption(val emoji: String, @StringRes val titleRes: Int) {
+    DEFAULT("🏆", R.string.studio_sort_default),
+    SCORE_DESC("⭐", R.string.sort_score_desc),
+    SCORE_ASC("📉", R.string.sort_score_asc),
+    POPULARITY_DESC("👥", R.string.sort_popularity_desc),
+    YEAR_DESC("📅", R.string.sort_year_desc),
+    YEAR_ASC("⏳", R.string.sort_year_asc),
+    TITLE_ASC("🔤", R.string.studio_sort_title_asc),
+    TITLE_DESC("🔠", R.string.studio_sort_title_desc);
 
-    val displayLabel: String get() = "$emoji $title"
+    @Composable
+    @ReadOnlyComposable
+    fun displayLabel(): String = "$emoji ${stringResource(titleRes)}"
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -208,7 +216,7 @@ fun KitsugiMediaFilterBottomSheet(
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    text = sort.displayLabel,
+                                    text = sort.displayLabel(),
                                     color = if (isSelected) accentColor else KitsugiColors.TextPrimary,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                     fontSize = 13.sp
@@ -273,7 +281,7 @@ fun KitsugiMediaFilterBottomSheet(
                         ) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Text(
-                                    text = genre.displayLabel,
+                                    text = genre.displayLabel(),
                                     color = if (isSelected) accentColor else KitsugiColors.TextPrimary,
                                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                     fontSize = 13.sp

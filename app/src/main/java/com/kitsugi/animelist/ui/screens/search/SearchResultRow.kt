@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.screens.search
 
+import com.kitsugi.animelist.ui.utils.localizedLabel
 import com.kitsugi.animelist.ui.theme.gradient.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -134,7 +135,7 @@ fun SearchResultRow(
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = mediaEntry.status.label,
+                            text = mediaEntry.status.localizedLabel(),
                             color = statusColor(mediaEntry.status),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold

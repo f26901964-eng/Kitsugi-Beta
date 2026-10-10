@@ -3883,4 +3883,159 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="bangumi_tag_ambient_music">Ambient</string>
     <string name="bangumi_tag_instrumental">Enstrümantal</string>
 
+    <!-- ── Stüdyo / Yapımcı / Yayıncı çip bölüm başlıkları (detay sayfası) ── -->
+    <string name="detail_section_studios">Stüdyolar</string>
+    <string name="detail_section_producers">Yapımcılar</string>
+    <string name="detail_section_networks">Yayıncı Ağlar</string>
+    <string name="detail_section_tags">Etiketler</string>
+    <string name="detail_section_streaming">Yayınlayan platformlar</string>
+    <string name="detail_section_external">Harici bağlantılar</string>
+    <string name="action_see_more">Daha fazla</string>
+    <string name="action_see_less">Daha az</string>
+    <string name="action_apply">Uygula</string>
+    <string name="action_all_count">Tümü (%1$d)</string>
+
+    <!-- ── Stüdyo / Yapımcı detay sayfası ── -->
+    <string name="studio_page_loading">Stüdyo / Yapımcı Yükleniyor...</string>
+    <string name="studio_page_works_title">Yapımlar (%1$d)</string>
+    <string name="studio_page_item_count">%1$d içerik</string>
+    <string name="studio_page_empty_title">Henüz içerik yok</string>
+    <string name="studio_page_empty_subtitle">Bu stüdyo için gösterilecek yapım bulunamadı.</string>
+    <string name="studio_page_load_more_failed">Devamı yüklenemedi · Tekrar dene</string>
+    <string name="studio_hero_main">Ana Stüdyo</string>
+    <string name="studio_hero_producer">Yapımcı</string>
+    <string name="studio_hero_established">Kuruluş: %1$s</string>
+    <string name="studio_hero_favorites">★ %1$s Favori</string>
+    <string name="studio_about_title">Hakkında</string>
+    <string name="studio_type_all">Tümü</string>
+    <string name="studio_type_anime">Anime</string>
+    <string name="studio_type_manga">Manga</string>
+    <string name="studio_type_movie">Film</string>
+    <string name="studio_type_tv">Dizi</string>
+    <string name="studio_sort_default">Varsayılan Sıralama</string>
+    <string name="studio_sort_title_asc">İsim: A\'dan Z\'ye</string>
+    <string name="studio_sort_title_desc">İsim: Z\'den A\'ya</string>
+
+    <!-- ── Medya türü etiketleri (uygulama diline göre) ── -->
+    <string name="media_type_anime">Anime</string>
+    <string name="media_type_manga">Manga</string>
+    <string name="media_type_movie">Film</string>
+    <string name="media_type_tv">Dizi</string>
+
+    <!-- ── İçerik açıklamaları (contentDescription) ── -->
+    <string name="cd_list_view">Liste Görünümü</string>
+    <string name="cd_grid_view">Grid Görünümü</string>
+    <string name="cd_scroll_top">Yukarı Git</string>
+
+    <!-- ── Galeri kategori etiketleri ── -->
+    <string name="gallery_cat_poster">Poster</string>
+    <string name="gallery_cat_backdrop">Arka Plan</string>
+    <string name="gallery_cat_logo">Logo</string>
+    <string name="gallery_cat_clearart">ClearART</string>
+    <string name="gallery_cat_thumbnail">Küçük Resim</string>
+    <string name="gallery_cat_character">Karakter</string>
+    <string name="gallery_cat_person">Kişi</string>
+    <string name="gallery_cat_banner">Afiş</string>
+    <string name="gallery_cat_square">Kare Poster</string>
+    <string name="gallery_cat_other">Diğer</string>
+    <string name="gallery_field_type">Tür</string>
+    <string name="gallery_summary">%1$d görsel · %2$d kategori</string>
+    <string name="cd_open_gallery">Galeriyi Aç</string>
+    <string name="notif_episode_title">%1$s - Bölüm %2$d</string>
+
+    <!-- ── Detay sayfası sekmeleri ── -->
+    <string name="detail_tab_info">Bilgi</string>
+    <string name="detail_tab_images">Resimler</string>
+    <string name="detail_tab_characters">Karakterler</string>
+    <string name="detail_tab_staff">Ekip</string>
+    <string name="detail_tab_recommendations">Öneriler</string>
+    <string name="detail_tab_relations">İlişkiler</string>
+    <string name="detail_tab_charts">Grafikler</string>
+    <string name="detail_tab_reviews">Yorumlar</string>
+
+    <!-- ── Eklenti "Tümünü Gör" sayfası ── -->
+    <string name="addon_page_not_found">Eklenti bulunamadı: %1$s</string>
+    <string name="addon_page_load_error">Yükleme hatası</string>
+    <string name="addon_page_generic_error">Bir hata oluştu.</string>
+    <string name="addon_page_empty_subtitle">Bu kategoride gösterilecek içerik bulunamadı.</string>
+
+    <!-- ── İzleme durumu etiketleri ── -->
+    <string name="watch_watching">İzleniyor</string>
+    <string name="watch_completed">Tamamlandı</string>
+    <string name="watch_planned">Planlandı</string>
+    <string name="watch_dropped">Bırakıldı</string>
+    <string name="watch_paused">Durduruldu</string>
+    <string name="watch_repeating">Yeniden İzleniyor</string>
+
+    <!-- ── Detay hero sayaçları ── -->
+    <string name="hero_count_volumes_chapters">%1$d Cilt/Bölüm</string>
+    <string name="hero_count_episodes">%1$d Bölüm</string>
+    <string name="hero_count_no_volumes">- Cilt</string>
+    <string name="hero_count_no_episodes">- Bölüm</string>
+    <string name="hero_airing_soon">Yaklaşan Yayın: %1$s</string>
+    <string name="cd_airing_soon">Yaklaşan Yayın</string>
+    <string name="recommendation_similar">Benzer Yapım</string>
+
+    <!-- ── Keşfet sıralama seçenekleri ── -->
+    <string name="sort_score_desc">Puan: Yüksekten Düşüğe</string>
+    <string name="sort_score_asc">Puan: Düşükten Yükseğe</string>
+    <string name="sort_popularity_desc">Popülerlik: En Çok Takip</string>
+    <string name="sort_year_desc">Yıl: Yeniden Eskiye</string>
+    <string name="sort_year_asc">Yıl: Eskiden Yeniye</string>
+
+    <!-- ── Keşfet tür çipleri ── -->
+    <string name="genre_drama">Drama</string>
+    <string name="genre_action">Aksiyon</string>
+    <string name="genre_romance">Romantik</string>
+    <string name="genre_comedy">Komedi</string>
+    <string name="genre_fantasy">Fantastik</string>
+    <string name="genre_scifi">Bilim Kurgu</string>
+    <string name="genre_mystery">Gizem</string>
+    <string name="genre_horror">Korku</string>
+    <string name="genre_slice_of_life">Günlük Yaşam</string>
+    <string name="genre_adventure">Macera</string>
+    <string name="genre_supernatural">Doğaüstü</string>
+    <string name="genre_psychological">Psikolojik</string>
+    <string name="genre_sports">Spor</string>
+    <string name="genre_thriller">Gerilim</string>
+    <string name="genre_mecha">Mecha</string>
+    <string name="genre_music">Müzik</string>
+    <string name="genre_historical">Tarihi</string>
+    <string name="genre_military">Askeri / Savaş</string>
+    <string name="genre_school">Okul</string>
+
+    <string name="studio_page_load_failed">Stüdyo detayları yüklenemedi.</string>
+    <string name="detail_watch">İzle</string>
+    <string name="detail_section_genres">Türler</string>
+    <string name="detail_info_header">Bilgiler</string>
+    <string name="detail_stat_rank">Puan Sırası</string>
+    <string name="detail_stat_votes">Oy Sayısı</string>
+    <string name="detail_stat_popularity">Popülerlik Sırası</string>
+    <string name="detail_date_start">Başlangıç</string>
+    <string name="detail_date_end">Bitiş</string>
+    <string name="detail_synopsis_loading">Açıklama yükleniyor...</string>
+    <string name="detail_synopsis_error">Açıklama alınamadı.</string>
+    <string name="detail_external_link">Dış Bağlantı</string>
+    <string name="detail_info_status">Durum</string>
+    <string name="detail_info_season">Sezon</string>
+    <string name="detail_info_source">Kaynak</string>
+    <string name="detail_info_studio">Stüdyo</string>
+    <string name="detail_info_duration">Süre</string>
+    <string name="detail_info_broadcast">Yayın</string>
+    <string name="detail_info_rating">Yaş Sınırı</string>
+    <string name="detail_info_english">İngilizce</string>
+    <string name="detail_info_japanese">Japonca</string>
+    <string name="detail_info_aliases">Diğer Adlar</string>
+    <string name="detail_match_manga">EŞLEŞEN MANGA</string>
+    <string name="detail_disconnect">Bağlantıyı Kopar</string>
+    <string name="detail_rematch">Yeniden Eşleştir</string>
+    <string name="detail_manga_unmatched">Manga eşleşmesi bulunamadı. Okumaya başlamak için Oku butonuna tıklayarak bir kaynakla eşleştirin.</string>
+    <string name="detail_stat_score">Puan</string>
+    <string name="detail_stat_followers">Takip Edenler</string>
+    <string name="detail_info_year">Yıl</string>
+    <string name="detail_synopsis_none">Açıklama bulunamadı.</string>
+    <string name="detail_trailer_tap">Fragmanı izlemek için dokunun</string>
+    <string name="detail_openings">Açılış Müzikleri</string>
+    <string name="detail_endings">Kapanış Müzikleri</string>
+    <string name="detail_ratings_loading">Puanlar yükleniyor...</string>
 </resources>

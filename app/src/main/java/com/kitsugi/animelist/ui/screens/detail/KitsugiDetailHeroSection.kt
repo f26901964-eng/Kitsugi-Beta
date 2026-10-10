@@ -1,5 +1,8 @@
 package com.kitsugi.animelist.ui.screens.detail
 
+import com.kitsugi.animelist.R
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.ui.utils.localizedLabel
 import com.kitsugi.animelist.ui.components.KitsugiGalleryIconButton
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.theme.gradient.border
@@ -278,9 +281,7 @@ internal fun DetailHero(
                 val formatIcon = if (entry.type == MediaType.Manga) Icons.Rounded.Book else Icons.Rounded.Tv
                 val formatText = when (entry.type) {
                     MediaType.Anime -> "TV"
-                    MediaType.Movie -> "Film"
-                    MediaType.TvShow -> "Dizi"
-                    MediaType.Manga -> "Manga"
+                    else -> entry.type.localizedLabel()
                 }
                 MetadataIconText(icon = formatIcon, text = formatText, tint = accentColor)
 
@@ -288,15 +289,17 @@ internal fun DetailHero(
                 val countIcon = if (entry.type == MediaType.Manga) Icons.Rounded.MenuBook else Icons.Rounded.Schedule
                 val totalVal = entry.total
                 val countText = if (totalVal != null && totalVal > 0) {
-                    if (entry.type == MediaType.Manga) "$totalVal Cilt/Bölüm" else "$totalVal Bölüm"
+                    if (entry.type == MediaType.Manga) stringResource(R.string.hero_count_volumes_chapters, totalVal)
+                    else stringResource(R.string.hero_count_episodes, totalVal)
                 } else {
-                    if (entry.type == MediaType.Manga) "- Cilt" else "- Bölüm"
+                    if (entry.type == MediaType.Manga) stringResource(R.string.hero_count_no_volumes)
+                    else stringResource(R.string.hero_count_no_episodes)
                 }
                 MetadataIconText(icon = countIcon, text = countText, tint = accentColor)
 
                 // 3. Status
                 val statusIcon = Icons.Rounded.RssFeed
-                MetadataIconText(icon = statusIcon, text = entry.status.label, tint = statusColor)
+                MetadataIconText(icon = statusIcon, text = entry.status.localizedLabel(), tint = statusColor)
             }
 
             val airingText = rememberAiringCountdownText(nextAiring)
@@ -311,12 +314,12 @@ internal fun DetailHero(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Schedule,
-                        contentDescription = "Yaklaşan Yayın",
+                        contentDescription = stringResource(R.string.cd_airing_soon),
                         tint = KitsugiColors.AccentOrange,
                         modifier = Modifier.size(16.dp)
                     )
                     Text(
-                        text = "Yaklaşan Yayın: $airingText",
+                        text = stringResource(R.string.hero_airing_soon, airingText),
                         color = KitsugiColors.AccentOrange,
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold

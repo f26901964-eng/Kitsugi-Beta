@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.screens.detail
 
+import com.kitsugi.animelist.ui.utils.localizedLabel
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.layout.*
@@ -119,12 +120,7 @@ fun RelationCard(
                 overflow = TextOverflow.Ellipsis
             )
             Spacer(modifier = Modifier.height(2.dp))
-            val typeLabel = when (rel.mediaType) {
-                MediaType.Anime -> "Anime"
-                MediaType.Manga -> "Manga"
-                MediaType.Movie -> "Film"
-                MediaType.TvShow -> "Dizi"
-            }
+            val typeLabel = rel.mediaType.localizedLabel()
             Text(
                 text = "${rel.relationType} • $typeLabel",
                 color = accentColor,

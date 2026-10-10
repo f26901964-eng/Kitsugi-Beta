@@ -3881,4 +3881,159 @@
     <string name="bangumi_tag_ambient_music">Ambient</string>
     <string name="bangumi_tag_instrumental">Instrumental</string>
 
+    <!-- ── Studio / Producer / Network chip section headers (detail page) ── -->
+    <string name="detail_section_studios">Studios</string>
+    <string name="detail_section_producers">Producers</string>
+    <string name="detail_section_networks">Networks</string>
+    <string name="detail_section_tags">Tags</string>
+    <string name="detail_section_streaming">Streaming platforms</string>
+    <string name="detail_section_external">External links</string>
+    <string name="action_see_more">See more</string>
+    <string name="action_see_less">See less</string>
+    <string name="action_apply">Apply</string>
+    <string name="action_all_count">All (%1$d)</string>
+
+    <!-- ── Studio / Producer detail page ── -->
+    <string name="studio_page_loading">Loading Studio / Producer...</string>
+    <string name="studio_page_works_title">Productions (%1$d)</string>
+    <string name="studio_page_item_count">%1$d items</string>
+    <string name="studio_page_empty_title">No content yet</string>
+    <string name="studio_page_empty_subtitle">No productions found to show for this studio.</string>
+    <string name="studio_page_load_more_failed">Couldn\'t load more · Retry</string>
+    <string name="studio_hero_main">Main Studio</string>
+    <string name="studio_hero_producer">Producer</string>
+    <string name="studio_hero_established">Founded: %1$s</string>
+    <string name="studio_hero_favorites">★ %1$s Favourites</string>
+    <string name="studio_about_title">About</string>
+    <string name="studio_type_all">All</string>
+    <string name="studio_type_anime">Anime</string>
+    <string name="studio_type_manga">Manga</string>
+    <string name="studio_type_movie">Movie</string>
+    <string name="studio_type_tv">TV Series</string>
+    <string name="studio_sort_default">Default Order</string>
+    <string name="studio_sort_title_asc">Name: A to Z</string>
+    <string name="studio_sort_title_desc">Name: Z to A</string>
+
+    <!-- ── Media type labels (follow app language) ── -->
+    <string name="media_type_anime">Anime</string>
+    <string name="media_type_manga">Manga</string>
+    <string name="media_type_movie">Movie</string>
+    <string name="media_type_tv">TV Series</string>
+
+    <!-- ── Content descriptions ── -->
+    <string name="cd_list_view">List view</string>
+    <string name="cd_grid_view">Grid view</string>
+    <string name="cd_scroll_top">Scroll to top</string>
+
+    <!-- ── Gallery category labels ── -->
+    <string name="gallery_cat_poster">Poster</string>
+    <string name="gallery_cat_backdrop">Background</string>
+    <string name="gallery_cat_logo">Logo</string>
+    <string name="gallery_cat_clearart">ClearART</string>
+    <string name="gallery_cat_thumbnail">Thumbnail</string>
+    <string name="gallery_cat_character">Character</string>
+    <string name="gallery_cat_person">Person</string>
+    <string name="gallery_cat_banner">Banner</string>
+    <string name="gallery_cat_square">Square Poster</string>
+    <string name="gallery_cat_other">Other</string>
+    <string name="gallery_field_type">Type</string>
+    <string name="gallery_summary">%1$d images · %2$d categories</string>
+    <string name="cd_open_gallery">Open gallery</string>
+    <string name="notif_episode_title">%1$s - Episode %2$d</string>
+
+    <!-- ── Detail page tabs ── -->
+    <string name="detail_tab_info">Info</string>
+    <string name="detail_tab_images">Images</string>
+    <string name="detail_tab_characters">Characters</string>
+    <string name="detail_tab_staff">Staff</string>
+    <string name="detail_tab_recommendations">Recommendations</string>
+    <string name="detail_tab_relations">Relations</string>
+    <string name="detail_tab_charts">Charts</string>
+    <string name="detail_tab_reviews">Reviews</string>
+
+    <!-- ── Add-on "See All" page ── -->
+    <string name="addon_page_not_found">Add-on not found: %1$s</string>
+    <string name="addon_page_load_error">Load error</string>
+    <string name="addon_page_generic_error">Something went wrong.</string>
+    <string name="addon_page_empty_subtitle">No content found in this category.</string>
+
+    <!-- ── Watch status labels ── -->
+    <string name="watch_watching">Watching</string>
+    <string name="watch_completed">Completed</string>
+    <string name="watch_planned">Planned</string>
+    <string name="watch_dropped">Dropped</string>
+    <string name="watch_paused">On Hold</string>
+    <string name="watch_repeating">Rewatching</string>
+
+    <!-- ── Detail hero counters ── -->
+    <string name="hero_count_volumes_chapters">%1$d Vols/Chs</string>
+    <string name="hero_count_episodes">%1$d Episodes</string>
+    <string name="hero_count_no_volumes">- Vols</string>
+    <string name="hero_count_no_episodes">- Eps</string>
+    <string name="hero_airing_soon">Airing soon: %1$s</string>
+    <string name="cd_airing_soon">Upcoming airing</string>
+    <string name="recommendation_similar">Similar work</string>
+
+    <!-- ── Explore sort options ── -->
+    <string name="sort_score_desc">Score: High to Low</string>
+    <string name="sort_score_asc">Score: Low to High</string>
+    <string name="sort_popularity_desc">Popularity: Most Followed</string>
+    <string name="sort_year_desc">Year: Newest First</string>
+    <string name="sort_year_asc">Year: Oldest First</string>
+
+    <!-- ── Explore genre chips ── -->
+    <string name="genre_drama">Drama</string>
+    <string name="genre_action">Action</string>
+    <string name="genre_romance">Romance</string>
+    <string name="genre_comedy">Comedy</string>
+    <string name="genre_fantasy">Fantasy</string>
+    <string name="genre_scifi">Sci-Fi</string>
+    <string name="genre_mystery">Mystery</string>
+    <string name="genre_horror">Horror</string>
+    <string name="genre_slice_of_life">Slice of Life</string>
+    <string name="genre_adventure">Adventure</string>
+    <string name="genre_supernatural">Supernatural</string>
+    <string name="genre_psychological">Psychological</string>
+    <string name="genre_sports">Sports</string>
+    <string name="genre_thriller">Thriller</string>
+    <string name="genre_mecha">Mecha</string>
+    <string name="genre_music">Music</string>
+    <string name="genre_historical">Historical</string>
+    <string name="genre_military">Military / War</string>
+    <string name="genre_school">School</string>
+
+    <string name="studio_page_load_failed">Couldn't load studio details.</string>
+    <string name="detail_watch">Watch</string>
+    <string name="detail_section_genres">Genres</string>
+    <string name="detail_info_header">Details</string>
+    <string name="detail_stat_rank">Score Rank</string>
+    <string name="detail_stat_votes">Votes</string>
+    <string name="detail_stat_popularity">Popularity Rank</string>
+    <string name="detail_date_start">Start</string>
+    <string name="detail_date_end">End</string>
+    <string name="detail_synopsis_loading">Loading description...</string>
+    <string name="detail_synopsis_error">Couldn\'t load description.</string>
+    <string name="detail_external_link">External Link</string>
+    <string name="detail_info_status">Status</string>
+    <string name="detail_info_season">Season</string>
+    <string name="detail_info_source">Source</string>
+    <string name="detail_info_studio">Studio</string>
+    <string name="detail_info_duration">Duration</string>
+    <string name="detail_info_broadcast">Broadcast</string>
+    <string name="detail_info_rating">Age Rating</string>
+    <string name="detail_info_english">English</string>
+    <string name="detail_info_japanese">Japanese</string>
+    <string name="detail_info_aliases">Other Names</string>
+    <string name="detail_match_manga">MATCHED MANGA</string>
+    <string name="detail_disconnect">Disconnect</string>
+    <string name="detail_rematch">Rematch</string>
+    <string name="detail_manga_unmatched">No manga match found. Tap the Read button and pair a source to start reading.</string>
+    <string name="detail_stat_score">Score</string>
+    <string name="detail_stat_followers">Followers</string>
+    <string name="detail_info_year">Year</string>
+    <string name="detail_synopsis_none">No description found.</string>
+    <string name="detail_trailer_tap">Tap to watch the trailer</string>
+    <string name="detail_openings">Openings</string>
+    <string name="detail_endings">Endings</string>
+    <string name="detail_ratings_loading">Loading ratings...</string>
 </resources>

@@ -76,6 +76,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import coil3.compose.AsyncImage
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
+import com.kitsugi.animelist.ui.utils.labelRes
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -269,8 +272,17 @@ fun MediaEntryDetailPage(
     val isAnime = displayEntry.type == MediaType.Anime
     val hasTvEpisodes = isAnime || displayEntry.type == MediaType.TvShow
     val tabs = buildList {
-        addAll(listOf("Bilgi", "Resimler", "Karakterler", "Ekip", "Öneriler", "İlişkiler", "Grafikler", "Yorumlar"))
-        if (hasTvEpisodes) add("Bölümler")
+        addAll(listOf(
+            stringResource(R.string.detail_tab_info),
+            stringResource(R.string.detail_tab_images),
+            stringResource(R.string.detail_tab_characters),
+            stringResource(R.string.detail_tab_staff),
+            stringResource(R.string.detail_tab_recommendations),
+            stringResource(R.string.detail_tab_relations),
+            stringResource(R.string.detail_tab_charts),
+            stringResource(R.string.detail_tab_reviews)
+        ))
+        if (hasTvEpisodes) add(stringResource(R.string.tv_detail_episodes))
     }
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { tabs.size })
     val selectedTab = pagerState.currentPage
@@ -515,7 +527,7 @@ fun MediaEntryDetailPage(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = if (galleryLoading) "Resimler yükleniyor..." else "Görsel bulunamadı",
+                                        text = if (galleryLoading) stringResource(R.string.ui_images_loading) else stringResource(R.string.ui_no_image_available),
                                         color = KitsugiColors.TextMuted,
                                         style = MaterialTheme.typography.bodyMedium
                                     )
@@ -526,12 +538,7 @@ fun MediaEntryDetailPage(
                     2 -> CharactersTabContent(state = charactersState, onCharacterClick = onCharacterClick, onStaffClick = onStaffClick, onMediaClick = onMediaClick, titleLanguage = titleLanguage)
                     3 -> StaffTabContent(state = staffState, onStaffClick = onStaffClick, titleLanguage = titleLanguage)
                     4 -> RecommendationsTabContent(state = recommendationsState, titleLanguage = titleLanguage, blurAdultMedia = blurAdultMedia, onRecommendationClick = { rel ->
-                        val typeLabel = when (rel.mediaType) {
-                            MediaType.Anime -> "Anime"
-                            MediaType.Movie -> "Film"
-                            MediaType.TvShow -> "Dizi"
-                            MediaType.Manga -> "Manga"
-                        }
+                        val typeLabel = context.getString(rel.mediaType.labelRes())
                         onRelationClick(JikanSearchResult(
                             malId = rel.malId,
                             title = rel.title,
@@ -548,12 +555,7 @@ fun MediaEntryDetailPage(
                         ))
                     })
                     5 -> RelationsTabContent(state = relationsState, titleLanguage = titleLanguage, blurAdultMedia = blurAdultMedia, onRelationClick = { rel ->
-                        val typeLabel = when (rel.mediaType) {
-                            MediaType.Anime -> "Anime"
-                            MediaType.Movie -> "Film"
-                            MediaType.TvShow -> "Dizi"
-                            MediaType.Manga -> "Manga"
-                        }
+                        val typeLabel = context.getString(rel.mediaType.labelRes())
                         onRelationClick(JikanSearchResult(
                             malId = rel.malId,
                             title = rel.title,

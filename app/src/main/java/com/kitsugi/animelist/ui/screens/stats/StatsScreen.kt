@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.screens.stats
 
+import com.kitsugi.animelist.ui.utils.plainLabel
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
 
@@ -160,7 +161,7 @@ fun StatsScreen(
                                 KitsugiDonutChart(
                                     segments = uiState.animeStatusStats.map { stat ->
                                         DonutSegment(
-                                            label = stat.status.label,
+                                            label = stat.status.plainLabel(),
                                             count = stat.count,
                                             color = statusColor(stat.status)
                                         )
@@ -172,7 +173,7 @@ fun StatsScreen(
                                 Column(modifier = Modifier.weight(1f)) {
                                     uiState.animeStatusStats.forEach { stat ->
                                         StatsLegendRow(
-                                            label = stat.status.label,
+                                            label = stat.status.plainLabel(),
                                             count = stat.count,
                                             color = statusColor(stat.status)
                                         )
@@ -219,7 +220,7 @@ fun StatsScreen(
                                 KitsugiDonutChart(
                                     segments = uiState.mangaStatusStats.map { stat ->
                                         DonutSegment(
-                                            label = stat.status.label,
+                                            label = stat.status.plainLabel(),
                                             count = stat.count,
                                             color = statusColor(stat.status)
                                         )
@@ -231,7 +232,7 @@ fun StatsScreen(
                                 Column(modifier = Modifier.weight(1f)) {
                                     uiState.mangaStatusStats.forEach { stat ->
                                         StatsLegendRow(
-                                            label = stat.status.label,
+                                            label = stat.status.plainLabel(),
                                             count = stat.count,
                                             color = statusColor(stat.status)
                                         )

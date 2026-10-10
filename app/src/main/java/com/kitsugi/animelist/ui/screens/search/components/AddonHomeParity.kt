@@ -22,18 +22,21 @@ internal fun TvType?.toAddonMediaType(): MediaType = when (this) {
     else -> MediaType.Anime
 }
 
-/** CS3 TvType → Türkçe alt başlık etiketi (ana sayfa kart alt yazılarıyla aynı dil). */
-internal fun TvType?.toAddonTypeLabel(): String = when (this) {
-    TvType.Movie, TvType.AnimeMovie -> "Film"
-    TvType.TvSeries -> "Dizi"
-    TvType.Anime -> "Anime"
-    TvType.AsianDrama -> "Asya"
-    TvType.Cartoon -> "Çizgi film"
-    TvType.Documentary -> "Belgesel"
-    TvType.Live -> "Canlı"
-    TvType.OVA -> "OVA"
-    null -> "Video"
-    else -> "Video"
+/** CS3 TvType → uygulama diline göre alt başlık etiketi (ana sayfa kart alt yazılarıyla aynı dil). */
+internal fun TvType?.toAddonTypeLabel(): String {
+    val tr = com.kitsugi.animelist.utils.isTurkish()
+    return when (this) {
+        TvType.Movie, TvType.AnimeMovie -> if (tr) "Film" else "Movie"
+        TvType.TvSeries -> if (tr) "Dizi" else "TV Series"
+        TvType.Anime -> "Anime"
+        TvType.AsianDrama -> if (tr) "Asya" else "Asian Drama"
+        TvType.Cartoon -> if (tr) "Çizgi film" else "Cartoon"
+        TvType.Documentary -> if (tr) "Belgesel" else "Documentary"
+        TvType.Live -> if (tr) "Canlı" else "Live"
+        TvType.OVA -> "OVA"
+        null -> "Video"
+        else -> "Video"
+    }
 }
 
 /**
@@ -79,8 +82,8 @@ internal fun SearchResponse.toAddonSearchResult(): JikanSearchResult {
  * sayfalarındaki çip diliyle birebir aynı (StudioTypeFilter aynı görsel sözleşmeyi taşır).
  */
 internal val ADDON_TYPE_FILTERS: List<StudioTypeFilter> = listOf(
-    StudioTypeFilter("ALL", "✨", "Tümü"),
-    StudioTypeFilter("ANIME", "🎌", "Anime"),
-    StudioTypeFilter("MOVIE", "🎥", "Film"),
-    StudioTypeFilter("TV", "📺", "Dizi")
+    StudioTypeFilter("ALL", "✨", com.kitsugi.animelist.R.string.studio_type_all),
+    StudioTypeFilter("ANIME", "🎌", com.kitsugi.animelist.R.string.studio_type_anime),
+    StudioTypeFilter("MOVIE", "🎥", com.kitsugi.animelist.R.string.studio_type_movie),
+    StudioTypeFilter("TV", "📺", com.kitsugi.animelist.R.string.studio_type_tv)
 )

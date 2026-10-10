@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.components
 
+import com.kitsugi.animelist.ui.utils.localizedLabel
 import com.kitsugi.animelist.ui.theme.gradient.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -294,13 +295,13 @@ private fun StatusBadge(
         if (showIconOnly) {
             Icon(
                 imageVector = icon,
-                contentDescription = status.label,
+                contentDescription = status.localizedLabel(),
                 tint = Color.White,
                 modifier = Modifier.size(10.dp)
             )
         } else {
             Text(
-                text = status.label,
+                text = status.localizedLabel(),
                 color = Color.White,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.ExtraBold,

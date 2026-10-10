@@ -206,9 +206,9 @@ internal fun ApiHero(
                 ApiDetailPill(
                     text = when (result.type) {
                         MediaType.Anime -> "ANIME"
-                        MediaType.Manga -> "MANGA"
-                        MediaType.Movie -> "FİLM"
-                        MediaType.TvShow -> "DİZİ"
+                        MediaType.Manga -> stringResource(R.string.media_type_manga).uppercase()
+                        MediaType.Movie -> stringResource(R.string.media_type_movie).uppercase()
+                        MediaType.TvShow -> stringResource(R.string.media_type_tv).uppercase()
                     },
                     color = accentColor
                 )
@@ -274,18 +274,18 @@ internal fun ApiStatsGrid(
         maxItemsInEachRow = 3
     ) {
         ApiMiniStatCard(
-            label = "Tür",
+            label = stringResource(R.string.gallery_field_type),
             value = when (result.type) {
-                MediaType.Anime -> "ANİME"
-                MediaType.Manga -> "MANGA"
-                MediaType.Movie -> "FİLM"
-                MediaType.TvShow -> "DİZİ"
+                MediaType.Anime -> stringResource(R.string.media_type_anime).uppercase()
+                MediaType.Manga -> stringResource(R.string.media_type_manga).uppercase()
+                MediaType.Movie -> stringResource(R.string.media_type_movie).uppercase()
+                MediaType.TvShow -> stringResource(R.string.media_type_tv).uppercase()
             },
             modifier = Modifier.weight(1f)
         )
 
         ApiMiniStatCard(
-            label = "Kaynak",
+            label = stringResource(R.string.detail_info_source),
             value = result.source.toFriendlySourceLabel().uppercase(),
             modifier = Modifier.weight(1f)
         )
@@ -297,7 +297,7 @@ internal fun ApiStatsGrid(
         )
 
         ApiMiniStatCard(
-            label = "Yıl",
+            label = stringResource(R.string.detail_info_year),
             value = result.year?.toString() ?: stringResource(R.string.label_unknown),
             modifier = Modifier.weight(1f)
         )
@@ -374,7 +374,7 @@ internal fun ApiSynopsisCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Açıklama",
+                text = stringResource(R.string.inline_description_6f80065),
                 color = KitsugiColors.TextPrimary,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
@@ -386,7 +386,7 @@ internal fun ApiSynopsisCard(
                 IconButton(onClick = onTranslateClick) {
                     Icon(
                         imageVector = Icons.Rounded.Translate,
-                        contentDescription = "Çevir",
+                        contentDescription = stringResource(R.string.action_translate),
                         tint = LocalKitsugiAccent.current
                     )
                 }
@@ -406,8 +406,8 @@ internal fun ApiSynopsisCard(
 
         if (isLoading || synopsis.isNullOrBlank()) {
             val text = when {
-                isLoading -> "Açıklama yükleniyor..."
-                else -> "Açıklama bulunamadı."
+                isLoading -> stringResource(R.string.detail_synopsis_loading)
+                else -> stringResource(R.string.detail_synopsis_none)
             }
             Text(
                 text = text,
@@ -510,7 +510,7 @@ internal fun ApiTrailerCard(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "Fragmanı izlemek için dokunun",
+                    text = stringResource(R.string.detail_trailer_tap),
                     color = KitsugiColors.TextSecondary,
                     style = MaterialTheme.typography.bodySmall
                 )
@@ -549,7 +549,7 @@ internal fun ApiGenresChipRow(
             .padding(16.dp)
     ) {
         Text(
-            text = "Türler",
+            text = stringResource(R.string.detail_section_genres),
             color = KitsugiColors.TextPrimary,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
@@ -603,7 +603,7 @@ internal fun ApiInfoSection(
                 .background(KitsugiColors.Surface)
         ) {
             Text(
-                text = "Bilgiler",
+                text = stringResource(R.string.detail_info_header),
                 color = KitsugiColors.TextPrimary,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
@@ -612,25 +612,26 @@ internal fun ApiInfoSection(
 
             val synonymNames = cleanDetailSynonyms(detail.synonyms)
             val rows = buildList {
-                if (!detail.status.isNullOrBlank()) add("Durum" to detail.status)
-                seasonMetadata.displayLabel?.let { add("Sezon" to it) }
-                if (!detail.startDate.isNullOrBlank()) add("Başlangıç" to detail.startDate)
-                if (!detail.endDate.isNullOrBlank()) add("Bitiş" to detail.endDate)
-                if (!detail.sourceMaterial.isNullOrBlank()) add("Kaynak" to detail.sourceMaterial)
+                if (!detail.status.isNullOrBlank()) add(stringResource(R.string.detail_info_status) to detail.status)
+                seasonMetadata.displayLabel?.let { add(stringResource(R.string.detail_info_season) to it) }
+                if (!detail.startDate.isNullOrBlank()) add(stringResource(R.string.detail_date_start) to detail.startDate)
+                if (!detail.endDate.isNullOrBlank()) add(stringResource(R.string.detail_date_end) to detail.endDate)
+                if (!detail.sourceMaterial.isNullOrBlank()) add(stringResource(R.string.detail_info_source) to detail.sourceMaterial)
                 if (mediaType == MediaType.Anime) {
-                    if (detail.studios.isNotEmpty()) add("Stüdyo" to detail.studios.joinToString(", ") { it.name })
-                    if (!detail.episodeDuration.isNullOrBlank()) add("Süre" to detail.episodeDuration)
-                    if (!detail.broadcast.isNullOrBlank()) add("Yayın" to detail.broadcast)
-                    if (!detail.rating.isNullOrBlank()) add("Yaş Sınırı" to detail.rating)
+                    if (detail.studios.isNotEmpty()) add(stringResource(R.string.detail_info_studio) to detail.studios.joinToString(", ") { it.name })
+                    if (!detail.episodeDuration.isNullOrBlank()) add(stringResource(R.string.detail_info_duration) to detail.episodeDuration)
+                    if (!detail.broadcast.isNullOrBlank()) add(stringResource(R.string.detail_info_broadcast) to detail.broadcast)
+                    if (!detail.rating.isNullOrBlank()) add(stringResource(R.string.detail_info_rating) to detail.rating)
                 }
-                if (!detail.titleEnglish.isNullOrBlank()) add("İngilizce" to detail.titleEnglish)
-                if (!detail.titleJapanese.isNullOrBlank()) add("Japonca" to detail.titleJapanese)
-                if (synonymNames.isNotEmpty()) add("Diğer Adlar" to synonymNames.joinToString(", "))
+                if (!detail.titleEnglish.isNullOrBlank()) add(stringResource(R.string.detail_info_english) to detail.titleEnglish)
+                if (!detail.titleJapanese.isNullOrBlank()) add(stringResource(R.string.detail_info_japanese) to detail.titleJapanese)
+                val aliasesLabel = stringResource(R.string.detail_info_aliases)
+                if (synonymNames.isNotEmpty()) add(aliasesLabel to synonymNames.joinToString(", "))
             }
 
             rows.forEachIndexed { index, (label, value) ->
                 val onValueClick = if (
-                    label == "Sezon" && seasonMetadata.apiSeason != null && seasonMetadata.year != null
+                    label == stringResource(R.string.detail_info_season) && seasonMetadata.apiSeason != null && seasonMetadata.year != null
                 ) {
                     { onSeasonClick(seasonMetadata) }
                 } else {
@@ -639,7 +640,7 @@ internal fun ApiInfoSection(
                 DetailInfoValueRow(
                     label = label,
                     value = value,
-                    names = if (label == "Diğer Adlar") synonymNames else emptyList(),
+                    names = if (label == aliasesLabel) synonymNames else emptyList(),
                     onValueClick = onValueClick
                 )
                 if (index < rows.lastIndex) {
@@ -686,7 +687,7 @@ internal fun ApiThemesList(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "Açılış Müzikleri",
+                    text = stringResource(R.string.detail_openings),
                     color = KitsugiColors.TextPrimary,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
@@ -760,7 +761,7 @@ internal fun ApiThemesList(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "Kapanış Müzikleri",
+                    text = stringResource(R.string.detail_endings),
                     color = KitsugiColors.TextPrimary,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
@@ -836,7 +837,7 @@ internal fun ApiExternalLinkCard(
             .padding(16.dp)
     ) {
         Text(
-            text = "Dış Bağlantı",
+            text = stringResource(R.string.detail_external_link),
             color = KitsugiColors.TextPrimary,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
@@ -1001,7 +1002,7 @@ internal fun ApiMdbListRatingCard(
             ) {
                 KitsugiPlasmaLoader(size = 18.dp)
                 Text(
-                    text = "Puanlar yükleniyor...",
+                    text = stringResource(R.string.detail_ratings_loading),
                     color = KitsugiColors.TextMuted,
                     style = MaterialTheme.typography.bodySmall
                 )

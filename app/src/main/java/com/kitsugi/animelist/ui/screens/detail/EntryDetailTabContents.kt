@@ -43,6 +43,9 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
+import com.kitsugi.animelist.ui.utils.localizedLabel
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -125,7 +128,7 @@ internal fun EntryDetailOverviewTab(
             onCopyClick = { textToCopy ->
                 val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                 clipboard.setPrimaryClip(android.content.ClipData.newPlainText("synopsis", textToCopy))
-                android.widget.Toast.makeText(context, "Panonya kopyalandı", android.widget.Toast.LENGTH_SHORT).show()
+                android.widget.Toast.makeText(context, context.getString(R.string.toast_copied_clipboard), android.widget.Toast.LENGTH_SHORT).show()
             },
             onImageGalleryRequest = onImageGalleryRequest
         )
@@ -290,13 +293,13 @@ internal fun DetailGalleryCard(
         ) {
             Column {
                 Text(
-                    text = "Resimler",
+                    text = stringResource(R.string.detail_tab_images),
                     color = KitsugiColors.TextPrimary,
                     style = MaterialTheme.typography.titleSmall,
                     fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = "${items.size} görsel · ${availableCategories.size} kategori",
+                    text = stringResource(R.string.gallery_summary, items.size, availableCategories.size),
                     color = KitsugiColors.TextMuted,
                     style = MaterialTheme.typography.labelSmall
                 )
@@ -310,7 +313,7 @@ internal fun DetailGalleryCard(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.PhotoLibrary,
-                        contentDescription = "Galeriyi Aç",
+                        contentDescription = stringResource(R.string.cd_open_gallery),
                         tint = accentColor,
                         modifier = Modifier.size(22.dp)
                     )
@@ -330,7 +333,7 @@ internal fun DetailGalleryCard(
                             ) {
                                 Text(text = "📂", style = MaterialTheme.typography.bodyMedium)
                                 Text(
-                                    text = "Tümü (${items.size})",
+                                    text = stringResource(R.string.action_all_count, items.size),
                                     color = KitsugiColors.TextPrimary,
                                     fontWeight = FontWeight.SemiBold,
                                     style = MaterialTheme.typography.bodyMedium
@@ -357,18 +360,7 @@ internal fun DetailGalleryCard(
                             GalleryCategory.BANNER    -> "🎫"
                             GalleryCategory.OTHER     -> "📁"
                         }
-                        val label = when (category) {
-                            GalleryCategory.LOGO      -> "Logo"
-                            GalleryCategory.CLEARART  -> "ClearART"
-                            GalleryCategory.BACKDROP  -> "Arka Plan"
-                            GalleryCategory.POSTER    -> "Poster"
-                            GalleryCategory.SQUARE    -> "Kare Poster"
-                            GalleryCategory.CHARACTER -> "Karakter"
-                            GalleryCategory.PERSON    -> "Kişi"
-                            GalleryCategory.THUMBNAIL -> "Küçük Resim"
-                            GalleryCategory.BANNER    -> "Afiş"
-                            GalleryCategory.OTHER     -> "Diğer"
-                        }
+                        val label = category.localizedLabel()
                         DropdownMenuItem(
                             text = {
                                 Row(
@@ -433,18 +425,7 @@ internal fun DetailGalleryCard(
                         GalleryCategory.OTHER -> "📁"
                     }
 
-                    val turkishLabel = when (category) {
-                        GalleryCategory.LOGO -> "Logo"
-                        GalleryCategory.CLEARART -> "ClearART"
-                        GalleryCategory.BACKDROP -> "Arka Plan"
-                        GalleryCategory.POSTER -> "Poster"
-                        GalleryCategory.SQUARE -> "Kare Poster"
-                        GalleryCategory.CHARACTER -> "Karakter"
-                        GalleryCategory.PERSON    -> "Kişi"
-                        GalleryCategory.THUMBNAIL -> "Küçük Resim"
-                        GalleryCategory.BANNER -> "Afiş"
-                        GalleryCategory.OTHER -> "Diğer"
-                    }
+                    val turkishLabel = category.localizedLabel()
 
                     Text(
                         text = "$emoji $turkishLabel",
@@ -494,7 +475,7 @@ internal fun DetailGalleryCard(
                             ) {
                                 com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
                                     model = item.url,
-                                    contentDescription = "${item.category.label} – ${item.source}",
+                                    contentDescription = "${item.category.localizedLabel()} – ${item.source}",
                                     isAdult = isAdult,
                                     modifier = Modifier.matchParentSize(),
                                     contentScale = ContentScale.Crop
@@ -670,7 +651,7 @@ internal fun EntryDetailEpisodesTab(
                     KitsugiFullscreenPlayerActivity.startWithStreamUrls(
                         context = context,
                         videoUrl = "file://${completedDownload.localPath}",
-                        title = "${completedDownload.animeTitle} - Bölüm ${completedDownload.episode}",
+                        title = context.getString(R.string.notif_episode_title, completedDownload.animeTitle, completedDownload.episode),
                         headers = emptyMap(),
                         subtitles = emptyList()
                     )

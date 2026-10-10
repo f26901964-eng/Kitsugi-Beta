@@ -88,7 +88,7 @@ internal fun QuickActions(
     // Anime, Dizi ve Film ise İzle butonunu öne çıkar
     if (isWatchable && onWatchClick != null) {
         KitsugiDetailActionButton(
-            text = "İzle",
+            text = stringResource(R.string.detail_watch),
             icon = Icons.Rounded.PlayArrow,
             onClick = onWatchClick,
             palette = UiverseButtonPalette.Default,
@@ -138,7 +138,7 @@ internal fun QuickActions(
                     }
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "EŞLEŞEN MANGA",
+                            text = stringResource(R.string.detail_match_manga),
                             color = KitsugiColors.TextMuted,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold
@@ -174,7 +174,7 @@ internal fun QuickActions(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "Bağlantıyı Kopar",
+                            text = stringResource(R.string.detail_disconnect),
                             color = KitsugiColors.AccentRed,
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold
@@ -190,7 +190,7 @@ internal fun QuickActions(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "Yeniden Eşleştir",
+                            text = stringResource(R.string.detail_rematch),
                             color = KitsugiColors.TextPrimary,
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold
@@ -208,7 +208,7 @@ internal fun QuickActions(
                     .padding(horizontal = 16.dp, vertical = 12.dp)
             ) {
                 Text(
-                    text = "Manga eşleşmesi bulunamadı. Okumaya başlamak için Oku butonuna tıklayarak bir kaynakla eşleştirin.",
+                    text = stringResource(R.string.detail_manga_unmatched),
                     color = KitsugiColors.TextMuted,
                     style = MaterialTheme.typography.bodySmall,
                     lineHeight = 16.sp
@@ -238,14 +238,14 @@ internal fun QuickActions(
         )
 
         ActionButton(
-            text = if (entry.isFavorite) "Favoriden Çıkar" else "Favori Yap",
+            text = if (entry.isFavorite) stringResource(R.string.action_favourite_remove) else stringResource(R.string.action_favourite_add),
             primary = false,
             modifier = btnModifier,
             onClick = onToggleFavoriteClick
         )
 
         ActionButton(
-            text = "Düzenle",
+            text = stringResource(R.string.inline_edit_525fd6f),
             primary = false,
             modifier = btnModifier,
             onClick = onEditClick
@@ -253,7 +253,7 @@ internal fun QuickActions(
 
         if (externalUrl != null) {
             ActionButton(
-                text = "Kaynakta Aç",
+                text = stringResource(R.string.inline_open_at_source_c8f634f),
                 primary = false,
                 modifier = btnModifier,
                 onClick = onOpenExternalClick
@@ -323,13 +323,13 @@ internal fun MainStatsGrid(
         maxItemsInEachRow = 3
     ) {
         MiniStatCard(
-            label = "Puan",
+            label = stringResource(R.string.detail_stat_score),
             value = entry.getDisplayScore(scoreFormat, hideScores),
             modifier = Modifier.weight(1f)
         )
 
         MiniStatCard(
-            label = "İlerleme",
+            label = stringResource(R.string.inline_progress_6f1bbec),
             value = entryProgressText(entry),
             modifier = Modifier.weight(1f)
         )
@@ -399,7 +399,7 @@ internal fun DetailOverviewStatsCard(
             .padding(16.dp)
     ) {
         Text(
-            text = "İstatistikler",
+            text = stringResource(R.string.inline_statistics_00df100),
             color = KitsugiColors.TextPrimary,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
@@ -413,28 +413,28 @@ internal fun DetailOverviewStatsCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             StatOverviewItem(
-                label = "Puan Sırası",
+                label = stringResource(R.string.detail_stat_rank),
                 value = rank?.let { "#$it" } ?: stringResource(R.string.label_unknown),
                 accentColor = LocalKitsugiAccent.current,
                 modifier = Modifier.weight(1f)
             )
 
             StatOverviewItem(
-                label = "Oy Sayısı",
+                label = stringResource(R.string.detail_stat_votes),
                 value = scoredBy?.let { formatCompactNumber(it) } ?: stringResource(R.string.label_unknown),
                 accentColor = KitsugiColors.AccentGreen,
                 modifier = Modifier.weight(1f)
             )
 
             StatOverviewItem(
-                label = "Takip Edenler",
+                label = stringResource(R.string.detail_stat_followers),
                 value = members?.let { formatCompactNumber(it) } ?: stringResource(R.string.label_unknown),
                 accentColor = KitsugiColors.AccentBlue,
                 modifier = Modifier.weight(1f)
             )
 
             StatOverviewItem(
-                label = "Popülerlik Sırası",
+                label = stringResource(R.string.detail_stat_popularity),
                 value = popularityRank?.let { "#$it" } ?: stringResource(R.string.label_unknown),
                 accentColor = KitsugiColors.AccentOrange,
                 modifier = Modifier.weight(1f)
@@ -502,13 +502,13 @@ internal fun DateInfoCard(
             horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
             DateMiniBox(
-                label = "Başlangıç",
+                label = stringResource(R.string.detail_date_start),
                 value = entry.startDate ?: stringResource(R.string.label_unknown),
                 modifier = Modifier.weight(1f)
             )
 
             DateMiniBox(
-                label = "Bitiş",
+                label = stringResource(R.string.detail_date_end),
                 value = entry.endDate ?: stringResource(R.string.label_unknown),
                 modifier = Modifier.weight(1f)
             )
@@ -553,8 +553,9 @@ internal fun DetailSynopsisCard(
     onTranslateClick: ((String) -> Unit)? = null,
     onCopyClick: ((String) -> Unit)? = null,
     onImageGalleryRequest: ((urls: List<String>, index: Int) -> Unit)? = null,
-    title: String = "Açıklama"
+    title: String? = null
 ) {
+    val resolvedTitle = title ?: stringResource(R.string.inline_description_6f80065)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -568,7 +569,7 @@ internal fun DetailSynopsisCard(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = title,
+                text = resolvedTitle,
                 color = KitsugiColors.TextPrimary,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
@@ -583,7 +584,7 @@ internal fun DetailSynopsisCard(
                 IconButton(onClick = { onTranslateClick(originalText) }) {
                     Icon(
                         imageVector = Icons.Rounded.Translate,
-                        contentDescription = "Çevir",
+                        contentDescription = stringResource(R.string.action_translate),
                         tint = accent
                     )
                 }
@@ -664,8 +665,8 @@ internal fun DetailSynopsisCard(
             }
         } else {
             val text = when (synopsisState) {
-                SynopsisState.Loading -> "Açıklama yükleniyor..."
-                SynopsisState.Error -> "Açıklama alınamadı."
+                SynopsisState.Loading -> stringResource(R.string.detail_synopsis_loading)
+                SynopsisState.Error -> stringResource(R.string.detail_synopsis_error)
                 else -> ""
             }
             Text(
@@ -689,7 +690,7 @@ internal fun DetailExternalLinkCard(
             .padding(16.dp)
     ) {
         Text(
-            text = "Dış Bağlantı",
+            text = stringResource(R.string.detail_external_link),
             color = KitsugiColors.TextPrimary,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
@@ -720,7 +721,7 @@ internal fun EntryGenresChipRow(
             .padding(16.dp)
     ) {
         Text(
-            text = "Türler",
+            text = stringResource(R.string.detail_section_genres),
             color = KitsugiColors.TextPrimary,
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Bold
@@ -774,32 +775,34 @@ internal fun EntryInfoSection(
                 .background(KitsugiColors.Surface)
         ) {
             Text(
-                text = "Bilgiler",
+                text = stringResource(R.string.detail_info_header),
                 color = KitsugiColors.TextPrimary,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 8.dp)
             )
             val synonymNames = cleanDetailSynonyms(detail.synonyms)
+            val seasonLabel = stringResource(R.string.detail_info_season)
+            val aliasesLabel = stringResource(R.string.detail_info_aliases)
             val rows = buildList {
-                if (!detail.status.isNullOrBlank()) add("Durum" to detail.status)
-                seasonMetadata.displayLabel?.let { add("Sezon" to it) }
-                if (!detail.startDate.isNullOrBlank()) add("Başlangıç" to detail.startDate)
-                if (!detail.endDate.isNullOrBlank()) add("Bitiş" to detail.endDate)
-                if (!detail.sourceMaterial.isNullOrBlank()) add("Kaynak" to detail.sourceMaterial)
+                if (!detail.status.isNullOrBlank()) add(stringResource(R.string.detail_info_status) to detail.status)
+                seasonMetadata.displayLabel?.let { add(seasonLabel to it) }
+                if (!detail.startDate.isNullOrBlank()) add(stringResource(R.string.detail_date_start) to detail.startDate)
+                if (!detail.endDate.isNullOrBlank()) add(stringResource(R.string.detail_date_end) to detail.endDate)
+                if (!detail.sourceMaterial.isNullOrBlank()) add(stringResource(R.string.detail_info_source) to detail.sourceMaterial)
                 if (mediaType == MediaType.Anime) {
-                    if (detail.studios.isNotEmpty()) add("Stüdyo" to detail.studios.joinToString(", ") { it.name })
-                    if (!detail.episodeDuration.isNullOrBlank()) add("Süre" to detail.episodeDuration)
-                    if (!detail.broadcast.isNullOrBlank()) add("Yayın" to detail.broadcast)
-                    if (!detail.rating.isNullOrBlank()) add("Yaş Sınırı" to detail.rating)
+                    if (detail.studios.isNotEmpty()) add(stringResource(R.string.detail_info_studio) to detail.studios.joinToString(", ") { it.name })
+                    if (!detail.episodeDuration.isNullOrBlank()) add(stringResource(R.string.detail_info_duration) to detail.episodeDuration)
+                    if (!detail.broadcast.isNullOrBlank()) add(stringResource(R.string.detail_info_broadcast) to detail.broadcast)
+                    if (!detail.rating.isNullOrBlank()) add(stringResource(R.string.detail_info_rating) to detail.rating)
                 }
-                if (!detail.titleEnglish.isNullOrBlank()) add("İngilizce" to detail.titleEnglish)
-                if (!detail.titleJapanese.isNullOrBlank()) add("Japonca" to detail.titleJapanese)
-                if (synonymNames.isNotEmpty()) add("Diğer Adlar" to synonymNames.joinToString(", "))
+                if (!detail.titleEnglish.isNullOrBlank()) add(stringResource(R.string.detail_info_english) to detail.titleEnglish)
+                if (!detail.titleJapanese.isNullOrBlank()) add(stringResource(R.string.detail_info_japanese) to detail.titleJapanese)
+                if (synonymNames.isNotEmpty()) add(aliasesLabel to synonymNames.joinToString(", "))
             }
             rows.forEachIndexed { index, (label, value) ->
                 val onValueClick: (() -> Unit)? = if (
-                    label == "Sezon" && seasonMetadata.apiSeason != null && seasonMetadata.year != null
+                    label == seasonLabel && seasonMetadata.apiSeason != null && seasonMetadata.year != null
                 ) {
                     { onSeasonClick(seasonMetadata) }
                 } else {
@@ -808,7 +811,7 @@ internal fun EntryInfoSection(
                 DetailInfoValueRow(
                     label = label,
                     value = value,
-                    names = if (label == "Diğer Adlar") synonymNames else emptyList(),
+                    names = if (label == aliasesLabel) synonymNames else emptyList(),
                     onValueClick = onValueClick
                 )
                 if (index < rows.lastIndex) {
