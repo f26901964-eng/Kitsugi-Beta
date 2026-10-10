@@ -1021,12 +1021,6 @@
     <string name="settings_notif_interval_desc">Arka planda yapılacak bildirim kontrollerinin sıklığını belirleyin</string>
     <string name="settings_notif_interval_sheet">Kontrol Sıklığı</string>
 
-    <!-- Bangumi bildirim notları (sync bloğu öncesi) -->
-    <string name="notif_bangumi_in_list">Bangumi izleme listesinde (在看)</string>
-    <string name="notif_login_required_bangumi">Bangumi\'ye giriş yapmanız gerekiyor</string>
-    <string name="notif_notice_bangumi_feed">Bangumi\'nin genel API\'sinde bildirim ucu yoktur; bu liste izleme listeniz (在看) ve yayın takvimi eşleşmesidir. %1$d izlenen yapım • %2$d yayın eşleşmesi.</string>
-    <string name="notif_notice_bangumi_no_list">Bangumi izleme listenizde (在看) kayıt bulunmuyor.</string>
-    <string name="notif_notice_bangumi_not_connected">Bangumi hesabı bağlı değil; yalnızca yerel kayıtlar gösteriliyor. Bangumi\'nin genel API\'sinde bildirim ucu yoktur.</string>
 
     <!-- Oynatıcı Genel Sekmesi (TR) -->
     <string name="player_engine_internal_exo">Dahili Oynatıcı (ExoPlayer)</string>

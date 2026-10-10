@@ -1021,12 +1021,6 @@
     <string name="settings_notif_interval_desc">Set how often notifications are checked in the background</string>
     <string name="settings_notif_interval_sheet">Check Frequency</string>
 
-    <!-- Bangumi bildirim notları (sync bloğu öncesi) -->
-    <string name="notif_bangumi_in_list">In your Bangumi watch list (在看)</string>
-    <string name="notif_login_required_bangumi">You need to log in to Bangumi</string>
-    <string name="notif_notice_bangumi_feed">Bangumi\'s public API has no notification endpoint; this list is your watch list (在看) matched against the airing calendar. %1$d watched works • %2$d airing matches.</string>
-    <string name="notif_notice_bangumi_no_list">Your Bangumi watch list (在看) is empty.</string>
-    <string name="notif_notice_bangumi_not_connected">No Bangumi account connected; only local entries are shown. Bangumi\'s public API has no notification endpoint.</string>
 
     <!-- Oynatıcı Genel Sekmesi (EN) -->
     <string name="player_engine_internal_exo">Internal Player (ExoPlayer)</string>
