@@ -17,8 +17,9 @@ class KitsugiStudioClient {
         name: String? = null
     ): KitsugiStudioDetail? {
         return withContext(Dispatchers.IO) {
-            if (studioId <= 0) return@withContext null
-            when (StudioSourceSupport.canonicalSource(source)) {
+            if (studioId <= 0 && name.isNullOrBlank()) return@withContext null
+            val canonicalSource = StudioSourceSupport.canonicalSource(source)
+            val primary = when (canonicalSource) {
                 "jikan", "mal" -> {
                     val byId = fetchJikanStudioDetail(studioId)
                     // A producer ID from one namespace must never silently resolve to a different
@@ -56,7 +57,56 @@ class KitsugiStudioClient {
                 }
                 else -> null
             }
+
+            // ── Sağlayıcılar arası isim kurtarması ───────────────────────────
+            // Stüdyo/şirket kimlikleri sağlayıcıya özgüdür: kimlik uzayı çözülen
+            // kaynakla uyuşmayan çipler (Simkl/Kitsu gibi stüdyo ucu olmayan
+            // kaynakların çipleri, eski önbellek satırları, çapraz zenginleştirme
+            // kalıntıları) ya hiç açılmaz ya da YANLIŞ şirketi açardı. Birincil
+            // arama boş dönerse ya da dönen ad tıklanan çiple uyuşmazsa, şirket
+            // adıyla doğru kimliği ararız (Jikan → AniList → TMDB). Birincil sonuç
+            // ad eşleşmesiyle sağlamsa hiçbir ek istek atılmaz.
+            if (name.isNullOrBlank()) {
+                primary
+            } else if (primary == null || !StudioSourceSupport.namesMatch(name, primary.name)) {
+                recoverStudioByName(name, excludeSource = canonicalSource) ?: primary
+            } else {
+                primary
+            }
         }
+    }
+
+    /**
+     * Şirket adıyla sağlayıcılar arasında doğru kimliği arar. Kimlik uzayı
+     * uyuşmazlığındaki tüm stüdyo/yapımcı çipleri için ortak kurtarma yoludur;
+     * birincil kaynağı tekrar sorgulamamak için [excludeSource] atlanır.
+     */
+    private suspend fun recoverStudioByName(name: String, excludeSource: String? = null): KitsugiStudioDetail? {
+        val trimmed = name.trim()
+        if (trimmed.isBlank()) return null
+
+        if (excludeSource != "jikan" && excludeSource != "mal") {
+            val jikanId = searchJikanProducerId(trimmed)
+            if (jikanId != null) {
+                fetchJikanStudioDetail(jikanId)
+                    ?.takeIf { StudioSourceSupport.namesMatch(trimmed, it.name) }
+                    ?.let { return it }
+            }
+        }
+        if (excludeSource != "anilist") {
+            fetchAniListStudioByName(trimmed)
+                ?.takeIf { StudioSourceSupport.namesMatch(trimmed, it.name) }
+                ?.let { return it }
+        }
+        if (excludeSource != "tmdb") {
+            val tmdbId = searchTmdbCompanyId(trimmed)
+            if (tmdbId != null) {
+                fetchTmdbStudioDetail(tmdbId)
+                    ?.takeIf { StudioSourceSupport.namesMatch(trimmed, it.name) }
+                    ?.let { return it }
+            }
+        }
+        return null
     }
 
     /**
@@ -110,6 +160,34 @@ class KitsugiStudioClient {
             }
             if (names.none { StudioSourceSupport.namesMatch(expectedName, it) }) continue
             val exact = names.any { StudioSourceSupport.normalizeName(it) == expectedKey }
+            val score = if (exact) 2 else 1
+            if (score > bestScore) {
+                bestId = id
+                bestScore = score
+                if (exact) break
+            }
+        }
+        bestId
+    }.getOrNull()
+
+    /** TMDB şirket adıyla kimlik arar — kimlik uzayı uyuşmazlığında kurtarma yoludur. */
+    private suspend fun searchTmdbCompanyId(expectedName: String): Int? = runCatching {
+        val apiKey = TmdbApiClient.getActiveApiKey()
+        if (apiKey.isBlank()) return@runCatching null
+        val query = URLEncoder.encode(expectedName.trim(), "UTF-8")
+        val url = URL("https://api.themoviedb.org/3/search/company?api_key=$apiKey&query=$query")
+        val response = KitsugiApiBase.executeGetRequest(url) ?: return@runCatching null
+        val results = JSONObject(response).optJSONArray("results") ?: return@runCatching null
+        var bestId: Int? = null
+        var bestScore = 0
+        val expectedKey = StudioSourceSupport.normalizeName(expectedName)
+
+        for (index in 0 until results.length()) {
+            val item = results.optJSONObject(index) ?: continue
+            val id = item.optInt("id").takeIf { it > 0 } ?: continue
+            val companyName = item.optNullableString("name") ?: continue
+            if (!StudioSourceSupport.namesMatch(expectedName, companyName)) continue
+            val exact = StudioSourceSupport.normalizeName(companyName) == expectedKey
             val score = if (exact) 2 else 1
             if (score > bestScore) {
                 bestId = id

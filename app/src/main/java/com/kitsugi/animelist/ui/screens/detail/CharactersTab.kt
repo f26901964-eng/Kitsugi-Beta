@@ -29,9 +29,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.RecordVoiceOver
+import androidx.compose.runtime.LaunchedEffect
+import com.kitsugi.animelist.data.remote.DetailCache
+import com.kitsugi.animelist.data.remote.KitsugiCharacterClient
+import com.kitsugi.animelist.data.remote.KitsugiVoiceActor
 import com.kitsugi.animelist.ui.components.KitsugiSheetOrDialog
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
@@ -48,6 +53,48 @@ fun CharactersTabContent(
     titleLanguage: String = "ROMAJI"
 ) {
     var selectedCharacterForVoiceActors by remember { mutableStateOf<KitsugiCharacter?>(null) }
+    // Seslendirmen sheet'i: liste düzeyindeki veri çoğu kaynakta tek seslendirmen taşır
+    // (Jikan/MAL yalnızca Japonca, TMDB yalnızca oyuncu). Karakter detay sayfasının
+    // gösterdiği TAM çok-dilli listeyi burada da göstermek için açılışta zenginleştirilir.
+    var sheetVoiceActors by remember { mutableStateOf<List<KitsugiVoiceActor>>(emptyList()) }
+    var sheetVaLoading by remember { mutableStateOf(false) }
+    val characterClient = remember { KitsugiCharacterClient() }
+
+    LaunchedEffect(selectedCharacterForVoiceActors) {
+        val char = selectedCharacterForVoiceActors
+        if (char == null) {
+            sheetVoiceActors = emptyList()
+            sheetVaLoading = false
+            return@LaunchedEffect
+        }
+        sheetVoiceActors = char.voiceActors
+        if (char.id <= 0 || char.source.isBlank()) return@LaunchedEffect
+        sheetVaLoading = true
+        try {
+            // Önbellek sıcaksa (karakter detayı daha önce açıldıysa) tam liste anında gelir.
+            var full = DetailCache.getCharacterDetail(char.source, char.id)?.voiceActors.orEmpty()
+            if (full.isEmpty()) {
+                val detail = characterClient.fetchCharacterDetail(char.source, char.id, char.name)
+                if (detail != null) {
+                    DetailCache.putCharacterDetail(char.source, char.id, detail)
+                    full = detail.voiceActors
+                }
+            }
+            if (full.size > sheetVoiceActors.size) {
+                sheetVoiceActors = full.map { va ->
+                    va.copy(
+                        name = displayPersonName(
+                            va.name, va.romanizedName, va.nativeName, titleLanguage, va.englishName
+                        )
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("CharactersTab", "Seslendirmen listesi zenginleştirilemedi: ${e.message}")
+        } finally {
+            sheetVaLoading = false
+        }
+    }
 
     when (state) {
         is DetailTabState.Loading -> {
@@ -101,7 +148,10 @@ fun CharactersTabContent(
                                             char = char,
                                             onCharacterClick = onCharacterClick,
                                             onVoiceActorClick = { va -> onStaffClick(va.id, va.source, va.name, va.imageUrl) },
-                                            onShowVoiceActors = { selectedCharacterForVoiceActors = it }
+                                            onShowVoiceActors = { char ->
+                                                sheetVoiceActors = char.voiceActors
+                                                selectedCharacterForVoiceActors = char
+                                            }
                                         )
                                     }
                                 }
@@ -122,7 +172,10 @@ fun CharactersTabContent(
                                 char = char,
                                 onCharacterClick = onCharacterClick,
                                 onVoiceActorClick = { va -> onStaffClick(va.id, va.source, va.name, va.imageUrl) },
-                                onShowVoiceActors = { selectedCharacterForVoiceActors = it }
+                                onShowVoiceActors = { char ->
+                                    sheetVoiceActors = char.voiceActors
+                                    selectedCharacterForVoiceActors = char
+                                }
                             )
                         }
                     }
@@ -153,8 +206,8 @@ fun CharactersTabContent(
                     .padding(horizontal = 24.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(character.voiceActors.size) { index ->
-                    val va = character.voiceActors[index]
+                items(sheetVoiceActors.size) { index ->
+                    val va = sheetVoiceActors[index]
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -204,6 +257,21 @@ fun CharactersTabContent(
                                 color = KitsugiColors.TextMuted,
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+                // Tam çok-dilli liste arka planda yüklenirken küçük bir gösterge.
+                if (sheetVaLoading) {
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(22.dp),
+                                strokeWidth = 2.dp,
+                                color = KitsugiColors.TextMuted
                             )
                         }
                     }

@@ -859,6 +859,10 @@ class KitsugiDetailClient {
             // ks1: bozuk Kitsu özetleri temizlenmeye başlandı (KitsuSynopsisValidator).
             // Eski satırlar bozuk özet taşıyabileceği için yeni anahtar kullanılır.
             source.equals("kitsu", ignoreCase = true) -> "${base}_ks1"
+            // sm1: eski Simkl satırları stüdyo/yapımcı çiplerini kaynaksız (source="")
+            // saklıyordu; çip tıklaması yanlış kimlik uzayına (Jikan/MAL) çözülüp şirket
+            // sayfaları açılmıyordu. Yeni anahtar detayı kaynak etiketli çiplerle yeniden çeker.
+            source.equals("simkl", ignoreCase = true) -> "${base}_sm1"
             MediaTitleResolver.isLatinPreferredSource(source) -> "${base}_vl${MediaTitleResolver.VERSION}"
             else -> base
         }
