@@ -124,12 +124,39 @@ private class AccentAwareBackgroundNode(
     var color: Color,
     var shape: Shape
 ) : Modifier.Node(), DrawModifierNode, CompositionLocalConsumerModifierNode {
+    // PERF: fırça çözümünü her çizimde tekrarlamak yerine girdiler değişene kadar
+    // önbellekte tut. (Gradyan aktif değilken çözüm zaten null döner; yine de
+    // yüzlerce kart × kare başına tekrarlanan çağrıları sıfırlıyoruz.)
+    private var cachedInputColor = Color.Unspecified
+    private var cachedAccent = Color.Unspecified
+    private var cachedAccent2: Color? = Color.Unspecified
+    private var cachedAngle = Float.NaN
+    private var cachedBrush: Brush? = null
+    private var cacheValid = false
+
     override fun ContentDrawScope.draw() {
         if (color != Color.Unspecified && color.alpha > 0f) {
             val accent = currentValueOf(LocalKitsugiAccent)
             val accent2 = currentValueOf(LocalKitsugiAccent2)
             val angle = currentValueOf(LocalKitsugiAccentAngle)
-            val brush = resolveAccentBrush(color, accent, accent2, angle)
+            val brush = if (
+                cacheValid &&
+                color == cachedInputColor &&
+                accent == cachedAccent &&
+                accent2 == cachedAccent2 &&
+                angle == cachedAngle
+            ) {
+                cachedBrush
+            } else {
+                val resolved = resolveAccentBrush(color, accent, accent2, angle)
+                cachedInputColor = color
+                cachedAccent = accent
+                cachedAccent2 = accent2
+                cachedAngle = angle
+                cachedBrush = resolved
+                cacheValid = true
+                resolved
+            }
             if (shape === RectangleShape) {
                 if (brush != null) {
                     drawRect(brush = brush)
@@ -196,6 +223,15 @@ private class AccentAwareBorderNode(
     var brush: Brush?,
     var shape: Shape
 ) : Modifier.Node(), DrawModifierNode, CompositionLocalConsumerModifierNode {
+    // PERF: bkz. AccentAwareBackgroundNode — aynı girdiyle her karede yeniden
+    // fırça çözmek yerine sonucu önbellekle.
+    private var cachedInputColor = Color.Unspecified
+    private var cachedAccent = Color.Unspecified
+    private var cachedAccent2: Color? = Color.Unspecified
+    private var cachedAngle = Float.NaN
+    private var cachedResolvedBrush: Brush? = null
+    private var cacheValid = false
+
     override fun ContentDrawScope.draw() {
         drawContent()
         if (width <= 0.dp || size.minDimension <= 0f) return
@@ -204,7 +240,24 @@ private class AccentAwareBorderNode(
             val accent = currentValueOf(LocalKitsugiAccent)
             val accent2 = currentValueOf(LocalKitsugiAccent2)
             val angle = currentValueOf(LocalKitsugiAccentAngle)
-            resolveAccentBrush(color, accent, accent2, angle)
+            if (
+                cacheValid &&
+                color == cachedInputColor &&
+                accent == cachedAccent &&
+                accent2 == cachedAccent2 &&
+                angle == cachedAngle
+            ) {
+                cachedResolvedBrush
+            } else {
+                val resolved = resolveAccentBrush(color, accent, accent2, angle)
+                cachedInputColor = color
+                cachedAccent = accent
+                cachedAccent2 = accent2
+                cachedAngle = angle
+                cachedResolvedBrush = resolved
+                cacheValid = true
+                resolved
+            }
         }
         val strokePx = width.toPx().coerceAtMost(size.minDimension / 2f)
         if (strokePx <= 0f) return

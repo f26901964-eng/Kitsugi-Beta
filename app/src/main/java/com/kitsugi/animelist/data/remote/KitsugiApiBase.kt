@@ -114,8 +114,19 @@ object KitsugiApiBase {
     // istekler arası minimum 700ms ve aynı anda tek istek (Mutex) uygulanır.
     private const val ANILIST_MIN_INTERVAL_MS = 700L
     private const val ANILIST_MAX_RETRIES = 3
+    // 429 sonrası global bekleme üst sınırı: Retry-After değeri ne olursa olsun
+    // cooldown en fazla bu kadar uzar; süre dolmadan yeni AniList isteği gönderilmez.
+    private const val ANILIST_RATE_LIMIT_COOLDOWN_CAP_MS = 30_000L
     private val aniListMutex = Mutex()
     private var lastAniListRequestTime: Long = 0L
+
+    // 429 alındığında Retry-After süresince TÜM AniList sorgularını ağa hiç
+    // çıkmadan fail-fast yapar. Logcat (2026-10-10 22:51–22:58) gösterdi ki
+    // cooldown olmadan her sorgu (RetryInterceptor 2 retry × bu katman 3 retry)
+    // 429 duvarına çarpıp 10-15 sn'lik retry zincirleri üretiyordu; arka planda
+    // sürekli ağ/churn ve UI tarafında bitmeyen yükleme durumu yaratıyordu.
+    @Volatile
+    private var anilistRateLimitedUntil: Long = 0L
 
     private suspend fun waitForAniListWindow() {
         val now = System.currentTimeMillis()
@@ -287,6 +298,17 @@ object KitsugiApiBase {
      * bağlamında olduğu için imza değişikliği çağrı yerlerini bozmaz.
      */
     suspend fun executeAniListQuery(query: String, variables: JSONObject, accessToken: String? = null): String? {
+        // 429 cooldown aktifse ağa hiç çıkma; çağıran tarafa hızlıca null dön.
+        // Böylece rate-limit sırasında UI/bellek üzerinde retry fırtınası estirilmez.
+        val cooldownRemainingMs = anilistRateLimitedUntil - System.currentTimeMillis()
+        if (cooldownRemainingMs > 0L) {
+            android.util.Log.w(
+                "KitsugiApiBase",
+                "AniList 429 cooldown aktif (${cooldownRemainingMs}ms kaldı) — istek gönderilmedi"
+            )
+            return null
+        }
+
         val requestBody = JSONObject()
             .put("query", query)
             .put("variables", variables)
@@ -395,6 +417,12 @@ object KitsugiApiBase {
                         retryAfterSec != null -> retryAfterSec * 1_000L
                         resetEpoch != null -> (resetEpoch * 1_000L - System.currentTimeMillis()).coerceAtLeast(0L)
                         else -> null
+                    }
+                    if (response.code == 429) {
+                        // Global cooldown: Retry-After süresince (max 30 sn) hiçbir
+                        // AniList sorgusu ağa gönderilmez — retry fırtınasını keser.
+                        val cooldownMs = (retryAfterMs ?: 5_000L).coerceIn(5_000L, ANILIST_RATE_LIMIT_COOLDOWN_CAP_MS)
+                        anilistRateLimitedUntil = System.currentTimeMillis() + cooldownMs
                     }
                     AniListResult.Retryable(retryAfterMs)
                 } else {
