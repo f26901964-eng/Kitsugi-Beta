@@ -1,5 +1,29 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.229)
+
+### 📖 1. Manga KeiSource & OkHttp 5 Uyumluluk Onarımı (72/77 TR Eklentisi Kurtarıldı)
+- **3 Zorunlu KeiSource Interceptor'ı Eklendi:** Keiyoushi `KeiSource` tabanlı eklentilerin host istemcisinden sınıf adına göre şart koştuğu `UncaughtExceptionInterceptor`, `UserAgentInterceptor` ve `CloudflareInterceptor` sınıfları `NetworkHelper` varsayılan zincirine bağlandı. İsimsiz lambda veya sınıf uyuşmazlığı nedeniyle oluşan `IllegalStateException` ve arama/bölüm listesinin boş kalması sorunu giderildi (`NetworkHelper.kt`, `UncaughtExceptionInterceptor.kt`, `UserAgentInterceptor.kt`).
+- **OkHttp 5.4 & Brotli/Zstd Stub Uyumluluğu:** Keiyoushi lib 1.6 eklentilerinin talep ettiği `CompressionInterceptor(Brotli, Gzip, Zstd)` ve `zstd-kmp-okio` çağrıları için eksik OkHttp 5 / Zstd uyumluluk stub'ları eklendi. `NoClassDefFoundError: okhttp3.CompressionInterceptor` çökmesi engellendi (`CompressionInterceptor.kt`, `Brotli.kt`, `Zstd.kt`).
+- **ProGuard Keep Kuralları:** R8 derlemesi sırasında interceptor sınıf adlarının ve OkHttp 5 köprülerinin korunması sağlandı (`proguard-rules.pro`).
+- **Bölüm Listesi Hata Şeffaflığı:** `MihonSourceWrapper.fetchChapterList` içerisindeki hatalar artık sessizce yutulup boş liste döndürülmüyor; hata açıkça yüzeye çıkarılarak hatalı kaynak istatistikleri ve sahte "bölüm yok" durumları engellendi (`MihonSourceWrapper.kt`).
+- **Kaynak Sağlık Sorgusu Çeşitlendirmesi:** `SourceHealthService` içinde sabit tek sorgu ("one piece") yerine dile göre 3 aday arama sorgusu tanımlandı (`SourceHealthService.kt`).
+- **Uçtan Uca Doğrulama & Envanter Raporu:** 1431 eklenti, 2419 kaynak ve 93 Türkçe kaynağın incelendiği teknik rapor ve otomatik tarama script'i eklendi (`docs/audits/MANGA_KAYNAK_UCTAN_UCA_DOGRULAMA_2026-10-10.md`, `scripts/audit_manga_sources.py`).
+
+---
+
+## 🇬🇧 English (v2.4.229)
+
+### 📖 1. Manga KeiSource & OkHttp 5 Compatibility Fixes (Unblocked 72/77 TR Extensions)
+- **Added 3 Required KeiSource Interceptors:** Keiyoushi `KeiSource` extensions enforce strict class-name checks on the host client for `UncaughtExceptionInterceptor`, `UserAgentInterceptor`, and `CloudflareInterceptor`. All three are now properly provided by `NetworkHelper`, eliminating `IllegalStateException` crashes that caused silent empty search and chapter results (`NetworkHelper.kt`, `UncaughtExceptionInterceptor.kt`, `UserAgentInterceptor.kt`).
+- **OkHttp 5.4 & Brotli/Zstd Compatibility Stubs:** Added drop-in ABI-compatible stubs for `CompressionInterceptor(Brotli, Gzip, Zstd)` and `zstd-kmp-okio` APIs expected by extensionLib 1.6, preventing runtime `NoClassDefFoundError: okhttp3.CompressionInterceptor` crashes (`CompressionInterceptor.kt`, `Brotli.kt`, `Zstd.kt`).
+- **ProGuard Keep Rules:** Added ProGuard keep entries ensuring interceptor class names and OkHttp 5 bridge classes are preserved during R8 optimization (`proguard-rules.pro`).
+- **Chapter Fetch Error Transparency:** `MihonSourceWrapper.fetchChapterList` no longer swallows exceptions into an empty list, ensuring genuine error surfacing and accurate source health metrics (`MihonSourceWrapper.kt`).
+- **Localized Health Check Queries:** Enhanced `SourceHealthService` with language-specific candidate query pools instead of a hardcoded single query (`SourceHealthService.kt`).
+- **End-to-End Audit & Inventory Report:** Added comprehensive analysis and audit tooling covering 1,431 extensions, 2,419 sources, and 93 Turkish sources (`docs/audits/MANGA_KAYNAK_UCTAN_UCA_DOGRULAMA_2026-10-10.md`, `scripts/audit_manga_sources.py`).
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.228)
 
 ### ⚡ 1. Keşfet & Arama Sayfaları Performans İyileştirmeleri
