@@ -95,7 +95,7 @@ fun GridHomeContent(
                     userScrollEnabled = false,
                     modifier = Modifier.wrapContentHeight()
                 ) {
-                    itemsIndexed(results, key = { index, item -> "${item.source}_${item.malId}_$index" }) { _, item ->
+                    itemsIndexed(results, key = { _, item -> "${item.source}_${item.type}_${item.malId}_${item.tmdbId ?: 0}" }) { _, item ->
                         KitsugiExploreMediaCard(
                             result = item,
                             alreadyInList = alreadyInList(item),

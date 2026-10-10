@@ -56,8 +56,9 @@ internal fun ExplorePayload.hasCatalogContent(): Boolean = listOf(
     manhwaManhua.orEmpty(), novels.orEmpty()
 ).any { it.isNotEmpty() }
 
-/** Keep source/type/ID together: TMDB film and TV IDs can overlap. */
-internal fun JikanSearchResult.exploreIdentity(): String = "${source.lowercase()}:$type:$malId"
+/** Keep source/type/ID together: TMDB film and TV IDs can overlap, and same malId can appear with different tmdbId. */
+internal fun JikanSearchResult.exploreIdentity(): String =
+    "${source.lowercase()}:${type.name.lowercase()}:${malId}:${tmdbId ?: 0}:${cs3Url?.hashCode() ?: 0}"
 
 data class ExploreSourceSection(
     val platform: ExplorePlatform,

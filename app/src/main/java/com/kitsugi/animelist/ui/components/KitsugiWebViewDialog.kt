@@ -154,6 +154,16 @@ fun KitsugiWebViewDialog(
                                         }
                                         return super.shouldOverrideUrlLoading(view, request)
                                     }
+
+                                    // FIX: HTTP Basic Auth popup'ını engelle (MAL OAuth ve bazı eklenti sitelerinde)
+                                    override fun onReceivedHttpAuthRequest(
+                                        view: WebView?,
+                                        handler: android.webkit.HttpAuthHandler?,
+                                        host: String?,
+                                        realm: String?
+                                    ) {
+                                        handler?.cancel()
+                                    }
                                 }
                                 webChromeClient = object : WebChromeClient() {
                                     override fun onProgressChanged(view: WebView?, newProgress: Int) {

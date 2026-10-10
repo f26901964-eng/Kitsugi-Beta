@@ -232,9 +232,27 @@ fun FullScreenMediaGridPage(
     // girmeden kartlarda yaklaşan tarih görünmüyordu. Eksik `nextAiringEpisode`
     // alanları önbellekli yardımcıyla tamamlanır (AniList bölüm takvimi +
     // TMDB `next_episode_to_air`); eşleşmeyen öğeler değişmeden kalır.
+    //
+    // FIX: Eski kod `loadedResults` her değiştiğinde tüm listeyi yeniden enrich edip
+    // doğrudan `loadedResults = enriched` yapıyordu. Hızlı scroll sırasında:
+    //  1. Sayfa 1 enrich ediliyor (network)
+    //  2. Kullanıcı scroll → sayfa 2 yükleniyor → loadedResults = p1+p2
+    //  3. Sayfa 1 enrich bitiyor → loadedResults = enrich(p1) → p2 kayboluyor!
+    //  4. Tekrar loadNextPage → p2 geri geliyor → "gidip geliyor" bug'ı.
+    // Çözüm: enrich snapshot'ı al, bitince mevcut listeyle merge et (boyut büyüdüyse).
     LaunchedEffect(loadedResults) {
-        val enriched = com.kitsugi.animelist.data.remote.KitsugiUpcomingAirEnricher.enrich(loadedResults)
-        if (enriched != loadedResults) loadedResults = enriched
+        val snapshot = loadedResults
+        if (snapshot.isEmpty()) return@LaunchedEffect
+        val enriched = com.kitsugi.animelist.data.remote.KitsugiUpcomingAirEnricher.enrich(snapshot)
+        if (enriched === snapshot) return@LaunchedEffect
+        val current = loadedResults
+        if (current.size == snapshot.size) {
+            if (enriched != current) loadedResults = enriched
+        } else {
+            val enrichedMap = enriched.associateBy { it.exploreIdentity() }
+            val merged = current.map { cur -> enrichedMap[cur.exploreIdentity()] ?: cur }
+            if (merged != current) loadedResults = merged
+        }
     }
 
     suspend fun fetchSeasonalPage(page: Int): List<JikanSearchResult> = when (platform) {
@@ -538,21 +556,26 @@ fun FullScreenMediaGridPage(
     }
 
     // Liste scroll state + auto-load trigger.
-    // Saveable: sayfa kısa süre kompozisyondan düşerse konum sıfırlanıp
-    // kutucuklar başa zıplamasın.
-    val listState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
+    // FIX: rememberSaveable + Saver kullanımı Bundle'a yazıp geri okurken hızlı scroll
+    // sırasında layoutInfo henüz güncellenmemişken eski index'i restore edip
+    // "iç içe geçme" ve zıplama yapıyordu. rememberLazyListState / rememberLazyGridState
+    // aynı Saver'ı kullanır ama Bundle'a yazmadan compose hafızasında tutar, daha stabil.
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     val shouldLoadMoreList by remember {
         derivedStateOf {
             val last = listState.layoutInfo.visibleItemsInfo.lastOrNull() ?: return@derivedStateOf false
+            // totalItemsCount 0 iken tetiklenmesin
+            if (listState.layoutInfo.totalItemsCount == 0) return@derivedStateOf false
             last.index >= listState.layoutInfo.totalItemsCount - 4
         }
     }
 
     // Grid scroll state + auto-load trigger
-    val gridState = rememberSaveable(saver = LazyGridState.Saver) { LazyGridState() }
+    val gridState = androidx.compose.foundation.lazy.grid.rememberLazyGridState()
     val shouldLoadMoreGrid by remember {
         derivedStateOf {
             val last = gridState.layoutInfo.visibleItemsInfo.lastOrNull() ?: return@derivedStateOf false
+            if (gridState.layoutInfo.totalItemsCount == 0) return@derivedStateOf false
             last.index >= gridState.layoutInfo.totalItemsCount - 6
         }
     }

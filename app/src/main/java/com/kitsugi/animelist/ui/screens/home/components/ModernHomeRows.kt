@@ -104,7 +104,7 @@ fun ModernHomeRows(
                     contentPadding = PaddingValues(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    itemsIndexed(results, key = { index, item -> "${item.source}_${item.malId}_$index" }) { _, item ->
+                    itemsIndexed(results, key = { _, item -> "${item.source}_${item.type}_${item.malId}_${item.tmdbId ?: 0}" }) { _, item ->
                         ModernHomeMediaCard(
                             item = item,
                             cardWidth = cardWidth,

@@ -161,6 +161,20 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         refreshAuthState()
     }
 
+    // ── OAuth WebView dialog state (eski haline restore) ─────────────────────
+    // Harici tarayıcı yerine uygulama içi WebView kullanılacak (MAL basic auth popup fix)
+    var oauthServiceToShow by mutableStateOf<String?>(null)
+        private set
+
+    fun showOAuthDialog(serviceName: String) {
+        oauthServiceToShow = serviceName.lowercase()
+    }
+
+    fun dismissOAuthDialog() {
+        oauthServiceToShow = null
+        refreshAuthState()
+    }
+
     fun refreshAuthState() {
         val state = ExternalAuthManager.getAuthState(context)
         isAniListConnected = state.isAniListConnected
@@ -174,7 +188,19 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             .getBoolean("simkl_session_expired", false)
     }
 
+    /**
+     * Eski davranış: doğrudan uygulama içi WebView ile giriş.
+     * Yeni (hatalı) davranış harici tarayıcıya atıyordu ve MAL'de basic auth popup çıkıyordu.
+     * Şimdi tekrar in-app WebView'a döndük; harici tarayıcı fallback olarak korunuyor.
+     */
     fun startExternalAuth(serviceName: String) {
+        // Mobil ve TV fark etmeksizin önce in-app WebView dene
+        // (TV'de zaten QR dialog var ama WebView de çalışır)
+        showOAuthDialog(serviceName)
+    }
+
+    /** Harici tarayıcı fallback — WebView başarısız olursa */
+    fun startExternalAuthExternal(serviceName: String) {
         ExternalAuthManager.startAuthentication(
             context = context,
             serviceName = serviceName,

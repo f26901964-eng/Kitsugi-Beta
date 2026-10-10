@@ -840,7 +840,7 @@ internal fun MangaExtensionsTab(
                     )
                 }
             }
-            itemsIndexed(sources, key = { index, src -> "${src.name}_${src.lang}_$index" }) { _, source ->
+            itemsIndexed(sources, key = { _, src -> "${src.name}_${src.lang}" }) { _, source ->
                 val health = onGetSourceHealthStatus(source)
                 val isBusy = onIsSourceBusy(source)
                 val domain = onGetConfiguredDomain(source)

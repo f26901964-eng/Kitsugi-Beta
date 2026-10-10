@@ -613,7 +613,7 @@ private fun StudioDetailSuccessContent(
                     } else {
                         itemsIndexed(
                             displayedWorks,
-                            key = { idx, work -> "${work.source}_${work.mediaId}_l$idx" }
+                            key = { _, work -> "${work.source}_${work.mediaId}_list" }
                         ) { index, work ->
                             KitsugiRankingMediaCard(
                                 result = work.toSearchResult(),
