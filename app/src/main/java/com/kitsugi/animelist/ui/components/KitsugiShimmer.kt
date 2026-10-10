@@ -71,6 +71,7 @@ private val SHIMMER_GRADIENT_END_PX = 1300f
 /** Tarama bandının genişliği (px) — animasyon sırasında canvas bu kadar kaydırılır. */
 private const val SHIMMER_SWEEP_PX = 300f
 
+@Composable
 private fun kitsugiShimmerColors(): List<Color> = listOf(
     KitsugiColors.Surface,
     KitsugiColors.SurfaceSoft.copy(alpha = 0.6f),
@@ -85,12 +86,15 @@ private fun kitsugiShimmerColors(): List<Color> = listOf(
  * dolayısıyla tüketici bileşenler gereksiz yeniden kompoze olmaz.
  */
 @Composable
-fun rememberKitsugiShimmerBrush(): Brush = remember {
-    Brush.linearGradient(
-        colors = kitsugiShimmerColors(),
-        start = Offset(0f, 0f),
-        end = Offset(SHIMMER_GRADIENT_END_PX, 0f),
-    )
+fun rememberKitsugiShimmerBrush(): Brush {
+    val colors = kitsugiShimmerColors()
+    return remember(colors) {
+        Brush.linearGradient(
+            colors = colors,
+            start = Offset(0f, 0f),
+            end = Offset(SHIMMER_GRADIENT_END_PX, 0f),
+        )
+    }
 }
 
 /**
