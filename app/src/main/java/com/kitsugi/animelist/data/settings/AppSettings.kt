@@ -110,6 +110,8 @@ data class AppSettings(
     val stripHdr10PlusSei: Boolean = false,
     val themeMode: String = "FOLLOW_SYSTEM",
     val amoledBlack: Boolean = false,
+    // Kart çerçeveleri (neon degrade kenarlık) açık/kapalı — Görünüm ayarlarından yönetilir
+    val cardFramesEnabled: Boolean = true,
     val customAccentColor: Int = 0,
     val defaultTab: String = "LAST_USED",
     val lastUsedTab: String = "Explore",

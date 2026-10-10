@@ -679,7 +679,7 @@ private fun SettingsPreferencesContent(
     integrations: IntegrationsSettings
 ) {
     val localSettings = androidx.compose.runtime.remember(
-        general.selectedThemeId, general.themeMode, general.amoledBlack, general.customAccentColor, general.defaultTab,
+        general.selectedThemeId, general.themeMode, general.amoledBlack, general.cardFramesEnabled, general.customAccentColor, general.defaultTab,
         general.showAdultContent, general.blurAdultMedia, general.showAnimeLogos, general.selectedListLayoutId, general.selectedHomeLayoutId,
         general.titleLanguage, general.scoreFormat, general.hideScores, integrations.autoTranslateEnabled, integrations.preferredTranslator,
         integrations.translateSourceLanguage, integrations.translateTargetLanguage, general.appLanguage, general.fixedNavBar,
@@ -693,6 +693,7 @@ private fun SettingsPreferencesContent(
             selectedThemeId = general.selectedThemeId,
             themeMode = general.themeMode,
             amoledBlack = general.amoledBlack,
+            cardFramesEnabled = general.cardFramesEnabled,
             customAccentColor = general.customAccentColor,
             defaultTab = general.defaultTab,
             showAdultContent = general.showAdultContent,
@@ -732,6 +733,7 @@ private fun SettingsPreferencesContent(
         onThemeSelected = general.onThemeSelected,
         onThemeModeSelected = general.onThemeModeSelected,
         onAmoledBlackChanged = general.onAmoledBlackChanged,
+        onCardFramesEnabledChanged = general.onCardFramesEnabledChanged,
         onCustomAccentColorChanged = general.onCustomAccentColorChanged,
         onDefaultTabSelected = general.onDefaultTabSelected,
         onAdultContentChanged = general.onAdultContentChanged,

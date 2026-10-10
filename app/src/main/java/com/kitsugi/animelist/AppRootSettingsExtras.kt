@@ -40,6 +40,8 @@ internal fun SettingsContext.buildSettingsParams() =
             onThemeModeSelected = { onThemeModeSelected(it) },
             amoledBlack = appSettings.amoledBlack,
             onAmoledBlackChanged = { onAmoledBlackChanged(it) },
+            cardFramesEnabled = appSettings.cardFramesEnabled,
+            onCardFramesEnabledChanged = { onCardFramesEnabledChanged(it) },
             customAccentColor = appSettings.customAccentColor,
             onCustomAccentColorChanged = { onCustomAccentColorChanged(it) },
             defaultTab = appSettings.defaultTab,
@@ -907,6 +909,10 @@ internal fun SettingsContext.onThemeModeSelected(mode: String) {
 
 internal fun SettingsContext.onAmoledBlackChanged(enabled: Boolean) {
     coroutineScope.launch { settingsDataStore.setAmoledBlack(enabled) }
+}
+
+internal fun SettingsContext.onCardFramesEnabledChanged(enabled: Boolean) {
+    coroutineScope.launch { settingsDataStore.setCardFramesEnabled(enabled) }
 }
 
 internal fun SettingsContext.onCustomAccentColorChanged(color: Int) {

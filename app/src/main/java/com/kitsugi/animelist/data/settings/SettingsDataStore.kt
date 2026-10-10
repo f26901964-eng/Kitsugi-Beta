@@ -153,6 +153,7 @@ class SettingsDataStore(
         val StripHdr10PlusSei = booleanPreferencesKey("strip_hdr10_plus_sei")
         val ThemeMode = stringPreferencesKey("theme_mode")
         val AmoledBlack = booleanPreferencesKey("amoled_black")
+        val CardFramesEnabled = booleanPreferencesKey("card_frames_enabled")
         val CustomAccentColor = intPreferencesKey("custom_accent_color")
         val DefaultTab = stringPreferencesKey("default_tab")
         val LastUsedTab = stringPreferencesKey("last_used_tab")
@@ -455,6 +456,7 @@ class SettingsDataStore(
                     stripHdr10PlusSei = preferences[Keys.StripHdr10PlusSei] ?: false,
                     themeMode = preferences[Keys.ThemeMode] ?: "FOLLOW_SYSTEM",
                     amoledBlack = preferences[Keys.AmoledBlack] ?: false,
+                    cardFramesEnabled = preferences[Keys.CardFramesEnabled] ?: true,
                     customAccentColor = preferences[Keys.CustomAccentColor] ?: 0,
                     defaultTab = preferences[Keys.DefaultTab] ?: "LAST_USED",
                     lastUsedTab = preferences[Keys.LastUsedTab] ?: "Explore",
@@ -1112,6 +1114,12 @@ class SettingsDataStore(
     suspend fun setAmoledBlack(enabled: Boolean) {
         context.settingsDataStore.edit { preferences ->
             preferences[Keys.AmoledBlack] = enabled
+        }
+    }
+
+    suspend fun setCardFramesEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[Keys.CardFramesEnabled] = enabled
         }
     }
 

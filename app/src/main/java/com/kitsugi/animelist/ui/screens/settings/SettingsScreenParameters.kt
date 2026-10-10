@@ -46,6 +46,8 @@ data class GeneralSettings(
     val onThemeModeSelected: (String) -> Unit = {},
     val amoledBlack: Boolean = false,
     val onAmoledBlackChanged: (Boolean) -> Unit = {},
+    val cardFramesEnabled: Boolean = true,
+    val onCardFramesEnabledChanged: (Boolean) -> Unit = {},
     val customAccentColor: Int = 0,
     val onCustomAccentColorChanged: (Int) -> Unit = {},
     val defaultTab: String = "LAST_USED",

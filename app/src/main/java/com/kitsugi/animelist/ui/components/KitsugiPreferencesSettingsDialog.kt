@@ -56,6 +56,7 @@ fun KitsugiPreferencesSettingsDialog(
     onThemeSelected: (String) -> Unit,
     onThemeModeSelected: (String) -> Unit,
     onAmoledBlackChanged: (Boolean) -> Unit,
+    onCardFramesEnabledChanged: (Boolean) -> Unit = {},
     onCustomAccentColorChanged: (Int) -> Unit,
     onDefaultTabSelected: (String) -> Unit,
     onAdultContentChanged: (Boolean) -> Unit,
@@ -198,6 +199,7 @@ fun KitsugiPreferencesSettingsDialog(
                         onThemeSelected = onThemeSelected,
                         onThemeModeSelected = onThemeModeSelected,
                         onAmoledBlackChanged = onAmoledBlackChanged,
+                        onCardFramesEnabledChanged = onCardFramesEnabledChanged,
                         onCustomAccentColorChanged = onCustomAccentColorChanged,
                         onDefaultTabSelected = onDefaultTabSelected,
                         onHomeLayoutSelected = onHomeLayoutSelected,
@@ -269,6 +271,7 @@ private fun AppearanceTab(
     onThemeSelected: (String) -> Unit,
     onThemeModeSelected: (String) -> Unit,
     onAmoledBlackChanged: (Boolean) -> Unit,
+    onCardFramesEnabledChanged: (Boolean) -> Unit = {},
     onCustomAccentColorChanged: (Int) -> Unit,
     onDefaultTabSelected: (String) -> Unit,
     onHomeLayoutSelected: (String) -> Unit,
@@ -286,6 +289,7 @@ private fun AppearanceTab(
     val selectedThemeId = appSettings.selectedThemeId
     val themeMode = appSettings.themeMode
     val amoledBlack = appSettings.amoledBlack
+    val cardFramesEnabled = appSettings.cardFramesEnabled
     val customAccentColor = appSettings.customAccentColor
     val defaultTab = appSettings.defaultTab
     val selectedHomeLayoutId = appSettings.selectedHomeLayoutId
@@ -400,6 +404,18 @@ private fun AppearanceTab(
                 checked = amoledBlack,
                 enabled = themeMode != "LIGHT",
                 onCheckedChange = onAmoledBlackChanged
+            )
+
+            KitsugiSettingsDivider()
+
+            // Tüm kartların neon degrade çerçevesini tek tuşla açar/kapatır (keşfet, liste, arama, profil…)
+            KitsugiSettingsSwitchItem(
+                title = "Kart Çerçeveleri",
+                description = if (cardFramesEnabled) "Kartların renkli çerçevesi görünür" else "Kartların çerçevesi gizli",
+                icon = Icons.Rounded.Palette,
+                iconColor = accentColor,
+                checked = cardFramesEnabled,
+                onCheckedChange = onCardFramesEnabledChanged
             )
 
             KitsugiSettingsDivider()

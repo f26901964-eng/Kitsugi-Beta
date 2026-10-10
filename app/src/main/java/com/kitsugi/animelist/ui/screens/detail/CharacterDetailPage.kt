@@ -5,6 +5,7 @@
 
 package com.kitsugi.animelist.ui.screens.detail
 
+import com.kitsugi.animelist.data.remote.galleryPersonLabel
 import androidx.compose.foundation.background
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.horizontalScroll
@@ -250,7 +251,23 @@ fun CharacterDetailPage(
                 val tabListState = rememberLazyListState()
                 var activeGalleryItems by remember { mutableStateOf<List<GalleryItem>>(emptyList()) }
                 var activeGalleryIndex by remember { mutableStateOf(0) }
-                val galleryItems by viewModel.galleryItems.collectAsState()
+                val rawGalleryItems by viewModel.galleryItems.collectAsState()
+                // Galeri etiketi (ad) seçilen başlık diline göre çözülür: İngilizce → Romaji → Latin alternatif.
+                val galleryLabel = remember(rawDetail, titleLanguage) {
+                    galleryPersonLabel(
+                        titleLanguage = titleLanguage,
+                        name = rawDetail.name,
+                        romanized = rawDetail.romanizedName,
+                        native = rawDetail.nativeName,
+                        english = rawDetail.englishName,
+                        alternatives = rawDetail.alternativeNames
+                    )
+                }
+                val galleryItems = remember(rawGalleryItems, galleryLabel) {
+                    rawGalleryItems.map { item ->
+                        if (item.description != null) item.copy(description = galleryLabel) else item
+                    }
+                }
 
                 val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
                 // TV odak highway
