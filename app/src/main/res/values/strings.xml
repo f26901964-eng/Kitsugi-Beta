@@ -1182,11 +1182,11 @@
     <string name="sub_color_green">Yeşil</string>
     <string name="sub_color_blue">Mavi</string>
     <string name="sub_color_red">Kırmızı</string>
-    <string name="sub_opacity_normal">Normal (%0)</string>
-    <string name="sub_opacity_low">Düşük (%25)</string>
-    <string name="sub_opacity_mid">Orta (%50)</string>
-    <string name="sub_opacity_high">Yüksek (%75)</string>
-    <string name="sub_opacity_max">Maksimum (%100)</string>
+    <string name="sub_opacity_normal">Normal (0%)</string>
+    <string name="sub_opacity_low">Düşük (25%)</string>
+    <string name="sub_opacity_mid">Orta (50%)</string>
+    <string name="sub_opacity_high">Yüksek (75%)</string>
+    <string name="sub_opacity_max">Maksimum (100%)</string>
     <string name="sub_delay_ontime">Zamanında (0ms)</string>
     <string name="sub_delay_ontime_sp">Zamanında (0 ms)</string>
     <string name="sub_load_all">Tüm Altyazıları Yükle</string>
@@ -1351,7 +1351,7 @@
     <string name="pd_sub_load_mode_desc">Eklentiden altyazıların nasıl çekileceği</string>
     <string name="pd_audio_boost">Ses Güçlendirme (Boost)</string>
     <string name="pd_volume_cap">Maksimum Ses Limit Sınırı (Cap)</string>
-    <string name="pd_volume_cap_desc" formatted="false">Oynatıcının ses açma limit tavanı (%100 - %200)</string>
+    <string name="pd_volume_cap_desc" formatted="false">Oynatıcının ses açma limit tavanı (100% - 200%)</string>
     <string name="pd_default_boost">Varsayılan Ses Güçlendirme (Boost)</string>
     <string name="pd_default_boost_desc">Ses seviyesini ekstra yükseltme oranı</string>
     <string name="pd_default_audio_delay_desc">Altyazı ve video ile senkronize etmek için genel ses kaydırma</string>
@@ -2675,7 +2675,7 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="player_ui_disabled">Devre Dışı</string>
     <string name="player_ui_vertical_and_horizontal_swipes_double_tap_seek_duration">Dikey ve yatay kaydırma, çift dokunma süresi, basılı tutma hızı ve arama jestleri</string>
     <string name="player_ui_play_the_next_episode_immediately">Doğrudan sonraki bölümü oynat</string>
-    <string name="player_ui_low_25">Düşük (%25)</string>
+    <string name="player_ui_low_25">Düşük (25%)</string>
     <string name="player_ui_how_subtitles_are_retrieved_from_extensions">Eklentiden altyazıların nasıl çekileceği</string>
     <string name="player_ui_playback_speed_multiplier_while_pressing_and_holding_the">Ekrana uzun basıldığında oynatılacak video hızı çarpanı</string>
     <string name="player_ui_seek_forward_or_backward_by_dragging_horizontally">Ekranda yatay sürükleme ile ileri/geri sar</string>
@@ -2715,7 +2715,7 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="player_ui_player_hud_information">Oynatıcı Arayüzü Bilgileri</string>
     <string name="player_ui_define_in_player_button_and_gesture_shortcut_mappings">Oynatıcı içi buton ve jest kısayol eşlemelerini tanımlayın</string>
     <string name="player_ui_add_and_edit_custom_lua_mpv_trigger_buttons_on_the_in_pl">Oynatıcı içi kontrol paneline yeni özel lua/mpv tetikleyici butonları ekleyin ve düzenleyin</string>
-    <string name="player_ui_maximum_player_volume_range_100_200" formatted="false">Oynatıcının ses açma limit tavanı (%100 - %200)</string>
+    <string name="player_ui_maximum_player_volume_range_100_200" formatted="false">Oynatıcının ses açma limit tavanı (100% - 200%)</string>
     <string name="player_ui_brightness_swipe_gesture">Parlaklık Kaydırma Jesti</string>
     <string name="player_ui_smooths_banding_in_color_gradients">Renk geçişlerindeki çizgileri yumuşatır</string>
     <string name="player_ui_russian">Rusça</string>
@@ -2748,7 +2748,7 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="player_ui_text_color">Yazı Rengi</string>
     <string name="player_ui_switches_the_font_to_italic">Yazı tipini italik moduna geçirir</string>
     <string name="player_ui_makes_the_font_bold">Yazı tipini kalınlaştırır</string>
-    <string name="player_ui_high_75">Yüksek (%75)</string>
+    <string name="player_ui_high_75">Yüksek (75%)</string>
     <string name="player_ui_choose_the_high_quality_rendering_backend">Yüksek kaliteli render motoru backend seçimi</string>
     <string name="player_ui_on_time_0_ms">Zamanında (0ms)</string>
     <string name="player_ui_edit_input_conf">input.conf Düzenle</string>
@@ -3004,9 +3004,9 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="player_subtitle_size_16_normal">16sp (Normal)</string>
     <string name="player_subtitle_size_24_huge">24sp (Devasa)</string>
     <string name="player_subtitle_color_white">Beyaz</string>
-    <string name="player_audio_boost_normal">Normal (%0)</string>
-    <string name="player_audio_boost_medium">Orta (%50)</string>
-    <string name="player_audio_boost_maximum">Maksimum (%100)</string>
+    <string name="player_audio_boost_normal">Normal (0%)</string>
+    <string name="player_audio_boost_medium">Orta (50%)</string>
+    <string name="player_audio_boost_maximum">Maksimum (100%)</string>
     <string name="player_route_delay_in_sync">Zamanında (0 ms)</string>
     <string name="player_subtitle_appearance_section">Altyazı Görünümü</string>
     <string name="player_subtitle_appearance_description">Altyazı boyutunu, rengini ve kalınlık/kenarlık stillerini yapılandırın.</string>

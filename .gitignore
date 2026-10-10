@@ -42,3 +42,6 @@ keystores*
 # Python önbellekleri (scripts/*.py için)
 __pycache__/
 *.pyc
+
+# İndirilen çökme raporları (3 MB+, repoya girmez)
+/google_drive/

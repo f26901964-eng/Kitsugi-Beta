@@ -56,6 +56,7 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.ui.components.safeBlur
 
 /**
  * Manga Detay + "Oku" Ekranı.
@@ -237,7 +238,10 @@ private fun MangaDetailHeader(details: MangaDetails, accent: Color) {
                 contentScale = ContentScale.Crop,
                 modifier = Modifier
                     .fillMaxSize()
-                    .blur(24.dp)
+                    // ÇÖKME ÖNLEMİ: koşulsuz `.blur(24.dp)` → güvenli sarmalayıcı.
+                    // 24dp, MIUI libhwui'de RenderThread SIGSEGV üreten yarıçaplardan;
+                    // safeBlur hem API 31 altını atlar hem yarıçapı 16dp'ye sınırlar.
+                    .safeBlur(16.dp)
             )
         }
         // Karartma gradyanı

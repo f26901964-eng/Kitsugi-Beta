@@ -1,4 +1,4 @@
-﻿package com.kitsugi.animelist.ui.screens.search.components
+package com.kitsugi.animelist.ui.screens.search.components
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.Context
@@ -46,6 +46,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+import com.kitsugi.animelist.ui.components.safeBlur
 
 sealed interface DetailLoadState {
     object Loading : DetailLoadState
@@ -220,7 +221,9 @@ private fun DetailContent(
                 modifier = Modifier
                     .fillMaxWidth()
                     .fillMaxHeight(0.4f)
-                    .blur(20.dp)
+                    // ÇÖKME ÖNLEMİ: koşulsuz `.blur(20.dp)` → güvenli sarmalayıcı
+                    // (API 31 altı atlanır, yarıçap 16dp ile sınırlanır).
+                    .safeBlur(16.dp)
                     .clip(RoundedCornerShape(bottomStart = 24.dp, bottomEnd = 24.dp))
             )
             Box(

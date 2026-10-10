@@ -81,10 +81,14 @@ fun KitsugiCinematicLoadingScreen(
                         scaleX = scalePulse * 1.05f
                         scaleY = scalePulse * 1.05f
                         alpha = 0.35f
-                    }
-                    .blur(16.dp),
+                    },
+                // ÇÖKME ÖNLEMİ (SIGSEGV / RenderThread / libhwui.so):
+                // Burada eskiden `.blur(16.dp)` de vardı; KitsugiNsfwImage zaten
+                // kendi içinde bulanıklık uyguluyor. İkinci bir RenderEffect katmanı
+                // üst üste binen iki GPU layer açıyordu — MIUI libhwui'de RenderThread
+                // bu katmanları yok ederken null pointer (fault_addr=0x20) ile patlıyor.
                 contentScale = ContentScale.Crop,
-                blurRadius = 20.dp,
+                blurRadius = 16.dp,
                 blurAdultMedia = blurAdultMedia
             )
         }

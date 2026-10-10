@@ -86,6 +86,7 @@ import com.kitsugi.animelist.ui.tv.components.TvLoadingScreen
 import com.kitsugi.animelist.utils.toTurkishStaffRole
 import com.kitsugi.animelist.utils.toTurkishRelationType
 import com.kitsugi.animelist.utils.toTurkishCharacterRole
+import com.kitsugi.animelist.ui.components.safeBlur
 
 @OptIn(ExperimentalTvMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalComposeUiApi::class)
 @Composable
@@ -1102,9 +1103,7 @@ private fun TvEpisodeCard(
                     isAdult = isAdult,
                     modifier = Modifier
                         .fillMaxSize()
-                        .then(
-                            if (blurRadius > 0.dp) Modifier.blur(blurRadius) else Modifier
-                        ),
+                        .safeBlur(blurRadius),
                     contentScale = ContentScale.Crop
                 )
             } else {

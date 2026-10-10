@@ -636,23 +636,79 @@ object LocaleCache {
     @Volatile
     var localeTag: String = UNSET
 
+    /**
+     * Uygulama dilini değiştirir.
+     *
+     * GEÇMİŞTEKİ İKİ HATA
+     * ──────────────────
+     * 1) **"İngilizce seçili ama arayüz Türkçe"** — Android 13 (API 33) ve üzerinde
+     *    uygulama dili artık çerçevenin (framework / LocaleManager) sorumluluğunda.
+     *    `Locale.setDefault()` + `resources.updateConfiguration()` ile elle dil
+     *    zorlamak, çerçevenin kendi per-app dil kararıyla çakışıyor ve Activity
+     *    yeniden kurulduğunda kaynaklar eski dile dönüyordu. Bu yüzden API 33+ 'da
+     *    işi tamamen `AppCompatDelegate.setApplicationLocales()`'e devrediyoruz.
+     *
+     * 2) **Dil değiştirirken çökme (SIGSEGV / RenderThread / libhwui.so)** —
+     *    `recreate()` doğrudan Compose tıklama geri çağrısının İÇİNDEN çağrılıyordu.
+     *    Ana iş parçacığı olay dağıtımı sürerken tüm görünüm hiyerarşisi
+     *    (RenderNode'lar + GPU katmanları) yıkıma gidiyor; o sırada çizim yapan
+     *    RenderThread serbest bırakılmış bir katmana erişince libhwui içinde
+     *    null pointer (fault_addr=0x20) ile patlıyor. recreate()'i looper
+     *    kuyruğunun sonuna bırakmak bu yarışı ortadan kaldırır.
+     */
     fun updateLocale(context: Context, tag: String) {
         val prefsTag = if (tag == "system") "" else tag
-        context.getSharedPreferences("app_locale", Context.MODE_PRIVATE)
-            .edit()
-            .putString("locale_tag", prefsTag)
-            .apply()
+
+        // 1) Tercihi kalıcı yaz. commit() bilinçli: Activity yeniden kurulmadan
+        //    (veya süreç ölüp geri gelmeden) önce değerin diske gitmiş olması
+        //    garanti edilsin. apply() zamanında yetişmeyebiliyor.
+        runCatching {
+            context.getSharedPreferences("app_locale", Context.MODE_PRIVATE)
+                .edit()
+                .putString("locale_tag", prefsTag)
+                .commit()
+        }
+
         localeTag = prefsTag
 
-        // Apply immediately to resources
-        val locale = if (tag == "system") java.util.Locale.getDefault() else java.util.Locale.forLanguageTag(tag)
-        java.util.Locale.setDefault(locale)
-        val config = android.content.res.Configuration(context.resources.configuration)
-        config.setLocale(locale)
-        context.resources.updateConfiguration(config, context.resources.displayMetrics)
+        // 2) Android 13+ : dili çerçeve yönetsin.
+        if (android.os.Build.VERSION.SDK_INT >= 33) {
+            runCatching {
+                val localeList = if (tag == "system") {
+                    androidx.core.os.LocaleListCompat.getEmptyLocaleList()
+                } else {
+                    androidx.core.os.LocaleListCompat.forLanguageTags(tag)
+                }
+                androidx.appcompat.app.AppCompatDelegate.setApplicationLocales(localeList)
+            }
+            return
+        }
 
-        // Find activity and recreate
-        findActivity(context)?.recreate()
+        // 3) API < 33 : eski yol.
+        val locale = if (tag == "system") {
+            java.util.Locale.getDefault()
+        } else {
+            java.util.Locale.forLanguageTag(tag).takeIf { !it.language.isNullOrBlank() }
+                ?: java.util.Locale.getDefault()
+        }
+        java.util.Locale.setDefault(locale)
+        runCatching {
+            val config = android.content.res.Configuration(context.resources.configuration)
+            config.setLocale(locale)
+            @Suppress("DEPRECATION")
+            context.resources.updateConfiguration(config, context.resources.displayMetrics)
+        }
+
+        // recreate()'i mevcut olayın İÇİNDEN değil, looper kuyruğunun sonundan tetikle.
+        findActivity(context)?.let { activity ->
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                runCatching {
+                    if (!activity.isFinishing && !activity.isDestroyed) {
+                        activity.recreate()
+                    }
+                }
+            }
+        }
     }
 
     private fun findActivity(context: Context): android.app.Activity? {

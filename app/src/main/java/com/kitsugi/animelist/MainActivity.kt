@@ -35,17 +35,23 @@ class MainActivity : AppCompatActivity() {
     private val formFactor by lazy { DeviceProfile.detect(this) }
 
     override fun attachBaseContext(newBase: Context) {
-        val tag = LocaleCache.localeTag.takeIf { it != LocaleCache.UNSET }
+        // Dil uygulaması başarısız olursa uygulama AÇILMAMASIN diye her şey
+        // koruma altında: hata durumunda sistem diliyle normal şekilde devam.
+        val localized = runCatching {
+            val tag = LocaleCache.localeTag.takeIf { it != LocaleCache.UNSET }
+            if (tag.isNullOrEmpty()) return@runCatching null
 
-        if (!tag.isNullOrEmpty()) {
             val locale = Locale.forLanguageTag(tag)
+            // Bozuk/boş etiket → geçersiz Locale; sistemi zorlamayalım.
+            if (locale.language.isNullOrBlank()) return@runCatching null
+
             Locale.setDefault(locale)
             val config = Configuration(newBase.resources.configuration)
             config.setLocale(locale)
-            super.attachBaseContext(newBase.createConfigurationContext(config))
-        } else {
-            super.attachBaseContext(newBase)
-        }
+            newBase.createConfigurationContext(config)
+        }.getOrNull()
+
+        super.attachBaseContext(localized ?: newBase)
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
