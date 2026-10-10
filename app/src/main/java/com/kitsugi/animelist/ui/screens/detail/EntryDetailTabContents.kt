@@ -25,8 +25,8 @@ import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.ui.components.LocalKitsugiGalleryLoading
 import androidx.compose.ui.draw.alpha
 import com.kitsugi.animelist.ui.components.KitsugiPlatformLogos
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import com.kitsugi.animelist.ui.components.KitsugiDropdownMenu
+import com.kitsugi.animelist.ui.components.KitsugiMenuItem
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -319,13 +319,12 @@ internal fun DetailGalleryCard(
                     )
                 }
 
-                DropdownMenu(
+                KitsugiDropdownMenu(
                     expanded = showCategoryMenu,
-                    onDismissRequest = { showCategoryMenu = false },
-                    containerColor = KitsugiColors.Surface,
+                    onDismissRequest = { showCategoryMenu = false }
                 ) {
                     // "Tümü" seçeneği
-                    DropdownMenuItem(
+                    KitsugiMenuItem(
                         text = {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
@@ -361,7 +360,7 @@ internal fun DetailGalleryCard(
                             GalleryCategory.OTHER     -> "📁"
                         }
                         val label = category.localizedLabel()
-                        DropdownMenuItem(
+                        KitsugiMenuItem(
                             text = {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,

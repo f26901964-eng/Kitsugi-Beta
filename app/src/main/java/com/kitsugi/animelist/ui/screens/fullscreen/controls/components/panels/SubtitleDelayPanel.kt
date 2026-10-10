@@ -11,8 +11,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
+import com.kitsugi.animelist.ui.components.KitsugiDropdownMenu
+import com.kitsugi.animelist.ui.components.KitsugiMenuItem
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -142,10 +142,11 @@ private fun SubtitleDelayTitle(
                 modifier = Modifier.padding(start = 4.dp)
             )
             Icon(Icons.Default.ArrowDropDown, null, tint = Color.White)
-            DropdownMenu(expanded = showDropDown, onDismissRequest = { showDropDown = false }) {
+            KitsugiDropdownMenu(expanded = showDropDown, onDismissRequest = { showDropDown = false }) {
                 SubtitleDelayType.entries.forEach {
-                    DropdownMenuItem(
+                    KitsugiMenuItem(
                         text = { Text(it.label) },
+                        selected = it == affectedSubtitle,
                         onClick = { onTypeChange(it); showDropDown = false },
                     )
                 }

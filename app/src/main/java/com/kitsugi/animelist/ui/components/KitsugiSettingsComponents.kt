@@ -1,5 +1,30 @@
 package com.kitsugi.animelist.ui.components
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.material3.LocalContentColor
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.MutableTransitionState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.TransformOrigin
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.IntRect
+import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.LayoutDirection
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupPositionProvider
+import androidx.compose.ui.window.PopupProperties
+
 import androidx.compose.foundation.clickable
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.focusable
@@ -21,8 +46,6 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.MenuDefaults
 import androidx.compose.material3.SwitchDefaults
@@ -404,9 +427,48 @@ fun KitsugiSettingsListItem(
     }
 }
 
+/** Açılır menünün çapa noktasından boşluğu. */
+private val KitsugiMenuGap = 6.dp
+
+/** Menünün ekran kenarına en az bırakılan boşluğu. */
+private val KitsugiMenuScreenMargin = 8.dp
+
 /**
- * Kompakt, premium görünümlü dropdown menü wrapper'ı.
- * Tüm ayar dropdown'larında standart olarak kullanılır.
+ * Menü konumlandırıcı: Çapanın (tetikleyicinin) altına açar; alt tarafa sığmazsa üstüne
+ * açar. Yatayda ekran kenarlarına taşmayacak şekilde sıkıştırır.
+ */
+private class KitsugiMenuPositionProvider(
+    private val gapPx: Int,
+    private val marginPx: Int
+) : PopupPositionProvider {
+    override fun calculatePosition(
+        anchorBounds: IntRect,
+        windowSize: IntSize,
+        layoutDirection: LayoutDirection,
+        popupContentSize: IntSize
+    ): IntOffset {
+        val maxX = (windowSize.width - popupContentSize.width - marginPx).coerceAtLeast(marginPx)
+        val x = anchorBounds.left.coerceIn(marginPx, maxX)
+
+        val below = anchorBounds.bottom + gapPx
+        val maxY = windowSize.height - popupContentSize.height - marginPx
+        val y = if (below <= maxY) {
+            below
+        } else {
+            val above = anchorBounds.top - gapPx - popupContentSize.height
+            if (above >= marginPx) above else maxY.coerceAtLeast(marginPx)
+        }
+        return IntOffset(x, y)
+    }
+}
+
+/**
+ * Uygulamanın yüzey diliyle uyumlu açılır menü (Material'ın varsayılan DropdownMenu'su yerine).
+ * - Yüzey: [KitsugiColors.SurfaceStrong], 20dp köşe, ince [KitsugiColors.Border] çerçeve, yumuşak gölge
+ * - Animasyon: fade + hafif scale, üst kenardan açılıp kapanır
+ * - Uzun listeler kaydırılır; [modifier] iç sütuna uygulanır (genişlik/yükseklik sınırı için)
+ *
+ * Tüm açılır menüler (ayarlar, listeler, arama, detay) bu bileşeni kullanır.
  */
 @Composable
 fun KitsugiDropdownMenu(
@@ -415,21 +477,121 @@ fun KitsugiDropdownMenu(
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit
 ) {
-    DropdownMenu(
-        expanded = expanded,
+    val visibleState = remember { MutableTransitionState(false) }
+    visibleState.targetState = expanded
+    // Kapanış animasyonu bitene kadar popup'ı canlı tut; sonra tamamen kaldır.
+    if (!visibleState.currentState && !visibleState.targetState) return
+
+    val density = LocalDensity.current
+    val gapPx = with(density) { KitsugiMenuGap.roundToPx() }
+    val marginPx = with(density) { KitsugiMenuScreenMargin.roundToPx() }
+    val positionProvider = remember(gapPx, marginPx) {
+        KitsugiMenuPositionProvider(gapPx = gapPx, marginPx = marginPx)
+    }
+    val shape = RoundedCornerShape(20.dp)
+
+    Popup(
+        popupPositionProvider = positionProvider,
         onDismissRequest = onDismissRequest,
-        modifier = modifier
-            .background(
-                color = KitsugiColors.SurfaceStrong,
-                shape = RoundedCornerShape(16.dp)
-            )
-            .clip(RoundedCornerShape(16.dp)),
-        content = content
-    )
+        properties = PopupProperties(focusable = true)
+    ) {
+        AnimatedVisibility(
+            visibleState = visibleState,
+            enter = fadeIn(animationSpec = tween(durationMillis = 170, easing = FastOutSlowInEasing)) +
+                scaleIn(
+                    animationSpec = tween(durationMillis = 170, easing = FastOutSlowInEasing),
+                    initialScale = 0.92f,
+                    transformOrigin = TransformOrigin(0.5f, 0f)
+                ),
+            exit = fadeOut(animationSpec = tween(durationMillis = 120)) +
+                scaleOut(
+                    animationSpec = tween(durationMillis = 120),
+                    targetScale = 0.95f,
+                    transformOrigin = TransformOrigin(0.5f, 0f)
+                )
+        ) {
+            Box(
+                modifier = Modifier
+                    .shadow(elevation = 12.dp, shape = shape, clip = false)
+                    .clip(shape)
+                    .background(KitsugiColors.SurfaceStrong, shape)
+                    .border(1.dp, KitsugiColors.Border, shape)
+            ) {
+                Column(
+                    modifier = modifier
+                        .widthIn(min = 168.dp, max = 320.dp)
+                        .verticalScroll(rememberScrollState())
+                        .padding(6.dp),
+                    content = content
+                )
+            }
+        }
+    }
 }
 
 /**
- * Kompakt dropdown item. [selected] true ise sağda checkmark gösterir.
+ * Açılır menü satırı. [text] herhangi bir composable olabilir.
+ * [selected] true ise satır accent renkli yarı saydam zemine oturur ve sağda onay işareti çıkar
+ * (özel [trailingIcon] verilmediyse). [leadingIcon] solda gösterilir.
+ */
+@Composable
+fun KitsugiMenuItem(
+    text: @Composable () -> Unit,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    leadingIcon: (@Composable () -> Unit)? = null,
+    trailingIcon: (@Composable () -> Unit)? = null,
+    selected: Boolean = false,
+    enabled: Boolean = true
+) {
+    val accentColor = LocalKitsugiAccent.current
+    val shape = RoundedCornerShape(12.dp)
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 2.dp)
+            .clip(shape)
+            .background(
+                if (selected) accentColor.copy(alpha = 0.15f) else Color.Transparent,
+                shape
+            )
+            .clickable(enabled = enabled, onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 10.dp)
+            .alpha(if (enabled) 1f else 0.38f),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        if (leadingIcon != null) {
+            leadingIcon()
+            Spacer(modifier = Modifier.width(12.dp))
+        }
+        Box(modifier = Modifier.weight(1f)) {
+            // Satır içeriğinin varsayılan rengi uygulama metin rengi olsun (Popup'ta tema rengi gelmez).
+            CompositionLocalProvider(
+                LocalContentColor provides (if (selected) accentColor else KitsugiColors.TextPrimary)
+            ) {
+                text()
+            }
+        }
+        when {
+            trailingIcon != null -> {
+                Spacer(modifier = Modifier.width(8.dp))
+                trailingIcon()
+            }
+            selected -> {
+                Spacer(modifier = Modifier.width(8.dp))
+                Icon(
+                    imageVector = Icons.Rounded.Check,
+                    contentDescription = null,
+                    tint = accentColor,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Metin tabanlı açılır menü satırı. [selected] true ise accent renk + kalın yazı + onay işareti.
  */
 @Composable
 fun KitsugiDropdownItem(
@@ -437,32 +599,16 @@ fun KitsugiDropdownItem(
     onClick: () -> Unit,
     selected: Boolean = false
 ) {
-    val accentColor = LocalKitsugiAccent.current
-    DropdownMenuItem(
+    KitsugiMenuItem(
         text = {
             Text(
                 text = text,
-                color = if (selected) accentColor else KitsugiColors.TextPrimary,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
             )
         },
         onClick = onClick,
-        trailingIcon = if (selected) ({
-            Icon(
-                imageVector = Icons.Rounded.Check,
-                contentDescription = null,
-                tint = accentColor,
-                modifier = Modifier.size(16.dp)
-            )
-        }) else null,
-        contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-        colors = MenuDefaults.itemColors(
-            textColor = KitsugiColors.TextPrimary,
-            leadingIconColor = accentColor,
-            trailingIconColor = accentColor
-        ),
-        modifier = Modifier.padding(horizontal = 4.dp)
+        selected = selected
     )
 }
 

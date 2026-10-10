@@ -1,4 +1,4 @@
-﻿@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@file:OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 
 package com.kitsugi.animelist.ui.components
 import com.kitsugi.animelist.ui.components.KitsugiButton
@@ -31,8 +31,6 @@ import androidx.compose.material.icons.rounded.FilterList
 import androidx.compose.material.icons.rounded.Forest
 import androidx.compose.material.icons.rounded.LocalFlorist
 import androidx.compose.material.icons.rounded.WbSunny
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import com.kitsugi.animelist.ui.theme.gradient.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import com.kitsugi.animelist.ui.theme.gradient.Icon
@@ -371,20 +369,19 @@ fun KitsugiSeasonalFilterBottomSheet(
                     )
                 }
 
-                DropdownMenu(
+                KitsugiDropdownMenu(
                     expanded = sortMenuExpanded,
-                    onDismissRequest = { sortMenuExpanded = false },
-                    modifier = Modifier.background(KitsugiColors.Surface)
+                    onDismissRequest = { sortMenuExpanded = false }
                 ) {
                     KitsugiSeasonalSort.entries.forEach { sortOption ->
-                        DropdownMenuItem(
+                        KitsugiMenuItem(
                             text = {
                                 Text(
                                     text = sortOption.turkishName,
-                                    color = if (selectedSort == sortOption) accentColor else KitsugiColors.TextPrimary,
-                                    fontWeight = if (selectedSort == sortOption) FontWeight.Bold else FontWeight.Normal
+                                    style = MaterialTheme.typography.bodyMedium
                                 )
                             },
+                            selected = selectedSort == sortOption,
                             onClick = {
                                 selectedSort = sortOption
                                 sortMenuExpanded = false
