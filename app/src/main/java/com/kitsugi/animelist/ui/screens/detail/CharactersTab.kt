@@ -82,6 +82,19 @@ fun CharactersTabContent(
                     modifier = Modifier.padding(vertical = 16.dp)
                 )
             } else {
+                // Bangumi kadrosu topluluk katkılı bir kaynaktır; liste gizlenmez ama kaynağı
+                // belirtilir (canlı çekim kayıtlarda animasyon uyarlaması sanatı/rolü görülebiliyor).
+                val fromBangumi = list.any {
+                    it.source.equals("bangumi", ignoreCase = true) || it.source.equals("bgm", ignoreCase = true)
+                }
+                if (fromBangumi) {
+                    Text(
+                        text = stringResource(R.string.characters_bangumi_source_note),
+                        color = KitsugiColors.TextMuted,
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp)
+                    )
+                }
                 val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
                 if (isLandscape) {
                     // Yatay mod: 2 sütunlu grid

@@ -329,6 +329,7 @@
     <string name="detail_characters_load_error">Karakterler yüklenirken hata oluştu.</string>
     <string name="detail_characters_empty">Karakter bulunamadı.</string>
     <string name="detail_voice_actors">Seslendirmenler</string>
+<string name="characters_bangumi_source_note">Karakterler ve roller doğrudan Bangumi kaydından gelir; bu liste topluluk katkısıdır. Canlı çekim (三次元) yapımlarda karakter sanatı ve rol bilgisi animasyon uyarlamasından gelebilir.</string>
     <string name="detail_role_actor">Oyuncu</string>
     <string name="detail_role_voice_actor">Seslendirici (%1$s)</string>
     <string name="detail_role_voice_actor_plain">Seslendirici</string>

@@ -328,6 +328,7 @@
     <string name="detail_characters_load_error">Error loading characters.</string>
     <string name="detail_characters_empty">No characters found.</string>
     <string name="detail_voice_actors">Voice Actors</string>
+<string name="characters_bangumi_source_note">Characters and roles come straight from the Bangumi entry, which is community-edited. For live-action (三次元) works the artwork and role may belong to an animated adaptation.</string>
     <string name="detail_role_actor">Actor</string>
     <string name="detail_role_voice_actor">Voice Actor (%1$s)</string>
     <string name="detail_role_voice_actor_plain">Voice Actor</string>

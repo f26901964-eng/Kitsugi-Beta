@@ -109,11 +109,31 @@ Bizim hatamız etiketteydi: v1/p1 akışı `casts[].relation` üzerinden dili do
 - `CharactersTab` boş dilde jenerik "Seslendirici" / "Voice Actor" etiketi gösterir
   (`detail_role_voice_actor_plain`, `values` + `values-en`).
 
-Kullanıcıya soru (kod değişikliği gerektirir, tercihi olmadan yapılmadı): canlı çekim
-(film/dizi) kayıtlarında Bangumi karakter sanatı ve seslendirme bloğu **hiç gösterilmesin mi**,
-yoksa "topluluk çizimi" notuyla kalsın mı?
+Kullanıcı tercihi (bu oturumda soruldu): bloğu **gizlemeyin, kaynak notu ekleyin**. Uygulandı:
+`CharactersTabContent` listesi Bangumi kaynaklıysa listenin üstünde `characters_bangumi_source_note`
+("Karakterler ve roller doğrudan Bangumi kaydından gelir; bu liste topluluk katkısıdır. Canlı çekim
+(三次元) yapımlarda karakter sanatı ve rol bilgisi animasyon uyarlamasından gelebilir.") gösteriliyor
+(TR + EN karşılığı `values/strings.xml` / `values-en/strings.xml`).
 
 ---
+
+## 5) Önceki görevin yeniden uygulanaması (FileObserver / izleme geçmişi)
+
+Kullanıcı "yeniden uygula" dedi; ancak bu çalışma alanı bugün `main` (94a3c7f) üzerinden
+**sıfırdan klonlanmış**. Kontrol edilenler:
+
+- `git log`: bu dalın tek ebeveyni 94a3c7f; önceki görevin commit'i (`3b56b68`) ne bu
+  kopyada ne uzak `arena/76b577e4-kitsugi-beta` ref'inde (push öncesinde ref 94a3c7f'teydi).
+- Dosya araması (tüm disk): `FileChangeObserver.kt` ve `KitsugiPlaybackRepository.kt` bu
+  depoda **hiç yok**; `grep -r "android.os.FileObserver|FileObserver("` → 0 sonuç.
+- `Kitsugi-Plugins` repo'su (gitlink) sığ klonla tarandı: aynı dosyalar orada da yok
+  (geçici klon silindi). Depoda `.gitmodules` bulunmadığı için `Kitsugi-Plugins/` boş bir dizin.
+- Ek kanıt: 1. görseldeki "Karakterler ve Seslendirme Sanatçıları · Kaynak: Bangumi" başlığı da
+  bu checkout'ta geçmiyor → kullanıcının yerel ağacı `main`'in ilerisinde.
+
+Bu yüzden o düzeltme **burada tekrarlanamaz**; hedef dosyalar `main`'e henüz itilmedi.
+İstenirse: ilgili dosyalar (veya dalları) itilsin/buraya eklensin, aynı düzeltme orada
+tekrar yazılır. Bu rapordaki 1–4 maddeleri bundan etkilenmiyor.
 
 ## Doğrulama durumu ve sınırlar
 
@@ -139,4 +159,4 @@ yoksa "topluluk çizimi" notuyla kalsın mı?
 `KitsugiEpisodeRatingsRepository.kt` · `MediaGalleryIdentity.kt` · `KitsugiDetailHero.kt` ·
 `KitsugiBangumiCreditsClient.kt` · `CharactersTab.kt` · `KitsugiCharacterClient.kt` ·
 `KitsugiStaffClient.kt` · `KitsugiPersonImageAggregator.kt` · `AboutScreen.kt` ·
-`values/strings.xml` + `values-en/strings.xml`
+`values/strings.xml` + `values-en/strings.xml` · `CharactersTab.kt` (Bangumi kaynak notu)
