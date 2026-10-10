@@ -57,9 +57,8 @@ fun NextAiringChip(
             if (targetEpoch == null) break
             val remaining = targetEpoch - System.currentTimeMillis() / 1000L
             if (remaining <= 0L) break
-            val delayMs = if (remaining < 3600L) 30_000L
-                          else if (remaining < 86400L) 10_000L
-                          else 60_000L
+            // Metin en küçük dakika çözünürlüğünde değişir; 10 sn'lik tik gereksizdi.
+            val delayMs = if (remaining < 86400L) 30_000L else 60_000L
             delay(delayMs)
         }
     }

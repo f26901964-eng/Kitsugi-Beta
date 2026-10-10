@@ -150,10 +150,16 @@ object KitsugiUpcomingAirEnricher {
         if (now < anilistBackoffUntil) return anilistCache
 
         val nowSec = now / 1000L
-        val fetched = runCatching {
+        // İptal (sayfa değişti / LaunchedEffect yeniden başladı) hata DEĞİLdir:
+        // yutulursa 60 sn'lik sahte "başarısız" backoff'u devreye giriyordu.
+        val fetched = try {
             KitsugiAiringCalendarClient()
                 .fetchAiringWindow(nowSec, nowSec + ANILIST_WINDOW_DAYS * 24 * 3600L)
-        }.getOrNull()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            null
+        }
         if (fetched == null) {
             // Ağ hatası / 429: boş haritayı da önbelleğe yazma, ama hemen tekrar deneme.
             anilistBackoffUntil = now + ANILIST_FAILURE_BACKOFF_MS
@@ -201,7 +207,7 @@ object KitsugiUpcomingAirEnricher {
     }
 
     /** Tek TMDB dizi detayı: gelecek bölüm numarası + yayın tarihi. */
-    private suspend fun fetchTmdbNextAir(tmdbId: Int): NextAir? = runCatching {
+    private suspend fun fetchTmdbNextAir(tmdbId: Int): NextAir? = try {
         // executeGetRequest bloklayıcıdır → ana thread'i kilitlememek için IO.
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
             val apiKey = TmdbApiClient.getActiveApiKey()
@@ -217,5 +223,11 @@ object KitsugiUpcomingAirEnricher {
                 else -> NextAir(next?.optInt("episode_number", -1)?.takeIf { it > 0 } ?: -1, epoch)
             }
         }
-    }.getOrNull()
+    } catch (e: kotlinx.coroutines.CancellationException) {
+        // İptal edilen çağrı "veri yok" (null) olarak 6 saatlik negatif önbelleğe
+        // yazılmamalı; iptali yukarı ilet.
+        throw e
+    } catch (e: Throwable) {
+        null
+    }
 }

@@ -53,7 +53,7 @@ import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayScore
 import com.kitsugi.animelist.utils.toFriendlySourceLabel
 
 /** Dikey kartta başlık/meta alanının sabit yüksekliği (tüm kartlar aynı boyutta görünsün diye). */
-private val EXPLORE_CARD_PORTRAIT_TEXT_HEIGHT = 168.dp
+private val EXPLORE_CARD_PORTRAIT_TEXT_HEIGHT = 182.dp
 
 /** TV kartında başlık/meta alanının sabit yüksekliği. */
 private val EXPLORE_CARD_TV_TEXT_HEIGHT = 76.dp
