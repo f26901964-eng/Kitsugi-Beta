@@ -15,15 +15,31 @@ class SourceHealthService(
 
     private val tag = "SourceHealthService"
 
+    /**
+     * Kaynak diline gore olasi en yaygin eser adlari.
+     *
+     * NEDEN: Tek bir sabit sorgu ("one piece") ile tarama yapmak yanlis negatif uretir —
+     * bir eserin her sitede bulunmasi zorunlu degildir. Bu yuzden liste sirayla denenir
+     * ve ilk dolu sonuc veren sorgu ile zincirin devamina gecilir.
+     */
+    private fun probeQueriesFor(source: MangaSource): List<String> =
+        if (source.lang.equals("tr", ignoreCase = true)) {
+            listOf("solo leveling", "one piece", "naruto")
+        } else {
+            listOf("one piece", "naruto", "solo leveling")
+        }
+
     suspend fun quickCheck(
         source: MangaSource,
-        sampleQuery: String = "one piece",
+        sampleQuery: String? = null,
     ): SourceHealthStatus = withContext(Dispatchers.IO) {
-        val initial = evaluate(source, sampleQuery)
+        val queries = sampleQuery?.takeIf { it.isNotBlank() }?.let { listOf(it) }
+            ?: probeQueriesFor(source)
+        val initial = evaluate(source, queries)
         if (initial == SourceHealthStatus.Broken || initial == SourceHealthStatus.Degraded) {
             val recovered = mirrorResolver.tryResolveAndActivateMirror(source)
             if (recovered) {
-                val retried = evaluate(source, sampleQuery)
+                val retried = evaluate(source, queries)
                 stateStore.setHealthStatus(source, retried, reason = "mirror_recheck")
                 return@withContext retried
             }
@@ -32,11 +48,25 @@ class SourceHealthService(
         initial
     }
 
-    private suspend fun evaluate(source: MangaSource, sampleQuery: String): SourceHealthStatus {
+    private suspend fun evaluate(source: MangaSource, queries: List<String>): SourceHealthStatus {
         return try {
-            val search = withTimeoutOrNull(12_000L) {
-                source.fetchSearchManga(page = 1, query = sampleQuery).mangas
-            } ?: return SourceHealthStatus.Degraded
+            // Sorgulari sirayla dene; ilk dolu sonucu kullan. Bos sonuc tek basina
+            // "kaynak bozuk" demek degildir (eser o sitede olmayabilir).
+            var search: List<MangaDetails> = emptyList()
+            for (query in queries) {
+                val found = withTimeoutOrNull(12_000L) {
+                    source.fetchSearchManga(page = 1, query = query).mangas
+                }
+                if (found == null) {
+                    Log.w(tag, "${source.name}: '$query' aramasi zaman asimina ugradi")
+                    continue
+                }
+                if (found.isNotEmpty()) {
+                    search = found
+                    Log.d(tag, "${source.name}: '$query' -> ${found.size} sonuc")
+                    break
+                }
+            }
 
             if (search.isEmpty()) {
                 return SourceHealthStatus.Degraded

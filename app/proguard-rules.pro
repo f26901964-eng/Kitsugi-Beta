@@ -54,6 +54,12 @@
 -keepclassmembers class okhttp3.** { *; }
 -keep class okio.** { *; }
 -keepclassmembers class okio.** { *; }
+# Eklenti (extensionLib 1.6 / KeiSource) uyum stub'lari: bu siniflar eklenti JAR'i
+# tarafindan isimle baglanir; R8 ad degistirirse NoClassDefFoundError olusur.
+# okhttp3.CompressionInterceptor / okhttp3.Gzip / okhttp3.brotli.* / okhttp3.zstd.*
+# yukaridaki `okhttp3.**` kuraliyla zaten korunur. Asagidaki zstd stub'i icin ayrica:
+-keep class com.squareup.zstd.okio.** { *; }
+-keepclassmembers class com.squareup.zstd.okio.** { *; }
 -dontwarn okhttp3.internal.platform.**
 -dontwarn okhttp3.internal.sse.**
 -dontwarn org.conscrypt.**
