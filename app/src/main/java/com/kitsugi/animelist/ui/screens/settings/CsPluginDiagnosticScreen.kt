@@ -6,8 +6,8 @@ import com.kitsugi.animelist.ui.components.KitsugiButton
 import android.content.Intent
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import com.kitsugi.animelist.ui.theme.gradient.background
+import com.kitsugi.animelist.ui.theme.gradient.border
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -45,9 +45,8 @@ import java.io.File
 /**
  * In-App CS Plugin Tanı Ekranı.
  *
- * Uygulama açıkken tüm 201 Türkçe eklentiyi E2E test eder.
- * Arkaplan testinden farklı olarak CloudflareKiller aktif session cookie'leri ile
- * çalıştığından CF/WAF engellerini büyük ölçüde aşar.
+ * Eklentileri uygulamanın mevcut ağ/WebView-cookie işleyişiyle E2E test eder; CF/WAF
+ * cooldown'larını zorla kapatmaz ve yalnızca açıkça saptanan koruma imzalarını sayar.
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,11 +63,8 @@ fun CsPluginDiagnosticScreen(
     val reportPath by vm.reportPath.collectAsState()
     val scope      = rememberCoroutineScope()
 
-    // Özet sayaçlar
-    val working   = results.count { it.streamCount > 0 }
-    val noStream  = results.count { it.loaded && it.searchCount > 0 && it.streamCount == 0 }
-    val cfBlocked = results.count { it.loaded && it.searchCount == 0 }
-    val dead      = results.count { !it.loaded }
+    // Shared classifier keeps the on-screen and exported CF/WAF counts consistent.
+    val summary = CsPluginDiagnosticRunner.summarize(results)
 
     val content = @Composable {
         Column(
@@ -172,7 +168,7 @@ fun CsPluginDiagnosticScreen(
                     // ── Summary cards ────────────────────────────────────────
                     if (results.isNotEmpty()) {
                         item {
-                            SummaryCards(working, noStream, cfBlocked, dead, accent)
+                            SummaryCards(summary)
                         }
                     }
 
@@ -393,18 +389,24 @@ private fun ProgressCard(
 }
 
 @Composable
-private fun SummaryCards(
-    working: Int, noStream: Int, cfBlocked: Int, dead: Int,
-    accent: Color
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp)
-    ) {
-        SummaryChip("✅", working.toString(), stringResource(R.string.cs_diag_summary_working), KitsugiColors.AccentGreen, Modifier.weight(1f))
-        SummaryChip("⚠️", noStream.toString(), stringResource(R.string.cs_diag_summary_no_streams), KitsugiColors.AccentOrange, Modifier.weight(1f))
-        SummaryChip("🔍", cfBlocked.toString(), stringResource(R.string.cs_diag_summary_cf_blocked), KitsugiColors.AccentBlue, Modifier.weight(1f))
-        SummaryChip("❌", dead.toString(), stringResource(R.string.cs_diag_summary_broken), KitsugiColors.AccentRed, Modifier.weight(1f))
+private fun SummaryCards(summary: CsPluginDiagnosticRunner.DiagnosticSummary) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            SummaryChip("✅", summary.working.toString(), stringResource(R.string.cs_diag_summary_working), KitsugiColors.AccentGreen, Modifier.weight(1f))
+            SummaryChip("⚠️", summary.noStreams.toString(), stringResource(R.string.cs_diag_summary_no_streams), KitsugiColors.AccentOrange, Modifier.weight(1f))
+            SummaryChip("🔐", summary.cfBlocked.toString(), stringResource(R.string.cs_diag_summary_cf_blocked), KitsugiColors.AccentBlue, Modifier.weight(1f))
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            SummaryChip("🔎", summary.searchEmpty.toString(), stringResource(R.string.cs_diag_summary_search_empty), KitsugiColors.TextMuted, Modifier.weight(1f))
+            SummaryChip("⚠️", summary.loadFailed.toString(), stringResource(R.string.cs_diag_summary_load_failed), KitsugiColors.AccentOrange, Modifier.weight(1f))
+            SummaryChip("❌", summary.dead.toString(), stringResource(R.string.cs_diag_summary_broken), KitsugiColors.AccentRed, Modifier.weight(1f))
+        }
     }
 }
 
@@ -468,11 +470,12 @@ private fun ResultRow(
     accent: Color
 ) {
     val (statusIcon, statusColor) = when (result.status) {
-        CsPluginDiagnosticRunner.ResultStatus.WORKING     -> "✅" to KitsugiColors.AccentGreen
-        CsPluginDiagnosticRunner.ResultStatus.NO_STREAMS  -> "⚠️" to KitsugiColors.AccentOrange
-        CsPluginDiagnosticRunner.ResultStatus.CF_BLOCKED  -> "🔍" to KitsugiColors.AccentBlue
-        CsPluginDiagnosticRunner.ResultStatus.LOAD_FAILED -> "⚠️" to KitsugiColors.AccentOrange
-        CsPluginDiagnosticRunner.ResultStatus.DEAD        -> "❌" to KitsugiColors.AccentRed
+        CsPluginDiagnosticRunner.ResultStatus.WORKING      -> "✅" to KitsugiColors.AccentGreen
+        CsPluginDiagnosticRunner.ResultStatus.NO_STREAMS   -> "⚠️" to KitsugiColors.AccentOrange
+        CsPluginDiagnosticRunner.ResultStatus.SEARCH_EMPTY -> "🔎" to KitsugiColors.TextMuted
+        CsPluginDiagnosticRunner.ResultStatus.CF_BLOCKED   -> "🔐" to KitsugiColors.AccentBlue
+        CsPluginDiagnosticRunner.ResultStatus.LOAD_FAILED  -> "⚠️" to KitsugiColors.AccentOrange
+        CsPluginDiagnosticRunner.ResultStatus.DEAD         -> "❌" to KitsugiColors.AccentRed
     }
 
     Row(
@@ -508,6 +511,14 @@ private fun ResultRow(
                     color = statusColor,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold
+                )
+            } else if (result.status == CsPluginDiagnosticRunner.ResultStatus.SEARCH_EMPTY) {
+                Text(
+                    stringResource(R.string.cs_diag_result_search_empty),
+                    color = statusColor,
+                    fontSize = 9.sp,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             } else if (result.error != null) {
                 Text(

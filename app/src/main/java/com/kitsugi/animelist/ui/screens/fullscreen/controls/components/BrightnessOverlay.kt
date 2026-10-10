@@ -5,7 +5,7 @@ package com.kitsugi.animelist.ui.screens.fullscreen.controls.components
 // Original: eu.kanade.tachiyomi.ui.player.controls.components.BrightnessOverlay
 // ─────────────────────────────────────────────────────────────────────────────
 
-import androidx.compose.foundation.background
+import com.kitsugi.animelist.ui.theme.gradient.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable

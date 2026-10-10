@@ -1,7 +1,9 @@
 package com.kitsugi.animelist.ui.screens.home.components
 
+import com.kitsugi.animelist.ui.theme.gradient.Text
+
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.background
+import com.kitsugi.animelist.ui.theme.gradient.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items

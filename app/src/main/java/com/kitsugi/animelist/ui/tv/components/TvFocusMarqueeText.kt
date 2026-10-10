@@ -9,8 +9,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.ExperimentalTvMaterial3Api
-import androidx.tv.material3.Text
-
+import com.kitsugi.animelist.ui.theme.gradient.Text
 private val MarqueeVelocity = 45.dp
 
 @OptIn(ExperimentalTvMaterial3Api::class)

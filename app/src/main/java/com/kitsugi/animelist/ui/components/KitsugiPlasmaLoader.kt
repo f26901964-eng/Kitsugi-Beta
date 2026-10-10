@@ -8,8 +8,8 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import com.kitsugi.animelist.ui.theme.gradient.background
+import com.kitsugi.animelist.ui.theme.gradient.border
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
@@ -51,8 +51,8 @@ fun KitsugiPlasmaLoader(
     color: Color? = null,
     secondaryColor: Color? = null
 ) {
-    val baseOne = color ?: Color(0xFFFFBF48)
-    val baseTwo = secondaryColor ?: Color(0xFFBE4A1D)
+    val baseOne = color ?: com.kitsugi.animelist.ui.theme.LocalKitsugiAccent.current
+    val baseTwo = secondaryColor ?: com.kitsugi.animelist.ui.theme.LocalKitsugiAccent2.current ?: Color(0xFFBE4A1D)
 
     val transition = rememberInfiniteTransition(label = "kitsugiPlasmaAnim")
 

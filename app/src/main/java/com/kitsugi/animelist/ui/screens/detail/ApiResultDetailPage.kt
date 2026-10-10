@@ -10,7 +10,7 @@ import com.kitsugi.animelist.ui.components.KitsugiGalleryIconButton
 
 import android.content.Intent
 import android.net.Uri
-import androidx.compose.foundation.background
+import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -37,7 +37,7 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.kitsugi.animelist.ui.theme.gradient.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -72,7 +72,7 @@ import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.Icon
+import com.kitsugi.animelist.ui.theme.gradient.Icon
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import com.kitsugi.animelist.utils.rememberScrollVisibilityState
 import com.kitsugi.animelist.utils.rememberScrollConnection
@@ -82,7 +82,7 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.positionInWindow
 import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.material3.CircularProgressIndicator
+import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import coil3.compose.AsyncImage
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
@@ -131,7 +131,7 @@ import androidx.compose.material.icons.rounded.Favorite
 import androidx.compose.material.icons.rounded.FavoriteBorder
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
+import com.kitsugi.animelist.ui.theme.gradient.Icon
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.TextButton
@@ -800,7 +800,7 @@ fun ApiResultDetailPage(
                         contentDescription = null,
                         tint = accentColor
                     )
-                    androidx.compose.material3.Text(
+                    com.kitsugi.animelist.ui.theme.gradient.Text(
                         text = displayResult.title,
                         color = KitsugiColors.TextPrimary,
                         style = MaterialTheme.typography.titleMedium,
@@ -813,7 +813,7 @@ fun ApiResultDetailPage(
                 Column(
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    androidx.compose.material3.Text(
+                    com.kitsugi.animelist.ui.theme.gradient.Text(
                         text = "Hangi bölümü izlemek istiyorsunuz?",
                         color = KitsugiColors.TextSecondary,
                         style = MaterialTheme.typography.bodyMedium
@@ -821,8 +821,8 @@ fun ApiResultDetailPage(
                     OutlinedTextField(
                         value = watchEpisodeInput,
                         onValueChange = { watchEpisodeInput = it.filter { c -> c.isDigit() } },
-                        label = { androidx.compose.material3.Text("Bölüm Numarası") },
-                        placeholder = { androidx.compose.material3.Text("Örn: 1") },
+                        label = { com.kitsugi.animelist.ui.theme.gradient.Text("Bölüm Numarası") },
+                        placeholder = { com.kitsugi.animelist.ui.theme.gradient.Text("Örn: 1") },
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = accentColor,
@@ -872,12 +872,12 @@ fun ApiResultDetailPage(
                     },
                     enabled = (epNum ?: 0) > 0
                 ) {
-                    androidx.compose.material3.Text("İzle", color = KitsugiColors.Background, fontWeight = FontWeight.Bold)
+                    com.kitsugi.animelist.ui.theme.gradient.Text("İzle", color = KitsugiColors.Background, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showWatchDialog = false }) {
-                    androidx.compose.material3.Text("İptal", color = KitsugiColors.TextSecondary)
+                    com.kitsugi.animelist.ui.theme.gradient.Text("İptal", color = KitsugiColors.TextSecondary)
                 }
             }
         )

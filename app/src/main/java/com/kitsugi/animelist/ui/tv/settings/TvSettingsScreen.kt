@@ -3,8 +3,8 @@ package com.kitsugi.animelist.ui.tv.settings
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import com.kitsugi.animelist.ui.theme.gradient.background
+import com.kitsugi.animelist.ui.theme.gradient.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -48,7 +48,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.tv.material3.ExperimentalTvMaterial3Api
 import androidx.tv.material3.MaterialTheme
-import androidx.tv.material3.Text
+import com.kitsugi.animelist.ui.theme.gradient.Text
 import com.kitsugi.animelist.data.settings.AppSettings
 import com.kitsugi.animelist.data.settings.SettingsDataStore
 import com.kitsugi.animelist.ui.theme.KitsugiColors
@@ -964,7 +964,7 @@ private fun TvSettingsToggleRow(
 
         Spacer(modifier = Modifier.width(KitsugiTvTokens.Spacing.contentPadding))
 
-        androidx.compose.material3.Switch(
+        com.kitsugi.animelist.ui.theme.gradient.Switch(
             checked = checked,
             onCheckedChange = onCheckedChange,
             colors = androidx.compose.material3.SwitchDefaults.colors(

@@ -7,8 +7,8 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.shrinkVertically
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import com.kitsugi.animelist.ui.theme.gradient.background
+import com.kitsugi.animelist.ui.theme.gradient.border
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.material3.Surface
 import com.kitsugi.animelist.ui.utils.tvClickable
@@ -30,11 +30,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.PlayCircle
-import androidx.compose.material3.CircularProgressIndicator
+import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
-import androidx.compose.material3.Icon
+import com.kitsugi.animelist.ui.theme.gradient.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.kitsugi.animelist.ui.theme.gradient.Text
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.DownloadDone
 import androidx.compose.material.icons.rounded.Error
@@ -358,20 +358,25 @@ private fun PaginatedEpisodesList(
                     val start = chunkIdx * CHUNK_SIZE + 1
                     val end = minOf((chunkIdx + 1) * CHUNK_SIZE, episodes.size)
                     val isSelected = selectedChunkIndex == chunkIdx
-                    Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = if (isSelected) accentColor else KitsugiColors.SurfaceStrong,
-                        border = BorderStroke(
-                            1.dp,
-                            if (isSelected) accentColor else KitsugiColors.SurfaceSoft
-                        ),
-                        modifier = Modifier.tvClickable(shape = RoundedCornerShape(10.dp)) {
-                            selectedChunkIndex = chunkIdx
-                        }
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(
+                                color = if (isSelected) accentColor else KitsugiColors.SurfaceStrong,
+                                shape = RoundedCornerShape(10.dp)
+                            )
+                            .border(
+                                width = 1.dp,
+                                color = if (isSelected) accentColor else KitsugiColors.SurfaceSoft,
+                                shape = RoundedCornerShape(10.dp)
+                            )
+                            .tvClickable(shape = RoundedCornerShape(10.dp)) {
+                                selectedChunkIndex = chunkIdx
+                            }
                     ) {
                         Text(
                             text = "$start - $end",
-                            color = if (isSelected) Color.White else KitsugiColors.TextSecondary,
+                            color = if (isSelected) KitsugiColors.OnAccent else KitsugiColors.TextSecondary,
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)

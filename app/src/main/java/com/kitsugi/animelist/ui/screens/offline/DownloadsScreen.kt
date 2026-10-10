@@ -1,5 +1,10 @@
 package com.kitsugi.animelist.ui.screens.offline
 
+import com.kitsugi.animelist.ui.theme.gradient.Icon
+import com.kitsugi.animelist.ui.theme.gradient.LinearProgressIndicator
+import com.kitsugi.animelist.ui.theme.gradient.TabRow
+import com.kitsugi.animelist.ui.theme.gradient.Text
+
 import android.app.DownloadManager
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -9,8 +14,8 @@ import android.net.Uri
 import android.os.Environment
 import android.os.StrictMode
 import android.widget.Toast
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import com.kitsugi.animelist.ui.theme.gradient.background
+import com.kitsugi.animelist.ui.theme.gradient.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn

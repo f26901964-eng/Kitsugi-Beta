@@ -29,10 +29,10 @@ import androidx.compose.material.icons.automirrored.rounded.ManageSearch
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
+import com.kitsugi.animelist.ui.theme.gradient.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.kitsugi.animelist.ui.theme.gradient.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -487,7 +487,7 @@ private fun SettingsMainPage(
                         title = stringResource(R.string.settings_pref_title),
                         description = stringResource(R.string.settings_pref_desc),
                         icon = Icons.Rounded.Palette,
-                        iconColor = selectedTheme.color ?: accentColor,
+                        iconColor = accentColor,
                         onClick = { onNavigate(SettingsRoute.AppearancePreferences) }
                     )
                     KitsugiSettingsDivider()
@@ -833,7 +833,7 @@ private fun AniListCustomListsEditorDialog(onDismiss: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
                 contentAlignment = androidx.compose.ui.Alignment.Center
             ) {
-                androidx.compose.material3.CircularProgressIndicator()
+                com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator()
             }
         }
     } else {

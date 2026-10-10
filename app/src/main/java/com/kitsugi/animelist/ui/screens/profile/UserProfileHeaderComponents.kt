@@ -1,7 +1,7 @@
 package com.kitsugi.animelist.ui.screens.profile
 
-import androidx.compose.foundation.border
-import androidx.compose.foundation.background
+import com.kitsugi.animelist.ui.theme.gradient.border
+import com.kitsugi.animelist.ui.theme.gradient.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -20,10 +20,10 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.ListAlt
 import androidx.compose.material.icons.rounded.PersonAdd
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
+import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
+import com.kitsugi.animelist.ui.theme.gradient.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.kitsugi.animelist.ui.theme.gradient.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -64,7 +64,10 @@ fun UserProfileHeaderCard(
                 modifier = Modifier.fillMaxSize(), contentScale = ContentScale.Crop)
         } else {
             Box(modifier = Modifier.fillMaxSize()
-                .background(androidx.compose.ui.graphics.Brush.horizontalGradient(listOf(accentColor, KitsugiColors.AccentBlue))))
+                .background(
+                    if (KitsugiColors.IsGradient) KitsugiColors.AccentBrush
+                    else androidx.compose.ui.graphics.Brush.horizontalGradient(listOf(accentColor, KitsugiColors.AccentBlue))
+                ))
         }
         Box(modifier = Modifier.fillMaxSize()
             .background(androidx.compose.ui.graphics.Brush.verticalGradient(

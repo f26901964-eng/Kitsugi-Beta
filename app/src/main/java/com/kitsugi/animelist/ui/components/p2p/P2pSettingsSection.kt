@@ -2,7 +2,7 @@
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.widget.Toast
-import androidx.compose.foundation.background
+import com.kitsugi.animelist.ui.theme.gradient.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape

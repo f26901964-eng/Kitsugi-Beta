@@ -5,8 +5,11 @@
 
 package com.kitsugi.animelist.ui.screens.profile
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import com.kitsugi.animelist.ui.theme.gradient.Icon
+import com.kitsugi.animelist.ui.theme.gradient.Text
+
+import com.kitsugi.animelist.ui.theme.gradient.background
+import com.kitsugi.animelist.ui.theme.gradient.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -116,7 +119,10 @@ fun MalProfileContent(
                 Box(
                     modifier = Modifier
                         .fillMaxSize()
-                        .background(Brush.horizontalGradient(listOf(accentColor, KitsugiColors.AccentBlue)))
+                        .background(
+                            if (KitsugiColors.IsGradient) KitsugiColors.AccentBrush
+                            else Brush.horizontalGradient(listOf(accentColor, KitsugiColors.AccentBlue))
+                        )
                 )
                 Box(
                     modifier = Modifier

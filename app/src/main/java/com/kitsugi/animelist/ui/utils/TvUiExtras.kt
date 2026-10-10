@@ -22,8 +22,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.tv.material3.ExperimentalTvMaterial3Api
-import androidx.tv.material3.Text
-
+import com.kitsugi.animelist.ui.theme.gradient.Text
 // ── FocusMarqueeText ─────────────────────────────────────────────────────────
 // 45.dp/s ≈ 5.3 chars/sec — comfortable and fast enough to read long titles
 // ported from KitsugiTV-dev FocusMarqueeText (research: 95% comprehension ≤8.5 cps)

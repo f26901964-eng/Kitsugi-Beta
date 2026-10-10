@@ -1,243 +1,279 @@
 package com.kitsugi.animelist.ui.navigation
 
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
-import androidx.compose.material3.Text
-import androidx.compose.runtime.Composable
-import androidx.compose.ui.Modifier
-import androidx.compose.ui.focus.onFocusChanged
-import androidx.compose.ui.unit.dp
-import androidx.compose.ui.res.stringResource
-import com.kitsugi.animelist.ui.theme.LocalIsTv
-import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
-import com.kitsugi.animelist.ui.theme.KitsugiColors
-
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.ui.Alignment
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
-import android.content.res.Configuration
-import androidx.compose.ui.platform.LocalConfiguration
-import androidx.compose.ui.text.style.TextOverflow
-
-
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.font.FontStyle
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.rounded.Notifications
-import androidx.compose.material.icons.rounded.NotificationsNone
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import com.kitsugi.animelist.R
+import com.kitsugi.animelist.ui.theme.KitsugiColors
+import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
+import com.kitsugi.animelist.ui.theme.LocalKitsugiAccentBrush
+import com.kitsugi.animelist.ui.theme.LocalKitsugiOnAccent
+import com.kitsugi.animelist.ui.theme.gradient.Icon
+import com.kitsugi.animelist.ui.theme.gradient.Text
+import com.kitsugi.animelist.ui.theme.gradient.background
+import com.kitsugi.animelist.ui.utils.tvClickable
 
 @Composable
 fun AppBottomBar(
-    selectedTab: MainTab,
+    currentTab: MainTab,
     onTabSelected: (MainTab) -> Unit,
-    modifier: Modifier = Modifier
+    accentColor: Color = LocalKitsugiAccent.current
 ) {
-    val accentColor = LocalKitsugiAccent.current
+    val accentBrush = LocalKitsugiAccentBrush.current
+    val onAccent = LocalKitsugiOnAccent.current
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = KitsugiColors.Surface,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp
+    ) {
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(1.dp)
+                    .background(KitsugiColors.Border)
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .windowInsetsPadding(WindowInsets.navigationBars)
+                    .padding(horizontal = 8.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.SpaceEvenly,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                MainTab.entries.forEach { tab ->
+                    val isSelected = currentTab == tab
+                    val label = stringResource(tab.labelRes)
 
-    Column(modifier = modifier) {
-        HorizontalDivider(
-            color = KitsugiColors.Border.copy(alpha = 0.25f),
-            thickness = 0.5.dp
-        )
-        NavigationBar(
-            containerColor = KitsugiColors.BackgroundElevated.copy(alpha = 0.85f),
-            contentColor = KitsugiColors.TextPrimary
-        ) {
-            MainTab.entries.forEach { tab ->
-                NavigationBarItem(
-                    selected = selectedTab == tab,
-                    onClick = {
-                        onTabSelected(tab)
-                    },
-                    icon = {
-                        Icon(
-                            imageVector = tab.icon,
-                            contentDescription = stringResource(tab.labelRes)
+                    Column(
+                        modifier = Modifier
+                            .weight(1f)
+                            .tvClickable(shape = RoundedCornerShape(16.dp)) {
+                                onTabSelected(tab)
+                            }
+                            .padding(vertical = 4.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.Center
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .width(56.dp)
+                                .height(30.dp)
+                                .then(
+                                    if (isSelected) {
+                                        Modifier.background(
+                                            brush = accentBrush,
+                                            shape = RoundedCornerShape(16.dp)
+                                        )
+                                    } else {
+                                        Modifier
+                                    }
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = tab.icon,
+                                contentDescription = label,
+                                tint = if (isSelected) onAccent else KitsugiColors.TextSecondary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(3.dp))
+
+                        Text(
+                            text = label,
+                            color = if (isSelected) accentColor else KitsugiColors.TextSecondary,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                            maxLines = 1
                         )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/**
+ * Yatay ekranlarda (landscape) ekranın sol kenarına yerleşen ince dikey navigasyon rayı.
+ * Alt barın yüksekliğini sıfıra indirerek içerik alanına dikeyde maksimum yer açar.
+ */
+@Composable
+fun AppNavigationRail(
+    currentTab: MainTab,
+    onTabSelected: (MainTab) -> Unit,
+    accentColor: Color = LocalKitsugiAccent.current
+) {
+    val accentBrush = LocalKitsugiAccentBrush.current
+    val onAccent = LocalKitsugiOnAccent.current
+    androidx.compose.material3.Surface(
+        modifier = Modifier
+            .fillMaxHeight()
+            .width(80.dp),
+        color = KitsugiColors.Surface,
+        tonalElevation = 0.dp,
+        shadowElevation = 0.dp
+    ) {
+        Row(modifier = Modifier.fillMaxHeight()) {
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxHeight()
+                    .windowInsetsPadding(WindowInsets.navigationBars)
+                    .padding(vertical = 12.dp, horizontal = 6.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.SpaceBetween
+            ) {
+                // Üst: mini logo başlığı
+                Text(
+                    text = "Kitsugi",
+                    color = accentColor,
+                    style = MaterialTheme.typography.labelMedium,
+                    fontWeight = FontWeight.ExtraBold,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+
+                // Orta: ana sekmeler (Ayarlar hariç)
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    MainTab.entries
+                        .filter { it != MainTab.Settings }
+                        .forEach { tab ->
+                            val isSelected = currentTab == tab
+                            val label = stringResource(tab.labelRes)
+                            androidx.compose.material3.NavigationRailItem(
+                                selected = isSelected,
+                                onClick = { onTabSelected(tab) },
+                                icon = {
+                                    Box(
+                                        modifier = Modifier
+                                            .width(52.dp)
+                                            .height(30.dp)
+                                            .then(
+                                                if (isSelected) {
+                                                    Modifier.background(
+                                                        brush = accentBrush,
+                                                        shape = RoundedCornerShape(16.dp)
+                                                    )
+                                                } else {
+                                                    Modifier
+                                                }
+                                            ),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Icon(
+                                            imageVector = tab.icon,
+                                            contentDescription = label,
+                                            tint = if (isSelected) onAccent else KitsugiColors.TextSecondary,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                },
+                                label = {
+                                    Text(
+                                        text = label,
+                                        color = if (isSelected) accentColor else KitsugiColors.TextSecondary,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                        maxLines = 1
+                                    )
+                                },
+                                alwaysShowLabel = true,
+                                colors = androidx.compose.material3.NavigationRailItemDefaults.colors(
+                                    selectedIconColor = onAccent,
+                                    selectedTextColor = accentColor,
+                                    indicatorColor = Color.Transparent,
+                                    unselectedIconColor = KitsugiColors.TextSecondary,
+                                    unselectedTextColor = KitsugiColors.TextSecondary
+                                )
+                            )
+                        }
+                }
+
+                // Alt: Ayarlar sekmesi
+                val settingsTab = MainTab.Settings
+                val isSettingsSelected = currentTab == settingsTab
+                val settingsLabel = stringResource(settingsTab.labelRes)
+                androidx.compose.material3.NavigationRailItem(
+                    selected = isSettingsSelected,
+                    onClick = { onTabSelected(settingsTab) },
+                    icon = {
+                        Box(
+                            modifier = Modifier
+                                .width(52.dp)
+                                .height(30.dp)
+                                .then(
+                                    if (isSettingsSelected) {
+                                        Modifier.background(
+                                            brush = accentBrush,
+                                            shape = RoundedCornerShape(16.dp)
+                                        )
+                                    } else {
+                                        Modifier
+                                    }
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Icon(
+                                imageVector = settingsTab.icon,
+                                contentDescription = settingsLabel,
+                                tint = if (isSettingsSelected) onAccent else KitsugiColors.TextSecondary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        }
                     },
                     label = {
                         Text(
-                            text = stringResource(tab.labelRes),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
+                            text = settingsLabel,
+                            color = if (isSettingsSelected) accentColor else KitsugiColors.TextSecondary,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = if (isSettingsSelected) FontWeight.Bold else FontWeight.Medium,
+                            maxLines = 1
                         )
                     },
-                    colors = NavigationBarItemDefaults.colors(
-                        selectedIconColor = KitsugiColors.Background,
-                        selectedTextColor = accentColor,
-                        indicatorColor = accentColor,
-                        unselectedIconColor = KitsugiColors.TextSecondary,
-                        unselectedTextColor = KitsugiColors.TextSecondary
-                    )
-                )
-            }
-        }
-    }
-}
-
-@Composable
-fun AppNavigationRail(
-    selectedTab: MainTab,
-    onTabSelected: (MainTab) -> Unit,
-    modifier: androidx.compose.ui.Modifier = androidx.compose.ui.Modifier
-) {
-    val accentColor = LocalKitsugiAccent.current
-    val isTv = LocalIsTv.current
-
-    val configuration = LocalConfiguration.current
-    val screenWidth = configuration.screenWidthDp
-    val screenHeight = configuration.screenHeightDp
-
-    // Auto-size width of left bar according to screen size
-    val railWidth = when {
-        screenWidth >= 1200 -> 96.dp
-        screenWidth >= 840  -> 80.dp
-        else                -> 64.dp
-    }
-
-    // Hide labels on very short screens to maximize vertical space and prevent clipping
-    val showLabels = screenHeight >= 480
-
-    // Dynamic paddings, top spacers, and vertical item spacings
-    val verticalPadding = if (screenHeight >= 600) 20.dp else 12.dp
-    val topSpacerHeight = if (screenHeight >= 600) 28.dp else 14.dp
-    val itemSpacingHeight = if (screenHeight >= 600) 14.dp else 6.dp
-
-    val borderColor = KitsugiColors.Border.copy(alpha = 0.15f)
-
-    androidx.compose.material3.Surface(
-        color = KitsugiColors.BackgroundElevated.copy(alpha = 0.90f),
-        contentColor = KitsugiColors.TextPrimary,
-        modifier = modifier
-            .fillMaxHeight()
-            .width(railWidth)
-            .drawBehind {
-                val strokeWidth = 1.dp.toPx()
-                drawLine(
-                    color = borderColor,
-                    start = Offset(size.width - strokeWidth / 2, 0f),
-                    end = Offset(size.width - strokeWidth / 2, size.height),
-                    strokeWidth = strokeWidth
-                )
-            }
-    ) {
-        Column(
-            modifier = androidx.compose.ui.Modifier
-                .fillMaxHeight()
-                .verticalScroll(rememberScrollState())
-                .padding(vertical = verticalPadding),
-            horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Top
-        ) {
-            // Elegant branding logo
-            Text(
-                text = "Kitsugi",
-                color = accentColor,
-                fontWeight = FontWeight.Black,
-                fontStyle = FontStyle.Italic,
-                style = MaterialTheme.typography.titleMedium,
-                modifier = androidx.compose.ui.Modifier.padding(bottom = 16.dp)
-            )
-
-            Spacer(modifier = androidx.compose.ui.Modifier.height(topSpacerHeight))
-
-            // Main navigation items except Settings
-            val mainTabs = listOf(
-                MainTab.Explore,
-                MainTab.MyList,
-                MainTab.Search,
-                MainTab.Profile
-            )
-
-            mainTabs.forEach { tab ->
-                val isSelected = selectedTab == tab
-                androidx.compose.material3.NavigationRailItem(
-                    selected = isSelected,
-                    onClick = {
-                        onTabSelected(tab)
-                    },
-                    modifier = androidx.compose.ui.Modifier.onFocusChanged { state ->
-                        if (isTv && state.isFocused) {
-                            onTabSelected(tab)
-                        }
-                    },
-                    icon = {
-                        Icon(
-                            imageVector = tab.icon,
-                            contentDescription = stringResource(tab.labelRes)
-                        )
-                    },
-                    label = if (showLabels) {
-                        {
-                            Text(
-                                text = stringResource(tab.labelRes),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                        }
-                    } else null,
+                    alwaysShowLabel = true,
                     colors = androidx.compose.material3.NavigationRailItemDefaults.colors(
-                        selectedIconColor = KitsugiColors.Background,
+                        selectedIconColor = onAccent,
                         selectedTextColor = accentColor,
-                        indicatorColor = accentColor,
+                        indicatorColor = Color.Transparent,
                         unselectedIconColor = KitsugiColors.TextSecondary,
                         unselectedTextColor = KitsugiColors.TextSecondary
                     )
                 )
-                Spacer(modifier = androidx.compose.ui.Modifier.height(itemSpacingHeight))
             }
 
-            // Settings Item
-            val settingsTab = MainTab.Settings
-            val isSettingsSelected = selectedTab == settingsTab
-            androidx.compose.material3.NavigationRailItem(
-                selected = isSettingsSelected,
-                onClick = {
-                    onTabSelected(settingsTab)
-                },
-                modifier = androidx.compose.ui.Modifier.onFocusChanged { state ->
-                    if (isTv && state.isFocused) {
-                        onTabSelected(settingsTab)
-                    }
-                },
-                icon = {
-                    Icon(
-                        imageVector = settingsTab.icon,
-                        contentDescription = stringResource(settingsTab.labelRes)
-                    )
-                },
-                label = if (showLabels) {
-                    {
-                        Text(
-                            text = stringResource(settingsTab.labelRes),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
-                    }
-                } else null,
-                colors = androidx.compose.material3.NavigationRailItemDefaults.colors(
-                    selectedIconColor = KitsugiColors.Background,
-                    selectedTextColor = accentColor,
-                    indicatorColor = accentColor,
-                    unselectedIconColor = KitsugiColors.TextSecondary,
-                    unselectedTextColor = KitsugiColors.TextSecondary
-                )
+            // Sağ kenar ayırıcı çizgisi
+            Box(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .width(1.dp)
+                    .background(KitsugiColors.Border)
             )
         }
     }
 }
-
-

@@ -1,9 +1,12 @@
 package com.kitsugi.animelist.ui.components.player
 
+import com.kitsugi.animelist.ui.theme.gradient.Slider
+import com.kitsugi.animelist.ui.theme.gradient.Text
+
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
 
-import androidx.compose.foundation.background
+import com.kitsugi.animelist.ui.theme.gradient.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState

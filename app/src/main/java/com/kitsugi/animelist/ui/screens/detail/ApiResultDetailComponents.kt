@@ -1,7 +1,7 @@
 package com.kitsugi.animelist.ui.screens.detail
 
 import androidx.compose.animation.animateContentSize
-import androidx.compose.foundation.background
+import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -29,10 +29,10 @@ import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
+import com.kitsugi.animelist.ui.theme.gradient.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
+import com.kitsugi.animelist.ui.theme.gradient.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -56,7 +56,7 @@ import com.kitsugi.animelist.utils.toFriendlySourceLabel
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.CircularProgressIndicator
+import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
 import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.data.remote.KitsugiMediaDetail
@@ -707,7 +707,7 @@ internal fun ApiThemesList(
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold
                         )
-                        androidx.compose.material3.Icon(
+                        com.kitsugi.animelist.ui.theme.gradient.Icon(
                             imageVector = if (openingsExpanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
                             contentDescription = null,
                             tint = accentColor,
@@ -781,7 +781,7 @@ internal fun ApiThemesList(
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold
                         )
-                        androidx.compose.material3.Icon(
+                        com.kitsugi.animelist.ui.theme.gradient.Icon(
                             imageVector = if (endingsExpanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
                             contentDescription = null,
                             tint = accentColor,
@@ -960,16 +960,12 @@ internal fun ApiMdbListRatingCard(
                 Box(
                     modifier = Modifier
                         .clip(RoundedCornerShape(6.dp))
-                        .background(
-                            Brush.horizontalGradient(
-                                listOf(accentColor, accentColor.copy(alpha = 0.7f))
-                            )
-                        )
+                        .background(KitsugiColors.AccentBrush)
                         .padding(horizontal = 8.dp, vertical = 3.dp)
                 ) {
                     Text(
                         text = "MDBList",
-                        color = Color.White,
+                        color = KitsugiColors.OnAccent,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Black
                     )

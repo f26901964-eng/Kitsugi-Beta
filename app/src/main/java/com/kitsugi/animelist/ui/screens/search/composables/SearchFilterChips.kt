@@ -6,9 +6,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Check
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
+import com.kitsugi.animelist.ui.theme.gradient.FilterChip
+import com.kitsugi.animelist.ui.theme.gradient.Icon
+import com.kitsugi.animelist.ui.theme.gradient.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -239,7 +239,7 @@ fun KitsugiTriFilterChip(
     enabled: Boolean = true
 ) {
     val accentColor = com.kitsugi.animelist.ui.theme.LocalKitsugiAccent.current
-    androidx.compose.material3.FilterChip(
+    com.kitsugi.animelist.ui.theme.gradient.FilterChip(
         selected = value != null,
         onClick = {
             onValueChanged(

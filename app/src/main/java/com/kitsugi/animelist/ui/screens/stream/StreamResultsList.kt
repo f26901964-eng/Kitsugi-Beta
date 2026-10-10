@@ -10,7 +10,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.slideInVertically
-import androidx.compose.foundation.background
+import com.kitsugi.animelist.ui.theme.gradient.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
@@ -70,7 +70,13 @@ fun LazyListScope.renderStreamResultsItems(
             }
         } else if (addonState.error != null) {
             item(key = "err_${addonIdx}_${addonState.addonName}") {
-                StreamErrorCard(addonState = addonState, accentColor = accentColor, onVerify = onVerifyPlugin?.let { cb -> { cb(addonState.addonName) } })
+                StreamErrorCard(
+                    addonState = addonState,
+                    accentColor = accentColor,
+                    onVerify = if (addonState.requiresVerification) {
+                        onVerifyPlugin?.let { callback -> { callback(addonState.addonName) } }
+                    } else null
+                )
             }
         }
     }
