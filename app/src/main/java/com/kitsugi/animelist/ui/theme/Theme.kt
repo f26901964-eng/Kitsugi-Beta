@@ -71,8 +71,14 @@ fun KitsugiAnimeListTheme(
         KitsugiAccentForThemeId(selectedThemeId)
     }
 
-    // Gradyan bitiş rengi (0 = düz renk)
-    val accentColor2 = if (customAccentColor2 != 0) {
+    // Gradyan bitiş rengi (0 = düz renk).
+    // DİKKAT: customAccentColor != 0 şartı bilinçli — özel vurgu rengi seçili
+    // DEĞİLKEN (hazır tema) DataStore'da kalmış eski bir customAccentColor2
+    // değeri gradyan modunu yanlışlıkla aktive ediyordu; bu da hazır temada
+    // TÜM yazı/ikon/arka planların pahalı gradyan çizim yoluna girmesi ve
+    // uygulamanın genel kasma/donması demekti. Gradyan ancak renk seçicide
+    // "Uygula" ile kaydedilmişse anlamlıdır ve o yol her zaman color1'i de yazar.
+    val accentColor2 = if (customAccentColor != 0 && customAccentColor2 != 0) {
         androidx.compose.ui.graphics.Color(customAccentColor2)
     } else {
         null

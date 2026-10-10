@@ -2,6 +2,7 @@ package com.kitsugi.animelist.ui.theme
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
@@ -89,6 +90,14 @@ fun Color.isSameAccentRgb(accent: Color): Boolean {
 /**
  * Gradyan aktifse ve [color] tema vurgu renginin (tam veya yarı saydam) bir varyantıysa
  * aynı alfa değerine sahip açılı gradyan fırçasını döner; aksi halde `null` döner.
+ *
+ * PERF: Fırça her çağrıda yeniden oluşturulmaz; aynı (renk, açı) kombinasyonu için
+ * süreç genelinde TEK bir [AngleLinearGradientBrush] instance'ı döndürülür
+ * ([GradientBrushCache]). [ShaderBrush] shader önbelleğini instance başına tuttuğu
+ * için yeni instance = her çizimde yeni `android.graphics.LinearGradient` shader'ı
+ * demekti; gradyan tema açıkken yüzlerce bileşen her karede shader üretiyordu
+ * (kasma/donma raporlarının kök nedeni). Instance sabitleyince shader önbelleği
+ * gerçekten çalışır ve çizim başına tahsisat sıfırlanır.
  */
 fun resolveAccentBrush(
     color: Color,
@@ -100,9 +109,9 @@ fun resolveAccentBrush(
     if (!color.isSameAccentRgb(accent)) return null
     val a = color.alpha.coerceIn(0f, 1f)
     return if (a >= 0.999f) {
-        AngleLinearGradientBrush(listOf(accent, accent2), angleDegrees)
+        angleLinearGradientBrush(listOf(accent, accent2), angleDegrees)
     } else {
-        AngleLinearGradientBrush(
+        angleLinearGradientBrush(
             listOf(accent.copy(alpha = a), accent2.copy(alpha = a)),
             angleDegrees
         )
@@ -111,23 +120,68 @@ fun resolveAccentBrush(
 
 /** Composable bağlamda [color] için aktif gradyan fırçasını çözer. */
 @Composable
-fun resolveCurrentAccentBrush(color: Color): Brush? =
-    resolveAccentBrush(
-        color = color,
-        accent = LocalKitsugiAccent.current,
-        accent2 = LocalKitsugiAccent2.current,
-        angleDegrees = LocalKitsugiAccentAngle.current
-    )
+fun resolveCurrentAccentBrush(color: Color): Brush? {
+    val accent = LocalKitsugiAccent.current
+    val accent2 = LocalKitsugiAccent2.current
+    val angle = LocalKitsugiAccentAngle.current
+    // remember: aynı girdilerde aynı instance — hem önbellek isabeti hem de
+    // TextStyle.copy(brush = ...) karşılaştırmalarının kararlı kalması için.
+    return remember(color, accent, accent2, angle) {
+        resolveAccentBrush(color, accent, accent2, angle)
+    }
+}
 
 /** İstenen [alpha] saydamlığında düz veya gradyan vurgu fırçası üretir. */
 @Composable
 fun accentBrushWithAlpha(alpha: Float = 1f): Brush {
     val a = alpha.coerceIn(0f, 1f)
-    val c1 = LocalKitsugiAccent.current.copy(alpha = a)
-    val c2 = LocalKitsugiAccent2.current?.copy(alpha = a)
+    val c1Raw = LocalKitsugiAccent.current
+    val c2Raw = LocalKitsugiAccent2.current
     val angle = LocalKitsugiAccentAngle.current
-    return accentBackgroundBrush(c1, c2, angle)
+    // remember: FilterChip gibi sık recompose olan bileşenlerde her karede
+    // fırça çözümüne girme; önbellekli fabrika zaten instance döndürür.
+    return remember(a, c1Raw, c2Raw, angle) {
+        accentBackgroundBrush(c1Raw.copy(alpha = a), c2Raw?.copy(alpha = a), angle)
+    }
 }
+
+// ─── Gradyan Fırça Instance Önbelleği ──────────────────────────────────────
+// Aynı (renkler, açı) kombinasyonu için uygulama genelinde TEK instance kullanılır.
+// Bu olmadan her resolveAccentBrush / drawBehind / draw çağrısı yeni bir fırça
+// nesnesi üretiyordu. ShaderBrush'ın shader önbelleği instance'a bağlı olduğundan
+// her yeni nesne, çizim başına yepyeni bir android.graphics.LinearGradient
+// üretilmesi demekti — kaydırma sırasında yüzlerce gradyan bileşen her karede
+// shader tahsis ediyordu (CPU + GC + RenderThread baskısı → kasma/donma).
+
+private data class GradientBrushKey(val start: ULong, val end: ULong, val angle: Float)
+
+private object GradientBrushCache {
+    private const val MAX_ENTRIES = 64
+    private val cache = object : LinkedHashMap<GradientBrushKey, AngleLinearGradientBrush>(16, 0.75f, true) {
+        override fun removeEldestEntry(
+            eldest: MutableMap.MutableEntry<GradientBrushKey, AngleLinearGradientBrush>?
+        ): Boolean = size > MAX_ENTRIES
+    }
+
+    fun obtain(colors: List<Color>, angleDegrees: Float): AngleLinearGradientBrush {
+        val key = GradientBrushKey(
+            start = colors[0].value,
+            end = colors.getOrNull(1)?.value ?: 0UL,
+            angle = angleDegrees
+        )
+        return synchronized(cache) {
+            cache.getOrPut(key) { AngleLinearGradientBrush(colors.toList(), angleDegrees) }
+        }
+    }
+}
+
+/**
+ * Önbellekli fabrika: aynı (renkler, açı) için her zaman aynı
+ * [AngleLinearGradientBrush] instance'ını döndürür. Yeni fırça gerekiyorsa
+ * doğrudan constructor yerine BU fonksiyon kullanılmalı.
+ */
+fun angleLinearGradientBrush(colors: List<Color>, angleDegrees: Float): AngleLinearGradientBrush =
+    GradientBrushCache.obtain(colors, angleDegrees)
 
 /** Açılı lineer gradyan fırçası — çizim alanının gerçek boyutuna göre hesaplanır. */
 class AngleLinearGradientBrush(
@@ -169,12 +223,13 @@ class AngleLinearGradientBrush(
 /**
  * Vurgu arka planı için fırça üretir.
  * [end] null ise düz renk, değilse [angleDegrees] açılı iki renkli gradyan.
+ * Gradyan instance'ları önbellekten gelir (bkz. [GradientBrushCache]).
  */
 fun accentBackgroundBrush(start: Color, end: Color?, angleDegrees: Float = 135f): Brush {
     return if (end == null) {
         SolidColor(start)
     } else {
-        AngleLinearGradientBrush(listOf(start, end), angleDegrees)
+        angleLinearGradientBrush(listOf(start, end), angleDegrees)
     }
 }
 
