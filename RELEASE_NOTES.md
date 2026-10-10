@@ -1,5 +1,67 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.228)
+
+### 🌐 1. Kapsamlı Dil Altyapısı (i18n) Genişletmesi & 3.745 Çift Dilli Kaynak (`strings.xml`, `values-en/strings.xml`, `values-en/arrays.xml`)
+- **3.745 Anahtarlık %100 TR / EN Simetrisi:** Kaynak sayısı 2.195'ten 3.745 anahtara çıkarıldı; Türkçe ve İngilizce dil kaynakları arasında birebir anahtar, sıra ve `%1$s` biçim yer tutucusu (placeholder) eşitliği sağlandı.
+- **AAPT XML Kaçış & Standardizasyon Onarımları:**
+  - 665 adet geçersiz `xml:space="preserve"` attribute'u temizlendi (Android AAPT derleyicisinin `CantBindXML` hatası çözüldü).
+  - Metin içi kaçışsız apostroflar (`zoom'u`, `provider's` vb.) Android standartlarına uygun `\'` haline getirildi.
+  - Yüzde karakterleri içeren metinler için `formatted="false"` etiketleri düzenlendi.
+  - Bangumi etiket senkronizasyon sözlüğü (`sync_bangumi_tag_strings.py`) bozulmadan korundu.
+
+### 📱 2. 14 Yeni Ekran & Diyalog Kaynaklara Bağlandı
+- **Sistem ve İndirme Ayarları (`KitsugiSystemSettingsDialog.kt`):**
+  - İndirme hız limitleri ("Sınırsız", "50 KB/s", "10 MB/s" vb.), eşzamanlı indirme sayıları.
+  - Okuma sonrası otomatik silme ("Devre Dışı", "Son okunan bölüm", "Son 1-10 bölüm").
+  - Okurken/İzlerken otomatik ön indirme ("Sonraki 1-10 bölüm / video").
+  - Kategori filtreleme & hariç tutma diyalogları ("CURRENT", "PLANNING", "COMPLETED", "ON_HOLD", "DROPPED").
+  - DNS sağlayıcıları (Sistem Varsayılanı, Google, Cloudflare, AdGuard, DNS.WATCH, Quad9, DNS.SB, Canadian Shield açıklamaları).
+  - Harici indirici tercihleri (Dahili, 1DM, ADM algılama ve durum metinleri).
+- **Gelişmiş Arama Filtreleme (`SourceEngineFilterSheet.kt`):** Arama motoru, kaynak filtreleri ve sıralama seçeneklerinde 49 metin yerelleştirildi.
+- **Akış ve Video Sayfası (`StreamScreenContent.kt`):** Akış kaynakları, oynatıcı seçimi, hata durumları ve çözünürlük etiketlerinde 24 metin dinamik kaynaklara bağlandı.
+- **Eklenti ve Geliştirici Günlükleri (`CsPluginDiagnosticScreen.kt`, `DeveloperLogsDialog.kt`):** Eklenti tanılama raporları, test adımları, log filtreleme ve panoya kopyalama butonları yerelleştirildi.
+- **Geri Bildirim (`FeedbackDialog.kt`):** E-posta gönderimi, şablon metinleri ve hata uyarıları.
+- **Android TV Ekranları:**
+  - TV Aktivite Detayı (`TvActivityDetailDialog.kt`), İnceleme Detayı (`TvReviewDetailDialog.kt`), Manga Eklentileri (`TvMangaExtensionScreen.kt`), QR Giriş Ekranı (`TvQrLoginScreen.kt`), TV Akış Ekranı (`TvStreamScreen.kt`), TV Eklenti Yöneticisi (`TvAddonsScreen.kt`), TV Yardımcı Eşleşme Onayı (`TvCompanionApprovalDialog.kt`) ve QR Kod Ekranı (`TvCompanionQrScreen.kt`).
+
+### 🛠️ 3. Yeni Yerelleştirme Denetim Araçları (`scripts/`)
+- **`scripts/audit_hardcoded_turkish.py`:** Kod tabanında kalan Türkçe karakterli hardcoded literal metinleri tarayıp dosya bazında raporlayan denetim aracı eklendi.
+- **`scripts/check_localization_resource_parity.py`:** `values` ve `values-en` arasındaki string ve string-array anahtarlarını, format yer tutucularını (`%1$s`) otomatik doğrulayan CI aracı entegre edildi.
+
+---
+
+## 🇬🇧 English (v2.4.228)
+
+### 🌐 1. Comprehensive i18n Expansion & 3,745 Bilingual Resources (`strings.xml`, `values-en/strings.xml`, `values-en/arrays.xml`)
+- **Full 100% TR / EN Symmetry with 3,745 Keys:** Resource collection expanded from 2,195 to 3,745 keys, maintaining perfect 1-to-1 key parity and matching `%1$s` positional format tokens across English and Turkish.
+- **AAPT XML Escape & Standardization Fixes:**
+  - Stripped 665 invalid `xml:space="preserve"` attributes to resolve AAPT compiler XMLStreamException (`CantBindXML`).
+  - Escaped raw single quotes (`\'`) for proper Android string compilation (`zoom\'u`, `provider\'s`).
+  - Applied `formatted="false"` attributes to strings containing unescaped percentage symbols.
+  - Fully maintained Bangumi dictionary generator parity (`sync_bangumi_tag_strings.py --check`).
+
+### 📱 2. Migration of 14 UI Screens & Dialogs to Localized Resources
+- **System & Download Settings (`KitsugiSystemSettingsDialog.kt`):**
+  - Download speed limits ("Unlimited", "50 KB/s", "10 MB/s", etc.) and concurrent download counts.
+  - Auto-removal options ("Disabled", "Last read chapter", "Last 1-10 chapters").
+  - Pre-download while watching/reading options.
+  - Category inclusion/exclusion dialogs ("Current", "Planning", "Completed", "On Hold", "Dropped").
+  - DoH DNS providers and descriptions (System Default, Google, Cloudflare, AdGuard, DNS.WATCH, Quad9, DNS.SB, Canadian Shield).
+  - External downloader preferences (Internal, 1DM, ADM detection).
+- **Search Engine Filters (`SourceEngineFilterSheet.kt`):** 49 string resources wired for source provider and filter settings.
+- **Streaming Screen (`StreamScreenContent.kt`):** 24 string resources wired for stream lists, server states, and resolution tags.
+- **Diagnostics & Logs (`CsPluginDiagnosticScreen.kt`, `DeveloperLogsDialog.kt`):** Diagnostic test suites, log filtering, and clipboard actions.
+- **Feedback Dialog (`FeedbackDialog.kt`):** Feedback form, email triggers, and templates.
+- **Android TV Screens:**
+  - TV Activity Detail (`TvActivityDetailDialog.kt`), Review Detail (`TvReviewDetailDialog.kt`), Manga Extensions (`TvMangaExtensionScreen.kt`), TV QR Login (`TvQrLoginScreen.kt`), TV Stream (`TvStreamScreen.kt`), TV Addons (`TvAddonsScreen.kt`), Companion Approval (`TvCompanionApprovalDialog.kt`), and Companion QR (`TvCompanionQrScreen.kt`).
+
+### 🛠️ 3. Localization Verification & Audit Tools (`scripts/`)
+- **`scripts/audit_hardcoded_turkish.py`:** Automated scanner identifying remaining hardcoded strings across Kotlin files.
+- **`scripts/check_localization_resource_parity.py`:** Automated validator verifying structural, key, and format token parity between locale resource files.
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.227)
 
 ### 🎯 1. Kaynak Bazlı Arama & Bölüm Mekaniği: Film ve Dizi için Ayrı Boru Hatları (`CsStreamRunner.kt`, `CsTitleMatcher.kt`)
