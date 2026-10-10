@@ -304,8 +304,11 @@ class KitsugiStaffClient {
             if (staffId <= 0) return@withContext null
             when (MalJikanMediaSupport.canonicalSource(source)) {
                 "bangumi", "bgm" -> {
-                    KitsugiBangumiCreditsClient.fetchPersonDetail(staffId, name)
+                    val raw = KitsugiBangumiCreditsClient.fetchPersonDetail(staffId, name)
                         ?: KitsugiBangumiDetailClient.fetchStaffDetail(staffId)
+                    // Karakter/yapım adları CJK kalmasın diye infobox + önbellekle zenginleştir.
+                    // Ağ isteği sınırı ve zaman aşımı içeride korunur; başarısız olursa ham veri döner.
+                    raw?.let { KitsugiBangumiDetailClient.enrichStaffDetailNames(it) }
                 }
                 "shikimori" -> {
                     KitsugiShikimoriClient.fetchStaffDetail(staffId)

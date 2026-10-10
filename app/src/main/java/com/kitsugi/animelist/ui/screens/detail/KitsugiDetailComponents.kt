@@ -51,7 +51,8 @@ fun KitsugiStudiosCard(
     producers: List<KitsugiStudio>,
     onStudioClick: (KitsugiStudio) -> Unit,
     onProducerClick: (KitsugiStudio) -> Unit,
-    networks: List<KitsugiStudio> = emptyList()
+    networks: List<KitsugiStudio> = emptyList(),
+    onNetworkClick: (KitsugiStudio) -> Unit = onProducerClick
 ) {
     if (studios.isEmpty() && producers.isEmpty() && networks.isEmpty()) return
     val accentColor = LocalKitsugiAccent.current
@@ -112,7 +113,11 @@ fun KitsugiStudiosCard(
                         text = network.name,
                         color = accentColor,
                         solid = false,
-                        onClick = null
+                        // Bangumi-yerel yayıncı ağlar da enrich ile kimlik alabilir;
+                        // id > 0 ise tıklanabilir, aksi halde pasif çip.
+                        onClick = if (network.id > 0 || !network.source.equals("bangumi", ignoreCase = true)) {
+                            { onNetworkClick(network) }
+                        } else null
                     )
                 }
             }
