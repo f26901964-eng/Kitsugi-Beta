@@ -26,6 +26,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ProvidableCompositionLocal
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
@@ -154,16 +155,43 @@ fun KitsugiShimmerMediaCard(
 /**
  * Shimmer içeren birden fazla bileşen aynı kompozisyon ağacında yer alıyorsa
  * bu provider ile tek bir InfiniteTransition paylaşılır — belirgin performans gain'i.
+ *
+ * [active] false iken sonsuz shimmer animasyonu HİÇ OLUŞTURULMAZ: içerik
+ * yüklendikten sonra placeholder kalmadığında bile transition'ın her karede
+ * çalışmaya devam etmesi (sayfanın sürekli yeniden kompoze edilmesi ve boşuna
+ * pil/CPU tüketimi) önlenir. Pasif durumda statik fırça sağlanır; shimmer
+ * tüketicileri yine çizilebilir ama animasyon saatini ayakta tutmaz.
  */
 @Composable
 fun KitsugiShimmerProvider(
+    active: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    val sharedBrush = rememberKitsugiShimmerBrush()
-    CompositionLocalProvider(
-        LocalShimmerBrush provides sharedBrush,
-        content = content
-    )
+    if (active) {
+        val sharedBrush = rememberKitsugiShimmerBrush()
+        CompositionLocalProvider(
+            LocalShimmerBrush provides sharedBrush,
+            content = content
+        )
+    } else {
+        val staticBrush = remember {
+            Brush.linearGradient(
+                colors = listOf(
+                    KitsugiColors.Surface,
+                    KitsugiColors.SurfaceSoft.copy(alpha = 0.6f),
+                    KitsugiColors.SurfaceStrong.copy(alpha = 0.4f),
+                    KitsugiColors.SurfaceSoft.copy(alpha = 0.6f),
+                    KitsugiColors.Surface,
+                ),
+                start = Offset(0f, 0f),
+                end = Offset(1300f, 0f),
+            )
+        }
+        CompositionLocalProvider(
+            LocalShimmerBrush provides staticBrush,
+            content = content
+        )
+    }
 }
 
 @Composable

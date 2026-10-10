@@ -349,7 +349,7 @@ fun ExploreScreen(
                         )
                     }
                 ) {
-                    KitsugiShimmerProvider {
+                    KitsugiShimmerProvider(active = viewModel.isLoading) {
                         LazyColumn(
                             state = lazyListState,
                             modifier = Modifier.fillMaxSize(),
