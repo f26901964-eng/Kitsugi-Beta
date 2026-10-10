@@ -28,8 +28,19 @@ class MangaCache(context: Context) {
     // ─── Kontrol ─────────────────────────────────────────────────────────────
 
     /** Verilen [imageUrl] için önbellekte resim dosyası var mı? */
-    fun isImageInCache(imageUrl: String): Boolean =
-        cacheFile(imageUrl).exists()
+    fun isImageInCache(imageUrl: String): Boolean {
+        val file = cacheFile(imageUrl)
+        if (!file.isFile) return false
+        if (isDecodableImage(file)) return true
+        file.delete() // Evict old HTML/error responses, not just empty downloads.
+        return false
+    }
+
+    private fun isDecodableImage(file: File): Boolean {
+        val options = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+        android.graphics.BitmapFactory.decodeFile(file.absolutePath, options)
+        return options.outWidth > 0 && options.outHeight > 0
+    }
 
     // ─── Okuma ───────────────────────────────────────────────────────────────
 
@@ -50,18 +61,20 @@ class MangaCache(context: Context) {
      * [stream] içinden okunan veriyi önbelleğe yazar.
      * Yazma işlemi atomik olarak gerçekleşir (önce geçici dosyaya yazılır).
      */
+    @Synchronized
     fun putImageToCache(imageUrl: String, stream: InputStream) {
         val target = cacheFile(imageUrl)
-        val temp   = File(cacheDir, "${target.name}.tmp")
+        val temp = File.createTempFile(target.name, ".tmp", cacheDir)
         try {
             FileOutputStream(temp).use { out -> stream.copyTo(out) }
-            if (target.exists()) target.delete()
-            temp.renameTo(target)
+            if (!isDecodableImage(temp)) throw java.io.IOException("Kaynak geçerli bir görsel yerine boş/HTML veya desteklenmeyen veri döndürdü")
+            if (!temp.renameTo(target)) throw java.io.IOException("Görsel önbelleğe taşınamadı")
             Log.v(TAG, "Önbelleğe kaydedildi: ${target.name} (${target.length()} bytes)")
             trimIfNeeded()
         } catch (e: Exception) {
             Log.e(TAG, "Önbellek yazma hatası [$imageUrl]: ${e.message}")
             if (temp.exists()) temp.delete()
+            throw e
         }
     }
 
@@ -69,7 +82,7 @@ class MangaCache(context: Context) {
 
     /** Önbellek boyutu MAX_BYTES'ı aşarsa en eski dosyaları siler. */
     private fun trimIfNeeded() {
-        val files = cacheDir.listFiles()?.toMutableList() ?: return
+        val files = cacheDir.listFiles()?.filterNot { it.name.endsWith(".tmp") }?.toMutableList() ?: return
         var totalSize = files.sumOf { it.length() }
         if (totalSize <= MAX_BYTES) return
 

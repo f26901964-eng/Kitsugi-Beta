@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.screens.manga
 
+import kotlinx.coroutines.ensureActive
+
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
@@ -133,6 +135,7 @@ class MangaReaderViewModel(
                 )
                 _uiState.update { it.copy(chapterList = chapters, isLoadingChapters = false) }
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) kotlinx.coroutines.currentCoroutineContext().ensureActive()
                 sourceStateStore.recordOperationFailure(
                     source = source,
                     operation = "chapters",
@@ -218,7 +221,7 @@ class MangaReaderViewModel(
         val list    = _uiState.value.chapterList
         val current = _uiState.value.currentChapter
         val idx     = list.indexOfFirst { it.url == current.url }
-        if (idx < list.size - 1) goToChapter(list[idx + 1])
+        if (idx >= 0 && idx < list.size - 1) goToChapter(list[idx + 1])
     }
 
     val hasNextChapter: Boolean
@@ -240,17 +243,24 @@ class MangaReaderViewModel(
         get() {
             val list = _uiState.value.chapterList
             val idx  = list.indexOfFirst { it.url == _uiState.value.currentChapter.url }
-            return idx < list.size - 1
+            return idx >= 0 && idx < list.size - 1
         }
 
+    private var pageListJob: kotlinx.coroutines.Job? = null
+
     private fun restoreProgress(chapter: MangaChapter) {
-        viewModelScope.launch {
+        pageListJob?.cancel()
+        pageListJob = viewModelScope.launch {
             _uiState.update { it.copy(isLoadingPages = true, pagesError = null) }
             val saved = dao.getProgress(chapter.url)
             val pageIndex = if (saved != null && !saved.isCompleted) saved.lastPageIndex else 0
             _uiState.update { it.copy(currentPageIndex = pageIndex) }
             try {
                 loader.loadPageList(chapter)
+                kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                val restoredIndex = pageIndex.coerceIn(0, (loader.pages.value.size - 1).coerceAtLeast(0))
+                _uiState.update { it.copy(currentPageIndex = restoredIndex) }
+                loader.onPageChanged(restoredIndex)
                 if (loader.pages.value.isEmpty()) {
                     _uiState.update { it.copy(isLoadingPages = false, pagesError = "Sayfalar yüklenemedi. İnternet bağlantınızı kontrol edip tekrar deneyin.") }
                 } else {
@@ -265,6 +275,7 @@ class MangaReaderViewModel(
                     )
                 }
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) kotlinx.coroutines.currentCoroutineContext().ensureActive()
                 _uiState.update { it.copy(isLoadingPages = false, pagesError = e.localizedMessage ?: e.message ?: "Sayfalar yüklenirken bir hata oluştu.") }
             }
         }

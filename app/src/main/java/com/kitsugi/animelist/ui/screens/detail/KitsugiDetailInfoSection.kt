@@ -102,12 +102,11 @@ internal fun QuickActions(
     // Manga ise Oku butonunu öne çıkar
     if (entry.type == MediaType.Manga && onReadClick != null) {
         KitsugiDetailActionButton(
-            text = if (mangaMapping != null) "Oku (${mangaMapping.mangaTitle})" else "Oku",
+            text = "Oku",
             icon = Icons.Default.AutoStories,
             onClick = onReadClick,
             palette = UiverseButtonPalette.Default,
             modifier = Modifier
-                .fillMaxWidth()
                 .then(if (primaryFocusRequester != null) Modifier.focusRequester(primaryFocusRequester) else Modifier)
                 .then(if (tabBarFocusRequester != null) Modifier.focusProperties { right = tabBarFocusRequester } else Modifier)
         )

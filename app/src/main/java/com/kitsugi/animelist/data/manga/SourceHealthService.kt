@@ -67,12 +67,20 @@ class SourceHealthService(
                 source.fetchImageUrl(pages.first())
             } ?: return SourceHealthStatus.Degraded
 
-            if (imageUrl.isBlank()) {
-                SourceHealthStatus.Degraded
-            } else {
-                SourceHealthStatus.Healthy
-            }
+            if (imageUrl.isBlank()) return SourceHealthStatus.Degraded
+            // A resolved URL is not proof of a working reader (HTTP 200 HTML,
+            // hotlink denial and corrupt CDN images all occurred at this stage).
+            val imageValid = withTimeoutOrNull(15_000L) {
+                val page = pages.first().apply { this.imageUrl = imageUrl }
+                source.getImage(page).use { stream ->
+                    val options = android.graphics.BitmapFactory.Options().apply { inJustDecodeBounds = true }
+                    android.graphics.BitmapFactory.decodeStream(stream, null, options)
+                    options.outWidth > 0 && options.outHeight > 0
+                }
+            } ?: false
+            if (imageValid) SourceHealthStatus.Healthy else SourceHealthStatus.Degraded
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             Log.w(tag, "quickCheck failed for ${source.name}: ${e.message}")
             classify(e)
         }

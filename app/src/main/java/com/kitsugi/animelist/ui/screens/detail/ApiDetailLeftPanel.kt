@@ -201,7 +201,6 @@ fun ApiDetailLeftPanel(
                     icon = Icons.Default.AutoStories,
                     onClick = onReadMangaClick,
                     modifier = Modifier
-                        .fillMaxWidth()
                         .focusRequester(leftPanelFocusRequester)
                         .focusProperties { right = tabBarFocusRequester }
                 )

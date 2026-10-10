@@ -2,7 +2,17 @@
 
 ## 🇹🇷 Türkçe (v2.4.228)
 
-### 🌐 1. Kapsamlı Dil Altyapısı (i18n) Genişletmesi & 3.745 Çift Dilli Kaynak (`strings.xml`, `values-en/strings.xml`, `values-en/arrays.xml`)
+### 📖 1. Manga Hattı Düzeltmeleri & Kompakt Arayüz İyileştirmeleri
+- **Kompakt "Oku" Butonu:** Detay sayfasındaki "Oku" butonu, "İzle" butonu gibi kompakt yapıya kavuşturuldu; ekranın tüm satırını kaplaması engellendi (`ApiDetailLeftPanel.kt`, `KitsugiDetailInfoSection.kt`).
+- **Siyah Okuyucu Ekranı Giderildi:** Görsel hazır olduğunda ekranın bunu anında gözlemleyebilmesi sağlandı; durum güncelleme (state observation) gecikmelerinden kaynaklanan siyah ekran sorunu çözüldü (`MangaReaderViewModel.kt`, `MangaBrowseViewModel.kt`, `MangaBrowseScreen.kt`).
+- **Mihon Görsel İndirme Hattı:** Mihon görselleri artık eklentinin kendi resim isteği (image request), HTTP istemcisi ve oturum çerezleriyle doğrudan indiriliyor (`MihonSourceWrapper.kt`).
+- **Kotatsu Önizleme ve Hata İyileştirmeleri:** Kotatsu parser'larında önizleme görsellerinin gerçek sayfa sanılması engellendi, kaybolan bölüm metadataları, bölüm sıralaması ve arka planda gizlenen hatalar giderildi (`KotatsuExtensionAdapter.kt`, `MangaModels.kt`).
+- **Doğrudan Kaynak Eşleşmesi:** Manga arama sonuçları artık doğrudan kendi kaynak kimliğiyle açılıyor; aynı isimdeki eklentiler arasında hatalı tahmin ve yanlış kaynak ataması yapılmıyor (`MangaSourceRepository.kt`).
+- **HTML Temizliği ve Önbellek Koruması:** Bozuk veya HTML hata yanıtlarının resim olarak önbelleğe alınması engellendi; manga açıklamalarındaki ham HTML etiketleri (`<p>`, `<b>`, `&nbsp;` vb.) arayüzde temizlendi (`MangaCache.kt`, `MangaPageLoaderV2.kt`).
+- **121 Türkçe Parser Denetimi & Envanteri:** 121 Türkçe parser statik envantere çıkarıldı ve durum raporu belgelendi (`docs/MANGA_PIPELINE_AUDIT_2026-10-10.md`, `docs/MANGA_TR_PARSER_INVENTORY.md`, `scripts/audit_manga_parsers.py`).
+- **Test Kapsamı:** Manga sayfa durumu ve önbellek mekanizmaları için birim testleri entegre edildi (`MangaPageStateTest.kt`, `MangaCacheTest.kt`).
+
+### 🌐 2. Kapsamlı Dil Altyapısı (i18n) Genişletmesi & 3.745 Çift Dilli Kaynak (`strings.xml`, `values-en/strings.xml`, `values-en/arrays.xml`)
 - **3.745 Anahtarlık %100 TR / EN Simetrisi:** Kaynak sayısı 2.195'ten 3.745 anahtara çıkarıldı; Türkçe ve İngilizce dil kaynakları arasında birebir anahtar, sıra ve `%1$s` biçim yer tutucusu (placeholder) eşitliği sağlandı.
 - **AAPT XML Kaçış & Standardizasyon Onarımları:**
   - 665 adet geçersiz `xml:space="preserve"` attribute'u temizlendi (Android AAPT derleyicisinin `CantBindXML` hatası çözüldü).
@@ -10,7 +20,7 @@
   - Yüzde karakterleri içeren metinler için `formatted="false"` etiketleri düzenlendi.
   - Bangumi etiket senkronizasyon sözlüğü (`sync_bangumi_tag_strings.py`) bozulmadan korundu.
 
-### 📱 2. 14 Yeni Ekran & Diyalog Kaynaklara Bağlandı
+### 📱 3. 14 Yeni Ekran & Diyalog Kaynaklara Bağlandı
 - **Sistem ve İndirme Ayarları (`KitsugiSystemSettingsDialog.kt`):**
   - İndirme hız limitleri ("Sınırsız", "50 KB/s", "10 MB/s" vb.), eşzamanlı indirme sayıları.
   - Okuma sonrası otomatik silme ("Devre Dışı", "Son okunan bölüm", "Son 1-10 bölüm").
@@ -25,7 +35,7 @@
 - **Android TV Ekranları:**
   - TV Aktivite Detayı (`TvActivityDetailDialog.kt`), İnceleme Detayı (`TvReviewDetailDialog.kt`), Manga Eklentileri (`TvMangaExtensionScreen.kt`), QR Giriş Ekranı (`TvQrLoginScreen.kt`), TV Akış Ekranı (`TvStreamScreen.kt`), TV Eklenti Yöneticisi (`TvAddonsScreen.kt`), TV Yardımcı Eşleşme Onayı (`TvCompanionApprovalDialog.kt`) ve QR Kod Ekranı (`TvCompanionQrScreen.kt`).
 
-### 🛠️ 3. Yeni Yerelleştirme Denetim Araçları (`scripts/`)
+### 🛠️ 4. Yeni Yerelleştirme Denetim Araçları (`scripts/`)
 - **`scripts/audit_hardcoded_turkish.py`:** Kod tabanında kalan Türkçe karakterli hardcoded literal metinleri tarayıp dosya bazında raporlayan denetim aracı eklendi.
 - **`scripts/check_localization_resource_parity.py`:** `values` ve `values-en` arasındaki string ve string-array anahtarlarını, format yer tutucularını (`%1$s`) otomatik doğrulayan CI aracı entegre edildi.
 
@@ -33,7 +43,17 @@
 
 ## 🇬🇧 English (v2.4.228)
 
-### 🌐 1. Comprehensive i18n Expansion & 3,745 Bilingual Resources (`strings.xml`, `values-en/strings.xml`, `values-en/arrays.xml`)
+### 📖 1. Manga Pipeline Fixes & Compact UI Enhancements
+- **Compact "Read" Button:** The "Read" action button on the anime/manga detail screen is now compact like the "Watch" button instead of spanning the entire line (`ApiDetailLeftPanel.kt`, `KitsugiDetailInfoSection.kt`).
+- **Resolved Black Reader Screen:** Fixed state update / observation race condition where page states failed to trigger UI rendering upon image readiness (`MangaReaderViewModel.kt`, `MangaBrowseViewModel.kt`, `MangaBrowseScreen.kt`).
+- **Mihon Image Pipeline:** Manga page images from Mihon extensions are now fetched using the extension's dedicated image requests, HTTP client, and session headers (`MihonSourceWrapper.kt`).
+- **Kotatsu Improvements:** Prevented preview thumbnails from being mistaken as chapter pages, restored missing metadata, fixed chapter ordering, and surfaced previously suppressed error details (`KotatsuExtensionAdapter.kt`, `MangaModels.kt`).
+- **Direct Source Mapping:** Manga search results now open strictly with their originating source provider, preventing ambiguous name-based guesses (`MangaSourceRepository.kt`).
+- **HTML Stripping & Cache Protection:** Blocked corrupted or HTML error responses from being cached as images; stripped raw HTML tags (`<p>`, `<b>`, `&nbsp;`) from manga synopsis text (`MangaCache.kt`, `MangaPageLoaderV2.kt`).
+- **121 Turkish Parser Inventory:** Conducted a comprehensive audit and static inventory of all 121 Turkish manga parsers (`docs/MANGA_PIPELINE_AUDIT_2026-10-10.md`, `docs/MANGA_TR_PARSER_INVENTORY.md`, `scripts/audit_manga_parsers.py`).
+- **Unit & Regression Testing:** Added tests for manga page states and cache integrity (`MangaPageStateTest.kt`, `MangaCacheTest.kt`).
+
+### 🌐 2. Comprehensive i18n Expansion & 3,745 Bilingual Resources (`strings.xml`, `values-en/strings.xml`, `values-en/arrays.xml`)
 - **Full 100% TR / EN Symmetry with 3,745 Keys:** Resource collection expanded from 2,195 to 3,745 keys, maintaining perfect 1-to-1 key parity and matching `%1$s` positional format tokens across English and Turkish.
 - **AAPT XML Escape & Standardization Fixes:**
   - Stripped 665 invalid `xml:space="preserve"` attributes to resolve AAPT compiler XMLStreamException (`CantBindXML`).
@@ -41,7 +61,7 @@
   - Applied `formatted="false"` attributes to strings containing unescaped percentage symbols.
   - Fully maintained Bangumi dictionary generator parity (`sync_bangumi_tag_strings.py --check`).
 
-### 📱 2. Migration of 14 UI Screens & Dialogs to Localized Resources
+### 📱 3. Migration of 14 UI Screens & Dialogs to Localized Resources
 - **System & Download Settings (`KitsugiSystemSettingsDialog.kt`):**
   - Download speed limits ("Unlimited", "50 KB/s", "10 MB/s", etc.) and concurrent download counts.
   - Auto-removal options ("Disabled", "Last read chapter", "Last 1-10 chapters").
@@ -56,7 +76,7 @@
 - **Android TV Screens:**
   - TV Activity Detail (`TvActivityDetailDialog.kt`), Review Detail (`TvReviewDetailDialog.kt`), Manga Extensions (`TvMangaExtensionScreen.kt`), TV QR Login (`TvQrLoginScreen.kt`), TV Stream (`TvStreamScreen.kt`), TV Addons (`TvAddonsScreen.kt`), Companion Approval (`TvCompanionApprovalDialog.kt`), and Companion QR (`TvCompanionQrScreen.kt`).
 
-### 🛠️ 3. Localization Verification & Audit Tools (`scripts/`)
+### 🛠️ 4. Localization Verification & Audit Tools (`scripts/`)
 - **`scripts/audit_hardcoded_turkish.py`:** Automated scanner identifying remaining hardcoded strings across Kotlin files.
 - **`scripts/check_localization_resource_parity.py`:** Automated validator verifying structural, key, and format token parity between locale resource files.
 

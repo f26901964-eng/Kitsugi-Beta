@@ -1,5 +1,9 @@
 package com.kitsugi.animelist.data.manga
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+
 /**
  * Bir manga başlığına (title) ait meta bilgileri taşır.
  * Eklenti tarafından döndürülür.
@@ -42,13 +46,17 @@ data class MangaChapter(
 /**
  * Bir bölümdeki tek bir sayfayı temsil eder.
  */
-data class MangaPage(
+class MangaPage(
     val index: Int,
     val url: String,
     var imageUrl: String? = null,
     var stream: (() -> java.io.InputStream)? = null,
-    @Volatile var status: MangaPageStatus = MangaPageStatus.Queue
-)
+    status: MangaPageStatus = MangaPageStatus.Queue
+) {
+    // Pages retain identity while downloads run. StateFlow suppresses equal lists;
+    // Compose must observe the status itself, not a shallow copy of that list.
+    var status: MangaPageStatus by mutableStateOf(status)
+}
 
 /**
  * Okuma modunu belirleyen enum.

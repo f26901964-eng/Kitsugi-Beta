@@ -286,6 +286,7 @@ class MangaSourceRepository(private val context: Context) {
                 recordPopularSuccess(source, elapsedMs = elapsed)
                 result.copy(mangas = result.mangas.map { it.copy(source = source.name) })
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 val elapsed = System.currentTimeMillis() - startedAt
                 recordPopularFailure(source, e, elapsedMs = elapsed)
                 Log.e(TAG, "[${source.name}] popüler liste hatası: ${e.message}")

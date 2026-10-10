@@ -1,4 +1,6 @@
 package com.kitsugi.animelist.ui.screens.manga
+
+import com.kitsugi.animelist.data.manga.stableSourceKey
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.res.Configuration
@@ -101,43 +103,24 @@ fun MangaBrowseScreen(
     val popular        = ui.popularMangas
     val hasNext        = ui.hasNextPage
 
+    // Keep the actual source with each result. Display names are not identities:
+    // Kotatsu and Mihon can expose the same title/name with different URL contracts.
     val mergedMangas = remember(states, selFilter, query, popular) {
         val raw = if (query.isNotBlank()) {
-            val src = selFilter
-            if (src != null) {
-                // Tek kaynak filtresi seçiliyse: o kaynağın sonuçlarını yine de
-                // benzerlik skoruna göre sırala (en alakalı en üstte).
-                (states.firstOrNull { it.source.name == src.name }?.mangas ?: emptyList())
-                    .sortedByDescending {
-                        com.kitsugi.animelist.data.manga.MangaTitleMatcher.getSimilarityScore(query, it.title)
-                    }
-            } else {
-                // ── Mihon "global search" sıralama mantığı ──────────────────────
-                // Tüm kaynaklardan gelen sonuçları tek bir havuzda birleştirip
-                // benzerlik skoruna göre genel (global) sıralama yapıyoruz.
-                val minScore = if (query.trim().length <= 3) 0.15 else 0.30
-
-                states.flatMap { st ->
-                    st.mangas.map { manga ->
-                        val score = com.kitsugi.animelist.data.manga.MangaTitleMatcher.getSimilarityScore(query, manga.title)
-                        Triple(manga, score, st.source)
-                    }
-                }
-                .filter { (_, score, _) -> score >= minScore }
+            states.filter { selFilter == null || it.source.stableSourceKey() == selFilter.stableSourceKey() }
+                .flatMap { state -> state.mangas.map { state.source to it } }
                 .sortedWith(
-                    compareByDescending<Triple<MangaDetails, Double, MangaSource>> { it.second } // Benzerlik skoru
-                        .thenByDescending { it.third.let { src -> repository.getSourcePriority(src) } } // Kaynak önceliği
-                        .thenBy { it.first.title.lowercase() } // Alfabetik
+                    compareByDescending<Pair<MangaSource, MangaDetails>> {
+                        com.kitsugi.animelist.data.manga.MangaTitleMatcher.getSimilarityScore(query, it.second.title)
+                    }.thenByDescending { repository.getSourcePriority(it.first) }
                 )
-                .map { it.first }
-            }
-        } else popular
-
-        raw.distinctBy { "${it.source}_${it.url}" }
+        } else {
+            selFilter?.let { source -> popular.map { source to it } }.orEmpty()
+        }
+        raw.distinctBy { "${it.first.stableSourceKey()}|${it.second.url}" }
     }
 
-    val backdropUrl = if (query.isNotBlank()) mergedMangas.firstOrNull()?.thumbnailUrl
-                     else popular.firstOrNull()?.thumbnailUrl
+    val backdropUrl = mergedMangas.firstOrNull()?.second?.thumbnailUrl
 
     Box(Modifier.fillMaxSize().background(KitsugiColors.Background)) {
 
@@ -272,17 +255,17 @@ fun MangaBrowseScreen(
                                 onClick   = { vm.selectSourceFilter(null) }
                             )
                         }
-                        items(states, key = { it.source.name }) { st ->
+                        items(states, key = { it.source.stableSourceKey() }) { st ->
                             MangaChip(
                                 label     = st.source.name,
                                 count     = st.mangas.size,
                                 isLoading = st.isLoading,
                                 error     = st.error,
-                                isSelected = selFilter?.name == st.source.name,
+                                isSelected = selFilter?.stableSourceKey() == st.source.stableSourceKey(),
                                 accent    = accentColor,
                                 isAll     = false,
                                 onClick   = {
-                                    vm.selectSourceFilter(if (selFilter?.name == st.source.name) null else st.source)
+                                    vm.selectSourceFilter(if (selFilter?.stableSourceKey() == st.source.stableSourceKey()) null else st.source)
                                 }
                             )
                         }
@@ -291,10 +274,10 @@ fun MangaBrowseScreen(
                         items(ui.sources) { src ->
                             MangaChip(
                                 label      = "${src.name}  [${src.lang.uppercase()}]",
-                                count      = if (selFilter?.name == src.name) popular.size else 0,
-                                isLoading  = selFilter?.name == src.name && ui.isLoadingPopular,
+                                count      = if (selFilter?.stableSourceKey() == src.stableSourceKey()) popular.size else 0,
+                                isLoading  = selFilter?.stableSourceKey() == src.stableSourceKey() && ui.isLoadingPopular,
                                 error      = null,
-                                isSelected = selFilter?.name == src.name,
+                                isSelected = selFilter?.stableSourceKey() == src.stableSourceKey(),
                                 accent     = accentColor,
                                 isAll      = false,
                                 onClick    = { vm.selectSourceFilter(src) }
@@ -337,28 +320,19 @@ fun MangaBrowseScreen(
                             horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             // 1) ÖNCE başarıyla veri gelen kaynakların mangaları (en üstte).
-                            items(mergedMangas, key = { "${it.source}_${it.url}" }) { manga ->
-                                MangaCard(manga, accentColor) {
-                                    // Kaynağı önce sourceStates'ten, sonra ui.sources'tan ara.
-                                    // Arama modunda ui.sources boş olabilir; states her zaman dolu.
-                                    val src = states.firstOrNull { it.source.name == manga.source }?.source
-                                        ?: ui.sources.firstOrNull { it.name == manga.source }
-                                        ?: selFilter
-                                        ?: states.firstOrNull()?.source
-                                        ?: ui.sources.firstOrNull()
-                                    if (src != null) onMangaClick(src, manga)
-                                }
+                            items(mergedMangas, key = { "${it.first.stableSourceKey()}|${it.second.url}" }) { (source, manga) ->
+                                MangaCard(manga, accentColor) { onMangaClick(source, manga) }
                             }
                             // 2) SONRA hâlâ yüklenen kaynakların iskelet (placeholder) kartları — EN ALTTA.
                             //    Böylece başarıyla gelen sonuçlar her zaman üstte kalır, yüklenenler onları aşağı itmez.
                             if (query.isNotBlank()) {
-                                val loadingStates = states.filter { it.isLoading && (selFilter == null || selFilter.name == it.source.name) }
-                                items(loadingStates, key = { "sk_${it.source.name}" }) {
+                                val loadingStates = states.filter { it.isLoading && (selFilter == null || selFilter.stableSourceKey() == it.source.stableSourceKey()) }
+                                items(loadingStates, key = { "sk_${it.source.stableSourceKey()}" }) {
                                     SkeletonCard(it.source.name, accentColor)
                                 }
                             }
                             val hasNextPageToShow = if (query.isBlank()) hasNext
-                                else (selFilter != null && (states.firstOrNull { it.source.name == selFilter.name }?.hasNextPage == true))
+                                else (selFilter != null && (states.firstOrNull { it.source.stableSourceKey() == selFilter.stableSourceKey() }?.hasNextPage == true))
 
                             if (query.isBlank() || selFilter != null) {
                                 item(span = { GridItemSpan(cols) }) {

@@ -2,9 +2,6 @@ package com.kitsugi.animelist.data.manga.loader
 
 import android.content.Context
 import android.util.Log
-import coil3.ImageLoader
-import coil3.request.ImageRequest
-import coil3.request.SuccessResult
 import com.kitsugi.animelist.data.manga.MangaPage
 import com.kitsugi.animelist.data.manga.MangaPageStatus
 import com.kitsugi.animelist.data.manga.MangaSource
@@ -21,31 +18,16 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withPermit
 import java.util.concurrent.ConcurrentHashMap
 
-/**
- * MangaPageLoaderV2 — 3 ileri prefetch + paralel 4 worker + Coil disk cache entegrasyonu.
- *
- * Eski MangaPageLoader'a göre farklar:
- * — `onPageChanged(index)` çağrıldığında: +1, +2, +3 ilerideki sayfalar önceden yüklenir
- * — Aynı anda max 4 paralel Coil request (Semaphore(4))
- * — Coil memory + disk cache'e yazıyor → chapter yeniden açılınca anında hazır
- * — Keep-alive penceresi: -1 .. +3 (pencere dışı işler iptal edilir)
- * — Bölüm değişiminde tüm devam eden prefetch'ler iptal edilir
- *
- * Kullanım (MangaReaderScreen'de):
- * ```kotlin
- * val pageLoader = remember { MangaPageLoaderV2(context, source, imageLoader) }
- * LaunchedEffect(currentPage) { pageLoader.onPageChanged(currentPage) }
- * ```
- */
+/** Source-owned image requests, bounded prefetch and validated local disk cache. */
 class MangaPageLoaderV2(
     private val context: Context,
     val source: MangaSource,
     val cache: MangaCache,
-    private val imageLoader: ImageLoader = coil3.SingletonImageLoader.get(context),
     var preloadAhead: Int = 3,
     var keepBehind: Int = 1,
 ) {
@@ -71,7 +53,13 @@ class MangaPageLoaderV2(
         kotlinx.coroutines.withContext(Dispatchers.IO) {
             val t0 = System.currentTimeMillis()
             try {
-                val fetched = source.fetchPageList(chapter)
+                resetQueue()
+                _pages.value = emptyList()
+                val fetched = kotlinx.coroutines.withTimeoutOrNull(45_000L) {
+                    source.fetchPageList(chapter)
+                } ?: throw java.io.IOException("Bölüm sayfaları alınırken zaman aşımı")
+                kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                if (fetched.isEmpty()) throw java.io.IOException("Kaynak bu bölüm için sayfa döndürmedi")
                 _pages.value = fetched
                 val elapsed = System.currentTimeMillis() - t0
                 sourceStateStore.recordOperationSuccess(source, "pages", elapsed)
@@ -79,6 +67,7 @@ class MangaPageLoaderV2(
                     success = true, pageCount = fetched.size, elapsedMs = elapsed)
                 Log.d(TAG, "${chapter.name}: ${fetched.size} sayfa alındı (${elapsed}ms)")
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
                 val elapsed = System.currentTimeMillis() - t0
                 sourceStateStore.recordOperationFailure(source, "pages",
                     reason = e.message, statusOverride = classifyStatus(e), elapsedMs = elapsed)
@@ -86,6 +75,7 @@ class MangaPageLoaderV2(
                     success = false, elapsedMs = elapsed, error = e)
                 Log.e(TAG, "${chapter.name}: sayfa listesi alınamadı → ${e.message}", e)
                 _pages.value = emptyList()
+                throw e
             }
         }
 
@@ -119,39 +109,30 @@ class MangaPageLoaderV2(
             if (prev >= windowStart) add(prev)
         }
 
-        priority.forEach { idx ->
-            val page = allPages.getOrNull(idx) ?: return@forEach
-            if (page.status != MangaPageStatus.Ready && !prefetchJobs.containsKey(idx)) {
-                prefetchJobs[idx] = scope.launch {
-                    try {
-                        loadPageInternal(page)
-                    } finally {
-                        prefetchJobs.remove(idx)
-                    }
-                }
-            }
-        }
+        priority.forEach { idx -> allPages.getOrNull(idx)?.let(::loadPage) }
     }
 
-    /** Tek sayfa yükleme — retry ve manuel tetikleme için */
+    /** Register before starting, and only remove our own job on completion. */
     fun loadPage(page: MangaPage) {
-        if (page.status == MangaPageStatus.Ready) return
-        if (prefetchJobs.containsKey(page.index)) return
-
-        prefetchJobs[page.index] = scope.launch {
-            try {
+        synchronized(prefetchJobs) {
+            if (page.status == MangaPageStatus.Ready || prefetchJobs.containsKey(page.index)) return
+            val job = scope.launch(start = kotlinx.coroutines.CoroutineStart.LAZY) {
                 loadPageInternal(page)
-            } finally {
-                prefetchJobs.remove(page.index)
             }
+            prefetchJobs[page.index] = job
+            job.invokeOnCompletion { prefetchJobs.remove(page.index, job) }
+            job.start()
         }
     }
 
     fun retryPage(page: MangaPage) {
-        prefetchJobs.remove(page.index)?.cancel()
-        page.status = MangaPageStatus.Queue
-        notifyChanged()
-        loadPage(page)
+        val previous = prefetchJobs.remove(page.index)
+        previous?.cancel()
+        scope.launch {
+            previous?.join()
+            page.status = MangaPageStatus.Queue
+            loadPage(page)
+        }
     }
 
     // ─── İç yükleme mantığı ───────────────────────────────────────────────────
@@ -166,17 +147,16 @@ class MangaPageLoaderV2(
                     // 1. Sayfa URL'ini çöz (gerekiyorsa)
                     if (page.imageUrl.isNullOrEmpty()) {
                         page.status = MangaPageStatus.LoadPage
-                        notifyChanged()
                         page.imageUrl = source.fetchImageUrl(page)
                     }
 
-                    val imageUrl = page.imageUrl ?: return@withTimeout
+                    val imageUrl = page.imageUrl?.takeIf { it.isNotBlank() }
+                        ?: throw java.io.IOException("Kaynak boş görsel adresi döndürdü")
 
                     // 2. Disk cache'te var mı kontrol et
                     if (cache.isImageInCache(imageUrl)) {
                         page.stream = { cache.getImageFile(imageUrl).inputStream() }
                         page.status = MangaPageStatus.Ready
-                        notifyChanged()
                         Log.v(TAG, "Cache hit [${page.index}]: $imageUrl")
                         return@withTimeout
                     }
@@ -185,43 +165,16 @@ class MangaPageLoaderV2(
                     // (Referer, custom user-agent, Cloudflare çerezleri ve interceptor'ları içerir).
                     // Hotlink korumalı CDN'ler (manga-tr, trmanga, webtoonhatti vb.) için bu zorunludur.
                     page.status = MangaPageStatus.DownloadImage
-                    notifyChanged()
 
-                    var downloaded = false
-                    try {
-                        source.getImage(page).use { stream ->
-                            cache.putImageToCache(imageUrl, stream)
-                        }
-                        val checkFile = cache.getImageFile(imageUrl)
-                        if (checkFile.exists() && checkFile.length() > 0L) {
-                            downloaded = true
-                        }
-                    } catch (e: Exception) {
-                        Log.w(TAG, "source.getImage [${page.index}] başarısız, Coil deneniyor: ${e.message}")
+                    source.getImage(page).use { stream ->
+                        cache.putImageToCache(imageUrl, stream)
                     }
-
-                    if (!downloaded) {
-                        // Fallback: Coil ile dene
-                        val coilRequest = ImageRequest.Builder(context)
-                            .data(imageUrl)
-                            .build()
-                        val result = imageLoader.execute(coilRequest)
-                        if (result is SuccessResult) {
-                            try {
-                                source.getImage(page).use { stream ->
-                                    cache.putImageToCache(imageUrl, stream)
-                                }
-                            } catch (_: Exception) {}
-                        } else {
-                            throw Exception("Görsel indirme başarısız: $imageUrl")
-                        }
-                    }
+                    kotlinx.coroutines.currentCoroutineContext().ensureActive()
 
                     val file = cache.getImageFile(imageUrl)
                     if (file.exists() && file.length() > 0L) {
                         page.stream = { file.inputStream() }
                         page.status = MangaPageStatus.Ready
-                        notifyChanged()
 
                         val elapsed = System.currentTimeMillis() - t0
                         sourceStateStore.recordOperationSuccess(source, "image", elapsed)
@@ -232,17 +185,17 @@ class MangaPageLoaderV2(
                 }
             } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
                 page.status = MangaPageStatus.Error
-                notifyChanged()
                 MangaLogger.logImageFetch(context, source.name, page.index,
                     page.imageUrl, success = false, elapsedMs = IMAGE_TIMEOUT_MS, isTimeout = true)
                 Log.e(TAG, "Timeout [${page.index}] — ${IMAGE_TIMEOUT_MS}ms aşıldı")
             } catch (e: kotlinx.coroutines.CancellationException) {
-                // Prefetch penceresi daraldı → job iptal edildi → normal
-                Log.v(TAG, "Prefetch iptal edildi [${page.index}]")
+                if (prefetchJobs[page.index] === kotlinx.coroutines.currentCoroutineContext()[Job]) {
+                    page.status = MangaPageStatus.Queue
+                }
+                throw e
             } catch (e: Exception) {
                 val elapsed = System.currentTimeMillis() - t0
                 page.status = MangaPageStatus.Error
-                notifyChanged()
                 sourceStateStore.recordOperationFailure(source, "image",
                     reason = e.message, statusOverride = classifyStatus(e), elapsedMs = elapsed)
                 MangaLogger.logImageFetch(context, source.name, page.index,
@@ -253,10 +206,6 @@ class MangaPageLoaderV2(
     }
 
     // ─── Yardımcı fonksiyonlar ────────────────────────────────────────────────
-
-    private fun notifyChanged() {
-        _pages.value = _pages.value.toList()
-    }
 
     fun resetQueue() {
         prefetchJobs.values.forEach { it.cancel() }

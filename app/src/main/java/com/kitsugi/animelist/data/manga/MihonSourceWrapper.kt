@@ -35,7 +35,6 @@ class MihonSourceWrapper(
     private val httpSource: HttpSource? get() = mihonSource as? HttpSource
     private val sourceConfigStore = SourceConfigStore(context)
     private val mirrorResolver = SourceMirrorResolver(context, sourceConfigStore)
-    private val okHttpProvider by lazy { com.kitsugi.animelist.core.network.NuvioOkHttpProvider(context) }
 
     // ── Lazy Fallback Engine'ler ───────────────────────────────────────────────
 
@@ -65,21 +64,11 @@ class MihonSourceWrapper(
 
     override val originalBaseUrl: String get() = rawBaseUrl()
 
-    /**
-     * HttpSource'un baseUrl'sini reflection ile okumaya çalışır.
-     * Eklenti HttpSource'u implemente etmiyorsa boş string döner.
-     */
+    /** Read the public contract; subclasses need not declare a baseUrl field. */
     override val baseUrl: String
         get() = sourceConfigStore.getPreferredBaseUrl(this, rawBaseUrl()) ?: rawBaseUrl()
 
-    private fun rawBaseUrl(): String = try {
-        mihonSource.javaClass.getDeclaredField("baseUrl").let {
-            it.isAccessible = true
-            it.get(mihonSource) as? String ?: ""
-        }
-    } catch (_: Exception) {
-        ""
-    }
+    private fun rawBaseUrl(): String = httpSource?.baseUrl.orEmpty()
 
     private fun applyRuntimeSourceConfig() {
         runCatching {
@@ -99,6 +88,7 @@ class MihonSourceWrapper(
         return try {
             block()
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             val switched = mirrorResolver.tryResolveAndActivateMirror(this, e)
             if (!switched) throw e
             applyRuntimeSourceConfig()
@@ -121,6 +111,7 @@ class MihonSourceWrapper(
                 resultCount = result.mangas.size, elapsedMs = System.currentTimeMillis() - t0)
             result
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             Log.w(TAG, "${mihonSource.name} APK popular başarısız (engine=$engineType): ${e.message}")
             val fallback = when (engineType) {
                 ExtensionEngine.SVELTE  -> svelteEngine?.fetchPopularManga(page)
@@ -153,6 +144,7 @@ class MihonSourceWrapper(
                 resultCount = result.mangas.size, elapsedMs = System.currentTimeMillis() - t0)
             result
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             Log.w(TAG, "${mihonSource.name} APK search başarısız (engine=$engineType): ${e.message}")
             val fallback = when (engineType) {
                 ExtensionEngine.SVELTE  -> svelteEngine?.searchManga(query, page)
@@ -193,6 +185,7 @@ class MihonSourceWrapper(
                 details
             }
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             Log.w(TAG, "${mihonSource.name} APK detay başarısız (engine=$engineType): ${e.message}")
             try {
                 val fallback = when (engineType) {
@@ -205,12 +198,13 @@ class MihonSourceWrapper(
                     fallback
                 } else {
                     MangaLogger.logMangaDetails(context, mihonSource.name, mangaUrl, success = false, error = e)
-                    MangaDetails(url = mangaUrl, title = mangaUrl)
+                    throw e
                 }
             } catch (fe: Exception) {
+                if (fe is kotlinx.coroutines.CancellationException) throw fe
                 Log.e(TAG, "${mihonSource.name} fallback detay da başarısız: ${fe.message}")
                 MangaLogger.logMangaDetails(context, mihonSource.name, mangaUrl, success = false, error = fe)
-                MangaDetails(url = mangaUrl, title = mangaUrl)
+                throw fe
             }
         }
     }
@@ -249,10 +243,11 @@ class MihonSourceWrapper(
                 mapped
             }
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             Log.e(TAG, "${mihonSource.name} fetchChapterList hata: ${e.message}")
             MangaLogger.logChapterList(context, mihonSource.name, mangaUrl, success = false,
                 elapsedMs = System.currentTimeMillis() - t0, error = e)
-            emptyList()
+            throw e
         }
     }
 
@@ -270,9 +265,9 @@ class MihonSourceWrapper(
         val t0 = System.currentTimeMillis()
         return try {
             withRecovery {
-                val pages = mihonSource.getPageList(sChapter).map { page ->
+                val pages = mihonSource.getPageList(sChapter).mapIndexed { index, page ->
                     MangaPage(
-                        index = page.index,
+                        index = index,
                         url = page.url,
                         imageUrl = page.imageUrl
                     )
@@ -282,6 +277,7 @@ class MihonSourceWrapper(
                 pages
             }
         } catch (e: Exception) {
+            if (e is kotlinx.coroutines.CancellationException) throw e
             val msg = e.message?.lowercase() ?: ""
             val isCaptcha = msg.contains("captcha") || msg.contains("webview") ||
                 msg.contains("doğrula") || msg.contains("verify") || msg.contains("challenge")
@@ -315,83 +311,29 @@ class MihonSourceWrapper(
                 val httpSource = mihonSource as? eu.kanade.tachiyomi.source.online.HttpSource
                 httpSource?.getImageUrl(mihonPage) ?: page.url
             }
-        } catch (_: Exception) {
-            page.url
+        } catch (e: Exception) {
+            throw e
         }
     }
 
     override suspend fun getImage(page: MangaPage): java.io.InputStream {
-        val imageUrl = page.imageUrl ?: throw IllegalArgumentException("Image URL is null")
         applyRuntimeSourceConfig()
-
-        var client: okhttp3.OkHttpClient? = null
-        var headers: okhttp3.Headers? = null
-
-        try {
-            val clientMethod = mihonSource.javaClass.getMethod("getClient")
-            clientMethod.isAccessible = true
-            client = clientMethod.invoke(mihonSource) as? okhttp3.OkHttpClient
-        } catch (_: Exception) {}
-
-        try {
-            val headersMethod = mihonSource.javaClass.getMethod("getHeaders")
-            headersMethod.isAccessible = true
-            headers = headersMethod.invoke(mihonSource) as? okhttp3.Headers
-        } catch (_: Exception) {}
-
-        val finalClient = if (client != null) {
-            okHttpProvider.imageClient.newBuilder()
-                .apply {
-                    client.interceptors.forEach { addInterceptor(it) }
-                }
-                .build()
-        } else {
-            okHttpProvider.imageClient
-        }
-        val requestBuilder = okhttp3.Request.Builder().url(imageUrl)
-        val userAgentOverride = sourceConfigStore.getUserAgentOverride(this)
-
-        if (headers != null) {
-            requestBuilder.headers(headers)
-            if (!userAgentOverride.isNullOrBlank()) {
-                requestBuilder.header("User-Agent", userAgentOverride)
-            }
-        } else {
-            requestBuilder.header("Referer", baseUrl)
-            requestBuilder.header("User-Agent", userAgentOverride ?: "Mozilla/5.0")
-        }
-
-        val request = requestBuilder.build()
         maybeSlowdown()
-
-        val imgT0 = System.currentTimeMillis()
-        return kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            var lastError: Exception? = null
-            repeat(2) { attempt ->
-                try {
-                    val response = finalClient.newCall(request).execute()
-                    if (!response.isSuccessful) {
-                        response.close()
-                        throw java.io.IOException("HTTP error ${response.code} for $imageUrl")
-                    }
-                    val body = response.body ?: throw java.io.IOException("Response body is null")
-                    return@withContext object : java.io.FilterInputStream(body.byteStream()) {
-                        override fun close() {
-                            super.close()
-                            response.close()
-                        }
-                    }
-                } catch (e: Exception) {
-                    lastError = e
-                    if (attempt == 0) {
-                        kotlinx.coroutines.delay(250L)
-                    }
-                }
+        val source = httpSource ?: return super<MangaSource>.getImage(page)
+        // Do not rebuild the request/client: imageRequest overrides can carry chapter
+        // referers, signed URLs, decryption interceptors and the source cookie jar.
+        val response = source.getImage(eu.kanade.tachiyomi.source.model.Page(
+            index = page.index, url = page.url, imageUrl = page.imageUrl
+        ))
+        val body = response.body
+        if (!response.isSuccessful || body == null) {
+            response.close()
+            throw java.io.IOException("Görsel isteği başarısız: HTTP ${response.code}")
+        }
+        return object : java.io.FilterInputStream(body.byteStream()) {
+            override fun close() {
+                try { super.close() } finally { response.close() }
             }
-            val finalErr = lastError ?: java.io.IOException("Unknown image fetch error for $imageUrl")
-            MangaLogger.logImageFetch(context, mihonSource.name, -1, imageUrl,
-                success = false, elapsedMs = System.currentTimeMillis() - imgT0, error = finalErr)
-            throw finalErr
         }
     }
 
@@ -402,7 +344,7 @@ class MihonSourceWrapper(
         title = title,
         author = author,
         artist = artist,
-        description = description,
+        description = description?.let { org.jsoup.Jsoup.parse(it).text() },
         genre = getGenres() ?: emptyList(),
         thumbnailUrl = thumbnail_url,
         status = when (status) {

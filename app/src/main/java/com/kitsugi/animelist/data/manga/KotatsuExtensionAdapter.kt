@@ -241,26 +241,29 @@ class BitmapWrapper private constructor(
 // ─── KitsugiKotatsuContext — MangaLoaderContext implementasyonu ─────────────────
 class KitsugiKotatsuContext(private val context: Context) : MangaLoaderContext() {
 
-    private val client = okhttp3.OkHttpClient.Builder()
-        .connectTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-        .readTimeout(30, java.util.concurrent.TimeUnit.SECONDS)
-        .followRedirects(true)
-        .followSslRedirects(true)
+    private val parsers = java.util.concurrent.ConcurrentHashMap<org.koitharu.kotatsu.parsers.model.MangaSource, MangaParser>()
+    fun register(parser: MangaParser) { parsers[parser.source] = parser }
+
+    private val network = eu.kanade.tachiyomi.network.NetworkHelper(context)
+    private val client = network.client.newBuilder()
+        .addInterceptor { chain ->
+            val parser = chain.request().tag(org.koitharu.kotatsu.parsers.model.MangaSource::class.java)?.let { parsers[it] }
+            if (parser != null) parser.intercept(chain) else chain.proceed(chain.request())
+        }
         .build()
 
-    override val httpClient: okhttp3.OkHttpClient
-        get() = client
-
-    override val cookieJar: okhttp3.CookieJar
-        get() = okhttp3.CookieJar.NO_COOKIES
+    override val httpClient: okhttp3.OkHttpClient get() = client
+    override val cookieJar: okhttp3.CookieJar get() = network.cookieJar
 
     override fun getConfig(source: org.koitharu.kotatsu.parsers.model.MangaSource): org.koitharu.kotatsu.parsers.config.MangaSourceConfig {
         return KitsugiSourceConfig(context, source)
     }
 
-    override suspend fun evaluateJs(script: String): String? = null
+    override suspend fun evaluateJs(script: String): String? =
+        throw UnsupportedOperationException("Bu kaynak JavaScript çalıştırma desteği gerektiriyor")
 
-    override suspend fun evaluateJs(baseUrl: String, script: String, timeout: Long): String? = null
+    override suspend fun evaluateJs(baseUrl: String, script: String, timeout: Long): String? =
+        throw UnsupportedOperationException("Bu kaynak JavaScript çalıştırma desteği gerektiriyor")
 
     override fun getDefaultUserAgent(): String = "Mozilla/5.0 (Linux; Android 10; K) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Mobile Safari/537.36"
 
@@ -280,7 +283,10 @@ class KitsugiKotatsuContext(private val context: Context) : MangaLoaderContext()
         throw UnsupportedOperationException("Browser action required for ${parser.source.name} at $url")
     }
 
-    override fun redrawImageResponse(response: okhttp3.Response, redraw: (image: org.koitharu.kotatsu.parsers.bitmap.Bitmap) -> org.koitharu.kotatsu.parsers.bitmap.Bitmap): okhttp3.Response = response
+    override fun redrawImageResponse(response: okhttp3.Response, redraw: (image: org.koitharu.kotatsu.parsers.bitmap.Bitmap) -> org.koitharu.kotatsu.parsers.bitmap.Bitmap): okhttp3.Response {
+        response.close()
+        throw UnsupportedOperationException("Bu kaynak görsel yeniden çizim desteği gerektiriyor")
+    }
 
     override fun createBitmap(width: Int, height: Int): org.koitharu.kotatsu.parsers.bitmap.Bitmap {
         return BitmapWrapper.create(width, height)
@@ -290,18 +296,21 @@ class KitsugiKotatsuContext(private val context: Context) : MangaLoaderContext()
         url: String,
         interceptorScript: String,
         timeout: Long
-    ): List<org.koitharu.kotatsu.parsers.webview.InterceptedRequest> = emptyList()
+    ): List<org.koitharu.kotatsu.parsers.webview.InterceptedRequest> =
+        throw UnsupportedOperationException("Bu kaynak WebView istek yakalama desteği gerektiriyor")
 
     override suspend fun interceptWebViewRequests(
         url: String,
         config: org.koitharu.kotatsu.parsers.webview.InterceptionConfig
-    ): List<org.koitharu.kotatsu.parsers.webview.InterceptedRequest> = emptyList()
+    ): List<org.koitharu.kotatsu.parsers.webview.InterceptedRequest> =
+        throw UnsupportedOperationException("Bu kaynak WebView istek yakalama desteği gerektiriyor")
 
     override suspend fun captureWebViewUrls(
         pageUrl: String,
         urlPattern: Regex,
         timeout: Long
-    ): List<String> = emptyList()
+    ): List<String> =
+        throw UnsupportedOperationException("Bu kaynak WebView URL yakalama desteği gerektiriyor")
 }
 
 // ─── KotatsuMangaSource — Gerçek Parser Wrapper ──────────────────────────────
@@ -311,36 +320,55 @@ class KotatsuMangaSource(
     private val context: KitsugiKotatsuContext,
 ) : MangaSource {
 
+    init { context.register(parser) }
+
+    private fun <T> boundedCache(limit: Int): MutableMap<String, T> =
+        java.util.Collections.synchronizedMap(object : LinkedHashMap<String, T>(16, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, T>): Boolean = size > limit
+        })
+    private val mangaCache = boundedCache<KotatsuManga>(100)
+    private val chapterCache = boundedCache<KotatsuChapter>(2000)
+    private val pageCache = boundedCache<KotatsuPage>(1000)
+    private val offsets = boundedCache<Int>(256)
+    private fun offsetKey(query: String, page: Int) = "${query.length}:$query:$page"
+    private fun offset(query: String, page: Int): Int =
+        if (page <= 1) 0 else offsets[offsetKey(query, page)] ?: ((page - 1) * 20)
+
+    private fun result(query: String, page: Int, list: List<KotatsuManga>): MangaSourceResult {
+        offsets[offsetKey(query, page + 1)] = offset(query, page) + list.size
+        return MangaSourceResult(list.map { it.toMangaDetails() }, list.isNotEmpty())
+    }
+
     override val name: String get() = parserSource.title
     override val lang: String get() = parserSource.locale ?: "unknown"
     override val pkgName: String get() = "kotatsu.${parserSource.name.lowercase()}"
-    override val baseUrl: String get() = try { parser.domain } catch (_: Exception) { "" }
+    override val baseUrl: String get() = parser.domain.let { if (it.startsWith("http")) it else "https://$it" }
 
     override suspend fun fetchPopularManga(page: Int): MangaSourceResult = withContext(Dispatchers.IO) {
         try {
             val list = parser.getList(
-                offset = (page - 1) * 20,
+                offset = offset("", page),
                 filter = MangaListFilter(query = ""),
-                order = SortOrder.POPULARITY,
+                order = SortOrder.POPULARITY.takeIf { it in parser.availableSortOrders } ?: parser.availableSortOrders.first(),
             )
-            MangaSourceResult(list.map { it.toMangaDetails() }, list.size >= 20)
+            result("", page, list)
         } catch (e: Exception) {
             android.util.Log.w("KotatsuMangaSrc", "fetchPopularManga hata [${parserSource.name}]: ${e.message}")
-            MangaSourceResult(emptyList(), false)
+            throw e
         }
     }
 
     override suspend fun fetchSearchManga(page: Int, query: String): MangaSourceResult = withContext(Dispatchers.IO) {
         try {
             val list = parser.getList(
-                offset = (page - 1) * 20,
+                offset = offset(query, page),
                 filter = MangaListFilter(query = query),
-                order = SortOrder.RELEVANCE,
+                order = SortOrder.RELEVANCE.takeIf { it in parser.availableSortOrders } ?: parser.availableSortOrders.first(),
             )
-            MangaSourceResult(list.map { it.toMangaDetails() }, list.size >= 20)
+            result(query, page, list)
         } catch (e: Exception) {
             android.util.Log.w("KotatsuMangaSrc", "fetchSearchManga hata [${parserSource.name}]: ${e.message}")
-            MangaSourceResult(emptyList(), false)
+            throw e
         }
     }
 
@@ -363,11 +391,12 @@ class KotatsuMangaSource(
                 chapters = null,
                 source = parserSource,
             )
-            val detail = parser.getDetails(stub)
+            val detail = parser.getDetails(mangaCache[mangaUrl] ?: stub)
+            mangaCache[mangaUrl] = detail
             detail.toMangaDetails()
         } catch (e: Exception) {
             android.util.Log.w("KotatsuMangaSrc", "fetchMangaDetails hata [${parserSource.name}]: ${e.message}")
-            MangaDetails(url = mangaUrl, title = name, source = pkgName)
+            throw e
         }
     }
 
@@ -390,11 +419,14 @@ class KotatsuMangaSource(
                 chapters = null,
                 source = parserSource,
             )
-            val detail = parser.getDetails(stub)
-            detail.chapters?.map { chapter ->
+            val detail = parser.getDetails(mangaCache[mangaUrl] ?: stub)
+            mangaCache[mangaUrl] = detail
+            detail.chapters?.asReversed()?.map { chapter ->
+                chapterCache[chapter.url] = chapter
                 MangaChapter(
                     url = chapter.url,
-                    name = chapter.title ?: "",
+                    name = chapter.title?.takeIf { it.isNotBlank() } ?: "Bölüm ${chapter.number}",
+                    scanlator = chapter.scanlator,
                     chapterNumber = chapter.number,
                     uploadDate = chapter.uploadDate,
                     mangaUrl = mangaUrl,
@@ -402,7 +434,7 @@ class KotatsuMangaSource(
             } ?: emptyList()
         } catch (e: Exception) {
             android.util.Log.w("KotatsuMangaSrc", "fetchChapterList hata [${parserSource.name}]: ${e.message}")
-            emptyList()
+            throw e
         }
     }
 
@@ -419,17 +451,18 @@ class KotatsuMangaSource(
                 branch = null,
                 source = parserSource,
             )
-            val pages = parser.getPages(kotatsuChapter)
+            val pages = parser.getPages(chapterCache[chapter.url] ?: kotatsuChapter)
             pages.mapIndexed { index, page ->
+                pageCache[page.url] = page
                 MangaPage(
                     index = index,
                     url = page.url,
-                    imageUrl = page.preview,
+                    imageUrl = null, // preview is only a thumbnail; always resolve getPageUrl.
                 )
             }
         } catch (e: Exception) {
             android.util.Log.w("KotatsuMangaSrc", "fetchPageList hata [${parserSource.name}]: ${e.message}")
-            emptyList()
+            throw e
         }
     }
 
@@ -441,9 +474,9 @@ class KotatsuMangaSource(
                 preview = page.imageUrl,
                 source = parserSource,
             )
-            parser.getPageUrl(kotatsuPage)
+            parser.getPageUrl(pageCache[page.url] ?: kotatsuPage)
         } catch (e: Exception) {
-            page.imageUrl ?: page.url
+            throw e
         }
     }
 
@@ -464,6 +497,7 @@ class KotatsuMangaSource(
         val request = okhttp3.Request.Builder()
             .url(imageUrl)
             .headers(headersBuilder.build())
+            .tag(org.koitharu.kotatsu.parsers.model.MangaSource::class.java, parserSource)
             .build()
 
         return withContext(Dispatchers.IO) {
@@ -486,14 +520,25 @@ class KotatsuMangaSource(
 
     // ── Yardımcı dönüşüm ──────────────────────────────────────────────────────
 
-    private fun KotatsuManga.toMangaDetails() = MangaDetails(
-        url = url,
-        title = title,
-        author = authors.joinToString(", ").takeIf { it.isNotBlank() },
-        description = description,
-        thumbnailUrl = coverUrl?.takeIf { it.isNotBlank() },
-        source = pkgName,
-    )
+    private fun KotatsuManga.toMangaDetails(): MangaDetails {
+        mangaCache[url] = this
+        return MangaDetails(
+            url = url,
+            title = title,
+            author = authors.joinToString(", ").takeIf { it.isNotBlank() },
+            description = description?.let { org.jsoup.Jsoup.parse(it).text() },
+            genre = tags.map { it.title },
+            status = when (state) {
+                org.koitharu.kotatsu.parsers.model.MangaState.ONGOING -> MangaStatus.Ongoing
+                org.koitharu.kotatsu.parsers.model.MangaState.FINISHED -> MangaStatus.Completed
+                org.koitharu.kotatsu.parsers.model.MangaState.ABANDONED -> MangaStatus.Cancelled
+                org.koitharu.kotatsu.parsers.model.MangaState.PAUSED -> MangaStatus.OnHiatus
+                else -> MangaStatus.Unknown
+            },
+            thumbnailUrl = largeCoverUrl?.takeIf { it.isNotBlank() } ?: coverUrl?.takeIf { it.isNotBlank() },
+            source = pkgName,
+        )
+    }
 }
 
 // ─── Eski KotatsuSourceType (geriye dönük uyumluluk) ─────────────────────────
