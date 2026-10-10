@@ -113,6 +113,7 @@ fun SearchScreen(
     onOpenStaffDetail: ((staffId: Int, name: String?, imageUrl: String?) -> Unit)? = null,
     onOpenStudioDetail: ((studioId: Int, source: String, name: String?, imageUrl: String?) -> Unit)? = null,
     isBottomBarVisible: Boolean = true,
+    bottomBarScrollState: com.kitsugi.animelist.utils.ScrollVisibilityState? = null,
     onScrollReset: (() -> Unit)? = null,
     // "Tümünü Gör" → kaynağa özel tam arama sayfasını ayrı ekranda açar
     onOpenSourceSearch: (SearchSourceEngine, SearchScope, List<JikanSearchResult>) -> Unit = { _, _, _ -> },
@@ -138,18 +139,6 @@ fun SearchScreen(
     }
 
     val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
-    val navigationBarsPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val fabBottomPadding by animateDpAsState(
-        targetValue = if (isLandscape) {
-            16.dp
-        } else if (isBottomBarVisible) {
-            80.dp + navigationBarsPadding
-        } else {
-            16.dp + navigationBarsPadding
-        },
-        animationSpec = tween(durationMillis = 200),
-        label = "search_fab_bottom_padding"
-    )
 
     LaunchedEffect(lazyListState) {
         snapshotFlow { lazyListState.firstVisibleItemIndex to lazyListState.firstVisibleItemScrollOffset }
@@ -611,29 +600,17 @@ fun SearchScreen(
         }
 
         // Scroll to Top FAB
-        AnimatedVisibility(
+        com.kitsugi.animelist.ui.components.KitsugiScrollToTopFab(
             visible = showFab,
-            enter = fadeIn() + scaleIn(),
-            exit = fadeOut() + scaleOut(),
-            modifier = Modifier
-                .align(Alignment.BottomEnd)
-                .padding(end = 20.dp, bottom = fabBottomPadding)
-        ) {
-            FloatingActionButton(
-                onClick = {
-                    onScrollReset?.invoke()
-                    scope.launch {
-                        lazyListState.animateScrollToItem(0)
-                    }
-                },
-                containerColor = accentColor,
-                contentColor = com.kitsugi.animelist.ui.theme.onAccentColor(accentColor),
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier.size(52.dp)
-            ) {
-                Icon(Icons.Default.ArrowUpward, contentDescription = stringResource(R.string.yukari_cik))
-            }
-        }
+            isLandscape = isLandscape,
+            bottomBarScrollState = bottomBarScrollState,
+            fallbackBottomBarVisible = isBottomBarVisible,
+            onClick = {
+                onScrollReset?.invoke()
+                scope.launch { lazyListState.animateScrollToItem(0) }
+            },
+            modifier = Modifier.align(Alignment.BottomEnd)
+        )
     }
     } // KitsugiShimmerProvider
 

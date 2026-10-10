@@ -227,12 +227,6 @@ private fun HeroSourcePill(source: String) {
     KitsugiSourceNamePill(source = source)
 }
 
-private data class HeroPageLayer(
-    val page: Int,
-    val visibility: Float,
-    val offset: Float,
-)
-
 internal data class HomeHeroLayout(
     val isTablet: Boolean,
     val isLandscape: Boolean,
@@ -380,25 +374,15 @@ fun KitsugiHeroSection(
     }
 
     val currentPage = pagerState.currentPage.coerceIn(items.indices)
-    val visiblePages = listOf(
-        currentPage,
-        (currentPage - 1).coerceIn(items.indices),
-        (currentPage + 1).coerceIn(items.indices)
-    ).distinct()
-        .mapNotNull { index ->
-            val pageOffset = heroPageOffset(pagerState, index)
-            val visibility = (1f - abs(pageOffset)).coerceIn(0f, 1f)
-            if (visibility <= 0f) {
-                null
-            } else {
-                HeroPageLayer(
-                    page = index,
-                    visibility = visibility,
-                    offset = pageOffset
-                )
-            }
-        }
-        .sortedBy { it.visibility }
+    // Offset her animasyon karesinde değişir. Burada offset/visibility okuyup List +
+    // HeroPageLayer üretmek tüm vitrini 60 Hz recompose ediyor ve GC baskısı yaratıyordu.
+    // Yalnız sayfa değiştiğinde üç sabit indeks oluştur; karelik değerler aşağıdaki
+    // graphicsLayer bloklarında draw/layer aşamasında okunur.
+    val visiblePageIndices = remember(currentPage, items.size) {
+        listOf(currentPage, currentPage - 1, currentPage + 1)
+            .filter { it in items.indices }
+            .distinct()
+    }
 
     var isFocused by remember { mutableStateOf(false) }
 
@@ -489,8 +473,8 @@ fun KitsugiHeroSection(
             Box(modifier = Modifier.fillMaxSize())
         }
 
-        visiblePages.forEach { layer ->
-            val item = items[layer.page]
+        visiblePageIndices.forEach { page ->
+            val item = items[page]
             val displayTitle = item.getDisplayTitle(titleLanguage)
             Box(
                 modifier = Modifier
@@ -530,8 +514,9 @@ fun KitsugiHeroSection(
                         modifier = Modifier
                             .fillMaxSize()
                             .graphicsLayer {
-                                alpha = layer.visibility
-                                translationX = -layer.offset * heroWidthPx * HERO_BACKGROUND_PARALLAX
+                                val offset = heroPageOffset(pagerState, page)
+                                alpha = (1f - abs(offset)).coerceIn(0f, 1f)
+                                translationX = -offset * heroWidthPx * HERO_BACKGROUND_PARALLAX
                                 translationY = heroScrollTranslationY
                                 scaleX = HERO_BACKGROUND_SCALE * heroScrollScale
                                 scaleY = HERO_BACKGROUND_SCALE * heroScrollScale
@@ -559,8 +544,9 @@ fun KitsugiHeroSection(
                         modifier = Modifier
                             .fillMaxSize()
                             .graphicsLayer {
-                                alpha = layer.visibility
-                                translationX = -layer.offset * heroWidthPx * HERO_BACKGROUND_PARALLAX
+                                val offset = heroPageOffset(pagerState, page)
+                                alpha = (1f - abs(offset)).coerceIn(0f, 1f)
+                                translationX = -offset * heroWidthPx * HERO_BACKGROUND_PARALLAX
                                 translationY = heroScrollTranslationY
                                 scaleX = HERO_BACKGROUND_SCALE * heroScrollScale
                                 scaleY = HERO_BACKGROUND_SCALE * heroScrollScale
@@ -655,8 +641,8 @@ fun KitsugiHeroSection(
                     .widthIn(max = layout.contentMaxWidth),
                 contentAlignment = Alignment.CenterStart
             ) {
-                visiblePages.forEach { layer ->
-                    val item = items[layer.page]
+                visiblePageIndices.forEach { page ->
+                    val item = items[page]
                     val displayTitle = item.getDisplayTitle(titleLanguage)
                     val alreadyInList = alreadyInList(item)
 
@@ -667,8 +653,9 @@ fun KitsugiHeroSection(
                         modifier = Modifier
                             .fillMaxWidth()
                             .graphicsLayer {
-                                alpha = layer.visibility
-                                translationX = -layer.offset * heroWidthPx * HERO_CONTENT_PARALLAX
+                                val offset = heroPageOffset(pagerState, page)
+                                alpha = (1f - abs(offset)).coerceIn(0f, 1f)
+                                translationX = -offset * heroWidthPx * HERO_CONTENT_PARALLAX
                             }
                             .then(
                                 if (isTv) {
@@ -799,7 +786,6 @@ fun KitsugiHeroSection(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     items.forEachIndexed { index, _ ->
-                        val activeFraction = heroPageVisibility(pagerState, index)
                         Box(
                             modifier = Modifier
                                 .then(
@@ -816,11 +802,16 @@ fun KitsugiHeroSection(
                                     }
                                 )
                                 .clip(CircleShape)
-                                .background(if (isTv && isFocused && activeFraction > 0.5f) accentColor else KitsugiColors.TextPrimary)
+                                .background(accentColor)
                                 .graphicsLayer {
+                                    val activeFraction = heroPageVisibility(pagerState, index)
                                     alpha = 0.35f + (0.57f * activeFraction)
+                                    // Sabit ölçü: her karede width değiştirip tüm Row'u yeniden
+                                    // ölçmek yerine GPU katmanını yatay ölçekle.
+                                    scaleX = 0.2857f + (0.7143f * activeFraction)
+                                    transformOrigin = androidx.compose.ui.graphics.TransformOrigin(0f, 0.5f)
                                 }
-                                .width(8.dp + (20.dp * activeFraction))
+                                .width(28.dp)
                                 .height(6.dp)
                         )
                     }
