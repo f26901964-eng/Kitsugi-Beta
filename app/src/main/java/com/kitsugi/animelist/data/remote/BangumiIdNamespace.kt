@@ -48,6 +48,10 @@ object BangumiIdNamespace {
     fun rawIdFromStable(stableId: Int?): Int? =
         stableId?.takeIf { it in STABLE_ID_MIN..STABLE_ID_MAX }?.minus(BANGUMI_OFFSET)
 
+    /** Bangumi stableId veya doğrudan raw subject_id → gerçek `subject_id`. */
+    fun rawIdOrNull(id: Int?): Int? =
+        rawIdFromStable(id) ?: id?.takeIf { it in 1 until BANGUMI_OFFSET }
+
     /** Bangumi `subject_id` → stableId. Pencereyi taşırıyorsa null. */
     fun stableIdFromRaw(subjectId: Int?): Int? =
         subjectId?.takeIf { it > 0 && it + BANGUMI_OFFSET <= STABLE_ID_MAX }?.plus(BANGUMI_OFFSET)

@@ -44,9 +44,9 @@ internal object BangumiSubjectTitleResolver {
     /** Bangumi subject kimliği + hâlâ CJK görünen başlığı + medya türü. */
     internal data class Request(val rawId: Int, val nativeTitle: String, val mediaType: MediaType) {
         companion object {
-            /** Liste satırından istek üretir; stableId geçersizse null. */
+            /** Liste satırından istek üretir; stableId veya doğrudan rawId kabul edilir, geçersizse null. */
             fun fromRow(mediaId: Int, currentTitle: String, mediaTypeKey: String): Request? {
-                val raw = BangumiIdNamespace.rawIdFromStable(mediaId) ?: return null
+                val raw = BangumiIdNamespace.rawIdOrNull(mediaId) ?: return null
                 return Request(raw, currentTitle, mediaTypeFromKey(mediaTypeKey))
             }
         }
@@ -170,7 +170,7 @@ internal object BangumiSubjectTitleResolver {
 
     // ── AniList aliased arama ─────────────────────────────────────────────────
 
-    private data class AniListChunkResult(
+    internal data class AniListChunkResult(
         val resolved: Map<Int, BangumiTitleCache.LatinTitles>,
         val unmatched: List<Int>
     )

@@ -1112,7 +1112,7 @@ object KitsugiBangumiDetailClient {
         // 3) Karakter rollerini zenginleştir
         val enrichedRoles = detail.characterRoles.map { role ->
             val localized = characterNames[EntityNameLookup("characters", role.characterId).cacheKey]
-            val rawSubjectId = BangumiIdNamespace.rawIdFromStable(role.mediaId)
+            val rawSubjectId = BangumiIdNamespace.rawIdOrNull(role.mediaId)
             val latin = rawSubjectId?.let { subjectTitles[it] }
             val subjectLatin = latin?.let { usableLatinName(it.romaji) ?: usableLatinName(it.english) }
             role.copy(
@@ -1129,7 +1129,7 @@ object KitsugiBangumiDetailClient {
 
         // 4) Yapım listesini zenginleştir
         val enrichedWorks = detail.mediaWorks.map { work ->
-            val rawSubjectId = BangumiIdNamespace.rawIdFromStable(work.mediaId)
+            val rawSubjectId = BangumiIdNamespace.rawIdOrNull(work.mediaId)
             val latin = rawSubjectId?.let { subjectTitles[it] }
             if (latin != null && (latin.romaji != null || latin.english != null)) {
                 val subjectLatin = usableLatinName(latin.romaji) ?: usableLatinName(latin.english)
@@ -1167,7 +1167,7 @@ object KitsugiBangumiDetailClient {
         }
         val subjectTitles = BangumiSubjectTitleResolver.resolve(titleRequests, background, cacheOnly)
         val enriched = detail.mediaAppearances.map { appearance ->
-            val rawSubjectId = BangumiIdNamespace.rawIdFromStable(appearance.mediaId)
+            val rawSubjectId = BangumiIdNamespace.rawIdOrNull(appearance.mediaId)
             val latin = rawSubjectId?.let { subjectTitles[it] } ?: return@map appearance
             val latinDisplay = usableLatinName(latin.romaji) ?: usableLatinName(latin.english)
             appearance.copy(
