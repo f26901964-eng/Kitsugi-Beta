@@ -1,6 +1,8 @@
 package com.kitsugi.animelist.ui.theme.gradient
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background as foundationBackground
+import androidx.compose.foundation.border as foundationBorder
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -100,7 +102,7 @@ fun Modifier.background(
     brush: Brush,
     shape: Shape = RectangleShape,
     alpha: Float = 1.0f
-): Modifier = androidx.compose.foundation.background(brush = brush, shape = shape, alpha = alpha)
+): Modifier = this.foundationBackground(brush = brush, shape = shape, alpha = alpha)
 
 private data class AccentAwareBackgroundElement(
     val color: Color,
@@ -157,14 +159,14 @@ fun Modifier.border(
     width: Dp,
     brush: Brush,
     shape: Shape = RectangleShape
-): Modifier = androidx.compose.foundation.border(width = width, brush = brush, shape = shape)
+): Modifier = this.foundationBorder(width = width, brush = brush, shape = shape)
 
 fun Modifier.border(
     border: BorderStroke,
     shape: Shape = RectangleShape
 ): Modifier = when (val b = border.brush) {
     is SolidColor -> this.then(AccentAwareBorderElement(width = border.width, color = b.value, brush = null, shape = shape))
-    else -> androidx.compose.foundation.border(border = border, shape = shape)
+    else -> this.foundationBorder(border = border, shape = shape)
 }
 
 private data class AccentAwareBorderElement(

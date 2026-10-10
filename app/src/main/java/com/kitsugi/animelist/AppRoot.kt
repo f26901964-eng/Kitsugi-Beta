@@ -767,7 +767,7 @@ fun AppRoot(
                             }
                     ) {
                         AppBottomBar(
-                            selectedTab = selectedTab,
+                            currentTab = selectedTab,
                             onTabSelected = { tab ->
                                 appViewModel.selectTab(tab)
                             }
@@ -788,7 +788,7 @@ fun AppRoot(
             ) {
                 if (isLandscape && !isInFullScreenMode) {
                     AppNavigationRail(
-                        selectedTab = selectedTab,
+                        currentTab = selectedTab,
                         onTabSelected = { tab -> appViewModel.selectTab(tab) }
                     )
                 }

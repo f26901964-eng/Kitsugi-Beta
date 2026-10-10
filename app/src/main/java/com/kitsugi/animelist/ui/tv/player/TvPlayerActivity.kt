@@ -145,17 +145,7 @@ class TvPlayerActivity : ComponentActivity() {
         val castList = (intent.getSerializableExtra(EXTRA_CAST) as? ArrayList<MetaCastMember>) ?: emptyList()
 
         setContent {
-            val settingsStore = remember { SettingsDataStore(applicationContext) }
-            val appSettings by settingsStore.settingsFlow.collectAsState(
-                initial = com.kitsugi.animelist.data.settings.AppSettings()
-            )
             KitsugiAnimeListTheme(
-                darkTheme = true,
-                amoledBlack = appSettings.amoledBlack,
-                selectedThemeId = appSettings.selectedThemeId,
-                customAccentColor = appSettings.customAccentColor,
-                customAccentColor2 = appSettings.customAccentColor2,
-                customAccentGradientAngle = appSettings.customAccentGradientAngle,
                 isTv = true
             ) {
                 TvPlayerScreen(

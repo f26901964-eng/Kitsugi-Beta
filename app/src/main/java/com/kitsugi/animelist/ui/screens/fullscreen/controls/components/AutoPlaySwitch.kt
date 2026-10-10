@@ -36,7 +36,8 @@ import com.kitsugi.animelist.ui.theme.accentBrushWithAlpha
 @Composable
 fun AutoPlaySwitch(
     isChecked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
+    onToggleAutoPlay: ((Boolean) -> Unit)? = null,
+    onCheckedChange: ((Boolean) -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val thumbSize = 20.dp
@@ -52,7 +53,7 @@ fun AutoPlaySwitch(
     val activeTrackBrush = accentBrushWithAlpha(0.38f)
     val activeThumbBrush = KitsugiColors.AccentBrush
     val iconColor = if (isChecked) KitsugiColors.OnAccent else Color(0xCC000000)
-    val autoplayDescription = stringResource(id = R.string.player_autoplay_toggle)
+    val autoplayDescription = "Otomatik Oynat"
 
     Box(
         modifier = modifier
@@ -62,7 +63,7 @@ fun AutoPlaySwitch(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
                 role = Role.Switch,
-                onClick = { onCheckedChange(!isChecked) },
+                onClick = { (onToggleAutoPlay ?: onCheckedChange)?.invoke(!isChecked) },
             ),
         contentAlignment = Alignment.CenterStart,
     ) {

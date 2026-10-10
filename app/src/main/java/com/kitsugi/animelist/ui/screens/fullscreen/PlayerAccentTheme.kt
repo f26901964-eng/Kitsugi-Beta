@@ -29,7 +29,6 @@ fun PlayerAccentTheme(
     val tintedSurface = playerSurfaceColor()
     val tintedContainer = playerSurfaceContainerColor()
 
-    val base = MaterialTheme.colorScheme
     val scheme = darkColorScheme(
         primary = accent,
         onPrimary = onAccent,
@@ -56,8 +55,6 @@ fun PlayerAccentTheme(
 
     MaterialTheme(
         colorScheme = scheme,
-        typography = base.typography,
-        shapes = base.shapes,
         content = content
     )
 }
@@ -74,8 +71,8 @@ fun playerOnAccentColor(): Color = KitsugiColors.OnAccent
  * hafifçe harmanlanmış koyu yüzey rengi.
  */
 @Composable
-fun playerSurfaceColor(): Color =
-    lerp(Color(0xFF0E131B), KitsugiColors.Accent, 0.08f)
+fun playerSurfaceColor(alpha: Float = 1f): Color =
+    lerp(Color(0xFF0E131B), KitsugiColors.Accent, 0.08f).copy(alpha = alpha)
 
 /**
  * Oynatıcı içindeki ikincil kutu / konteyner yüzeyleri için vurgulu koyu renk.
