@@ -1,5 +1,8 @@
 package com.kitsugi.animelist.ui.components.player
 
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -64,32 +67,32 @@ internal fun PlayerSubtitleAudioTab(
     var startupModeDropdownExpanded by remember { mutableStateOf(false) }
 
     val sizeOptions = listOf(
-        12 to "12sp (Çok Küçük)",
-        14 to "14sp (Küçük)",
-        16 to "16sp (Normal)",
-        18 to "18sp (Büyük)",
-        20 to "20sp (Çok Büyük)",
-        24 to "24sp (Devasa)"
+        12 to stringResource(R.string.sub_size_12),
+        14 to stringResource(R.string.sub_size_14),
+        16 to stringResource(R.string.sub_size_16),
+        18 to stringResource(R.string.sub_size_18),
+        20 to stringResource(R.string.sub_size_20),
+        24 to stringResource(R.string.sub_size_24)
     )
 
     val colorOptions = listOf(
-        0xFFFFFFFF.toInt() to "Beyaz",
-        0xFFFFFF00.toInt() to "Sarı",
-        0xFF00FF00.toInt() to "Yeşil",
-        0xFF00FFFF.toInt() to "Mavi",
-        0xFFFF0000.toInt() to "Kırmızı"
+        0xFFFFFFFF.toInt() to stringResource(R.string.sub_color_white),
+        0xFFFFFF00.toInt() to stringResource(R.string.sub_color_yellow),
+        0xFF00FF00.toInt() to stringResource(R.string.sub_color_green),
+        0xFF00FFFF.toInt() to stringResource(R.string.sub_color_blue),
+        0xFFFF0000.toInt() to stringResource(R.string.sub_color_red)
     )
 
     val boostOptions = listOf(
-        0.0f to "Normal (%0)",
-        0.25f to "Düşük (%25)",
-        0.5f to "Orta (%50)",
-        0.75f to "Yüksek (%75)",
-        1.0f to "Maksimum (%100)"
+        0.0f to stringResource(R.string.sub_opacity_normal),
+        0.25f to stringResource(R.string.sub_opacity_low),
+        0.5f to stringResource(R.string.sub_opacity_mid),
+        0.75f to stringResource(R.string.sub_opacity_high),
+        1.0f to stringResource(R.string.sub_opacity_max)
     )
 
     val delayOptions = listOf(
-        0L to "Zamanında (0ms)",
+        0L to stringResource(R.string.sub_delay_ontime),
         -100L to "-100 ms",
         -200L to "-200 ms",
         -300L to "-300 ms",
@@ -103,15 +106,15 @@ internal fun PlayerSubtitleAudioTab(
     // (Dil seçimi artık checkbox paneli ile yapılıyor — prefLangOptions kaldırıldı)
 
     val startupModeOptions = listOf(
-        "ALL_SUBTITLES" to "Tüm Altyazıları Yükle",
-        "PREFERRED_ONLY" to "Yalnızca Tercih Edilen Dilleri Yükle"
+        "ALL_SUBTITLES" to stringResource(R.string.sub_load_all),
+        "PREFERRED_ONLY" to stringResource(R.string.sub_load_preferred)
     )
 
-    val currentSizeName = sizeOptions.find { it.first == defaultSubtitleSize }?.second ?: "16sp (Normal)"
-    val currentColorName = colorOptions.find { it.first == defaultSubtitleColor }?.second ?: "Beyaz"
-    val currentBoostName = boostOptions.find { it.first == defaultAudioBoost }?.second ?: "Normal (%0)"
-    val currentDelayName = delayOptions.find { it.first == defaultAudioDelayMs }?.second ?: "Zamanında (0ms)"
-    val currentStartupModeName = startupModeOptions.find { it.first == addonSubtitleStartupMode }?.second ?: "Yalnızca Tercih Edilen Dilleri Yükle"
+    val currentSizeName = sizeOptions.find { it.first == defaultSubtitleSize }?.second ?: stringResource(R.string.sub_size_16)
+    val currentColorName = colorOptions.find { it.first == defaultSubtitleColor }?.second ?: stringResource(R.string.sub_color_white)
+    val currentBoostName = boostOptions.find { it.first == defaultAudioBoost }?.second ?: stringResource(R.string.sub_opacity_normal)
+    val currentDelayName = delayOptions.find { it.first == defaultAudioDelayMs }?.second ?: stringResource(R.string.sub_delay_ontime)
+    val currentStartupModeName = startupModeOptions.find { it.first == addonSubtitleStartupMode }?.second ?: stringResource(R.string.sub_load_preferred)
 
     LazyColumn(
         state = listState,
@@ -122,14 +125,14 @@ internal fun PlayerSubtitleAudioTab(
         // Altyazı Görünümü
         item {
             KitsugiSettingsSection(
-                title = "Altyazı Görünümü",
-                subtitle = "Altyazı boyutunu, rengini ve kalınlık/kenarlık stillerini yapılandırın."
+                title = stringResource(R.string.sub_section_appearance),
+                subtitle = stringResource(R.string.sub_section_appearance_desc)
             ) {
                 // Size
                 Box {
                     KitsugiSettingsListItem(
-                        title = "Varsayılan Altyazı Boyutu",
-                        description = "Altyazı metninin boyutu",
+                        title = stringResource(R.string.sub_default_size),
+                        description = stringResource(R.string.sub_default_size_desc),
                         value = currentSizeName,
                         icon = Icons.Rounded.Subtitles,
                         iconColor = accentColor,
@@ -154,8 +157,8 @@ internal fun PlayerSubtitleAudioTab(
                 // Color
                 Box {
                     KitsugiSettingsListItem(
-                        title = "Varsayılan Altyazı Rengi",
-                        description = "Altyazı metninin ana rengi",
+                        title = stringResource(R.string.sub_default_color),
+                        description = stringResource(R.string.sub_default_color_desc),
                         value = currentColorName,
                         icon = Icons.Rounded.Subtitles,
                         iconColor = accentColor,
@@ -179,8 +182,8 @@ internal fun PlayerSubtitleAudioTab(
 
                 // Bold
                 KitsugiSettingsSwitchItem(
-                    title = "Altyazı Kalın Yazı",
-                    description = "Altyazı metnini kalınlaştırır.",
+                    title = stringResource(R.string.sub_bold),
+                    description = stringResource(R.string.sub_bold_desc),
                     icon = Icons.Rounded.Subtitles,
                     iconColor = accentColor,
                     checked = subtitleBold,
@@ -191,8 +194,8 @@ internal fun PlayerSubtitleAudioTab(
 
                 // Outline
                 KitsugiSettingsSwitchItem(
-                    title = "Altyazı Kenarlığı (Outline)",
-                    description = "Okunabilirliği artırmak için siyah kenarlık ekler.",
+                    title = stringResource(R.string.sub_outline),
+                    description = stringResource(R.string.sub_outline_desc),
                     icon = Icons.Rounded.Subtitles,
                     iconColor = accentColor,
                     checked = subtitleOutlineEnabled,
@@ -204,14 +207,14 @@ internal fun PlayerSubtitleAudioTab(
         // Ses & Altyazı Tercihleri
         item {
             KitsugiSettingsSection(
-                title = "Ses & Altyazı Tercihleri",
-                subtitle = "Ses güçlendirme, gecikme ve varsayılan dil tercihlerini özelleştirin."
+                title = stringResource(R.string.sub_section_audio),
+                subtitle = stringResource(R.string.sub_section_audio_desc)
             ) {
                 // Audio Boost
                 Box {
                     KitsugiSettingsListItem(
-                        title = "Varsayılan Ses Güçlendirme (Audio Boost)",
-                        description = "Düşük sesli videoların ses seviyesini artırır",
+                        title = stringResource(R.string.sub_audio_boost),
+                        description = stringResource(R.string.sub_audio_boost_desc),
                         value = currentBoostName,
                         icon = Icons.Rounded.VolumeUp,
                         iconColor = accentColor,
@@ -236,8 +239,8 @@ internal fun PlayerSubtitleAudioTab(
                 // Audio Delay
                 Box {
                     KitsugiSettingsListItem(
-                        title = "Varsayılan Ses Gecikmesi",
-                        description = "Ses ve görüntü senkronizasyonu için genel gecikme süresi",
+                        title = stringResource(R.string.sub_audio_delay),
+                        description = stringResource(R.string.sub_audio_delay_desc),
                         value = currentDelayName,
                         icon = Icons.Rounded.VolumeUp,
                         iconColor = accentColor,
@@ -266,16 +269,16 @@ internal fun PlayerSubtitleAudioTab(
                 }
 
                 val availableLangs = listOf(
-                    "tr" to "🇹🇷 Türkçe",
-                    "en" to "🇬🇧 İngilizce",
-                    "ja" to "🇯🇵 Japonca",
-                    "fr" to "🇫🇷 Fransızca",
-                    "de" to "🇩🇪 Almanca",
-                    "es" to "🇪🇸 İspanyolca",
-                    "pt" to "🇵🇹 Portekizce",
-                    "ar" to "🇸🇦 Arapça",
-                    "ko" to "🇰🇷 Korece",
-                    "zh" to "🇨🇳 Çince"
+                    "tr" to stringResource(R.string.sub_lang_tr),
+                    "en" to stringResource(R.string.sub_lang_en),
+                    "ja" to stringResource(R.string.sub_lang_ja),
+                    "fr" to stringResource(R.string.sub_lang_fr),
+                    "de" to stringResource(R.string.sub_lang_de),
+                    "es" to stringResource(R.string.sub_lang_es),
+                    "pt" to stringResource(R.string.sub_lang_pt),
+                    "ar" to stringResource(R.string.sub_lang_ar),
+                    "ko" to stringResource(R.string.sub_lang_ko),
+                    "zh" to stringResource(R.string.sub_lang_zh)
                 )
 
                 Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp)) {
@@ -292,13 +295,13 @@ internal fun PlayerSubtitleAudioTab(
                         Spacer(modifier = Modifier.width(12.dp))
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Tercih Edilen Altyazı Dilleri",
+                                text = stringResource(R.string.sub_preferred_langs),
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.SemiBold,
                                 color = KitsugiColors.TextPrimary
                             )
                             Text(
-                                text = "Sadece işaretlenen dillerdeki altyazılar yüklenir",
+                                text = stringResource(R.string.sub_preferred_langs_desc),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = KitsugiColors.TextSecondary
                             )
@@ -343,8 +346,8 @@ internal fun PlayerSubtitleAudioTab(
                 // ─── Altyazı Yükleme Modu ──────────────────────────────
                 Box {
                     KitsugiSettingsListItem(
-                        title = "Altyazı Yükleme Modu",
-                        description = "Videoyu açarken hangi altyazıların yükleneceği",
+                        title = stringResource(R.string.sub_load_mode),
+                        description = stringResource(R.string.sub_load_mode_desc),
                         value = currentStartupModeName,
                         icon = Icons.Rounded.Subtitles,
                         iconColor = accentColor,
@@ -369,15 +372,15 @@ internal fun PlayerSubtitleAudioTab(
         // Rota Bazlı Ses Gecikmesi
         item {
             val routeLabel = when (activeAudioRoute) {
-                com.kitsugi.animelist.core.player.AudioRoute.BLUETOOTH -> "🎧 Bluetooth"
-                com.kitsugi.animelist.core.player.AudioRoute.WIRED     -> "🔌 Kablolu"
-                com.kitsugi.animelist.core.player.AudioRoute.HDMI      -> "📺 HDMI"
-                com.kitsugi.animelist.core.player.AudioRoute.SPEAKER   -> "🔊 Hoparlör"
-                com.kitsugi.animelist.core.player.AudioRoute.OTHER     -> "🔈 Diğer"
+                com.kitsugi.animelist.core.player.AudioRoute.BLUETOOTH -> stringResource(R.string.sub_route_bt)
+                com.kitsugi.animelist.core.player.AudioRoute.WIRED     -> stringResource(R.string.sub_route_wired)
+                com.kitsugi.animelist.core.player.AudioRoute.HDMI      -> stringResource(R.string.sub_route_hdmi)
+                com.kitsugi.animelist.core.player.AudioRoute.SPEAKER   -> stringResource(R.string.sub_route_speaker)
+                com.kitsugi.animelist.core.player.AudioRoute.OTHER     -> stringResource(R.string.sub_route_other)
             }
             KitsugiSettingsSection(
-                title = "Rota Bazlı Ses Gecikmesi",
-                subtitle = "Her ses çıkışı için farklı gecikme tanımlayabilirsiniz (ör. BT kulaklık için +150 ms). Aktif çıkış: $routeLabel"
+                title = stringResource(R.string.sub_route_delay_section),
+                subtitle = stringResource(R.string.sub_route_delay_desc, routeLabel)
             ) {
                 val routeDelayOptions = listOf(
                     -500L to "-500 ms",
@@ -385,7 +388,7 @@ internal fun PlayerSubtitleAudioTab(
                     -200L to "-200 ms",
                     -150L to "-150 ms",
                     -100L to "-100 ms",
-                    0L to "Zamanında (0 ms)",
+                    0L to stringResource(R.string.sub_delay_ontime_sp),
                     100L to "+100 ms",
                     150L to "+150 ms",
                     200L to "+200 ms",
@@ -398,8 +401,8 @@ internal fun PlayerSubtitleAudioTab(
                 val isSpeakerActive = activeAudioRoute == com.kitsugi.animelist.core.player.AudioRoute.SPEAKER
                 Box {
                     KitsugiSettingsListItem(
-                        title = "Hoparlör Gecikmesi",
-                        description = "Cihaz hoparlörleri için ses kaydırma",
+                        title = stringResource(R.string.sub_delay_speaker),
+                        description = stringResource(R.string.sub_delay_speaker_desc),
                         value = routeDelayOptions.find { it.first == speakerDelayMs }?.second ?: "${speakerDelayMs} ms",
                         icon = Icons.Rounded.VolumeUp,
                         iconColor = if (isSpeakerActive) accentColor else KitsugiColors.TextSecondary,
@@ -426,8 +429,8 @@ internal fun PlayerSubtitleAudioTab(
                 val isBtActive = activeAudioRoute == com.kitsugi.animelist.core.player.AudioRoute.BLUETOOTH
                 Box {
                     KitsugiSettingsListItem(
-                        title = "Bluetooth Gecikmesi",
-                        description = "Kablosuz kulaklık/hoparlör için ses kaydırma",
+                        title = stringResource(R.string.sub_delay_bt),
+                        description = stringResource(R.string.sub_delay_bt_desc),
                         value = routeDelayOptions.find { it.first == bluetoothDelayMs }?.second ?: "${bluetoothDelayMs} ms",
                         icon = Icons.Rounded.VolumeUp,
                         iconColor = if (isBtActive) accentColor else KitsugiColors.TextSecondary,
@@ -454,8 +457,8 @@ internal fun PlayerSubtitleAudioTab(
                 val isWiredActive = activeAudioRoute == com.kitsugi.animelist.core.player.AudioRoute.WIRED
                 Box {
                     KitsugiSettingsListItem(
-                        title = "Kablolu Kulaklık Gecikmesi",
-                        description = "3.5mm jak girişi için ses kaydırma",
+                        title = stringResource(R.string.sub_delay_wired),
+                        description = stringResource(R.string.sub_delay_wired_desc),
                         value = routeDelayOptions.find { it.first == wiredDelayMs }?.second ?: "${wiredDelayMs} ms",
                         icon = Icons.Rounded.VolumeUp,
                         iconColor = if (isWiredActive) accentColor else KitsugiColors.TextSecondary,
@@ -482,8 +485,8 @@ internal fun PlayerSubtitleAudioTab(
                 val isHdmiActive = activeAudioRoute == com.kitsugi.animelist.core.player.AudioRoute.HDMI
                 Box {
                     KitsugiSettingsListItem(
-                        title = "HDMI / ARC Gecikmesi",
-                        description = "HDMI ses çıkışları veya TV ARC bağlantısı için ses kaydırma",
+                        title = stringResource(R.string.sub_delay_hdmi),
+                        description = stringResource(R.string.sub_delay_hdmi_desc),
                         value = routeDelayOptions.find { it.first == hdmiDelayMs }?.second ?: "${hdmiDelayMs} ms",
                         icon = Icons.Rounded.SettingsInputHdmi,
                         iconColor = if (isHdmiActive) accentColor else KitsugiColors.TextSecondary,

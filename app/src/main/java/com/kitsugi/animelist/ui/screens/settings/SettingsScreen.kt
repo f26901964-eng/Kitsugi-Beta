@@ -45,6 +45,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.BuildConfig
@@ -157,7 +159,7 @@ fun SettingsScreen(
 
             SettingsRoute.KitsugiAccount -> {
                 SettingsSubPage(
-                    title = "Kitsugi Hesabı",
+                    title = stringResource(R.string.settings_kitsugi_account),
                     onBack = { route = SettingsRoute.Main }
                 ) {
                     KitsugiAccountContent()
@@ -166,7 +168,7 @@ fun SettingsScreen(
 
             SettingsRoute.AccountConnections -> {
                 SettingsSubPage(
-                    title = "Hesap Bağlantıları",
+                    title = stringResource(R.string.settings_account_connections),
                     onBack = { route = SettingsRoute.Main }
                 ) {
                     AccountConnectionsHubContent(
@@ -232,7 +234,7 @@ fun SettingsScreen(
 
             SettingsRoute.CrossSyncSettings -> {
                 SettingsSubPage(
-                    title = "Çapraz Eşitleme (Cross-Sync)",
+                    title = stringResource(R.string.settings_cross_sync),
                     onBack = { route = SettingsRoute.AccountConnections }
                 ) {
                     CrossSyncSettingsContent(profile = params.profile)
@@ -241,7 +243,7 @@ fun SettingsScreen(
 
             SettingsRoute.AppearancePreferences -> {
                 SettingsSubPage(
-                    title = "Görünüm & Tercihler",
+                    title = stringResource(R.string.settings_pref_title),
                     onBack = { route = SettingsRoute.Main }
                 ) {
                     SettingsPreferencesContent(
@@ -266,7 +268,7 @@ fun SettingsScreen(
 
             SettingsRoute.AddonsExtensions -> {
                 SettingsSubPage(
-                    title = "Eklentiler & Kaynaklar",
+                    title = stringResource(R.string.settings_addons_sources),
                     onBack = { route = SettingsRoute.Main }
                 ) {
                     SettingsAddonsContent(
@@ -287,7 +289,7 @@ fun SettingsScreen(
 
             SettingsRoute.Integrations -> {
                 SettingsSubPage(
-                    title = "Harici Entegrasyonlar",
+                    title = stringResource(R.string.settings_integrations),
                     onBack = { route = SettingsRoute.Main }
                 ) {
                     SettingsIntegrationsContent(integrations = params.integrations)
@@ -296,7 +298,7 @@ fun SettingsScreen(
 
             SettingsRoute.DataBackup -> {
                 SettingsSubPage(
-                    title = "Veri & Yedekleme",
+                    title = stringResource(R.string.settings_data_backup),
                     onBack = { route = SettingsRoute.Main }
                 ) {
                     KitsugiSystemSettingsDialog(
@@ -318,7 +320,7 @@ fun SettingsScreen(
 
             SettingsRoute.Downloads -> {
                 SettingsSubPage(
-                    title = "İndirme Ayarları",
+                    title = stringResource(R.string.settings_download_settings),
                     onBack = { route = SettingsRoute.Main }
                 ) {
                     val accentColor = com.kitsugi.animelist.ui.theme.LocalKitsugiAccent.current
@@ -340,7 +342,7 @@ fun SettingsScreen(
 
             SettingsRoute.Feedback -> {
                 SettingsSubPage(
-                    title = "Geri Bildirim",
+                    title = stringResource(R.string.settings_feedback),
                     onBack = { route = SettingsRoute.Main }
                 ) {
                     com.kitsugi.animelist.ui.screens.more.FeedbackDialog(
@@ -351,18 +353,16 @@ fun SettingsScreen(
                                 data = android.net.Uri.parse("mailto:")
                                 putExtra(android.content.Intent.EXTRA_EMAIL, arrayOf("kitsugibeta@gmail.com"))
                                 val subject = "[Kitsugi Beta Feedback] [$type] $title"
-                                val body = """
-                                    Tür: $type
-                                    Konu: $title
-                                    
-                                    Açıklama:
-                                    $description
-                                    
-                                    -- Cihaz Bilgisi --
-                                    Uygulama Sürümü: ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})
-                                    Cihaz: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}
-                                    Android Sürümü: API ${android.os.Build.VERSION.SDK_INT}
-                                """.trimIndent()
+                                val body = context.getString(
+                                    R.string.feedback_mail_body,
+                                    type,
+                                    title,
+                                    description,
+                                    BuildConfig.VERSION_NAME,
+                                    BuildConfig.VERSION_CODE,
+                                    "${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL}",
+                                    android.os.Build.VERSION.SDK_INT
+                                )
                                 putExtra(android.content.Intent.EXTRA_SUBJECT, subject)
                                 putExtra(android.content.Intent.EXTRA_TEXT, body)
                             }
@@ -371,7 +371,7 @@ fun SettingsScreen(
                             }.onFailure {
                                 android.widget.Toast.makeText(
                                     context,
-                                    "E-posta uygulaması bulunamadı. Lütfen kitsugibeta@gmail.com adresine yazın.",
+                                    context.getString(R.string.feedback_no_email_app),
                                     android.widget.Toast.LENGTH_LONG
                                 ).show()
                             }
@@ -382,7 +382,7 @@ fun SettingsScreen(
 
             SettingsRoute.PluginDiagnostic -> {
                 SettingsSubPage(
-                    title = "Eklenti Tanılama",
+                    title = stringResource(R.string.settings_plugin_diagnostic),
                     onBack = { route = SettingsRoute.AddonsExtensions }
                 ) {
                     CsPluginDiagnosticScreen(
@@ -397,9 +397,9 @@ fun SettingsScreen(
     // Confirm delete all dialog — route-bağımsız, üstte gösterilir
     if (showDeleteAllConfirm) {
         KitsugiConfirmDialog(
-            title = "Tüm liste silinsin mi?",
-            message = "Room veritabanındaki tüm anime/manga kayıtları kalıcı olarak silinecek. Tema ve uygulama ayarları korunur.",
-            confirmText = "Tümünü sil",
+            title = stringResource(R.string.settings_delete_all_title),
+            message = stringResource(R.string.settings_delete_all_message),
+            confirmText = stringResource(R.string.settings_delete_all_confirm),
             isDestructive = true,
             onConfirm = {
                 params.profile.onDeleteAllEntries()
@@ -436,7 +436,7 @@ private fun SettingsMainPage(
         TopAppBar(
             title = {
                 Text(
-                    text = "Ayarlar",
+                    text = stringResource(R.string.tab_settings),
                     style = MaterialTheme.typography.headlineSmall,
                     fontWeight = FontWeight.Bold,
                     color = KitsugiColors.TextPrimary
@@ -456,11 +456,11 @@ private fun SettingsMainPage(
             // ── Hesap Bağlantıları ──────────────────────────────────────────
             item {
                 Spacer(Modifier.height(8.dp))
-                SectionHeader("Hesap")
+                SectionHeader(stringResource(R.string.settings_section_account))
                 SettingsNavCard {
                     KitsugiSettingsItem(
-                        title = "Kitsugi Hesabı",
-                        description = "Giriş yap, arama geçmişini cihazlar arasında eşitle",
+                        title = stringResource(R.string.settings_kitsugi_account),
+                        description = stringResource(R.string.settings_kitsugi_account_desc),
                         icon = Icons.Rounded.AccountCircle,
                         iconColor = KitsugiColors.AccentGreen,
                         onClick = { onNavigate(SettingsRoute.KitsugiAccount) }
@@ -469,8 +469,8 @@ private fun SettingsMainPage(
                 Spacer(Modifier.height(8.dp))
                 SettingsNavCard {
                     KitsugiSettingsItem(
-                        title = "Hesap Bağlantıları",
-                        description = "AniList, MyAnimeList, Simkl, Kitsu ve Shikimori hesap eşitlemeleri",
+                        title = stringResource(R.string.settings_account_connections),
+                        description = stringResource(R.string.settings_account_connections_desc),
                         icon = Icons.Rounded.Person,
                         iconColor = KitsugiColors.AccentBlue,
                         onClick = { onNavigate(SettingsRoute.AccountConnections) }
@@ -481,27 +481,27 @@ private fun SettingsMainPage(
 
             // ── Uygulama Ayarları ───────────────────────────────────────────
             item {
-                SectionHeader("Uygulama")
+                SectionHeader(stringResource(R.string.settings_section_app))
                 SettingsNavCard {
                     KitsugiSettingsItem(
-                        title = "Görünüm & Tercihler",
-                        description = "Tema, liste görünümü, puanlama, dil ve bildirim ayarları",
+                        title = stringResource(R.string.settings_pref_title),
+                        description = stringResource(R.string.settings_pref_desc),
                         icon = Icons.Rounded.Palette,
                         iconColor = selectedTheme.color ?: accentColor,
                         onClick = { onNavigate(SettingsRoute.AppearancePreferences) }
                     )
                     KitsugiSettingsDivider()
                     KitsugiSettingsItem(
-                        title = "Oynatıcı",
-                        description = "Dahili oynatıcı, jestler, altyazı, ses ve codec ayarları",
+                        title = stringResource(R.string.settings_player_title),
+                        description = stringResource(R.string.settings_player_desc),
                         icon = Icons.Rounded.PlayCircle,
                         iconColor = KitsugiColors.AccentOrange,
                         onClick = { onNavigate(SettingsRoute.PlayerSettings) }
                     )
                     KitsugiSettingsDivider()
                     KitsugiSettingsItem(
-                        title = "İzleme Geçmişi",
-                        description = "İzlediğiniz anime bölümlerini görüntüleyin veya temizleyin",
+                        title = stringResource(R.string.settings_watch_history),
+                        description = stringResource(R.string.settings_watch_history_desc),
                         icon = Icons.Rounded.History,
                         iconColor = KitsugiColors.AccentTeal,
                         onClick = { params.onOpenWatchHistory?.invoke() }
@@ -512,19 +512,19 @@ private fun SettingsMainPage(
 
             // ── Kaynaklar & Entegrasyonlar ──────────────────────────────────
             item {
-                SectionHeader("Kaynaklar & Entegrasyonlar")
+                SectionHeader(stringResource(R.string.settings_section_sources))
                 SettingsNavCard {
                     KitsugiSettingsItem(
-                        title = "Eklentiler & Akış Kaynakları",
-                        description = "Torrent, video sağlayıcıları, debrid ve manga kaynakları",
+                        title = stringResource(R.string.settings_addons_streams),
+                        description = stringResource(R.string.settings_addons_streams_desc),
                         icon = Icons.Rounded.Extension,
                         iconColor = KitsugiColors.AccentPurple,
                         onClick = { onNavigate(SettingsRoute.AddonsExtensions) }
                     )
                     KitsugiSettingsDivider()
                     KitsugiSettingsItem(
-                        title = "Harici Entegrasyonlar",
-                        description = "TMDB, MDBList, FanArt.tv ve AniSkip (Intro/Outro)",
+                        title = stringResource(R.string.settings_integrations),
+                        description = stringResource(R.string.settings_integrations_desc),
                         icon = Icons.Rounded.Hub,
                         iconColor = KitsugiColors.AccentBlue,
                         onClick = { onNavigate(SettingsRoute.Integrations) }
@@ -535,27 +535,27 @@ private fun SettingsMainPage(
 
             // ── Veri & Depolama ─────────────────────────────────────────────
             item {
-                SectionHeader("Veri & Depolama")
+                SectionHeader(stringResource(R.string.settings_section_data))
                 SettingsNavCard {
                     KitsugiSettingsItem(
-                        title = "Veri & Yedekleme",
-                        description = "Yedek al/geri yükle ve DoH (DNS) yönetimi",
+                        title = stringResource(R.string.settings_data_backup),
+                        description = stringResource(R.string.settings_data_backup_desc),
                         icon = Icons.Rounded.Storage,
                         iconColor = KitsugiColors.AccentGreen,
                         onClick = { onNavigate(SettingsRoute.DataBackup) }
                     )
                     KitsugiSettingsDivider()
                     KitsugiSettingsItem(
-                        title = "İndirme Ayarları",
-                        description = "İndirme konumları, Wi-Fi ve harici indirici ayarları",
+                        title = stringResource(R.string.settings_download_settings),
+                        description = stringResource(R.string.settings_download_settings_desc),
                         icon = Icons.Rounded.Tune,
                         iconColor = KitsugiColors.AccentGreen,
                         onClick = { onNavigate(SettingsRoute.Downloads) }
                     )
                     KitsugiSettingsDivider()
                     KitsugiSettingsItem(
-                        title = "İndirmeler",
-                        description = "İndirilen videolar, altyazılar ve resimler",
+                        title = stringResource(R.string.settings_downloads),
+                        description = stringResource(R.string.settings_downloads_desc),
                         icon = Icons.Rounded.Download,
                         iconColor = KitsugiColors.AccentGreen,
                         onClick = {
@@ -577,11 +577,11 @@ private fun SettingsMainPage(
 
             // ── Hakkında & Destek ───────────────────────────────────────────
             item {
-                SectionHeader("Destek & Hakkında")
+                SectionHeader(stringResource(R.string.settings_section_support))
                 SettingsNavCard {
                     KitsugiSettingsItem(
-                        title = "Hakkında",
-                        description = "Sürüm: ${BuildConfig.VERSION_NAME} • Açık kaynak & katkıda bulunanlar",
+                        title = stringResource(R.string.settings_about),
+                        description = stringResource(R.string.settings_about_desc, BuildConfig.VERSION_NAME),
                         icon = Icons.Rounded.Info,
                         iconColor = KitsugiColors.AccentIndigo,
                         onClick = {
@@ -590,8 +590,8 @@ private fun SettingsMainPage(
                     )
                     KitsugiSettingsDivider()
                     KitsugiSettingsItem(
-                        title = "Geri Bildirim",
-                        description = "Hata bildirin veya önerilerinizi paylaşın",
+                        title = stringResource(R.string.settings_feedback),
+                        description = stringResource(R.string.settings_feedback_desc),
                         icon = Icons.Rounded.Feedback,
                         iconColor = KitsugiColors.AccentBlue,
                         onClick = { onNavigate(SettingsRoute.Feedback) }
@@ -630,7 +630,7 @@ private fun SettingsSubPage(
                 IconButton(onClick = onBack) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                        contentDescription = "Geri",
+                        contentDescription = stringResource(R.string.action_back),
                         tint = KitsugiColors.TextPrimary
                     )
                 }

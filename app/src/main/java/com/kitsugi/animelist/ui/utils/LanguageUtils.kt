@@ -5,25 +5,37 @@ import java.util.Locale
 /**
  * V2-B02: LanguageUtils
  *
- * Dil kodlarını (ISO 639-1/2) okunabilir Türkçe isimlere çevirir.
+ * Dil kodlarını (ISO 639-1/2) aktif arayüz diline göre okunabilir isimlere çevirir
+ * (Türkçe arayüzde Türkçe, İngilizce arayüzde İngilizce isimler).
  * Altyazı / ses dili etiketleme için kullanılır.
  * NuvioTV LanguageUtils.kt referans alındı.
  */
 object LanguageUtils {
 
     /**
-     * ISO 639-1 dil kodunu Türkçe dil adına çevirir.
-     * "tr" → "Türkçe", "en" → "İngilizce", "ja" → "Japonca"
+     * ISO 639-1 dil kodunu aktif arayüz diline göre okunabilir dil adına çevirir.
+     * Türkçe arayüz: "tr" → "Türkçe", "en" → "İngilizce", "ja" → "Japonca"
+     * İngilizce arayüz: "tr" → "Turkish", "en" → "English", "ja" → "Japanese"
      */
     fun displayName(langCode: String?): String {
-        if (langCode.isNullOrBlank()) return "Bilinmiyor"
+        if (langCode.isNullOrBlank()) return if (isTurkishUi()) "Bilinmiyor" else "Unknown"
         val code = langCode.lowercase().trim()
-        return languageMap[code]
-            ?: runCatching { Locale(code).getDisplayLanguage(Locale("tr")) }
+        if (isTurkishUi()) {
+            return languageMap[code]
+                ?: runCatching { Locale(code).getDisplayLanguage(Locale("tr")) }
+                    .getOrNull()
+                    ?.takeIf { it != code && it.isNotBlank() }
+                ?: langCode
+        }
+        return englishLanguageMap[code]
+            ?: runCatching { Locale(code).getDisplayLanguage(Locale.ENGLISH) }
                 .getOrNull()
                 ?.takeIf { it != code && it.isNotBlank() }
             ?: langCode
     }
+
+    /** Arayüz dili Türkçe mi? (LocaleCache uygulama dilini Locale.setDefault ile uygular.) */
+    private fun isTurkishUi(): Boolean = Locale.getDefault().language.startsWith("tr")
 
     /**
      * Dil kodunu bayrak emoji'ye çevirir.
@@ -84,6 +96,51 @@ object LanguageUtils {
         "et"   to "Estonca",
         "ca"   to "Katalanca",
         "fa"   to "Farsça"
+    )
+
+    private val englishLanguageMap: Map<String, String> = mapOf(
+        "tr"   to "Turkish",
+        "en"   to "English",
+        "ja"   to "Japanese",
+        "ko"   to "Korean",
+        "zh"   to "Chinese",
+        "zh-cn" to "Chinese (Simplified)",
+        "zh-tw" to "Chinese (Traditional)",
+        "ar"   to "Arabic",
+        "de"   to "German",
+        "fr"   to "French",
+        "es"   to "Spanish",
+        "it"   to "Italian",
+        "pt"   to "Portuguese",
+        "pt-br" to "Portuguese (Brazil)",
+        "ru"   to "Russian",
+        "pl"   to "Polish",
+        "nl"   to "Dutch",
+        "sv"   to "Swedish",
+        "no"   to "Norwegian",
+        "da"   to "Danish",
+        "fi"   to "Finnish",
+        "cs"   to "Czech",
+        "hu"   to "Hungarian",
+        "ro"   to "Romanian",
+        "el"   to "Greek",
+        "he"   to "Hebrew",
+        "th"   to "Thai",
+        "vi"   to "Vietnamese",
+        "id"   to "Indonesian",
+        "ms"   to "Malay",
+        "hi"   to "Hindi",
+        "bn"   to "Bengali",
+        "uk"   to "Ukrainian",
+        "bg"   to "Bulgarian",
+        "hr"   to "Croatian",
+        "sk"   to "Slovak",
+        "sr"   to "Serbian",
+        "lt"   to "Lithuanian",
+        "lv"   to "Latvian",
+        "et"   to "Estonian",
+        "ca"   to "Catalan",
+        "fa"   to "Persian"
     )
 
     private val flagMap: Map<String, String> = mapOf(

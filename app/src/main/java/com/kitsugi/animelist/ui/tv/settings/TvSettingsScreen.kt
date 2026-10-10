@@ -1,5 +1,8 @@
 package com.kitsugi.animelist.ui.tv.settings
 
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -113,14 +116,14 @@ fun TvSettingsScreen(
             verticalArrangement = Arrangement.spacedBy(KitsugiTvTokens.Spacing.gridRowGap)
         ) {
             Text(
-                text = "Ayarlar",
+                text = stringResource(R.string.tab_settings),
                 style = MaterialTheme.typography.headlineMedium,
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.padding(bottom = KitsugiTvTokens.Spacing.contentPadding)
             )
 
-            val categories = listOf("Görünüm", "Akış & Eklentiler", "Oynatıcı", "Hesap")
+            val categories = listOf(stringResource(R.string.tv_appearance), stringResource(R.string.tv_stream_addons), stringResource(R.string.settings_player_title), stringResource(R.string.settings_section_account))
             categories.forEachIndexed { index, title ->
                 var isFocused by remember { mutableStateOf(false) }
                 val isSelected = selectedTab == index
@@ -180,7 +183,7 @@ fun TvSettingsScreen(
                     0 -> {
                         item {
                             Text(
-                                text = "Görünüm Ayarları",
+                                text = stringResource(R.string.tv_appearance_settings),
                                 style = MaterialTheme.typography.titleLarge,
                                 color = MaterialTheme.colorScheme.primary,
                                 fontWeight = FontWeight.Bold,
@@ -190,8 +193,8 @@ fun TvSettingsScreen(
 
                         item {
                             TvSettingsToggleRow(
-                                title = "+18 İçerikleri Göster",
-                                description = "Arama ve listeleme sonuçlarında yetişkin içerikleri filtreler veya açar.",
+                                title = stringResource(R.string.tv_show_adult),
+                                description = stringResource(R.string.tv_show_adult_desc),
                                 checked = settings.showAdultContent,
                                 onCheckedChange = { checked ->
                                     scope.launch { settingsDataStore.setShowAdultContent(checked) }
@@ -201,8 +204,8 @@ fun TvSettingsScreen(
 
                         item {
                             TvSettingsToggleRow(
-                                title = "Puanları Gizle",
-                                description = "Genel puanları ve derecelendirmeleri arayüzden gizler.",
+                                title = stringResource(R.string.settings_hide_scores),
+                                description = stringResource(R.string.tv_hide_scores_desc),
                                 checked = settings.hideScores,
                                 onCheckedChange = { checked ->
                                     scope.launch { settingsDataStore.setHideScores(checked) }
@@ -212,8 +215,8 @@ fun TvSettingsScreen(
 
                         item {
                             TvSettingsToggleRow(
-                                title = "Anime Logolarını Göster",
-                                description = "Desteklenen başlıklarda görsel logoları etkinleştirir.",
+                                title = stringResource(R.string.tv_show_logos),
+                                description = stringResource(R.string.tv_show_logos_desc),
                                 checked = settings.showAnimeLogos,
                                 onCheckedChange = { checked ->
                                     scope.launch { settingsDataStore.setShowAnimeLogos(checked) }
@@ -223,15 +226,15 @@ fun TvSettingsScreen(
 
                         item {
                             val layoutText = when (settings.selectedHomeLayoutId) {
-                                "classic" -> "Klasik"
-                                "modern" -> "Modern"
-                                "grid" -> "Izgara"
-                                else -> "Klasik"
+                                "classic" -> stringResource(R.string.option_home_layout_classic)
+                                "modern" -> stringResource(R.string.option_home_layout_modern)
+                                "grid" -> stringResource(R.string.option_home_layout_grid)
+                                else -> stringResource(R.string.option_home_layout_classic)
                             }
                             TvSettingsActionRow(
-                                title = "Ana Sayfa Yerleşimi",
-                                description = "TV ana sayfa düzenini değiştirin. Şu anki: $layoutText",
-                                actionText = "Değiştir",
+                                title = stringResource(R.string.tv_home_layout),
+                                description = stringResource(R.string.tv_home_layout_desc, layoutText),
+                                actionText = stringResource(R.string.tv_change),
                                 onClick = {
                                     val nextLayout = when (settings.selectedHomeLayoutId) {
                                         "classic" -> "modern"
@@ -245,15 +248,15 @@ fun TvSettingsScreen(
 
                         item {
                             val langText = when (settings.titleLanguage) {
-                                "ENGLISH" -> "İngilizce"
-                                "NATIVE" -> "Japonca"
-                                "JAPANESE_STAFF" -> "Japonca (Personel)"
-                                else -> "Romaji"
+                                "ENGLISH" -> stringResource(R.string.option_title_lang_english)
+                                "NATIVE" -> stringResource(R.string.option_title_lang_native)
+                                "JAPANESE_STAFF" -> stringResource(R.string.option_title_lang_japanese_staff)
+                                else -> stringResource(R.string.option_title_lang_romaji)
                             }
                             TvSettingsActionRow(
-                                title = "Anime & Manga Başlık Dili",
-                                description = "Shikimori, AniList, MAL ve Kitsu içeriklerinde arama, ana sayfa ve detay başlık dili. Şu anki: $langText",
-                                actionText = "Değiştir",
+                                title = stringResource(R.string.settings_anime_title_language),
+                                description = stringResource(R.string.tv_title_lang_desc, langText),
+                                actionText = stringResource(R.string.tv_change),
                                 onClick = {
                                     val nextLang = when (settings.titleLanguage) {
                                         "ROMAJI" -> "ENGLISH"
@@ -268,15 +271,15 @@ fun TvSettingsScreen(
 
                         item {
                             val tmdbLangText = when (settings.tmdbLanguage.lowercase()) {
-                                "tr" -> "Türkçe"
+                                "tr" -> stringResource(R.string.pd_lang_tr)
                                 "en" -> "English"
                                 "ja" -> "日本語"
                                 else -> settings.tmdbLanguage.uppercase()
                             }
                             TvSettingsActionRow(
-                                title = "Dizi & Film Başlık Dili",
-                                description = "TMDB ve Simkl dizi/film içeriklerinin başlık ve açıklama dili. Şu anki: $tmdbLangText",
-                                actionText = "Değiştir",
+                                title = stringResource(R.string.settings_movies_title_language),
+                                description = stringResource(R.string.tv_tmdb_lang_desc, tmdbLangText),
+                                actionText = stringResource(R.string.tv_change),
                                 onClick = {
                                     val nextLang = when (settings.tmdbLanguage.lowercase()) {
                                         "tr" -> "en"
@@ -291,16 +294,16 @@ fun TvSettingsScreen(
                         item {
                             val formatText = when (settings.scoreFormat) {
                                 "POINT_100" -> "100 Puan"
-                                "POINT_10_DECIMAL" -> "10 Puan Ondalık"
-                                "POINT_5" -> "5 Yıldız"
-                                "POINT_3" -> "3 Durum (Gülen Yüz)"
-                                "STARS" -> "Yıldızlı (★)"
+                                "POINT_10_DECIMAL" -> stringResource(R.string.tv_score_10)
+                                "POINT_5" -> stringResource(R.string.tv_score_5)
+                                "POINT_3" -> stringResource(R.string.tv_score_3)
+                                "STARS" -> stringResource(R.string.option_score_stars)
                                 else -> "10 Puan"
                             }
                             TvSettingsActionRow(
-                                title = "Puanlama Formatı",
-                                description = "Listelerinizdeki puanlama sistemini seçin. Şu anki: $formatText",
-                                actionText = "Değiştir",
+                                title = stringResource(R.string.tv_score_format),
+                                description = stringResource(R.string.tv_score_format_desc, formatText),
+                                actionText = stringResource(R.string.tv_change),
                                 onClick = {
                                     val nextFormat = when (settings.scoreFormat) {
                                         "POINT_10" -> "POINT_100"
@@ -318,7 +321,7 @@ fun TvSettingsScreen(
                     1 -> {
                         item {
                             Text(
-                                text = "Akış & Eklentiler",
+                                text = stringResource(R.string.tv_stream_addons),
                                 style = MaterialTheme.typography.titleLarge,
                                 color = MaterialTheme.colorScheme.primary,
                                 fontWeight = FontWeight.Bold,
@@ -328,8 +331,8 @@ fun TvSettingsScreen(
 
                         item {
                             TvSettingsToggleRow(
-                                title = "TMDB Zenginleştirme",
-                                description = "Afişler, açıklamalar ve fragmanlar için TMDB veritabanı entegrasyonu.",
+                                title = stringResource(R.string.tv_tmdb_enrich),
+                                description = stringResource(R.string.tv_tmdb_enrich_desc),
                                 checked = settings.tmdbEnabled,
                                 onCheckedChange = { checked ->
                                     scope.launch { settingsDataStore.setTmdbEnabled(checked) }
@@ -339,8 +342,8 @@ fun TvSettingsScreen(
 
                         item {
                             TvSettingsToggleRow(
-                                title = "AniSkip Entegrasyonu",
-                                description = "Bölüm giriş ve çıkışlarını (Intro/Outro) atlama zaman damgaları.",
+                                title = stringResource(R.string.tv_aniskip),
+                                description = stringResource(R.string.tv_aniskip_desc),
                                 checked = settings.aniSkipEnabled,
                                 onCheckedChange = { checked ->
                                     scope.launch { settingsDataStore.setAniSkipEnabled(checked) }
@@ -350,36 +353,36 @@ fun TvSettingsScreen(
 
                         item {
                             TvSettingsActionRow(
-                                title = "Eklenti & Havuz Yönetimi",
-                                description = "Stremio eklentilerini ve Cloudstream havuzlarını yönetin, RealDebrid hesabınızı bağlayın.",
-                                actionText = "Yönet",
+                                title = stringResource(R.string.tv_addon_pool),
+                                description = stringResource(R.string.tv_addon_pool_desc),
+                                actionText = stringResource(R.string.tv_manage),
                                 onClick = onNavigateToAddons
                             )
                         }
 
                         item {
                             TvSettingsActionRow(
-                                title = "Manga Eklentileri",
-                                description = "Manga eklentilerini kurun, güncelleyin ve kaynak depolarını (Keiyoushi vb.) yönetin.",
-                                actionText = "Yönet",
+                                title = stringResource(R.string.tv_manga_addons),
+                                description = stringResource(R.string.tv_manga_addons_desc),
+                                actionText = stringResource(R.string.tv_manage),
                                 onClick = onNavigateToMangaExtension
                             )
                         }
 
                         item {
                             TvSettingsActionRow(
-                                title = "Manga Kaynak Sağlığı",
-                                description = "Kurulu manga kaynaklarının tanı verilerini inceleyin ve anlık sağlık kontrolü yapın.",
-                                actionText = "Görüntüle",
+                                title = stringResource(R.string.tv_manga_health),
+                                description = stringResource(R.string.tv_manga_health_desc),
+                                actionText = stringResource(R.string.tv_view),
                                 onClick = onNavigateToMangaSourceHealth
                             )
                         }
 
                         item {
                             TvSettingsActionRow(
-                                title = "📱 Telefon ile Yönet",
-                                description = "Aynı Wi-Fi ağındaki telefonunuzdan eklentileri, API anahtarlarını ve ayarları yönetin.",
-                                actionText = "Başlat",
+                                title = stringResource(R.string.tv_phone_manage),
+                                description = stringResource(R.string.tv_phone_manage_desc),
+                                actionText = stringResource(R.string.tv_start),
                                 onClick = onNavigateToCompanion
                             )
                         }
@@ -387,7 +390,7 @@ fun TvSettingsScreen(
                     2 -> {
                         item {
                             Text(
-                                text = "Oynatıcı Ayarları",
+                                text = stringResource(R.string.pd_title),
                                 style = MaterialTheme.typography.titleLarge,
                                 color = MaterialTheme.colorScheme.primary,
                                 fontWeight = FontWeight.Bold,
@@ -397,13 +400,13 @@ fun TvSettingsScreen(
 
                         item {
                             val playerText = when (settings.playerPreference.uppercase()) {
-                                "EXTERNAL" -> "Harici Oynatıcı"
-                                else -> "MPV Oynatıcı"
+                                "EXTERNAL" -> stringResource(R.string.player_btn_external)
+                                else -> stringResource(R.string.tv_mpv_player)
                             }
                             TvSettingsActionRow(
-                                title = "Oynatıcı Tercihi",
-                                description = "Varsayılan video oynatıcı motorunu seçin. Şu anki: $playerText",
-                                actionText = "Değiştir",
+                                title = stringResource(R.string.tv_player_pref),
+                                description = stringResource(R.string.tv_player_pref_desc, playerText),
+                                actionText = stringResource(R.string.tv_change),
                                 onClick = {
                                     val nextPreference = when (settings.playerPreference.uppercase()) {
                                         "MPV" -> "EXTERNAL"
@@ -420,9 +423,9 @@ fun TvSettingsScreen(
                             val currentExternalPlayerName = availablePlayers[currentIndex].name
                             item {
                                 TvSettingsActionRow(
-                                    title = "Tercih Edilen Harici Oynatıcı",
-                                    description = "Harici oynatıcı olarak kullanılacak paket. Şu anki: $currentExternalPlayerName",
-                                    actionText = "Değiştir",
+                                    title = stringResource(R.string.player_preferred_external),
+                                    description = stringResource(R.string.tv_external_player_desc, currentExternalPlayerName),
+                                    actionText = stringResource(R.string.tv_change),
                                     onClick = {
                                         val nextIndex = (currentIndex + 1) % availablePlayers.size
                                         val nextPlayer = availablePlayers[nextIndex]
@@ -436,8 +439,8 @@ fun TvSettingsScreen(
 
                         item {
                             TvSettingsToggleRow(
-                                title = "Otomatik Oynat",
-                                description = "Bir bölüm bittiğinde sıradaki bölümü otomatik olarak başlatır.",
+                                title = stringResource(R.string.tv_auto_play),
+                                description = stringResource(R.string.tv_auto_next_desc),
                                 checked = settings.isAutoplayEnabled,
                                 onCheckedChange = { checked ->
                                     scope.launch { settingsDataStore.setAutoplayEnabled(checked) }
@@ -447,8 +450,8 @@ fun TvSettingsScreen(
 
                         item {
                             TvSettingsToggleRow(
-                                title = "Altyazı Kalın Yazı Tipi",
-                                description = "Video oynatıcıda altyazı yazı tipini kalın (Bold) yapar.",
+                                title = stringResource(R.string.tv_sub_bold),
+                                description = stringResource(R.string.tv_sub_bold_desc),
                                 checked = settings.subtitleBold,
                                 onCheckedChange = { checked ->
                                     scope.launch { settingsDataStore.setSubtitleBold(checked) }
@@ -462,12 +465,12 @@ fun TvSettingsScreen(
                                 1 -> "Cloudflare DoH"
                                 2 -> "Google DoH"
                                 3 -> "AdGuard DoH"
-                                else -> "Sistem Varsayılanı"
+                                else -> stringResource(R.string.player_system_default)
                             }
                             TvSettingsActionRow(
-                                title = "Güvenli DNS (DoH)",
-                                description = "İSS engellemelerini aşmak için DNS ayarlarını değiştirin. Şu anki: $dnsText",
-                                actionText = "Değiştir",
+                                title = stringResource(R.string.tv_doh),
+                                description = stringResource(R.string.tv_dns_desc, dnsText),
+                                actionText = stringResource(R.string.tv_change),
                                 onClick = {
                                     val nextChoice = (settings.dnsChoice + 1) % 4
                                     appViewModel.updateDnsChoice(nextChoice, settingsDataStore)
@@ -478,9 +481,9 @@ fun TvSettingsScreen(
                         item {
                             val skipDur = settings.skipIntroDurationSec
                             TvSettingsActionRow(
-                                title = "Intro Atlama Süresi",
-                                description = "Bölüm başlangıcında intro atlama butonunun geçeceği süre. Şu anki: ${skipDur}sn",
-                                actionText = "Değiştir",
+                                title = stringResource(R.string.tv_intro_skip),
+                                description = stringResource(R.string.tv_intro_skip_desc, skipDur),
+                                actionText = stringResource(R.string.tv_change),
                                 onClick = {
                                     val nextSkip = when (skipDur) {
                                         0 -> 5
@@ -499,9 +502,9 @@ fun TvSettingsScreen(
                         item {
                             val subSize = settings.defaultSubtitleSize
                             TvSettingsActionRow(
-                                title = "Varsayılan Altyazı Boyutu",
-                                description = "Video oynatıcıda gösterilecek altyazıların yazı boyutu. Şu anki: ${subSize}sp",
-                                actionText = "Değiştir",
+                                title = stringResource(R.string.sub_default_size),
+                                description = stringResource(R.string.tv_sub_size_desc, subSize),
+                                actionText = stringResource(R.string.tv_change),
                                 onClick = {
                                     val nextSize = when (subSize) {
                                         12 -> 14
@@ -520,15 +523,15 @@ fun TvSettingsScreen(
                         item {
                             val prefLang = settings.preferredSubtitleLanguages
                             val prefLangText = when (prefLang) {
-                                "tr,en" -> "Türkçe & İngilizce (tr,en)"
-                                "tr" -> "Sadece Türkçe (tr)"
-                                "en" -> "Sadece İngilizce (en)"
+                                "tr,en" -> stringResource(R.string.tv_sub_lang_tr_en)
+                                "tr" -> stringResource(R.string.tv_sub_lang_tr)
+                                "en" -> stringResource(R.string.tv_sub_lang_en)
                                 else -> prefLang
                             }
                             TvSettingsActionRow(
-                                title = "Tercih Edilen Altyazı Dili",
-                                description = "Eklentilerden altyazı çekilirken öncelik verilen dil. Şu anki: $prefLangText",
-                                actionText = "Değiştir",
+                                title = stringResource(R.string.tv_pref_lang),
+                                description = stringResource(R.string.tv_pref_lang_desc, prefLangText),
+                                actionText = stringResource(R.string.tv_change),
                                 onClick = {
                                     val nextLang = when (prefLang) {
                                         "tr,en" -> "tr"
@@ -543,14 +546,14 @@ fun TvSettingsScreen(
                         item {
                             val startupMode = settings.addonSubtitleStartupMode
                             val startupModeText = when (startupMode) {
-                                "ALL_SUBTITLES" -> "Tüm Altyazıları Yükle"
-                                "PREFERRED_ONLY" -> "Yalnızca Tercih Edilen Dilleri Yükle"
+                                "ALL_SUBTITLES" -> stringResource(R.string.sub_load_all)
+                                "PREFERRED_ONLY" -> stringResource(R.string.sub_load_preferred)
                                 else -> startupMode
                             }
                             TvSettingsActionRow(
-                                title = "Altyazı Yükleme Modu",
-                                description = "Altyazıların ne kadarının çekileceğini belirler. Şu anki: $startupModeText",
-                                actionText = "Değiştir",
+                                title = stringResource(R.string.sub_load_mode),
+                                description = stringResource(R.string.tv_sub_startup_desc, startupModeText),
+                                actionText = stringResource(R.string.tv_change),
                                 onClick = {
                                     val nextMode = when (startupMode) {
                                         "ALL_SUBTITLES" -> "PREFERRED_ONLY"
@@ -563,14 +566,14 @@ fun TvSettingsScreen(
 
                         item {
                             val afrText = when (settings.frameRateMatchingMode) {
-                                com.kitsugi.animelist.data.settings.FrameRateMatchingMode.START -> "Sadece Başlangıçta"
-                                com.kitsugi.animelist.data.settings.FrameRateMatchingMode.START_STOP -> "Başlangıç ve Bitişte"
-                                else -> "Kapalı"
+                                com.kitsugi.animelist.data.settings.FrameRateMatchingMode.START -> stringResource(R.string.tv_sub_startup_only_start)
+                                com.kitsugi.animelist.data.settings.FrameRateMatchingMode.START_STOP -> stringResource(R.string.player_afr_start_stop)
+                                else -> stringResource(R.string.player_afr_off)
                             }
                             TvSettingsActionRow(
-                                title = "Otomatik Kare Hızı (AFR)",
-                                description = "Ekran yenileme hızını video kare hızı (FPS) ile eşler. Şu anki: $afrText",
-                                actionText = "Değiştir",
+                                title = stringResource(R.string.tv_afr),
+                                description = stringResource(R.string.tv_afr_desc, afrText),
+                                actionText = stringResource(R.string.tv_change),
                                 onClick = {
                                     val nextMode = when (settings.frameRateMatchingMode) {
                                         com.kitsugi.animelist.data.settings.FrameRateMatchingMode.OFF -> com.kitsugi.animelist.data.settings.FrameRateMatchingMode.START
@@ -584,8 +587,8 @@ fun TvSettingsScreen(
 
                         item {
                             TvSettingsToggleRow(
-                                title = "Ekran Çözünürlüğü Eşleme",
-                                description = "TV ekran çözünürlüğünü video çözünürlüğüne göre otomatik değiştirir.",
+                                title = stringResource(R.string.tv_res_match),
+                                description = stringResource(R.string.tv_res_match_desc),
                                 checked = settings.resolutionMatchingEnabled,
                                 onCheckedChange = { checked ->
                                     scope.launch { settingsDataStore.setResolutionMatchingEnabled(checked) }
@@ -599,8 +602,8 @@ fun TvSettingsScreen(
 
                         item {
                             TvSettingsToggleRow(
-                                title = "İzliyorum Uyarısı",
-                                description = "Belirlenen süre boyunca etkileşim olmadığında \"Hâlâ izliyor musunuz?\" ekranı gösterir.",
+                                title = stringResource(R.string.tv_still_watching),
+                                description = stringResource(R.string.tv_still_watching_desc),
                                 checked = settings.stillWatchingEnabled,
                                 onCheckedChange = { checked ->
                                     scope.launch { settingsDataStore.setStillWatchingEnabled(checked) }
@@ -612,9 +615,9 @@ fun TvSettingsScreen(
                             item {
                                 val thresholdMin = settings.stillWatchingThresholdMinutes
                                 TvSettingsActionRow(
-                                    title = "Hareketsizlik Eşiği",
-                                    description = "\"İzliyorum\" uyarısını tetiklemek için gereken hareketsizlik süresi. Şu anki: ${thresholdMin} dk",
-                                    actionText = "Değiştir",
+                                    title = stringResource(R.string.player_inactivity_threshold),
+                                    description = stringResource(R.string.tv_threshold_desc, thresholdMin),
+                                    actionText = stringResource(R.string.tv_change),
                                     onClick = {
                                         val nextMin = when (thresholdMin) {
                                             10 -> 15
@@ -632,15 +635,15 @@ fun TvSettingsScreen(
 
                         item {
                             val postPlayText = when (settings.postPlayMode) {
-                                "AUTOPLAY" -> "Otomatik Oynat"
+                                "AUTOPLAY" -> stringResource(R.string.tv_auto_play)
                                 "PROMPT" -> "Sor"
                                 "MANUAL" -> "Manuel"
-                                else -> "Otomatik Oynat"
+                                else -> stringResource(R.string.tv_auto_play)
                             }
                             TvSettingsActionRow(
-                                title = "Bölüm Sonu Davranışı",
-                                description = "Bölüm bittiğinde sıradaki bölüm için yapılacak işlemi belirler. Şu anki: $postPlayText",
-                                actionText = "Değiştir",
+                                title = stringResource(R.string.tv_post_play),
+                                description = stringResource(R.string.tv_post_play_desc, postPlayText),
+                                actionText = stringResource(R.string.tv_change),
                                 onClick = {
                                     val nextMode = when (settings.postPlayMode) {
                                         "AUTOPLAY" -> "PROMPT"
@@ -654,11 +657,11 @@ fun TvSettingsScreen(
 
                         item {
                             val sessionLimit = settings.autoplaySessionLimit
-                            val sessionText = if (sessionLimit == 0) "Sınırsız" else "$sessionLimit bölüm"
+                            val sessionText = if (sessionLimit == 0) stringResource(R.string.player_limit_unlimited) else stringResource(R.string.tv_session_n, sessionLimit)
                             TvSettingsActionRow(
-                                title = "Oturum Bölüm Limiti",
-                                description = "Tek oturumda otomatik olarak oynatılacak maksimum bölüm sayısı. Şu anki: $sessionText",
-                                actionText = "Değiştir",
+                                title = stringResource(R.string.tv_session_limit),
+                                description = stringResource(R.string.tv_session_limit_desc, sessionText),
+                                actionText = stringResource(R.string.tv_change),
                                 onClick = {
                                     val nextLimit = when (sessionLimit) {
                                         0 -> 1
@@ -675,8 +678,8 @@ fun TvSettingsScreen(
 
                         item {
                             TvSettingsToggleRow(
-                                title = "Önizleme Seek Çubuğu",
-                                description = "İleri/geri sarma sırasında video karesini küçük bir önizleme olarak gösterir.",
+                                title = stringResource(R.string.tv_preview_seek),
+                                description = stringResource(R.string.tv_preview_seek_desc),
                                 checked = settings.previewSeekbarEnabled,
                                 onCheckedChange = { checked ->
                                     scope.launch { settingsDataStore.setPreviewSeekbarEnabled(checked) }
@@ -688,8 +691,8 @@ fun TvSettingsScreen(
 
                         item {
                             TvSettingsToggleRow(
-                                title = "Açılış Animasyonu ve Sesi",
-                                description = if (settings.splashAnimationEnabled) "Uygulama başlatılırken neon animasyon ve başlangıç sesi oynatılır." else "Animasyon ve ses devre dışı — hızlı başlangıç.",
+                                title = stringResource(R.string.settings_splash_animation_and_sound),
+                                description = if (settings.splashAnimationEnabled) stringResource(R.string.tv_splash_on_desc) else stringResource(R.string.tv_splash_off_desc),
                                 checked = settings.splashAnimationEnabled,
                                 onCheckedChange = { checked ->
                                     scope.launch {
@@ -703,7 +706,7 @@ fun TvSettingsScreen(
                     3 -> {
                         item {
                             Text(
-                                text = "Hesap & Profil",
+                                text = stringResource(R.string.tv_section_account),
                                 style = MaterialTheme.typography.titleLarge,
                                 color = MaterialTheme.colorScheme.primary,
                                 fontWeight = FontWeight.Bold,
@@ -715,9 +718,9 @@ fun TvSettingsScreen(
                         item {
                             if (isAniListConnected) {
                                 TvSettingsActionRow(
-                                    title = "AniList Hesabı (${settings.anilistUsername.ifBlank { "Bağlı" }})",
-                                    description = if (isAniListImportRunning) "Senkronize ediliyor..." else "Listenizi AniList'ten içe aktarmak için tıklayın.",
-                                    actionText = if (isAniListImportRunning) "Aktarılıyor" else "Eşitle",
+                                    title = stringResource(R.string.tv_account_anilist, settings.anilistUsername.ifBlank { stringResource(R.string.tv_connected) }),
+                                    description = if (isAniListImportRunning) stringResource(R.string.tv_syncing) else stringResource(R.string.tv_import_anilist_desc),
+                                    actionText = if (isAniListImportRunning) stringResource(R.string.tv_transferring) else stringResource(R.string.tv_sync),
                                     onClick = {
                                         if (!isAniListImportRunning) {
                                             authViewModel.importAniListAnimeList(mediaEntries, mediaRepository)
@@ -726,9 +729,9 @@ fun TvSettingsScreen(
                                 )
                             } else {
                                 TvSettingsActionRow(
-                                    title = "AniList Hesabını Bağla",
-                                    description = "Hesabınızı bağlamak için QR kodu kullanın.",
-                                    actionText = "Bağla",
+                                    title = stringResource(R.string.tv_connect_anilist),
+                                    description = stringResource(R.string.tv_connect_qr_desc),
+                                    actionText = stringResource(R.string.tv_connect),
                                     onClick = {
                                         showTvQrDialog = true
                                     }
@@ -739,9 +742,9 @@ fun TvSettingsScreen(
                         if (isAniListConnected) {
                             item {
                                 TvSettingsActionRow(
-                                    title = "AniList Bağlantısını Kes",
-                                    description = "AniList hesabınızı uygulamadan kaldırır.",
-                                    actionText = "Bağlantıyı Kes",
+                                    title = stringResource(R.string.tv_disconnect_anilist),
+                                    description = stringResource(R.string.tv_disconnect_anilist_desc),
+                                    actionText = stringResource(R.string.tv_disconnect),
                                     onClick = {
                                         authViewModel.disconnectExternalAccount("anilist")
                                     }
@@ -753,9 +756,9 @@ fun TvSettingsScreen(
                         item {
                             if (isMalConnected) {
                                 TvSettingsActionRow(
-                                    title = "MyAnimeList Hesabı (${settings.malUsername.ifBlank { "Bağlı" }})",
-                                    description = if (isMalImportRunning) "Senkronize ediliyor..." else "Listenizi MyAnimeList'ten içe aktarmak için tıklayın.",
-                                    actionText = if (isMalImportRunning) "Aktarılıyor" else "Eşitle",
+                                    title = stringResource(R.string.tv_account_mal, settings.malUsername.ifBlank { stringResource(R.string.tv_connected) }),
+                                    description = if (isMalImportRunning) stringResource(R.string.tv_syncing) else stringResource(R.string.tv_import_mal_desc),
+                                    actionText = if (isMalImportRunning) stringResource(R.string.tv_transferring) else stringResource(R.string.tv_sync),
                                     onClick = {
                                         if (!isMalImportRunning) {
                                             authViewModel.importMalAnimeList(mediaEntries, mediaRepository)
@@ -764,9 +767,9 @@ fun TvSettingsScreen(
                                 )
                             } else {
                                 TvSettingsActionRow(
-                                    title = "MyAnimeList Hesabını Bağla",
-                                    description = "Hesabınızı bağlamak için QR kodu kullanın.",
-                                    actionText = "Bağla",
+                                    title = stringResource(R.string.tv_connect_mal),
+                                    description = stringResource(R.string.tv_connect_qr_desc),
+                                    actionText = stringResource(R.string.tv_connect),
                                     onClick = {
                                         showTvQrDialog = true
                                     }
@@ -777,9 +780,9 @@ fun TvSettingsScreen(
                         if (isMalConnected) {
                             item {
                                 TvSettingsActionRow(
-                                    title = "MyAnimeList Bağlantısını Kes",
-                                    description = "MyAnimeList hesabınızı uygulamadan kaldırır.",
-                                    actionText = "Bağlantıyı Kes",
+                                    title = stringResource(R.string.tv_disconnect_mal),
+                                    description = stringResource(R.string.tv_disconnect_mal_desc),
+                                    actionText = stringResource(R.string.tv_disconnect),
                                     onClick = {
                                         authViewModel.disconnectExternalAccount("mal")
                                     }
@@ -791,9 +794,9 @@ fun TvSettingsScreen(
                         item {
                             if (isSimklConnected) {
                                 TvSettingsActionRow(
-                                    title = "Simkl Hesabı (${settings.simklUsername.ifBlank { "Bağlı" }})",
-                                    description = if (isSimklImportRunning) "Senkronize ediliyor..." else "Listenizi Simkl'dan içe aktarmak için tıklayın.",
-                                    actionText = if (isSimklImportRunning) "Aktarılıyor" else "Eşitle",
+                                    title = stringResource(R.string.tv_account_simkl, settings.simklUsername.ifBlank { stringResource(R.string.tv_connected) }),
+                                    description = if (isSimklImportRunning) stringResource(R.string.tv_syncing) else stringResource(R.string.tv_import_simkl_desc),
+                                    actionText = if (isSimklImportRunning) stringResource(R.string.tv_transferring) else stringResource(R.string.tv_sync),
                                     onClick = {
                                         if (!isSimklImportRunning) {
                                             authViewModel.importSimklList(mediaEntries, mediaRepository)
@@ -802,9 +805,9 @@ fun TvSettingsScreen(
                                 )
                             } else {
                                 TvSettingsActionRow(
-                                    title = "Simkl Hesabını Bağla",
-                                    description = "Hesabınızı bağlamak için QR kodu kullanın.",
-                                    actionText = "Bağla",
+                                    title = stringResource(R.string.tv_connect_simkl),
+                                    description = stringResource(R.string.tv_connect_qr_desc),
+                                    actionText = stringResource(R.string.tv_connect),
                                     onClick = {
                                         showTvQrDialog = true
                                     }
@@ -815,9 +818,9 @@ fun TvSettingsScreen(
                         if (isSimklConnected) {
                             item {
                                 TvSettingsActionRow(
-                                    title = "Simkl Bağlantısını Kes",
-                                    description = "Simkl hesabınızı uygulamadan kaldırır.",
-                                    actionText = "Bağlantıyı Kes",
+                                    title = stringResource(R.string.tv_disconnect_simkl),
+                                    description = stringResource(R.string.tv_disconnect_simkl_desc),
+                                    actionText = stringResource(R.string.tv_disconnect),
                                     onClick = {
                                         authViewModel.disconnectExternalAccount("simkl")
                                     }
@@ -829,9 +832,9 @@ fun TvSettingsScreen(
                         if (isAniListConnected && isMalConnected) {
                             item {
                                 TvSettingsActionRow(
-                                    title = "Hesapları Birbiriyle Eşitle",
-                                    description = if (isCrossSyncRunning) "Eşitleme yapılıyor..." else "Bağlı hesaplardaki verileri karşılıklı güncelleyin.",
-                                    actionText = if (isCrossSyncRunning) "Eşitleniyor" else "Eşitle",
+                                    title = stringResource(R.string.tv_cross_sync),
+                                    description = if (isCrossSyncRunning) stringResource(R.string.tv_cross_sync_running) else stringResource(R.string.tv_cross_sync_desc),
+                                    actionText = if (isCrossSyncRunning) stringResource(R.string.tv_syncing2) else stringResource(R.string.tv_sync),
                                     onClick = {
                                         if (!isCrossSyncRunning) {
                                             authViewModel.syncPlatforms(mediaRepository)

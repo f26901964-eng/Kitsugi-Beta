@@ -1,5 +1,8 @@
 package com.kitsugi.animelist.ui.components.player
 
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -131,34 +134,34 @@ internal fun PlayerGeneralTab(
     var mpvDebandDropdownExpanded by remember { mutableStateOf(false) }
 
     val playerOptions = listOf(
-        "INTERNAL" to "Dahili Oynatıcı (ExoPlayer)",
-        "MPV" to "Dahili Oynatıcı (MPV)",
-        "EXTERNAL" to "Harici Oynatıcı (MPV/VLC vb.)",
-        "ASK" to "Her Seferinde Sor"
+        "INTERNAL" to stringResource(R.string.player_engine_internal_exo),
+        "MPV" to stringResource(R.string.player_engine_internal_mpv),
+        "EXTERNAL" to stringResource(R.string.player_engine_external),
+        "ASK" to stringResource(R.string.player_engine_ask)
     )
 
     val introOptions = listOf(
-        0 to "Devre Dışı",
-        3 to "3 Saniye",
-        5 to "5 Saniye",
-        10 to "10 Saniye",
-        15 to "15 Saniye"
+        0 to stringResource(R.string.player_intro_off),
+        3 to stringResource(R.string.player_intro_3),
+        5 to stringResource(R.string.player_intro_5),
+        10 to stringResource(R.string.player_intro_10),
+        15 to stringResource(R.string.player_intro_15)
     )
 
     val dvOptions = listOf(
-        com.kitsugi.animelist.data.settings.Dv7HandlingMode.AUTO to "Otomatik (Cihaz Desteğine Göre)",
-        com.kitsugi.animelist.data.settings.Dv7HandlingMode.OFF to "Kapalı (Doğal DV7 Oynat)",
-        com.kitsugi.animelist.data.settings.Dv7HandlingMode.DV81_LIBDOVI to "DV8.1 Dönüştürme (libdovi)",
-        com.kitsugi.animelist.data.settings.Dv7HandlingMode.HDR10_BASE_LAYER to "HDR10 Base Layer (RPU Yoksay)",
-        com.kitsugi.animelist.data.settings.Dv7HandlingMode.STRIP_DV to "DV RPU Metadatasını Ayıkla"
+        com.kitsugi.animelist.data.settings.Dv7HandlingMode.AUTO to stringResource(R.string.player_dv_auto),
+        com.kitsugi.animelist.data.settings.Dv7HandlingMode.OFF to stringResource(R.string.player_dv_off),
+        com.kitsugi.animelist.data.settings.Dv7HandlingMode.DV81_LIBDOVI to stringResource(R.string.player_dv_convert),
+        com.kitsugi.animelist.data.settings.Dv7HandlingMode.HDR10_BASE_LAYER to stringResource(R.string.player_dv_base),
+        com.kitsugi.animelist.data.settings.Dv7HandlingMode.STRIP_DV to stringResource(R.string.player_dv_strip)
     )
 
     val currentPlayerName = playerOptions.find { it.first == playerPreference }?.second
-        ?: "Dahili Oynatıcı (ExoPlayer)"
+        ?: stringResource(R.string.player_engine_internal_exo)
     val currentIntroName = introOptions.find { it.first == skipIntroDurationSec }?.second
-        ?: "5 Saniye"
+        ?: stringResource(R.string.player_intro_5)
     val currentDvName = dvOptions.find { it.first == dv7HandlingMode }?.second
-        ?: "Otomatik (Cihaz Desteğine Göre)"
+        ?: stringResource(R.string.player_dv_auto)
 
     LazyColumn(
         state = listState,
@@ -169,14 +172,14 @@ internal fun PlayerGeneralTab(
         // Oynatıcı Tercihleri
         item {
             KitsugiSettingsSection(
-                title = "Oynatıcı Tercihleri",
-                subtitle = "Varsayılan video oynatıcı motorunu ve oynatma davranışlarını yapılandırın."
+                title = stringResource(R.string.player_section_preferences),
+                subtitle = stringResource(R.string.player_section_preferences_desc)
             ) {
                 // Tercih Edilen Oynatıcı
                 Box {
                     KitsugiSettingsListItem(
-                        title = "Tercih Edilen Oynatıcı",
-                        description = "Uygulama içi veya harici video oynatıcı seçimi",
+                        title = stringResource(R.string.player_preferred),
+                        description = stringResource(R.string.player_preferred_desc),
                         value = currentPlayerName,
                         icon = Icons.Rounded.PlayArrow,
                         iconColor = accentColor,
@@ -200,14 +203,14 @@ internal fun PlayerGeneralTab(
                 if (playerPreference == "EXTERNAL") {
                     val context = androidx.compose.ui.platform.LocalContext.current
                     var externalPlayerDropdownExpanded by remember { mutableStateOf(false) }
-                    val currentExternalPlayerName = ExternalPlayerPackages.players.find { it.packageName == preferredExternalPlayerPackage }?.name ?: "Sistem Varsayılanı"
+                    val currentExternalPlayerName = ExternalPlayerPackages.players.find { it.packageName == preferredExternalPlayerPackage }?.name ?: stringResource(R.string.player_system_default)
 
                     KitsugiSettingsDivider()
 
                     Box {
                         KitsugiSettingsListItem(
-                            title = "Tercih Edilen Harici Oynatıcı",
-                            description = "Sisteminizde yüklü olan harici oynatıcı paketini seçin",
+                            title = stringResource(R.string.player_preferred_external),
+                            description = stringResource(R.string.player_preferred_external_desc),
                             value = currentExternalPlayerName,
                             icon = Icons.Rounded.Launch,
                             iconColor = accentColor,
@@ -217,7 +220,7 @@ internal fun PlayerGeneralTab(
                             ExternalPlayerPackages.players.forEach { playerDef ->
                                 val isInstalled = playerDef.packageName.isEmpty() || playerDef.isInstalled(context)
                                 KitsugiDropdownItem(
-                                    text = if (isInstalled) playerDef.name else "${playerDef.name} (Yüklü Değil)",
+                                    text = if (isInstalled) playerDef.name else stringResource(R.string.player_external_not_installed, playerDef.name),
                                     selected = playerDef.packageName == preferredExternalPlayerPackage,
                                     onClick = {
                                         if (isInstalled) {
@@ -245,8 +248,8 @@ internal fun PlayerGeneralTab(
 
                 // Otomatik Sonraki Bölüm (Switch)
                 KitsugiSettingsSwitchItem(
-                    title = "Otomatik Sonraki Bölüm",
-                    description = "Sonraki bölümü otomatik olarak başlatır.",
+                    title = stringResource(R.string.player_auto_next),
+                    description = stringResource(R.string.player_auto_next_desc),
                     icon = Icons.Rounded.SkipNext,
                     iconColor = accentColor,
                     checked = isAutoplayEnabled,
@@ -258,8 +261,8 @@ internal fun PlayerGeneralTab(
                 // İntro Atlama Buton Süresi
                 Box {
                     KitsugiSettingsListItem(
-                        title = "İntro Atlama Buton Süresi",
-                        description = "Hızlı geçiş için ekrana gelen introyu atla butonunun süresi",
+                        title = stringResource(R.string.player_intro_skip),
+                        description = stringResource(R.string.player_intro_skip_desc),
                         value = currentIntroName,
                         icon = Icons.Rounded.Forward10,
                         iconColor = accentColor,
@@ -284,15 +287,15 @@ internal fun PlayerGeneralTab(
                 // Kalite Profili
                 val profile = remember(qualityProfileJson) { QualityProfile.deserialize(qualityProfileJson) }
                 val preferenceName = when (profile.preference) {
-                    QualityPreference.AUTO       -> "Otomatik"
-                    QualityPreference.P1080      -> "1080p Tercih Et"
-                    QualityPreference.P720       -> "720p Tercih Et"
-                    QualityPreference.P480       -> "480p Tercih Et"
-                    QualityPreference.DATA_SAVER -> "Veri Tasarrufu"
+                    QualityPreference.AUTO       -> stringResource(R.string.player_quality_auto)
+                    QualityPreference.P1080      -> stringResource(R.string.player_quality_1080)
+                    QualityPreference.P720       -> stringResource(R.string.player_quality_720)
+                    QualityPreference.P480       -> stringResource(R.string.player_quality_480)
+                    QualityPreference.DATA_SAVER -> stringResource(R.string.player_quality_data_saver)
                 }
                 KitsugiSettingsListItem(
-                    title = "Kalite Profili",
-                    description = "Tercih edilen video kalitesi ve çözünürlük limitleri",
+                    title = stringResource(R.string.player_quality_profile),
+                    description = stringResource(R.string.player_quality_desc),
                     value = preferenceName,
                     icon = Icons.Rounded.Hd,
                     iconColor = accentColor,
@@ -304,14 +307,14 @@ internal fun PlayerGeneralTab(
         // Video İşleme & Uyum
         item {
             KitsugiSettingsSection(
-                title = "Video İşleme & Uyum",
-                subtitle = "HDR, Dolby Vision ve ekran uyumluluk modlarını yapılandırın."
+                title = stringResource(R.string.player_section_processing),
+                subtitle = stringResource(R.string.player_section_processing_desc)
             ) {
                 // Dolby Vision (DV7) İşleme Modu
                 Box {
                     KitsugiSettingsListItem(
-                        title = "Dolby Vision (DV7) İşleme Modu",
-                        description = "Profil 7 Dolby Vision videolar için renk dönüştürme ve işleme ayarı",
+                        title = stringResource(R.string.player_dv_mode),
+                        description = stringResource(R.string.player_dv_mode_desc),
                         value = currentDvName,
                         icon = Icons.Rounded.Settings,
                         iconColor = accentColor,
@@ -335,8 +338,8 @@ internal fun PlayerGeneralTab(
 
                 // HDR10+ SEI Metadatasını Ayıkla
                 KitsugiSettingsSwitchItem(
-                    title = "HDR10+ SEI Metadatasını Ayıkla",
-                    description = "HDR10+ akışlarındaki SEI dinamik meta verilerini temizler.",
+                    title = stringResource(R.string.player_hdr10_sei),
+                    description = stringResource(R.string.player_hdr10_sei_desc),
                     icon = Icons.Rounded.FilterCenterFocus,
                     iconColor = accentColor,
                     checked = stripHdr10PlusSei,
@@ -347,19 +350,19 @@ internal fun PlayerGeneralTab(
 
                 // Görüntü Oranı
                 val aspectOptions = listOf(
-                    PlayerAspectMode.ORIGINAL  to "📺 Orijinal (Varsayılan)",
-                    PlayerAspectMode.FIT       to "⇔ Sığdır (Boşluk bırak)",
-                    PlayerAspectMode.FILL      to "⛶ Doldur (Esnet)",
-                    PlayerAspectMode.ZOOM      to "🔍 Yakınlaştır (Kırp)",
-                    PlayerAspectMode.CROP_16_9 to "▭ 16:9 Kırp",
-                    PlayerAspectMode.CROP_4_3  to "□ 4:3 Kırp"
+                    PlayerAspectMode.ORIGINAL  to stringResource(R.string.player_aspect_original),
+                    PlayerAspectMode.FIT       to stringResource(R.string.player_aspect_fit),
+                    PlayerAspectMode.FILL      to stringResource(R.string.player_aspect_fill),
+                    PlayerAspectMode.ZOOM      to stringResource(R.string.player_aspect_zoom),
+                    PlayerAspectMode.CROP_16_9 to stringResource(R.string.player_aspect_169),
+                    PlayerAspectMode.CROP_4_3  to stringResource(R.string.player_aspect_43)
                 )
                 val currentAspectName = aspectOptions.find { it.first == aspectMode }?.second
-                    ?: "📺 Orijinal (Varsayılan)"
+                    ?: stringResource(R.string.player_aspect_original)
                 Box {
                     KitsugiSettingsListItem(
-                        title = "Görüntü Oranı",
-                        description = "Video görüntü boyutunu ve ekranı kaplama şeklini belirler",
+                        title = stringResource(R.string.player_aspect),
+                        description = stringResource(R.string.player_aspect_desc),
                         value = currentAspectName,
                         icon = Icons.Rounded.AspectRatio,
                         iconColor = accentColor,
@@ -383,15 +386,15 @@ internal fun PlayerGeneralTab(
 
                 // Kare Hızı Eşleme (AFR)
                 val afrOptions = listOf(
-                    com.kitsugi.animelist.data.settings.FrameRateMatchingMode.OFF to "Kapalı",
-                    com.kitsugi.animelist.data.settings.FrameRateMatchingMode.START to "Yalnızca Başlangıçta",
-                    com.kitsugi.animelist.data.settings.FrameRateMatchingMode.START_STOP to "Başlangıç ve Bitişte"
+                    com.kitsugi.animelist.data.settings.FrameRateMatchingMode.OFF to stringResource(R.string.player_afr_off),
+                    com.kitsugi.animelist.data.settings.FrameRateMatchingMode.START to stringResource(R.string.player_afr_start),
+                    com.kitsugi.animelist.data.settings.FrameRateMatchingMode.START_STOP to stringResource(R.string.player_afr_start_stop)
                 )
-                val currentAfrName = afrOptions.find { it.first == frameRateMatchingMode }?.second ?: "Kapalı"
+                val currentAfrName = afrOptions.find { it.first == frameRateMatchingMode }?.second ?: stringResource(R.string.player_afr_off)
                 Box {
                     KitsugiSettingsListItem(
-                        title = "Kare Hızı Eşleme (AFR)",
-                        description = "TV ekran yenileme hızını video FPS'ine göre senkronize eder",
+                        title = stringResource(R.string.player_afr),
+                        description = stringResource(R.string.player_afr_desc),
                         value = currentAfrName,
                         icon = Icons.Rounded.Sync,
                         iconColor = accentColor,
@@ -415,8 +418,8 @@ internal fun PlayerGeneralTab(
 
                 // Çözünürlük Eşleme
                 KitsugiSettingsSwitchItem(
-                    title = "Çözünürlük Eşleme",
-                    description = "Ekran çözünürlüğünü video çözünürlüğüne göre eşler.",
+                    title = stringResource(R.string.player_res_match),
+                    description = stringResource(R.string.player_res_match_desc),
                     icon = Icons.Rounded.SettingsOverscan,
                     iconColor = accentColor,
                     checked = resolutionMatchingEnabled,
@@ -428,13 +431,13 @@ internal fun PlayerGeneralTab(
         // Arayüz & Yardımcılar
         item {
             KitsugiSettingsSection(
-                title = "Arayüz & Yardımcılar",
-                subtitle = "Oynatıcı içi yardımcı asistan ve arayüz elemanlarını özelleştirin."
+                title = stringResource(R.string.player_section_ui),
+                subtitle = stringResource(R.string.player_section_ui_desc)
             ) {
                 // Canlı Yardımcı
                 KitsugiSettingsSwitchItem(
-                    title = "Canlı Yardımcı",
-                    description = "Oynatıcı için canlı asistan ve yardımcı özellikleri etkinleştirir.",
+                    title = stringResource(R.string.player_live_assistant),
+                    description = stringResource(R.string.player_live_assistant_desc),
                     icon = Icons.Rounded.Help,
                     iconColor = accentColor,
                     checked = liveHelperEnabled,
@@ -445,8 +448,8 @@ internal fun PlayerGeneralTab(
 
                 // ASS Altyazı Ayıklayıcı
                 KitsugiSettingsSwitchItem(
-                    title = "ASS Altyazı Ayıklayıcı",
-                    description = "ASS biçimindeki gelişmiş altyazıları ayıklar ve daha iyi biçimlendirir.",
+                    title = stringResource(R.string.player_ass_extractor),
+                    description = stringResource(R.string.player_ass_extractor_desc),
                     icon = Icons.Rounded.Subtitles,
                     iconColor = accentColor,
                     checked = enableAssExtractor,
@@ -457,8 +460,8 @@ internal fun PlayerGeneralTab(
 
                 // Oynatıcı Başlığını Göster
                 KitsugiSettingsSwitchItem(
-                    title = "Oynatıcı Başlığını Göster",
-                    description = "Video oynatılırken sol üstte anime/bölüm başlığını gösterir.",
+                    title = stringResource(R.string.player_show_title),
+                    description = stringResource(R.string.player_show_title_desc),
                     icon = Icons.Rounded.Title,
                     iconColor = accentColor,
                     checked = showPlayerTitle,
@@ -469,8 +472,8 @@ internal fun PlayerGeneralTab(
 
                 // Oynatıcı Çözünürlüğünü Göster
                 KitsugiSettingsSwitchItem(
-                    title = "Oynatıcı Çözünürlüğünü Göster",
-                    description = "Video oynatılırken sol üstte çözünürlük bilgisini gösterir.",
+                    title = stringResource(R.string.player_show_resolution),
+                    description = stringResource(R.string.player_show_resolution_desc),
                     icon = Icons.Rounded.SettingsOverscan,
                     iconColor = accentColor,
                     checked = showPlayerResolution,
@@ -481,8 +484,8 @@ internal fun PlayerGeneralTab(
 
                 // Medya Bilgisini Göster
                 KitsugiSettingsSwitchItem(
-                    title = "Medya Bilgisini Göster",
-                    description = "Video oynatılırken fps, codec vb. detaylı medya bilgilerini gösterir.",
+                    title = stringResource(R.string.player_show_media_info),
+                    description = stringResource(R.string.player_show_media_info_desc),
                     icon = Icons.Rounded.Info,
                     iconColor = accentColor,
                     checked = showMediaInfo,
@@ -493,8 +496,8 @@ internal fun PlayerGeneralTab(
 
                 // Önizleme Seekbarı
                 KitsugiSettingsSwitchItem(
-                    title = "Önizleme Seekbarı",
-                    description = "Sarma (scrubbing) sırasında küçük video önizleme görseli gösterir.",
+                    title = stringResource(R.string.player_preview_seekbar),
+                    description = stringResource(R.string.player_preview_seekbar_desc),
                     icon = Icons.Rounded.Preview,
                     iconColor = accentColor,
                     checked = previewSeekbarEnabled,
@@ -506,13 +509,13 @@ internal fun PlayerGeneralTab(
         // Otomatik Oynatma & Seans
         item {
             KitsugiSettingsSection(
-                title = "Otomatik Oynatma & Seans Ayarları",
-                subtitle = "Çoklu izleme oturumları için limitler ve uyarılar ayarlayın."
+                title = stringResource(R.string.player_section_autoplay),
+                subtitle = stringResource(R.string.player_section_autoplay_desc)
             ) {
                 // Hâlâ İzliyor Musun?
                 KitsugiSettingsSwitchItem(
-                    title = "Hâlâ İzliyor Musun?",
-                    description = "Uzun süre hareketsiz kalınırsa ekrana ‘Hâlâ izliyor musun?’ sorusu gelir.",
+                    title = stringResource(R.string.player_are_you_watching),
+                    description = stringResource(R.string.player_are_you_watching_desc),
                     icon = Icons.Rounded.Tv,
                     iconColor = accentColor,
                     checked = stillWatchingEnabled,
@@ -522,12 +525,12 @@ internal fun PlayerGeneralTab(
                 // Hareketsizlik Eşiği
                 if (stillWatchingEnabled) {
                     KitsugiSettingsDivider()
-                    val thresholdOptions = listOf(30 to "30 dakika", 60 to "60 dakika", 90 to "90 dakika (Varsayılan)", 120 to "120 dakika")
-                    val currentThresholdName = thresholdOptions.find { it.first == stillWatchingThresholdMinutes }?.second ?: "90 dakika (Varsayılan)"
+                    val thresholdOptions = listOf(30 to stringResource(R.string.player_threshold_30), 60 to stringResource(R.string.player_threshold_60), 90 to stringResource(R.string.player_threshold_90), 120 to stringResource(R.string.player_threshold_120))
+                    val currentThresholdName = thresholdOptions.find { it.first == stillWatchingThresholdMinutes }?.second ?: stringResource(R.string.player_threshold_90)
                     Box {
                         KitsugiSettingsListItem(
-                            title = "Hareketsizlik Eşiği",
-                            description = "Ne kadar süre sonra uyarı gösterileceğini belirler",
+                            title = stringResource(R.string.player_inactivity_threshold),
+                            description = stringResource(R.string.player_inactivity_threshold_desc),
                             value = currentThresholdName,
                             icon = Icons.Rounded.HourglassEmpty,
                             iconColor = accentColor,
@@ -552,15 +555,15 @@ internal fun PlayerGeneralTab(
 
                 // Sonraki Bölüm Modu
                 val postPlayOptions = listOf(
-                    "AUTO_PLAY_NEXT" to "▶ Otomatik Oynat",
-                    "BINGE_PROMPT" to "📺 Devam İster Misin? Sor",
-                    "MANUAL" to "✋ Manuel (Otomatik Oynatma Yok)"
+                    "AUTO_PLAY_NEXT" to stringResource(R.string.player_post_play_auto),
+                    "BINGE_PROMPT" to stringResource(R.string.player_post_play_ask),
+                    "MANUAL" to stringResource(R.string.player_post_play_manual)
                 )
-                val currentPostPlayName = postPlayOptions.find { it.first == postPlayMode }?.second ?: "▶ Otomatik Oynat"
+                val currentPostPlayName = postPlayOptions.find { it.first == postPlayMode }?.second ?: stringResource(R.string.player_post_play_auto)
                 Box {
                     KitsugiSettingsListItem(
-                        title = "Sonraki Bölüm Modu",
-                        description = "Bölüm bittiğinde yapılacak varsayılan eylem",
+                        title = stringResource(R.string.player_post_play_mode),
+                        description = stringResource(R.string.player_post_play_mode_desc),
                         value = currentPostPlayName,
                         icon = Icons.Rounded.Forward,
                         iconColor = accentColor,
@@ -583,12 +586,12 @@ internal fun PlayerGeneralTab(
                 KitsugiSettingsDivider()
 
                 // Oturum Limiti
-                val limitOptions = listOf(0 to "Sınırsız", 3 to "3 Bölüm", 5 to "5 Bölüm", 10 to "10 Bölüm", 20 to "20 Bölüm")
-                val currentLimitName = limitOptions.find { it.first == autoplaySessionLimit }?.second ?: "Sınırsız"
+                val limitOptions = listOf(0 to stringResource(R.string.player_limit_unlimited), 3 to stringResource(R.string.player_limit_3), 5 to stringResource(R.string.player_limit_5), 10 to stringResource(R.string.player_limit_10), 20 to stringResource(R.string.player_limit_20))
+                val currentLimitName = limitOptions.find { it.first == autoplaySessionLimit }?.second ?: stringResource(R.string.player_limit_unlimited)
                 Box {
                     KitsugiSettingsListItem(
-                        title = "Seans Başına Otomatik Oynatma Limiti",
-                        description = "Oturum başına otomatik oynatılacak maksimum bölüm sayısı",
+                        title = stringResource(R.string.player_session_limit),
+                        description = stringResource(R.string.player_session_limit_desc),
                         value = currentLimitName,
                         icon = Icons.Rounded.SlowMotionVideo,
                         iconColor = accentColor,
@@ -613,21 +616,21 @@ internal fun PlayerGeneralTab(
         // Ses & Altyazı Gelişmiş
         item {
             KitsugiSettingsSection(
-                title = "Ses & Altyazı Gelişmiş",
-                subtitle = "Kod çözücü önceliğini, gelişmiş ses amplifikasyonunu ve altyazı gecikmelerini ayarlayın."
+                title = stringResource(R.string.player_section_audio_sub),
+                subtitle = stringResource(R.string.player_section_audio_sub_desc)
             ) {
                 // Dekoder Önceliği
                 val decoderOptions = listOf(
-                    0 to "📺 Donanım Öncelikli (HW only)",
-                    1 to "💻 Yazılım Fallback (HW → SW)",
-                    2 to "📁 Yazılım Öncelikli (SW preferred)"
+                    0 to stringResource(R.string.player_decoder_hw),
+                    1 to stringResource(R.string.player_decoder_fallback),
+                    2 to stringResource(R.string.player_decoder_sw)
                 )
                 val currentDecoderName = decoderOptions.find { it.first == decoderPriority }?.second
-                    ?: "📺 Donanım Öncelikli (HW only)"
+                    ?: stringResource(R.string.player_decoder_hw)
                 Box {
                     KitsugiSettingsListItem(
-                        title = "Dekoder Önceliği",
-                        description = "Donanımsal veya yazılımsal kod çözücü öncelik seçimi",
+                        title = stringResource(R.string.player_decoder_priority),
+                        description = stringResource(R.string.player_decoder_priority_desc),
                         value = currentDecoderName,
                         icon = Icons.Rounded.Memory,
                         iconColor = accentColor,
@@ -656,7 +659,7 @@ internal fun PlayerGeneralTab(
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     Text(
-                        "Ses Güçlendirme (Gain Boost): ${String.format("%.1f", gainBoostDb)} dB",
+                        stringResource(R.string.player_gain_boost_label, String.format("%.1f", gainBoostDb)),
                         color = KitsugiColors.TextPrimary,
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold
@@ -686,13 +689,13 @@ internal fun PlayerGeneralTab(
                     val subtitleDelaySeconds = subtitleDelayMs / 1000f
                     val clampedDelaySeconds = subtitleDelaySeconds.coerceIn(-10f, 10f)
                     Text(
-                        "Altyazı Gecikmesi: ${String.format("%.1f", subtitleDelaySeconds)} s",
+                        stringResource(R.string.player_subtitle_delay_label, String.format("%.1f", subtitleDelaySeconds)),
                         color = KitsugiColors.TextPrimary,
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        "Negatif = altyazı erken; pozitif = altyazı geç",
+                        stringResource(R.string.player_subtitle_delay_hint),
                         color = KitsugiColors.TextSecondary,
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -711,13 +714,13 @@ internal fun PlayerGeneralTab(
         // Jestler
         item {
             KitsugiSettingsSection(
-                title = "Dokunmatik Jest Ayarları",
-                subtitle = "Oynatma esnasında ekran kaydırma ve çift tıklama eylemlerini yapılandırın."
+                title = stringResource(R.string.player_section_gestures),
+                subtitle = stringResource(R.string.player_section_gestures_desc)
             ) {
                 // Ses Jesti
                 KitsugiSettingsSwitchItem(
-                    title = "Ses Jesti",
-                    description = "Sağ dikey kaydırma ses seviyesini değiştirir.",
+                    title = stringResource(R.string.player_gesture_volume),
+                    description = stringResource(R.string.player_gesture_volume_desc),
                     icon = Icons.Rounded.VolumeUp,
                     iconColor = accentColor,
                     checked = gestureVolumeEnabled,
@@ -728,8 +731,8 @@ internal fun PlayerGeneralTab(
 
                 // Parlaklık Jesti
                 KitsugiSettingsSwitchItem(
-                    title = "Parlaklık Jesti",
-                    description = "Sol dikey kaydırma ekran parlaklığını değiştirir.",
+                    title = stringResource(R.string.player_gesture_brightness),
+                    description = stringResource(R.string.player_gesture_brightness_desc),
                     icon = Icons.Rounded.BrightnessMedium,
                     iconColor = accentColor,
                     checked = gestureBrightnessEnabled,
@@ -740,8 +743,8 @@ internal fun PlayerGeneralTab(
 
                 // Zoom Jesti
                 KitsugiSettingsSwitchItem(
-                    title = "Zoom Jesti",
-                    description = "İki parmak baskısı ile ekran zoom'u.",
+                    title = stringResource(R.string.player_gesture_zoom),
+                    description = stringResource(R.string.player_gesture_zoom_desc),
                     icon = Icons.Rounded.ZoomIn,
                     iconColor = accentColor,
                     checked = gestureZoomEnabled,
@@ -755,8 +758,8 @@ internal fun PlayerGeneralTab(
                 val currentSeekName = seekOptions.find { it.first == doubleTapSeekSeconds }?.second ?: "10s"
                 Box {
                     KitsugiSettingsListItem(
-                        title = "Çift Dokunuş İleri/Geri Süresi",
-                        description = "Ekranın soluna/sağına çift dokunulduğunda atlanacak süre",
+                        title = stringResource(R.string.player_double_tap_seek),
+                        description = stringResource(R.string.player_double_tap_seek_desc),
                         value = currentSeekName,
                         icon = Icons.Rounded.Forward10,
                         iconColor = accentColor,
@@ -783,8 +786,8 @@ internal fun PlayerGeneralTab(
                 val currentHoldName = holdOptions.find { it.first == holdSpeedMultiplier }?.second ?: "2x"
                 Box {
                     KitsugiSettingsListItem(
-                        title = "Basılı Tutma Hız Çarpanı",
-                        description = "Ekrana basılı tutulduğundaki oynatma hızı",
+                        title = stringResource(R.string.player_hold_speed),
+                        description = stringResource(R.string.player_hold_speed_desc),
                         value = currentHoldName,
                         icon = Icons.Rounded.Speed,
                         iconColor = accentColor,
@@ -813,12 +816,12 @@ internal fun PlayerGeneralTab(
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     val scrollLabel = when {
-                        gestureScrollSensitivity <= 0.6f -> "Yavaş (%.1fx)".format(gestureScrollSensitivity)
-                        gestureScrollSensitivity >= 1.6f -> "Hızlı (%.1fx)".format(gestureScrollSensitivity)
-                        else -> "Normal (%.1fx)".format(gestureScrollSensitivity)
+                        gestureScrollSensitivity <= 0.6f -> stringResource(R.string.player_scroll_slow, gestureScrollSensitivity)
+                        gestureScrollSensitivity >= 1.6f -> stringResource(R.string.player_scroll_fast, gestureScrollSensitivity)
+                        else -> stringResource(R.string.player_scroll_normal, gestureScrollSensitivity)
                     }
                     Text(
-                        "Kaydırma Hassasiyeti: $scrollLabel",
+                        stringResource(R.string.player_scroll_sensitivity_label, scrollLabel),
                         color = KitsugiColors.TextPrimary,
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold
@@ -838,16 +841,16 @@ internal fun PlayerGeneralTab(
         // MPV Gelişmiş Motor Ayarları
         item {
             KitsugiSettingsSection(
-                title = "MPV Motoru Gelişmiş Ayarları",
-                subtitle = "GPU arka yüzü, donanım kod çözme, debanding ve önbellek ayarlarını yapılandırın. Yalnızca MPV motoru seçildiğinde geçerlidir."
+                title = stringResource(R.string.player_section_mpv),
+                subtitle = stringResource(R.string.player_section_mpv_desc)
             ) {
                 // GPU Renderer
-                val gpuOptions = listOf("gpu" to "🖥️ GPU (Varsayılan)", "gpu-next" to "⚡ GPU-Next (Deneysel)")
-                val currentGpuName = gpuOptions.find { it.first == mpvGpuRenderer }?.second ?: "🖥️ GPU (Varsayılan)"
+                val gpuOptions = listOf("gpu" to stringResource(R.string.player_mpv_gpu), "gpu-next" to stringResource(R.string.player_mpv_gpu_next))
+                val currentGpuName = gpuOptions.find { it.first == mpvGpuRenderer }?.second ?: stringResource(R.string.player_mpv_gpu)
                 Box {
                     KitsugiSettingsListItem(
-                        title = "GPU Arka Yüzü (Renderer)",
-                        description = "MPV video render motoru; gpu-next daha iyi HDR desteği sunar",
+                        title = stringResource(R.string.player_mpv_gpu_renderer),
+                        description = stringResource(R.string.player_mpv_gpu_renderer_desc),
                         value = currentGpuName,
                         icon = Icons.Rounded.Memory,
                         iconColor = accentColor,
@@ -868,15 +871,15 @@ internal fun PlayerGeneralTab(
 
                 // Hwdec Modu
                 val hwdecOptions = listOf(
-                    "auto-safe" to "🛡️ Otomatik Güvenli",
-                    "auto" to "⚡ Otomatik (Tüm Format)",
-                    "no" to "💻 Yazılım (Devre Dışı)"
+                    "auto-safe" to stringResource(R.string.player_mpv_hwdec_auto_safe),
+                    "auto" to stringResource(R.string.player_mpv_hwdec_auto_all),
+                    "no" to stringResource(R.string.player_mpv_hwdec_sw)
                 )
-                val currentHwdecName = hwdecOptions.find { it.first == mpvHwdecMode }?.second ?: "🛡️ Otomatik Güvenli"
+                val currentHwdecName = hwdecOptions.find { it.first == mpvHwdecMode }?.second ?: stringResource(R.string.player_mpv_hwdec_auto_safe)
                 Box {
                     KitsugiSettingsListItem(
-                        title = "Donanım Kod Çözme (hwdec)",
-                        description = "H.264/HEVC gibi format için hızlandırılmış donanım kod çözme",
+                        title = stringResource(R.string.player_mpv_hwdec),
+                        description = stringResource(R.string.player_mpv_hwdec_desc),
                         value = currentHwdecName,
                         icon = Icons.Rounded.DeveloperBoard,
                         iconColor = accentColor,
@@ -896,12 +899,12 @@ internal fun PlayerGeneralTab(
                 KitsugiSettingsDivider()
 
                 // Debanding
-                val debandOptions = listOf("none" to "❌ Kapalı", "cpu" to "💻 CPU Debanding", "gpu" to "🖥️ GPU Debanding")
-                val currentDebandName = debandOptions.find { it.first == mpvDebandMode }?.second ?: "❌ Kapalı"
+                val debandOptions = listOf("none" to stringResource(R.string.player_mpv_deband_off), "cpu" to stringResource(R.string.player_mpv_deband_cpu), "gpu" to stringResource(R.string.player_mpv_deband_gpu))
+                val currentDebandName = debandOptions.find { it.first == mpvDebandMode }?.second ?: stringResource(R.string.player_mpv_deband_off)
                 Box {
                     KitsugiSettingsListItem(
-                        title = "Video Debanding",
-                        description = "Düşk bant sayılı görüntülerdeki renk geçiş şeritlerini giderir",
+                        title = stringResource(R.string.player_mpv_deband),
+                        description = stringResource(R.string.player_mpv_deband_desc),
                         value = currentDebandName,
                         icon = Icons.Rounded.Gradient,
                         iconColor = accentColor,
@@ -922,8 +925,8 @@ internal fun PlayerGeneralTab(
 
                 // YUV420P Zorla
                 KitsugiSettingsSwitchItem(
-                    title = "YUV420P Format Zorla",
-                    description = "Eski donanım uyumu için video çıkışını YUV420P formatına dönüştürmeye zorlar.",
+                    title = stringResource(R.string.player_mpv_yuv),
+                    description = stringResource(R.string.player_mpv_yuv_desc),
                     icon = Icons.Rounded.VideoSettings,
                     iconColor = accentColor,
                     checked = mpvForceYuv420p,
@@ -937,13 +940,13 @@ internal fun PlayerGeneralTab(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     Text(
-                        "Demuxer Önbelleği: ${mpvDemuxerCacheMb} MB",
+                        stringResource(R.string.player_mpv_demuxer_cache, mpvDemuxerCacheMb),
                         color = KitsugiColors.TextPrimary,
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        "Yayın tamponu boyutu — düşük = daha az bellek, yüksek = daha az tampon takılması",
+                        stringResource(R.string.player_mpv_demuxer_desc),
                         color = KitsugiColors.TextSecondary,
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -964,13 +967,13 @@ internal fun PlayerGeneralTab(
                     modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)
                 ) {
                     Text(
-                        "Ses Güçlendirme Sınırı: ${volumeBoostCap}%",
+                        stringResource(R.string.player_mpv_volume_cap, volumeBoostCap),
                         color = KitsugiColors.TextPrimary,
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        "MPV volume-max değeri — 100 = normal, 200 = 2x amplifikayon",
+                        stringResource(R.string.player_mpv_volume_cap_desc),
                         color = KitsugiColors.TextSecondary,
                         style = MaterialTheme.typography.bodySmall
                     )
@@ -989,13 +992,13 @@ internal fun PlayerGeneralTab(
         // Yeni Jest Ayarları
         item {
             KitsugiSettingsSection(
-                title = "Gelişmiş Jest Ayarları",
-                subtitle = "Kaydırma yönleri, yatay seek ve hassas mod seçenekleri."
+                title = stringResource(R.string.player_section_gestures_adv),
+                subtitle = stringResource(R.string.player_section_gestures_adv_desc)
             ) {
                 // Ses/Parlaklık Yer Değiştir
                 KitsugiSettingsSwitchItem(
-                    title = "Ses/Parlaklık Taraf Yer Değiştir",
-                    description = "Kapalı (varsayılan): sol taraf parlaklık, sağ taraf ses. Açık: sol taraf ses, sağ taraf parlaklık.",
+                    title = stringResource(R.string.player_gesture_swap_sides),
+                    description = stringResource(R.string.player_gesture_swap_sides_desc),
                     icon = Icons.Rounded.SwapHoriz,
                     iconColor = accentColor,
                     checked = !swipeVolumeBrightnessSides,
@@ -1006,8 +1009,8 @@ internal fun PlayerGeneralTab(
 
                 // Yatay Seek Jesti
                 KitsugiSettingsSwitchItem(
-                    title = "Yatay Kaydırma Seek",
-                    description = "Yatay sola/sağa kaydırma ile video konumu değiştirilir.",
+                    title = stringResource(R.string.player_gesture_horizontal_seek),
+                    description = stringResource(R.string.player_gesture_horizontal_seek_desc),
                     icon = Icons.Rounded.SwipeRight,
                     iconColor = accentColor,
                     checked = horizontalSeekGestureEnabled,
@@ -1018,8 +1021,8 @@ internal fun PlayerGeneralTab(
 
                 // Hassas Seek Modu
                 KitsugiSettingsSwitchItem(
-                    title = "Hassas Seek (Kare Kare)",
-                    description = "Seek sırasında tam kare arar; daha yavaş ama kesin konumlanma sağlar.",
+                    title = stringResource(R.string.player_precise_seek),
+                    description = stringResource(R.string.player_precise_seek_desc),
                     icon = Icons.Rounded.ControlCamera,
                     iconColor = accentColor,
                     checked = preciseSeeking,
