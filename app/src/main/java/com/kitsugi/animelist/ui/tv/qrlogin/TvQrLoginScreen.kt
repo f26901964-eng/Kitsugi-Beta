@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.tv.qrlogin
 
+import com.kitsugi.animelist.R
+import androidx.compose.ui.res.stringResource
 import android.graphics.Bitmap
 import android.graphics.Color
 import androidx.compose.animation.AnimatedVisibility
@@ -228,7 +230,7 @@ fun TvQrLoginScreen(
             verticalArrangement = Arrangement.Center
         ) {
             Text(
-                text = "Hesap Bağla",
+                text = stringResource(R.string.inline_link_account_13c91f4),
                 style = MaterialTheme.typography.headlineMedium,
                 color = androidx.compose.ui.graphics.Color.White,
                 fontWeight = FontWeight.Bold,
@@ -236,7 +238,7 @@ fun TvQrLoginScreen(
             )
 
             Text(
-                text = "TV üzerinden doğrudan tarayıcı ile\nveya telefonunuzla bağlanın",
+                text = stringResource(R.string.inline_connect_directly_through_your_tv_714ffdd),
                 style = MaterialTheme.typography.bodyMedium,
                 color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.6f),
                 modifier = Modifier.padding(bottom = 32.dp)
@@ -292,7 +294,7 @@ fun TvQrLoginScreen(
 
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = "${service?.displayName} ile Giriş Yap",
+                            text = stringResource(R.string.inline_sign_in_with_1_s_6d8f7e7, (service?.displayName).toString()),
                             style = MaterialTheme.typography.titleMedium,
                             color = accentColor,
                             fontWeight = FontWeight.SemiBold,
@@ -316,7 +318,7 @@ fun TvQrLoginScreen(
                             Spacer(modifier = Modifier.height(KitsugiTvTokens.Spacing.contentPadding))
 
                             Text(
-                                text = "Telefonunuzdaki kamera veya\ntarayıcı ile okutun",
+                                text = stringResource(R.string.inline_scan_with_your_phone_s_a9830f6),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.5f),
                                 textAlign = TextAlign.Center
@@ -346,7 +348,7 @@ fun TvQrLoginScreen(
                                 modifier = Modifier.padding(bottom = 16.dp)
                             ) {
                                 Text(
-                                    text = "TV Tarayıcısı ile Giriş Yap",
+                                    text = stringResource(R.string.inline_sign_in_with_tv_browser_8345c87),
                                     fontWeight = FontWeight.Bold,
                                     modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                 )
@@ -355,7 +357,7 @@ fun TvQrLoginScreen(
                             Spacer(modifier = Modifier.height(8.dp))
 
                             Text(
-                                text = "TV üzerinde açılacak güvenli pencere ile giriş yapın.\nAlternatif olarak QR kodu okutabilirsiniz.",
+                                text = stringResource(R.string.inline_sign_in_using_the_secure_262b8ee),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.6f),
                                 textAlign = TextAlign.Center,
@@ -387,7 +389,7 @@ fun TvQrLoginScreen(
                     )
                     Spacer(modifier = Modifier.height(KitsugiTvTokens.Spacing.contentPadding))
                     Text(
-                        text = "Sol taraftan bir servis seçin",
+                        text = stringResource(R.string.inline_select_a_service_on_the_778639b),
                         style = MaterialTheme.typography.bodyLarge,
                         color = androidx.compose.ui.graphics.Color.White.copy(alpha = 0.4f),
                         textAlign = TextAlign.Center
@@ -452,7 +454,7 @@ private fun TvServiceButton(
                     fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
                 )
                 Text(
-                    text = if (isConnected) "✓ Bağlı (Tıkla ve Çık)" else "Bağlamak İçin Tıkla/Seç",
+                    text = if (isConnected) stringResource(R.string.ui_tv_connected_tap_exit) else stringResource(R.string.ui_tv_tap_connect_select),
                     style = MaterialTheme.typography.labelSmall,
                     color = if (isConnected) androidx.compose.ui.graphics.Color(0xFF4CAF50)
                             else androidx.compose.ui.graphics.Color.White.copy(alpha = 0.4f)
@@ -479,7 +481,7 @@ private fun TvServiceButton(
                 .padding(horizontal = 12.dp, vertical = 6.dp)
         ) {
             Text(
-                text = if (isConnected) "Çıkış Yap" else "QR Göster",
+                text = if (isConnected) stringResource(R.string.ui_tv_logout) else stringResource(R.string.ui_tv_show_qr),
                 style = MaterialTheme.typography.labelSmall,
                 color = androidx.compose.ui.graphics.Color.White,
                 fontWeight = FontWeight.Bold

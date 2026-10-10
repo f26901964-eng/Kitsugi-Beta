@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.tv.manga
 
+import com.kitsugi.animelist.R
+import androidx.compose.ui.res.stringResource
 import android.view.KeyEvent
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
@@ -437,13 +439,13 @@ private fun TvExtRepoTab(
         item {
             Column(modifier = Modifier.padding(bottom = 8.dp)) {
                 Text(
-                    "Manga Repoları",
+                    stringResource(R.string.inline_manga_repositories_455078d),
                     color = KitsugiColors.TextPrimary,
                     fontWeight = FontWeight.Bold,
                     fontSize = 22.sp
                 )
                 Text(
-                    "Manga eklentisi kaynaklarını yönetin · ${repos.size} aktif repo",
+                    stringResource(R.string.inline_manage_manga_extension_sources_1_2c1da29, (repos.size).toString()),
                     color = KitsugiColors.TextMuted,
                     fontSize = 13.sp
                 )
@@ -477,9 +479,9 @@ private fun TvExtRepoTab(
                             tint = KitsugiColors.TextMuted,
                             modifier = Modifier.size(48.dp)
                         )
-                        Text("Henüz repo eklenmedi", color = KitsugiColors.TextMuted, fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.inline_no_repositories_added_yet_4131ec1), color = KitsugiColors.TextMuted, fontWeight = FontWeight.SemiBold)
                         Text(
-                            "Keiyoushi'yi hızlıca eklemek için yukarıdaki kartı kullanın.",
+                            stringResource(R.string.inline_use_the_card_above_to_2ce9286),
                             color = KitsugiColors.TextMuted.copy(alpha = 0.7f),
                             fontSize = 12.sp
                         )
@@ -572,7 +574,7 @@ private fun TvExtInstalledTab(
                     fontSize = 22.sp
                 )
                 Text(
-                    "${sources.size} manga kaynağı kurulu",
+                    stringResource(R.string.inline_1_s_manga_sources_installed_b01a265, (sources.size).toString()),
                     color = KitsugiColors.TextMuted,
                     fontSize = 13.sp
                 )
@@ -654,7 +656,7 @@ private fun TvExtQuickAddCard(
         verticalArrangement = Arrangement.spacedBy(10.dp)
     ) {
         Text(
-            "Hızlı Eklenti Kaynağı",
+            stringResource(R.string.inline_quick_extension_source_ccba258),
             color = KitsugiColors.TextPrimary,
             fontWeight = FontWeight.Bold,
             fontSize = 14.sp
@@ -702,7 +704,7 @@ private fun TvExtQuickAddCard(
                     fontSize = 13.sp
                 )
                 Text(
-                    "1354+ Mihon eklentisi · 78 Türkçe kaynak",
+                    stringResource(R.string.inline_1_354_mihon_extensions_78_af394a0),
                     color = KitsugiColors.TextMuted,
                     fontSize = 11.sp
                 )
@@ -796,7 +798,7 @@ private fun TvExtRepoCard(
                     fontSize = 14.sp
                 )
                 Text(
-                    if (repoPlugins != null) "$installedCount / $totalCount kurulu" else "Yüklenmedi",
+                    if (repoPlugins != null) "$installedCount / $totalCount kurulu" else stringResource(R.string.ui_plugins_not_installed),
                     color = if (installedCount == totalCount && totalCount > 0) KitsugiColors.AccentGreen
                             else KitsugiColors.TextMuted,
                     fontSize = 11.sp
@@ -896,7 +898,7 @@ private fun TvExtRepoCard(
                 }
                 if ((repoPlugins?.size ?: 0) > 30) {
                     Text(
-                        "... ve ${(repoPlugins?.size ?: 0) - 30} eklenti daha. Tam listeyi Repolar sekmesinden görün.",
+                        stringResource(R.string.inline_and_1_s_more_extensions_9ea82bd, ((repoPlugins?.size ?: 0) - 30).toString()),
                         color = KitsugiColors.TextMuted,
                         fontSize = 10.sp,
                         modifier = Modifier.padding(vertical = 8.dp)
@@ -1162,13 +1164,13 @@ private fun TvExtConfirmDeleteDialog(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                "Kaynağı Kaldır",
+                stringResource(R.string.inline_remove_source_2ad0ff8),
                 color = KitsugiColors.TextPrimary,
                 fontWeight = FontWeight.Bold,
                 fontSize = 16.sp
             )
             Text(
-                "\"$sourceName\" adlı kaynak kaldırılacak. Bu işlem geri alınamaz.",
+                stringResource(R.string.inline_the_1_s_source_will_cac3e39, (sourceName).toString()),
                 color = KitsugiColors.TextSecondary,
                 fontSize = 13.sp
             )

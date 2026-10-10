@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.tv.detail
 
+import com.kitsugi.animelist.R
+import androidx.compose.ui.res.stringResource
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -187,7 +189,7 @@ fun TvReviewDetailDialog(
                             )
                             Spacer(modifier = Modifier.width(8.dp))
                             Text(
-                                text = if (helpfulCountState > 0) "$helpfulCountState Faydalı" else "Faydalı Bul",
+                                text = if (helpfulCountState > 0) stringResource(R.string.ui2_review_helpful_count, helpfulCountState) else stringResource(R.string.ui_review_helpful_action),
                                 color = if (userRatingState == "UP_VOTE") accentColor else KitsugiColors.TextPrimary,
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold
@@ -218,7 +220,7 @@ fun TvReviewDetailDialog(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "Orijinal",
+                                text = stringResource(R.string.bangumi_tag_original),
                                 color = if (isOrigSelected) KitsugiColors.Background else KitsugiColors.TextPrimary,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold
@@ -243,7 +245,7 @@ fun TvReviewDetailDialog(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "Türkçe",
+                                text = stringResource(R.string.inline_turkish_efaad14),
                                 color = if (isTrSelected) KitsugiColors.Background else KitsugiColors.TextPrimary,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold
@@ -268,7 +270,7 @@ fun TvReviewDetailDialog(
                             ),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Kapat", color = KitsugiColors.TextPrimary, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.action_close), color = KitsugiColors.TextPrimary, fontWeight = FontWeight.Bold)
                     }
                 }
 

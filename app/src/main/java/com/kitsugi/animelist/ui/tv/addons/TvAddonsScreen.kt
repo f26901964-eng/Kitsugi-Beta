@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.tv.addons
 
+import com.kitsugi.animelist.R
+import androidx.compose.ui.res.stringResource
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
@@ -433,7 +435,7 @@ private fun TvAddonsDebridRow(debridToken: String, onClick: () -> Unit) {
         Column(modifier = Modifier.weight(1f)) {
             Text("RealDebrid / Alldebrid Token", style = MaterialTheme.typography.bodyLarge, color = Color.White, fontWeight = FontWeight.SemiBold)
             Text(
-                text = if (isConnected) "Token bağlı: ${debridToken.take(10)}..." else "Token tanımlanmamış — tıklayın",
+                text = if (isConnected) stringResource(R.string.ui2_debrid_token_connected, debridToken.take(10)) else stringResource(R.string.ui2_debrid_token_unconfigured),
                 style = MaterialTheme.typography.bodySmall,
                 color = if (isConnected) Color(0xFF4CAF50) else Color.White.copy(0.4f)
             )
@@ -697,7 +699,7 @@ private fun TvAddonsConfirmDialog(
                             focusedContentColor   = Color.White
                         ),
                         shape = ButtonDefaults.shape(RoundedCornerShape(12.dp))
-                    ) { Text("Vazgeç") }
+                    ) { Text(stringResource(R.string.inline_discard_14d2482)) }
                     Button(
                         onClick = onConfirm,
                         modifier = Modifier.weight(1f),
@@ -708,7 +710,7 @@ private fun TvAddonsConfirmDialog(
                             focusedContentColor   = Color.White
                         ),
                         shape = ButtonDefaults.shape(RoundedCornerShape(12.dp))
-                    ) { Text("Sil", fontWeight = FontWeight.Bold) }
+                    ) { Text(stringResource(R.string.action_delete), fontWeight = FontWeight.Bold) }
                 }
             }
         }
@@ -786,7 +788,7 @@ private fun TvAddonsInputDialog(
                             focusedContentColor   = Color.White
                         ),
                         shape = ButtonDefaults.shape(RoundedCornerShape(12.dp))
-                    ) { Text("Vazgeç") }
+                    ) { Text(stringResource(R.string.inline_discard_14d2482)) }
                     Button(
                         onClick  = { if (input.isNotBlank()) onConfirm(input.trim()) },
                         enabled  = input.isNotBlank(),

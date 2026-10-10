@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.tv.stream
 
+import com.kitsugi.animelist.R
+import androidx.compose.ui.res.stringResource
 import android.content.Context
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
@@ -279,7 +281,7 @@ fun TvStreamScreen(
                 )
 
                 Text(
-                    text = if (args.isMovie) "Film" else "${args.season}. Sezon - ${args.episode}. Bölüm",
+                    text = if (args.isMovie) stringResource(R.string.bangumi_tag_movie) else stringResource(R.string.ui2_tv_stream_season_episode, args.season, args.episode),
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                     color = accentColor
                 )
@@ -352,13 +354,13 @@ fun TvStreamScreen(
                             horizontalAlignment = Alignment.CenterHorizontally
                         ) {
                             Text(
-                                text = "Akış bulunamadı.",
+                                text = stringResource(R.string.inline_no_streams_found_d834d54),
                                 style = MaterialTheme.typography.titleMedium,
                                 color = KitsugiColors.TextMuted
                             )
                             if (idResolveFailed) {
                                 Text(
-                                    text = "Kimlik çözümleme başarısız oldu.",
+                                    text = stringResource(R.string.inline_failed_to_resolve_identity_185ada5),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = Color.Red.copy(alpha = 0.7f)
                                 )
@@ -473,7 +475,7 @@ fun TvStreamScreen(
                     ) {
                         KitsugiPlasmaLoader(size = 40.dp)
                         Text(
-                            text = "Link Çözümleniyor...",
+                            text = stringResource(R.string.inline_resolving_link_bf37591),
                             style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                             color = Color.White
                         )
@@ -491,7 +493,7 @@ fun TvStreamScreen(
                             colors = ButtonDefaults.outlinedButtonColors(contentColor = Color.White),
                             modifier = Modifier.padding(top = 4.dp).height(36.dp)
                         ) {
-                            Text("İptal", style = MaterialTheme.typography.labelMedium)
+                            Text(stringResource(R.string.settings_cancel), style = MaterialTheme.typography.labelMedium)
                         }
                     }
                 }
@@ -521,7 +523,7 @@ fun TvStreamScreen(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         TextButton(onClick = { resolvingError = null }) {
-                            Text("Tamam", color = accentColor, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.action_ok), color = accentColor, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -671,7 +673,7 @@ private fun TvStreamRowItem(
             }
 
             Text(
-                text = stream.name ?: "İsimsiz Akış",
+                text = stream.name ?: stringResource(R.string.ui_stream_unnamed),
                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                 color = KitsugiColors.TextPrimary,
                 maxLines = 1,
@@ -771,7 +773,7 @@ private fun TvStreamErrorItem(
             )
 
             Text(
-                text = addonState.error ?: "Bilinmeyen hata oluştu",
+                text = addonState.error ?: stringResource(R.string.ui_error_unknown),
                 style = MaterialTheme.typography.labelSmall,
                 color = KitsugiColors.TextMuted,
                 maxLines = 2,
@@ -781,7 +783,7 @@ private fun TvStreamErrorItem(
             if (isVerifyAvailable && isFocused) {
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "Doğrulamak için kumandanın OK tuşuna basın",
+                    text = stringResource(R.string.inline_press_ok_on_the_remote_9ad02f0),
                     style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Bold),
                     color = accentColor
                 )

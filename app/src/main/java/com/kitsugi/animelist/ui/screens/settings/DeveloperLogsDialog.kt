@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.screens.settings
 
+import com.kitsugi.animelist.R
+import androidx.compose.ui.res.stringResource
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.background
@@ -163,13 +165,13 @@ fun DeveloperLogsDialog(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Geliştirici Günlükleri",
+                            text = stringResource(R.string.inline_developer_logs_1c5507d),
                             color = KitsugiColors.TextPrimary,
                             fontSize = 20.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Uygulama içi Logcat ve hata kayıtları",
+                            text = stringResource(R.string.inline_in_app_logcat_and_error_268f061),
                             color = KitsugiColors.TextSecondary,
                             fontSize = 12.sp
                         )
@@ -339,7 +341,7 @@ fun DeveloperLogsDialog(
                 OutlinedTextField(
                     value = searchQuery,
                     onValueChange = { searchQuery = it },
-                    placeholder = { Text("Loglarda ara (örn. TurkAnime, Hata, Extractor...)", color = KitsugiColors.TextMuted, fontSize = 13.sp) },
+                    placeholder = { Text(stringResource(R.string.inline_search_logs_e_g_turkanime_fea64cb), color = KitsugiColors.TextMuted, fontSize = 13.sp) },
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     leadingIcon = { Icon(Icons.Rounded.Search, null, tint = KitsugiColors.TextSecondary) },
@@ -384,13 +386,13 @@ fun DeveloperLogsDialog(
                                 Icon(Icons.Rounded.Warning, null, tint = KitsugiColors.AccentRed)
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        text = "Son Çökme Raporu Algılandı",
+                                        text = stringResource(R.string.inline_latest_crash_report_detected_cff3667),
                                         color = KitsugiColors.AccentRed,
                                         fontWeight = FontWeight.Bold,
                                         fontSize = 14.sp
                                     )
                                     Text(
-                                        text = if (isCrashExpanded) "Kapatmak için tıklayın" else "Detayları görmek için tıklayın",
+                                        text = if (isCrashExpanded) stringResource(R.string.ui_developer_log_close_hint) else stringResource(R.string.ui_developer_log_details_hint),
                                         color = KitsugiColors.TextSecondary,
                                         fontSize = 11.sp
                                     )
@@ -430,7 +432,7 @@ fun DeveloperLogsDialog(
                         )
                     } else if (filteredLines.isEmpty()) {
                         Text(
-                            text = "Eşleşen log kaydı bulunamadı.",
+                            text = stringResource(R.string.inline_no_matching_log_entry_found_7aebe62),
                             color = KitsugiColors.TextMuted,
                             fontSize = 14.sp,
                             modifier = Modifier.align(Alignment.Center)

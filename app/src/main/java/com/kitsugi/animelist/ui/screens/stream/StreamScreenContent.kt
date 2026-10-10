@@ -1,4 +1,6 @@
 package com.kitsugi.animelist.ui.screens.stream
+import com.kitsugi.animelist.R
+import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.SharedPreferences
@@ -296,7 +298,7 @@ fun StreamScreenContent(
                             )
                             Spacer(Modifier.width(6.dp))
                             Text(
-                                text = "İptal",
+                                text = stringResource(R.string.settings_cancel),
                                 color = KitsugiColors.TextPrimary,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.SemiBold
@@ -313,7 +315,7 @@ fun StreamScreenContent(
                 onDismissRequest = onResolvingErrorDismiss,
                 title = { Text("Hata", color = KitsugiColors.TextPrimary) },
                 text = { Text(resolvingError, color = KitsugiColors.TextSecondary) },
-                confirmButton = { TextButton(onClick = onResolvingErrorDismiss) { Text("Tamam", color = accentColor) } },
+                confirmButton = { TextButton(onClick = onResolvingErrorDismiss) { Text(stringResource(R.string.action_ok), color = accentColor) } },
                 containerColor = KitsugiColors.Surface
             )
         }
@@ -326,10 +328,10 @@ fun StreamScreenContent(
                 onDismissRequest = onPendingDismiss,
                 containerColor = KitsugiColors.Surface, titleContentColor = KitsugiColors.TextPrimary,
                 textContentColor = KitsugiColors.TextSecondary, shape = RoundedCornerShape(26.dp),
-                title = { Text("Oynatıcı Seçin", color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
+                title = { Text(stringResource(R.string.inline_choose_a_player_70a8dc8), color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold) },
                 text = {
                     Column(modifier = Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        Text("Videoyu hangi oynatıcı ile açmak istersiniz?", color = KitsugiColors.TextSecondary)
+                        Text(stringResource(R.string.inline_which_player_would_you_like_a9168aa), color = KitsugiColors.TextSecondary)
                         Spacer(Modifier.height(4.dp))
                         PlayerPickerCard(
                             icon = { Icon(Icons.Rounded.PlayCircle, null, tint = accentColor) },
@@ -353,12 +355,12 @@ fun StreamScreenContent(
                         )
                         Row(modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).tvClickable(shape = RoundedCornerShape(12.dp)) { rememberChoice = !rememberChoice }.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Checkbox(checked = rememberChoice, onCheckedChange = { rememberChoice = it }, colors = CheckboxDefaults.colors(checkedColor = accentColor, uncheckedColor = KitsugiColors.TextMuted, checkmarkColor = KitsugiColors.Surface))
-                            Text("Seçimimi hatırla", color = KitsugiColors.TextPrimary)
+                            Text(stringResource(R.string.inline_remember_my_choice_a65f9af), color = KitsugiColors.TextPrimary)
                         }
                     }
                 },
                 confirmButton = {},
-                dismissButton = { TextButton(onClick = onPendingDismiss) { Text("İptal", color = accentColor) } }
+                dismissButton = { TextButton(onClick = onPendingDismiss) { Text(stringResource(R.string.settings_cancel), color = accentColor) } }
             )
         }
     }
@@ -489,7 +491,7 @@ private fun FilteredEmptyState(
                 modifier = Modifier.size(40.dp)
             )
             Text(
-                text = "Aramanızla Eşleşen Kaynak Bulunamadı",
+                text = stringResource(R.string.inline_no_source_matching_your_search_1a6da33),
                 color = KitsugiColors.TextPrimary,
                 fontWeight = FontWeight.Bold,
                 style = MaterialTheme.typography.titleMedium,
@@ -562,7 +564,7 @@ private fun LandscapeLayout(
                 }
                 Spacer(Modifier.width(8.dp))
                 Text(
-                    "Geri",
+                    stringResource(R.string.action_back),
                     color = KitsugiColors.TextSecondary,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold,
@@ -634,9 +636,9 @@ private fun LandscapeLayout(
                 )
                 Text(
                     if (isMovie) {
-                        if (isDownloadMode) "Film (İndir)" else "Film"
+                        if (isDownloadMode) stringResource(R.string.ui2_movie_download) else stringResource(R.string.bangumi_tag_movie)
                     } else {
-                        if (isDownloadMode) "İndir · Sezon $season · Bölüm $episode" else "Sezon $season · Bölüm $episode"
+                        if (isDownloadMode) stringResource(R.string.ui2_stream_download_season_episode, season, episode) else stringResource(R.string.ui2_stream_season_episode, season, episode)
                     },
                     color = KitsugiColors.TextSecondary,
                     style = MaterialTheme.typography.bodySmall,
@@ -773,9 +775,9 @@ private fun PortraitLayout(
                         Text(title, color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text(
                             if (isMovie) {
-                                if (isDownloadMode) "Film (İndir)" else "Film"
+                                if (isDownloadMode) stringResource(R.string.ui2_movie_download) else stringResource(R.string.bangumi_tag_movie)
                             } else {
-                                if (isDownloadMode) "İndir · Sezon $season · Bölüm $episode" else "Sezon $season · Bölüm $episode"
+                                if (isDownloadMode) stringResource(R.string.ui2_stream_download_season_episode, season, episode) else stringResource(R.string.ui2_stream_season_episode, season, episode)
                             },
                             color = KitsugiColors.TextSecondary, style = MaterialTheme.typography.bodySmall
                         )
@@ -830,9 +832,9 @@ private fun PortraitLayout(
                         Spacer(Modifier.height(4.dp))
                         Text(
                             if (isMovie) {
-                                if (isDownloadMode) "Film (İndir)" else "Film"
+                                if (isDownloadMode) stringResource(R.string.ui2_movie_download) else stringResource(R.string.bangumi_tag_movie)
                             } else {
-                                if (isDownloadMode) "İndir · Sezon $season · Bölüm $episode" else "Sezon $season · Bölüm $episode"
+                                if (isDownloadMode) stringResource(R.string.ui2_stream_download_season_episode, season, episode) else stringResource(R.string.ui2_stream_season_episode, season, episode)
                             },
                             color = KitsugiColors.TextSecondary, style = MaterialTheme.typography.bodyMedium
                         )
@@ -890,9 +892,9 @@ private fun PortraitLayout(
                                 )
                                 Text(
                                     text = if (isMovie) {
-                                        if (isDownloadMode) "Film (İndir)" else "Film"
+                                        if (isDownloadMode) stringResource(R.string.ui2_movie_download) else stringResource(R.string.bangumi_tag_movie)
                                     } else {
-                                        if (isDownloadMode) "İndir · Sezon $season · Bölüm $episode" else "Sezon $season · Bölüm $episode"
+                                        if (isDownloadMode) stringResource(R.string.ui2_stream_download_season_episode, season, episode) else stringResource(R.string.ui2_stream_season_episode, season, episode)
                                     },
                                     color = KitsugiColors.TextSecondary,
                                     style = MaterialTheme.typography.labelSmall

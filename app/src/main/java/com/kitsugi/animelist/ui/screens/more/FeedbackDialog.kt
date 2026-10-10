@@ -1,4 +1,8 @@
 ﻿package com.kitsugi.animelist.ui.screens.more
+
+import androidx.compose.ui.res.stringResource
+
+import com.kitsugi.animelist.R
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.foundation.background
@@ -58,7 +62,7 @@ fun FeedbackDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Geri Bildirim Gönder",
+                        text = stringResource(R.string.inline_send_feedback_af8214a),
                         color = KitsugiColors.textPrimary,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
@@ -77,7 +81,7 @@ fun FeedbackDialog(
 
             // Type Selector Label
             Text(
-                text = "Geri Bildirim Türü",
+                text = stringResource(R.string.inline_feedback_type_9aac7bc),
                 color = KitsugiColors.textSecondary,
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold
@@ -116,7 +120,7 @@ fun FeedbackDialog(
 
             // Title TextField
             Text(
-                text = "Konu Başlığı",
+                text = stringResource(R.string.inline_subject_630f47a),
                 color = KitsugiColors.textSecondary,
                 style = MaterialTheme.typography.labelMedium,
                 fontWeight = FontWeight.Bold
@@ -127,7 +131,7 @@ fun FeedbackDialog(
             OutlinedTextField(
                 value = feedbackTitle,
                 onValueChange = { feedbackTitle = it },
-                placeholder = { Text("Kısaca konuyu özetleyin...", color = KitsugiColors.textMuted) },
+                placeholder = { Text(stringResource(R.string.inline_briefly_summarize_the_topic_ac0775a), color = KitsugiColors.textMuted) },
                 modifier = Modifier.fillMaxWidth(),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = accentColor,
@@ -156,7 +160,7 @@ fun FeedbackDialog(
             OutlinedTextField(
                 value = feedbackDescription,
                 onValueChange = { feedbackDescription = it },
-                placeholder = { Text("Detayları ve varsa adımları buraya yazabilirsiniz...", color = KitsugiColors.textMuted) },
+                placeholder = { Text(stringResource(R.string.inline_enter_details_and_any_steps_16ecc2e), color = KitsugiColors.textMuted) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(130.dp),

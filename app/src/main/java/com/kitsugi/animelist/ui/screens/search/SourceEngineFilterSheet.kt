@@ -1,4 +1,6 @@
 package com.kitsugi.animelist.ui.screens.search
+import com.kitsugi.animelist.R
+import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.foundation.background
@@ -104,7 +106,7 @@ fun SourceEngineFilterSheet(
                         )
                     )
                     Text(
-                        text = "Arama kriterlerini özelleştirin",
+                        text = stringResource(R.string.inline_customize_your_search_criteria_7608a6b),
                         style = MaterialTheme.typography.bodySmall.copy(color = KitsugiColors.TextMuted)
                     )
                 }
@@ -113,7 +115,7 @@ fun SourceEngineFilterSheet(
                     onClick = { viewModel.resetEngineFilters(uiState.selectedEngine) },
                     shape = RoundedCornerShape(12.dp)
                 ) {
-                    Text("Sıfırla", color = KitsugiColors.TextMuted, style = MaterialTheme.typography.labelSmall)
+                    Text(stringResource(R.string.inline_reset_8fb7f0b), color = KitsugiColors.TextMuted, style = MaterialTheme.typography.labelSmall)
                 }
             }
 
@@ -168,7 +170,7 @@ fun SourceEngineFilterSheet(
             // ── Sıralama ─────────────────────────────────────────────────────
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
-                    text = "🔃 Sıralama",
+                    text = stringResource(R.string.inline_sort_f3f9004),
                     style = MaterialTheme.typography.titleMedium.copy(
                         fontWeight = FontWeight.Bold,
                         color = KitsugiColors.TextPrimary
@@ -214,7 +216,7 @@ fun SourceEngineFilterSheet(
             // ── Tümü modu bilgisi ────────────────────────────────────────────
             if (uiState.selectedEngine == SearchSourceEngine.ALL) {
                 Text(
-                    text = "🌐 6 platformun (AniList, MAL, TMDB, Shikimori, Kitsu, Simkl) tüm kaynakları eşzamanlı taranıyor.",
+                    text = stringResource(R.string.inline_searching_all_sources_across_6_817f37d),
                     style = MaterialTheme.typography.bodySmall.copy(color = KitsugiColors.TextMuted)
                 )
             }
@@ -225,7 +227,7 @@ fun SourceEngineFilterSheet(
             if (uiState.selectedEngine != SearchSourceEngine.ALL) {
                 Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        text = "⚡ Hızlı Filtreler",
+                        text = stringResource(R.string.inline_quick_filters_dee9b0a),
                         style = MaterialTheme.typography.titleMedium.copy(
                             fontWeight = FontWeight.Bold,
                             color = KitsugiColors.TextPrimary
@@ -270,7 +272,7 @@ fun SourceEngineFilterSheet(
                 shape = RoundedCornerShape(16.dp)
             ) {
                 Text(
-                    text = "Sonuçları Göster",
+                    text = stringResource(R.string.inline_show_results_f77b61a),
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontWeight = FontWeight.Bold,
                         color = Color.White
@@ -307,7 +309,7 @@ private fun AniListFullFiltersContent(
     ) {
         Column {
             Text(
-                text = "🎭 Türler & 🏷️ Etiketler",
+                text = stringResource(R.string.inline_genres_tags_4731985),
                 style = MaterialTheme.typography.bodyMedium.copy(
                     fontWeight = FontWeight.SemiBold,
                     color = KitsugiColors.TextPrimary
@@ -315,18 +317,18 @@ private fun AniListFullFiltersContent(
             )
             val selectedCount = filters.genres.size + filters.tags.size + filters.excludedGenres.size
             Text(
-                text = if (selectedCount > 0) "$selectedCount etiket/tür seçili" else "Tümü seçili (Filtrelemek için dokunun)",
+                text = if (selectedCount > 0) stringResource(R.string.ui2_filter_selected_count, selectedCount) else stringResource(R.string.ui2_all_filters_selected_hint),
                 style = MaterialTheme.typography.bodySmall.copy(color = if (selectedCount > 0) accentColor else KitsugiColors.TextMuted)
             )
         }
-        Text("Düzenle ❯", color = accentColor, style = MaterialTheme.typography.labelMedium)
+        Text(stringResource(R.string.inline_edit_51d5ec9), color = accentColor, style = MaterialTheme.typography.labelMedium)
     }
 
     // Min Tag Rank
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         val currentRank = filters.minimumTagRank ?: 18
         Text(
-            text = "🏷️ Minimum Etiket Güven Oranı: %$currentRank",
+            text = stringResource(R.string.inline_minimum_tag_confidence_1_s_913e7a7, (currentRank).toString()),
             style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary)
         )
         Slider(
@@ -347,7 +349,7 @@ private fun AniListFullFiltersContent(
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         val minScore = filters.minScore ?: 0
         Text(
-            text = "⭐ Minimum Ortalama Puan: ${if (minScore > 0) "%$minScore" else "Tümü"}",
+            text = stringResource(R.string.inline_minimum_average_score_1_s_d231d85, (if (minScore > 0) "%$minScore" else stringResource(R.string.filter_all)).toString()),
             style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary)
         )
         Slider(
@@ -363,7 +365,7 @@ private fun AniListFullFiltersContent(
 
     // Lisansörler (Licensed By)
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("📺 Resmi Yayıncı (Lisans):", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        Text(stringResource(R.string.inline_official_broadcaster_license_ef77ae4), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val platforms = listOf("Crunchyroll", "Netflix", "HIDIVE", "Hulu", "Disney Plus")
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             platforms.forEach { lic ->
@@ -392,8 +394,8 @@ private fun AniListFullFiltersContent(
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column {
-            Text("🔞 Yetişkin İçerik (18+ / Hentai)", style = MaterialTheme.typography.bodyMedium.copy(color = KitsugiColors.TextPrimary))
-            Text("Arama sonuçlarına 18+ yapımları dahil et", style = MaterialTheme.typography.bodySmall.copy(color = KitsugiColors.TextMuted))
+            Text(stringResource(R.string.inline_adult_content_18_hentai_6090744), style = MaterialTheme.typography.bodyMedium.copy(color = KitsugiColors.TextPrimary))
+            Text(stringResource(R.string.inline_include_18_titles_in_search_516a97e), style = MaterialTheme.typography.bodySmall.copy(color = KitsugiColors.TextMuted))
         }
         Switch(
             checked = filters.isAdult ?: false,
@@ -477,7 +479,7 @@ private fun MalFullFiltersContent(uiState: SearchUiState, viewModel: SearchViewM
 
     // 3. Sıralama Ölçütü (Order By)
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("📊 Sıralama:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        Text(stringResource(R.string.inline_sort_7d09458), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val orderOptions = listOf(
             "popularity" to "🔥 Popülerlik",
             "score" to "⭐ Puan",
@@ -509,7 +511,7 @@ private fun MalFullFiltersContent(uiState: SearchUiState, viewModel: SearchViewM
 
     // 4. Sıralama Yönü (Sort Direction)
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("↕️ Sıralama Yönü:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        Text(stringResource(R.string.inline_sort_direction_cb3eb46), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val sortDirs = listOf("desc" to "⬇️ Azalan (Yüksekten Düşüğe)", "asc" to "⬆️ Artan (Düşükten Yükseğe)")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             sortDirs.forEach { (dir, label) ->
@@ -530,7 +532,7 @@ private fun MalFullFiltersContent(uiState: SearchUiState, viewModel: SearchViewM
 
     // 5. Yaş Sınırı / Derecelendirme (Rating)
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("🔞 Yaş Sınırı:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        Text(stringResource(R.string.inline_age_rating_b66743f), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val ratings = listOf(
             null to "Tümü",
             "g" to "Genel (G)",
@@ -565,7 +567,7 @@ private fun MalFullFiltersContent(uiState: SearchUiState, viewModel: SearchViewM
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         val minScore = filters.minScore ?: 0.0
         Text(
-            text = "⭐ Minimum MAL Puanı: ${if (minScore > 0.0) "%.1f+".format(minScore) else "Tümü"}",
+            text = stringResource(R.string.inline_minimum_mal_score_1_s_ab367f3, (if (minScore > 0.0) "%.1f+".format(minScore) else stringResource(R.string.filter_all)).toString()),
             style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary)
         )
         Slider(
@@ -582,7 +584,7 @@ private fun MalFullFiltersContent(uiState: SearchUiState, viewModel: SearchViewM
 
     // 7. Alfabe Harf Filtresi
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("🔤 Baş Harfe Göre Filtrele:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        Text(stringResource(R.string.inline_filter_by_initial_44ade31), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val letters = listOf("A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "R", "S", "T", "U", "V", "W", "Y", "Z")
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
@@ -612,8 +614,8 @@ private fun MalFullFiltersContent(uiState: SearchUiState, viewModel: SearchViewM
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column {
-            Text("🛡️ Güvenli İçerik (SFW)", style = MaterialTheme.typography.bodyMedium.copy(color = KitsugiColors.TextPrimary))
-            Text("18+ yetişkin yapımları filtrele", style = MaterialTheme.typography.bodySmall.copy(color = KitsugiColors.TextMuted))
+            Text(stringResource(R.string.inline_safe_content_sfw_1486369), style = MaterialTheme.typography.bodyMedium.copy(color = KitsugiColors.TextPrimary))
+            Text(stringResource(R.string.inline_filter_18_adult_titles_54cae0e), style = MaterialTheme.typography.bodySmall.copy(color = KitsugiColors.TextMuted))
         }
         Switch(
             checked = filters.sfw,
@@ -636,7 +638,7 @@ private fun TmdbFullFiltersContent(uiState: SearchUiState, viewModel: SearchView
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         val minSc = filters.minScore ?: 0.0
         Text(
-            text = "⭐ Minimum TMDB Puanı: ${if (minSc > 0.0) "%.1f+".format(minSc) else "Tümü"}",
+            text = stringResource(R.string.inline_minimum_tmdb_score_1_s_0753231, (if (minSc > 0.0) "%.1f+".format(minSc) else stringResource(R.string.filter_all)).toString()),
             style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary)
         )
         Slider(
@@ -653,7 +655,7 @@ private fun TmdbFullFiltersContent(uiState: SearchUiState, viewModel: SearchView
 
     // Min Oy Sayısı
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("👥 Güvenilirlik (Minimum Oy Sayısı):", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        Text(stringResource(R.string.inline_trustworthiness_minimum_vote_count_587f07e), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val counts = listOf(null to "Tümü", 50 to "50+ Oy", 200 to "200+ Oy", 1000 to "1.000+ Oy")
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             counts.forEach { (count, label) ->
@@ -678,7 +680,7 @@ private fun TmdbFullFiltersContent(uiState: SearchUiState, viewModel: SearchView
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text("🔞 Yetişkin İçerik Dahil Et", style = MaterialTheme.typography.bodyMedium.copy(color = KitsugiColors.TextPrimary))
+        Text(stringResource(R.string.inline_include_adult_content_9c14950), style = MaterialTheme.typography.bodyMedium.copy(color = KitsugiColors.TextPrimary))
         Switch(
             checked = filters.includeAdult,
             onCheckedChange = { viewModel.updateTmdbFilters(filters.copy(includeAdult = it)) },
@@ -699,7 +701,7 @@ private fun ShikimoriFullFiltersContent(uiState: SearchUiState, viewModel: Searc
 
     // 1. Format / Medya Türü
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("🎬 Format / Medya Türü:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        Text(stringResource(R.string.inline_format_media_type_f98c348), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val kinds = listOf(
             "tv" to "TV", "movie" to "Film", "ova" to "OVA", "ona" to "ONA",
             "special" to "Özel", "music" to "Müzik", "manga" to "Manga",
@@ -731,7 +733,7 @@ private fun ShikimoriFullFiltersContent(uiState: SearchUiState, viewModel: Searc
 
     // 2. Yayın Durumu
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("📡 Yayın Durumu:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        Text(stringResource(R.string.inline_airing_status_a87b048), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val statuses = listOf(
             null to "Tümü",
             "ongoing" to "Yayında (Ongoing)",
@@ -764,7 +766,7 @@ private fun ShikimoriFullFiltersContent(uiState: SearchUiState, viewModel: Searc
 
     // 3. Sıralama Ölçütü
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("📊 Sıralama Ölçütü:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        Text(stringResource(R.string.inline_ranking_metric_a98c96c), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val orders = listOf(
             "popularity" to "🔥 Popülerlik",
             "ranked" to "⭐ Puan/Sıralama",
@@ -796,7 +798,7 @@ private fun ShikimoriFullFiltersContent(uiState: SearchUiState, viewModel: Searc
 
     // 4. Yaş Sınırı (Rating)
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("🔞 Yaş Sınırı:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        Text(stringResource(R.string.inline_age_rating_b66743f), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val ratings = listOf(
             null to "Tümü",
             "g" to "Genel (G)",
@@ -829,7 +831,7 @@ private fun ShikimoriFullFiltersContent(uiState: SearchUiState, viewModel: Searc
 
     // 5. Süre (Duration)
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("⏱️ Süre:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        Text(stringResource(R.string.inline_duration_e695f24), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val durations = listOf(
             null to "Tümü",
             "S" to "Kısa (< 10 dk)",
@@ -861,7 +863,7 @@ private fun ShikimoriFullFiltersContent(uiState: SearchUiState, viewModel: Searc
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         val currentScore = filters.minScore ?: 0
         Text(
-            text = "⭐ Minimum Shikimori Puanı: ${if (currentScore > 0) "$currentScore+" else "Tümü"}",
+            text = stringResource(R.string.inline_minimum_shikimori_score_1_s_01f4074, (if (currentScore > 0) "$currentScore+" else stringResource(R.string.filter_all)).toString()),
             style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary)
         )
         Slider(
@@ -883,8 +885,8 @@ private fun ShikimoriFullFiltersContent(uiState: SearchUiState, viewModel: Searc
         verticalAlignment = Alignment.CenterVertically
     ) {
         Column {
-            Text("🛡️ Güvenli İçerik / Sansür", style = MaterialTheme.typography.bodyMedium.copy(color = KitsugiColors.TextPrimary))
-            Text("18+ yetişkin yapımları filtrele", style = MaterialTheme.typography.bodySmall.copy(color = KitsugiColors.TextMuted))
+            Text(stringResource(R.string.inline_safe_content_censorship_4eff8fe), style = MaterialTheme.typography.bodyMedium.copy(color = KitsugiColors.TextPrimary))
+            Text(stringResource(R.string.inline_filter_18_adult_titles_54cae0e), style = MaterialTheme.typography.bodySmall.copy(color = KitsugiColors.TextMuted))
         }
         Switch(
             checked = filters.censored,
@@ -902,7 +904,7 @@ private fun KitsuFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
 
     // 1. Format / Alt Tür (Subtypes)
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("🎬 Format / Alt Tür:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        Text(stringResource(R.string.inline_format_subgenre_337d6ed), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val subtypes = listOf(
             "tv" to "TV", "movie" to "Film", "ova" to "OVA", "ona" to "ONA",
             "special" to "Özel", "manga" to "Manga", "manhwa" to "Manhwa",
@@ -934,7 +936,7 @@ private fun KitsuFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
 
     // 2. Yayın Durumu (Status)
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("📡 Yayın Durumu:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        Text(stringResource(R.string.inline_airing_status_a87b048), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val statuses = listOf(
             null to "Tümü",
             "current" to "Devam Eden",
@@ -968,7 +970,7 @@ private fun KitsuFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
 
     // 3. Sıralama (Sort)
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("📊 Sıralama Ölçütü:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        Text(stringResource(R.string.inline_ranking_metric_a98c96c), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val sorts = listOf(
             "trending" to "🔥 Trend",
             "-userCount" to "👥 Popülerlik",
@@ -1000,7 +1002,7 @@ private fun KitsuFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
 
     // 4. Yaş Sınırı (Age Rating)
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("🏷️ Yaş Sınırı (Age Rating):", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        Text(stringResource(R.string.inline_age_rating_2e2c113), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val ratings = listOf(
             null to "Tümü",
             "G" to "Genel (G)",
@@ -1031,7 +1033,7 @@ private fun KitsuFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
 
     // 5. Yayın Platformu (Streamers)
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("📺 Resmi Yayın Platformu:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        Text(stringResource(R.string.inline_official_streaming_platform_2e1a272), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val streamers = listOf("Crunchyroll", "Netflix", "Hulu", "HIDIVE", "Funimation")
         FlowRow(
             modifier = Modifier.fillMaxWidth(),
@@ -1090,7 +1092,7 @@ private fun SimklFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
 
     // 1. Trend Dönemi
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("📅 Trend Dönemi:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        Text(stringResource(R.string.inline_trend_period_7d293a0), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val periods = listOf("today" to "🔥 Bugün", "week" to "📅 Bu Hafta", "month" to "🗓️ Bu Ay")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             periods.forEach { (p, label) ->
@@ -1111,7 +1113,7 @@ private fun SimklFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
 
     // 2. Format / Alt Tür (Subtype)
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("🎬 Format / Tür:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        Text(stringResource(R.string.inline_format_genre_0cdd587), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val subtypes = listOf(
             null to "Tümü",
             "tv" to "TV / Dizi",
@@ -1143,7 +1145,7 @@ private fun SimklFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
 
     // 3. Sıralama Ölçütü (Sort)
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("📊 Sıralama:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        Text(stringResource(R.string.inline_sort_7d09458), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val sorts = listOf(
             "rank" to "🏆 Sıralama",
             "popular-today" to "🔥 Bugünün Popüleri",
@@ -1175,7 +1177,7 @@ private fun SimklFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
 
     // 4. Kategori / Tür (Genre)
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("🏷️ Kategori / Tür:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        Text(stringResource(R.string.inline_category_genre_73db81d), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val genres = listOf(
             null to "Tümü",
             "action" to "Aksiyon",
@@ -1214,7 +1216,7 @@ private fun SimklFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
 
     // 5. Yayın Yılı (Year)
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("🗓️ Yayın Yılı:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        Text(stringResource(R.string.inline_release_year_c60cec7), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val years = listOf(
             null to "Tümü",
             "2026" to "2026",
@@ -1250,7 +1252,7 @@ private fun SimklFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
 
     // 6. Menşei Ülke (Country)
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("🌍 Menşei Ülke:", style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
+        Text(stringResource(R.string.inline_country_of_origin_91a5f10), style = MaterialTheme.typography.labelMedium.copy(color = KitsugiColors.TextPrimary))
         val countries = listOf(
             null to "Tümü",
             "jp" to "🇯🇵 Japonya",
@@ -1283,7 +1285,7 @@ private fun SimklFullFiltersContent(uiState: SearchUiState, viewModel: SearchVie
 @Composable
 private fun AllFullFiltersContent() {
     Text(
-        text = "🌐 Tümü modunda arama yaparken sorgunuz eşzamanlı olarak AniList, MyAnimeList, TMDB, Shikimori, Kitsu ve Simkl motorlarına iletilir. İnce detaylı filtreler için arama çubuğundan doğrudan hedef motoru seçebilirsiniz.",
+        text = stringResource(R.string.inline_when_searching_in_all_mode_9dd3946),
         style = MaterialTheme.typography.bodyMedium.copy(color = KitsugiColors.TextSecondary),
         lineHeight = 20.sp
     )

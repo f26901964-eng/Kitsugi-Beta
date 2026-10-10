@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.tv.detail
 
+import com.kitsugi.animelist.R
+import androidx.compose.ui.res.stringResource
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -202,7 +204,7 @@ fun TvActivityDetailDialog(
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
                                 Text(
-                                    text = "$actLikesState Beğeni",
+                                    text = stringResource(R.string.inline_1_s_likes_e6e6053, (actLikesState).toString()),
                                     color = KitsugiColors.TextPrimary,
                                     style = MaterialTheme.typography.bodyMedium,
                                     fontWeight = FontWeight.Bold
@@ -211,7 +213,7 @@ fun TvActivityDetailDialog(
                         }
                     } else {
                         Text(
-                            text = "Yükleniyor...",
+                            text = stringResource(R.string.loading),
                             color = KitsugiColors.TextMuted,
                             style = MaterialTheme.typography.titleMedium
                         )
@@ -240,7 +242,7 @@ fun TvActivityDetailDialog(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "Orijinal",
+                                text = stringResource(R.string.bangumi_tag_original),
                                 color = if (isOrigSelected) KitsugiColors.Background else KitsugiColors.TextPrimary,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold
@@ -265,7 +267,7 @@ fun TvActivityDetailDialog(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "Türkçe",
+                                text = stringResource(R.string.inline_turkish_efaad14),
                                 color = if (isTrSelected) KitsugiColors.Background else KitsugiColors.TextPrimary,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold
@@ -290,7 +292,7 @@ fun TvActivityDetailDialog(
                             ),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Kapat", color = KitsugiColors.TextPrimary, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.action_close), color = KitsugiColors.TextPrimary, fontWeight = FontWeight.Bold)
                     }
                 }
 
@@ -310,7 +312,7 @@ fun TvActivityDetailDialog(
                     } else if (activityDetails == null) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text(
-                                text = "Aktivite detayları yüklenemedi.",
+                                text = stringResource(R.string.inline_activity_details_couldn_t_be_ea72ca1),
                                 color = KitsugiColors.TextMuted,
                                 style = MaterialTheme.typography.bodyMedium
                             )
@@ -380,7 +382,7 @@ fun TvActivityDetailDialog(
                             // 2. Yanıtlar Bölümü Başlığı
                             item {
                                 Text(
-                                    text = "Yanıtlar (${act.replies.size})",
+                                    text = stringResource(R.string.inline_replies_1_s_a790592, (act.replies.size).toString()),
                                     color = KitsugiColors.TextPrimary,
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
@@ -397,7 +399,7 @@ fun TvActivityDetailDialog(
                                             .padding(vertical = 20.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Text("Henüz yanıt yazılmamış.", color = KitsugiColors.TextMuted, fontSize = 13.sp)
+                                        Text(stringResource(R.string.inline_no_replies_yet_b4850fd), color = KitsugiColors.TextMuted, fontSize = 13.sp)
                                     }
                                 }
                             } else {

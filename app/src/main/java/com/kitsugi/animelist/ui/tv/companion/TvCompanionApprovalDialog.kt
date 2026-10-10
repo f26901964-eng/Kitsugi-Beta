@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.tv.companion
 
+import com.kitsugi.animelist.R
+import androidx.compose.ui.res.stringResource
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -180,8 +182,8 @@ private fun ApprovalCard(
 
         // ── Description ─────────────────────────────────────────────────────
         Text(
-            text = "Telefonunuz aşağıdaki işlemi gerçekleştirmek istiyor. " +
-                   "TV'nizden onaylayın veya reddedin.",
+            text = stringResource(R.string.inline_your_phone_wants_to_perform_e30fdec) +
+                   stringResource(R.string.ui_tv_approve_on_device),
             fontSize = 15.sp,
             color = DialogSubtext,
             lineHeight = 22.sp
@@ -207,7 +209,7 @@ private fun ApprovalCard(
 
         // Request ID (small)
         Text(
-            text = "İstek #${request.id.takeLast(8)}",
+            text = stringResource(R.string.inline_request_1_s_d981162, (request.id.takeLast(8)).toString()),
             fontSize = 11.sp,
             color = DialogSubtext.copy(alpha = 0.5f)
         )

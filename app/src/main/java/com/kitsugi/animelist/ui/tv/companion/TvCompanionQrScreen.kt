@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.tv.companion
 
+import com.kitsugi.animelist.R
+import androidx.compose.ui.res.stringResource
 import android.graphics.Bitmap
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.RepeatMode
@@ -164,7 +166,7 @@ fun TvCompanionQrScreen(
                     )
                     Spacer(Modifier.width(12.dp))
                     Text(
-                        text = "Telefon ile Yönet",
+                        text = stringResource(R.string.inline_control_from_phone_1351d86),
                         fontSize = 28.sp,
                         fontWeight = FontWeight.Bold,
                         color = CompanionText
@@ -172,8 +174,8 @@ fun TvCompanionQrScreen(
                 }
 
                 Text(
-                    text = "Aynı Wi-Fi ağındaki telefonunuzdan QR kodu okutun " +
-                           "veya aşağıdaki adrese gidin.",
+                    text = stringResource(R.string.inline_scan_the_qr_code_with_d710de1) +
+                           stringResource(R.string.ui_tv_scan_qr_or_open_link),
                     fontSize = 16.sp,
                     color = CompanionSubtext,
                     lineHeight = 22.sp
@@ -218,7 +220,7 @@ fun TvCompanionQrScreen(
                     ) {
                         Icon(Icons.Filled.Close, contentDescription = null)
                         Spacer(Modifier.width(8.dp))
-                        Text("Kapat")
+                        Text(stringResource(R.string.action_close))
                     }
                 }
             }
@@ -248,7 +250,7 @@ fun TvCompanionQrScreen(
                 } else {
                     // Placeholder while generating
                     Text(
-                        text = "QR Yükleniyor…",
+                        text = stringResource(R.string.inline_loading_qr_code_3c354f6),
                         color = CompanionBg,
                         fontSize = 14.sp
                     )

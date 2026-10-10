@@ -1,6 +1,11 @@
 ﻿package com.kitsugi.animelist.ui.components
+
+import androidx.compose.ui.res.stringResource
+
+import com.kitsugi.animelist.R
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
+import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.widget.Toast
@@ -84,13 +89,13 @@ fun KitsugiSystemSettingsDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Sistem & Veri Ayarları",
+                        text = stringResource(R.string.inline_system_data_settings_fc74ef9),
                         color = KitsugiColors.TextPrimary,
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
                     IconButton(onClick = onDismiss) {
-                        Icon(Icons.Rounded.Close, contentDescription = "Kapat", tint = KitsugiColors.TextSecondary)
+                        Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.action_close), tint = KitsugiColors.TextSecondary)
                     }
                 }
             }
@@ -106,7 +111,7 @@ fun KitsugiSystemSettingsDialog(
                     },
                     text = {
                         Text(
-                            "Veri Yönetimi",
+                            stringResource(R.string.inline_data_management_4b7c656),
                             fontWeight = if (pagerState.currentPage == 0) FontWeight.Bold else FontWeight.Normal,
                             fontSize = 13.sp
                         )
@@ -162,7 +167,7 @@ fun KitsugiSystemSettingsDialog(
             horizontalArrangement = Arrangement.End
         ) {
             TextButton(onClick = onDismiss) {
-                Text("Tamam", color = accentColor, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.action_ok), color = accentColor, fontWeight = FontWeight.SemiBold)
             }
         }
     }
@@ -187,7 +192,7 @@ private fun DataManagementTab(
             .padding(vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
-        KitsugiSettingsSection(title = "Yedekleme & Sıfırlama") {
+        KitsugiSettingsSection(title = stringResource(R.string.system_backup_reset_section)) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -195,18 +200,18 @@ private fun DataManagementTab(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "Yerel Room veritabanındaki liste kayıtlarını JSON dosyası olarak dışa aktarabilir veya yedek dosyasından geri yükleyebilirsin.",
+                    text = stringResource(R.string.inline_export_list_entries_from_the_7657e48),
                     color = KitsugiColors.TextSecondary,
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Text(
-                    text = "Toplam kayıt: $totalEntryCount",
+                    text = stringResource(R.string.inline_total_entries_1_s_6ee6416, (totalEntryCount).toString()),
                     color = KitsugiColors.TextPrimary,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.SemiBold
                 )
                 Text(
-                    text = "Not: Dışa/içe aktarma sadece liste kayıtlarını kapsar. Tema ve uygulama ayarları ayrı saklanır.",
+                    text = stringResource(R.string.inline_note_export_import_only_includes_9010228),
                     color = KitsugiColors.TextMuted,
                     style = MaterialTheme.typography.bodySmall
                 )
@@ -218,14 +223,14 @@ private fun DataManagementTab(
                     onClick = onExportFileClick,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("JSON Dosyası Olarak Dışa Aktar", color = KitsugiColors.Background, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.inline_export_as_json_fff9b39), color = KitsugiColors.Background, fontWeight = FontWeight.Bold)
                 }
                 
                 KitsugiButton(
                     onClick = onImportFileClick,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("JSON Dosyasından İçe Aktar", color = KitsugiColors.Background, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.inline_import_from_json_1572af3), color = KitsugiColors.Background, fontWeight = FontWeight.Bold)
                 }
                 
                 KitsugiButton(
@@ -233,12 +238,12 @@ private fun DataManagementTab(
                     onClick = onDeleteAllClick,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Tüm Listeyi Sil", color = Color.White, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.inline_delete_entire_list_174ee79), color = Color.White, fontWeight = FontWeight.Bold)
                 }
             }
         }
 
-        KitsugiSettingsSection(title = "Geliştirici & Tanılama") {
+        KitsugiSettingsSection(title = stringResource(R.string.system_developer_diagnostics_section)) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
@@ -246,7 +251,7 @@ private fun DataManagementTab(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "Uygulamanın arka plan ve logcat günlüklerini incelemek veya hata bildiriminde bulunmak için tanılama panelini açabilirsin.",
+                    text = stringResource(R.string.inline_open_the_diagnostics_panel_to_0b2bfee),
                     color = KitsugiColors.TextSecondary,
                     style = MaterialTheme.typography.bodyMedium
                 )
@@ -254,7 +259,7 @@ private fun DataManagementTab(
                     onClick = { showDeveloperLogs = true },
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Logcat Görüntüle", color = KitsugiColors.Background, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.inline_view_logcat_2bebdd3), color = KitsugiColors.Background, fontWeight = FontWeight.Bold)
                 }
             }
         }
@@ -274,6 +279,8 @@ private fun DnsSettingsTab(
     accentColor: Color,
     scrollState: ScrollState = rememberScrollState()
 ) {
+    val context = LocalContext.current
+    val dnsOptions = remember(context) { buildDnsOptions(context) }
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -289,7 +296,7 @@ private fun DnsSettingsTab(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "Türkiye'deki servis sağlayıcı engellerini aşmak ve anime/manga kaynaklarına daha güvenli, kesintisiz erişmek için bir DoH sağlayıcısı seçin.",
+                    text = stringResource(R.string.inline_choose_a_doh_provider_to_12c661b),
                     color = KitsugiColors.TextSecondary,
                     style = MaterialTheme.typography.bodyMedium
                 )
@@ -346,6 +353,12 @@ fun StorageSettingsTab(
 ) {
     val context = LocalContext.current
     val pm = context.packageManager
+    val speedLimitOptions = remember(context) { buildSpeedLimitOptions(context) }
+    val simultaneousDownloadsOptions = remember(context) { buildSimultaneousDownloadOptions(context) }
+    val removeAfterReadOptions = remember(context) { buildRemoveAfterReadOptions(context) }
+    val autoDownloadReadingOptions = remember(context) { buildAutoDownloadReadingOptions(context) }
+    val autoDownloadWatchingOptions = remember(context) { buildAutoDownloadWatchingOptions(context) }
+    val statusCategoryOptions = remember(context) { buildStatusCategoryOptions(context) }
 
     // Launcher for directory picker
     val folderPickerLauncher = rememberLauncherForActivityResult(
@@ -377,7 +390,7 @@ fun StorageSettingsTab(
     }
 
     val displayPath = if (download.customImageDownloadUri.isBlank()) {
-        "Varsayılan (İndirilenler / Kitsugi)"
+        context.getString(R.string.system_default_download_location)
     } else {
         try {
             val treeUri = Uri.parse(download.customImageDownloadUri)
@@ -389,7 +402,7 @@ fun StorageSettingsTab(
     }
 
     val displayVideoPath = if (download.videoDownloadUri.isBlank()) {
-        "Varsayılan (İndirilenler / Kitsugi / Video)"
+        context.getString(R.string.system_default_video_download_location)
     } else {
         try {
             val treeUri = Uri.parse(download.videoDownloadUri)
@@ -410,12 +423,12 @@ fun StorageSettingsTab(
         isPackageInstalled("com.dv.adm.pay", pm)
     }
 
-    val localDownloaderOptions = remember(is1dmInstalled, isAdmInstalled) {
+    val localDownloaderOptions = remember(is1dmInstalled, isAdmInstalled, context) {
         listOf(
-            "INTERNAL" to "Dahili İndirici (FFmpeg)",
-            "EXTERNAL_1DM" to "1DM / 1DM+" + (if (is1dmInstalled) " (Yüklü)" else " (Yüklü Değil)"),
-            "EXTERNAL_ADM" to "ADM" + (if (isAdmInstalled) " (Yüklü)" else " (Yüklü Değil)"),
-            "EXTERNAL_SYSTEM" to "Sistem Varsayılanı / İndirici Seçici"
+            "INTERNAL" to context.getString(R.string.system_downloader_internal),
+            "EXTERNAL_1DM" to context.getString(if (is1dmInstalled) R.string.system_downloader_1dm_installed else R.string.system_downloader_1dm_not_installed),
+            "EXTERNAL_ADM" to context.getString(if (isAdmInstalled) R.string.system_downloader_adm_installed else R.string.system_downloader_adm_not_installed),
+            "EXTERNAL_SYSTEM" to context.getString(R.string.system_downloader_default_picker)
         )
     }
 
@@ -429,11 +442,11 @@ fun StorageSettingsTab(
         verticalArrangement = Arrangement.spacedBy(16.dp)
     ) {
         // --- 1. İndirme Konumları ---
-        KitsugiSettingsSection(title = "İndirme Konumları") {
+        KitsugiSettingsSection(title = context.getString(R.string.system_download_locations_section)) {
             Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
                 // Resim indirme konumu
                 Text(
-                    text = "Resim İndirme Konumu",
+                    text = stringResource(R.string.inline_image_download_location_cfac1ca),
                     color = KitsugiColors.TextPrimary,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold
@@ -458,7 +471,7 @@ fun StorageSettingsTab(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Resim Konumunu Sıfırla", color = KitsugiColors.TextSecondary)
+                        Text(stringResource(R.string.inline_reset_image_location_e352f15), color = KitsugiColors.TextSecondary)
                     }
                 }
 
@@ -466,7 +479,7 @@ fun StorageSettingsTab(
 
                 // Video indirme konumu
                 Text(
-                    text = "Video İndirme Konumu",
+                    text = stringResource(R.string.inline_video_download_location_a645733),
                     color = KitsugiColors.TextPrimary,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold
@@ -491,60 +504,60 @@ fun StorageSettingsTab(
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Video Konumunu Sıfırla", color = KitsugiColors.TextSecondary)
+                        Text(stringResource(R.string.inline_reset_video_location_d964174), color = KitsugiColors.TextSecondary)
                     }
                 }
             }
         }
 
         // --- 2. Genel İndirme Ayarları ---
-        KitsugiSettingsSection(title = "Genel İndirme Ayarları") {
+        KitsugiSettingsSection(title = context.getString(R.string.system_general_download_settings)) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 KitsugiSwitchSettingItem(
-                    title = "Sadece Wi-Fi üzerinden indir",
-                    description = "Mobil veri kullanımını önlemek için indirmeleri Wi-Fi ile sınırlar.",
+                    title = context.getString(R.string.system_download_only_wifi),
+                    description = context.getString(R.string.system_download_only_wifi_description),
                     checked = download.downloadOnlyOverWifi,
                     onCheckedChange = download.onDownloadOnlyOverWifiChanged
                 )
 
                 KitsugiSwitchSettingItem(
-                    title = "Anime için her zaman harici indirme yöneticisi kullan",
-                    description = "Aktif edildiğinde anime indirmeleri doğrudan harici yöneticiye yönlendirilir.",
+                    title = context.getString(R.string.system_always_external_downloader_anime),
+                    description = context.getString(R.string.system_external_downloader_anime_description),
                     checked = download.useExternalDownloader,
                     onCheckedChange = download.onUseExternalDownloaderChanged
                 )
 
                 KitsugiClickableSettingItem(
-                    title = "Harici indirme yöneticisi tercihi",
-                    description = "Tercih ettiğiniz harici indirme aracını seçin.",
+                    title = context.getString(R.string.system_external_downloader_preference),
+                    description = context.getString(R.string.system_external_downloader_preference_description),
                     currentValue = localDownloaderOptions.firstOrNull { it.first == download.downloaderPreference }?.second,
                     onClick = { activePicker = "downloader" }
                 )
 
                 KitsugiClickableSettingItem(
-                    title = "Hız sınırı",
-                    description = "Maksimum indirme hızını sınırlayın.",
+                    title = context.getString(R.string.system_speed_limit_setting),
+                    description = context.getString(R.string.system_speed_limit_description),
                     currentValue = speedLimitOptions.firstOrNull { it.first == download.downloadSpeedLimit }?.second,
                     onClick = { activePicker = "speed_limit" }
                 )
 
                 KitsugiSwitchSettingItem(
-                    title = "Bölümleri CBZ olarak kaydet",
-                    description = "Manga bölümlerini arşivlenmiş CBZ formatında saklar.",
+                    title = context.getString(R.string.system_save_chapters_cbz),
+                    description = context.getString(R.string.system_save_chapters_cbz_description),
                     checked = download.saveChaptersAsCBZ,
                     onCheckedChange = download.onSaveChaptersAsCBZChanged
                 )
 
                 KitsugiSwitchSettingItem(
-                    title = "Uzun resimleri böl",
-                    description = "Webtoon/Tall manga sayfalarını daha rahat okumak için parçalara ayırır.",
+                    title = context.getString(R.string.system_split_tall_images),
+                    description = context.getString(R.string.system_split_tall_images_description),
                     checked = download.splitTallImages,
                     onCheckedChange = download.onSplitTallImagesChanged
                 )
 
                 KitsugiClickableSettingItem(
-                    title = "Aynı anda indirilenler",
-                    description = "Paralel olarak indirilecek maksimum dosya sayısı.",
+                    title = context.getString(R.string.system_simultaneous_downloads_setting),
+                    description = context.getString(R.string.system_simultaneous_downloads_description),
                     currentValue = simultaneousDownloadsOptions.firstOrNull { it.first == download.numberOfDownloads }?.second,
                     onClick = { activePicker = "simultaneous" }
                 )
@@ -552,72 +565,72 @@ fun StorageSettingsTab(
         }
 
         // --- 3. Otomatik İndirme ---
-        KitsugiSettingsSection(title = "Otomatik İndirme") {
+        KitsugiSettingsSection(title = context.getString(R.string.system_automatic_downloads_section)) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 KitsugiSwitchSettingItem(
-                    title = "Yeni bölümleri indir",
-                    description = "Manga kütüphaneniz güncellendiğinde yeni bölümleri otomatik indirir.",
+                    title = context.getString(R.string.system_download_new_chapters),
+                    description = context.getString(R.string.system_download_new_chapters_description),
                     checked = download.downloadNewChapters,
                     onCheckedChange = download.onDownloadNewChaptersChanged
                 )
 
                 if (download.downloadNewChapters) {
                     KitsugiClickableSettingItem(
-                        title = "Kategorileri filtrele (Dahil Edilenler)",
-                        description = "Sadece bu kategorilerdeki mangaları indir.",
-                        currentValue = formatCategories(download.downloadNewChapterCategories),
+                        title = context.getString(R.string.system_filter_manga_categories_included),
+                        description = context.getString(R.string.system_only_download_manga_in_categories),
+                        currentValue = formatCategories(context, download.downloadNewChapterCategories, statusCategoryOptions),
                         onClick = { activePicker = "include_manga_download" }
                     )
                     KitsugiClickableSettingItem(
-                        title = "Kategorileri filtrele (Hariç Tutulanlar)",
-                        description = "Bu kategorilerdeki mangaları indirme.",
-                        currentValue = formatCategories(download.downloadNewChapterCategoriesExclude),
+                        title = context.getString(R.string.system_filter_manga_categories_excluded),
+                        description = context.getString(R.string.system_do_not_download_manga_in_categories),
+                        currentValue = formatCategories(context, download.downloadNewChapterCategoriesExclude, statusCategoryOptions),
                         onClick = { activePicker = "exclude_manga_download" }
                     )
                     KitsugiSwitchSettingItem(
-                        title = "Sadece okunmamış bölümleri indir",
+                        title = context.getString(R.string.system_download_unread_chapters_only),
                         checked = download.downloadNewUnreadChaptersOnly,
                         onCheckedChange = download.onDownloadNewUnreadChaptersOnlyChanged
                     )
                 }
 
                 KitsugiSwitchSettingItem(
-                    title = "Yeni videoları indir",
-                    description = "Anime kütüphaneniz güncellendiğinde yeni bölümleri otomatik indirir.",
+                    title = context.getString(R.string.system_download_new_videos),
+                    description = context.getString(R.string.system_download_new_episodes_description),
                     checked = download.downloadNewEpisodes,
                     onCheckedChange = download.onDownloadNewEpisodesChanged
                 )
 
                 if (download.downloadNewEpisodes) {
                     KitsugiClickableSettingItem(
-                        title = "Anime kategorilerini filtrele (Dahil Edilenler)",
-                        description = "Sadece bu kategorilerdeki animeleri indir.",
-                        currentValue = formatCategories(download.downloadNewEpisodeCategories),
+                        title = context.getString(R.string.system_filter_anime_categories_included),
+                        description = context.getString(R.string.system_only_download_anime_in_categories),
+                        currentValue = formatCategories(context, download.downloadNewEpisodeCategories, statusCategoryOptions),
                         onClick = { activePicker = "include_anime_download" }
                     )
                     KitsugiClickableSettingItem(
-                        title = "Anime kategorilerini filtrele (Hariç Tutulanlar)",
-                        description = "Bu kategorilerdeki animeleri indirme.",
-                        currentValue = formatCategories(download.downloadNewEpisodeCategoriesExclude),
+                        title = context.getString(R.string.system_filter_anime_categories_excluded),
+                        description = context.getString(R.string.system_do_not_download_anime_in_categories),
+                        currentValue = formatCategories(context, download.downloadNewEpisodeCategoriesExclude, statusCategoryOptions),
                         onClick = { activePicker = "exclude_anime_download" }
                     )
                     KitsugiSwitchSettingItem(
-                        title = "Sadece izlenmemiş videoları indir",
+                        title = context.getString(R.string.system_download_unwatched_videos_only),
                         checked = download.downloadNewUnseenEpisodesOnly,
                         onCheckedChange = download.onDownloadNewUnseenEpisodesOnlyChanged
                     )
                 }
 
                 KitsugiClickableSettingItem(
-                    title = "Okurken önceden indir",
-                    description = "Manga okurken sıradaki bölümleri arka planda önceden indirir.",
+                    title = context.getString(R.string.system_pre_download_while_reading_setting),
+                    description = context.getString(R.string.system_pre_download_while_reading_description),
                     currentValue = autoDownloadReadingOptions.firstOrNull { it.first == download.autoDownloadWhileReading }?.second,
                     onClick = { activePicker = "auto_download_reading" }
                 )
 
                 KitsugiClickableSettingItem(
-                    title = "İzlerken önceden indir",
-                    description = "Anime izlerken sıradaki bölümleri arka planda önceden indirir.",
+                    title = context.getString(R.string.system_pre_download_while_watching_setting),
+                    description = context.getString(R.string.system_pre_download_while_watching_description),
                     currentValue = autoDownloadWatchingOptions.firstOrNull { it.first == download.autoDownloadWhileWatching }?.second,
                     onClick = { activePicker = "auto_download_watching" }
                 )
@@ -625,47 +638,47 @@ fun StorageSettingsTab(
         }
 
         // --- 4. Otomatik Silme ---
-        KitsugiSettingsSection(title = "Otomatik Silme") {
+        KitsugiSettingsSection(title = context.getString(R.string.system_automatic_removal_section)) {
             Column(modifier = Modifier.fillMaxWidth()) {
                 KitsugiSwitchSettingItem(
-                    title = "Okunduktan sonra sil",
-                    description = "Bir manga bölümünü okumayı bitirdiğinizde yerel depolamadan siler.",
+                    title = context.getString(R.string.system_remove_after_read),
+                    description = context.getString(R.string.system_remove_after_read_description),
                     checked = download.removeAfterMarkedAsRead,
                     onCheckedChange = download.onRemoveAfterMarkedAsReadChanged
                 )
 
                 KitsugiClickableSettingItem(
-                    title = "Bölümleri otomatik sil",
-                    description = "Belirtilen sınıra göre eski bölümleri temizler.",
+                    title = context.getString(R.string.system_remove_chapters_automatically_setting),
+                    description = context.getString(R.string.system_remove_chapters_automatically_description),
                     currentValue = removeAfterReadOptions.firstOrNull { it.first == download.removeAfterReadSlots }?.second,
                     onClick = { activePicker = "remove_after_read" }
                 )
 
                 KitsugiSwitchSettingItem(
-                    title = "Yer imi eklenmiş bölümleri sil",
-                    description = "Aktif edilirse yer imi eklenmiş bölümler de otomatik silinir.",
+                    title = context.getString(R.string.system_remove_bookmarked_chapters),
+                    description = context.getString(R.string.system_remove_bookmarked_chapters_description),
                     checked = download.removeBookmarkedChapters,
                     onCheckedChange = download.onRemoveBookmarkedChaptersChanged
                 )
 
                 KitsugiSwitchSettingItem(
-                    title = "Filler olarak işaretlenmiş bölümleri indir",
-                    description = "Dolgu (Filler) olarak işaretlenen bölümlerin otomatik indirilmesini sağlar.",
+                    title = context.getString(R.string.system_download_filler_chapters),
+                    description = context.getString(R.string.system_download_filler_chapters_description),
                     checked = download.downloadFillermarkedItems,
                     onCheckedChange = download.onDownloadFillermarkedItemsChanged
                 )
 
                 KitsugiClickableSettingItem(
-                    title = "Silinirken hariç tutulacak kategoriler (Manga)",
-                    description = "Bu kategorideki mangaların indirmeleri asla silinmez.",
-                    currentValue = formatCategories(download.removeExcludeCategories),
+                    title = context.getString(R.string.system_manga_categories_excluded_from_removal_setting),
+                    description = context.getString(R.string.system_manga_categories_excluded_from_removal_description),
+                    currentValue = formatCategories(context, download.removeExcludeCategories, statusCategoryOptions),
                     onClick = { activePicker = "exclude_manga_delete" }
                 )
 
                 KitsugiClickableSettingItem(
-                    title = "Silinirken hariç tutulacak kategoriler (Anime)",
-                    description = "Bu kategorideki animelerin indirmeleri asla silinmez.",
-                    currentValue = formatCategories(download.removeExcludeAnimeCategories),
+                    title = context.getString(R.string.system_anime_categories_excluded_from_removal_setting),
+                    description = context.getString(R.string.system_anime_categories_excluded_from_removal_description),
+                    currentValue = formatCategories(context, download.removeExcludeAnimeCategories, statusCategoryOptions),
                     onClick = { activePicker = "exclude_anime_delete" }
                 )
             }
@@ -674,15 +687,27 @@ fun StorageSettingsTab(
         // --- 5. Altyazı İndirme Dil Tercihleri ---
         @OptIn(ExperimentalLayoutApi::class)
         @Suppress("UNUSED_EXPRESSION")
-        KitsugiSettingsSection(title = "Altyazı İndirme Dil Tercihleri") {
-            val allSubLangs = remember {
+        KitsugiSettingsSection(title = context.getString(R.string.system_subtitle_download_language_preferences)) {
+            val allSubLangs = remember(context) {
                 listOf(
-                    "tr" to "Türkçe", "en" to "İngilizce", "ja" to "Japonca",
-                    "ar" to "Arapça", "zh" to "Çince", "ko" to "Korece",
-                    "fr" to "Fransızca", "de" to "Almanca", "es" to "İspanyolca",
-                    "pt" to "Portekizce", "it" to "İtalyanca", "ru" to "Rusça",
-                    "nl" to "Hollandaca", "pl" to "Lehçe", "ro" to "Romence",
-                    "vi" to "Vietnamca", "id" to "Endonezyaca", "th" to "Tayca"
+                    "tr" to context.getString(R.string.inline_turkish_efaad14),
+                    "en" to context.getString(R.string.option_title_lang_english),
+                    "ja" to context.getString(R.string.system_language_japanese),
+                    "ar" to context.getString(R.string.player_ui_arabic),
+                    "zh" to context.getString(R.string.player_ui_chinese),
+                    "ko" to context.getString(R.string.system_language_korean),
+                    "fr" to context.getString(R.string.player_ui_french),
+                    "de" to context.getString(R.string.system_language_german),
+                    "es" to context.getString(R.string.player_ui_spanish),
+                    "pt" to context.getString(R.string.system_language_portuguese),
+                    "it" to context.getString(R.string.player_ui_italian),
+                    "ru" to context.getString(R.string.player_ui_russian),
+                    "nl" to context.getString(R.string.system_language_dutch),
+                    "pl" to context.getString(R.string.player_ui_polish),
+                    "ro" to context.getString(R.string.system_language_romanian),
+                    "vi" to context.getString(R.string.system_language_vietnamese),
+                    "id" to context.getString(R.string.system_language_indonesian),
+                    "th" to context.getString(R.string.system_language_thai)
                 )
             }
             val selectedDlLangs = remember(download.subtitleDownloadLanguages) {
@@ -693,8 +718,8 @@ fun StorageSettingsTab(
             }
             Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp)) {
                 Text(
-                    text = if (selectedDlLangs.value.isEmpty()) "Dil seçilmedi — tüm diller indirilir"
-                    else "Seçili: ${selectedDlLangs.value.joinToString(", ").uppercase()} · TR öncelikli",
+                    text = if (selectedDlLangs.value.isEmpty()) stringResource(R.string.ui_subtitle_languages_none_selected)
+                    else stringResource(R.string.ui2_subtitle_selected_turkish_first, selectedDlLangs.value.joinToString(", ").uppercase()),
                     color = KitsugiColors.TextSecondary,
                     style = MaterialTheme.typography.bodySmall
                 )
@@ -740,7 +765,7 @@ fun StorageSettingsTab(
     when (activePicker) {
         "downloader" -> {
             KitsugiChoicePickerDialog(
-                title = "İndirme Aracı Tercihi",
+                title = context.getString(R.string.system_downloader_preference_dialog_title),
                 options = localDownloaderOptions,
                 selectedOption = download.downloaderPreference,
                 onOptionSelected = download.onDownloaderPreferenceSelected,
@@ -749,7 +774,7 @@ fun StorageSettingsTab(
         }
         "speed_limit" -> {
             KitsugiChoicePickerDialog(
-                title = "Hız Sınırı",
+                title = context.getString(R.string.system_speed_limit_dialog_title),
                 options = speedLimitOptions,
                 selectedOption = download.downloadSpeedLimit,
                 onOptionSelected = download.onDownloadSpeedLimitChanged,
@@ -758,7 +783,7 @@ fun StorageSettingsTab(
         }
         "simultaneous" -> {
             KitsugiChoicePickerDialog(
-                title = "Aynı Anda İndirilenler",
+                title = context.getString(R.string.system_simultaneous_downloads_dialog_title),
                 options = simultaneousDownloadsOptions,
                 selectedOption = download.numberOfDownloads,
                 onOptionSelected = download.onNumberOfDownloadsSelected,
@@ -767,7 +792,7 @@ fun StorageSettingsTab(
         }
         "remove_after_read" -> {
             KitsugiChoicePickerDialog(
-                title = "Bölümleri Otomatik Sil",
+                title = context.getString(R.string.system_remove_chapters_dialog_title),
                 options = removeAfterReadOptions,
                 selectedOption = download.removeAfterReadSlots,
                 onOptionSelected = download.onRemoveAfterReadSlotsSelected,
@@ -776,7 +801,7 @@ fun StorageSettingsTab(
         }
         "auto_download_reading" -> {
             KitsugiChoicePickerDialog(
-                title = "Okurken Önceden İndir",
+                title = context.getString(R.string.system_pre_download_reading_dialog_title),
                 options = autoDownloadReadingOptions,
                 selectedOption = download.autoDownloadWhileReading,
                 onOptionSelected = download.onAutoDownloadWhileReadingSelected,
@@ -785,7 +810,7 @@ fun StorageSettingsTab(
         }
         "auto_download_watching" -> {
             KitsugiChoicePickerDialog(
-                title = "İzlerken Önceden İndir",
+                title = context.getString(R.string.system_pre_download_watching_dialog_title),
                 options = autoDownloadWatchingOptions,
                 selectedOption = download.autoDownloadWhileWatching,
                 onOptionSelected = download.onAutoDownloadWhileWatchingSelected,
@@ -794,7 +819,7 @@ fun StorageSettingsTab(
         }
         "exclude_manga_delete" -> {
             KitsugiMultiSelectPickerDialog(
-                title = "Silinirken Hariç Tutulacaklar (Manga)",
+                title = context.getString(R.string.system_manga_categories_excluded_from_removal_dialog_title),
                 options = statusCategoryOptions,
                 selectedOptions = download.removeExcludeCategories,
                 onSave = download.onRemoveExcludeCategoriesChanged,
@@ -803,7 +828,7 @@ fun StorageSettingsTab(
         }
         "exclude_anime_delete" -> {
             KitsugiMultiSelectPickerDialog(
-                title = "Silinirken Hariç Tutulacaklar (Anime)",
+                title = context.getString(R.string.system_anime_categories_excluded_from_removal_dialog_title),
                 options = statusCategoryOptions,
                 selectedOptions = download.removeExcludeAnimeCategories,
                 onSave = download.onRemoveExcludeAnimeCategoriesChanged,
@@ -812,7 +837,7 @@ fun StorageSettingsTab(
         }
         "include_manga_download" -> {
             KitsugiMultiSelectPickerDialog(
-                title = "Yeni Bölümleri İndirilecekler (Manga)",
+                title = context.getString(R.string.system_manga_new_chapter_download_categories_dialog_title),
                 options = statusCategoryOptions,
                 selectedOptions = download.downloadNewChapterCategories,
                 onSave = download.onDownloadNewChapterCategoriesChanged,
@@ -821,7 +846,7 @@ fun StorageSettingsTab(
         }
         "exclude_manga_download" -> {
             KitsugiMultiSelectPickerDialog(
-                title = "Hariç Tutulacak Kategoriler (Manga)",
+                title = context.getString(R.string.system_manga_excluded_categories_dialog_title),
                 options = statusCategoryOptions,
                 selectedOptions = download.downloadNewChapterCategoriesExclude,
                 onSave = download.onDownloadNewChapterCategoriesExcludeChanged,
@@ -830,7 +855,7 @@ fun StorageSettingsTab(
         }
         "include_anime_download" -> {
             KitsugiMultiSelectPickerDialog(
-                title = "Yeni Videoları İndirilecekler (Anime)",
+                title = context.getString(R.string.system_anime_new_video_download_categories_dialog_title),
                 options = statusCategoryOptions,
                 selectedOptions = download.downloadNewEpisodeCategories,
                 onSave = download.onDownloadNewEpisodeCategoriesChanged,
@@ -839,7 +864,7 @@ fun StorageSettingsTab(
         }
         "exclude_anime_download" -> {
             KitsugiMultiSelectPickerDialog(
-                title = "Hariç Tutulacak Kategoriler (Anime)",
+                title = context.getString(R.string.system_anime_excluded_categories_dialog_title),
                 options = statusCategoryOptions,
                 selectedOptions = download.downloadNewEpisodeCategoriesExclude,
                 onSave = download.onDownloadNewEpisodeCategoriesExcludeChanged,
@@ -919,7 +944,7 @@ fun <T> KitsugiChoicePickerDialog(
         },
         confirmButton = {
             TextButton(onClick = onDismiss) {
-                Text("Kapat", color = accentColor, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.action_close), color = accentColor, fontWeight = FontWeight.SemiBold)
             }
         }
     )
@@ -1009,12 +1034,12 @@ fun <T> KitsugiMultiSelectPickerDialog(
                     onDismiss()
                 }
             ) {
-                Text("Kaydet", color = accentColor, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.action_save), color = accentColor, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("İptal", color = KitsugiColors.TextSecondary, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.settings_cancel), color = KitsugiColors.TextSecondary, fontWeight = FontWeight.SemiBold)
             }
         }
     )
@@ -1118,15 +1143,19 @@ private fun isPackageInstalled(packageName: String, packageManager: android.cont
     }
 }
 
-private fun formatCategories(categories: Set<String>): String {
-    if (categories.isEmpty()) return "Hiçbiri"
+private fun formatCategories(
+    context: Context,
+    categories: Set<String>,
+    statusCategoryOptions: List<Pair<String, String>>
+): String {
+    if (categories.isEmpty()) return context.getString(R.string.system_none)
     return categories.mapNotNull { key ->
         statusCategoryOptions.firstOrNull { it.first == key }?.second
     }.joinToString(", ")
 }
 
-private val speedLimitOptions = listOf(
-    0 to "Sınırsız",
+private fun buildSpeedLimitOptions(context: Context): List<Pair<Int, String>> = listOf(
+    0 to context.getString(R.string.system_unlimited_speed),
     50 * 1024 to "50 KB/s",
     100 * 1024 to "100 KB/s",
     500 * 1024 to "500 KB/s",
@@ -1136,55 +1165,55 @@ private val speedLimitOptions = listOf(
     10 * 1024 * 1024 to "10 MB/s"
 )
 
-private val simultaneousDownloadsOptions = listOf(
-    1 to "1 İndirme",
-    2 to "2 İndirme",
-    3 to "3 İndirme",
-    4 to "4 İndirme",
-    5 to "5 İndirme"
+private fun buildSimultaneousDownloadOptions(context: Context): List<Pair<Int, String>> = listOf(
+    1 to context.getString(R.string.system_download_count_1),
+    2 to context.getString(R.string.system_download_count_2),
+    3 to context.getString(R.string.system_download_count_3),
+    4 to context.getString(R.string.system_download_count_4),
+    5 to context.getString(R.string.system_download_count_5)
 )
 
-private val removeAfterReadOptions = listOf(
-    -1 to "Devre Dışı",
-    0 to "Son okunan bölüm",
-    1 to "Son 1 bölüm",
-    2 to "Son 2 bölüm",
-    3 to "Son 3 bölüm",
-    5 to "Son 5 bölüm",
-    10 to "Son 10 bölüm"
+private fun buildRemoveAfterReadOptions(context: Context): List<Pair<Int, String>> = listOf(
+    -1 to context.getString(R.string.player_ui_disabled),
+    0 to context.getString(R.string.system_last_read_chapter),
+    1 to context.getString(R.string.system_keep_last_1_chapter),
+    2 to context.getString(R.string.system_keep_last_2_chapters),
+    3 to context.getString(R.string.system_keep_last_3_chapters),
+    5 to context.getString(R.string.system_keep_last_5_chapters),
+    10 to context.getString(R.string.system_keep_last_10_chapters)
 )
 
-private val autoDownloadReadingOptions = listOf(
-    0 to "Devre Dışı",
-    1 to "Sonraki 1 bölüm",
-    2 to "Sonraki 2 bölüm",
-    3 to "Sonraki 3 bölüm",
-    5 to "Sonraki 5 bölüm",
-    10 to "Sonraki 10 bölüm"
+private fun buildAutoDownloadReadingOptions(context: Context): List<Pair<Int, String>> = listOf(
+    0 to context.getString(R.string.player_ui_disabled),
+    1 to context.getString(R.string.system_pre_download_next_1_chapter),
+    2 to context.getString(R.string.system_pre_download_next_2_chapters),
+    3 to context.getString(R.string.system_pre_download_next_3_chapters),
+    5 to context.getString(R.string.system_pre_download_next_5_chapters),
+    10 to context.getString(R.string.system_pre_download_next_10_chapters)
 )
 
-private val autoDownloadWatchingOptions = listOf(
-    0 to "Devre Dışı",
-    1 to "Sonraki 1 video",
-    2 to "Sonraki 2 video",
-    3 to "Sonraki 3 video"
+private fun buildAutoDownloadWatchingOptions(context: Context): List<Pair<Int, String>> = listOf(
+    0 to context.getString(R.string.player_ui_disabled),
+    1 to context.getString(R.string.system_pre_download_next_1_video),
+    2 to context.getString(R.string.system_pre_download_next_2_videos),
+    3 to context.getString(R.string.system_pre_download_next_3_videos)
 )
 
-private val statusCategoryOptions = listOf(
-    "CURRENT" to "İzleniyor / Okunuyor",
-    "PLANNING" to "Planlanıyor",
-    "COMPLETED" to "Tamamlandı",
-    "ON_HOLD" to "Duraklatıldı",
-    "DROPPED" to "Bırakıldı"
+private fun buildStatusCategoryOptions(context: Context): List<Pair<String, String>> = listOf(
+    "CURRENT" to context.getString(R.string.system_status_current),
+    "PLANNING" to context.getString(R.string.system_status_planning),
+    "COMPLETED" to context.getString(R.string.bangumi_tag_completed),
+    "ON_HOLD" to context.getString(R.string.inline_paused_0cf0c04),
+    "DROPPED" to context.getString(R.string.system_status_dropped)
 )
 
-private val dnsOptions = listOf(
-    KitsugiChoiceOption(id = "0", title = "Sistem Varsayılanı", description = "İnternet sağlayıcınızın varsayılan DNS adresini kullanır."),
-    KitsugiChoiceOption(id = "1", title = "Google DNS", description = "Güvenli ve hızlı Google DoH sunucularını kullanır."),
-    KitsugiChoiceOption(id = "2", title = "Cloudflare DNS", description = "Gizlilik odaklı ve hızlı Cloudflare DoH sunucularını kullanır."),
-    KitsugiChoiceOption(id = "3", title = "AdGuard DNS", description = "Reklam ve takipçi engelleyici özellikli AdGuard DoH sunucularını kullanır."),
-    KitsugiChoiceOption(id = "4", title = "DNS.WATCH", description = "Sansürsüz ve bağımsız DNS.WATCH DoH sunucularını kullanır."),
-    KitsugiChoiceOption(id = "5", title = "Quad9 DNS", description = "Zararlı yazılım korumalı ve güvenli Quad9 DoH sunucularını kullanır."),
-    KitsugiChoiceOption(id = "6", title = "DNS.SB", description = "Gizlilik odaklı, log tutmayan DNS.SB DoH sunucularını kullanır."),
-    KitsugiChoiceOption(id = "7", title = "Canadian Shield", description = "CIRA tarafından sunulan Kanada merkezli korumalı DoH sunucularını kullanır.")
+private fun buildDnsOptions(context: Context): List<KitsugiChoiceOption> = listOf(
+    KitsugiChoiceOption(id = "0", title = context.getString(R.string.system_dns_system_default), description = context.getString(R.string.system_dns_system_default_description)),
+    KitsugiChoiceOption(id = "1", title = "Google DNS", description = context.getString(R.string.system_dns_google_description)),
+    KitsugiChoiceOption(id = "2", title = "Cloudflare DNS", description = context.getString(R.string.system_dns_cloudflare_description)),
+    KitsugiChoiceOption(id = "3", title = "AdGuard DNS", description = context.getString(R.string.system_dns_adguard_description)),
+    KitsugiChoiceOption(id = "4", title = "DNS.WATCH", description = context.getString(R.string.system_dns_watch_description)),
+    KitsugiChoiceOption(id = "5", title = "Quad9 DNS", description = context.getString(R.string.system_dns_quad9_description)),
+    KitsugiChoiceOption(id = "6", title = "DNS.SB", description = context.getString(R.string.system_dns_sb_description)),
+    KitsugiChoiceOption(id = "7", title = "Canadian Shield", description = context.getString(R.string.system_dns_canadian_shield_description))
 )

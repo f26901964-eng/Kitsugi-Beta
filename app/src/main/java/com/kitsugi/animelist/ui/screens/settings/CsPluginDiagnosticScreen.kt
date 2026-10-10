@@ -1,4 +1,6 @@
 ﻿package com.kitsugi.animelist.ui.screens.settings
+
+import com.kitsugi.animelist.R
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.Intent
@@ -20,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -92,15 +95,15 @@ fun CsPluginDiagnosticScreen(
                     )
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            "Plugin Tanı Modu",
+                            stringResource(R.string.inline_plugin_diagnostics_mode_bea2832),
                             color = KitsugiColors.TextPrimary,
                             fontWeight = FontWeight.Bold,
                             fontSize = 16.sp
                         )
                         val subtitleText = if (vm.onlyInstalled) {
-                            "CF bypass aktif • Sadece yüklü eklentiler"
+                            stringResource(R.string.cs_diag_header_installed_subtitle)
                         } else {
-                            "CF bypass aktif • ${CsPluginDiagnosticRunner.REPOS.size} repo • Tüm havuz"
+                            stringResource(R.string.cs_diag_header_all_subtitle, CsPluginDiagnosticRunner.REPOS.size)
                         }
                         Text(
                             subtitleText,
@@ -110,7 +113,7 @@ fun CsPluginDiagnosticScreen(
                     }
                     if (!isRunning) {
                         IconButton(onClick = onDismiss) {
-                            Icon(Icons.Rounded.Close, contentDescription = "Kapat", tint = KitsugiColors.TextSecondary)
+                            Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.action_close), tint = KitsugiColors.TextSecondary)
                         }
                     }
                 }
@@ -136,13 +139,13 @@ fun CsPluginDiagnosticScreen(
                             ) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(
-                                        "Sadece Yüklü Eklentiler",
+                                        stringResource(R.string.inline_installed_extensions_only_8ee1192),
                                         color = KitsugiColors.TextPrimary,
                                         fontWeight = FontWeight.SemiBold,
                                         fontSize = 13.sp
                                     )
                                     Text(
-                                        "GitHub'dan indirmeden sadece yerel eklentileri hızlıca test eder.",
+                                        stringResource(R.string.inline_quickly_test_local_extensions_with_22c6bd0),
                                         color = KitsugiColors.TextMuted,
                                         fontSize = 11.sp
                                     )
@@ -184,7 +187,7 @@ fun CsPluginDiagnosticScreen(
                     if (results.isNotEmpty()) {
                         item {
                             Text(
-                                "Detaylı Sonuçlar (${results.size} eklenti)",
+                                stringResource(R.string.inline_detailed_results_1_s_extensions_22f36a9, (results.size).toString()),
                                 color = KitsugiColors.TextSecondary,
                                 fontWeight = FontWeight.SemiBold,
                                 fontSize = 13.sp
@@ -212,7 +215,7 @@ fun CsPluginDiagnosticScreen(
                         ) {
                             Icon(Icons.Rounded.PlayArrow, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text(if (results.isEmpty()) "🔬 Tanıyı Başlat" else "🔄 Yeniden Başlat", fontWeight = FontWeight.Bold)
+                            Text(stringResource(if (results.isEmpty()) R.string.cs_diag_start else R.string.cs_diag_restart), fontWeight = FontWeight.Bold)
                         }
                     } else {
                         OutlinedButton(
@@ -223,7 +226,7 @@ fun CsPluginDiagnosticScreen(
                         ) {
                             Icon(Icons.Rounded.Stop, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text("Durdur", fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.cs_diag_stop), fontWeight = FontWeight.Bold)
                         }
                     }
 
@@ -238,7 +241,7 @@ fun CsPluginDiagnosticScreen(
                                     shareCsReportFile(context, file)
                                 } else {
                                     android.widget.Toast.makeText(
-                                        context, "Rapor oluşturulamadı", android.widget.Toast.LENGTH_SHORT
+                                        context, context.getString(R.string.cs_diag_report_creation_failed), android.widget.Toast.LENGTH_SHORT
                                     ).show()
                                 }
                             }
@@ -249,7 +252,7 @@ fun CsPluginDiagnosticScreen(
                     ) {
                         Icon(Icons.Rounded.Share, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(Modifier.width(6.dp))
-                        Text("Canlı İzleme Raporunu Paylaş (.md)", fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.inline_share_live_monitoring_report_md_ff2cf01), fontWeight = FontWeight.Bold)
                     }
 
                     // Raporu paylaş butonu
@@ -269,9 +272,9 @@ fun CsPluginDiagnosticScreen(
                                             putExtra(Intent.EXTRA_STREAM, uri)
                                             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                         }
-                                        context.startActivity(Intent.createChooser(shareIntent, "Raporu Paylaş"))
+                                        context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.cs_diag_share_report)))
                                     } catch (e: Exception) {
-                                        android.util.Log.e("CsPluginDiagnostic", "Rapor paylaşılamadı: ${e.message}")
+                                        android.util.Log.e("CsPluginDiagnostic", context.getString(R.string.cs_diag_report_share_failed, e.message.orEmpty()))
                                     }
                                 }
                             },
@@ -281,7 +284,7 @@ fun CsPluginDiagnosticScreen(
                         ) {
                             Icon(Icons.Rounded.Share, contentDescription = null, modifier = Modifier.size(18.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text("Raporu Paylaş (.md)", fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.inline_share_report_md_79b230f), fontWeight = FontWeight.Bold)
                         }
                 }
             }
@@ -351,7 +354,7 @@ private fun ProgressCard(
                 )
             }
             Text(
-                if (isRunning) "Test Çalışıyor..." else "Test Tamamlandı",
+                stringResource(if (isRunning) R.string.cs_diag_progress_running else R.string.cs_diag_progress_completed),
                 color = if (isRunning) accent else KitsugiColors.AccentGreen,
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp
@@ -381,7 +384,7 @@ private fun ProgressCard(
 
             // Sayaç
             Text(
-                "${progress.current} / ${progress.total} eklenti",
+                stringResource(R.string.cs_diag_plugins_progress_count, progress.current, progress.total),
                 color = KitsugiColors.TextMuted,
                 fontSize = 11.sp
             )
@@ -398,10 +401,10 @@ private fun SummaryCards(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        SummaryChip("✅", working.toString(), "Çalışıyor", KitsugiColors.AccentGreen, Modifier.weight(1f))
-        SummaryChip("⚠️", noStream.toString(), "0 Stream", KitsugiColors.AccentOrange, Modifier.weight(1f))
-        SummaryChip("🔍", cfBlocked.toString(), "CF Engel", KitsugiColors.AccentBlue, Modifier.weight(1f))
-        SummaryChip("❌", dead.toString(), "Bozuk", KitsugiColors.AccentRed, Modifier.weight(1f))
+        SummaryChip("✅", working.toString(), stringResource(R.string.cs_diag_summary_working), KitsugiColors.AccentGreen, Modifier.weight(1f))
+        SummaryChip("⚠️", noStream.toString(), stringResource(R.string.cs_diag_summary_no_streams), KitsugiColors.AccentOrange, Modifier.weight(1f))
+        SummaryChip("🔍", cfBlocked.toString(), stringResource(R.string.cs_diag_summary_cf_blocked), KitsugiColors.AccentBlue, Modifier.weight(1f))
+        SummaryChip("❌", dead.toString(), stringResource(R.string.cs_diag_summary_broken), KitsugiColors.AccentRed, Modifier.weight(1f))
     }
 }
 
@@ -438,22 +441,17 @@ private fun InfoBanner(accent: Color, onlyInstalled: Boolean) {
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
-        Text("🔬 In-App Plugin Tanı", color = accent, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        Text(stringResource(R.string.inline_in_app_plugin_diagnostics_152efe2), color = accent, fontWeight = FontWeight.Bold, fontSize = 14.sp)
         Text(
-            "Bu tanı, uygulama açıkken çalışır — CloudflareKiller aktif session cookies ile CF/WAF engellerini " +
-            "büyük ölçüde aşar. Arkaplan (ADB) testinden çok daha fazla plugin geçer.",
+            stringResource(R.string.cs_diag_info_description),
             color = KitsugiColors.TextSecondary,
             fontSize = 12.sp,
             lineHeight = 18.sp
         )
         val bulletPoints = if (onlyInstalled) {
-            "• Sadece yüklü/aktif eklentiler yerel olarak test edilir (hızlı)\n" +
-            "• Search → Load → Stream zinciri (İndirme aşaması atlanır)\n" +
-            "• Sonuç: .md rapor + uygulama içi görünüm"
+            stringResource(R.string.cs_diag_info_installed_bullets)
         } else {
-            "• 201 eklenti paralel test edilir (MAX=${ com.kitsugi.animelist.data.cloudstream.CsPluginDiagnosticRunner.REPOS.size } repo)\n" +
-            "• Download → Search → Load → Stream zinciri\n" +
-            "• Sonuç: .md rapor + uygulama içi görünüm"
+            stringResource(R.string.cs_diag_info_all_bullets, CsPluginDiagnosticRunner.REPOS.size)
         }
         Text(
             bulletPoints,
@@ -496,8 +494,9 @@ private fun ResultRow(
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis
             )
+            val repoLabel = if (result.repoSlug == "local") stringResource(R.string.cs_diag_local_plugins) else result.repoSlug.substringBefore("/")
             Text(
-                result.repoSlug.substringBefore("/"),
+                repoLabel,
                 color = KitsugiColors.TextMuted,
                 fontSize = 10.sp
             )
@@ -505,7 +504,7 @@ private fun ResultRow(
         Column(horizontalAlignment = Alignment.End) {
             if (result.streamCount > 0) {
                 Text(
-                    "${result.streamCount} stream",
+                    stringResource(R.string.cs_diag_stream_count, result.streamCount),
                     color = statusColor,
                     fontSize = 11.sp,
                     fontWeight = FontWeight.Bold
@@ -539,8 +538,8 @@ private fun shareCsReportFile(context: android.content.Context, file: File) {
             putExtra(Intent.EXTRA_SUBJECT, file.name)
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
-        context.startActivity(Intent.createChooser(shareIntent, "Raporu Paylaş").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.cs_diag_share_report)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
     } catch (e: Exception) {
-        android.util.Log.e("CsPluginDiagnostic", "Canlı izleme raporu paylaşılamadı: ${e.message}")
+        android.util.Log.e("CsPluginDiagnostic", context.getString(R.string.cs_diag_live_report_share_failed, e.message.orEmpty()))
     }
 }
