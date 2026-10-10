@@ -1,5 +1,49 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.235)
+
+### 🎨 1. Premium Açılır Menü Tasarımı (`KitsugiDropdownMenu`)
+- **Özel Popup & Yumuşak Animasyon:** Material3'ün varsayılan menüsü yerine uygulamanın koyu yüzeyine uyumlu, 20dp yuvarlak köşeli, kenarlıklı, gölgeli ve fade + hafif büyüme animasyonlu özel menü bileşeni uygulandı.
+- **Vurgulu Seçim & Onay İkonu:** Seçili öğeler yarı saydam vurgu rengi ve onay işaretiyle belirginleştirildi; akıllı konumlandırma ile ekrandan taşma ve klavye çakışmaları engellendi.
+- **Evrensel Entegrasyon:** Sezonluk filtreler, Listem sıralama paneli, altyazı gecikmesi, profil etkinlik menüsü ve arama filtreleri dahil tüm açılır menüler yeni bileşene taşındı.
+
+### ⚡ 2. Keşfet, Arama ve Tümünü Gör Kaydırma Performansı Düzeltmesi (v2)
+- **Kaydırma Recomposition Döngüsü Kırıldı (`RetainedLazyListState`):** Kaydırma konumu Compose State yerine düz bir nesnede saklanarak her pikselde tüm ekranın yeniden çizilmesi kökten engellendi.
+- **Shimmer İçerik Ağacı Kararlılığı (`KitsugiShimmer`):** Yükleme durumu değiştiğinde tüm içerik ağacının ve Hero Pager durumunun sökülüp sıfırlanması durduruldu; dinamik fırça tek bir sabit provider içine alındı.
+- **Hero Backdrop Toplu Yayın:** Vitrin arka planlarının TMDB'den çekilmesi 250 ms'lik pencerede gruplandırılarak gereksiz ekran yenilemeleri sonlandırıldı.
+- **Fonksiyon Referansı Optimizasyonu:** `AppRoot` içerisindeki liste kontrol fonksiyonları `remember` ile sabitlenerek çocuk kartların fazladan çizilmesi engellendi.
+
+### 🕷️ 3. TMDB & Simkl Kurgusal Karakter Detay Düzeltmesi (Peter Parker / Spider-Man)
+- **Doğrulanmış Karakter Eşleşmesi:** Jikan (MAL) yedek aramasında ilk sonucun körlemesine alınması engellendi; yalnızca isim gerçekten eşleştiğinde kabul ediliyor.
+- **Birincil Ad Ayrımı:** TMDB'deki "Gerçek Ad / Kurgusal Ad" kalıplarında arama birincil isimle yapılarak genel lakapların (ör. "Spider" -> Makishima Yuusuke) yanlış anime profillerini açması çözüldü.
+
+### 📺 4. TMDB Yayıncı Ağları ve Yapım Şirketi Ayrımı
+- TV yayıncı ağları (`/network/{id}`) ile stüdyo/yapım şirketleri (`/company/{id}`) farklı uç noktalara ayrılarak yanlış kimlik yönlendirmeleri düzeltildi.
+
+---
+
+## 🇬🇧 English (v2.4.235)
+
+### 🎨 1. Premium Dropdown Menu Redesign (`KitsugiDropdownMenu`)
+- **Custom Popup & Smooth Animations:** Replaced Material default dropdowns with a sleek, dark-themed popup featuring 20dp rounded corners, borders, shadows, and subtle fade-scale animations.
+- **Active State Highlights:** Selected items feature accent semi-transparent backgrounds and check icons, with collision-aware screen positioning and vertical scrollability.
+- **Universal Migration:** Upgraded seasonal filter sheets, My List sort dialogs, subtitle delay panels, profile activity menus, and search filter chips.
+
+### ⚡ 2. Explore, Search & See All Scroll Jank Fix (v2)
+- **Eliminated Scroll Recomposition Loop (`RetainedLazyListState`):** Shifted scroll position tracking from Compose State to a plain object read only during state saving, stopping per-frame full-screen recompositions.
+- **Static Shimmer Tree (`KitsugiShimmer`):** Kept the composition hierarchy stable across loading transitions without tearing down the hero pager and shelf tree.
+- **Debounced Hero Backdrops:** Grouped backdrop resolution flushes to 250ms windows in `ExploreViewModel`, preventing thrashing during initial loads.
+- **Stable Function References:** Stabilized `AppRoot` lambda references with `remember` to preserve composable skippability across grids and cards.
+
+### 🕷️ 3. TMDB & Simkl Fictional Character Details Fix (Spider-Man / Peter Parker)
+- **Verified Character Matching:** Replaced unvalidated first-result Jikan fallback with explicit name matching and ambiguity checks.
+- **Primary Name Splitting:** TMDB dual-identity names ("Real Name / Fictional Name") now search by primary identity, preventing common alias words like "Spider" from pulling unrelated anime characters (Makishima Yuusuke).
+
+### 📺 4. TMDB TV Networks vs Production Companies Endpoint Separation
+- Dedicated `/network/{id}` routing for TV networks and separate company endpoints for studios/producers.
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.234)
 
 ### 🏢 1. Bangumi Yapımcı / Yayıncı Çipleri Tıklanabilirlik ve Kimlik Çözümleme Düzeltmesi
