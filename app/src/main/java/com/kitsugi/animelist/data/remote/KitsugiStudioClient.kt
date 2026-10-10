@@ -72,6 +72,7 @@ class KitsugiStudioClient {
                         } else detail
                     } else detail
                 }
+                StudioSourceSupport.TMDB_NETWORK_SOURCE -> fetchTmdbNetworkDetail(studioId)
                 else -> null
             }
 
@@ -106,6 +107,7 @@ class KitsugiStudioClient {
                 "anilist" -> fetchAniListStudioWorksPage(studioId, page)
                 "shikimori" -> fetchShikimoriStudioWorksPage(studioId, page)
                 "tmdb" -> fetchTmdbStudioWorksPage(studioId, page)
+                StudioSourceSupport.TMDB_NETWORK_SOURCE -> fetchTmdbNetworkWorksPage(studioId, page)
                 // Bangumi: yapım listesi sayfalanmıyor (sayfalama ucu doğrulanamadı) → devamı yok.
                 else -> null
             }
@@ -387,16 +389,66 @@ class KitsugiStudioClient {
         }.getOrNull()
     }
 
+    private enum class TmdbOrganizationKind {
+        COMPANY,
+        NETWORK
+    }
+
+    /** TMDB network detayları /network/{id} ucundan alınır; bu ID alanı şirketlerden ayrıdır. */
+    private suspend fun fetchTmdbNetworkDetail(networkId: Int): KitsugiStudioDetail? {
+        if (networkId <= 0) return null
+        val apiKey = TmdbApiClient.getActiveApiKey()
+        val lang = TmdbApiClient.getActiveLanguage()
+        val infoUrl = URL("https://api.themoviedb.org/3/network/$networkId?api_key=$apiKey")
+
+        return runCatching {
+            val detailResponse = KitsugiApiBase.executeGetRequest(infoUrl) ?: return@runCatching null
+            val detailData = JSONObject(detailResponse)
+            val name = detailData.optNullableString("name")?.takeIf { it.isNotBlank() }
+                ?: return@runCatching null
+            val hq = detailData.optNullableString("headquarters")
+            val country = detailData.optNullableString("origin_country")
+            val homepage = detailData.optNullableString("homepage")
+            val about = buildString {
+                if (!hq.isNullOrBlank()) append("Merkez: $hq\n")
+                if (!country.isNullOrBlank()) append("Ülke: $country\n")
+                if (!homepage.isNullOrBlank()) append("Web: $homepage")
+            }.trim().takeIf { it.isNotBlank() }
+            val logoPath = detailData.optNullableString("logo_path")
+            val imageUrl = if (!logoPath.isNullOrBlank()) "https://image.tmdb.org/t/p/w300$logoPath" else null
+            val (works, totalPages) = fetchTmdbDiscover(
+                isMovie = false,
+                studioId = networkId,
+                apiKey = apiKey,
+                lang = lang,
+                page = 1,
+                organizationKind = TmdbOrganizationKind.NETWORK
+            )
+
+            KitsugiStudioDetail(
+                id = networkId,
+                name = name,
+                imageUrl = imageUrl,
+                about = about,
+                mediaWorks = works.distinctBy { it.mediaId },
+                hasMoreWorks = totalPages > 1
+            )
+        }.getOrNull()
+    }
+
     /** TMDB discover (film veya dizi) tek sayfası: yapımlar + toplam sayfa sayısı. */
     private fun fetchTmdbDiscover(
         isMovie: Boolean,
         studioId: Int,
         apiKey: String,
         lang: String,
-        page: Int
+        page: Int,
+        organizationKind: TmdbOrganizationKind = TmdbOrganizationKind.COMPANY
     ): Pair<List<KitsugiStaffMediaWork>, Int> {
         val kind = if (isMovie) "movie" else "tv"
-        val urlStr = "https://api.themoviedb.org/3/discover/$kind?api_key=$apiKey&with_companies=$studioId&language=$lang&sort_by=popularity.desc&page=$page"
+        val companyFilter = organizationKind == TmdbOrganizationKind.COMPANY
+        val filterParam = if (companyFilter) "with_companies" else "with_networks"
+        val urlStr = "https://api.themoviedb.org/3/discover/$kind?api_key=$apiKey&$filterParam=$studioId&language=$lang&sort_by=popularity.desc&page=$page"
         val response = KitsugiApiBase.executeGetRequest(URL(urlStr)) ?: return Pair(emptyList(), 0)
         val root = JSONObject(response)
         val results = root.optJSONArray("results") ?: return Pair(emptyList(), 0)
@@ -425,7 +477,7 @@ class KitsugiStudioClient {
                     mediaTitle = title,
                     mediaImageUrl = imgUrl,
                     mediaType = kind.toTurkishMediaTypeString(),
-                    staffRole = if (isTurkish()) "Yapım Şirketi" else "Production Company",
+                    staffRole = if (companyFilter) (if (isTurkish()) "Yapım Şirketi" else "Production Company") else (if (isTurkish()) "Yayıncı Ağı" else "Network"),
                     source = "tmdb"
                 )
             )
@@ -442,6 +494,20 @@ class KitsugiStudioClient {
             works = (movies + tv).distinctBy { it.mediaId },
             hasMore = page < movieTotal || page < tvTotal
         )
+    }.getOrNull()
+
+    private suspend fun fetchTmdbNetworkWorksPage(networkId: Int, page: Int): KitsugiStudioWorksPage? = runCatching {
+        val apiKey = TmdbApiClient.getActiveApiKey()
+        val lang = TmdbApiClient.getActiveLanguage()
+        val (works, totalPages) = fetchTmdbDiscover(
+            isMovie = false,
+            studioId = networkId,
+            apiKey = apiKey,
+            lang = lang,
+            page = page,
+            organizationKind = TmdbOrganizationKind.NETWORK
+        )
+        KitsugiStudioWorksPage(works = works.distinctBy { it.mediaId }, hasMore = page < totalPages)
     }.getOrNull()
 
     private fun jikanStudioWorksUrl(producerId: Int, page: Int): URL =

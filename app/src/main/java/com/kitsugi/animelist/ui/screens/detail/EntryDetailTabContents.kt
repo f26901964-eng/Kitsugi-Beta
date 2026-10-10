@@ -173,7 +173,8 @@ internal fun EntryDetailOverviewTab(
                     val resolvedSource = resolveStudioClickSource(
                         studioSource = studio.source,
                         mediaSource = entry.source.lowercase(),
-                        mediaType = entry.type
+                        mediaType = entry.type,
+                        role = studio.role
                     )
                     onStudioClick(studio.id, resolvedSource, studio.name, studio.imageUrl)
                 },
@@ -181,9 +182,19 @@ internal fun EntryDetailOverviewTab(
                     val resolvedSource = resolveStudioClickSource(
                         studioSource = producer.source,
                         mediaSource = entry.source.lowercase(),
-                        mediaType = entry.type
+                        mediaType = entry.type,
+                        role = producer.role
                     )
                     onStudioClick(producer.id, resolvedSource, producer.name, producer.imageUrl)
+                },
+                onNetworkClick = { network ->
+                    val resolvedSource = resolveStudioClickSource(
+                        studioSource = network.source,
+                        mediaSource = entry.source.lowercase(),
+                        mediaType = entry.type,
+                        role = com.kitsugi.animelist.data.remote.StudioRole.NETWORK
+                    )
+                    onStudioClick(network.id, resolvedSource, network.name, network.imageUrl)
                 }
             )
         }

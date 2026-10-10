@@ -193,6 +193,8 @@ internal object TmdbMediaDetailClient {
                         val network = networksArray.getJSONObject(i)
                         val id = network.optInt("id", 0)
                         val name = network.optString("name", "")
+                        val logoPath = network.optString("logo_path", "").takeIf { it.isNotBlank() && it != "null" }
+                        val logoUrl = logoPath?.let { "https://image.tmdb.org/t/p/w300$it" }
                         if (name.isNotBlank()) {
                             networksList.add(
                                 KitsugiStudio(
@@ -200,7 +202,8 @@ internal object TmdbMediaDetailClient {
                                     name = name,
                                     isMain = networksList.isEmpty(),
                                     source = "tmdb",
-                                    role = com.kitsugi.animelist.data.remote.StudioRole.NETWORK
+                                    role = com.kitsugi.animelist.data.remote.StudioRole.NETWORK,
+                                    imageUrl = logoUrl
                                 )
                             )
                         }

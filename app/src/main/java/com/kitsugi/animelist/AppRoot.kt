@@ -629,9 +629,14 @@ fun AppRoot(
         { result: JikanSearchResult -> getMediaEntryFromMap(result, entryMap) }
     }
 
-    fun getMediaEntry(result: JikanSearchResult): MediaEntry? = getMediaEntryLambda(result)
-
-    fun isAlreadyInList(result: JikanSearchResult): Boolean = getMediaEntryLambda(result) != null
+    // Yerel `fun` yerine remember'lı lambda: yerel fonksiyon referansları (`::fn`) her
+    // yeniden kompozisyonda yeni nesne olur → FullScreenMediaGridPage / arama gibi çocuk
+    // composable'lar hiçbir zaman "değişmedi" diyemez, her AppRoot yenilemesinde tüm
+    // kartlar yeniden kompoze olurdu.
+    val getMediaEntry: (JikanSearchResult) -> MediaEntry? = getMediaEntryLambda
+    val isAlreadyInList: (JikanSearchResult) -> Boolean = remember(getMediaEntryLambda) {
+        { result: JikanSearchResult -> getMediaEntryLambda(result) != null }
+    }
 
     fun openFullScreenSection(
         title: String,
@@ -898,8 +903,8 @@ fun AppRoot(
                     triggerSearchByGenre = triggerSearchByGenre,
                     triggerSearchByTag = triggerSearchByTag,
                     triggerDetailSearchFilter = triggerDetailSearchFilter,
-                    isAlreadyInList = ::isAlreadyInList,
-                    getMediaEntry = ::getMediaEntry,
+                    isAlreadyInList = isAlreadyInList,
+                    getMediaEntry = getMediaEntry,
                     bottomBarScrollState = bottomBarScrollState
                 )
 
@@ -980,7 +985,7 @@ fun AppRoot(
             showMediaGridDialog = showMediaGridDialog,
             mediaGridDialogTitle = mediaGridDialogTitle,
             mediaGridDialogResults = mediaGridDialogResults,
-            isAlreadyInList = ::isAlreadyInList,
+            isAlreadyInList = isAlreadyInList,
             onMediaGridItemClick = { result ->
                 navState.navigateToDetail(DetailScreen.ApiResultDetail(result))
             },

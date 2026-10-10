@@ -113,7 +113,10 @@ fun StudioDetailPage(
     val accentColor = LocalKitsugiAccent.current
 
     // Obtain ViewModel
-    val viewModel: StudioDetailViewModel = viewModel(key = "studio_${source}_${studioId}")
+    val viewModelKey = remember(source, studioId, name) {
+        "studio_${source}_${studioId}_${name.orEmpty().trim().lowercase(java.util.Locale.ROOT)}"
+    }
+    val viewModel: StudioDetailViewModel = viewModel(key = viewModelKey)
     val galleryLoading by viewModel.galleryLoading.collectAsState()
     CompositionLocalProvider(LocalKitsugiGalleryLoading provides galleryLoading) {
 

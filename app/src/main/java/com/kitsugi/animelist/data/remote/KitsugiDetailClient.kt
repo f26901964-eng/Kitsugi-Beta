@@ -804,6 +804,7 @@ class KitsugiDetailClient {
             val combinedPictures = (currentDetail.pictures.orEmpty() + trMeta.pictures.orEmpty()).distinct()
             val mergedStudios = if (currentDetail.studios.isNotEmpty()) currentDetail.studios else trMeta.studios
             val mergedProducers = if (currentDetail.producers.isNotEmpty()) currentDetail.producers else trMeta.producers
+            val mergedNetworks = if (currentDetail.networks.isNotEmpty()) currentDetail.networks else trMeta.networks
             val mergedRating = if (!currentDetail.rating.isNullOrBlank()) currentDetail.rating else trMeta.rating
             val updatedImageUrl = if (!currentDetail.imageUrl.isNullOrBlank()) currentDetail.imageUrl else trMeta.imageUrl
             currentDetail.copy(
@@ -818,6 +819,7 @@ class KitsugiDetailClient {
                 pictures = combinedPictures,
                 studios = mergedStudios,
                 producers = mergedProducers,
+                networks = mergedNetworks,
                 rating = mergedRating,
                 totalSeasons = if (source.lowercase() == "tmdb" || source.lowercase() == "simkl") {
                     trMeta.totalSeasons ?: currentDetail.totalSeasons

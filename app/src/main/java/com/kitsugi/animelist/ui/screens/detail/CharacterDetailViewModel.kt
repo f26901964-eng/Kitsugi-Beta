@@ -8,6 +8,7 @@ import com.kitsugi.animelist.data.auth.BangumiApiClient
 import com.kitsugi.animelist.data.auth.BangumiAuthStore
 import com.kitsugi.animelist.data.auth.ExternalAuthManager
 import com.kitsugi.animelist.data.local.TranslationManager
+import com.kitsugi.animelist.data.remote.CharacterDetailIdentity
 import com.kitsugi.animelist.data.remote.DetailCache
 import com.kitsugi.animelist.data.remote.GalleryCategory
 import com.kitsugi.animelist.data.remote.GalleryItem
@@ -61,6 +62,7 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
     private var lastSource: String = ""
     private var lastCharacterName: String? = null
     private var lastIsRealMediaRole: Boolean = false
+    private var lastCharacterCacheIdentity: String? = null
 
     /**
      * Arayüzden (karakter kartından) gelen görsel. Kaynak veride görsel yoksa detay
@@ -72,62 +74,77 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
     fun translateBio() {
         val detail = (_state.value as? CharacterDetailState.Success)?.detail ?: return
         val bio = detail.biography ?: return
+        val expectedFetchKey = currentFetchKey ?: return
+        val source = lastSource
+        val characterId = lastCharacterId
+        val cacheIdentity = lastCharacterCacheIdentity
         viewModelScope.launch {
             val tr = withContext(Dispatchers.IO) {
                 // Uzun biyografilerde çeviri parça parça akıtılır: çevrilen kısım
                 // anında ekrana gelir, kalanı arka planda sırayla çevrilir.
                 translationManager.translateToTurkish(bio) { partial ->
-                    _translatedBio.value = partial
+                    if (currentFetchKey == expectedFetchKey) _translatedBio.value = partial
                 }
             }
-            if (tr.isNotBlank() && tr != bio) {
-                DetailCache.putTranslation("bio_char", lastSource, detail.id, tr)
+            if (currentFetchKey == expectedFetchKey && tr.isNotBlank() && tr != bio) {
+                DetailCache.putTranslation("bio_char", source, characterId, tr, cacheIdentity)
                 _translatedBio.value = tr
             }
         }
     }
 
     fun loadCharacter(characterId: Int, source: String, name: String? = null, hintImageUrl: String? = null, isRealMediaRole: Boolean = false) {
-        val newKey = if (source.equals("tmdb", ignoreCase = true) && !name.isNullOrBlank()) {
-            "$source:${name.trim().lowercase()}"
-        } else {
-            "$source:$characterId"
-        }
-        lastHintImageUrl = hintImageUrl ?: lastHintImageUrl
+        val newKey = CharacterDetailIdentity.fetchKey(source, characterId, name, isRealMediaRole)
+        val currentHintImageUrl = hintImageUrl?.takeIf { it.isNotBlank() }
+        val cacheIdentity = CharacterDetailIdentity.cacheDiscriminator(source, name, isRealMediaRole)
         if (newKey == currentFetchKey) {
+            lastHintImageUrl = currentHintImageUrl ?: lastHintImageUrl
             Log.d(TAG, "loadCharacter: Cache hit for key=$newKey — skipping")
             return
         }
 
         Log.d(TAG, "loadCharacter: New key=$newKey (was $currentFetchKey)")
         currentFetchKey = newKey
+        _isRefreshing.value = false
         galleryTracker.reset()
         lastCharacterId = characterId
         lastSource = source
         lastCharacterName = name
         lastIsRealMediaRole = isRealMediaRole
+        lastHintImageUrl = currentHintImageUrl
+        lastCharacterCacheIdentity = cacheIdentity
 
-        val cachedCharacterDetail = DetailCache.getCharacterDetail(source, characterId)
-        val cachedBioTranslation = DetailCache.getTranslation("bio_char", source, characterId)
+        val cachedCharacterDetail = DetailCache.getCharacterDetail(source, characterId, cacheIdentity)
+            ?.takeIf { CharacterDetailIdentity.matchesExpectedDetail(source, name, isRealMediaRole, it) }
+        val cachedBioTranslation = DetailCache.getTranslation("bio_char", source, characterId, cacheIdentity)
 
         _state.value = if (cachedCharacterDetail != null) CharacterDetailState.Success(cachedCharacterDetail) else CharacterDetailState.Loading
+        _isFavourite.value = cachedCharacterDetail?.isFavourite ?: false
         _translatedBio.value = cachedBioTranslation
 
-        // Kartta gösterilen görsel anında galeriye konur: detay isteği gecikse/yavaş olsa
-        // bile sayfa resimsiz kalmaz.
-        if (hintImageUrl != null && hintImageUrl.isNotBlank()) {
-            _galleryItems.value = listOf(
+        // Yeni karaktere geçerken önceki role ait görsel/galeri ipucu ekranda kalmasın.
+        _galleryItems.value = if (currentHintImageUrl != null) {
+            listOf(
                 GalleryItem(
-                    url = hintImageUrl,
+                    url = currentHintImageUrl,
                     source = friendlySourceOf(source),
                     category = GalleryCategory.CHARACTER,
                     description = name
                 )
             )
+        } else {
+            emptyList()
         }
 
         viewModelScope.launch {
-            fetchCharacterDetail(characterId, source, name, isRealMediaRole = isRealMediaRole)
+            fetchCharacterDetail(
+                characterId = characterId,
+                source = source,
+                name = name,
+                isRealMediaRole = isRealMediaRole,
+                expectedFetchKey = newKey,
+                hintImageUrl = currentHintImageUrl
+            )
         }
     }
 
@@ -135,11 +152,22 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
         val characterId = lastCharacterId
         val source = lastSource
         val name = lastCharacterName
+        val expectedFetchKey = currentFetchKey ?: return
+        val isRealMediaRole = lastIsRealMediaRole
+        val hintImageUrl = lastHintImageUrl
         if (characterId > 0 && source.isNotEmpty()) {
             _state.value = CharacterDetailState.Loading
             _translatedBio.value = null
             viewModelScope.launch {
-                fetchCharacterDetail(characterId, source, name, force = true, isRealMediaRole = lastIsRealMediaRole)
+                fetchCharacterDetail(
+                    characterId = characterId,
+                    source = source,
+                    name = name,
+                    force = true,
+                    isRealMediaRole = isRealMediaRole,
+                    expectedFetchKey = expectedFetchKey,
+                    hintImageUrl = hintImageUrl
+                )
             }
         }
     }
@@ -148,39 +176,83 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
         val characterId = lastCharacterId
         val source = lastSource
         val name = lastCharacterName
+        val expectedFetchKey = currentFetchKey ?: return
+        val isRealMediaRole = lastIsRealMediaRole
+        val hintImageUrl = lastHintImageUrl
         if (characterId > 0 && source.isNotEmpty()) {
             _isRefreshing.value = true
             viewModelScope.launch {
                 try {
-                    fetchCharacterDetail(characterId, source, name, force = true, isRealMediaRole = lastIsRealMediaRole)
+                    fetchCharacterDetail(
+                        characterId = characterId,
+                        source = source,
+                        name = name,
+                        force = true,
+                        isRealMediaRole = isRealMediaRole,
+                        expectedFetchKey = expectedFetchKey,
+                        hintImageUrl = hintImageUrl
+                    )
                 } finally {
-                    _isRefreshing.value = false
+                    if (currentFetchKey == expectedFetchKey) _isRefreshing.value = false
                 }
             }
         }
     }
 
     /** Detay + galeri işinin tamamını izler; galeri bitmeden [galleryLoading] false olmaz. */
-    private suspend fun fetchCharacterDetail(characterId: Int, source: String, name: String? = null, force: Boolean = false, isRealMediaRole: Boolean = false) {
+    private suspend fun fetchCharacterDetail(
+        characterId: Int,
+        source: String,
+        name: String? = null,
+        force: Boolean = false,
+        isRealMediaRole: Boolean = false,
+        expectedFetchKey: String,
+        hintImageUrl: String?
+    ) {
         val token = galleryTracker.begin()
         try {
-            fetchCharacterDetailInternal(characterId, source, name, force, isRealMediaRole)
+            fetchCharacterDetailInternal(
+                characterId = characterId,
+                source = source,
+                name = name,
+                force = force,
+                isRealMediaRole = isRealMediaRole,
+                expectedFetchKey = expectedFetchKey,
+                hintImageUrl = hintImageUrl
+            )
         } finally {
             galleryTracker.end(token)
         }
     }
 
-    private suspend fun fetchCharacterDetailInternal(characterId: Int, source: String, name: String? = null, force: Boolean = false, isRealMediaRole: Boolean = false) {
+    private suspend fun fetchCharacterDetailInternal(
+        characterId: Int,
+        source: String,
+        name: String? = null,
+        force: Boolean = false,
+        isRealMediaRole: Boolean = false,
+        expectedFetchKey: String,
+        hintImageUrl: String?
+    ) {
+        if (currentFetchKey != expectedFetchKey) return
+        val cacheIdentity = CharacterDetailIdentity.cacheDiscriminator(source, name, isRealMediaRole)
         if (force) {
-            DetailCache.removeCharacterDetail(source, characterId)
+            DetailCache.removeCharacterDetail(source, characterId, cacheIdentity)
         }
-        val cached = DetailCache.getCharacterDetail(source, characterId)
+        val cached = DetailCache.getCharacterDetail(source, characterId, cacheIdentity)
+            ?.takeIf { CharacterDetailIdentity.matchesExpectedDetail(source, name, isRealMediaRole, it) }
         val detail = if (cached != null && !force) {
             cached
         } else {
             runCatching {
                 withContext(Dispatchers.IO) {
-                    apiClient.fetchCharacterDetail(source, characterId, name, fallbackImageUrl = lastHintImageUrl, isRealMediaRole = isRealMediaRole)
+                    apiClient.fetchCharacterDetail(
+                        source,
+                        characterId,
+                        name,
+                        fallbackImageUrl = hintImageUrl,
+                        isRealMediaRole = isRealMediaRole
+                    )
                 }
             }.onFailure { err ->
                 val msg = when (err) {
@@ -190,14 +262,17 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
                     else -> "Karakter detayları yüklenemedi."
                 }
                 Log.e(TAG, "fetchCharacterDetail error: ${err.message}", err)
-                if (_state.value !is CharacterDetailState.Success) {
+                if (currentFetchKey == expectedFetchKey && _state.value !is CharacterDetailState.Success) {
                     _state.value = CharacterDetailState.Error(msg)
                 }
-            }.getOrNull()
+            }.getOrNull()?.takeIf {
+                CharacterDetailIdentity.matchesExpectedDetail(source, name, isRealMediaRole, it)
+            }
         }
 
+        if (currentFetchKey != expectedFetchKey) return
         if (detail != null) {
-            DetailCache.putCharacterDetail(source, characterId, detail)
+            DetailCache.putCharacterDetail(source, characterId, detail, cacheIdentity)
             _state.value = CharacterDetailState.Success(detail)
             _isFavourite.value = detail.isFavourite
             if (isBangumiSource(source)) {
@@ -205,14 +280,22 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
                 warmBangumiCharacterTitles(detail)
             }
 
-            // Build gallery from imageUrl + Jikan /pictures
-            buildCharacterGallery(characterId, source, detail.imageUrl)
+            // Build gallery from imageUrl + Jikan /pictures. Obsolete responses cannot replace
+            // the gallery belonging to a more recently opened role.
+            buildCharacterGallery(
+                characterId = characterId,
+                source = source,
+                detail = detail,
+                requestedName = name,
+                expectedFetchKey = expectedFetchKey
+            )
+            if (currentFetchKey != expectedFetchKey) return
 
-            // Otomatik çeviri açıksa veya metin Rusça ise biyografiyi çevir (zaten Türkçeyse TranslationManager atlar)
+            // Otomatik çeviri açıksa veya metin Rusça ise biyografiyi çevir.
             val bio = detail.biography
             val autoTranslate = runCatching { settingsDataStore.settingsFlow.first() }.getOrNull()?.autoTranslateEnabled ?: false
             val isRussian = bio?.any { it in '\u0400'..'\u04FF' } == true
-            val cachedTranslation = DetailCache.getTranslation("bio_char", source, characterId)
+            val cachedTranslation = DetailCache.getTranslation("bio_char", source, characterId, cacheIdentity)
             if (cachedTranslation != null && !force) {
                 _translatedBio.value = cachedTranslation
             } else if (!bio.isNullOrBlank() && (autoTranslate || isRussian)) {
@@ -220,15 +303,15 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
                     // Uzun biyografilerde çeviri parça parça akıtılır: çevrilen kısım
                     // anında ekrana gelir, kalanı arka planda sırayla çevrilir.
                     translationManager.translateToTurkish(bio) { partial ->
-                        _translatedBio.value = partial
+                        if (currentFetchKey == expectedFetchKey) _translatedBio.value = partial
                     }
                 }
-                if (tr != bio) {
-                    DetailCache.putTranslation("bio_char", source, characterId, tr)
+                if (currentFetchKey == expectedFetchKey && tr != bio) {
+                    DetailCache.putTranslation("bio_char", source, characterId, tr, cacheIdentity)
                     _translatedBio.value = tr
                 }
             }
-        } else if (_state.value !is CharacterDetailState.Success) {
+        } else if (currentFetchKey == expectedFetchKey && _state.value !is CharacterDetailState.Success) {
             _state.value = CharacterDetailState.Error("Karakter detayları yüklenemedi.")
         }
     }
@@ -256,39 +339,46 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
      *    kimliğidir; aksi hâlde Jikan sorgusu yapılmaz (404 riski yok).
      *  - AniList: detayın `aniListId`'si veya (kaynak anilist ise) sayfa kimliği.
      */
-    private suspend fun buildCharacterGallery(characterId: Int, source: String, mainImageUrl: String?) {
-        val detail = (_state.value as? CharacterDetailState.Success)?.detail
+    private suspend fun buildCharacterGallery(
+        characterId: Int,
+        source: String,
+        detail: KitsugiCharacterDetail,
+        requestedName: String?,
+        expectedFetchKey: String
+    ) {
+        if (currentFetchKey != expectedFetchKey) return
+        val mainImageUrl = detail.imageUrl
         val canonical = MalJikanMediaSupport.canonicalSource(source)
 
         val malId = when {
             canonical == "jikan" -> characterId.takeIf { it > 0 }
             // Shikimori karakter/kişi kimliği MAL kimliğiyle aynıdır (Shikimori MAL'i aynalar).
-            canonical == "shikimori" -> detail?.id?.takeIf { it > 0 }
+            canonical == "shikimori" -> detail.id.takeIf { it > 0 }
             // Kitsu dalı Jikan detayına düşmüşse detayın kimliği gerçek MAL kimliğidir.
             // NOT: AniList/Bangumi/TMDB kimlikleri MAL uzayında DEĞİLDİR — detaydan MAL
             // kimliği çıkarımı yalnızca bu güvenli dalda yapılır (yanlış galeri riski yok).
             canonical == "kitsu" -> detail
-                ?.takeIf { MalJikanMediaSupport.isMalSource(it.source) && it.id != characterId }
+                .takeIf { MalJikanMediaSupport.isMalSource(it.source) && it.id != characterId }
                 ?.id?.takeIf { it > 0 }
             else -> null
         }
-        val aniListId = detail?.aniListId?.takeIf { it > 0 }
+        val aniListId = detail.aniListId?.takeIf { it > 0 }
             ?: if (canonical == "anilist") characterId.takeIf { it > 0 } else null
 
         val names = buildList {
-            detail?.name?.let(::add)
-            lastCharacterName?.let(::add)
-            detail?.nativeName?.let(::add)
-            detail?.romanizedName?.let(::add)
-            detail?.englishName?.let(::add)
-            detail?.alternativeNames?.let(::addAll)
+            add(detail.name)
+            requestedName?.let(::add)
+            detail.nativeName?.let(::add)
+            detail.romanizedName?.let(::add)
+            detail.englishName?.let(::add)
+            addAll(detail.alternativeNames)
         }.filter { it.isNotBlank() }.distinct()
 
         val tmdbEnabled = runCatching { settingsDataStore.settingsFlow.first() }
             .getOrNull()?.tmdbEnabled ?: true
 
         val friendlySource = friendlySourceOf(source)
-        val description = detail?.name ?: lastCharacterName
+        val description = detail.name.ifBlank { requestedName.orEmpty() }
 
         val aggregated = runCatching {
             KitsugiPersonImageAggregator.aggregate(
@@ -313,7 +403,7 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
             }
         }.distinctBy { it.url }
 
-        _galleryItems.value = items
+        if (currentFetchKey == expectedFetchKey) _galleryItems.value = items
     }
 
     /**
@@ -332,19 +422,23 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
         if (targetId == null || targetId <= 0) return
 
         val newFav = !_isFavourite.value
+        val source = lastSource
+        val characterId = lastCharacterId
+        val cacheIdentity = lastCharacterCacheIdentity
+        val expectedFetchKey = currentFetchKey
         _isFavourite.value = newFav
         val updated = detail.copy(isFavourite = newFav)
         _state.value = CharacterDetailState.Success(updated)
-        DetailCache.putCharacterDetail(lastSource, lastCharacterId, updated)
+        DetailCache.putCharacterDetail(source, characterId, updated, cacheIdentity)
 
         viewModelScope.launch(Dispatchers.IO) {
             val ok = mutationsClient.toggleFavourite("character", targetId)
-            if (!ok) {
-                // rollback
+            if (!ok && currentFetchKey == expectedFetchKey) {
+                // rollback only if the same role page is still visible
                 _isFavourite.value = !newFav
                 val rolled = detail.copy(isFavourite = !newFav)
                 _state.value = CharacterDetailState.Success(rolled)
-                DetailCache.putCharacterDetail(lastSource, lastCharacterId, rolled)
+                DetailCache.putCharacterDetail(source, characterId, rolled, cacheIdentity)
             }
         }
     }

@@ -838,24 +838,41 @@ class KitsugiCharacterClient {
                     }
 
                     // Kurgusal/anime karakteri ise (name parametresi varsa) seslendirmen biyografisi yerine
-                    // AniList veya Jikan üzerinden gerçek karakter profilini yükle
+                    // AniList veya Jikan üzerinden gerçek karakter profilini yükle. TMDB rolü
+                    // "Peter Parker / Spider-Man" gibi birden fazla ad içeriyorsa her alias ayrı
+                    // aranır; Jikan'ın alaka sıralı ilk sonucu ancak karakter adı doğrulanırsa kabul edilir.
                     val cleanCharName = name?.replace(Regex("\\s*\\((?:voice|uncredited|uncredited voice|child)\\)", RegexOption.IGNORE_CASE), "")?.trim()
                     if (!cleanCharName.isNullOrBlank()) {
-                        val aniDetail = fetchAniListCharacterByName(cleanCharName)
-                        if (aniDetail != null) {
-                            // Kaynakta görsel yoksa arayüzden gelen görseli tamamla.
-                            return@withContext if (aniDetail.imageUrl.isNullOrBlank() && !fallbackImageUrl.isNullOrBlank()) {
-                                aniDetail.copy(imageUrl = fallbackImageUrl)
-                            } else aniDetail
+                        val roleNames = CharacterDetailIdentity.nameCandidates(cleanCharName)
+                        for (roleName in roleNames) {
+                            val aniDetail = fetchAniListCharacterByName(roleName)
+                            if (aniDetail != null && CharacterDetailIdentity.matchesExpectedDetail(
+                                    source = "tmdb",
+                                    expectedName = cleanCharName,
+                                    isRealMediaRole = false,
+                                    detail = aniDetail
+                                )) {
+                                // Kaynakta görsel yoksa arayüzden gelen görseli tamamla.
+                                return@withContext if (aniDetail.imageUrl.isNullOrBlank() && !fallbackImageUrl.isNullOrBlank()) {
+                                    aniDetail.copy(imageUrl = fallbackImageUrl, source = "tmdb")
+                                } else aniDetail.copy(source = "tmdb")
+                            }
                         }
-                        val jikanDetail = runCatching {
-                            val jikanSearch = JikanApiClient().searchMalCharacters(cleanCharName, page = 1)
-                            val firstMalId = jikanSearch.firstOrNull()?.malId
-                            if (firstMalId != null && firstMalId > 0) {
-                                fetchCharacterDetail("jikan", firstMalId, cleanCharName, fallbackImageUrl)
-                            } else null
-                        }.getOrNull()
-                        if (jikanDetail != null) {
+
+                        for (roleName in roleNames) {
+                            val jikanCandidate = runCatching {
+                                JikanApiClient().searchMalCharacters(roleName, page = 1)
+                                    .firstOrNull { CharacterDetailIdentity.roleNameMatches(roleName, listOf(it.title)) }
+                            }.getOrNull() ?: continue
+                            val jikanDetail = runCatching {
+                                fetchCharacterDetail("jikan", jikanCandidate.malId, roleName, fallbackImageUrl)
+                            }.getOrNull() ?: continue
+                            if (!CharacterDetailIdentity.matchesExpectedDetail(
+                                    source = "tmdb",
+                                    expectedName = cleanCharName,
+                                    isRealMediaRole = false,
+                                    detail = jikanDetail
+                                )) continue
                             return@withContext if (jikanDetail.imageUrl.isNullOrBlank() && !fallbackImageUrl.isNullOrBlank()) {
                                 jikanDetail.copy(imageUrl = fallbackImageUrl)
                             } else jikanDetail

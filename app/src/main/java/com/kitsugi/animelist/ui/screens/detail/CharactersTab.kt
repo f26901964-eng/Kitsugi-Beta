@@ -74,11 +74,21 @@ fun CharactersTabContent(
         sheetVaLoading = true
         try {
             // Önbellek sıcaksa (karakter detayı daha önce açıldıysa) tam liste anında gelir.
-            var full = DetailCache.getCharacterDetail(char.source, char.id)?.voiceActors.orEmpty()
+            val cacheIdentity = com.kitsugi.animelist.data.remote.CharacterDetailIdentity.cacheDiscriminator(
+                source = char.source,
+                name = char.name,
+                isRealMediaRole = char.isRealMediaRole
+            )
+            var full = DetailCache.getCharacterDetail(char.source, char.id, cacheIdentity)?.voiceActors.orEmpty()
             if (full.isEmpty()) {
-                val detail = characterClient.fetchCharacterDetail(char.source, char.id, char.name)
+                val detail = characterClient.fetchCharacterDetail(
+                    char.source,
+                    char.id,
+                    char.name,
+                    isRealMediaRole = char.isRealMediaRole
+                )
                 if (detail != null) {
-                    DetailCache.putCharacterDetail(char.source, char.id, detail)
+                    DetailCache.putCharacterDetail(char.source, char.id, detail, cacheIdentity)
                     full = detail.voiceActors
                 }
             }

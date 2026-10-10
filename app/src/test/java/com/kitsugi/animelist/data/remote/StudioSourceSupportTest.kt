@@ -32,6 +32,31 @@ class StudioSourceSupportTest {
     }
 
     @Test
+    fun tmdbNetworksUseTheirOwnNamespaceInsteadOfCompanyIds() {
+        assertEquals(StudioSourceSupport.TMDB_NETWORK_SOURCE, StudioSourceSupport.canonicalSource("TMDB-Network"))
+        assertEquals(
+            StudioSourceSupport.TMDB_NETWORK_SOURCE,
+            StudioSourceSupport.resolveClickSource("tmdb", "simkl", MediaType.TvShow, StudioRole.NETWORK)
+        )
+        assertEquals(
+            "tmdb",
+            StudioSourceSupport.resolveClickSource("tmdb", "simkl", MediaType.TvShow, StudioRole.PRODUCER)
+        )
+        assertEquals(
+            StudioSourceSupport.TMDB_NETWORK_SOURCE,
+            StudioSourceSupport.resolveClickSource(StudioSourceSupport.TMDB_NETWORK_SOURCE, "tmdb", MediaType.TvShow)
+        )
+        assertEquals(
+            "tmdb_network",
+            StudioSourceSupport.resolveClickSource(null, "anilist", MediaType.TvShow, StudioRole.NETWORK)
+        )
+        assertEquals(
+            "bangumi",
+            StudioSourceSupport.resolveClickSource(null, "bangumi", MediaType.Anime, StudioRole.NETWORK)
+        )
+    }
+
+    @Test
     fun providerFallbackIsUsedOnlyWhenStudioHasNoNamespace() {
         assertEquals(
             "jikan",
@@ -44,6 +69,11 @@ class StudioSourceSupportTest {
         assertEquals(
             "tmdb",
             StudioSourceSupport.resolveClickSource(null, "unknown", MediaType.Movie)
+        )
+        // Simkl's direct details contain no company IDs; its studio chips are enriched from TMDB.
+        assertEquals(
+            "tmdb",
+            StudioSourceSupport.resolveClickSource(null, "simkl", MediaType.TvShow, StudioRole.PRODUCER)
         )
     }
 

@@ -61,7 +61,9 @@ fun AppRootDetailPages(
     val context = LocalContext.current
     when (key) {
         is AppStateKey.StudioDetail -> {
-            navState.stateHolder.SaveableStateProvider(key = "studio_${key.depth}_${key.source}_${key.studioId}") {
+            navState.stateHolder.SaveableStateProvider(
+                key = "studio_${key.depth}_${key.source}_${key.studioId}_${key.name.orEmpty()}"
+            ) {
                 StudioDetailPage(
                     studioId = key.studioId,
                     source = key.source,
@@ -140,7 +142,9 @@ fun AppRootDetailPages(
         }
 
         is AppStateKey.CharacterDetail -> {
-            navState.stateHolder.SaveableStateProvider(key = "char_${key.depth}_${key.source}_${key.characterId}") {
+            navState.stateHolder.SaveableStateProvider(
+                key = "char_${key.depth}_${key.source}_${key.characterId}_${key.name.orEmpty()}_${key.isRealMediaRole}"
+            ) {
                 CharacterDetailPage(
                     characterId = key.characterId,
                     source = key.source,

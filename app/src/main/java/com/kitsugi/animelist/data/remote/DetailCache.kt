@@ -189,16 +189,24 @@ object DetailCache {
 
 
     // Character Detail
-    fun getCharacterDetail(source: String, id: Int): KitsugiCharacterDetail? {
-        return characterDetails[makeKey(source, id)]
+    fun getCharacterDetail(source: String, id: Int, identity: String? = null): KitsugiCharacterDetail? {
+        return characterDetails[makeIdentityKey(source, id, identity)]
     }
 
-    fun putCharacterDetail(source: String, id: Int, detail: KitsugiCharacterDetail) {
-        characterDetails[makeKey(source, id)] = detail
+    fun putCharacterDetail(source: String, id: Int, detail: KitsugiCharacterDetail, identity: String? = null) {
+        characterDetails[makeIdentityKey(source, id, identity)] = detail
     }
 
-    fun removeCharacterDetail(source: String, id: Int) {
-        characterDetails.remove(makeKey(source, id))
+    fun removeCharacterDetail(source: String, id: Int, identity: String? = null) {
+        characterDetails.remove(makeIdentityKey(source, id, identity))
+    }
+
+    /** Add a per-entity discriminator when one provider ID represents several rows (e.g. TMDB roles). */
+    private fun makeIdentityKey(source: String, id: Int, identity: String?): String {
+        val base = makeKey(source, id)
+        val variant = identity?.trim()?.lowercase(java.util.Locale.ROOT)?.takeIf { it.isNotBlank() }
+            ?: return base
+        return "${base}_identity_${variant}"
     }
 
     // Staff Detail
@@ -227,18 +235,18 @@ object DetailCache {
     private val tmdbGalleryCache = BoundedCache<String, List<GalleryItem>>("detail.tmdbGallery", 20)
 
     // Translations (Synopsis / Biography)
-    fun getTranslation(type: String, source: String, id: Int): String? {
-        val key = "${type.lowercase()}_${makeKey(source, id)}"
+    fun getTranslation(type: String, source: String, id: Int, identity: String? = null): String? {
+        val key = "${type.lowercase()}_${makeIdentityKey(source, id, identity)}"
         return translations[key]
     }
 
-    fun putTranslation(type: String, source: String, id: Int, translation: String) {
-        val key = "${type.lowercase()}_${makeKey(source, id)}"
+    fun putTranslation(type: String, source: String, id: Int, translation: String, identity: String? = null) {
+        val key = "${type.lowercase()}_${makeIdentityKey(source, id, identity)}"
         translations[key] = translation
     }
 
-    fun removeTranslation(type: String, source: String, id: Int) {
-        val key = "${type.lowercase()}_${makeKey(source, id)}"
+    fun removeTranslation(type: String, source: String, id: Int, identity: String? = null) {
+        val key = "${type.lowercase()}_${makeIdentityKey(source, id, identity)}"
         translations.remove(key)
     }
 

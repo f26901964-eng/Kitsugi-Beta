@@ -297,6 +297,9 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
     }
 
     private fun matchesExpectedStudio(source: String, expectedName: String?, actualName: String): Boolean =
-        StudioSourceSupport.canonicalSource(source) != "jikan" ||
-            StudioSourceSupport.namesMatch(expectedName, actualName)
+        when (StudioSourceSupport.canonicalSource(source)) {
+            "jikan", "tmdb", StudioSourceSupport.TMDB_NETWORK_SOURCE ->
+                StudioSourceSupport.namesMatch(expectedName, actualName)
+            else -> true
+        }
 }

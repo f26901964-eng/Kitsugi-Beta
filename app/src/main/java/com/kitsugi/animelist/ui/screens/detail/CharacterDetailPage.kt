@@ -132,14 +132,17 @@ fun CharacterDetailPage(
     val accentColor = LocalKitsugiAccent.current
     val context = LocalContext.current
 
-    // Obtain ViewModel
-    val viewModel: CharacterDetailViewModel = viewModel(key = "character_${source}_${characterId}")
+    // TMDB person IDs can be shared by several cast roles; keep each requested role's state isolated.
+    val viewModelKey = remember(source, characterId, name, isRealMediaRole) {
+        "character_${com.kitsugi.animelist.data.remote.CharacterDetailIdentity.fetchKey(source, characterId, name, isRealMediaRole)}"
+    }
+    val viewModel: CharacterDetailViewModel = viewModel(key = viewModelKey)
     val galleryLoading by viewModel.galleryLoading.collectAsState()
     CompositionLocalProvider(LocalKitsugiGalleryLoading provides galleryLoading) {
 
     // Load character in ViewModel — kartta gösterilen görsel (imageUrl) ipucu olarak
     // iletilir; kaynakta görsel yoksa detay sayfası resimsiz kalmaz.
-    LaunchedEffect(characterId, source, imageUrl, isRealMediaRole) {
+    LaunchedEffect(characterId, source, name, imageUrl, isRealMediaRole) {
         viewModel.loadCharacter(characterId, source, name, hintImageUrl = imageUrl, isRealMediaRole = isRealMediaRole)
     }
 

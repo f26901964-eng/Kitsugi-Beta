@@ -86,6 +86,8 @@ class TmdbMediaDetailClientTest {
         assertTrue(detail.openings.any { it.videoUrl == detail.trailerUrl })
         assertEquals("Netflix", detail.externalLinks.single().site)
         assertEquals("The CW", detail.networks.single().name)
+        assertEquals(StudioRole.NETWORK, detail.networks.single().role)
+        assertEquals("tmdb", detail.networks.single().source)
         assertEquals("Studio One", detail.studios.single().name)
         assertEquals("Studio Two", detail.producers.single().name)
         // nextAiringEpisode ortak makine biçiminde: "episode|epoch"

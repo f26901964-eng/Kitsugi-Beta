@@ -5,7 +5,10 @@ import java.util.Locale
 
 /** Identity helpers for studio/company IDs shared by detail chips and detail loading. */
 internal object StudioSourceSupport {
-    private val detailSources = setOf("jikan", "anilist", "bangumi", "tmdb", "shikimori")
+    /** TMDB network IDs live in a different namespace from production-company IDs. */
+    const val TMDB_NETWORK_SOURCE = "tmdb_network"
+
+    private val detailSources = setOf("jikan", "anilist", "bangumi", "tmdb", TMDB_NETWORK_SOURCE, "shikimori")
     private val legalCompanySuffixes = setOf(
         "inc", "incorporated", "co", "company", "ltd", "limited", "corp", "corporation", "llc", "gmbh"
     )
@@ -16,6 +19,8 @@ internal object StudioSourceSupport {
             "shiki" -> "shikimori"
             "bgm" -> "bangumi"
             "themoviedb" -> "tmdb"
+            "tmdb-network", "tmdbnetwork" -> TMDB_NETWORK_SOURCE
+            TMDB_NETWORK_SOURCE -> TMDB_NETWORK_SOURCE
             else -> MalJikanMediaSupport.canonicalSource(value)
         }
     }
@@ -26,19 +31,36 @@ internal object StudioSourceSupport {
      * vice versa). Only fall back to the parent media source for older records that have no
      * studio source metadata.
      */
-    fun resolveClickSource(studioSource: String?, mediaSource: String, mediaType: MediaType): String {
+    fun resolveClickSource(
+        studioSource: String?,
+        mediaSource: String,
+        mediaType: MediaType,
+        role: StudioRole? = null
+    ): String {
         val studioProvider = canonicalSource(studioSource)
-        if (studioProvider != null && studioProvider in detailSources) return studioProvider
-
         val mediaProvider = canonicalSource(mediaSource)
-        if (mediaProvider != null && mediaProvider in detailSources) return mediaProvider
+        val resolvedProvider = when {
+            studioProvider != null && studioProvider in detailSources -> studioProvider
+            mediaProvider != null && mediaProvider in detailSources -> mediaProvider
+            else -> {
+                // Legacy sources that don't expose a studio endpoint can still carry
+                // cross-provider records; use the conventional media fallback only when
+                // both records omit a supported provider namespace.
+                when (mediaType) {
+                    MediaType.Movie, MediaType.TvShow -> "tmdb"
+                    MediaType.Anime, MediaType.Manga -> "jikan"
+                }
+            }
+        }
 
-        // Legacy sources that don't expose a studio endpoint can still carry cross-provider
-        // studio records; those should already have an explicit source. Keep a conservative
-        // media-type fallback for old/untyped chips so they do not become dead ends.
-        return when (mediaType) {
-            MediaType.Movie, MediaType.TvShow -> "tmdb"
-            MediaType.Anime, MediaType.Manga -> "jikan"
+        // TMDB TV networks and production companies have independent IDs and endpoints.
+        // Passing a network's ID to /company/{id} can 404 or show a different organization.
+        // Older persisted Simkl/AniList/etc. details may omit the chip source; their network
+        // IDs came from TMDB enrichment, except Bangumi's own person-linked companies.
+        return when {
+            role == StudioRole.NETWORK && resolvedProvider == "tmdb" -> TMDB_NETWORK_SOURCE
+            role == StudioRole.NETWORK && studioProvider == null && mediaProvider != "bangumi" -> TMDB_NETWORK_SOURCE
+            else -> resolvedProvider
         }
     }
 

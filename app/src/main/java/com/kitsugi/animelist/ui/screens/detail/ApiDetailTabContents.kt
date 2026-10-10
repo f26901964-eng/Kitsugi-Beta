@@ -114,7 +114,8 @@ internal fun ApiDetailOverviewTab(
                     val resolvedSource = resolveStudioClickSource(
                         studioSource = studio.source,
                         mediaSource = result.source.lowercase(),
-                        mediaType = result.type
+                        mediaType = result.type,
+                        role = studio.role
                     )
                     onStudioClick(studio.id, resolvedSource, studio.name, studio.imageUrl)
                 },
@@ -122,9 +123,19 @@ internal fun ApiDetailOverviewTab(
                     val resolvedSource = resolveStudioClickSource(
                         studioSource = producer.source,
                         mediaSource = result.source.lowercase(),
-                        mediaType = result.type
+                        mediaType = result.type,
+                        role = producer.role
                     )
                     onStudioClick(producer.id, resolvedSource, producer.name, producer.imageUrl)
+                },
+                onNetworkClick = { network ->
+                    val resolvedSource = resolveStudioClickSource(
+                        studioSource = network.source,
+                        mediaSource = result.source.lowercase(),
+                        mediaType = result.type,
+                        role = com.kitsugi.animelist.data.remote.StudioRole.NETWORK
+                    )
+                    onStudioClick(network.id, resolvedSource, network.name, network.imageUrl)
                 }
             )
             Spacer(modifier = Modifier.height(14.dp))
@@ -172,8 +183,12 @@ internal fun ApiDetailOverviewTab(
 }
 
 /** Resolve a studio/company ID using its own provider namespace before the media's source. */
-internal fun resolveStudioClickSource(studioSource: String?, mediaSource: String, mediaType: MediaType): String =
-    StudioSourceSupport.resolveClickSource(studioSource, mediaSource, mediaType)
+internal fun resolveStudioClickSource(
+    studioSource: String?,
+    mediaSource: String,
+    mediaType: MediaType,
+    role: com.kitsugi.animelist.data.remote.StudioRole? = null
+): String = StudioSourceSupport.resolveClickSource(studioSource, mediaSource, mediaType, role)
 
 /**
  * Tab 6 — Episodes content for ApiResultDetailPage.
