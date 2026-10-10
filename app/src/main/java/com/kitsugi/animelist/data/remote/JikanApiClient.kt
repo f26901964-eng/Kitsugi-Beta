@@ -267,6 +267,7 @@ class JikanApiClient(
     suspend fun fetchStaff(source: String, externalId: Int?, mediaType: MediaType, tmdbId: Int? = null, realMalId: Int? = null) = staffClient.fetchStaff(source, externalId, mediaType, tmdbId, realMalId)
     suspend fun fetchStaffDetail(source: String, staffId: Int, name: String? = null) = staffClient.fetchStaffDetail(source, staffId, name)
     suspend fun fetchStudioDetail(source: String, studioId: Int, name: String? = null) = studioClient.fetchStudioDetail(source, studioId, name)
+    suspend fun fetchStudioWorksPage(source: String, studioId: Int, page: Int) = studioClient.fetchStudioWorksPage(source, studioId, page)
 
     // Relations, Stats, Reviews, Episodes
     suspend fun fetchRelations(source: String, externalId: Int?, mediaType: MediaType, tmdbId: Int? = null, realMalId: Int? = null, title: String? = null) = mediaRelationsClient.fetchRelations(source, externalId, mediaType, tmdbId, realMalId, title)

@@ -46,6 +46,17 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
     private val _translatedAbout = MutableStateFlow<String?>(null)
     val translatedAbout: StateFlow<String?> = _translatedAbout.asStateFlow()
 
+    /** Sonraki yapım sayfası yükleniyor mu (sonsuz kaydırma). */
+    private val _isLoadingMore = MutableStateFlow(false)
+    val isLoadingMore: StateFlow<Boolean> = _isLoadingMore.asStateFlow()
+
+    /** Son sayfa isteği başarısız oldu; UI "tekrar dene" gösterir. */
+    private val _loadMoreFailed = MutableStateFlow(false)
+    val loadMoreFailed: StateFlow<Boolean> = _loadMoreFailed.asStateFlow()
+
+    /** Bir sonraki çekilecek yapım sayfası (1. sayfa fetchStudioDetail ile gelir). */
+    private var nextWorksPage = 2
+
     private var currentFetchKey: String? = null
     private var lastStudioId: Int = 0
     private var lastSource: String = ""
@@ -61,6 +72,9 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
 
         Log.d(TAG, "loadStudio: New key=$newKey (was $currentFetchKey)")
         currentFetchKey = newKey
+        nextWorksPage = 2
+        _isLoadingMore.value = false
+        _loadMoreFailed.value = false
         lastStudioId = studioId
         lastSource = source
         lastStudioName = name?.takeIf { it.isNotBlank() }
@@ -113,6 +127,10 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
 
         if (currentFetchKey != expectedFetchKey) return
         if (detail != null) {
+            // Yeni ilk sayfa geldi: sonsuz kaydırma durumu baştan başlar.
+            nextWorksPage = 2
+            _isLoadingMore.value = false
+            _loadMoreFailed.value = false
             _state.value = StudioDetailState.Success(detail)
             _isFavourite.value = detail.isFavourite
 
@@ -157,6 +175,41 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
             }
         } else {
             _state.value = StudioDetailState.Error("Stüdyo detayları yüklenemedi.")
+        }
+    }
+
+    /**
+     * Sonraki yapım sayfasını çekip mevcut listeye ekler (sonsuz kaydırma).
+     * Önbelleğe yazılmaz: önbellek ilk sayfayı tutar, yeniden açılışta tutarlı kalır.
+     */
+    fun loadMoreWorks() {
+        val current = (_state.value as? StudioDetailState.Success)?.detail ?: return
+        if (!current.hasMoreWorks || _isLoadingMore.value) return
+        val expectedKey = currentFetchKey ?: return
+        val page = nextWorksPage
+        _isLoadingMore.value = true
+        _loadMoreFailed.value = false
+
+        viewModelScope.launch {
+            // Çözümlenmiş kimlik (detail.id) kullanılır: Jikan'da chip kimliğinden farklı olabilir.
+            val result = withContext(Dispatchers.IO) {
+                apiClient.fetchStudioWorksPage(lastSource, current.id, page)
+            }
+            // Bu arada başka bir stüdyo açıldıysa sonucu uygulama.
+            if (currentFetchKey != expectedKey) return@launch
+
+            _isLoadingMore.value = false
+            if (result == null) {
+                _loadMoreFailed.value = true
+                return@launch
+            }
+            val latest = (_state.value as? StudioDetailState.Success)?.detail ?: return@launch
+            nextWorksPage = page + 1
+            val merged = (latest.mediaWorks + result.works)
+                .distinctBy { it.mediaType to it.mediaId }
+            _state.value = StudioDetailState.Success(
+                latest.copy(mediaWorks = merged, hasMoreWorks = result.hasMore)
+            )
         }
     }
 

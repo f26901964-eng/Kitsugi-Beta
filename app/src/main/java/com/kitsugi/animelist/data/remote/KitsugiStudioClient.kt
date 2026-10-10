@@ -60,6 +60,23 @@ class KitsugiStudioClient {
     }
 
     /**
+     * Stüdyo yapımlarının [page]. sayfası (2'den başlar; 1. sayfa [fetchStudioDetail] ile gelir).
+     * [studioId] çözümlenmiş kimliktir (detail.id): Jikan'da chip kimliğinden farklı olabilir.
+     */
+    suspend fun fetchStudioWorksPage(source: String, studioId: Int, page: Int): KitsugiStudioWorksPage? =
+        withContext(Dispatchers.IO) {
+            if (studioId <= 0 || page < 2) return@withContext null
+            when (StudioSourceSupport.canonicalSource(source)) {
+                "jikan", "mal" -> fetchJikanStudioWorksPage(studioId, page)
+                "anilist" -> fetchAniListStudioWorksPage(studioId, page)
+                "shikimori" -> fetchShikimoriStudioWorksPage(studioId, page)
+                "tmdb" -> fetchTmdbStudioWorksPage(studioId, page)
+                // Bangumi: yapım listesi sayfalanmıyor (sayfalama ucu doğrulanamadı) → devamı yok.
+                else -> null
+            }
+        }
+
+    /**
      * Bangumi'de stüdyo/şirketler ayrı bir kayıt türü değil, 人物 (kişi)条目'larının
      * `type = 2` (公司) alt kümesidir. Bu yüzden kurum detayı, kişi ucu üzerinden okunur ve
      * Kitsugi'nin stüdyo modeline çevrilir: açıklamalar infobox'dan, "Yapımlar" listesi
@@ -127,37 +144,9 @@ class KitsugiStudioClient {
      */
     private suspend fun fetchShikimoriStudioDetail(studioId: Int, name: String?): KitsugiStudioDetail? = runCatching {
         val studioName = name?.trim()?.takeIf { it.isNotEmpty() } ?: return@runCatching null
-        val mediaWorks = mutableListOf<KitsugiStaffMediaWork>()
-        val worksUrl = URL("https://shikimori.io/api/animes?studio=$studioId&limit=50&order=aired_on")
+        val worksUrl = shikimoriStudioWorksUrl(studioId, 1)
         val worksResponse = KitsugiApiBase.executeGetRequestResilient(worksUrl)
         val works = worksResponse?.let { runCatching { org.json.JSONArray(it) }.getOrNull() }
-        if (works != null) {
-            for (index in 0 until works.length()) {
-                val item = works.optJSONObject(index) ?: continue
-                val mediaId = item.optInt("id").takeIf { it > 0 } ?: continue
-                val romajiTitle = item.optNullableString("name")
-                val englishTitle = item.optJSONArray("english")?.optString(0)?.takeIf { it.isNotBlank() && it != "null" }
-                val russianTitle = item.optNullableString("russian")
-                val title = russianTitle ?: englishTitle ?: romajiTitle ?: "Başlıksız"
-                val kind = item.optNullableString("kind").orEmpty().lowercase()
-                val mediaType = if (kind == "movie") MediaType.Movie else MediaType.Anime
-                val posterUrl = item.optJSONObject("image")
-                    ?.let { image -> (image.optNullableString("original") ?: image.optNullableString("preview")) }
-                    ?.let(::absoluteShikimoriImageUrl)
-                mediaWorks.add(
-                    KitsugiStaffMediaWork(
-                        mediaId = mediaId,
-                        mediaTitle = title,
-                        mediaImageUrl = posterUrl,
-                        mediaType = (if (kind == "movie") "movie" else "anime").toTurkishMediaTypeString(),
-                        staffRole = "Stüdyo",
-                        source = "shikimori",
-                        titleEnglish = englishTitle,
-                        titleRomaji = romajiTitle
-                    )
-                )
-            }
-        }
 
         KitsugiStudioDetail(
             id = studioId,
@@ -165,7 +154,51 @@ class KitsugiStudioClient {
             isMain = true,
             imageUrl = null,
             about = null,
-            mediaWorks = mediaWorks.distinctBy { it.mediaId }
+            mediaWorks = parseShikimoriStudioWorks(works).distinctBy { it.mediaId },
+            hasMoreWorks = (works?.length() ?: 0) >= STUDIO_WORKS_PAGE_SIZE
+        )
+    }.getOrNull()
+
+    private fun shikimoriStudioWorksUrl(studioId: Int, page: Int): URL =
+        URL("https://shikimori.io/api/animes?studio=$studioId&limit=$STUDIO_WORKS_PAGE_SIZE&order=aired_on&page=$page")
+
+    private fun parseShikimoriStudioWorks(works: org.json.JSONArray?): List<KitsugiStaffMediaWork> {
+        if (works == null) return emptyList()
+        val out = ArrayList<KitsugiStaffMediaWork>(works.length())
+        for (index in 0 until works.length()) {
+            val item = works.optJSONObject(index) ?: continue
+            val mediaId = item.optInt("id").takeIf { it > 0 } ?: continue
+            val romajiTitle = item.optNullableString("name")
+            val englishTitle = item.optJSONArray("english")?.optString(0)?.takeIf { it.isNotBlank() && it != "null" }
+            val russianTitle = item.optNullableString("russian")
+            val title = russianTitle ?: englishTitle ?: romajiTitle ?: "Başlıksız"
+            val kind = item.optNullableString("kind").orEmpty().lowercase()
+            val posterUrl = item.optJSONObject("image")
+                ?.let { image -> (image.optNullableString("original") ?: image.optNullableString("preview")) }
+                ?.let(::absoluteShikimoriImageUrl)
+            out.add(
+                KitsugiStaffMediaWork(
+                    mediaId = mediaId,
+                    mediaTitle = title,
+                    mediaImageUrl = posterUrl,
+                    mediaType = (if (kind == "movie") "movie" else "anime").toTurkishMediaTypeString(),
+                    staffRole = "Stüdyo",
+                    source = "shikimori",
+                    titleEnglish = englishTitle,
+                    titleRomaji = romajiTitle
+                )
+            )
+        }
+        return out
+    }
+
+    private suspend fun fetchShikimoriStudioWorksPage(studioId: Int, page: Int): KitsugiStudioWorksPage? = runCatching {
+        val body = KitsugiApiBase.executeGetRequestResilient(shikimoriStudioWorksUrl(studioId, page))
+            ?: return@runCatching null
+        val works = org.json.JSONArray(body)
+        KitsugiStudioWorksPage(
+            works = parseShikimoriStudioWorks(works).distinctBy { it.mediaId },
+            hasMore = works.length() >= STUDIO_WORKS_PAGE_SIZE
         )
     }.getOrNull()
 
@@ -181,8 +214,6 @@ class KitsugiStudioClient {
         val apiKey = TmdbApiClient.getActiveApiKey()
         val lang = TmdbApiClient.getActiveLanguage()
         val infoUrl = URL("https://api.themoviedb.org/3/company/$studioId?api_key=$apiKey")
-        val moviesUrl = URL("https://api.themoviedb.org/3/discover/movie?api_key=$apiKey&with_companies=$studioId&language=$lang&sort_by=popularity.desc")
-        val tvUrl = URL("https://api.themoviedb.org/3/discover/tv?api_key=$apiKey&with_companies=$studioId&language=$lang&sort_by=popularity.desc")
 
         return runCatching {
             val detailResponse = KitsugiApiBase.executeGetRequest(infoUrl) ?: return@runCatching null
@@ -204,83 +235,11 @@ class KitsugiStudioClient {
 
             val mediaWorks = mutableListOf<KitsugiStaffMediaWork>()
 
-            // Movie discover — Türkçe başlık yoksa İngilizce'ye düşmek için en-US haritası
-            val movieResponse = KitsugiApiBase.executeGetRequest(moviesUrl)
-            if (movieResponse != null) {
-                val root = JSONObject(movieResponse)
-                val results = root.optJSONArray("results")
-                if (results != null) {
-                    val movieUrlStr = moviesUrl.toString()
-                    val movieEnTitles = if (TmdbTitleFallback.needsEnglishFallback(results, movieUrlStr, { true })) {
-                        TmdbTitleFallback.parseEnglishTitles(
-                            runCatching {
-                                KitsugiApiBase.executeGetRequest(URL(TmdbUrlUtils.englishVariant(movieUrlStr)))
-                            }.getOrNull()
-                        )
-                    } else emptyMap()
-                    for (i in 0 until results.length()) {
-                        val item = results.optJSONObject(i) ?: continue
-                        val id = item.optInt("id")
-                        val title = TmdbTitleFallback.resolve(
-                            item = item,
-                            isMovie = true,
-                            url = movieUrlStr,
-                            englishTitle = movieEnTitles[id]
-                        ).display.ifBlank { "Başlıksız" }
-                        val posterPath = item.optNullableString("poster_path")
-                        val imgUrl = if (!posterPath.isNullOrBlank()) "https://image.tmdb.org/t/p/w185$posterPath" else null
-                        mediaWorks.add(
-                            KitsugiStaffMediaWork(
-                                mediaId = id,
-                                mediaTitle = title,
-                                mediaImageUrl = imgUrl,
-                                mediaType = "movie".toTurkishMediaTypeString(),
-                                staffRole = "Yapım Şirketi",
-                                source = "tmdb"
-                            )
-                        )
-                    }
-                }
-            }
-
-            // TV discover — Türkçe başlık yoksa İngilizce'ye düşmek için en-US haritası
-            val tvResponse = KitsugiApiBase.executeGetRequest(tvUrl)
-            if (tvResponse != null) {
-                val root = JSONObject(tvResponse)
-                val results = root.optJSONArray("results")
-                if (results != null) {
-                    val tvUrlStr = tvUrl.toString()
-                    val tvEnTitles = if (TmdbTitleFallback.needsEnglishFallback(results, tvUrlStr, { false })) {
-                        TmdbTitleFallback.parseEnglishTitles(
-                            runCatching {
-                                KitsugiApiBase.executeGetRequest(URL(TmdbUrlUtils.englishVariant(tvUrlStr)))
-                            }.getOrNull()
-                        )
-                    } else emptyMap()
-                    for (i in 0 until results.length()) {
-                        val item = results.optJSONObject(i) ?: continue
-                        val id = item.optInt("id")
-                        val title = TmdbTitleFallback.resolve(
-                            item = item,
-                            isMovie = false,
-                            url = tvUrlStr,
-                            englishTitle = tvEnTitles[id]
-                        ).display.ifBlank { "Başlıksız" }
-                        val posterPath = item.optNullableString("poster_path")
-                        val imgUrl = if (!posterPath.isNullOrBlank()) "https://image.tmdb.org/t/p/w185$posterPath" else null
-                        mediaWorks.add(
-                            KitsugiStaffMediaWork(
-                                mediaId = id,
-                                mediaTitle = title,
-                                mediaImageUrl = imgUrl,
-                                mediaType = "tv".toTurkishMediaTypeString(),
-                                staffRole = "Yapım Şirketi",
-                                source = "tmdb"
-                            )
-                        )
-                    }
-                }
-            }
+            val (movieWorks, movieTotalPages) = fetchTmdbDiscover(true, studioId, apiKey, lang, 1)
+            val (tvWorks, tvTotalPages) = fetchTmdbDiscover(false, studioId, apiKey, lang, 1)
+            mediaWorks.addAll(movieWorks)
+            mediaWorks.addAll(tvWorks)
+            val tmdbHasMore = movieTotalPages > 1 || tvTotalPages > 1
 
             KitsugiStudioDetail(
                 id = studioId,
@@ -290,15 +249,110 @@ class KitsugiStudioClient {
                 favorites = null,
                 established = null,
                 about = about,
-                mediaWorks = mediaWorks.distinctBy { it.mediaId }
+                mediaWorks = mediaWorks.distinctBy { it.mediaId },
+                hasMoreWorks = tmdbHasMore
             )
         }.getOrNull()
     }
 
+    /** TMDB discover (film veya dizi) tek sayfası: yapımlar + toplam sayfa sayısı. */
+    private fun fetchTmdbDiscover(
+        isMovie: Boolean,
+        studioId: Int,
+        apiKey: String,
+        lang: String,
+        page: Int
+    ): Pair<List<KitsugiStaffMediaWork>, Int> {
+        val kind = if (isMovie) "movie" else "tv"
+        val urlStr = "https://api.themoviedb.org/3/discover/$kind?api_key=$apiKey&with_companies=$studioId&language=$lang&sort_by=popularity.desc&page=$page"
+        val response = KitsugiApiBase.executeGetRequest(URL(urlStr)) ?: return Pair(emptyList(), 0)
+        val root = JSONObject(response)
+        val results = root.optJSONArray("results") ?: return Pair(emptyList(), 0)
+        val totalPages = root.optInt("total_pages", 0)
+        // Türkçe başlık yoksa İngilizce'ye düşmek için en-US haritası
+        val enTitles = if (TmdbTitleFallback.needsEnglishFallback(results, urlStr, { isMovie })) {
+            TmdbTitleFallback.parseEnglishTitles(
+                runCatching { KitsugiApiBase.executeGetRequest(URL(TmdbUrlUtils.englishVariant(urlStr))) }.getOrNull()
+            )
+        } else emptyMap()
+        val works = ArrayList<KitsugiStaffMediaWork>(results.length())
+        for (i in 0 until results.length()) {
+            val item = results.optJSONObject(i) ?: continue
+            val id = item.optInt("id")
+            val title = TmdbTitleFallback.resolve(
+                item = item,
+                isMovie = isMovie,
+                url = urlStr,
+                englishTitle = enTitles[id]
+            ).display.ifBlank { "Başlıksız" }
+            val posterPath = item.optNullableString("poster_path")
+            val imgUrl = if (!posterPath.isNullOrBlank()) "https://image.tmdb.org/t/p/w185$posterPath" else null
+            works.add(
+                KitsugiStaffMediaWork(
+                    mediaId = id,
+                    mediaTitle = title,
+                    mediaImageUrl = imgUrl,
+                    mediaType = kind.toTurkishMediaTypeString(),
+                    staffRole = "Yapım Şirketi",
+                    source = "tmdb"
+                )
+            )
+        }
+        return Pair(works, totalPages)
+    }
+
+    private suspend fun fetchTmdbStudioWorksPage(studioId: Int, page: Int): KitsugiStudioWorksPage? = runCatching {
+        val apiKey = TmdbApiClient.getActiveApiKey()
+        val lang = TmdbApiClient.getActiveLanguage()
+        val (movies, movieTotal) = fetchTmdbDiscover(true, studioId, apiKey, lang, page)
+        val (tv, tvTotal) = fetchTmdbDiscover(false, studioId, apiKey, lang, page)
+        KitsugiStudioWorksPage(
+            works = (movies + tv).distinctBy { it.mediaId },
+            hasMore = page < movieTotal || page < tvTotal
+        )
+    }.getOrNull()
+
+    private fun jikanStudioWorksUrl(producerId: Int, page: Int): URL =
+        // limit=50: Tenrai'nin üst sınırı (daha büyük değer 400 döndürür).
+        URL("https://api.jikan.moe/v4/anime?producers=$producerId&order_by=start_date&sort=desc&limit=$STUDIO_WORKS_PAGE_SIZE&sfw=false&page=$page")
+
+    private fun parseJikanStudioWorks(data: org.json.JSONArray?): List<KitsugiStaffMediaWork> {
+        if (data == null) return emptyList()
+        val out = ArrayList<KitsugiStaffMediaWork>(data.length())
+        for (i in 0 until data.length()) {
+            val item = data.optJSONObject(i) ?: continue
+            val id = item.optInt("mal_id")
+            val title = item.optNullableString("title") ?: "Bilinmeyen"
+            val imageUrl = item.optJSONObject("images")?.optJSONObject("jpg")?.optNullableString("image_url")
+            val type = item.optNullableString("type").orEmpty().lowercase()
+            out.add(
+                KitsugiStaffMediaWork(
+                    mediaId = id,
+                    mediaTitle = title,
+                    mediaImageUrl = imageUrl,
+                    mediaType = if (type.contains("manga")) "manga".toTurkishMediaTypeString() else "anime".toTurkishMediaTypeString(),
+                    staffRole = "Ana Stüdyo",
+                    source = "jikan"
+                )
+            )
+        }
+        return out
+    }
+
+    private suspend fun fetchJikanStudioWorksPage(producerId: Int, page: Int): KitsugiStudioWorksPage? = runCatching {
+        val body = KitsugiApiBase.executeGetRequestResilient(jikanStudioWorksUrl(producerId, page))
+            ?: return@runCatching null
+        val root = JSONObject(body)
+        KitsugiStudioWorksPage(
+            works = parseJikanStudioWorks(root.optJSONArray("data")).distinctBy { it.mediaId },
+            hasMore = root.optJSONObject("pagination")?.optBoolean("has_next_page", false) == true
+        )
+    }.getOrNull()
+
     private suspend fun fetchJikanStudioDetail(studioId: Int): KitsugiStudioDetail? {
         val infoUrl = URL("https://api.jikan.moe/v4/producers/$studioId")
         // limit=50: Tenrai'nin üst sınırı; daha büyük değerler 400 döndürüp yapım listesini boşaltıyordu.
-        val mediaUrl = URL("https://api.jikan.moe/v4/anime?producers=$studioId&order_by=start_date&sort=desc&limit=50&sfw=false")
+        val mediaUrl = jikanStudioWorksUrl(studioId, 1)
 
         return runCatching {
             // Jikan rate limit: maks 3 istek/saniye — her çağrı runWithRateLimit ile korunuyor
@@ -341,29 +395,11 @@ class KitsugiStudioClient {
             val mediaResponse = KitsugiApiBase.runWithRateLimit {
                 KitsugiApiBase.executeGetRequestResilient(mediaUrl)
             }
+            var worksHasMore = false
             if (mediaResponse != null) {
                 val mediaRoot = JSONObject(mediaResponse)
-                val mediaData = mediaRoot.optJSONArray("data")
-                if (mediaData != null) {
-                    for (i in 0 until mediaData.length()) {
-                        val item = mediaData.optJSONObject(i) ?: continue
-                        val id = item.optInt("mal_id")
-                        val title = item.optNullableString("title") ?: "Bilinmeyen"
-                        val imageUrl = item.optJSONObject("images")?.optJSONObject("jpg")?.optNullableString("image_url")
-                        val type = item.optNullableString("type").orEmpty().lowercase()
-
-                        mediaWorks.add(
-                            KitsugiStaffMediaWork(
-                                mediaId = id,
-                                mediaTitle = title,
-                                mediaImageUrl = imageUrl,
-                                mediaType = if (type.contains("manga")) "manga".toTurkishMediaTypeString() else "anime".toTurkishMediaTypeString(),
-                                staffRole = "Ana Stüdyo",
-                                source = "jikan"
-                            )
-                        )
-                    }
-                }
+                mediaWorks.addAll(parseJikanStudioWorks(mediaRoot.optJSONArray("data")))
+                worksHasMore = mediaRoot.optJSONObject("pagination")?.optBoolean("has_next_page", false) == true
             }
 
             val imagesObj = infoData.optJSONObject("images")
@@ -377,7 +413,8 @@ class KitsugiStudioClient {
                 favorites = favorites,
                 established = established,
                 about = about,
-                mediaWorks = mediaWorks.distinctBy { it.mediaId }
+                mediaWorks = mediaWorks.distinctBy { it.mediaId },
+                hasMoreWorks = worksHasMore
             )
         }.getOrNull()
     }
@@ -392,6 +429,7 @@ class KitsugiStudioClient {
                     isFavourite
                     favourites
                     media(page: 1, perPage: 50, sort: [START_DATE_DESC]) {
+                        pageInfo { hasNextPage }
                         nodes {
                             id
                             idMal
@@ -449,6 +487,7 @@ class KitsugiStudioClient {
                 }
             }
 
+            val worksHasMore = mediaObj?.optJSONObject("pageInfo")?.optBoolean("hasNextPage", false) == true
             val isFavourite = data.optBoolean("isFavourite", false)
             KitsugiStudioDetail(
                 id = studioId,
@@ -460,9 +499,67 @@ class KitsugiStudioClient {
                 about = null,
                 mediaWorks = mediaWorks.distinctBy { it.mediaId },
                 isFavourite = isFavourite,
-                aniListId = studioId
+                aniListId = studioId,
+                hasMoreWorks = worksHasMore
             )
         }.getOrNull()
+    }
+
+    private suspend fun fetchAniListStudioWorksPage(studioId: Int, page: Int): KitsugiStudioWorksPage? = runCatching {
+        val query = """
+            query (${'$'}id: Int, ${'$'}page: Int) {
+                Studio(id: ${'$'}id) {
+                    media(page: ${'$'}page, perPage: 50, sort: [START_DATE_DESC]) {
+                        pageInfo { hasNextPage }
+                        nodes {
+                            id
+                            idMal
+                            title { userPreferred english romaji native }
+                            coverImage { large }
+                            type
+                        }
+                    }
+                }
+            }
+        """.trimIndent()
+
+        val variables = JSONObject().put("id", studioId).put("page", page)
+        val response = KitsugiApiBase.executeAniListQuery(query, variables) ?: return@runCatching null
+        val mediaObj = JSONObject(response).optJSONObject("data")
+            ?.optJSONObject("Studio")
+            ?.optJSONObject("media") ?: return@runCatching null
+        KitsugiStudioWorksPage(
+            works = parseAniListStudioNodes(mediaObj.optJSONArray("nodes")).distinctBy { it.mediaId },
+            hasMore = mediaObj.optJSONObject("pageInfo")?.optBoolean("hasNextPage", false) == true
+        )
+    }.getOrNull()
+
+    private fun parseAniListStudioNodes(nodes: org.json.JSONArray?): List<KitsugiStaffMediaWork> {
+        if (nodes == null) return emptyList()
+        val out = ArrayList<KitsugiStaffMediaWork>(nodes.length())
+        for (i in 0 until nodes.length()) {
+            val node = nodes.optJSONObject(i) ?: continue
+            val id = node.optInt("id")
+            val idMal = node.optionalPositiveInt("idMal")
+            val titleObj = node.optJSONObject("title")
+            val title = titleObj?.optNullableString("userPreferred") ?: "Başlıksız"
+            val imgUrl = node.optJSONObject("coverImage")?.optNullableString("large")
+            val type = node.optNullableString("type").orEmpty().lowercase()
+            out.add(
+                KitsugiStaffMediaWork(
+                    mediaId = idMal ?: (100_000_000 + id),
+                    mediaTitle = title,
+                    mediaImageUrl = imgUrl,
+                    mediaType = type.toTurkishMediaTypeString(),
+                    staffRole = "Ana Stüdyo",
+                    source = if (idMal != null) "jikan" else "anilist",
+                    titleEnglish = titleObj?.optNullableString("english"),
+                    titleJapanese = titleObj?.optNullableString("native"),
+                    titleRomaji = titleObj?.optNullableString("romaji")
+                )
+            )
+        }
+        return out
     }
 
     private suspend fun fetchAniListStudioByName(name: String): KitsugiStudioDetail? {
@@ -476,6 +573,7 @@ class KitsugiStudioClient {
                         isFavourite
                         favourites
                         media(page: 1, perPage: 50, sort: [START_DATE_DESC]) {
+                            pageInfo { hasNextPage }
                             nodes {
                                 id
                                 idMal
@@ -542,6 +640,7 @@ class KitsugiStudioClient {
                 }
             }
 
+            val worksHasMore = mediaObj?.optJSONObject("pageInfo")?.optBoolean("hasNextPage", false) == true
             val isFavourite = studioObj.optBoolean("isFavourite", false)
             KitsugiStudioDetail(
                 id = studioId,
@@ -553,8 +652,12 @@ class KitsugiStudioClient {
                 about = null,
                 mediaWorks = mediaWorks.distinctBy { it.mediaId },
                 isFavourite = isFavourite,
-                aniListId = studioId
+                aniListId = studioId,
+                hasMoreWorks = worksHasMore
             )
         }.getOrNull()
     }
 }
+
+/** Stüdyo yapım listesinin sayfa boyutu: Jikan/Tenrai, Shikimori ve AniList için ortak üst sınır. */
+private const val STUDIO_WORKS_PAGE_SIZE = 50

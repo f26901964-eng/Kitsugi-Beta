@@ -77,7 +77,15 @@ data class KitsugiStudioDetail(
     val about: String? = null,
     val mediaWorks: List<KitsugiStaffMediaWork> = emptyList(),
     val isFavourite: Boolean = false,
-    val aniListId: Int? = null
+    val aniListId: Int? = null,
+    /** Yapım listesinde bu sayfadan sonra da içerik olup olmadığı (sonsuz kaydırma). */
+    val hasMoreWorks: Boolean = false
+)
+
+/** Stüdyo yapım listesinin bir sayfası ([hasMore]: sonraki sayfa var mı). */
+data class KitsugiStudioWorksPage(
+    val works: List<KitsugiStaffMediaWork>,
+    val hasMore: Boolean
 )
 
 data class KitsugiMediaDetail(
