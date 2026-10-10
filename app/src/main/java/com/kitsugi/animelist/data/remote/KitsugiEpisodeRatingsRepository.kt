@@ -1194,7 +1194,7 @@ object KitsugiEpisodeRatingsRepository {
                                 .toMap()
                             parsed = parsed.map { dto ->
                                 val latin = enNames[dto.episodeNumber]?.takeIf {
-                                    !PreferenceHelpers.hasCjkCharacters(it)
+                                    PreferenceHelpers.isLatinText(it)
                                 }
                                 if (dto.name != null && PreferenceHelpers.hasCjkCharacters(dto.name) && latin != null) {
                                     dto.copy(name = latin)

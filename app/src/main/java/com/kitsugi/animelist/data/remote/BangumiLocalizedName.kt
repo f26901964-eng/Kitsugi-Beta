@@ -129,5 +129,5 @@ internal object BangumiNameLocalizer {
     }
 
     private fun isLatinDisplayName(value: String): Boolean =
-        value.any { it.isLetter() } && !PreferenceHelpers.hasCjkCharacters(value)
+        PreferenceHelpers.isLatinText(value)
 }

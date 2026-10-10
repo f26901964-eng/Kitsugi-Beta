@@ -1075,7 +1075,7 @@ object KitsugiBangumiDetailClient {
             usableLatinName(romanized) == null && usableLatinName(english) == null
 
     private fun usableLatinName(name: String?): String? = name?.trim()?.takeIf {
-        it.isNotEmpty() && it.any(Char::isLetter) && !PreferenceHelpers.hasCjkCharacters(it)
+        PreferenceHelpers.isLatinText(it)
     }
 
     private fun localizedDisplay(original: String, localized: BangumiLocalizedName?): String =
@@ -1395,7 +1395,7 @@ object KitsugiBangumiDetailClient {
             val rawName = ep.strOrNull("name")
             val rawNameCn = ep.strOrNull("nameCN")
             val latinName = listOfNotNull(rawName, rawNameCn).firstOrNull {
-                it.any(Char::isLetter) && !PreferenceHelpers.hasCjkCharacters(it)
+                PreferenceHelpers.isLatinText(it)
             }
             val name = latinName ?: rawName ?: rawNameCn
             KitsugiStreamingEpisode(

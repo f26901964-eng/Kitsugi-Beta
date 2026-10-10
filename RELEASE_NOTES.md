@@ -1,5 +1,15 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.227)
+
+### 🈯 1. TMDB/Simkl Kadro Adlarında Yanlış Alfabe Düzeltmesi (`TmdbCreditsClient.kt`, `PreferenceHelpers.kt`, `BangumiLocalizedName.kt`, `BangumiTitleCache.kt`, `KitsugiAniListPersonBridge.kt`, `KitsugiBangumiDetailClient.kt`, `KitsugiEpisodeRatingsRepository.kt`)
+- **Kök Neden:** "Latin ad" seçimi `CJK değil` şartına dayanıyordu; bu yüzden TMDB `also_known_as` listesindeki Arapça ("اری کیتامورا") veya Tayca ("ไอ โนะนะกะ") çeviriler yanlışlıkla romaji/İngilizce ad yerine seçiliyor, Karakterler/Ekip sekmelerinde ve kişi detay başlığında Arapça/Tayca adlar gösteriliyordu.
+- **Düzeltme:** Yeni `PreferenceHelpers.isLatinText()` yalnızca harflerinin TAMAMI gerçek Latin alfabesinde (Temel Latin + Türkçe/Avrupa aksanlı harfler dahil) olan adları kabul eder. TMDB, Bangumi ve AniList köprüsündeki tüm "Latin ad seçimi" noktaları bu güvenli kontrolle güncellendi.
+
+### 🖼️ 2. TMDB/Simkl Kaynaklı Anime İçeriklerinde Hayali Karakter Görseli Zinciri (`KitsugiCharacterClient.kt`)
+- **Sorun:** TMDB (ve TMDB'ye düşen Simkl) kaynaklı anime film/dizilerde AniList eşleşmesi bulunamadığında (ör. çok yeni/henüz AniList'te eksiksiz olmayan yapımlar) hayali karakterlerin görseli boş kalıyor, kartlarda yalnızca baş harfler görünüyordu.
+- **Düzeltme:** AniList denemesi sonrası görseli hâlâ boş kalan karakterler için gerçek MAL ID'si doğrulanmış şekilde MAL/Jikan → Shikimori → Kitsu sırasıyla ek kaynaklara bakılır; ilk görsel getiren kaynak kullanılır. Her adım yalnızca görseli eksik karakterler için, sınırlı süre bütçesiyle ve ad eşleştirmesiyle çalışır — yanlış yapımın/karakterin görseli asla atanmaz.
+
 ## 🇹🇷 Türkçe (v2.4.226)
 
 ### 📝 1. Liste Düzenleme Ekranı & Platform Eşitlemesi (`KitsugiEditMediaSheet.kt`, `BangumiSyncManager.kt`, `KitsuSyncManager.kt`, `ShikimoriSyncManager.kt`)
@@ -112,6 +122,16 @@
 - Yalnızca **FOSS** sürümü (`assembleFossRelease`) derlendi (`Kitsugi-Beta-v2.4.226-foss.apk`).
 
 ---
+
+## 🇬🇧 English (v2.4.227)
+
+### 🈯 1. Fixed Wrong-Script Cast Names from TMDB/Simkl (`TmdbCreditsClient.kt`, `PreferenceHelpers.kt`, `BangumiLocalizedName.kt`, `BangumiTitleCache.kt`, `KitsugiAniListPersonBridge.kt`, `KitsugiBangumiDetailClient.kt`, `KitsugiEpisodeRatingsRepository.kt`)
+- **Root Cause:** "Latin name" selection only checked "not CJK", so Arabic ("اری کیتامورا") or Thai ("ไอ โนะนะกะ") entries in TMDB's `also_known_as` list were wrongly picked over the romaji/English name, showing up in the Characters/Staff tabs and person detail titles.
+- **Fix:** New `PreferenceHelpers.isLatinText()` only accepts names whose letters are ALL genuinely Latin-script (Basic Latin plus Turkish/European accented letters). Every "pick the Latin alias" call site across TMDB, Bangumi, and the AniList bridge now uses this safe check.
+
+### 🖼️ 2. Cross-Source Character Image Fallback for TMDB/Simkl Anime Content (`KitsugiCharacterClient.kt`)
+- **Issue:** For anime movies/shows sourced from TMDB (including Simkl entries that resolve to TMDB), fictional character portraits stayed blank (initials only) whenever AniList had no matching character (e.g. very new releases not yet fully indexed on AniList).
+- **Fix:** Characters still missing an image after the AniList pass are now resolved, in order, against MAL/Jikan → Shikimori → Kitsu using a verified MAL ID, taking the first source that returns a picture. Each step only touches characters without an image, runs under a bounded time budget, and requires a name match — never assigning the wrong character's artwork.
 
 ## 🇬🇧 English (v2.4.226)
 

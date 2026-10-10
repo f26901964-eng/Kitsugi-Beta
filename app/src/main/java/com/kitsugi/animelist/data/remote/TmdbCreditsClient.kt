@@ -565,11 +565,14 @@ internal object TmdbCreditsClient {
     /**
      * Çoklu dilde TMDB kişi adlarından (CJK) Latin/romaji adayını seçer.
      * Boşluk içeren ad ("Keitarou Motonaga") tercih edilir; yoksa ilk Latin ad.
+     *
+     * ÖNEMLİ: Yalnızca "CJK değil" kontrolü yeterli değildir — `also_known_as` listesinde
+     * Arapça, Tayca, Kiril gibi CJK-olmayan ama Latin de OLMAYAN çeviriler de bulunabilir
+     * (ör. "اری کیتامورا", "ไอ โนะนะกะ"). Bunlar yanlışlıkla romaji/İngilizce ad yerine
+     * seçiliyordu. `isLatinText` yalnızca gerçekten Latin alfabeli adları kabul eder.
      */
     internal fun pickLatinAlias(aliases: List<String>): String? {
-        val latin = aliases.filter { alias ->
-            alias.any { it.isLetter() } && !PreferenceHelpers.hasCjkCharacters(alias)
-        }
+        val latin = aliases.filter { alias -> PreferenceHelpers.isLatinText(alias) }
         return latin.firstOrNull { it.contains(' ') } ?: latin.firstOrNull()
     }
 
