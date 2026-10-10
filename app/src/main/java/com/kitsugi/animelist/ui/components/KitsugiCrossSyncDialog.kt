@@ -48,6 +48,8 @@ import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Edit
 import androidx.compose.material.icons.rounded.ErrorOutline
+import androidx.compose.material.icons.rounded.KeyboardArrowDown
+import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.Security
 import androidx.compose.material.icons.rounded.Sync
 import androidx.compose.material.icons.rounded.WarningAmber
@@ -880,32 +882,71 @@ private fun ReportLocationNote(path: String?) {
     )
 }
 
+/**
+ * Güvenlik notu + yasal uyarı.
+ *
+ * ÖNEMLİ: Bu blok eskiden tek bir [Row] içinde üç kardeş öğe olarak çiziliyordu; uzun yasal
+ * metin (`CrossSyncDisclaimerText`) satır içinde tam genişlik istediği için diğer öğeleri
+ * eziyor ve içerik diyaloğun dışına taşıyordu. Artık tek bir kart içinde DİKEY olarak
+ * istiflenir; metin kısaltılmaz, kaydırma alanının parçası olur.
+ */
 @Composable
 private fun SafetyNote() {
-    Row(
+    var expanded by remember { mutableStateOf(false) }
+
+    Surface(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(top = 4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(6.dp)
+            .padding(top = 6.dp),
+        shape = RoundedCornerShape(10.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.22f),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.3f))
     ) {
-        Icon(
-            imageVector = Icons.Rounded.Security,
-            contentDescription = null,
-            tint = KitsugiColors.AccentGreen,
-            modifier = Modifier.size(14.dp)
-        )
-        Text(
-            text = "Veri silinmez; yalnızca güvenli eşleşmeler eklenir/güncellenir. Raporda erişim anahtarları gizlenir.",
-            style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 2,
-            overflow = TextOverflow.Ellipsis
-        )
-        CrossSyncDisclaimerText(
-            full = true,
-            modifier = Modifier.padding(top = 4.dp)
-        )
+        Column(modifier = Modifier.fillMaxWidth()) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable { expanded = !expanded }
+                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                Icon(
+                    imageVector = Icons.Rounded.Security,
+                    contentDescription = null,
+                    tint = KitsugiColors.AccentGreen,
+                    modifier = Modifier.size(14.dp)
+                )
+                Text(
+                    text = "Veri silinmez; yalnızca güvenli eşleşmeler eklenir/güncellenir. " +
+                        "Raporda erişim anahtarları gizlenir.",
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp, lineHeight = 15.sp),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = if (expanded) "Kapat" else "Uyarı",
+                    style = MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                    fontWeight = FontWeight.Bold,
+                    color = LocalKitsugiAccent.current
+                )
+                Icon(
+                    imageVector = if (expanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
+                    contentDescription = null,
+                    tint = LocalKitsugiAccent.current,
+                    modifier = Modifier.size(16.dp)
+                )
+            }
+            androidx.compose.animation.AnimatedVisibility(visible = expanded) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.25f))
+                    CrossSyncDisclaimerText(
+                        full = true,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp)
+                    )
+                }
+            }
+        }
     }
 }
 

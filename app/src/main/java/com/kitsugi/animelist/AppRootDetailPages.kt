@@ -48,6 +48,12 @@ fun AppRootDetailPages(
     updateViewModel: com.kitsugi.animelist.core.update.AppUpdateViewModel,
     addonViewModel: com.kitsugi.animelist.ui.app.AddonViewModel = viewModel(),
     onEditEntry: (MediaEntry) -> Unit,
+    /**
+     * Detay sayfasından düzenleme: kaydın kendi kaynağı yerine **sayfanın kaynağı** ile
+     * açılır. Ör. Bangumi detay sayfasında eşleşen kayıt Simkl'den gelmiş olsa bile
+     * düzenleyici Bangumi görünümüyle açılır (kullanıcının gördüğü sayfa Bangumi'dir).
+     */
+    onEditEntryWithSource: (MediaEntry, String) -> Unit = { entry, _ -> onEditEntry(entry) },
     onDeleteEntry: (MediaEntry) -> Unit,
     onIncrementEntryProgress: (MediaEntry) -> Unit,
     onAddApiSelectionToList: (ApiSearchSelection) -> Unit,
@@ -201,8 +207,8 @@ fun AppRootDetailPages(
                     onAddClick = { selection ->
                         onAddApiSelectionToList(selection)
                     },
-                    onEditClick = { entry ->
-                        onEditEntry(entry)
+                    onEditClick = { entry, pageSource ->
+                        onEditEntryWithSource(entry, pageSource)
                     },
                     onRelationClick = { result ->
                         val existingEntry = mediaEntries.firstMatchingInSource(result)

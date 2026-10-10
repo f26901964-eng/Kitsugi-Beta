@@ -257,26 +257,36 @@ class KitsugiStudioClient {
         val worksUrl = shikimoriStudioWorksUrl(studioId, 1)
         val worksResponse = KitsugiApiBase.executeGetRequestResilient(worksUrl)
         val works = worksResponse?.let { runCatching { JSONArray(it) }.getOrNull() }
-        val mediaWorks = parseShikimoriStudioWorks(works).distinctBy { it.mediaId }
+        val mediaWorks = withShikimoriWorkPosters(
+            parseShikimoriStudioWorks(works).distinctBy { it.mediaId }
+        )
 
-        if (studioName == null && mediaWorks.isNotEmpty()) {
-            val animeId = mediaWorks.firstOrNull()?.mediaId
-            if (animeId != null) {
+        // Kanonik ad/logo `GET /api/animes/{id}` yanıtındaki `studios[]` satırından okunur.
+        // Ad zaten bilinse bile logo genellikle YALNIZCA orada bulunur; bu yüzden bu istek
+        // "ad yok" koşuluna bağlanmaz. İlk yapım stüdyoyu listelemiyorsa (ortak yapımlar,
+        // TV kısaltmaları vb.) sıradaki birkaç yapım denenir — tavan, sayfanın açılışını
+        // geciktirmemek için 3 istekle sınırlıdır.
+        if (studioName == null || studioImage == null) {
+            for (candidate in mediaWorks.take(SHIKIMORI_STUDIO_LOOKUP_LIMIT)) {
+                if (candidate.mediaId <= 0) continue
                 val animeDetail = runCatching {
-                    val url = URL("https://shikimori.io/api/animes/$animeId")
+                    val url = URL("https://shikimori.io/api/animes/${candidate.mediaId}")
                     KitsugiApiBase.executeGetRequestResilient(url)?.let { JSONObject(it) }
-                }.getOrNull()
-                val studios = animeDetail?.optJSONArray("studios")
-                if (studios != null) {
-                    for (index in 0 until studios.length()) {
-                        val entry = studios.optJSONObject(index) ?: continue
-                        if (entry.optInt("id") != studioId) continue
+                }.getOrNull() ?: continue
+                val studios = animeDetail.optJSONArray("studios") ?: continue
+                for (index in 0 until studios.length()) {
+                    val entry = studios.optJSONObject(index) ?: continue
+                    if (entry.optInt("id") != studioId) continue
+                    if (studioName == null) {
                         studioName = entry.optNullableString("name") ?: entry.optNullableString("filtered_name")
+                    }
+                    if (studioImage == null) {
                         studioImage = (entry.optNullableString("image") ?: entry.optJSONObject("image")
                             ?.optNullableString("original"))?.let(::absoluteShikimoriImageUrl)
-                        break
                     }
+                    break
                 }
+                if (studioName != null && studioImage != null) break
             }
         }
 
@@ -307,8 +317,13 @@ class KitsugiStudioClient {
             val russianTitle = item.optNullableString("russian")
             val title = russianTitle ?: englishTitle ?: romajiTitle ?: if (isTurkish()) "Başlıksız" else "Untitled"
             val kind = item.optNullableString("kind").orEmpty().lowercase()
-            val posterUrl = item.optJSONObject("image")
-                ?.let { image -> (image.optNullableString("original") ?: image.optNullableString("preview")) }
+            // Not: `/api/animes` kayıtlarında `image` normalde {original, preview, …} NESNESİDİR;
+            // ancak `studios[]` gibi bazı alanlarda düz DİZGE olarak da dönebilir. İki biçim de
+            // kabul edilir; eksik/geçersiz kalan kapaklar `withShikimoriWorkPosters` ile
+            // GraphQL'den tamamlanır.
+            val posterUrl = (item.optJSONObject("image")
+                ?.let { image -> image.optNullableString("original") ?: image.optNullableString("preview") }
+                ?: item.optNullableString("image"))
                 ?.let(::absoluteShikimoriImageUrl)
             out.add(
                 KitsugiStaffMediaWork(
@@ -331,10 +346,38 @@ class KitsugiStudioClient {
             ?: return@runCatching null
         val works = JSONArray(body)
         KitsugiStudioWorksPage(
-            works = parseShikimoriStudioWorks(works).distinctBy { it.mediaId },
+            works = withShikimoriWorkPosters(parseShikimoriStudioWorks(works).distinctBy { it.mediaId }),
             hasMore = works.length() >= STUDIO_WORKS_PAGE_SIZE
         )
     }.getOrNull()
+
+    /**
+     * Stüdyo yapım listesindeki eksik kapakları GraphQL'den toplu olarak tamamlar.
+     *
+     * NEDEN GEREKLİ: Shikimori REST API'si `image` alanını eski Paperclip eki üzerinden
+     * üretir. Kapakları yıllar önce `Poster` tablosuna (Shrine) taşıyan yapımlarda bu alan
+     * sessizce `/assets/globals/missing_original.jpg` döner; [absoluteShikimoriImageUrl] bunu
+     * "görsel yok" sayıp `null`'a çevirdiği için stüdyo sayfasındaki kartlar baş harf yer
+     * tutucusuyla kalıyordu ("MAPPA → Boukyaku Battery = BO" tablosu). Gerçek kapaklar
+     * yalnızca GraphQL `poster` alanında bulunur; eksik kimlikler [ShikimoriPosterResolver]
+     * üzerinden 50'lik gruplar hâlinde tek istekte çözülür. Ayrıntılı kök neden:
+     * [ShikimoriPosterResolver] sınıf açıklaması.
+     */
+    private suspend fun withShikimoriWorkPosters(
+        works: List<KitsugiStaffMediaWork>
+    ): List<KitsugiStaffMediaWork> {
+        if (works.isEmpty()) return works
+        val missingIds = works.filter { it.mediaImageUrl == null && it.mediaId > 0 }.map { it.mediaId }
+        if (missingIds.isEmpty()) return works
+        val posters = runCatching {
+            ShikimoriPosterResolver.resolve(ShikimoriPosterResolver.Kind.ANIME, missingIds)
+        }.getOrNull().orEmpty()
+        if (posters.isEmpty()) return works
+        return works.map { work ->
+            if (work.mediaImageUrl != null) work
+            else posters[work.mediaId]?.cardUrl?.let { url -> work.copy(mediaImageUrl = url) } ?: work
+        }
+    }
 
     private fun absoluteShikimoriImageUrl(value: String): String? = when {
         value.isBlank() || value.contains("/assets/globals/missing_") -> null
@@ -805,3 +848,10 @@ class KitsugiStudioClient {
 
 /** Stüdyo yapım listesinin sayfa boyutu: Jikan/Tenrai, Shikimori ve AniList için ortak üst sınır. */
 private const val STUDIO_WORKS_PAGE_SIZE = 50
+
+/**
+ * Shikimori'de stüdyo logosu/kayıt adı aranırken bakılacak en fazla yapım sayısı.
+ * Her aday ek bir `GET /api/animes/{id}` isteği demektir; 3, sayfa açılışını
+ * belirgin biçimde geciktirmeden ortak yapımlarda da doğru satırı bulmaya yeter.
+ */
+private const val SHIKIMORI_STUDIO_LOOKUP_LIMIT = 3

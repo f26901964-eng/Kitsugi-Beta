@@ -42,6 +42,7 @@ import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.RepeatOne
 import androidx.compose.material.icons.rounded.Star
 import androidx.compose.material.icons.rounded.StarBorder
+import androidx.compose.material.icons.rounded.Tag
 import androidx.compose.material.icons.rounded.VisibilityOff
 import androidx.compose.material3.HorizontalDivider
 import com.kitsugi.animelist.ui.theme.gradient.Icon
@@ -94,6 +95,27 @@ private fun scoreColor(score: Int): Color = when {
     score <= 4 -> Color(0xFFFB7185)   // AccentRed
     score <= 6 -> Color(0xFFFB923C)   // AccentOrange
     else       -> Color(0xFF34D399)   // AccentGreen
+}
+
+/**
+ * Bangumi koleksiyon durumlarının **Bangumi terminolojisiyle** karşılığı.
+ *
+ * Bangumi koleksiyon türleri: `wish` (izleyeceğim/okuyacağım), `collect`
+ * (izledim/okudum), `doing` (izliyorum/okuyorum), `on_hold` (bekletiyorum),
+ * `dropped` (bıraktım). Eşleme [com.kitsugi.animelist.data.auth.BangumiSyncManager]
+ * ile birebir aynıdır; böylece düzenleyicide görünen etiket ile sunucuya yazılan
+ * koleksiyon türü tutarlı kalır.
+ */
+private fun bangumiStatusLabel(status: WatchStatus, type: MediaType): String {
+    val isManga = type == MediaType.Manga
+    return when (status) {
+        WatchStatus.Watching  -> if (isManga) "Okuyorum" else "İzliyorum"
+        WatchStatus.Completed -> if (isManga) "Okudum" else "İzledim"
+        WatchStatus.Paused    -> "Bekletiyorum"
+        WatchStatus.Dropped   -> "Bıraktım"
+        WatchStatus.Planned   -> if (isManga) "Okuyacağım" else "İzleyeceğim"
+        WatchStatus.Repeating -> if (isManga) "Tekrar Okuyorum" else "Tekrar İzliyorum"
+    }
 }
 
 @Composable
@@ -212,8 +234,16 @@ fun KitsugiEditMediaSheet(
     var advancedScoresCategories by androidx.compose.runtime.remember { mutableStateOf<List<String>>(emptyList()) }
     var advancedScoresMap by androidx.compose.runtime.remember { mutableStateOf<Map<String, Double>>(emptyMap()) }
 
-    LaunchedEffect(initialEntry?.id, isAniList, selectedType) {
-        if (isAniList && aniListToken != null) {
+    // AniList'e özgü alanlar (özel listeler, detaylı puanlama) yalnızca kaydın GERÇEKTEN
+    // bir AniList kimliği varsa yüklenir. Bu koşul eskiden `isAniList` içinde örtük olarak
+    // vardı; düzenleyici artık açıldığı SAYFANIN kaynağıyla da çalışabildiği için (ör. bir
+    // MAL kaydı AniList sayfasından düzenlenirken) açıkça korunur — aksi hâlde AniList'te
+    // kaydı olmayan bir yapım için detaylı puanlama hesaplanıp yanlış puan yazılabilirdi.
+    val hasAniListIdentity = initialEntry?.aniListEntryId != null ||
+        initialEntry?.source.equals("anilist", ignoreCase = true)
+
+    LaunchedEffect(initialEntry?.id, isAniList, hasAniListIdentity, selectedType) {
+        if (isAniList && hasAniListIdentity && aniListToken != null) {
             isLoadingMetadata = true
             withContext(Dispatchers.IO) {
                 val userId = runCatching { AniListSyncManager.fetchAniListUserId(aniListToken) }.getOrNull()
@@ -471,6 +501,14 @@ fun KitsugiEditMediaSheet(
                         .padding(horizontal = 16.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
+                    // Bangumi koleksiyon türleri (wish / collect / doing / on_hold / dropped)
+                    // Bangumi'nin kendi terimleriyle gösterilir; kullanıcı kaydın hangi
+                    // koleksiyona yazılacağını birebir görür (Kitsugi karşılıkları:
+                    // İzliyorum=doing, İzledim=collect, İzleyeceğim=wish,
+                    // Bekletiyorum=on_hold, Bıraktım=dropped).
+                    val statusLabelFor: (WatchStatus) -> String = { status ->
+                        if (isBangumi) bangumiStatusLabel(status, selectedType) else status.localizedLabel()
+                    }
                     // AniList için Repeating ayrı bir status, MAL için flag
                     val statusPills = if (isAniList || isShikimori) {
                         listOf(
@@ -512,12 +550,12 @@ fun KitsugiEditMediaSheet(
                         ) {
                             Icon(
                                 imageVector = icon,
-                                contentDescription = status.localizedLabel(),
+                                contentDescription = statusLabelFor(status),
                                 tint = if (selected) KitsugiColors.Background else KitsugiColors.TextSecondary,
                                 modifier = Modifier.size(16.dp)
                             )
                             Text(
-                                text = status.localizedLabel(),
+                                text = statusLabelFor(status),
                                 color = if (selected) KitsugiColors.Background else KitsugiColors.TextSecondary,
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
@@ -645,10 +683,14 @@ fun KitsugiEditMediaSheet(
                 HorizontalDivider(color = KitsugiColors.Border, modifier = Modifier.padding(horizontal = 16.dp))
 
                 val progressSuffix = if (parsedTotal != null) " / $parsedTotal" else ""
-                val progressLabel  = when (selectedType) {
-                    MediaType.Manga  -> "Bölümler (Chapter)"
-                    MediaType.Movie  -> "İlerleme"
-                    else             -> "Bölümler"
+                val progressLabel  = when {
+                    // Bangumi'de ilerleme `ep_status` (izlenen/okunan bölüm) alanına yazılır.
+                    isBangumi && selectedType == MediaType.Manga -> "Okunan Bölüm"
+                    isBangumi && selectedType == MediaType.Movie -> "İlerleme"
+                    isBangumi -> "İzlenen Bölüm"
+                    selectedType == MediaType.Manga -> "Bölümler (Chapter)"
+                    selectedType == MediaType.Movie -> "İlerleme"
+                    else -> "Bölümler"
                 }
                 val progressIcon = if (selectedType == MediaType.Manga) Icons.Rounded.Book else Icons.Rounded.PlayArrow
 
@@ -773,8 +815,20 @@ fun KitsugiEditMediaSheet(
                     )
                 }
 
-                // Bangumi: gizlilik + etiketler (koleksiyon API'si bunları destekler)
+                // Bangumi: koleksiyon hedefi + gizlilik + etiketler
+                // (Bangumi koleksiyon API'si gizlilik ve etiketleri destekler)
                 if (isBangumi) {
+                    // Hangi Bangumi条目'sunun güncelleneceğini gösterir: kayıt Bangumi
+                    // stableId'si taşıyorsa (subject_id + 500M) numara verilir; taşımıyorsa
+                    // (ör. eşleşen kayıt başka bir sağlayıcıdan geliyorsa) kimliğin başlık
+                    // eşleştirmesiyle çözüleceği açıkça yazılır.
+                    val bangumiSubjectId = com.kitsugi.animelist.data.remote.BangumiIdNamespace
+                        .rawIdFromStable(initialEntry?.malId)
+                    SheetRow(
+                        icon = Icons.Rounded.Tag,
+                        label = "Bangumi Koleksiyonu",
+                        value = bangumiSubjectId?.let { "#$it" } ?: "Başlıkla eşleştirilir"
+                    )
                     SheetRow(
                         icon = Icons.Rounded.Lock, label = "Gizli",
                         switchChecked = isPrivate, onSwitchCheckedChange = { isPrivate = it }

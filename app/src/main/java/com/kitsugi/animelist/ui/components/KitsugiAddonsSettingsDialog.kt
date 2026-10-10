@@ -1,20 +1,23 @@
 package com.kitsugi.animelist.ui.components
 
 import com.kitsugi.animelist.ui.theme.gradient.Icon
-import com.kitsugi.animelist.ui.theme.gradient.TabRow
 import com.kitsugi.animelist.ui.theme.gradient.Text
 
 import android.net.Uri
 import com.kitsugi.animelist.ui.theme.gradient.background
+import com.kitsugi.animelist.ui.theme.gradient.border
+import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.AutoStories
+import androidx.compose.material.icons.rounded.Bolt
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.PlayCircle
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -22,6 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.data.local.CloudstreamRepoEntity
@@ -165,62 +169,30 @@ fun KitsugiAddonsSettingsDialog(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Text(
-                            text = stringResource(R.string.eklenti_akis_ayarlari),
-                            color = KitsugiColors.TextPrimary,
-                            style = MaterialTheme.typography.titleLarge,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.eklenti_akis_ayarlari),
+                                color = KitsugiColors.TextPrimary,
+                                style = MaterialTheme.typography.titleLarge,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Text(
+                                text = "Kaynakları ekleyin, güncelleyin ve yönetin",
+                                color = KitsugiColors.TextMuted,
+                                style = MaterialTheme.typography.bodySmall
+                            )
+                        }
                         IconButton(onClick = onDismiss) {
                             Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.kapat), tint = KitsugiColors.TextSecondary)
                         }
                     }
                 }
-                TabRow(
-                    selectedTabIndex = pagerState.currentPage,
-                    containerColor = KitsugiColors.Surface,
-                    contentColor = accentColor
-                ) {
-                    Tab(
-                        selected = pagerState.currentPage == 0,
-                        onClick = {
-                            scope.launch { pagerState.animateScrollToPage(0) }
-                        },
-                        text = {
-                            Text(
-                                "Torrent & Akış",
-                                fontWeight = if (pagerState.currentPage == 0) FontWeight.Bold else FontWeight.Normal,
-                                fontSize = 12.sp
-                            )
-                        }
-                    )
-                    Tab(
-                        selected = pagerState.currentPage == 1,
-                        onClick = {
-                            scope.launch { pagerState.animateScrollToPage(1) }
-                        },
-                        text = {
-                            Text(
-                                "Video Sağlayıcıları",
-                                fontWeight = if (pagerState.currentPage == 1) FontWeight.Bold else FontWeight.Normal,
-                                fontSize = 12.sp
-                            )
-                        }
-                    )
-                    Tab(
-                        selected = pagerState.currentPage == 2,
-                        onClick = {
-                            scope.launch { pagerState.animateScrollToPage(2) }
-                        },
-                        text = {
-                            Text(
-                                "Manga Kaynakları",
-                                fontWeight = if (pagerState.currentPage == 2) FontWeight.Bold else FontWeight.Normal,
-                                fontSize = 12.sp
-                            )
-                        }
-                    )
-                }
+                Spacer(Modifier.height(if (embeddedMode) 8.dp else 12.dp))
+                AddonsSegmentedTabs(
+                    selectedIndex = pagerState.currentPage,
+                    accentColor = accentColor,
+                    onSelect = { index -> scope.launch { pagerState.animateScrollToPage(index) } }
+                )
             }
 
             // Body content (HorizontalPager)
@@ -388,14 +360,18 @@ fun KitsugiAddonsSettingsDialog(
             }
 
             // Footer (Tamam button)
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 8.dp),
-                horizontalArrangement = Arrangement.End
-            ) {
-                TextButton(onClick = onDismiss) {
-                    Text("Tamam", color = accentColor, fontWeight = FontWeight.SemiBold)
+            // GÖMÜLÜ MOD: Ayarlar alt sayfasında zaten üstte geri oku vardır; burada ikinci
+            // bir "Tamam" düğmesi (ve altında kalan boş şerit) gösterilmez.
+            if (!embeddedMode) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    TextButton(onClick = onDismiss) {
+                        Text(stringResource(R.string.action_ok), color = accentColor, fontWeight = FontWeight.SemiBold)
+                    }
                 }
             }
     }
@@ -458,5 +434,72 @@ fun KitsugiAddonsSettingsDialog(
             },
             containerColor = KitsugiColors.SurfaceStrong
         )
+    }
+}
+
+/**
+ * Sekme seçici — "Torrent & Akış / Video Kaynakları / Manga Kaynakları".
+ *
+ * Material `TabRow` yerine yuvarlatılmış segment kullanılır: etiketler ikonla birlikte
+ * alt alta durur, bu yüzden uzun Türkçe adlar dar telefonlarda dahi kesilmeden sığar ve
+ * seçili sekme kartın içinde vurgulu bir kapsül olarak belirginleşir.
+ */
+@Composable
+private fun AddonsSegmentedTabs(
+    selectedIndex: Int,
+    accentColor: Color,
+    onSelect: (Int) -> Unit
+) {
+    // Sekme başlıkları kısa/madde madde tutulur: "Video Kaynakları" (Cloudstream) ve
+    // "Manga Kaynakları" (Mihon/Tachiyomi) ayrımı ilk bakışta anlaşılır olsun.
+    val tabs = listOf(
+        "Torrent & Akış" to Icons.Rounded.Bolt,
+        "Video Kaynakları" to Icons.Rounded.PlayCircle,
+        "Manga Kaynakları" to Icons.Rounded.AutoStories
+    )
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(KitsugiColors.Surface)
+            .border(1.dp, KitsugiColors.Border.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        tabs.forEachIndexed { index, (label, icon) ->
+            val selected = selectedIndex == index
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(13.dp))
+                    .background(if (selected) accentColor.copy(alpha = 0.16f) else Color.Transparent)
+                    .border(
+                        width = 1.dp,
+                        color = if (selected) accentColor.copy(alpha = 0.45f) else Color.Transparent,
+                        shape = RoundedCornerShape(13.dp)
+                    )
+                    .tvClickable(shape = RoundedCornerShape(13.dp)) { onSelect(index) }
+                    .padding(vertical = 8.dp, horizontal = 4.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    tint = if (selected) accentColor else KitsugiColors.TextMuted,
+                    modifier = Modifier.size(17.dp)
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = label,
+                    color = if (selected) KitsugiColors.TextPrimary else KitsugiColors.TextSecondary,
+                    fontSize = 11.sp,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
     }
 }

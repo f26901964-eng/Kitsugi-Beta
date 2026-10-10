@@ -32,6 +32,16 @@ fun AppDialogHost(
 
     // Entry editing
     editingEntry: MediaEntry?,
+    /**
+     * Düzenleyicinin açıldığı SAYFANIN kaynağı (ör. Bangumi detay sayfası → "bangumi").
+     *
+     * NEDEN: Kitsugi kayıtları sağlayıcılar arası eşleştirilir; Bangumi sayfasında
+     * "Düzenle"ye basıldığında eşleşen kayıt Simkl/AniList kaynaklı olabilir. Kaydın kendi
+     * kaynağına göre açmak kullanıcıya "Bangumi sayfasında Simkl düzenleyicisi" olarak
+     * görünüyordu. İpucu verildiğinde düzenleyici sayfadaki sağlayıcıyla açılır; kaydın
+     * kimlikleri/senkronizasyonu DEĞİŞMEZ (senkron katmanı bağlı tüm sağlayıcılara yazar).
+     */
+    editingSourceHint: String? = null,
     scoreFormat: String,
     onDismissEditing: () -> Unit,
     onDeleteEditingEntry: (MediaEntry) -> Unit,
@@ -98,7 +108,18 @@ fun AppDialogHost(
         val isKitsu = androidx.compose.runtime.remember { com.kitsugi.animelist.data.auth.ExternalAuthManager.getKitsuToken(context) != null }
         val isShikimori = androidx.compose.runtime.remember { com.kitsugi.animelist.data.auth.ExternalAuthManager.getShikimoriToken(context) != null }
 
-        val resolvedSource = when (entry.source.lowercase()) {
+        // Sayfa ipucu: bilinen bir sağlayıcıya çözülüyorsa kaydın kendi kaynağını geçersiz kılar.
+        // Takma adlar (bgm, jikan, themoviedb …) kanonik eşleyiciden geçirilir; düzenleyici
+        // "tmdb" kaynağını Simkl olarak ele aldığı için tmdb de simkl'e çözülür.
+        val hintedSource = editingSourceHint?.let { hint ->
+            when (val canonical = com.kitsugi.animelist.data.remote.canonicalMediaSourceId(hint)) {
+                "anilist", "mal", "simkl", "kitsu", "shikimori", "bangumi" -> canonical
+                "tmdb" -> "simkl"
+                else -> null
+            }
+        }
+
+        val resolvedSource = hintedSource ?: when (entry.source.lowercase()) {
             "kitsu" -> "kitsu"
             "shikimori" -> "shikimori"
             "anilist" -> if (!isAniList && isMal) "mal" else "anilist"

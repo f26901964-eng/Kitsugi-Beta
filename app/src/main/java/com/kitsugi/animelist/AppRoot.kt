@@ -373,6 +373,12 @@ fun AppRoot(
     var editingEntry by remember {
         mutableStateOf<MediaEntry?>(null)
     }
+    // Düzenleyicinin hangi kaynağın SAYFASINDAN açıldığı (ör. Bangumi detay sayfası).
+    // Eşleşen yerel kayıt başka bir sağlayıcıdan (ör. Simkl) gelmiş olabilir; kullanıcı
+    // ise sayfada gördüğü sağlayıcının düzenleyicisini bekler (bkz. AppDialogHost).
+    var editingSourceHint by remember {
+        mutableStateOf<String?>(null)
+    }
 
     var deletingEntry by remember {
         mutableStateOf<MediaEntry?>(null)
@@ -889,8 +895,12 @@ fun AppRoot(
                     importMode = importMode,
                     profileImagePickerLauncher = profileImagePickerLauncher,
                     bannerImagePickerLauncher = bannerImagePickerLauncher,
-                    onEditEntry = { editingEntry = it },
-                    onDeleteEntry = { editingEntry = null; deletingEntry = it },
+                    onEditEntry = { editingEntry = it; editingSourceHint = null },
+                    onEditEntryWithSource = { entry, source ->
+                        editingEntry = entry
+                        editingSourceHint = source
+                    },
+                    onDeleteEntry = { editingEntry = null; editingSourceHint = null; deletingEntry = it },
                     onIncrementEntryProgress = ::incrementEntryProgress,
                     onAddApiSelectionToList = ::addApiSelectionToList,
                     onExportBackupFileClick = ::createBackupFile,
@@ -930,8 +940,9 @@ fun AppRoot(
             },
 
             editingEntry = editingEntry,
+            editingSourceHint = editingSourceHint,
             scoreFormat = appSettings.scoreFormat,
-            onDismissEditing = { editingEntry = null },
+            onDismissEditing = { editingEntry = null; editingSourceHint = null },
             onDeleteEditingEntry = { entry ->
                 coroutineScope.launch { mediaRepository.deleteById(entry.id) }
             },
@@ -968,6 +979,7 @@ fun AppRoot(
                 )
                 coroutineScope.launch { mediaRepository.update(updatedEntry, advancedScores = advancedScores) }
                 editingEntry = null
+                editingSourceHint = null
             },
 
             deletingEntry = deletingEntry,
@@ -1028,6 +1040,11 @@ private fun AppNavigationContent(
     profileImagePickerLauncher: androidx.activity.result.ActivityResultLauncher<String>,
     bannerImagePickerLauncher: androidx.activity.result.ActivityResultLauncher<String>,
     onEditEntry: (MediaEntry) -> Unit,
+    /**
+     * Detay sayfasından gelen düzenleme: [entry]'nin yanı sıra sayfanın kaynağını da taşır.
+     * Varsayılan olarak [onEditEntry] gibi davranır (kaynak ipucu yok).
+     */
+    onEditEntryWithSource: (MediaEntry, String) -> Unit = { entry, _ -> onEditEntry(entry) },
     onDeleteEntry: (MediaEntry) -> Unit,
     onIncrementEntryProgress: (MediaEntry) -> Unit,
     onAddApiSelectionToList: (ApiSearchSelection) -> Unit,
@@ -1086,6 +1103,7 @@ private fun AppNavigationContent(
                     coroutineScope = coroutineScope,
                     updateViewModel = updateViewModel,
                     onEditEntry = onEditEntry,
+                    onEditEntryWithSource = onEditEntryWithSource,
                     onDeleteEntry = onDeleteEntry,
                     onIncrementEntryProgress = onIncrementEntryProgress,
                     onAddApiSelectionToList = onAddApiSelectionToList,

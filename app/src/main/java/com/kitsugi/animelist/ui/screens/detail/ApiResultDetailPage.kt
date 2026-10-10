@@ -162,7 +162,8 @@ fun ApiResultDetailPage(
     findExistingEntry: ((JikanSearchResult) -> MediaEntry?)? = null,
     onBackClick: () -> Unit,
     onAddClick: (ApiSearchSelection) -> Unit,
-    onEditClick: (MediaEntry) -> Unit = {},
+    /** "Düzenle": kayıt + sayfanın kaynağı (bkz. [ApiDetailLeftPanel.onEditClick]). */
+    onEditClick: (MediaEntry, String) -> Unit = { _, _ -> },
     onRelationClick: (JikanSearchResult) -> Unit,
     onCharacterClick: (KitsugiCharacter) -> Unit,
     onStaffClick: (Int, String, String?, String?) -> Unit,

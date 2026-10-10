@@ -134,6 +134,14 @@ internal fun MangaExtensionsTab(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        // ── Bilgilendirme şeridi (Eklentiler sayfasının ortak bileşeni) ────
+        item {
+            AddonInfoBanner(
+                accentColor = accentColor,
+                text = "Manga kaynakları Mihon/Tachiyomi (.mex) eklentileridir; önce Repolar sekmesinden bir repo ekleyin."
+            )
+        }
+
         // Bölüm Başlık Sekmesi
         item {
             Row(
@@ -430,16 +438,10 @@ internal fun MangaExtensionsTab(
             // Repo Listesi
             if (repos.isEmpty()) {
                 item {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        Icon(Icons.Rounded.CloudOff, null, tint = KitsugiColors.TextMuted, modifier = Modifier.size(40.dp))
-                        Text("Henüz repo eklenmedi", color = KitsugiColors.TextMuted, fontWeight = FontWeight.SemiBold)
-                        Text("Keiyoushi'yi hızlıca eklemek için yukarıdaki butona tıklayın.", color = KitsugiColors.TextMuted.copy(alpha = 0.7f), fontSize = 11.sp,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center, modifier = Modifier.padding(horizontal = 16.dp))
-                    }
+                    AddonEmptyCard(
+                        icon = Icons.Rounded.CloudOff,
+                        text = "Henüz repo eklenmedi. Keiyoushi'yi hızlıca eklemek için yukarıdaki butona tıklayın."
+                    )
                 }
             }
 
@@ -830,17 +832,12 @@ internal fun MangaExtensionsTab(
                 }
             }
             if (sources.isEmpty()) {
+                // Eklentiler sayfasının ortak boş-durum kartı (bkz. StremioAddonTab.kt).
                 item {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        Icon(Icons.Rounded.MenuBook, null, tint = KitsugiColors.TextMuted, modifier = Modifier.size(48.dp))
-                        Text("Yüklü manga eklentisi yok", color = KitsugiColors.TextMuted, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                        Text("Repolar sekmesinden eklenti kurabilirsiniz.", color = KitsugiColors.TextMuted.copy(alpha = 0.6f), fontSize = 11.sp,
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center)
-                    }
+                    AddonEmptyCard(
+                        icon = Icons.Rounded.MenuBook,
+                        text = "Yüklü manga eklentisi yok. Repolar sekmesinden eklenti kurabilirsiniz."
+                    )
                 }
             }
             itemsIndexed(sources, key = { index, src -> "${src.name}_${src.lang}_$index" }) { _, source ->

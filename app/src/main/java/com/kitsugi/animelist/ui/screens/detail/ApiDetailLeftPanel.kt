@@ -63,7 +63,12 @@ fun ApiDetailLeftPanel(
     blurAdultMedia: Boolean,
     onBackClick: () -> Unit,
     onAddClick: (ApiSearchSelection) -> Unit,
-    onEditClick: (MediaEntry) -> Unit,
+    /**
+     * "Düzenle" — kaydın yanı sıra **bu sayfanın kaynağını** da taşır ([displayResult.source]).
+     * Böylece Bangumi sayfasında eşleşen Simkl/AniList kaydı açılsa bile düzenleyici
+     * sayfada görülen sağlayıcının alanlarıyla açılır.
+     */
+    onEditClick: (MediaEntry, String) -> Unit,
     onToggleFavoriteClick: ((ApiSearchSelection) -> Unit)?,
     onReadMangaClick: (() -> Unit)?,
     onGalleryOpen: (items: List<GalleryItem>, index: Int) -> Unit,
@@ -223,7 +228,7 @@ fun ApiDetailLeftPanel(
                     primary = true,
                     enabled = true,
                     modifier = fallbackFocusMod.focusProperties { right = tabBarFocusRequester },
-                    onClick = { onEditClick(existingEntry) }
+                    onClick = { onEditClick(existingEntry, displayResult.source) }
                 )
             } else {
                 ApiActionButton(

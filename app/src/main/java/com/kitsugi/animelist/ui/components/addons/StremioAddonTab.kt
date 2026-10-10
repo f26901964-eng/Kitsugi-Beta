@@ -1,8 +1,9 @@
-﻿package com.kitsugi.animelist.ui.components.addons
+package com.kitsugi.animelist.ui.components.addons
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.Context
 import com.kitsugi.animelist.ui.theme.gradient.background
+import com.kitsugi.animelist.ui.theme.gradient.border
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -39,11 +40,18 @@ internal fun StremioTab(
     onAddAddon: (String) -> Unit,
     onToggleAddon: (ManagedAddonEntity, Boolean) -> Unit,
     onDeleteAddon: (ManagedAddonEntity) -> Unit,
-    onSaveDebridToken: (String) -> Unit,
+    /**
+     * NOT: RealDebrid token GİRİŞ ALANI bu sayfadan kaldırıldı (kullanıcı isteği).
+     * Kayıtlı token hâlâ [initialDebridToken] üzerinden okunur ve Torrentio önayarı
+     * oluşturulurken adrese eklenir; TV arayüzü token girmeye devam eder. Parametre,
+     * çağıran ekranların (ayarlar / manga / akış) imzasını bozmamak için tutulur.
+     */
+    @Suppress("UNUSED_PARAMETER") onSaveDebridToken: (String) -> Unit,
     listState: LazyListState = rememberLazyListState()
 ) {
     var newManifestUrl by rememberSaveable { mutableStateOf("") }
-    var debridToken by rememberSaveable(initialDebridToken) { mutableStateOf(initialDebridToken) }
+    // Token yalnızca okunur (giriş alanı kaldırıldı); Torrentio adresinde kullanılır.
+    val debridToken = initialDebridToken
     var showP2pConsentDialog by remember { mutableStateOf(false) }
 
     if (showP2pConsentDialog) {
@@ -56,165 +64,164 @@ internal fun StremioTab(
     LazyColumn(
         state = listState,
         modifier = Modifier.fillMaxWidth().fillMaxHeight(),
-        verticalArrangement = Arrangement.spacedBy(16.dp)
+        contentPadding = PaddingValues(top = 4.dp, bottom = 24.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp)
     ) {
-        // RealDebrid
+        // ── Bilgilendirme şeridi ───────────────────────────────────────────
         item {
-            Text("RealDebrid Ayarları", color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(8.dp))
-            TextField(
-                value = debridToken,
-                onValueChange = { debridToken = it; onSaveDebridToken(it) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                shape = RoundedCornerShape(18.dp),
-                label = { Text("RealDebrid API Key (Token)") },
-                placeholder = { Text("Tokenınızı girin...") },
-                colors = TextFieldDefaults.colors(
-                    focusedTextColor = KitsugiColors.TextPrimary,
-                    unfocusedTextColor = KitsugiColors.TextPrimary,
-                    focusedContainerColor = KitsugiColors.SurfaceSoft,
-                    unfocusedContainerColor = KitsugiColors.SurfaceSoft,
-                    focusedIndicatorColor = accentColor,
-                    unfocusedIndicatorColor = KitsugiColors.Border,
-                    cursorColor = accentColor
-                )
-            )
-            Text(
-                "Kitsugi akışlarında donma yaşamadan, yüksek hızlı torrent izlemek için debrid hesabınızı bağlayın.",
-                color = KitsugiColors.TextMuted,
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.padding(top = 4.dp)
+            AddonInfoBanner(
+                accentColor = accentColor,
+                text = "Torrent akışı ve Stremio uyumlu akış eklentilerini bu sekmeden yönetirsiniz."
             )
         }
 
-        // P2P Torrent Akışı
+        // ── P2P Torrent Akışı (kendi bölüm başlığı ve kartı vardır) ─────────
         item {
-            HorizontalDivider(color = KitsugiColors.Border)
-            Spacer(Modifier.height(8.dp))
             com.kitsugi.animelist.ui.components.p2p.P2pSettingsSection(
                 onShowConsentDialog = { showP2pConsentDialog = true }
             )
         }
 
-        // Oynatma Ayarları
+        // ── Oynatma ayarları ───────────────────────────────────────────────
         item {
-            HorizontalDivider(color = KitsugiColors.Border)
-            Spacer(Modifier.height(8.dp))
-            Text("Oynatma Ayarları", color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(12.dp))
-            val context = LocalContext.current
-            val prefs = remember { context.getSharedPreferences("MyWebViewPrefs", Context.MODE_PRIVATE) }
-            var autoplayEnabled by remember { mutableStateOf(prefs.getBoolean("autoplay_enabled", false)) }
-            var defaultPlayer by remember { mutableStateOf(prefs.getString("default_player_engine", "exoplayer") ?: "exoplayer") }
-
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+            AddonSectionCard(
+                title = "Oynatma Ayarları",
+                subtitle = "Otomatik oynatma ve oynatıcı motoru",
+                icon = Icons.Rounded.PlayCircle,
+                accentColor = accentColor,
+                iconTint = KitsugiColors.AccentBlue
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("Otomatik Oynat (Auto-Play)", color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-                    Text("İlk önbellekli akışı otomatik başlatır.", color = KitsugiColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
-                }
-                Switch(
-                    checked = autoplayEnabled,
-                    onCheckedChange = { autoplayEnabled = it; prefs.edit().putBoolean("autoplay_enabled", it).apply() },
-                    colors = SwitchDefaults.colors(checkedThumbColor = KitsugiColors.Surface, checkedTrackColor = accentColor)
-                )
-            }
+                val context = LocalContext.current
+                val prefs = remember { context.getSharedPreferences("MyWebViewPrefs", Context.MODE_PRIVATE) }
+                var autoplayEnabled by remember { mutableStateOf(prefs.getBoolean("autoplay_enabled", false)) }
+                var defaultPlayer by remember { mutableStateOf(prefs.getString("default_player_engine", "exoplayer") ?: "exoplayer") }
 
-            Spacer(Modifier.height(16.dp))
-            Text("Varsayılan Oynatıcı Motoru", color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(8.dp))
-            var dropdownExpanded by remember { mutableStateOf(false) }
-            val playerOptions = listOf("exoplayer" to "Dahili Oynatıcı (ExoPlayer)", "mpv" to "Harici Oynatıcı (MPV)", "ask" to "Her Zaman Sor")
-            val currentPlayerName = playerOptions.find { it.first == defaultPlayer }?.second ?: "Dahili Oynatıcı (ExoPlayer)"
-            Box(modifier = Modifier.fillMaxWidth()) {
                 Row(
-                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(KitsugiColors.SurfaceSoft)
-                        .tvClickable(shape = RoundedCornerShape(18.dp)) { dropdownExpanded = true }.padding(horizontal = 16.dp, vertical = 14.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
-                    Text(text = currentPlayerName, color = KitsugiColors.TextPrimary)
-                    Icon(Icons.Rounded.ArrowDropDown, contentDescription = "Seç", tint = KitsugiColors.TextSecondary)
+                    Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                        Text("Otomatik Oynat (Auto-Play)", color = KitsugiColors.TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                        Text("İlk önbellekli akışı otomatik başlatır.", color = KitsugiColors.TextSecondary, fontSize = 12.sp)
+                    }
+                    Switch(
+                        checked = autoplayEnabled,
+                        onCheckedChange = { autoplayEnabled = it; prefs.edit().putBoolean("autoplay_enabled", it).apply() },
+                        colors = SwitchDefaults.colors(checkedThumbColor = KitsugiColors.Surface, checkedTrackColor = accentColor)
+                    )
                 }
-                KitsugiDropdownMenu(expanded = dropdownExpanded, onDismissRequest = { dropdownExpanded = false }) {
-                    playerOptions.forEach { option ->
-                        KitsugiDropdownItem(
-                            text = option.second,
-                            selected = option.first == defaultPlayer,
-                            onClick = { defaultPlayer = option.first; prefs.edit().putString("default_player_engine", option.first).apply(); dropdownExpanded = false }
-                        )
+
+                HorizontalDivider(color = KitsugiColors.Border.copy(alpha = 0.5f))
+
+                Text("Varsayılan Oynatıcı Motoru", color = KitsugiColors.TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(8.dp))
+                var dropdownExpanded by remember { mutableStateOf(false) }
+                val playerOptions = listOf("exoplayer" to "Dahili Oynatıcı (ExoPlayer)", "mpv" to "Harici Oynatıcı (MPV)", "ask" to "Her Zaman Sor")
+                val currentPlayerName = playerOptions.find { it.first == defaultPlayer }?.second ?: "Dahili Oynatıcı (ExoPlayer)"
+                Box(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        // Kart zemini zaten SurfaceSoft; bu satır bir ton koyu/açık yüzeyle
+                        // ayrışır ve kenarlıkla belirginleşir.
+                        modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(KitsugiColors.Surface)
+                            .border(1.dp, KitsugiColors.Border.copy(alpha = 0.7f), RoundedCornerShape(16.dp))
+                            .tvClickable(shape = RoundedCornerShape(16.dp)) { dropdownExpanded = true }
+                            .padding(horizontal = 14.dp, vertical = 14.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(text = currentPlayerName, color = KitsugiColors.TextPrimary, fontSize = 14.sp)
+                        Icon(Icons.Rounded.ArrowDropDown, contentDescription = "Seç", tint = KitsugiColors.TextSecondary)
+                    }
+                    KitsugiDropdownMenu(expanded = dropdownExpanded, onDismissRequest = { dropdownExpanded = false }) {
+                        playerOptions.forEach { option ->
+                            KitsugiDropdownItem(
+                                text = option.second,
+                                selected = option.first == defaultPlayer,
+                                onClick = { defaultPlayer = option.first; prefs.edit().putString("default_player_engine", option.first).apply(); dropdownExpanded = false }
+                            )
+                        }
                     }
                 }
             }
         }
 
-        // Popüler Eklentiler
+        // ── Hazır akış eklentileri ─────────────────────────────────────────
         item {
-            HorizontalDivider(color = KitsugiColors.Border)
-            Spacer(Modifier.height(8.dp))
-            Text("Popüler Akış Eklentileri", color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Text("Tek tıkla hızlıca kurabilirsiniz.", color = KitsugiColors.TextSecondary, style = MaterialTheme.typography.bodySmall, modifier = Modifier.padding(bottom = 12.dp))
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+            AddonSectionCard(
+                title = "Hazır Akış Eklentileri",
+                subtitle = "Tek tıkla kurabileceğiniz güvenilir kaynaklar",
+                icon = Icons.Rounded.AutoAwesome,
+                accentColor = accentColor,
+                iconTint = KitsugiColors.AccentPurple
+            ) {
                 val torrentioUrl = if (debridToken.isNotBlank()) {
                     "https://torrentio.strem.fun/realdebrid=$debridToken/providers=yts,eztv,rarbg,1337x,thepiratebay,kickasstorrents,torrentproject,torrent9,yts,horriblesubs/manifest.json"
                 } else {
                     "https://torrentio.strem.fun/manifest.json"
                 }
-                PresetAddonRow("Torrentio (Tavsiye Edilen)", "Ana torrent kaynağı. RealDebrid token girildiyse otomatik bağlanır.", torrentioUrl, addons.any { it.manifestUrl.contains("torrentio") }, accentColor, KitsugiColors.AccentBlue, Icons.Rounded.Download, onAddAddon)
-                PresetAddonRow("Anime Kitsu Kataloğu", "Kitsu üzerinden anime listelerini ve verileri yükler.", "https://anime-kitsu.strem.fun/manifest.json", addons.any { it.manifestUrl.contains("kitsu") }, accentColor, KitsugiColors.AccentPurple, Icons.Rounded.AutoAwesome, onAddAddon)
-                PresetAddonRow("Official Cinemeta", "Film ve dizi meta verilerini çeken resmi katalog eklentisi.", "https://v3-cinemeta.strem.io/manifest.json", addons.any { it.manifestUrl.contains("cinemeta") }, accentColor, KitsugiColors.AccentGreen, Icons.Rounded.Movie, onAddAddon)
-                PresetAddonRow("YouTube Trailers", "Fragmanları ve YouTube videolarını oynatan resmi eklenti.", "https://youtube.strem.io/manifest.json", addons.any { it.manifestUrl.contains("youtube.strem.io") }, accentColor, KitsugiColors.AccentOrange, Icons.Rounded.PlayCircle, onAddAddon)
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+                    // Token bu sayfada girilmez (giriş alanı kaldırıldı); kayıtlı bir debrid
+                    // hesabı varsa Torrentio adresine otomatik eklenir.
+                    PresetAddonRow("Torrentio (Tavsiye Edilen)", "Ana torrent kaynağı. Kayıtlı debrid hesabınız varsa otomatik bağlanır.", torrentioUrl, addons.any { it.manifestUrl.contains("torrentio") }, accentColor, KitsugiColors.AccentBlue, Icons.Rounded.Download, onAddAddon)
+                    PresetAddonRow("Anime Kitsu Kataloğu", "Kitsu üzerinden anime listelerini ve verileri yükler.", "https://anime-kitsu.strem.fun/manifest.json", addons.any { it.manifestUrl.contains("kitsu") }, accentColor, KitsugiColors.AccentPurple, Icons.Rounded.AutoAwesome, onAddAddon)
+                    PresetAddonRow("Official Cinemeta", "Film ve dizi meta verilerini çeken resmi katalog eklentisi.", "https://v3-cinemeta.strem.io/manifest.json", addons.any { it.manifestUrl.contains("cinemeta") }, accentColor, KitsugiColors.AccentGreen, Icons.Rounded.Movie, onAddAddon)
+                    PresetAddonRow("YouTube Trailers", "Fragmanları ve YouTube videolarını oynatan resmi eklenti.", "https://youtube.strem.io/manifest.json", addons.any { it.manifestUrl.contains("youtube.strem.io") }, accentColor, KitsugiColors.AccentOrange, Icons.Rounded.PlayCircle, onAddAddon)
+                }
             }
         }
 
-        // Manuel Ekle
+        // ── Özel eklenti ekle ──────────────────────────────────────────────
         item {
-            HorizontalDivider(color = KitsugiColors.Border)
-            Spacer(Modifier.height(8.dp))
-            Text("Özel Akış Eklentisi Ekle", color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            Spacer(Modifier.height(8.dp))
-            Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextField(
-                    value = newManifestUrl,
-                    onValueChange = { newManifestUrl = it },
-                    modifier = Modifier.weight(1f),
-                    singleLine = true,
-                    shape = RoundedCornerShape(18.dp),
-                    label = { Text("Manifest URL (JSON)") },
-                    placeholder = { Text("https://...") },
-                    colors = TextFieldDefaults.colors(
-                        focusedTextColor = KitsugiColors.TextPrimary, unfocusedTextColor = KitsugiColors.TextPrimary,
-                        focusedContainerColor = KitsugiColors.SurfaceSoft, unfocusedContainerColor = KitsugiColors.SurfaceSoft,
-                        focusedIndicatorColor = accentColor, unfocusedIndicatorColor = KitsugiColors.Border, cursorColor = accentColor
+            AddonSectionCard(
+                title = "Özel Akış Eklentisi Ekle",
+                subtitle = "Manifest adresini yapıştırın",
+                icon = Icons.Rounded.AddLink,
+                accentColor = accentColor,
+                iconTint = KitsugiColors.AccentOrange
+            ) {
+                Row(modifier = Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    TextField(
+                        value = newManifestUrl,
+                        onValueChange = { newManifestUrl = it },
+                        modifier = Modifier.weight(1f),
+                        singleLine = true,
+                        shape = RoundedCornerShape(16.dp),
+                        label = { Text("Manifest URL (JSON)") },
+                        placeholder = { Text("https://...") },
+                        colors = TextFieldDefaults.colors(
+                            focusedTextColor = KitsugiColors.TextPrimary, unfocusedTextColor = KitsugiColors.TextPrimary,
+                            focusedContainerColor = KitsugiColors.SurfaceSoft, unfocusedContainerColor = KitsugiColors.SurfaceSoft,
+                            focusedIndicatorColor = accentColor, unfocusedIndicatorColor = KitsugiColors.Border, cursorColor = accentColor
+                        )
                     )
-                )
-                KitsugiButton(
-                    onClick = { if (newManifestUrl.isNotBlank()) { onAddAddon(newManifestUrl.trim()); newManifestUrl = "" } },
-                    shape = RoundedCornerShape(18.dp)
-                ) { Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.ekle), tint = KitsugiColors.Surface) }
+                    KitsugiButton(
+                        onClick = { if (newManifestUrl.isNotBlank()) { onAddAddon(newManifestUrl.trim()); newManifestUrl = "" } },
+                        shape = RoundedCornerShape(16.dp)
+                    ) { Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.ekle), tint = KitsugiColors.Surface) }
+                }
             }
         }
 
-        // Kurulu eklentiler
+        // ── Yüklü eklentiler ───────────────────────────────────────────────
         item {
-            HorizontalDivider(color = KitsugiColors.Border)
-            Spacer(Modifier.height(8.dp))
-            Text("Yüklü Akış Eklentileri (${addons.size})", color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            AddonListHeader(
+                title = "Yüklü Akış Eklentileri",
+                count = addons.size,
+                accentColor = accentColor
+            )
         }
 
         if (addons.isEmpty()) {
             item {
-                Box(modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp), contentAlignment = Alignment.Center) {
-                    Text("Henüz akış eklentisi yüklenmemiş.", color = KitsugiColors.TextMuted, style = MaterialTheme.typography.bodyMedium)
-                }
+                AddonEmptyCard(
+                    icon = Icons.Rounded.ExtensionOff,
+                    text = "Henüz akış eklentisi yüklenmemiş. Yukarıdaki hazır eklentilerden biriyle başlayabilirsiniz."
+                )
             }
         } else {
             items(addons) { addon ->
                 Row(
-                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(KitsugiColors.SurfaceSoft).padding(12.dp),
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(KitsugiColors.SurfaceSoft).padding(12.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Box(modifier = Modifier.size(40.dp).clip(RoundedCornerShape(10.dp)).background(accentColor.copy(alpha = 0.2f)), contentAlignment = Alignment.Center) {
@@ -231,13 +238,189 @@ internal fun StremioTab(
                         onCheckedChange = { onToggleAddon(addon, it) },
                         colors = SwitchDefaults.colors(checkedThumbColor = KitsugiColors.Surface, checkedTrackColor = accentColor)
                     )
-                    Spacer(Modifier.width(8.dp))
+                    Spacer(Modifier.width(4.dp))
                     IconButton(onClick = { onDeleteAddon(addon) }) {
                         Icon(Icons.Rounded.Delete, contentDescription = "Sil", tint = KitsugiColors.AccentRed)
                     }
                 }
             }
         }
+    }
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+//  Ortak bölüm bileşenleri (Video Sağlayıcıları / Manga sekmeleriyle aynı dil)
+// ══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Sekme başındaki kısa bilgilendirme şeridi — kullanıcı bu sekmenin ne yaptığını
+ * ilk bakışta görsün diye tek satırlık açıklama + ikon gösterir.
+ */
+@Composable
+internal fun AddonInfoBanner(
+    text: String,
+    accentColor: Color,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(14.dp))
+            .background(accentColor.copy(alpha = 0.10f))
+            .border(1.dp, accentColor.copy(alpha = 0.22f), RoundedCornerShape(14.dp))
+            .padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.Info,
+            contentDescription = null,
+            tint = accentColor,
+            modifier = Modifier.size(16.dp)
+        )
+        Text(
+            text = text,
+            color = KitsugiColors.TextSecondary,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+/**
+ * Başlık + alt başlık + ikon içeren, gövdesi [content] olan tek tip bölüm kartı.
+ * Sekme içindeki tüm ayar grupları bu bileşeni kullanır; böylece kartlar, boşluklar
+ * ve tipografi her bölümde aynı görünür.
+ */
+@Composable
+internal fun AddonSectionCard(
+    title: String,
+    icon: ImageVector,
+    accentColor: Color,
+    subtitle: String? = null,
+    iconTint: Color = accentColor,
+    modifier: Modifier = Modifier,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Column(modifier = modifier.fillMaxWidth()) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(34.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(iconTint.copy(alpha = 0.15f)),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(icon, contentDescription = null, tint = iconTint, modifier = Modifier.size(18.dp))
+            }
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = title,
+                    color = KitsugiColors.TextPrimary,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                if (!subtitle.isNullOrBlank()) {
+                    Text(
+                        text = subtitle,
+                        color = KitsugiColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(18.dp))
+                .background(KitsugiColors.SurfaceSoft)
+                .border(1.dp, KitsugiColors.Border.copy(alpha = 0.6f), RoundedCornerShape(18.dp))
+                .padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+            content = content
+        )
+    }
+}
+
+/** Kart içi küçük açıklama metni. */
+@Composable
+internal fun AddonHintText(text: String, modifier: Modifier = Modifier) {
+    Text(
+        text = text,
+        color = KitsugiColors.TextMuted,
+        style = MaterialTheme.typography.bodySmall,
+        modifier = modifier
+    )
+}
+
+/** Liste bölümlerinin başlığı — sağ tarafta adet rozeti gösterir. */
+@Composable
+internal fun AddonListHeader(
+    title: String,
+    count: Int,
+    accentColor: Color,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier.fillMaxWidth().padding(top = 4.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(
+            text = title,
+            color = KitsugiColors.TextPrimary,
+            style = MaterialTheme.typography.titleSmall,
+            fontWeight = FontWeight.Bold
+        )
+        Box(
+            modifier = Modifier
+                .clip(RoundedCornerShape(999.dp))
+                .background(accentColor.copy(alpha = 0.15f))
+                .padding(horizontal = 10.dp, vertical = 3.dp)
+        ) {
+            Text(
+                text = count.toString(),
+                color = accentColor,
+                style = MaterialTheme.typography.labelSmall,
+                fontWeight = FontWeight.Bold
+            )
+        }
+    }
+}
+
+/** Boş liste durumu — bölüm kartıyla aynı görsel dilde. */
+@Composable
+internal fun AddonEmptyCard(
+    text: String,
+    icon: ImageVector = Icons.Rounded.Extension,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(KitsugiColors.SurfaceSoft)
+            .border(1.dp, KitsugiColors.Border.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
+            .padding(horizontal = 14.dp, vertical = 16.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = KitsugiColors.TextMuted,
+            modifier = Modifier.size(18.dp)
+        )
+        Text(
+            text = text,
+            color = KitsugiColors.TextMuted,
+            style = MaterialTheme.typography.bodySmall,
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 
@@ -255,14 +438,15 @@ private fun PresetAddonRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(KitsugiColors.SurfaceSoft)
-            .tvClickable(enabled = !isInstalled, shape = RoundedCornerShape(16.dp)) { onAddAddon(manifestUrl) }
+            .clip(RoundedCornerShape(14.dp))
+            .background(KitsugiColors.Surface)
+            .border(1.dp, KitsugiColors.Border.copy(alpha = 0.5f), RoundedCornerShape(14.dp))
+            .tvClickable(enabled = !isInstalled, shape = RoundedCornerShape(14.dp)) { onAddAddon(manifestUrl) }
             .padding(12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
         Box(
-            modifier = Modifier.size(36.dp).clip(RoundedCornerShape(8.dp)).background(iconColor.copy(alpha = 0.2f)),
+            modifier = Modifier.size(34.dp).clip(RoundedCornerShape(9.dp)).background(iconColor.copy(alpha = 0.18f)),
             contentAlignment = Alignment.Center
         ) { Icon(icon, contentDescription = null, tint = iconColor, modifier = Modifier.size(18.dp)) }
         Spacer(Modifier.width(12.dp))
@@ -270,12 +454,27 @@ private fun PresetAddonRow(
             Text(title, color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Bold)
             Text(subtitle, color = KitsugiColors.TextSecondary, style = MaterialTheme.typography.bodySmall)
         }
-        Text(
-            text = if (isInstalled) "Kuruldu" else "Kur",
-            color = if (isInstalled) KitsugiColors.TextMuted else accentColor,
-            fontWeight = FontWeight.Bold,
-            fontSize = 12.sp,
-            modifier = Modifier.padding(horizontal = 4.dp)
-        )
+        Spacer(Modifier.width(8.dp))
+        if (isInstalled) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Icon(Icons.Rounded.CheckCircle, contentDescription = null, tint = KitsugiColors.AccentGreen, modifier = Modifier.size(14.dp))
+                Text(
+                    text = "Kuruldu",
+                    color = KitsugiColors.TextMuted,
+                    fontWeight = FontWeight.Bold,
+                    fontSize = 12.sp
+                )
+            }
+        } else {
+            Text(
+                text = "Kur",
+                color = accentColor,
+                fontWeight = FontWeight.Bold,
+                fontSize = 12.sp
+            )
+        }
     }
 }

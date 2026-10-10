@@ -103,6 +103,14 @@ internal fun CloudstreamExtensionsTab(
         contentPadding = PaddingValues(bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
+        // ── Bilgilendirme şeridi (Eklentiler sayfasının ortak bileşeni) ────
+        item {
+            AddonInfoBanner(
+                accentColor = accentColor,
+                text = "Video kaynakları Cloudstream depolarından gelir; depo ekleyip eklentileri buradan kurun ve güncelleyin."
+            )
+        }
+
         // ─ GitHub Vekil Sunucu (jsDelivr) Toggle ────────────────────────────────────────
         item {
             androidx.compose.foundation.layout.Column(
@@ -380,16 +388,17 @@ internal fun CloudstreamExtensionsTab(
             }
 
             item {
-                HorizontalDivider(color = KitsugiColors.Border)
                 Spacer(Modifier.height(4.dp))
-                Text("Eklenti Depoları (${repos.size})", color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                AddonListHeader(
+                    title = "Eklenti Depoları",
+                    count = repos.size,
+                    accentColor = accentColor
+                )
             }
 
             if (repos.isEmpty()) {
                 item {
-                    Box(modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp), contentAlignment = Alignment.Center) {
-                        Text("Henüz eklenti deposu eklenmemiş.", color = KitsugiColors.TextMuted, style = MaterialTheme.typography.bodyMedium)
-                    }
+                    AddonEmptyCard(text = "Henüz eklenti deposu eklenmemiş. Yukarıdaki alandan bir depo adresi ekleyin.")
                 }
             } else {
                 items(repos, key = { it.repoUrl }) { repo ->
@@ -445,8 +454,26 @@ internal fun CloudstreamExtensionsTab(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Yüklü Video Sağlayıcıları", color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                        Spacer(Modifier.height(4.dp))
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text("Yüklü Video Sağlayıcıları", color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                            Box(
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(999.dp))
+                                    .background(accentColor.copy(alpha = 0.15f))
+                                    .padding(horizontal = 8.dp, vertical = 2.dp)
+                            ) {
+                                Text(
+                                    text = csPlugins.size.toString(),
+                                    color = accentColor,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+                        Spacer(Modifier.height(2.dp))
                         Text(
                             "Kitsugi video motoru tarafından kullanılan video sağlayıcı (.cs3) eklentileri.",
                             color = KitsugiColors.TextSecondary,
@@ -484,15 +511,10 @@ internal fun CloudstreamExtensionsTab(
 
             if (csPlugins.isEmpty()) {
                 item {
-                    Box(modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Icon(Icons.Rounded.Add, contentDescription = null, tint = KitsugiColors.TextMuted, modifier = Modifier.size(40.dp))
-                            Spacer(Modifier.height(12.dp))
-                            Text("Henüz eklenti kurulmamış.", color = KitsugiColors.TextMuted, style = MaterialTheme.typography.bodyMedium)
-                            Spacer(Modifier.height(4.dp))
-                            Text("Depolar sekmesinden eklenti kurabilirsiniz.", color = KitsugiColors.TextMuted, style = MaterialTheme.typography.bodySmall)
-                        }
-                    }
+                    AddonEmptyCard(
+                        icon = Icons.Rounded.ExtensionOff,
+                        text = "Henüz eklenti kurulmamış. Depolar sekmesinden eklenti kurabilirsiniz."
+                    )
                 }
             } else {
                 if (disabledPluginCount > 0) {
