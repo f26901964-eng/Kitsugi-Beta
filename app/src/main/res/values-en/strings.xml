@@ -1209,6 +1209,16 @@
     <string name="sub_audio_delay_desc">Global delay for audio/video sync</string>
     <string name="sub_preferred_langs">Preferred Subtitle Languages</string>
     <string name="sub_preferred_langs_desc">Only subtitles in the checked languages are loaded</string>
+    <string name="sub_lang_tr">🇹🇷 Turkish</string>
+    <string name="sub_lang_en">🇬🇧 English</string>
+    <string name="sub_lang_ja">🇯🇵 Japanese</string>
+    <string name="sub_lang_fr">🇫🇷 French</string>
+    <string name="sub_lang_de">🇩🇪 German</string>
+    <string name="sub_lang_es">🇪🇸 Spanish</string>
+    <string name="sub_lang_pt">🇵🇹 Portuguese</string>
+    <string name="sub_lang_ar">🇸🇦 Arabic</string>
+    <string name="sub_lang_ko">🇰🇷 Korean</string>
+    <string name="sub_lang_zh">🇨🇳 Chinese</string>
     <string name="sub_load_mode">Subtitle Load Mode</string>
     <string name="sub_load_mode_desc">Which subtitles to load when opening a video</string>
     <string name="sub_route_bt">🎧 Bluetooth</string>

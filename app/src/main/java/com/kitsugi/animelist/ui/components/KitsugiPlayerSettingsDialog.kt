@@ -1224,36 +1224,34 @@ fun KitsugiPlayerSettingsDialog(
                                     // ── Chip tabanlı çok-seçimli dil seçici ──────────────────
                                     // Dil kodları ISO 639-1 standardında virgülle ayrılmış string
                                     // olarak kaydedilir (örn: "tr,en"). Varsayılan: "tr"
-                                    val allSubtitleLanguages = remember {
-                                        listOf(
-                                            "tr" to stringResource(R.string.pd_lang_tr),
-                                            "en" to stringResource(R.string.option_title_lang_english),
-                                            "ja" to stringResource(R.string.option_title_lang_native),
-                                            "ar" to stringResource(R.string.pd_lang_ar),
-                                            "zh" to stringResource(R.string.pd_lang_zh),
-                                            "ko" to stringResource(R.string.pd_lang_ko),
-                                            "fr" to stringResource(R.string.pd_lang_fr),
-                                            "de" to stringResource(R.string.pd_lang_de),
-                                            "es" to stringResource(R.string.pd_lang_es),
-                                            "pt" to stringResource(R.string.pd_lang_pt),
-                                            "it" to stringResource(R.string.pd_lang_it),
-                                            "ru" to stringResource(R.string.pd_lang_ru),
-                                            "nl" to stringResource(R.string.pd_lang_nl),
-                                            "pl" to stringResource(R.string.pd_lang_pl),
-                                            "sv" to stringResource(R.string.pd_lang_sv),
-                                            "no" to stringResource(R.string.pd_lang_no),
-                                            "da" to stringResource(R.string.pd_lang_da),
-                                            "fi" to stringResource(R.string.pd_lang_fi),
-                                            "uk" to stringResource(R.string.pd_lang_uk),
-                                            "ro" to stringResource(R.string.pd_lang_ro),
-                                            "cs" to stringResource(R.string.pd_lang_cs),
-                                            "hu" to stringResource(R.string.pd_lang_hu),
-                                            "he" to stringResource(R.string.pd_lang_he),
-                                            "id" to stringResource(R.string.pd_lang_id),
-                                            "th" to stringResource(R.string.pd_lang_th),
-                                            "vi" to stringResource(R.string.pd_lang_vi)
-                                        )
-                                    }
+                                    val allSubtitleLanguages = listOf(
+                                        "tr" to stringResource(R.string.pd_lang_tr),
+                                        "en" to stringResource(R.string.option_title_lang_english),
+                                        "ja" to stringResource(R.string.option_title_lang_native),
+                                        "ar" to stringResource(R.string.pd_lang_ar),
+                                        "zh" to stringResource(R.string.pd_lang_zh),
+                                        "ko" to stringResource(R.string.pd_lang_ko),
+                                        "fr" to stringResource(R.string.pd_lang_fr),
+                                        "de" to stringResource(R.string.pd_lang_de),
+                                        "es" to stringResource(R.string.pd_lang_es),
+                                        "pt" to stringResource(R.string.pd_lang_pt),
+                                        "it" to stringResource(R.string.pd_lang_it),
+                                        "ru" to stringResource(R.string.pd_lang_ru),
+                                        "nl" to stringResource(R.string.pd_lang_nl),
+                                        "pl" to stringResource(R.string.pd_lang_pl),
+                                        "sv" to stringResource(R.string.pd_lang_sv),
+                                        "no" to stringResource(R.string.pd_lang_no),
+                                        "da" to stringResource(R.string.pd_lang_da),
+                                        "fi" to stringResource(R.string.pd_lang_fi),
+                                        "uk" to stringResource(R.string.pd_lang_uk),
+                                        "ro" to stringResource(R.string.pd_lang_ro),
+                                        "cs" to stringResource(R.string.pd_lang_cs),
+                                        "hu" to stringResource(R.string.pd_lang_hu),
+                                        "he" to stringResource(R.string.pd_lang_he),
+                                        "id" to stringResource(R.string.pd_lang_id),
+                                        "th" to stringResource(R.string.pd_lang_th),
+                                        "vi" to stringResource(R.string.pd_lang_vi)
+                                    )
                                     val selectedLangs = remember(preferredSubtitleLanguages) {
                                         mutableStateOf(
                                             preferredSubtitleLanguages

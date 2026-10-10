@@ -1209,6 +1209,16 @@
     <string name="sub_audio_delay_desc">Ses ve görüntü senkronizasyonu için genel gecikme süresi</string>
     <string name="sub_preferred_langs">Tercih Edilen Altyazı Dilleri</string>
     <string name="sub_preferred_langs_desc">Sadece işaretlenen dillerdeki altyazılar yüklenir</string>
+    <string name="sub_lang_tr">🇹🇷 Türkçe</string>
+    <string name="sub_lang_en">🇬🇧 İngilizce</string>
+    <string name="sub_lang_ja">🇯🇵 Japonca</string>
+    <string name="sub_lang_fr">🇫🇷 Fransızca</string>
+    <string name="sub_lang_de">🇩🇪 Almanca</string>
+    <string name="sub_lang_es">🇪🇸 İspanyolca</string>
+    <string name="sub_lang_pt">🇵🇹 Portekizce</string>
+    <string name="sub_lang_ar">🇸🇦 Arapça</string>
+    <string name="sub_lang_ko">🇰🇷 Korece</string>
+    <string name="sub_lang_zh">🇨🇳 Çince</string>
     <string name="sub_load_mode">Altyazı Yükleme Modu</string>
     <string name="sub_load_mode_desc">Videoyu açarken hangi altyazıların yükleneceği</string>
     <string name="sub_route_bt">🎧 Bluetooth</string>
