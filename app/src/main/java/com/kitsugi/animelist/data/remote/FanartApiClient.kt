@@ -70,6 +70,18 @@ object FanartApiClient {
         userKey.trim().ifBlank { BUILT_IN_API_KEY }
 
     /**
+     * Görsel dil tercihi: çağıran dil vermediyse UYGULAMA dilini kullanır (örn. "tr").
+     * Eskiden sabit "en" idi; Türkçe kullanıcıya İngilizce logo dayatılıyordu.
+     * Öncelik zinciri (extractBestUrl/appendImages): tercih edilen dil → nötr → en.
+     */
+    fun resolveLanguage(language: String): String {
+        val explicit = language.trim()
+        if (explicit.isNotBlank()) return explicit.lowercase()
+        val active = runCatching { TmdbApiClient.getActiveLanguage() }.getOrDefault("tr")
+        return active.substringBefore('-').trim().lowercase().ifBlank { "en" }
+    }
+
+    /**
      * Fanart.tv anahtarını gerçek bir, yaygın olarak bulunan film kaydıyla doğrular.
      * Boş anahtarda uygulamanın paylaşılan anahtarı sınanır.
      */
@@ -121,7 +133,7 @@ object FanartApiClient {
      * TVDB ID ile TV/Anime görsellerini çeker.
      * Tek HTTP isteği ile TÜM kategoriler alınır — limit yok.
      */
-    fun fetchTvImages(tvdbId: Int, apiKey: String, language: String = "en"): List<GalleryItem> {
+    fun fetchTvImages(tvdbId: Int, apiKey: String, language: String = ""): List<GalleryItem> {
         if (tvdbId <= 0 || apiKey.isBlank()) return emptyList()
         return try {
             val url = buildUrl("tv", tvdbId, apiKey)
@@ -131,7 +143,7 @@ object FanartApiClient {
                 return emptyList()
             }
             Log.d(TAG, "fetchTvImages: Response length=${response.length} for tvdbId=$tvdbId")
-            parseTvImages(JSONObject(response), language)
+            parseTvImages(JSONObject(response), resolveLanguage(language))
         } catch (e: Exception) {
             Log.w(TAG, "fetchTvImages failed for tvdbId=$tvdbId: ${e.message}", e)
             emptyList()
@@ -141,7 +153,7 @@ object FanartApiClient {
     /**
      * TVDB ID ile yalnızca en iyi logo URL'sini çeker (hero alanı için).
      */
-    fun fetchBestLogo(tvdbId: Int, apiKey: String, language: String = "en"): String? {
+    fun fetchBestLogo(tvdbId: Int, apiKey: String, language: String = ""): String? {
         if (tvdbId <= 0 || apiKey.isBlank()) return null
         return try {
             val url = buildUrl("tv", tvdbId, apiKey)
@@ -151,7 +163,7 @@ object FanartApiClient {
                 return null
             }
             val root = JSONObject(response)
-            extractBestUrl(root, listOf("hdtvlogo", "clearlogo", "hdclearart"), language)
+            extractBestUrl(root, listOf("hdtvlogo", "clearlogo", "hdclearart"), resolveLanguage(language))
         } catch (e: Exception) {
             Log.w(TAG, "fetchBestLogo (TV) failed for tvdbId=$tvdbId: ${e.message}", e)
             null
@@ -166,7 +178,7 @@ object FanartApiClient {
      * TMDB ID ile film görsellerini çeker.
      * Tek HTTP isteği ile TÜM kategoriler alınır — limit yok.
      */
-    fun fetchMovieImages(tmdbId: Int, apiKey: String, language: String = "en"): List<GalleryItem> {
+    fun fetchMovieImages(tmdbId: Int, apiKey: String, language: String = ""): List<GalleryItem> {
         if (tmdbId <= 0 || apiKey.isBlank()) return emptyList()
         return try {
             val url = buildUrl("movies", tmdbId, apiKey)
@@ -176,7 +188,7 @@ object FanartApiClient {
                 return emptyList()
             }
             Log.d(TAG, "fetchMovieImages: Response length=${response.length} for tmdbId=$tmdbId")
-            parseMovieImages(JSONObject(response), language)
+            parseMovieImages(JSONObject(response), resolveLanguage(language))
         } catch (e: Exception) {
             Log.w(TAG, "fetchMovieImages failed for tmdbId=$tmdbId: ${e.message}", e)
             emptyList()
@@ -186,7 +198,7 @@ object FanartApiClient {
     /**
      * TMDB ID ile yalnızca en iyi film logo URL'sini çeker (hero alanı için).
      */
-    fun fetchBestMovieLogo(tmdbId: Int, apiKey: String, language: String = "en"): String? {
+    fun fetchBestMovieLogo(tmdbId: Int, apiKey: String, language: String = ""): String? {
         if (tmdbId <= 0 || apiKey.isBlank()) return null
         return try {
             val url = buildUrl("movies", tmdbId, apiKey)
@@ -196,7 +208,7 @@ object FanartApiClient {
                 return null
             }
             val root = JSONObject(response)
-            extractBestUrl(root, listOf("hdmovielogo", "movielogo", "hdmovieclearart"), language)
+            extractBestUrl(root, listOf("hdmovielogo", "movielogo", "hdmovieclearart"), resolveLanguage(language))
         } catch (e: Exception) {
             Log.w(TAG, "fetchBestMovieLogo failed for tmdbId=$tmdbId: ${e.message}", e)
             null
@@ -387,23 +399,30 @@ object FanartApiClient {
     private fun extractBestUrl(root: JSONObject, keys: List<String>, language: String): String? {
         for (key in keys) {
             val array = root.optJSONArray(key) ?: continue
-            val preferred = mutableListOf<String>()
-            val neutral   = mutableListOf<String>()
-            val english   = mutableListOf<String>()
+            val preferred = mutableListOf<Pair<String, Int>>()
+            val neutral   = mutableListOf<Pair<String, Int>>()
+            val english   = mutableListOf<Pair<String, Int>>()
 
             for (i in 0 until array.length()) {
                 val obj = array.optJSONObject(i) ?: continue
                 val urlStr = obj.optString("url", "").trim()
                 if (urlStr.isBlank()) continue
                 val lang = obj.optString("lang", "").trim()
+                val likes = obj.optString("likes", "0").trim().toIntOrNull() ?: 0
+                val entry = urlStr to likes
                 when {
-                    lang == language               -> preferred.add(urlStr)
-                    lang.isBlank() || lang == "00" -> neutral.add(urlStr)
-                    lang == "en"                   -> english.add(urlStr)
+                    lang == language               -> preferred.add(entry)
+                    lang.isBlank() || lang == "00" -> neutral.add(entry)
+                    lang == "en"                   -> english.add(entry)
                 }
             }
 
-            val best = preferred.firstOrNull() ?: neutral.firstOrNull() ?: english.firstOrNull()
+            // Dil dilimi içinde topluluk beğenisi (likes) en yüksek olan kazanır —
+            // API dizi sırası rastgeledir, hatalı yüklemeler böyle elenir.
+            fun bestOf(bucket: List<Pair<String, Int>>): String? =
+                bucket.maxByOrNull { it.second }?.first
+
+            val best = bestOf(preferred) ?: bestOf(neutral) ?: bestOf(english)
             if (!best.isNullOrBlank()) return best
         }
         return null

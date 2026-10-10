@@ -1063,8 +1063,12 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
 
         val isMovie = result.type == MediaType.Movie
         // Kitsu listesi/detayında tür "Anime" olarak gelir; film olan Kitsu kaydını alt türünden anlarız.
-        // Aksi halde film kaydının galerisine, TMDB ID'si aynı olan TV dizisinin görselleri karışır.
-        val galleryIsMovie = isMovie || KitsugiEpisodeRatingsRepository.isKitsuMovieId(fallbackKitsuId)
+        // MAL/AniList listeleri de filmleri "Anime/TV" olarak taşıyabildiği için son çare
+        // ARM/animeapi medya türüdür (isTmdbMovie): aksi halde film galerisine ve logosuna
+        // TMDB ID çakışması/TVDB sızıntısı ile TV dizisinin görselleri karışır.
+        val galleryIsMovie = isMovie ||
+            KitsugiEpisodeRatingsRepository.isKitsuMovieId(fallbackKitsuId) ||
+            KitsugiEpisodeRatingsRepository.isTmdbMovie(tmdbId)
 
         val providers = coroutineScope {
             val fanartDef = async(Dispatchers.IO) {

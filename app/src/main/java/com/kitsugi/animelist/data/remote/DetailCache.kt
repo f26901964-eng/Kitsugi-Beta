@@ -20,6 +20,13 @@ object DetailCache {
     // ─── TMDB ID → TVDB ID mapping ───────────────────────────────────────────
     val tmdbToTvdbCache: MutableMap<Int, Int?> = BoundedCache<Int, Int?>("detail.tmdbToTvdb", 3000)
 
+    // ─── TMDB ID → media kind ("movie" | "tv" | null = kontrol edildi, film değil) ──
+    // ARM ("media") / animeapi ("themoviedb_type") çapraz eşlemelerinden doldurulur.
+    // Film kayıtlarının TVDB/fanart-TV zincirine girmesini engelleyen doğruluk kaynağı:
+    // TVDB filmleri dizinin 0. sezonu olarak tutar; film için TVDB kullanılırsa dizi
+    // logosu/afişi sızar (Chainsaw Man Reze-hen vakası).
+    val tmdbMediaCache: MutableMap<Int, String?> = BoundedCache<Int, String?>("detail.tmdbMedia", 3000)
+
     // ─── TMDB ID → Logo URL mapping ──────────────────────────────────────────
     val logoCache: MutableMap<Int, String?> = BoundedCache<Int, String?>("detail.logo", 1500)
 
@@ -301,6 +308,7 @@ object DetailCache {
         episodeRatingsCache.clear()
         malToTmdbCache.clear()
         tmdbToTvdbCache.clear()
+        tmdbMediaCache.clear()
         logoCache.clear()
         tmdbEpisodesCache.clear()
     }
