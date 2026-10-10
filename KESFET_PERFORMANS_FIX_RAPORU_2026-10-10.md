@@ -52,7 +52,29 @@ ayakta kalıyordu (gereksiz CPU/pil + recomposition churn).
   `KitsugiShimmerMediaRow`, airing placeholder'ları) zaten `isLoading` ile
   kapılıdır; yükleme yokken animasyonlu fırçaya ihtiyaç yoktur.
 
-## 5. Doğrulama notu
+## 5. Arama Sayfası (2026-10-10, ikinci tur)
+Kullanıcı raporu: "arama sayfası vb. de kasıyordu." İnceleme sonucu:
+
+- Arama sayfasında Keşfet'teki scroll geri besleme döngüsü YOKTU
+  (`onScrollPositionChange` hiç bağlanmamış) — ancak:
+  - **"Tümü" aramasında shimmer fırtınası:** 7 platform rafı (`MultiSearchSection`)
+    + sonuç placeholder'ı, sayfa başında provider olmadığı için her biri KENDİ
+    `rememberInfiniteTransition`'ını kuruyordu → aynı anda 8 sonsuz animasyon.
+  - **`filteredResults` her recomposition'da yeniden süzülüyordu** (LazyColumn
+    DSL'i içinde eager `filter` zinciri; yüzlerce sonuçlu aramalarda her state
+    güncellemesinde tekrar çalışıyordu).
+- Çözüm:
+  - `SearchScreen` içeriği `KitsugiShimmerProvider(active = isLoading ||
+    isLoadingMore || multiResults.isAnyLoading)` ile sarıldı → yüklenirken TEK
+    paylaşımlı transition, yüklenme bitince animasyon tamamen durur.
+    (`SourceSearchPage` aynı `SearchScreen`'i kullandığı için düzeltme oraya da geçer.)
+  - `filteredResults` `remember(results, showAdultContent, onMyList, isAlreadyInList)`
+    ile önbelleklendi.
+- Not: `FullScreenMediaGridPage` ve `SourceSearchPage` taraflarında scroll döngüsü
+  ya da kalıcı animasyon bulunamadı; `ModernHomeRows` hiç çağrılmayan ölü kod.
+- Listem sayfası da aynı `AppViewModel` düzeltmesinden yararlanıyor (madde A).
+
+## 6. Doğrulama notu
 Sandbox'ta JDK/Android SDK bulunmadığından derleme yapılamadı; değiştirilen
 dosyalar sözdizimi (dengeli parantez/kaşeli) ve tüm kullanım yerleri
 (`grep`) düzeyinde doğrulandı. Cihazda derleyip Keşfet'i Tümü + tek kaynak
