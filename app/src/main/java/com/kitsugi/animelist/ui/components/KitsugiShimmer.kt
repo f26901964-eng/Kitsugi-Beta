@@ -174,15 +174,16 @@ fun KitsugiShimmerProvider(
             content = content
         )
     } else {
-        val staticBrush = remember {
+        val shimmerColors = listOf(
+            KitsugiColors.Surface,
+            KitsugiColors.SurfaceSoft.copy(alpha = 0.6f),
+            KitsugiColors.SurfaceStrong.copy(alpha = 0.4f),
+            KitsugiColors.SurfaceSoft.copy(alpha = 0.6f),
+            KitsugiColors.Surface,
+        )
+        val staticBrush = remember(shimmerColors) {
             Brush.linearGradient(
-                colors = listOf(
-                    KitsugiColors.Surface,
-                    KitsugiColors.SurfaceSoft.copy(alpha = 0.6f),
-                    KitsugiColors.SurfaceStrong.copy(alpha = 0.4f),
-                    KitsugiColors.SurfaceSoft.copy(alpha = 0.6f),
-                    KitsugiColors.Surface,
-                ),
+                colors = shimmerColors,
                 start = Offset(0f, 0f),
                 end = Offset(1300f, 0f),
             )
