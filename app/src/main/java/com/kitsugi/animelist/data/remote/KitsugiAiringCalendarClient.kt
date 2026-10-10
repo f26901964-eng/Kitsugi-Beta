@@ -299,31 +299,74 @@ class KitsugiAiringCalendarClient {
             .sortedBy { it.airingAt }
     }
 
+    /**
+     * Yaklaşan yayın şeridi ("Yakında Yayında").
+     *
+     * Keşfet tüm kaynakları bu şeridi ister ve sonuç kaynak başına değil ORTAKTIR; bu yüzden
+     * kısa süreli bellek içi önbellek + uçuşta tekilleştirme uygulanır. Aksi halde "Tümü"
+     * modunda aynı AniList sorgusu 7 kez, AniList'in 700ms kuyruğunda art arda dizilip
+     * tüm sayfanın açılmasını saniyelerce geciktiriyordu.
+     */
     suspend fun fetchUpcomingSchedule(limit: Int = 30, accessToken: String? = null, preferredSource: String? = null): List<AiringEntry> {
-        return withContext(Dispatchers.IO) {
-            if (preferredSource == "tmdb") {
-                fetchTmdbUpcomingSchedule(limit)
-            } else {
-                val nowSeconds = System.currentTimeMillis() / 1000L
-                val fourteenDaysLater = nowSeconds + 14 * 24 * 3600L
-                val variables = JSONObject()
-                    .put("page", 1)
-                    .put("perPage", 50)
-                    .put("airingAt_greater", nowSeconds)
-                    .put("airingAt_lesser", fourteenDaysLater)
-                val responseText = KitsugiApiBase.executeAniListQuery(
-                    query = QUERY,
-                    variables = variables,
-                    accessToken = accessToken
-                ) ?: return@withContext emptyList<AiringEntry>()
-                val (entries, _) = parseResponse(responseText)
-                entries
-                    .filter { it.airingAt > nowSeconds }
-                    .sortedBy { it.airingAt }
-                    .take(limit)
+        val cacheKey = "${preferredSource ?: "anilist"}|${if (accessToken.isNullOrBlank()) "anon" else "auth"}"
+        synchronized(upcomingLock) {
+            upcomingCache[cacheKey]?.let { hit ->
+                if (hit.expiresAtMs > System.currentTimeMillis()) return hit.entries.take(limit)
             }
         }
+
+        val owned = kotlinx.coroutines.CompletableDeferred<List<AiringEntry>>()
+        val existing = synchronized(upcomingLock) {
+            upcomingCache[cacheKey]?.let { hit ->
+                if (hit.expiresAtMs > System.currentTimeMillis()) return hit.entries.take(limit)
+            }
+            upcomingInFlight[cacheKey] ?: run {
+                upcomingInFlight[cacheKey] = owned
+                null
+            }
+        }
+
+        if (existing != null) return existing.await().take(limit)
+
+        try {
+            val fresh = withContext(Dispatchers.IO) {
+                if (preferredSource == "tmdb") {
+                    fetchTmdbUpcomingSchedule(limit)
+                } else {
+                    val nowSeconds = System.currentTimeMillis() / 1000L
+                    val fourteenDaysLater = nowSeconds + 14 * 24 * 3600L
+                    val variables = JSONObject()
+                        .put("page", 1)
+                        .put("perPage", 50)
+                        .put("airingAt_greater", nowSeconds)
+                        .put("airingAt_lesser", fourteenDaysLater)
+                    val responseText = KitsugiApiBase.executeAniListQuery(
+                        query = QUERY,
+                        variables = variables,
+                        accessToken = accessToken
+                    ) ?: return@withContext emptyList<AiringEntry>()
+                    val (entries, _) = parseResponse(responseText)
+                    entries
+                        .filter { it.airingAt > nowSeconds }
+                        .sortedBy { it.airingAt }
+                }
+            }
+            // TMDB varyantı zaten limit'li döner; AniList varyantı tam listedir.
+            val stored = if (preferredSource == "tmdb") fresh else fresh.take(50)
+            synchronized(upcomingLock) {
+                upcomingCache[cacheKey] = UpcomingCacheEntry(stored, System.currentTimeMillis() + UPCOMING_CACHE_TTL_MS)
+            }
+            owned.complete(stored)
+            return stored.take(limit)
+        } catch (e: Throwable) {
+            owned.complete(emptyList())
+            throw e
+        } finally {
+            synchronized(upcomingLock) { upcomingInFlight.remove(cacheKey) }
+        }
     }
+
+    private class UpcomingCacheEntry(val entries: List<AiringEntry>, val expiresAtMs: Long)
 
     private suspend fun fetchTmdbUpcomingSchedule(limit: Int): List<AiringEntry> {
         val apiKey = TmdbApiClient.getActiveApiKey()
@@ -462,6 +505,12 @@ class KitsugiAiringCalendarClient {
     }
 
     companion object {
+        /** Aynı "Yakında Yayında" verisi bu süre boyunca tek ağ turuyla karşılanır. */
+        private const val UPCOMING_CACHE_TTL_MS = 90_000L
+        private val upcomingLock = Any()
+        private val upcomingCache = java.util.concurrent.ConcurrentHashMap<String, UpcomingCacheEntry>()
+        private val upcomingInFlight = java.util.concurrent.ConcurrentHashMap<String, kotlinx.coroutines.CompletableDeferred<List<AiringEntry>>>()
+
         private val QUERY = """
             query(${'$'}page:Int,${'$'}perPage:Int,${'$'}airingAt_greater:Int,${'$'}airingAt_lesser:Int){
               Page(page:${'$'}page,perPage:${'$'}perPage){

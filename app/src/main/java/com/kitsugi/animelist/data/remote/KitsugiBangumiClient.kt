@@ -319,20 +319,60 @@ object KitsugiBangumiClient {
      * olan satırlar için subject bir kez çekilir, Latin adlar [BangumiTitleCache]'e yazılır ve
      * satır o adlarla güncellenir. Böylece liste kartları da uygulama dil tercihine uyar.
      * Latin ad bulunamazsa satır olduğu gibi kalır (son çare orijinal ad).
+     *
+     * PERFORMANS SÖZLEŞMESİ (Keşfet düzeltmesi):
+     *  - Bilinen Latin adlar AĞA ÇIKMADAN uygulanır (önbellek-öncelikli).
+     *  - Aynı subject için eşzamanlı istekler TEK çağrıda birleşir (uçta tekilleştirme);
+     *    örn. "Bu Sezon" ve "Şu An Yayında" rafları aynı kaydı iki kez çekmez.
+     *  - Tüm raflar 3 eşzamanlı subject isteğini PAYLAŞIR. Eskisi gibi raf başına
+     *    Semaphore(4) ile 14 raf paralel çalışınca bgm.tv'ye ~56 eşzamanlı istek gidiyor,
+     *    429/retry döngüsü sayfayı dakikalarca kilitliyordu.
      */
+    private val latinNameLimiter = Semaphore(3)
+    private val latinNameScope = kotlinx.coroutines.CoroutineScope(
+        kotlinx.coroutines.SupervisorJob() + Dispatchers.IO
+    )
+    private val latinNameInFlight =
+        java.util.concurrent.ConcurrentHashMap<Int, kotlinx.coroutines.Deferred<BangumiLocalizedName?>>()
+
+    private fun sharedSubjectNames(rawId: Int, token: String?): kotlinx.coroutines.Deferred<BangumiLocalizedName?> {
+        synchronized(latinNameInFlight) {
+            latinNameInFlight[rawId]?.let { return it }
+            val job = latinNameScope.async {
+                latinNameLimiter.withPermit {
+                    runCatching { BangumiApiClient.getSubject(rawId, token) }.getOrNull()
+                }?.let { subject -> BangumiNameLocalizer.subject(subject.name, subject.nameCn, subject.infobox) }
+            }
+            job.invokeOnCompletion { synchronized(latinNameInFlight) { latinNameInFlight.remove(rawId, job) } }
+            latinNameInFlight[rawId] = job
+            return job
+        }
+    }
+
     internal suspend fun List<JikanSearchResult>.withLatinBangumiNames(context: Context? = null): List<JikanSearchResult> {
         if (none { it.source == SOURCE && PreferenceHelpers.hasCjkCharacters(it.title) }) return this
-        val limiter = Semaphore(4)
         return coroutineScope {
             map { item ->
                 async {
                     if (item.source != SOURCE || !PreferenceHelpers.hasCjkCharacters(item.title)) return@async item
                     val rawId = BangumiIdNamespace.rawIdFromStable(item.malId) ?: item.malId
                     if (rawId <= 0) return@async item
-                    val subject = limiter.withPermit {
-                        runCatching { BangumiApiClient.getSubject(rawId, tokenOrNull(context)) }.getOrNull()
-                    } ?: return@async item
-                    val localized = BangumiNameLocalizer.subject(subject.name, subject.nameCn, subject.infobox)
+
+                    // 1) Önbellekte Latin adı varsa ağ isteği yapılmaz.
+                    BangumiTitleCache.latinTitleFor(rawId, item.title)?.let { latin ->
+                        val cached = BangumiTitleCache.get(rawId)
+                        return@async item.copy(
+                            title = latin,
+                            titleEnglish = cached?.english ?: item.titleEnglish,
+                            titleRomaji = cached?.romaji ?: item.titleRomaji
+                        )
+                    }
+
+                    // 2) Önbellek boşsa subject detayı — uçuşta tekilleştirilmiş ve
+                    //    küresel olarak eşzamanlılık sınırı uygulanmış tek çağrı.
+                    val localized = runCatching {
+                        sharedSubjectNames(rawId, tokenOrNull(context)).await()
+                    }.getOrNull() ?: return@async item
                     BangumiTitleCache.put(rawId, localized.romaji, localized.english, localized.native)
                     val latinTitle = localized.romaji ?: localized.english
                     if (latinTitle == null) item else item.copy(

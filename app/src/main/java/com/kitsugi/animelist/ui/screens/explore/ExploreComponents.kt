@@ -112,9 +112,12 @@ fun AiringSoonCountdownText(
                 }
             }
             if (remaining <= 0L) break
-            val delayMs = if (remaining < 3600L) 1_000L
-                          else if (remaining < 86400L) 10_000L
-                          else 60_000L
+            // Metin dakika çözünürlüğünde ("X dk sonra") — saniyelik tıklar her görünür
+            // kartta sürekli yeniden kompozisyon üretiyordu (şerit = 15 kart = 15 ayrı
+            // 1sn'lik timer). 15sn/60sn/5dk tıkları geri sayımı gözle aynı tutar.
+            val delayMs = if (remaining < 3600L) 15_000L
+                          else if (remaining < 86400L) 60_000L
+                          else 300_000L
             delay(delayMs)
         }
     }

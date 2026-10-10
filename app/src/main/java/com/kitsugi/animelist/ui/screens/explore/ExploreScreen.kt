@@ -121,34 +121,63 @@ fun ExploreScreen(
     val effectiveNovels = if (separateNovelsManga) filteredNovels else emptyList()
     val effectiveTopManga = if (separateNovelsManga) filteredTopManga else filteredTopManga + filteredNovels
 
-    val filteredSourcePayload = ExplorePayload(
-        topAnime = filteredTopAnime,
-        airingAnime = filteredAiringAnime,
-        upcomingAnime = filteredUpcomingAnime,
-        topManga = effectiveTopManga,
-        publishingManga = filteredPublishingManga,
-        trendingAnime = filteredTrendingAnime,
-        movieAnime = filteredMovieAnime,
-        seasonalAnime = filteredSeasonalAnime,
-        simklContinueMovies = viewModel.simklContinueMovies,
-        simklPlannedMovies = viewModel.simklPlannedMovies,
-        simklContinueSeries = viewModel.simklContinueSeries,
-        simklPlannedSeries = viewModel.simklPlannedSeries,
-        airingSoonAnime = filteredAiringSoonAnime,
-        trendingManga = filteredTrendingManga,
-        newlyAddedAnime = filteredNewlyAddedAnime,
-        newlyAddedManga = filteredNewlyAddedManga,
-        upcomingMediaTmdb = filteredUpcomingMediaTmdb,
-        topRatedAnime = filteredTopRatedAnime,
-        topRatedManga = filteredTopRatedManga,
-        bangumiTvShows = filteredBangumiTvShows,
-        bangumiMovies = filteredBangumiMovies,
-        manhwaManhua = filteredManhwaManhua,
-        novels = effectiveNovels
-    )
+    // Filtrelenmiş payload yalnızca girdi listeleri değiştiğinde yeniden kurulur —
+    // her kompozisyonda 19 alanlık data-class üretmek + equals çağırmak gereksiz maliyetti.
+    val filteredSourcePayload = remember(
+        filteredTopAnime, filteredAiringAnime, filteredUpcomingAnime,
+        effectiveTopManga, filteredPublishingManga, filteredTrendingAnime,
+        filteredMovieAnime, filteredSeasonalAnime,
+        viewModel.simklContinueMovies, viewModel.simklPlannedMovies,
+        viewModel.simklContinueSeries, viewModel.simklPlannedSeries,
+        filteredAiringSoonAnime, filteredTrendingManga,
+        filteredNewlyAddedAnime, filteredNewlyAddedManga, filteredUpcomingMediaTmdb,
+        filteredTopRatedAnime, filteredTopRatedManga,
+        filteredBangumiTvShows, filteredBangumiMovies,
+        filteredManhwaManhua, effectiveNovels
+    ) {
+        ExplorePayload(
+            topAnime = filteredTopAnime,
+            airingAnime = filteredAiringAnime,
+            upcomingAnime = filteredUpcomingAnime,
+            topManga = effectiveTopManga,
+            publishingManga = filteredPublishingManga,
+            trendingAnime = filteredTrendingAnime,
+            movieAnime = filteredMovieAnime,
+            seasonalAnime = filteredSeasonalAnime,
+            simklContinueMovies = viewModel.simklContinueMovies,
+            simklPlannedMovies = viewModel.simklPlannedMovies,
+            simklContinueSeries = viewModel.simklContinueSeries,
+            simklPlannedSeries = viewModel.simklPlannedSeries,
+            airingSoonAnime = filteredAiringSoonAnime,
+            trendingManga = filteredTrendingManga,
+            newlyAddedAnime = filteredNewlyAddedAnime,
+            newlyAddedManga = filteredNewlyAddedManga,
+            upcomingMediaTmdb = filteredUpcomingMediaTmdb,
+            topRatedAnime = filteredTopRatedAnime,
+            topRatedManga = filteredTopRatedManga,
+            bangumiTvShows = filteredBangumiTvShows,
+            bangumiMovies = filteredBangumiMovies,
+            manhwaManhua = filteredManhwaManhua,
+            novels = effectiveNovels
+        )
+    }
     val selectedSourceSections = remember(viewModel.selectedPlatform, filteredSourcePayload) {
         if (viewModel.selectedPlatform == ExplorePlatform.ALL) emptyList()
         else sourceSections(viewModel.selectedPlatform, filteredSourcePayload)
+    }
+
+    // "Tümü" modu bölümleri: yalnızca kaynak durumları/ayar değişince hesaplanır.
+    // allSourceSections() her çağrısında forSource kopyaları + distinctBy string
+    // hesapları yapar; LazyListScope içerik lambda'sı her state değişiminde yeniden
+    // çalıştığı için hesaplanmadan geçirmek ciddi kare düşüşü üretiyordu.
+    val allSectionsList = remember(viewModel.allSourceStates, showAdultContent) {
+        allSourceSections(viewModel.allSourceStates, showAdultContent)
+    }
+    val allSectionsByPlatform = remember(allSectionsList) { allSectionsList.groupBy { it.platform } }
+    val allSectionsDistinctCounts = remember(allSectionsList) {
+        allSectionsByPlatform.mapValues { (_, sections) ->
+            sections.flatMap { it.results }.distinctBy { it.exploreIdentity() }.size
+        }
     }
 
     // Tümü modunda tek ORTAK "Yakında Yayında" şeridi: tüm kaynakların yayın
@@ -185,12 +214,11 @@ fun ExploreScreen(
     //    metrik tabanlı puanlanır; kategori tavanlarıyla çeşitlilik korunur (10'a kadar).
     val heroItems = remember(
         viewModel.selectedPlatform,
-        viewModel.allSourceStates,
-        showAdultContent,
+        allSectionsList,
         selectedSourceSections
     ) {
         if (viewModel.selectedPlatform == ExplorePlatform.ALL) {
-            allSourceHeroes(viewModel.allSourceStates, showAdultContent)
+            allSourceHeroes(allSectionsList)
         } else {
             selectHeroItems(
                 sections = selectedSourceSections.filter { it.results.isNotEmpty() },
@@ -449,7 +477,7 @@ fun ExploreScreen(
                                                             randomPool.addAll(viewModel.simklContinueSeries)
                                                             randomPool.addAll(viewModel.simklPlannedSeries)
                                                             if (viewModel.selectedPlatform == ExplorePlatform.ALL) {
-                                                                randomPool.addAll(allSourceSections(viewModel.allSourceStates, showAdultContent)
+                                                                randomPool.addAll(allSectionsList
                                                                     .flatMap { it.results }.distinctBy { it.exploreIdentity() })
                                                             }
                                                             randomPool.filter { showAdultContent || !it.isAdult }
@@ -592,7 +620,8 @@ fun ExploreScreen(
                             if (viewModel.selectedPlatform == ExplorePlatform.ALL) {
                                 allSourcesExploreSections(
                                     states = viewModel.allSourceStates,
-                                    showAdultContent = showAdultContent,
+                                    sectionsByPlatform = allSectionsByPlatform,
+                                    distinctCounts = allSectionsDistinctCounts,
                                     airingSoonShelf = sharedAiringSoon,
                                     airingSoonTitle = airingSoonTitle,
                                     airingSoonIsLoading = viewModel.isLoading,

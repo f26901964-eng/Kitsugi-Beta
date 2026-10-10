@@ -27,6 +27,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.firstOrNull
 import com.kitsugi.animelist.model.MediaType
 
+/** AniList keşfet toplu raf sorgusu için kısaltma (bkz. AniListSearchClient.ExploreShelfSpec). */
+private typealias AniListShelfSpec = com.kitsugi.animelist.data.remote.AniListSearchClient.ExploreShelfSpec
+
 /**
  * Keşfet hatalarının türünü belirler — UI'da platforma özgü aksiyon butonları göstermek için.
  * - [TmdbError]: TMDB API anahtarı geçersiz veya eksik → Ayarlara yönlendir
@@ -809,23 +812,10 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         // Kitsu bölüm yayın saati sağlamaz → geri sayımlı şerit ortak takvim verisinden beslenir
         val airingSoonDeferred = async { fetchSharedAiringSoon() }
 
-        val rawTopAnime = runCatching { topAnimeDeferred.await() }.getOrDefault(emptyList())
-        val enrichedTopAnime = if (rawTopAnime.isNotEmpty() && tmdbEnabledState) {
-            val heroCount = minOf(rawTopAnime.size, 5)
-            val backdropJobs = (0 until heroCount).map { index ->
-                val item = rawTopAnime[index]
-                async {
-                    val backdrop = resolveHeroBackdrop(item)
-                    if (backdrop != null) item.copy(backdropUrl = backdrop) else item
-                }
-            }
-            val enrichedHeroes = backdropJobs.mapIndexed { index, job ->
-                runCatching { job.await() }.getOrDefault(rawTopAnime[index])
-            }
-            enrichedHeroes + rawTopAnime.drop(heroCount)
-        } else {
-            rawTopAnime
-        }
+        // Vitrin arka planları veri yolunu BLOKE ETMEZ: eksik backdrop'lar UI tarafında
+        // ExploreViewModel.enrichHeroBackdrops() ile asenkron çözülür ve hero anında güncellenir.
+        // (Eski davranış: payload dönmeden önce 5 × TMDB araması bekleniyordu.)
+        val enrichedTopAnime = runCatching { topAnimeDeferred.await() }.getOrDefault(emptyList())
 
         ExplorePayload(
             topAnime = enrichedTopAnime,
@@ -873,23 +863,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         // Bangumi bölüm yayın saati sağlamaz → geri sayımlı şerit ortak takvim verisinden beslenir
         val airingSoonDeferred = async { fetchSharedAiringSoon() }
 
-        val rawTopAnime = runCatching { topAnimeDeferred.await() }.getOrDefault(emptyList())
-        val enrichedTopAnime = if (rawTopAnime.isNotEmpty() && tmdbEnabledState) {
-            val heroCount = minOf(rawTopAnime.size, 5)
-            val backdropJobs = (0 until heroCount).map { index ->
-                val item = rawTopAnime[index]
-                async {
-                    val backdrop = resolveHeroBackdrop(item)
-                    if (backdrop != null) item.copy(backdropUrl = backdrop) else item
-                }
-            }
-            val enrichedHeroes = backdropJobs.mapIndexed { index, job ->
-                runCatching { job.await() }.getOrDefault(rawTopAnime[index])
-            }
-            enrichedHeroes + rawTopAnime.drop(heroCount)
-        } else {
-            rawTopAnime
-        }
+        // Vitrin arka planları veri yolunu BLOKE ETMEZ — enrichHeroBackdrops() asenkron çözer.
+        val enrichedTopAnime = runCatching { topAnimeDeferred.await() }.getOrDefault(emptyList())
 
         ExplorePayload(
             topAnime = enrichedTopAnime,
@@ -1007,23 +982,8 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
         // Shikimori bölüm yayın saati sağlamaz → geri sayımlı şerit ortak takvim verisinden beslenir
         val airingSoonDeferred = async { fetchSharedAiringSoon() }
 
-        val rawTopAnime = runCatching { topAnimeDeferred.await() }.getOrDefault(emptyList())
-        val enrichedTopAnime = if (rawTopAnime.isNotEmpty() && tmdbEnabledState) {
-            val heroCount = minOf(rawTopAnime.size, 5)
-            val backdropJobs = (0 until heroCount).map { index ->
-                val item = rawTopAnime[index]
-                async {
-                    val backdrop = resolveHeroBackdrop(item)
-                    if (backdrop != null) item.copy(backdropUrl = backdrop) else item
-                }
-            }
-            val enrichedHeroes = backdropJobs.mapIndexed { index, job ->
-                runCatching { job.await() }.getOrDefault(rawTopAnime[index])
-            }
-            enrichedHeroes + rawTopAnime.drop(heroCount)
-        } else {
-            rawTopAnime
-        }
+        // Vitrin arka planları veri yolunu BLOKE ETMEZ — enrichHeroBackdrops() asenkron çözer.
+        val enrichedTopAnime = runCatching { topAnimeDeferred.await() }.getOrDefault(emptyList())
 
         ExplorePayload(
             topAnime = enrichedTopAnime,
@@ -1106,40 +1066,26 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
 
     private suspend fun loadMalData(): ExplorePayload = supervisorScope {
         val showAdult = showAdultContentState
-        val topAnimeDeferred = async { withTimeoutOrNull(5000L) { runCatching { apiClient.topAnime(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
-        val airingAnimeDeferred = async { withTimeoutOrNull(5000L) { runCatching { apiClient.airingAnime(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
-        val upcomingAnimeDeferred = async { withTimeoutOrNull(5000L) { runCatching { apiClient.upcomingAnime(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
-        val trendingAnimeDeferred = async { withTimeoutOrNull(5000L) { runCatching { apiClient.trendingAnime(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
-        val movieAnimeDeferred = async { withTimeoutOrNull(5000L) { runCatching { apiClient.movieAnime(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
-        val seasonalAnimeDeferred = async { withTimeoutOrNull(5000L) { runCatching { apiClient.seasonalAnime(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
-        val topMangaDeferred = async { withTimeoutOrNull(5000L) { runCatching { apiClient.topManga(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
-        val publishingMangaDeferred = async { withTimeoutOrNull(5000L) { runCatching { apiClient.publishingManga(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
-        val trendingMangaDeferred = async { withTimeoutOrNull(5000L) { runCatching { apiClient.trendingManga(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
-        val newlyAddedAnimeDeferred = async { withTimeoutOrNull(5000L) { runCatching { apiClient.newlyAddedAnime(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
-        val newlyAddedMangaDeferred = async { withTimeoutOrNull(5000L) { runCatching { apiClient.newlyAddedManga(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
+        val topAnimeDeferred = async { withTimeoutOrNull(20_000L) { runCatching { apiClient.topAnime(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
+        val airingAnimeDeferred = async { withTimeoutOrNull(20_000L) { runCatching { apiClient.airingAnime(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
+        val upcomingAnimeDeferred = async { withTimeoutOrNull(20_000L) { runCatching { apiClient.upcomingAnime(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
+        val trendingAnimeDeferred = async { withTimeoutOrNull(20_000L) { runCatching { apiClient.trendingAnime(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
+        val movieAnimeDeferred = async { withTimeoutOrNull(20_000L) { runCatching { apiClient.movieAnime(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
+        val seasonalAnimeDeferred = async { withTimeoutOrNull(20_000L) { runCatching { apiClient.seasonalAnime(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
+        val topMangaDeferred = async { withTimeoutOrNull(20_000L) { runCatching { apiClient.topManga(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
+        val publishingMangaDeferred = async { withTimeoutOrNull(20_000L) { runCatching { apiClient.publishingManga(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
+        val trendingMangaDeferred = async { withTimeoutOrNull(20_000L) { runCatching { apiClient.trendingManga(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
+        val newlyAddedAnimeDeferred = async { withTimeoutOrNull(20_000L) { runCatching { apiClient.newlyAddedAnime(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
+        val newlyAddedMangaDeferred = async { withTimeoutOrNull(20_000L) { runCatching { apiClient.newlyAddedManga(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
         // MAL'in yerel ek tür rafları (Bangumi REAL raflarının MAL karşılığı).
-        val manhwaManhuaDeferred = async { withTimeoutOrNull(5000L) { runCatching { apiClient.manhwaManhua(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
-        val novelsDeferred = async { withTimeoutOrNull(5000L) { runCatching { apiClient.novelsShelf(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
+        val manhwaManhuaDeferred = async { withTimeoutOrNull(20_000L) { runCatching { apiClient.manhwaManhua(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
+        val novelsDeferred = async { withTimeoutOrNull(20_000L) { runCatching { apiClient.novelsShelf(showAdultContent = showAdult) }.getOrDefault(emptyList()) } ?: emptyList() }
 
         val rawTopAnime = runCatching { topAnimeDeferred.await() }.getOrDefault(emptyList())
 
-        // İlk 5 vitrin öğesini paralel olarak TMDB'den yatay backdrop resmi ile zenrichleştir
-        val enrichedTopAnime = if (rawTopAnime.isNotEmpty() && tmdbEnabledState) {
-            val heroCount = minOf(rawTopAnime.size, 5)
-            val backdropJobs = (0 until heroCount).map { index ->
-                val item = rawTopAnime[index]
-                async {
-                    val backdrop = resolveHeroBackdrop(item)
-                    if (backdrop != null) item.copy(backdropUrl = backdrop) else item
-                }
-            }
-            val enrichedHeroes = backdropJobs.mapIndexed { index, job ->
-                runCatching { job.await() }.getOrDefault(rawTopAnime[index])
-            }
-            enrichedHeroes + rawTopAnime.drop(heroCount)
-        } else {
-            rawTopAnime
-        }
+        // Vitrin arka planları veri yolunu BLOKE ETMEZ — eksik backdrop'lar UI tarafında
+        // enrichHeroBackdrops() ile TMDB'den asenkron çözülür (önbellekli).
+        val enrichedTopAnime = rawTopAnime
 
         val airingSoonDeferred = async {
             val calendarClient = com.kitsugi.animelist.data.remote.KitsugiAiringCalendarClient()
@@ -1198,21 +1144,67 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
             return getOrDefault(d) ?: d
         }
 
-        val topAnimeDeferred = async { apiClient.aniListTopAnime(showAdultContent = showAdult) }
-        val topRatedAnimeDeferred = async { apiClient.aniListTopRated(MediaType.Anime, showAdultContent = showAdult) }
-        val topRatedMangaDeferred = async { apiClient.aniListTopRated(MediaType.Manga, showAdultContent = showAdult) }
-        val trendingAnimeDeferred = async { apiClient.aniListTrendingAnime(showAdultContent = showAdult) }
-        val seasonalAnimeDeferred = async { apiClient.aniListSeasonalAnime(showAdultContent = showAdult) }
-        val movieAnimeDeferred = async { apiClient.aniListMovieAnime(showAdultContent = showAdult) }
-        val airingAnimeDeferred = async { apiClient.aniListAiringAnime(showAdultContent = showAdult) }
-        val upcomingAnimeDeferred = async { apiClient.aniListUpcomingAnime(showAdultContent = showAdult) }
-        val topMangaDeferred = async { apiClient.aniListTopManga(showAdultContent = showAdult) }
-        val publishingMangaDeferred = async { apiClient.aniListPublishingManga(showAdultContent = showAdult) }
-        val trendingMangaDeferred = async { apiClient.aniListTrendingManga(showAdultContent = showAdult) }
-        val newlyAddedAnimeDeferred = async { apiClient.aniListNewlyAddedAnime(showAdultContent = showAdult) }
-        val newlyAddedMangaDeferred = async { apiClient.aniListNewlyAddedManga(showAdultContent = showAdult) }
-        // AniList'in yerel ek tür rafı: NOVEL formatı (light novel & romanlar).
-        val novelsDeferred = async { apiClient.aniListNovels(showAdultContent = showAdult) }
+        // Raflar GraphQL alias öbekleriyle 3 istekte çekilir; eskiden 14 ayrı istek
+        // AniList'in 700ms kuyruğunda ~10-11 sn'ye diziliyordu. Toplu sorguda bir
+        // öbek başarısız olursa o raflar kendi eski tekil yollarından tamamlanır.
+        val shelfSpecs = run {
+            val cal = java.util.Calendar.getInstance()
+            val month = cal.get(java.util.Calendar.MONTH)
+            val year = cal.get(java.util.Calendar.YEAR)
+            val season = when (month) {
+                java.util.Calendar.DECEMBER, java.util.Calendar.JANUARY, java.util.Calendar.FEBRUARY -> "WINTER"
+                java.util.Calendar.MARCH, java.util.Calendar.APRIL, java.util.Calendar.MAY -> "SPRING"
+                java.util.Calendar.JUNE, java.util.Calendar.JULY, java.util.Calendar.AUGUST -> "SUMMER"
+                else -> "FALL"
+            }
+            listOf(
+                AniListShelfSpec("topAnime", MediaType.Anime, listOf("POPULARITY_DESC")),
+                AniListShelfSpec("topRatedAnime", MediaType.Anime, listOf("SCORE_DESC")),
+                AniListShelfSpec("topRatedManga", MediaType.Manga, listOf("SCORE_DESC")),
+                AniListShelfSpec("trendingAnime", MediaType.Anime, listOf("TRENDING_DESC")),
+                AniListShelfSpec("seasonalAnime", MediaType.Anime, listOf("POPULARITY_DESC"), season = season, seasonYear = year),
+                AniListShelfSpec("movieAnime", MediaType.Anime, listOf("POPULARITY_DESC"), format = "MOVIE"),
+                AniListShelfSpec("airingAnime", MediaType.Anime, listOf("POPULARITY_DESC"), status = "RELEASING"),
+                AniListShelfSpec("upcomingAnime", MediaType.Anime, listOf("POPULARITY_DESC"), status = "NOT_YET_RELEASED"),
+                AniListShelfSpec("topManga", MediaType.Manga, listOf("POPULARITY_DESC")),
+                AniListShelfSpec("publishingManga", MediaType.Manga, listOf("POPULARITY_DESC"), status = "RELEASING"),
+                AniListShelfSpec("trendingManga", MediaType.Manga, listOf("TRENDING_DESC", "POPULARITY_DESC")),
+                AniListShelfSpec("newlyAddedAnime", MediaType.Anime, listOf("ID_DESC")),
+                AniListShelfSpec("newlyAddedManga", MediaType.Manga, listOf("ID_DESC")),
+                // AniList'in yerel ek tür rafı: NOVEL formatı (light novel & romanlar).
+                AniListShelfSpec("novels", MediaType.Manga, listOf("POPULARITY_DESC"), format = "NOVEL")
+            )
+        }
+        val shelfBatch = async {
+            try {
+                apiClient.aniListExploreShelves(shelfSpecs, showAdult)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                null
+            }
+        }
+
+        fun shelf(alias: String, fallback: suspend () -> List<JikanSearchResult>) = async {
+            val batch = shelfBatch.await()
+            batch?.get(alias)?.let { return@async it }
+            fallback()
+        }
+
+        val topAnimeDeferred = shelf("topAnime") { apiClient.aniListTopAnime(showAdultContent = showAdult) }
+        val topRatedAnimeDeferred = shelf("topRatedAnime") { apiClient.aniListTopRated(MediaType.Anime, showAdultContent = showAdult) }
+        val topRatedMangaDeferred = shelf("topRatedManga") { apiClient.aniListTopRated(MediaType.Manga, showAdultContent = showAdult) }
+        val trendingAnimeDeferred = shelf("trendingAnime") { apiClient.aniListTrendingAnime(showAdultContent = showAdult) }
+        val seasonalAnimeDeferred = shelf("seasonalAnime") { apiClient.aniListSeasonalAnime(showAdultContent = showAdult) }
+        val movieAnimeDeferred = shelf("movieAnime") { apiClient.aniListMovieAnime(showAdultContent = showAdult) }
+        val airingAnimeDeferred = shelf("airingAnime") { apiClient.aniListAiringAnime(showAdultContent = showAdult) }
+        val upcomingAnimeDeferred = shelf("upcomingAnime") { apiClient.aniListUpcomingAnime(showAdultContent = showAdult) }
+        val topMangaDeferred = shelf("topManga") { apiClient.aniListTopManga(showAdultContent = showAdult) }
+        val publishingMangaDeferred = shelf("publishingManga") { apiClient.aniListPublishingManga(showAdultContent = showAdult) }
+        val trendingMangaDeferred = shelf("trendingManga") { apiClient.aniListTrendingManga(showAdultContent = showAdult) }
+        val newlyAddedAnimeDeferred = shelf("newlyAddedAnime") { apiClient.aniListNewlyAddedAnime(showAdultContent = showAdult) }
+        val newlyAddedMangaDeferred = shelf("newlyAddedManga") { apiClient.aniListNewlyAddedManga(showAdultContent = showAdult) }
+        val novelsDeferred = shelf("novels") { apiClient.aniListNovels(showAdultContent = showAdult) }
 
         val airingSoonDeferred = async {
             val cal = com.kitsugi.animelist.data.remote.KitsugiAiringCalendarClient()

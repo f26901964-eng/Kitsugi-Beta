@@ -231,6 +231,12 @@ class JikanApiClient(
     suspend fun aniListNewlyAddedAnime(page: Int = 1, showAdultContent: Boolean = false) = aniListSearchClient.aniListNewlyAddedAnime(page, showAdultContent)
     suspend fun aniListNewlyAddedManga(page: Int = 1, showAdultContent: Boolean = false) = aniListSearchClient.aniListNewlyAddedManga(page, showAdultContent)
     suspend fun aniListNovels(page: Int = 1, showAdultContent: Boolean = false) = aniListSearchClient.aniListNovels(page, showAdultContent)
+
+    /** Keşfet raflarını GraphQL alias öbekleriyle toplu çeker (bkz. AniListSearchClient). */
+    suspend fun aniListExploreShelves(
+        shelves: List<AniListSearchClient.ExploreShelfSpec>,
+        showAdultContent: Boolean
+    ) = aniListSearchClient.aniListExploreShelves(shelves, showAdultContent)
     suspend fun aniListSeasonalAnime(
         page: Int = 1,
         showAdultContent: Boolean = false,

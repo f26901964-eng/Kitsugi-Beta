@@ -33,6 +33,16 @@ fun TvAllSourcesHomeContent(
     var collapsedNames by rememberSaveable { mutableStateOf(emptyList<String>()) }
     val entryMap = remember(entries) { generateExploreEntryMap(entries) }
     val getEntry = remember(entryMap) { { item: JikanSearchResult -> getMediaEntryFromMap(item, entryMap) } }
+    // Bölümler yalnızca kaynak durumları değişince hesaplanır (bkz. ExploreScreen notu).
+    val allSectionsList = remember(viewModel.allSourceStates, showAdultContent) {
+        allSourceSections(viewModel.allSourceStates, showAdultContent)
+    }
+    val allSectionsByPlatform = remember(allSectionsList) { allSectionsList.groupBy { it.platform } }
+    val allSectionsDistinctCounts = remember(allSectionsList) {
+        allSectionsByPlatform.mapValues { (_, sections) ->
+            sections.flatMap { it.results }.distinctBy { it.exploreIdentity() }.size
+        }
+    }
     KitsugiShimmerProvider(active = viewModel.isLoading) {
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize().background(KitsugiColors.Background),
             contentPadding = PaddingValues(bottom = 80.dp)) {
@@ -47,7 +57,8 @@ fun TvAllSourcesHomeContent(
             }
             allSourcesExploreSections(
                 states = viewModel.allSourceStates,
-                showAdultContent = showAdultContent,
+                sectionsByPlatform = allSectionsByPlatform,
+                distinctCounts = allSectionsDistinctCounts,
                 collapsedSources = ExplorePlatform.sources.filter { it.name in collapsedNames }.toSet(),
                 onToggleSource = { source -> collapsedNames = if (source.name in collapsedNames) collapsedNames - source.name else collapsedNames + source.name },
                 startIndex = 1,
