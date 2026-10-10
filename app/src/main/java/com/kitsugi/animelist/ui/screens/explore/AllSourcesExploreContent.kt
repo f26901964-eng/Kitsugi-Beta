@@ -33,7 +33,14 @@ import com.kitsugi.animelist.ui.utils.tvClickable
 @OptIn(ExperimentalFoundationApi::class)
 fun LazyListScope.allSourcesExploreSections(
     states: Map<ExplorePlatform, ExploreSourceState>,
-    showAdultContent: Boolean,
+    /**
+     * Kaynak → bölümler. Çağrı tarafında `remember` ile önbelleklenir; bu fonksiyon
+     * LazyListScope içinde her yeniden kompozisyonda çalıştığı için burada yeniden
+     * hesaplanmamalıdır (forSource + distinctBy maliyeti kare düşüşü üretiyordu).
+     */
+    sectionsByPlatform: Map<ExplorePlatform, List<ExploreSourceSection>>,
+    /** Kaynak → benzersiz içerik sayısı (SourceHeader rozeti için, önceden hesaplanmış). */
+    distinctCounts: Map<ExplorePlatform, Int>,
     airingSoonShelf: List<JikanSearchResult> = emptyList(),
     airingSoonTitle: String = "Yakında Yayında",
     airingSoonIsLoading: Boolean = false,
@@ -54,7 +61,7 @@ fun LazyListScope.allSourcesExploreSections(
     blurAdultMedia: Boolean = false,
     showSourceJumpBar: Boolean = true
 ) {
-    val sections = allSourceSections(states, showAdultContent).groupBy { it.platform }
+    val sections = sectionsByPlatform
     val hasAiringSoonItem = airingSoonShelf.isNotEmpty() || airingSoonIsLoading
     val headerIndices = allSourceHeaderIndices(
         sections, collapsedSources, startIndex, showSourceJumpBar,
@@ -125,6 +132,7 @@ fun LazyListScope.allSourcesExploreSections(
                 platform = platform,
                 state = state,
                 sections = sourceSections,
+                distinctItemCount = distinctCounts[platform] ?: 0,
                 expanded = expanded,
                 onToggle = { onToggleSource(platform) },
                 onRetry = { onRetrySource(platform) },
@@ -268,6 +276,7 @@ private fun SourceHeader(
     platform: ExplorePlatform,
     state: ExploreSourceState,
     sections: List<ExploreSourceSection>,
+    distinctItemCount: Int,
     expanded: Boolean,
     onToggle: () -> Unit,
     onRetry: () -> Unit,
@@ -285,7 +294,7 @@ private fun SourceHeader(
             Column(Modifier.weight(1f)) {
                 Text(platform.label, color = KitsugiColors.TextPrimary,
                     style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Black)
-                Text("${sections.size} kategori · ${sections.flatMap { it.results }.distinctBy { it.exploreIdentity() }.size} içerik",
+                Text("${sections.size} kategori · $distinctItemCount içerik",
                     color = color, style = MaterialTheme.typography.labelMedium)
             }
             IconButton(onClick = onToggle) {

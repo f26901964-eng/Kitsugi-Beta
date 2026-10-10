@@ -205,14 +205,23 @@ internal fun ExplorePayload.forSource(platform: ExplorePlatform): ExplorePayload
  * kaynaktan ikinci öğe seçilmeden önce diğer kaynaklar temsil edilir),
  * kalan kontenjan en yüksek skorlu adaylarla doldurulur — böylece vitrin
  * hem tüm kaynakları hem de en iyi içerikleri kapsar.
+ *
+ * [sections] bilinçli olarak çağırandan alınır: UI katmanı bu listeyi
+ * `remember` ile önbellekler; her çağrıda yeniden üretmek (forSource kopyaları +
+ * distinctBy string hesapları) Keşfet'te kare düşüşlerine neden oluyordu.
  */
 fun allSourceHeroes(
-    states: Map<ExplorePlatform, ExploreSourceState>,
-    showAdultContent: Boolean
+    sections: List<ExploreSourceSection>
 ): List<JikanSearchResult> = selectHeroItems(
-    sections = allSourceSections(states, showAdultContent),
+    sections = sections,
     limit = HERO_LIMIT_ALL,
     guaranteeSourceCoverage = true,
     perCategoryCap = HERO_PER_CATEGORY_CAP,
     perSourceCap = HERO_PER_SOURCE_CAP
 )
+
+/** Test/uyumluluk kısayolu: bölümleri kendisi üretir. UI tarafı önbellekli [sections] kullanır. */
+fun allSourceHeroes(
+    states: Map<ExplorePlatform, ExploreSourceState>,
+    showAdultContent: Boolean
+): List<JikanSearchResult> = allSourceHeroes(allSourceSections(states, showAdultContent))

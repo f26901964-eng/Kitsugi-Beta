@@ -885,6 +885,143 @@ class AniListSearchClient(
         )
     }
 
+    // ── Keşfet toplu raf sorgusu (GraphQL alias) ─────────────────────────────────
+    // AniList istekleri 700ms aralıkla sıralanır; 14 keşfet rafını tek tek çekmek
+    // ~10-11 sn kuyruk üretiyordu. Alias'lı tek(ler) sorgu ile aynı veri 3 istekte
+    // gelir. Bir öbek başarısızsa o öbeğin rafları eski tekil yoldan tamamlanır.
+
+    /** Tek bir keşfet rafının toplu sorgudaki tanımı. */
+    data class ExploreShelfSpec(
+        val alias: String,
+        val mediaType: MediaType,
+        val sort: List<String>,
+        val status: String? = null,
+        val format: String? = null,
+        val season: String? = null,
+        val seasonYear: Int? = null
+    )
+
+    private val EXPLORE_BATCH_SIZE = 6
+
+    suspend fun aniListExploreShelves(
+        shelves: List<ExploreShelfSpec>,
+        showAdultContent: Boolean
+    ): Map<String, List<JikanSearchResult>> = withContext(Dispatchers.IO) {
+        val out = HashMap<String, List<JikanSearchResult>>(shelves.size)
+        for (chunk in shelves.chunked(EXPLORE_BATCH_SIZE)) {
+            val chunkResult = runCatching { fetchExploreShelfChunk(chunk, showAdultContent) }.getOrNull()
+            if (chunkResult != null) {
+                out.putAll(chunkResult)
+            } else {
+                // Öbek toplu sorguda patladıysa bu raflar eski tekil yoldan gelsin.
+                for (spec in chunk) {
+                    out[spec.alias] = runCatching {
+                        requestAniList(
+                            mediaType = spec.mediaType,
+                            search = null,
+                            status = spec.status,
+                            sort = spec.sort,
+                            perPage = 20,
+                            format = spec.format,
+                            season = spec.season,
+                            seasonYear = spec.seasonYear,
+                            page = 1,
+                            showAdultContent = showAdultContent
+                        )
+                    }.getOrDefault(emptyList())
+                }
+            }
+        }
+        out
+    }
+
+    /** Bir alias öbeğini tek GraphQL isteğiyle çeker; `data.<alias>.media` başına bir raf. */
+    private suspend fun fetchExploreShelfChunk(
+        chunk: List<ExploreShelfSpec>,
+        showAdultContent: Boolean
+    ): Map<String, List<JikanSearchResult>> {
+        val query = buildString {
+            append("query {\n")
+            chunk.forEachIndexed { i, spec ->
+                val args = buildList {
+                    add("type: ${when (spec.mediaType) {
+                        MediaType.Manga -> "MANGA"
+                        else -> "ANIME"
+                    }}")
+                    add("sort: [${spec.sort.joinToString(", ")}]")
+                    spec.format?.let { add("format_in: [$it]") }
+                    spec.status?.let { add("status_in: [$it]") }
+                    spec.season?.let { add("season: $it") }
+                    spec.seasonYear?.let { add("seasonYear: $it") }
+                    if (!showAdultContent) add("isAdult: false")
+                }.joinToString(", ")
+                append("  s$i: Page(page: 1, perPage: 20) {\n")
+                append("    media($args) {\n")
+                append(EXPLORE_MEDIA_FIELDS)
+                append("    }\n  }\n")
+            }
+            append("}")
+        }
+
+        val responseText = KitsugiApiBase.executeAniListQuery(
+            query = query,
+            variables = JSONObject(),
+            accessToken = accessToken
+        ) ?: throw IllegalStateException("AniList boş yanıt")
+
+        val root = JSONObject(responseText)
+        root.optJSONArray("errors")?.let { errors ->
+            if (errors.length() > 0) throw IllegalStateException(errors.toString())
+        }
+        val data = root.optJSONObject("data") ?: throw IllegalStateException("AniList data alanı yok")
+
+        val out = HashMap<String, List<JikanSearchResult>>(chunk.size)
+        chunk.forEachIndexed { i, spec ->
+            val pageObj = data.optJSONObject("s$i")
+                ?: throw IllegalStateException("AniList alias s$i eksik")
+            // Mevcut liste parser'ı `data.Page` bekler; alias sayfasını aynı şekle bük.
+            val synthetic = JSONObject()
+                .put("data", JSONObject().put("Page", pageObj))
+            out[spec.alias] = parseAniListResponsePaged(
+                jsonText = synthetic.toString(),
+                mediaType = spec.mediaType,
+                requestedPerPage = 20
+            ).results
+        }
+        return out
+    }
+
+    private val EXPLORE_MEDIA_FIELDS = """
+        id
+        idMal
+        countryOfOrigin
+        title {
+            romaji
+            english
+            native
+        }
+        format
+        episodes
+        chapters
+        averageScore
+        popularity
+        favourites
+        isAdult
+        genres
+        startDate {
+            year
+        }
+        coverImage {
+            extraLarge
+            large
+        }
+        bannerImage
+        nextAiringEpisode {
+            episode
+            airingAt
+        }
+    """.trimIndent() + "\n"
+
     private fun parseAniListResponse(
         jsonText: String,
         mediaType: MediaType
