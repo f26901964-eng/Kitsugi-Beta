@@ -3,8 +3,11 @@ package eu.kanade.tachiyomi.network
 import android.content.Context
 import okhttp3.OkHttpClient
 import java.util.concurrent.TimeUnit
+import com.kitsugi.animelist.core.network.CloudflareInterceptor
 import com.kitsugi.animelist.core.network.IPv4FirstDns
 import com.lagradost.nicehttp.ignoreAllSSLErrors
+import eu.kanade.tachiyomi.network.interceptor.UncaughtExceptionInterceptor
+import eu.kanade.tachiyomi.network.interceptor.UserAgentInterceptor
 
 class NetworkHelper(context: Context) {
     val cookieJar = WebViewCookieJar(context)
@@ -17,6 +20,14 @@ class NetworkHelper(context: Context) {
         .cookieJar(cookieJar)
         .followRedirects(true)
         .followSslRedirects(true)
+        // ZORUNLU (extensionLib 1.6 / KeiSource): keiyoushi.source.KeiSource.client ilk
+        // erisimde host uygulamanin varsayilan client'inda su uc sinif adinin bulunmasini
+        // `check(...)` ile dogrular: UncaughtExceptionInterceptor, UserAgentInterceptor,
+        // CloudflareInterceptor. Eksikse eklenti ilk istekte
+        // IllegalStateException("... must be present in default client") firlatir ve
+        // kaynak hic calismaz (Kitsugi'da 72/77 TR eklentisi bu siniftadir).
+        .addInterceptor(UncaughtExceptionInterceptor())
+        .addInterceptor(UserAgentInterceptor { defaultUserAgentProvider() })
         .addInterceptor { chain ->
             val request = chain.request()
             var url = request.url
@@ -70,6 +81,10 @@ class NetworkHelper(context: Context) {
         .ignoreAllSSLErrors()
         .addInterceptor(com.lagradost.cloudstream3.network.CloudflareKiller())
         .addInterceptor(com.lagradost.cloudstream3.network.DdosGuardKiller(alwaysBypass = false))
+        // KeiSource'un zorunlu tuttugu ucuncu sinif adi. Zincirin EN SONUNA eklenir:
+        // boylece ham ag yanitini once bu interceptor gorur, CloudflareKiller/DdosGuardKiller
+        // cozemediyse WebView ile cf_clearance alinir; cozulmusse no-op olarak gecer.
+        .addInterceptor(CloudflareInterceptor(context))
         .build()
 
     val cloudflareClient: OkHttpClient = client

@@ -141,7 +141,7 @@ class MangaSourceRepository(private val context: Context) {
 
     suspend fun quickCheckSourceHealth(
         source: MangaSource,
-        sampleQuery: String = "one piece"
+        sampleQuery: String? = null,
     ): SourceHealthStatus = sourceHealthService.quickCheck(source, sampleQuery)
 
     fun postProcessSearchResults(
