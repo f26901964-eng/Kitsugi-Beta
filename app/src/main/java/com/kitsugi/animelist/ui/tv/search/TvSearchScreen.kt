@@ -78,6 +78,7 @@ import com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults
 import com.kitsugi.animelist.ui.utils.dpadVerticalFastScroll
 import com.kitsugi.animelist.ui.utils.requestFocusAfterFrames
 import com.kitsugi.animelist.ui.utils.tvClickable
+import com.kitsugi.animelist.ui.utils.kitsugiLazyKey
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
@@ -187,7 +188,7 @@ fun TvSearchScreen(
                         verticalArrangement = Arrangement.spacedBy(KitsugiTvTokens.Spacing.itemGap),
                         modifier = Modifier.dpadVerticalFastScroll(scrollableState = gridState)
                     ) {
-                        items(state.results, key = { "${it.source}_${it.malId}" }) { result ->
+                        items(state.results, key = { it.kitsugiLazyKey("tvsr") }) { result ->
                             TvSearchResultCard(
                                 item = result,
                                 titleLanguage = titleLanguage,

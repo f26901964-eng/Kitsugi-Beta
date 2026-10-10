@@ -21,62 +21,103 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocal
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ProvidableCompositionLocal
+import androidx.compose.runtime.State
 import androidx.compose.runtime.compositionLocalOf
-import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.translate
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 
 /**
- * Paylaşımlı shimmer brush — aynı recomposition çerçevesinde birden fazla
- * shimmer bileşeni varsa tek bir InfiniteTransition paylasılır.
- * Üst bileşende [KitsugiShimmerProvider] kullanılmazsa her bileşen
- * kendi transition'unu oluşturur (geriye uyumlu).
+ * Paylaşımlı shimmer fırçası. DEĞERİ SABİTTİR (animasyon içermez): tüketiciler
+ * yalnızca renk paletini buradan alır. Tarama (sweep) hareketi [LocalShimmerOffset]
+ * üzerinden ÇİZİM kapsamında uygulanır.
  */
 val LocalShimmerBrush: ProvidableCompositionLocal<Brush?> = compositionLocalOf { null }
 
-// ─── Merkezi Shimmer Fırçası ───────────────────────────────────────────────
+/**
+ * Paylaşımlı shimmer tarama konumu (0..1). BİLİNÇLİ OLARAK `State<Float>`:
+ *
+ * SORUN (eski davranış): fırça, animasyon değeri okunarak HER KAREDE yeniden
+ * üretiliyor ve `CompositionLocalProvider` ile aşağı veriliyordu. Her karede
+ * değişen bir CompositionLocal değeri, o değeri okuyan TÜM iskelet bileşenlerini
+ * her karede yeniden kompoze ediyor; ayrıca her yeni `Brush` örneği kendi
+ * `LinearGradient` shader'ını yeniden üretiyordu (ShaderBrush önbelleği instance
+ * başına çalışır). Cihaz ölçümünde bu, saniyede ~500.000 nesne / saniyede ~15 MB
+ * çöp üreten sürekli bir GC fırtınası ve %24 janky kare demekti.
+ *
+ * ÇÖZÜM: animasyon değeri `drawBehind` içinde okunur → yalnızca YENİDEN ÇİZİM
+ * (recomposition yok, yeni fırça/shader yok). Bu değer kompozisyonda OKUNMAMALIDIR.
+ */
+val LocalShimmerOffset: ProvidableCompositionLocal<State<Float>?> = compositionLocalOf { null }
+
+// ─── Merkezi Shimmer Paleti ────────────────────────────────────────────────
 // KitsugiMobile HomeSkeletonLoading.kt'den uyarlama:
 // 1200ms süren sağa doğru kayan lineer gradyan efekti.
+// Palet dosya düzeyinde sabittir: `remember` anahtarının her kompozisyonda
+// değişip yeni fırça üretmesini engeller.
 
+private val SHIMMER_GRADIENT_END_PX = 1300f
+
+/** Tarama bandının genişliği (px) — animasyon sırasında canvas bu kadar kaydırılır. */
+private const val SHIMMER_SWEEP_PX = 300f
+
+private fun kitsugiShimmerColors(): List<Color> = listOf(
+    KitsugiColors.Surface,
+    KitsugiColors.SurfaceSoft.copy(alpha = 0.6f),
+    KitsugiColors.SurfaceStrong.copy(alpha = 0.4f),
+    KitsugiColors.SurfaceSoft.copy(alpha = 0.6f),
+    KitsugiColors.Surface,
+)
+
+/**
+ * Statik (animasyonsuz) shimmer fırçası. Tüm çağrılarda AYNI örnek döner —
+ * `CompositionLocal` değeri ve `Modifier.background(brush)` girdisi kararlı kalır,
+ * dolayısıyla tüketici bileşenler gereksiz yeniden kompoze olmaz.
+ */
 @Composable
-fun rememberKitsugiShimmerBrush(): Brush {
-    val shimmerColors = listOf(
-        KitsugiColors.Surface,
-        KitsugiColors.SurfaceSoft.copy(alpha = 0.6f),
-        KitsugiColors.SurfaceStrong.copy(alpha = 0.4f),
-        KitsugiColors.SurfaceSoft.copy(alpha = 0.6f),
-        KitsugiColors.Surface,
+fun rememberKitsugiShimmerBrush(): Brush = remember {
+    Brush.linearGradient(
+        colors = kitsugiShimmerColors(),
+        start = Offset(0f, 0f),
+        end = Offset(SHIMMER_GRADIENT_END_PX, 0f),
     )
+}
 
+/**
+ * Tarama konumunu (0..1) üreten tek animasyon saati. Değer YALNIZCA çizim
+ * kapsamında okunmalıdır; kompozisyonda okunursa her karede recomposition olur.
+ * Birden fazla iskelet aynı ağaçtaysa [KitsugiShimmerProvider] tek örneği paylaştırır.
+ */
+@Composable
+fun rememberKitsugiShimmerOffsetState(): State<Float> {
     val transition = rememberInfiniteTransition(label = "KitsugiShimmer")
-    val translateAnim by transition.animateFloat(
+    return transition.animateFloat(
         initialValue = 0f,
-        targetValue = 1200f,
+        targetValue = 1f,
         animationSpec = infiniteRepeatable(
             animation = tween(durationMillis = 1200, easing = LinearEasing),
             repeatMode = RepeatMode.Restart,
         ),
-        label = "shimmerTranslate",
-    )
-
-    return Brush.linearGradient(
-        colors = shimmerColors,
-        start = Offset(translateAnim - 300f, 0f),
-        end = Offset(translateAnim + 100f, 0f),
+        label = "shimmerSweep",
     )
 }
 
 // ─── Temel Shimmer Blok ────────────────────────────────────────────────────
 // Belirli boyutlarda animasyonlu placeholder blok.
+//
+// PERF: blok, animasyon değerini çizim kapsamında okur. Bu sayede her karede
+// yalnızca yeniden çizim olur; kompozisyon ve modifier zinciri sabit kalır.
+// (TV ana sayfasındaki `placeholderCardShimmer` ile aynı yaklaşım.)
 
 @Composable
 fun KitsugiShimmerBlock(
@@ -84,10 +125,24 @@ fun KitsugiShimmerBlock(
     modifier: Modifier = Modifier,
     cornerRadius: Dp = 12.dp,
 ) {
+    val provided = LocalShimmerOffset.current
+    // Provider yoksa blok kendi saatini kurar (geriye dönük uyumluluk).
+    val ownOffset = if (provided == null) rememberKitsugiShimmerOffsetState() else null
+    val offset = provided ?: ownOffset
+    val shape = remember(cornerRadius) { RoundedCornerShape(cornerRadius) }
     Box(
         modifier = modifier
-            .clip(RoundedCornerShape(cornerRadius))
-            .background(brush),
+            .clip(shape)
+            .drawBehind {
+                if (offset == null) {
+                    drawRect(brush = brush)
+                } else {
+                    // `.value` yalnızca burada okunur → yalnızca yeniden çizim.
+                    val sweep = offset.value
+                    val shift = sweep * (size.width + SHIMMER_SWEEP_PX) - SHIMMER_SWEEP_PX
+                    translate(left = shift) { drawRect(brush = brush) }
+                }
+            },
     )
 }
 
@@ -167,39 +222,24 @@ fun KitsugiShimmerProvider(
     active: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    // ÖNEMLİ: `if` yalnızca FIRÇAYI seçer; içerik (`content`) `if` dalının DIŞINDA kalır.
-    // Eski sürümde `if/else` içinde iki ayrı CompositionLocalProvider vardı → `active`
-    // her değiştiğinde (yükleme başladı/bitti, pull-to-refresh, arama yükleniyor) tüm içerik
-    // ağacı söküp baştan kuruluyordu: hero pager durumu sıfırlanıyor, tüm raflar yeniden
+    // ÖNEMLİ 1: `if` yalnızca ANİMASYON SAATİNİ seçer; içerik (`content`) `if` dalının
+    // DIŞINDA kalır. Eski sürümde `if/else` içinde iki ayrı CompositionLocalProvider vardı →
+    // `active` her değiştiğinde (yükleme başladı/bitti, pull-to-refresh, arama yükleniyor) tüm
+    // içerik ağacı söküp baştan kuruluyordu: hero pager durumu sıfırlanıyor, tüm raflar yeniden
     // kompoze oluyor ve kaydırma sırasında takılma/sıçrama üretiyordu.
-    val brush: Brush = if (active) {
-        rememberKitsugiShimmerBrush()
-    } else {
-        rememberStaticKitsugiShimmerBrush()
-    }
+    //
+    // ÖNEMLİ 2: Aşağı verilen DEĞERLER artık kararlı (sabit fırça örneği + sabit State nesnesi).
+    // Eskiden fırça, animasyon değeri okunarak her karede yeniden üretiliyordu; bu hem tüm
+    // iskelet bileşenlerini her karede yeniden kompoze ediyor hem de her karede yeni bir
+    // `LinearGradient` shader tahsisi yapıyordu (ölçülen GC fırtınasının kaynağı).
+    // Tarama hareketi artık `KitsugiShimmerBlock` içinde `drawBehind` ile uygulanır.
+    val brush = rememberKitsugiShimmerBrush()
+    val offset: State<Float>? = if (active) rememberKitsugiShimmerOffsetState() else null
     CompositionLocalProvider(
         LocalShimmerBrush provides brush,
+        LocalShimmerOffset provides offset,
         content = content
     )
-}
-
-/** Animasyonsuz (statik) shimmer fırçası — yükleme yokken InfiniteTransition oluşturmaz. */
-@Composable
-private fun rememberStaticKitsugiShimmerBrush(): Brush {
-    val shimmerColors = listOf(
-        KitsugiColors.Surface,
-        KitsugiColors.SurfaceSoft.copy(alpha = 0.6f),
-        KitsugiColors.SurfaceStrong.copy(alpha = 0.4f),
-        KitsugiColors.SurfaceSoft.copy(alpha = 0.6f),
-        KitsugiColors.Surface,
-    )
-    return remember(shimmerColors) {
-        Brush.linearGradient(
-            colors = shimmerColors,
-            start = Offset(0f, 0f),
-            end = Offset(1300f, 0f),
-        )
-    }
 }
 
 @Composable

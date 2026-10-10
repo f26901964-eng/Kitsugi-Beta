@@ -32,6 +32,7 @@ import com.kitsugi.animelist.data.remote.JikanSearchResult
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.runtime.CompositionLocalProvider
 import com.kitsugi.animelist.ui.utils.dpadVerticalFastScroll
+import com.kitsugi.animelist.ui.utils.kitsugiLazyKey
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.components.KitsugiEmptyState
 import androidx.compose.material.icons.Icons
@@ -252,7 +253,7 @@ fun KitsugiMediaGridDialog(
                         ) {
                             itemsIndexed(
                                 items = filteredResults,
-                                key = { _, result -> "dlg_${result.source}_${result.malId}_${result.tmdbId ?: 0}_${result.cs3Url.orEmpty().hashCode()}" },
+                                key = { _, result -> result.kitsugiLazyKey("dlg") },
                                 contentType = { _, _ -> "media_card" }
                             ) { _, result ->
                                 KitsugiExploreMediaCard(

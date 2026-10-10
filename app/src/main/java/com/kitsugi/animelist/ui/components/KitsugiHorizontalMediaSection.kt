@@ -39,6 +39,7 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.KitsugiTvTokens
 import com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults
+import com.kitsugi.animelist.ui.utils.kitsugiLazyKey
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
 
@@ -139,7 +140,7 @@ fun KitsugiHorizontalMediaSection(
                                     items = results,
                                     // PERF: index-free stable key — Compose item'ları
                                     // yeniden kullanabilsin (filter/sort/prepend sonrası).
-                                    key = { _, result -> "tv_${result.source}_${result.malId}_${result.tmdbId ?: 0}_${result.cs3Url.orEmpty().hashCode()}" },
+                                    key = { _, result -> result.kitsugiLazyKey("tv") },
                                     contentType = { _, _ -> "h_media_card" }
                                 ) { index, result ->
                                     val requester = focusRequesters.getOrPut(index) { FocusRequester() }
@@ -177,7 +178,7 @@ fun KitsugiHorizontalMediaSection(
                         ) {
                             itemsIndexed(
                                 items = results,
-                                key = { _, result -> "h_${result.source}_${result.malId}_${result.tmdbId ?: 0}_${result.cs3Url.orEmpty().hashCode()}" },
+                                key = { _, result -> result.kitsugiLazyKey("h") },
                                 contentType = { _, _ -> "h_media_card" }
                             ) { _, result ->
                                 val cardWidth = if (isLandscape) 260.dp else 180.dp

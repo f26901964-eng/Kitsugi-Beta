@@ -63,6 +63,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -83,6 +84,7 @@ import com.kitsugi.animelist.ui.screens.explore.ExplorePlatform
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalIsTv
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
+import com.kitsugi.animelist.ui.utils.kitsugiLazyKey
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import kotlinx.coroutines.launch
@@ -93,6 +95,16 @@ import com.kitsugi.animelist.R
 /** Simkl uses 20-item API pages; its static trending chart files are sliced locally. */
 private const val SIMKL_EXPLORE_PAGE_SIZE = 20
 private const val SIMKL_MAX_API_PAGE = 20
+
+/**
+ * Kullanıcı bir kez kaydırdığında otomatik olarak çekilebilecek azami sayfa sayısı.
+ *
+ * Sınırsız otomatik sayfalama (eski davranış) sayfayı "döngüye" sokuyordu: her yükleme
+ * bittiğinde tetikleyici yeniden ateşleniyor, kullanıcı hiç kaydırmasa bile art arda
+ * istek gidiyordu (AniList 429 hız sınırı + GC fırtınası). Bütçe, normal sonsuz
+ * kaydırmayı bozmadan bu kaçağı kapatır.
+ */
+private const val AUTO_LOAD_BUDGET_PER_SCROLL = 3
 
 @Composable
 fun FullScreenMediaGridPage(
@@ -535,9 +547,6 @@ fun FullScreenMediaGridPage(
             last.index >= listState.layoutInfo.totalItemsCount - 4
         }
     }
-    LaunchedEffect(shouldLoadMoreList, isLoadingMore, hasMorePages, isGridView) {
-        if (!isGridView && shouldLoadMoreList && !isLoadingMore && hasMorePages) loadNextPage()
-    }
 
     // Grid scroll state + auto-load trigger
     val gridState = rememberSaveable(saver = LazyGridState.Saver) { LazyGridState() }
@@ -547,8 +556,58 @@ fun FullScreenMediaGridPage(
             last.index >= gridState.layoutInfo.totalItemsCount - 6
         }
     }
+
+    // ── Otomatik sayfalama emniyeti ────────────────────────────────────────────
+    // ESKİ HATA: `isLoadingMore` tetikleyicinin anahtarıydı. Her sayfa yüklemesi
+    // bittiğinde (true→false) efekt yeniden başlıyor, liste yerleşimi (layout) henüz
+    // güncellenmediği için "sona ulaşıldı" koşulu hâlâ true okunuyor ve kullanıcı
+    // kaydırmasa bile arka arkaya sayfa çekiliyordu. Filtre aktifken (görünen öğe
+    // sayısı hiç artmadığında) bu döngü SONSUZA kadar sürüyordu: sayfa "döngüye
+    // giriyor", API'ler art arda vuruluyor (AniList 429) ve liste/GC şişiyordu.
+    // ÇÖZÜM: (1) aynı görünen öğe sayısı için ikinci kez tetiklenmez,
+    //         (2) kaydırma başına en fazla AUTO_LOAD_BUDGET_PER_SCROLL sayfa çekilir,
+    //         (3) kullanıcı kaydırdığında bütçe yenilenir.
+    var autoLoadBudget by remember { mutableIntStateOf(AUTO_LOAD_BUDGET_PER_SCROLL) }
+    var lastAutoLoadVisibleCount by remember { mutableIntStateOf(-1) }
+    LaunchedEffect(listState, gridState) {
+        // Kompozisyonda state okumadan kaydırma hareketini izle (recomposition yok).
+        snapshotFlow {
+            Triple(
+                listState.firstVisibleItemIndex,
+                listState.firstVisibleItemScrollOffset,
+                gridState.firstVisibleItemIndex
+            )
+        }.collect {
+            // Kullanıcı kaydırdı → bütçe ve "son yüklenen görünür öğe sayısı" sıfırlanır.
+            // Böylece normal sonsuz kaydırma davranışı birebir korunur; yalnızca kimsenin
+            // kaydırmadığı durumda arka arkaya istek atan kaçak döngü engellenir.
+            if (autoLoadBudget != AUTO_LOAD_BUDGET_PER_SCROLL) {
+                autoLoadBudget = AUTO_LOAD_BUDGET_PER_SCROLL
+                lastAutoLoadVisibleCount = -1
+            }
+        }
+    }
+
+    LaunchedEffect(shouldLoadMoreList, isLoadingMore, hasMorePages, isGridView) {
+        if (!isGridView && shouldLoadMoreList && !isLoadingMore && hasMorePages) {
+            val visibleCount = displayedResults.size
+            if (autoLoadBudget > 0 && visibleCount != lastAutoLoadVisibleCount) {
+                autoLoadBudget -= 1
+                lastAutoLoadVisibleCount = visibleCount
+                loadNextPage()
+            }
+        }
+    }
+
     LaunchedEffect(shouldLoadMoreGrid, isLoadingMore, hasMorePages, isGridView) {
-        if (isGridView && shouldLoadMoreGrid && !isLoadingMore && hasMorePages) loadNextPage()
+        if (isGridView && shouldLoadMoreGrid && !isLoadingMore && hasMorePages) {
+            val visibleCount = displayedResults.size
+            if (autoLoadBudget > 0 && visibleCount != lastAutoLoadVisibleCount) {
+                autoLoadBudget -= 1
+                lastAutoLoadVisibleCount = visibleCount
+                loadNextPage()
+            }
+        }
     }
 
     // Index'i kompozisyonda çıplak okumak, sınır geçişinde tüm ızgarayı
@@ -710,7 +769,7 @@ fun FullScreenMediaGridPage(
                         // işleminde TÜM item'ların key'ini bozar ve Compose'un tüm
                         // kartları yeniden oluşturmasına (recomposition + rebind)
                         // sebep olur. Sabit identity kullanarak reuse maksimize edilir.
-                        key = { _, item -> "grid_${item.source}_${item.malId}_${item.tmdbId ?: 0}_${item.cs3Url.orEmpty().hashCode()}" },
+                        key = { _, item -> item.kitsugiLazyKey("grid") },
                         contentType = { _, _ -> "media_card" }
                     ) { index, result ->
                         val showRank = !isSeasonalAnime
@@ -889,7 +948,7 @@ fun FullScreenMediaGridPage(
                     itemsIndexed(
                         items = displayedResults,
                         // PERF: identity-based key (index yok)
-                        key = { _, item -> "list_${item.source}_${item.malId}_${item.tmdbId ?: 0}_${item.cs3Url.orEmpty().hashCode()}" },
+                        key = { _, item -> item.kitsugiLazyKey("list") },
                         contentType = { _, _ -> if (isSeasonalAnime) "seasonal_card" else "ranking_card" }
                     ) { index, result ->
                         if (isSeasonalAnime) {

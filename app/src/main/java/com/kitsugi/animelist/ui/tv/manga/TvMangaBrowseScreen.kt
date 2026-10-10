@@ -70,6 +70,7 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.KitsugiTvTokens
 import com.kitsugi.animelist.ui.utils.dpadRepeatThrottle
 import com.kitsugi.animelist.ui.utils.tvClickable
+import com.kitsugi.animelist.ui.components.KitsugiShimmerBlock
 import com.kitsugi.animelist.ui.components.rememberKitsugiShimmerBrush
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
@@ -458,13 +459,15 @@ private fun TvMangaCard(
 
 @Composable
 private fun TvMangaCardSkeleton(modifier: Modifier = Modifier) {
+    // PERF: sabit fırça + tek animasyon saati üzerinden çizim; her karede yeni
+    // Brush/shader üretilmez ve `background(brush)` ile gelen statik görünüm oluşmaz.
     val brush = rememberKitsugiShimmerBrush()
-    Box(
+    KitsugiShimmerBlock(
+        brush = brush,
         modifier = modifier
             .height(220.dp)
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .background(brush)
+            .fillMaxWidth(),
+        cornerRadius = 10.dp
     )
 }
 

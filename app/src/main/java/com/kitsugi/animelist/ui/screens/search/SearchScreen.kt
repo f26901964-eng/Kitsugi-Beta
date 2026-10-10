@@ -81,12 +81,19 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.focusRestorer
 import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults
+import com.kitsugi.animelist.ui.utils.kitsugiLazyKey
 import com.kitsugi.animelist.ui.utils.tvClickable
 import com.kitsugi.animelist.ui.utils.dpadVerticalFastScroll
 import com.lagradost.cloudstream3.APIHolder
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
+
+/**
+ * Kullanıcı bir kez kaydırdığında otomatik çekilebilecek azami sayfa sayısı.
+ * Sonsuz sayfalama döngüsünü (bkz. `shouldLoadMore`) normal kaydırmayı bozmadan kapatır.
+ */
+private const val AUTO_LOAD_BUDGET_PER_SCROLL = 3
 
 @Composable
 fun SearchScreen(
@@ -129,6 +136,9 @@ fun SearchScreen(
     val scope = rememberCoroutineScope()
     val keyboardController = LocalSoftwareKeyboardController.current
     val context = androidx.compose.ui.platform.LocalContext.current
+    // Otomatik sayfalama emniyeti (bkz. aşağıdaki shouldLoadMore açıklaması).
+    var autoLoadBudget by remember { mutableIntStateOf(AUTO_LOAD_BUDGET_PER_SCROLL) }
+    var lastAutoLoadLoadedCount by remember { mutableIntStateOf(-1) }
     val isStudioSearch = uiState.selectedScope == SearchScope.STUDIO
     val onSearchResultClick: (JikanSearchResult) -> Unit = { result ->
         if (isStudioSearch && onOpenStudioDetail != null) {
@@ -143,6 +153,13 @@ fun SearchScreen(
     LaunchedEffect(lazyListState) {
         snapshotFlow { lazyListState.firstVisibleItemIndex to lazyListState.firstVisibleItemScrollOffset }
             .collect { (firstIndex, scrollOffset) ->
+                // Kullanıcı kaydırdı: otomatik sayfalama bütçesi yenilenir (normal sonsuz
+                // kaydırma birebir korunur; yalnızca kaydırma olmadan zincirlenen istek
+                // döngüsü engellenir).
+                if (autoLoadBudget != AUTO_LOAD_BUDGET_PER_SCROLL) {
+                    autoLoadBudget = AUTO_LOAD_BUDGET_PER_SCROLL
+                    lastAutoLoadLoadedCount = -1
+                }
                 if (firstIndex == 0 && scrollOffset == 0) {
                     onScrollReset?.invoke()
                 }
@@ -150,6 +167,13 @@ fun SearchScreen(
     }
 
     // AniHyou Infinite Scroll (OnBottomReached)
+    //
+    // EMNİYET KEMERİ: İstemcide sayfalama "sona ulaşıldı" koşulu yükleme bayrağını da
+    // içerdiği için, her sayfa yüklemesi bittiğinde koşul yeniden true oluyor ve efekti
+    // tekrar tetikliyordu. Sonuç: kullanıcı kaydırmasa bile art arda sayfa çekilmesi
+    // (filtre nedeniyle görünen liste büyümediğinde hiç bitmeyen döngü → API 429 +
+    // kaydırma kasması). Artık aynı sonuç kümesi için bir kez tetiklenir ve kaydırma
+    // başına bütçe ile sınırlanır; kullanıcı kaydırınca bütçe yenilenir.
     val shouldLoadMore by remember {
         derivedStateOf {
             val total = lazyListState.layoutInfo.totalItemsCount
@@ -159,7 +183,12 @@ fun SearchScreen(
     }
     LaunchedEffect(shouldLoadMore) {
         if (shouldLoadMore) {
-            viewModel.loadMore()
+            val loadedCount = uiState.results.size
+            if (autoLoadBudget > 0 && loadedCount != lastAutoLoadLoadedCount) {
+                autoLoadBudget -= 1
+                lastAutoLoadLoadedCount = loadedCount
+                viewModel.loadMore()
+            }
         }
     }
 
@@ -1058,7 +1087,10 @@ private fun MultiSearchSection(
                         ) {
                             itemsIndexed(
                                 items = results,
-                                key = { _, result -> "sr_tv_${result.source}_${result.malId}_${result.tmdbId ?: 0}_${result.cs3Url.orEmpty().hashCode()}" },
+                                // DİKKAT: anahtarda `type` ZORUNLU — "Tümünü Gör" rafı karma
+                                // anime+manga listesi taşıyabilir; aynı kaynak+id iki farklı
+                                // yapımı gösterebilir (bkz. KitsugiLazyKeys).
+                                key = { _, result -> result.kitsugiLazyKey("sr_tv") },
                                 contentType = { _, _ -> "h_media_card" }
                             ) { index, result ->
                                 val requester = focusRequesters.getOrPut(index) { FocusRequester() }
@@ -1092,7 +1124,7 @@ private fun MultiSearchSection(
                     ) {
                         itemsIndexed(
                             items = results,
-                            key = { _, result -> "sr_${result.source}_${result.malId}_${result.tmdbId ?: 0}_${result.cs3Url.orEmpty().hashCode()}" },
+                            key = { _, result -> result.kitsugiLazyKey("sr") },
                             contentType = { _, _ -> "h_media_card" }
                         ) { _, result ->
                             KitsugiExploreMediaCard(

@@ -55,6 +55,7 @@ import com.kitsugi.animelist.ui.tv.components.TvContentCard
 import com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults
 import com.kitsugi.animelist.ui.utils.dpadVerticalFastScroll
 import com.kitsugi.animelist.ui.utils.tvClickable
+import com.kitsugi.animelist.ui.utils.kitsugiLazyKey
 import kotlinx.coroutines.delay
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
@@ -275,7 +276,7 @@ fun TvGridHomeContent(
                             verticalArrangement = Arrangement.spacedBy(KitsugiTvTokens.Spacing.itemGap),
                             modifier = Modifier.dpadVerticalFastScroll(scrollableState = gridState)
                         ) {
-                            items(currentItems, key = { "${it.source}_${it.malId}" }) { item ->
+                            items(currentItems, key = { it.kitsugiLazyKey("tvgrid") }) { item ->
                                 TvContentCard(
                                     item = item,
                                     isInitialFocused = false,

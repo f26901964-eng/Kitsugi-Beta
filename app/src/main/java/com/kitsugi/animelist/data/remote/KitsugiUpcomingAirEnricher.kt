@@ -41,12 +41,22 @@ object KitsugiUpcomingAirEnricher {
 
     private const val ANILIST_WINDOW_DAYS = 14L
     private const val ANILIST_CACHE_TTL_MS = 10 * 60 * 1000L
+
+    /** Başarısız (429/zaman aşımı) bir çağrının ardından yeniden denemeden önce beklenecek süre. */
+    private const val ANILIST_FAILURE_BACKOFF_MS = 60 * 1000L
     private const val TMDB_CACHE_TTL_MS = 6 * 60 * 60 * 1000L
     private const val TMDB_CONCURRENCY = 6
 
     /** normalizasyon → (bölüm, epoch). MAL kimlikleri "mal:<id>" anahtarıyla. */
     private var anilistCache: Map<String, NextAir> = emptyMap()
     private var anilistCacheAt = 0L
+
+    /**
+     * Başarısız çağrı sonrası bekleme bitiş zamanı. Önbellek doluysa TTL, boşsa bu
+     * backoff geçerlidir; aksi hâlde her `enrich()` çağrısı yeni bir AniList isteği
+     * atıp 429 sınırlamasını tetikliyordu (lista sayfaları art arda yüklenirken).
+     */
+    private var anilistBackoffUntil = 0L
 
     /** tmdbId → gelecek bölüm (null = bilinmiyor / yok, negatif önbellek). */
     private var tmdbCache: Map<Int, NextAir?> = emptyMap()
@@ -80,10 +90,14 @@ object KitsugiUpcomingAirEnricher {
 
         return items.map { item ->
             if (!needsEnrichment(item)) return@map item
+            // Elde ZATEN bir yayın değeri var mı? (süresi geçmiş ama gerçek veri)
+            // Başlık eşleşmesi bu durumda KULLANILMAZ: farklı bir yapımın (remake/aynı adlı
+            // dizi) tarihi kutucuğa basılıyordu. Başlık tahmini yalnızca veri hiç yokken.
+            val hasOwnValue = NextAiringFormat.parse(item.nextAiringEpisode).epoch != null
             val next: NextAir? = if (item.source.equals("tmdb", true)) {
                 if (item.type == MediaType.TvShow) tmdbMap[item.tmdbId ?: item.malId] else null
             } else {
-                lookupAniList(anilistMap, item)
+                lookupAniList(anilistMap, item, allowTitleMatch = !hasOwnValue)
             }
             if (next == null || next.epoch <= System.currentTimeMillis() / 1000L) {
                 item
@@ -93,7 +107,17 @@ object KitsugiUpcomingAirEnricher {
         }
     }
 
-    private fun lookupAniList(map: Map<String, NextAir>, item: JikanSearchResult): NextAir? {
+    /**
+     * @param allowTitleMatch `false` olduğunda yalnızca MAL kimliğiyle eşleşir.
+     *   Öğenin kendi yayın değeri varsa (süresi geçmiş bile olsa) başlık tahmini
+     *   yapılmaz: aynı adlı başka bir yapımın bölüm tarihi kutucuğa basılamaz.
+     *   Kimlik eşleşmesi her zaman güvenlidir çünkü aynı yapımı işaret eder.
+     */
+    private fun lookupAniList(
+        map: Map<String, NextAir>,
+        item: JikanSearchResult,
+        allowTitleMatch: Boolean = true
+    ): NextAir? {
         if (map.isEmpty()) return null
         val malId = when {
             item.source.equals("mal", true) || item.source.equals("jikan", true) ->
@@ -101,6 +125,7 @@ object KitsugiUpcomingAirEnricher {
             else -> item.realMalId?.takeIf { it > 0 }
         }
         malId?.let { map["mal:$it"] }?.let { return it }
+        if (!allowTitleMatch) return null
         normalizeAiringTitle(item.title)?.let { map["t:$it"] }?.let { return it }
         normalizeAiringTitle(titleRomajiOrEnglish(item))?.let { map["t:$it"] }?.let { return it }
         normalizeAiringTitle(item.titleJapanese)?.let { map["t:$it"] }?.let { return it }
@@ -116,14 +141,25 @@ object KitsugiUpcomingAirEnricher {
      */
     private suspend fun anilistScheduleMap(): Map<String, NextAir> {
         val now = System.currentTimeMillis()
-        if (anilistCache.isNotEmpty() && now - anilistCacheAt <= ANILIST_CACHE_TTL_MS) {
-            return anilistCache
-        }
+        // Başarılı bir çekim (boş sonuç dahil) TTL boyunca geçerlidir; başarısız çekim
+        // kısa bir backoff ile tekrarları engeller. ESKİ HATA: yalnızca DOLU harita
+        // önbelleğe alınıyordu → AniList boş döndürdüğünde (veya 429 verdiğinde) her
+        // sayfa yüklemesi yeni bir istek atıyordu; kota fırtınası ve gereksiz JSON
+        // ayrıştırma (GC baskısı) buradan geliyordu.
+        if (now - anilistCacheAt <= ANILIST_CACHE_TTL_MS) return anilistCache
+        if (now < anilistBackoffUntil) return anilistCache
+
         val nowSec = now / 1000L
-        val entries = runCatching {
+        val fetched = runCatching {
             KitsugiAiringCalendarClient()
                 .fetchAiringWindow(nowSec, nowSec + ANILIST_WINDOW_DAYS * 24 * 3600L)
-        }.getOrDefault(emptyList())
+        }.getOrNull()
+        if (fetched == null) {
+            // Ağ hatası / 429: boş haritayı da önbelleğe yazma, ama hemen tekrar deneme.
+            anilistBackoffUntil = now + ANILIST_FAILURE_BACKOFF_MS
+            return anilistCache
+        }
+        val entries = fetched
 
         val map = mutableMapOf<String, NextAir>()
         for (entry in entries.sortedBy { it.airingAt }) {

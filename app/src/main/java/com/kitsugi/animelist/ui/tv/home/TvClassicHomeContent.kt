@@ -90,7 +90,9 @@ fun TvClassicHomeContent(
         val movIt = filteredMovieAnime.iterator()
         val addedKeys = mutableSetOf<String>()
         fun addIfUnique(item: JikanSearchResult) {
-            val key = "${item.source}_${item.malId}"
+            // Tür (anime/manga/film/dizi) kimliğin parçasıdır: aynı kaynak+id iki farklı
+            // yapımı gösterebilir (örn. TMDB film #550 ile dizi #550).
+            val key = "${item.source}_${item.type}_${item.malId}"
             if (key !in addedKeys) { addedKeys.add(key); itemsMix.add(item) }
         }
         while (itemsMix.size < 8 && (topIt.hasNext() || airIt.hasNext() || movIt.hasNext())) {
