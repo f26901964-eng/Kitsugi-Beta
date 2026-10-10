@@ -1,5 +1,33 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.232)
+
+### 🎨 1. Gradyan Vurgu Rengi (Accent Gradient) Tam Uygulama Entegrasyonu
+- **Vurgu Rengi Ezilmesinin Giderilmesi:** `AppRoot.kt` içinde hazır tema kimliğinin (`mint`) kullanıcının seçtiği özel rengi veya iki renkli gradyanı ezmesi engellendi; `LocalKitsugiAccent` doğrudan korunarak gradyanın tüm telefon/tablet arayüzünde aktif kalması sağlandı (`AppRoot.kt`).
+- **Küresel Gradyan Bileşen Sarmalayıcıları (`KitsugiGradientMaterial.kt`):** Uygulama genelindeki tüm bileşenler için açılı lineer gradyan fırçası (`LocalKitsugiAccentBrush`) ve pürüzsüz siyah/beyaz otomatik kontrast desteği (`LocalKitsugiOnAccent`) getirildi:
+  - `Modifier.background` ve `Modifier.border`: Non-composable `ModifierNodeElement` mimarisiyle vurgu rengi veya yarı saydam tonları (`AccentMuted`) otomatik olarak gradyan fırçasıyla çizilir.
+  - `Text` ve `Icon`: Vurgu renkli metinler `TextStyle.copy(brush = accentBrush)` ile, ikonlar ise `CompositingStrategy.Offscreen` + `BlendMode.SrcIn` ile gradyan boyanır; vurgulu dolguların üzerinde otomatik kontrast rengini alır.
+  - `Switch`, `Slider`, `RangeSlider`, `RadioButton`, `Checkbox`, `CircularProgressIndicator`, `LinearProgressIndicator`, `TabRow`, `ScrollableTabRow`, `FilterChip`, `Button`, `FloatingActionButton`: Seçili ve aktif durumlarda tema gradyanını kullanır.
+- **Renk Seçici Diyaloğunda Canlı Gradyan Önizlemesi:** `KitsugiAccentColorPickerDialog` içindeki "İki Renkli Gradyan" anahtarı, açı slider'ı, yön ön ayar butonları (→, ↘ vb.), sekme alt çizgileri ve "Uygula" butonu canlı düzenlenen gradyan fırçası ve kontrastıyla dinamik olarak güncellenir (`KitsugiAccentColorPickerDialog.kt`).
+- **Gezinme Çubuğu ve Oynatıcı Kontrolleri:** `AppBottomBar` ve `AppNavigationRail` seçili sekme hapı, seçili ikon ve "Kitsugi" başlığı; `PlayerAccentTheme`, `AutoPlaySwitch` ve dikey kaydırıcılar tam gradyan desteğine kavuşturuldu (`AppBottomBar.kt`, `AutoPlaySwitch.kt`, `PlayerAccentTheme.kt`).
+- **Teşhis & Entegrasyon Belgeleri:** `docs/PLAN_TASK_GRADYAN_VURGU_RENGI_TAM_ENTEGRASYON_2026-10-10.md` ve `docs/RENG_SECICI_GRADYAN_KONTRAST_RAPORU_2026-10-10.md`.
+
+---
+
+## 🇬🇧 English (v2.4.232)
+
+### 🎨 1. Full Accent Gradient Integration Across the Entire App
+- **Preserved Custom Accent & Gradient State:** Eliminated theme-override bug in `AppRoot.kt` where preset themes (`mint`) repeatedly overwrote `LocalKitsugiAccent`, ensuring custom two-color gradients persist across all phone and tablet layouts (`AppRoot.kt`).
+- **Global Gradient Material Wrappers (`KitsugiGradientMaterial.kt`):** Bound all primary UI primitives to the active angled linear gradient brush (`LocalKitsugiAccentBrush`) and automatic smooth black/white contrast (`LocalKitsugiOnAccent`):
+  - `Modifier.background` & `Modifier.border`: Implemented via non-composable `ModifierNodeElement` architecture to seamlessly render gradient backgrounds and borders whenever the color matches the active accent or muted accent.
+  - `Text` & `Icon`: Renders text with gradient brush and icons with offscreen compositing; automatically switches to high-contrast `onAccent` when drawn inside accent surfaces.
+  - `Switch`, `Slider`, `RangeSlider`, `RadioButton`, `Checkbox`, `CircularProgressIndicator`, `LinearProgressIndicator`, `TabRow`, `ScrollableTabRow`, `FilterChip`, `Button`, `FloatingActionButton`: Now fully support gradient active tracks, thumbs, chips, and indicators.
+- **Live In-Dialog Gradient Preview:** The "Two-Color Gradient" switch, angle slider, direction preset buttons, tab indicators, and the "Apply" button inside `KitsugiAccentColorPickerDialog` now react in real time using the live editing gradient brush and contrast colors (`KitsugiAccentColorPickerDialog.kt`).
+- **Navigation Bar & Video Player Polish:** Styled `AppBottomBar` and `AppNavigationRail` selected pill, icons, labels, and the Kitsugi title with the accent gradient; updated `PlayerAccentTheme`, `AutoPlaySwitch`, and player controls (`AppBottomBar.kt`, `AutoPlaySwitch.kt`, `PlayerAccentTheme.kt`).
+- **Audit & Architecture Docs:** `docs/PLAN_TASK_GRADYAN_VURGU_RENGI_TAM_ENTEGRASYON_2026-10-10.md` and `docs/RENG_SECICI_GRADYAN_KONTRAST_RAPORU_2026-10-10.md`.
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.231)
 
 ### 🌸 1. Bangumi Kişi ve Karakter Detayları — Uygulama Dilinde Başlık ve Rol Yerelleştirmesi
