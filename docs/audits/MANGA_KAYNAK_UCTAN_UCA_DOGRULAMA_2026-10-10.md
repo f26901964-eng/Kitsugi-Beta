@@ -44,6 +44,38 @@ commit `68807878a7149e943025b2723e2d5b9b01815371`, dosya **1.486.066 bayt**.
 
 **Envanter çıkarmak ≠ çalıştıklarını doğrulamak.** Bu rapor da öyle bir iddia taşımıyor.
 
+### Rakamlar elle yazılmadı — tekrar üretilebilir
+
+Bu bölümdeki bütün sayılar `scripts/audit_manga_sources.py` ile upstream'den çekilip hesaplanıyor
+(blobless + sparse git clone; hiçbir manga sitesine istek atmaz):
+
+```
+$ python3 scripts/audit_manga_sources.py --workdir /tmp/kei-audit --json /tmp/kei-audit/inventory.json
+
+=== Keiyoushi index.json @ 68807878a714 ===
+extensions                 : 1431
+sources (all languages)    : 2419
+Turkish (lang=tr) sources  : 93
+  by pkg segment           : {'all': 15, 'en': 1, 'tr': 77}
+  inside NSFW extensions   : 20
+  missing jarUrl           : 0
+  missing homeUrl          : 0
+
+=== keiyoushi/extensions-source src/tr @ 1319949ca9bc ===
+extension dirs             : 77
+  extensionLib 1.6 (KeiSource) : 72
+  older (HttpSource)           : 5 -> ['alucardscans', 'golgebahcesi', 'hattorimanga', 'mangadusleri', 'mangaship']
+  libVersion mix               : {'1.6': 72, '1.4': 5}
+  CloudflareInterceptor kullanani : []
+  'cloudflare' sadece yorumda     : ['mangawt', 'toontaku']
+  WebView/login references     : 15
+  'novel' references           : ['araznovel', 'holyscans', 'mangatr', 'monomanga', 'sleptmanga', 'toontaku']
+```
+
+Bu çıktı **bu ortamda gerçekten çalıştırıldı** (github.com'a erişim var, manga sitelerine yok).
+Kaynaklar güncellendiğinde script'i yeniden çalıştırmak yeterli; rapordaki sayıların
+bayatlaması böylece tespit edilebilir.
+
 ---
 
 ## 2. KÖK NEDEN 1 — KeiSource host client'ından 3 interceptor istiyor, hiçbiri yoktu
@@ -233,7 +265,24 @@ sırasıyla çalışıyor ve her aşamada zaman aşımı + hata sınıflandırma
    Bunlar bölüm içeriği için giriş/`cf_clearance` ister; `runWebView` eklenti JAR'ının içinde
    (core lib) ve `ActivityTracker` kendi kendini `Application.ActivityLifecycleCallbacks` ile
    kaydediyor — yani host tarafında ek kurulum gerekmiyor. **Ama bu cihazda test edilmedi.**
-2. **CloudflareInterceptor kullanan TR eklentileri (2):** `mangawt`, `toontaku`.
+2. **Cloudflare — düzeltme:** İlk taslakta "`mangawt` ve `toontaku` CloudflareInterceptor
+   kullanıyor" yazılmıştı; bu **yanlıştı** (büyük/küçük harf duyarsız grep'in yorumları da
+   yakalamasından kaynaklandı). Doğrusu: **hiçbir TR eklentisi `CloudflareInterceptor`
+   sınıfını kodda kullanmıyor** (`scripts/audit_manga_sources.py` → `cloudflareClassUse: []`).
+   `mangawt` ve `toontaku`'da geçen tek şey birer **yorum satırı**:
+
+   ```
+   mangawt/.../MangaWT.kt:103   // Locked chapters answer 403, which the app's Cloudflare
+                                //   interceptor turns into a misleading error.
+   toontaku/.../Toontaku.kt:126 // the site answers 403 for locked chapters, which the app's
+                                //   Cloudflare interceptor mistakes for a challenge
+   ```
+
+   Yani bu iki kaynakta *kilitli bölüm* 403 döner ve host'un CF interceptor'ı bunu challenge
+   sanabilir. §4'te `CloudflareInterceptor`'ı `NetworkHelper` zincirine ekledik — bu, KeiSource'un
+   `check(...)` şartı için zorunlu, ancak mangawt/toontaku'da kilitli bölüm hatasının
+   "Cloudflare doğrulaması gerekiyor"a dönüşmesi gibi bir yan etki üretebilir.
+   **Cihazda gözlemlenmesi gereken bir nokta** (bu ortamda test edilemedi).
 3. **Light novel ayrı iş:** `toontaku` sitesi `TEXT_CHAPTER` barındırıyor ve eklenti bunu
    `contentKind=IMAGE_CHAPTER` ile **bilinçli olarak eliyor**; `mangatr` "Novel" tipini
    `isExcludedType()` ile dışlıyor; `monomanga`/`sleptmanga`/`holyscans` novel'i filtreliyor.
