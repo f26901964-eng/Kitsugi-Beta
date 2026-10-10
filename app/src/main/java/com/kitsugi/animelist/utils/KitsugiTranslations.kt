@@ -405,9 +405,60 @@ private val characterRoleMap = mapOf(
     "main" to "Ana Karakter",
     "supporting" to "Yardımcı Karakter",
     "background" to "Arka Plan",
+    // Bangumi sözlüğünün ürettiği İngilizce normalleştirilmiş roller (TR arayüz için)
+    "Main Character" to "Ana Karakter",
+    "Supporting Character" to "Yardımcı Karakter",
+    "Guest Character" to "Konuk Karakter",
+    "Lead Role" to "Başrol",
 )
 
 fun String.toTurkishCharacterRole(): String = if (!isTurkish()) this else characterRoleMap[this] ?: this
+
+/**
+ * Bangumi'nin Çince/Japonca karakter rolü etiketlerini (主角 / 配角 / 客串 ...) arayüz
+ * diline çevirir. Sözlükte yoksa mevcut [toTurkishCharacterRole] davranışı korunur
+ * (İngilizce kaynak değerler İngilizce arayüzde aynen kalır).
+ */
+fun String.toLocalizedCharacterRole(): String {
+    val cleaned = this.trim()
+    if (cleaned.isEmpty()) return cleaned
+    BangumiRoleDictionary.entryFor(cleaned)?.let { return if (isTurkish()) it.turkish else it.english }
+    return toTurkishCharacterRole()
+}
+
+/**
+ * Bangumi'nin Çince/Japonca kadro görev etiketlerini (主題歌演出 / 原作 / 监督 ...) arayüz
+ * diline çevirir. Sözlükte yoksa mevcut [toTurkishStaffRole] davranışı korunur; böylece
+ * İngilizce arayüzde Çince/Japonca görev metni görünmez.
+ */
+fun String.toLocalizedStaffRole(): String {
+    val cleaned = this.trim()
+    if (cleaned.isEmpty()) return cleaned
+    // " · " ile birleştirilmiş görev listeleri parça parça yerelleştirilir.
+    if (cleaned.contains("·") || cleaned.contains("、") || cleaned.contains("，")) {
+        return cleaned.split(Regex("[·、，]"))
+            .map { it.trim().toLocalizedStaffRole() }
+            .filter { it.isNotEmpty() }
+            .joinToString(", ")
+    }
+    BangumiRoleDictionary.entryFor(cleaned)?.let { return if (isTurkish()) it.turkish else it.english }
+    return toTurkishStaffRole()
+}
+
+/**
+ * Medya türü etiketini arayüz diline çevirir. Türkçe dışında İngilizce karşılık verilir;
+ * böylece "tv" gibi ham anahtarlar İngilizce arayüzde küçük harfle görünmez.
+ */
+fun String.toLocalizedMediaTypeString(): String {
+    if (isTurkish()) return toTurkishMediaTypeString()
+    return when (this.trim().lowercase(java.util.Locale.ROOT)) {
+        "tv" -> "TV Series"
+        "anime" -> "Anime"
+        "manga" -> "Manga"
+        "movie" -> "Movie"
+        else -> this
+    }
+}
 
 // ─── Dil Adı / Voice Actor Language ──────────────────────────────────────────
 
@@ -874,6 +925,19 @@ private val staffRoleMap = mapOf(
     "主題歌" to "Tema Şarkısı",
     "主題歌歌唱" to "Tema Şarkısı Performansı",
     "CGI" to "CGI",
+    // Bangumi kariyer/görev alanlarının İngilizce normalleştirilmiş karşılıkları (TR arayüz)
+    "Writer" to "Yazar",
+    "Artist" to "Sanatçı",
+    "Illustrator" to "İllüstratör",
+    "Actor" to "Oyuncu",
+    "Composer" to "Besteci",
+    "Mangaka" to "Mangaka",
+    "Chief Director" to "Baş Yönetmen",
+    "Theme Song Composition" to "Tema Şarkısı Bestesi",
+    "Theme Song Lyrics" to "Tema Şarkısı Söz Yazarı",
+    "Recording" to "Kayıt",
+    "Publisher" to "Yayıncı",
+    "Production" to "Yapım",
 )
 
 private val commonPhrasesMap = mapOf(

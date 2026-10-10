@@ -518,8 +518,11 @@ class KitsugiCharacterClient {
             if (characterId <= 0) return@withContext null
             when (MalJikanMediaSupport.canonicalSource(source)) {
                 "bangumi", "bgm" -> {
-                    KitsugiBangumiCreditsClient.fetchCharacterDetail(characterId, name, fallbackImageUrl)
+                    val raw = KitsugiBangumiCreditsClient.fetchCharacterDetail(characterId, name, fallbackImageUrl)
                         ?: KitsugiBangumiDetailClient.fetchCharacterDetail(characterId)
+                    // "Yapımlar" listesindeki CJK başlıklar romaji/İngilizce'ye çözülsün;
+                    // süre bütçesi içeride korunur, başarısızlıkta ham veri döner.
+                    raw?.let { KitsugiBangumiDetailClient.enrichCharacterDetailNames(it, cacheOnly = true) }
                 }
                 "shikimori" -> {
                     KitsugiShikimoriClient.fetchCharacterDetail(characterId)

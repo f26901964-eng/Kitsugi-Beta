@@ -12,6 +12,7 @@ import com.kitsugi.animelist.utils.toLatinStudioName
 import com.kitsugi.animelist.utils.localizedDistinctTags
 import com.kitsugi.animelist.utils.toLocalizedTagLabel
 import com.kitsugi.animelist.utils.toTurkishBroadcast
+import com.kitsugi.animelist.utils.isTurkish
 import com.kitsugi.animelist.utils.toTurkishCharacterRole
 import com.kitsugi.animelist.utils.toTurkishDuration
 import com.kitsugi.animelist.utils.toTurkishRelationType
@@ -1082,7 +1083,11 @@ object KitsugiBangumiDetailClient {
      *
      * Zaman aşımı olursa mevcut (CJK) değerler korunur; ekran boş kalmaz.
      */
-    suspend fun enrichStaffDetailNames(detail: KitsugiStaffDetail): KitsugiStaffDetail {
+    suspend fun enrichStaffDetailNames(
+        detail: KitsugiStaffDetail,
+        background: Boolean = false,
+        cacheOnly: Boolean = false
+    ): KitsugiStaffDetail {
         if (detail.characterRoles.isEmpty() && detail.mediaWorks.isEmpty()) return detail
 
         // 1) Karakter adları için infobox'tan romaji/İngilizce çek (sınırlı sayıda)
@@ -1093,59 +1098,23 @@ object KitsugiBangumiDetailClient {
             fetchEntityLocalizedNames(characterLookups)
         } else emptyMap()
 
-        // 2) Yapım başlıkları için: önce önbelleğe bak, hâlâ CJK kalanlar için
-        //    v0 subject detayını çek (infobox'tan romaji/İngilizce). Sınırlı sayıda istek.
-        val allMediaIds = (detail.characterRoles.map { it.mediaId } + detail.mediaWorks.map { it.mediaId })
-            .distinct()
-        val cachedSubjectTitles = mutableMapOf<Int, BangumiTitleCache.LatinTitles?>()
-        val pendingSubjectIds = mutableListOf<Int>()
-        for (mediaId in allMediaIds) {
-            val rawId = BangumiIdNamespace.rawIdFromStable(mediaId) ?: continue
-            val cached = BangumiTitleCache.get(rawId)
-            cachedSubjectTitles[rawId] = cached
-            val hasLatin = cached != null && (usableLatinName(cached.romaji) != null || usableLatinName(cached.english) != null)
-            // Önbellekte Latin yoksa subject detayını çekilecek listeye ekle
-            if (!hasLatin) {
-                pendingSubjectIds.add(rawId)
+        // 2) Yapım başlıkları için ortak çözümleyici: önbellek → v0 infobox → AniList.
+        val titleRequests = buildList {
+            detail.characterRoles.forEach { role ->
+                BangumiSubjectTitleResolver.Request.fromRow(role.mediaId, role.mediaTitle, role.mediaType)?.let(::add)
+            }
+            detail.mediaWorks.forEach { work ->
+                BangumiSubjectTitleResolver.Request.fromRow(work.mediaId, work.mediaTitle, work.mediaType)?.let(::add)
             }
         }
-        // v0 subject detaylarını paralel çek (sınırlı sayıda, zaman aşımı korumalı)
-        if (pendingSubjectIds.isNotEmpty()) {
-            val subjectResults = java.util.concurrent.ConcurrentHashMap<Int, BangumiLocalizedName>()
-            withTimeoutOrNull(ENTITY_NAME_BATCH_TIMEOUT_MS) {
-                coroutineScope {
-                    pendingSubjectIds.take(ENTITY_NAME_LOOKUP_LIMIT).map { rawId ->
-                        async(Dispatchers.IO) {
-                            val localized = try {
-                                enrichmentRequestSemaphore.withPermit {
-                                    withTimeoutOrNull(ENTITY_NAME_LOOKUP_TIMEOUT_MS) {
-                                        val subject = loadSubject(rawId) ?: return@withTimeoutOrNull null
-                                        BangumiNameLocalizer.subject(
-                                            subject.name,
-                                            subject.nameCn,
-                                            subject.infobox
-                                        )
-                                    }
-                                }
-                            } catch (_: Exception) { null }
-                            localized?.let { subjectResults[rawId] = it }
-                        }
-                    }.awaitAll()
-                }
-            }
-            // Önbelleğe yaz ve cachedSubjectTitles'a aktar (sonraki ziyaretlerde ağ isteği gerekmesin)
-            for ((rawId, localized) in subjectResults) {
-                BangumiTitleCache.put(rawId, localized.romaji, localized.english, localized.native)
-                cachedSubjectTitles[rawId] = BangumiTitleCache.LatinTitles(localized.romaji, localized.english, localized.native)
-            }
-        }
+        val subjectTitles = BangumiSubjectTitleResolver.resolve(titleRequests, background, cacheOnly)
 
         // 3) Karakter rollerini zenginleştir
         val enrichedRoles = detail.characterRoles.map { role ->
             val localized = characterNames[EntityNameLookup("characters", role.characterId).cacheKey]
             val rawSubjectId = BangumiIdNamespace.rawIdFromStable(role.mediaId)
-            val subjectTitles = rawSubjectId?.let { cachedSubjectTitles[it] }
-            val subjectLatin = subjectTitles?.let { usableLatinName(it.romaji) ?: usableLatinName(it.english) }
+            val latin = rawSubjectId?.let { subjectTitles[it] }
+            val subjectLatin = latin?.let { usableLatinName(it.romaji) ?: usableLatinName(it.english) }
             role.copy(
                 characterName = localizedDisplay(role.characterName, localized),
                 characterRomanizedName = usableLatinName(role.characterRomanizedName) ?: localized?.romaji,
@@ -1153,21 +1122,21 @@ object KitsugiBangumiDetailClient {
                 characterEnglishName = usableLatinName(role.characterEnglishName) ?: localized?.english,
                 // Önbellekten/istekten gelen Latin başlık varsa onu kullan
                 mediaTitle = subjectLatin ?: role.mediaTitle,
-                mediaTitleRomaji = role.mediaTitleRomaji ?: subjectTitles?.romaji,
-                mediaTitleEnglish = role.mediaTitleEnglish ?: subjectTitles?.english
+                mediaTitleRomaji = role.mediaTitleRomaji ?: latin?.romaji,
+                mediaTitleEnglish = role.mediaTitleEnglish ?: latin?.english
             )
         }
 
         // 4) Yapım listesini zenginleştir
         val enrichedWorks = detail.mediaWorks.map { work ->
             val rawSubjectId = BangumiIdNamespace.rawIdFromStable(work.mediaId)
-            val subjectTitles = rawSubjectId?.let { cachedSubjectTitles[it] }
-            if (subjectTitles != null && (subjectTitles.romaji != null || subjectTitles.english != null)) {
-                val latin = usableLatinName(subjectTitles.romaji) ?: usableLatinName(subjectTitles.english)
+            val latin = rawSubjectId?.let { subjectTitles[it] }
+            if (latin != null && (latin.romaji != null || latin.english != null)) {
+                val subjectLatin = usableLatinName(latin.romaji) ?: usableLatinName(latin.english)
                 work.copy(
-                    mediaTitle = latin ?: work.mediaTitle,
-                    titleRomaji = work.titleRomaji ?: subjectTitles.romaji,
-                    titleEnglish = work.titleEnglish ?: subjectTitles.english
+                    mediaTitle = subjectLatin ?: work.mediaTitle,
+                    titleRomaji = work.titleRomaji ?: latin.romaji,
+                    titleEnglish = work.titleEnglish ?: latin.english
                 )
             } else work
         }
@@ -1176,6 +1145,38 @@ object KitsugiBangumiDetailClient {
             characterRoles = enrichedRoles,
             mediaWorks = enrichedWorks
         )
+    }
+
+    /**
+     * Karakter detay sayfasındaki "Yapımlar" listesi için Latin başlık zenginleştirmesi.
+     *
+     * Bangumi `/v0/characters/{id}/subjects` ucu yalnızca özgün (Japonca) ve Çince ad
+     * döndürür; bu fonksiyon [BangumiSubjectTitleResolver] ile romaji/İngilizce karşılığı
+     * çözer ve `titleRomaji` / `titleEnglish` alanlarını doldurur. Böylece arayüz, seçili
+     * başlık diline (İngilizce / Romaji) uygun başlığı gösterir. Karakterin kendi adı ve
+     * seslendirmen adları zaten infobox köprüsüyle zenginleştirilir.
+     */
+    suspend fun enrichCharacterDetailNames(
+        detail: KitsugiCharacterDetail,
+        background: Boolean = false,
+        cacheOnly: Boolean = false
+    ): KitsugiCharacterDetail {
+        if (detail.mediaAppearances.isEmpty()) return detail
+        val titleRequests = detail.mediaAppearances.mapNotNull { appearance ->
+            BangumiSubjectTitleResolver.Request.fromRow(appearance.mediaId, appearance.title, appearance.mediaType)
+        }
+        val subjectTitles = BangumiSubjectTitleResolver.resolve(titleRequests, background, cacheOnly)
+        val enriched = detail.mediaAppearances.map { appearance ->
+            val rawSubjectId = BangumiIdNamespace.rawIdFromStable(appearance.mediaId)
+            val latin = rawSubjectId?.let { subjectTitles[it] } ?: return@map appearance
+            val latinDisplay = usableLatinName(latin.romaji) ?: usableLatinName(latin.english)
+            appearance.copy(
+                title = latinDisplay ?: appearance.title,
+                titleRomaji = appearance.titleRomaji ?: latin.romaji,
+                titleEnglish = appearance.titleEnglish ?: latin.english
+            )
+        }
+        return detail.copy(mediaAppearances = enriched)
     }
 
     private fun needsLatinName(name: String, romanized: String?, english: String?): Boolean =
@@ -1720,12 +1721,12 @@ object KitsugiBangumiDetailClient {
 
     /** `CharacterCastType`: 0=CV 1=Dub 2=Actor 3=Çince dublaj 4=Japonca dublaj 5=İngilizce 6=Korece. */
     internal fun castLanguage(relation: Int): String = when (relation) {
-        0, 4 -> "Japonca"
-        3 -> "Çince"
-        5 -> "İngilizce"
-        6 -> "Korece"
-        2 -> "Oyuncu"
-        else -> "Dublaj"
+        0, 4 -> if (isTurkish()) "Japonca" else "Japanese"
+        3 -> if (isTurkish()) "Çince" else "Chinese"
+        5 -> if (isTurkish()) "İngilizce" else "English"
+        6 -> if (isTurkish()) "Korece" else "Korean"
+        2 -> if (isTurkish()) "Oyuncu" else "Actor"
+        else -> if (isTurkish()) "Dublaj" else "Dubbing"
     }
 
     private val relationMap = mapOf(
@@ -1753,23 +1754,30 @@ object KitsugiBangumiDetailClient {
         return english.toTurkishRelationType()
     }
 
-    private fun careerLabel(career: String): String? = when (career.lowercase(Locale.ROOT)) {
-        "seiyu" -> "Seslendirme Sanatçısı"
-        "mangaka" -> "Mangaka"
-        "producer" -> "Yapımcı"
-        "artist" -> "Sanatçı"
-        "illustrator" -> "İllüstratör"
-        "writer" -> "Yazar"
-        "actor" -> "Oyuncu"
-        "director" -> "Yönetmen"
-        "composer" -> "Besteci"
-        "" -> null
-        else -> career.replaceFirstChar { it.uppercase() }
+    /**
+     * Bangumi `career` enum'ı önce İngilizce normalleştirilir, ardından arayüz diline
+     * çevrilir — İngilizce arayüzde Türkçe etiket sızmasın diye.
+     */
+    private fun careerLabel(career: String): String? {
+        val canonical = when (career.lowercase(Locale.ROOT)) {
+            "seiyu" -> "Voice Actor"
+            "mangaka" -> "Mangaka"
+            "producer" -> "Producer"
+            "artist" -> "Artist"
+            "illustrator" -> "Illustrator"
+            "writer" -> "Writer"
+            "actor" -> "Actor"
+            "director" -> "Director"
+            "composer" -> "Composer"
+            "" -> null
+            else -> career.replaceFirstChar { it.uppercase() }
+        }
+        return canonical?.toTurkishStaffRole()
     }
 
     private fun genderText(raw: String): String = when {
-        raw.contains("女") || raw.equals("female", true) -> "Kadın"
-        raw.contains("男") || raw.equals("male", true) -> "Erkek"
+        raw.contains("女") || raw.equals("female", true) -> if (isTurkish()) "Kadın" else "Female"
+        raw.contains("男") || raw.equals("male", true) -> if (isTurkish()) "Erkek" else "Male"
         else -> raw
     }
 

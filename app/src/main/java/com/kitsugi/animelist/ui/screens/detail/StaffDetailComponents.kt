@@ -51,8 +51,9 @@ import com.kitsugi.animelist.data.remote.GalleryCategory
 import com.kitsugi.animelist.data.remote.KitsugiStaffDetail
 import com.kitsugi.animelist.utils.copyOnDoubleTap
 import com.kitsugi.animelist.utils.toFriendlySourceLabel
-import com.kitsugi.animelist.utils.toTurkishStaffRole
-import com.kitsugi.animelist.utils.toTurkishMediaTypeString
+import com.kitsugi.animelist.utils.toLocalizedCharacterRole
+import com.kitsugi.animelist.utils.toLocalizedMediaTypeString
+import com.kitsugi.animelist.utils.toLocalizedStaffRole
 import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
@@ -124,7 +125,7 @@ internal fun StaffCharacterRoleCard(
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = "$displayMediaTitle • ${role.characterRole}",
+                text = "$displayMediaTitle • ${role.characterRole.toLocalizedCharacterRole()}",
                 color = KitsugiColors.TextSecondary,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Medium,
@@ -186,7 +187,7 @@ internal fun StaffMediaWorkRow(
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = "${work.mediaType.toTurkishMediaTypeString()} \u2022 ${stringResource(R.string.detail_role_prefix, work.staffRole.toTurkishStaffRole())}",
+                text = "${work.mediaType.toLocalizedMediaTypeString()} \u2022 ${stringResource(R.string.detail_role_prefix, work.staffRole.toLocalizedStaffRole())}",
                 color = KitsugiColors.TextMuted,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Medium
@@ -391,7 +392,7 @@ internal fun StaffAboutTabContent(
                 com.kitsugi.animelist.utils.KitsugiDateUtils.formatBirthdayAndCalculateAge(detail.birthday, detail.age)
             }
             val formattedOccupation = androidx.compose.runtime.remember(detail.occupation) {
-                detail.occupation?.toTurkishStaffRole()
+                detail.occupation?.toLocalizedStaffRole()
             }
             val hasDemographics = detail.gender != null || calculatedAge != null || formattedBirthday != null || detail.homeTown != null || formattedOccupation != null
             if (hasDemographics) {

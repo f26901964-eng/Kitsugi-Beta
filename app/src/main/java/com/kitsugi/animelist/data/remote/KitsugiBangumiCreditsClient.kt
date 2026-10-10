@@ -1,6 +1,9 @@
 package com.kitsugi.animelist.data.remote
 
 import com.kitsugi.animelist.data.auth.BangumiApiClient
+import com.kitsugi.animelist.utils.isTurkish
+import com.kitsugi.animelist.utils.toLocalizedCharacterRole
+import com.kitsugi.animelist.utils.toLocalizedStaffRole
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
 import org.json.JSONArray
@@ -98,8 +101,9 @@ object KitsugiBangumiCreditsClient {
                 id = personId,
                 name = personName.display.ifBlank { "#$personId" },
                 role = roles.joinToString(" · ")
+                    .toLocalizedStaffRole()
                     .ifBlank { occupationLabel(item.optJSONArray("career")) }
-                    .ifBlank { "Ekip Üyesi" },
+                    .ifBlank { if (isTurkish()) "Ekip Üyesi" else "Staff Member" },
                 imageUrl = pickImage(item.optJSONObject("images"), preferSmall = true),
                 source = SOURCE,
                 romanizedName = personName.romaji,
@@ -144,7 +148,7 @@ object KitsugiBangumiCreditsClient {
         )
         val primaryName = localized.display.takeIf { it.isNotBlank() && it != "?" }
             ?: name?.trim()?.ifBlank { null }
-            ?: "Bilinmeyen"
+            ?: if (isTurkish()) "Bilinmeyen" else "Unknown"
         val voiceActors = persons?.let { parseCharacterVoiceActors(it) }.orEmpty()
         val localizedVoiceActors = KitsugiBangumiDetailClient.enrichVoiceActorNamesFromBangumi(voiceActors)
 
@@ -199,7 +203,7 @@ object KitsugiBangumiCreditsClient {
         )
         val primaryName = localized.display.takeIf { it.isNotBlank() && it != "?" }
             ?: name?.trim()?.ifBlank { null }
-            ?: "Bilinmeyen"
+            ?: if (isTurkish()) "Bilinmeyen" else "Unknown"
 
         return KitsugiStaffDetail(
             id = rawPersonId,
@@ -345,7 +349,9 @@ object KitsugiBangumiCreditsClient {
                 mediaTitle = title.display.ifBlank { "#$subjectId" },
                 mediaImageUrl = BangumiApiClient.absoluteImageUrl(item.optString("image").trim().ifBlank { null }),
                 mediaType = mediaTypeKey(subjectType),
-                staffRole = item.optString("staff").trim().ifBlank { "Ekip Üyesi" },
+                staffRole = item.optString("staff").trim()
+                    .toLocalizedStaffRole()
+                    .ifBlank { if (isTurkish()) "Ekip Üyesi" else "Staff Member" },
                 source = SOURCE,
                 titleEnglish = title.english,
                 titleJapanese = title.native,
@@ -372,44 +378,47 @@ object KitsugiBangumiCreditsClient {
         else -> "anime"
     }
 
-    /** Bangumi karakter rolü (主角 / 配角 / 客串) → Türkçe etiket. Bilinmeyen değer aynen geçer. */
+    /**
+     * Bangumi karakter rolü (主角 / 配角 / 客串 ...) → arayüz dili etiketi.
+     * Türkçe arayüzde Türkçe, İngilizcede İngilizce; bilinmeyen değer aynen geçer.
+     */
     private fun characterRoleLabel(raw: String?): String {
-        return when (val value = raw?.trim().orEmpty()) {
-            "主角" -> "Ana Karakter"
-            "配角" -> "Yardımcı Karakter"
-            "客串" -> "Konuk Karakter"
-            "" -> "Bilinmeyen"
-            else -> value
-        }
+        val value = raw?.trim().orEmpty()
+        if (value.isEmpty()) return if (isTurkish()) "Bilinmeyen" else "Unknown"
+        return value.toLocalizedCharacterRole()
     }
 
-    /** Bangumi `career` listesi → Türkçe meslek etiketleri. */
+    /**
+     * Bangumi `career` listesi → önce İngilizce normalleştirilir, ardından arayüz
+     * diline çevrilir (İngilizce arayüzde Türkçe etiket sızmasın diye).
+     */
     private fun occupationLabel(career: JSONArray?): String {
         if (career == null) return ""
         return (0 until career.length())
             .mapNotNull { index ->
-                when (val value = career.optString(index).trim()) {
+                when (career.optString(index).trim().lowercase()) {
                     "" -> null
-                    "producer" -> "Yapımcı"
+                    "producer" -> "Producer"
                     "mangaka" -> "Mangaka"
-                    "artist" -> "Sanatçı"
-                    "seiyu" -> "Seslendirmen"
-                    "writer" -> "Yazar"
-                    "illustrator" -> "İllüstratör"
-                    "actor" -> "Oyuncu"
-                    else -> value
+                    "artist" -> "Artist"
+                    "seiyu" -> "Voice Actor"
+                    "writer" -> "Writer"
+                    "illustrator" -> "Illustrator"
+                    "actor" -> "Actor"
+                    else -> career.optString(index).trim()
                 }
             }
             .distinct()
             .joinToString(" · ")
+            .toLocalizedStaffRole()
     }
 
     private fun genderLabel(raw: String?): String? {
         val value = raw?.trim().orEmpty()
         if (value.isEmpty() || value == "null") return null
         return when (value.lowercase()) {
-            "male", "男" -> "Erkek"
-            "female", "女" -> "Kadın"
+            "male", "男" -> if (isTurkish()) "Erkek" else "Male"
+            "female", "女" -> if (isTurkish()) "Kadın" else "Female"
             else -> value
         }
     }

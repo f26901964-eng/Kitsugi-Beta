@@ -207,4 +207,58 @@ class KitsugiTranslationsTest {
         // Zaten Latin adlar değişmez
         assertEquals("TBS", "TBS".toLatinStudioName())
     }
+
+    // ── Kişi/karakter detayı rol etiketleri (arayüz dili duyarlı) ────────────
+
+    @Test
+    fun bangumiRoles_turkishLocale_translateToTurkish() {
+        // @Before Türkçe locale kurar.
+        assertEquals("Ana Karakter", "主角".toLocalizedCharacterRole())
+        assertEquals("Yardımcı Karakter", "配角".toLocalizedCharacterRole())
+        assertEquals("Konuk Karakter", "客串".toLocalizedCharacterRole())
+        assertEquals("Tema Şarkısı Performansı", "主題歌演出".toLocalizedStaffRole())
+        assertEquals("Yönetmen", "导演".toLocalizedStaffRole())
+        assertEquals("Yönetmen", "監督".toLocalizedStaffRole())
+        assertEquals("Seri Düzenlemesi", "系列构成".toLocalizedStaffRole())
+        // Birleşik görev listesi parça parça çevrilir
+        assertEquals("Yönetmen, Senarist", "監督 · 脚本".toLocalizedStaffRole())
+        // Bilinmeyen CJK rol uydurulmaz, olduğu gibi kalır
+        assertEquals("未知の役割", "未知の役割".toLocalizedStaffRole())
+        // İngilizce kaynak değerler TR arayüzde Türkçeleşir
+        assertEquals("Ana Karakter", "Main Character".toLocalizedCharacterRole())
+    }
+
+    @Test
+    fun bangumiRoles_englishLocale_translateToEnglish() {
+        Locale.setDefault(Locale.US)
+        try {
+            assertEquals("Main Character", "主角".toLocalizedCharacterRole())
+            assertEquals("Supporting Character", "配角".toLocalizedCharacterRole())
+            assertEquals("Guest Character", "客串".toLocalizedCharacterRole())
+            assertEquals("Theme Song Performance", "主題歌演出".toLocalizedStaffRole())
+            assertEquals("Director", "导演".toLocalizedStaffRole())
+            assertEquals("Series Composition", "系列构成".toLocalizedStaffRole())
+            assertEquals("Director, Script", "監督 · 脚本".toLocalizedStaffRole())
+            // İngilizce kaynak değerler aynen kalır
+            assertEquals("Producer", "Producer".toLocalizedStaffRole())
+            // Bilinmeyen CJK rol uydurulmaz
+            assertEquals("未知の役割", "未知の役割".toLocalizedStaffRole())
+        } finally {
+            Locale.setDefault(originalLocale)
+        }
+    }
+
+    @Test
+    fun mediaTypeLabel_followsLocale() {
+        assertEquals("Dizi", "tv".toLocalizedMediaTypeString())
+        assertEquals("Anime", "anime".toLocalizedMediaTypeString())
+        Locale.setDefault(Locale.US)
+        try {
+            assertEquals("TV Series", "tv".toLocalizedMediaTypeString())
+            assertEquals("Anime", "ANIME".toLocalizedMediaTypeString())
+            assertEquals("Manga", "manga".toLocalizedMediaTypeString())
+        } finally {
+            Locale.setDefault(originalLocale)
+        }
+    }
 }
