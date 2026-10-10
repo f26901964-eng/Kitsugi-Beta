@@ -155,6 +155,7 @@ Bu blokaj §2'deki kontrolden *sonra* tetiklenir; yani §2 çözülmeden §3 gö
 | `app/proguard-rules.pro` | `com.squareup.zstd.okio.**` için `-keep` eklendi (`okhttp3.**` zaten korunuyordu) |
 | `data/manga/SourceHealthService.kt` | Sabit `"one piece"` sorgusu yerine **dile göre 3 aday sorgu** sırayla denenir; boş sonuç tek başına "bozuk" sayılmaz |
 | `data/manga/MangaSourceRepository.kt` | `quickCheckSourceHealth(sampleQuery: String? = null)` — imza yeni davranışa uyarlandı |
+| `data/manga/MihonSourceWrapper.kt` | `fetchChapterList` artık hatayı **yutmuyor** (`emptyList()` yerine `throw e`) — bkz. §7.1 |
 
 Stub imzaları **tahmin edilmedi**, upstream kaynaklarından birebir alındı:
 `square/okhttp@parent-5.4.0` ve `square/zstd-kmp` (`zstd-kmp-okio/api/jvm/zstd-kmp-okio.api`).
@@ -240,7 +241,17 @@ sırasıyla çalışıyor ve her aşamada zaman aşımı + hata sınıflandırma
    **Metin bölümü gösteren bir okuyucu yok** — bu, görsel sayfa yüklemeyle aynı iş değil
    ve bu turda ele alınmadı.
 4. **NSFW 20 TR kaynak** `TurkishSourceRegistry`'de `-300` ceza alıyor (bilinçli tercih).
-5. `MihonSourceWrapper.fetchChapterList` hata hâlinde hâlâ `emptyList()` döndürüyor.
-   "Boş ekran yerine açık hata" hedefi için bunun çağrı tarafında (`MangaSourceRepository` /
-   reader UI) hata durumuna çevrilmesi gerekiyor — **bu turda yapılmadı**, çünkü çağıran
-   tarafların hata yakalama davranışını cihazda doğrulamadan değiştirmek yeni çökme riski demek.
+5. ~~`MihonSourceWrapper.fetchChapterList` hata hâlinde `emptyList()` döndürüyor~~ — **bu turda düzeltildi.**
+   Eski davranışın iki somut zararı vardı ve ikisi de kodda doğrulandı:
+   - `MangaReaderViewModel.loadChapterList` (satır 127) exception görmediği için
+     `recordOperationSuccess(...)` çağırıyordu → bozuk kaynak istatistikte **başarılı** kaydediliyordu.
+   - Kullanıcı hata mesajı yerine boş bölüm listesi görüyordu.
+
+   Üç çağrı yerinin tamamı (`SourceHealthService.evaluate`, `MangaDetailViewModel.loadChapters`,
+   `MangaReaderViewModel.loadChapterList`) `try/catch` içinde; `MangaDetailViewModel` iki denemeden
+   sonra `error = lastError?.localizedMessage ?: "Bölümler yüklenemedi. Tekrar deneyin."` yazıyor.
+   Yani `throw e` yeni bir çökme yüzeyi açmıyor, sadece gerçek hatayı görünür yapıyor.
+   **Cihazda doğrulanmadı.**
+6. `MihonSourceWrapper.fetchMangaDetails` hata hâlinde hâlâ `MangaDetails(url, title = url)` stub'ı
+   döndürüyor (sessiz bozunma). Bilinçli olarak dokunulmadı: `MangaDetailViewModel` bu değeri
+   mevcut detayla birleştiriyor (`merged`), davranış değişikliği cihazda görülmeden riskli.

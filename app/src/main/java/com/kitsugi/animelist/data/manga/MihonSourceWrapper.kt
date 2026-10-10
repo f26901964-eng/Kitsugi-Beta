@@ -252,7 +252,19 @@ class MihonSourceWrapper(
             Log.e(TAG, "${mihonSource.name} fetchChapterList hata: ${e.message}")
             MangaLogger.logChapterList(context, mihonSource.name, mangaUrl, success = false,
                 elapsedMs = System.currentTimeMillis() - t0, error = e)
-            emptyList()
+            // ONEMLI: Hatayi yutup emptyList() DONDURMUYORUZ.
+            //
+            // Eski davranis iki somut zarara yol aciyordu:
+            //  1) MangaReaderViewModel.loadChapterList exception gormedigi icin
+            //     recordOperationSuccess(...) cagiriyordu -> kaynak saglik istatistigi
+            //     bozuk kaynagi "basarili" diye kaydediyordu.
+            //  2) Kullanici bos bolum listesi goruyordu ("bos ekran"); hata mesaji yerine
+            //     "bolum bulunamadi" anlami cikiyordu.
+            //
+            // Cagiranlarin hepsi (MangaDetailViewModel.loadChapters,
+            // MangaReaderViewModel.loadChapterList, SourceHealthService.evaluate)
+            // try/catch icinde; exception'i yuzeye cikarmak yeni cokme yuzeyi acmaz.
+            throw e
         }
     }
 
