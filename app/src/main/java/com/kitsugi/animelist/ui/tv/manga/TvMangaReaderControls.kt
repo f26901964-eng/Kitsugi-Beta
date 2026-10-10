@@ -31,6 +31,8 @@ import com.kitsugi.animelist.ui.screens.manga.MangaReaderViewModel
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.KitsugiTvTokens
 import com.kitsugi.animelist.ui.utils.tvClickable
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * TV-Native D-pad uyumlu Manga Okuyucu Ayarlar Overlay Paneli.
@@ -67,7 +69,7 @@ fun TvMangaReaderControls(
                 .padding(24.dp)
         ) {
             Text(
-                text = "Okuyucu Ayarları",
+                text = stringResource(R.string.okuyucu_ayarlari),
                 style = MaterialTheme.typography.headlineSmall,
                 color = Color.White,
                 fontWeight = FontWeight.Bold,
@@ -83,7 +85,7 @@ fun TvMangaReaderControls(
             )
             val currentModeIdx = readingModes.indexOfFirst { it.first == uiState.readingMode }.coerceAtLeast(0)
             TvControlCycleRow(
-                title = "Okuma Yönü",
+                title = stringResource(R.string.okuma_yonu),
                 description = "Manga veya Webtoon okuma akışını değiştirin.",
                 currentValueText = readingModes[currentModeIdx].second,
                 onPrevious = {
@@ -183,7 +185,7 @@ fun TvMangaReaderControls(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    text = "Kapat",
+                    text = stringResource(R.string.kapat),
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
                     fontSize = 14.sp

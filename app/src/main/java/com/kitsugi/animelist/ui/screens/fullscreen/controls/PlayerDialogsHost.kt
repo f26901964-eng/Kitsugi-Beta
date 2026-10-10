@@ -48,6 +48,8 @@ import androidx.compose.ui.window.Dialog
 import coil.compose.AsyncImage
 import com.kitsugi.animelist.data.remote.KitsugiStreamingEpisode
 import com.kitsugi.animelist.ui.screens.fullscreen.KitsugiDialogs
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun PlayerDialogsHost(
@@ -119,7 +121,7 @@ fun EpisodeListDialog(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Close,
-                            contentDescription = "Kapat",
+                            contentDescription = stringResource(R.string.kapat),
                             tint = Color.White.copy(alpha = 0.75f),
                             modifier = Modifier.size(18.dp)
                         )
@@ -195,7 +197,7 @@ fun EpisodeListDialog(
                     horizontalArrangement = Arrangement.End
                 ) {
                     TextButton(onClick = onDismissRequest) {
-                        Text(text = "Kapat")
+                        Text(text = stringResource(R.string.kapat))
                     }
                 }
             }
@@ -252,7 +254,7 @@ fun IntegerPickerDialog(
         },
         dismissButton = {
             TextButton(onClick = picker.onDismissRequest) {
-                Text(text = "İptal")
+                Text(text = stringResource(R.string.iptal))
             }
         },
         modifier = modifier

@@ -37,6 +37,8 @@ import com.kitsugi.animelist.ui.utils.tvClickable
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun WatchHistoryScreen(
@@ -62,7 +64,7 @@ fun WatchHistoryScreen(
             IconButton(onClick = onBack) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                    contentDescription = "Geri",
+                    contentDescription = stringResource(R.string.geri),
                     tint = KitsugiColors.TextPrimary
                 )
             }
@@ -79,7 +81,7 @@ fun WatchHistoryScreen(
                 IconButton(onClick = { showClearDialog = true }) {
                     Icon(
                         imageVector = Icons.Rounded.DeleteSweep,
-                        contentDescription = "Tümünü Temizle",
+                        contentDescription = stringResource(R.string.tumunu_temizle),
                         tint = KitsugiColors.TextMuted
                     )
                 }
@@ -187,7 +189,7 @@ fun WatchHistoryScreen(
             onDismissRequest = { showClearDialog = false },
             containerColor = KitsugiColors.Surface,
             titleContentColor = KitsugiColors.TextPrimary,
-            title = { Text("Geçmişi Temizle", fontWeight = FontWeight.Bold) },
+            title = { Text(stringResource(R.string.gecmisi_temizle), fontWeight = FontWeight.Bold) },
             text = {
                 Text(
                     "Tüm izleme geçmişin silinecek. Bu işlem geri alınamaz.",
@@ -201,12 +203,12 @@ fun WatchHistoryScreen(
                         showClearDialog = false
                     }
                 ) {
-                    Text("Temizle", color = KitsugiColors.AccentRed, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.temizle), color = KitsugiColors.AccentRed, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showClearDialog = false }) {
-                    Text("İptal", color = accentColor)
+                    Text(stringResource(R.string.iptal), color = accentColor)
                 }
             }
         )

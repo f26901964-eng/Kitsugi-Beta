@@ -69,6 +69,8 @@ import com.kitsugi.animelist.ui.theme.KitsugiTvTokens
 import com.kitsugi.animelist.ui.utils.dpadRepeatThrottle
 import com.kitsugi.animelist.ui.utils.requestFocusAfterFrames
 import com.kitsugi.animelist.ui.utils.tvClickable
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * WP-13 — TV-optimize edilmiş Manga Detail ve Bölüm listesi ekranı.
@@ -171,7 +173,7 @@ fun TvMangaDetailScreen(
                     ) {
                         Icon(
                             Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = "Geri",
+                            contentDescription = stringResource(R.string.geri),
                             tint = Color.White,
                             modifier = Modifier.size(18.dp)
                         )
@@ -324,7 +326,7 @@ fun TvMangaDetailScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Bölümler" + if (uiState.chapters.isNotEmpty()) " (${uiState.chapters.size})" else "",
+                        text = stringResource(R.string.bolumler) + if (uiState.chapters.isNotEmpty()) " (${uiState.chapters.size})" else "",
                         color = KitsugiColors.TextPrimary,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
@@ -335,7 +337,7 @@ fun TvMangaDetailScreen(
                     ) {
                         Icon(
                             Icons.Rounded.Refresh,
-                            contentDescription = "Yenile",
+                            contentDescription = stringResource(R.string.yenile),
                             tint = KitsugiColors.TextSecondary,
                             modifier = Modifier.size(18.dp)
                         )
@@ -453,7 +455,7 @@ private fun TvChapterListItem(
         if (row.isCompleted) {
             Icon(
                 Icons.Rounded.CheckCircle,
-                contentDescription = "Okundu",
+                contentDescription = stringResource(R.string.okundu),
                 tint = KitsugiColors.AccentGreen.copy(0.8f),
                 modifier = Modifier.size(16.dp)
             )

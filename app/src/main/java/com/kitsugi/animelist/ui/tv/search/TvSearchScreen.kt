@@ -79,6 +79,8 @@ import com.kitsugi.animelist.ui.utils.dpadVerticalFastScroll
 import com.kitsugi.animelist.ui.utils.requestFocusAfterFrames
 import com.kitsugi.animelist.ui.utils.tvClickable
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 private val TvChipShape = RoundedCornerShape(20.dp)
 
@@ -113,7 +115,7 @@ fun TvSearchScreen(
     ) {
         // ── Başlık ────────────────────────────────────────────────────────────
         Text(
-            text = "Arama",
+            text = stringResource(R.string.arama),
             style = MaterialTheme.typography.headlineMedium,
             color = Color.White,
             fontWeight = FontWeight.Bold,
@@ -147,7 +149,7 @@ fun TvSearchScreen(
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Text(
-                            text = "Aranıyor...",
+                            text = stringResource(R.string.araniyor),
                             style = MaterialTheme.typography.bodyLarge,
                             color = Color.White.copy(alpha = 0.6f)
                         )
@@ -301,7 +303,7 @@ private fun TvSearchBar(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Temizle",
+                        contentDescription = stringResource(R.string.temizle),
                         tint = Color.White,
                         modifier = Modifier.size(14.dp)
                     )
@@ -528,7 +530,7 @@ private fun TvSearchHistory(
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
-                text = "Son Aramalar",
+                text = stringResource(R.string.son_aramalar),
                 style = MaterialTheme.typography.titleSmall,
                 color = Color.White.copy(alpha = 0.6f)
             )
@@ -549,12 +551,12 @@ private fun TvSearchHistory(
             ) {
                 Icon(
                     imageVector = Icons.Default.Delete,
-                    contentDescription = "Tümünü Temizle",
+                    contentDescription = stringResource(R.string.tumunu_temizle),
                     tint = Color.White.copy(alpha = 0.5f),
                     modifier = Modifier.size(14.dp)
                 )
                 Text(
-                    text = "Temizle",
+                    text = stringResource(R.string.temizle),
                     style = MaterialTheme.typography.labelSmall,
                     color = Color.White.copy(alpha = 0.5f)
                 )

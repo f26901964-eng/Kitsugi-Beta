@@ -1086,7 +1086,7 @@ private fun NotificationSourceSelectorPill(
         }
         Icon(
             imageVector = Icons.Rounded.ArrowDropDown,
-            contentDescription = "Bildirim Kaynağı Seç",
+            contentDescription = stringResource(R.string.bildirim_kaynagi_sec),
             tint = accentColor,
             modifier = Modifier.size(18.dp)
         )
@@ -1138,7 +1138,7 @@ private fun NotificationSourcePickerSheet(
                 .padding(bottom = 32.dp)
         ) {
             Text(
-                text = "Bildirim Kaynağı Seç",
+                text = stringResource(R.string.bildirim_kaynagi_sec),
                 style = MaterialTheme.typography.titleLarge.copy(
                     fontWeight = FontWeight.Bold,
                     color = KitsugiColors.TextPrimary
@@ -1232,7 +1232,7 @@ private fun NotificationSourcePickerSheet(
                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
                                     Text(
-                                        text = "Bağlı Değil",
+                                        text = stringResource(R.string.bagli_degil),
                                         color = KitsugiColors.TextMuted,
                                         style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                                         fontWeight = FontWeight.Bold
@@ -1278,7 +1278,7 @@ private fun NotificationSourcePickerSheet(
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.Check,
-                                contentDescription = "Seçili",
+                                contentDescription = stringResource(R.string.secili),
                                 tint = KitsugiColors.Background,
                                 modifier = Modifier.size(16.dp)
                             )

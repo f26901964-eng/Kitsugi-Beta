@@ -25,6 +25,8 @@ import com.kitsugi.animelist.ui.screens.profile.KitsugiUserProfileViewModel
 import com.kitsugi.animelist.ui.screens.profile.OtherUserProfileState
 import com.kitsugi.animelist.ui.screens.profile.ProfileFavoritesListemContent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * Diğer kullanıcının favorileri — kendi profil favorileriyle aynı Listem görünümü.
@@ -81,7 +83,7 @@ fun UserProfileFavoritesTab(
                 .padding(32.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = "Favori öğe bulunamadı.", color = KitsugiColors.TextMuted)
+            Text(text = stringResource(R.string.favori_oge_bulunamadi_4f5a04), color = KitsugiColors.TextMuted)
         }
     } else {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -107,7 +109,7 @@ fun UserProfileFavoritesTab(
                         .padding(horizontal = 10.dp, vertical = 4.dp)
                 ) {
                     Text(
-                        text = "Tümünü Gör",
+                        text = stringResource(R.string.tumunu_gor),
                         color = accentColor,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold

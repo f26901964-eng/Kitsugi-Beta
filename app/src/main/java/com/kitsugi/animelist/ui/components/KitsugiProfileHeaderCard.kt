@@ -34,6 +34,8 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun KitsugiProfileHeaderCard(
@@ -127,7 +129,7 @@ fun KitsugiProfileHeaderCard(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Settings,
-                            contentDescription = "Ayarlar",
+                            contentDescription = stringResource(R.string.ayarlar),
                             tint = KitsugiColors.TextPrimary,
                             modifier = Modifier.size(20.dp)
                         )

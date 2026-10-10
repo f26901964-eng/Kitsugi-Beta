@@ -38,6 +38,8 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -126,7 +128,7 @@ fun KitsugiActivityDetailBottomSheet(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Close,
-                        contentDescription = "Kapat",
+                        contentDescription = stringResource(R.string.kapat),
                         tint = KitsugiColors.TextPrimary
                     )
                 }
@@ -183,7 +185,7 @@ fun KitsugiActivityDetailBottomSheet(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "Türkçe",
+                            text = stringResource(R.string.turkce),
                             color = if (isTrSelected) KitsugiColors.Background else KitsugiColors.TextPrimary,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold
@@ -202,7 +204,7 @@ fun KitsugiActivityDetailBottomSheet(
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.Translate,
-                                contentDescription = "Çevir",
+                                contentDescription = stringResource(R.string.cevir),
                                 tint = accentColor
                             )
                         }
@@ -242,7 +244,7 @@ fun KitsugiActivityDetailBottomSheet(
                         .weight(1f),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("Aktivite detayları yüklenemedi.", color = KitsugiColors.TextMuted, fontSize = 14.sp)
+                    Text(stringResource(R.string.aktivite_detaylari_yuklenemedi), color = KitsugiColors.TextMuted, fontSize = 14.sp)
                 }
             } else {
                 val act = activityDetails!!
@@ -409,7 +411,7 @@ fun KitsugiActivityDetailBottomSheet(
                     // Item 2: Replies Header
                     item {
                         Text(
-                            text = "Yanıtlar (${act.replies.size})",
+                            text = stringResource(R.string.yanitlar_act_replies_size, act.replies.size),
                             color = KitsugiColors.TextPrimary,
                             fontSize = 14.sp,
                             fontWeight = FontWeight.Bold,
@@ -426,7 +428,7 @@ fun KitsugiActivityDetailBottomSheet(
                                     .padding(vertical = 30.dp),
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text("Henüz yanıt yazılmamış.", color = KitsugiColors.TextMuted, fontSize = 13.sp)
+                                Text(stringResource(R.string.henuz_yanit_yazilmamis), color = KitsugiColors.TextMuted, fontSize = 13.sp)
                             }
                         }
                     } else {
@@ -519,7 +521,7 @@ fun KitsugiActivityDetailBottomSheet(
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Rounded.Translate,
-                                                contentDescription = "Çevir",
+                                                contentDescription = stringResource(R.string.cevir),
                                                 tint = accentColor,
                                                 modifier = Modifier.size(16.dp)
                                             )
@@ -563,7 +565,7 @@ fun KitsugiActivityDetailBottomSheet(
                                     ) {
                                         Icon(
                                             imageVector = if (repLikedState) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                            contentDescription = "Beğen",
+                                            contentDescription = stringResource(R.string.begen),
                                             tint = if (repLikedState) accentColor else KitsugiColors.TextSecondary,
                                             modifier = Modifier.size(16.dp)
                                         )
@@ -615,7 +617,7 @@ fun KitsugiActivityDetailBottomSheet(
                     ) {
                         Icon(
                             imageVector = if (isActLikedState) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                            contentDescription = "Beğen",
+                            contentDescription = stringResource(R.string.begen),
                             tint = if (isActLikedState) accentColor else KitsugiColors.TextPrimary
                         )
                         Spacer(modifier = Modifier.width(6.dp))
@@ -635,11 +637,11 @@ fun KitsugiActivityDetailBottomSheet(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.Reply,
-                            contentDescription = "Yanıtla",
+                            contentDescription = stringResource(R.string.yanitla),
                             tint = KitsugiColors.Background
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Yanıtla", color = KitsugiColors.Background, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.yanitla), color = KitsugiColors.Background, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -648,8 +650,8 @@ fun KitsugiActivityDetailBottomSheet(
 
     if (showReplyEditor && activityDetails != null) {
         KitsugiReplyEditorBottomSheet(
-            title = "Aktiviteyi Yanıtla",
-            placeholder = "Mesajınızı buraya yazın...",
+            title = stringResource(R.string.aktiviteyi_yanitla),
+            placeholder = stringResource(R.string.mesajinizi_buraya_yazin),
             onPublish = { text ->
                 apiClient.postReply(activityId, isActivity = true, text = text)
             },

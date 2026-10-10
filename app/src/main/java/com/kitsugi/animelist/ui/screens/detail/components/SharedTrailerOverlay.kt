@@ -40,6 +40,8 @@ import com.kitsugi.animelist.data.trailer.TrailerPlaybackSource
 import com.kitsugi.animelist.data.trailer.YoutubeChunkedDataSourceFactory
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import kotlinx.coroutines.delay
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * FP-20 – Full-screen fragman (trailer) overlay for Mobile (TASK-405).
@@ -313,7 +315,7 @@ fun SharedTrailerOverlay(
                     IconButton(onClick = onDismiss) {
                         Icon(
                             imageVector = Icons.Rounded.Close,
-                            contentDescription = "Kapat",
+                            contentDescription = stringResource(R.string.kapat),
                             tint = Color.White
                         )
                     }

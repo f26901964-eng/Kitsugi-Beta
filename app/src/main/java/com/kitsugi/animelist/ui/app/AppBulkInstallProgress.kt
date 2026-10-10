@@ -30,6 +30,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * Toplu eklenti kurulum/güncelleme süreci için kayan ilerleme kartı.
@@ -76,7 +78,7 @@ fun AppBulkInstallProgress(
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "⚡ Eklentiler Kuruluyor",
+                            text = stringResource(R.string.eklentiler_kuruluyor),
                             color = accentColor,
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold
@@ -118,7 +120,7 @@ fun AppBulkInstallProgress(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = "İndiriliyor: $bulkInstallCurrentName",
+                    text = stringResource(R.string.indiriliyor_bulkinstallcurrentname, bulkInstallCurrentName),
                     color = KitsugiColors.TextSecondary,
                     style = MaterialTheme.typography.labelSmall,
                     fontStyle = FontStyle.Italic,

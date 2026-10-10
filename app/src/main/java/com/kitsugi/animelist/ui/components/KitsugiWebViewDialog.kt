@@ -26,6 +26,8 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import eu.kanade.tachiyomi.network.NetworkHelper
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 
 @Composable
@@ -82,13 +84,13 @@ fun KitsugiWebViewDialog(
                     }
                     Spacer(Modifier.width(8.dp))
                     IconButton(onClick = { webViewInstance?.reload() }) {
-                        Icon(Icons.Rounded.Refresh, contentDescription = "Yenile", tint = KitsugiColors.TextSecondary)
+                        Icon(Icons.Rounded.Refresh, contentDescription = stringResource(R.string.yenile), tint = KitsugiColors.TextSecondary)
                     }
                     IconButton(onClick = {
                         CookieManager.getInstance().flush()
                         onDismiss()
                     }) {
-                        Icon(Icons.Rounded.Close, contentDescription = "Kapat", tint = KitsugiColors.TextPrimary)
+                        Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.kapat), tint = KitsugiColors.TextPrimary)
                     }
                 }
 
@@ -198,7 +200,7 @@ fun KitsugiWebViewDialog(
                         },
                         shape = RoundedCornerShape(16.dp)
                     ) {
-                        Text("Tamamlandı", color = KitsugiColors.Surface, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.tamamlandi), color = KitsugiColors.Surface, fontWeight = FontWeight.Bold)
                     }
                 }
             }

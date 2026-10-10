@@ -41,6 +41,8 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 // ---------------------------------------------------------------------------
 //  Paylaşılan Sheet Satır Bileşeni
@@ -144,7 +146,7 @@ internal fun SheetRow(
                         ) {
                             com.kitsugi.animelist.ui.theme.gradient.Icon(
                                 imageVector = Icons.Rounded.Close,
-                                contentDescription = "Temizle",
+                                contentDescription = stringResource(R.string.temizle),
                                 tint = KitsugiColors.TextMuted,
                                 modifier = Modifier.size(12.dp)
                             )
@@ -322,12 +324,12 @@ internal fun KitsugiNumericInputDialog(
                     onDismiss()
                 }
             ) {
-                Text("Kaydet", color = accentColor, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.kaydet), color = accentColor, fontWeight = FontWeight.Bold)
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("İptal", color = KitsugiColors.TextSecondary)
+                Text(stringResource(R.string.iptal), color = KitsugiColors.TextSecondary)
             }
         },
         containerColor = KitsugiColors.Surface,

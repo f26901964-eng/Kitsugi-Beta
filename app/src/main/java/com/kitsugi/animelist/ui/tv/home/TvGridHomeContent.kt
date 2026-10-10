@@ -56,6 +56,8 @@ import com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults
 import com.kitsugi.animelist.ui.utils.dpadVerticalFastScroll
 import com.kitsugi.animelist.ui.utils.tvClickable
 import kotlinx.coroutines.delay
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 private enum class TmdbGridCategory(val displayName: String) {
     Continue("İzlemeye Devam Et"),
@@ -180,7 +182,7 @@ fun TvGridHomeContent(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Keşfet",
+                        text = stringResource(R.string.kesfet),
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.Black,
                         color = Color.White

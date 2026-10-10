@@ -39,6 +39,8 @@ import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 import kotlinx.coroutines.launch
 
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -144,13 +146,13 @@ fun KitsugiAllActivitiesBottomSheet(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Close,
-                        contentDescription = "Kapat",
+                        contentDescription = stringResource(R.string.kapat),
                         tint = KitsugiColors.TextPrimary
                     )
                 }
 
                 Text(
-                    text = "Tüm Aktiviteler",
+                    text = stringResource(R.string.tum_aktiviteler),
                     color = KitsugiColors.TextPrimary,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
@@ -168,7 +170,7 @@ fun KitsugiAllActivitiesBottomSheet(
                 }
             } else if (activitiesList.isEmpty()) {
                 Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                    Text(text = "Aktivite bulunamadı.", color = KitsugiColors.TextMuted, fontSize = 14.sp)
+                    Text(text = stringResource(R.string.aktivite_bulunamadi), color = KitsugiColors.TextMuted, fontSize = 14.sp)
                 }
             } else {
                 LazyColumn(
@@ -329,7 +331,7 @@ fun KitsugiAllActivitiesBottomSheet(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Rounded.Translate,
-                                            contentDescription = "Çevir",
+                                            contentDescription = stringResource(R.string.cevir),
                                             tint = accentColor,
                                             modifier = Modifier.size(14.dp)
                                         )
@@ -374,7 +376,7 @@ fun KitsugiAllActivitiesBottomSheet(
                                 ) {
                                     Icon(
                                         imageVector = if (act.isLiked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                        contentDescription = "Beğeni",
+                                        contentDescription = stringResource(R.string.begeni),
                                         tint = if (act.isLiked) accentColor else KitsugiColors.TextSecondary,
                                         modifier = Modifier.size(14.dp)
                                     )

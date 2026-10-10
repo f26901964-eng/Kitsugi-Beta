@@ -18,6 +18,8 @@ import com.kitsugi.animelist.ui.components.KitsugiShimmerProvider
 import com.kitsugi.animelist.ui.screens.explore.*
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun TvAllSourcesHomeContent(
@@ -51,7 +53,7 @@ fun TvAllSourcesHomeContent(
                     ExplorePlatformToggle(selectedPlatform = ExplorePlatform.ALL,
                         onPlatformSelected = { viewModel.selectPlatform(it) }, modifier = Modifier.weight(1f))
                     TextButton(onClick = { viewModel.loadData(forceRefresh = true) }, enabled = !viewModel.isLoading) {
-                        Text("Yenile")
+                        Text(stringResource(R.string.yenile))
                     }
                 }
             }

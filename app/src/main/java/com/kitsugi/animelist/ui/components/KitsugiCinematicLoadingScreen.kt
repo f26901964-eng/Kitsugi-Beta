@@ -36,6 +36,8 @@ import coil3.compose.AsyncImage
 import com.kitsugi.animelist.ui.components.KitsugiNsfwImage
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun KitsugiCinematicLoadingScreen(
@@ -115,13 +117,13 @@ fun KitsugiCinematicLoadingScreen(
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                contentDescription = "Geri",
+                contentDescription = stringResource(R.string.geri),
                 tint = KitsugiColors.TextPrimary,
                 modifier = Modifier.size(18.dp)
             )
             Spacer(modifier = Modifier.width(6.dp))
             Text(
-                text = "Geri",
+                text = stringResource(R.string.geri),
                 color = KitsugiColors.TextPrimary,
                 fontWeight = FontWeight.Bold,
                 fontSize = 14.sp
@@ -209,7 +211,7 @@ fun KitsugiCinematicLoadingScreen(
                 Spacer(modifier = Modifier.height(18.dp))
 
                 Text(
-                    text = "Yükleniyor...",
+                    text = stringResource(R.string.yukleniyor),
                     color = KitsugiColors.TextSecondary,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold,

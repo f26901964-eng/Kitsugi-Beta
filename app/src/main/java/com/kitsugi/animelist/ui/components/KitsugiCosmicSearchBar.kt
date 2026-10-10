@@ -51,6 +51,8 @@ import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * Sade, tema uyumlu (koyu/açık) arama çubuğu.
@@ -124,7 +126,7 @@ fun KitsugiCosmicSearchBar(
             } else {
                 Icon(
                     imageVector = Icons.Rounded.Search,
-                    contentDescription = "Ara",
+                    contentDescription = stringResource(R.string.ara),
                     tint = if (isFocused) accentColor else KitsugiColors.TextMuted,
                     modifier = Modifier.size(20.dp)
                 )
@@ -180,7 +182,7 @@ fun KitsugiCosmicSearchBar(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Search,
-                        contentDescription = "Ara",
+                        contentDescription = stringResource(R.string.ara),
                         tint = accentColor,
                         modifier = Modifier.size(18.dp)
                     )
@@ -202,7 +204,7 @@ fun KitsugiCosmicSearchBar(
                 ) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Temizle",
+                        contentDescription = stringResource(R.string.temizle),
                         tint = KitsugiColors.TextMuted,
                         modifier = Modifier.size(18.dp)
                     )
@@ -249,7 +251,7 @@ fun SimpleFilterIconButton(
     ) {
         Icon(
             imageVector = Icons.Rounded.Tune,
-            contentDescription = "Filtreler",
+            contentDescription = stringResource(R.string.filtreler),
             tint = if (isActive) accentColor else KitsugiColors.TextMuted,
             modifier = Modifier.size(18.dp)
         )

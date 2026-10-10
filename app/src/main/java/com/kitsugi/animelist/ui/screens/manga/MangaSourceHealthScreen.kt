@@ -37,6 +37,8 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun MangaSourceHealthScreen(
@@ -121,7 +123,7 @@ fun MangaSourceHealthScreen(
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 IconButton(onClick = onBack) {
-                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Geri", tint = KitsugiColors.TextPrimary)
+                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.geri), tint = KitsugiColors.TextPrimary)
                 }
                 Column(modifier = Modifier.weight(1f)) {
                     Text("Kaynakları yönet", color = KitsugiColors.TextPrimary, fontWeight = FontWeight.Bold, style = MaterialTheme.typography.titleMedium)
@@ -499,8 +501,8 @@ private fun HealthReportTab(
         item { FilterChip(selected = false, onClick = {
             val i = Intent(Intent.ACTION_SEND).apply { type = "text/plain"; putExtra(Intent.EXTRA_TEXT, buildReportExport(filtered)) }
             context.startActivity(Intent.createChooser(i, "Paylaş"))
-        }, label = { Text("Paylaş") }) }
-        item { FilterChip(selected = false, onClick = onClearAllSourceDiagnostics, label = { Text("Raporu temizle") }) }
+        }, label = { Text(stringResource(R.string.paylas)) }) }
+        item { FilterChip(selected = false, onClick = onClearAllSourceDiagnostics, label = { Text(stringResource(R.string.raporu_temizle)) }) }
         item { FilterChip(selected = false, onClick = onClearAllSourceConfigs, label = { Text("Config temizle") }) }
     }
 
@@ -557,7 +559,7 @@ private fun HealthReportTab(
                                 item { FilterChip(selected = false, enabled = !isBusy, onClick = { onQuickCheckSource(source) }, label = { Text(if (isBusy) "Çalışıyor" else "Sağlık testi") }) }
                                 item { FilterChip(selected = false, enabled = !isBusy, onClick = { onRefreshSourceMirror(source) }, label = { Text("Mirror bul") }) }
                                 item { FilterChip(selected = false, enabled = !isBusy, onClick = { onEditDomainSource(source) }, label = { Text("Domain Ayarla") }) }
-                                item { FilterChip(selected = false, enabled = !isBusy, onClick = { onClearSourceMirror(source) }, label = { Text("Domain temizle") }) }
+                                item { FilterChip(selected = false, enabled = !isBusy, onClick = { onClearSourceMirror(source) }, label = { Text(stringResource(R.string.domain_temizle)) }) }
                                 item { FilterChip(selected = false, enabled = !isBusy, onClick = { onResetSourceDiagnostics(source) }, label = { Text("İstatistik sıfırla") }) }
                             }
                         }
@@ -580,8 +582,8 @@ private fun HealthReportTab(
                         singleLine = true, modifier = Modifier.fillMaxWidth())
                 }
             },
-            confirmButton = { TextButton(onClick = onDomainSave) { Text("Kaydet", color = accent) } },
-            dismissButton = { TextButton(onClick = onDomainDialogDismiss) { Text("İptal", color = KitsugiColors.TextSecondary) } },
+            confirmButton = { TextButton(onClick = onDomainSave) { Text(stringResource(R.string.kaydet), color = accent) } },
+            dismissButton = { TextButton(onClick = onDomainDialogDismiss) { Text(stringResource(R.string.iptal), color = KitsugiColors.TextSecondary) } },
             containerColor = Color(0xFF141424)
         )
     }

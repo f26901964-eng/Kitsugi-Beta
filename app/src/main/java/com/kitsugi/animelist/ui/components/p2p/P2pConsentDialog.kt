@@ -27,6 +27,8 @@ import androidx.compose.ui.window.DialogProperties
 import com.kitsugi.animelist.core.p2p.P2pSettingsRepository
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun P2pConsentDialog(
@@ -77,7 +79,7 @@ fun P2pConsentDialog(
                     }
                     Column {
                         Text(
-                            text = "P2P Torrent Akışı",
+                            text = stringResource(R.string.p2p_torrent_akisi),
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold,
                             color = KitsugiColors.TextPrimary
@@ -141,7 +143,7 @@ fun P2pConsentDialog(
                         ),
                         border = androidx.compose.foundation.BorderStroke(1.dp, KitsugiColors.Border)
                     ) {
-                        Text("Vazgeç", fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.vazgec), fontWeight = FontWeight.SemiBold)
                     }
 
                     KitsugiButton(

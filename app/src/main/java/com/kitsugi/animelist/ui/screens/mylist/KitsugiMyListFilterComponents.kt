@@ -37,6 +37,8 @@ import com.kitsugi.animelist.ui.components.KitsugiEmptyState
 import com.kitsugi.animelist.ui.screens.mylist.components.myListSortMenuItems
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 internal data class StatusFilter(
     val id: String,
@@ -368,7 +370,7 @@ internal fun RichMyListFilterPanel(
 
         // Section: Release Year
         Column {
-            FilterLabel(text = "Yayın Yılı")
+            FilterLabel(text = stringResource(R.string.yayin_yili))
             Spacer(modifier = Modifier.height(6.dp))
             YearFilterRow(
                 selectedYearFilterId = selectedYearFilterId,
@@ -388,7 +390,7 @@ internal fun RichMyListFilterPanel(
 
         // Section: Sort (Sıralama)
         Column {
-            FilterLabel(text = "Sıralama")
+            FilterLabel(text = stringResource(R.string.siralama))
             Spacer(modifier = Modifier.height(6.dp))
             Row(
                 modifier = Modifier
@@ -467,7 +469,7 @@ internal fun RichMyListFilterPanel(
                     .padding(horizontal = 12.dp, vertical = 8.dp)
             ) {
                 Text(
-                    text = "Temizle",
+                    text = stringResource(R.string.temizle),
                     color = accentColor,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.Bold
@@ -557,7 +559,7 @@ internal fun EmptyListResultCard(
     val activeSortTitle = getSortTitle(selectedSortId)
 
     KitsugiEmptyState(
-        title = "Sonuç bulunamadı",
+        title = stringResource(R.string.sonuc_bulunamadi),
         subtitle = if (searchQuery.isBlank()) {
             "Seçili filtrelerle içerik bulunamadı."
         } else {

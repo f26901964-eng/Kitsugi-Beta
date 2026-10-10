@@ -54,6 +54,8 @@ import com.kitsugi.animelist.ui.screens.manga.components.MangaWebtoonReader
 import com.kitsugi.animelist.ui.utils.requestFocusAfterFrames
 import com.kitsugi.animelist.ui.utils.tvClickable
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * TV-Native Manga Okuyucu Ekranı.
@@ -378,7 +380,7 @@ fun TvMangaReaderScreen(
                     ) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Geri",
+                            contentDescription = stringResource(R.string.geri),
                             tint = Color.White
                         )
                     }
@@ -413,7 +415,7 @@ fun TvMangaReaderScreen(
                     ) {
                         Icon(
                             Icons.AutoMirrored.Filled.MenuBook,
-                            contentDescription = "Okuyucu Ayarları",
+                            contentDescription = stringResource(R.string.okuyucu_ayarlari),
                             tint = Color.White
                         )
                     }
@@ -456,7 +458,7 @@ fun TvMangaReaderScreen(
                         ) {
                             Icon(
                                 Icons.AutoMirrored.Filled.NavigateBefore,
-                                contentDescription = "Önceki Bölüm",
+                                contentDescription = stringResource(R.string.onceki_bolum),
                                 tint = if (viewModel.hasPreviousChapter) Color.White else Color.White.copy(0.3f)
                             )
                         }
@@ -494,7 +496,7 @@ fun TvMangaReaderScreen(
                         ) {
                             Icon(
                                 Icons.AutoMirrored.Filled.NavigateNext,
-                                contentDescription = "Sonraki Bölüm",
+                                contentDescription = stringResource(R.string.sonraki_bolum),
                                 tint = if (viewModel.hasNextChapter) Color.White else Color.White.copy(0.3f)
                             )
                         }

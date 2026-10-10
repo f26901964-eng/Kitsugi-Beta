@@ -55,6 +55,8 @@ import com.kitsugi.animelist.ui.screens.profile.tabs.UserProfileActivityTab
 import com.kitsugi.animelist.ui.screens.profile.tabs.UserProfileStatsTab
 import com.kitsugi.animelist.ui.screens.profile.tabs.UserProfileFavoritesTab
 import com.kitsugi.animelist.ui.screens.profile.tabs.UserProfileSocialTab
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun KitsugiUserProfileScreen(
@@ -125,7 +127,7 @@ fun KitsugiUserProfileScreen(
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     IconButton(onClick = onBackClick) {
-                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Geri", tint = KitsugiColors.TextPrimary)
+                        Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.geri), tint = KitsugiColors.TextPrimary)
                     }
                     Spacer(modifier = Modifier.width(4.dp))
                     Text(
@@ -141,7 +143,7 @@ fun KitsugiUserProfileScreen(
                     IconButton(onClick = {
                         ShareUtils.shareText(context, state.name, ShareUtils.buildProfileUrl("anilist", state.name))
                     }) {
-                        Icon(Icons.Rounded.Share, contentDescription = "Profili Paylaş", tint = KitsugiColors.TextPrimary)
+                        Icon(Icons.Rounded.Share, contentDescription = stringResource(R.string.profili_paylas), tint = KitsugiColors.TextPrimary)
                     }
                 }
             }
@@ -229,7 +231,7 @@ fun KitsugiUserProfileScreen(
                                     2 -> {
                                         val subTabs = listOf("Genel", "Türler", "Etiketler", "Ekip", "Seslendirenler", "Stüdyolar")
                                         val s = rememberLazyListState()
-                                        LazyRow(state = s, flingBehavior = rememberSnapFlingBehavior(s, SnapPosition.Start),
+                                        LazyRow(state = s,
                                             modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                             items(subTabs.size) { idx ->
                                                 ProfileFilterChip(subTabs[idx], viewModel.statsSubTab == idx, resolvedAccent) { viewModel.statsSubTab = idx }
@@ -239,7 +241,7 @@ fun KitsugiUserProfileScreen(
                                     3 -> {
                                         val s = rememberLazyListState()
                                         val labels = listOf("Anime", "Manga", "Karakterler", "Ekip", "Stüdyolar")
-                                        LazyRow(state = s, flingBehavior = rememberSnapFlingBehavior(s, SnapPosition.Start),
+                                        LazyRow(state = s,
                                             modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                             items(5) { idx ->
                                                 ProfileFilterChip(labels[idx], viewModel.favoritesFilter == idx, resolvedAccent) { viewModel.favoritesFilter = idx }
@@ -248,7 +250,7 @@ fun KitsugiUserProfileScreen(
                                     }
                                     4 -> {
                                         val s = rememberLazyListState()
-                                        LazyRow(state = s, flingBehavior = rememberSnapFlingBehavior(s, SnapPosition.Start),
+                                        LazyRow(state = s,
                                             modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                             item { ProfileFilterChip("Takipçiler (${state.socialState.followers.size})", viewModel.socialFilter == 0, resolvedAccent) { viewModel.socialFilter = 0 } }
                                             item { ProfileFilterChip("Takip Edilen (${state.socialState.following.size})", viewModel.socialFilter == 1, resolvedAccent) { viewModel.socialFilter = 1 } }

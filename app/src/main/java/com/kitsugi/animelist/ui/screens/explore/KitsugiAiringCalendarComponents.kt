@@ -76,6 +76,9 @@ import com.kitsugi.animelist.ui.utils.tvClickable
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Calendar
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalContext
+import com.kitsugi.animelist.R
 
 // ─── Yardımcı sabitler ─────────────────────────────────────────────────────
 
@@ -124,7 +127,7 @@ internal fun AiringCalendarHeader(
         IconButton(onClick = onBackClick) {
             Icon(
                 imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                contentDescription = "Geri",
+                contentDescription = stringResource(R.string.geri),
                 tint = KitsugiColors.TextPrimary
             )
         }
@@ -190,7 +193,7 @@ internal fun AiringCalendarHeader(
         IconButton(onClick = { onGridViewChange(!isGridView) }) {
             Icon(
                 imageVector = if (isGridView) Icons.Rounded.ViewList else Icons.Rounded.GridView,
-                contentDescription = "Görünüm Değiştir",
+                contentDescription = stringResource(R.string.gorunum_degistir),
                 tint = KitsugiColors.TextSecondary
             )
         }
@@ -207,7 +210,7 @@ internal fun AiringCalendarHeader(
             } else {
                 Icon(
                     imageVector = Icons.Rounded.Refresh,
-                    contentDescription = "Yenile",
+                    contentDescription = stringResource(R.string.yenile),
                     tint = KitsugiColors.TextSecondary
                 )
             }
@@ -331,7 +334,7 @@ internal fun AiringEntryList(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "Bu gün için yayın bulunamadı.",
+                text = stringResource(R.string.bu_gun_icin_yayin_bulunamadi),
                 color = KitsugiColors.TextSecondary,
                 style = MaterialTheme.typography.bodyMedium
             )
@@ -392,7 +395,7 @@ internal fun AiringEntryList(
             ) {
                 Icon(
                     imageVector = Icons.Rounded.KeyboardArrowUp,
-                    contentDescription = "Yukarı Git",
+                    contentDescription = stringResource(R.string.yukari_git),
                     tint = KitsugiColors.Background,
                     modifier = Modifier.size(28.dp)
                 )
@@ -416,7 +419,7 @@ internal fun AiringEntryGridList(
             contentAlignment = Alignment.Center
         ) {
             Text(
-                text = "Bu gün için yayın bulunamadı.",
+                text = stringResource(R.string.bu_gun_icin_yayin_bulunamadi),
                 color = KitsugiColors.TextSecondary,
                 style = MaterialTheme.typography.bodyMedium
             )
@@ -479,7 +482,7 @@ internal fun AiringEntryGridList(
             ) {
                 Icon(
                     imageVector = Icons.Rounded.KeyboardArrowUp,
-                    contentDescription = "Yukarı Git",
+                    contentDescription = stringResource(R.string.yukari_git),
                     tint = KitsugiColors.Background,
                     modifier = Modifier.size(28.dp)
                 )
@@ -541,7 +544,7 @@ internal fun AiringEntryGridCard(
                 )
                 Icon(
                     imageVector = Icons.Rounded.CheckCircle,
-                    contentDescription = "Yayında",
+                    contentDescription = stringResource(R.string.yayinda),
                     tint = KitsugiColors.AccentGreen,
                     modifier = Modifier
                         .size(24.dp)
@@ -561,7 +564,7 @@ internal fun AiringEntryGridCard(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.PlayCircle,
-                        contentDescription = "İzliyorum",
+                        contentDescription = stringResource(R.string.izliyorum),
                         tint = KitsugiColors.Background,
                         modifier = Modifier.size(14.dp)
                     )
@@ -656,7 +659,7 @@ internal fun AiringEntryCard(
                 )
                 Icon(
                     imageVector = Icons.Rounded.CheckCircle,
-                    contentDescription = "Yayında",
+                    contentDescription = stringResource(R.string.yayinda),
                     tint = KitsugiColors.AccentGreen,
                     modifier = Modifier
                         .size(18.dp)
@@ -722,7 +725,7 @@ internal fun AiringEntryCard(
             Spacer(modifier = Modifier.width(8.dp))
             Icon(
                 imageVector = Icons.Rounded.PlayCircle,
-                contentDescription = "İzliyorum",
+                contentDescription = stringResource(R.string.izliyorum),
                 tint = KitsugiColors.AccentGreen,
                 modifier = Modifier.size(22.dp)
             )
@@ -766,6 +769,7 @@ private fun Long.secondsToLegibleText(): String {
 
 @Composable
 private fun AiringTimeText(entry: AiringEntry, episode: Int? = null) {
+    val context = LocalContext.current
     // Yayın tarihi + saat + geri sayım — "2026-10-15 14:30 • 19 gün sonra yayında"
     val datePrefix = remember(entry) {
         com.kitsugi.animelist.utils.NextAiringFormat.formatDate(entry.airingAt) + " " + entry.formattedTime()
@@ -777,7 +781,7 @@ private fun AiringTimeText(entry: AiringEntry, episode: Int? = null) {
             while (true) {
                 val remaining = entry.airingAt - System.currentTimeMillis() / 1000L
                 if (remaining <= 0) {
-                    text = "$datePrefix • Yayında"
+                    text = context.getString(R.string.dateprefix_yayinda, datePrefix)
                     break
                 }
                 text = "$datePrefix • ${remaining.secondsToLegibleText()}"
@@ -786,7 +790,7 @@ private fun AiringTimeText(entry: AiringEntry, episode: Int? = null) {
             }
         }
     } else {
-        text = "$datePrefix • Yayında"
+        text = context.getString(R.string.dateprefix_yayinda, datePrefix)
     }
 
     val displayText = when {

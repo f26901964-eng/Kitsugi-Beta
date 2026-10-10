@@ -175,30 +175,30 @@ fun Modifier.kitsugiNeonGlow(
     val accentColor = LocalKitsugiAccent.current
     val accent2 = com.kitsugi.animelist.ui.theme.LocalKitsugiAccent2.current
     val framesEnabled = LocalCardFramesEnabled.current
-    val gradientColors = customGradientColors ?: remember(accentColor, accent2) {
-        listOf(accentColor, accent2 ?: Color(0xFF3700FF))
+    // Çerçeveler kapalıyken (Görünüm ayarı) degrade kenarlık tamamen atlanır
+    // — gereksiz border tahsisi yapılmaz.
+    if (!framesEnabled) return this
+
+    // PERF: gradient renk listesini remember ile önbellekle
+    val gradientColors = remember(accentColor, accent2, customGradientColors) {
+        customGradientColors ?: listOf(accentColor, accent2 ?: Color(0xFF3700FF))
     }
     val gradientBrush = remember(gradientColors) {
         Brush.linearGradient(
-            colors = gradientColors.map { it.copy(alpha = 0.65f) },
+            colors = buildList(gradientColors.size) {
+                gradientColors.forEach { add(it.copy(alpha = 0.65f)) }
+            },
             start = Offset(0f, 0f),
             end = Offset(400f, 1000f)
         )
     }
 
-    // Çerçeveler kapalıyken (Görünüm ayarı) gölge ve degrade kenarlık tamamen atlanır.
-    if (!framesEnabled) return this
-
-    return this
-        .shadow(
-            elevation = 6.dp,
-            shape = shape,
-            spotColor = accentColor.copy(alpha = 0.22f),
-            ambientColor = Color(0x333700FF)
-        )
-        .border(
-            width = borderWidth,
-            brush = gradientBrush,
-            shape = shape
-        )
+    // Renkli Modifier.shadow yazılım bulanıklığına düşer. Izgara/rafta her kart
+    // için her karede blur, kaydırmayı kilitler ve kutucukları zıplatır.
+    // Çerçeve yalnızca degrade kenarlık olarak çizilir.
+    return this.border(
+        width = borderWidth,
+        brush = gradientBrush,
+        shape = shape
+    )
 }

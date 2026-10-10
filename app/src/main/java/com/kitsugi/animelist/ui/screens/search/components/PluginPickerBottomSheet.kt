@@ -57,6 +57,8 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 // ─────────────────────────────────────────────────────────────────────────────
 // TvType → Türkçe etiket grupları
@@ -200,7 +202,7 @@ fun PluginPickerBottomSheet(
                 IconButton(onClick = onDismissRequest) {
                     Icon(
                         imageVector = Icons.Default.ArrowBack,
-                        contentDescription = "Geri",
+                        contentDescription = stringResource(R.string.geri),
                         tint = KitsugiColors.TextPrimary
                     )
                 }
@@ -211,7 +213,7 @@ fun PluginPickerBottomSheet(
                     modifier = Modifier.size(22.dp)
                 )
                 Text(
-                    text = "Eklenti Portalı",
+                    text = stringResource(R.string.eklenti_portali),
                     color = KitsugiColors.TextPrimary,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold
@@ -280,7 +282,7 @@ fun PluginPickerBottomSheet(
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
-                                contentDescription = "Temizle",
+                                contentDescription = stringResource(R.string.temizle),
                                 tint = KitsugiColors.TextMuted,
                                 modifier = Modifier.size(16.dp)
                             )
@@ -308,7 +310,7 @@ fun PluginPickerBottomSheet(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         PluginTypeChip(
-                            label = "Tümü",
+                            label = stringResource(R.string.tumu),
                             emoji = "🌐",
                             selected = selectedGroupLabel == null,
                             accentColor = accentColor,
@@ -629,7 +631,7 @@ private fun AllPluginsListItem(
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "Tüm Eklentiler",
+                text = stringResource(R.string.tum_eklentiler),
                 color = KitsugiColors.TextPrimary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
@@ -637,7 +639,7 @@ private fun AllPluginsListItem(
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = "Aktif olan tüm eklentilerde ara",
+                text = stringResource(R.string.aktif_olan_tum_eklentilerde_ara),
                 color = KitsugiColors.TextMuted,
                 fontSize = 12.sp,
                 maxLines = 1,

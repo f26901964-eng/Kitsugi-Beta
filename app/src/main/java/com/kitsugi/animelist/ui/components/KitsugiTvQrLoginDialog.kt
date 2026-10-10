@@ -63,6 +63,8 @@ import com.kitsugi.animelist.ui.app.AuthViewModel
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import java.net.URLEncoder
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * TV-optimized QR Login Dialog.
@@ -276,7 +278,7 @@ fun KitsugiTvQrLoginDialog(
                     IconButton(onClick = onDismiss) {
                         Icon(
                             Icons.Rounded.Close,
-                            contentDescription = "Kapat",
+                            contentDescription = stringResource(R.string.kapat),
                             tint = KitsugiColors.TextSecondary
                         )
                     }

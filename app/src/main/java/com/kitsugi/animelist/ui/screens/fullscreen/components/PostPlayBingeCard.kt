@@ -23,6 +23,8 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Tv
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun PostPlayBingeCard(
@@ -147,7 +149,7 @@ fun PostPlayBingeCard(
                             contentColor = Color.White
                         )
                     ) {
-                        Text("İptal", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.iptal), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                     KitsugiButton(
                         onClick = onPlayNext,
@@ -158,7 +160,7 @@ fun PostPlayBingeCard(
                             contentColor = Color.Black
                         )
                     ) {
-                        Text("Şimdi Oynat", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.simdi_oynat), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }

@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.app
 
+import com.kitsugi.animelist.ui.utils.plainLabel
+import com.kitsugi.animelist.ui.utils.localizedLabel
 import com.kitsugi.animelist.data.auth.runSyncCatching
 import com.kitsugi.animelist.data.auth.CrossSyncReportStore
 import android.app.Application
@@ -76,7 +78,7 @@ private fun MediaEntry.crossSyncIdentityDiagnostic(): String = buildString {
     val identityKeys = com.kitsugi.animelist.model.MediaIdentity.keys(this@crossSyncIdentityDiagnostic)
     appendLine("Harici kimlikler: ${identityKeys.takeIf { it.isNotEmpty() }?.joinToString() ?: "yok"}")
     appendLine("Ham kimlik alanları: malId=${describeMalIdField(malId)}, aniListEntryId=$aniListEntryId, malListId=$malListId, simklId=$simklId, tmdbId=$tmdbId")
-    appendLine("Durum/ilerleme: ${status.label}, bölüm=$progress/${total ?: "?"}, cilt=$volumeProgress, puan=${score ?: "yok"}")
+    appendLine("Durum/ilerleme: ${status.plainLabel()}, bölüm=$progress/${total ?: "?"}, cilt=$volumeProgress, puan=${score ?: "yok"}")
     appendLine("Tarihler: başlangıç=${startDate ?: "yok"}, bitiş=${endDate ?: "yok"}; favori=$isFavorite")
 }
 

@@ -71,6 +71,8 @@ import coil3.compose.AsyncImage
 
 import com.kitsugi.animelist.core.player.QualityProfile
 import com.kitsugi.animelist.core.player.QualityDataHelper
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * Stream picker screen.
@@ -237,7 +239,7 @@ fun KitsugiStreamScreen(
                 if (engine == "exoplayer") {
                     KitsugiFullscreenPlayerActivity.startWithStreamUrls(
                         context = context, videoUrl = resolvedUrl,
-                        title = "$title - Bölüm $episode", headers = source.requestHeaders,
+                        title = context.getString(R.string.title_bolum_episode, title, episode), headers = source.requestHeaders,
                         subtitles = source.subtitles, allSources = allStreams,
                         currentSourceIndex = allStreams.indexOf(source),
                         malId = malId, aniListId = aniListId, tmdbId = tmdbId, season = season, episode = episode,
@@ -253,7 +255,7 @@ fun KitsugiStreamScreen(
                 } else {
                     if (onLaunchExternalPlayer != null) {
                         val input = ExternalPlayerLauncher.createInput(
-                            url = resolvedUrl, title = "$title - Bölüm $episode",
+                            url = resolvedUrl, title = context.getString(R.string.title_bolum_episode, title, episode),
                             headers = source.requestHeaders, resumePositionMs = resumePositionMs,
                             subtitles = source.subtitles
                         )
@@ -261,7 +263,7 @@ fun KitsugiStreamScreen(
                     } else {
                         KitsugiFullscreenPlayerActivity.startWithStreamUrls(
                             context = context, videoUrl = resolvedUrl,
-                            title = "$title - Bölüm $episode", headers = source.requestHeaders,
+                            title = context.getString(R.string.title_bolum_episode, title, episode), headers = source.requestHeaders,
                             subtitles = source.subtitles, allSources = allStreams,
                             currentSourceIndex = allStreams.indexOf(source),
                             malId = malId, aniListId = aniListId, tmdbId = tmdbId, season = season, episode = episode,
@@ -531,7 +533,7 @@ fun KitsugiStreamScreen(
                                     }
                                 }
                             ) {
-                                Icon(Icons.Rounded.Search, contentDescription = "Ara", tint = accentColor)
+                                Icon(Icons.Rounded.Search, contentDescription = stringResource(R.string.ara), tint = accentColor)
                             }
                         },
                         colors = OutlinedTextFieldDefaults.colors(
@@ -612,7 +614,7 @@ fun KitsugiStreamScreen(
             confirmButton = {},
             dismissButton = {
                 TextButton(onClick = { showManualSearchDialog = false }) {
-                    Text("Kapat", color = accentColor)
+                    Text(stringResource(R.string.kapat), color = accentColor)
                 }
             },
             containerColor = KitsugiColors.Surface
@@ -740,7 +742,7 @@ private fun TvStreamSettingsDialog(
                 IconButton(onClick = onDismiss) {
                     Icon(
                         imageVector = Icons.Rounded.Close,
-                        contentDescription = "Kapat",
+                        contentDescription = stringResource(R.string.kapat),
                         tint = KitsugiColors.TextSecondary
                     )
                 }
@@ -809,7 +811,7 @@ private fun TvStreamSettingsDialog(
                         TvSettingsActionRow(
                             title = "+ Yeni Repo Ekle",
                             description = "Yeni bir eklenti havuzu URL'si ekleyin.",
-                            actionText = "Ekle",
+                            actionText = stringResource(R.string.ekle),
                             onClick = { showAddRepoDialog = true }
                         )
                     }
@@ -847,12 +849,12 @@ private fun TvStreamSettingsDialog(
                         showDebridDialog = false
                     }
                 ) {
-                    com.kitsugi.animelist.ui.theme.gradient.Text("Kaydet", color = androidx.tv.material3.MaterialTheme.colorScheme.primary)
+                    com.kitsugi.animelist.ui.theme.gradient.Text(stringResource(R.string.kaydet), color = androidx.tv.material3.MaterialTheme.colorScheme.primary)
                 }
             },
             dismissButton = {
                 androidx.compose.material3.TextButton(onClick = { showDebridDialog = false }) {
-                    com.kitsugi.animelist.ui.theme.gradient.Text("Vazgeç", color = Color.White.copy(alpha = 0.6f))
+                    com.kitsugi.animelist.ui.theme.gradient.Text(stringResource(R.string.vazgec), color = Color.White.copy(alpha = 0.6f))
                 }
             },
             containerColor = KitsugiColors.BackgroundElevated,
@@ -890,12 +892,12 @@ private fun TvStreamSettingsDialog(
                         showAddRepoDialog = false
                     }
                 ) {
-                    com.kitsugi.animelist.ui.theme.gradient.Text("Ekle", color = androidx.tv.material3.MaterialTheme.colorScheme.primary)
+                    com.kitsugi.animelist.ui.theme.gradient.Text(stringResource(R.string.ekle), color = androidx.tv.material3.MaterialTheme.colorScheme.primary)
                 }
             },
             dismissButton = {
                 androidx.compose.material3.TextButton(onClick = { showAddRepoDialog = false }) {
-                    com.kitsugi.animelist.ui.theme.gradient.Text("Vazgeç", color = Color.White.copy(alpha = 0.6f))
+                    com.kitsugi.animelist.ui.theme.gradient.Text(stringResource(R.string.vazgec), color = Color.White.copy(alpha = 0.6f))
                 }
             },
             containerColor = KitsugiColors.BackgroundElevated,

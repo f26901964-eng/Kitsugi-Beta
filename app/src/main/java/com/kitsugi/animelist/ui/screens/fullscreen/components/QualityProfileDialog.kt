@@ -36,6 +36,8 @@ import com.kitsugi.animelist.core.player.QualityProfile
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.utils.tvClickable
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * T2.4 — Kalite Profili Seçim Diyaloğu.
@@ -94,7 +96,7 @@ fun QualityProfileDialog(
             ) {
                 Icon(
                     imageVector = Icons.Rounded.Close,
-                    contentDescription = "Kapat",
+                    contentDescription = stringResource(R.string.kapat),
                     tint = KitsugiColors.TextSecondary,
                     modifier = Modifier.size(18.dp)
                 )
@@ -240,7 +242,7 @@ fun QualityProfileDialog(
                         border = androidx.compose.foundation.BorderStroke(1.dp, KitsugiColors.Border),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("İptal", color = KitsugiColors.TextSecondary)
+                        Text(stringResource(R.string.iptal), color = KitsugiColors.TextSecondary)
                     }
                     KitsugiButton(
                         onClick = {
@@ -321,7 +323,7 @@ private fun QualityOptionRow(
         if (isSelected) {
             Icon(
                 imageVector = Icons.Rounded.CheckCircle,
-                contentDescription = "Seçili",
+                contentDescription = stringResource(R.string.secili),
                 tint = accentColor,
                 modifier = Modifier.size(20.dp)
             )

@@ -64,11 +64,14 @@ import androidx.compose.ui.window.DialogProperties
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.data.remote.GalleryCategory
+import com.kitsugi.animelist.ui.utils.localizedLabel
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.utils.KitsugiImageDownloadHelper
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlin.math.abs
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -445,7 +448,7 @@ fun KitsugiImageGalleryDialog(
                 "• Uygulama içi önbellek ve İndirilenler klasöründeki dosya kaldırılır.\n" +
                 "• Uzak kaynaktaki içerik silinmez — daha sonra tekrar indirebilirsiniz.",
             confirmText = "Sil",
-            dismissText = "Vazgeç",
+            dismissText = stringResource(R.string.vazgec),
             isDestructive = true,
             onConfirm = { confirmDelete(pendingDelete) },
             onDismiss = { pendingDeleteUrls = null }
@@ -593,7 +596,7 @@ private fun GalleryLandscapeLayout(
                         itemsIndexed(availableCategories) { _, cat ->
                             val isSelected = selectedCategoryFilter == cat
                             val count = if (cat == null) galleryItems.size else galleryItems.count { it.category == cat }
-                            val label = if (cat == null) "Tümü ($count)" else "${cat.label} ($count)"
+                            val label = if (cat == null) stringResource(R.string.action_all_count, count) else "${cat.localizedLabel()} ($count)"
                             Box(
                                 modifier = Modifier
                                     .clip(RoundedCornerShape(999.dp))
@@ -654,7 +657,7 @@ private fun GalleryLandscapeLayout(
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.ChevronLeft,
-                                contentDescription = "Önceki",
+                                contentDescription = stringResource(R.string.onceki),
                                 tint = KitsugiColors.TextPrimary,
                                 modifier = Modifier.size(24.dp)
                             )
@@ -768,7 +771,7 @@ private fun GalleryLandscapeLayout(
                     KitsugiFlySendIconButton(
                         onClick = onShare,
                         size = 36.dp,
-                        contentDescription = "Paylaş"
+                        contentDescription = stringResource(R.string.paylas)
                     )
 
                     // Silme Butonu — indirilen kopyayı (veya yerel dosyayı) kaldırır.
@@ -799,7 +802,7 @@ private fun GalleryLandscapeLayout(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Close,
-                            contentDescription = "Kapat",
+                            contentDescription = stringResource(R.string.kapat),
                             tint = KitsugiColors.TextSecondary,
                             modifier = Modifier.size(18.dp)
                         )
@@ -956,7 +959,7 @@ private fun GalleryLandscapeLayout(
                                 GalleryCategory.OTHER     -> "📁"
                             }
                             item {
-                                DetailRow(label = "Tür", value = "$catEmoji ${currentItem.category.label}")
+                                DetailRow(label = stringResource(R.string.gallery_field_type), value = "$catEmoji ${currentItem.category.localizedLabel()}")
                             }
 
                             // Language
@@ -997,7 +1000,7 @@ private fun GalleryLandscapeLayout(
                                 currentItem.description != "TMDB Logo"
                             ) {
                                 item {
-                                    DetailRow(label = "Açıklama", value = currentItem.description)
+                                    DetailRow(label = stringResource(R.string.aciklama), value = currentItem.description)
                                 }
                             }
 
@@ -1143,7 +1146,7 @@ private fun GalleryPortraitLayout(
                 itemsIndexed(availableCategories) { _, cat ->
                     val isSelected = selectedCategoryFilter == cat
                     val count = if (cat == null) galleryItems.size else galleryItems.count { it.category == cat }
-                    val label = if (cat == null) "Tümü ($count)" else "${cat.label} ($count)"
+                    val label = if (cat == null) stringResource(R.string.action_all_count, count) else "${cat.localizedLabel()} ($count)"
 
                     Box(
                         modifier = Modifier
@@ -1258,7 +1261,7 @@ private fun GalleryPortraitLayout(
                                     .padding(horizontal = 7.dp, vertical = 3.dp)
                             ) {
                                 Text(
-                                    text = "$catEmoji ${item.category.label}",
+                                    text = "$catEmoji ${item.category.localizedLabel()}",
                                     color = KitsugiColors.TextPrimary,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold
@@ -1560,7 +1563,7 @@ private fun GalleryDetailsSheet(
             })
 
             // Tür
-            DetailRow(label = "Tür", value = "$catEmoji ${item.category.label}")
+            DetailRow(label = stringResource(R.string.gallery_field_type), value = "$catEmoji ${item.category.localizedLabel()}")
 
             // Sezon
             val seasonLabel = formatGallerySeason(item.season)
@@ -1595,7 +1598,7 @@ private fun GalleryDetailsSheet(
                 item.description != "TMDB Arka Plan" &&
                 item.description != "TMDB Logo"
             ) {
-                DetailRow(label = "Açıklama", value = item.description)
+                DetailRow(label = stringResource(R.string.aciklama), value = item.description)
             }
 
             Spacer(Modifier.height(4.dp))
@@ -1978,7 +1981,7 @@ private fun KitsugiGalleryHeader(
                     KitsugiFlySendIconButton(
                         onClick = onShare,
                         size = 40.dp,
-                        contentDescription = "Paylaş"
+                        contentDescription = stringResource(R.string.paylas)
                     )
 
                     // Silme Butonu — indirilen kopyayı (veya yerel dosyayı) kaldırır.
@@ -2011,7 +2014,7 @@ private fun KitsugiGalleryHeader(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Close,
-                            contentDescription = "Kapat",
+                            contentDescription = stringResource(R.string.kapat),
                             tint = KitsugiColors.TextSecondary,
                             modifier = Modifier.size(20.dp)
                         )

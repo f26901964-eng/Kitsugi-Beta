@@ -43,6 +43,8 @@ import com.kitsugi.animelist.ui.utils.tvClickable
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.async
 import kotlinx.coroutines.coroutineScope
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun TvTopicDetailDialog(
@@ -257,7 +259,7 @@ fun TvTopicDetailDialog(
                             ) {
                                 Icon(
                                     imageVector = if (isTopicLikedState) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                    contentDescription = "Beğen",
+                                    contentDescription = stringResource(R.string.begen),
                                     tint = if (isTopicLikedState) accentColor else KitsugiColors.TextSecondary,
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -368,7 +370,7 @@ fun TvTopicDetailDialog(
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
-                                text = "Türkçe",
+                                text = stringResource(R.string.turkce),
                                 color = if (isTrSelected) KitsugiColors.Background else KitsugiColors.TextPrimary,
                                 fontSize = 12.sp,
                                 fontWeight = FontWeight.Bold
@@ -393,7 +395,7 @@ fun TvTopicDetailDialog(
                             ),
                         shape = RoundedCornerShape(12.dp)
                     ) {
-                        Text("Kapat", color = KitsugiColors.TextPrimary, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.kapat), color = KitsugiColors.TextPrimary, fontWeight = FontWeight.Bold)
                     }
                 }
 
@@ -484,7 +486,7 @@ fun TvTopicDetailDialog(
                                             KitsugiPlasmaLoader(size = 22.dp)
                                         } else {
                                             Text(
-                                                text = "Daha Fazla Yükle",
+                                                text = stringResource(R.string.daha_fazla_yukle),
                                                 color = KitsugiColors.TextPrimary,
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 12.sp
@@ -624,7 +626,7 @@ private fun TvForumCommentCard(
             ) {
                 Icon(
                     imageVector = if (likedState) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                    contentDescription = "Beğen",
+                    contentDescription = stringResource(R.string.begen),
                     tint = if (likedState) accentColor else KitsugiColors.TextMuted,
                     modifier = Modifier.size(14.dp)
                 )

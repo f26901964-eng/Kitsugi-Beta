@@ -155,8 +155,10 @@ import java.util.Locale
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import androidx.compose.ui.res.stringResource
 
 
+@OptIn(androidx.compose.foundation.ExperimentalFoundationApi::class)
 @Composable
 fun AppRoot(
     appViewModel: AppViewModel = viewModel()
@@ -279,7 +281,7 @@ fun AppRoot(
                     val malIdInt = link.mediaId.toIntOrNull() ?: 0
                     val syntheticResult = JikanSearchResult(
                         malId = malIdInt,
-                        title = "Yükleniyor...",
+                        title = context.getString(R.string.yukleniyor),
                         subtitle = "",
                         type = link.mediaType ?: com.kitsugi.animelist.model.MediaType.Anime,
                         total = null,
@@ -731,8 +733,16 @@ fun AppRoot(
     val configuration = LocalConfiguration.current
     val isLandscape = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
 
+    val isTvDevice = com.kitsugi.animelist.ui.theme.LocalIsTvDevice.current
+    val touchBringIntoView = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberTouchPassthroughSpec()
     CompositionLocalProvider(
-        LocalBlurAdultMedia provides appSettings.blurAdultMedia
+        LocalBlurAdultMedia provides appSettings.blurAdultMedia,
+        // Telefon/tablette odaklı kart listeyi geri çekmesin. TV kendi spec'ini korur.
+        androidx.compose.foundation.gestures.LocalBringIntoViewSpec provides if (isTvDevice) {
+            androidx.compose.foundation.gestures.LocalBringIntoViewSpec.current
+        } else {
+            touchBringIntoView
+        }
     ) {
         Scaffold(
             containerColor = KitsugiColors.Background,

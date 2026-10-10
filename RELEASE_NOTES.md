@@ -1,5 +1,130 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.234)
+
+### 🏢 1. Bangumi Yapımcı / Yayıncı Çipleri Tıklanabilirlik ve Kimlik Çözümleme Düzeltmesi
+- **Ad Tabanlı Kurum Çözümleme (`resolveCompanyPersonId`):**
+  - Bangumi infobox verilerinde kimliği olmayan kurumlar için çip tıklanabilirliği açıldı. Kimliği olmayan çipler artık tıklanarak hedef sayfaya kurum adını taşır (`KitsugiDetailComponents.kt`).
+  - Hedef stüdyo/yapımcı sayfası kurum adıyla Bangumi API'de (`/v0/search/persons`, `type=2`) arama yapar; şirket bulunamazsa yapımcı şahıslar (`type=1`) kabul edilerek kişinin yapım listesi açılır (`KitsugiStudioClient.kt`).
+- **Enrich Kapasitesi ve Zaman Aşımı Artırıldı:**
+  - `KitsugiBangumiDetailClient.kt`: Ön kimlikleme limiti 8'den 24'e, toplu sorgu zaman aşımı 6 saniyeden 10 saniyeye çıkarıldı. Steins;Gate gibi 15+ kurumlu zengin detay sayfalarında tüm yayıncı ve yapımcılar önceden kimliklenir.
+- **Kimliksiz Sayfalarda Yeniden Deneme:**
+  - `StudioDetailViewModel.kt`: Sadece `studioId > 0` şartı yerine `name != null` durumu da yeniden deneme mekanizmasına dahil edildi.
+
+### 🌐 2. Kapsamlı UI Yerelleştirmesi (i18n Tamamlama — Batch 1 & Bangumi)
+- **Tam TR / EN Dil Dosyası Paritesi:**
+  - `values/strings.xml` ve `values-en/strings.xml` dosyalarına 446 yeni kaynak eklendi; toplam **4194 anahtar** ile %100 parite sağlandı.
+- **1000'den Fazla Gömülü Türkçe Metnin Taşınması:**
+  - Detay sayfası: Stüdyolar, Yapımcılar, Yayıncı Ağlar, Etiketler, Türler, sekmeler, bilgi kartları, puanlama ve spoiler kontrolleri.
+  - Stüdyo & Yapımcı sayfası: "Yapımlar", "X içerik", filtreleme çipleri (Tümü/Anime/Manga/Film/Dizi), sıralama seçenekleri, boş durum ve hero rozetleri.
+  - Eklenti "Tümünü Gör" sayfası, tam ekran medya ızgarası ve görsel galeri diyaloğu.
+- **Merkezi Yardımcılar:**
+  - `MediaType.localizedLabel()`, `GalleryCategory.localizedLabel()`, `WatchStatus.localizedLabel()` ile tüm etiketler seçili uygulama diline (`isTurkish()`) göre dinamik olarak üretilir.
+
+---
+
+## 🇬🇧 English (v2.4.234)
+
+### 🏢 1. Bangumi Producer / Network Chips Clickability & Identity Resolution Fix
+- **Name-Based Entity Resolution (`resolveCompanyPersonId`):**
+  - Unlocked clickability for producer and network chips originating from Bangumi infoboxes without upfront IDs (`KitsugiDetailComponents.kt`).
+  - Target studio/producer screens now resolve the company by name via Bangumi API (`/v0/search/persons`, `type=2`); falls back to person records (`type=1`) for individual producers, displaying their production list (`KitsugiStudioClient.kt`).
+- **Increased Enrichment Capacity & Timeout:**
+  - `KitsugiBangumiDetailClient.kt`: Increased lookup limit from 8 to 24 and batch timeout from 6s to 10s. Large entries like Steins;Gate (15+ organizations) now resolve all producers and TV networks in advance.
+- **Retry Support for Name-Resolved Pages:**
+  - `StudioDetailViewModel.kt`: Allows retrying failed loads when `name != null`, even if the initial entity ID was zero.
+
+### 🌐 2. Comprehensive UI Localization (i18n Completion — Batch 1 & Bangumi)
+- **100% TR / EN String Parity:**
+  - Added 446 new string resources across `values/strings.xml` and `values-en/strings.xml`, bringing total synchronized keys to **4194**.
+  - Replaced over 1000 hardcoded Turkish UI strings across 185+ Kotlin files with `stringResource` and `context.getString`.
+- **Extended Area Coverage:**
+  - Detail screens: Studios, Producers, Networks, Tags, Genres, tabs, info grids, ratings, and spoiler controls.
+  - Studio & Producer screens: Productions header, item counts, filter chips (All/Anime/Manga/Movie/TV Series), sorting options, empty states, and hero pills.
+  - Addon "See All" full-screen grids, global media grids, and image gallery viewer.
+- **Centralized Label Helpers:**
+  - Introduced `MediaType.localizedLabel()`, `GalleryCategory.localizedLabel()`, and `WatchStatus.localizedLabel()` ensuring all models reflect the active language dynamically.
+
+---
+
+## 🇹🇷 Türkçe (v2.4.233)
+
+### 🚀 1. Kaydırma Takılmaları (Scroll Jank) ve Recomposition Optimizasyonları
+- **`derivedStateOf` ile Gereksiz Yeniden Çizimlerin Önlenmesi:**
+  - `ExploreScreen.kt`: `lazyListState.firstVisibleItemIndex` doğrudan okunması yerine `derivedStateOf` içine alındı (`isHeroVisible`), her scroll pikselinde tüm vitrin ve alt ağacının yeniden recompose olması engellendi (`ExploreScreen.kt`).
+  - `FullScreenMediaGridPage.kt`: Kayan başlık görünürlüğü (`showFloatingHeader`), `derivedStateOf` içine alınarak liste veya ızgara kaydırılırken her karede tetiklenen recomposition döngüsü kesildi (`FullScreenMediaGridPage.kt`).
+- **Sabit Identity Tabanlı Lazy Key'ler (Index Kaldırıldı):**
+  - Grid ve listelerdeki key yapılarından pozisyon indeksi (`$idx`, `_g$idx`, `_l$idx`) kaldırıldı. Filtreleme, sıralama ve sayfalama esnasında kartların sıfırdan yeniden oluşturulması engellendi; stabil identity (`${source}_${malId}_${tmdbId}_${cs3Url.hashCode()}`) ile kart composable yeniden kullanımı sağlandı (`KitsugiHorizontalMediaSection.kt`, `FullScreenMediaGridPage.kt`, `SearchScreen.kt`, `KitsugiMediaGridDialog.kt`).
+- **Coil Crossfade Kaldırıldı (Akıcı Fling Deneyimi):**
+  - `KitsugiApplication.kt`: Hızlı kaydırma (fling) anında ekrana giren her kartın 150ms crossfade animasyonu başlatarak ana iş parçacığını (UI thread) kilitlemesi engellendi; görsel yükleme akışı doğrudan hazırlandığında render edilir (`KitsugiApplication.kt`).
+- **Mobil "Tümünü Gör" Diyaloğu LazyVerticalGrid Dönüşümü:**
+  - `KitsugiMediaGridDialog.kt`: 40+ kartı aynı anda oluşturan ve bellek baskısı yaratan `FlowRow + verticalScroll` yapısı, sadece ekranda görünen öğeleri oluşturan yüksek performanslı `LazyVerticalGrid` bileşenine dönüştürüldü (`KitsugiMediaGridDialog.kt`).
+- **`contentType` ile Composable Havuzlama (Item Pooling):**
+  - Tüm LazyColumn, LazyRow ve LazyVerticalGrid yapılarına açık `contentType` tanımları eklendi (`media_card`, `h_media_card`, `seasonal_card`, `ranking_card`, `search_row`, `char_staff_row`); ekran dışına çıkan öğelerin Compose tarafından verimli bir şekilde havuzlanıp geri dönüştürülmesi sağlandı.
+- **Kart İçi Bellek ve Çizim Tahsislerinin (Allocations) Azaltılması:**
+  - `KitsugiExploreMediaCard.kt`, `KitsugiRankingMediaCard.kt`, `DetailedSeasonalMediaCard.kt`, `SearchResultRow.kt`: `getDisplayTitle(titleLanguage)` ve `Shape` nesneleri `remember` ile önbelleğe alındı.
+  - `KitsugiNsfwImage.kt`: `AsyncImage` için `onError` lambda'sı `remember` ile sabitlenerek her recomposition'da gereksiz yeniden sorgulama engellendi.
+
+### 🛡️ 2. Sayfa Geri Çekilmesi (Scroll Bounce), Kilitlenme ve Zıplama Düzeltmeleri
+- **Dokunmatik Cihazlarda Odak Geri Çekilmesinin Engellenmesi:**
+  - `TvFocusModifier.kt`: Telefon ve tabletlerde kartların odak alması kapatıldı (`.focusProperties { canFocus = false }`). Kartların dokunmatik kaydırma sırasında odak alıp `BringIntoView` ile listeyi parmağın tersine geri çekmesi engellendi.
+  - `KitsugiScrollDefaults.kt` & `AppRoot.kt`: Telefon ve tablet için no-op `rememberTouchPassthroughSpec()` eklendi; TV cihazları D-pad odak davranışını korurken dokunmatik cihazlarda kaydırma hareketi tamamen parmağa devredildi.
+- **Neon Çerçevelerden Yazılım Bulanıklığı Gölgesinin Kaldırılması:**
+  - `KitsugiNeonGlowCard.kt`: RenderNode katmanında yazılım tabanlı GPU blur düşmesine ve kaydırmanın kilitlenmesine neden olan `Modifier.shadow` kaldırıldı; kart çerçevesi yalnızca yüksek performanslı degrade kenarlık olarak çizilir.
+- **Nested LazyRow'ların Düz `horizontalScroll` Satırlarına Dönüştürülmesi:**
+  - `FullScreenMediaGridPage.kt`, `StudioDetailPage.kt`, `AddonFullScreenGridPage.kt`: Ana dikey ızgara/liste kaydırılırken ölçüm döngüsünü tetikleyip kartları ileri-geri zıplatan iç içe tür çipler `Row + horizontalScroll(rememberScrollState())` yapısına geçirildi (`GridGenreChipRow`).
+- **Başlık & Sekme Geçişlerinde Histerezis ve Solma Animasyonu:**
+  - `DetailPageScaffold.kt`, `CharacterDetailPage.kt`, `StaffDetailPage.kt`, `StreamScreenContent.kt`: Yüzen başlıkların yükseklik değiştirerek viewport'u daraltması engellendi (`fadeIn`/`fadeOut`). Sınır geçişinde histerezis eklendi; sekme değişimindeki `scrollToItem(2)` zıplaması kaldırıldı.
+  - `MyListComponents.kt`: Piksel bazlı yükseklik hesabı yerine eşik aşıldığında bir kez kapanan (`headerCollapsed`) histerezisli yapıya geçildi.
+- **Yatay Satırlardan Snap Fling Davranışının Kaldırılması:**
+  - `ModernHomeRows.kt`, `ExploreComponents.kt`, `ReviewsTab.kt`, `KitsugiHorizontalMediaSection.kt`, `SearchScreen.kt`, `KitsugiUserProfileScreen.kt`, `UserProfileStatsTab.kt`, `AniListProfileContent.kt`, `MalProfileContent.kt`: İç içe satırlardaki `rememberSnapFlingBehavior` kaldırılarak dikey kaydırma hareketinin çalınması ve kilitlenmesi önlendi.
+- **Non-Observable Kaydırma Konumu Saklama (Recomposition Döngüsü Kesildi):**
+  - `KitsugiProfileViewModel.kt` & `KitsugiUserProfileViewModel.kt`: Kaydırma konumları `mutableIntStateOf` yerine düz `Int` değişkenlere çevrildi; `snapshotFlow` ile toplanarak her pikselde sayfanın baştan kurulması önlendi.
+  - `RetainedLazyListState.kt`: `RetainedScrollPosition` ve `listSaver` mimarisiyle yeniden yazılarak sayfa sıfırlanmaları giderildi.
+  - `recordStablePageHeight`: Pager ölçümlerindeki 4px altındaki ölçüm gürültüsü filtrelenerek sonsuz yeniden ölçüm önlendi.
+- **Teknik Dokümantasyon:** `PLAN_TASK_KAYDIRMA_ZIPLAMA_FIX_2026-10-10.md`, `PLAN_TASK_SCROLL_JANK_PERFORMANS_FIX_2026-10-10.md`, `SCROLL_JANK_FIX_RAPORU_2026-10-10.md`.
+
+---
+
+## 🇬🇧 English (v2.4.233)
+
+### 🚀 1. Scroll Jank Elimination & Recomposition Optimizations
+- **`derivedStateOf` Scroll State Decoupling:**
+  - `ExploreScreen.kt`: Decoupled `lazyListState.firstVisibleItemIndex` via `derivedStateOf` (`isHeroVisible`), eliminating redundant recompositions of the hero section and entire view tree on every scroll frame (`ExploreScreen.kt`).
+  - `FullScreenMediaGridPage.kt`: Wrapped floating header visibility (`showFloatingHeader`) in `derivedStateOf`, preventing frame-by-frame recomposition cascades during list and grid scrolling (`FullScreenMediaGridPage.kt`).
+- **Stable Identity-Based Lazy Keys (Eliminated Index Dependency):**
+  - Replaced index-dependent keys (`$idx`, `_g$idx`, `_l$idx`) with pure, stable identity keys across all lists and grids (`${source}_${malId}_${tmdbId}_${cs3Url.hashCode()}`). Filtering, sorting, and pagination no longer invalidate composable item state, maximizing reuse (`KitsugiHorizontalMediaSection.kt`, `FullScreenMediaGridPage.kt`, `SearchScreen.kt`, `KitsugiMediaGridDialog.kt`).
+- **Disabled Coil Crossfade for Butter-Smooth Fling:**
+  - `KitsugiApplication.kt`: Removed 150ms image crossfade transitions during rapid scrolling/flinging, eliminating main UI thread bottlenecks caused by concurrent fade animators on entry cards (`KitsugiApplication.kt`).
+- **Converted Mobile "See All" Dialog to `LazyVerticalGrid`:**
+  - `KitsugiMediaGridDialog.kt`: Replaced the legacy `FlowRow + verticalScroll` layout (which instantiated 40+ cards simultaneously) with a virtualized `LazyVerticalGrid`, rendering only visible items and drastically cutting composition overhead (`KitsugiMediaGridDialog.kt`).
+- **Composable Recycling with `contentType`:**
+  - Added explicit `contentType` tags across all LazyColumn, LazyRow, and LazyVerticalGrid items (`media_card`, `h_media_card`, `seasonal_card`, `ranking_card`, `search_row`, `char_staff_row`), enabling Compose item pooling for off-screen cards.
+- **Card Allocation and Render Optimization:**
+  - `KitsugiExploreMediaCard.kt`, `KitsugiRankingMediaCard.kt`, `DetailedSeasonalMediaCard.kt`, `SearchResultRow.kt`: Memoized `getDisplayTitle(titleLanguage)` and `Shape` instances with `remember`.
+  - `KitsugiNsfwImage.kt`: Stabilized the `onError` lambda callback using `remember`, preventing `AsyncImage` from treating callback instantiations as model changes.
+
+### 🛡️ 2. Scroll Jitter, Lockup & Viewport Retraction Fixes
+- **Eliminated Focus Retraction on Touch Devices:**
+  - `TvFocusModifier.kt`: Disabled focus on phones and tablets (`.focusProperties { canFocus = false }`), preventing clickable cards from taking focus and pulling the viewport backward via `BringIntoView`.
+  - `KitsugiScrollDefaults.kt` & `AppRoot.kt`: Injected no-op `rememberTouchPassthroughSpec()` on mobile devices; TV keeps D-pad centering while touch scrolling is entirely restored to user gesture control.
+- **Removed Software-Blurred Shadow on Neon Glow Cards:**
+  - `KitsugiNeonGlowCard.kt`: Removed `Modifier.shadow` with colored ambient/spot tints that forced software-fallback blurs during rapid scrolling; cards now render crisp, high-performance gradient borders only.
+- **Replaced Nested LazyRows with Standard `horizontalScroll`:**
+  - `FullScreenMediaGridPage.kt`, `StudioDetailPage.kt`, `AddonFullScreenGridPage.kt`: Converted nested genre chips in grid/list headers to `Row + horizontalScroll(rememberScrollState())` (`GridGenreChipRow`), eliminating the parent grid remeasurement loop.
+- **Hysteresis Thresholds & Fade-Only Header Transitions:**
+  - `DetailPageScaffold.kt`, `CharacterDetailPage.kt`, `StaffDetailPage.kt`, `StreamScreenContent.kt`: Replaced height-animating headers with fixed-height `fadeIn`/`fadeOut` transitions; added index hysteresis and eliminated tab-jump `scrollToItem(2)`.
+  - `MyListComponents.kt`: Replaced continuous pixel-based height calculation with a thresholded collapse boolean (`headerCollapsed`).
+- **Removed Snap Fling Behaviors from Nested Rows:**
+  - `ModernHomeRows.kt`, `ExploreComponents.kt`, `ReviewsTab.kt`, `KitsugiHorizontalMediaSection.kt`, `SearchScreen.kt`, `KitsugiUserProfileScreen.kt`, `UserProfileStatsTab.kt`, `AniListProfileContent.kt`, `MalProfileContent.kt`: Removed `rememberSnapFlingBehavior` across all horizontal carousels to prevent stealing vertical scroll gestures.
+- **Non-Observable Scroll Position Persistence:**
+  - `KitsugiProfileViewModel.kt` & `KitsugiUserProfileViewModel.kt`: Converted scroll positions to plain `Int` properties, reading them via `snapshotFlow` without triggering full screen recompositions.
+  - `RetainedLazyListState.kt`: Refactored with `RetainedScrollPosition` and `listSaver` to prevent position jumping on restore.
+  - `recordStablePageHeight`: Dampened 4px height fluctuations in pager tabs to stop infinite layout loops.
+- **Technical Documentation:** `PLAN_TASK_KAYDIRMA_ZIPLAMA_FIX_2026-10-10.md`, `PLAN_TASK_SCROLL_JANK_PERFORMANS_FIX_2026-10-10.md`, `SCROLL_JANK_FIX_RAPORU_2026-10-10.md`.
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.232)
 
 ### 🎨 1. Gradyan Vurgu Rengi (Accent Gradient) Tam Uygulama Entegrasyonu

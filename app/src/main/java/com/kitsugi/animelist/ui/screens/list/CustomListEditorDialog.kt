@@ -23,6 +23,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.ui.components.KitsugiSheetOrDialog
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * V2-F03 – CustomListEditorDialog
@@ -58,12 +60,12 @@ fun CustomListEditorDialog(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Özel Listeler",
+                    text = stringResource(R.string.ozel_listeler),
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
                 )
                 IconButton(onClick = onDismiss) {
-                    Icon(Icons.Rounded.Close, contentDescription = "Kapat")
+                    Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.kapat))
                 }
             }
 
@@ -99,7 +101,7 @@ fun CustomListEditorDialog(
                         }
                     }
                 ) {
-                    Icon(Icons.Rounded.Add, contentDescription = "Ekle")
+                    Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.ekle))
                 }
             }
 
@@ -186,10 +188,10 @@ private fun CustomListRow(
                     keyboardActions = KeyboardActions(onDone = { onSaveEdit() })
                 )
                 IconButton(onClick = onSaveEdit) {
-                    Icon(Icons.Rounded.Add, contentDescription = "Kaydet")
+                    Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.kaydet))
                 }
                 IconButton(onClick = onCancelEdit) {
-                    Icon(Icons.Rounded.Close, contentDescription = "İptal")
+                    Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.iptal))
                 }
             } else {
                 Text(
@@ -200,7 +202,7 @@ private fun CustomListRow(
                 IconButton(onClick = onEditClick) {
                     Icon(
                         Icons.Rounded.Edit,
-                        contentDescription = "Düzenle",
+                        contentDescription = stringResource(R.string.duzenle),
                         modifier = Modifier.size(18.dp)
                     )
                 }

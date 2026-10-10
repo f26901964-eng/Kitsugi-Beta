@@ -29,6 +29,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 // ─────────────────────────────────────────────────────────────────────────────
 // MOTOR HIZLI ÇİP BİLEŞENLERİ
@@ -693,7 +695,7 @@ fun SortOptionsContent(
                 if (isSelected) {
                     Icon(
                         imageVector = Icons.Rounded.Check,
-                        contentDescription = "Seçili",
+                        contentDescription = stringResource(R.string.secili),
                         tint = accentColor,
                         modifier = Modifier.size(18.dp)
                     )

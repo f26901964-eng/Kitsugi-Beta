@@ -81,7 +81,7 @@ fun TmdbCategoriesSection(
             }
             Icon(
                 imageVector = if (isExpanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
-                contentDescription = "Genişlet/Daralt",
+                contentDescription = stringResource(R.string.genislet_daralt),
                 tint = KitsugiColors.TextSecondary
             )
         }
@@ -109,7 +109,7 @@ fun TmdbCategoriesSection(
                 ) {
                     item {
                         ExploreCategoryChip(
-                            label = "Trend Her Şey",
+                            label = stringResource(R.string.trend_her_sey),
                             onClick = { onSeeAllSection("Trend Her Şey", ExploreCategoryType.TOP_ANIME, filteredTopAnime) }
                         )
                     }
@@ -127,31 +127,31 @@ fun TmdbCategoriesSection(
                     }
                     item {
                         ExploreCategoryChip(
-                            label = "Popüler Diziler",
+                            label = stringResource(R.string.populer_diziler),
                             onClick = { onSeeAllSection("Popüler Diziler", ExploreCategoryType.TOP_MANGA, filteredTopManga) }
                         )
                     }
                     item {
                         ExploreCategoryChip(
-                            label = "Popüler Filmler",
+                            label = stringResource(R.string.populer_filmler),
                             onClick = { onSeeAllSection("Popüler Filmler", ExploreCategoryType.UPCOMING_ANIME, filteredUpcomingAnime) }
                         )
                     }
                     item {
                         ExploreCategoryChip(
-                            label = "Yakında Yayında",
+                            label = stringResource(R.string.yakinda_yayinda),
                             onClick = { onSeeAllSection("Yakında Yayında", ExploreCategoryType.UPCOMING_MEDIA_TMDB, filteredUpcomingMediaTmdb) }
                         )
                     }
                     item {
                         ExploreCategoryChip(
-                            label = "En Yüksek Puanlı Diziler",
+                            label = stringResource(R.string.en_yuksek_puanli_diziler),
                             onClick = { onSeeAllSection("En Yüksek Puanlı Diziler", ExploreCategoryType.SEASONAL_ANIME, filteredSeasonalAnime) }
                         )
                     }
                     item {
                         ExploreCategoryChip(
-                            label = "En Yüksek Puanlı Filmler",
+                            label = stringResource(R.string.en_yuksek_puanli_filmler),
                             onClick = { onSeeAllSection("En Yüksek Puanlı Filmler", ExploreCategoryType.PUBLISHING_MANGA, filteredPublishingManga) }
                         )
                     }
@@ -178,25 +178,25 @@ fun TmdbCategoriesSection(
                     }
                     item {
                         ExploreCategoryChip(
-                            label = "Popüler Animeler",
+                            label = stringResource(R.string.populer_animeler),
                             onClick = { onSeeAllSection("Popüler Animeler", ExploreCategoryType.NEWLY_ADDED_ANIME, filteredNewlyAddedAnime) }
                         )
                     }
                     item {
                         ExploreCategoryChip(
-                            label = "En Yüksek Puanlı Animeler",
+                            label = stringResource(R.string.en_yuksek_puanli_animeler),
                             onClick = { onSeeAllSection("En Yüksek Puanlı Animeler", ExploreCategoryType.TRENDING_MANGA, filteredTrendingManga) }
                         )
                     }
                     item {
                         ExploreCategoryChip(
-                            label = "Yakında Yayında",
+                            label = stringResource(R.string.yakinda_yayinda),
                             onClick = { onSeeAllSection("Yakında Yayında", ExploreCategoryType.UPCOMING_MEDIA_TMDB, filteredUpcomingMediaTmdb) }
                         )
                     }
                     item {
                         ExploreCategoryChip(
-                            label = "Yayın Takvimi",
+                            label = stringResource(R.string.yayin_takvimi),
                             onClick = onOpenAiringCalendar
                         )
                     }
@@ -262,7 +262,7 @@ fun DefaultCategoriesSection(
             }
             Icon(
                 imageVector = if (isExpanded) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.KeyboardArrowDown,
-                contentDescription = "Genişlet/Daralt",
+                contentDescription = stringResource(R.string.genislet_daralt),
                 tint = KitsugiColors.TextSecondary
             )
         }

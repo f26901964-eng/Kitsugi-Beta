@@ -59,6 +59,8 @@ import com.kitsugi.animelist.data.remote.KitsugiStreamingEpisode
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.utils.tvClickable
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 // ---------------------------------------------------------------------------
 //  Bölümler (Episodes) Tab  –  Accordion Sezon Görünümü
@@ -541,7 +543,7 @@ private fun EpisodeRow(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.PlayCircle,
-                        contentDescription = "Oynat",
+                        contentDescription = stringResource(R.string.oynat),
                         tint = androidx.compose.ui.graphics.Color.White,
                         modifier = Modifier.size(28.dp)
                     )
@@ -653,7 +655,7 @@ private fun EpisodeRow(
                     com.kitsugi.animelist.data.model.AnimeDownload.Status.ERROR -> {
                         Icon(
                             imageVector = Icons.Rounded.Error,
-                            contentDescription = "Hata",
+                            contentDescription = stringResource(R.string.hata),
                             tint = KitsugiColors.AccentRed,
                             modifier = Modifier.size(22.dp)
                         )
@@ -661,7 +663,7 @@ private fun EpisodeRow(
                     com.kitsugi.animelist.data.model.AnimeDownload.Status.PAUSED -> {
                         Icon(
                             imageVector = Icons.Rounded.Pause,
-                            contentDescription = "Duraklatıldı",
+                            contentDescription = stringResource(R.string.duraklatildi),
                             tint = KitsugiColors.AccentOrange,
                             modifier = Modifier.size(22.dp)
                         )
@@ -675,7 +677,7 @@ private fun EpisodeRow(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Download,
-                            contentDescription = "İndir",
+                            contentDescription = stringResource(R.string.indir),
                             tint = KitsugiColors.TextSecondary,
                             modifier = Modifier.size(22.dp)
                         )
@@ -685,7 +687,7 @@ private fun EpisodeRow(
 
             Icon(
                 imageVector = Icons.Rounded.PlayArrow,
-                contentDescription = "Oynat",
+                contentDescription = stringResource(R.string.oynat),
                 tint = if (download?.status == com.kitsugi.animelist.data.model.AnimeDownload.Status.COMPLETED) KitsugiColors.AccentGreen else accentColor.copy(alpha = 0.7f),
                 modifier = Modifier.size(22.dp)
             )

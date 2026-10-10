@@ -51,6 +51,8 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.utils.tvClickable
 import kotlin.math.roundToInt
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -143,9 +145,9 @@ fun SearchFilterSheet(
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.height(36.dp)
                     ) {
-                        Icon(Icons.Default.Clear, contentDescription = "Temizle", modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.temizle), modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text(text = "Temizle", fontSize = 12.sp)
+                        Text(text = stringResource(R.string.temizle), fontSize = 12.sp)
                     }
                 }
             }
@@ -405,7 +407,7 @@ fun SearchFilterSheet(
                         contentColor = KitsugiColors.TextPrimary
                     )
                 ) {
-                    Text("İptal", fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.iptal), fontWeight = FontWeight.SemiBold)
                 }
 
                 KitsugiButton(

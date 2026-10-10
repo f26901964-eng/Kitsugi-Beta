@@ -1,5 +1,8 @@
 package com.kitsugi.animelist.data.remote
 
+import androidx.annotation.StringRes
+import com.kitsugi.animelist.R
+
 /**
  * Galeri öğesi — görselin URL'si, kaynağı ve kategorisi.
  *
@@ -27,15 +30,19 @@ data class GalleryItem(
     val season: String? = null
 )
 
-enum class GalleryCategory(val label: String) {
-    POSTER("Poster"),
-    BACKDROP("Arka Plan"),
-    LOGO("Logo"),
-    CLEARART("ClearART"),   // Fanart.tv: HD ClearART (şeffaf zemin, sanatsal kesim)
-    THUMBNAIL("Küçük Resim"),
-    CHARACTER("Karakter"),
-    PERSON("Kişi"),
-    BANNER("Afiş"),
-    SQUARE("Kare Poster"),  // Fanart.tv: Square Poster
-    OTHER("Diğer")
+/**
+ * Galeri kategorileri — etiketler strings.xml üzerinden gelir (values / values-en),
+ * böylece galeri sekmeleri uygulama dilini takip eder.
+ */
+enum class GalleryCategory(@StringRes val labelRes: Int) {
+    POSTER(R.string.gallery_cat_poster),
+    BACKDROP(R.string.gallery_cat_backdrop),
+    LOGO(R.string.gallery_cat_logo),
+    CLEARART(R.string.gallery_cat_clearart),   // Fanart.tv: HD ClearART (şeffaf zemin, sanatsal kesim)
+    THUMBNAIL(R.string.gallery_cat_thumbnail),
+    CHARACTER(R.string.gallery_cat_character),
+    PERSON(R.string.gallery_cat_person),
+    BANNER(R.string.gallery_cat_banner),
+    SQUARE(R.string.gallery_cat_square),  // Fanart.tv: Square Poster
+    OTHER(R.string.gallery_cat_other)
 }

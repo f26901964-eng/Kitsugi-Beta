@@ -15,6 +15,8 @@ import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.ui.components.KitsugiExploreMediaCard
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * V2-D03 – GridHomeContent
@@ -78,7 +80,7 @@ fun GridHomeContent(
 
             results.isEmpty() -> {
                 Text(
-                    text = "Gösterilecek içerik yok.",
+                    text = stringResource(R.string.gosterilecek_icerik_yok),
                     style = MaterialTheme.typography.bodyMedium,
                     color = KitsugiColors.TextMuted,
                     modifier = Modifier.padding(vertical = 24.dp)

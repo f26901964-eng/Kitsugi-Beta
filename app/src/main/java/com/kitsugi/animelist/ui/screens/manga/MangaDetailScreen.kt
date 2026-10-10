@@ -54,6 +54,8 @@ import com.kitsugi.animelist.data.manga.MangaSource
 import com.kitsugi.animelist.data.manga.MangaStatus
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * Manga Detay + "Oku" Ekranı.
@@ -136,7 +138,7 @@ fun MangaDetailScreen(
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     Text(
-                        text = "Bölümler" + if (uiState.chapters.isNotEmpty()) " (${uiState.chapters.size})" else "",
+                        text = stringResource(R.string.bolumler) + if (uiState.chapters.isNotEmpty()) " (${uiState.chapters.size})" else "",
                         color = KitsugiColors.TextPrimary,
                         fontSize = 16.sp,
                         fontWeight = FontWeight.Bold
@@ -144,7 +146,7 @@ fun MangaDetailScreen(
                     IconButton(onClick = { viewModel.loadChapters() }) {
                         Icon(
                             Icons.Rounded.Refresh,
-                            contentDescription = "Yenile",
+                            contentDescription = stringResource(R.string.yenile),
                             tint = KitsugiColors.TextSecondary,
                             modifier = Modifier.size(20.dp)
                         )
@@ -210,7 +212,7 @@ fun MangaDetailScreen(
         ) {
             Icon(
                 Icons.AutoMirrored.Rounded.ArrowBack,
-                contentDescription = "Geri",
+                contentDescription = stringResource(R.string.geri),
                 tint = Color.White
             )
         }
@@ -374,7 +376,7 @@ private fun ChapterListItem(
         if (row.isCompleted) {
             Icon(
                 Icons.Rounded.CheckCircle,
-                contentDescription = "Okundu",
+                contentDescription = stringResource(R.string.okundu),
                 tint = KitsugiColors.AccentGreen.copy(0.8f),
                 modifier = Modifier.size(18.dp)
             )

@@ -57,6 +57,8 @@ import kotlinx.coroutines.withContext
 import java.io.BufferedReader
 import java.io.File
 import java.io.InputStreamReader
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 class KitsugiCrashActivity : ComponentActivity() {
 
@@ -309,7 +311,7 @@ class KitsugiCrashActivity : ComponentActivity() {
                                 ) {
                                     Icon(Icons.Rounded.Share, null, modifier = Modifier.size(15.dp))
                                     Spacer(Modifier.width(5.dp))
-                                    Text("Paylaş", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                    Text(stringResource(R.string.paylas), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                                 }
                             }
 
@@ -433,7 +435,7 @@ class KitsugiCrashActivity : ComponentActivity() {
                                     ) {
                                         Icon(Icons.Rounded.DeleteSweep, null, modifier = Modifier.size(15.dp))
                                         Spacer(Modifier.width(5.dp))
-                                        Text("Geçmişi Temizle", fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                                        Text(stringResource(R.string.gecmisi_temizle), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
                                     }
                                 }
 

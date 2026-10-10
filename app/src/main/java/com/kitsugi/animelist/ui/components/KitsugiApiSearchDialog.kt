@@ -146,7 +146,7 @@ fun KitsugiApiSearchDialog(
                         verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "API ile Ara",
+                            text = stringResource(R.string.api_ile_ara),
                             color = KitsugiColors.TextPrimary,
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
@@ -156,7 +156,7 @@ fun KitsugiApiSearchDialog(
                             onClick = onDismiss
                         ) {
                             Text(
-                                text = "Kapat",
+                                text = stringResource(R.string.kapat),
                                 color = KitsugiColors.TextSecondary,
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -183,7 +183,7 @@ fun KitsugiApiSearchDialog(
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                                 Text(
-                                    text = "Jikan veya AniList üzerinden anime/manga ara. Sonuca basınca önizleme açılır.",
+                                    text = stringResource(R.string.jikan_veya_anilist_uzerinden_anime_manga_ara),
                                     color = KitsugiColors.TextSecondary,
                                     style = MaterialTheme.typography.bodySmall
                                 )
@@ -198,13 +198,13 @@ fun KitsugiApiSearchDialog(
                                     shape = RoundedCornerShape(18.dp),
                                     label = {
                                         Text(
-                                            text = "Arama",
+                                            text = stringResource(R.string.arama),
                                             color = KitsugiColors.TextSecondary
                                         )
                                     },
                                     placeholder = {
                                         Text(
-                                            text = "Örn: Naruto, Berserk, Frieren",
+                                            text = stringResource(R.string.orn_naruto_berserk_frieren),
                                             color = KitsugiColors.TextMuted
                                         )
                                     },
@@ -294,7 +294,7 @@ fun KitsugiApiSearchDialog(
                                     }
                                 } else {
                                     Text(
-                                        text = "${results.size} sonuç",
+                                        text = stringResource(R.string.results_size_sonuc, results.size),
                                         color = KitsugiColors.TextMuted,
                                         style = MaterialTheme.typography.labelMedium,
                                         fontWeight = FontWeight.Bold
@@ -326,7 +326,7 @@ fun KitsugiApiSearchDialog(
             shape = RoundedCornerShape(28.dp),
             title = {
                 Text(
-                    text = "API ile Ara",
+                    text = stringResource(R.string.api_ile_ara),
                     color = KitsugiColors.TextPrimary,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
@@ -357,7 +357,7 @@ fun KitsugiApiSearchDialog(
                                 verticalArrangement = Arrangement.spacedBy(12.dp)
                             ) {
                             Text(
-                                text = "Jikan veya AniList üzerinden anime/manga ara. Sonuca basınca önizleme açılır.",
+                                text = stringResource(R.string.jikan_veya_anilist_uzerinden_anime_manga_ara),
                                 color = KitsugiColors.TextSecondary,
                                 style = MaterialTheme.typography.bodySmall
                             )
@@ -372,13 +372,13 @@ fun KitsugiApiSearchDialog(
                                 shape = RoundedCornerShape(18.dp),
                                 label = {
                                     Text(
-                                        text = "Arama",
+                                        text = stringResource(R.string.arama),
                                         color = KitsugiColors.TextSecondary
                                     )
                                 },
                                 placeholder = {
                                     Text(
-                                        text = "Örn: Naruto, Berserk, Frieren",
+                                        text = stringResource(R.string.orn_naruto_berserk_frieren),
                                         color = KitsugiColors.TextMuted
                                     )
                                 },
@@ -468,7 +468,7 @@ fun KitsugiApiSearchDialog(
                                 }
                             } else {
                                 Text(
-                                    text = "${results.size} sonuç",
+                                    text = stringResource(R.string.results_size_sonuc, results.size),
                                     color = KitsugiColors.TextMuted,
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Bold
@@ -496,7 +496,7 @@ fun KitsugiApiSearchDialog(
                             .verticalScroll(rememberScrollState())
                     ) {
                         Text(
-                            text = "Jikan veya AniList üzerinden anime/manga ara. Sonuca basınca önce önizleme açılır.",
+                            text = stringResource(R.string.jikan_veya_anilist_uzerinden_anime_manga_ara_230bb2),
                             color = KitsugiColors.TextSecondary,
                             style = MaterialTheme.typography.bodyMedium
                         )
@@ -513,13 +513,13 @@ fun KitsugiApiSearchDialog(
                             shape = RoundedCornerShape(18.dp),
                             label = {
                                 Text(
-                                    text = "Arama",
+                                    text = stringResource(R.string.arama),
                                     color = KitsugiColors.TextSecondary
                                 )
                             },
                             placeholder = {
                                 Text(
-                                    text = "Örn: Naruto, Berserk, Frieren",
+                                    text = stringResource(R.string.orn_naruto_berserk_frieren),
                                     color = KitsugiColors.TextMuted
                                 )
                             },
@@ -591,7 +591,7 @@ fun KitsugiApiSearchDialog(
                             Spacer(modifier = Modifier.height(12.dp))
 
                             Text(
-                                text = "${results.size} sonuç",
+                                text = stringResource(R.string.results_size_sonuc, results.size),
                                 color = KitsugiColors.TextMuted,
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold
@@ -619,7 +619,7 @@ fun KitsugiApiSearchDialog(
                     onClick = onDismiss
                 ) {
                     Text(
-                        text = "Kapat",
+                        text = stringResource(R.string.kapat),
                         color = KitsugiColors.TextSecondary,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -708,7 +708,7 @@ private fun ApiResultPreviewDialog(
                         verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Önizleme",
+                            text = stringResource(R.string.onizleme),
                             color = KitsugiColors.TextPrimary,
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
@@ -724,7 +724,7 @@ private fun ApiResultPreviewDialog(
                                 }
                             ) {
                                 Text(
-                                    text = "Listeye Ekle",
+                                    text = stringResource(R.string.listeye_ekle),
                                     color = accentColor,
                                     fontWeight = FontWeight.SemiBold
                                 )
@@ -734,7 +734,7 @@ private fun ApiResultPreviewDialog(
                                 onClick = onDismiss
                             ) {
                                 Text(
-                                    text = "İptal",
+                                    text = stringResource(R.string.iptal),
                                     color = KitsugiColors.TextSecondary,
                                     fontWeight = FontWeight.SemiBold
                                 )
@@ -796,7 +796,7 @@ private fun ApiResultPreviewDialog(
                                 }
 
                                 PreviewInfoRow(
-                                    label = "Tür",
+                                    label = stringResource(R.string.tur),
                                     value = if (result.type == MediaType.Anime) "Anime" else "Manga"
                                 )
 
@@ -813,7 +813,7 @@ private fun ApiResultPreviewDialog(
                                 )
 
                                 PreviewInfoRow(
-                                    label = "Yıl",
+                                    label = stringResource(R.string.yil),
                                     value = result.year?.toString() ?: stringResource(R.string.label_unknown)
                                 )
 
@@ -850,7 +850,7 @@ private fun ApiResultPreviewDialog(
             shape = RoundedCornerShape(28.dp),
             title = {
                 Text(
-                    text = "Önizleme",
+                    text = stringResource(R.string.onizleme),
                     color = KitsugiColors.TextPrimary,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
@@ -915,7 +915,7 @@ private fun ApiResultPreviewDialog(
                             }
 
                             PreviewInfoRow(
-                                label = "Tür",
+                                label = stringResource(R.string.tur),
                                 value = if (result.type == MediaType.Anime) "Anime" else "Manga"
                             )
 
@@ -932,7 +932,7 @@ private fun ApiResultPreviewDialog(
                             )
 
                             PreviewInfoRow(
-                                label = "Yıl",
+                                label = stringResource(R.string.yil),
                                 value = result.year?.toString() ?: stringResource(R.string.label_unknown)
                             )
 
@@ -994,7 +994,7 @@ private fun ApiResultPreviewDialog(
                         Spacer(modifier = Modifier.height(14.dp))
 
                         PreviewInfoRow(
-                            label = "Tür",
+                            label = stringResource(R.string.tur),
                             value = if (result.type == MediaType.Anime) "Anime" else "Manga"
                         )
 
@@ -1011,7 +1011,7 @@ private fun ApiResultPreviewDialog(
                         )
 
                         PreviewInfoRow(
-                            label = "Yıl",
+                            label = stringResource(R.string.yil),
                             value = result.year?.toString() ?: stringResource(R.string.label_unknown)
                         )
 
@@ -1045,7 +1045,7 @@ private fun ApiResultPreviewDialog(
                     }
                 ) {
                     Text(
-                        text = "Listeye Ekle",
+                        text = stringResource(R.string.listeye_ekle),
                         color = accentColor,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -1056,7 +1056,7 @@ private fun ApiResultPreviewDialog(
                     onClick = onDismiss
                 ) {
                     Text(
-                        text = "İptal",
+                        text = stringResource(R.string.iptal),
                         color = KitsugiColors.TextSecondary,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -1109,7 +1109,7 @@ private fun PreviewSynopsisBox(
             .padding(14.dp)
     ) {
         Text(
-            text = "Açıklama",
+            text = stringResource(R.string.aciklama),
             color = KitsugiColors.TextPrimary,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold

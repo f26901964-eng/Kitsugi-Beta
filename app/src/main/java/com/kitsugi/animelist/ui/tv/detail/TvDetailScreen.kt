@@ -1377,7 +1377,7 @@ private fun TvStatsSection(
         verticalArrangement = Arrangement.spacedBy(KitsugiTvTokens.Spacing.sm)
     ) {
         Text(
-            text = "İstatistikler",
+            text = stringResource(R.string.istatistikler),
             style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
             color = KitsugiColors.TextPrimary
         )
@@ -1414,7 +1414,7 @@ private fun TvStatsSection(
                 }
                 if (hasPlanned) {
                     TvStatChip(
-                        label = "Planlandı",
+                        label = stringResource(R.string.planlandi),
                         count = stats.planned ?: 0,
                         total = total,
                         color = KitsugiColors.AccentOrange,
@@ -1423,7 +1423,7 @@ private fun TvStatsSection(
                 }
                 if (hasDropped) {
                     TvStatChip(
-                        label = "Bırakıldı",
+                        label = stringResource(R.string.birakildi),
                         count = stats.dropped ?: 0,
                         total = total,
                         color = KitsugiColors.AccentRed,
@@ -1445,7 +1445,7 @@ private fun TvStatsSection(
                 verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text(
-                    text = "Puan Dağılımı",
+                    text = stringResource(R.string.puan_dagilimi),
                     style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.Bold),
                     color = KitsugiColors.TextPrimary
                 )

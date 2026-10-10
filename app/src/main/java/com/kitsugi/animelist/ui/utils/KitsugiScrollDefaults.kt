@@ -66,6 +66,43 @@ object KitsugiScrollDefaults {
     }
 
     /**
+     * Dokunmatik kaydırmada odaklanan kartın listeyi geri çekmesini kapatır.
+     *
+     * `clickable` / `combinedClickable` öğeleri odaklanabilir. Varsayılan
+     * [BringIntoViewSpec], kısmen ekrandan çıkan odaklı kartı yay animasyonuyla
+     * tekrar içeri alır. Parmak kaydırmasıyla bu animasyon çarpışınca sayfa ve
+     * kutucuklar gidip gelir, dikey kaydırma kilitlenir. TV'de D-pad spec'i
+     * kullanılmaya devam eder; telefonda kaydırma tamamen kullanıcıya aittir.
+     */
+    @OptIn(ExperimentalFoundationApi::class)
+    @Composable
+    fun rememberTouchPassthroughSpec(): BringIntoViewSpec {
+        return remember {
+            object : BringIntoViewSpec {
+                override val scrollAnimationSpec: AnimationSpec<Float> = spring()
+
+                override fun calculateScrollDistance(
+                    offset: Float,
+                    size: Float,
+                    containerSize: Float
+                ): Float = 0f
+            }
+        }
+    }
+
+    /**
+     * Pager yüksekliğini ölçülen içerikten beslerken 1px'lik ölçüm gürültüsünü yok say.
+     * Aksi halde yükseklik yazımı sayfayı yeniden ölçer, ölçüm tekrar değişir ve
+     * dikey kaydırma gidip gelir.
+     */
+    fun recordStablePageHeight(heights: MutableMap<Int, Int>, page: Int, measuredPx: Int) {
+        val previous = heights[page]
+        if (previous == null || kotlin.math.abs(previous - measuredPx) > 4) {
+            heights[page] = measuredPx
+        }
+    }
+
+    /**
      * Fokus alan satırın (row) ekranın dikey koordinatında belirli bir inset'te (örneğin 280.dp)
      * kalmasını sağlayan dikey scroll davranışı.
      */

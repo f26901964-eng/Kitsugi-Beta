@@ -20,6 +20,8 @@ import com.kitsugi.animelist.ui.app.KitsugiProfileViewModel
 import com.kitsugi.animelist.ui.app.ProfileFavoriteItem
 import com.kitsugi.animelist.ui.screens.profile.ProfileFavoritesListemContent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun AniListFavoritesTab(
@@ -60,7 +62,7 @@ fun AniListFavoritesTab(
 
     if (currentFavList.isEmpty()) {
         Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-            Text(text = "Favori öge bulunamadı.", color = KitsugiColors.TextMuted)
+            Text(text = stringResource(R.string.favori_oge_bulunamadi), color = KitsugiColors.TextMuted)
         }
     } else {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -84,7 +86,7 @@ fun AniListFavoritesTab(
                         }
                         .padding(horizontal = 10.dp, vertical = 4.dp)
                 ) {
-                    Text(text = "Tümünü Gör", color = accentColor, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
+                    Text(text = stringResource(R.string.tumunu_gor), color = accentColor, style = MaterialTheme.typography.labelSmall, fontWeight = FontWeight.Bold)
                 }
             }
 

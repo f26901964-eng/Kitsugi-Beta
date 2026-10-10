@@ -44,6 +44,8 @@ import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 import kotlinx.coroutines.launch
 
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -203,7 +205,7 @@ fun KitsugiReviewDetailBottomSheet(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Translate,
-                            contentDescription = "Çevir",
+                            contentDescription = stringResource(R.string.cevir),
                             tint = accentColor
                         )
                     }
@@ -231,7 +233,7 @@ fun KitsugiReviewDetailBottomSheet(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Close,
-                            contentDescription = "Kapat",
+                            contentDescription = stringResource(R.string.kapat),
                             tint = KitsugiColors.TextPrimary
                         )
                     }
@@ -291,7 +293,7 @@ fun KitsugiReviewDetailBottomSheet(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Türkçe",
+                        text = stringResource(R.string.turkce),
                         color = if (isTrSelected) KitsugiColors.Background else KitsugiColors.TextPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold
@@ -444,12 +446,12 @@ fun KitsugiReviewDetailBottomSheet(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Share,
-                        contentDescription = "Paylaş",
+                        contentDescription = stringResource(R.string.paylas),
                         tint = KitsugiColors.Background,
                         modifier = Modifier.size(18.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Paylaş", color = KitsugiColors.Background, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text(stringResource(R.string.paylas), color = KitsugiColors.Background, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 }
             }
         }

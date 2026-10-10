@@ -38,6 +38,8 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -164,13 +166,13 @@ fun KitsugiAddonsSettingsDialog(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Eklenti & Akış Ayarları",
+                            text = stringResource(R.string.eklenti_akis_ayarlari),
                             color = KitsugiColors.TextPrimary,
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
                         )
                         IconButton(onClick = onDismiss) {
-                            Icon(Icons.Rounded.Close, contentDescription = "Kapat", tint = KitsugiColors.TextSecondary)
+                            Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.kapat), tint = KitsugiColors.TextSecondary)
                         }
                     }
                 }
@@ -266,7 +268,7 @@ fun KitsugiAddonsSettingsDialog(
                             ) {
                                 Icon(
                                     Icons.Rounded.Close,
-                                    contentDescription = "Kapat",
+                                    contentDescription = stringResource(R.string.kapat),
                                     tint = textColor,
                                     modifier = Modifier.size(14.dp)
                                 )
@@ -412,7 +414,7 @@ fun KitsugiAddonsSettingsDialog(
     if (untrustedRepoToConfirm != null) {
         AlertDialog(
             onDismissRequest = onDismissUntrustedRepo,
-            title = { Text("Güvenli Olmayan Kaynak", color = KitsugiColors.TextPrimary) },
+            title = { Text(stringResource(R.string.guvenli_olmayan_kaynak), color = KitsugiColors.TextPrimary) },
             text = {
                 Text(
                     "Eklemek istediğiniz kaynak güvenilir eklenti havuzları listesinde yer almıyor:\n\n$untrustedRepoToConfirm\n\nBu kaynağı eklemek cihazınızda güvenlik riski oluşturabilir. Devam etmek istiyor musunuz?",
@@ -421,12 +423,12 @@ fun KitsugiAddonsSettingsDialog(
             },
             confirmButton = {
                 TextButton(onClick = { onConfirmUntrustedRepo(untrustedRepoToConfirm) }) {
-                    Text("Evet, Ekle", color = accentColor, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.evet_ekle), color = accentColor, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = onDismissUntrustedRepo) {
-                    Text("Vazgeç", color = KitsugiColors.TextSecondary)
+                    Text(stringResource(R.string.vazgec), color = KitsugiColors.TextSecondary)
                 }
             },
             containerColor = KitsugiColors.SurfaceStrong
@@ -437,7 +439,7 @@ fun KitsugiAddonsSettingsDialog(
         val (ext, hash) = untrustedSignatureToConfirm
         AlertDialog(
             onDismissRequest = onDismissUntrustedSignature,
-            title = { Text("Güvenli Olmayan Eklenti İmzası", color = KitsugiColors.TextPrimary) },
+            title = { Text(stringResource(R.string.guvenli_olmayan_eklenti_imzasi), color = KitsugiColors.TextPrimary) },
             text = {
                 Text(
                     "Yüklemek istediğiniz eklentinin imzası güvenilir imzalar listesinde yer almıyor:\n\nEklenti: ${ext.name}\nPaket: ${ext.pkg}\nİmza: $hash\n\nBu eklentiyi yüklemek cihazınızda güvenlik riski oluşturabilir. İmzayı güvenilir kabul edip yüklemek istiyor musunuz?",
@@ -446,12 +448,12 @@ fun KitsugiAddonsSettingsDialog(
             },
             confirmButton = {
                 TextButton(onClick = { onConfirmUntrustedSignature(ext, hash) }) {
-                    Text("Güven ve Yükle", color = accentColor, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.guven_ve_yukle), color = accentColor, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = onDismissUntrustedSignature) {
-                    Text("İptal Et", color = KitsugiColors.TextSecondary)
+                    Text(stringResource(R.string.iptal_et), color = KitsugiColors.TextSecondary)
                 }
             },
             containerColor = KitsugiColors.SurfaceStrong

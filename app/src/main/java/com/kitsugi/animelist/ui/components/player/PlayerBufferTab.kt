@@ -24,6 +24,7 @@ import com.kitsugi.animelist.ui.components.KitsugiSettingsDivider
 import com.kitsugi.animelist.ui.components.KitsugiDropdownMenu
 import com.kitsugi.animelist.ui.components.KitsugiDropdownItem
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import com.kitsugi.animelist.R
 
 /**
  * Oynatıcı Ayarları — Gelişmiş Arabellek (Buffer) sekmesi.
@@ -241,11 +242,11 @@ internal fun PlayerBufferTab(
 
         item {
             KitsugiSettingsSection(
-                title = "Paralel İndirme",
+                title = stringResource(R.string.paralel_indirme),
                 subtitle = "MKV ve MP4 gibi progressive içerikler için çok bağlantılı chunk indirme. HLS/DASH çökenez; uyumlu olmayan sunucularda otomatik olarak tek bağlantı moduna geçer."
             ) {
                 KitsugiSettingsSwitchItem(
-                    title = "Paralel İndirme",
+                    title = stringResource(R.string.paralel_indirme),
                     description = if (parallelRangeEnabled) "Etkin — 3 eşzamanlı bağlantı, 512 KB chunk" else "Devre Dışı — Tek bağlantı modu",
                     icon = Icons.Rounded.SystemUpdateAlt,
                     iconColor = accentColor,

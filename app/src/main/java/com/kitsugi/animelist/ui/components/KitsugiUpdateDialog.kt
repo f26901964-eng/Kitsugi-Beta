@@ -54,6 +54,8 @@ import com.kitsugi.animelist.core.update.AppRelease
 import com.kitsugi.animelist.core.update.UpdateUiState
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun KitsugiUpdateDialog(
@@ -519,7 +521,7 @@ private fun FailedBottomSheetContent(
                     .height(50.dp),
                 shape = RoundedCornerShape(14.dp)
             ) {
-                Text("Kapat")
+                Text(stringResource(R.string.kapat))
             }
 
             KitsugiUiverseGlowButton(

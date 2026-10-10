@@ -11,6 +11,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.composed
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.focus.focusProperties
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
@@ -79,13 +80,17 @@ fun Modifier.tvClickable(
                 onClick = onClick
             )
     } else {
-        this.combinedClickable(
-            enabled = enabled,
-            interactionSource = interactionSource,
-            indication = indication,
-            onLongClick = onLongClick,
-            onClick = onClick
-        )
+        // Dokunmatikte odak kapalı: aksi halde kart BringIntoView ile listeyi
+        // parmağın tersine geri çeker (sayfa/kutucuk gidip gelmesi).
+        this
+            .focusProperties { canFocus = false }
+            .combinedClickable(
+                enabled = enabled,
+                interactionSource = interactionSource,
+                indication = indication,
+                onLongClick = onLongClick,
+                onClick = onClick
+            )
     }
 }
 

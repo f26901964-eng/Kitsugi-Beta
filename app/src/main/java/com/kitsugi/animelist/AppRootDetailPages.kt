@@ -31,6 +31,8 @@ import kotlinx.coroutines.launch
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.platform.LocalContext
 
 @Composable
 fun AppRootDetailPages(
@@ -56,6 +58,7 @@ fun AppRootDetailPages(
     triggerDetailSearchFilter: (DetailSearchFilterRequest) -> Unit = {},
     onScrollReset: () -> Unit = {}
 ) {
+    val context = LocalContext.current
     when (key) {
         is AppStateKey.StudioDetail -> {
             navState.stateHolder.SaveableStateProvider(key = "studio_${key.depth}_${key.source}_${key.studioId}") {
@@ -74,7 +77,7 @@ fun AppRootDetailPages(
                             val searchType = mediaType.parseToMediaType()
                             val searchResult = JikanSearchResult(
                                 malId = mediaId,
-                                title = "Yükleniyor...",
+                                title = context.getString(R.string.yukleniyor),
                                 subtitle = "",
                                 type = searchType,
                                 total = null,
@@ -115,7 +118,7 @@ fun AppRootDetailPages(
                             val searchType = mediaType.parseToMediaType()
                             val searchResult = JikanSearchResult(
                                 malId = mediaId,
-                                title = "Yükleniyor...",
+                                title = context.getString(R.string.yukleniyor),
                                 subtitle = "",
                                 type = searchType,
                                 total = null,
@@ -160,7 +163,7 @@ fun AppRootDetailPages(
                             val searchType = mediaType.parseToMediaType()
                             val searchResult = JikanSearchResult(
                                 malId = mediaId,
-                                title = "Yükleniyor...",
+                                title = context.getString(R.string.yukleniyor),
                                 subtitle = "",
                                 type = searchType,
                                 total = null,

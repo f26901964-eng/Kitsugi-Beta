@@ -30,6 +30,8 @@ import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 enum class MarkdownTag(val syntax: String, val offset: Int, val label: String, val icon: ImageVector) {
     BOLD("**text**", 2, "Kalın", Icons.Rounded.FormatBold),
@@ -86,7 +88,7 @@ fun KitsugiReplyEditorBottomSheet(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Close,
-                        contentDescription = "Kapat",
+                        contentDescription = stringResource(R.string.kapat),
                         tint = KitsugiColors.TextPrimary
                     )
                 }

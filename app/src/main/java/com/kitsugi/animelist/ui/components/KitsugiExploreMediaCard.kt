@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.components
 
+import com.kitsugi.animelist.ui.utils.localizedLabel
 import android.content.res.Configuration
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.utils.tvClickable
@@ -73,7 +74,9 @@ fun KitsugiExploreMediaCard(
     rankIndex: Int? = null
 ) {
     val accentColor = LocalKitsugiAccent.current
-    val displayTitle = result.getDisplayTitle(titleLanguage)
+    // PERF: başlık/meta gibi string'ler her recomposition'da yeniden
+    // hesaplanmasın; ilgili girdiler değiştiğinde bir kez üretilsin.
+    val displayTitle = remember(result, titleLanguage) { result.getDisplayTitle(titleLanguage) }
     val isTv = LocalIsTv.current
     // TV'de her zaman dikey poster, isLandscape yoksayılır
     // Mobilde orijinal landscape/portrait mantığı korunur
@@ -81,7 +84,10 @@ fun KitsugiExploreMediaCard(
         LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
 
     // TV: KitsugiTvTokens referanslı kompakt shape
-    val cardShape = if (isTv) KitsugiTvTokens.Shapes.posterCard else RoundedCornerShape(24.dp)
+    // PERF: RoundedCornerShape her recomp'da new'lenmesin.
+    val cardShape = remember(isTv) {
+        if (isTv) KitsugiTvTokens.Shapes.posterCard else RoundedCornerShape(24.dp)
+    }
     val focusScale = if (isTv) KitsugiTvTokens.Cards.focusedScale else 1.08f
 
     Card(
@@ -567,13 +573,13 @@ private fun StatusBadge(
         if (showIconOnly) {
             Icon(
                 imageVector = icon,
-                contentDescription = status.label,
+                contentDescription = status.localizedLabel(),
                 tint = Color.White,
                 modifier = Modifier.size(10.dp)
             )
         } else {
             Text(
-                text = status.label,
+                text = status.localizedLabel(),
                 color = Color.White,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.ExtraBold,

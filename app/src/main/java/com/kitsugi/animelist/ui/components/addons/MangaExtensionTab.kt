@@ -39,6 +39,8 @@ import com.kitsugi.animelist.ui.theme.LocalIsTv
 import com.kitsugi.animelist.ui.tv.components.TvDialog
 import androidx.compose.ui.platform.LocalClipboardManager
 import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 private enum class MangaTabSection { REPOS, INSTALLED }
 private enum class MangaInstallState { IDLE, LOADING, SUCCESS, FAILURE }
@@ -933,7 +935,7 @@ internal fun MangaExtensionsTab(
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text("Manga Source Raporu", color = KitsugiColors.TextPrimary, fontWeight = FontWeight.Bold)
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        FilterChip(text = "Tümü", selected = reportFilter == "ALL", onClick = { reportFilter = "ALL" }, accentColor = accentColor)
+                        FilterChip(text = stringResource(R.string.tumu), selected = reportFilter == "ALL", onClick = { reportFilter = "ALL" }, accentColor = accentColor)
                         FilterChip(text = "Healthy", selected = reportFilter == "Healthy", onClick = { reportFilter = "Healthy" }, accentColor = accentColor)
                         FilterChip(text = "Degraded", selected = reportFilter == "Degraded", onClick = { reportFilter = "Degraded" }, accentColor = accentColor)
                         FilterChip(text = "Broken", selected = reportFilter == "Broken", onClick = { reportFilter = "Broken" }, accentColor = accentColor)
@@ -945,7 +947,7 @@ internal fun MangaExtensionsTab(
                     }
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         FilterChip(text = "Güncel", selected = reportSort == "UPDATED", onClick = { reportSort = "UPDATED" }, accentColor = accentColor)
-                        FilterChip(text = "Hata", selected = reportSort == "FAILURES", onClick = { reportSort = "FAILURES" }, accentColor = accentColor)
+                        FilterChip(text = stringResource(R.string.hata), selected = reportSort == "FAILURES", onClick = { reportSort = "FAILURES" }, accentColor = accentColor)
                         FilterChip(text = "Gecikme", selected = reportSort == "LATENCY", onClick = { reportSort = "LATENCY" }, accentColor = accentColor)
                     }
                 }
@@ -998,10 +1000,10 @@ internal fun MangaExtensionsTab(
             confirmButton = {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     TextButton(onClick = onClearAllSourceDiagnostics) {
-                        Text("Raporu temizle", color = KitsugiColors.AccentRed, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.raporu_temizle), color = KitsugiColors.AccentRed, fontWeight = FontWeight.Bold)
                     }
                     TextButton(onClick = { reportOpen = false }) {
-                        Text("Kapat", color = accentColor, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.kapat), color = accentColor, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -1049,10 +1051,10 @@ internal fun MangaExtensionsTab(
                         enabled = !isBusy,
                         isError = domainError,
                         label = { Text("Domain override", fontSize = 12.sp) },
-                        placeholder = { Text("örn. manga-tr.com", fontSize = 11.sp) },
+                        placeholder = { Text(stringResource(R.string.orn_manga_tr_com), fontSize = 11.sp) },
                         supportingText = {
                             if (domainError) {
-                                Text("Geçerli bir alan adı girin. Örn: manga-tr.com", fontSize = 11.sp)
+                                Text(stringResource(R.string.gecerli_bir_alan_adi_girin_orn_manga_tr_com), fontSize = 11.sp)
                             }
                         },
                         singleLine = true,
@@ -1065,10 +1067,10 @@ internal fun MangaExtensionsTab(
                         enabled = !isBusy,
                         isError = userAgentError,
                         label = { Text("User-Agent override", fontSize = 12.sp) },
-                        placeholder = { Text("Varsayılanı kullan", fontSize = 11.sp) },
+                        placeholder = { Text(stringResource(R.string.varsayilani_kullan), fontSize = 11.sp) },
                         supportingText = {
                             if (userAgentError) {
-                                Text("User-Agent 4-512 karakter aralığında olmalı ve satır içermemeli.", fontSize = 11.sp)
+                                Text(stringResource(R.string.user_agent_4_512_karakter_araliginda_olmali), fontSize = 11.sp)
                             }
                         },
                         singleLine = true,
@@ -1091,12 +1093,12 @@ internal fun MangaExtensionsTab(
                     }
 
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        KitsugiTonalButton(onClick = { onQuickCheckSource(src) }, enabled = !isBusy) { Text("Sağlık testi") }
+                        KitsugiTonalButton(onClick = { onQuickCheckSource(src) }, enabled = !isBusy) { Text(stringResource(R.string.saglik_testi)) }
                         KitsugiTonalButton(onClick = { onRefreshSourceMirror(src) }, enabled = !isBusy) { Text("Mirror bul") }
                         TextButton(onClick = {
                             editedDomain = ""
                             onClearSourceMirror(src)
-                        }, enabled = !isBusy) { Text("Domain temizle") }
+                        }, enabled = !isBusy) { Text(stringResource(R.string.domain_temizle)) }
                     }
 
                     Spacer(Modifier.height(10.dp))
@@ -1110,10 +1112,10 @@ internal fun MangaExtensionsTab(
                             editedUserAgent = ""
                             onSetSourceUserAgent(src, null)
                         }, enabled = !isBusy) {
-                            Text("UA temizle", color = KitsugiColors.TextSecondary)
+                            Text(stringResource(R.string.ua_temizle), color = KitsugiColors.TextSecondary)
                         }
                         TextButton(onClick = { onResetSourceDiagnostics(src) }, enabled = !isBusy) {
-                            Text("Sıfırla", color = KitsugiColors.AccentRed)
+                            Text(stringResource(R.string.sifirla), color = KitsugiColors.AccentRed)
                         }
                         Spacer(Modifier.width(8.dp))
                         KitsugiButton(
@@ -1124,7 +1126,7 @@ internal fun MangaExtensionsTab(
                             },
                             enabled = canSave
                         ) {
-                            Text("Kaydet", color = Color.White, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.kaydet), color = Color.White, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -1161,10 +1163,10 @@ internal fun MangaExtensionsTab(
                             enabled = !isBusy,
                             isError = domainError,
                             label = { Text("Domain override", fontSize = 12.sp) },
-                            placeholder = { Text("örn. manga-tr.com", fontSize = 11.sp) },
+                            placeholder = { Text(stringResource(R.string.orn_manga_tr_com), fontSize = 11.sp) },
                             supportingText = {
                                 if (domainError) {
-                                    Text("Geçerli bir alan adı girin. Örn: manga-tr.com", fontSize = 11.sp)
+                                    Text(stringResource(R.string.gecerli_bir_alan_adi_girin_orn_manga_tr_com), fontSize = 11.sp)
                                 }
                             },
                             singleLine = true,
@@ -1177,10 +1179,10 @@ internal fun MangaExtensionsTab(
                             enabled = !isBusy,
                             isError = userAgentError,
                             label = { Text("User-Agent override", fontSize = 12.sp) },
-                            placeholder = { Text("Varsayılanı kullan", fontSize = 11.sp) },
+                            placeholder = { Text(stringResource(R.string.varsayilani_kullan), fontSize = 11.sp) },
                             supportingText = {
                                 if (userAgentError) {
-                                    Text("User-Agent 4-512 karakter aralığında olmalı ve satır içermemeli.", fontSize = 11.sp)
+                                    Text(stringResource(R.string.user_agent_4_512_karakter_araliginda_olmali), fontSize = 11.sp)
                                 }
                             },
                             singleLine = true,
@@ -1203,12 +1205,12 @@ internal fun MangaExtensionsTab(
                         }
 
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            KitsugiTonalButton(onClick = { onQuickCheckSource(src) }, enabled = !isBusy) { Text("Sağlık testi") }
+                            KitsugiTonalButton(onClick = { onQuickCheckSource(src) }, enabled = !isBusy) { Text(stringResource(R.string.saglik_testi)) }
                             KitsugiTonalButton(onClick = { onRefreshSourceMirror(src) }, enabled = !isBusy) { Text("Mirror bul") }
                             TextButton(onClick = {
                                 editedDomain = ""
                                 onClearSourceMirror(src)
-                            }, enabled = !isBusy) { Text("Domain temizle") }
+                            }, enabled = !isBusy) { Text(stringResource(R.string.domain_temizle)) }
                         }
                     }
                 },
@@ -1218,7 +1220,7 @@ internal fun MangaExtensionsTab(
                         onSetSourceUserAgent(src, editedUserAgent.ifBlank { null })
                         manageTarget = null
                     }, enabled = canSave) {
-                        Text("Kaydet", color = accentColor, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.kaydet), color = accentColor, fontWeight = FontWeight.Bold)
                     }
                 },
                 dismissButton = {
@@ -1227,13 +1229,13 @@ internal fun MangaExtensionsTab(
                             editedUserAgent = ""
                             onSetSourceUserAgent(src, null)
                         }, enabled = !isBusy) {
-                            Text("UA temizle", color = KitsugiColors.TextSecondary)
+                            Text(stringResource(R.string.ua_temizle), color = KitsugiColors.TextSecondary)
                         }
                         TextButton(onClick = { onResetSourceDiagnostics(src) }, enabled = !isBusy) {
                             Text("İstatistiği sıfırla", color = KitsugiColors.AccentRed)
                         }
                         TextButton(onClick = { manageTarget = null }) {
-                            Text("Kapat", color = KitsugiColors.TextSecondary)
+                            Text(stringResource(R.string.kapat), color = KitsugiColors.TextSecondary)
                         }
                     }
                 }
@@ -1246,8 +1248,8 @@ internal fun MangaExtensionsTab(
         if (isTv) {
             TvDialog(
                 onDismiss = { deleteTarget = null },
-                title = "Eklenti Silinsin mi?",
-                subtitle = "\"${src.name}\" eklentisi diskten silinecek ve kaldırılacak.",
+                title = stringResource(R.string.eklenti_silinsin_mi),
+                subtitle = stringResource(R.string.src_name_eklentisi_diskten_silinecek_ve_kald, src.name),
                 width = 440.dp
             ) {
                 Row(
@@ -1256,7 +1258,7 @@ internal fun MangaExtensionsTab(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     TextButton(onClick = { deleteTarget = null }) {
-                        Text("İptal", color = KitsugiColors.TextSecondary)
+                        Text(stringResource(R.string.iptal), color = KitsugiColors.TextSecondary)
                     }
                     Spacer(Modifier.width(8.dp))
                     KitsugiButton(
@@ -1271,8 +1273,8 @@ internal fun MangaExtensionsTab(
                 onDismissRequest = { deleteTarget = null },
                 containerColor = KitsugiColors.Surface,
                 shape = RoundedCornerShape(20.dp),
-                title = { Text("Eklenti Silinsin mi?", color = KitsugiColors.TextPrimary, fontWeight = FontWeight.Bold) },
-                text = { Text("\"${src.name}\" eklentisi diskten silinecek ve kaldırılacak.", color = KitsugiColors.TextSecondary) },
+                title = { Text(stringResource(R.string.eklenti_silinsin_mi), color = KitsugiColors.TextPrimary, fontWeight = FontWeight.Bold) },
+                text = { Text(stringResource(R.string.src_name_eklentisi_diskten_silinecek_ve_kald, src.name), color = KitsugiColors.TextSecondary) },
                 confirmButton = {
                     TextButton(onClick = { onDeleteExtension(src); deleteTarget = null }) {
                         Text("Sil", color = KitsugiColors.AccentRed, fontWeight = FontWeight.Bold)
@@ -1280,7 +1282,7 @@ internal fun MangaExtensionsTab(
                 },
                 dismissButton = {
                     TextButton(onClick = { deleteTarget = null }) {
-                        Text("İptal", color = KitsugiColors.TextSecondary)
+                        Text(stringResource(R.string.iptal), color = KitsugiColors.TextSecondary)
                     }
                 }
             )

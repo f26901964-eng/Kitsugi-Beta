@@ -365,7 +365,7 @@ private fun AppearanceTab(
 
     val appLanguageOptions = listOf(
         KitsugiChoiceOption(id = "system", title = stringResource(R.string.option_follow_system), description = ""),
-        KitsugiChoiceOption(id = "tr", title = "Türkçe", description = ""),
+        KitsugiChoiceOption(id = "tr", title = stringResource(R.string.turkce), description = ""),
         KitsugiChoiceOption(id = "en", title = "English", description = "")
     )
 
@@ -1209,7 +1209,7 @@ private fun ListScoreTab(
                     },
                     confirmButton = {
                         TextButton(onClick = { showTranslatorDialog = false }) {
-                            Text("Kapat", color = accentColor, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.kapat), color = accentColor, fontWeight = FontWeight.Bold)
                         }
                     }
                 )
@@ -1297,7 +1297,7 @@ private fun ListScoreTab(
                     },
                     confirmButton = {
                         TextButton(onClick = { showSourceLangDialog = false }) {
-                            Text("Kapat", color = accentColor, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.kapat), color = accentColor, fontWeight = FontWeight.Bold)
                         }
                     }
                 )
@@ -1369,7 +1369,7 @@ private fun ListScoreTab(
                     },
                     confirmButton = {
                         TextButton(onClick = { showTargetLangDialog = false }) {
-                            Text("Kapat", color = accentColor, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.kapat), color = accentColor, fontWeight = FontWeight.Bold)
                         }
                     }
                 )
@@ -1541,7 +1541,7 @@ private fun ListScoreTab(
                     },
                     confirmButton = {
                         TextButton(onClick = { showIntervalDialog = false }) {
-                            Text("Kapat", color = accentColor, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.kapat), color = accentColor, fontWeight = FontWeight.Bold)
                         }
                     }
                 )
@@ -1591,7 +1591,7 @@ private fun ListScoreTab(
             KitsugiSettingsDivider()
 
             KitsugiSettingsListItem(
-                title = "Özel Listeler",
+                title = stringResource(R.string.ozel_listeler),
                 description = "AniList özel listelerini oluştur, yeniden adlandır veya sil",
                 value = "",
                 icon = Icons.Rounded.PlaylistAdd,
@@ -1676,12 +1676,12 @@ private fun ListScoreTab(
                     },
                     confirmButton = {
                         TextButton(onClick = { onPriorityColorsChanged(""); showPriorityColorsDialog = false }) {
-                            Text("Sıfırla", color = accentColor, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.sifirla), color = accentColor, fontWeight = FontWeight.Bold)
                         }
                     },
                     dismissButton = {
                         TextButton(onClick = { showPriorityColorsDialog = false }) {
-                            Text("Kapat", color = accentColor, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.kapat), color = accentColor, fontWeight = FontWeight.Bold)
                         }
                     }
                 )

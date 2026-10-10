@@ -39,6 +39,8 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.KitsugiTvTokens
 import com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @OptIn(ExperimentalFoundationApi::class, androidx.compose.ui.ExperimentalComposeUiApi::class)
 @Composable
@@ -83,7 +85,7 @@ fun KitsugiHorizontalMediaSection(
                             onClick = onSeeAllClick
                         ) {
                             Text(
-                                text = "Tümünü Gör",
+                                text = stringResource(R.string.tumunu_gor),
                                 color = accentColor,
                                 fontWeight = FontWeight.Bold
                             )
@@ -103,7 +105,7 @@ fun KitsugiHorizontalMediaSection(
                 results.isEmpty() -> {
                     if (onSeeAllClick == null) {
                         Text(
-                            text = "Gösterilecek içerik yok.",
+                            text = stringResource(R.string.gosterilecek_icerik_yok),
                             color = KitsugiColors.TextSecondary,
                             style = MaterialTheme.typography.bodyMedium
                         )
@@ -135,7 +137,10 @@ fun KitsugiHorizontalMediaSection(
                             ) {
                                 itemsIndexed(
                                     items = results,
-                                    key = { index, result -> "${result.source}_${result.malId ?: result.tmdbId ?: 0}_$index" }
+                                    // PERF: index-free stable key — Compose item'ları
+                                    // yeniden kullanabilsin (filter/sort/prepend sonrası).
+                                    key = { _, result -> "tv_${result.source}_${result.malId}_${result.tmdbId ?: 0}_${result.cs3Url.orEmpty().hashCode()}" },
+                                    contentType = { _, _ -> "h_media_card" }
                                 ) { index, result ->
                                     val requester = focusRequesters.getOrPut(index) { FocusRequester() }
                                     val cardWidth = if (isLandscape) 260.dp else 180.dp
@@ -168,15 +173,12 @@ fun KitsugiHorizontalMediaSection(
                         LazyRow(
                             state = lazyListState,
                             contentPadding = PaddingValues(horizontal = 20.dp),
-                            horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            flingBehavior = androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior(
-                                lazyListState = lazyListState,
-                                snapPosition = androidx.compose.foundation.gestures.snapping.SnapPosition.Start
-                            )
+                            horizontalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
                             itemsIndexed(
                                 items = results,
-                                key = { index, result -> "${result.source}_${result.malId ?: result.tmdbId ?: 0}_$index" }
+                                key = { _, result -> "h_${result.source}_${result.malId}_${result.tmdbId ?: 0}_${result.cs3Url.orEmpty().hashCode()}" },
+                                contentType = { _, _ -> "h_media_card" }
                             ) { _, result ->
                                 val cardWidth = if (isLandscape) 260.dp else 180.dp
                                 KitsugiExploreMediaCard(

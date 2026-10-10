@@ -28,6 +28,8 @@ import com.kitsugi.animelist.data.local.ManagedAddonEntity
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.components.KitsugiDropdownMenu
 import com.kitsugi.animelist.ui.components.KitsugiDropdownItem
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 internal fun StremioTab(
@@ -192,7 +194,7 @@ internal fun StremioTab(
                 KitsugiButton(
                     onClick = { if (newManifestUrl.isNotBlank()) { onAddAddon(newManifestUrl.trim()); newManifestUrl = "" } },
                     shape = RoundedCornerShape(18.dp)
-                ) { Icon(Icons.Rounded.Add, contentDescription = "Ekle", tint = KitsugiColors.Surface) }
+                ) { Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.ekle), tint = KitsugiColors.Surface) }
             }
         }
 

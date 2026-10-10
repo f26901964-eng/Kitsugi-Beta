@@ -36,6 +36,8 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.material.icons.automirrored.rounded.ArrowForward
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 
 @Composable
@@ -244,7 +246,7 @@ fun AiringSoonHorizontalCard(
             Spacer(modifier = Modifier.width(4.dp))
             Icon(
                 imageVector = androidx.compose.material.icons.Icons.Rounded.PlayCircle,
-                contentDescription = "İzliyorum",
+                contentDescription = stringResource(R.string.izliyorum),
                 tint = KitsugiColors.AccentGreen,
                 modifier = Modifier.size(18.dp)
             )
@@ -326,7 +328,7 @@ fun ExploreAiringSoonSection(
             IconButton(onClick = onOpenAiringCalendar) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Rounded.ArrowForward,
-                    contentDescription = "Yayın Takvimi",
+                    contentDescription = stringResource(R.string.yayin_takvimi),
                     tint = accentColor
                 )
             }
@@ -339,10 +341,6 @@ fun ExploreAiringSoonSection(
             state = lazyListState,
             contentPadding = PaddingValues(horizontal = 20.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
-            flingBehavior = androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior(
-                lazyListState = lazyListState,
-                snapPosition = androidx.compose.foundation.gestures.snapping.SnapPosition.Start
-            ),
             modifier = Modifier.fillMaxWidth()
         ) {
             if (airingSoonAnime.isEmpty() && isLoading) {

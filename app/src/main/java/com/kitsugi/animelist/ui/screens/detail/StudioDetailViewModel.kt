@@ -105,7 +105,8 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
         val source = lastSource
         val name = lastStudioName
         val expectedFetchKey = currentFetchKey ?: return
-        if (studioId > 0 && source.isNotEmpty()) {
+        // Kimliksiz (ad ile çözümlenen) Bangumi kurumlarında da yeniden deneme çalışmalı.
+        if ((studioId > 0 || !name.isNullOrBlank()) && source.isNotEmpty()) {
             _state.value = StudioDetailState.Loading
             viewModelScope.launch {
                 fetchStudioDetail(studioId, source, expectedFetchKey = expectedFetchKey, name = name, force = true)
@@ -207,7 +208,11 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
                 _galleryItems.value = emptyList()
             }
         } else {
-            _state.value = StudioDetailState.Error("Stüdyo detayları yüklenemedi.")
+            _state.value = StudioDetailState.Error(
+                com.kitsugi.animelist.KitsugiApplication.getInstance()
+                    ?.getString(com.kitsugi.animelist.R.string.studio_page_load_failed)
+                    ?: "Stüdyo detayları yüklenemedi."
+            )
         }
     }
 

@@ -587,9 +587,12 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
                     .maxSizeBytes(512L * 1024 * 1024)
                     .build()
             }
-            .crossfade(150)
+            // PERF: crossfade kaldırıldı — LazyList/Grid içinde kaydırma anında her yeni
+            // kart görseli crossfade animasyonu başlatıyordu ve bu scroll jank'ın başlıca
+            // sebeplerinden biriydi. Görseller anında (placeholder yerine doğrudan) görünür.
+            .crossfade(false)
             .allowHardware(true)
-            .allowRgb565(true)           // manga için %50 bellek tasarrufu
+            .allowRgb565(true)           // posterlerde %50 bellek tasarrufu
             .precision(Precision.INEXACT)
             .build()
     }

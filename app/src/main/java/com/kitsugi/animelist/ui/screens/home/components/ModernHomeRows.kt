@@ -25,6 +25,8 @@ import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.ui.components.KitsugiShimmerMediaRow
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * V2-D03 – ModernHomeRows
@@ -70,7 +72,7 @@ fun ModernHomeRows(
             if (onSeeAllClick != null && (results.isNotEmpty() || isLoading)) {
                 TextButton(onClick = onSeeAllClick, contentPadding = PaddingValues(horizontal = 8.dp)) {
                     Text(
-                        text = "Tümünü Gör",
+                        text = stringResource(R.string.tumunu_gor),
                         color = accent,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.SemiBold
@@ -99,11 +101,7 @@ fun ModernHomeRows(
                 LazyRow(
                     state = rowState,
                     contentPadding = PaddingValues(horizontal = 16.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    flingBehavior = androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior(
-                        lazyListState = rowState,
-                        snapPosition = androidx.compose.foundation.gestures.snapping.SnapPosition.Start
-                    )
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     itemsIndexed(results, key = { index, item -> "${item.source}_${item.malId}_$index" }) { _, item ->
                         ModernHomeMediaCard(

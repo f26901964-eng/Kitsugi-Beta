@@ -96,8 +96,8 @@ object KitsugiBangumiDetailClient {
      * Detay sayfasındaki çiplerin tıklanabilmesi için gerekir; bulunamayan adlar `0` ile
      * işaretlenir ve tekrar tekrar aranmaz.
      */
-    private const val STUDIO_LOOKUP_LIMIT = 8
-    private const val STUDIO_LOOKUP_BATCH_TIMEOUT_MS = 6_000L
+    private const val STUDIO_LOOKUP_LIMIT = 24
+    private const val STUDIO_LOOKUP_BATCH_TIMEOUT_MS = 10_000L
     private val studioLookupSemaphore = Semaphore(4)
     private val studioPersonIdCache = BoundedCache<String, Int>("bangumi.studioPersonId", 256)
     private val studioPersonImageCache = BoundedCache<String, String>("bangumi.studioPersonImage", 256)
@@ -2026,6 +2026,12 @@ object KitsugiBangumiDetailClient {
         result
     }
 
+    /**
+     * Tıklama anında kurum adı → Bangumi kimliği çözümlemesi (çipte kimlik taşınmasa bile).
+     * Negatif önbellek aynı oturumda tekrar ağ araması yapmaz.
+     */
+    suspend fun resolveCompanyPersonId(name: String): Int? = findStudioPersonId(name)
+
     /** Kurum adını Bangumi kişi/şirket条目'ı ile eşler; bulunamazsa `null`. */
     private suspend fun findStudioPersonId(name: String): Int? {
         val key = normalizeCompanyKey(name)
@@ -2035,15 +2041,16 @@ object KitsugiBangumiDetailClient {
         val candidates = runCatching {
             BangumiApiClient.searchPersons(keyword = name, token = token, limit = 5).data
         }.getOrDefault(emptyList())
-        // Yalnızca şirket kayıtlarını (type = 2, 公司) eşleştir; kişi/artist sonuçları aynı
-        // ada sahip olsa bile studio ID'si olarak kullanılamaz.
-        val companies = candidates.filter { it.type == 2 }
-        val matched = companies.firstOrNull { entity ->
+        // Öncelik şirket kayıtlarında (type = 2, 公司); şirket eşleşmezse aynı ada sahip
+        // kişi kaydı (type = 1 — ör. yapımcı şahıslar) kabul edilir: detay sayfası zaten
+        // kişi şablonunu kullanır ve kişinin yapım listesi anlamlı bir sayfa açar.
+        fun exactMatch(entity: com.kitsugi.animelist.data.auth.BangumiApiClient.BangumiEntity): Boolean =
             listOf(entity.name, entity.nameCn).any { candidateName ->
                 val entityKey = normalizeCompanyKey(candidateName)
                 entityKey.isNotEmpty() && entityKey == key
             }
-        }
+        val matched = candidates.filter { it.type == 2 }.firstOrNull(::exactMatch)
+            ?: candidates.filter { it.type == 1 }.firstOrNull(::exactMatch)
         val id = matched?.id?.takeIf { it > 0 } ?: 0
         matched?.images?.let { images ->
             BangumiApiClient.absoluteImageUrl(images.poster)?.let { imageUrl ->

@@ -18,6 +18,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.model.MediaType
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 // ─── Format Chip ─────────────────────────────────────────────────────────────
 
@@ -142,7 +144,7 @@ fun KitsugiSearchDateChip(
         horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
         KitsugiChipWithMenu(
-            title = "Başlangıç",
+            title = stringResource(R.string.baslangic),
             values = startYears,
             selectedValue = startYear,
             onValueSelected = onStartYearChanged,
@@ -150,7 +152,7 @@ fun KitsugiSearchDateChip(
         )
         Text(text = "–")
         KitsugiChipWithMenu(
-            title = "Bitiş",
+            title = stringResource(R.string.bitis),
             values = endYears,
             selectedValue = endYear,
             onValueSelected = onEndYearChanged,
@@ -192,7 +194,7 @@ fun KitsugiSearchEpChDurationChip(
     ) {
         if (mediaType == MediaType.Manga) {
             KitsugiChipWithRange(
-                title = "Bölümler",
+                title = stringResource(R.string.bolumler),
                 startValue = minEpCh?.toFloat(),
                 endValue = maxEpCh?.toFloat(),
                 minValue = 0f,
@@ -209,7 +211,7 @@ fun KitsugiSearchEpChDurationChip(
             )
         } else {
             KitsugiChipWithRange(
-                title = "Bölümler",
+                title = stringResource(R.string.bolumler),
                 startValue = minEpCh?.toFloat(),
                 endValue = maxEpCh?.toFloat(),
                 minValue = 0f,
@@ -262,7 +264,7 @@ fun KitsugiTriFilterChip(
             } else if (value == false) {
                 Icon(
                     imageVector = Icons.Rounded.Close,
-                    contentDescription = "Hayır"
+                    contentDescription = stringResource(R.string.hayir)
                 )
             }
         },

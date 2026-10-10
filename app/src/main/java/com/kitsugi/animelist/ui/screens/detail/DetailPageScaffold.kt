@@ -58,6 +58,8 @@ import com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults
 import com.kitsugi.animelist.ui.utils.dpadVerticalFastScroll
 import com.kitsugi.animelist.ui.utils.tvClickable
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * Shared scaffold for both [ApiResultDetailPage] and [MediaEntryDetailPage].
@@ -105,6 +107,14 @@ fun DetailPageScaffold(
     val leftPanelFocusRequester = remember { FocusRequester() }
     val tabBarFocusRequester = remember { FocusRequester() }
     val selectedTab = pagerState.currentPage
+    // Yapışkan başlık yüksekliği index == 2 sınırında gidip gelmesin.
+    var showFloatingHeader by remember { mutableStateOf(false) }
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemIndex }.collect { index ->
+            if (!showFloatingHeader && index >= 3) showFloatingHeader = true
+            else if (showFloatingHeader && index <= 1) showFloatingHeader = false
+        }
+    }
 
     when {
         isLoading -> loadingScreen()
@@ -236,7 +246,6 @@ fun DetailPageScaffold(
                                 stickyHeader(key = "tabs") {
                                     val stickyAccent = LocalKitsugiAccent.current
                                     LaunchedEffect(selectedTab) {
-                                        if (listState.firstVisibleItemIndex > 2) listState.scrollToItem(2)
                                         val itemInfo = tabListState.layoutInfo.visibleItemsInfo
                                             .firstOrNull { it.index == selectedTab }
                                         if (itemInfo != null) {
@@ -247,7 +256,6 @@ fun DetailPageScaffold(
                                         }
                                     }
 
-                                    val showFloatingHeader = listState.firstVisibleItemIndex >= 2
                                     Column(
                                         modifier = Modifier
                                             .fillMaxWidth()
@@ -255,8 +263,8 @@ fun DetailPageScaffold(
                                     ) {
                                         AnimatedVisibility(
                                             visible = showFloatingHeader,
-                                            enter = expandVertically() + fadeIn(),
-                                            exit = shrinkVertically() + fadeOut()
+                                            enter = fadeIn(),
+                                            exit = fadeOut()
                                         ) {
                                             Row(
                                                 verticalAlignment = Alignment.CenterVertically,
@@ -269,7 +277,7 @@ fun DetailPageScaffold(
                                                 IconButton(onClick = onBackClick) {
                                                     Icon(
                                                         imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                                                        contentDescription = "Geri",
+                                                        contentDescription = stringResource(R.string.geri),
                                                         tint = KitsugiColors.TextPrimary
                                                     )
                                                 }
@@ -366,7 +374,10 @@ fun DetailPageScaffold(
                                             Column(
                                                 modifier = Modifier
                                                     .fillMaxWidth()
-                                                    .onGloballyPositioned { pageHeights[page] = it.size.height }
+                                                    .onGloballyPositioned {
+                                                        com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults
+                                                            .recordStablePageHeight(pageHeights, page, it.size.height)
+                                                    }
                                             ) {
                                                 pageContent(page)
                                             }

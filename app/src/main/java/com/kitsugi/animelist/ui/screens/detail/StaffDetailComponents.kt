@@ -762,8 +762,8 @@ internal fun StaffDetailStickyHeader(
     ) {
         AnimatedVisibility(
             visible = showFloatingHeader,
-            enter = expandVertically() + fadeIn(),
-            exit = shrinkVertically() + fadeOut()
+            enter = fadeIn(),
+            exit = fadeOut()
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,

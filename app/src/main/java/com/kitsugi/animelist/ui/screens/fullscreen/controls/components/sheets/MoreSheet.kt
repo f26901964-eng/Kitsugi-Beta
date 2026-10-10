@@ -52,6 +52,8 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import com.kitsugi.animelist.data.local.CustomButton
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
@@ -124,7 +126,7 @@ fun MoreSheet(
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
                         ) {
                             Icon(imageVector = Icons.Default.Tune, contentDescription = null)
-                            Text(text = "Filtreler")
+                            Text(text = stringResource(R.string.filtreler))
                         }
                     }
                 }
@@ -280,7 +282,7 @@ fun TimePickerDialog(
                                 onTimeSelect(0)
                                 onDismissRequest()
                             }) {
-                                Text("İptal Et")
+                                Text(stringResource(R.string.iptal_et))
                             }
                         }
                         Spacer(modifier = Modifier.width(8.dp))

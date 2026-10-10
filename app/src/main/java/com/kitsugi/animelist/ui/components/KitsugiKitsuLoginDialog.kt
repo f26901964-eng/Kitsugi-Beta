@@ -31,6 +31,8 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun KitsugiKitsuLoginDialog(
@@ -161,7 +163,7 @@ fun KitsugiKitsuLoginDialog(
                         password = it
                         errorMessage = null
                     },
-                    label = { Text("Şifre") },
+                    label = { Text(stringResource(R.string.sifre)) },
                     leadingIcon = {
                         Icon(Icons.Rounded.Lock, contentDescription = null, tint = kitsuBrandColor)
                     },
@@ -208,7 +210,7 @@ fun KitsugiKitsuLoginDialog(
                             contentColor = KitsugiColors.TextSecondary
                         )
                     ) {
-                        Text("İptal")
+                        Text(stringResource(R.string.iptal))
                     }
 
                     KitsugiButton(
@@ -235,7 +237,7 @@ fun KitsugiKitsuLoginDialog(
                         if (isLoading) {
                             KitsugiPlasmaLoader(size = 18.dp)
                         } else {
-                            Text("Giriş Yap", fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.giris_yap), fontWeight = FontWeight.Bold)
                         }
                     }
                 }

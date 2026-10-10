@@ -37,6 +37,8 @@ import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.data.local.MediaEntryBackup
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun KitsugiExportBackupDialog(
@@ -63,7 +65,7 @@ fun KitsugiExportBackupDialog(
                 verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(12.dp)
             ) {
                 Text(
-                    text = "Aşağıdaki JSON metnini kopyalayıp güvenli bir yerde saklayabilirsin.",
+                    text = stringResource(R.string.asagidaki_json_metnini_kopyalayip_guvenli_bi),
                     color = KitsugiColors.TextSecondary,
                     style = MaterialTheme.typography.bodyMedium
                 )
@@ -111,7 +113,7 @@ fun KitsugiExportBackupDialog(
                         onClick = onDismiss
                     ) {
                         Text(
-                            text = "Kapat",
+                            text = stringResource(R.string.kapat),
                             color = KitsugiColors.TextSecondary,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -161,7 +163,7 @@ fun KitsugiExportBackupDialog(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "Aşağıdaki JSON metnini kopyalayıp güvenli bir yerde saklayabilirsin.",
+                        text = stringResource(R.string.asagidaki_json_metnini_kopyalayip_guvenli_bi),
                         color = KitsugiColors.TextSecondary,
                         style = MaterialTheme.typography.bodyMedium
                     )
@@ -231,7 +233,7 @@ fun KitsugiExportBackupDialog(
                     onClick = onDismiss
                 ) {
                     Text(
-                        text = "Kapat",
+                        text = stringResource(R.string.kapat),
                         color = KitsugiColors.TextSecondary,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -284,7 +286,7 @@ fun KitsugiImportBackupDialog(
     if (isTvDevice) {
         com.kitsugi.animelist.ui.tv.components.TvDialog(
             onDismiss = onDismiss,
-            title = "Yedekten içe aktar",
+            title = stringResource(R.string.yedekten_ice_aktar),
             width = 520.dp
         ) {
             Column(
@@ -292,14 +294,14 @@ fun KitsugiImportBackupDialog(
                 verticalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(10.dp)
             ) {
                 Text(
-                    text = "Daha önce oluşturduğun yedek JSON metnini buraya yapıştır.",
+                    text = stringResource(R.string.daha_once_olusturdugun_yedek_json_metnini_bu),
                     color = KitsugiColors.TextSecondary,
                     style = MaterialTheme.typography.bodyMedium
                 )
 
                 ImportModeRow(
-                    title = "Mevcut listeyi değiştir",
-                    description = "Önce tüm kayıtları siler, sonra yedeği yükler.",
+                    title = stringResource(R.string.mevcut_listeyi_degistir),
+                    description = stringResource(R.string.once_tum_kayitlari_siler_sonra_yedegi_yukler),
                     selected = importMode == BackupImportMode.Replace,
                     onClick = {
                         onImportModeChange(BackupImportMode.Replace)
@@ -307,8 +309,8 @@ fun KitsugiImportBackupDialog(
                 )
 
                 ImportModeRow(
-                    title = "Mevcut listeye ekle",
-                    description = "Yedeği mevcut listenin üstüne ekler. Aynı API kayıtlarını atlar.",
+                    title = stringResource(R.string.mevcut_listeye_ekle),
+                    description = stringResource(R.string.yedegi_mevcut_listenin_ustune_ekler_ayni_api),
                     selected = importMode == BackupImportMode.Append,
                     onClick = {
                         onImportModeChange(BackupImportMode.Append)
@@ -352,7 +354,7 @@ fun KitsugiImportBackupDialog(
                         onClick = onDismiss
                     ) {
                         Text(
-                            text = "İptal",
+                            text = stringResource(R.string.iptal),
                             color = KitsugiColors.TextSecondary,
                             fontWeight = FontWeight.SemiBold
                         )
@@ -365,7 +367,7 @@ fun KitsugiImportBackupDialog(
                         onClick = onImportClick
                     ) {
                         Text(
-                            text = "İçe aktar",
+                            text = stringResource(R.string.ice_aktar),
                             color = if (canImport) {
                                 accentColor
                             } else {
@@ -386,7 +388,7 @@ fun KitsugiImportBackupDialog(
             shape = RoundedCornerShape(26.dp),
             title = {
                 Text(
-                    text = "Yedekten içe aktar",
+                    text = stringResource(R.string.yedekten_ice_aktar),
                     color = KitsugiColors.TextPrimary,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
@@ -397,7 +399,7 @@ fun KitsugiImportBackupDialog(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "Daha önce oluşturduğun yedek JSON metnini buraya yapıştır.",
+                        text = stringResource(R.string.daha_once_olusturdugun_yedek_json_metnini_bu),
                         color = KitsugiColors.TextSecondary,
                         style = MaterialTheme.typography.bodyMedium
                     )
@@ -405,8 +407,8 @@ fun KitsugiImportBackupDialog(
                     Spacer(modifier = Modifier.height(12.dp))
 
                     ImportModeRow(
-                        title = "Mevcut listeyi değiştir",
-                        description = "Önce tüm kayıtları siler, sonra yedeği yükler.",
+                        title = stringResource(R.string.mevcut_listeyi_degistir),
+                        description = stringResource(R.string.once_tum_kayitlari_siler_sonra_yedegi_yukler),
                         selected = importMode == BackupImportMode.Replace,
                         onClick = {
                             onImportModeChange(BackupImportMode.Replace)
@@ -416,8 +418,8 @@ fun KitsugiImportBackupDialog(
                     Spacer(modifier = Modifier.height(8.dp))
 
                     ImportModeRow(
-                        title = "Mevcut listeye ekle",
-                        description = "Yedeği mevcut listenin üstüne ekler. Aynı API kayıtlarını atlar.",
+                        title = stringResource(R.string.mevcut_listeye_ekle),
+                        description = stringResource(R.string.yedegi_mevcut_listenin_ustune_ekler_ayni_api),
                         selected = importMode == BackupImportMode.Append,
                         onClick = {
                             onImportModeChange(BackupImportMode.Append)
@@ -463,7 +465,7 @@ fun KitsugiImportBackupDialog(
                     onClick = onImportClick
                 ) {
                     Text(
-                        text = "İçe aktar",
+                        text = stringResource(R.string.ice_aktar),
                         color = if (canImport) {
                             accentColor
                         } else {
@@ -478,7 +480,7 @@ fun KitsugiImportBackupDialog(
                     onClick = onDismiss
                 ) {
                     Text(
-                        text = "İptal",
+                        text = stringResource(R.string.iptal),
                         color = KitsugiColors.TextSecondary,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -495,7 +497,7 @@ private fun BackupValidationInfo(
     when (validationResult) {
         BackupValidationResult.Empty -> {
             Text(
-                text = "Yedek metni bekleniyor.",
+                text = stringResource(R.string.yedek_metni_bekleniyor),
                 color = KitsugiColors.TextMuted,
                 style = MaterialTheme.typography.bodySmall
             )
@@ -503,7 +505,7 @@ private fun BackupValidationInfo(
 
         is BackupValidationResult.Invalid -> {
             Text(
-                text = "Geçersiz yedek: ${validationResult.message}",
+                text = stringResource(R.string.gecersiz_yedek_validationresult_message, validationResult.message),
                 color = KitsugiColors.AccentRed,
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.SemiBold
@@ -519,7 +521,7 @@ private fun BackupValidationInfo(
                     .padding(12.dp)
             ) {
                 Text(
-                    text = "Yedek geçerli",
+                    text = stringResource(R.string.yedek_gecerli),
                     color = KitsugiColors.AccentGreen,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Bold

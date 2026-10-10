@@ -1,16 +1,27 @@
 package com.kitsugi.animelist.ui.utils
 
 import androidx.compose.foundation.lazy.LazyListState
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.flow.collect
 import androidx.compose.runtime.snapshotFlow
+
+/**
+ * Scroll konumunu snapshot state'te tutma. Aksi halde her piksel yazımı
+ * [rememberLazyListState] argümanını yeniden okur, sayfa yeniden kurulur ve
+ * liste başlangıç ofsetine geri zıplar.
+ */
+private class RetainedScrollPosition(var index: Int, var offset: Int)
+
+private val RetainedScrollPositionSaver = listSaver<RetainedScrollPosition, Int>(
+    save = { listOf(it.index, it.offset) },
+    restore = { RetainedScrollPosition(it[0], it[1]) }
+)
 
 /**
  * Lazy lists clamp a restored index to zero if their loading placeholder has fewer items.
@@ -23,14 +34,19 @@ fun rememberRetainedLazyListState(
     initialIndex: Int = 0,
     initialOffset: Int = 0
 ): LazyListState {
-    var savedIndex by rememberSaveable { mutableIntStateOf(initialIndex) }
-    var savedOffset by rememberSaveable { mutableIntStateOf(initialOffset) }
-    val state = rememberLazyListState(savedIndex, savedOffset)
-    var restored by androidx.compose.runtime.remember { mutableStateOf(false) }
+    val retained = rememberSaveable(saver = RetainedScrollPositionSaver) {
+        RetainedScrollPosition(initialIndex, initialOffset)
+    }
+    val state = remember { LazyListState(retained.index, retained.offset) }
+    var restored by remember { mutableStateOf(false) }
 
     LaunchedEffect(state, contentReady) {
         if (contentReady && !restored) {
-            state.scrollToItem(savedIndex, savedOffset)
+            if (state.firstVisibleItemIndex != retained.index ||
+                state.firstVisibleItemScrollOffset != retained.offset
+            ) {
+                state.scrollToItem(retained.index, retained.offset)
+            }
             restored = true
         }
     }
@@ -38,8 +54,8 @@ fun rememberRetainedLazyListState(
         if (contentReady && restored) {
             snapshotFlow { state.firstVisibleItemIndex to state.firstVisibleItemScrollOffset }
                 .collect { (index, offset) ->
-                    savedIndex = index
-                    savedOffset = offset
+                    retained.index = index
+                    retained.offset = offset
                 }
         }
     }

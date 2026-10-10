@@ -5,6 +5,7 @@
 
 package com.kitsugi.animelist.ui.screens.profile
 
+import com.kitsugi.animelist.ui.utils.localizedLabel
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
 
@@ -48,6 +49,8 @@ import com.kitsugi.animelist.ui.app.ProfileFavoriteItem
 import com.kitsugi.animelist.ui.components.KitsugiNsfwImage
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun MalProfileContent(
@@ -79,11 +82,12 @@ fun MalProfileContent(
         initialFirstVisibleItemScrollOffset = viewModel.malScrollOffset
     )
 
-    LaunchedEffect(listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset) {
-        viewModel.updateMalScroll(
-            listState.firstVisibleItemIndex,
-            listState.firstVisibleItemScrollOffset
-        )
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
+        }.collect { (index, offset) ->
+            viewModel.updateMalScroll(index, offset)
+        }
     }
 
     val coroutineScope = rememberCoroutineScope()
@@ -147,7 +151,7 @@ fun MalProfileContent(
                         }) {
                             Icon(
                                 imageVector = Icons.Rounded.Share,
-                                contentDescription = "Profili Paylaş",
+                                contentDescription = stringResource(R.string.profili_paylas),
                                 tint = KitsugiColors.TextPrimary,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -238,10 +242,6 @@ fun MalProfileContent(
                         val favoritesFilterState = rememberLazyListState()
                         androidx.compose.foundation.lazy.LazyRow(
                             state = favoritesFilterState,
-                            flingBehavior = androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior(
-                                lazyListState = favoritesFilterState,
-                                snapPosition = androidx.compose.foundation.gestures.snapping.SnapPosition.Start
-                            ),
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
@@ -260,10 +260,6 @@ fun MalProfileContent(
                         val socialFilterState = rememberLazyListState()
                         androidx.compose.foundation.lazy.LazyRow(
                             state = socialFilterState,
-                            flingBehavior = androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior(
-                                lazyListState = socialFilterState,
-                                snapPosition = androidx.compose.foundation.gestures.snapping.SnapPosition.Start
-                            ),
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
@@ -337,7 +333,8 @@ fun MalProfileContent(
                         modifier = Modifier
                             .fillMaxWidth()
                             .onGloballyPositioned { coordinates ->
-                                pageHeights[page] = coordinates.size.height
+                                com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults
+                                    .recordStablePageHeight(pageHeights, page, coordinates.size.height)
                             },
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
@@ -372,7 +369,7 @@ fun MalProfileContent(
                                             .padding(32.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Text(text = "Henüz MyAnimeList aktivitesi bulunmuyor.", color = KitsugiColors.TextMuted)
+                                        Text(text = stringResource(R.string.henuz_myanimelist_aktivitesi_bulunmuyor), color = KitsugiColors.TextMuted)
                                     }
                                 } else {
                                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -380,7 +377,7 @@ fun MalProfileContent(
                                             ProfileActivityRow(
                                                 title = entry.title,
                                                 imageUrl = entry.imageUrl,
-                                                statusStr = entry.status.label,
+                                                statusStr = entry.status.localizedLabel(),
                                                 progressStr = "Bölüm: ${entry.progress}",
                                                 onClick = { onEntryClick(entry) }
                                             )
@@ -473,7 +470,7 @@ fun MalProfileContent(
                                             .padding(32.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Text(text = "Favori öge bulunamadı.", color = KitsugiColors.TextMuted)
+                                        Text(text = stringResource(R.string.favori_oge_bulunamadi), color = KitsugiColors.TextMuted)
                                     }
                                 } else {
                                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -510,7 +507,7 @@ fun MalProfileContent(
                                                     .padding(horizontal = 10.dp, vertical = 4.dp)
                                             ) {
                                                 Text(
-                                                    text = "Tümünü Gör",
+                                                    text = stringResource(R.string.tumunu_gor),
                                                     color = accentColor,
                                                     style = MaterialTheme.typography.labelSmall,
                                                     fontWeight = FontWeight.Bold
@@ -595,7 +592,7 @@ fun MalProfileContent(
                                             .padding(32.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Text(text = "Arkadaş bulunamadı.", color = KitsugiColors.TextMuted)
+                                        Text(text = stringResource(R.string.arkadas_bulunamadi), color = KitsugiColors.TextMuted)
                                     }
                                 } else {
                                     Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {

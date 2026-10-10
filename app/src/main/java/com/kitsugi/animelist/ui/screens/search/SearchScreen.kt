@@ -85,6 +85,8 @@ import com.kitsugi.animelist.ui.utils.tvClickable
 import com.kitsugi.animelist.ui.utils.dpadVerticalFastScroll
 import com.lagradost.cloudstream3.APIHolder
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun SearchScreen(
@@ -339,7 +341,7 @@ fun SearchScreen(
                         icon = {
                             Icon(
                                 imageVector = Icons.Default.Extension,
-                                contentDescription = "Eklenti Portalı",
+                                contentDescription = stringResource(R.string.eklenti_portali),
                                 tint = KitsugiColors.TextMuted,
                                 modifier = Modifier.size(22.dp)
                             )
@@ -403,7 +405,7 @@ fun SearchScreen(
             if (!uiState.isLoading && uiState.hasSearched && uiState.errorMessage != null) {
                 item {
                     KitsugiEmptyState(
-                        title = "Sonuç bulunamadı",
+                        title = stringResource(R.string.sonuc_bulunamadi),
                         subtitle = uiState.errorMessage,
                         icon = Icons.Rounded.SearchOff
                     )
@@ -526,7 +528,11 @@ fun SearchScreen(
                     )
                 }
             } else if (uiState.currentTab == KitsugiSearchTab.Character || uiState.currentTab == KitsugiSearchTab.Staff) {
-                items(filteredResults, key = { "${it.source}_${it.type}_${it.malId}" }) { result ->
+                items(
+                    items = filteredResults,
+                    key = { "char_${it.source}_${it.type}_${it.malId}_${it.tmdbId ?: 0}" },
+                    contentType = { _ -> "char_staff_row" }
+                ) { result ->
                     val displayName = com.kitsugi.animelist.data.remote.displayPersonName(
                         result.title,
                         result.titleRomaji,
@@ -557,7 +563,11 @@ fun SearchScreen(
                     Spacer(modifier = Modifier.height(10.dp))
                 }
             } else {
-                items(filteredResults, key = { "${it.source}_${it.type}_${it.malId}" }) { result ->
+                items(
+                    items = filteredResults,
+                    key = { "res_${it.source}_${it.type}_${it.malId}_${it.tmdbId ?: 0}_${it.cs3Url.orEmpty().hashCode()}" },
+                    contentType = { _ -> "search_row" }
+                ) { result ->
                     SearchResultRow(
                         result = result,
                         alreadyInList = isSearchResultAlreadyInList(result),
@@ -621,7 +631,7 @@ fun SearchScreen(
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.size(52.dp)
             ) {
-                Icon(Icons.Default.ArrowUpward, contentDescription = "Yukarı Çık")
+                Icon(Icons.Default.ArrowUpward, contentDescription = stringResource(R.string.yukari_cik))
             }
         }
     }
@@ -867,7 +877,7 @@ private fun SearchOptionsSummaryRow(
                 modifier = Modifier.weight(1f, fill = false)
             )
             Text(
-                text = "Düzenle",
+                text = stringResource(R.string.duzenle),
                 color = KitsugiColors.TextMuted,
                 fontSize = 11.sp,
                 fontWeight = FontWeight.Medium
@@ -964,7 +974,7 @@ fun ActiveFilterChip(
         ) {
             Icon(
                 imageVector = Icons.Default.Close,
-                contentDescription = "Temizle",
+                contentDescription = stringResource(R.string.temizle),
                 tint = KitsugiColors.TextMuted,
                 modifier = Modifier.size(14.dp)
             )
@@ -1031,7 +1041,7 @@ private fun MultiSearchSection(
                     contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
                 ) {
                     Text(
-                        text = "Tümünü Gör",
+                        text = stringResource(R.string.tumunu_gor),
                         color = accentColor,
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.Bold
@@ -1071,7 +1081,8 @@ private fun MultiSearchSection(
                         ) {
                             itemsIndexed(
                                 items = results,
-                                key = { index, result -> "${result.source}_${result.malId ?: result.tmdbId ?: 0}_$index" }
+                                key = { _, result -> "sr_tv_${result.source}_${result.malId}_${result.tmdbId ?: 0}_${result.cs3Url.orEmpty().hashCode()}" },
+                                contentType = { _, _ -> "h_media_card" }
                             ) { index, result ->
                                 val requester = focusRequesters.getOrPut(index) { FocusRequester() }
                                 KitsugiExploreMediaCard(
@@ -1100,15 +1111,12 @@ private fun MultiSearchSection(
                     LazyRow(
                         state = lazyListState,
                         contentPadding = PaddingValues(horizontal = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        flingBehavior = androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior(
-                            lazyListState = lazyListState,
-                            snapPosition = androidx.compose.foundation.gestures.snapping.SnapPosition.Start
-                        )
+                        horizontalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
                         itemsIndexed(
                             items = results,
-                            key = { index, result -> "${result.source}_${result.malId ?: result.tmdbId ?: 0}_$index" }
+                            key = { _, result -> "sr_${result.source}_${result.malId}_${result.tmdbId ?: 0}_${result.cs3Url.orEmpty().hashCode()}" },
+                            contentType = { _, _ -> "h_media_card" }
                         ) { _, result ->
                             KitsugiExploreMediaCard(
                                 result = result,

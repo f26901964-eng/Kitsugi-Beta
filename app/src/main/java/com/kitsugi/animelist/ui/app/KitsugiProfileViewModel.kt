@@ -42,21 +42,22 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
     // Selected sub-tab persistence (0: AniList, 1: MAL, 2: Simkl)
     var activeSubTab by mutableStateOf(0)
 
-    // Scroll state persistence for Profile tabs
-    var aniListScrollIndex by mutableIntStateOf(0)
-    var aniListScrollOffset by mutableIntStateOf(0)
+    // Scroll konumunu observable state'te tutma. Her piksel yazımı kompozisyonu
+    // yeniden kurup lazy listeyi initial offset'e geri zıplatıyordu.
+    var aniListScrollIndex: Int = 0
+    var aniListScrollOffset: Int = 0
 
-    var malScrollIndex by mutableIntStateOf(0)
-    var malScrollOffset by mutableIntStateOf(0)
+    var malScrollIndex: Int = 0
+    var malScrollOffset: Int = 0
 
-    var simklScrollIndex by mutableIntStateOf(0)
-    var simklScrollOffset by mutableIntStateOf(0)
+    var simklScrollIndex: Int = 0
+    var simklScrollOffset: Int = 0
 
-    var kitsuScrollIndex by mutableIntStateOf(0)
-    var kitsuScrollOffset by mutableIntStateOf(0)
+    var kitsuScrollIndex: Int = 0
+    var kitsuScrollOffset: Int = 0
 
-    var shikimoriScrollIndex by mutableIntStateOf(0)
-    var shikimoriScrollOffset by mutableIntStateOf(0)
+    var shikimoriScrollIndex: Int = 0
+    var shikimoriScrollOffset: Int = 0
 
     fun updateAniListScroll(index: Int, offset: Int) {
         aniListScrollIndex = index

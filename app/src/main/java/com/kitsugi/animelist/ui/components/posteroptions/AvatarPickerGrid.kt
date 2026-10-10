@@ -22,6 +22,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * V2-A07 – AvatarPickerGrid
@@ -82,7 +84,7 @@ fun AvatarPickerGrid(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Check,
-                            contentDescription = "Seçili",
+                            contentDescription = stringResource(R.string.secili),
                             tint = Color.White,
                             modifier = Modifier.size(24.dp)
                         )

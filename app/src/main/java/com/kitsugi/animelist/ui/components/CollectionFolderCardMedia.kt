@@ -15,6 +15,8 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import coil.compose.AsyncImage
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * FP-02 – Displays a collection or folder represented by a 4-poster grid layout.
@@ -111,7 +113,7 @@ fun CollectionFolderCardMedia(
                 )
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "$itemCount Öğe",
+                    text = stringResource(R.string.itemcount_oge, itemCount),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

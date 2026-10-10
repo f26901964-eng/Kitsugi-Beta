@@ -37,6 +37,8 @@ import java.net.URLEncoder
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Download
 import com.kitsugi.animelist.ui.screens.stream.KitsugiStreamActivity
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun KitsugiEpisodeOptionsDialog(
@@ -219,7 +221,7 @@ fun KitsugiEpisodeOptionsDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text(
-                    text = "Kapat",
+                    text = stringResource(R.string.kapat),
                     color = KitsugiColors.TextSecondary,
                     fontWeight = FontWeight.SemiBold
                 )

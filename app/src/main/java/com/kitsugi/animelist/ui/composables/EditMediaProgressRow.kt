@@ -9,6 +9,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * FP-45 – Interactive row for editing entry episode/chapter progress.
@@ -28,7 +30,7 @@ fun EditMediaProgressRow(
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
         Text(
-            text = "İlerleme",
+            text = stringResource(R.string.ilerleme),
             style = MaterialTheme.typography.bodyLarge
         )
         Row(

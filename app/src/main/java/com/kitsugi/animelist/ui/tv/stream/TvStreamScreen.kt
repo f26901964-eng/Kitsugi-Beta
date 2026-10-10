@@ -173,7 +173,7 @@ fun TvStreamScreen(
             if (engine == "EXTERNAL" && onLaunchExternalPlayer != null) {
                 val input = ExternalPlayerLauncher.createInput(
                     url = resolvedUrl,
-                    title = "${args.title} - Bölüm ${args.episode}",
+                    title = context.getString(R.string.args_title_bolum_args_episode, args.title, args.episode),
                     headers = source.requestHeaders,
                     resumePositionMs = resumePositionMs,
                     subtitles = source.subtitles
@@ -183,7 +183,7 @@ fun TvStreamScreen(
                 TvPlayerActivity.start(
                     context = context,
                     videoUrl = resolvedUrl,
-                    title = "${args.title} - Bölüm ${args.episode}",
+                    title = context.getString(R.string.args_title_bolum_args_episode, args.title, args.episode),
                     headers = source.requestHeaders,
                     subtitles = source.subtitles ?: emptyList(),
                     allSources = allStreams,

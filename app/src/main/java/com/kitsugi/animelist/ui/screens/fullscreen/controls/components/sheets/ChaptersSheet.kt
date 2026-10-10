@@ -15,6 +15,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.ui.screens.fullscreen.controls.components.IndexedSegment
 import kotlin.math.abs
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun ChaptersSheet(
@@ -29,7 +31,7 @@ fun ChaptersSheet(
         tracks = chapters,
         header = {
             TrackSheetTitle(
-                title = "Bölümler",
+                title = stringResource(R.string.bolumler),
                 modifier = modifier.padding(top = 4.dp),
             )
         },

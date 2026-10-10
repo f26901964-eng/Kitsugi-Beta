@@ -42,6 +42,8 @@ import com.kitsugi.animelist.ui.theme.KitsugiTvTokens
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.utils.tvClickable
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 // ---------------------------------------------------------------------------
 //  TvReviewsTabContent — Main Entry Point
@@ -114,7 +116,7 @@ fun TvReviewsTabContent(
             if (hasTopics) {
                 Column(verticalArrangement = Arrangement.spacedBy(KitsugiTvTokens.Spacing.sm)) {
                     Text(
-                        text = "Tartışma Konuları",
+                        text = stringResource(R.string.tartisma_konulari),
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = KitsugiColors.TextPrimary
                     )
@@ -217,7 +219,7 @@ fun TvReviewsTabContent(
             if (hasReviews) {
                 Column(verticalArrangement = Arrangement.spacedBy(KitsugiTvTokens.Spacing.sm)) {
                     Text(
-                        text = "İncelemeler",
+                        text = stringResource(R.string.incelemeler),
                         style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
                         color = KitsugiColors.TextPrimary
                     )

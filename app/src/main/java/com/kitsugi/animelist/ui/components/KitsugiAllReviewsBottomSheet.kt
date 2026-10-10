@@ -41,6 +41,8 @@ import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 import kotlinx.coroutines.launch
 
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -176,13 +178,13 @@ fun KitsugiAllReviewsBottomSheet(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Close,
-                        contentDescription = "Kapat",
+                        contentDescription = stringResource(R.string.kapat),
                         tint = KitsugiColors.TextPrimary
                     )
                 }
 
                 Text(
-                    text = "Tüm İncelemeler",
+                    text = stringResource(R.string.tum_incelemeler),
                     color = KitsugiColors.TextPrimary,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
@@ -228,7 +230,7 @@ fun KitsugiAllReviewsBottomSheet(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Türkçe",
+                        text = stringResource(R.string.turkce),
                         color = if (isTrSelected) KitsugiColors.Background else KitsugiColors.TextPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold
@@ -292,7 +294,7 @@ fun KitsugiAllReviewsBottomSheet(
                 }
             } else if (filteredReviews.isEmpty()) {
                 Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                    Text(text = "İnceleme bulunamadı.", color = KitsugiColors.TextMuted, fontSize = 14.sp)
+                    Text(text = stringResource(R.string.inceleme_bulunamadi), color = KitsugiColors.TextMuted, fontSize = 14.sp)
                 }
             } else {
                 LazyColumn(
@@ -418,7 +420,7 @@ fun KitsugiAllReviewsBottomSheet(
                                         ) {
                                             Icon(
                                                 imageVector = Icons.Rounded.Translate,
-                                                contentDescription = "Çevir",
+                                                contentDescription = stringResource(R.string.cevir),
                                                 tint = accentColor,
                                                 modifier = Modifier.size(14.dp)
                                             )
@@ -472,13 +474,13 @@ fun KitsugiAllReviewsBottomSheet(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Rounded.ThumbUp,
-                                            contentDescription = "Faydalı",
+                                            contentDescription = stringResource(R.string.faydali),
                                             tint = if (rev.userRating == "UP_VOTE") accentColor else KitsugiColors.TextSecondary,
                                             modifier = Modifier.size(12.dp)
                                         )
                                         Spacer(modifier = Modifier.width(4.dp))
                                         Text(
-                                            text = "${rev.helpfulCount ?: 0} kişi oyladı",
+                                            text = stringResource(R.string.rev_helpfulcount_0_kisi_oyladi, rev.helpfulCount ?: 0),
                                             color = if (rev.userRating == "UP_VOTE") accentColor else KitsugiColors.TextSecondary,
                                             fontSize = 11.sp
                                         )

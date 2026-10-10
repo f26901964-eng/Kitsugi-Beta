@@ -81,6 +81,8 @@ import androidx.compose.foundation.gestures.LocalBringIntoViewSpec
 import androidx.compose.runtime.CompositionLocalProvider
 import com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun MyListScreen(
@@ -649,7 +651,7 @@ fun MyListScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.KeyboardArrowUp,
-                        contentDescription = "Yukarı Git",
+                        contentDescription = stringResource(R.string.yukari_git),
                         tint = KitsugiColors.background,
                         modifier = Modifier.size(24.dp)
                     )
@@ -845,8 +847,8 @@ fun MyListScreen(
 
     deletingEntry?.let { entry ->
         KitsugiConfirmDialog(
-            title = "Kaydı sil?",
-            message = "\"${entry.title}\" listenizden kalıcı olarak kaldırılacak.",
+            title = stringResource(R.string.kaydi_sil),
+            message = stringResource(R.string.entry_title_listenizden_kalici_olarak_kaldir, entry.title),
             confirmText = "Sil",
             isDestructive = true,
             onConfirm = {

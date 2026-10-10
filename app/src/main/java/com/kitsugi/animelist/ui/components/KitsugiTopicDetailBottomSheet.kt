@@ -42,6 +42,8 @@ import kotlinx.coroutines.coroutineScope
 import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -200,7 +202,7 @@ fun KitsugiTopicDetailBottomSheet(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Close,
-                        contentDescription = "Kapat",
+                        contentDescription = stringResource(R.string.kapat),
                         tint = KitsugiColors.TextPrimary
                     )
                 }
@@ -283,7 +285,7 @@ fun KitsugiTopicDetailBottomSheet(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = "Türkçe",
+                            text = stringResource(R.string.turkce),
                             color = if (isTrSelected) KitsugiColors.Background else KitsugiColors.TextPrimary,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold
@@ -308,7 +310,7 @@ fun KitsugiTopicDetailBottomSheet(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Translate,
-                            contentDescription = "Çevir",
+                            contentDescription = stringResource(R.string.cevir),
                             tint = accentColor
                         )
                     }
@@ -452,7 +454,7 @@ fun KitsugiTopicDetailBottomSheet(
                                     ) {
                                         Icon(
                                             imageVector = if (isTopicLikedState) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                            contentDescription = "Beğen",
+                                            contentDescription = stringResource(R.string.begen),
                                             tint = if (isTopicLikedState) accentColor else KitsugiColors.TextSecondary,
                                             modifier = Modifier.size(20.dp)
                                         )
@@ -470,7 +472,7 @@ fun KitsugiTopicDetailBottomSheet(
                                     ) {
                                         Icon(
                                             imageVector = Icons.AutoMirrored.Rounded.Reply,
-                                            contentDescription = "Yanıtla",
+                                            contentDescription = stringResource(R.string.yanitla),
                                             tint = KitsugiColors.TextSecondary,
                                             modifier = Modifier.size(20.dp)
                                         )
@@ -584,11 +586,11 @@ fun KitsugiTopicDetailBottomSheet(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.Reply,
-                        contentDescription = "Yanıtla",
+                        contentDescription = stringResource(R.string.yanitla),
                         tint = KitsugiColors.Background
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Yanıtla", color = KitsugiColors.Background, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.yanitla), color = KitsugiColors.Background, fontWeight = FontWeight.Bold)
                 }
             }
         }

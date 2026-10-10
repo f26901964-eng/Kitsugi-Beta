@@ -168,7 +168,7 @@ fun TvAddonsScreen(
                     onClick   = { selectedTab = TvAddonsTab.STREMIO }
                 )
                 TvAddonsTabButton(
-                    label     = "Repo & Eklenti Havuzları",
+                    label     = stringResource(R.string.repo_eklenti_havuzlari),
                     icon      = Icons.Default.Folder,
                     selected  = selectedTab == TvAddonsTab.REPOS,
                     badge     = repos.size,
@@ -227,7 +227,7 @@ fun TvAddonsScreen(
                     TvAddonsTab.REPOS -> {
                         item {
                             TvAddonsPanelHeader(
-                                title   = "Repo & Eklenti Havuzları",
+                                title   = stringResource(R.string.repo_eklenti_havuzlari),
                                 subtitle = "${repos.size} repo tanımlı",
                                 actionLabel = "Repo Ekle",
                                 actionIcon  = Icons.Default.Add,
@@ -568,7 +568,7 @@ private fun TvRepoCard(
             shape   = ClickableSurfaceDefaults.shape(CircleShape),
             border  = ClickableSurfaceDefaults.border(focusedBorder = Border(border = androidx.compose.foundation.BorderStroke(2.dp, MaterialTheme.colorScheme.primary), shape = CircleShape))
         ) {
-            Icon(Icons.Default.Refresh, contentDescription = "Yenile", tint = Color.White.copy(0.5f), modifier = Modifier.padding(8.dp).size(16.dp))
+            Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.yenile), tint = Color.White.copy(0.5f), modifier = Modifier.padding(8.dp).size(16.dp))
         }
         // Hepsini Kur
         Button(

@@ -95,6 +95,8 @@ import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 private enum class CrossSyncLogFilter { All, Issues, Errors, Warnings }
 
@@ -407,7 +409,7 @@ fun KitsugiCrossSyncDialog(
             },
             dismissButton = {
                 TextButton(onClick = { showCancelConfirmation = false }) {
-                    Text("Devam Et")
+                    Text(stringResource(R.string.devam_et))
                 }
             }
         )
@@ -465,7 +467,7 @@ private fun CrossSyncHeader(
         }
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "Çok Yönlü Eşitleme",
+                text = stringResource(R.string.cok_yonlu_esitleme),
                 style = (if (compact) MaterialTheme.typography.titleSmall else MaterialTheme.typography.titleMedium)
                     .copy(fontWeight = FontWeight.Bold),
                 color = MaterialTheme.colorScheme.onSurface,
@@ -491,7 +493,7 @@ private fun CrossSyncHeader(
         IconButton(onClick = onDismiss) {
             Icon(
                 imageVector = Icons.Rounded.Close,
-                contentDescription = "Kapat",
+                contentDescription = stringResource(R.string.kapat),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
         }
@@ -995,7 +997,7 @@ private fun ColumnScope.ActionButtons(
                 ) {
                     Icon(Icons.Rounded.Download, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Kaydet", maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 12.sp)
+                    Text(stringResource(R.string.kaydet), maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 12.sp)
                 }
                 OutlinedButton(
                     onClick = onShare,
@@ -1007,7 +1009,7 @@ private fun ColumnScope.ActionButtons(
                 ) {
                     Icon(Icons.AutoMirrored.Rounded.Send, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("Paylaş", maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 12.sp)
+                    Text(stringResource(R.string.paylas), maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 12.sp)
                 }
                 OutlinedButton(
                     onClick = onDismiss,
@@ -1016,7 +1018,7 @@ private fun ColumnScope.ActionButtons(
                         .height(buttonHeight),
                     shape = RoundedCornerShape(10.dp)
                 ) {
-                    Text("Kapat", maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 12.sp)
+                    Text(stringResource(R.string.kapat), maxLines = 1, overflow = TextOverflow.Ellipsis, fontSize = 12.sp)
                 }
             }
         }
@@ -1034,7 +1036,7 @@ private fun ColumnScope.ActionButtons(
                 onClick = onDismiss,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text("Kapat", fontSize = 12.sp)
+                Text(stringResource(R.string.kapat), fontSize = 12.sp)
             }
         }
     }

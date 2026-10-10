@@ -383,7 +383,7 @@ private fun TmdbSettingsTab(
     ) {
         KitsugiSettingsSection(title = stringResource(R.string.tmdb_title)) {
             KitsugiSettingsSwitchItem(
-                title = "Etkinleştir",
+                title = stringResource(R.string.etkinlestir),
                 description = stringResource(R.string.tmdb_desc),
                 icon = Icons.Rounded.Movie,
                 iconColor = accentColor,
@@ -747,7 +747,7 @@ private fun MdbListSettingsTab(
     ) {
         KitsugiSettingsSection(title = stringResource(R.string.mdblist_title)) {
             KitsugiSettingsSwitchItem(
-                title = "Etkinleştir",
+                title = stringResource(R.string.etkinlestir),
                 description = stringResource(R.string.mdblist_desc),
                 icon = Icons.Rounded.Movie,
                 iconColor = accentColor,
@@ -892,7 +892,7 @@ private fun AniSkipSettingsTab(
     ) {
         KitsugiSettingsSection(title = stringResource(R.string.aniskip_title)) {
             KitsugiSettingsSwitchItem(
-                title = "Etkinleştir",
+                title = stringResource(R.string.etkinlestir),
                 description = stringResource(R.string.aniskip_desc),
                 icon = Icons.Rounded.SkipNext,
                 iconColor = accentColor,
@@ -1209,7 +1209,7 @@ private fun FanartTvSettingsTab(
     ) {
         KitsugiSettingsSection(title = stringResource(R.string.fanart_settings_title)) {
             KitsugiSettingsSwitchItem(
-                title = "Etkinleştir",
+                title = stringResource(R.string.etkinlestir),
                 description = stringResource(R.string.fanart_settings_desc),
                 icon = Icons.Rounded.Movie,
                 iconColor = accentColor,

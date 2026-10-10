@@ -48,6 +48,8 @@ import com.kitsugi.animelist.data.local.KitsugiDatabase
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * Kitsugi hesabı ekranı: e-posta/şifre ile kayıt ve giriş, oturum bilgisi, eşitleme ve çıkış.
@@ -213,9 +215,9 @@ fun KitsugiAccountContent() {
                                     }
                             } finally { closePasswordDialog(); busy = false }
                         }
-                    }) { Text("Şifreyi değiştir") }
+                    }) { Text(stringResource(R.string.sifreyi_degistir)) }
             },
-            dismissButton = { TextButton(enabled = !busy, onClick = { closePasswordDialog() }) { Text("Vazgeç") } }
+            dismissButton = { TextButton(enabled = !busy, onClick = { closePasswordDialog() }) { Text(stringResource(R.string.vazgec)) } }
         )
     }
 
@@ -235,7 +237,7 @@ fun KitsugiAccountContent() {
                     } finally { conflictChoice = null; busy = false }
                 }
             }) { Text("Onayla") } },
-            dismissButton = { TextButton(enabled = !busy, onClick = { conflictChoice = null }) { Text("Vazgeç") } })
+            dismissButton = { TextButton(enabled = !busy, onClick = { conflictChoice = null }) { Text(stringResource(R.string.vazgec)) } })
     }
 
     Column(
@@ -325,7 +327,7 @@ fun KitsugiAccountContent() {
                 OutlinedButton(enabled = !busy, onClick = { conflictChoice = false }) { Text("Buluttaki hesapları koru") }
             }
             OutlinedButton(enabled = !busy, onClick = { passwordDialog = true }, modifier = Modifier.fillMaxWidth()) {
-                Text("Şifreyi değiştir")
+                Text(stringResource(R.string.sifreyi_degistir))
             }
             OutlinedButton(
                 onClick = { signOut() },
@@ -344,7 +346,7 @@ fun KitsugiAccountContent() {
             OutlinedTextField(
                 value = password,
                 onValueChange = { password = it },
-                label = { Text("Şifre") },
+                label = { Text(stringResource(R.string.sifre)) },
                 singleLine = true,
                 visualTransformation = PasswordVisualTransformation(),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),

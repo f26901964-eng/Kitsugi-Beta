@@ -36,6 +36,8 @@ import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * Desteklenen 6 Profil Kaynak Platformu.
@@ -127,7 +129,7 @@ fun ProfileSourceSelectorPill(
         }
         Icon(
             imageVector = Icons.Rounded.ArrowDropDown,
-            contentDescription = "Profil Kaynağı Seç",
+            contentDescription = stringResource(R.string.profil_kaynagi_sec),
             tint = accentColor,
             modifier = Modifier.size(18.dp)
         )
@@ -184,7 +186,7 @@ fun ProfileSourcePickerSheet(
                 .padding(bottom = 32.dp)
         ) {
             Text(
-                text = "Profil Kaynağı Seç",
+                text = stringResource(R.string.profil_kaynagi_sec),
                 style = MaterialTheme.typography.titleLarge.copy(
                     fontWeight = FontWeight.Bold,
                     color = KitsugiColors.TextPrimary
@@ -288,7 +290,7 @@ fun ProfileSourcePickerSheet(
                                         .padding(horizontal = 6.dp, vertical = 2.dp)
                                 ) {
                                     Text(
-                                        text = "Bağlı Değil",
+                                        text = stringResource(R.string.bagli_degil),
                                         color = KitsugiColors.TextMuted,
                                         fontSize = 11.sp,
                                         fontWeight = FontWeight.Medium
@@ -318,7 +320,7 @@ fun ProfileSourcePickerSheet(
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.Check,
-                                contentDescription = "Seçili",
+                                contentDescription = stringResource(R.string.secili),
                                 tint = KitsugiColors.Background,
                                 modifier = Modifier.size(16.dp)
                             )

@@ -70,7 +70,7 @@ fun FeedbackDialog(
                     IconButton(onClick = onDismiss) {
                         Icon(
                             imageVector = Icons.Rounded.Close,
-                            contentDescription = "Kapat",
+                            contentDescription = stringResource(R.string.kapat),
                             tint = KitsugiColors.textMuted
                         )
                     }

@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.screens.mylist
 
+import com.kitsugi.animelist.ui.utils.plainLabel
+import com.kitsugi.animelist.ui.utils.localizedLabel
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.model.MediaEntry
@@ -78,7 +80,7 @@ internal fun filterMyListEntries(
                     entry.titleJapanese?.lowercase()?.contains(normalizedQuery) == true ||
                     entry.subtitle.lowercase().contains(normalizedQuery) ||
                     entry.type.name.lowercase().contains(normalizedQuery) ||
-                    entry.status.label.lowercase().contains(normalizedQuery) ||
+                    entry.status.plainLabel().lowercase().contains(normalizedQuery) ||
                     entry.source.lowercase().contains(normalizedQuery) ||
                     entry.year?.toString()?.contains(normalizedQuery) == true ||
                     entry.malId?.toString()?.contains(normalizedQuery) == true ||

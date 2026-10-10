@@ -202,7 +202,7 @@ fun TvActivityDetailDialog(
                             ) {
                                 Icon(
                                     imageVector = if (isActLikedState) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                    contentDescription = "Beğen",
+                                    contentDescription = stringResource(R.string.begen),
                                     tint = if (isActLikedState) accentColor else KitsugiColors.TextSecondary,
                                     modifier = Modifier.size(16.dp)
                                 )
@@ -552,7 +552,7 @@ private fun TvActivityReplyCard(
             ) {
                 Icon(
                     imageVector = if (likedState) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                    contentDescription = "Beğen",
+                    contentDescription = stringResource(R.string.begen),
                     tint = if (likedState) accentColor else KitsugiColors.TextMuted,
                     modifier = Modifier.size(14.dp)
                 )

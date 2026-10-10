@@ -27,6 +27,8 @@ import com.kitsugi.animelist.ui.components.*
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalIsTv
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 // ─────────────────────────────────────────────────────────────────────────────
 // 1. Hesap Bağlantıları Ana Hub Sayfası
@@ -169,7 +171,7 @@ internal fun AniListSettingsContent(profile: ProfileSettings) {
         SettingsNavCard {
             if (profile.isAniListConnected) {
                 KitsugiSettingsItem(
-                    title = "Kütüphaneyi İçe Aktar",
+                    title = stringResource(R.string.kutuphaneyi_ice_aktar),
                     description = if (profile.isAniListImportRunning) "Senkronize ediliyor..." else "Listenizi AniList'ten içe aktarın",
                     icon = Icons.Rounded.Sync,
                     iconColor = KitsugiColors.AccentGreen,
@@ -177,7 +179,7 @@ internal fun AniListSettingsContent(profile: ProfileSettings) {
                 )
                 KitsugiSettingsDivider()
                 KitsugiSettingsSwitchItem(
-                    title = "Otomatik Eşitleme",
+                    title = stringResource(R.string.otomatik_esitleme),
                     description = "Kitsugi'deki değişiklikleri AniList'e anında yansıt",
                     icon = Icons.Rounded.CloudSync,
                     iconColor = KitsugiColors.AccentBlue,
@@ -186,15 +188,15 @@ internal fun AniListSettingsContent(profile: ProfileSettings) {
                 )
                 KitsugiSettingsDivider()
                 KitsugiSettingsItem(
-                    title = "AniList Bağlantısını Kes",
-                    description = "Hesabınızı uygulamadan kaldırır",
+                    title = stringResource(R.string.anilist_baglantisini_kes),
+                    description = stringResource(R.string.hesabinizi_uygulamadan_kaldirir),
                     icon = Icons.Rounded.LinkOff,
                     iconColor = KitsugiColors.AccentRed,
                     onClick = profile.onAniListAuthClick
                 )
             } else {
                 KitsugiSettingsItem(
-                    title = "AniList Hesabını Bağla",
+                    title = stringResource(R.string.anilist_hesabini_bagla),
                     description = if (isTv) "TV'de QR kod ile giriş yap" else "OAuth ile güvenli giriş yapın ve listenizi eşitleyin",
                     icon = Icons.Rounded.Link,
                     iconColor = KitsugiColors.AccentBlue,
@@ -240,7 +242,7 @@ internal fun MalSettingsContent(profile: ProfileSettings) {
         SettingsNavCard {
             if (profile.isMalConnected) {
                 KitsugiSettingsItem(
-                    title = "Kütüphaneyi İçe Aktar",
+                    title = stringResource(R.string.kutuphaneyi_ice_aktar),
                     description = if (profile.isMalImportRunning) "Senkronize ediliyor..." else "Listenizi MyAnimeList'ten içe aktarın",
                     icon = Icons.Rounded.Sync,
                     iconColor = KitsugiColors.AccentGreen,
@@ -248,7 +250,7 @@ internal fun MalSettingsContent(profile: ProfileSettings) {
                 )
                 KitsugiSettingsDivider()
                 KitsugiSettingsSwitchItem(
-                    title = "Otomatik Eşitleme",
+                    title = stringResource(R.string.otomatik_esitleme),
                     description = "Kitsugi'deki değişiklikleri MyAnimeList'e anında yansıt",
                     icon = Icons.Rounded.CloudSync,
                     iconColor = KitsugiColors.AccentBlue,
@@ -257,15 +259,15 @@ internal fun MalSettingsContent(profile: ProfileSettings) {
                 )
                 KitsugiSettingsDivider()
                 KitsugiSettingsItem(
-                    title = "MyAnimeList Bağlantısını Kes",
-                    description = "Hesabınızı uygulamadan kaldırır",
+                    title = stringResource(R.string.myanimelist_baglantisini_kes),
+                    description = stringResource(R.string.hesabinizi_uygulamadan_kaldirir),
                     icon = Icons.Rounded.LinkOff,
                     iconColor = KitsugiColors.AccentRed,
                     onClick = profile.onMalAuthClick
                 )
             } else {
                 KitsugiSettingsItem(
-                    title = "MyAnimeList Hesabını Bağla",
+                    title = stringResource(R.string.myanimelist_hesabini_bagla),
                     description = if (isTv) "TV'de QR kod ile giriş yap" else "OAuth ile giriş yapıp listenizi eşitleyin",
                     icon = Icons.Rounded.Link,
                     iconColor = KitsugiColors.AccentBlue,
@@ -311,7 +313,7 @@ internal fun SimklSettingsContent(profile: ProfileSettings) {
         SettingsNavCard {
             if (profile.isSimklConnected) {
                 KitsugiSettingsItem(
-                    title = "Kütüphaneyi İçe Aktar",
+                    title = stringResource(R.string.kutuphaneyi_ice_aktar),
                     description = if (profile.isSimklImportRunning) "Senkronize ediliyor..." else "Listenizi Simkl'dan içe aktarın",
                     icon = Icons.Rounded.Sync,
                     iconColor = KitsugiColors.AccentGreen,
@@ -319,7 +321,7 @@ internal fun SimklSettingsContent(profile: ProfileSettings) {
                 )
                 KitsugiSettingsDivider()
                 KitsugiSettingsSwitchItem(
-                    title = "Otomatik Eşitleme",
+                    title = stringResource(R.string.otomatik_esitleme),
                     description = "Kitsugi'deki değişiklikleri Simkl'e anında yansıt",
                     icon = Icons.Rounded.CloudSync,
                     iconColor = KitsugiColors.AccentBlue,
@@ -328,16 +330,16 @@ internal fun SimklSettingsContent(profile: ProfileSettings) {
                 )
                 KitsugiSettingsDivider()
                 KitsugiSettingsItem(
-                    title = "Simkl Bağlantısını Kes",
-                    description = "Hesabınızı uygulamadan kaldırır",
+                    title = stringResource(R.string.simkl_baglantisini_kes),
+                    description = stringResource(R.string.hesabinizi_uygulamadan_kaldirir),
                     icon = Icons.Rounded.LinkOff,
                     iconColor = KitsugiColors.AccentRed,
                     onClick = profile.onSimklAuthClick
                 )
             } else if (profile.isSimklSessionExpired) {
                 KitsugiSettingsItem(
-                    title = "Simkl Bağlantısını Yenile (Süresi Doldu)",
-                    description = "Oturum süresi doldu. Tekrar giriş yapın.",
+                    title = stringResource(R.string.simkl_baglantisini_yenile_suresi_doldu),
+                    description = stringResource(R.string.oturum_suresi_doldu_tekrar_giris_yapin),
                     icon = Icons.Rounded.Warning,
                     iconColor = KitsugiColors.AccentRed,
                     onClick = {
@@ -347,7 +349,7 @@ internal fun SimklSettingsContent(profile: ProfileSettings) {
                 )
             } else {
                 KitsugiSettingsItem(
-                    title = "Simkl Hesabını Bağla",
+                    title = stringResource(R.string.simkl_hesabini_bagla),
                     description = if (isTv) "TV'de QR kod ile giriş yap" else "Giriş yap, film, dizi ve animelerinizi eşitleyin",
                     icon = Icons.Rounded.Link,
                     iconColor = KitsugiColors.AccentBlue,
@@ -393,7 +395,7 @@ internal fun KitsuSettingsContent(profile: ProfileSettings) {
         SettingsNavCard {
             if (profile.isKitsuConnected) {
                 KitsugiSettingsItem(
-                    title = "Kütüphaneyi İçe Aktar",
+                    title = stringResource(R.string.kutuphaneyi_ice_aktar),
                     description = if (profile.isKitsuImportRunning) "Senkronize ediliyor..." else "Listenizi Kitsu'dan içe aktarın",
                     icon = Icons.Rounded.Sync,
                     iconColor = KitsugiColors.AccentGreen,
@@ -401,7 +403,7 @@ internal fun KitsuSettingsContent(profile: ProfileSettings) {
                 )
                 KitsugiSettingsDivider()
                 KitsugiSettingsSwitchItem(
-                    title = "Otomatik Eşitleme",
+                    title = stringResource(R.string.otomatik_esitleme),
                     description = "Kitsugi'deki değişiklikleri Kitsu'ya anında yansıt",
                     icon = Icons.Rounded.CloudSync,
                     iconColor = kitsuColor,
@@ -410,15 +412,15 @@ internal fun KitsuSettingsContent(profile: ProfileSettings) {
                 )
                 KitsugiSettingsDivider()
                 KitsugiSettingsItem(
-                    title = "Kitsu Bağlantısını Kes",
-                    description = "Hesabınızı uygulamadan kaldırır",
+                    title = stringResource(R.string.kitsu_baglantisini_kes),
+                    description = stringResource(R.string.hesabinizi_uygulamadan_kaldirir),
                     icon = Icons.Rounded.LinkOff,
                     iconColor = KitsugiColors.AccentRed,
                     onClick = profile.onKitsuAuthClick
                 )
             } else {
                 KitsugiSettingsItem(
-                    title = "Kitsu Hesabını Bağla",
+                    title = stringResource(R.string.kitsu_hesabini_bagla),
                     description = "Kullanıcı adı ve şifrenizle giriş yapıp kütüphanenizi senkronize edin",
                     icon = Icons.Rounded.Link,
                     iconColor = kitsuColor,
@@ -497,7 +499,7 @@ internal fun ShikimoriSettingsContent(profile: ProfileSettings) {
         SettingsNavCard {
             if (profile.isShikimoriConnected) {
                 KitsugiSettingsItem(
-                    title = "Kütüphaneyi İçe Aktar",
+                    title = stringResource(R.string.kutuphaneyi_ice_aktar),
                     description = if (profile.isShikimoriImportRunning) "Senkronize ediliyor..." else "Listenizi Shikimori'den içe aktarın",
                     icon = Icons.Rounded.Sync,
                     iconColor = KitsugiColors.AccentGreen,
@@ -505,7 +507,7 @@ internal fun ShikimoriSettingsContent(profile: ProfileSettings) {
                 )
                 KitsugiSettingsDivider()
                 KitsugiSettingsSwitchItem(
-                    title = "Otomatik Eşitleme",
+                    title = stringResource(R.string.otomatik_esitleme),
                     description = "Kitsugi'deki değişiklikleri Shikimori'ye anında yansıt",
                     icon = Icons.Rounded.CloudSync,
                     iconColor = shikimoriColor,
@@ -514,15 +516,15 @@ internal fun ShikimoriSettingsContent(profile: ProfileSettings) {
                 )
                 KitsugiSettingsDivider()
                 KitsugiSettingsItem(
-                    title = "Shikimori Bağlantısını Kes",
-                    description = "Hesabınızı uygulamadan kaldırır",
+                    title = stringResource(R.string.shikimori_baglantisini_kes),
+                    description = stringResource(R.string.hesabinizi_uygulamadan_kaldirir),
                     icon = Icons.Rounded.LinkOff,
                     iconColor = KitsugiColors.AccentRed,
                     onClick = profile.onShikimoriAuthClick
                 )
             } else {
                 KitsugiSettingsItem(
-                    title = "Shikimori Hesabını Bağla",
+                    title = stringResource(R.string.shikimori_hesabini_bagla),
                     description = "Client kimlik bilgileri veya Yetki Kodu ile giriş yapın",
                     icon = Icons.Rounded.Link,
                     iconColor = shikimoriColor,
@@ -609,7 +611,7 @@ internal fun BangumiSettingsContent(profile: ProfileSettings) {
         SettingsNavCard {
             if (profile.isBangumiConnected) {
                 KitsugiSettingsItem(
-                    title = "Kütüphaneyi İçe Aktar",
+                    title = stringResource(R.string.kutuphaneyi_ice_aktar),
                     description = if (profile.isBangumiImportRunning) "Senkronize ediliyor..." else "Bangumi 收藏 (koleksiyon) listenizi içe aktarın",
                     icon = Icons.Rounded.Sync,
                     iconColor = KitsugiColors.AccentGreen,
@@ -617,7 +619,7 @@ internal fun BangumiSettingsContent(profile: ProfileSettings) {
                 )
                 KitsugiSettingsDivider()
                 KitsugiSettingsSwitchItem(
-                    title = "Otomatik Eşitleme",
+                    title = stringResource(R.string.otomatik_esitleme),
                     description = "Kitsugi'deki değişiklikleri Bangumi'ye anında yansıt",
                     icon = Icons.Rounded.CloudSync,
                     iconColor = bangumiColor,

@@ -67,6 +67,8 @@ import com.kitsugi.animelist.data.auth.BangumiApiClient
 import com.kitsugi.animelist.data.auth.BangumiAuthStore
 import com.kitsugi.animelist.data.auth.ExternalAuthManager
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * Bangumi (bgm.tv) hesap bağlama diyaloğu.
@@ -350,7 +352,7 @@ fun KitsugiBangumiLoginDialog(
                                 Icon(Icons.Rounded.Bolt, contentDescription = null, modifier = Modifier.size(18.dp))
                                 Spacer(modifier = Modifier.width(6.dp))
                                 Text(
-                                    text = "1-Tık Otomatik Giriş (Önerilen)",
+                                    text = stringResource(R.string.s1_tik_otomatik_giris_onerilen),
                                     style = MaterialTheme.typography.labelMedium,
                                     fontWeight = FontWeight.Bold
                                 )
@@ -434,7 +436,7 @@ fun KitsugiBangumiLoginDialog(
                                     errorMessage = null
                                 },
                                 label = { Text("Yetkilendirme Kodu (Code)") },
-                                placeholder = { Text("Tarayıcıdan aldığınız kod") },
+                                placeholder = { Text(stringResource(R.string.tarayicidan_aldiginiz_kod)) },
                                 trailingIcon = {
                                     KitsugiTonalButton(
                                         onClick = {
@@ -449,7 +451,7 @@ fun KitsugiBangumiLoginDialog(
                                     ) {
                                         Icon(Icons.Rounded.ContentPaste, contentDescription = null, modifier = Modifier.size(14.dp))
                                         Spacer(modifier = Modifier.width(4.dp))
-                                        Text("Yapıştır", fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                        Text(stringResource(R.string.yapistir), fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                                     }
                                 },
                                 singleLine = true,
@@ -583,7 +585,7 @@ fun KitsugiBangumiLoginDialog(
                             contentColor = KitsugiColors.TextSecondary
                         )
                     ) {
-                        Text("İptal")
+                        Text(stringResource(R.string.iptal))
                     }
 
                     KitsugiButton(
@@ -616,7 +618,7 @@ fun KitsugiBangumiLoginDialog(
                         if (isLoading) {
                             KitsugiPlasmaLoader(size = 18.dp)
                         } else {
-                            Text("Bağlan", fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.baglan), fontWeight = FontWeight.Bold)
                         }
                     }
                 }

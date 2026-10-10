@@ -120,13 +120,19 @@ fun KitsugiNsfwImage(
         contentAlignment = Alignment.Center
     ) {
         if (imageModel != null) {
+            // PERF: onError callback'ini her recomposition'da yeni lambda
+            // üretmeyecek şekilde sabitle; AsyncImage yeni gördüğü lambda'yı
+            // model değişikliği zannedebiliyor ve yeniden enqueue atabiliyor.
+            val errorCallback = remember(onLoadingFailed) {
+                onLoadingFailed?.let { { _: coil3.compose.AsyncImagePainter.State.Error -> it() } }
+            }
             AsyncImage(
                 model = imageModel,
                 contentDescription = contentDescription,
                 modifier = Modifier.fillMaxSize(),
                 contentScale = contentScale,
                 alignment = alignment,
-                onError = { onLoadingFailed?.invoke() }
+                onError = errorCallback
             )
         } else if (initials.isNotEmpty()) {
             Text(

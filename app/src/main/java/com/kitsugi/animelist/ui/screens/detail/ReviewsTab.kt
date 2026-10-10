@@ -49,6 +49,8 @@ import androidx.compose.foundation.clickable
 import com.kitsugi.animelist.utils.ShareUtils
 import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 
 @Composable
@@ -143,7 +145,7 @@ fun ReviewsTabContent(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Tartışma Konuları",
+                        text = stringResource(R.string.tartisma_konulari),
                         color = KitsugiColors.TextPrimary,
                         fontSize = 15.sp,
                         fontWeight = FontWeight.Black
@@ -158,7 +160,7 @@ fun ReviewsTabContent(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.List,
-                            contentDescription = "Tümünü Gör",
+                            contentDescription = stringResource(R.string.tumunu_gor),
                             tint = KitsugiColors.TextPrimary,
                             modifier = Modifier.size(16.dp)
                         )
@@ -169,11 +171,7 @@ fun ReviewsTabContent(
                     state = topicsListState,
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     contentPadding = PaddingValues(horizontal = 14.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    flingBehavior = androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior(
-                        lazyListState = topicsListState,
-                        snapPosition = androidx.compose.foundation.gestures.snapping.SnapPosition.Start
-                    )
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     items(forumTopics) { topic ->
                         TopicCard(
@@ -242,7 +240,7 @@ fun ReviewsTabContent(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.List,
-                            contentDescription = "Tümünü Gör",
+                            contentDescription = stringResource(R.string.tumunu_gor),
                             tint = KitsugiColors.TextPrimary,
                             modifier = Modifier.size(16.dp)
                         )
@@ -253,11 +251,7 @@ fun ReviewsTabContent(
                     state = activitiesListState,
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     contentPadding = PaddingValues(horizontal = 14.dp),
-                    modifier = Modifier.fillMaxWidth(),
-                    flingBehavior = androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior(
-                        lazyListState = activitiesListState,
-                        snapPosition = androidx.compose.foundation.gestures.snapping.SnapPosition.Start
-                    )
+                    modifier = Modifier.fillMaxWidth()
                 ) {
                     items(activitiesList) { activity ->
                         ActivityCard(
@@ -310,7 +304,7 @@ fun ReviewsTabContent(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "İncelemeler",
+                    text = stringResource(R.string.incelemeler),
                     color = KitsugiColors.TextPrimary,
                     fontSize = 15.sp,
                     fontWeight = FontWeight.Black
@@ -325,7 +319,7 @@ fun ReviewsTabContent(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.List,
-                        contentDescription = "Tümünü Gör",
+                        contentDescription = stringResource(R.string.tumunu_gor),
                         tint = KitsugiColors.TextPrimary,
                         modifier = Modifier.size(16.dp)
                     )
@@ -359,11 +353,7 @@ fun ReviewsTabContent(
                             state = reviewsListState,
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                             contentPadding = PaddingValues(horizontal = 14.dp),
-                            modifier = Modifier.fillMaxWidth(),
-                            flingBehavior = androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior(
-                                lazyListState = reviewsListState,
-                                snapPosition = androidx.compose.foundation.gestures.snapping.SnapPosition.Start
-                            )
+                            modifier = Modifier.fillMaxWidth()
                         ) {
                             items(reviewsList) { rev ->
                                 KitsugiReviewCard(

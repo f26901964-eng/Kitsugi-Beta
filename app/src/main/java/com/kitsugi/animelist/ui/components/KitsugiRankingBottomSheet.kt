@@ -50,6 +50,8 @@ import com.kitsugi.animelist.ui.screens.explore.ExplorePlatform
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun KitsugiRankingBottomSheet(
@@ -170,7 +172,7 @@ fun KitsugiRankingBottomSheet(
                 IconButton(onClick = onDismissRequest) {
                     Icon(
                         imageVector = Icons.Rounded.Close,
-                        contentDescription = "Kapat",
+                        contentDescription = stringResource(R.string.kapat),
                         tint = KitsugiColors.TextSecondary
                     )
                 }

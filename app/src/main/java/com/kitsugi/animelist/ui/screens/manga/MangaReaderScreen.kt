@@ -77,6 +77,8 @@ import com.kitsugi.animelist.ui.screens.manga.components.MangaWebtoonReader
 import kotlinx.coroutines.launch
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * Manga Okuyucu Ana Ekranı
@@ -293,7 +295,7 @@ fun MangaReaderScreen(
                     IconButton(onClick = onBack) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Geri",
+                            contentDescription = stringResource(R.string.geri),
                             tint = Color.White
                         )
                     }
@@ -317,7 +319,7 @@ fun MangaReaderScreen(
                     IconButton(onClick = { showSettings = true }) {
                         Icon(
                             Icons.AutoMirrored.Filled.MenuBook,
-                            contentDescription = "Okuyucu Ayarları",
+                            contentDescription = stringResource(R.string.okuyucu_ayarlari),
                             tint = Color.White
                         )
                     }
@@ -353,7 +355,7 @@ fun MangaReaderScreen(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Önceki Bölüm",
+                            contentDescription = stringResource(R.string.onceki_bolum),
                             tint = if (viewModel.hasPreviousChapter) Color.White else Color.White.copy(0.3f)
                         )
                     }
@@ -417,7 +419,7 @@ fun MangaReaderScreen(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                            contentDescription = "Sonraki Bölüm",
+                            contentDescription = stringResource(R.string.sonraki_bolum),
                             tint = if (viewModel.hasNextChapter) Color.White else Color.White.copy(0.3f)
                         )
                     }
@@ -447,7 +449,7 @@ fun MangaReaderScreen(
                     }) {
                         Icon(
                             imageVector = readingModeIcon,
-                            contentDescription = "Okuma Yönü",
+                            contentDescription = stringResource(R.string.okuma_yonu),
                             tint = Color.White
                         )
                     }
@@ -491,7 +493,7 @@ fun MangaReaderScreen(
                     IconButton(onClick = { showSettings = true }) {
                         Icon(
                             imageVector = Icons.Default.Settings,
-                            contentDescription = "Ayarlar",
+                            contentDescription = stringResource(R.string.ayarlar),
                             tint = Color.White
                         )
                     }

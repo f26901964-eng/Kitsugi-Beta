@@ -42,6 +42,8 @@ import androidx.compose.material.icons.rounded.ExpandMore
 import androidx.compose.material.icons.rounded.ExpandLess
 import androidx.compose.foundation.clickable
 import com.kitsugi.animelist.model.MediaType
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /** Varsayılan olarak gösterilecek çip sayısı; gerisi "Daha fazla" ile açılır. */
 private const val COLLAPSED_CHIP_COUNT = 8
@@ -98,7 +100,7 @@ fun SearchHistorySection(
                     modifier = Modifier.size(14.dp)
                 )
                 Text(
-                    text = "Son Aramalar",
+                    text = stringResource(R.string.son_aramalar),
                     color = KitsugiColors.TextSecondary,
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = FontWeight.SemiBold
@@ -175,7 +177,7 @@ fun SearchHistorySection(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Close,
-                            contentDescription = "Kaldır",
+                            contentDescription = stringResource(R.string.kaldir),
                             tint = KitsugiColors.TextMuted,
                             modifier = Modifier.size(12.dp)
                         )

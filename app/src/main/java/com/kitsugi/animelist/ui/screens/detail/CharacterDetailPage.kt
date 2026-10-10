@@ -32,6 +32,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
@@ -239,7 +240,13 @@ fun CharacterDetailPage(
                     }
                 ) {
                     val listState = rememberLazyListState()
-                val showFloatingHeader = listState.firstVisibleItemIndex >= 1
+                var showFloatingHeader by remember { mutableStateOf(false) }
+                LaunchedEffect(listState) {
+                    snapshotFlow { listState.firstVisibleItemIndex }.collect { index ->
+                        if (!showFloatingHeader && index >= 2) showFloatingHeader = true
+                        else if (showFloatingHeader && index == 0) showFloatingHeader = false
+                    }
+                }
                 val tabAbout      = stringResource(R.string.character_tab_about)
                 val tabAppearances = stringResource(R.string.character_tab_appearances)
                 val tabVoiceActors = stringResource(R.string.character_tab_voice_actors)
@@ -520,7 +527,8 @@ fun CharacterDetailPage(
                                                 .fillMaxWidth()
                                                 .padding(horizontal = 20.dp)
                                                 .onGloballyPositioned { coordinates ->
-                                                    pageHeights[page] = coordinates.size.height
+                                                    com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults
+                                                        .recordStablePageHeight(pageHeights, page, coordinates.size.height)
                                                 }
                                         ) {
                                             when (page) {

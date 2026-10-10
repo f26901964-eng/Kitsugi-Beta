@@ -454,7 +454,7 @@ internal fun CharacterAboutTabContent(
                             },
                             modifier = Modifier.size(36.dp)
                         ) {
-                            Icon(Icons.Rounded.Translate, contentDescription = "Çevir", tint = accentColor)
+                            Icon(Icons.Rounded.Translate, contentDescription = stringResource(R.string.cevir), tint = accentColor)
                         }
                         Spacer(modifier = Modifier.width(6.dp))
                         IconButton(
@@ -716,8 +716,8 @@ internal fun CharacterDetailStickyHeader(
     ) {
         AnimatedVisibility(
             visible = showFloatingHeader,
-            enter = expandVertically() + fadeIn(),
-            exit = shrinkVertically() + fadeOut()
+            enter = fadeIn(),
+            exit = fadeOut()
         ) {
             Row(
                 verticalAlignment = Alignment.CenterVertically,

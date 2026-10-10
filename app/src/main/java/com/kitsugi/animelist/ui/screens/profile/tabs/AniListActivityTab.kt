@@ -14,6 +14,8 @@ import com.kitsugi.animelist.ui.app.AniListProfileState
 import com.kitsugi.animelist.data.settings.AppSettings
 import com.kitsugi.animelist.ui.screens.profile.ActivityCard
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun AniListActivityTab(
@@ -32,7 +34,7 @@ fun AniListActivityTab(
                 .padding(32.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = "Henüz aktivite bulunmuyor.", color = KitsugiColors.TextMuted)
+            Text(text = stringResource(R.string.henuz_aktivite_bulunmuyor), color = KitsugiColors.TextMuted)
         }
     } else {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {

@@ -31,6 +31,8 @@ import com.kitsugi.animelist.ui.utils.tvClickable
 import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * A single forum comment/reply card used inside topic detail sheets,
@@ -152,7 +154,7 @@ internal fun KitsugiForumCommentCard(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Translate,
-                        contentDescription = "Çevir",
+                        contentDescription = stringResource(R.string.cevir),
                         tint = accentColor,
                         modifier = Modifier.size(15.dp)
                     )
@@ -189,7 +191,7 @@ internal fun KitsugiForumCommentCard(
                     ) {
                         Icon(
                             imageVector = if (isRepliesExpanded) Icons.Rounded.ChatBubble else Icons.Rounded.ChatBubbleOutline,
-                            contentDescription = "Yanıtlar",
+                            contentDescription = stringResource(R.string.yanitlar),
                             tint = accentColor,
                             modifier = Modifier.size(16.dp)
                         )
@@ -223,7 +225,7 @@ internal fun KitsugiForumCommentCard(
                 ) {
                     Icon(
                         imageVector = if (isLikedState) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                        contentDescription = "Beğen",
+                        contentDescription = stringResource(R.string.begen),
                         tint = if (isLikedState) accentColor else KitsugiColors.TextSecondary,
                         modifier = Modifier.size(16.dp)
                     )
@@ -243,7 +245,7 @@ internal fun KitsugiForumCommentCard(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.Reply,
-                            contentDescription = "Yanıtla",
+                            contentDescription = stringResource(R.string.yanitla),
                             tint = KitsugiColors.TextSecondary,
                             modifier = Modifier.size(18.dp)
                         )
@@ -408,7 +410,7 @@ private fun KitsugiForumChildCommentRow(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Translate,
-                            contentDescription = "Çevir",
+                            contentDescription = stringResource(R.string.cevir),
                             tint = accentColor,
                             modifier = Modifier.size(14.dp)
                         )
@@ -444,7 +446,7 @@ private fun KitsugiForumChildCommentRow(
                         ) {
                           Icon(
                               imageVector = if (isRepliesExpanded) Icons.Rounded.ChatBubble else Icons.Rounded.ChatBubbleOutline,
-                              contentDescription = "Yanıtlar",
+                              contentDescription = stringResource(R.string.yanitlar),
                               tint = accentColor,
                               modifier = Modifier.size(14.dp)
                           )
@@ -477,7 +479,7 @@ private fun KitsugiForumChildCommentRow(
                     ) {
                         Icon(
                             imageVector = if (isLikedState) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                            contentDescription = "Beğen",
+                            contentDescription = stringResource(R.string.begen),
                             tint = if (isLikedState) accentColor else KitsugiColors.TextSecondary,
                             modifier = Modifier.size(14.dp)
                         )
@@ -496,7 +498,7 @@ private fun KitsugiForumChildCommentRow(
                         ) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Rounded.Reply,
-                                contentDescription = "Yanıtla",
+                                contentDescription = stringResource(R.string.yanitla),
                                 tint = KitsugiColors.TextSecondary,
                                 modifier = Modifier.size(14.dp)
                             )

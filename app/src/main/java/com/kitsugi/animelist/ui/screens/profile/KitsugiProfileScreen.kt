@@ -39,6 +39,8 @@ import com.kitsugi.animelist.ui.components.KitsugiBangumiLoginDialog
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun KitsugiProfileScreen(
@@ -437,7 +439,7 @@ fun KitsugiProfileScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteConfirmDialog = null }) {
-                    Text("İptal", color = KitsugiColors.TextMuted)
+                    Text(stringResource(R.string.iptal), color = KitsugiColors.TextMuted)
                 }
             },
             containerColor = KitsugiColors.Surface,

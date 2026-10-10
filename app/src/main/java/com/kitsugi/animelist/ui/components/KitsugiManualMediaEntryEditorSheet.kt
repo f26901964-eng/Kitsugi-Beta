@@ -1,4 +1,5 @@
 ﻿package com.kitsugi.animelist.ui.components
+import com.kitsugi.animelist.ui.utils.localizedLabel
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import com.kitsugi.animelist.ui.theme.gradient.background
@@ -56,6 +57,8 @@ import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -196,7 +199,7 @@ internal fun KitsugiManualMediaEntryEditorSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 TextButton(onClick = LocalDismissAnimated.current) {
-                    Text(text = "İptal", color = KitsugiColors.TextSecondary, fontWeight = FontWeight.Medium)
+                    Text(text = stringResource(R.string.iptal), color = KitsugiColors.TextSecondary, fontWeight = FontWeight.Medium)
                 }
 
                 Text(
@@ -238,7 +241,7 @@ internal fun KitsugiManualMediaEntryEditorSheet(
                     }
                 ) {
                     Text(
-                        text = "Kaydet",
+                        text = stringResource(R.string.kaydet),
                         color = if (canSave) resolvedAccentColor else KitsugiColors.TextMuted,
                         fontWeight = FontWeight.Bold
                     )
@@ -280,7 +283,7 @@ internal fun KitsugiManualMediaEntryEditorSheet(
                         ) {
                             Icon(
                                 imageVector = icon,
-                                contentDescription = status.label,
+                                contentDescription = status.localizedLabel(),
                                 tint = if (selected) KitsugiColors.Background else KitsugiColors.TextSecondary,
                                 modifier = Modifier.size(24.dp)
                             )
@@ -296,14 +299,14 @@ internal fun KitsugiManualMediaEntryEditorSheet(
                     DialogTextField(
                         value = title,
                         onValueChange = { title = it },
-                        label = "Başlık",
-                        placeholder = "Örn: Sousou no Frieren"
+                        label = stringResource(R.string.baslik),
+                        placeholder = stringResource(R.string.orn_sousou_no_frieren)
                     )
                     Spacer(modifier = Modifier.height(10.dp))
                     DialogTextField(
                         value = subtitle,
                         onValueChange = { subtitle = it },
-                        label = "Açıklama / Türler",
+                        label = stringResource(R.string.aciklama_turler),
                         placeholder = "Örn: Tv, Action"
                     )
                 }
@@ -322,7 +325,7 @@ internal fun KitsugiManualMediaEntryEditorSheet(
                 }
                 SheetRow(
                     icon = typeIcon,
-                    label = "Tür",
+                    label = stringResource(R.string.tur),
                     value = typeValue,
                     onClick = {
                         selectedType = when (selectedType) {
@@ -382,7 +385,7 @@ internal fun KitsugiManualMediaEntryEditorSheet(
                 // Total Episodes/Chapters editor row
                 SheetRow(
                     icon = Icons.Rounded.FormatListNumbered,
-                    label = "Toplam Sayı",
+                    label = stringResource(R.string.toplam_sayi),
                     value = totalText,
                     onValueChange = { newValue ->
                         if (newValue.isEmpty()) {
@@ -480,7 +483,7 @@ internal fun KitsugiManualMediaEntryEditorSheet(
 
                 SheetRow(
                     icon = Icons.Rounded.CalendarToday,
-                    label = "Başlangıç Tarihi",
+                    label = stringResource(R.string.baslangic_tarihi),
                     value = startDateText.ifBlank { "Tarih Seçilmemiş" },
                     onClick = {
                         selectDate(startDateText) { startDateText = it }
@@ -492,7 +495,7 @@ internal fun KitsugiManualMediaEntryEditorSheet(
 
                 SheetRow(
                     icon = Icons.Rounded.EventAvailable,
-                    label = "Bitiş Tarihi",
+                    label = stringResource(R.string.bitis_tarihi),
                     value = endDateText.ifBlank { "Tarih Seçilmemiş" },
                     onClick = {
                         selectDate(endDateText) { endDateText = it }
@@ -526,7 +529,7 @@ internal fun KitsugiManualMediaEntryEditorSheet(
                             .fillMaxWidth()
                             .height(100.dp),
                         shape = RoundedCornerShape(18.dp),
-                        placeholder = { Text(text = "Kişisel düşüncelerinizi yazın...", color = KitsugiColors.TextMuted) },
+                        placeholder = { Text(text = stringResource(R.string.kisisel_dusuncelerinizi_yazin), color = KitsugiColors.TextMuted) },
                         colors = TextFieldDefaults.colors(
                             focusedTextColor = KitsugiColors.TextPrimary,
                             unfocusedTextColor = KitsugiColors.TextPrimary,
@@ -548,7 +551,7 @@ internal fun KitsugiManualMediaEntryEditorSheet(
                 )
                 SheetRow(
                     icon = Icons.Rounded.Lock,
-                    label = "+18 İçerik",
+                    label = stringResource(R.string.s18_icerik),
                     switchChecked = isAdult,
                     onSwitchCheckedChange = { isAdult = it }
                 )

@@ -45,6 +45,8 @@ import com.kitsugi.animelist.ui.app.ProfileFavoriteItem
 import com.kitsugi.animelist.ui.app.SimklProfileState
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun SimklProfileContent(
@@ -77,11 +79,12 @@ fun SimklProfileContent(
         initialFirstVisibleItemScrollOffset = viewModel.simklScrollOffset
     )
 
-    LaunchedEffect(listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset) {
-        viewModel.updateSimklScroll(
-            listState.firstVisibleItemIndex,
-            listState.firstVisibleItemScrollOffset
-        )
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
+        }.collect { (index, offset) ->
+            viewModel.updateSimklScroll(index, offset)
+        }
     }
 
     LazyColumn(
@@ -134,7 +137,7 @@ fun SimklProfileContent(
                         }) {
                             Icon(
                                 imageVector = Icons.Rounded.Share,
-                                contentDescription = "Profili Paylaş",
+                                contentDescription = stringResource(R.string.profili_paylas),
                                 tint = KitsugiColors.TextPrimary,
                                 modifier = Modifier.size(18.dp)
                             )
@@ -271,7 +274,8 @@ fun SimklProfileContent(
                         modifier = Modifier
                             .fillMaxWidth()
                             .onGloballyPositioned { coordinates ->
-                                pageHeights[page] = coordinates.size.height
+                                com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults
+                                    .recordStablePageHeight(pageHeights, page, coordinates.size.height)
                             },
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
@@ -291,7 +295,7 @@ fun SimklProfileContent(
                                             verticalAlignment = Alignment.CenterVertically
                                         ) {
                                             Text(
-                                                text = "Hakkında",
+                                                text = stringResource(R.string.hakkinda),
                                                 color = KitsugiColors.TextPrimary,
                                                 style = MaterialTheme.typography.titleSmall,
                                                 fontWeight = FontWeight.Bold
@@ -306,7 +310,7 @@ fun SimklProfileContent(
                                                 ) {
                                                     Icon(
                                                         imageVector = Icons.Rounded.Translate,
-                                                        contentDescription = "Çevir",
+                                                        contentDescription = stringResource(R.string.cevir),
                                                         tint = accentColor,
                                                         modifier = Modifier.size(16.dp)
                                                     )
@@ -384,7 +388,7 @@ fun SimklProfileContent(
                                             .padding(32.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Text(text = "Henüz Simkl aktivitesi bulunmuyor.", color = KitsugiColors.TextMuted)
+                                        Text(text = stringResource(R.string.henuz_simkl_aktivitesi_bulunmuyor), color = KitsugiColors.TextMuted)
                                     }
                                 }
                             }
@@ -397,7 +401,7 @@ fun SimklProfileContent(
                                         .padding(18.dp)
                                 ) {
                                     Text(
-                                        text = "İstatistikler",
+                                        text = stringResource(R.string.istatistikler),
                                         color = KitsugiColors.TextPrimary,
                                         style = MaterialTheme.typography.titleMedium,
                                         fontWeight = FontWeight.Bold

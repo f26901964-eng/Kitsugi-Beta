@@ -27,6 +27,8 @@ import com.kitsugi.animelist.data.remote.CsPlugin
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -178,7 +180,7 @@ internal fun CsPluginRow(
             }
             PluginInstallState.SUCCESS -> {
                 Text(
-                    text = "✓ Başarılı",
+                    text = stringResource(R.string.basarili),
                     color = KitsugiColors.AccentGreen,
                     fontWeight = FontWeight.Bold,
                     fontSize = 11.sp,
@@ -300,7 +302,7 @@ internal fun CsPluginRow(
                         }
                         Icon(
                             imageVector = Icons.Rounded.Refresh,
-                            contentDescription = "Yeniden Kur",
+                            contentDescription = stringResource(R.string.yeniden_kur),
                             tint = KitsugiColors.TextMuted,
                             modifier = Modifier
                                 .size(18.dp)

@@ -14,6 +14,8 @@ import androidx.compose.animation.scaleOut
 import androidx.compose.animation.shrinkVertically
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.theme.gradient.border
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -88,6 +90,8 @@ import com.kitsugi.animelist.ui.utils.tvClickable
 import com.kitsugi.animelist.utils.parseToMediaType
 import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 sealed interface StudioDetailState {
     object Loading : StudioDetailState
@@ -134,7 +138,7 @@ fun StudioDetailPage(
         when (val currentState = state) {
             is StudioDetailState.Loading -> {
                 KitsugiCinematicLoadingScreen(
-                    title = name?.takeIf { it.isNotBlank() } ?: "Stüdyo / Yapımcı Yükleniyor...",
+                    title = name?.takeIf { it.isNotBlank() } ?: stringResource(R.string.studio_page_loading),
                     imageUrl = imageUrl,
                     onBackClick = onBackClick,
                     source = source
@@ -150,7 +154,7 @@ fun StudioDetailPage(
                     ) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = "Geri",
+                            contentDescription = stringResource(R.string.geri),
                             tint = KitsugiColors.TextPrimary
                         )
                     }
@@ -173,7 +177,7 @@ fun StudioDetailPage(
                                 viewModel.retry()
                             }
                         ) {
-                            Text("Yeniden Dene", color = accentColor, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.yeniden_dene), color = accentColor, fontWeight = FontWeight.Bold)
                         }
                     }
                 }
@@ -268,7 +272,7 @@ private fun StudioDetailSuccessContent(
     val onAboutCopyClick: (String) -> Unit = { text ->
         val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
         clipboard.setPrimaryClip(android.content.ClipData.newPlainText("studio_about", text))
-        android.widget.Toast.makeText(context, "Panoya kopyalandı", android.widget.Toast.LENGTH_SHORT).show()
+        android.widget.Toast.makeText(context, context.getString(R.string.toast_copied_clipboard), android.widget.Toast.LENGTH_SHORT).show()
     }
     val configuration = LocalConfiguration.current
     val screenWidthDp = configuration.screenWidthDp
@@ -337,10 +341,14 @@ private fun StudioDetailSuccessContent(
         if (nearListEnd && detail.hasMoreWorks && !loadMoreFailed && !isLoadingMore) onLoadMore()
     }
 
-    val showFloatingHeader = if (isGridView) gridState.firstVisibleItemIndex >= 1
-    else listState.firstVisibleItemIndex >= 1
+    val showFloatingHeader by remember(isGridView) {
+        derivedStateOf {
+            if (isGridView) gridState.firstVisibleItemIndex >= 1
+            else listState.firstVisibleItemIndex >= 1
+        }
+    }
 
-    val showScrollToTop by remember {
+    val showScrollToTop by remember(isGridView) {
         derivedStateOf {
             if (isGridView) gridState.firstVisibleItemIndex > 3
             else listState.firstVisibleItemIndex > 3
@@ -375,7 +383,7 @@ private fun StudioDetailSuccessContent(
                 ) {
                     Icon(
                         Icons.Rounded.FilterList,
-                        contentDescription = "Filtre ve Sıralama",
+                        contentDescription = stringResource(R.string.filtre_ve_siralama),
                         tint = if (hasActiveFilter) accentColor else KitsugiColors.TextPrimary
                     )
                 }
@@ -413,14 +421,15 @@ private fun StudioDetailSuccessContent(
                 }
             }
 
-            // Emojili hızlı tür çipleri (keşfet sayfalarındaki şeridin aynısı)
-            LazyRow(
+            // Emojili hızlı tür çipleri (Nested LazyRow ana ızgarayı yeniden ölçüyordu)
+            Row(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier
                     .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
                     .padding(top = 12.dp, bottom = 4.dp)
             ) {
-                items(STUDIO_TYPE_FILTERS) { typeFilter ->
+                STUDIO_TYPE_FILTERS.forEach { typeFilter ->
                     val isSelected = selectedTypeId == typeFilter.id
                     Box(
                         modifier = Modifier
@@ -441,7 +450,7 @@ private fun StudioDetailSuccessContent(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = typeFilter.displayLabel,
+                            text = typeFilter.displayLabel(),
                             color = if (isSelected) accentColor else KitsugiColors.TextPrimary,
                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                             style = MaterialTheme.typography.labelMedium
@@ -452,9 +461,11 @@ private fun StudioDetailSuccessContent(
 
             // Sayaç + aktif filtre açıklaması + Temizle
             val activeType = STUDIO_TYPE_FILTERS.firstOrNull { it.id == selectedTypeId }
+            val activeTypeLabel = activeType?.takeIf { it.id != "ALL" }?.displayLabel()
+            val activeSortLabel = if (selectedSortOption != StudioSortOption.DEFAULT) selectedSortOption.displayLabel() else null
             val activeFilterDesc = buildString {
-                if (activeType != null && activeType.id != "ALL") append(" • ${activeType.displayLabel}")
-                if (selectedSortOption != StudioSortOption.DEFAULT) append(" • ${selectedSortOption.displayLabel}")
+                activeTypeLabel?.let { append(" • $it") }
+                activeSortLabel?.let { append(" • $it") }
             }
             Row(
                 modifier = Modifier
@@ -474,7 +485,7 @@ private fun StudioDetailSuccessContent(
                 )
                 if (hasActiveFilter) {
                     Text(
-                        text = "Temizle",
+                        text = stringResource(R.string.temizle),
                         color = accentColor,
                         style = MaterialTheme.typography.labelSmall,
                         fontWeight = FontWeight.Bold,
@@ -534,8 +545,8 @@ private fun StudioDetailSuccessContent(
                     if (displayedWorks.isEmpty()) {
                         item(key = "studio_empty", span = { GridItemSpan(maxLineSpan) }) {
                             KitsugiEmptyState(
-                                title = "Henüz içerik yok",
-                                subtitle = "Bu stüdyo için gösterilecek yapım bulunamadı.",
+                                title = stringResource(R.string.studio_page_empty_title),
+                                subtitle = stringResource(R.string.bu_studyo_icin_gosterilecek_yapim_bulunamadi),
                                 icon = Icons.Rounded.SearchOff
                             )
                         }
@@ -595,8 +606,8 @@ private fun StudioDetailSuccessContent(
                     if (displayedWorks.isEmpty()) {
                         item(key = "studio_empty_list") {
                             KitsugiEmptyState(
-                                title = "Henüz içerik yok",
-                                subtitle = "Bu stüdyo için gösterilecek yapım bulunamadı.",
+                                title = stringResource(R.string.studio_page_empty_title),
+                                subtitle = stringResource(R.string.bu_studyo_icin_gosterilecek_yapim_bulunamadi),
                                 icon = Icons.Rounded.SearchOff
                             )
                         }
@@ -630,8 +641,8 @@ private fun StudioDetailSuccessContent(
             // ── Kaydırınca beliren üst şerit (floating header) ────────────────
             AnimatedVisibility(
                 visible = showFloatingHeader,
-                enter = expandVertically() + fadeIn(),
-                exit = shrinkVertically() + fadeOut(),
+                enter = fadeIn(),
+                exit = fadeOut(),
                 modifier = Modifier.align(Alignment.TopCenter)
             ) {
                 Row(
@@ -644,7 +655,7 @@ private fun StudioDetailSuccessContent(
                     IconButton(onClick = onBackClick) {
                         Icon(
                             Icons.AutoMirrored.Rounded.ArrowBack,
-                            contentDescription = "Geri",
+                            contentDescription = stringResource(R.string.geri),
                             tint = KitsugiColors.TextPrimary
                         )
                     }
@@ -678,7 +689,7 @@ private fun StudioDetailSuccessContent(
                     ) {
                         Icon(
                             Icons.Rounded.FilterList,
-                            contentDescription = "Filtre ve Sıralama",
+                            contentDescription = stringResource(R.string.filtre_ve_siralama),
                             tint = if (hasActiveFilter) accentColor else KitsugiColors.TextPrimary
                         )
                     }
@@ -704,7 +715,7 @@ private fun StudioDetailSuccessContent(
                     }) {
                         Icon(
                             imageVector = if (isGridView) Icons.AutoMirrored.Rounded.ListAlt else Icons.Rounded.GridView,
-                            contentDescription = if (isGridView) "Liste" else "Grid",
+                            contentDescription = if (isGridView) stringResource(R.string.cd_list_view) else stringResource(R.string.cd_grid_view),
                             tint = accentColor
                         )
                     }
@@ -735,7 +746,7 @@ private fun StudioDetailSuccessContent(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.KeyboardArrowUp,
-                        contentDescription = "Yukarı Git",
+                        contentDescription = stringResource(R.string.cd_scroll_top),
                         tint = KitsugiColors.Background,
                         modifier = Modifier.size(28.dp)
                     )
@@ -784,7 +795,7 @@ private fun StudioLoadMoreIndicator(
         }
         failed -> TextButton(onClick = onRetry, modifier = modifier) {
             Text(
-                text = "Devamı yüklenemedi · Tekrar dene",
+                text = stringResource(R.string.studio_page_load_more_failed),
                 color = accentColor,
                 fontWeight = FontWeight.Bold
             )

@@ -49,6 +49,8 @@ import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun ShikimoriProfileContent(
@@ -81,11 +83,12 @@ fun ShikimoriProfileContent(
         initialFirstVisibleItemScrollOffset = viewModel.shikimoriScrollOffset
     )
 
-    LaunchedEffect(listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset) {
-        viewModel.updateShikimoriScroll(
-            listState.firstVisibleItemIndex,
-            listState.firstVisibleItemScrollOffset
-        )
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
+        }.collect { (index, offset) ->
+            viewModel.updateShikimoriScroll(index, offset)
+        }
     }
 
     LazyColumn(
@@ -150,7 +153,7 @@ fun ShikimoriProfileContent(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Share,
-                            contentDescription = "Paylaş",
+                            contentDescription = stringResource(R.string.paylas),
                             tint = KitsugiColors.TextPrimary,
                             modifier = Modifier.size(18.dp)
                         )
@@ -325,7 +328,7 @@ private fun ShikimoriAboutTab(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Hakkında",
+                            text = stringResource(R.string.hakkinda),
                             color = KitsugiColors.TextPrimary,
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp
@@ -345,7 +348,7 @@ private fun ShikimoriAboutTab(
                                 onClick = { context.openTranslator(state.bio) },
                                 modifier = Modifier.size(32.dp)
                             ) {
-                                Icon(Icons.Rounded.Translate, contentDescription = "Çevir", tint = KitsugiColors.TextMuted, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Rounded.Translate, contentDescription = stringResource(R.string.cevir), tint = KitsugiColors.TextMuted, modifier = Modifier.size(16.dp))
                             }
                         }
                     }
@@ -482,7 +485,7 @@ private fun ShikimoriStatsTab(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Puan Dağılımı",
+                            text = stringResource(R.string.puan_dagilimi),
                             color = KitsugiColors.TextPrimary,
                             fontWeight = FontWeight.Bold,
                             fontSize = 15.sp
@@ -534,7 +537,7 @@ private fun ShikimoriStatsTab(
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Text(
-                    text = "Anime Durum Dağılımı",
+                    text = stringResource(R.string.anime_durum_dagilimi),
                     color = KitsugiColors.TextPrimary,
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp
@@ -554,10 +557,10 @@ private fun ShikimoriStatsTab(
                 }
 
                 ShikiStatusRow(label = "İzleniyor", count = state.watchingAnime, color = KitsugiColors.AccentGreen)
-                ShikiStatusRow(label = "Tamamlandı", count = state.completedAnime, color = accentColor)
-                ShikiStatusRow(label = "Planlandı", count = state.plannedAnime, color = KitsugiColors.AccentYellow)
-                ShikiStatusRow(label = "Beklemede", count = state.onHoldAnime, color = KitsugiColors.AccentOrange)
-                ShikiStatusRow(label = "Bırakıldı", count = state.droppedAnime, color = KitsugiColors.AccentRed)
+                ShikiStatusRow(label = stringResource(R.string.tamamlandi), count = state.completedAnime, color = accentColor)
+                ShikiStatusRow(label = stringResource(R.string.planlandi), count = state.plannedAnime, color = KitsugiColors.AccentYellow)
+                ShikiStatusRow(label = stringResource(R.string.beklemede), count = state.onHoldAnime, color = KitsugiColors.AccentOrange)
+                ShikiStatusRow(label = stringResource(R.string.birakildi), count = state.droppedAnime, color = KitsugiColors.AccentRed)
             }
         }
 
@@ -573,7 +576,7 @@ private fun ShikimoriStatsTab(
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
                 Text(
-                    text = "Manga Durum Dağılımı",
+                    text = stringResource(R.string.manga_durum_dagilimi),
                     color = KitsugiColors.TextPrimary,
                     fontWeight = FontWeight.Bold,
                     fontSize = 15.sp
@@ -593,10 +596,10 @@ private fun ShikimoriStatsTab(
                 }
 
                 ShikiStatusRow(label = "Okunuyor", count = state.readingManga, color = KitsugiColors.AccentGreen)
-                ShikiStatusRow(label = "Tamamlandı", count = state.completedManga, color = accentColor)
-                ShikiStatusRow(label = "Planlandı", count = state.plannedManga, color = KitsugiColors.AccentYellow)
-                ShikiStatusRow(label = "Beklemede", count = state.onHoldManga, color = KitsugiColors.AccentOrange)
-                ShikiStatusRow(label = "Bırakıldı", count = state.droppedManga, color = KitsugiColors.AccentRed)
+                ShikiStatusRow(label = stringResource(R.string.tamamlandi), count = state.completedManga, color = accentColor)
+                ShikiStatusRow(label = stringResource(R.string.planlandi), count = state.plannedManga, color = KitsugiColors.AccentYellow)
+                ShikiStatusRow(label = stringResource(R.string.beklemede), count = state.onHoldManga, color = KitsugiColors.AccentOrange)
+                ShikiStatusRow(label = stringResource(R.string.birakildi), count = state.droppedManga, color = KitsugiColors.AccentRed)
             }
         }
     }

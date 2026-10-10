@@ -85,6 +85,9 @@ import androidx.compose.ui.text.style.TextOverflow
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import coil3.compose.AsyncImage
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
+import com.kitsugi.animelist.ui.utils.labelRes
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -319,8 +322,17 @@ fun ApiResultDetailPage(
     val isAnime = result.type == MediaType.Anime
     val hasTvEpisodes = isAnime || result.type == MediaType.TvShow
     val tabs = buildList {
-        addAll(listOf("Bilgi", "Resimler", "Karakterler", "Ekip", "Öneriler", "İlişkiler", "Grafikler", "Yorumlar"))
-        if (hasTvEpisodes) add("Bölümler")
+        addAll(listOf(
+            stringResource(R.string.detail_tab_info),
+            stringResource(R.string.detail_tab_images),
+            stringResource(R.string.detail_tab_characters),
+            stringResource(R.string.detail_tab_staff),
+            stringResource(R.string.detail_tab_recommendations),
+            stringResource(R.string.detail_tab_relations),
+            stringResource(R.string.detail_tab_charts),
+            stringResource(R.string.detail_tab_reviews)
+        ))
+        if (hasTvEpisodes) add(stringResource(R.string.tv_detail_episodes))
     }
     val pagerState = rememberPagerState(initialPage = 0, pageCount = { tabs.size })
     val selectedTab = pagerState.currentPage
@@ -334,7 +346,7 @@ fun ApiResultDetailPage(
         val searchType = mediaType.parseToMediaType()
         val searchResult = JikanSearchResult(
             malId = mediaId,
-            title = "Yükleniyor...",
+            title = context.getString(R.string.yukleniyor),
             subtitle = "",
             type = searchType,
             total = null,
@@ -506,7 +518,7 @@ fun ApiResultDetailPage(
                 }) {
                     Icon(
                         imageVector = Icons.Rounded.Share,
-                        contentDescription = "Paylaş",
+                        contentDescription = stringResource(R.string.paylas),
                         tint = KitsugiColors.TextSecondary
                     )
                 }
@@ -649,7 +661,7 @@ fun ApiResultDetailPage(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     Text(
-                                        text = if (galleryLoading) "Resimler yükleniyor..." else "Görsel bulunamadı",
+                                        text = if (galleryLoading) stringResource(R.string.ui_images_loading) else stringResource(R.string.ui_no_image_available),
                                         color = KitsugiColors.TextMuted,
                                         style = MaterialTheme.typography.bodyMedium
                                     )
@@ -660,12 +672,7 @@ fun ApiResultDetailPage(
                     2 -> CharactersTabContent(state = charactersState, onCharacterClick = onCharacterClick, onStaffClick = onStaffClick, onMediaClick = onMediaClick, titleLanguage = titleLanguage)
                     3 -> StaffTabContent(state = staffState, onStaffClick = onStaffClick, titleLanguage = titleLanguage)
                     4 -> RecommendationsTabContent(state = recommendationsState, titleLanguage = titleLanguage, blurAdultMedia = blurAdultMedia, onRecommendationClick = { rel ->
-                        val typeLabel = when (rel.mediaType) {
-                            MediaType.Anime -> "Anime"
-                            MediaType.Movie -> "Film"
-                            MediaType.TvShow -> "Dizi"
-                            MediaType.Manga -> "Manga"
-                        }
+                        val typeLabel = context.getString(rel.mediaType.labelRes())
                         val relResult = JikanSearchResult(
                             malId = rel.malId,
                             title = rel.title,
@@ -684,12 +691,7 @@ fun ApiResultDetailPage(
                         onRelationClick(relResult)
                     })
                     5 -> RelationsTabContent(state = relationsState, titleLanguage = titleLanguage, blurAdultMedia = blurAdultMedia, onRelationClick = { rel ->
-                        val typeLabel = when (rel.mediaType) {
-                            MediaType.Anime -> "Anime"
-                            MediaType.Movie -> "Film"
-                            MediaType.TvShow -> "Dizi"
-                            MediaType.Manga -> "Manga"
-                        }
+                        val typeLabel = context.getString(rel.mediaType.labelRes())
                         val relResult = JikanSearchResult(
                             malId = rel.malId,
                             title = rel.title,
@@ -872,12 +874,12 @@ fun ApiResultDetailPage(
                     },
                     enabled = (epNum ?: 0) > 0
                 ) {
-                    com.kitsugi.animelist.ui.theme.gradient.Text("İzle", color = KitsugiColors.Background, fontWeight = FontWeight.Bold)
+                    com.kitsugi.animelist.ui.theme.gradient.Text(stringResource(R.string.izle), color = KitsugiColors.Background, fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showWatchDialog = false }) {
-                    com.kitsugi.animelist.ui.theme.gradient.Text("İptal", color = KitsugiColors.TextSecondary)
+                    com.kitsugi.animelist.ui.theme.gradient.Text(stringResource(R.string.iptal), color = KitsugiColors.TextSecondary)
                 }
             }
         )
@@ -907,14 +909,14 @@ fun ApiResultDetailPage(
                         if (isSourceAniList) onLoginAniList() else onLoginMal()
                     }
                 ) {
-                    Text("Bağlan", fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.baglan), fontWeight = FontWeight.Bold)
                 }
             },
             dismissButton = {
                 TextButton(
                     onClick = { showAuthWarningDialog = false }
                 ) {
-                    Text("İptal", color = KitsugiColors.TextMuted)
+                    Text(stringResource(R.string.iptal), color = KitsugiColors.TextMuted)
                 }
             },
             containerColor = KitsugiColors.Surface,

@@ -187,7 +187,7 @@ fun TvReviewDetailDialog(
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.ThumbUp,
-                                contentDescription = "Faydalı",
+                                contentDescription = stringResource(R.string.faydali),
                                 tint = if (userRatingState == "UP_VOTE") accentColor else KitsugiColors.TextSecondary,
                                 modifier = Modifier.size(16.dp)
                             )

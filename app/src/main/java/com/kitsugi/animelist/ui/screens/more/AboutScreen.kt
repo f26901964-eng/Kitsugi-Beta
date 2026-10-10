@@ -44,6 +44,8 @@ import kotlinx.coroutines.withContext
 import java.io.BufferedReader
 import java.io.File
 import java.io.InputStreamReader
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun AboutScreen(
@@ -118,7 +120,7 @@ fun AboutScreen(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                        contentDescription = "Geri",
+                        contentDescription = stringResource(R.string.geri),
                         tint = KitsugiColors.textPrimary
                     )
                 }
@@ -191,7 +193,7 @@ fun AboutScreen(
                         modifier = Modifier.padding(20.dp)
                     ) {
                         Text(
-                            text = "Hakkında",
+                            text = stringResource(R.string.hakkinda),
                             color = KitsugiColors.textPrimary,
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold

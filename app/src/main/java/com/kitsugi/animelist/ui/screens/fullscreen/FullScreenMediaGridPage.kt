@@ -22,14 +22,16 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyGridState
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
-import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
@@ -85,6 +87,8 @@ import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import kotlinx.coroutines.launch
 import java.util.Calendar
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /** Simkl uses 20-item API pages; its static trending chart files are sliced locally. */
 private const val SIMKL_EXPLORE_PAGE_SIZE = 20
@@ -521,8 +525,10 @@ fun FullScreenMediaGridPage(
         }
     }
 
-    // Liste scroll state + auto-load trigger
-    val listState = rememberLazyListState()
+    // Liste scroll state + auto-load trigger.
+    // Saveable: sayfa kısa süre kompozisyondan düşerse konum sıfırlanıp
+    // kutucuklar başa zıplamasın.
+    val listState = rememberSaveable(saver = LazyListState.Saver) { LazyListState() }
     val shouldLoadMoreList by remember {
         derivedStateOf {
             val last = listState.layoutInfo.visibleItemsInfo.lastOrNull() ?: return@derivedStateOf false
@@ -534,7 +540,7 @@ fun FullScreenMediaGridPage(
     }
 
     // Grid scroll state + auto-load trigger
-    val gridState = rememberLazyGridState()
+    val gridState = rememberSaveable(saver = LazyGridState.Saver) { LazyGridState() }
     val shouldLoadMoreGrid by remember {
         derivedStateOf {
             val last = gridState.layoutInfo.visibleItemsInfo.lastOrNull() ?: return@derivedStateOf false
@@ -545,10 +551,16 @@ fun FullScreenMediaGridPage(
         if (isGridView && shouldLoadMoreGrid && !isLoadingMore && hasMorePages) loadNextPage()
     }
 
-    val showFloatingHeader = if (isGridView) gridState.firstVisibleItemIndex >= 1
-    else listState.firstVisibleItemIndex >= 1
+    // Index'i kompozisyonda çıplak okumak, sınır geçişinde tüm ızgarayı
+    // (yüzlerce kart) yeniden kurar ve kaydırma konumunu zıplatır.
+    val showFloatingHeader by remember(isGridView) {
+        derivedStateOf {
+            if (isGridView) gridState.firstVisibleItemIndex >= 1
+            else listState.firstVisibleItemIndex >= 1
+        }
+    }
 
-    val showScrollToTop by remember {
+    val showScrollToTop by remember(isGridView) {
         derivedStateOf {
             if (isGridView) {
                 gridState.firstVisibleItemIndex > 3
@@ -579,7 +591,7 @@ fun FullScreenMediaGridPage(
                         // Geri butonu
                         Row(modifier = Modifier.fillMaxWidth()) {
                             TextButton(onClick = onBackClick) {
-                                Text("Geri", color = accentColor, fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.geri), color = accentColor, fontWeight = FontWeight.Bold)
                             }
                         }
                         // Başlık + toggle + filtre
@@ -611,7 +623,7 @@ fun FullScreenMediaGridPage(
                             ) {
                                 Icon(
                                     Icons.Rounded.FilterList,
-                                    contentDescription = "Filtre ve Sıralama",
+                                    contentDescription = stringResource(R.string.filtre_ve_siralama),
                                     tint = if (hasActiveFilter) accentColor else KitsugiColors.TextPrimary
                                 )
                             }
@@ -634,47 +646,21 @@ fun FullScreenMediaGridPage(
                             }
                         }
 
-                        // Emojili Hızlı Tür Çipleri (Yatay Kaydırılabilir)
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 12.dp, bottom = 4.dp)
-                        ) {
-                            items(KITSUGI_MEDIA_GENRES) { genre ->
-                                val isSelected = selectedGenreId == genre.id
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(20.dp))
-                                        .background(
-                                            if (isSelected) accentColor.copy(alpha = 0.22f)
-                                            else KitsugiColors.Surface
-                                        )
-                                        .border(
-                                            width = if (isSelected) 1.5.dp else 1.dp,
-                                            color = if (isSelected) accentColor else Color.Transparent,
-                                            shape = RoundedCornerShape(20.dp)
-                                        )
-                                        .clickable {
-                                            selectedGenreId = if (isSelected && genre.id != "ALL") "ALL" else genre.id
-                                        }
-                                        .padding(horizontal = 13.dp, vertical = 7.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = genre.displayLabel,
-                                        color = if (isSelected) accentColor else KitsugiColors.TextPrimary,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                        style = MaterialTheme.typography.labelMedium
-                                    )
-                                }
+                        // Nested LazyRow kaydırma sırasında ana ızgarayı yeniden ölçüyordu.
+                        GridGenreChipRow(
+                            selectedGenreId = selectedGenreId,
+                            accentColor = accentColor,
+                            onGenreClick = { genreId, isSelected ->
+                                selectedGenreId = if (isSelected && genreId != "ALL") "ALL" else genreId
                             }
-                        }
+                        )
 
                         val activeGenre = KITSUGI_MEDIA_GENRES.firstOrNull { it.id == selectedGenreId }
+                        val activeGenreLabel = activeGenre?.takeIf { it.id != "ALL" }?.displayLabel()
+                        val activeSortLabel = if (selectedSortOption != KitsugiGridSortOption.DEFAULT) selectedSortOption.displayLabel() else null
                         val activeFilterDesc = buildString {
-                            if (activeGenre != null && activeGenre.id != "ALL") append(" • ${activeGenre.displayLabel}")
-                            if (selectedSortOption != KitsugiGridSortOption.DEFAULT) append(" • ${selectedSortOption.displayLabel}")
+                            activeGenreLabel?.let { append(" • $it") }
+                            activeSortLabel?.let { append(" • $it") }
                         }
 
                         Row(
@@ -685,7 +671,7 @@ fun FullScreenMediaGridPage(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "${displayedResults.size} içerik$activeFilterDesc",
+                                text = stringResource(R.string.displayedresults_size_icerik_activefilterdes, displayedResults.size, activeFilterDesc),
                                 color = KitsugiColors.TextMuted,
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
@@ -695,7 +681,7 @@ fun FullScreenMediaGridPage(
                             )
                             if (hasActiveFilter) {
                                 Text(
-                                    text = "Temizle",
+                                    text = stringResource(R.string.temizle),
                                     color = accentColor,
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
@@ -712,15 +698,20 @@ fun FullScreenMediaGridPage(
                 if (displayedResults.isEmpty() && !isLoadingMore) {
                     item(key = "grid_empty", span = { GridItemSpan(maxLineSpan) }) {
                         KitsugiEmptyState(
-                            title = "Henüz içerik yok",
-                            subtitle = "Bu kategoride gösterilecek içerik bulunamadı.",
+                            title = stringResource(R.string.henuz_icerik_yok),
+                            subtitle = stringResource(R.string.bu_kategoride_gosterilecek_icerik_bulunamadi),
                             icon = Icons.Rounded.SearchOff
                         )
                     }
                 } else {
                     itemsIndexed(
-                        displayedResults,
-                        key = { idx, item -> "${item.source}_${item.malId}_g$idx" }
+                        items = displayedResults,
+                        // PERF: key'de index kullanmak her filtreleme/sıralama/ekleme
+                        // işleminde TÜM item'ların key'ini bozar ve Compose'un tüm
+                        // kartları yeniden oluşturmasına (recomposition + rebind)
+                        // sebep olur. Sabit identity kullanarak reuse maksimize edilir.
+                        key = { _, item -> "grid_${item.source}_${item.malId}_${item.tmdbId ?: 0}_${item.cs3Url.orEmpty().hashCode()}" },
+                        contentType = { _, _ -> "media_card" }
                     ) { index, result ->
                         val showRank = !isSeasonalAnime
                         KitsugiExploreMediaCard(
@@ -777,7 +768,7 @@ fun FullScreenMediaGridPage(
                         // Geri butonu
                         Row(modifier = Modifier.fillMaxWidth()) {
                             TextButton(onClick = onBackClick) {
-                                Text("Geri", color = accentColor, fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.geri), color = accentColor, fontWeight = FontWeight.Bold)
                             }
                         }
                         // Başlık + toggle + filtre
@@ -809,7 +800,7 @@ fun FullScreenMediaGridPage(
                             ) {
                                 Icon(
                                     Icons.Rounded.FilterList,
-                                    contentDescription = "Filtre ve Sıralama",
+                                    contentDescription = stringResource(R.string.filtre_ve_siralama),
                                     tint = if (hasActiveFilter) accentColor else KitsugiColors.TextPrimary
                                 )
                             }
@@ -832,51 +823,25 @@ fun FullScreenMediaGridPage(
                             }
                         }
 
-                        // Emojili Hızlı Tür Çipleri (Yatay Kaydırılabilir)
-                        LazyRow(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 12.dp, bottom = 4.dp)
-                        ) {
-                            items(KITSUGI_MEDIA_GENRES) { genre ->
-                                val isSelected = selectedGenreId == genre.id
-                                Box(
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(20.dp))
-                                        .background(
-                                            if (isSelected) accentColor.copy(alpha = 0.22f)
-                                            else KitsugiColors.Surface
-                                        )
-                                        .border(
-                                            width = if (isSelected) 1.5.dp else 1.dp,
-                                            color = if (isSelected) accentColor else Color.Transparent,
-                                            shape = RoundedCornerShape(20.dp)
-                                        )
-                                        .clickable {
-                                            selectedGenreId = if (isSelected && genre.id != "ALL") "ALL" else genre.id
-                                        }
-                                        .padding(horizontal = 13.dp, vertical = 7.dp),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(
-                                        text = genre.displayLabel,
-                                        color = if (isSelected) accentColor else KitsugiColors.TextPrimary,
-                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                        style = MaterialTheme.typography.labelMedium
-                                    )
-                                }
+                        // Nested LazyRow kaydırma sırasında ana ızgarayı yeniden ölçüyordu.
+                        GridGenreChipRow(
+                            selectedGenreId = selectedGenreId,
+                            accentColor = accentColor,
+                            onGenreClick = { genreId, isSelected ->
+                                selectedGenreId = if (isSelected && genreId != "ALL") "ALL" else genreId
                             }
-                        }
+                        )
                     }
                 }
 
                 item(key = "list_count") {
                     val hasActiveFilter = selectedGenreId != "ALL" || selectedSortOption != KitsugiGridSortOption.DEFAULT
                     val activeGenre = KITSUGI_MEDIA_GENRES.firstOrNull { it.id == selectedGenreId }
+                    val activeGenreLabel = activeGenre?.takeIf { it.id != "ALL" }?.displayLabel()
+                    val activeSortLabel = if (selectedSortOption != KitsugiGridSortOption.DEFAULT) selectedSortOption.displayLabel() else null
                     val activeFilterDesc = buildString {
-                        if (activeGenre != null && activeGenre.id != "ALL") append(" • ${activeGenre.displayLabel}")
-                        if (selectedSortOption != KitsugiGridSortOption.DEFAULT) append(" • ${selectedSortOption.displayLabel}")
+                        activeGenreLabel?.let { append(" • $it") }
+                        activeSortLabel?.let { append(" • $it") }
                     }
 
                     Column {
@@ -887,7 +852,7 @@ fun FullScreenMediaGridPage(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "${displayedResults.size} içerik$activeFilterDesc",
+                                text = stringResource(R.string.displayedresults_size_icerik_activefilterdes, displayedResults.size, activeFilterDesc),
                                 color = KitsugiColors.TextMuted,
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = FontWeight.Bold,
@@ -897,7 +862,7 @@ fun FullScreenMediaGridPage(
                             )
                             if (hasActiveFilter) {
                                 Text(
-                                    text = "Temizle",
+                                    text = stringResource(R.string.temizle),
                                     color = accentColor,
                                     style = MaterialTheme.typography.labelSmall,
                                     fontWeight = FontWeight.Bold,
@@ -915,15 +880,17 @@ fun FullScreenMediaGridPage(
                 if (displayedResults.isEmpty() && !isLoadingMore) {
                     item(key = "list_empty") {
                         KitsugiEmptyState(
-                            title = "Henüz içerik yok",
-                            subtitle = "Bu kategoride gösterilecek içerik bulunamadı.",
+                            title = stringResource(R.string.henuz_icerik_yok),
+                            subtitle = stringResource(R.string.bu_kategoride_gosterilecek_icerik_bulunamadi),
                             icon = Icons.Rounded.SearchOff
                         )
                     }
                 } else {
                     itemsIndexed(
-                        displayedResults,
-                        key = { idx, item -> "${item.source}_${item.malId}_l$idx" }
+                        items = displayedResults,
+                        // PERF: identity-based key (index yok)
+                        key = { _, item -> "list_${item.source}_${item.malId}_${item.tmdbId ?: 0}_${item.cs3Url.orEmpty().hashCode()}" },
+                        contentType = { _, _ -> if (isSeasonalAnime) "seasonal_card" else "ranking_card" }
                     ) { index, result ->
                         if (isSeasonalAnime) {
                             DetailedSeasonalMediaCard(
@@ -975,10 +942,12 @@ fun FullScreenMediaGridPage(
         }
 
         // ── Floating Overlay Header ───────────────────────────────────────────
+        // Yükseklik animasyonu ızgaranın viewport'unu her karede değiştirip
+        // kaydırmayı zıplatıyordu. Overlay sabit yükseklikte, sadece solar.
         AnimatedVisibility(
             visible = showFloatingHeader,
-            enter = expandVertically() + fadeIn(),
-            exit = shrinkVertically() + fadeOut(),
+            enter = fadeIn(),
+            exit = fadeOut(),
             modifier = Modifier.align(Alignment.TopCenter)
         ) {
             Row(
@@ -989,7 +958,7 @@ fun FullScreenMediaGridPage(
                     .padding(horizontal = 8.dp)
             ) {
                 IconButton(onClick = onBackClick) {
-                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = "Geri", tint = KitsugiColors.TextPrimary)
+                    Icon(Icons.AutoMirrored.Rounded.ArrowBack, contentDescription = stringResource(R.string.geri), tint = KitsugiColors.TextPrimary)
                 }
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
@@ -1017,7 +986,7 @@ fun FullScreenMediaGridPage(
                 ) {
                     Icon(
                         Icons.Rounded.FilterList,
-                        contentDescription = "Filtre ve Sıralama",
+                        contentDescription = stringResource(R.string.filtre_ve_siralama),
                         tint = if (hasActiveFilterFloating) accentColor else KitsugiColors.TextPrimary
                     )
                 }
@@ -1077,7 +1046,7 @@ fun FullScreenMediaGridPage(
             ) {
                 Icon(
                     imageVector = Icons.Rounded.KeyboardArrowUp,
-                    contentDescription = "Yukarı Git",
+                    contentDescription = stringResource(R.string.yukari_git),
                     tint = KitsugiColors.Background,
                     modifier = Modifier.size(28.dp)
                 )
@@ -1108,6 +1077,48 @@ fun FullScreenMediaGridPage(
                     selectedSortOption = KitsugiGridSortOption.DEFAULT
                 }
             )
+        }
+    }
+}
+
+@Composable
+private fun GridGenreChipRow(
+    selectedGenreId: String,
+    accentColor: Color,
+    onGenreClick: (genreId: String, isSelected: Boolean) -> Unit
+) {
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
+            .padding(top = 12.dp, bottom = 4.dp)
+    ) {
+        KITSUGI_MEDIA_GENRES.forEach { genre ->
+            val isSelected = selectedGenreId == genre.id
+            Box(
+                modifier = Modifier
+                    .clip(RoundedCornerShape(20.dp))
+                    .background(
+                        if (isSelected) accentColor.copy(alpha = 0.22f)
+                        else KitsugiColors.Surface
+                    )
+                    .border(
+                        width = if (isSelected) 1.5.dp else 1.dp,
+                        color = if (isSelected) accentColor else Color.Transparent,
+                        shape = RoundedCornerShape(20.dp)
+                    )
+                    .clickable { onGenreClick(genre.id, isSelected) }
+                    .padding(horizontal = 13.dp, vertical = 7.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = genre.displayLabel(),
+                    color = if (isSelected) accentColor else KitsugiColors.TextPrimary,
+                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                    style = MaterialTheme.typography.labelMedium
+                )
+            }
         }
     }
 }

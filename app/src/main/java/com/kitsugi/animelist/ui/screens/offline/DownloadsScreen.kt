@@ -58,6 +58,8 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * Model representing any downloaded subtitle on disk (standalone or episode-bound).
@@ -138,7 +140,7 @@ fun DownloadsScreen(
             IconButton(onClick = onBack) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                    contentDescription = "Geri",
+                    contentDescription = stringResource(R.string.geri),
                     tint = KitsugiColors.TextPrimary
                 )
             }
@@ -776,7 +778,7 @@ fun DownloadedImageCard(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.FolderOpen,
-                            contentDescription = "Klasörü Aç",
+                            contentDescription = stringResource(R.string.klasoru_ac),
                             tint = accentColor,
                             modifier = Modifier.size(16.dp)
                         )
@@ -948,7 +950,7 @@ fun DownloadItemRow(
                     }
                     AnimeDownload.Status.PAUSED -> {
                         Text(
-                            text = "Duraklatıldı",
+                            text = stringResource(R.string.duraklatildi),
                             color = KitsugiColors.TextMuted,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
@@ -956,7 +958,7 @@ fun DownloadItemRow(
                     }
                     AnimeDownload.Status.COMPLETED -> {
                         Text(
-                            text = "Tamamlandı",
+                            text = stringResource(R.string.tamamlandi),
                             color = KitsugiColors.AccentGreen,
                             fontSize = 12.sp,
                             fontWeight = FontWeight.Bold
@@ -987,7 +989,7 @@ fun DownloadItemRow(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.FolderOpen,
-                        contentDescription = "Klasörü Aç",
+                        contentDescription = stringResource(R.string.klasoru_ac),
                         tint = KitsugiColors.AccentBlue,
                         modifier = Modifier.size(20.dp)
                     )
@@ -1006,7 +1008,7 @@ fun DownloadItemRow(
                     }
                     AnimeDownload.Status.COMPLETED -> {
                         IconButton(onClick = onPlay, modifier = Modifier.size(36.dp)) {
-                            Icon(Icons.Rounded.PlayArrow, contentDescription = "Oynat", tint = KitsugiColors.AccentGreen, modifier = Modifier.size(22.dp))
+                            Icon(Icons.Rounded.PlayArrow, contentDescription = stringResource(R.string.oynat), tint = KitsugiColors.AccentGreen, modifier = Modifier.size(22.dp))
                         }
                     }
                 }
@@ -1231,7 +1233,7 @@ fun SubtitleCardItem(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.FolderOpen,
-                        contentDescription = "Klasörü Aç",
+                        contentDescription = stringResource(R.string.klasoru_ac),
                         tint = KitsugiColors.AccentBlue,
                         modifier = Modifier.size(20.dp)
                     )

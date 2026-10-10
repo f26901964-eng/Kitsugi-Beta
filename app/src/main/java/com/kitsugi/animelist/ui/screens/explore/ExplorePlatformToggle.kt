@@ -41,6 +41,8 @@ import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.utils.tvClickable
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * Keşfet Sayfası için Brave-Tarzı Kaynak Motoru Seçici Hap Buton.
@@ -194,7 +196,7 @@ fun ExploreSourcePickerSheet(
                         Spacer(modifier = Modifier.width(8.dp))
                         Icon(
                             imageVector = Icons.Rounded.Check,
-                            contentDescription = "Seçili",
+                            contentDescription = stringResource(R.string.secili),
                             tint = accentColor,
                             modifier = Modifier.size(20.dp)
                         )

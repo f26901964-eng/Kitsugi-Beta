@@ -26,6 +26,8 @@ import com.kitsugi.animelist.ui.components.KitsugiSheetOrDialog
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.utils.tvClickable
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -140,7 +142,7 @@ fun GenresTagsSheet(
                 IconButton(onClick = onDismiss) {
                     Icon(
                         imageVector = Icons.Default.Close,
-                        contentDescription = "Kapat",
+                        contentDescription = stringResource(R.string.kapat),
                         tint = KitsugiColors.TextMuted
                     )
                 }
@@ -279,7 +281,7 @@ fun GenresTagsSheet(
                     colors = ButtonDefaults.outlinedButtonColors(contentColor = KitsugiColors.TextSecondary),
                     border = BorderStroke(1.dp, KitsugiColors.Border)
                 ) {
-                    Text("Sıfırla", fontSize = 14.sp)
+                    Text(stringResource(R.string.sifirla), fontSize = 14.sp)
                 }
 
                 KitsugiButton(

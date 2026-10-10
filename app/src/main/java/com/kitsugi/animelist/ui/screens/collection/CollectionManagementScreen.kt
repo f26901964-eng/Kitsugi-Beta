@@ -13,6 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.ui.components.KitsugiEmptyState
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * V2-D04 – CollectionManagementScreen
@@ -47,19 +49,19 @@ fun CollectionManagementScreen(
                 title = { Text("Koleksiyonlarım", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Rounded.ArrowBack, contentDescription = "Geri")
+                        Icon(Icons.Rounded.ArrowBack, contentDescription = stringResource(R.string.geri))
                     }
                 },
                 actions = {
                     IconButton(onClick = onCreateCollection) {
-                        Icon(Icons.Rounded.Add, contentDescription = "Yeni Koleksiyon")
+                        Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.yeni_koleksiyon))
                     }
                 }
             )
         },
         floatingActionButton = {
             FloatingActionButton(onClick = onCreateCollection) {
-                Icon(Icons.Rounded.Add, contentDescription = "Yeni Koleksiyon")
+                Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.yeni_koleksiyon))
             }
         },
         modifier = modifier
@@ -119,7 +121,7 @@ fun CollectionManagementScreen(
                 ) { Text("Sil") }
             },
             dismissButton = {
-                OutlinedButton(onClick = { showDeleteDialog = null }) { Text("İptal") }
+                OutlinedButton(onClick = { showDeleteDialog = null }) { Text(stringResource(R.string.iptal)) }
             }
         )
     }

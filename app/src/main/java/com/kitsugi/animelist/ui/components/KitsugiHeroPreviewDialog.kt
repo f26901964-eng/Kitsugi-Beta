@@ -225,7 +225,7 @@ fun KitsugiHeroPreviewDialog(
                 onClick = onDismiss
             ) {
                 Text(
-                    text = "Kapat",
+                    text = stringResource(R.string.kapat),
                     color = KitsugiColors.TextSecondary,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -305,7 +305,7 @@ private fun SynopsisBox(
             .padding(14.dp)
     ) {
         Text(
-            text = "Açıklama",
+            text = stringResource(R.string.aciklama),
             color = KitsugiColors.TextPrimary,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold

@@ -30,6 +30,8 @@ import com.kitsugi.animelist.ui.screens.profile.OtherUserProfileState
 import com.kitsugi.animelist.ui.screens.profile.StatCard
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun UserProfileInfoTab(
@@ -70,7 +72,7 @@ fun UserProfileInfoTab(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Translate,
-                            contentDescription = "Çevir",
+                            contentDescription = stringResource(R.string.cevir),
                             tint = accentColor,
                             modifier = Modifier.size(16.dp)
                         )

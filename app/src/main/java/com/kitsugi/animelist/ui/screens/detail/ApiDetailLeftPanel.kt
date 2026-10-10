@@ -36,6 +36,8 @@ import com.kitsugi.animelist.ui.utils.tvClickable
 import com.kitsugi.animelist.ui.components.KitsugiDetailActionButton
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayScore
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * Left panel for [ApiResultDetailPage] in landscape mode.
@@ -164,7 +166,7 @@ fun ApiDetailLeftPanel(
             // ── İzle butonu ──
             if (displayResult.type == MediaType.Anime || displayResult.type == MediaType.TvShow || displayResult.type == MediaType.Movie) {
                 KitsugiDetailActionButton(
-                    text = "İzle",
+                    text = stringResource(R.string.izle),
                     icon = Icons.Rounded.PlayArrow,
                     onClick = {
                         val streamMalId = if (displayResult.source.lowercase() == "anilist") displayResult.realMalId else displayResult.malId
@@ -197,7 +199,7 @@ fun ApiDetailLeftPanel(
             // ── Oku butonu (Manga) ──
             if (displayResult.type == MediaType.Manga && onReadMangaClick != null) {
                 KitsugiDetailActionButton(
-                    text = "Oku",
+                    text = stringResource(R.string.oku),
                     icon = Icons.Default.AutoStories,
                     onClick = onReadMangaClick,
                     modifier = Modifier
@@ -225,7 +227,7 @@ fun ApiDetailLeftPanel(
                 )
             } else {
                 ApiActionButton(
-                    text = "Listeye Ekle",
+                    text = stringResource(R.string.listeye_ekle),
                     primary = true,
                     enabled = true,
                     modifier = fallbackFocusMod.focusProperties { right = tabBarFocusRequester },

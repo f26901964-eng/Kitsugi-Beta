@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.components
 
+import com.kitsugi.animelist.ui.utils.localizedLabel
 import android.app.DatePickerDialog
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
@@ -81,6 +82,8 @@ import com.kitsugi.animelist.model.WatchStatus
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.utils.tvClickable
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 // ---------------------------------------------------------------------------
 //  Renk yardımcısı — puan 0-4 kırmızı, 5-6 sarı, 7-10 yeşil
@@ -343,7 +346,7 @@ fun KitsugiEditMediaSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 TextButton(onClick = LocalDismissAnimated.current) {
-                    Text("İptal", color = KitsugiColors.TextSecondary, fontWeight = FontWeight.Medium)
+                    Text(stringResource(R.string.iptal), color = KitsugiColors.TextSecondary, fontWeight = FontWeight.Medium)
                 }
 
                 Column(
@@ -425,12 +428,12 @@ fun KitsugiEditMediaSheet(
                     Column(modifier = Modifier.padding(horizontal = 16.dp)) {
                         DialogTextField(
                             value = title, onValueChange = { title = it },
-                            label = "Başlık", placeholder = "Örn: Sousou no Frieren"
+                            label = stringResource(R.string.baslik), placeholder = stringResource(R.string.orn_sousou_no_frieren)
                         )
                         Spacer(modifier = Modifier.height(10.dp))
                         DialogTextField(
                             value = subtitle, onValueChange = { subtitle = it },
-                            label = "Açıklama / Türler", placeholder = "Örn: TV, Action"
+                            label = stringResource(R.string.aciklama_turler), placeholder = "Örn: TV, Action"
                         )
                     }
                     Spacer(modifier = Modifier.height(8.dp))
@@ -446,7 +449,7 @@ fun KitsugiEditMediaSheet(
                         else            -> Icons.Rounded.PlayArrow
                     }
                     SheetRow(
-                        icon = typeIcon, label = "Tür", value = typeValue,
+                        icon = typeIcon, label = stringResource(R.string.tur), value = typeValue,
                         onClick = {
                             selectedType = when (selectedType) {
                                 MediaType.Anime  -> MediaType.Manga
@@ -509,12 +512,12 @@ fun KitsugiEditMediaSheet(
                         ) {
                             Icon(
                                 imageVector = icon,
-                                contentDescription = status.label,
+                                contentDescription = status.localizedLabel(),
                                 tint = if (selected) KitsugiColors.Background else KitsugiColors.TextSecondary,
                                 modifier = Modifier.size(16.dp)
                             )
                             Text(
-                                text = status.label,
+                                text = status.localizedLabel(),
                                 color = if (selected) KitsugiColors.Background else KitsugiColors.TextSecondary,
                                 style = MaterialTheme.typography.labelMedium,
                                 fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium
@@ -682,7 +685,7 @@ fun KitsugiEditMediaSheet(
                 // Total episodes (manual only)
                 if (isManual) {
                     SheetRow(
-                        icon = Icons.Rounded.FormatListNumbered, label = "Toplam Sayı",
+                        icon = Icons.Rounded.FormatListNumbered, label = stringResource(R.string.toplam_sayi),
                         value = totalText,
                         onValueChange = { v ->
                             if (v.isEmpty()) totalText = ""
@@ -698,13 +701,13 @@ fun KitsugiEditMediaSheet(
 
                 // ── Dates ──────────────────────────────────────────────────
                 SheetRow(
-                    icon = Icons.Rounded.CalendarToday, label = "Başlangıç Tarihi",
+                    icon = Icons.Rounded.CalendarToday, label = stringResource(R.string.baslangic_tarihi),
                     value = startDateText.ifBlank { "Tarih Seçilmemiş" },
                     onClick = { selectDate(startDateText) { startDateText = it } },
                     onClearClick = if (startDateText.isNotBlank()) { { startDateText = "" } } else null
                 )
                 SheetRow(
-                    icon = Icons.Rounded.EventAvailable, label = "Bitiş Tarihi",
+                    icon = Icons.Rounded.EventAvailable, label = stringResource(R.string.bitis_tarihi),
                     value = endDateText.ifBlank { "Tarih Seçilmemiş" },
                     onClick = { selectDate(endDateText) { endDateText = it } },
                     onClearClick = if (endDateText.isNotBlank()) { { endDateText = "" } } else null
@@ -720,7 +723,7 @@ fun KitsugiEditMediaSheet(
                         val listsValue = if (activeLists.isEmpty()) "Hiçbiri" else activeLists.joinToString(", ")
                         SheetRow(
                             icon = Icons.Rounded.List,
-                            label = "Özel Listeler",
+                            label = stringResource(R.string.ozel_listeler),
                             value = listsValue,
                             onClick = { showCustomListsDialog = true }
                         )
@@ -745,7 +748,7 @@ fun KitsugiEditMediaSheet(
                         switchChecked = isPrivate, onSwitchCheckedChange = { isPrivate = it }
                     )
                     SheetRow(
-                        icon = Icons.Rounded.VisibilityOff, label = "Durum listelerinden gizle",
+                        icon = Icons.Rounded.VisibilityOff, label = stringResource(R.string.durum_listelerinden_gizle),
                         switchChecked = isHiddenFromStatusLists,
                         onSwitchCheckedChange = { isHiddenFromStatusLists = it }
                     )
@@ -790,7 +793,7 @@ fun KitsugiEditMediaSheet(
                         Spacer(modifier = Modifier.width(16.dp))
                         DialogTextField(
                             value = tags, onValueChange = { tags = it },
-                            label = "Etiketler", placeholder = "Virgülle ayırın: Örn: sevilen, bilim-kurgu",
+                            label = "Etiketler", placeholder = stringResource(R.string.virgulle_ayirin_orn_sevilen_bilim_kurgu),
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -804,7 +807,7 @@ fun KitsugiEditMediaSheet(
                     )
                     val priorityText = when (priority) { 1 -> "Orta"; 2 -> "Yüksek"; else -> "Düşük" }
                     SheetRow(
-                        icon = Icons.Rounded.PriorityHigh, label = "Öncelik", value = priorityText,
+                        icon = Icons.Rounded.PriorityHigh, label = stringResource(R.string.oncelik), value = priorityText,
                         onDecrement = { priority = (priority - 1).coerceAtLeast(0) },
                         onIncrement = { priority = (priority + 1).coerceAtMost(2) }
                     )
@@ -845,7 +848,7 @@ fun KitsugiEditMediaSheet(
                         Spacer(modifier = Modifier.width(16.dp))
                         DialogTextField(
                             value = tags, onValueChange = { tags = it },
-                            label = "Etiketler", placeholder = "Virgülle ayırın: Örn: sevilen, aksiyon",
+                            label = "Etiketler", placeholder = stringResource(R.string.virgulle_ayirin_orn_sevilen_aksiyon),
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -886,7 +889,7 @@ fun KitsugiEditMediaSheet(
                         Spacer(modifier = Modifier.width(16.dp))
                         DialogTextField(
                             value = tags, onValueChange = { tags = it },
-                            label = "Etiketler", placeholder = "Virgülle ayırın: Örn: sevilen, bilim-kurgu",
+                            label = "Etiketler", placeholder = stringResource(R.string.virgulle_ayirin_orn_sevilen_bilim_kurgu),
                             modifier = Modifier.weight(1f)
                         )
                     }
@@ -897,7 +900,7 @@ fun KitsugiEditMediaSheet(
                         switchChecked = isFavorite, onSwitchCheckedChange = { isFavorite = it }
                     )
                     SheetRow(
-                        icon = Icons.Rounded.Lock, label = "+18 İçerik",
+                        icon = Icons.Rounded.Lock, label = stringResource(R.string.s18_icerik),
                         switchChecked = isAdult, onSwitchCheckedChange = { isAdult = it }
                     )
                 }
@@ -922,7 +925,7 @@ fun KitsugiEditMediaSheet(
                         onValueChange = { notes = it },
                         modifier = Modifier.fillMaxWidth().height(100.dp),
                         shape = RoundedCornerShape(18.dp),
-                        placeholder = { Text(text = "Kişisel düşüncelerinizi yazın...", color = KitsugiColors.TextMuted) },
+                        placeholder = { Text(text = stringResource(R.string.kisisel_dusuncelerinizi_yazin), color = KitsugiColors.TextMuted) },
                         colors = TextFieldDefaults.colors(
                             focusedTextColor = KitsugiColors.TextPrimary,
                             unfocusedTextColor = KitsugiColors.TextPrimary,
@@ -1034,7 +1037,7 @@ fun KitsugiCustomListsSelectionDialog(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             Text(
-                text = "Özel Listeler",
+                text = stringResource(R.string.ozel_listeler),
                 color = KitsugiColors.TextPrimary,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
@@ -1075,7 +1078,7 @@ fun KitsugiCustomListsSelectionDialog(
                         if (checked) {
                             Icon(
                                 imageVector = Icons.Rounded.Check,
-                                contentDescription = "Seçili",
+                                contentDescription = stringResource(R.string.secili),
                                 tint = accentColor,
                                 modifier = Modifier.size(20.dp)
                             )
@@ -1091,7 +1094,7 @@ fun KitsugiCustomListsSelectionDialog(
             ) {
                 TextButton(onClick = onDismiss) {
                     Text(
-                        text = "İptal",
+                        text = stringResource(R.string.iptal),
                         color = KitsugiColors.TextSecondary,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -1101,7 +1104,7 @@ fun KitsugiCustomListsSelectionDialog(
 
                 TextButton(onClick = { onConfirm(tempMap) }) {
                     Text(
-                        text = "Kaydet",
+                        text = stringResource(R.string.kaydet),
                         color = accentColor,
                         fontWeight = FontWeight.Bold
                     )

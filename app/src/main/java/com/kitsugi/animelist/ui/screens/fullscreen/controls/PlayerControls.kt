@@ -64,6 +64,8 @@ import androidx.compose.ui.platform.LocalContext
 import dev.vivvvek.seeker.Segment
 import kotlinx.collections.immutable.toImmutableList
 import kotlinx.coroutines.delay
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 // How long (ms) controls stay visible when playing
 private const val CONTROLS_HIDE_DELAY_MS = 5_000L
@@ -551,7 +553,7 @@ fun PlayerControls(
                         verticalAlignment     = Alignment.CenterVertically
                     ) {
                         Text(
-                            text       = "Sonraki Bölüm",
+                            text       = stringResource(R.string.sonraki_bolum),
                             fontWeight = FontWeight.Bold,
                             style      = MaterialTheme.typography.titleMedium
                         )
@@ -561,7 +563,7 @@ fun PlayerControls(
                         ) {
                             Icon(
                                 imageVector        = Icons.Default.Close,
-                                contentDescription = "İptal",
+                                contentDescription = stringResource(R.string.iptal),
                                 modifier           = Modifier.size(16.dp)
                             )
                         }
@@ -579,7 +581,7 @@ fun PlayerControls(
                         verticalAlignment     = Alignment.CenterVertically
                     ) {
                         TextButton(onClick = { viewModel.cancelBingeCard() }) {
-                            Text("İptal")
+                            Text(stringResource(R.string.iptal))
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         KitsugiButton(onClick = {
@@ -595,7 +597,7 @@ fun PlayerControls(
                                 modifier           = Modifier.size(16.dp)
                             )
                             Spacer(modifier = Modifier.width(4.dp))
-                            Text("Şimdi Oynat")
+                            Text(stringResource(R.string.simdi_oynat))
                         }
                     }
                 }

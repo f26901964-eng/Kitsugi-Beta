@@ -47,6 +47,8 @@ import com.kitsugi.animelist.ui.app.AddonViewModel
 import com.kitsugi.animelist.ui.app.MangaViewModel
 import com.kitsugi.animelist.ui.components.KitsugiAddonsSettingsDialog
 import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 // ─── Screen ───────────────────────────────────────────────────────────────────
 
@@ -210,7 +212,7 @@ fun MangaBrowseScreen(
             OutlinedTextField(
                 value = query,
                 onValueChange = { vm.search(it) },
-                placeholder   = { Text("Manga ara...", color = KitsugiColors.TextMuted) },
+                placeholder   = { Text(stringResource(R.string.manga_ara), color = KitsugiColors.TextMuted) },
                 leadingIcon   = { Icon(Icons.Rounded.Search, null, tint = KitsugiColors.TextMuted) },
                 singleLine    = true,
                 shape         = RoundedCornerShape(12.dp),
@@ -249,7 +251,7 @@ fun MangaBrowseScreen(
                         val anyLoading  = states.any { it.isLoading }
                         item {
                             MangaChip(
-                                label     = "Tümü",
+                                label     = stringResource(R.string.tumu),
                                 count     = totalCount,
                                 isLoading = anyLoading,
                                 error     = null,
@@ -315,7 +317,7 @@ fun MangaBrowseScreen(
                                 ) {
                                     Icon(Icons.Rounded.SearchOff, null, tint = KitsugiColors.TextMuted, modifier = Modifier.size(48.dp))
                                     Spacer(Modifier.height(8.dp))
-                                    Text("Sonuç bulunamadı", color = KitsugiColors.TextSecondary)
+                                    Text(stringResource(R.string.sonuc_bulunamadi), color = KitsugiColors.TextSecondary)
                                 }
                             }
                         else -> LazyVerticalGrid(
@@ -495,7 +497,7 @@ private fun SkeletonCard(sourceName: String, accent: Color) {
                     .background(Brush.verticalGradient(listOf(Color.Transparent, Color.Black.copy(0.85f)))).padding(8.dp)
             ) {
                 Column {
-                    Text("Aranıyor...", color = KitsugiColors.TextSecondary, fontSize = 11.sp)
+                    Text(stringResource(R.string.araniyor), color = KitsugiColors.TextSecondary, fontSize = 11.sp)
                     Text(sourceName, color = accent, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
                 }
             }

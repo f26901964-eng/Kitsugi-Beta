@@ -5,7 +5,6 @@ package com.kitsugi.animelist.ui.components
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import com.kitsugi.animelist.ui.theme.gradient.background
 import androidx.compose.foundation.layout.fillMaxSize
@@ -13,8 +12,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.lazy.grid.rememberLazyGridState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import com.kitsugi.animelist.ui.theme.gradient.Text
@@ -35,6 +36,8 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.components.KitsugiEmptyState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.SearchOff
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -101,7 +104,7 @@ fun KitsugiMediaGridDialog(
                             onClick = onDismiss
                         ) {
                             Text(
-                                text = "Kapat",
+                                text = stringResource(R.string.kapat),
                                 color = KitsugiColors.TextSecondary,
                                 fontWeight = FontWeight.SemiBold
                             )
@@ -113,11 +116,11 @@ fun KitsugiMediaGridDialog(
                         onValueChange = {
                             searchQuery = it
                         },
-                        placeholder = "Bu rafta ara..."
+                        placeholder = stringResource(R.string.bu_rafta_ara)
                     )
 
                     Text(
-                        text = "${filteredResults.size} / ${results.size} içerik",
+                        text = stringResource(R.string.filteredresults_size_results_size_icerik, filteredResults.size, results.size),
                         color = KitsugiColors.TextMuted,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold
@@ -131,7 +134,7 @@ fun KitsugiMediaGridDialog(
                             contentAlignment = androidx.compose.ui.Alignment.Center
                         ) {
                     KitsugiEmptyState(
-                                title = "Sonuç bulunamadı",
+                                title = stringResource(R.string.sonuc_bulunamadi),
                                 subtitle = if (searchQuery.isBlank()) {
                                     "Bu rafta gösterilecek içerik yok."
                                 } else {
@@ -159,10 +162,15 @@ fun KitsugiMediaGridDialog(
                             ) {
                                 items(
                                     count = filteredResults.size,
-                                    // DİKKAT: malId tek başına KARARLI DEĞİL — farklı kaynaklarda aynı
-                                    // malId (veya 0) birden çok kez geçebiliyor ve LazyGrid
-                                    // "Key was already used" ile ÇÖKÜYORDU. Index eklenerek benzersiz yapıldı.
-                                    key = { index -> "${filteredResults[index].source}_${filteredResults[index].malId}_$index" }
+                                    // PERF: index'siz sabit identity key — sıralama/filtreleme
+                                    // sonrası kartlar yeniden kullanılabilir. cs3Url hash'i
+                                    // eklenti kaynaklı aynı malId'li ama farklı URL'li kartlar
+                                    // için benzersizlik sağlar.
+                                    key = { index ->
+                                        val r = filteredResults[index]
+                                        "dlg_tv_${r.source}_${r.malId}_${r.tmdbId ?: 0}_${r.cs3Url.orEmpty().hashCode()}"
+                                    },
+                                    contentType = { _ -> "media_card" }
                                 ) { index ->
                                     val result = filteredResults[index]
                                     KitsugiExploreMediaCard(
@@ -196,25 +204,27 @@ fun KitsugiMediaGridDialog(
                 )
             },
             text = {
-                val scrollState = rememberScrollState()
+                // PERF: verticalScroll + FlowRow ile TÜM kartlar aynı anda
+                // compose ediliyordu (40+ kart → ciddi jank). LazyVerticalGrid
+                // yalnızca görünen kartları compose eder.
+                val gridState = rememberLazyGridState()
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .heightIn(max = 640.dp)
-                        .verticalScroll(scrollState)
                 ) {
                     KitsugiSearchField(
                         value = searchQuery,
                         onValueChange = {
                             searchQuery = it
                         },
-                        placeholder = "Bu rafta ara..."
+                        placeholder = stringResource(R.string.bu_rafta_ara)
                     )
 
                     Spacer(modifier = Modifier.height(12.dp))
 
                     Text(
-                        text = "${filteredResults.size} / ${results.size} içerik",
+                        text = stringResource(R.string.filteredresults_size_results_size_icerik, filteredResults.size, results.size),
                         color = KitsugiColors.TextMuted,
                         style = MaterialTheme.typography.labelMedium,
                         fontWeight = FontWeight.Bold
@@ -224,7 +234,7 @@ fun KitsugiMediaGridDialog(
 
                     if (filteredResults.isEmpty()) {
                         KitsugiEmptyState(
-                            title = "Sonuç bulunamadı",
+                            title = stringResource(R.string.sonuc_bulunamadi),
                             subtitle = if (searchQuery.isBlank()) {
                                 "Bu rafta gösterilecek içerik yok."
                             } else {
@@ -233,18 +243,23 @@ fun KitsugiMediaGridDialog(
                             icon = Icons.Rounded.SearchOff
                         )
                     } else {
-                        FlowRow(
+                        LazyVerticalGrid(
+                            columns = GridCells.Fixed(2),
+                            state = gridState,
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                            maxItemsInEachRow = 2
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            filteredResults.forEach { result ->
+                            itemsIndexed(
+                                items = filteredResults,
+                                key = { _, result -> "dlg_${result.source}_${result.malId}_${result.tmdbId ?: 0}_${result.cs3Url.orEmpty().hashCode()}" },
+                                contentType = { _, _ -> "media_card" }
+                            ) { _, result ->
                                 KitsugiExploreMediaCard(
                                     result = result,
                                     alreadyInList = alreadyInList(result),
                                     mediaEntry = getMediaEntry(result),
-                                    modifier = Modifier.weight(1f),
+                                    modifier = Modifier.fillMaxWidth(),
                                     onClick = {
                                         onItemClick(result)
                                     }
@@ -260,7 +275,7 @@ fun KitsugiMediaGridDialog(
                     onClick = onDismiss
                 ) {
                     Text(
-                        text = "Kapat",
+                        text = stringResource(R.string.kapat),
                         color = KitsugiColors.TextSecondary,
                         fontWeight = FontWeight.SemiBold
                     )

@@ -5,6 +5,7 @@
 
 package com.kitsugi.animelist.ui.screens.profile
 
+import com.kitsugi.animelist.ui.utils.localizedLabel
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
 
@@ -82,7 +83,7 @@ internal fun UserMediaGridCard(
                     .align(Alignment.TopStart)
             ) {
                 Text(
-                    text = item.status.label,
+                    text = item.status.localizedLabel(),
                     color = accentColor,
                     style = MaterialTheme.typography.labelSmall,
                     fontSize = 9.sp,
@@ -199,7 +200,7 @@ internal fun UserMediaRowCard(
                         .padding(horizontal = 6.dp, vertical = 2.dp)
                 ) {
                     Text(
-                        text = item.status.label,
+                        text = item.status.localizedLabel(),
                         color = accentColor,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold

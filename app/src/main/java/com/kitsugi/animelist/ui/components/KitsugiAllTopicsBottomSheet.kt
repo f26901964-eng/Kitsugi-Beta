@@ -40,6 +40,8 @@ import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 import kotlinx.coroutines.launch
 
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -175,13 +177,13 @@ fun KitsugiAllTopicsBottomSheet(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Close,
-                        contentDescription = "Kapat",
+                        contentDescription = stringResource(R.string.kapat),
                         tint = KitsugiColors.TextPrimary
                     )
                 }
 
                 Text(
-                    text = "Tüm Tartışma Konuları",
+                    text = stringResource(R.string.tum_tartisma_konulari),
                     color = KitsugiColors.TextPrimary,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
@@ -227,7 +229,7 @@ fun KitsugiAllTopicsBottomSheet(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Türkçe",
+                        text = stringResource(R.string.turkce),
                         color = if (isTrSelected) KitsugiColors.Background else KitsugiColors.TextPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold
@@ -280,7 +282,7 @@ fun KitsugiAllTopicsBottomSheet(
                 }
             } else if (filteredTopics.isEmpty()) {
                 Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                    Text(text = "Tartışma konusu bulunamadı.", color = KitsugiColors.TextMuted, fontSize = 14.sp)
+                    Text(text = stringResource(R.string.tartisma_konusu_bulunamadi), color = KitsugiColors.TextMuted, fontSize = 14.sp)
                 }
             } else {
                 LazyColumn(
@@ -330,7 +332,7 @@ fun KitsugiAllTopicsBottomSheet(
                                     ) {
                                         Icon(
                                             imageVector = Icons.Rounded.Translate,
-                                            contentDescription = "Çevir",
+                                            contentDescription = stringResource(R.string.cevir),
                                             tint = accentColor,
                                             modifier = Modifier.size(14.dp)
                                         )
@@ -434,7 +436,7 @@ fun KitsugiAllTopicsBottomSheet(
                                         ) {
                                             Icon(
                                                 imageVector = if (topic.isLiked) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                                contentDescription = "Beğen",
+                                                contentDescription = stringResource(R.string.begen),
                                                 tint = if (topic.isLiked) accentColor else KitsugiColors.TextSecondary,
                                                 modifier = Modifier.size(14.dp)
                                             )
@@ -465,7 +467,7 @@ fun KitsugiAllTopicsBottomSheet(
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             Icon(
                                                 imageVector = Icons.Rounded.RemoveRedEye,
-                                                contentDescription = "Görüntülenme",
+                                                contentDescription = stringResource(R.string.goruntulenme),
                                                 tint = KitsugiColors.TextSecondary,
                                                 modifier = Modifier.size(14.dp)
                                             )

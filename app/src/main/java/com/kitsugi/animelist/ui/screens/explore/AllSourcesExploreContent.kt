@@ -33,6 +33,8 @@ import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.ui.components.KitsugiShimmerMediaRow
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.utils.tvClickable
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /** One source = one distinct destination, with all its own categories underneath it. */
 @OptIn(ExperimentalFoundationApi::class)
@@ -239,7 +241,7 @@ private fun BackToExploreChip(onClick: () -> Unit) {
             tint = KitsugiColors.TextSecondary,
             modifier = Modifier.size(18.dp)
         )
-        Text("Keşfet", color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.labelMedium,
+        Text(stringResource(R.string.kesfet), color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.labelMedium,
             fontWeight = FontWeight.SemiBold)
     }
 }

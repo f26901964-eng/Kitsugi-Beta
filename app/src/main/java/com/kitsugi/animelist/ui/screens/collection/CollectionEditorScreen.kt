@@ -17,6 +17,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * V2-D04 – CollectionEditorScreen
@@ -47,7 +49,7 @@ fun CollectionEditorScreen(
                 title = { Text(if (isEditing) "Koleksiyonu Düzenle" else "Yeni Koleksiyon", fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Rounded.Close, contentDescription = "Kapat")
+                        Icon(Icons.Rounded.Close, contentDescription = stringResource(R.string.kapat))
                     }
                 },
                 actions = {

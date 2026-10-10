@@ -40,6 +40,8 @@ import com.kitsugi.animelist.ui.screens.profile.VerticalStatsBar
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.utils.toEnglishGenreForSearch
 import com.kitsugi.animelist.utils.toTurkishGenre
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
@@ -128,17 +130,13 @@ fun UserProfileStatsTab(
                             val scoreDistListState = rememberLazyListState()
                             LazyRow(
                                 state = scoreDistListState,
-                                flingBehavior = rememberSnapFlingBehavior(
-                                    lazyListState = scoreDistListState,
-                                    snapPosition = SnapPosition.Start
-                                ),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 item {
                                     FilterChipItem(
                                         selected = scoreDistType == 0,
-                                        text = "Başlık sayısı",
+                                        text = stringResource(R.string.baslik_sayisi),
                                         onClick = { scoreDistType = 0 },
                                         accentColor = accentColor
                                     )
@@ -146,7 +144,7 @@ fun UserProfileStatsTab(
                                 item {
                                     FilterChipItem(
                                         selected = scoreDistType == 1,
-                                        text = "Harcanan süre",
+                                        text = stringResource(R.string.harcanan_sure),
                                         onClick = { scoreDistType = 1 },
                                         accentColor = accentColor
                                     )
@@ -187,17 +185,13 @@ fun UserProfileStatsTab(
                             val lengthDistListState = rememberLazyListState()
                             LazyRow(
                                 state = lengthDistListState,
-                                flingBehavior = rememberSnapFlingBehavior(
-                                    lazyListState = lengthDistListState,
-                                    snapPosition = SnapPosition.Start
-                                ),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 item {
                                     FilterChipItem(
                                         selected = lengthDistType == 0,
-                                        text = "Başlık sayısı",
+                                        text = stringResource(R.string.baslik_sayisi),
                                         onClick = { lengthDistType = 0 },
                                         accentColor = accentColor
                                     )
@@ -205,7 +199,7 @@ fun UserProfileStatsTab(
                                 item {
                                     FilterChipItem(
                                         selected = lengthDistType == 1,
-                                        text = "Harcanan süre",
+                                        text = stringResource(R.string.harcanan_sure),
                                         onClick = { lengthDistType = 1 },
                                         accentColor = accentColor
                                     )
@@ -239,7 +233,7 @@ fun UserProfileStatsTab(
                         HorizontalDivider(color = KitsugiColors.SurfaceStrong)
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(
-                                text = "Durum Dağılımı",
+                                text = stringResource(R.string.durum_dagilimi),
                                 color = KitsugiColors.TextPrimary,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
@@ -265,7 +259,7 @@ fun UserProfileStatsTab(
                         HorizontalDivider(color = KitsugiColors.SurfaceStrong)
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(
-                                text = "Tür Dağılımı",
+                                text = stringResource(R.string.tur_dagilimi),
                                 color = KitsugiColors.TextPrimary,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
@@ -295,7 +289,7 @@ fun UserProfileStatsTab(
                         HorizontalDivider(color = KitsugiColors.SurfaceStrong)
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(
-                                text = "Ülke Dağılımı",
+                                text = stringResource(R.string.ulke_dagilimi),
                                 color = KitsugiColors.TextPrimary,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
@@ -319,7 +313,7 @@ fun UserProfileStatsTab(
                         HorizontalDivider(color = KitsugiColors.SurfaceStrong)
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(
-                                text = "Yayın Yılı",
+                                text = stringResource(R.string.yayin_yili),
                                 color = KitsugiColors.TextPrimary,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold
@@ -327,17 +321,13 @@ fun UserProfileStatsTab(
                             val releaseYearDistListState = rememberLazyListState()
                             LazyRow(
                                 state = releaseYearDistListState,
-                                flingBehavior = rememberSnapFlingBehavior(
-                                    lazyListState = releaseYearDistListState,
-                                    snapPosition = SnapPosition.Start
-                                ),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 item {
                                     FilterChipItem(
                                         selected = releaseYearDistType == 0,
-                                        text = "Başlık sayısı",
+                                        text = stringResource(R.string.baslik_sayisi),
                                         onClick = { releaseYearDistType = 0 },
                                         accentColor = accentColor
                                     )
@@ -345,7 +335,7 @@ fun UserProfileStatsTab(
                                 item {
                                     FilterChipItem(
                                         selected = releaseYearDistType == 1,
-                                        text = "Harcanan süre",
+                                        text = stringResource(R.string.harcanan_sure),
                                         onClick = { releaseYearDistType = 1 },
                                         accentColor = accentColor
                                     )
@@ -390,17 +380,13 @@ fun UserProfileStatsTab(
                             val startYearDistListState = rememberLazyListState()
                             LazyRow(
                                 state = startYearDistListState,
-                                flingBehavior = rememberSnapFlingBehavior(
-                                    lazyListState = startYearDistListState,
-                                    snapPosition = SnapPosition.Start
-                                ),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
                                 item {
                                     FilterChipItem(
                                         selected = startYearDistType == 0,
-                                        text = "Başlık sayısı",
+                                        text = stringResource(R.string.baslik_sayisi),
                                         onClick = { startYearDistType = 0 },
                                         accentColor = accentColor
                                     )
@@ -408,7 +394,7 @@ fun UserProfileStatsTab(
                                 item {
                                     FilterChipItem(
                                         selected = startYearDistType == 1,
-                                        text = "Harcanan süre",
+                                        text = stringResource(R.string.harcanan_sure),
                                         onClick = { startYearDistType = 1 },
                                         accentColor = accentColor
                                     )
@@ -448,7 +434,7 @@ fun UserProfileStatsTab(
                     .padding(16.dp),
                 contentAlignment = Alignment.Center
             ) {
-                Text(text = "İstatistik yüklenemedi.", color = KitsugiColors.TextMuted)
+                Text(text = stringResource(R.string.istatistik_yuklenemedi), color = KitsugiColors.TextMuted)
             }
         }
     } else {
@@ -513,7 +499,7 @@ fun UserProfileStatsTab(
                     item {
                         ProfileFilterChip(
                             isSelected = viewModel.statsSortType == 0,
-                            text = "Başlık sayısı",
+                            text = stringResource(R.string.baslik_sayisi),
                             onClick = { viewModel.statsSortType = 0 },
                             accentColor = accentColor
                         )
@@ -521,7 +507,7 @@ fun UserProfileStatsTab(
                     item {
                         ProfileFilterChip(
                             isSelected = viewModel.statsSortType == 1,
-                            text = "Harcanan süre",
+                            text = stringResource(R.string.harcanan_sure),
                             onClick = { viewModel.statsSortType = 1 },
                             accentColor = accentColor
                         )
@@ -550,7 +536,7 @@ fun UserProfileStatsTab(
                         .padding(32.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text(text = "İstatistik verisi bulunamadı.", color = KitsugiColors.TextMuted)
+                    Text(text = stringResource(R.string.istatistik_verisi_bulunamadi), color = KitsugiColors.TextMuted)
                 }
             } else {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -51,6 +51,8 @@ import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.snapshotFlow
 import android.content.res.Configuration
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.runtime.getValue
@@ -78,6 +80,8 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiColors
 import com.kitsugi.animelist.ui.utils.dpadVerticalFastScroll
 import com.kitsugi.animelist.ui.utils.tvClickable
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun MyListHeaderSection(
@@ -116,14 +120,24 @@ fun MyListHeaderSection(
     val KitsugiColors = LocalKitsugiColors.current
     var showSortMenu by rememberSaveable { mutableStateOf(false) }
 
-    val rawOffset = activeTabScrollState.firstVisibleItemScrollOffset
-    val firstVisibleIndex = activeTabScrollState.firstVisibleItemIndex
-    val collapseProgress = remember(firstVisibleIndex, rawOffset) {
-        if (firstVisibleIndex > 0) 1f
-        else (rawOffset.toFloat() / 100f).coerceIn(0f, 1f)
+    // Yüksekliği her scroll pikseline bağlamak liste viewport'unu sürekli
+    // değiştirip başlığı ileri-geri zıplatıyordu. Eşik aşılınca bir kez kapanır;
+    // tekrar açılması için listenin tepesine dönmek gerekir.
+    var headerCollapsed by remember { mutableStateOf(false) }
+    LaunchedEffect(activeTabScrollState) {
+        snapshotFlow {
+            activeTabScrollState.firstVisibleItemIndex to activeTabScrollState.firstVisibleItemScrollOffset
+        }.collect { (index, offset) ->
+            if (!headerCollapsed && (index > 0 || offset > 180)) {
+                headerCollapsed = true
+            } else if (headerCollapsed && index == 0 && offset == 0) {
+                headerCollapsed = false
+            }
+        }
     }
     val expandedHeaderHeight = if (headerSubtitle.isNullOrBlank()) 60.dp else 68.dp
-    val headerHeight = expandedHeaderHeight * (1f - collapseProgress)
+    val headerHeight = if (headerCollapsed) 0.dp else expandedHeaderHeight
+    val collapseProgress = if (headerCollapsed) 1f else 0f
 
     Column {
         Box(
@@ -152,7 +166,7 @@ fun MyListHeaderSection(
                         IconButton(onClick = onBackClick) {
                             Icon(
                                 imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                                contentDescription = "Geri",
+                                contentDescription = stringResource(R.string.geri),
                                 tint = KitsugiColors.textPrimary
                             )
                         }
@@ -205,7 +219,7 @@ fun MyListHeaderSection(
                         }
                         Icon(
                             imageVector = layoutIcon,
-                            contentDescription = "Görünüm Değiştir",
+                            contentDescription = stringResource(R.string.gorunum_degistir),
                             tint = KitsugiColors.textSecondary
                         )
                     }
@@ -213,7 +227,7 @@ fun MyListHeaderSection(
                     IconButton(onClick = onSearchFieldToggle) {
                         Icon(
                             imageVector = Icons.Rounded.Search,
-                            contentDescription = "Arama",
+                            contentDescription = stringResource(R.string.arama),
                             tint = if (showSearchField || searchQuery.isNotBlank()) accentColor else KitsugiColors.textSecondary
                         )
                     }
@@ -366,7 +380,7 @@ fun MyListHeaderSection(
                                 .padding(horizontal = 10.dp, vertical = 7.dp)
                         ) {
                             Text(
-                                text = "Temizle",
+                                text = stringResource(R.string.temizle),
                                 color = accentColor,
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Bold
@@ -806,7 +820,7 @@ fun MyListTabBar(
                                             .padding(horizontal = 6.dp, vertical = 2.dp)
                                     ) {
                                         Text(
-                                            text = "Bağlı Değil",
+                                            text = stringResource(R.string.bagli_degil),
                                             color = KitsugiColors.textMuted,
                                             style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
                                             fontWeight = FontWeight.Medium
@@ -828,7 +842,7 @@ fun MyListTabBar(
                             Spacer(modifier = Modifier.width(8.dp))
                             Icon(
                                 imageVector = Icons.Rounded.Check,
-                                contentDescription = "Seçili",
+                                contentDescription = stringResource(R.string.secili),
                                 tint = platform.brandColor,
                                 modifier = Modifier.size(20.dp)
                             )

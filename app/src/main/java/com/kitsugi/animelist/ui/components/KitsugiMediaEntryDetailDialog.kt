@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.components
 
+import com.kitsugi.animelist.ui.utils.localizedLabel
 import com.kitsugi.animelist.ui.theme.gradient.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -190,7 +191,7 @@ fun KitsugiMediaEntryDetailDialog(
                                     modifier = Modifier.fillMaxWidth()
                                 ) {
                                     Text(
-                                        text = "Kaynakta Aç",
+                                        text = stringResource(R.string.kaynakta_ac),
                                         color = accentColor,
                                         fontWeight = FontWeight.Bold,
                                         style = MaterialTheme.typography.labelSmall
@@ -229,7 +230,7 @@ fun KitsugiMediaEntryDetailDialog(
                             )
 
                             DetailPill(
-                                text = entry.status.label,
+                                text = entry.status.localizedLabel(),
                                 color = statusColor
                             )
 
@@ -301,7 +302,7 @@ fun KitsugiMediaEntryDetailDialog(
                         )
 
                         DetailPill(
-                            text = entry.status.label,
+                            text = entry.status.localizedLabel(),
                             color = statusColor
                         )
 
@@ -357,7 +358,7 @@ fun KitsugiMediaEntryDetailDialog(
                             }
                         ) {
                             Text(
-                                text = "Kaynakta Aç",
+                                text = stringResource(R.string.kaynakta_ac),
                                 color = accentColor,
                                 fontWeight = FontWeight.Bold
                             )
@@ -384,7 +385,7 @@ fun KitsugiMediaEntryDetailDialog(
                 onClick = onEditClick
             ) {
                 Text(
-                    text = "Düzenle",
+                    text = stringResource(R.string.duzenle),
                     color = accentColor,
                     fontWeight = FontWeight.SemiBold
                 )
@@ -406,7 +407,7 @@ fun KitsugiMediaEntryDetailDialog(
                     onClick = onDismiss
                 ) {
                     Text(
-                        text = "Kapat",
+                        text = stringResource(R.string.kapat),
                         color = KitsugiColors.TextSecondary,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -428,7 +429,7 @@ private fun SynopsisSection(
             .padding(14.dp)
     ) {
         Text(
-            text = "Açıklama",
+            text = stringResource(R.string.aciklama),
             color = KitsugiColors.TextPrimary,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.Bold
@@ -493,7 +494,7 @@ private fun DetailInfoGrid(
         verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         DetailInfoRow(
-            label = "İlerleme",
+            label = stringResource(R.string.ilerleme),
             value = entryProgressText(entry)
         )
 
@@ -520,13 +521,13 @@ private fun DetailInfoGrid(
         )
 
         DetailInfoRow(
-            label = "Yıl",
+            label = stringResource(R.string.yil),
             value = entry.year?.toString() ?: stringResource(R.string.label_unknown)
         )
 
         if (entry.source == "mal" || entry.source == "jikan") {
             DetailInfoRow(
-                label = "Öncelik",
+                label = stringResource(R.string.oncelik),
                 value = when (entry.priority) {
                     1 -> "Orta"
                     2 -> "Yüksek"
@@ -537,7 +538,7 @@ private fun DetailInfoGrid(
 
         if (entry.repeatCount > 0) {
             DetailInfoRow(
-                label = "Tekrar Sayısı",
+                label = stringResource(R.string.tekrar_sayisi),
                 value = entry.repeatCount.toString()
             )
         }

@@ -44,7 +44,16 @@ class KitsugiStudioClient {
                     } else detail
                 }
                 "anilist" -> fetchAniListStudioDetail(studioId)
-                "bangumi" -> fetchBangumiStudioDetail(studioId)
+                "bangumi" -> {
+                    var detail = if (studioId > 0) fetchBangumiStudioDetail(studioId) else null
+                    // Kimlik yoksa / yanlışsa kurumu ADIYLA çözümle (Bangumi şirket条目 type=2,
+                    // eşleşmezse aynı adlı kişi kaydı — sayfa kişi şablonunu kullanır).
+                    if (detail == null && !name.isNullOrBlank()) {
+                        val personId = KitsugiBangumiDetailClient.resolveCompanyPersonId(name)
+                        if (personId != null) detail = fetchBangumiStudioDetail(personId)
+                    }
+                    detail
+                }
                 "shikimori" -> fetchShikimoriStudioDetail(studioId, name)
                 "tmdb" -> {
                     val tmdbRes = fetchTmdbStudioDetail(studioId)
@@ -294,7 +303,7 @@ class KitsugiStudioClient {
             val romajiTitle = item.optNullableString("name")
             val englishTitle = item.optJSONArray("english")?.optString(0)?.takeIf { it.isNotBlank() && it != "null" }
             val russianTitle = item.optNullableString("russian")
-            val title = russianTitle ?: englishTitle ?: romajiTitle ?: "Başlıksız"
+            val title = russianTitle ?: englishTitle ?: romajiTitle ?: if (isTurkish()) "Başlıksız" else "Untitled"
             val kind = item.optNullableString("kind").orEmpty().lowercase()
             val posterUrl = item.optJSONObject("image")
                 ?.let { image -> (image.optNullableString("original") ?: image.optNullableString("preview")) }
@@ -305,7 +314,7 @@ class KitsugiStudioClient {
                     mediaTitle = title,
                     mediaImageUrl = posterUrl,
                     mediaType = (if (kind == "movie") "movie" else "anime").toTurkishMediaTypeString(),
-                    staffRole = "Stüdyo",
+                    staffRole = if (isTurkish()) "Stüdyo" else "Studio",
                     source = "shikimori",
                     titleEnglish = englishTitle,
                     titleRomaji = romajiTitle
@@ -407,7 +416,7 @@ class KitsugiStudioClient {
                 isMovie = isMovie,
                 url = urlStr,
                 englishTitle = enTitles[id]
-            ).display.ifBlank { "Başlıksız" }
+            ).display.ifBlank { if (isTurkish()) "Başlıksız" else "Untitled" }
             val posterPath = item.optNullableString("poster_path")
             val imgUrl = if (!posterPath.isNullOrBlank()) "https://image.tmdb.org/t/p/w185$posterPath" else null
             works.add(
@@ -416,7 +425,7 @@ class KitsugiStudioClient {
                     mediaTitle = title,
                     mediaImageUrl = imgUrl,
                     mediaType = kind.toTurkishMediaTypeString(),
-                    staffRole = "Yapım Şirketi",
+                    staffRole = if (isTurkish()) "Yapım Şirketi" else "Production Company",
                     source = "tmdb"
                 )
             )
@@ -445,7 +454,7 @@ class KitsugiStudioClient {
         for (i in 0 until data.length()) {
             val item = data.optJSONObject(i) ?: continue
             val id = item.optInt("mal_id")
-            val title = item.optNullableString("title") ?: "Bilinmeyen"
+            val title = item.optNullableString("title") ?: if (isTurkish()) "Bilinmeyen" else "Unknown"
             val imageUrl = item.optJSONObject("images")?.optJSONObject("jpg")?.optNullableString("image_url")
             val type = item.optNullableString("type").orEmpty().lowercase()
             out.add(
@@ -454,7 +463,7 @@ class KitsugiStudioClient {
                     mediaTitle = title,
                     mediaImageUrl = imageUrl,
                     mediaType = if (type.contains("manga")) "manga".toTurkishMediaTypeString() else "anime".toTurkishMediaTypeString(),
-                    staffRole = "Ana Stüdyo",
+                    staffRole = if (isTurkish()) "Ana Stüdyo" else "Main Studio",
                     source = "jikan"
                 )
             )
@@ -505,9 +514,9 @@ class KitsugiStudioClient {
                         }
                     }
                 }
-                defaultTitle ?: anyTitle ?: infoData.optNullableString("name") ?: "Bilinmeyen"
+                defaultTitle ?: anyTitle ?: infoData.optNullableString("name") ?: if (isTurkish()) "Bilinmeyen" else "Unknown"
             } else {
-                infoData.optNullableString("name") ?: "Bilinmeyen"
+                infoData.optNullableString("name") ?: if (isTurkish()) "Bilinmeyen" else "Unknown"
             }
 
             val favorites = infoData.optionalPositiveInt("favorites")
@@ -638,7 +647,7 @@ class KitsugiStudioClient {
             val id = node.optInt("id")
             val idMal = node.optionalPositiveInt("idMal")
             val titleObj = node.optJSONObject("title")
-            val title = titleObj?.optNullableString("userPreferred") ?: "Başlıksız"
+            val title = titleObj?.optNullableString("userPreferred") ?: if (isTurkish()) "Başlıksız" else "Untitled"
             val imgUrl = node.optJSONObject("coverImage")?.optNullableString("large")
             val type = node.optNullableString("type").orEmpty().lowercase()
             out.add(
@@ -647,7 +656,7 @@ class KitsugiStudioClient {
                     mediaTitle = title,
                     mediaImageUrl = imgUrl,
                     mediaType = type.toTurkishMediaTypeString(),
-                    staffRole = "Ana Stüdyo",
+                    staffRole = if (isTurkish()) "Ana Stüdyo" else "Main Studio",
                     source = if (idMal != null) "jikan" else "anilist",
                     titleEnglish = titleObj?.optNullableString("english"),
                     titleJapanese = titleObj?.optNullableString("native"),

@@ -28,6 +28,8 @@ import androidx.compose.ui.unit.dp
 import androidx.constraintlayout.compose.ConstraintLayout
 import com.kitsugi.animelist.ui.screens.fullscreen.KitsugiVideoFilters
 import com.kitsugi.animelist.ui.screens.fullscreen.controls.components.ControlsButton
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun VideoFiltersPanel(
@@ -65,7 +67,7 @@ fun VideoFiltersPanel(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    TextButton(onClick = onResetAll) { Text("Sıfırla") }
+                    TextButton(onClick = onResetAll) { Text(stringResource(R.string.sifirla)) }
                     ControlsButton(icon = Icons.Default.Close, onClick = onDismissRequest)
                 }
             }

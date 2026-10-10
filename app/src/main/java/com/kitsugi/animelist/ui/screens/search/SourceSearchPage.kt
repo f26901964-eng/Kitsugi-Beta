@@ -33,6 +33,8 @@ import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.ui.app.SourceSearchOwner
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * "Tümünü Gör" ile açılan kaynağa özel tam arama sayfası.
@@ -100,7 +102,7 @@ fun SourceSearchPage(
             IconButton(onClick = onBackClick) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                    contentDescription = "Geri",
+                    contentDescription = stringResource(R.string.geri),
                     tint = KitsugiColors.TextPrimary
                 )
             }

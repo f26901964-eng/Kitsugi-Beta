@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.components
 
+import com.kitsugi.animelist.ui.utils.localizedLabel
 import android.content.res.Configuration
 import androidx.compose.foundation.ExperimentalFoundationApi
 import com.kitsugi.animelist.ui.theme.gradient.background
@@ -277,7 +278,7 @@ private fun CompactMediaEntryCard(
                             .padding(horizontal = 8.dp, vertical = 3.dp)
                     ) {
                         Text(
-                            text = entry.status.label,
+                            text = entry.status.localizedLabel(),
                             color = statusColor,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold,
@@ -452,7 +453,7 @@ private fun ComfortableMediaEntryCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     StatusPill(
-                        text = entry.status.label,
+                        text = entry.status.localizedLabel(),
                         color = statusColor
                     )
 
@@ -535,7 +536,7 @@ private fun LargeMediaEntryCard(
                     )
 
                     StatusPill(
-                        text = entry.status.label,
+                        text = entry.status.localizedLabel(),
                         color = statusColor,
                         modifier = Modifier
                             .align(Alignment.TopEnd)
@@ -938,7 +939,7 @@ private fun LargePosterView(
         )
 
         StatusPill(
-            text = entry.status.label,
+            text = entry.status.localizedLabel(),
             color = statusColor,
             modifier = Modifier
                 .align(Alignment.TopEnd)
@@ -1202,7 +1203,7 @@ private fun MinimalistMediaEntryCard(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     StatusPill(
-                        text = entry.status.label,
+                        text = entry.status.localizedLabel(),
                         color = statusColor
                     )
 
@@ -1302,7 +1303,7 @@ private fun PosterGridMediaEntryCard(
                     .padding(horizontal = 5.dp, vertical = 2.dp)
             ) {
                 Text(
-                    text = entry.status.label,
+                    text = entry.status.localizedLabel(),
                     color = KitsugiColors.Background,
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Black,

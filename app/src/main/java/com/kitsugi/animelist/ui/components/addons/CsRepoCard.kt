@@ -25,6 +25,8 @@ import com.kitsugi.animelist.data.local.CsPluginEntity
 import com.kitsugi.animelist.data.local.ManagedAddonEntity
 import com.kitsugi.animelist.data.remote.CsPlugin
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -211,7 +213,7 @@ internal fun CsRepoCard(
                                 },
                             contentAlignment = Alignment.Center
                         ) {
-                            Icon(Icons.Rounded.ArrowCircleUp, contentDescription = "Tümünü Güncelle", tint = KitsugiColors.AccentOrange, modifier = Modifier.size(16.dp))
+                            Icon(Icons.Rounded.ArrowCircleUp, contentDescription = stringResource(R.string.tumunu_guncelle), tint = KitsugiColors.AccentOrange, modifier = Modifier.size(16.dp))
                         }
                         Spacer(Modifier.width(6.dp))
                     }
@@ -243,7 +245,7 @@ internal fun CsRepoCard(
                             .tvClickable(shape = RoundedCornerShape(8.dp)) { onRefreshRepo() },
                         contentAlignment = Alignment.Center
                     ) {
-                        Icon(Icons.Rounded.Refresh, contentDescription = "Yenile", tint = accentColor, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Rounded.Refresh, contentDescription = stringResource(R.string.yenile), tint = accentColor, modifier = Modifier.size(16.dp))
                     }
                     Spacer(Modifier.width(6.dp))
 
@@ -303,7 +305,7 @@ internal fun CsRepoCard(
                         Text("Eklentiler yüklenemedi. (Bağlantı veya URL hatası)", color = KitsugiColors.AccentRed, style = MaterialTheme.typography.bodySmall)
                         Spacer(Modifier.height(8.dp))
                         Text(
-                            text = "Yeniden Dene",
+                            text = stringResource(R.string.yeniden_dene),
                             color = accentColor,
                             fontWeight = FontWeight.Bold,
                             fontSize = 12.sp,

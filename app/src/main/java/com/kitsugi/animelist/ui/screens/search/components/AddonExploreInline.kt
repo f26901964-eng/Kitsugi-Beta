@@ -45,6 +45,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Inline Plugin Explore — LazyListScope extension
@@ -400,7 +402,7 @@ private fun InlineCategoryRow(
                         }
                         .padding(horizontal = 8.dp, vertical = 4.dp)
                 ) {
-                    Text("Tümü", color = accentColor, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    Text(stringResource(R.string.tumu), color = accentColor, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                     Icon(
                         imageVector = Icons.Default.ChevronRight,
                         contentDescription = null,

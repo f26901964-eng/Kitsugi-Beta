@@ -220,7 +220,7 @@ internal fun CloudstreamExtensionsTab(
                         } else {
                             Icon(Icons.Rounded.Refresh, contentDescription = null, tint = accentColor, modifier = Modifier.size(15.dp))
                         }
-                        Text("Yenile", color = accentColor, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.yenile), color = accentColor, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -264,7 +264,7 @@ internal fun CloudstreamExtensionsTab(
                         shape = RoundedCornerShape(10.dp),
                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)
                     ) {
-                        Text("Tümünü Güncelle", color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.tumunu_guncelle), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -372,9 +372,9 @@ internal fun CloudstreamExtensionsTab(
                         shape = RoundedCornerShape(18.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = accentColor),
                     ) {
-                        Icon(Icons.Rounded.Add, contentDescription = "Ekle", tint = KitsugiColors.Surface)
+                        Icon(Icons.Rounded.Add, contentDescription = stringResource(R.string.ekle), tint = KitsugiColors.Surface)
                         Spacer(Modifier.width(6.dp))
-                        Text("Ekle", color = KitsugiColors.Surface, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.ekle), color = KitsugiColors.Surface, fontWeight = FontWeight.Bold)
                     }
                 }
             }
@@ -475,7 +475,7 @@ internal fun CloudstreamExtensionsTab(
                             ) {
                                 Icon(Icons.Rounded.Extension, contentDescription = null, tint = accentColor, modifier = Modifier.size(16.dp))
                                 Spacer(Modifier.width(6.dp))
-                                Text("Eklenti Portalı", color = accentColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.eklenti_portali), color = accentColor, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                     }

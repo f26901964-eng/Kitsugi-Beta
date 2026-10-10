@@ -38,6 +38,8 @@ import com.kitsugi.animelist.data.manga.model.SourceHealthStatus
 import com.kitsugi.animelist.data.manga.model.SourceRuntimeStats
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.utils.requestFocusAfterFrames
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * TV-native Kaynak Sağlığı Ekranı.
@@ -157,7 +159,7 @@ fun TvMangaSourceHealthScreen(
                         // Geri
                         TvHealthActionRow(
                             icon = Icons.Rounded.ArrowBack,
-                            label = "Geri",
+                            label = stringResource(R.string.geri),
                             color = KitsugiColors.TextMuted,
                             onClick = onBack
                         )

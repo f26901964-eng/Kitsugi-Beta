@@ -43,6 +43,8 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import java.util.Locale
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 enum class DebridCacheState {
     CACHED,
@@ -220,7 +222,7 @@ fun KitsugiStreamSelectorBottomSheet(
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "Bölüm $episodeNumber • Akış Seçenekleri",
+                                text = stringResource(R.string.bolum_episodenumber_akis_secenekleri, episodeNumber),
                                 color = KitsugiColors.TextSecondary,
                                 fontSize = 12.sp
                             )
@@ -233,7 +235,7 @@ fun KitsugiStreamSelectorBottomSheet(
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.Close,
-                                contentDescription = "Kapat",
+                                contentDescription = stringResource(R.string.kapat),
                                 tint = KitsugiColors.TextPrimary
                             )
                         }
@@ -355,7 +357,7 @@ fun KitsugiStreamSelectorBottomSheet(
                                 KitsugiPlasmaLoader(size = 46.dp)
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Text(
-                                    text = "Link Çözümleniyor...",
+                                    text = stringResource(R.string.link_cozumleniyor),
                                     color = KitsugiColors.TextPrimary,
                                     fontSize = 15.sp,
                                     fontWeight = FontWeight.Bold
@@ -417,7 +419,7 @@ fun KitsugiStreamSelectorBottomSheet(
                             overflow = TextOverflow.Ellipsis
                         )
                         Text(
-                            text = "Bölüm $episodeNumber • Akış Seçenekleri",
+                            text = stringResource(R.string.bolum_episodenumber_akis_secenekleri, episodeNumber),
                             color = KitsugiColors.TextSecondary,
                             fontSize = 14.sp
                         )
@@ -431,7 +433,7 @@ fun KitsugiStreamSelectorBottomSheet(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Close,
-                            contentDescription = "Kapat",
+                            contentDescription = stringResource(R.string.kapat),
                             tint = KitsugiColors.TextPrimary
                         )
                     }
@@ -481,7 +483,7 @@ fun KitsugiStreamSelectorBottomSheet(
                         KitsugiPlasmaLoader(size = 52.dp)
                         Spacer(modifier = Modifier.height(18.dp))
                         Text(
-                            text = "Link Çözümleniyor...",
+                            text = stringResource(R.string.link_cozumleniyor),
                             color = KitsugiColors.TextPrimary,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
@@ -503,7 +505,7 @@ fun KitsugiStreamSelectorBottomSheet(
                         ) {
                             Icon(Icons.Rounded.Close, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text("İptal", fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                            Text(stringResource(R.string.iptal), fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
                         }
                     }
                 } else {
@@ -722,7 +724,7 @@ private fun StreamItemRow(
             ) {
                 Icon(
                     imageVector = Icons.Rounded.PlayArrow,
-                    contentDescription = "Oynat",
+                    contentDescription = stringResource(R.string.oynat),
                     tint = accentColor,
                     modifier = Modifier.size(20.dp)
                 )

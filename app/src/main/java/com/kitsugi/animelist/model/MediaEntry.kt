@@ -1,5 +1,8 @@
 package com.kitsugi.animelist.model
 
+import androidx.annotation.StringRes
+import com.kitsugi.animelist.R
+
 enum class MediaType {
     Anime,
     Manga,
@@ -7,15 +10,30 @@ enum class MediaType {
     TvShow
 }
 
+/**
+ * İzleme durumları — etiketler strings.xml üzerinden gelir (values / values-en);
+ * böylece rozetler ve liste kartları uygulama dilini takip eder.
+ * Gösterim için [com.kitsugi.animelist.ui.utils.localizedLabel] kullanılır.
+ */
 enum class WatchStatus(
-    val label: String
+    @StringRes val labelRes: Int
 ) {
-    Watching("İzleniyor"),
-    Completed("Tamamlandı"),
-    Planned("Planlandı"),
-    Dropped("Bırakıldı"),
-    Paused("Durduruldu"),
-    Repeating("Yeniden İzleniyor")
+    Watching(R.string.watch_watching),
+    Completed(R.string.watch_completed),
+    Planned(R.string.watch_planned),
+    Dropped(R.string.watch_dropped),
+    Paused(R.string.watch_paused),
+    Repeating(R.string.watch_repeating);
+
+    val label: String
+        get() = when (this) {
+            Watching -> "İzleniyor"
+            Completed -> "Tamamlandı"
+            Planned -> "Planlandı"
+            Dropped -> "Bırakıldı"
+            Paused -> "Beklemede"
+            Repeating -> "Tekrar İzleniyor"
+        }
 }
 
 data class MediaEntry(

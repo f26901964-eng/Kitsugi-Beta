@@ -43,6 +43,8 @@ import com.kitsugi.animelist.ui.components.KitsugiNsfwImage
 import com.kitsugi.animelist.ui.components.KitsugiSheetOrDialog
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 // ─────────────────────────────────────────────────────────────────────────────
 // ProfileActivityRow — aktivite satır bileşeni
@@ -292,7 +294,7 @@ fun ActivityCard(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.ChatBubbleOutline,
-                        contentDescription = "Yanıtlar",
+                        contentDescription = stringResource(R.string.yanitlar),
                         tint = KitsugiColors.TextMuted,
                         modifier = Modifier.size(16.dp)
                     )
@@ -319,7 +321,7 @@ fun ActivityCard(
                 ) {
                     Icon(
                         imageVector = if (isLikedState) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                        contentDescription = "Beğen",
+                        contentDescription = stringResource(R.string.begen),
                         tint = if (isLikedState) KitsugiColors.AccentPink else KitsugiColors.TextMuted,
                         modifier = Modifier.size(16.dp)
                     )
@@ -495,7 +497,7 @@ fun FavoritesExpandedBottomSheet(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Close,
-                        contentDescription = "Kapat",
+                        contentDescription = stringResource(R.string.kapat),
                         tint = KitsugiColors.TextPrimary
                     )
                 }
@@ -681,7 +683,7 @@ fun PositionalStatItemCard(
                         fontWeight = FontWeight.Bold
                     )
                     Text(
-                        text = "Başlık sayısı",
+                        text = stringResource(R.string.baslik_sayisi),
                         color = KitsugiColors.TextMuted,
                         style = MaterialTheme.typography.labelSmall
                     )
@@ -717,7 +719,7 @@ fun PositionalStatItemCard(
                             fontWeight = FontWeight.Bold
                         )
                         Text(
-                            text = "Harcanan süre",
+                            text = stringResource(R.string.harcanan_sure),
                             color = KitsugiColors.TextMuted,
                             style = MaterialTheme.typography.labelSmall
                         )

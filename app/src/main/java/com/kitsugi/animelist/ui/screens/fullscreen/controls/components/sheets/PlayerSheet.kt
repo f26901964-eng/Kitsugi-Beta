@@ -24,6 +24,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * Kitsugi'ye uyarlanmış PlayerSheet sarmalayıcı.
@@ -93,7 +95,7 @@ fun PlayerSheet(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Close,
-                            contentDescription = "Kapat",
+                            contentDescription = stringResource(R.string.kapat),
                             tint = Color.White.copy(alpha = 0.75f),
                             modifier = Modifier.size(18.dp)
                         )

@@ -48,6 +48,8 @@ import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun KitsuProfileContent(
@@ -80,11 +82,12 @@ fun KitsuProfileContent(
         initialFirstVisibleItemScrollOffset = viewModel.kitsuScrollOffset
     )
 
-    LaunchedEffect(listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset) {
-        viewModel.updateKitsuScroll(
-            listState.firstVisibleItemIndex,
-            listState.firstVisibleItemScrollOffset
-        )
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
+        }.collect { (index, offset) ->
+            viewModel.updateKitsuScroll(index, offset)
+        }
     }
 
     LazyColumn(
@@ -159,7 +162,7 @@ fun KitsuProfileContent(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Share,
-                            contentDescription = "Paylaş",
+                            contentDescription = stringResource(R.string.paylas),
                             tint = KitsugiColors.TextPrimary,
                             modifier = Modifier.size(18.dp)
                         )
@@ -349,7 +352,7 @@ private fun KitsuAboutTab(
                                 onClick = { context.openTranslator(state.about) },
                                 modifier = Modifier.size(32.dp)
                             ) {
-                                Icon(Icons.Rounded.Translate, contentDescription = "Çevir", tint = KitsugiColors.TextMuted, modifier = Modifier.size(16.dp))
+                                Icon(Icons.Rounded.Translate, contentDescription = stringResource(R.string.cevir), tint = KitsugiColors.TextMuted, modifier = Modifier.size(16.dp))
                             }
                         }
                     }
@@ -422,7 +425,7 @@ private fun KitsuAboutTab(
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "İzleme Süresi",
+                                text = stringResource(R.string.izleme_suresi),
                                 color = KitsugiColors.TextMuted,
                                 fontSize = 11.sp
                             )
@@ -446,13 +449,13 @@ private fun KitsuAboutTab(
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "${state.episodesWatched} Bölüm",
+                                text = stringResource(R.string.state_episodeswatched_bolum, state.episodesWatched),
                                 color = KitsugiColors.TextPrimary,
                                 fontSize = 14.sp,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "İzlenen Bölümler",
+                                text = stringResource(R.string.izlenen_bolumler),
                                 color = KitsugiColors.TextMuted,
                                 fontSize = 11.sp
                             )
@@ -559,7 +562,7 @@ private fun KitsuStatsTab(
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "İzleme Süresi",
+                                text = stringResource(R.string.izleme_suresi),
                                 color = KitsugiColors.TextMuted,
                                 fontSize = 11.sp
                             )
@@ -583,13 +586,13 @@ private fun KitsuStatsTab(
                             )
                             Spacer(modifier = Modifier.height(4.dp))
                             Text(
-                                text = "${state.episodesWatched} Bölüm",
+                                text = stringResource(R.string.state_episodeswatched_bolum, state.episodesWatched),
                                 color = KitsugiColors.TextPrimary,
                                 fontSize = 15.sp,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
-                                text = "İzlenen Bölümler",
+                                text = stringResource(R.string.izlenen_bolumler),
                                 color = KitsugiColors.TextMuted,
                                 fontSize = 11.sp
                             )
@@ -632,10 +635,10 @@ private fun KitsuStatsTab(
                 }
 
                 StatusRow(label = "İzleniyor / Okunuyor", count = state.watching, color = KitsugiColors.AccentGreen)
-                StatusRow(label = "Tamamlandı", count = state.completed, color = accentColor)
-                StatusRow(label = "Planlandı", count = state.planned, color = KitsugiColors.AccentYellow)
-                StatusRow(label = "Beklemede", count = state.paused, color = KitsugiColors.AccentOrange)
-                StatusRow(label = "Bırakıldı", count = state.dropped, color = KitsugiColors.AccentRed)
+                StatusRow(label = stringResource(R.string.tamamlandi), count = state.completed, color = accentColor)
+                StatusRow(label = stringResource(R.string.planlandi), count = state.planned, color = KitsugiColors.AccentYellow)
+                StatusRow(label = stringResource(R.string.beklemede), count = state.paused, color = KitsugiColors.AccentOrange)
+                StatusRow(label = stringResource(R.string.birakildi), count = state.dropped, color = KitsugiColors.AccentRed)
             }
         }
 

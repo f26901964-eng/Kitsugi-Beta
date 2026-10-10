@@ -28,6 +28,8 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiColors
 import com.kitsugi.animelist.ui.utils.tvClickable
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun FavouritesScreen(
@@ -74,7 +76,7 @@ fun FavouritesScreen(
                 ) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                        contentDescription = "Geri",
+                        contentDescription = stringResource(R.string.geri),
                         tint = KitsugiColors.textPrimary
                     )
                 }

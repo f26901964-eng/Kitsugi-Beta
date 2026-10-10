@@ -224,7 +224,7 @@ fun TvMangaExtensionScreen(
                 // Geri
                 TvExtActionButton(
                     icon = Icons.Rounded.ArrowBack,
-                    label = "Geri",
+                    label = stringResource(R.string.geri),
                     color = KitsugiColors.TextMuted,
                     onClick = onBack
                 )
@@ -1178,9 +1178,9 @@ private fun TvExtConfirmDeleteDialog(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(12.dp, Alignment.End)
             ) {
-                TvExtDialogButton(label = "Vazgeç", color = KitsugiColors.TextMuted, onClick = onDismiss)
+                TvExtDialogButton(label = stringResource(R.string.vazgec), color = KitsugiColors.TextMuted, onClick = onDismiss)
                 TvExtDialogButton(
-                    label = "Kaldır",
+                    label = stringResource(R.string.kaldir),
                     color = KitsugiColors.AccentRed,
                     focusRequester = confirmFocus,
                     onClick = onConfirm

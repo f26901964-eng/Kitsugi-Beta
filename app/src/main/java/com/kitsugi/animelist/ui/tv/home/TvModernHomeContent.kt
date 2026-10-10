@@ -52,6 +52,8 @@ import com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults
 import com.kitsugi.animelist.ui.utils.asStable
 import com.kitsugi.animelist.ui.utils.dpadVerticalFastScroll
 import kotlinx.coroutines.delay
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @OptIn(ExperimentalTvMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalComposeUiApi::class)
 @Composable
@@ -274,7 +276,7 @@ fun TvModernHomeContent(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Text(
-                                text = "Keşfet",
+                                text = stringResource(R.string.kesfet),
                                 style = MaterialTheme.typography.headlineMedium,
                                 fontWeight = FontWeight.Black,
                                 color = Color.White
@@ -291,7 +293,7 @@ fun TvModernHomeContent(
                         if (exploreViewModel.simklContinueSeries.isNotEmpty()) {
                             item(key = "row_continue_series", contentType = "content_row") {
                                 TvCatalogRow(
-                                    title = "İzlemeye Devam Et — Diziler",
+                                    title = stringResource(R.string.izlemeye_devam_et_diziler),
                                     items = exploreViewModel.simklContinueSeries.asStable(),
                                     listState = rowStates.getOrPut("continue_series") { LazyListState() },
                                     entryFocusRequester = rowEntryFocusRequesters.getOrPut("continue_series") { FocusRequester() },
@@ -307,7 +309,7 @@ fun TvModernHomeContent(
                         if (exploreViewModel.simklContinueMovies.isNotEmpty()) {
                             item(key = "row_continue_movies", contentType = "content_row") {
                                 TvCatalogRow(
-                                    title = "İzlemeye Devam Et — Filmler",
+                                    title = stringResource(R.string.izlemeye_devam_et_filmler),
                                     items = exploreViewModel.simklContinueMovies.asStable(),
                                     listState = rowStates.getOrPut("continue_movies") { LazyListState() },
                                     entryFocusRequester = rowEntryFocusRequesters.getOrPut("continue_movies") { FocusRequester() },
@@ -323,7 +325,7 @@ fun TvModernHomeContent(
                         if (exploreViewModel.simklPlannedSeries.isNotEmpty()) {
                             item(key = "row_planned_series", contentType = "content_row") {
                                 TvCatalogRow(
-                                    title = "Planladıklarım — Diziler",
+                                    title = stringResource(R.string.planladiklarim_diziler),
                                     items = exploreViewModel.simklPlannedSeries.asStable(),
                                     listState = rowStates.getOrPut("planned_series") { LazyListState() },
                                     entryFocusRequester = rowEntryFocusRequesters.getOrPut("planned_series") { FocusRequester() },
@@ -338,7 +340,7 @@ fun TvModernHomeContent(
                         if (exploreViewModel.simklPlannedMovies.isNotEmpty()) {
                             item(key = "row_planned_movies", contentType = "content_row") {
                                 TvCatalogRow(
-                                    title = "Planladıklarım — Filmler",
+                                    title = stringResource(R.string.planladiklarim_filmler),
                                     items = exploreViewModel.simklPlannedMovies.asStable(),
                                     listState = rowStates.getOrPut("planned_movies") { LazyListState() },
                                     entryFocusRequester = rowEntryFocusRequesters.getOrPut("planned_movies") { FocusRequester() },
@@ -353,7 +355,7 @@ fun TvModernHomeContent(
                         if (filteredTopAnime.isNotEmpty()) {
                             item(key = "row_trend_all", contentType = "content_row") {
                                 TvCatalogRow(
-                                    title = "Trend Her Şey",
+                                    title = stringResource(R.string.trend_her_sey),
                                     items = filteredTopAnime.asStable(),
                                     listState = rowStates.getOrPut("trend_all") { LazyListState() },
                                     entryFocusRequester = rowEntryFocusRequesters.getOrPut("trend_all") { FocusRequester() },
@@ -398,7 +400,7 @@ fun TvModernHomeContent(
                         if (filteredTopManga.isNotEmpty()) {
                             item(key = "row_pop_series", contentType = "content_row") {
                                 TvCatalogRow(
-                                    title = "Popüler Diziler",
+                                    title = stringResource(R.string.populer_diziler),
                                     items = filteredTopManga.asStable(),
                                     listState = rowStates.getOrPut("pop_series") { LazyListState() },
                                     entryFocusRequester = rowEntryFocusRequesters.getOrPut("pop_series") { FocusRequester() },
@@ -413,7 +415,7 @@ fun TvModernHomeContent(
                         if (filteredUpcomingAnime.isNotEmpty()) {
                             item(key = "row_pop_movies", contentType = "content_row") {
                                 TvCatalogRow(
-                                    title = "Popüler Filmler",
+                                    title = stringResource(R.string.populer_filmler),
                                     items = filteredUpcomingAnime.asStable(),
                                     listState = rowStates.getOrPut("pop_movies") { LazyListState() },
                                     entryFocusRequester = rowEntryFocusRequesters.getOrPut("pop_movies") { FocusRequester() },
@@ -428,7 +430,7 @@ fun TvModernHomeContent(
                         if (filteredPublishingManga.isNotEmpty()) {
                             item(key = "row_top_movies", contentType = "content_row") {
                                 TvCatalogRow(
-                                    title = "En Yüksek Puanlı Filmler",
+                                    title = stringResource(R.string.en_yuksek_puanli_filmler),
                                     items = filteredPublishingManga.asStable(),
                                     listState = rowStates.getOrPut("top_movies") { LazyListState() },
                                     entryFocusRequester = rowEntryFocusRequesters.getOrPut("top_movies") { FocusRequester() },
@@ -443,7 +445,7 @@ fun TvModernHomeContent(
                         if (filteredSeasonalAnime.isNotEmpty()) {
                             item(key = "row_top_series", contentType = "content_row") {
                                 TvCatalogRow(
-                                    title = "En Yüksek Puanlı Diziler",
+                                    title = stringResource(R.string.en_yuksek_puanli_diziler),
                                     items = filteredSeasonalAnime.asStable(),
                                     listState = rowStates.getOrPut("top_series") { LazyListState() },
                                     entryFocusRequester = rowEntryFocusRequesters.getOrPut("top_series") { FocusRequester() },
@@ -459,7 +461,7 @@ fun TvModernHomeContent(
                         if (filteredTopAnime.isNotEmpty()) {
                             item(key = "row_pop_anime", contentType = "content_row") {
                                 TvCatalogRow(
-                                    title = "Popüler Anime",
+                                    title = stringResource(R.string.populer_anime),
                                     items = filteredTopAnime.asStable(),
                                     listState = rowStates.getOrPut("pop_anime") { LazyListState() },
                                     entryFocusRequester = rowEntryFocusRequesters.getOrPut("pop_anime") { FocusRequester() },
@@ -474,7 +476,7 @@ fun TvModernHomeContent(
                         if (filteredAiringAnime.isNotEmpty()) {
                             item(key = "row_airing_anime", contentType = "content_row") {
                                 TvCatalogRow(
-                                    title = "Yayındaki Anime",
+                                    title = stringResource(R.string.yayindaki_anime),
                                     items = filteredAiringAnime.asStable(),
                                     listState = rowStates.getOrPut("airing_anime") { LazyListState() },
                                     entryFocusRequester = rowEntryFocusRequesters.getOrPut("airing_anime") { FocusRequester() },
@@ -489,7 +491,7 @@ fun TvModernHomeContent(
                         if (filteredUpcomingAnime.isNotEmpty()) {
                             item(key = "row_upcoming_anime", contentType = "content_row") {
                                 TvCatalogRow(
-                                    title = "Yaklaşan Anime",
+                                    title = stringResource(R.string.yaklasan_anime),
                                     items = filteredUpcomingAnime.asStable(),
                                     listState = rowStates.getOrPut("upcoming_anime") { LazyListState() },
                                     entryFocusRequester = rowEntryFocusRequesters.getOrPut("upcoming_anime") { FocusRequester() },
@@ -504,7 +506,7 @@ fun TvModernHomeContent(
                         if (filteredTopManga.isNotEmpty()) {
                             item(key = "row_pop_manga", contentType = "content_row") {
                                 TvCatalogRow(
-                                    title = "Popüler Manga",
+                                    title = stringResource(R.string.populer_manga),
                                     items = filteredTopManga.asStable(),
                                     listState = rowStates.getOrPut("pop_manga") { LazyListState() },
                                     entryFocusRequester = rowEntryFocusRequesters.getOrPut("pop_manga") { FocusRequester() },
@@ -519,7 +521,7 @@ fun TvModernHomeContent(
                         if (filteredPublishingManga.isNotEmpty()) {
                             item(key = "row_publishing_manga", contentType = "content_row") {
                                 TvCatalogRow(
-                                    title = "Yayındaki Manga",
+                                    title = stringResource(R.string.yayindaki_manga),
                                     items = filteredPublishingManga.asStable(),
                                     listState = rowStates.getOrPut("publishing_manga") { LazyListState() },
                                     entryFocusRequester = rowEntryFocusRequesters.getOrPut("publishing_manga") { FocusRequester() },

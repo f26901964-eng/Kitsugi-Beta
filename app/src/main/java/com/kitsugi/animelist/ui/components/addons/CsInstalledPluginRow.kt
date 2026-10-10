@@ -27,6 +27,8 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 internal fun CsInstalledPluginRow(
@@ -133,7 +135,7 @@ internal fun CsInstalledPluginRow(
                 }
                 PluginInstallState.SUCCESS -> {
                     Text(
-                        text = "✓ Başarılı",
+                        text = stringResource(R.string.basarili),
                         color = KitsugiColors.AccentGreen,
                         fontWeight = FontWeight.Bold,
                         fontSize = 11.sp,
@@ -177,7 +179,7 @@ internal fun CsInstalledPluginRow(
                 }
                 PluginInstallState.IDLE -> {
                     Text(
-                        text = "Yeniden Kur",
+                        text = stringResource(R.string.yeniden_kur),
                         color = accentColor,
                         fontWeight = FontWeight.Bold,
                         fontSize = 11.sp,
@@ -210,7 +212,7 @@ internal fun CsInstalledPluginRow(
             }
             Spacer(Modifier.width(4.dp))
             IconButton(onClick = { onUninstallCsPlugin(plugin) }) {
-                Icon(Icons.Rounded.Delete, contentDescription = "Kaldır", tint = KitsugiColors.AccentRed)
+                Icon(Icons.Rounded.Delete, contentDescription = stringResource(R.string.kaldir), tint = KitsugiColors.AccentRed)
             }
         }
     } else {
@@ -337,7 +339,7 @@ internal fun CsInstalledPluginRow(
                 )
                 Spacer(Modifier.width(4.dp))
                 IconButton(onClick = { onUninstallCsPlugin(plugin) }) {
-                    Icon(Icons.Rounded.Delete, contentDescription = "Kaldır", tint = KitsugiColors.AccentRed)
+                    Icon(Icons.Rounded.Delete, contentDescription = stringResource(R.string.kaldir), tint = KitsugiColors.AccentRed)
                 }
             }
 
@@ -394,7 +396,7 @@ internal fun CsInstalledPluginRow(
                 ) {
                     Icon(Icons.Rounded.Refresh, contentDescription = null, tint = KitsugiColors.TextSecondary, modifier = Modifier.size(16.dp))
                     Spacer(Modifier.width(4.dp))
-                    Text("Yeniden Kur", color = KitsugiColors.TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Text(stringResource(R.string.yeniden_kur), color = KitsugiColors.TextSecondary, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
 
                 Spacer(Modifier.width(4.dp))
@@ -436,7 +438,7 @@ internal fun CsInstalledPluginRow(
                     ) {
                         Icon(Icons.Rounded.Settings, contentDescription = null, tint = accentColor, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text("Ayarlar", color = accentColor, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.ayarlar), color = accentColor, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
                 }
 
@@ -447,7 +449,7 @@ internal fun CsInstalledPluginRow(
                     ) {
                         Icon(Icons.Rounded.Explore, contentDescription = null, tint = accentColor, modifier = Modifier.size(16.dp))
                         Spacer(Modifier.width(4.dp))
-                        Text("Keşfet", color = accentColor, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.kesfet), color = accentColor, fontSize = 11.sp, fontWeight = FontWeight.Bold)
                     }
                     Spacer(Modifier.width(4.dp))
                 }

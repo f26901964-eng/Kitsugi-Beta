@@ -13,6 +13,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * V2-D04 – FolderDetailScreen
@@ -56,7 +58,7 @@ fun FolderDetailScreen(
                 },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
-                        Icon(Icons.Rounded.ArrowBack, contentDescription = "Geri")
+                        Icon(Icons.Rounded.ArrowBack, contentDescription = stringResource(R.string.geri))
                     }
                 },
                 actions = {
@@ -114,7 +116,7 @@ fun FolderDetailScreen(
                 KitsugiButton(onClick = { onRemoveItem(item); itemToRemove = null }) { Text("Çıkar") }
             },
             dismissButton = {
-                OutlinedButton(onClick = { itemToRemove = null }) { Text("İptal") }
+                OutlinedButton(onClick = { itemToRemove = null }) { Text(stringResource(R.string.iptal)) }
             }
         )
     }
@@ -161,7 +163,7 @@ private fun CollectionItemCard(
                     onClick = onRemove,
                     modifier = Modifier.align(Alignment.TopEnd).size(32.dp)
                 ) {
-                    Icon(Icons.Rounded.RemoveCircle, contentDescription = "Kaldır", tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
+                    Icon(Icons.Rounded.RemoveCircle, contentDescription = stringResource(R.string.kaldir), tint = MaterialTheme.colorScheme.error, modifier = Modifier.size(20.dp))
                 }
             }
         }

@@ -34,6 +34,8 @@ import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun PauseOverlay(
@@ -233,7 +235,7 @@ fun PauseOverlay(
                     },
                     confirmButton = {
                         TextButton(onClick = { selectedCastMember = null }) {
-                            Text("Kapat", color = accentColor)
+                            Text(stringResource(R.string.kapat), color = accentColor)
                         }
                     }
                 )

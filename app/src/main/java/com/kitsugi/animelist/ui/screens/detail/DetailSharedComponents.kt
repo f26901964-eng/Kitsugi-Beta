@@ -57,6 +57,8 @@ import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.material.icons.rounded.ContentCopy
 import androidx.compose.ui.platform.LocalContext
 import com.kitsugi.animelist.utils.copyToClipboard
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * Shared pill/chip composable used across all detail pages within this package.
@@ -303,7 +305,7 @@ internal fun AiringCountdownCard(
 
             Column {
                 Text(
-                    text = "Yaklaşan Yayın",
+                    text = stringResource(R.string.yaklasan_yayin),
                     style = MaterialTheme.typography.labelSmall,
                     fontWeight = FontWeight.Bold,
                     color = KitsugiColors.Accent
@@ -342,7 +344,7 @@ internal fun DataUnavailableScreen(
         ) {
             Icon(
                 imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                contentDescription = "Geri",
+                contentDescription = stringResource(R.string.geri),
                 tint = KitsugiColors.TextPrimary
             )
         }

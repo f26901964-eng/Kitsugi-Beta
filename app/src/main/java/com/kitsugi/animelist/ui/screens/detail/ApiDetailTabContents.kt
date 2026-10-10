@@ -28,6 +28,8 @@ import androidx.compose.runtime.getValue
 import com.kitsugi.animelist.ui.screens.fullscreen.KitsugiFullscreenPlayerActivity
 
 import com.kitsugi.animelist.data.remote.JikanSearchResult
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * Tab 0 — Overview (Bilgi) content for ApiResultDetailPage.
@@ -235,7 +237,7 @@ internal fun ApiDetailEpisodesTab(
                     KitsugiFullscreenPlayerActivity.startWithStreamUrls(
                         context = context,
                         videoUrl = "file://${completedDownload.localPath}",
-                        title = "${completedDownload.animeTitle} - Bölüm ${completedDownload.episode}",
+                        title = context.getString(R.string.completeddownload_animetitle_bolum_completed, completedDownload.animeTitle, completedDownload.episode),
                         headers = emptyMap(),
                         subtitles = emptyList()
                     )

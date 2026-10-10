@@ -1,5 +1,8 @@
 package com.kitsugi.animelist.ui.screens.detail
 
+import com.kitsugi.animelist.R
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.ui.utils.localizedLabel
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.theme.gradient.border
 import androidx.compose.foundation.layout.*
@@ -136,16 +139,11 @@ fun RecommendationCard(
                 overflow = TextOverflow.Ellipsis
             )
             Spacer(modifier = Modifier.height(4.dp))
-            val typeLabel = when (rel.mediaType) {
-                MediaType.Anime -> "Anime"
-                MediaType.Manga -> "Manga"
-                MediaType.Movie -> "Film"
-                MediaType.TvShow -> "Dizi"
-            }
+            val typeLabel = rel.mediaType.localizedLabel()
             val subtitleText = if (rel.relationType.isNotBlank() && rel.relationType != "Recommendation") {
                 "${rel.relationType} • $typeLabel"
             } else {
-                "Benzer Yapım • $typeLabel"
+                "${stringResource(R.string.recommendation_similar)} • $typeLabel"
             }
             Text(
                 text = subtitleText,

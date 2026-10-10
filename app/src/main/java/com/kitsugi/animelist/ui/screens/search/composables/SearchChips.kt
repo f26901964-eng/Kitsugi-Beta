@@ -30,6 +30,8 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableIntStateOf
 import com.kitsugi.animelist.ui.components.KitsugiSheetOrDialog
 import kotlin.math.roundToInt
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 // ─── ChipWithMenu ────────────────────────────────────────────────────────────
 /**
@@ -176,7 +178,7 @@ fun KitsugiSearchSortChip(
         DialogWithRadioSelection(
             values = KitsugiMediaSortSearch.entries.toTypedArray(),
             defaultValue = sortSearch,
-            title = "Sıralama",
+            title = stringResource(R.string.siralama),
             isDeselectable = false,
             onConfirm = { selected ->
                 openDialog = false

@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.screens.search
 
+import com.kitsugi.animelist.ui.utils.localizedLabel
 import com.kitsugi.animelist.ui.theme.gradient.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -65,10 +66,10 @@ fun SearchResultRow(
     showAddButton: Boolean = true
 ) {
     val accentColor = LocalKitsugiAccent.current
-    val displayTitle = result.getDisplayTitle(titleLanguage)
+    val displayTitle = remember(result, titleLanguage) { result.getDisplayTitle(titleLanguage) }
     val isTv = LocalIsTv.current
 
-    val rowShape = if (isTv) KitsugiTvTokens.Shapes.posterCard else RoundedCornerShape(16.dp)
+    val rowShape = remember(isTv) { if (isTv) KitsugiTvTokens.Shapes.posterCard else RoundedCornerShape(16.dp) }
 
     Row(
         modifier = modifier
@@ -134,7 +135,7 @@ fun SearchResultRow(
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
                         Text(
-                            text = mediaEntry.status.label,
+                            text = mediaEntry.status.localizedLabel(),
                             color = statusColor(mediaEntry.status),
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold

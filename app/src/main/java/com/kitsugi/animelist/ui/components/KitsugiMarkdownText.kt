@@ -43,6 +43,8 @@ import com.mikepenz.markdown.m3.Markdown
 import com.mikepenz.markdown.m3.markdownColor
 import com.mikepenz.markdown.m3.markdownTypography
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * Clickable wrapper over Coil3ImageTransformerImpl that makes inline images and GIFs
@@ -416,7 +418,7 @@ fun InteractiveSpoilerSheet(
                     } else {
                         Icon(
                             imageVector = Icons.Rounded.Translate,
-                            contentDescription = "Çevir",
+                            contentDescription = stringResource(R.string.cevir),
                             tint = accent,
                             modifier = Modifier.size(20.dp)
                         )

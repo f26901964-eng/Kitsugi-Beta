@@ -34,6 +34,8 @@ import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * Brave Tarzı Arama Motoru Seçici Hap Buton.
@@ -205,7 +207,7 @@ fun SourceEnginePickerSheet(
                         Spacer(modifier = Modifier.width(8.dp))
                         Icon(
                             imageVector = Icons.Rounded.Check,
-                            contentDescription = "Seçili",
+                            contentDescription = stringResource(R.string.secili),
                             tint = accentColor,
                             modifier = Modifier.size(20.dp)
                         )

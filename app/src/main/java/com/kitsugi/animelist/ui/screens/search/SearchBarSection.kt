@@ -44,6 +44,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * Arama çubuğu bileşeni.
@@ -90,7 +92,7 @@ fun SearchBarSection(
         ) {
             Icon(
                 imageVector = Icons.Rounded.Search,
-                contentDescription = "Ara",
+                contentDescription = stringResource(R.string.ara),
                 tint = KitsugiColors.TextMuted,
                 modifier = Modifier.size(20.dp)
             )
@@ -139,7 +141,7 @@ fun SearchBarSection(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Close,
-                        contentDescription = "Temizle",
+                        contentDescription = stringResource(R.string.temizle),
                         tint = KitsugiColors.TextMuted,
                         modifier = Modifier.size(18.dp)
                     )
@@ -164,7 +166,7 @@ fun SearchBarSection(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Search,
-                        contentDescription = "Ara",
+                        contentDescription = stringResource(R.string.ara),
                         tint = accentColor,
                         modifier = Modifier.size(18.dp)
                     )

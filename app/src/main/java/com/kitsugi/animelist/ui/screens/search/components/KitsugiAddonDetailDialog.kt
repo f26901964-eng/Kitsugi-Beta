@@ -44,6 +44,8 @@ import com.lagradost.cloudstream3.*
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 sealed interface DetailLoadState {
     object Loading : DetailLoadState
@@ -106,7 +108,7 @@ fun KitsugiAddonDetailDialog(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             KitsugiPlasmaLoader(size = 50.dp)
                             Spacer(Modifier.height(16.dp))
-                            Text("Yükleniyor...", color = KitsugiColors.TextMuted, fontSize = 14.sp)
+                            Text(stringResource(R.string.yukleniyor), color = KitsugiColors.TextMuted, fontSize = 14.sp)
                         }
                     }
                 }
@@ -149,7 +151,7 @@ fun KitsugiAddonDetailDialog(
                         .padding(16.dp)
                         .background(Color.Black.copy(alpha = 0.5f), CircleShape)
                 ) {
-                    Icon(Icons.Default.Close, contentDescription = "Kapat", tint = Color.White)
+                    Icon(Icons.Default.Close, contentDescription = stringResource(R.string.kapat), tint = Color.White)
                 }
             }
         }
@@ -350,7 +352,7 @@ private fun DetailContent(
                             .padding(horizontal = 16.dp, vertical = 20.dp)
                     ) {
                         Text(
-                            text = "Açıklama",
+                            text = stringResource(R.string.aciklama),
                             color = KitsugiColors.TextPrimary,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold
@@ -463,7 +465,7 @@ private fun DetailContent(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.White)
-                                Text("Oynat", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                Text(stringResource(R.string.oynat), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                             }
                         }
                     }
@@ -550,7 +552,7 @@ private fun DetailContent(
                                     }
                                     Icon(
                                         imageVector = Icons.Default.PlayArrow,
-                                        contentDescription = "Oynat",
+                                        contentDescription = stringResource(R.string.oynat),
                                         tint = accentColor,
                                         modifier = Modifier.size(24.dp)
                                     )

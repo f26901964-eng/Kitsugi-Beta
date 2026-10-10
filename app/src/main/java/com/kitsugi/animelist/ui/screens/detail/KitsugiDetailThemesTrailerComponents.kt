@@ -60,6 +60,8 @@ import com.kitsugi.animelist.core.player.engine.Media3PlayerEngine
 import com.kitsugi.animelist.core.player.engine.MpvPlayerEngine
 import androidx.compose.runtime.collectAsState
 import kotlinx.coroutines.delay
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 
 // ---------------------------------------------------------------------------
@@ -189,7 +191,7 @@ fun KitsugiTrailerCard(trailerUrl: String, mediaTitle: String = "") {
                     modifier = Modifier.size(16.dp)
                 )
                 Text(
-                    text = "Kapat",
+                    text = stringResource(R.string.kapat),
                     color = KitsugiColors.TextSecondary,
                     style = MaterialTheme.typography.labelMedium
                 )
@@ -494,7 +496,7 @@ fun KitsugiThemesList(
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Text(
-                                        text = "Kapat",
+                                        text = stringResource(R.string.kapat),
                                         color = KitsugiColors.TextSecondary,
                                         style = MaterialTheme.typography.labelMedium
                                     )
@@ -526,7 +528,7 @@ fun KitsugiThemesList(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text(
-                    text = "Kapanış Müzikleri",
+                    text = stringResource(R.string.kapanis_muzikleri),
                     color = KitsugiColors.TextPrimary,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
@@ -601,7 +603,7 @@ fun KitsugiThemesList(
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Text(
-                                        text = "Kapat",
+                                        text = stringResource(R.string.kapat),
                                         color = KitsugiColors.TextSecondary,
                                         style = MaterialTheme.typography.labelMedium
                                     )

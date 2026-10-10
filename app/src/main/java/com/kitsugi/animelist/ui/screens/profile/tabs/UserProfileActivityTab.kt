@@ -26,6 +26,8 @@ import com.kitsugi.animelist.ui.screens.profile.KitsugiUserProfileViewModel
 import com.kitsugi.animelist.ui.screens.profile.OtherUserProfileState
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun UserProfileActivityTab(
@@ -48,7 +50,7 @@ fun UserProfileActivityTab(
                 .padding(32.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text(text = "Son aktivite bulunamadı.", color = KitsugiColors.TextMuted)
+            Text(text = stringResource(R.string.son_aktivite_bulunamadi), color = KitsugiColors.TextMuted)
         }
     } else {
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -87,7 +89,7 @@ fun UserProfileActivityTab(
                             .padding(horizontal = 24.dp, vertical = 10.dp)
                     ) {
                         Text(
-                            text = "Daha Fazla Yükle",
+                            text = stringResource(R.string.daha_fazla_yukle),
                             color = accentColor,
                             style = MaterialTheme.typography.labelMedium,
                             fontWeight = FontWeight.Bold

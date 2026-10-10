@@ -59,6 +59,8 @@ import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import com.kitsugi.animelist.ui.utils.requestFocusAfterFrames
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 private val ChipShape = RoundedCornerShape(20.dp)
 
@@ -151,7 +153,7 @@ fun TvLibraryScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 TvStatBadge(label = "Toplam", value = totalCount)
                 TvStatBadge(label = "Aktif", value = watchingCount)
-                TvStatBadge(label = "Tamamlandı", value = completedCount)
+                TvStatBadge(label = stringResource(R.string.tamamlandi), value = completedCount)
             }
         }
 
@@ -226,7 +228,7 @@ fun TvLibraryScreen(
         }
         if (selectedTab == TvWatchTab.Watching && continueWatching.isNotEmpty()) {
             com.kitsugi.animelist.ui.theme.gradient.Text(
-                text = "Devam Et",
+                text = stringResource(R.string.devam_et),
                 style = androidx.compose.material3.MaterialTheme.typography.titleSmall,
                 color = Color.White.copy(alpha = 0.7f),
                 fontWeight = FontWeight.Bold,
@@ -663,7 +665,7 @@ private fun TvPosterOptionsDialog(
                 onClick = onDelete,
                 isDestructive = true
             )
-            TvDialogButton(label = "Kapat", onClick = onDismiss)
+            TvDialogButton(label = stringResource(R.string.kapat), onClick = onDismiss)
         }
     }
 }

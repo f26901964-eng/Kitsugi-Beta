@@ -8,6 +8,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * FP-19 – Metadata info panel for anime/manga detail screens.
@@ -43,7 +45,7 @@ fun MetaDetails(
                 }
                 if (studio != null) {
                     Spacer(modifier = Modifier.height(4.dp))
-                    Text(text = "Stüdyo: $studio", style = MaterialTheme.typography.bodyMedium)
+                    Text(text = stringResource(R.string.studyo_studio, studio), style = MaterialTheme.typography.bodyMedium)
                 }
             }
         }

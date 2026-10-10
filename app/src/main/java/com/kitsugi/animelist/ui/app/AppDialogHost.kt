@@ -16,6 +16,8 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * Uygulama genelinde gösterilen overlay dialog'ları barındıran host composable.
@@ -143,8 +145,8 @@ fun AppDialogHost(
 
     deletingEntry?.let { entry ->
         KitsugiConfirmDialog(
-            title = "Kaydı sil?",
-            message = "\"${entry.title}\" listenizden kalıcı olarak kaldırılacak.",
+            title = stringResource(R.string.kaydi_sil),
+            message = stringResource(R.string.entry_title_listenizden_kalici_olarak_kaldir, entry.title),
             confirmText = "Sil",
             isDestructive = true,
             onConfirm = { onConfirmDelete(entry) },
@@ -154,10 +156,10 @@ fun AppDialogHost(
 
     if (showExitConfirmDialog) {
         KitsugiConfirmDialog(
-            title = "Uygulamadan çık?",
-            message = "Kitsugi'dan çıkmak istediğinizden emin misiniz?",
-            confirmText = "Çık",
-            dismissText = "İptal",
+            title = stringResource(R.string.uygulamadan_cik),
+            message = stringResource(R.string.kitsugi_dan_cikmak_istediginizden_emin_misin),
+            confirmText = stringResource(R.string.cik),
+            dismissText = stringResource(R.string.iptal),
             isDestructive = true,
             onConfirm = {
                 onConfirmExit()

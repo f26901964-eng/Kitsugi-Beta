@@ -250,7 +250,7 @@ fun StreamScreenContent(
                             ) {
                                 Icon(
                                     imageVector = Icons.Rounded.Close,
-                                    contentDescription = "Kapat",
+                                    contentDescription = stringResource(R.string.kapat),
                                     tint = KitsugiColors.TextSecondary,
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -319,7 +319,7 @@ fun StreamScreenContent(
         if (resolvingError != null) {
             AlertDialog(
                 onDismissRequest = onResolvingErrorDismiss,
-                title = { Text("Hata", color = KitsugiColors.TextPrimary) },
+                title = { Text(stringResource(R.string.hata), color = KitsugiColors.TextPrimary) },
                 text = { Text(resolvingError, color = KitsugiColors.TextSecondary) },
                 confirmButton = { TextButton(onClick = onResolvingErrorDismiss) { Text(stringResource(R.string.action_ok), color = accentColor) } },
                 containerColor = KitsugiColors.Surface
@@ -417,7 +417,7 @@ private fun StreamSearchBar(
                     IconButton(onClick = { onQueryChange("") }) {
                         Icon(
                             imageVector = Icons.Rounded.Close,
-                            contentDescription = "Temizle",
+                            contentDescription = stringResource(R.string.temizle),
                             tint = KitsugiColors.TextMuted,
                             modifier = Modifier.size(18.dp)
                         )
@@ -752,8 +752,12 @@ private fun PortraitLayout(
     onManualSearchClick: (() -> Unit)? = null
 ) {
     val listState = rememberLazyListState()
-    val showFloatingHeader by remember {
-        derivedStateOf { listState.firstVisibleItemIndex >= 1 }
+    var showFloatingHeader by remember { mutableStateOf(false) }
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.firstVisibleItemIndex }.collect { index ->
+            if (!showFloatingHeader && index >= 2) showFloatingHeader = true
+            else if (showFloatingHeader && index == 0) showFloatingHeader = false
+        }
     }
 
     Box(modifier = Modifier.fillMaxSize().systemBarsPadding()) {
@@ -869,8 +873,8 @@ private fun PortraitLayout(
                 ) {
                     AnimatedVisibility(
                         visible = showFloatingHeader,
-                        enter = expandVertically() + fadeIn(),
-                        exit = shrinkVertically() + fadeOut()
+                        enter = fadeIn(),
+                        exit = fadeOut()
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,

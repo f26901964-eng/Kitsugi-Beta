@@ -24,6 +24,8 @@ import com.kitsugi.animelist.ui.app.AniListProfileState
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 import com.kitsugi.animelist.ui.screens.profile.StatCard
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun AniListInfoTab(
@@ -49,7 +51,7 @@ fun AniListInfoTab(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Hakkında",
+                        text = stringResource(R.string.hakkinda),
                         color = KitsugiColors.TextPrimary,
                         style = MaterialTheme.typography.titleSmall,
                         fontWeight = FontWeight.Bold
@@ -64,7 +66,7 @@ fun AniListInfoTab(
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.Translate,
-                                contentDescription = "Çevir",
+                                contentDescription = stringResource(R.string.cevir),
                                 tint = accentColor,
                                 modifier = Modifier.size(16.dp)
                             )

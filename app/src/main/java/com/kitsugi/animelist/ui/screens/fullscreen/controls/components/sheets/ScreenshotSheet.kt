@@ -22,6 +22,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.ui.screens.fullscreen.ArtType
 import java.io.InputStream
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun ScreenshotSheet(
@@ -76,7 +78,7 @@ fun ScreenshotSheet(
                 }
                 ActionButton(
                     modifier = Modifier.weight(1f),
-                    title = "Paylaş",
+                    title = stringResource(R.string.paylas),
                     icon = Icons.Outlined.Share,
                     onClick = {
                         val stream = takeScreenshot(cachePath, showSubtitles)
@@ -88,7 +90,7 @@ fun ScreenshotSheet(
                 )
                 ActionButton(
                     modifier = Modifier.weight(1f),
-                    title = "Kaydet",
+                    title = stringResource(R.string.kaydet),
                     icon = Icons.Outlined.Save,
                     onClick = {
                         val stream = takeScreenshot(cachePath, showSubtitles)
@@ -142,7 +144,7 @@ fun ScreenshotSheet(
             },
             dismissButton = {
                 TextButton(onClick = { setArtTypeAs = null }) {
-                    Text("Hayır")
+                    Text(stringResource(R.string.hayir))
                 }
             }
         )

@@ -68,6 +68,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.ConcurrentHashMap
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 // ─────────────────────────────────────────────────────────────────────────────
 // In-memory cache
@@ -194,7 +196,7 @@ fun AddonExplorePage(
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 KitsugiPlasmaLoader(size = 48.dp)
                                 Spacer(Modifier.height(16.dp))
-                                Text("${api.name} yükleniyor...", color = KitsugiColors.TextMuted, fontSize = 14.sp)
+                                Text(stringResource(R.string.api_name_yukleniyor, api.name), color = KitsugiColors.TextMuted, fontSize = 14.sp)
                             }
                         }
                     }
@@ -299,7 +301,7 @@ fun AddonExplorePage(
                                         Modifier.fillMaxWidth().padding(vertical = 48.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Text("Keşfet içeriği yüklenemedi.", color = KitsugiColors.TextMuted)
+                                        Text(stringResource(R.string.kesfet_icerigi_yuklenemedi), color = KitsugiColors.TextMuted)
                                     }
                                 }
                             }

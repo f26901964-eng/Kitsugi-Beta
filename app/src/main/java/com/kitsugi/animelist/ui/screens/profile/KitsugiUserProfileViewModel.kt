@@ -85,8 +85,9 @@ class KitsugiUserProfileViewModel(application: Application) : AndroidViewModel(a
     var releaseYearDistType by mutableIntStateOf(0)
     var startYearDistType by mutableIntStateOf(0)
     var statsSortType by mutableIntStateOf(0)
-    var scrollIndex by mutableIntStateOf(0)
-    var scrollOffset by mutableIntStateOf(0)
+    // Observable değil: kaydırma yazımı profil sayfasını her pikselde yeniden kurmasın.
+    var scrollIndex: Int = 0
+    var scrollOffset: Int = 0
 
     fun updateScroll(index: Int, offset: Int) {
         scrollIndex = index

@@ -24,6 +24,8 @@ import com.kitsugi.animelist.ui.components.KitsugiDropdownMenu
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun P2pSettingsSection(
@@ -62,7 +64,7 @@ fun P2pSettingsSection(
             }
             Column {
                 Text(
-                    text = "P2P Torrent Akışı",
+                    text = stringResource(R.string.p2p_torrent_akisi),
                     color = KitsugiColors.TextPrimary,
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold
@@ -393,7 +395,7 @@ fun P2pSettingsSection(
                         } else {
                             Icon(Icons.Rounded.DeleteOutline, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(Modifier.width(6.dp))
-                            Text("Temizle", fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                            Text(stringResource(R.string.temizle), fontSize = 12.sp, fontWeight = FontWeight.Bold)
                         }
                     }
                 }

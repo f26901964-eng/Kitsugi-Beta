@@ -71,6 +71,8 @@ import com.kitsugi.animelist.ui.theme.KitsugiTvTokens
 import com.kitsugi.animelist.ui.utils.dpadRepeatThrottle
 import com.kitsugi.animelist.ui.utils.tvClickable
 import com.kitsugi.animelist.ui.components.rememberKitsugiShimmerBrush
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * WP-13 — TV-optimize edilmiş Manga Browse ekranı.
@@ -180,7 +182,7 @@ fun TvMangaBrowseScreen(
                 ) {
                     Icon(
                         Icons.AutoMirrored.Rounded.ArrowBack,
-                        contentDescription = "Geri",
+                        contentDescription = stringResource(R.string.geri),
                         tint = KitsugiColors.TextPrimary,
                         modifier = Modifier.size(20.dp)
                     )
@@ -212,7 +214,7 @@ fun TvMangaBrowseScreen(
             OutlinedTextField(
                 value = query,
                 onValueChange = { vm.search(it) },
-                placeholder = { Text("Manga ara...", color = KitsugiColors.TextMuted, style = MaterialTheme.typography.bodyMedium) },
+                placeholder = { Text(stringResource(R.string.manga_ara), color = KitsugiColors.TextMuted, style = MaterialTheme.typography.bodyMedium) },
                 leadingIcon  = { Icon(Icons.Rounded.Search, null, tint = KitsugiColors.TextMuted) },
                 singleLine   = true,
                 shape        = RoundedCornerShape(10.dp),
@@ -250,7 +252,7 @@ fun TvMangaBrowseScreen(
                         val anyLoading = states.any { it.isLoading }
                         item {
                             TvMangaSourceChip(
-                                label     = "Tümü",
+                                label     = stringResource(R.string.tumu),
                                 count     = totalCount,
                                 isLoading = anyLoading,
                                 isSelected = selFilter == null,

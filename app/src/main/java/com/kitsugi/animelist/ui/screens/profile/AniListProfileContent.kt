@@ -46,6 +46,8 @@ import com.kitsugi.animelist.ui.app.ProfileFavoriteItem
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.screens.profile.tabs.*
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun AniListProfileContent(
@@ -108,8 +110,12 @@ fun AniListProfileContent(
         initialFirstVisibleItemIndex = viewModel.aniListScrollIndex,
         initialFirstVisibleItemScrollOffset = viewModel.aniListScrollOffset
     )
-    LaunchedEffect(listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset) {
-        viewModel.updateAniListScroll(listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset)
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
+        }.collect { (index, offset) ->
+            viewModel.updateAniListScroll(index, offset)
+        }
     }
 
     val coroutineScope = rememberCoroutineScope()
@@ -187,7 +193,7 @@ fun AniListProfileContent(
                             val url = com.kitsugi.animelist.utils.ShareUtils.buildProfileUrl("anilist", state.name)
                             com.kitsugi.animelist.utils.ShareUtils.shareText(context, state.name, url)
                         }) {
-                            Icon(imageVector = Icons.Rounded.Share, contentDescription = "Profili Paylaş", tint = KitsugiColors.TextPrimary, modifier = Modifier.size(18.dp))
+                            Icon(imageVector = Icons.Rounded.Share, contentDescription = stringResource(R.string.profili_paylas), tint = KitsugiColors.TextPrimary, modifier = Modifier.size(18.dp))
                         }
                     }
                 }
@@ -243,10 +249,6 @@ fun AniListProfileContent(
                             val statsSubTabState = androidx.compose.foundation.lazy.rememberLazyListState()
                             androidx.compose.foundation.lazy.LazyRow(
                                 state = statsSubTabState,
-                                flingBehavior = androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior(
-                                    lazyListState = statsSubTabState,
-                                    snapPosition = androidx.compose.foundation.gestures.snapping.SnapPosition.Start
-                                ),
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
@@ -260,10 +262,6 @@ fun AniListProfileContent(
                             val favoritesFilterState = androidx.compose.foundation.lazy.rememberLazyListState()
                             androidx.compose.foundation.lazy.LazyRow(
                                 state = favoritesFilterState,
-                                flingBehavior = androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior(
-                                    lazyListState = favoritesFilterState,
-                                    snapPosition = androidx.compose.foundation.gestures.snapping.SnapPosition.Start
-                                ),
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
@@ -277,10 +275,6 @@ fun AniListProfileContent(
                             val socialFilterState = androidx.compose.foundation.lazy.rememberLazyListState()
                             androidx.compose.foundation.lazy.LazyRow(
                                 state = socialFilterState,
-                                flingBehavior = androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior(
-                                    lazyListState = socialFilterState,
-                                    snapPosition = androidx.compose.foundation.gestures.snapping.SnapPosition.Start
-                                ),
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
@@ -331,7 +325,9 @@ fun AniListProfileContent(
             ) { page ->
                 Box(modifier = Modifier.fillMaxWidth().heightIn(min = 600.dp)) {
                     Column(
-                        modifier = Modifier.fillMaxWidth().onGloballyPositioned { pageHeights[page] = it.size.height },
+                        modifier = Modifier.fillMaxWidth().onGloballyPositioned {
+                            com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.recordStablePageHeight(pageHeights, page, it.size.height)
+                        },
                         verticalArrangement = Arrangement.spacedBy(16.dp)
                     ) {
                         when (page) {

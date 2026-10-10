@@ -21,6 +21,8 @@ import com.kitsugi.animelist.ui.components.KitsugiInfoDialog
 import com.kitsugi.animelist.ui.components.KitsugiPage
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * @deprecated T4-04: Bu ekran AppNavigation/AppRoot'a bağlı değildir — ölü kod.
@@ -83,7 +85,7 @@ fun AnimeScreen(
         Spacer(modifier = Modifier.height(22.dp))
 
         KitsugiHorizontalMediaSection(
-            title = "Popüler Anime",
+            title = stringResource(R.string.populer_anime),
             results = filteredTopAnime,
             isLoading = viewModel.isLoading,
             alreadyInList = ::isAlreadyInList,
@@ -94,7 +96,7 @@ fun AnimeScreen(
         Spacer(modifier = Modifier.height(26.dp))
 
         KitsugiHorizontalMediaSection(
-            title = "Yayındaki Anime",
+            title = stringResource(R.string.yayindaki_anime),
             results = filteredAiringAnime,
             isLoading = viewModel.isLoading,
             alreadyInList = ::isAlreadyInList,
@@ -105,7 +107,7 @@ fun AnimeScreen(
         Spacer(modifier = Modifier.height(26.dp))
 
         KitsugiHorizontalMediaSection(
-            title = "Yaklaşan Anime",
+            title = stringResource(R.string.yaklasan_anime),
             results = filteredUpcomingAnime,
             isLoading = viewModel.isLoading,
             alreadyInList = ::isAlreadyInList,

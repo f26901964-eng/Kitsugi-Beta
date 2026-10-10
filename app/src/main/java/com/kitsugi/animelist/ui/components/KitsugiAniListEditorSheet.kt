@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.components
 
+import com.kitsugi.animelist.ui.utils.localizedLabel
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -56,6 +57,8 @@ import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -178,7 +181,7 @@ internal fun KitsugiAniListMediaEntryEditorSheet(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 TextButton(onClick = LocalDismissAnimated.current) {
-                    Text(text = "İptal", color = KitsugiColors.TextSecondary, fontWeight = FontWeight.Medium)
+                    Text(text = stringResource(R.string.iptal), color = KitsugiColors.TextSecondary, fontWeight = FontWeight.Medium)
                 }
                 Text(
                     text = initialEntry?.title ?: "AniList Kaydı",
@@ -218,7 +221,7 @@ internal fun KitsugiAniListMediaEntryEditorSheet(
                     }
                 ) {
                     Text(
-                        text = "Kaydet",
+                        text = stringResource(R.string.kaydet),
                         color = if (canSave) resolvedAccentColor else KitsugiColors.TextMuted,
                         fontWeight = FontWeight.Bold
                     )
@@ -258,7 +261,7 @@ internal fun KitsugiAniListMediaEntryEditorSheet(
                         ) {
                             Icon(
                                 imageVector = icon,
-                                contentDescription = status.label,
+                                contentDescription = status.localizedLabel(),
                                 tint = if (selected) KitsugiColors.Background else KitsugiColors.TextSecondary,
                                 modifier = Modifier.size(24.dp)
                             )
@@ -368,21 +371,21 @@ internal fun KitsugiAniListMediaEntryEditorSheet(
 
                 SheetRow(
                     icon = Icons.Rounded.CalendarToday,
-                    label = "Başlangıç Tarihi",
+                    label = stringResource(R.string.baslangic_tarihi),
                     value = startDateText.ifBlank { "Tarih Seçilmemiş" },
                     onClick = { selectDate(startDateText) { startDateText = it } },
                     onClearClick = if (startDateText.isNotBlank()) { { startDateText = "" } } else null
                 )
                 SheetRow(
                     icon = Icons.Rounded.EventAvailable,
-                    label = "Bitiş Tarihi",
+                    label = stringResource(R.string.bitis_tarihi),
                     value = endDateText.ifBlank { "Tarih Seçilmemiş" },
                     onClick = { selectDate(endDateText) { endDateText = it } },
                     onClearClick = if (endDateText.isNotBlank()) { { endDateText = "" } } else null
                 )
                 SheetRow(
                     icon = Icons.Rounded.Repeat,
-                    label = "Tekrar Sayısı",
+                    label = stringResource(R.string.tekrar_sayisi),
                     value = repeatCount.toString(),
                     onDecrement = { repeatCount = (repeatCount - 1).coerceAtLeast(0) },
                     onIncrement = { repeatCount = repeatCount + 1 }
@@ -395,7 +398,7 @@ internal fun KitsugiAniListMediaEntryEditorSheet(
                 )
                 SheetRow(
                     icon = Icons.Rounded.VisibilityOff,
-                    label = "Durum listelerinden gizle",
+                    label = stringResource(R.string.durum_listelerinden_gizle),
                     switchChecked = isHiddenFromStatusLists,
                     onSwitchCheckedChange = { isHiddenFromStatusLists = it }
                 )
@@ -417,7 +420,7 @@ internal fun KitsugiAniListMediaEntryEditorSheet(
                         onValueChange = { notes = it },
                         modifier = Modifier.fillMaxWidth().height(100.dp),
                         shape = RoundedCornerShape(18.dp),
-                        placeholder = { Text(text = "Kişisel düşüncelerinizi yazın...", color = KitsugiColors.TextMuted) },
+                        placeholder = { Text(text = stringResource(R.string.kisisel_dusuncelerinizi_yazin), color = KitsugiColors.TextMuted) },
                         colors = TextFieldDefaults.colors(
                             focusedTextColor = KitsugiColors.TextPrimary,
                             unfocusedTextColor = KitsugiColors.TextPrimary,
@@ -451,7 +454,7 @@ internal fun KitsugiAniListMediaEntryEditorSheet(
 
                 Spacer(modifier = Modifier.height(18.dp))
                 Text(
-                    text = "Not: Yaptığınız değişiklikler otomatik olarak AniList hesabınızla senkronize edilecektir.",
+                    text = stringResource(R.string.not_yaptiginiz_degisiklikler_otomatik_olarak),
                     color = KitsugiColors.TextMuted,
                     style = MaterialTheme.typography.bodySmall,
                     fontWeight = FontWeight.Medium,

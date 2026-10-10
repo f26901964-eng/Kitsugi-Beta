@@ -333,6 +333,10 @@ fun ExploreScreen(
         label = "explore_fab_bottom_padding"
     )
     val showFab by remember { derivedStateOf { lazyListState.firstVisibleItemIndex > 1 } }
+    // PERF: hero'nun görünürlük bilgisini derivedStateOf içine al — doğrudan
+    // firstVisibleItemIndex okumak her kaydırma karesinde hero'yu ve tüm
+    // alt ağacını recompose ediyordu.
+    val isHeroVisible by remember { derivedStateOf { lazyListState.firstVisibleItemIndex == 0 } }
 
     // Manuel olarak tepeye dönüldüğünde sıfırlama sinyali ver (diğer sayfalarla aynı sözleşme).
     LaunchedEffect(lazyListState) {
@@ -388,7 +392,7 @@ fun ExploreScreen(
                             contentPadding = PaddingValues(bottom = 100.dp)
                         ) {
                             if (heroItems.isNotEmpty()) {
-                                item {
+                                item(key = "explore_hero") {
                                     KitsugiHeroSection(
                                         items = displayHeroItems,
                                         alreadyInList = isAlreadyInList,
@@ -398,7 +402,7 @@ fun ExploreScreen(
                                         hideScores = hideScores,
                                         showAnimeLogos = showAnimeLogos,
                                         blurAdultMedia = blurAdultMedia,
-                                        isVisible = lazyListState.firstVisibleItemIndex == 0
+                                        isVisible = isHeroVisible
                                     )
                                     Spacer(modifier = Modifier.height(6.dp))
                                 }
@@ -433,7 +437,7 @@ fun ExploreScreen(
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
                                                 Text(
-                                                    text = "Keşfet",
+                                                    text = stringResource(R.string.kesfet),
                                                     style = MaterialTheme.typography.titleLarge,
                                                     fontWeight = FontWeight.Black,
                                                     color = KitsugiColors.TextPrimary
@@ -608,7 +612,7 @@ fun ExploreScreen(
                                                         )
                                                         Spacer(Modifier.width(6.dp))
                                                         Text(
-                                                            text = "Giriş Yap",
+                                                            text = stringResource(R.string.giris_yap),
                                                             fontWeight = FontWeight.SemiBold
                                                         )
                                                     }
@@ -787,7 +791,7 @@ fun ExploreScreen(
                     shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.size(52.dp)
                 ) {
-                    Icon(Icons.Default.ArrowUpward, contentDescription = "Yukarı Çık")
+                    Icon(Icons.Default.ArrowUpward, contentDescription = stringResource(R.string.yukari_cik))
                 }
             }
         }

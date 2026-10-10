@@ -109,6 +109,8 @@ import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 private val navItems = listOf(
     TvNavItem(TvDestination.HOME,     Icons.Filled.Home,          "Ana Sayfa"),
@@ -539,7 +541,7 @@ fun TvRootScreen(
                             onMediaClick = { mediaId, mediaType, mediaSource ->
                                 val targetResult = JikanSearchResult(
                                     malId = mediaId,
-                                    title = "Yükleniyor...",
+                                    title = context.getString(R.string.yukleniyor),
                                     subtitle = "",
                                     type = mediaType.parseToMediaType(),
                                     total = null,
@@ -573,7 +575,7 @@ fun TvRootScreen(
                             onMediaClick = { mediaId, mediaType, mediaSource ->
                                 val targetResult = JikanSearchResult(
                                     malId = mediaId,
-                                    title = "Yükleniyor...",
+                                    title = context.getString(R.string.yukleniyor),
                                     subtitle = "",
                                     type = mediaType.parseToMediaType(),
                                     total = null,
@@ -598,7 +600,7 @@ fun TvRootScreen(
                             onMediaClick = { mediaId, mediaType, mediaSource ->
                                 val targetResult = JikanSearchResult(
                                     malId = mediaId,
-                                    title = "Yükleniyor...",
+                                    title = context.getString(R.string.yukleniyor),
                                     subtitle = "",
                                     type = mediaType.parseToMediaType(),
                                     total = null,

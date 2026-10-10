@@ -53,7 +53,8 @@ fun DetailedSeasonalMediaCard(
     blurAdultMedia: Boolean = false
 ) {
     val accentColor = LocalKitsugiAccent.current
-    val displayTitle = result.getDisplayTitle(titleLanguage)
+    // PERF: başlık metni her recomp'da yeniden hesaplanmasın.
+    val displayTitle = remember(result, titleLanguage) { result.getDisplayTitle(titleLanguage) }
 
     // Yayın geri sayımı — NextAiringFormat ile tüm kaynaklarda aynı:
     // "Bölüm 2 · 2026-10-15 · 6 gün sonra yayında" (yayın tarihi + geri sayım)

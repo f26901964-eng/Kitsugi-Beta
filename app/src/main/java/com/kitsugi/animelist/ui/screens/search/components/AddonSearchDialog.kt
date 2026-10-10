@@ -59,6 +59,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.withContext
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -165,7 +167,7 @@ fun AddonSearchDialog(
                     IconButton(onClick = onDismissRequest) {
                         Icon(
                             imageVector = Icons.Default.ArrowBack,
-                            contentDescription = "Geri",
+                            contentDescription = stringResource(R.string.geri),
                             tint = KitsugiColors.TextPrimary
                         )
                     }
@@ -205,7 +207,7 @@ fun AddonSearchDialog(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.Search,
-                            contentDescription = "Ara",
+                            contentDescription = stringResource(R.string.ara),
                             tint = KitsugiColors.TextMuted,
                             modifier = Modifier.size(20.dp)
                         )
@@ -249,7 +251,7 @@ fun AddonSearchDialog(
                             ) {
                                 Icon(
                                     imageVector = Icons.Default.Close,
-                                    contentDescription = "Temizle",
+                                    contentDescription = stringResource(R.string.temizle),
                                     tint = KitsugiColors.TextMuted,
                                     modifier = Modifier.size(18.dp)
                                 )

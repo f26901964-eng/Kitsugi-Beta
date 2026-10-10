@@ -61,6 +61,8 @@ import com.kitsugi.animelist.ui.components.KitsugiSheetOrDialog
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import java.util.Calendar
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 enum class KitsugiSeason(val apiValue: String, val turkishName: String, val icon: ImageVector) {
     WINTER("WINTER", "Kış", Icons.Rounded.AcUnit),
@@ -144,7 +146,7 @@ fun KitsugiSeasonalFilterBottomSheet(
             ) {
                 TextButton(onClick = onDismissRequest) {
                     Text(
-                        text = "İptal",
+                        text = stringResource(R.string.iptal),
                         color = KitsugiColors.TextMuted,
                         style = MaterialTheme.typography.bodyLarge,
                         fontWeight = FontWeight.Medium
@@ -198,7 +200,7 @@ fun KitsugiSeasonalFilterBottomSheet(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = "Önceki",
+                        text = stringResource(R.string.onceki),
                         color = KitsugiColors.TextPrimary,
                         style = MaterialTheme.typography.bodyMedium,
                         fontWeight = FontWeight.SemiBold
@@ -350,7 +352,7 @@ fun KitsugiSeasonalFilterBottomSheet(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.FilterList,
-                        contentDescription = "Sıralama",
+                        contentDescription = stringResource(R.string.siralama),
                         tint = KitsugiColors.TextMuted,
                         modifier = Modifier.size(18.dp)
                     )

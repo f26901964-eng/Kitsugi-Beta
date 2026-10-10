@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.components
 
+import com.kitsugi.animelist.ui.utils.localizedLabel
 import com.kitsugi.animelist.ui.theme.gradient.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -61,9 +62,10 @@ fun KitsugiRankingMediaCard(
     blurAdultMedia: Boolean = false
 ) {
     val accentColor = LocalKitsugiAccent.current
-    val displayTitle = result.getDisplayTitle(titleLanguage)
+    // PERF: başlık/shape her recomp'da yeniden üretilmesin.
+    val displayTitle = remember(result, titleLanguage) { result.getDisplayTitle(titleLanguage) }
 
-    val shape = RoundedCornerShape(20.dp)
+    val shape = remember { RoundedCornerShape(20.dp) }
     Card(
         modifier = modifier
             .fillMaxWidth()
@@ -294,13 +296,13 @@ private fun StatusBadge(
         if (showIconOnly) {
             Icon(
                 imageVector = icon,
-                contentDescription = status.label,
+                contentDescription = status.localizedLabel(),
                 tint = Color.White,
                 modifier = Modifier.size(10.dp)
             )
         } else {
             Text(
-                text = status.label,
+                text = status.localizedLabel(),
                 color = Color.White,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.ExtraBold,

@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.screens.stats
 
+import com.kitsugi.animelist.ui.utils.plainLabel
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
 
@@ -31,6 +32,8 @@ import com.kitsugi.animelist.ui.components.stats.KitsugiDonutChart
 import com.kitsugi.animelist.ui.components.stats.KitsugiHorizontalStatsBar
 import com.kitsugi.animelist.ui.components.stats.StatsChartColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * T3.6 – İstatistikler Ekranı.
@@ -58,13 +61,13 @@ fun StatsScreen(
             IconButton(onClick = onBack) {
                 Icon(
                     imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                    contentDescription = "Geri",
+                    contentDescription = stringResource(R.string.geri),
                     tint = com.kitsugi.animelist.ui.theme.KitsugiColors.TextPrimary
                 )
             }
             Spacer(modifier = Modifier.width(4.dp))
             Text(
-                text = "İstatistikler",
+                text = stringResource(R.string.istatistikler),
                 color = com.kitsugi.animelist.ui.theme.KitsugiColors.TextPrimary,
                 style = MaterialTheme.typography.titleLarge,
                 fontWeight = FontWeight.Bold
@@ -148,7 +151,7 @@ fun StatsScreen(
 
                     // ─── Anime Durum Dağılımı ────────────────────────────────────────
                     if (uiState.animeStatusStats.isNotEmpty()) {
-                        StatsSection(title = "Anime Durum Dağılımı") {
+                        StatsSection(title = stringResource(R.string.anime_durum_dagilimi)) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -160,7 +163,7 @@ fun StatsScreen(
                                 KitsugiDonutChart(
                                     segments = uiState.animeStatusStats.map { stat ->
                                         DonutSegment(
-                                            label = stat.status.label,
+                                            label = stat.status.plainLabel(),
                                             count = stat.count,
                                             color = statusColor(stat.status)
                                         )
@@ -172,7 +175,7 @@ fun StatsScreen(
                                 Column(modifier = Modifier.weight(1f)) {
                                     uiState.animeStatusStats.forEach { stat ->
                                         StatsLegendRow(
-                                            label = stat.status.label,
+                                            label = stat.status.plainLabel(),
                                             count = stat.count,
                                             color = statusColor(stat.status)
                                         )
@@ -207,7 +210,7 @@ fun StatsScreen(
 
                     // ─── Manga Durum Dağılımı ────────────────────────────────────────
                     if (uiState.mangaStatusStats.isNotEmpty()) {
-                        StatsSection(title = "Manga Durum Dağılımı") {
+                        StatsSection(title = stringResource(R.string.manga_durum_dagilimi)) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
@@ -219,7 +222,7 @@ fun StatsScreen(
                                 KitsugiDonutChart(
                                     segments = uiState.mangaStatusStats.map { stat ->
                                         DonutSegment(
-                                            label = stat.status.label,
+                                            label = stat.status.plainLabel(),
                                             count = stat.count,
                                             color = statusColor(stat.status)
                                         )
@@ -231,7 +234,7 @@ fun StatsScreen(
                                 Column(modifier = Modifier.weight(1f)) {
                                     uiState.mangaStatusStats.forEach { stat ->
                                         StatsLegendRow(
-                                            label = stat.status.label,
+                                            label = stat.status.plainLabel(),
                                             count = stat.count,
                                             color = statusColor(stat.status)
                                         )

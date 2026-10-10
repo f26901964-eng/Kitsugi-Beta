@@ -47,6 +47,8 @@ import androidx.compose.foundation.clickable
 import com.kitsugi.animelist.ui.theme.gradient.border
 import com.kitsugi.animelist.ui.components.KitsugiImageGalleryDialog
 import com.kitsugi.animelist.ui.components.KitsugiNsfwImage
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * A single stream card showing quality/cache/addon badges and triggering playback on tap.
@@ -309,7 +311,7 @@ fun StreamCard(
                             ) {
                                 Icon(
                                     imageVector = Icons.Rounded.Download,
-                                    contentDescription = "İndir",
+                                    contentDescription = stringResource(R.string.indir),
                                     tint = KitsugiColors.TextSecondary,
                                     modifier = Modifier.size(22.dp)
                                 )
@@ -324,7 +326,7 @@ fun StreamCard(
                             ) {
                                 Icon(
                                     imageVector = Icons.Rounded.PlayArrow,
-                                    contentDescription = "Oynat",
+                                    contentDescription = stringResource(R.string.oynat),
                                     tint = accentColor,
                                     modifier = Modifier.size(20.dp)
                                 )
@@ -346,7 +348,7 @@ fun StreamCard(
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.Download,
-                                contentDescription = "İndir",
+                                contentDescription = stringResource(R.string.indir),
                                 tint = KitsugiColors.TextSecondary,
                                 modifier = Modifier.size(22.dp)
                                 )
@@ -361,7 +363,7 @@ fun StreamCard(
                         ) {
                             Icon(
                                 imageVector = Icons.Rounded.PlayArrow,
-                                contentDescription = "Oynat",
+                                contentDescription = stringResource(R.string.oynat),
                                 tint = accentColor,
                                 modifier = Modifier.size(20.dp)
                             )

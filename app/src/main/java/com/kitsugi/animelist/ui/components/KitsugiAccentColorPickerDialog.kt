@@ -46,6 +46,8 @@ import com.kitsugi.animelist.ui.theme.gradient.Switch
 import com.kitsugi.animelist.ui.theme.gradient.Text
 import com.kitsugi.animelist.ui.theme.onAccentColor
 import kotlin.math.roundToInt
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * Kapsamlı vurgu rengi seçici:
@@ -117,7 +119,7 @@ fun KitsugiAccentColorPickerDialog(
             Column(modifier = Modifier.fillMaxWidth()) {
                 // ── Başlık ─────────────────────────────────────────────
                 Text(
-                    text = "Vurgu Rengini Seç",
+                    text = stringResource(R.string.vurgu_rengini_sec),
                     color = KitsugiColors.textPrimary,
                     style = MaterialTheme.typography.titleLarge,
                     fontWeight = FontWeight.Bold
@@ -157,18 +159,18 @@ fun KitsugiAccentColorPickerDialog(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Düzenlenen:",
+                            text = stringResource(R.string.duzenlenen),
                             color = KitsugiColors.textSecondary,
                             style = MaterialTheme.typography.labelMedium
                         )
                         TargetSwatchButton(
-                            label = "Başlangıç",
+                            label = stringResource(R.string.baslangic),
                             color = color1,
                             selected = editTarget == 1,
                             onClick = { editTarget = 1 }
                         )
                         TargetSwatchButton(
-                            label = "Bitiş",
+                            label = stringResource(R.string.bitis),
                             color = color2,
                             selected = editTarget == 2,
                             onClick = { editTarget = 2 }
@@ -226,7 +228,7 @@ fun KitsugiAccentColorPickerDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     TextButton(onClick = onDismissRequest) {
-                        Text("İptal", color = KitsugiColors.textSecondary, fontWeight = FontWeight.SemiBold)
+                        Text(stringResource(R.string.iptal), color = KitsugiColors.textSecondary, fontWeight = FontWeight.SemiBold)
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     TextButton(
@@ -488,7 +490,7 @@ private fun HexField(
         },
         modifier = modifier,
         singleLine = true,
-        label = { Text("Hex kodu (isteğe bağlı)", color = KitsugiColors.textSecondary, fontSize = 12.sp) },
+        label = { Text(stringResource(R.string.hex_kodu_istege_bagli), color = KitsugiColors.textSecondary, fontSize = 12.sp) },
         placeholder = { Text("#FF66CC", color = KitsugiColors.textMuted) },
         colors = OutlinedTextFieldDefaults.colors(
             focusedTextColor = KitsugiColors.textPrimary,

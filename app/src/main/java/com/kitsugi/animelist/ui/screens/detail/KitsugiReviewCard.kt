@@ -32,6 +32,8 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 
 import androidx.compose.foundation.clickable
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * İnceleme (review) kart bileşeni.
@@ -127,7 +129,7 @@ internal fun KitsugiReviewCard(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.ThumbUp,
-                            contentDescription = "Faydalı",
+                            contentDescription = stringResource(R.string.faydali),
                             tint = if (rev.userRating == "UP_VOTE") accentColor else KitsugiColors.TextSecondary,
                             modifier = Modifier.size(12.dp)
                         )

@@ -22,6 +22,8 @@ import com.kitsugi.animelist.ui.screens.profile.*
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.utils.toEnglishGenreForSearch
 import com.kitsugi.animelist.utils.toTurkishGenre
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun AniListStatsTab(
@@ -107,8 +109,8 @@ fun AniListStatsTab(
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text("Puan", color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
-                            FilterChipItem(selected = scoreDistType == 0, text = "Başlık sayısı", onClick = { onScoreDistTypeChange(0) }, accentColor = accentColor)
-                            FilterChipItem(selected = scoreDistType == 1, text = "Harcanan süre", onClick = { onScoreDistTypeChange(1) }, accentColor = accentColor)
+                            FilterChipItem(selected = scoreDistType == 0, text = stringResource(R.string.baslik_sayisi), onClick = { onScoreDistTypeChange(0) }, accentColor = accentColor)
+                            FilterChipItem(selected = scoreDistType == 1, text = stringResource(R.string.harcanan_sure), onClick = { onScoreDistTypeChange(1) }, accentColor = accentColor)
                         }
                         val mappedStats = overview.scoreList.map { item ->
                             val valFloat = if (scoreDistType == 0) item.count.toFloat() else (item.minutesWatched / 60.0f)
@@ -138,8 +140,8 @@ fun AniListStatsTab(
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(if (statsMediaType == 0) "Bölüm Sayısı" else "Cilt/Bölüm Sayısı", color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
-                            FilterChipItem(selected = lengthDistType == 0, text = "Başlık sayısı", onClick = { onLengthDistTypeChange(0) }, accentColor = accentColor)
-                            FilterChipItem(selected = lengthDistType == 1, text = "Harcanan süre", onClick = { onLengthDistTypeChange(1) }, accentColor = accentColor)
+                            FilterChipItem(selected = lengthDistType == 0, text = stringResource(R.string.baslik_sayisi), onClick = { onLengthDistTypeChange(0) }, accentColor = accentColor)
+                            FilterChipItem(selected = lengthDistType == 1, text = stringResource(R.string.harcanan_sure), onClick = { onLengthDistTypeChange(1) }, accentColor = accentColor)
                             FilterChipItem(selected = lengthDistType == 2, text = "Ortalama Puan", onClick = { onLengthDistTypeChange(2) }, accentColor = accentColor)
                         }
                         val mappedLength = overview.lengthList.map { item ->
@@ -154,7 +156,7 @@ fun AniListStatsTab(
                 if (overview.statusList.isNotEmpty()) {
                     HorizontalDivider(color = KitsugiColors.SurfaceStrong)
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Durum Dağılımı", color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.durum_dagilimi), color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         val statusItems = overview.statusList.map { item ->
                             val (label, color) = when (item.status.uppercase()) {
                                 "CURRENT"   -> (if (statsMediaType == 0) "Şimdiki" else "Okunuyor") to Color(0xFF81C784)
@@ -175,7 +177,7 @@ fun AniListStatsTab(
                 if (overview.formatList.isNotEmpty()) {
                     HorizontalDivider(color = KitsugiColors.SurfaceStrong)
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Tür Dağılımı", color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.tur_dagilimi), color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         val formatItems = overview.formatList.map { item ->
                             val (label, color) = when (item.format.uppercase()) {
                                 "TV"       -> "TV"         to Color(0xFF5C6BC0)
@@ -200,7 +202,7 @@ fun AniListStatsTab(
                 if (overview.countryList.isNotEmpty()) {
                     HorizontalDivider(color = KitsugiColors.SurfaceStrong)
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Ülke Dağılımı", color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.ulke_dagilimi), color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         val countryItems = overview.countryList.map { item ->
                             val (label, color) = when (item.country.uppercase()) {
                                 "JP" -> "Japonya"     to Color(0xFF5C6BC0)
@@ -219,10 +221,10 @@ fun AniListStatsTab(
                 if (overview.releaseYearList.isNotEmpty()) {
                     HorizontalDivider(color = KitsugiColors.SurfaceStrong)
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Yayın Yılı", color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(stringResource(R.string.yayin_yili), color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
-                            FilterChipItem(selected = releaseYearDistType == 0, text = "Başlık sayısı", onClick = { onReleaseYearDistTypeChange(0) }, accentColor = accentColor)
-                            FilterChipItem(selected = releaseYearDistType == 1, text = "Harcanan süre", onClick = { onReleaseYearDistTypeChange(1) }, accentColor = accentColor)
+                            FilterChipItem(selected = releaseYearDistType == 0, text = stringResource(R.string.baslik_sayisi), onClick = { onReleaseYearDistTypeChange(0) }, accentColor = accentColor)
+                            FilterChipItem(selected = releaseYearDistType == 1, text = stringResource(R.string.harcanan_sure), onClick = { onReleaseYearDistTypeChange(1) }, accentColor = accentColor)
                             FilterChipItem(selected = releaseYearDistType == 2, text = "Ortalama Puan", onClick = { onReleaseYearDistTypeChange(2) }, accentColor = accentColor)
                         }
                         val mappedYears = overview.releaseYearList
@@ -242,8 +244,8 @@ fun AniListStatsTab(
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         Text(if (statsMediaType == 0) "İzleme Yılı" else "Okuma Yılı", color = KitsugiColors.TextPrimary, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
-                            FilterChipItem(selected = startYearDistType == 0, text = "Başlık sayısı", onClick = { onStartYearDistTypeChange(0) }, accentColor = accentColor)
-                            FilterChipItem(selected = startYearDistType == 1, text = "Harcanan süre", onClick = { onStartYearDistTypeChange(1) }, accentColor = accentColor)
+                            FilterChipItem(selected = startYearDistType == 0, text = stringResource(R.string.baslik_sayisi), onClick = { onStartYearDistTypeChange(0) }, accentColor = accentColor)
+                            FilterChipItem(selected = startYearDistType == 1, text = stringResource(R.string.harcanan_sure), onClick = { onStartYearDistTypeChange(1) }, accentColor = accentColor)
                             FilterChipItem(selected = startYearDistType == 2, text = "Ortalama Puan", onClick = { onStartYearDistTypeChange(2) }, accentColor = accentColor)
                         }
                         val mappedStartYears = overview.startYearList
@@ -258,7 +260,7 @@ fun AniListStatsTab(
                 }
             } else {
                 Box(modifier = Modifier.fillMaxWidth().padding(24.dp), contentAlignment = Alignment.Center) {
-                    Text(text = "İstatistik verisi hazırlanamadı.", color = KitsugiColors.TextMuted)
+                    Text(text = stringResource(R.string.istatistik_verisi_hazirlanamadi), color = KitsugiColors.TextMuted)
                 }
             }
         }
@@ -314,8 +316,8 @@ fun AniListStatsTab(
 
             // Sort Chips
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.horizontalScroll(rememberScrollState())) {
-                ProfileFilterChip(isSelected = statSortType == 0, text = "Başlık sayısı", onClick = { onStatSortTypeChange(0) }, accentColor = accentColor)
-                ProfileFilterChip(isSelected = statSortType == 1, text = "Harcanan süre", onClick = { onStatSortTypeChange(1) }, accentColor = accentColor)
+                ProfileFilterChip(isSelected = statSortType == 0, text = stringResource(R.string.baslik_sayisi), onClick = { onStatSortTypeChange(0) }, accentColor = accentColor)
+                ProfileFilterChip(isSelected = statSortType == 1, text = stringResource(R.string.harcanan_sure), onClick = { onStatSortTypeChange(1) }, accentColor = accentColor)
                 ProfileFilterChip(isSelected = statSortType == 2, text = "Ortalama Puan", onClick = { onStatSortTypeChange(2) }, accentColor = accentColor)
             }
         }
@@ -331,7 +333,7 @@ fun AniListStatsTab(
 
         if (sortedList.isEmpty()) {
             Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                Text(text = "İstatistik verisi bulunamadı.", color = KitsugiColors.TextMuted)
+                Text(text = stringResource(R.string.istatistik_verisi_bulunamadi), color = KitsugiColors.TextMuted)
             }
         } else {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {

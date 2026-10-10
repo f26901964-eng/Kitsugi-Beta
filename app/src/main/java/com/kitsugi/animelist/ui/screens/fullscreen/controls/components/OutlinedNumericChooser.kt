@@ -24,6 +24,8 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun OutlinedNumericChooser(
@@ -71,8 +73,8 @@ fun OutlinedNumericChooser(
             },
             isError = value > max || value < min,
             supportingText = {
-                if (value > max) Text("Değer çok büyük", color = Color.Red)
-                if (value < min) Text("Değer çok küçük", color = Color.Red)
+                if (value > max) Text(stringResource(R.string.deger_cok_buyuk), color = Color.Red)
+                if (value < min) Text(stringResource(R.string.deger_cok_kucuk), color = Color.Red)
             },
             suffix = suffix,
             modifier = Modifier.weight(1f),
@@ -148,8 +150,8 @@ fun OutlinedNumericChooser(
             },
             isError = value > max || value < min,
             supportingText = {
-                if (value > max) Text("Değer çok büyük", color = Color.Red)
-                if (value < min) Text("Değer çok küçük", color = Color.Red)
+                if (value > max) Text(stringResource(R.string.deger_cok_buyuk), color = Color.Red)
+                if (value < min) Text(stringResource(R.string.deger_cok_kucuk), color = Color.Red)
             },
             modifier = Modifier.weight(1f),
             maxLines = 1,

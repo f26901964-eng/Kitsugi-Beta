@@ -61,6 +61,8 @@ import com.lagradost.cloudstream3.utils.SubtitleHelper
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 private data class PluginTypeGroup(
     val label: String,
@@ -229,9 +231,13 @@ fun PluginPickerScreen(
         }
     }
 
-    LaunchedEffect(listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset) {
-        if (listState.firstVisibleItemIndex == 0 && listState.firstVisibleItemScrollOffset == 0) {
-            isHeaderVisible = true
+    LaunchedEffect(listState) {
+        snapshotFlow {
+            listState.firstVisibleItemIndex to listState.firstVisibleItemScrollOffset
+        }.collect { (index, offset) ->
+            if (index == 0 && offset == 0) {
+                isHeaderVisible = true
+            }
         }
     }
 
@@ -256,7 +262,7 @@ fun PluginPickerScreen(
                 IconButton(onClick = onBackClick) {
                     Icon(
                         imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                        contentDescription = "Geri",
+                        contentDescription = stringResource(R.string.geri),
                         tint = KitsugiColors.TextPrimary
                     )
                 }
@@ -267,7 +273,7 @@ fun PluginPickerScreen(
                     modifier = Modifier.size(24.dp)
                 )
                 Text(
-                    text = "Eklenti Portalı",
+                    text = stringResource(R.string.eklenti_portali),
                     color = KitsugiColors.TextPrimary,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.Black
@@ -346,7 +352,7 @@ fun PluginPickerScreen(
                                 ) {
                                     Icon(
                                         imageVector = Icons.Default.Close,
-                                        contentDescription = "Temizle",
+                                        contentDescription = stringResource(R.string.temizle),
                                         tint = KitsugiColors.TextMuted,
                                         modifier = Modifier.size(16.dp)
                                     )
@@ -379,7 +385,7 @@ fun PluginPickerScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             PluginTypeChip(
-                                label = "Tümü",
+                                label = stringResource(R.string.tumu),
                                 emoji = "🌐",
                                 selected = selectedGroupLabel == null,
                                 accentColor = accentColor,
@@ -679,7 +685,7 @@ private fun AllPluginsListItem(
 
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = "Tüm Eklentiler",
+                text = stringResource(R.string.tum_eklentiler),
                 color = KitsugiColors.TextPrimary,
                 fontSize = 15.sp,
                 fontWeight = FontWeight.Bold,
@@ -687,7 +693,7 @@ private fun AllPluginsListItem(
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = "Aktif olan tüm eklentilerde ara",
+                text = stringResource(R.string.aktif_olan_tum_eklentilerde_ara),
                 color = KitsugiColors.TextMuted,
                 fontSize = 12.sp,
                 maxLines = 1,

@@ -23,6 +23,8 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.LocalIsTv
 import com.kitsugi.animelist.ui.utils.tvClickable
 import kotlin.math.roundToInt
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 // ─── Generic Radio-Selection Dialog ──────────────────────────────────────────
 
@@ -220,7 +222,7 @@ fun DialogWithYearSeasonSelection(
                                 modifier = Modifier.heightIn(max = 240.dp)
                             ) {
                                 DropdownMenuItem(
-                                    text = { Text("Seçilmedi") },
+                                    text = { Text(stringResource(R.string.secilmedi)) },
                                     onClick = { tempStartYear = null; startYearExpanded = false }
                                 )
                                 years.forEach { y ->
@@ -258,7 +260,7 @@ fun DialogWithYearSeasonSelection(
                                 modifier = Modifier.heightIn(max = 240.dp)
                             ) {
                                 DropdownMenuItem(
-                                    text = { Text("Seçilmedi") },
+                                    text = { Text(stringResource(R.string.secilmedi)) },
                                     onClick = { tempEndYear = null; endYearExpanded = false }
                                 )
                                 years.forEach { y ->
@@ -296,7 +298,7 @@ fun DialogWithYearSeasonSelection(
                                 onDismissRequest = { seasonExpanded = false }
                             ) {
                                 DropdownMenuItem(
-                                    text = { Text("Seçilmedi") },
+                                    text = { Text(stringResource(R.string.secilmedi)) },
                                     onClick = { tempSeason = null; seasonExpanded = false }
                                 )
                                 seasons.forEach { s ->
@@ -315,7 +317,7 @@ fun DialogWithYearSeasonSelection(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         TextButton(onClick = onDismiss) {
-                            Text(text = "İptal", color = KitsugiColors.TextMuted)
+                            Text(text = stringResource(R.string.iptal), color = KitsugiColors.TextMuted)
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         KitsugiButton(
@@ -416,7 +418,7 @@ fun DialogWithScoreRangeSelection(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         TextButton(onClick = onDismiss) {
-                            Text(text = "İptal", color = KitsugiColors.TextMuted)
+                            Text(text = stringResource(R.string.iptal), color = KitsugiColors.TextMuted)
                         }
                         Spacer(modifier = Modifier.width(8.dp))
                         KitsugiButton(

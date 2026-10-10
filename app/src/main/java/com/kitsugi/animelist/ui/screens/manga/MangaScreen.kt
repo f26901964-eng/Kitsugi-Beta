@@ -27,6 +27,8 @@ import com.kitsugi.animelist.ui.components.KitsugiInfoDialog
 import com.kitsugi.animelist.ui.components.KitsugiPage
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @Composable
 fun MangaScreen(
@@ -102,7 +104,7 @@ fun MangaScreen(
         Spacer(modifier = Modifier.height(22.dp))
 
         KitsugiHorizontalMediaSection(
-            title = "Popüler Manga",
+            title = stringResource(R.string.populer_manga),
             results = filteredTopManga,
             isLoading = viewModel.isLoading,
             alreadyInList = ::isAlreadyInList,
@@ -113,7 +115,7 @@ fun MangaScreen(
         Spacer(modifier = Modifier.height(26.dp))
 
         KitsugiHorizontalMediaSection(
-            title = "Yayındaki Manga",
+            title = stringResource(R.string.yayindaki_manga),
             results = filteredPublishingManga,
             isLoading = viewModel.isLoading,
             alreadyInList = ::isAlreadyInList,

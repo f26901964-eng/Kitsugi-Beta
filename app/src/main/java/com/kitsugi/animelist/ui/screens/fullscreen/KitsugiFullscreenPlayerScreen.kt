@@ -101,6 +101,8 @@ import androidx.compose.ui.input.pointer.changedToUp
 import com.kitsugi.animelist.ui.screens.fullscreen.components.PreviewGenerator
 import com.kitsugi.animelist.ui.screens.fullscreen.components.formatMs
 import com.kitsugi.animelist.ui.screens.stream.KitsugiStreamActivity
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 @androidx.annotation.OptIn(androidx.media3.common.util.UnstableApi::class)
 @Composable
@@ -1283,7 +1285,7 @@ fun KitsugiFullscreenPlayerScreen(
                     playerEngine.play()
                     }
                     ) {
-                    Text("Hayır", color = KitsugiColors.TextSecondary)
+                    Text(stringResource(R.string.hayir), color = KitsugiColors.TextSecondary)
                     }
                     }
                     )
@@ -1317,7 +1319,7 @@ fun PlaybackEndedOverlay(
             verticalArrangement = Arrangement.Center
         ) {
             Text(
-                text = "Bölüm Bitti",
+                text = stringResource(R.string.bolum_bitti),
                 color = Color.White,
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
@@ -1338,11 +1340,11 @@ fun PlaybackEndedOverlay(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.Replay,
-                        contentDescription = "Yeniden Oynat",
+                        contentDescription = stringResource(R.string.yeniden_oynat),
                         modifier = Modifier.size(20.dp)
                     )
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text(text = "Yeniden Oynat", fontWeight = FontWeight.SemiBold)
+                    Text(text = stringResource(R.string.yeniden_oynat), fontWeight = FontWeight.SemiBold)
                 }
 
                 // Next Episode button
@@ -1357,11 +1359,11 @@ fun PlaybackEndedOverlay(
                     ) {
                         Icon(
                             imageVector = Icons.Rounded.SkipNext,
-                            contentDescription = "Sonraki Bölüm",
+                            contentDescription = stringResource(R.string.sonraki_bolum),
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text(text = "Sonraki Bölüm", fontWeight = FontWeight.SemiBold)
+                        Text(text = stringResource(R.string.sonraki_bolum), fontWeight = FontWeight.SemiBold)
                     }
                 }
             }

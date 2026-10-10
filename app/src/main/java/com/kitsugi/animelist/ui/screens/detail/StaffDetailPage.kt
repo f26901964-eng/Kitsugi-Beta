@@ -33,6 +33,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -245,7 +246,13 @@ fun StaffDetailPage(
                     }
                 ) {
                 val listState = rememberLazyListState()
-                val showFloatingHeader = listState.firstVisibleItemIndex >= 1
+                var showFloatingHeader by remember { mutableStateOf(false) }
+                LaunchedEffect(listState) {
+                    snapshotFlow { listState.firstVisibleItemIndex }.collect { index ->
+                        if (!showFloatingHeader && index >= 2) showFloatingHeader = true
+                        else if (showFloatingHeader && index == 0) showFloatingHeader = false
+                    }
+                }
                 val tabs = listOf(
                     stringResource(R.string.staff_tab_about),
                     stringResource(R.string.staff_tab_characters),
@@ -514,7 +521,8 @@ fun StaffDetailPage(
                                                 .fillMaxWidth()
                                                 .padding(horizontal = 20.dp)
                                                 .onGloballyPositioned { coordinates ->
-                                                    pageHeights[page] = coordinates.size.height
+                                                    com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults
+                                                        .recordStablePageHeight(pageHeights, page, coordinates.size.height)
                                                 }
                                         ) {
                                             when (page) {

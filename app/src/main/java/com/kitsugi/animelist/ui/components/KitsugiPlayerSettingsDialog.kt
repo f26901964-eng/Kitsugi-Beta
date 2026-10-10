@@ -1965,7 +1965,7 @@ fun KitsugiPlayerSettingsDialog(
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = accentColor)
                             ) {
-                                Text("Kaydet", color = com.kitsugi.animelist.ui.theme.onAccentColor(accentColor))
+                                Text(stringResource(R.string.kaydet), color = com.kitsugi.animelist.ui.theme.onAccentColor(accentColor))
                             }
                         }
                     }
@@ -2050,7 +2050,7 @@ fun KitsugiPlayerSettingsDialog(
                         showButtonEditDialog = null
                     }
                 ) {
-                    Text("Kaydet", color = accentColor)
+                    Text(stringResource(R.string.kaydet), color = accentColor)
                 }
             },
             dismissButton = {
@@ -2123,7 +2123,7 @@ fun KitsugiPlayerSettingsDialog(
                         showButtonAddDialog = false
                     }
                 ) {
-                    Text("Ekle", color = accentColor)
+                    Text(stringResource(R.string.ekle), color = accentColor)
                 }
             },
             dismissButton = {

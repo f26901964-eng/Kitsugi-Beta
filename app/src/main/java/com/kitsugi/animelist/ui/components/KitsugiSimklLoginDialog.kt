@@ -43,6 +43,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import androidx.compose.ui.res.stringResource
 
 @Composable
 fun KitsugiSimklLoginDialog(
@@ -158,7 +159,7 @@ fun KitsugiSimklLoginDialog(
 
                 TextButton(onClick = onDismiss) {
                     Text(
-                        text = "İptal",
+                        text = stringResource(R.string.iptal),
                         color = KitsugiColors.TextSecondary
                     )
                 }

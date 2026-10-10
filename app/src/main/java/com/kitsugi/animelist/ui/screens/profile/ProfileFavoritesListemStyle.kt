@@ -64,6 +64,8 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.utils.tvClickable
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * Profil favorileri için Listem (MyListScreen) ile birebir aynı kart düzenleri,
@@ -439,7 +441,11 @@ fun BoxScope.ProfileFavoritesFloatingControls(
     }
 
     // Aşağı inildiği anda görünür olsun: ilk öğe dışına çıkmış ya da birkaç yüz piksel kaydırılmış olması yeterli
-    val showScrollToTop = visible && (listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 240)
+    val showScrollToTop by remember(visible) {
+        derivedStateOf {
+            visible && (listState.firstVisibleItemIndex > 0 || listState.firstVisibleItemScrollOffset > 240)
+        }
+    }
 
     // Sol alt: kategori (Tümü butonunun karşılığı)
     AnimatedVisibility(
@@ -506,7 +512,7 @@ fun BoxScope.ProfileFavoritesFloatingControls(
         ) {
             Icon(
                 imageVector = Icons.Rounded.KeyboardArrowUp,
-                contentDescription = "Yukarı Git",
+                contentDescription = stringResource(R.string.yukari_git),
                 tint = KitsugiColors.Background,
                 modifier = Modifier.size(24.dp)
             )

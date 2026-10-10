@@ -85,6 +85,8 @@ import com.kitsugi.animelist.ui.theme.LocalKitsugiColors
 import com.kitsugi.animelist.ui.utils.dpadVerticalFastScroll
 import com.kitsugi.animelist.ui.utils.tvClickable
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.kitsugi.animelist.R
 
 /**
  * Başka bir kullanıcının AniList kütüphanesi.
@@ -543,7 +545,7 @@ fun KitsugiUserMediaListScreen(
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.KeyboardArrowUp,
-                        contentDescription = "Yukarı Git",
+                        contentDescription = stringResource(R.string.yukari_git),
                         tint = colors.background,
                         modifier = Modifier.size(24.dp)
                     )
