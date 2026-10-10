@@ -87,6 +87,7 @@ internal enum class SettingsRoute {
     Integrations,
     DataBackup,
     Downloads,
+    Storage,
     About,
     Feedback,
     PluginDiagnostic
@@ -333,6 +334,15 @@ fun SettingsScreen(
                 }
             }
 
+            SettingsRoute.Storage -> {
+                SettingsSubPage(
+                    title = stringResource(R.string.storage_title),
+                    onBack = { route = SettingsRoute.Main }
+                ) {
+                    StorageSettingsContent()
+                }
+            }
+
             SettingsRoute.About -> {
                 LaunchedEffect(Unit) {
                     route = SettingsRoute.Main
@@ -543,6 +553,14 @@ private fun SettingsMainPage(
                         icon = Icons.Rounded.Storage,
                         iconColor = KitsugiColors.AccentGreen,
                         onClick = { onNavigate(SettingsRoute.DataBackup) }
+                    )
+                    KitsugiSettingsDivider()
+                    KitsugiSettingsItem(
+                        title = stringResource(R.string.storage_title),
+                        description = stringResource(R.string.storage_menu_desc),
+                        icon = Icons.Rounded.CleaningServices,
+                        iconColor = KitsugiColors.AccentTeal,
+                        onClick = { onNavigate(SettingsRoute.Storage) }
                     )
                     KitsugiSettingsDivider()
                     KitsugiSettingsItem(

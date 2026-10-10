@@ -12,4 +12,26 @@ interface TranslationCacheDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTranslation(cache: TranslationCacheEntity)
+
+    @Query("SELECT COUNT(*) FROM translation_cache")
+    suspend fun count(): Int
+
+    /**
+     * Tabloyu en yeni [keep] satıra indirir.
+     *
+     * Neden gerekli: bu tabloda daha önce **hiç** silme yolu yoktu, çevrilen her özet/başlık
+     * kalıcı olarak birikiyordu (uygulamanın zamanla şişmesinin kalemlerinden biri).
+     * Tabloda zaman damgası kolonu bulunmadığı için yaş yerine rowid sırası kullanılır:
+     * `INSERT OR REPLACE` satırı yeniden yazdığından en yeni kullanılan kayıt en yüksek rowid'i alır.
+     *
+     * @return silinen satır sayısı
+     */
+    @Query(
+        "DELETE FROM translation_cache WHERE originalHash NOT IN " +
+            "(SELECT originalHash FROM translation_cache ORDER BY rowid DESC LIMIT :keep)"
+    )
+    suspend fun pruneToLimit(keep: Int): Int
+
+    @Query("DELETE FROM translation_cache")
+    suspend fun clearAll()
 }

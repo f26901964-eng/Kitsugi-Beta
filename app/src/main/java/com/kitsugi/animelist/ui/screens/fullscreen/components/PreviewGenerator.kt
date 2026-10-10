@@ -22,7 +22,10 @@ class PreviewGenerator(
         private const val PREVIEW_HEIGHT = 90
         private const val MAX_PREVIEWS = 120
         private const val MIN_INTERVAL_MS = 5000L
-        private const val MAX_CACHE_SIZE_BYTES = 150 * 1024 * 1024L // 150 MB
+        // NOT: Önizleme önbelleği bütçesi (150 MB / 30 gün) artık StorageJanitor'a aittir.
+        // Eskiden burada, HER PreviewGenerator örneği oluşturulduğunda tüm `filesDir/previews`
+        // ağacı gezilip boyut toplanıyordu; aynı anda Coil decode + Room yazımı ile disk yarışına
+        // girip kaydırma karelerini düşürüyordu. Tek merkezden, günde bir kez yapılır.
     }
 
     private val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -43,7 +46,6 @@ class PreviewGenerator(
         if (!cacheDir.exists()) {
             cacheDir.mkdirs()
         }
-        runLruCleanup()
     }
 
     fun start(playerDurationMs: Long) {
@@ -214,37 +216,4 @@ class PreviewGenerator(
         }
     }
 
-    private fun runLruCleanup() {
-        scope.launch {
-            val rootDir = File(context.filesDir, "previews")
-            if (!rootDir.exists()) return@launch
-            val folders = rootDir.listFiles()?.filter { it.isDirectory } ?: return@launch
-            
-            var totalSize = folders.sumOf { folder ->
-                folder.listFiles()?.sumOf { it.length() } ?: 0L
-            }
-
-            if (totalSize <= MAX_CACHE_SIZE_BYTES) return@launch
-
-            Log.d(TAG, "Previews cache size ($totalSize bytes) exceeds limit, running cleanup...")
-
-            // Sort folders by lastModified (least recently modified first)
-            val sorted = folders.sortedBy { it.lastModified() }
-            for (folder in sorted) {
-                val size = folder.listFiles()?.sumOf { it.length() } ?: 0L
-                if (deleteDir(folder)) {
-                    totalSize -= size
-                    Log.d(TAG, "Deleted preview cache: ${folder.name}")
-                    if (totalSize <= MAX_CACHE_SIZE_BYTES) break
-                }
-            }
-        }
-    }
-
-    private fun deleteDir(dir: File): Boolean {
-        if (dir.isDirectory) {
-            dir.listFiles()?.forEach { deleteDir(it) }
-        }
-        return dir.delete()
-    }
 }

@@ -21,7 +21,14 @@ class MappingSyncWorker(
         val db = KitsugiDatabase.getDatabase(applicationContext)
         val dao = db.mediaMetaCacheDao()
 
-        // 30 günden eski detay önbelleğini otomatik temizle (camış gibi şişmemesi için)
+        // 30 günden eski detay önbelleğini temizle.
+        //
+        // DİKKAT (2026-10-11): Bu iş tek başına YETERLİ DEĞİLDİ. Aşağıdaki WorkManager planı
+        // `NetworkType.UNMETERED` (yalnızca Wi-Fi) + `requiresBatteryNotLow` koşullarıyla
+        // kurulduğu için, mobil veri kullanan cihazlarda bu budama HİÇ çalışmıyordu ve
+        // `persistent_details_cache` süresiz büyüyordu (bkz. StorageJanitor). Aynı budama artık
+        // ağ koşulu olmayan `StorageMaintenanceWorker` + açılış bakımı tarafından da yapılıyor;
+        // buradaki çağrı Wi-Fi'de ekstra güvence olarak kalıyor.
         runCatching {
             val thirtyDaysAgo = System.currentTimeMillis() - (30L * 24 * 60 * 60 * 1000L)
             db.persistentDetailCacheDao().deleteOlderThan(thirtyDaysAgo)

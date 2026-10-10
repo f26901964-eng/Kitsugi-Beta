@@ -4,6 +4,10 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import com.kitsugi.animelist.data.model.AnimeDownload
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -14,12 +18,31 @@ object AnimeDownloadManager {
     private val _downloads = MutableStateFlow<List<AnimeDownload>>(emptyList())
     val downloads: StateFlow<List<AnimeDownload>> = _downloads.asStateFlow()
 
+    /** Diskteki listeyi ana iş parçacığını bloklamadan okumak için (Application.onCreate). */
+    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    @Volatile
+    private var localWriteBeforeLoad = false
+
     fun init(context: Context) {
         store = AnimeDownloadStore(context.applicationContext)
-        _downloads.value = store.getDownloads()
+        // PERF: Önceden bu satır Application.onCreate içinde (ana iş parçacığında) Gson ile
+        // tüm indirme listesini ayrıştırıyordu; liste büyüdükçe soğuk açılış uzuyordu.
+        ioScope.launch {
+            val loaded = store.getDownloads()
+            _downloads.value = if (localWriteBeforeLoad) {
+                // Okuma sürerken yeni indirme eklendiyse eskisini ezmesin: birleştir.
+                val seen = _downloads.value.mapTo(HashSet()) { it.animeId to it.episode }
+                _downloads.value + loaded.filterNot { seen.contains(it.animeId to it.episode) }
+            } else {
+                loaded
+            }
+        }
     }
 
     private fun saveAndEmit(list: List<AnimeDownload>) {
+        // Disk okuması hâlâ sürüyorsa, gelen eski liste bu yerel değişikliğin üzerine yazmasın.
+        localWriteBeforeLoad = true
         _downloads.value = list
         store.saveDownloads(list)
     }
@@ -42,6 +65,7 @@ object AnimeDownloadManager {
         streamTitle: String? = null,
         streamName: String? = null
     ) {
+        localWriteBeforeLoad = true
         val current = _downloads.value.toMutableList()
         val exists = current.any { it.animeId == animeId && it.episode == episode }
         if (exists) return
