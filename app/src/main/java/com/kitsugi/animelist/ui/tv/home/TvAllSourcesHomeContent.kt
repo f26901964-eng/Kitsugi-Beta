@@ -33,7 +33,7 @@ fun TvAllSourcesHomeContent(
     var collapsedNames by rememberSaveable { mutableStateOf(emptyList<String>()) }
     val entryMap = remember(entries) { generateExploreEntryMap(entries) }
     val getEntry = remember(entryMap) { { item: JikanSearchResult -> getMediaEntryFromMap(item, entryMap) } }
-    KitsugiShimmerProvider {
+    KitsugiShimmerProvider(active = viewModel.isLoading) {
         LazyColumn(state = listState, modifier = Modifier.fillMaxSize().background(KitsugiColors.Background),
             contentPadding = PaddingValues(bottom = 80.dp)) {
             item(key = "tv_all_source_selector") {

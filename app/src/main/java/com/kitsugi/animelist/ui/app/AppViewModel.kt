@@ -104,19 +104,25 @@ class AppViewModel : ViewModel() {
     var myListSortId by mutableStateOf("newest")
         private set
 
-    var myListScrollIndex by mutableIntStateOf(0)
+    // Scroll konumları bilinçli olarak Compose state'i DEĞİLDİR: bu değerler
+    // kaydırma sırasında HER KARE yazılır ve yalnızca ekran yeniden kurulurken
+    // "ilk değer" olarak okunur. mutableIntStateOf olduklarında her kaydırma
+    // karesi tüm sekmeyi yeniden kompoze edip Keşfet/Listem sayfalarını
+    // kilitliyordu (geri besleme döngüsü). Düz değişkenler yazma anında
+    // hiçbir kompozisyonu geçersiz kılmaz.
+    var myListScrollIndex: Int = 0
         private set
 
-    var myListScrollOffset by mutableIntStateOf(0)
+    var myListScrollOffset: Int = 0
         private set
 
     var myListTabIndex by mutableIntStateOf(0)
         private set
 
-    var exploreScrollIndex by mutableIntStateOf(0)
+    var exploreScrollIndex: Int = 0
         private set
 
-    var exploreScrollOffset by mutableIntStateOf(0)
+    var exploreScrollOffset: Int = 0
         private set
 
     private val tabHistory = java.util.ArrayList<MainTab>()

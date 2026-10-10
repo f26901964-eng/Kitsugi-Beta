@@ -50,6 +50,7 @@ import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.components.KitsugiEmptyState
 import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
+import com.kitsugi.animelist.ui.components.KitsugiShimmerProvider
 import com.kitsugi.animelist.ui.components.KitsugiShimmerSearchResultList
 import com.kitsugi.animelist.ui.components.KitsugiShimmerMediaRow
 import com.kitsugi.animelist.ui.components.KitsugiExploreMediaCard
@@ -205,6 +206,21 @@ fun SearchScreen(
         if (isStudioSearch) null else getMediaEntry(result)
     }
 
+    // Sonuç filtrelemesi: sonuçlar/filtre değişmediği sürece yeniden çalışmasın.
+    // LazyColumn DSL'i her yeniden kurulduğunda yüzlerce sonucu tekrar süzmek
+    // arama sayfasını gereksiz yere yavaşlatıyordu.
+    val filteredResults = remember(uiState.results, showAdultContent, uiState.onMyList, isAlreadyInList) {
+        uiState.results
+            .filter { showAdultContent || !it.isAdult }
+            .filter { result ->
+                when (uiState.onMyList) {
+                    true -> isAlreadyInList(result)
+                    false -> !isAlreadyInList(result)
+                    null -> true
+                }
+            }
+    }
+
     val showIdleContent = !uiState.hasSearched && !uiState.isLoading
     val showFab by remember { derivedStateOf { lazyListState.firstVisibleItemIndex > 1 } }
 
@@ -234,6 +250,11 @@ fun SearchScreen(
         "Korku", "Gizem", "Romantizm", "Sci-Fi", "Gerilim", "Müzik", "Tarihi", "Animasyon"
     )
 
+    // Shimmer geçişleri tek paylaşımlı transition'dan çalışsın: "Tümü" aramasında
+    // 7 platform rafı + sonuç listesi placeholder'ı aynı anda yüklenirken her biri
+    // kendi sonsuz animasyonunu kuruyordu. Yüklenme yokken animasyon hiç çalışmaz.
+    val anySearchLoading = uiState.isLoading || uiState.isLoadingMore || uiState.multiResults.isAnyLoading
+    KitsugiShimmerProvider(active = anySearchLoading) {
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -387,16 +408,6 @@ fun SearchScreen(
             }
 
             // Search Results List (AniHyou-style filtered by adult and onMyList)
-            val filteredResults = uiState.results
-                .filter { showAdultContent || !it.isAdult }
-                .filter { result ->
-                    when (uiState.onMyList) {
-                        true -> isAlreadyInList(result)
-                        false -> !isAlreadyInList(result)
-                        null -> true
-                    }
-                }
-
             if (uiState.currentTab == KitsugiSearchTab.All) {
                 // Çoklu Platform Rafları (Seçenek C: All-in-One Multi Platform Search)
                 item {
@@ -610,6 +621,7 @@ fun SearchScreen(
             }
         }
     }
+    } // KitsugiShimmerProvider
 
     if (showEnginePickerSheet) {
         SourceEnginePickerSheet(
