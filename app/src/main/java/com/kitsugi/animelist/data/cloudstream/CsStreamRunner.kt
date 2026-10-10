@@ -1436,7 +1436,18 @@ object CsStreamRunner {
             return emptyList()
         }
 
-        return if (isMovie) {
+        // Boru hattı seçiminde yalnızca bayrağa değil, yüklenen sayfanın GERÇEK tipine
+        // bakılır: film bayrağıyla gelinse bile kaynak içeriği bölümlü dizi girdisi olarak
+        // döndürüyorsa (Türkçe sitelerde çok yaygın: film "tek bölüm" olarak saklanır)
+        // dizi mekaniği işletilir — S1E1 eşleşmesi filmi doğru yakalar. Tersi yönde
+        // (dizi bayrağı + boş bölüm listesi) dizi borusu zaten sayfa-URL davranışına
+        // zarifçe düşer (sayfa-tipli plugin).
+        val responseIsEpisodic = (loadResponse is AnimeLoadResponse || loadResponse is TvSeriesLoadResponse) &&
+            episodeCountOf(loadResponse) > 0
+        if (isMovie != responseIsEpisodic) {
+            Log.d(TAG, "[${api.name}] Boru hattı sayfa tipine göre düzeltildi: bayrak=${if (isMovie) "film" else "dizi"}, sayfa=${if (responseIsEpisodic) "bölümlü" else "bölümsüz"}")
+        }
+        return if (isMovie && !responseIsEpisodic) {
             extractMovieStreams(api, loadResponse, partialSink)
         } else {
             extractSeriesStreams(

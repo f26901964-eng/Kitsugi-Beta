@@ -57,6 +57,7 @@ girişlerinin ikisi de aynı dispatcher'ı kullanır, yani mekanik **her kaynak 
 | 2 | Bölüm listesi dolu ama eşleşme yoksa loadLinks'e **dizi sayfası URL'si** veriliyordu → 25 sn bütçe çöpe, kart "akış bulunamadı". | Dizi sayfasına loadLinks YASAK; gerçek sebep tracker'a yazılır + sezon sayfası gezinmesi denenir. |
 | 3 | Çıplak arama sıfır sonuç verdiğinde sezonları ayrı indeksleyen sitelerde (örn. Türkçe dizi siteleri "X 2. Sezon" girdisi) ikinci şans yoktu. | "Sezon girdisi araması" aşaması: yalnızca çıplak arama boşsa sezon ekli sorgular denenir. |
 | 4 | Film ve dizi çözümleme mantığı `runGetStreams` içinde satır içi kopya + `loadAndExtractStreams` içinde ikinci kopya olarak çift yaşıyordu; ikisi birbirinden sapmıştı. | Tek dispatcher + iki adlandırılmış boru hattı (`extractMovieStreams` / `extractSeriesStreams`); çift `load` çağrısı `preloaded` ile önlenir. |
+| 5 | Boru hattı yalnızca `isMovie` bayrağına bakıyordu; kaynak filmi "tek bölüm" dizi girdisi olarak döndürürse (TR sitelerinde yaygın) film borusu dizi sayfasına loadLinks deniyordu. | Dispatcher yüklenen sayfanın GERÇEK tipine bakar (`responseIsEpisodic`): bayrak ile sayfa tipi uyuşmazsa bölümlü yanıt dizi borusuna, bölümsüz yanıt film borusuna gider. |
 
 ## 4. Değişen Dosyalar
 
