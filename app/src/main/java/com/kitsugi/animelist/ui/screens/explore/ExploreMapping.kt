@@ -19,7 +19,6 @@ internal fun generateExploreEntryMap(currentEntries: List<MediaEntry>): ExploreE
     currentEntries.forEach { entry ->
         val source = canonicalMediaSourceId(entry.source)
         val type = entry.type.name.lowercase()
-        add("$source|all", entry)
         entry.malId?.let { id ->
             add("$source|type|$type|id|$id", entry)
             add("$source|id|$id", entry)
@@ -75,9 +74,18 @@ internal fun getMediaEntryFromMap(
         .distinct()
         .forEach { normalized -> add("$source|title|$type|$normalized") }
 
-    // Keep a source-only fallback for IDs whose provider-specific namespace changed. The
-    // matcher still enforces exact provider identity before accepting a title/ID match.
-    if (candidates.isEmpty()) add("$source|all")
+    // Eşleşme (MediaEntry.matches) MAL kimliğini realMalId üzerinden de kurar; bu anahtar
+    // olmadan realMalId ile eşleşen kayıtlar indeksten kaçıyordu.
+    val rMal = if (source == "mal") {
+        result.malId
+    } else {
+        result.realMalId ?: if (source == "anilist" && result.malId < 100_000_000) result.malId else null
+    }
+    rMal?.let { add("$source|id|$it") }
 
+    // PERF: Eskiden bulunamayan her sonuç için "$source|all" anahtarıyla kaynağın TÜM kayıtları
+    // taranıyordu (her kart, her kompozisyonda; başlık normalizasyonu dâhil). Bu, Keşfet/Arama/
+    // Tümünü Göster'de kaydırma ve veri yüklenirken kasmanın kökeniydi. Artık yalnızca kimlik ve
+    // başlık indeksinden gelen adaylar kontrol edilir; kesin eşleşme kuralı matchesInSource'ta kalır.
     return candidates.firstOrNull { it.matchesInSource(result) }
 }
