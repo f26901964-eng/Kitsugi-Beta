@@ -212,6 +212,29 @@ object KitsugiEpisodeRatingsRepository {
         queryMediaKindFromArm(tmdbId) == "movie"
     }
 
+    /**
+     * TMDB movie/tv kimlik alanları ayrıdır. Aynı sayı başka bir yapıma ait olabilir;
+     * logo/galeri uygulamadan önce başlık doğrulanır.
+     */
+    private fun tmdbRecordMatches(tmdbId: Int, isTv: Boolean, expectedTitles: List<String>): Boolean {
+        if (tmdbId <= 0 || expectedTitles.isEmpty()) return true
+        val apiKey = TmdbApiClient.getActiveApiKey()
+        if (apiKey.isBlank()) return false
+        val type = if (isTv) "tv" else "movie"
+        val json = runCatching {
+            val url = URL("https://api.themoviedb.org/3/$type/$tmdbId?api_key=$apiKey")
+            val resp = KitsugiApiBase.executeGetRequest(url)
+            if (resp.isNullOrBlank()) null else JSONObject(resp)
+        }.getOrNull() ?: return false
+        val title = if (isTv) json.optString("name") else json.optString("title")
+        val original = if (isTv) json.optString("original_name") else json.optString("original_title")
+        val matches = TmdbArtworkIdentity.matches(expectedTitles, title, original)
+        if (matches) {
+            DetailCache.tmdbMediaCache[tmdbId] = if (isTv) "tv" else "movie"
+        }
+        return matches
+    }
+
     // ── All caches are consolidated in DetailCache (app-lifetime singleton) ──
     // References kept as local aliases for readability
     private val ratingsCache get() = DetailCache.episodeRatingsCache
@@ -231,7 +254,8 @@ object KitsugiEpisodeRatingsRepository {
         val fanart: Boolean,
         val language: String,
         val isMovie: Boolean,
-        val season: Int
+        val season: Int,
+        val titlesKey: String = ""
     )
     private val logoInFlight = mutableMapOf<LogoRequestKey, Deferred<String?>>()
     /** containsKey ile saklanan null'u, önbellekte olmama durumundan ayırır. */
@@ -432,19 +456,28 @@ object KitsugiEpisodeRatingsRepository {
         tmdbId: Int,
         seasonNumber: Int? = null,
         language: String? = null,
-        isMovie: Boolean = false
+        isMovie: Boolean = false,
+        expectedTitles: List<String> = emptyList()
     ): String? = withContext(Dispatchers.IO) {
         if (tmdbId <= 0) return@withContext null
 
-        val effectiveIsMovie = isMovie || isTmdbMovie(tmdbId)
+        val titleMatchedMovie = if (expectedTitles.isNotEmpty()) tmdbRecordMatches(tmdbId, isTv = false, expectedTitles) else null
+        val titleMatchedTv = if (expectedTitles.isNotEmpty()) tmdbRecordMatches(tmdbId, isTv = true, expectedTitles) else null
+        val effectiveIsMovie = when {
+            titleMatchedMovie == true && titleMatchedTv != true -> true
+            titleMatchedTv == true && titleMatchedMovie != true -> false
+            titleMatchedMovie == false && titleMatchedTv == false -> return@withContext null
+            else -> isMovie || isTmdbMovie(tmdbId)
+        }
         val preferredLang = normalizeLanguageCode(language ?: getPreferredImageLanguage())
         val season = seasonNumber?.takeIf { it > 1 } ?: 0
         val tmdbArtworkEnabled = isTmdbArtworkEnabled()
         val (fanartEnabled, fanartApiKey) = getFanartSettings()
         if (!tmdbArtworkEnabled && !fanartEnabled) return@withContext null
 
-        val requestKey = LogoRequestKey(tmdbId, tmdbArtworkEnabled, fanartEnabled, preferredLang, effectiveIsMovie, season)
-        val cacheKey = "${requestKey.tmdbId}|${requestKey.language}|${requestKey.isMovie}|${requestKey.season}|${requestKey.tmdbArtwork}|${requestKey.fanart}"
+        val titlesKey = expectedTitles.map { it.lowercase() }.sorted().joinToString("|").take(80)
+        val requestKey = LogoRequestKey(tmdbId, tmdbArtworkEnabled, fanartEnabled, preferredLang, effectiveIsMovie, season, titlesKey)
+        val cacheKey = "${requestKey.tmdbId}|${requestKey.language}|${requestKey.isMovie}|${requestKey.season}|${requestKey.tmdbArtwork}|${requestKey.fanart}|$titlesKey"
         val cached = mutex.withLock {
             if (logoSelectionCache.containsKey(cacheKey)) logoSelectionCache[cacheKey] else NO_LOGO_CACHE
         }
@@ -506,9 +539,7 @@ object KitsugiEpisodeRatingsRepository {
                 ?.let { return it }
         }
 
-        val secondary = movieLogoUrl(tmdbId, language, fanartEnabled, fanartApiKey, tmdbArtworkEnabled)
-        if (!secondary.isNullOrBlank()) return secondary
-
+        // Movie endpoint fallback YOK — TMDB film/dizi kimlikleri ayrı alanlardır.
         // SeriesGraph dil bilgisi taşımaz; yalnızca başka logo yoksa.
         return fetchLogoFromSeriesGraph(tmdbId)
     }
@@ -699,7 +730,8 @@ object KitsugiEpisodeRatingsRepository {
         fallbackAniListId: Int? = null,
         seasonNumber: Int? = null,
         language: String? = null,
-        isMovie: Boolean = false
+        isMovie: Boolean = false,
+        expectedTitles: List<String> = emptyList()
     ): String? = withContext(Dispatchers.IO) {
         if (!isAnyLogoSourceEnabled()) return@withContext null
         if (malId <= 0 && fallbackAniListId == null) return@withContext null
@@ -709,7 +741,7 @@ object KitsugiEpisodeRatingsRepository {
             tmdbId = resolveTmdbIdFromAniList(fallbackAniListId)
         }
         val resolvedId = tmdbId ?: return@withContext null
-        getLogoUrl(resolvedId, seasonNumber, language, isMovie)
+        getLogoUrl(resolvedId, seasonNumber, language, isMovie, expectedTitles)
     }
 
     /**
@@ -726,7 +758,8 @@ object KitsugiEpisodeRatingsRepository {
         fallbackMalId: Int? = null,
         seasonNumber: Int? = null,
         language: String? = null,
-        isMovie: Boolean = false
+        isMovie: Boolean = false,
+        expectedTitles: List<String> = emptyList()
     ): String? = withContext(Dispatchers.IO) {
         if (!isAnyLogoSourceEnabled()) return@withContext null
         var tmdbId: Int? = null
@@ -737,7 +770,7 @@ object KitsugiEpisodeRatingsRepository {
             tmdbId = resolveTmdbIdFromMal(fallbackMalId)
         }
         val resolvedId = tmdbId ?: return@withContext null
-        getLogoUrl(resolvedId, seasonNumber, language, isMovie)
+        getLogoUrl(resolvedId, seasonNumber, language, isMovie, expectedTitles)
     }
 
     private fun fetchLogoFromSeriesGraph(tmdbId: Int): String? {
@@ -813,13 +846,7 @@ object KitsugiEpisodeRatingsRepository {
         tmdbId: Int,
         fallbackMalId: Int? = null,
         fallbackAniListId: Int? = null,
-        fallbackKitsuId: Int? = null,
-        /**
-         * false ise TMDB `/tv/{id}/external_ids` sorgusu yapılmaz. Film fallback'inde
-         * çağrılır: film ID'si TV ad alanında sorgulanırsa alakasız bir dizinin TVDB'si
-         * dönüp dizinin posteri/arka planı filmin galerisine karışır.
-         */
-        allowTmdbExternalIds: Boolean = true
+        fallbackKitsuId: Int? = null
     ): Int? = withContext(Dispatchers.IO) {
         // FİLM koruması: TVDB anime filmlerini dizinin 0. sezonu olarak tutar; filmin
         // TMDB ID'si için TVDB döndürülürse fanart-TV DİZİNİN logosunu/afişini getirir.
@@ -827,15 +854,6 @@ object KitsugiEpisodeRatingsRepository {
         if (DetailCache.tmdbMediaCache[tmdbId] == "movie") {
             Log.d(TAG, "TVDB resolve skipped (movie): tmdbId=$tmdbId")
             return@withContext null
-        }
-
-        // Film fallback'i: TMDB ID'si TV ad alanına ait önbelleklere/Room kayıtlarına hiç
-        // bakmaz ve sonucu da önbelleğe yazmaz (aynı sayı başka bir diziye ait olabilir).
-        // Yalnızca anime kimlikleriyle (MAL → AniList → Kitsu) TVDB çözülür.
-        if (!allowTmdbExternalIds) {
-            return@withContext fallbackMalId?.takeIf { it > 0 }?.let { resolveTvdbIdFromMal(it) }
-                ?: fallbackAniListId?.takeIf { it > 0 }?.let { resolveTvdbIdFromAniList(it) }
-                ?: fallbackKitsuId?.takeIf { it > 0 }?.let { resolveTvdbIdFromKitsu(it) }
         }
 
         // 1. Bellek önbelleği kontrolü
@@ -852,15 +870,11 @@ object KitsugiEpisodeRatingsRepository {
             return@withContext cached
         }
 
-        // 3. TMDB external_ids endpoint → tvdb_id
-        val isTv = true // Fanart.tv TV endpoint için; movie de denenebilir
-        val extIds = if (allowTmdbExternalIds) {
-            runCatching { KitsugiIdResolver.fetchExternalIds(tmdbId, isTv) }.getOrNull()
-        } else null
+        // 3. TMDB external_ids — YALNIZCA /tv/{id}. Movie ID'yi TV gibi sorgulamak
+        // aynı sayıdaki bambaşka bir dizinin TVDB kimliğini döndürür (Uncharted film
+        // ID'si → Family Full House fanart'ı). Film kayıtları zaten yukarıda elendi.
+        val extIds = runCatching { KitsugiIdResolver.fetchExternalIds(tmdbId, isTv = true) }.getOrNull()
         val tvdbFromTmdb = extIds?.tvdbId?.takeIf { it > 0 }
-            ?: if (allowTmdbExternalIds) {
-                runCatching { KitsugiIdResolver.fetchExternalIds(tmdbId, false) }.getOrNull()?.tvdbId?.takeIf { it > 0 }
-            } else null
         if (tvdbFromTmdb != null) {
             mutex.withLock { tmdbToTvdbCache[tmdbId] = tvdbFromTmdb }
             // Kalıcı olarak Room'a yaz
@@ -1010,46 +1024,14 @@ object KitsugiEpisodeRatingsRepository {
                     emptyList()
                 }
             } else {
-                Log.d(TAG, "No TVDB ID for tmdbId=$tmdbId — Fanart.tv TV skipped, will try movie fallback")
+                Log.d(TAG, "No TVDB ID for tmdbId=$tmdbId — Fanart.tv TV skipped")
                 emptyList()
             }
         }
 
-        // FALLBACK: Eğer ilk deneme boş döndüyse ve tmdbId varsa, diğer endpoint'i dene
-        if (result.isEmpty() && tmdbId > 0) {
-            if (isMovie) {
-                // Film olarak arandı ama bulunamadı -> TV olarak TVDB çözüp dene.
-                // Film TMDB ID'si TV ad alanında sorgulanmaz (aynı sayı başka bir diziye ait olabilir);
-                // yalnızca MAL/AniList/Kitsu kimlikleri (anime filmleri için) kullanılır.
-                var fallbackTvdbId = resolveTvdbIdFromTmdb(
-                    tmdbId, fallbackMalId, fallbackAniListId, fallbackKitsuId,
-                    allowTmdbExternalIds = false
-                )
-                if (fallbackTvdbId == null || fallbackTvdbId <= 0) {
-                    if (fallbackMalId != null && fallbackMalId > 0) fallbackTvdbId = resolveTvdbIdFromMal(fallbackMalId)
-                }
-                if (fallbackTvdbId == null || fallbackTvdbId <= 0) {
-                    if (fallbackAniListId != null && fallbackAniListId > 0) fallbackTvdbId = resolveTvdbIdFromAniList(fallbackAniListId)
-                }
-                if (fallbackTvdbId == null || fallbackTvdbId <= 0) {
-                    if (fallbackKitsuId != null && fallbackKitsuId > 0) fallbackTvdbId = resolveTvdbIdFromKitsu(fallbackKitsuId)
-                }
-                if (fallbackTvdbId != null && fallbackTvdbId > 0) {
-                    result = runCatching {
-                        FanartApiClient.fetchTvImages(fallbackTvdbId, fanartApiKey, preferredLang)
-                    }.getOrElse { emptyList() }
-                }
-            } else {
-                // TV olarak arandı ama TVDB yoktu veya TV Fanart'ta bulunamadı (Örn: Anime filmleri fanart.tv'de Film altındadır)
-                // Doğrudan TMDB ID ile Film endpoint'ini dene!
-                result = runCatching {
-                    FanartApiClient.fetchMovieImages(tmdbId, fanartApiKey, preferredLang)
-                }.getOrElse {
-                    Log.w(TAG, "getFanartGalleryItems (movie fallback) failed: ${it.message}")
-                    emptyList()
-                }
-            }
-        }
+        // Film ↔ dizi fallback YOK. TMDB movie/tv kimlik alanları ayrıdır; aynı sayı
+        // bambaşka bir yapıma aittir. Karşı türe düşmek Uncharted galerisine Family Full
+        // House afişlerini (veya tersini) karıştırıyordu.
 
         if (result.isNotEmpty()) {
             DetailCache.putFanartGallery(isMovie, cacheId, result, preferredLang)
@@ -1161,11 +1143,11 @@ object KitsugiEpisodeRatingsRepository {
             return list
         }
 
-        // Beklenen tür önce denenir, sonra öteki tür. Bir kaydın görselleri yalnızca TMDB
-        // başlığı beklenenle uyuşursa listeye karışır — başlıklar gerçekten farklıysa o
-        // görseller başka bir yapıma aittir ve galeriye girmemeli.
+        // Yalnızca beklenen tür. Movie/tv kimlikleri ayrı alanlardır; karşı türü denemek
+        // aynı sayıdaki alakasız yapımın afişlerini galeriye karıştırır. Başlık doğrulaması
+        // ek güvenliktir — eşleşmezse görseller hiç kullanılmaz.
         val primaryType = if (isMovie) "movie" else "tv"
-        val typesToTry = listOf(primaryType, if (isMovie) "tv" else "movie")
+        val typesToTry = listOf(primaryType)
         var items = emptyList<GalleryItem>()
         for (type in typesToTry) {
             val response = runCatching {
@@ -1700,12 +1682,13 @@ object KitsugiEpisodeRatingsRepository {
         kitsuId: Int,
         seasonNumber: Int? = null,
         language: String? = null,
-        isMovie: Boolean = false
+        isMovie: Boolean = false,
+        expectedTitles: List<String> = emptyList()
     ): String? = withContext(Dispatchers.IO) {
         if (!isAnyLogoSourceEnabled()) return@withContext null
         if (kitsuId <= 0) return@withContext null
         val tmdbId = resolveTmdbIdFromKitsu(kitsuId) ?: return@withContext null
-        getLogoUrl(tmdbId, seasonNumber, language, isMovie = isMovie || isKitsuMovie(kitsuId))
+        getLogoUrl(tmdbId, seasonNumber, language, isMovie = isMovie || isKitsuMovie(kitsuId), expectedTitles = expectedTitles)
     }
 
     suspend fun getResolvedTmdbIdForKitsu(kitsuId: Int): Int? = mutex.withLock {

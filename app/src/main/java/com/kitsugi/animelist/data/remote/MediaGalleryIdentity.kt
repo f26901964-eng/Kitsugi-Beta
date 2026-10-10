@@ -94,10 +94,11 @@ internal object TmdbArtworkIdentity {
         val candidates = listOfNotNull(tmdbTitle?.takeIf { it.isNotBlank() }, tmdbOriginalTitle?.takeIf { it.isNotBlank() })
             .map { normalize(it) }
             .filter { it.isNotEmpty() }
-        // TMDB başlık alanı boşsa (nadir) doğrulama yapılamaz → fail-open.
-        if (candidates.isEmpty()) return true
         val expected = expectedTitles.map { normalize(it) }.filter { it.length >= 3 }
+        // Beklenen başlık yoksa doğrulama yapılamaz.
         if (expected.isEmpty()) return true
+        // TMDB başlığı boşsa ve elimizde beklenen başlık varsa karıştırmayalım.
+        if (candidates.isEmpty()) return false
         return expected.any { exp ->
             candidates.any { tmdb ->
                 tmdb == exp ||

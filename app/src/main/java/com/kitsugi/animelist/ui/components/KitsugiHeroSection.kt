@@ -87,6 +87,8 @@ private fun heroItemIdentity(item: JikanSearchResult): String =
 
 private suspend fun fetchHeroLogo(item: JikanSearchResult): String? = try {
     val stableId = item.malId
+    val logoTitles = listOfNotNull(item.title, item.titleEnglish, item.titleJapanese, item.titleRomaji)
+        .filter { it.isNotBlank() }.distinct()
     val isMovie = KitsugiEpisodeRatingsRepository.prefersMovieLogo(
         type = item.type,
         subtitle = item.subtitle,
@@ -101,7 +103,7 @@ private suspend fun fetchHeroLogo(item: JikanSearchResult): String? = try {
     when {
         item.source.equals("tmdb", ignoreCase = true) -> {
             val tmdbId = item.tmdbId ?: stableId.takeIf { it > 0 }
-            tmdbId?.takeIf { it > 0 }?.let { KitsugiEpisodeRatingsRepository.getLogoUrl(it, seasonNumber = season, isMovie = isMovie) }
+            tmdbId?.takeIf { it > 0 }?.let { KitsugiEpisodeRatingsRepository.getLogoUrl(it, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles) }
         }
         item.source.equals("anilist", ignoreCase = true) -> {
             if (stableId in 100_000_001..199_999_999) {
@@ -109,55 +111,56 @@ private suspend fun fetchHeroLogo(item: JikanSearchResult): String? = try {
                     aniListId = stableId - 100_000_000,
                     fallbackMalId = item.realMalId,
                     seasonNumber = season,
-                    isMovie = isMovie
+                    isMovie = isMovie,
+                    expectedTitles = logoTitles
                 )
             } else {
                 val malId = item.realMalId?.takeIf { it in 1..99_999_999 }
                     ?: stableId.takeIf { it in 1..99_999_999 }
-                malId?.let { KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(it, seasonNumber = season, isMovie = isMovie) }
+                malId?.let { KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(it, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles) }
             }
         }
         item.source.equals("kitsu", ignoreCase = true) -> {
             val kitsuLogo = if (stableId in 300_000_001..399_999_999) {
-                KitsugiEpisodeRatingsRepository.getLogoUrlByKitsuId(stableId - 300_000_000, seasonNumber = season, isMovie = isMovie)
+                KitsugiEpisodeRatingsRepository.getLogoUrlByKitsuId(stableId - 300_000_000, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles)
             } else null
             kitsuLogo?.takeIf { it.isNotBlank() }
                 ?: item.realMalId?.takeIf { it in 1..99_999_999 }
-                    ?.let { KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(it, seasonNumber = season, isMovie = isMovie) }
+                    ?.let { KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(it, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles) }
         }
         item.source.equals("simkl", ignoreCase = true) -> {
             val realMalId = item.realMalId?.takeIf { it in 1..99_999_999 }
             val tmdbId = item.tmdbId?.takeIf { it > 0 }
-            tmdbId?.let { KitsugiEpisodeRatingsRepository.getLogoUrl(it, seasonNumber = season, isMovie = isMovie) }
+            tmdbId?.let { KitsugiEpisodeRatingsRepository.getLogoUrl(it, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles) }
                 ?.takeIf { it.isNotBlank() }
-                ?: realMalId?.let { KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(it, seasonNumber = season, isMovie = isMovie) }
+                ?: realMalId?.let { KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(it, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles) }
         }
         item.source.equals("bangumi", ignoreCase = true) || item.source.equals("bgm", ignoreCase = true) -> {
             // Bangumi kimliği 500M+ stableId'dir; MAL olarak kesinlikle kullanma.
             val cross = KitsugiBangumiDetailClient.resolveCrossIds(stableId, item.type)
             val realMalId = item.realMalId?.takeIf { it in 1..99_999_999 } ?: cross.malId
-            val malLogo = realMalId?.let { KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(it, seasonNumber = season, isMovie = isMovie) }
+            val malLogo = realMalId?.let { KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(it, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles) }
                 ?.takeIf { it.isNotBlank() }
             val aniListLogo = if (malLogo.isNullOrBlank()) {
                 cross.aniListId?.takeIf { it > 0 }
-                    ?.let { KitsugiEpisodeRatingsRepository.getLogoUrlByAniListId(it, seasonNumber = season, isMovie = isMovie) }
+                    ?.let { KitsugiEpisodeRatingsRepository.getLogoUrlByAniListId(it, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles) }
                     ?.takeIf { it.isNotBlank() }
             } else null
             malLogo ?: aniListLogo ?: cross.tmdbId?.takeIf { it > 0 }
-                ?.let { KitsugiEpisodeRatingsRepository.getLogoUrl(it, seasonNumber = season, isMovie = isMovie) }
+                ?.let { KitsugiEpisodeRatingsRepository.getLogoUrl(it, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles) }
         }
         item.source.equals("jikan", ignoreCase = true) ||
             item.source.equals("mal", ignoreCase = true) ||
             item.source.equals("myanimelist", ignoreCase = true) -> {
             stableId.takeIf { it in 1..99_999_999 }
-                ?.let { KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(it, seasonNumber = season, isMovie = isMovie) }
+                ?.let { KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(it, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles) }
         }
         item.source.equals("shikimori", ignoreCase = true) -> {
             val realMalId = item.realMalId?.takeIf { it in 1..99_999_999 }
                 ?: withContext(kotlinx.coroutines.Dispatchers.IO) {
                     KitsugiIdResolver.resolveMalIdFromShikimori(stableId)
                 }
-            realMalId?.let { KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(it, seasonNumber = season, isMovie = isMovie) }
+            realMalId?.let { KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(it, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles) }
         }
         else -> null
     }

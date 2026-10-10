@@ -274,7 +274,6 @@ fun AppRootDetailPages(
                         authViewModel.startExternalAuth("simkl")
                     },
                     onReadMangaClick = {
-                        navState.detailBackStack = emptyList<DetailScreen>()
                         navState.openMangaBrowse(key.result.title)
                     },
                     mdbListShowImdb = appSettings.mdbListShowImdb,

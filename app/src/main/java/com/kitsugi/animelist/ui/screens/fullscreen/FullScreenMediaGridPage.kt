@@ -136,15 +136,15 @@ fun FullScreenMediaGridPage(
     val columnCount = remember(isLandscape, screenWidthDp) {
         if (isLandscape) {
             when {
-                screenWidthDp >= 1200 -> 3
-                screenWidthDp >= 800 -> 2
-                else -> 2
+                screenWidthDp >= 1200 -> 5
+                screenWidthDp >= 800 -> 4
+                else -> 3
             }
         } else {
             when {
-                screenWidthDp >= 900 -> 4
-                screenWidthDp >= 600 -> 3
-                else -> 2
+                screenWidthDp >= 900 -> 5
+                screenWidthDp >= 600 -> 4
+                else -> 3
             }
         }
     }

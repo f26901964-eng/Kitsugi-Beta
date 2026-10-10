@@ -5,6 +5,7 @@ import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.util.Log
+import com.kitsugi.animelist.core.notifications.AddonInstallNotifier
 import com.kitsugi.animelist.core.security.TrustManager
 import com.kitsugi.animelist.core.security.RepoVerifier
 import java.io.File
@@ -56,6 +57,27 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
     var mangaBulkInstallDone by mutableStateOf(0)
     var mangaBulkInstallTotal by mutableStateOf(0)
     var mangaBulkInstallCurrentName by mutableStateOf("")
+
+    private fun notifyMangaBulkProgress(repoName: String = mangaBulkInstallRepoUrl.orEmpty()) {
+        AddonInstallNotifier.showProgress(
+            context = context,
+            repoName = repoName,
+            currentName = mangaBulkInstallCurrentName,
+            done = mangaBulkInstallDone,
+            total = mangaBulkInstallTotal,
+            notificationId = AddonInstallNotifier.MANGA_NOTIFICATION_ID
+        )
+    }
+
+    private fun finishMangaBulkNotification(message: String, success: Boolean) {
+        AddonInstallNotifier.showFinished(
+            context = context,
+            repoName = mangaBulkInstallRepoUrl.orEmpty(),
+            message = message,
+            success = success,
+            notificationId = AddonInstallNotifier.MANGA_NOTIFICATION_ID
+        )
+    }
 
     var onShowMessage: ((String) -> Unit)? = null
 
@@ -304,6 +326,7 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
             mangaBulkInstallTotal = toInstall.size
             mangaBulkInstallDone = 0
             mangaBulkInstallCurrentName = toInstall.firstOrNull()?.name ?: ""
+            notifyMangaBulkProgress()
 
             val semaphore = kotlinx.coroutines.sync.Semaphore(2) // Max 2 parallel downloads
             val doneCounter = java.util.concurrent.atomic.AtomicInteger(0)
@@ -326,6 +349,7 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
                         val completedCount = doneCounter.incrementAndGet()
                         mangaBulkInstallCurrentName = ext.name
                         mangaBulkInstallDone = completedCount
+                        notifyMangaBulkProgress()
                         mangaSources = mangaRepository.getAvailableSources()
                     } finally {
                         semaphore.release()
@@ -335,7 +359,9 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
 
             jobs.forEach { it.join() }
 
-            onShowMessage?.invoke("✅ ${successCounter.get()} eklenti başarıyla kuruldu!")
+            val installedMsg = "✅ ${successCounter.get()} eklenti başarıyla kuruldu!"
+            onShowMessage?.invoke(installedMsg)
+            finishMangaBulkNotification(installedMsg, success = successCounter.get() > 0)
             mangaBulkInstallRepoUrl = null
             mangaBulkInstallDone = 0
             mangaBulkInstallTotal = 0
@@ -358,6 +384,7 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
             mangaBulkInstallTotal = toUpdate.size
             mangaBulkInstallDone = 0
             mangaBulkInstallCurrentName = toUpdate.firstOrNull()?.name ?: ""
+            notifyMangaBulkProgress()
 
             val semaphore = kotlinx.coroutines.sync.Semaphore(2) // Max 2 parallel downloads
             val doneCounter = java.util.concurrent.atomic.AtomicInteger(0)
@@ -380,6 +407,7 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
                         val completedCount = doneCounter.incrementAndGet()
                         mangaBulkInstallCurrentName = ext.name
                         mangaBulkInstallDone = completedCount
+                        notifyMangaBulkProgress()
                         mangaSources = mangaRepository.getAvailableSources()
                     } finally {
                         semaphore.release()
@@ -389,7 +417,9 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
 
             jobs.forEach { it.join() }
 
-            onShowMessage?.invoke("✅ ${successCounter.get()} eklenti başarıyla güncellendi!")
+            val updatedMsg = "✅ ${successCounter.get()} eklenti başarıyla güncellendi!"
+            onShowMessage?.invoke(updatedMsg)
+            finishMangaBulkNotification(updatedMsg, success = successCounter.get() > 0)
             mangaBulkInstallRepoUrl = null
             mangaBulkInstallDone = 0
             mangaBulkInstallTotal = 0

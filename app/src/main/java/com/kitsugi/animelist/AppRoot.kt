@@ -837,6 +837,7 @@ fun AppRoot(
                     navState.mangaReaderNavState != null  -> AppStateKey.MangaReader(depth = currentDepth)
                     navState.mangaDetailNavState != null  -> AppStateKey.MangaDetail(depth = currentDepth)
                     navState.mangaSourceHealthOpen        -> AppStateKey.MangaSourceHealth(depth = currentDepth)
+                    navState.mangaBrowseOpen              -> AppStateKey.MangaBrowse(depth = currentDepth)
                     activeStudio != null         -> AppStateKey.StudioDetail(activeStudio.first, activeStudio.second, depth = currentDepth, name = (activeScreen as? DetailScreen.StudioDetail)?.name, imageUrl = (activeScreen as? DetailScreen.StudioDetail)?.imageUrl)
                     activeStaff != null          -> AppStateKey.StaffDetail(activeStaff.first, activeStaff.second, depth = currentDepth, name = (activeScreen as? DetailScreen.StaffDetail)?.name, imageUrl = (activeScreen as? DetailScreen.StaffDetail)?.imageUrl)
                     activeCharacter != null      -> AppStateKey.CharacterDetail(activeCharacter.first, activeCharacter.second, depth = currentDepth, name = (activeScreen as? DetailScreen.CharacterDetail)?.name, imageUrl = (activeScreen as? DetailScreen.CharacterDetail)?.imageUrl, isRealMediaRole = (activeScreen as? DetailScreen.CharacterDetail)?.isRealMediaRole ?: false)
@@ -846,7 +847,6 @@ fun AppRoot(
                         AppStateKey.FullScreenGrid(activeFullScreenGrid, depth = currentDepth)
                     navState.addonFullScreenGridState != null ->
                         AppStateKey.AddonFullScreenGrid(navState.addonFullScreenGridState!!, depth = currentDepth)
-                    navState.mangaBrowseOpen              -> AppStateKey.MangaBrowse(depth = currentDepth)
                     activeScreen is DetailScreen.AiringCalendar -> AppStateKey.AiringCalendar(depth = currentDepth, preferredSource = activeScreen.preferredSource)
                     activeScreen is DetailScreen.Stats -> AppStateKey.Stats(depth = currentDepth)
                     activeScreen is DetailScreen.Favourites -> AppStateKey.Favourites(depth = currentDepth)
@@ -1109,11 +1109,9 @@ private fun AppNavigationContent(
                                     )
                                 )
                             } else {
-                                navState.detailBackStack = emptyList<DetailScreen>()
                                 navState.openMangaBrowse(entry.title, entry.id)
                             }
                         } else {
-                            navState.detailBackStack = emptyList<DetailScreen>()
                             navState.openMangaBrowse(entry.title, entry.id)
                         }
                     },

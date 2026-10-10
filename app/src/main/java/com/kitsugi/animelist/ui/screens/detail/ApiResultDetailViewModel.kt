@@ -134,7 +134,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         val raw = _detailState.value?.synopsis ?: return
         viewModelScope.launch {
             val tr = withContext(Dispatchers.IO) {
-                translationManager.translateToTarget(raw) { partial ->
+                translationManager.translateToTurkish(raw) { partial ->
                     _translatedSynopsis.value = partial
                 }
             }
@@ -406,7 +406,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                         _translatedSynopsis.value = cachedTr
                     } else {
                         val tr = withContext(Dispatchers.IO) {
-                            translationManager.translateToTarget(rawSynopsis) { partial ->
+                            translationManager.translateToTurkish(rawSynopsis) { partial ->
                                 _translatedSynopsis.value = partial
                             }
                         }
@@ -602,43 +602,48 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         }
         val stableId = result.malId
         val (isMovie, season) = logoSelection(result)
+        val logoTitles = listOfNotNull(
+            result.title, result.titleEnglish, result.titleJapanese, result.titleRomaji,
+            _detailState.value?.title, _detailState.value?.titleEnglish,
+            _detailState.value?.titleRomaji, _detailState.value?.titleJapanese
+        ).filter { it.isNotBlank() }.distinct()
         val explicitTmdb = (result.tmdbId ?: _detailState.value?.tmdbId)?.takeIf { it > 0 }
         val logo = withContext(Dispatchers.IO) {
             if (explicitTmdb != null) {
-                KitsugiEpisodeRatingsRepository.getLogoUrl(explicitTmdb, seasonNumber = season, isMovie = isMovie)
+                KitsugiEpisodeRatingsRepository.getLogoUrl(explicitTmdb, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles)
             } else when {
                 result.source.equals("tmdb", ignoreCase = true) -> {
                     val tmdbId = result.tmdbId ?: if (stableId > 0) stableId else null
                     if (tmdbId != null && tmdbId > 0) {
-                        KitsugiEpisodeRatingsRepository.getLogoUrl(tmdbId, seasonNumber = season, isMovie = isMovie)
+                        KitsugiEpisodeRatingsRepository.getLogoUrl(tmdbId, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles)
                     } else null
                 }
                 result.source.equals("anilist", ignoreCase = true) -> {
                     if (stableId >= 100_000_000) {
                         val aniListId = stableId - 100_000_000
                         KitsugiEpisodeRatingsRepository.getLogoUrlByAniListId(
-                            aniListId, fallbackMalId = result.realMalId, seasonNumber = season, isMovie = isMovie
+                            aniListId, fallbackMalId = result.realMalId, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles
                         )
                     } else {
-                        KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId, seasonNumber = season, isMovie = isMovie)
+                        KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles)
                     }
                 }
                 result.source.equals("kitsu", ignoreCase = true) -> {
                     val kitsuId = if (stableId >= 300_000_000) stableId - 300_000_000 else stableId
-                    KitsugiEpisodeRatingsRepository.getLogoUrlByKitsuId(kitsuId, seasonNumber = season, isMovie = isMovie)
+                    KitsugiEpisodeRatingsRepository.getLogoUrlByKitsuId(kitsuId, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles)
                 }
                 result.source.equals("simkl", ignoreCase = true) -> {
                     val realMal = result.realMalId ?: _detailState.value?.realMalId
                     val tmdb = result.tmdbId ?: _detailState.value?.tmdbId
                     when {
-                        realMal != null && realMal > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(realMal, seasonNumber = season, isMovie = isMovie)
-                        tmdb != null && tmdb > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrl(tmdb, seasonNumber = season, isMovie = isMovie)
+                        realMal != null && realMal > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(realMal, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles)
+                        tmdb != null && tmdb > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrl(tmdb, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles)
                         else -> null
                     }
                 }
                 result.source.equals("jikan", ignoreCase = true) ||
                 result.source.equals("mal", ignoreCase = true) -> {
-                    if (stableId > 0) KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId, seasonNumber = season, isMovie = isMovie) else null
+                    if (stableId > 0) KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles) else null
                 }
                 result.source.equals("bangumi", ignoreCase = true) -> {
                     // NOT: stableId burada Bangumi kimliğidir (500M+) — MAL ID'si olarak KULLANILMAZ.
@@ -651,9 +656,9 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                     val aniListId = cross?.aniListId
                     val tmdb = result.tmdbId ?: _detailState.value?.tmdbId ?: cross?.tmdbId
                     when {
-                        malId != null && malId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(malId, seasonNumber = season, isMovie = isMovie)
-                        aniListId != null && aniListId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByAniListId(aniListId, fallbackMalId = null, seasonNumber = season, isMovie = isMovie)
-                        tmdb != null && tmdb > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrl(tmdb, seasonNumber = season, isMovie = isMovie)
+                        malId != null && malId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(malId, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles)
+                        aniListId != null && aniListId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByAniListId(aniListId, fallbackMalId = null, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles)
+                        tmdb != null && tmdb > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrl(tmdb, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles)
                         else -> null
                     }
                 }
@@ -661,10 +666,10 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                     // NOT: stableId burada Shikimori ID'sidir — MAL ID'si olarak KULLANILMAZ.
                     val malId = result.realMalId ?: _detailState.value?.realMalId
                         ?: KitsugiIdResolver.resolveMalIdFromShikimori(stableId)
-                    if (malId != null && malId > 0) KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(malId, seasonNumber = season, isMovie = isMovie) else null
+                    if (malId != null && malId > 0) KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(malId, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles) else null
                 }
                 stableId > 0 && !result.source.equals("simkl", ignoreCase = true) -> {
-                    KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId, seasonNumber = season, isMovie = isMovie)
+                    KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles)
                 }
                 else -> null
             }

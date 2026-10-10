@@ -4161,6 +4161,10 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
 	<string name="kitsu_uzerinden_anime_listelerini_ve_veriler">Kitsu üzerinden anime listelerini ve verileri yükler.</string>
 	<string name="eklentiler_kuruluyor">⚡ Eklentiler Kuruluyor</string>
 	<string name="indiriliyor_bulkinstallcurrentname">İndiriliyor: %1$s</string>
+	<string name="addon_install_channel_name">Eklenti kurulumu</string>
+	<string name="addon_install_channel_desc">Toplu eklenti indirme ve güncelleme ilerlemesi</string>
+	<string name="addon_install_complete">Eklenti kurulumu tamamlandı</string>
+	<string name="addon_install_failed">Eklenti kurulumu başarısız</string>
 	<string name="uygulamadan_cik">Uygulamadan çık?</string>
 	<string name="kitsugi_dan_cikmak_istediginizden_emin_misin">Kitsugi\'dan çıkmak istediğinizden emin misiniz?</string>
 	<string name="cik">Çık</string>

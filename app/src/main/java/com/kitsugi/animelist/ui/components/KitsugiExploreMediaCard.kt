@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -400,18 +401,10 @@ fun KitsugiExploreMediaCard(
             Column(
                 modifier = Modifier.padding(14.dp)
             ) {
-                val screenWidthDp = LocalConfiguration.current.screenWidthDp
-                val posterHeight = remember(screenWidthDp) {
-                    when {
-                        screenWidthDp >= 1200 -> 240.dp
-                        screenWidthDp >= 800 -> 225.dp
-                        else -> 210.dp
-                    }
-                }
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .height(posterHeight)
+                        .aspectRatio(2f / 3f)
                         .clip(RoundedCornerShape(20.dp))
                         .background(KitsugiColors.SurfaceSoft),
                     contentAlignment = Alignment.Center

@@ -596,33 +596,38 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
         }
         val stableId = entry.malId ?: 0
         val (isMovie, season) = logoSelection(entry)
+        val logoTitles = listOfNotNull(
+            entry.title, entry.titleEnglish, entry.titleJapanese,
+            _detailState.value?.title, _detailState.value?.titleEnglish,
+            _detailState.value?.titleRomaji, _detailState.value?.titleJapanese
+        ).filter { it.isNotBlank() }.distinct()
         val explicitTmdb = (entry.tmdbId ?: _detailState.value?.tmdbId)?.takeIf { it > 0 }
         val logo = withContext(Dispatchers.IO) {
             if (explicitTmdb != null) {
-                KitsugiEpisodeRatingsRepository.getLogoUrl(explicitTmdb, seasonNumber = season, isMovie = isMovie)
+                KitsugiEpisodeRatingsRepository.getLogoUrl(explicitTmdb, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles)
             } else when {
                 entry.source.equals("tmdb", ignoreCase = true) -> {
                     val tmdbId = entry.tmdbId ?: if (stableId > 0) stableId else null
                     if (tmdbId != null && tmdbId > 0) {
-                        KitsugiEpisodeRatingsRepository.getLogoUrl(tmdbId, seasonNumber = season, isMovie = isMovie)
+                        KitsugiEpisodeRatingsRepository.getLogoUrl(tmdbId, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles)
                     } else null
                 }
                 entry.source.equals("anilist", ignoreCase = true) -> {
                     if (stableId >= 100_000_000) {
                         val aniListId = stableId - 100_000_000
                         val realMal = _detailState.value?.realMalId
-                        KitsugiEpisodeRatingsRepository.getLogoUrlByAniListId(aniListId, fallbackMalId = realMal, seasonNumber = season, isMovie = isMovie)
+                        KitsugiEpisodeRatingsRepository.getLogoUrlByAniListId(aniListId, fallbackMalId = realMal, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles)
                     } else {
-                        KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId, seasonNumber = season, isMovie = isMovie)
+                        KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles)
                     }
                 }
                 entry.source.equals("kitsu", ignoreCase = true) -> {
                     val kitsuId = com.kitsugi.animelist.data.remote.KitsuIdNamespace.rawIdFromStable(stableId)
                     if (kitsuId != null && kitsuId > 0) {
-                        KitsugiEpisodeRatingsRepository.getLogoUrlByKitsuId(kitsuId, seasonNumber = season, isMovie = isMovie)
+                        KitsugiEpisodeRatingsRepository.getLogoUrlByKitsuId(kitsuId, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles)
                     } else {
                         val malId = com.kitsugi.animelist.data.remote.KitsuIdNamespace.realMalIdOf(stableId)
-                        if (malId != null && malId > 0) KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(malId, seasonNumber = season, isMovie = isMovie) else null
+                        if (malId != null && malId > 0) KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(malId, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles) else null
                     }
                 }
                 entry.source.equals("simkl", ignoreCase = true) -> {
@@ -630,14 +635,14 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                     val realMalId = detail?.realMalId
                     val tmdbId = entry.tmdbId ?: detail?.tmdbId
                     when {
-                        realMalId != null && realMalId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(realMalId, seasonNumber = season, isMovie = isMovie)
-                        tmdbId != null && tmdbId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrl(tmdbId, seasonNumber = season, isMovie = isMovie)
+                        realMalId != null && realMalId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(realMalId, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles)
+                        tmdbId != null && tmdbId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrl(tmdbId, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles)
                         else -> null
                     }
                 }
                 entry.source.equals("jikan", ignoreCase = true) ||
                 entry.source.equals("mal", ignoreCase = true) -> {
-                    if (stableId > 0) KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId, seasonNumber = season, isMovie = isMovie) else null
+                    if (stableId > 0) KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles) else null
                 }
                 entry.source.equals("bangumi", ignoreCase = true) -> {
                     val cross = runCatching {
@@ -647,20 +652,20 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                     val aniListId = cross?.aniListId
                     val tmdb = entry.tmdbId ?: _detailState.value?.tmdbId ?: cross?.tmdbId
                     when {
-                        malId != null && malId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(malId, seasonNumber = season, isMovie = isMovie)
-                        aniListId != null && aniListId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByAniListId(aniListId, fallbackMalId = null, seasonNumber = season, isMovie = isMovie)
-                        tmdb != null && tmdb > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrl(tmdb, seasonNumber = season, isMovie = isMovie)
+                        malId != null && malId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(malId, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles)
+                        aniListId != null && aniListId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByAniListId(aniListId, fallbackMalId = null, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles)
+                        tmdb != null && tmdb > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrl(tmdb, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles)
                         else -> null
                     }
                 }
                 entry.source.equals("shikimori", ignoreCase = true) -> {
                     val malId = _detailState.value?.realMalId?.takeIf { it > 0 }
                         ?: KitsugiIdResolver.resolveMalIdFromShikimori(stableId)
-                    if (malId != null && malId > 0) KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(malId, seasonNumber = season, isMovie = isMovie) else null
+                    if (malId != null && malId > 0) KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(malId, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles) else null
                 }
                 stableId > 0 && !entry.source.equals("simkl", ignoreCase = true) &&
                     !entry.source.equals("kitsu", ignoreCase = true) -> {
-                    KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId, seasonNumber = season, isMovie = isMovie)
+                    KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles)
                 }
                 else -> null
             }
@@ -999,7 +1004,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             val tr = withContext(Dispatchers.IO) {
                 // Uzun özetlerde çeviri parça parça akıtılır: çevrilen kısım anında
                 // ekrana gelir, kalanı arka planda sırayla çevrilir.
-                translationManager.translateToTarget(rawText) { partial ->
+                translationManager.translateToTurkish(rawText) { partial ->
                     _translatedSynopsis.value = partial
                 }
             }
@@ -1021,7 +1026,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             val tr = withContext(Dispatchers.IO) {
                 // Uzun özetlerde çeviri parça parça akıtılır: çevrilen kısım anında
                 // ekrana gelir, kalanı arka planda sırayla çevrilir.
-                translationManager.translateToTarget(raw) { partial ->
+                translationManager.translateToTurkish(raw) { partial ->
                     _translatedSynopsis.value = partial
                 }
             }
