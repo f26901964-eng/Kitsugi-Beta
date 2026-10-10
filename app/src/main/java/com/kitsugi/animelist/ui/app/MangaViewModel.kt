@@ -62,20 +62,16 @@ class MangaViewModel(application: Application) : AndroidViewModel(application) {
         AddonInstallNotifier.showProgress(
             context = context,
             repoName = repoName,
-            currentName = mangaBulkInstallCurrentName,
             done = mangaBulkInstallDone,
             total = mangaBulkInstallTotal,
-            notificationId = AddonInstallNotifier.MANGA_NOTIFICATION_ID
+            currentName = mangaBulkInstallCurrentName
         )
     }
 
     private fun finishMangaBulkNotification(message: String, success: Boolean) {
-        AddonInstallNotifier.showFinished(
+        AddonInstallNotifier.showResult(
             context = context,
-            repoName = mangaBulkInstallRepoUrl.orEmpty(),
-            message = message,
-            success = success,
-            notificationId = AddonInstallNotifier.MANGA_NOTIFICATION_ID
+            message = message
         )
     }
 

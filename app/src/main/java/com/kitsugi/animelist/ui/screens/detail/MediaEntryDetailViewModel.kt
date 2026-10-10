@@ -1004,7 +1004,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             val tr = withContext(Dispatchers.IO) {
                 // Uzun özetlerde çeviri parça parça akıtılır: çevrilen kısım anında
                 // ekrana gelir, kalanı arka planda sırayla çevrilir.
-                translationManager.translateToTurkish(rawText) { partial ->
+                translationManager.translateToTarget(rawText) { partial ->
                     _translatedSynopsis.value = partial
                 }
             }
@@ -1026,7 +1026,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             val tr = withContext(Dispatchers.IO) {
                 // Uzun özetlerde çeviri parça parça akıtılır: çevrilen kısım anında
                 // ekrana gelir, kalanı arka planda sırayla çevrilir.
-                translationManager.translateToTurkish(raw) { partial ->
+                translationManager.translateToTarget(raw) { partial ->
                     _translatedSynopsis.value = partial
                 }
             }
