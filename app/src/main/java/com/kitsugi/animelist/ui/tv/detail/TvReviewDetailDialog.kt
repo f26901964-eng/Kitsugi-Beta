@@ -69,7 +69,7 @@ fun TvReviewDetailDialog(
     LaunchedEffect(selectedLanguage) {
         if (selectedLanguage == "turkish" && translatedText == null) {
             isTranslating = true
-            val tr = translationManager.translateToTurkish(review.fullText)
+            val tr = translationManager.translateToTarget(review.fullText)
             if (tr.isNotBlank()) {
                 translatedText = tr
             }

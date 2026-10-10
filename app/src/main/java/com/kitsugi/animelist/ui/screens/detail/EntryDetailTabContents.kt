@@ -117,13 +117,9 @@ internal fun EntryDetailOverviewTab(
         DetailSynopsisCard(
             synopsisState = synopsisState,
             originalText = originalSynopsis,
+            // Çeviri ikonu: her yerde olduğu gibi harici çeviri uygulamasını açar.
             onTranslateClick = { textToTranslate ->
-                val currentText = (synopsisState as? SynopsisState.Success)?.text
-                if (currentText == originalSynopsis && onTranslateClick != null) {
-                    onTranslateClick()
-                } else {
-                    context.openTranslator(textToTranslate, preferredTranslator)
-                }
+                context.openTranslator(textToTranslate, preferredTranslator)
             },
             onCopyClick = { textToCopy ->
                 val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager

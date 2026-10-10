@@ -2,6 +2,7 @@ package com.kitsugi.animelist.ui.app
 
 import android.app.Application
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.AndroidViewModel
@@ -14,11 +15,20 @@ import com.kitsugi.animelist.data.remote.AddonStreamClient
 import com.kitsugi.animelist.data.remote.CsPlugin
 import com.kitsugi.animelist.data.remote.DebridResolver
 import com.kitsugi.animelist.data.repository.CloudstreamRepoRepository
+import com.kitsugi.animelist.core.notifications.AddonInstallNotifier
 import com.kitsugi.animelist.core.security.RepoVerifier
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+
+private data class BulkInstallSnapshot(
+    val repoUrl: String?,
+    val repoName: String,
+    val done: Int,
+    val total: Int,
+    val currentName: String
+)
 
 class AddonViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -63,6 +73,36 @@ class AddonViewModel(application: Application) : AndroidViewModel(application) {
     var onShowMessage: ((String) -> Unit)? = null
 
     init {
+        // Toplu kurulum ilerlemesi ve sonucu uygulama içi kart yerine Android sistem
+        // bildirimi olarak gösterilir. Durum değişiklikleri (bulkInstall*) buradan izlenir.
+        viewModelScope.launch {
+            snapshotFlow {
+                BulkInstallSnapshot(
+                    repoUrl = bulkInstallRepoUrl,
+                    repoName = bulkInstallRepoName.orEmpty(),
+                    done = bulkInstallDone,
+                    total = bulkInstallTotal,
+                    currentName = bulkInstallCurrentName
+                )
+            }.collect { snap ->
+                if (snap.repoUrl != null) {
+                    AddonInstallNotifier.showProgress(
+                        context, snap.repoName, snap.done, snap.total, snap.currentName
+                    )
+                } else {
+                    AddonInstallNotifier.cancelProgress(context)
+                }
+            }
+        }
+        viewModelScope.launch {
+            snapshotFlow { bulkInstallResultMessage }
+                .collect { message ->
+                    if (!message.isNullOrBlank()) {
+                        AddonInstallNotifier.showResult(context, message)
+                    }
+                }
+        }
+
         viewModelScope.launch {
             csRepoRepository.seedDefaultRepoIfEmpty()
             csRepoRepository.syncAndAutoUpdate()

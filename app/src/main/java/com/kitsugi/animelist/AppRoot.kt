@@ -92,7 +92,6 @@ import com.kitsugi.animelist.data.settings.SettingsDataStore
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
-import com.kitsugi.animelist.ui.app.AppBulkInstallProgress
 import com.kitsugi.animelist.ui.app.AppDialogHost
 import com.kitsugi.animelist.ui.app.AppViewModel
 import com.kitsugi.animelist.ui.app.AuthViewModel
@@ -916,17 +915,6 @@ fun AppRoot(
                     isAlreadyInList = isAlreadyInList,
                     getMediaEntry = getMediaEntry,
                     bottomBarScrollState = bottomBarScrollState
-                )
-
-                AppBulkInstallProgress(
-                    accentColor = activeAccentColor,
-                    bulkInstallRepoUrl = addonViewModel.bulkInstallRepoUrl,
-                    bulkInstallRepoName = addonViewModel.bulkInstallRepoName,
-                    bulkInstallDone = addonViewModel.bulkInstallDone,
-                    bulkInstallTotal = addonViewModel.bulkInstallTotal,
-                    bulkInstallCurrentName = addonViewModel.bulkInstallCurrentName,
-                    isInFullScreenMode = isInFullScreenMode,
-                    modifier = Modifier.align(Alignment.BottomCenter)
                 )
             } // Box (içerik alanı)
             } // Row (landscape layout)

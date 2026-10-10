@@ -446,11 +446,7 @@ internal fun CharacterAboutTabContent(
                     if (!detail.biography.isNullOrBlank()) {
                         IconButton(
                             onClick = {
-                                if (translatedBio == null && onTranslateClick != null) {
-                                    onTranslateClick()
-                                } else {
-                                    context.openTranslator(detail.biography, preferredTranslator)
-                                }
+                                context.openTranslator(detail.biography, preferredTranslator)
                             },
                             modifier = Modifier.size(36.dp)
                         ) {

@@ -77,14 +77,14 @@ fun TvActivityDetailDialog(
             val act = activityDetails!!
             if (act.mediaTitle == null && translatedText == null) {
                 coroutineScope.launch {
-                    val tr = translationManager.translateToTurkish(act.text)
+                    val tr = translationManager.translateToTarget(act.text)
                     if (tr.isNotBlank()) translatedText = tr
                 }
             }
             act.replies.forEach { reply ->
                 if (!translatedReplies.containsKey(reply.id)) {
                     coroutineScope.launch {
-                        val tr = translationManager.translateToTurkish(reply.text)
+                        val tr = translationManager.translateToTarget(reply.text)
                         if (tr.isNotBlank()) {
                             translatedReplies[reply.id] = tr
                         }

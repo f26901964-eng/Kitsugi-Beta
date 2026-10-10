@@ -813,7 +813,13 @@ object KitsugiEpisodeRatingsRepository {
         tmdbId: Int,
         fallbackMalId: Int? = null,
         fallbackAniListId: Int? = null,
-        fallbackKitsuId: Int? = null
+        fallbackKitsuId: Int? = null,
+        /**
+         * false ise TMDB `/tv/{id}/external_ids` sorgusu yapılmaz. Film fallback'inde
+         * çağrılır: film ID'si TV ad alanında sorgulanırsa alakasız bir dizinin TVDB'si
+         * dönüp dizinin posteri/arka planı filmin galerisine karışır.
+         */
+        allowTmdbExternalIds: Boolean = true
     ): Int? = withContext(Dispatchers.IO) {
         // FİLM koruması: TVDB anime filmlerini dizinin 0. sezonu olarak tutar; filmin
         // TMDB ID'si için TVDB döndürülürse fanart-TV DİZİNİN logosunu/afişini getirir.
@@ -821,6 +827,15 @@ object KitsugiEpisodeRatingsRepository {
         if (DetailCache.tmdbMediaCache[tmdbId] == "movie") {
             Log.d(TAG, "TVDB resolve skipped (movie): tmdbId=$tmdbId")
             return@withContext null
+        }
+
+        // Film fallback'i: TMDB ID'si TV ad alanına ait önbelleklere/Room kayıtlarına hiç
+        // bakmaz ve sonucu da önbelleğe yazmaz (aynı sayı başka bir diziye ait olabilir).
+        // Yalnızca anime kimlikleriyle (MAL → AniList → Kitsu) TVDB çözülür.
+        if (!allowTmdbExternalIds) {
+            return@withContext fallbackMalId?.takeIf { it > 0 }?.let { resolveTvdbIdFromMal(it) }
+                ?: fallbackAniListId?.takeIf { it > 0 }?.let { resolveTvdbIdFromAniList(it) }
+                ?: fallbackKitsuId?.takeIf { it > 0 }?.let { resolveTvdbIdFromKitsu(it) }
         }
 
         // 1. Bellek önbelleği kontrolü
@@ -839,9 +854,13 @@ object KitsugiEpisodeRatingsRepository {
 
         // 3. TMDB external_ids endpoint → tvdb_id
         val isTv = true // Fanart.tv TV endpoint için; movie de denenebilir
-        val extIds = runCatching { KitsugiIdResolver.fetchExternalIds(tmdbId, isTv) }.getOrNull()
+        val extIds = if (allowTmdbExternalIds) {
+            runCatching { KitsugiIdResolver.fetchExternalIds(tmdbId, isTv) }.getOrNull()
+        } else null
         val tvdbFromTmdb = extIds?.tvdbId?.takeIf { it > 0 }
-            ?: runCatching { KitsugiIdResolver.fetchExternalIds(tmdbId, false) }.getOrNull()?.tvdbId?.takeIf { it > 0 }
+            ?: if (allowTmdbExternalIds) {
+                runCatching { KitsugiIdResolver.fetchExternalIds(tmdbId, false) }.getOrNull()?.tvdbId?.takeIf { it > 0 }
+            } else null
         if (tvdbFromTmdb != null) {
             mutex.withLock { tmdbToTvdbCache[tmdbId] = tvdbFromTmdb }
             // Kalıcı olarak Room'a yaz
@@ -999,8 +1018,13 @@ object KitsugiEpisodeRatingsRepository {
         // FALLBACK: Eğer ilk deneme boş döndüyse ve tmdbId varsa, diğer endpoint'i dene
         if (result.isEmpty() && tmdbId > 0) {
             if (isMovie) {
-                // Film olarak arandı ama bulunamadı -> TV olarak TVDB çözüp dene
-                var fallbackTvdbId = resolveTvdbIdFromTmdb(tmdbId, fallbackMalId, fallbackAniListId, fallbackKitsuId)
+                // Film olarak arandı ama bulunamadı -> TV olarak TVDB çözüp dene.
+                // Film TMDB ID'si TV ad alanında sorgulanmaz (aynı sayı başka bir diziye ait olabilir);
+                // yalnızca MAL/AniList/Kitsu kimlikleri (anime filmleri için) kullanılır.
+                var fallbackTvdbId = resolveTvdbIdFromTmdb(
+                    tmdbId, fallbackMalId, fallbackAniListId, fallbackKitsuId,
+                    allowTmdbExternalIds = false
+                )
                 if (fallbackTvdbId == null || fallbackTvdbId <= 0) {
                     if (fallbackMalId != null && fallbackMalId > 0) fallbackTvdbId = resolveTvdbIdFromMal(fallbackMalId)
                 }

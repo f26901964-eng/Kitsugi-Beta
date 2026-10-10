@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.components
 
+import com.kitsugi.animelist.utils.KitsugiTranslateUtils
+import com.kitsugi.animelist.utils.KitsugiTranslatePrefs
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
 import com.kitsugi.animelist.ui.components.KitsugiButton
@@ -112,7 +114,7 @@ fun KitsugiReviewDetailBottomSheet(
     LaunchedEffect(selectedLanguage) {
         if (selectedLanguage == "turkish" && translatedText == null) {
             isTranslating = true
-            val tr = translationManager.translateToTurkish(review.fullText)
+            val tr = translationManager.translateToTarget(review.fullText)
             if (tr.isNotBlank()) {
                 translatedText = tr
             }
@@ -293,7 +295,7 @@ fun KitsugiReviewDetailBottomSheet(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = stringResource(R.string.turkce),
+                        text = KitsugiTranslateUtils.targetLanguageName(KitsugiTranslatePrefs.resolvedTarget()),
                         color = if (isTrSelected) KitsugiColors.Background else KitsugiColors.TextPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold

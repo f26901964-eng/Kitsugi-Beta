@@ -21,6 +21,19 @@
 ### 🎌 5. Bangumi "Düzenle" Diyaloğunun Simkl Açılması Düzeltildi
 - **Kaynak Bağlamı Taşıma (`editingSourceHint`):** Bangumi sayfasında "Düzenle" tıklandığında kaydın Simkl görünümüne düşmesi engellendi; Bangumi rozeti, Bangumi durum pill'leri (İzliyorum/İzledim/Bekletiyorum...), "İzlenen Bölüm" ve Bangumi Koleksiyonu satırı doğru biçimde açılıyor.
 
+### 🔔 6. Eklenti Toplu Kurulumunda Android Sistem Bildirimi (`AddonInstallNotifier`)
+- **Tam Ekran Engelleyici Panel Kaldırıldı:** Ekranı kaplayan `AppBulkInstallProgress` paneli yerine sistem bildirim çubuğunda sessiz, kalıcı ilerleme bildirimi ("10/165 · İndiriliyor: Anizm") ve tamamlanma bildirimi devreye alındı.
+
+### 🎬 7. Film Yedek Aramasında Yanlış TMDB Dizi Eşleşmesi Çözüldü (Uncharted Hatası)
+- **ID Uzayı İzolasyonu:** Film kayıtlarının dizi ad alanında (`/tv/{id}/external_ids`) çözümlenmesi ve alakasız dizi posterleri / "Yaklaşan Yayın: Bölüm 7" gibi yanlış verilerin çekilmesi engellendi; TMDB dizi eşleşmelerine başlık doğrulama şartı getirildi.
+
+### 🌐 8. Çeviri Motoru, Dinamik Dil Etiketi ve 429 Koruması
+- **Hedef Dil Duyarlılığı:** Sabit "Türkçe" etiketi yerine ayarlardaki hedef dile göre dinamik etiketleme yapıldı. Parçalı çevirilerde başarılı kısımlar korunarak kullanıcının boş/orijinal metinle kalması engellendi.
+- **Eşzamanlılık & Rate Limit:** Çeviri istekleri azami 2 eşzamanlı sorgu ve 1-2 sn bekleme ile sınırlandırılarak 429 hataları engellendi.
+
+### 📲 9. Çeviri Düğmelerinde Harici Uygulama Açılışı
+- **Tek Dokunuşla Harici Çeviri:** Stüdyo "Hakkında" butonu, biyografiler, özetler, spoiler, yorumlar, konular ve TV diyaloglarındaki tüm çeviri düğmeleri doğrudan kullanıcının tercih ettiği çeviri uygulamasına (`openTranslator`) yönlendirildi.
+
 ---
 
 ## 🇬🇧 English (v2.4.237) — Search Logos, Sync Warning, Addons UI & Studio Covers
@@ -43,6 +56,18 @@
 
 ### 🎌 5. Bangumi Edit Dialog Routing Fix
 - **Source Context Propagation (`editingSourceHint`):** Preserved original Bangumi page context when editing entries, preventing Simkl fallback and rendering native Bangumi status pills, badge, and collection indicators.
+
+### 🔔 6. Android Notification for Bulk Addon Installs (`AddonInstallNotifier`)
+- **Background Notification Progress:** Replaced the full-screen modal with an ongoing, low-priority system notification displaying real-time install progress ("10/165 · Downloading: Anizm") and completion summary.
+
+### 🎬 7. Fixed TMDB Movie vs TV ID Collisions (Uncharted Poster Fix)
+- **Namespace Separation:** Prevented movies from querying TV external IDs, stopping wrong show posters and "Next Airing: Episode 7" metadata from contaminating film details.
+
+### 🌐 8. Translation Engine, Dynamic Target Language & Rate Limit Defense
+- **Target Language Responsive:** Replaced hardcoded "Turkish" chips with active target language. Preserved successful segments on partial failures to prevent returning untranslated text. Throttled concurrent calls to 2 with backoff to stop 429 errors.
+
+### 📲 9. Universal External Translator Integration
+- **Direct App Launch:** All translation actions across synopsis, biographies, reviews, studio about, and topics now open user's preferred external translation app via `openTranslator`.
 
 ---
 

@@ -67,7 +67,7 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
             val tr = withContext(Dispatchers.IO) {
                 // Uzun biyografilerde çeviri parça parça akıtılır: çevrilen kısım
                 // anında ekrana gelir, kalanı arka planda sırayla çevrilir.
-                translationManager.translateToTurkish(bio) { partial ->
+                translationManager.translateToTarget(bio) { partial ->
                     _translatedBio.value = partial
                 }
             }
@@ -191,7 +191,7 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
                 val tr = withContext(Dispatchers.IO) {
                     // Uzun biyografilerde çeviri parça parça akıtılır: çevrilen kısım
                     // anında ekrana gelir, kalanı arka planda sırayla çevrilir.
-                    translationManager.translateToTurkish(bio) { partial ->
+                    translationManager.translateToTarget(bio) { partial ->
                         _translatedBio.value = partial
                     }
                 }

@@ -4,6 +4,8 @@ import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import java.net.HttpURLConnection
@@ -12,9 +14,20 @@ import java.net.URLEncoder
 import okhttp3.Request
 import java.security.MessageDigest
 
+import com.kitsugi.animelist.utils.KitsugiTranslatePrefs
 import com.kitsugi.animelist.utils.cleanShikimoriBbCode
 
 class TranslationManager(context: Context) {
+    companion object {
+        /**
+         * Google gtx uç noktası çok sayıda eşzamanlı istekte 429 döndürür. İnceleme/yorum
+         * listeleri her öğe için ayrı çeviri başlattığında istekler birbirini boğup
+         * parçaların sessizce orijinal (İngilizce) kalmasına yol açıyordu. Tüm
+         * TranslationManager örnekleri bu kapıyı paylaşır.
+         */
+        private val requestGate = Semaphore(2)
+    }
+
     private val dbContext = context.applicationContext
     private val db = KitsugiDatabase.getDatabase(dbContext)
     private val dao = db.translationCacheDao()
@@ -109,18 +122,22 @@ class TranslationManager(context: Context) {
             return@withContext translated
         }
 
-        // Kısmî çeviri: parçaların bir kısmı çevrilemedi. Özgün metni döndür (böylece
-        // çağıran taraf bunu "çevrilemedi" sayar ve önbelleğe yazmaz); kısmî ilerleme
-        // zaten onPartial ile ekrana yansımış oldu.
-        if (!result.fullyTranslated) return@withContext trimmed
-
-        return@withContext translated
+        // Kısmî çeviri: başarılı parçalar çevrilmiş, başarısız parçalar orijinal hâlde
+        // döner. Önbelleğe yazılmaz (yukarıda), böylece sonraki açılışta tekrar denenir.
+        // Eskiden tüm metin orijinale dönüyordu; bir parça bile başarısız olsa hiçbir
+        // şey çevrilmiyordu.
+        return@withContext if (translated.isBlank()) trimmed else translated
     }
 
     suspend fun translateTo(text: String?, targetLang: String): String = translateTo(text, "auto", targetLang)
 
-    suspend fun translateToTurkish(text: String?, onPartial: ((String) -> Unit)? = null): String =
-        translateTo(text, "auto", "tr", onPartial)
+    /**
+     * Metni KULLANICININ ayarladığı hedef dile çevirir (Ayarlar → Çeviri → Hedef dil;
+     * ayar yoksa uygulama dili). Kaynak dil otomatik algılanır. Hedef dil sabit Türkçe
+     * DEĞİLDİR: "Türkçe" sekmelerinin etiketi de bu dile göre değişir.
+     */
+    suspend fun translateToTarget(text: String?, onPartial: ((String) -> Unit)? = null): String =
+        translateTo(text, "auto", KitsugiTranslatePrefs.resolvedTarget(), onPartial)
 
     suspend fun translateToEnglish(text: String?): String = translateTo(text, "en")
 
@@ -339,10 +356,13 @@ class TranslationManager(context: Context) {
         maxAttempts: Int = 3
     ): String? {
         repeat(maxAttempts) { attempt ->
-            val result = runCatching { fetchSingleChunk(text, sourceLang, targetLang) }.getOrNull()
+            val result = requestGate.withPermit {
+                runCatching { fetchSingleChunk(text, sourceLang, targetLang) }.getOrNull()
+            }
             if (!result.isNullOrBlank()) return result
             if (attempt < maxAttempts - 1) {
-                delay(600L * (attempt + 1))
+                // 429 (hız sınırı) için kademeli bekleme: 1s, 2s…
+                delay(1000L * (attempt + 1))
             }
         }
         android.util.Log.e("TranslationManager", "Çeviri parçası ${maxAttempts} denemede çevrilemedi (uzunluk=${text.length})")

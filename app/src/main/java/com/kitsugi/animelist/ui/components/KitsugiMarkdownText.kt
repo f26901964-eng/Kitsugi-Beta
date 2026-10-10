@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.components
 
+import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 import com.kitsugi.animelist.ui.theme.gradient.CircularProgressIndicator
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
@@ -346,7 +347,6 @@ fun InteractiveSpoilerSheet(
     var currentText by remember(spoilerText) { mutableStateOf(spoilerText.cleanShikimoriBbCode()) }
     var isTranslating by remember { mutableStateOf(false) }
     val context = LocalContext.current
-    val coroutineScope = rememberCoroutineScope()
 
     LaunchedEffect(spoilerText) {
         if (currentText.any { it in '\u0400'..'\u04FF' }) {
@@ -393,36 +393,17 @@ fun InteractiveSpoilerSheet(
                     )
                 }
 
+                // Çeviri ikonu: her yerde olduğu gibi harici çeviri uygulamasını açar.
                 IconButton(
-                    onClick = {
-                        if (!isTranslating) {
-                            coroutineScope.launch {
-                                isTranslating = true
-                                val translationManager = com.kitsugi.animelist.data.local.TranslationManager(context)
-                                val translated = translationManager.translate(currentText)
-                                if (translated.isNotBlank()) {
-                                    currentText = translated.cleanShikimoriBbCode()
-                                }
-                                isTranslating = false
-                            }
-                        }
-                    },
+                    onClick = { context.openTranslator(spoilerText.cleanShikimoriBbCode()) },
                     modifier = Modifier.size(36.dp)
                 ) {
-                    if (isTranslating) {
-                        CircularProgressIndicator(
-                            color = accent,
-                            modifier = Modifier.size(18.dp),
-                            strokeWidth = 2.dp
-                        )
-                    } else {
-                        Icon(
-                            imageVector = Icons.Rounded.Translate,
-                            contentDescription = stringResource(R.string.cevir),
-                            tint = accent,
-                            modifier = Modifier.size(20.dp)
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Rounded.Translate,
+                        contentDescription = stringResource(R.string.cevir),
+                        tint = accent,
+                        modifier = Modifier.size(20.dp)
+                    )
                 }
             }
             HorizontalDivider(color = KitsugiColors.Border)

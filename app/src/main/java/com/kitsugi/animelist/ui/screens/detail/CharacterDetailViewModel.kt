@@ -82,7 +82,7 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
             val tr = withContext(Dispatchers.IO) {
                 // Uzun biyografilerde çeviri parça parça akıtılır: çevrilen kısım
                 // anında ekrana gelir, kalanı arka planda sırayla çevrilir.
-                translationManager.translateToTurkish(bio) { partial ->
+                translationManager.translateToTarget(bio) { partial ->
                     if (currentFetchKey == expectedFetchKey) _translatedBio.value = partial
                 }
             }
@@ -302,7 +302,7 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
                 val tr = withContext(Dispatchers.IO) {
                     // Uzun biyografilerde çeviri parça parça akıtılır: çevrilen kısım
                     // anında ekrana gelir, kalanı arka planda sırayla çevrilir.
-                    translationManager.translateToTurkish(bio) { partial ->
+                    translationManager.translateToTarget(bio) { partial ->
                         if (currentFetchKey == expectedFetchKey) _translatedBio.value = partial
                     }
                 }

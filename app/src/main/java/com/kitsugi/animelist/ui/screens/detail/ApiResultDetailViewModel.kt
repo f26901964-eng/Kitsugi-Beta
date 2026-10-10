@@ -134,7 +134,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         val raw = _detailState.value?.synopsis ?: return
         viewModelScope.launch {
             val tr = withContext(Dispatchers.IO) {
-                translationManager.translateToTurkish(raw) { partial ->
+                translationManager.translateToTarget(raw) { partial ->
                     _translatedSynopsis.value = partial
                 }
             }
@@ -406,7 +406,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                         _translatedSynopsis.value = cachedTr
                     } else {
                         val tr = withContext(Dispatchers.IO) {
-                            translationManager.translateToTurkish(rawSynopsis) { partial ->
+                            translationManager.translateToTarget(rawSynopsis) { partial ->
                                 _translatedSynopsis.value = partial
                             }
                         }

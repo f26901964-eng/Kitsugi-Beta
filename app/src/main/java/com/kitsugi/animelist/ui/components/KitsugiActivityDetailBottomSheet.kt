@@ -1,4 +1,6 @@
 ﻿package com.kitsugi.animelist.ui.components
+import com.kitsugi.animelist.utils.KitsugiTranslateUtils
+import com.kitsugi.animelist.utils.KitsugiTranslatePrefs
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.Context
@@ -84,14 +86,14 @@ fun KitsugiActivityDetailBottomSheet(
             val act = activityDetails!!
             if (act.mediaTitle == null && translatedText == null) {
                 coroutineScope.launch {
-                    val tr = translationManager.translateToTurkish(act.text)
+                    val tr = translationManager.translateToTarget(act.text)
                     if (tr.isNotBlank()) translatedText = tr
                 }
             }
             act.replies.forEach { reply ->
                 if (!translatedReplies.containsKey(reply.id)) {
                     coroutineScope.launch {
-                        val tr = translationManager.translateToTurkish(reply.text)
+                        val tr = translationManager.translateToTarget(reply.text)
                         if (tr.isNotBlank()) {
                             translatedReplies[reply.id] = tr
                         }
@@ -185,7 +187,7 @@ fun KitsugiActivityDetailBottomSheet(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = stringResource(R.string.turkce),
+                            text = KitsugiTranslateUtils.targetLanguageName(KitsugiTranslatePrefs.resolvedTarget()),
                             color = if (isTrSelected) KitsugiColors.Background else KitsugiColors.TextPrimary,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold

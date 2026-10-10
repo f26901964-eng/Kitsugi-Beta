@@ -585,12 +585,8 @@ fun ApiResultDetailPage(
                             onTagClick = onSearchByTag,
                             onSearchBySeason = onSearchBySeason,
                             onTranslateClick = {
-                                if (translatedSynopsis == null) {
-                                    viewModel.translateSynopsis()
-                                } else {
-                                    val raw = detailState?.synopsis
-                                    if (!raw.isNullOrBlank()) context.openTranslator(raw, settingsState?.preferredTranslator ?: "DEFAULT")
-                                }
+                                val raw = detailState?.synopsis
+                                if (!raw.isNullOrBlank()) context.openTranslator(raw, settingsState?.preferredTranslator ?: "DEFAULT")
                             },
                             onCopyClick = {
                                 val text = displaySynopsis ?: detailState?.synopsis

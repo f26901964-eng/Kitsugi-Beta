@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.components
 
+import com.kitsugi.animelist.utils.KitsugiTranslateUtils
+import com.kitsugi.animelist.utils.KitsugiTranslatePrefs
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
 import com.kitsugi.animelist.ui.components.KitsugiButton
@@ -145,14 +147,14 @@ fun KitsugiTopicDetailBottomSheet(
             // Translate topic title
             if (translatedTitle == null) {
                 coroutineScope.launch {
-                    val tr = translationManager.translateToTurkish(activeTopic.title)
+                    val tr = translationManager.translateToTarget(activeTopic.title)
                     if (tr.isNotBlank()) translatedTitle = tr
                 }
             }
             // Translate topic OP body
             if (translatedBody == null && activeTopic.body.isNotBlank()) {
                 coroutineScope.launch {
-                    val tr = translationManager.translateToTurkish(activeTopic.body)
+                    val tr = translationManager.translateToTarget(activeTopic.body)
                     if (tr.isNotBlank()) translatedBody = tr
                 }
             }
@@ -160,7 +162,7 @@ fun KitsugiTopicDetailBottomSheet(
             fun translateRecursive(comment: KitsugiForumReply) {
                 if (!translatedComments.containsKey(comment.id)) {
                     coroutineScope.launch {
-                        val tr = translationManager.translateToTurkish(comment.comment)
+                        val tr = translationManager.translateToTarget(comment.comment)
                         if (tr.isNotBlank()) {
                             translatedComments[comment.id] = tr
                         }
@@ -285,7 +287,7 @@ fun KitsugiTopicDetailBottomSheet(
                         contentAlignment = Alignment.Center
                     ) {
                         Text(
-                            text = stringResource(R.string.turkce),
+                            text = KitsugiTranslateUtils.targetLanguageName(KitsugiTranslatePrefs.resolvedTarget()),
                             color = if (isTrSelected) KitsugiColors.Background else KitsugiColors.TextPrimary,
                             fontSize = 13.sp,
                             fontWeight = FontWeight.Bold

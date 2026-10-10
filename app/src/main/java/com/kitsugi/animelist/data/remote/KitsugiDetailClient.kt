@@ -79,6 +79,21 @@ class KitsugiDetailClient {
     }
 
     /**
+     * TMDB'den dönen detayın beklenen başlıkla uyuşup uyuşmadığını denetler.
+     * Beklenen başlık boşsa doğrulama yapılamaz ve true döner (eski davranış korunur).
+     */
+    private fun tmdbTitleMatches(expectedTitle: String?, detail: KitsugiMediaDetail): Boolean {
+        val expected = expectedTitle?.trim()?.lowercase().orEmpty()
+        if (expected.isBlank()) return true
+        val fetched = detail.title?.trim()?.lowercase().orEmpty()
+        val fetchedEn = detail.titleEnglish?.trim()?.lowercase().orEmpty()
+        val matchesTitle = { candidate: String ->
+            candidate.isNotBlank() && (candidate.contains(expected) || expected.contains(candidate))
+        }
+        return matchesTitle(fetched) || matchesTitle(fetchedEn)
+    }
+
+    /**
      * Simkl kayıtları için TMDB tabanlı ayrıntı çözümü.
      *
      * Simkl API'si yavaş ve gecikmeli veri döndürdüğü için Simkl kütüphanesindeki
@@ -99,7 +114,10 @@ class KitsugiDetailClient {
             val isMovie = mediaType == MediaType.Movie
             TmdbApiClient().fetchMediaDetail(tmdbId, isMovie)?.let { return it }
             if (mediaType != MediaType.Manga) {
-                TmdbApiClient().fetchMediaDetail(tmdbId, !isMovie)?.let { return it }
+                // Ters tür yalnızca başlık tutarsa (aynı TMDB ID'si farklı yapımı gösterebilir)
+                TmdbApiClient().fetchMediaDetail(tmdbId, !isMovie)
+                    ?.takeIf { tmdbTitleMatches(title, it) }
+                    ?.let { return it }
             }
         }
 
@@ -420,21 +438,16 @@ class KitsugiDetailClient {
                     if (effectiveTmdbId > 0) {
                         val isMovie = mediaType == MediaType.Movie
                         val firstTry = TmdbApiClient().fetchMediaDetail(effectiveTmdbId, isMovie)
-                        if (firstTry != null && !title.isNullOrBlank()) {
-                            val originalTitle = title.trim().lowercase()
-                            val fetchedTitle = firstTry.title?.trim()?.lowercase().orEmpty()
-                            val fetchedEnTitle = firstTry.titleEnglish?.trim()?.lowercase().orEmpty()
-                            val matches = fetchedTitle.contains(originalTitle) || originalTitle.contains(fetchedTitle) ||
-                                          fetchedEnTitle.contains(originalTitle) || originalTitle.contains(fetchedEnTitle)
-                            if (matches) {
-                                firstTry
-                            } else {
-                                android.util.Log.w("KitsugiDetailClient", "TMDB detail title mismatch: expected '$title', got '$fetchedTitle'. Trying alternative type (!isMovie)...")
-                                val secondTry = TmdbApiClient().fetchMediaDetail(effectiveTmdbId, !isMovie)
-                                secondTry ?: firstTry
-                            }
+                        if (firstTry != null && tmdbTitleMatches(title, firstTry)) {
+                            firstTry
                         } else {
-                            firstTry ?: TmdbApiClient().fetchMediaDetail(effectiveTmdbId, !isMovie)
+                            // TMDB'de film ve dizi aynı sayısal ID'yi paylaşabilir (ör. Uncharted filmi
+                            // ile 2026 dizisi). Ters tür YALNIZCA başlık gerçekten tutuyorsa kabul edilir;
+                            // aksi halde filmin sayfasında alakasız dizinin verisi görünürdü.
+                            android.util.Log.w("KitsugiDetailClient", "TMDB detail title mismatch or missing for tmdbId=$effectiveTmdbId (expected '$title'). Trying alternative type only with matching title...")
+                            val secondTry = TmdbApiClient().fetchMediaDetail(effectiveTmdbId, !isMovie)
+                                ?.takeIf { tmdbTitleMatches(title, it) }
+                            secondTry ?: firstTry
                         }
                     } else null
                 }

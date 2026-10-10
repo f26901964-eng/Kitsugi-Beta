@@ -262,15 +262,11 @@ private fun StudioDetailSuccessContent(
     val scope = rememberCoroutineScope()
     val isTv = LocalIsTv.current
 
-    // "Hakkında" kartı eylemleri — detay sayfasındaki Açıklama kartıyla aynı sözleşme:
-    // metin hâlâ ham ise uygulama içi çeviri, çevrilmişse 3. parti çevirmen açılır.
-    val onAboutTranslateClick: (String) -> Unit = { text ->
-        val currentText = translatedAbout ?: detail.about
-        if (currentText == detail.about) {
-            onTranslateAbout()
-        } else {
-            context.openTranslator(text, preferredTranslator)
-        }
+    // "Hakkında" kartı çeviri ikonu: her yerde olduğu gibi doğrudan harici çeviri
+    // uygulamasını açar (ham, orijinal metinle).
+    val onAboutTranslateClick: (String) -> Unit = { _ ->
+        val about = detail.about
+        if (!about.isNullOrBlank()) context.openTranslator(about, preferredTranslator)
     }
     val onAboutCopyClick: (String) -> Unit = { text ->
         val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager

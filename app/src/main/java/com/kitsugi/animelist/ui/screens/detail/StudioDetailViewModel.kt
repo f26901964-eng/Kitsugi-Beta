@@ -177,7 +177,7 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
                         _translatedAbout.value = cachedTr
                     } else {
                         val tr = withContext(Dispatchers.IO) {
-                            translationManager.translateToTurkish(rawAbout)
+                            translationManager.translateToTarget(rawAbout)
                         }
                         if (!tr.isNullOrBlank() && tr != rawAbout) {
                             DetailCache.putTranslation("studio_about", source, studioId, tr)
@@ -260,7 +260,7 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
         val raw = currentState.detail.about ?: return
         viewModelScope.launch {
             val tr = withContext(Dispatchers.IO) {
-                translationManager.translateToTurkish(raw)
+                translationManager.translateToTarget(raw)
             }
             if (!tr.isNullOrBlank() && tr != raw) {
                 DetailCache.putTranslation("studio_about", lastSource, lastStudioId, tr)

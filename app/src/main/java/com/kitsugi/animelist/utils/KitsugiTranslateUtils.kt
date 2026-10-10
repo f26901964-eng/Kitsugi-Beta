@@ -82,6 +82,15 @@ object KitsugiTranslateUtils {
     )
 
     /**
+     * Hedef dil kodunu (ör. "tr", "en") kullanıcıya gösterilecek dil adına çevirir
+     * ("Türkçe", "İngilizce"). Katalogda yoksa kodun büyük harfli hâli döner.
+     * "Türkçe" sekmelerinin etiketi bu fonksiyonla ayarlardaki hedef dile göre değişir.
+     */
+    fun targetLanguageName(code: String): String =
+        googleLanguageCatalog.firstOrNull { it.first.equals(code, ignoreCase = true) }?.second
+            ?: code.uppercase()
+
+    /**
      * Tries to open the text in available translator apps.
      * If a preferredTranslator is specified (GOOGLE, DEEPL, TRANSLATE_YOU), attempts that app first.
      * If preferred fails or is DEFAULT, cycles through all apps in fallback order.

@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.components
 
+import com.kitsugi.animelist.utils.KitsugiTranslateUtils
+import com.kitsugi.animelist.utils.KitsugiTranslatePrefs
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
 
@@ -144,7 +146,7 @@ fun KitsugiAllReviewsBottomSheet(
                 val revKey = "${rev.source}_${rev.username}_${rev.dateText}"
                 if (!translatedSummaries.containsKey(revKey)) {
                     coroutineScope.launch {
-                        val tr = translationManager.translateToTurkish(rev.summary)
+                        val tr = translationManager.translateToTarget(rev.summary)
                         if (tr.isNotBlank()) {
                             translatedSummaries[revKey] = tr
                         }
@@ -230,7 +232,7 @@ fun KitsugiAllReviewsBottomSheet(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = stringResource(R.string.turkce),
+                        text = KitsugiTranslateUtils.targetLanguageName(KitsugiTranslatePrefs.resolvedTarget()),
                         color = if (isTrSelected) KitsugiColors.Background else KitsugiColors.TextPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold

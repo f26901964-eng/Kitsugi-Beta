@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.components
 
+import com.kitsugi.animelist.utils.KitsugiTranslateUtils
+import com.kitsugi.animelist.utils.KitsugiTranslatePrefs
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.Text
 
@@ -142,7 +144,7 @@ fun KitsugiAllTopicsBottomSheet(
             topicsList.forEach { topic ->
                 if (!translatedTitles.containsKey(topic.id)) {
                     coroutineScope.launch {
-                        val tr = translationManager.translateToTurkish(topic.title)
+                        val tr = translationManager.translateToTarget(topic.title)
                         if (tr.isNotBlank()) {
                             translatedTitles[topic.id] = tr
                         }
@@ -229,7 +231,7 @@ fun KitsugiAllTopicsBottomSheet(
                     contentAlignment = Alignment.Center
                 ) {
                     Text(
-                        text = stringResource(R.string.turkce),
+                        text = KitsugiTranslateUtils.targetLanguageName(KitsugiTranslatePrefs.resolvedTarget()),
                         color = if (isTrSelected) KitsugiColors.Background else KitsugiColors.TextPrimary,
                         fontSize = 13.sp,
                         fontWeight = FontWeight.Bold

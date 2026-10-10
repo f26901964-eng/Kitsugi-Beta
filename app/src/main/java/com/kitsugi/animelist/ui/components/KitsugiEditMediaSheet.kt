@@ -506,9 +506,9 @@ fun KitsugiEditMediaSheet(
                     // koleksiyona yazılacağını birebir görür (Kitsugi karşılıkları:
                     // İzliyorum=doing, İzledim=collect, İzleyeceğim=wish,
                     // Bekletiyorum=on_hold, Bıraktım=dropped).
-                    val statusLabelFor: (WatchStatus) -> String = { status ->
+                    @Composable
+                    fun statusLabelFor(status: WatchStatus): String =
                         if (isBangumi) bangumiStatusLabel(status, selectedType) else status.localizedLabel()
-                    }
                     // AniList için Repeating ayrı bir status, MAL için flag
                     val statusPills = if (isAniList || isShikimori) {
                         listOf(
