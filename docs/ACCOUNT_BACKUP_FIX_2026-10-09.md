@@ -8,7 +8,8 @@ Amaç: Kitsugi hesabına girişle AniList, MAL, Kitsu, Shikimori, Bangumi ve Sim
 
 1. Mevcut Supabase projesinde `supabase/schema.sql` kurulmuş olmalı.
 2. Supabase SQL Editor'da **`supabase/migrations/20261009_vault_compare_and_swap.sql`** uygulanmalı.
-3. Ardından yeni APK tüm cihazlara kurulmalı. SQL, eski istemcilerin kasa satırlarını doğrudan ezmesini engeller; eski istemcide kasa yazma hatası beklenir.
+3. Mevcut kurulumlarda PostgREST tablo izinleri eksikse **`supabase/migrations/20261010_user_data_authenticated_grants.sql`** de uygulanmalı. `authenticated` rolü için RLS policy tanımlamak, `SELECT`/`INSERT`/`UPDATE`/`DELETE` tablo grant'lerinin yerine geçmez.
+4. Ardından yeni APK tüm cihazlara kurulmalı. SQL, eski istemcilerin kasa satırlarını doğrudan ezmesini engeller; eski istemcide kasa yazma hatası beklenir.
 
 Migration otomatik olarak canlı sunucuya uygulanmadı. Yeni istemci eksik RPC durumunda güvenli olmayan upsert'e geri dönmez: hata gösterir ve uygun arka plan işini tekrar dener. Bu dosya yalnızca uygulama içine konarak sunucu özelliği etkinleşmez.
 

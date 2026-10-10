@@ -21,6 +21,12 @@ create table if not exists public.user_data (
     primary key (user_id, key)
 );
 
+-- PostgreSQL tablo izinleri RLS'den ayrıdır. RLS satır sahibini sınırlar;
+-- bu GRANT'ler ise PostgREST'in authenticated rolüyle tabloya ulaşmasını sağlar.
+-- Özellikle mevcut Supabase projelerinde varsayılan izinler kaldırılmış olabilir.
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on table public.user_data to authenticated;
+
 -- Güncelleme zamanını sunucu tarafında garanti et (çakışma çözümü için)
 create or replace function public.set_user_data_updated_at()
 returns trigger

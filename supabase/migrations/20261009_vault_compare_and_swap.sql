@@ -38,6 +38,11 @@ $$;
 revoke all on function public.kitsugi_vault_cas(text, jsonb, jsonb) from public, anon;
 grant execute on function public.kitsugi_vault_cas(text, jsonb, jsonb) to authenticated;
 
+-- RLS policies do not grant table privileges. Keep these grants here as well so
+-- installations that already ran schema.sql can safely rerun this migration.
+grant usage on schema public to authenticated;
+grant select, insert, update, delete on table public.user_data to authenticated;
+
 -- Restrictive policies also guard against any existing permissive owner-write policy.
 drop policy if exists vault_rpc_insert_only on public.user_data;
 create policy vault_rpc_insert_only on public.user_data as restrictive for insert to authenticated
