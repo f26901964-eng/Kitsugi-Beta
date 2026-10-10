@@ -57,6 +57,8 @@ fun KitsugiPreferencesSettingsDialog(
     onThemeModeSelected: (String) -> Unit,
     onAmoledBlackChanged: (Boolean) -> Unit,
     onCustomAccentColorChanged: (Int) -> Unit,
+    onCustomAccentColor2Changed: (Int) -> Unit = {},
+    onCustomAccentGradientAngleChanged: (Int) -> Unit = {},
     onDefaultTabSelected: (String) -> Unit,
     onAdultContentChanged: (Boolean) -> Unit,
     onBlurAdultMediaChanged: (Boolean) -> Unit = {},
@@ -199,6 +201,8 @@ fun KitsugiPreferencesSettingsDialog(
                         onThemeModeSelected = onThemeModeSelected,
                         onAmoledBlackChanged = onAmoledBlackChanged,
                         onCustomAccentColorChanged = onCustomAccentColorChanged,
+                        onCustomAccentColor2Changed = onCustomAccentColor2Changed,
+                        onCustomAccentGradientAngleChanged = onCustomAccentGradientAngleChanged,
                         onDefaultTabSelected = onDefaultTabSelected,
                         onHomeLayoutSelected = onHomeLayoutSelected,
                         onAdultContentChanged = onAdultContentChanged,
@@ -270,6 +274,8 @@ private fun AppearanceTab(
     onThemeModeSelected: (String) -> Unit,
     onAmoledBlackChanged: (Boolean) -> Unit,
     onCustomAccentColorChanged: (Int) -> Unit,
+    onCustomAccentColor2Changed: (Int) -> Unit = {},
+    onCustomAccentGradientAngleChanged: (Int) -> Unit = {},
     onDefaultTabSelected: (String) -> Unit,
     onHomeLayoutSelected: (String) -> Unit,
     onAdultContentChanged: (Boolean) -> Unit,
@@ -330,7 +336,6 @@ private fun AppearanceTab(
     )
 
     var showColorPicker by remember { mutableStateOf(false) }
-    var colorInputText by remember { mutableStateOf(if (customAccentColor != 0) String.format("#%06X", 0xFFFFFF and customAccentColor) else "") }
 
     var showThemeModeMenu by remember { mutableStateOf(false) }
     var showLanguageMenu by remember { mutableStateOf(false) }
@@ -454,6 +459,16 @@ private fun AppearanceTab(
 
                     // Özel Renk Seçici Kutusu
                     val isCustomSelected = customAccentColor != 0
+                    val customAccentEnd = if (isCustomSelected && appSettings.customAccentColor2 != 0) Color(appSettings.customAccentColor2) else null
+                    val customSwatchBrush = if (isCustomSelected) {
+                        com.kitsugi.animelist.ui.theme.accentBackgroundBrush(
+                            Color(customAccentColor),
+                            customAccentEnd,
+                            appSettings.customAccentGradientAngle.toFloat()
+                        )
+                    } else {
+                        androidx.compose.ui.graphics.Brush.solid(KitsugiColors.surfaceStrong)
+                    }
                     Box(
                         modifier = Modifier
                             .size(50.dp)
@@ -471,19 +486,23 @@ private fun AppearanceTab(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .background(
-                                    color = if (isCustomSelected) Color(customAccentColor) else KitsugiColors.surfaceStrong,
+                                    brush = customSwatchBrush,
                                     shape = CircleShape
                                 )
                                 .border(
                                     width = 1.5.dp,
-                                    color = if (isCustomSelected) Color.White else KitsugiColors.textMuted,
+                                    color = if (isCustomSelected) com.kitsugi.animelist.ui.theme.onAccentColor(
+                                        Color(customAccentColor), customAccentEnd
+                                    ) else KitsugiColors.textMuted,
                                     shape = CircleShape
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = "+",
-                                color = if (isCustomSelected) Color.White else KitsugiColors.textPrimary,
+                                color = if (isCustomSelected) com.kitsugi.animelist.ui.theme.onAccentColor(
+                                    Color(customAccentColor), customAccentEnd
+                                ) else KitsugiColors.textPrimary,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 18.sp
                             )
@@ -605,13 +624,15 @@ private fun AppearanceTab(
     }
 
     if (showColorPicker) {
-        CustomColorPickerDialog(
-            colorInputText = colorInputText,
-            onColorInputTextChange = { colorInputText = it },
-            accentColor = accentColor,
+        KitsugiAccentColorPickerDialog(
+            initialColor = customAccentColor,
+            initialColor2 = appSettings.customAccentColor2,
+            initialAngle = appSettings.customAccentGradientAngle,
             onDismissRequest = { showColorPicker = false },
-            onConfirm = { parsedColor ->
-                onCustomAccentColorChanged(parsedColor)
+            onApply = { color1, color2, angle ->
+                onCustomAccentColorChanged(color1)
+                onCustomAccentColor2Changed(color2)
+                onCustomAccentGradientAngleChanged(angle)
                 showColorPicker = false
             }
         )
@@ -1410,70 +1431,6 @@ private fun ListScoreTab(
             )
         }
     }
-}
-
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun CustomColorPickerDialog(
-    colorInputText: String,
-    onColorInputTextChange: (String) -> Unit,
-    accentColor: Color,
-    onDismissRequest: () -> Unit,
-    onConfirm: (Int) -> Unit
-) {
-    val KitsugiColors = LocalKitsugiColors.current
-    AlertDialog(
-        onDismissRequest = onDismissRequest,
-        title = { Text(stringResource(R.string.settings_custom_color_title_input), color = KitsugiColors.textPrimary) },
-        text = {
-            Column {
-                Text(stringResource(R.string.settings_custom_color_desc_input), color = KitsugiColors.textSecondary, fontSize = 14.sp)
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = colorInputText,
-                    onValueChange = onColorInputTextChange,
-                    placeholder = { Text("#000000", color = KitsugiColors.textMuted) },
-                    singleLine = true,
-                    colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = KitsugiColors.textPrimary,
-                        unfocusedTextColor = KitsugiColors.textPrimary,
-                        cursorColor = accentColor,
-                        focusedBorderColor = accentColor,
-                        unfocusedBorderColor = KitsugiColors.border
-                    )
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    val parsedColor = runCatching {
-                        val hex = colorInputText.trim().removePrefix("#")
-                        val colorLong = hex.toLong(16)
-                        val finalColor = if (hex.length == 6) {
-                            (0xFF000000 or colorLong).toInt()
-                        } else {
-                            colorLong.toInt()
-                        }
-                        finalColor
-                    }.getOrNull()
-
-                    if (parsedColor != null) {
-                        onConfirm(parsedColor)
-                    }
-                }
-            ) {
-                Text(stringResource(R.string.settings_custom_color_apply), color = accentColor, fontWeight = FontWeight.Bold)
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismissRequest) {
-                Text(stringResource(R.string.settings_cancel), color = KitsugiColors.textSecondary)
-            }
-        },
-        containerColor = KitsugiColors.surface,
-        shape = RoundedCornerShape(20.dp)
-    )
 }
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)

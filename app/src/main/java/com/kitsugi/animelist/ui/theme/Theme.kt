@@ -62,6 +62,8 @@ fun KitsugiAnimeListTheme(
     amoledBlack: Boolean = false,
     selectedThemeId: String = "mint",
     customAccentColor: Int = 0,
+    customAccentColor2: Int = 0,
+    customAccentGradientAngle: Int = 135,
     // Dynamic color is available on Android 12+
     dynamicColor: Boolean = true,
     isTv: Boolean = false,
@@ -80,12 +82,27 @@ fun KitsugiAnimeListTheme(
         KitsugiAccentForThemeId(selectedThemeId)
     }
 
+    // Gradyan bitiş rengi (0 = düz renk)
+    val accentColor2 = if (customAccentColor != 0 && customAccentColor2 != 0) {
+        androidx.compose.ui.graphics.Color(customAccentColor2)
+    } else {
+        null
+    }
+
+    // Vurgu arka plan fırçası: düz veya açılı lineer gradyan
+    val accentBrush = accentBackgroundBrush(accentColor, accentColor2, customAccentGradientAngle.toFloat())
+
+    // Vurgu zeminindeki TÜM yazı/ikonlar için otomatik siyah-beyaz kontrast rengi
+    val onAccent = onAccentColor(accentColor, accentColor2)
+
     // Provide isTv as false for layout-adaptive components, but keep isTvDevice for D-pad enhancements
     CompositionLocalProvider(
         LocalIsTv provides false,
         LocalIsTvDevice provides isTv,
         LocalKitsugiColors provides KitsugiColors,
-        LocalKitsugiAccent provides accentColor
+        LocalKitsugiAccent provides accentColor,
+        LocalKitsugiAccentBrush provides accentBrush,
+        LocalKitsugiOnAccent provides onAccent
     ) {
         val colorScheme = when {
             dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S -> {

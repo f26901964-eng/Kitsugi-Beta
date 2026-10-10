@@ -65,6 +65,8 @@ class MainActivity : AppCompatActivity() {
                 amoledBlack = appSettings.amoledBlack,
                 selectedThemeId = appSettings.selectedThemeId,
                 customAccentColor = appSettings.customAccentColor,
+                customAccentColor2 = appSettings.customAccentColor2,
+                customAccentGradientAngle = appSettings.customAccentGradientAngle,
                 isTv = formFactor == DeviceFormFactor.TV
             ) {
                 KitsugiPermissionRequester()

@@ -32,6 +32,16 @@ object KitsugiColors {
         @Composable
         get() = LocalKitsugiAccent.current
 
+    /** Vurgu zeminindeki yazı/ikonlar için otomatik siyah-beyaz kontrast rengi. */
+    val OnAccent: Color
+        @Composable
+        get() = LocalKitsugiOnAccent.current
+
+    /** Vurgu arka planı fırçası — düz renk veya açılı lineer gradyan. */
+    val AccentBrush: androidx.compose.ui.graphics.Brush
+        @Composable
+        get() = LocalKitsugiAccentBrush.current
+
     val AccentMuted: Color
         @Composable
         get() = LocalKitsugiAccent.current.copy(alpha = 0.15f)

@@ -111,6 +111,10 @@ data class AppSettings(
     val themeMode: String = "FOLLOW_SYSTEM",
     val amoledBlack: Boolean = false,
     val customAccentColor: Int = 0,
+    /** Özel vurgu gradyanının bitiş rengi (0 = gradyan yok, düz renk). */
+    val customAccentColor2: Int = 0,
+    /** Özel vurgu gradyanı açısı (derece, 0 = soldan sağa, 90 = yukarıdan aşağıya). */
+    val customAccentGradientAngle: Int = 135,
     val defaultTab: String = "LAST_USED",
     val lastUsedTab: String = "Explore",
     val appLanguage: String = "system",

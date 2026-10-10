@@ -1,4 +1,4 @@
-﻿package com.kitsugi.animelist.ui.screens.fullscreen.components
+package com.kitsugi.animelist.ui.screens.fullscreen.components
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.foundation.background
@@ -80,7 +80,7 @@ fun PlaybackEndedOverlay(
                         onClick = onPlayNext,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = KitsugiColors.Accent,
-                            contentColor = Color.White
+                            contentColor = com.kitsugi.animelist.ui.theme.onAccentColor(KitsugiColors.Accent)
                         ),
                         shape = RoundedCornerShape(8.dp)
                     ) {

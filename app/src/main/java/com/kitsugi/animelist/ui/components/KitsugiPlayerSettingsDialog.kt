@@ -1574,9 +1574,9 @@ fun KitsugiPlayerSettingsDialog(
                                     .padding(bottom = 12.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = accentColor)
                             ) {
-                                Icon(Icons.Rounded.Add, contentDescription = null, tint = Color.White)
+                                Icon(Icons.Rounded.Add, contentDescription = null, tint = com.kitsugi.animelist.ui.theme.onAccentColor(accentColor))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Yeni Özel Buton Ekle", color = Color.White)
+                                Text("Yeni Özel Buton Ekle", color = com.kitsugi.animelist.ui.theme.onAccentColor(accentColor))
                             }
 
                             LazyColumn(
@@ -1717,9 +1717,9 @@ fun KitsugiPlayerSettingsDialog(
                                     .padding(bottom = 12.dp),
                                 colors = ButtonDefaults.buttonColors(containerColor = accentColor)
                             ) {
-                                Icon(Icons.Rounded.Add, contentDescription = null, tint = Color.White)
+                                Icon(Icons.Rounded.Add, contentDescription = null, tint = com.kitsugi.animelist.ui.theme.onAccentColor(accentColor))
                                 Spacer(modifier = Modifier.width(8.dp))
-                                Text("Yeni Dosya Oluştur", color = Color.White)
+                                Text("Yeni Dosya Oluştur", color = com.kitsugi.animelist.ui.theme.onAccentColor(accentColor))
                             }
 
                             LazyColumn(
@@ -1959,7 +1959,7 @@ fun KitsugiPlayerSettingsDialog(
                                 },
                                 colors = ButtonDefaults.buttonColors(containerColor = accentColor)
                             ) {
-                                Text("Kaydet", color = Color.White)
+                                Text("Kaydet", color = com.kitsugi.animelist.ui.theme.onAccentColor(accentColor))
                             }
                         }
                     }

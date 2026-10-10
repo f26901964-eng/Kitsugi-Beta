@@ -660,7 +660,7 @@ fun SearchScreen(
                     }
                 },
                 containerColor = accentColor,
-                contentColor = Color.White,
+                contentColor = com.kitsugi.animelist.ui.theme.onAccentColor(accentColor),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.size(52.dp)
             ) {

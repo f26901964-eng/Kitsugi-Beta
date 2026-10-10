@@ -1,4 +1,4 @@
-﻿package com.kitsugi.animelist.ui.screens.detail
+package com.kitsugi.animelist.ui.screens.detail
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.net.Uri
@@ -324,7 +324,7 @@ fun ThemePlayerContainer(
                             onClick = { retryTrigger++ },
                             colors = ButtonDefaults.buttonColors(containerColor = accentColor)
                         ) {
-                            Text("Tekrar Dene", color = KitsugiColors.Background)
+                            Text("Tekrar Dene", color = com.kitsugi.animelist.ui.theme.onAccentColor(accentColor))
                         }
                         KitsugiButton(
                             onClick = {

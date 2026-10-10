@@ -45,6 +45,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.ui.theme.LocalIsTv
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
+import com.kitsugi.animelist.ui.theme.LocalKitsugiAccentBrush
+import com.kitsugi.animelist.ui.theme.LocalKitsugiOnAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import androidx.compose.material3.Icon
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -479,11 +481,17 @@ private fun SettingsIcon(
     icon: ImageVector,
     color: Color
 ) {
+    // Vurgu rengi kullanılıyorsa düz/gradyan tema fırçası; aksi halde düz renk.
+    // İkon tint'i, zeminin koyuluğuna göre otomatik siyah-beyaz kontrast alır.
+    val accentColor = LocalKitsugiAccent.current
+    val isAccent = color == accentColor
+    val bgBrush = if (isAccent) LocalKitsugiAccentBrush.current else androidx.compose.ui.graphics.Brush.solid(color)
+    val tint = if (isAccent) LocalKitsugiOnAccent.current else com.kitsugi.animelist.ui.theme.onAccentColor(color)
     Box(
         modifier = Modifier
             .size(42.dp)
             .background(
-                color = color,
+                brush = bgBrush,
                 shape = CircleShape
             ),
         contentAlignment = Alignment.Center
@@ -491,7 +499,7 @@ private fun SettingsIcon(
         Icon(
             imageVector = icon,
             contentDescription = null,
-            tint = Color.White,
+            tint = tint,
             modifier = Modifier.size(20.dp)
         )
     }

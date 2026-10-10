@@ -42,6 +42,10 @@ internal fun SettingsContext.buildSettingsParams() =
             onAmoledBlackChanged = { onAmoledBlackChanged(it) },
             customAccentColor = appSettings.customAccentColor,
             onCustomAccentColorChanged = { onCustomAccentColorChanged(it) },
+            customAccentColor2 = appSettings.customAccentColor2,
+            onCustomAccentColor2Changed = { onCustomAccentColor2Changed(it) },
+            customAccentGradientAngle = appSettings.customAccentGradientAngle,
+            onCustomAccentGradientAngleChanged = { onCustomAccentGradientAngleChanged(it) },
             defaultTab = appSettings.defaultTab,
             onDefaultTabSelected = { onDefaultTabSelected(it) },
             appLanguage = appSettings.appLanguage,
@@ -911,6 +915,14 @@ internal fun SettingsContext.onAmoledBlackChanged(enabled: Boolean) {
 
 internal fun SettingsContext.onCustomAccentColorChanged(color: Int) {
     coroutineScope.launch { settingsDataStore.setCustomAccentColor(color) }
+}
+
+internal fun SettingsContext.onCustomAccentColor2Changed(color: Int) {
+    coroutineScope.launch { settingsDataStore.setCustomAccentColor2(color) }
+}
+
+internal fun SettingsContext.onCustomAccentGradientAngleChanged(angle: Int) {
+    coroutineScope.launch { settingsDataStore.setCustomAccentGradientAngle(angle) }
 }
 
 internal fun SettingsContext.onDefaultTabSelected(tab: String) {

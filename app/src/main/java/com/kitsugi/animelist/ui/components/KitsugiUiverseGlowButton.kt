@@ -36,7 +36,22 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
+import com.kitsugi.animelist.ui.theme.LocalKitsugiAccentBrush
 import com.kitsugi.animelist.ui.utils.tvClickable
+
+/**
+ * Vurgu rengiyle doldurulan buton arka planları için düz/gradyan tema fırçası.
+ * Gradyan seçiliyse vurgu arka planları iki renk arasında akar.
+ */
+@Composable
+private fun Modifier.kitsugiAccentButtonBackground(backgroundColor: Color, shape: Shape): Modifier {
+    val accent = LocalKitsugiAccent.current
+    return if (backgroundColor == accent) {
+        this.background(LocalKitsugiAccentBrush.current, shape)
+    } else {
+        this.background(backgroundColor, shape)
+    }
+}
 
 /**
  * Buton paleti tanımı — görsel efektler sadeleştirildiği için yalnızca API
@@ -87,11 +102,11 @@ data class UiverseButtonPalette(
 }
 
 /**
- * Verilen zemin renginin üzerinde okunaklı kalacak metin/ikon rengini seçer
- * (açık zeminde koyu metin, koyu zeminde beyaz metin).
+ * Verilen zemin renginin üzerinde okunaklı kalacak metin/ikon rengini seçer.
+ * Koyuluğa göre SIYAH ↔ BEYAZ arasında yumuşak geçiş — tüm uygulamayla aynı mekanizma.
  */
 internal fun Color.onAccentColor(): Color =
-    if (this.luminance() > 0.55f) Color(0xFF14181F) else Color.White
+    com.kitsugi.animelist.ui.theme.onAccentColor(this)
 
 /**
  * Sade, tema uyumlu (koyu/açık) dolgulu buton.
@@ -129,7 +144,7 @@ fun KitsugiUiverseGlowButton(
         modifier = modifier
             .scale(scale)
             .clip(shape)
-            .background(backgroundColor, shape)
+            .kitsugiAccentButtonBackground(backgroundColor, shape)
             .then(if (enabled) Modifier.tvClickable(shape = shape, interactionSource = interactionSource, onClick = onClick) else Modifier),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center
@@ -181,7 +196,7 @@ fun KitsugiDetailActionButton(
         modifier = modifier
             .scale(scale)
             .clip(shape)
-            .background(backgroundColor, shape)
+            .kitsugiAccentButtonBackground(backgroundColor, shape)
             .then(if (enabled) Modifier.tvClickable(shape = shape, interactionSource = interactionSource, onClick = onClick) else Modifier)
             .padding(horizontal = 14.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -254,7 +269,7 @@ fun KitsugiButton(
         modifier = modifier
             .scale(scale)
             .clip(shape)
-            .background(backgroundColor, shape)
+            .kitsugiAccentButtonBackground(backgroundColor, shape)
             .then(if (enabled) Modifier.tvClickable(shape = shape, interactionSource = interactionSource, onClick = onClick) else Modifier),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.Center

@@ -1,4 +1,4 @@
-﻿package com.kitsugi.animelist.ui.screens.fullscreen.controls.components.panels
+package com.kitsugi.animelist.ui.screens.fullscreen.controls.components.panels
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import androidx.compose.animation.animateContentSize
@@ -125,12 +125,12 @@ fun DelayCard(
                         shape = RoundedCornerShape(50),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = KitsugiColors.Accent,
-                            contentColor = Color.White,
+                            contentColor = com.kitsugi.animelist.ui.theme.onAccentColor(KitsugiColors.Accent),
                             disabledContainerColor = KitsugiColors.Accent.copy(alpha = 0.5f),
-                            disabledContentColor = Color.White.copy(alpha = 0.5f)
+                            disabledContentColor = com.kitsugi.animelist.ui.theme.onAccentColor(KitsugiColors.Accent).copy(alpha = 0.5f)
                         ),
                     ) {
-                        Text(labelA, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text(labelA, fontWeight = FontWeight.Bold, color = com.kitsugi.animelist.ui.theme.onAccentColor(KitsugiColors.Accent))
                     }
 
                     KitsugiButton(
@@ -141,12 +141,12 @@ fun DelayCard(
                         shape = RoundedCornerShape(50),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = KitsugiColors.Accent,
-                            contentColor = Color.White,
+                            contentColor = com.kitsugi.animelist.ui.theme.onAccentColor(KitsugiColors.Accent),
                             disabledContainerColor = KitsugiColors.Accent.copy(alpha = 0.5f),
-                            disabledContentColor = Color.White.copy(alpha = 0.5f)
+                            disabledContentColor = com.kitsugi.animelist.ui.theme.onAccentColor(KitsugiColors.Accent).copy(alpha = 0.5f)
                         ),
                     ) {
-                        Text(labelB, fontWeight = FontWeight.Bold, color = Color.White)
+                        Text(labelB, fontWeight = FontWeight.Bold, color = com.kitsugi.animelist.ui.theme.onAccentColor(KitsugiColors.Accent))
                     }
                 }
 
@@ -157,20 +157,20 @@ fun DelayCard(
                         shape = RoundedCornerShape(50),
                         colors = ButtonDefaults.buttonColors(
                             containerColor = KitsugiColors.Accent,
-                            contentColor = Color.White
+                            contentColor = com.kitsugi.animelist.ui.theme.onAccentColor(KitsugiColors.Accent)
                         ),
                     ) {
-                        Text("Varsayılan olarak ayarla", fontWeight = FontWeight.Bold, color = Color.White)
+                        Text("Varsayılan olarak ayarla", fontWeight = FontWeight.Bold, color = com.kitsugi.animelist.ui.theme.onAccentColor(KitsugiColors.Accent))
                     }
                     FilledIconButton(
                         onClick = onReset,
                         shape = CircleShape,
                         colors = IconButtonDefaults.filledIconButtonColors(
                             containerColor = KitsugiColors.Accent,
-                            contentColor = Color.White
+                            contentColor = com.kitsugi.animelist.ui.theme.onAccentColor(KitsugiColors.Accent)
                         )
                     ) {
-                        Icon(Icons.Default.Refresh, null, tint = Color.White)
+                        Icon(Icons.Default.Refresh, null, tint = com.kitsugi.animelist.ui.theme.onAccentColor(KitsugiColors.Accent))
                     }
                 }
             }

@@ -154,6 +154,8 @@ class SettingsDataStore(
         val ThemeMode = stringPreferencesKey("theme_mode")
         val AmoledBlack = booleanPreferencesKey("amoled_black")
         val CustomAccentColor = intPreferencesKey("custom_accent_color")
+        val CustomAccentColor2 = intPreferencesKey("custom_accent_color_2")
+        val CustomAccentGradientAngle = intPreferencesKey("custom_accent_gradient_angle")
         val DefaultTab = stringPreferencesKey("default_tab")
         val LastUsedTab = stringPreferencesKey("last_used_tab")
         val AppLanguage = stringPreferencesKey("app_language")
@@ -456,6 +458,8 @@ class SettingsDataStore(
                     themeMode = preferences[Keys.ThemeMode] ?: "FOLLOW_SYSTEM",
                     amoledBlack = preferences[Keys.AmoledBlack] ?: false,
                     customAccentColor = preferences[Keys.CustomAccentColor] ?: 0,
+                    customAccentColor2 = preferences[Keys.CustomAccentColor2] ?: 0,
+                    customAccentGradientAngle = preferences[Keys.CustomAccentGradientAngle] ?: 135,
                     defaultTab = preferences[Keys.DefaultTab] ?: "LAST_USED",
                     lastUsedTab = preferences[Keys.LastUsedTab] ?: "Explore",
                     appLanguage = preferences[Keys.AppLanguage] ?: "system",
@@ -1118,6 +1122,18 @@ class SettingsDataStore(
     suspend fun setCustomAccentColor(color: Int) {
         context.settingsDataStore.edit { preferences ->
             preferences[Keys.CustomAccentColor] = color
+        }
+    }
+
+    suspend fun setCustomAccentColor2(color: Int) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[Keys.CustomAccentColor2] = color
+        }
+    }
+
+    suspend fun setCustomAccentGradientAngle(angle: Int) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[Keys.CustomAccentGradientAngle] = angle
         }
     }
 

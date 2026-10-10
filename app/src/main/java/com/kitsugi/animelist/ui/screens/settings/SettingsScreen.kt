@@ -679,7 +679,8 @@ private fun SettingsPreferencesContent(
     integrations: IntegrationsSettings
 ) {
     val localSettings = androidx.compose.runtime.remember(
-        general.selectedThemeId, general.themeMode, general.amoledBlack, general.customAccentColor, general.defaultTab,
+        general.selectedThemeId, general.themeMode, general.amoledBlack, general.customAccentColor, general.customAccentColor2,
+        general.customAccentGradientAngle, general.defaultTab,
         general.showAdultContent, general.blurAdultMedia, general.showAnimeLogos, general.selectedListLayoutId, general.selectedHomeLayoutId,
         general.titleLanguage, general.scoreFormat, general.hideScores, integrations.autoTranslateEnabled, integrations.preferredTranslator,
         integrations.translateSourceLanguage, integrations.translateTargetLanguage, general.appLanguage, general.fixedNavBar,
@@ -694,6 +695,8 @@ private fun SettingsPreferencesContent(
             themeMode = general.themeMode,
             amoledBlack = general.amoledBlack,
             customAccentColor = general.customAccentColor,
+            customAccentColor2 = general.customAccentColor2,
+            customAccentGradientAngle = general.customAccentGradientAngle,
             defaultTab = general.defaultTab,
             showAdultContent = general.showAdultContent,
             blurAdultMedia = general.blurAdultMedia,
@@ -733,6 +736,8 @@ private fun SettingsPreferencesContent(
         onThemeModeSelected = general.onThemeModeSelected,
         onAmoledBlackChanged = general.onAmoledBlackChanged,
         onCustomAccentColorChanged = general.onCustomAccentColorChanged,
+        onCustomAccentColor2Changed = general.onCustomAccentColor2Changed,
+        onCustomAccentGradientAngleChanged = general.onCustomAccentGradientAngleChanged,
         onDefaultTabSelected = general.onDefaultTabSelected,
         onAdultContentChanged = general.onAdultContentChanged,
         onBlurAdultMediaChanged = general.onBlurAdultMediaChanged,

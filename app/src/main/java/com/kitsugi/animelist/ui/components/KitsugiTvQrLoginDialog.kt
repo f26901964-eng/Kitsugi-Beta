@@ -1,4 +1,4 @@
-﻿package com.kitsugi.animelist.ui.components
+package com.kitsugi.animelist.ui.components
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.graphics.Bitmap
@@ -516,7 +516,7 @@ private fun QrServiceRow(
             Text(
                 text = if (isConnected) "Çıkış" else "Seç",
                 style = MaterialTheme.typography.labelSmall,
-                color = Color.White,
+                color = if (isConnected) Color.White else com.kitsugi.animelist.ui.theme.onAccentColor(accentColor),
                 fontWeight = FontWeight.Bold
             )
         }

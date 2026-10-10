@@ -471,6 +471,8 @@ class KitsugiFullscreenPlayerActivity : ComponentActivity() {
                 amoledBlack = playerSettings.amoledBlack,
                 selectedThemeId = playerSettings.selectedThemeId,
                 customAccentColor = playerSettings.customAccentColor,
+                customAccentColor2 = playerSettings.customAccentColor2,
+                customAccentGradientAngle = playerSettings.customAccentGradientAngle,
             ) {
               PlayerAccentTheme {
                 KitsugiFullscreenPlayerScreen(
