@@ -36,6 +36,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import com.kitsugi.animelist.ui.theme.LocalCardFramesEnabled
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 
 /**
@@ -71,6 +72,7 @@ fun KitsugiNeonGlowCard(
     val isInteracting = isPressed || isHovered || isFocused
 
     val accentColor = LocalKitsugiAccent.current
+    val framesEnabled = LocalCardFramesEnabled.current
 
     // Uiverse'in 163 derece degrade renk paleti (Temanın accent rengiyle uyumlu dinamik harman)
     val gradientColors = customGradientColors ?: remember(accentColor) {
@@ -122,10 +124,9 @@ fun KitsugiNeonGlowCard(
                 spotColor = accentColor.copy(alpha = if (isInteracting) 0.45f else 0.15f),
                 ambientColor = Color(0x333700FF)
             )
-            .border(
-                width = borderWidth,
-                brush = gradientBrush,
-                shape = shape
+            .then(
+                if (framesEnabled) Modifier.border(width = borderWidth, brush = gradientBrush, shape = shape)
+                else Modifier
             )
             .clip(shape)
             .background(containerColor)
@@ -171,6 +172,7 @@ fun Modifier.kitsugiNeonGlow(
     customGradientColors: List<Color>? = null
 ): Modifier {
     val accentColor = LocalKitsugiAccent.current
+    val framesEnabled = LocalCardFramesEnabled.current
     val gradientColors = customGradientColors ?: remember(accentColor) {
         listOf(accentColor, Color(0xFF3700FF))
     }
@@ -181,6 +183,9 @@ fun Modifier.kitsugiNeonGlow(
             end = Offset(400f, 1000f)
         )
     }
+
+    // Çerçeveler kapalıyken (Görünüm ayarı) gölge ve degrade kenarlık tamamen atlanır.
+    if (!framesEnabled) return this
 
     return this
         .shadow(

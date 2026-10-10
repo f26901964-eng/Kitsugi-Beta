@@ -201,8 +201,11 @@ object KitsugiBangumiClient {
             val pageSize = if (effectiveQuery.isBlank()) limit else limit.coerceIn(1, BangumiApiClient.SEARCH_PAGE_SIZE)
             val offset = ((page - 1).coerceAtLeast(0)) * pageSize
 
-            // Boş sorguda arama ucu güvenilmez; göz atma ucuna düş.
-            val subjects = if (effectiveQuery.isBlank()) {
+            // Browse does not accept the Bangumi tag filter. Use the advanced search
+            // endpoint for blank-query facet requests; only a truly unfiltered blank
+            // request may fall back to browse.
+            val hasSearchFilters = tags.isNotEmpty() || airDate.isNotEmpty() || rating.isNotEmpty()
+            val subjects = if (effectiveQuery.isBlank() && !hasSearchFilters) {
                 BangumiApiClient.browseSubjects(
                     type = types.first(),
                     token = tokenOrNull(context),

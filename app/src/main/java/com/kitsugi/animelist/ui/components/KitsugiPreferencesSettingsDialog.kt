@@ -19,6 +19,12 @@ import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.LightMode
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.Star
+import androidx.compose.material.icons.rounded.People
+import androidx.compose.material.icons.rounded.PriorityHigh
+import androidx.compose.material.icons.rounded.PlaylistAdd
+import androidx.compose.material.icons.rounded.ManageSearch
+import androidx.compose.material.icons.rounded.MenuBook
 import androidx.compose.material.icons.rounded.Translate
 import androidx.compose.material.icons.rounded.Tablet
 import androidx.compose.material.icons.rounded.Movie
@@ -56,7 +62,10 @@ fun KitsugiPreferencesSettingsDialog(
     onThemeSelected: (String) -> Unit,
     onThemeModeSelected: (String) -> Unit,
     onAmoledBlackChanged: (Boolean) -> Unit,
+    onCardFramesEnabledChanged: (Boolean) -> Unit = {},
     onCustomAccentColorChanged: (Int) -> Unit,
+    onCustomAccentColor2Changed: (Int) -> Unit = {},
+    onCustomAccentGradientAngleChanged: (Int) -> Unit = {},
     onDefaultTabSelected: (String) -> Unit,
     onAdultContentChanged: (Boolean) -> Unit,
     onBlurAdultMediaChanged: (Boolean) -> Unit = {},
@@ -66,6 +75,15 @@ fun KitsugiPreferencesSettingsDialog(
     onScoreFormatSelected: (String) -> Unit,
     onHideScoresChanged: (Boolean) -> Unit,
     onHomeLayoutSelected: (String) -> Unit,
+    // ─── AniHyou paritesi: eksik içerik/liste ayarları ─────────────────────
+    onStaffNameLanguageSelected: (String) -> Unit = {},
+    onScoreStepSelected: (String) -> Unit = {},
+    onSeparatedListStyleChanged: (Boolean) -> Unit = {},
+    onShowLowPriorityChanged: (Boolean) -> Unit = {},
+    onPriorityColorsChanged: (String) -> Unit = {},
+    onFuzzySearchEnabledChanged: (Boolean) -> Unit = {},
+    onSeparateNovelsMangaChanged: (Boolean) -> Unit = {},
+    onOpenCustomListsEditor: () -> Unit = {},
     onAutoTranslateEnabledChanged: (Boolean) -> Unit,
     onPreferredTranslatorSelected: (String) -> Unit = {},
     onTranslateSourceLanguageSelected: (String) -> Unit = {},
@@ -198,7 +216,10 @@ fun KitsugiPreferencesSettingsDialog(
                         onThemeSelected = onThemeSelected,
                         onThemeModeSelected = onThemeModeSelected,
                         onAmoledBlackChanged = onAmoledBlackChanged,
+                        onCardFramesEnabledChanged = onCardFramesEnabledChanged,
                         onCustomAccentColorChanged = onCustomAccentColorChanged,
+                        onCustomAccentColor2Changed = onCustomAccentColor2Changed,
+                        onCustomAccentGradientAngleChanged = onCustomAccentGradientAngleChanged,
                         onDefaultTabSelected = onDefaultTabSelected,
                         onHomeLayoutSelected = onHomeLayoutSelected,
                         onAdultContentChanged = onAdultContentChanged,
@@ -218,6 +239,14 @@ fun KitsugiPreferencesSettingsDialog(
                         onTmdbLanguageChanged = onTmdbLanguageChanged,
                         onScoreFormatSelected = onScoreFormatSelected,
                         onHideScoresChanged = onHideScoresChanged,
+                        onStaffNameLanguageSelected = onStaffNameLanguageSelected,
+                        onScoreStepSelected = onScoreStepSelected,
+                        onSeparatedListStyleChanged = onSeparatedListStyleChanged,
+                        onShowLowPriorityChanged = onShowLowPriorityChanged,
+                        onPriorityColorsChanged = onPriorityColorsChanged,
+                        onFuzzySearchEnabledChanged = onFuzzySearchEnabledChanged,
+                        onSeparateNovelsMangaChanged = onSeparateNovelsMangaChanged,
+                        onOpenCustomListsEditor = onOpenCustomListsEditor,
                         onAutoTranslateEnabledChanged = onAutoTranslateEnabledChanged,
                         onPreferredTranslatorSelected = onPreferredTranslatorSelected,
                         onTranslateSourceLanguageSelected = onTranslateSourceLanguageSelected,
@@ -269,7 +298,10 @@ private fun AppearanceTab(
     onThemeSelected: (String) -> Unit,
     onThemeModeSelected: (String) -> Unit,
     onAmoledBlackChanged: (Boolean) -> Unit,
+    onCardFramesEnabledChanged: (Boolean) -> Unit = {},
     onCustomAccentColorChanged: (Int) -> Unit,
+    onCustomAccentColor2Changed: (Int) -> Unit = {},
+    onCustomAccentGradientAngleChanged: (Int) -> Unit = {},
     onDefaultTabSelected: (String) -> Unit,
     onHomeLayoutSelected: (String) -> Unit,
     onAdultContentChanged: (Boolean) -> Unit,
@@ -286,6 +318,7 @@ private fun AppearanceTab(
     val selectedThemeId = appSettings.selectedThemeId
     val themeMode = appSettings.themeMode
     val amoledBlack = appSettings.amoledBlack
+    val cardFramesEnabled = appSettings.cardFramesEnabled
     val customAccentColor = appSettings.customAccentColor
     val defaultTab = appSettings.defaultTab
     val selectedHomeLayoutId = appSettings.selectedHomeLayoutId
@@ -404,6 +437,18 @@ private fun AppearanceTab(
 
             KitsugiSettingsDivider()
 
+            // Tüm kartların neon degrade çerçevesini tek tuşla açar/kapatır (keşfet, liste, arama, profil…)
+            KitsugiSettingsSwitchItem(
+                title = "Kart Çerçeveleri",
+                description = if (cardFramesEnabled) "Kartların renkli çerçevesi görünür" else "Kartların çerçevesi gizli",
+                icon = Icons.Rounded.Palette,
+                iconColor = accentColor,
+                checked = cardFramesEnabled,
+                onCheckedChange = onCardFramesEnabledChanged
+            )
+
+            KitsugiSettingsDivider()
+
             // Inline Accent Color Selector
             Column(
                 modifier = Modifier
@@ -454,6 +499,16 @@ private fun AppearanceTab(
 
                     // Özel Renk Seçici Kutusu
                     val isCustomSelected = customAccentColor != 0
+                    val customAccentEnd = if (isCustomSelected && appSettings.customAccentColor2 != 0) Color(appSettings.customAccentColor2) else null
+                    val customSwatchBrush = if (isCustomSelected) {
+                        com.kitsugi.animelist.ui.theme.accentBackgroundBrush(
+                            Color(customAccentColor),
+                            customAccentEnd,
+                            appSettings.customAccentGradientAngle.toFloat()
+                        )
+                    } else {
+                        androidx.compose.ui.graphics.SolidColor(KitsugiColors.surfaceStrong)
+                    }
                     Box(
                         modifier = Modifier
                             .size(50.dp)
@@ -471,19 +526,23 @@ private fun AppearanceTab(
                             modifier = Modifier
                                 .fillMaxSize()
                                 .background(
-                                    color = if (isCustomSelected) Color(customAccentColor) else KitsugiColors.surfaceStrong,
+                                    brush = customSwatchBrush,
                                     shape = CircleShape
                                 )
                                 .border(
                                     width = 1.5.dp,
-                                    color = if (isCustomSelected) Color.White else KitsugiColors.textMuted,
+                                    color = if (isCustomSelected) com.kitsugi.animelist.ui.theme.onAccentColor(
+                                        Color(customAccentColor), customAccentEnd
+                                    ) else KitsugiColors.textMuted,
                                     shape = CircleShape
                                 ),
                             contentAlignment = Alignment.Center
                         ) {
                             Text(
                                 text = "+",
-                                color = if (isCustomSelected) Color.White else KitsugiColors.textPrimary,
+                                color = if (isCustomSelected) com.kitsugi.animelist.ui.theme.onAccentColor(
+                                    Color(customAccentColor), customAccentEnd
+                                ) else KitsugiColors.textPrimary,
                                 fontWeight = FontWeight.Bold,
                                 fontSize = 18.sp
                             )
@@ -605,13 +664,15 @@ private fun AppearanceTab(
     }
 
     if (showColorPicker) {
-        CustomColorPickerDialog(
-            colorInputText = colorInputText,
-            onColorInputTextChange = { colorInputText = it },
-            accentColor = accentColor,
+        KitsugiAccentColorPickerDialog(
+            initialColor = customAccentColor,
+            initialColor2 = appSettings.customAccentColor2,
+            initialAngle = appSettings.customAccentGradientAngle,
             onDismissRequest = { showColorPicker = false },
-            onConfirm = { parsedColor ->
-                onCustomAccentColorChanged(parsedColor)
+            onApply = { color1, color2, angle ->
+                onCustomAccentColorChanged(color1)
+                onCustomAccentColor2Changed(color2)
+                onCustomAccentGradientAngleChanged(angle)
                 showColorPicker = false
             }
         )
@@ -627,6 +688,14 @@ private fun ListScoreTab(
     onTmdbLanguageChanged: (String) -> Unit = {},
     onScoreFormatSelected: (String) -> Unit,
     onHideScoresChanged: (Boolean) -> Unit,
+    onStaffNameLanguageSelected: (String) -> Unit = {},
+    onScoreStepSelected: (String) -> Unit = {},
+    onSeparatedListStyleChanged: (Boolean) -> Unit = {},
+    onShowLowPriorityChanged: (Boolean) -> Unit = {},
+    onPriorityColorsChanged: (String) -> Unit = {},
+    onFuzzySearchEnabledChanged: (Boolean) -> Unit = {},
+    onSeparateNovelsMangaChanged: (Boolean) -> Unit = {},
+    onOpenCustomListsEditor: () -> Unit = {},
     onAutoTranslateEnabledChanged: (Boolean) -> Unit,
     onPreferredTranslatorSelected: (String) -> Unit = {},
     onTranslateSourceLanguageSelected: (String) -> Unit = {},
@@ -649,6 +718,25 @@ private fun ListScoreTab(
     val scoreFormat = appSettings.scoreFormat
     val hideScores = appSettings.hideScores
     val autoTranslateEnabled = appSettings.autoTranslateEnabled
+    // ─── AniHyou paritesi ────────────────────────────────────────────────
+    val staffNameLanguage = appSettings.staffNameLanguage
+    val scoreStep = appSettings.scoreStep
+    val separatedListStyle = appSettings.separatedListStyle
+    val showLowPriority = appSettings.showLowPriority
+    val priorityColorsJson = appSettings.priorityColorsJson
+    val fuzzySearchEnabled = appSettings.fuzzySearchEnabled
+    val separateNovelsManga = appSettings.separateNovelsManga
+
+    val staffNameLanguageOptions = listOf(
+        KitsugiChoiceOption(id = "ROMAJI", title = "Romaji", description = ""),
+        KitsugiChoiceOption(id = "ENGLISH", title = "İngilizce", description = ""),
+        KitsugiChoiceOption(id = "NATIVE", title = "Ana Dilde", description = "")
+    )
+
+    val scoreStepOptions = listOf(
+        KitsugiChoiceOption(id = "1", title = "1", description = "Tam sayı adımlar (1, 2, 3…)"),
+        KitsugiChoiceOption(id = "0.5", title = "0,5", description = "Yarım puan adımlar (7,5, 8, 8,5…)")
+    )
 
     val listLayoutOptions = listOf(
         KitsugiChoiceOption(id = "compact", title = stringResource(R.string.option_layout_compact), description = stringResource(R.string.option_layout_compact_desc)),
@@ -679,6 +767,8 @@ private fun ListScoreTab(
     var showTmdbLanguageMenu by remember { mutableStateOf(false) }
     var showListLayoutMenu by remember { mutableStateOf(false) }
     var showScoreFormatMenu by remember { mutableStateOf(false) }
+    var showStaffNameLanguageMenu by remember { mutableStateOf(false) }
+    var showScoreStepMenu by remember { mutableStateOf(false) }
 
     // ─── T1-15: POST_NOTIFICATIONS – Android 13+ için bildirim izni ────────────────
     val notificationPermissionLauncher = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -878,6 +968,33 @@ private fun ListScoreTab(
 
             KitsugiSettingsDivider()
 
+            // Ekip & Karakter Adı Dili (AniHyou paritesi) — tüm kişi adları
+            // (AniList, Kitsu, Shikimori, Bangumi, MAL/Jikan) bu tercihe uyar.
+            Box {
+                KitsugiSettingsListItem(
+                    title = "Ekip & Karakter adı dili",
+                    description = "Seiyuu, yönetmen ve karakter adlarının gösterim dili",
+                    value = staffNameLanguageOptions.find { it.id == staffNameLanguage }?.title ?: "",
+                    icon = Icons.Rounded.People,
+                    iconColor = accentColor,
+                    onClick = { showStaffNameLanguageMenu = true }
+                )
+                KitsugiDropdownMenu(expanded = showStaffNameLanguageMenu, onDismissRequest = { showStaffNameLanguageMenu = false }) {
+                    staffNameLanguageOptions.forEach { opt ->
+                        KitsugiDropdownItem(
+                            text = opt.title,
+                            selected = opt.id == staffNameLanguage,
+                            onClick = {
+                                onStaffNameLanguageSelected(opt.id)
+                                showStaffNameLanguageMenu = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            KitsugiSettingsDivider()
+
             // Dizi & Film Başlık Dili
             Box {
                 val currentTmdbLang = AVAILABLE_TMDB_LANGUAGES.find { it.code == tmdbLanguage }?.displayName ?: tmdbLanguage.uppercase()
@@ -949,6 +1066,32 @@ private fun ListScoreTab(
                             onClick = {
                                 onScoreFormatSelected(opt.id)
                                 showScoreFormatMenu = false
+                            }
+                        )
+                    }
+                }
+            }
+
+            KitsugiSettingsDivider()
+
+            // Puanlama Adımları (AniHyou paritesi) — puan girişi hassasiyeti
+            Box {
+                KitsugiSettingsListItem(
+                    title = "Puanlama adımları",
+                    description = "Puan girerken kullanılacak adım hassasiyeti",
+                    value = scoreStepOptions.find { it.id == scoreStep }?.title ?: "1",
+                    icon = Icons.Rounded.Star,
+                    iconColor = accentColor,
+                    onClick = { showScoreStepMenu = true }
+                )
+                KitsugiDropdownMenu(expanded = showScoreStepMenu, onDismissRequest = { showScoreStepMenu = false }) {
+                    scoreStepOptions.forEach { opt ->
+                        KitsugiDropdownItem(
+                            text = opt.title,
+                            selected = opt.id == scoreStep,
+                            onClick = {
+                                onScoreStepSelected(opt.id)
+                                showScoreStepMenu = false
                             }
                         )
                     }
@@ -1407,6 +1550,175 @@ private fun ListScoreTab(
                 iconColor = accentColor,
                 checked = appSettings.searchHistoryEnabled,
                 onCheckedChange = onSearchHistoryEnabledChanged
+            )
+        }
+
+        // LİSTE DAVRANIŞI (AniHyou paritesi) — tüm kaynaklara uygulanan liste ayarları
+        KitsugiSettingsSection(title = "Liste") {
+            var showPriorityColorsDialog by remember { mutableStateOf(false) }
+            var priorityEditLevel by remember { mutableStateOf<Int?>(null) }
+            var priorityColorInput by remember { mutableStateOf("") }
+
+            fun currentPrioritySeed(level: Int): Int? = runCatching {
+                if (priorityColorsJson.isBlank()) null
+                else {
+                    val obj = org.json.JSONObject(priorityColorsJson)
+                    if (obj.has(level.toString())) obj.optInt(level.toString()) else null
+                }
+            }.getOrNull()
+
+            KitsugiSettingsSwitchItem(
+                title = "Ayrılmış liste tarzını kullan",
+                description = if (separatedListStyle)
+                    "Listem durum başlıklı gruplar halinde gösterilir"
+                else
+                    "Listem tek düz akış halinde gösterilir",
+                icon = Icons.Rounded.ViewList,
+                iconColor = accentColor,
+                checked = separatedListStyle,
+                onCheckedChange = onSeparatedListStyleChanged
+            )
+
+            KitsugiSettingsDivider()
+
+            KitsugiSettingsListItem(
+                title = "Özel Listeler",
+                description = "AniList özel listelerini oluştur, yeniden adlandır veya sil",
+                value = "",
+                icon = Icons.Rounded.PlaylistAdd,
+                iconColor = accentColor,
+                onClick = onOpenCustomListsEditor
+            )
+
+            KitsugiSettingsDivider()
+
+            KitsugiSettingsSwitchItem(
+                title = "Düşük önceliği göster",
+                description = if (showLowPriority)
+                    "Düşük öncelikli (0) girişlerde de öncelik rozeti görünür"
+                else
+                    "Öncelik rozeti yalnızca orta/yüksek öncelikte görünür",
+                icon = Icons.Rounded.PriorityHigh,
+                iconColor = accentColor,
+                checked = showLowPriority,
+                onCheckedChange = onShowLowPriorityChanged
+            )
+
+            KitsugiSettingsDivider()
+
+            KitsugiSettingsListItem(
+                title = "Öncelik renklerini değiştir",
+                description = "Düşük/orta/yüksek öncelik rozetlerinin rengini özelleştir",
+                value = if (priorityColorsJson.isBlank()) "Varsayılan" else "Özel",
+                icon = Icons.Rounded.Palette,
+                iconColor = accentColor,
+                onClick = { showPriorityColorsDialog = true }
+            )
+
+            if (showPriorityColorsDialog) {
+                AlertDialog(
+                    onDismissRequest = { showPriorityColorsDialog = false },
+                    containerColor = KitsugiColors.surface,
+                    title = {
+                        Text(
+                            text = "Öncelik Renkleri",
+                            color = KitsugiColors.textPrimary,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
+                        )
+                    },
+                    text = {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf(0 to "Düşük", 1 to "Orta", 2 to "Yüksek").forEach { (level, label) ->
+                                val seed = currentPrioritySeed(level)
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(12.dp))
+                                        .tvClickable(shape = RoundedCornerShape(12.dp)) {
+                                            priorityColorInput = seed?.let { String.format("#%06X", 0xFFFFFF and it) } ?: ""
+                                            priorityEditLevel = level
+                                        }
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(24.dp)
+                                            .clip(RoundedCornerShape(6.dp))
+                                            .background(if (seed != null) Color(seed) else KitsugiColors.surfaceSoft)
+                                            .border(1.dp, KitsugiColors.border, RoundedCornerShape(6.dp))
+                                    )
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Text(
+                                        text = label,
+                                        color = KitsugiColors.textPrimary,
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                    Spacer(modifier = Modifier.weight(1f))
+                                    Text(
+                                        text = seed?.let { String.format("#%06X", 0xFFFFFF and it) } ?: "Varsayılan",
+                                        color = KitsugiColors.textSecondary,
+                                        style = MaterialTheme.typography.bodySmall
+                                    )
+                                }
+                            }
+                        }
+                    },
+                    confirmButton = {
+                        TextButton(onClick = { onPriorityColorsChanged(""); showPriorityColorsDialog = false }) {
+                            Text("Sıfırla", color = accentColor, fontWeight = FontWeight.Bold)
+                        }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showPriorityColorsDialog = false }) {
+                            Text("Kapat", color = accentColor, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                )
+            }
+
+            priorityEditLevel?.let { level ->
+                CustomColorPickerDialog(
+                    colorInputText = priorityColorInput,
+                    onColorInputTextChange = { priorityColorInput = it },
+                    accentColor = accentColor,
+                    onDismissRequest = { priorityEditLevel = null },
+                    onConfirm = { argb ->
+                        val obj = runCatching {
+                            org.json.JSONObject(priorityColorsJson.takeIf { it.isNotBlank() } ?: "{}")
+                        }.getOrDefault(org.json.JSONObject())
+                        obj.put(level.toString(), argb)
+                        onPriorityColorsChanged(obj.toString())
+                        priorityEditLevel = null
+                    }
+                )
+            }
+
+            KitsugiSettingsDivider()
+
+            KitsugiSettingsSwitchItem(
+                title = "Fuzzy arama kullan",
+                description = "Yazım hatalarını, kelime sıralamasının bozuk olmasını ve kısaltmaları " +
+                    "(örneğin, \"aot\") eşleştirir. Eski cihazlarda performansı etkileyebilir.",
+                icon = Icons.Rounded.ManageSearch,
+                iconColor = accentColor,
+                checked = fuzzySearchEnabled,
+                onCheckedChange = onFuzzySearchEnabledChanged
+            )
+
+            KitsugiSettingsDivider()
+
+            KitsugiSettingsSwitchItem(
+                title = "Roman ve mangaları ayır",
+                description = if (separateNovelsManga)
+                    "Roman (novel) sonuçları mangalardan ayrı bölümde listelenir"
+                else
+                    "Romanlar manga sonuçlarıyla birlikte listelenir",
+                icon = Icons.Rounded.MenuBook,
+                iconColor = accentColor,
+                checked = separateNovelsManga,
+                onCheckedChange = onSeparateNovelsMangaChanged
             )
         }
     }

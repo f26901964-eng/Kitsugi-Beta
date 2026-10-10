@@ -10,6 +10,7 @@ import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
@@ -17,6 +18,8 @@ import androidx.compose.runtime.setValue
 import com.kitsugi.animelist.core.deeplink.DeepLinkHandler
 import com.kitsugi.animelist.core.recommendations.TvChannelSyncService
 import com.kitsugi.animelist.data.auth.ExternalAuthManager
+import com.kitsugi.animelist.data.account.KitsugiAccountClient
+import io.github.jan.supabase.auth.handleDeeplinks
 import com.kitsugi.animelist.ui.theme.KitsugiAnimeListTheme
 import com.kitsugi.animelist.ui.tv.TvRootScreen
 import com.kitsugi.animelist.ui.tv.design.KitsugiTvTheme
@@ -65,44 +68,50 @@ class MainActivity : AppCompatActivity() {
                 amoledBlack = appSettings.amoledBlack,
                 selectedThemeId = appSettings.selectedThemeId,
                 customAccentColor = appSettings.customAccentColor,
+                customAccentColor2 = appSettings.customAccentColor2,
+                customAccentGradientAngle = appSettings.customAccentGradientAngle,
                 isTv = formFactor == DeviceFormFactor.TV
             ) {
-                KitsugiPermissionRequester()
+                CompositionLocalProvider(
+                    com.kitsugi.animelist.ui.theme.LocalCardFramesEnabled provides appSettings.cardFramesEnabled
+                ) {
+                    KitsugiPermissionRequester()
 
-                // Çökme kontrolü ANA THREAD'DE DOSYA OKUMASIN (eski hâli arayüzü kilitliyordu).
-                var showCrashRecovery by androidx.compose.runtime.remember {
-                    androidx.compose.runtime.mutableStateOf(false)
-                }
-                androidx.compose.runtime.LaunchedEffect(Unit) {
-                    val hasUnreported = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        com.kitsugi.animelist.core.diagnostics.KitsugiCrashLogger.hasUnreadCrash(applicationContext)
+                    // Çökme kontrolü ANA THREAD'DE DOSYA OKUMASIN (eski hâli arayüzü kilitliyordu).
+                    var showCrashRecovery by androidx.compose.runtime.remember {
+                        androidx.compose.runtime.mutableStateOf(false)
                     }
-                    if (hasUnreported) showCrashRecovery = true
-                }
-                androidx.compose.runtime.LaunchedEffect(Unit) {
-                    // Sessiz çökme (native/ANR/OOM) analizi arka planda tamamlanır; kısa bir
-                    // gecikmeyle tekrar bakıp kaçırılan raporu da kullanıcıya göster.
-                    kotlinx.coroutines.delay(2_500L)
-                    val late = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                        com.kitsugi.animelist.core.diagnostics.KitsugiCrashLogger.hasUnreadCrash(applicationContext)
-                    }
-                    if (late) showCrashRecovery = true
-                }
-
-                if (showCrashRecovery) {
-                    com.kitsugi.animelist.ui.components.KitsugiCrashRecoveryDialog(
-                        onDismiss = { showCrashRecovery = false }
-                    )
-                }
-
-                when (formFactor) {
-                    DeviceFormFactor.TV -> {
-                        KitsugiTvTheme {
-                            TvRootScreen()
+                    androidx.compose.runtime.LaunchedEffect(Unit) {
+                        val hasUnreported = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            com.kitsugi.animelist.core.diagnostics.KitsugiCrashLogger.hasUnreadCrash(applicationContext)
                         }
+                        if (hasUnreported) showCrashRecovery = true
                     }
-                    DeviceFormFactor.TABLET,
-                    DeviceFormFactor.PHONE -> AppRoot()
+                    androidx.compose.runtime.LaunchedEffect(Unit) {
+                        // Sessiz çökme (native/ANR/OOM) analizi arka planda tamamlanır; kısa bir
+                        // gecikmeyle tekrar bakıp kaçırılan raporu da kullanıcıya göster.
+                        kotlinx.coroutines.delay(2_500L)
+                        val late = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            com.kitsugi.animelist.core.diagnostics.KitsugiCrashLogger.hasUnreadCrash(applicationContext)
+                        }
+                        if (late) showCrashRecovery = true
+                    }
+
+                    if (showCrashRecovery) {
+                        com.kitsugi.animelist.ui.components.KitsugiCrashRecoveryDialog(
+                            onDismiss = { showCrashRecovery = false }
+                        )
+                    }
+
+                    when (formFactor) {
+                        DeviceFormFactor.TV -> {
+                            KitsugiTvTheme {
+                                TvRootScreen()
+                            }
+                        }
+                        DeviceFormFactor.TABLET,
+                        DeviceFormFactor.PHONE -> AppRoot()
+                    }
                 }
             }
         }
@@ -171,6 +180,49 @@ class MainActivity : AppCompatActivity() {
     }
 
     private fun handleAuthIntent(intent: Intent?) {
+        val callbackUri = intent?.data
+        if (callbackUri != null &&
+            callbackUri.scheme == KitsugiAccountClient.AUTH_CALLBACK_SCHEME &&
+            callbackUri.host == KitsugiAccountClient.AUTH_CALLBACK_HOST
+        ) {
+            val callbackIntent = intent ?: return
+            val hasAuthResponse = callbackUri.fragment?.contains("access_token=") == true ||
+                callbackUri.getQueryParameter("code") != null
+            if (!hasAuthResponse) {
+                Toast.makeText(
+                    this,
+                    "E-posta bağlantısı açılamadı. Bağlantının süresi dolmuş olabilir; yeniden kayıt e-postası iste.",
+                    Toast.LENGTH_LONG
+                ).show()
+                return
+            }
+
+            try {
+                KitsugiAccountClient.client.handleDeeplinks(callbackIntent) { session ->
+                    runOnUiThread {
+                        val vaultHint = if (session.user?.email.isNullOrBlank()) {
+                            ""
+                        } else {
+                            " Ayarlar > Kitsugi Hesabı'nda aynı şifreyi girerek güvenli kasayı aç."
+                        }
+                        Toast.makeText(
+                            this,
+                            "E-posta doğrulandı.${vaultHint}",
+                            Toast.LENGTH_LONG
+                        ).show()
+                    }
+                }
+            } catch (error: Throwable) {
+                android.util.Log.e("MainActivity", "Kitsugi account confirmation callback failed", error)
+                Toast.makeText(
+                    this,
+                    "E-posta doğrulama bağlantısı işlenemedi. Lütfen yeniden deneyin.",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+            return
+        }
+
         ExternalAuthManager.handleAuthIntent(
             context = this,
             intent = intent,

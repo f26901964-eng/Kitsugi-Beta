@@ -231,15 +231,30 @@ object KitsugiBangumiCreditsClient {
         return KitsugiVoiceActor(
             id = id,
             name = name.display.ifBlank { "#$id" },
-            // Bangumi v0 liste uçları seslendirme dilini vermez; Japon yapımlarında
-            // varsayılan Japonca'dır — arayüz "Seslendirici (Japonca)" olarak gösterir.
-            language = "Japonca",
+            // v0 liste ucu seslendirme dilini ayrı bir alan olarak vermez. Eski kod bunu
+            // her kayıt için "Japonca" sayıyordu; canlı çekim (三次元) yapımların asıl
+            // oyuncuları bile "Seslendirici (Japonca)" olarak görünüyordu. Artık yalnızca
+            // yanıtta gerçek bir ipucu varsa dil söylenir, yoksa boş bırakılır ve arayüz
+            // jenerik "Seslendirici" etiketini gösterir.
+            language = castLanguageHint(item),
             imageUrl = pickImage(item.optJSONObject("images"), preferSmall = true),
             source = SOURCE,
             romanizedName = name.romaji,
             nativeName = name.native,
             englishName = name.english
         )
+    }
+
+    /**
+     * V0 oyuncu/karakter satırından seslendirme dili ipucu. `relation` alanı p1'deki
+     * `CharacterCastType` ile aynı anlamdadır (2 = asıl oyuncu, 4 = Japonca dublaj …);
+     * alan hiç yoksa dil bilinmiyor sayılır (boş dize) — tahmin edilmez.
+     */
+    private fun castLanguageHint(item: JSONObject): String {
+        // `language` alanı kimi sürümlerde sayısal kod dönebilir; sayıyı etiket yapmayız.
+        item.optString("language").takeIf { it.isNotBlank() && it != "null" && it.any { c -> c.isLetter() } }?.let { return it }
+        if (item.has("relation")) return KitsugiBangumiDetailClient.castLanguage(item.optInt("relation", 0))
+        return ""
     }
 
     private fun parseCharacterVoiceActors(array: JSONArray): List<KitsugiVoiceActor> {

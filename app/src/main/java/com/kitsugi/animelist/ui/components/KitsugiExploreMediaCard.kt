@@ -31,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalConfiguration
@@ -49,6 +50,12 @@ import com.kitsugi.animelist.ui.theme.KitsugiTvTokens
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayScore
 import com.kitsugi.animelist.utils.toFriendlySourceLabel
+
+/** Dikey kartta başlık/meta alanının sabit yüksekliği (tüm kartlar aynı boyutta görünsün diye). */
+private val EXPLORE_CARD_PORTRAIT_TEXT_HEIGHT = 168.dp
+
+/** TV kartında başlık/meta alanının sabit yüksekliği. */
+private val EXPLORE_CARD_TV_TEXT_HEIGHT = 76.dp
 
 @Composable
 fun KitsugiExploreMediaCard(
@@ -154,10 +161,14 @@ fun KitsugiExploreMediaCard(
 
                 // Başlık + meta bilgi
                 Column(
-                    modifier = Modifier.padding(
-                        horizontal = KitsugiTvTokens.Spacing.sm,
-                        vertical = KitsugiTvTokens.Spacing.sm
-                    )
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(EXPLORE_CARD_TV_TEXT_HEIGHT)
+                        .clipToBounds()
+                        .padding(
+                            horizontal = KitsugiTvTokens.Spacing.sm,
+                            vertical = KitsugiTvTokens.Spacing.sm
+                        )
                 ) {
                     Text(
                         text = displayTitle,
@@ -218,11 +229,22 @@ fun KitsugiExploreMediaCard(
             }
         // ── MOBİL LANDSCAPE ──────────────────────────────────────────────────
         } else if (isLandscape) {
+            val landscapeScreenWidthDp = LocalConfiguration.current.screenWidthDp
+            // Yatay kartlar: satır yüksekliği poster yüksekliğine sabit → tüm kartlar aynı boyutta
+            val landscapeRowHeight = remember(landscapeScreenWidthDp) {
+                when {
+                    landscapeScreenWidthDp >= 1200 -> 160.dp
+                    landscapeScreenWidthDp >= 800 -> 145.dp
+                    else -> 130.dp
+                }
+            }
             Row(
-                modifier = Modifier.padding(12.dp),
+                modifier = Modifier
+                    .padding(12.dp)
+                    .height(landscapeRowHeight),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                val screenWidthDp = LocalConfiguration.current.screenWidthDp
+                val screenWidthDp = landscapeScreenWidthDp
                 val posterWidth = remember(screenWidthDp) {
                     when {
                         screenWidthDp >= 1200 -> 110.dp
@@ -436,72 +458,80 @@ fun KitsugiExploreMediaCard(
                     }
                 }
 
-                Spacer(modifier = Modifier.height(12.dp))
+                // Tüm kartlar aynı boyutta: metin alanı sabit yükseklikte (kısa/uzun başlık fark etmez)
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(EXPLORE_CARD_PORTRAIT_TEXT_HEIGHT)
+                        .clipToBounds()
+                ) {
+                    Spacer(modifier = Modifier.height(12.dp))
 
-                Text(
-                    text = displayTitle,
-                    color = KitsugiColors.TextPrimary,
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
+                    Text(
+                        text = displayTitle,
+                        color = KitsugiColors.TextPrimary,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
 
-                Spacer(modifier = Modifier.height(5.dp))
+                    Spacer(modifier = Modifier.height(5.dp))
 
-                Text(
-                    text = result.subtitle,
-                    color = KitsugiColors.TextSecondary,
-                    style = MaterialTheme.typography.bodySmall,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis
-                )
+                    Text(
+                        text = result.subtitle,
+                        color = KitsugiColors.TextSecondary,
+                        style = MaterialTheme.typography.bodySmall,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis
+                    )
 
-                Spacer(modifier = Modifier.height(10.dp))
+                    Spacer(modifier = Modifier.height(10.dp))
 
-                if (mediaEntry != null) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = entryProgressText(mediaEntry),
+                    if (mediaEntry != null) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = entryProgressText(mediaEntry),
+                                color = statusColor(mediaEntry.status),
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            val displayScore = mediaEntry.getDisplayScore(scoreFormat, hideScores)
+                            val isUnrated = displayScore == "unrated" || displayScore == "Unrated" || displayScore == "Puanlanmamış" || displayScore == "Puan yok"
+                            val scoreLabel = if (isUnrated) "—" else "★ $displayScore"
+                            Spacer(modifier = Modifier.width(6.dp))
+                            Text(
+                                text = "• $scoreLabel",
+                                color = KitsugiColors.TextMuted,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                        Spacer(modifier = Modifier.height(6.dp))
+                        EpisodeProgressBar(
+                            progress = mediaEntry.progress,
+                            total = mediaEntry.total,
                             color = statusColor(mediaEntry.status),
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold
+                            modifier = Modifier.fillMaxWidth()
                         )
-                        val displayScore = mediaEntry.getDisplayScore(scoreFormat, hideScores)
-                        val isUnrated = displayScore == "unrated" || displayScore == "Unrated" || displayScore == "Puanlanmamış" || displayScore == "Puan yok"
-                        val scoreLabel = if (isUnrated) "—" else "★ $displayScore"
-                        Spacer(modifier = Modifier.width(6.dp))
+                    } else {
                         Text(
-                            text = "• $scoreLabel",
-                            color = KitsugiColors.TextMuted,
+                            text = buildMetaText(result, scoreFormat, hideScores, includeTypeAndYear = false),
+                            color = accentColor,
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Bold
                         )
                     }
-                    Spacer(modifier = Modifier.height(6.dp))
-                    EpisodeProgressBar(
-                        progress = mediaEntry.progress,
-                        total = mediaEntry.total,
-                        color = statusColor(mediaEntry.status),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                } else {
-                    Text(
-                        text = buildMetaText(result, scoreFormat, hideScores, includeTypeAndYear = false),
-                        color = accentColor,
-                        style = MaterialTheme.typography.labelSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
 
-                // Yayın geri sayımı — tüm kaynaklar (nextAiringEpisode dolu ise): tarih + geri sayım
-                if (!result.nextAiringEpisode.isNullOrBlank()) {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    NextAiringChip(
-                        nextAiringEpisode = result.nextAiringEpisode
-                    )
+                    // Yayın geri sayımı — tüm kaynaklar (nextAiringEpisode dolu ise): tarih + geri sayım
+                    if (!result.nextAiringEpisode.isNullOrBlank()) {
+                        Spacer(modifier = Modifier.height(6.dp))
+                        NextAiringChip(
+                            nextAiringEpisode = result.nextAiringEpisode
+                        )
+                    }
                 }
             }
         }

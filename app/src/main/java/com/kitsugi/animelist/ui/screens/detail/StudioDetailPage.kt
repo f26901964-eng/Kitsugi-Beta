@@ -1,5 +1,9 @@
 package com.kitsugi.animelist.ui.screens.detail
 
+import androidx.compose.runtime.CompositionLocalProvider
+import com.kitsugi.animelist.ui.components.LocalKitsugiGalleryLoading
+import com.kitsugi.animelist.ui.components.KitsugiGalleryIconButton
+
 import android.content.res.Configuration
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -44,7 +48,7 @@ import androidx.compose.material.icons.rounded.GridView
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.KeyboardArrowUp
 import androidx.compose.material.icons.rounded.SearchOff
-import androidx.compose.material.icons.rounded.Share
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -106,10 +110,12 @@ fun StudioDetailPage(
 
     // Obtain ViewModel
     val viewModel: StudioDetailViewModel = viewModel(key = "studio_${source}_${studioId}")
+    val galleryLoading by viewModel.galleryLoading.collectAsState()
+    CompositionLocalProvider(LocalKitsugiGalleryLoading provides galleryLoading) {
 
     // Load studio in ViewModel
-    LaunchedEffect(studioId, source, name) {
-        viewModel.loadStudio(studioId, source, name)
+    LaunchedEffect(studioId, source, name, imageUrl) {
+        viewModel.loadStudio(studioId, source, name, imageUrl)
     }
 
     // Collect state from ViewModel
@@ -176,6 +182,8 @@ fun StudioDetailPage(
                 val detail = currentState.detail
                 val galleryItems by viewModel.galleryItems.collectAsState()
                 val translatedAbout by viewModel.translatedAbout.collectAsState()
+                val isLoadingMore by viewModel.isLoadingMore.collectAsState()
+                val loadMoreFailed by viewModel.loadMoreFailed.collectAsState()
                 var activeGalleryItems by remember { mutableStateOf<List<GalleryItem>>(emptyList()) }
                 var activeGalleryIndex by remember { mutableStateOf(0) }
 
@@ -192,9 +200,12 @@ fun StudioDetailPage(
                     onTranslateAbout = { viewModel.translateAbout() },
                     onBackClick = onBackClick,
                     onToggleFavourite = { viewModel.toggleFavourite() },
+                    isLoadingMore = isLoadingMore,
+                    loadMoreFailed = loadMoreFailed,
+                    onLoadMore = { viewModel.loadMoreWorks() },
                     onMediaClick = onMediaClick,
                     onGalleryClick = { items, idx ->
-                        activeGalleryItems = items
+                        if (!galleryLoading) activeGalleryItems = items
                         activeGalleryIndex = idx
                     }
                 )
@@ -209,6 +220,7 @@ fun StudioDetailPage(
                 }
             }
         }
+    }
     }
 }
 
@@ -233,6 +245,9 @@ private fun StudioDetailSuccessContent(
     onTranslateAbout: () -> Unit = {},
     onBackClick: () -> Unit,
     onToggleFavourite: () -> Unit,
+    isLoadingMore: Boolean = false,
+    loadMoreFailed: Boolean = false,
+    onLoadMore: () -> Unit = {},
     onMediaClick: (mediaId: Int, mediaType: String, mediaSource: String) -> Unit,
     onGalleryClick: (List<GalleryItem>, Int) -> Unit
 ) {
@@ -303,6 +318,24 @@ private fun StudioDetailSuccessContent(
     // ── Scroll state'leri + üst şerit / yukarı FAB tetikleyicileri ────────────
     val gridState = rememberLazyGridState()
     val listState = rememberLazyListState()
+
+    // ── Sonsuz kaydırma: liste sonuna yaklaşınca bir sonraki yapım sayfası istenir ──
+    val nearListEnd by remember(isGridView) {
+        derivedStateOf {
+            if (isGridView) {
+                val info = gridState.layoutInfo
+                val last = info.visibleItemsInfo.lastOrNull()?.index ?: -1
+                last >= 0 && last >= info.totalItemsCount - 8
+            } else {
+                val info = listState.layoutInfo
+                val last = info.visibleItemsInfo.lastOrNull()?.index ?: -1
+                last >= 0 && last >= info.totalItemsCount - 8
+            }
+        }
+    }
+    LaunchedEffect(nearListEnd, detail.hasMoreWorks, loadMoreFailed, isLoadingMore) {
+        if (nearListEnd && detail.hasMoreWorks && !loadMoreFailed && !isLoadingMore) onLoadMore()
+    }
 
     val showFloatingHeader = if (isGridView) gridState.firstVisibleItemIndex >= 1
     else listState.firstVisibleItemIndex >= 1
@@ -583,6 +616,17 @@ private fun StudioDetailSuccessContent(
                 }
             }
 
+            // ── Sonraki sayfa durumu (sonsuz kaydırma) ───────────────────────
+            StudioLoadMoreIndicator(
+                isLoading = isLoadingMore,
+                failed = loadMoreFailed,
+                accentColor = accentColor,
+                onRetry = onLoadMore,
+                modifier = Modifier
+                    .align(Alignment.BottomCenter)
+                    .padding(bottom = 24.dp)
+            )
+
             // ── Kaydırınca beliren üst şerit (floating header) ────────────────
             AnimatedVisibility(
                 visible = showFloatingHeader,
@@ -615,13 +659,7 @@ private fun StudioDetailSuccessContent(
                         modifier = Modifier.weight(1f)
                     )
                     if (onOpenGallery != null) {
-                        IconButton(onClick = onOpenGallery) {
-                            Icon(
-                                imageVector = Icons.Rounded.Image,
-                                contentDescription = "Galeri",
-                                tint = accentColor
-                            )
-                        }
+                        KitsugiGalleryIconButton(onClick = onOpenGallery, accentColor = accentColor)
                     }
                     if (showFavouriteButton) {
                         IconButton(onClick = onToggleFavourite) {
@@ -720,5 +758,36 @@ private fun StudioDetailSuccessContent(
                 selectedSortOption = StudioSortOption.DEFAULT
             }
         )
+    }
+}
+
+/** Alt ortada: sonraki sayfa yüklenirken küçük gösterge; hata olursa "tekrar dene" düğmesi. */
+@Composable
+private fun StudioLoadMoreIndicator(
+    isLoading: Boolean,
+    failed: Boolean,
+    accentColor: Color,
+    onRetry: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    when {
+        isLoading -> Box(
+            modifier = modifier
+                .background(KitsugiColors.Surface.copy(alpha = 0.92f), RoundedCornerShape(20.dp))
+                .padding(horizontal = 14.dp, vertical = 8.dp)
+        ) {
+            CircularProgressIndicator(
+                color = accentColor,
+                strokeWidth = 2.dp,
+                modifier = Modifier.size(20.dp)
+            )
+        }
+        failed -> TextButton(onClick = onRetry, modifier = modifier) {
+            Text(
+                text = "Devamı yüklenemedi · Tekrar dene",
+                color = accentColor,
+                fontWeight = FontWeight.Bold
+            )
+        }
     }
 }

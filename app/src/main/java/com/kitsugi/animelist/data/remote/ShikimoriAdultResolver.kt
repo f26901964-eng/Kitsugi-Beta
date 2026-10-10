@@ -80,7 +80,7 @@ object ShikimoriAdultResolver {
      *
      * @return kimlik → +18 mi eşlemesi. Ağ hatası nedeniyle çözülemeyen kimlikler
      *         haritada YER ALMAZ (boş harita ≠ "hiçbiri +18 değil"; bu ayrım
-     *         [ShikimoriAdultFlagMigration] için önemlidir). Hiçbir zaman fırlatmaz;
+     *         [com.kitsugi.animelist.ui.screens.mylist.AdultFlagBackfillMigration] için önemlidir). Hiçbir zaman fırlatmaz;
      *         en kötü durumda boş harita döner.
      */
     suspend fun resolveAdultFlags(kind: Kind, ids: Collection<Int>): Map<Int, Boolean> {

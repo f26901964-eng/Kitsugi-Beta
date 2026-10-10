@@ -407,7 +407,10 @@ fun BoxScope.ProfileFavoritesFloatingControls(
     selectedCategory: Int,
     categoryCounts: List<Int>,
     onCategorySelected: (Int) -> Unit,
-    bottomOffset: Dp
+    bottomOffset: Dp,
+    onScrollReset: () -> Unit = {},
+    categoryLabels: List<String> = ProfileFavoriteCategoryLabels,
+    showCounts: Boolean = true
 ) {
     val accent = LocalKitsugiAccent.current
     val scope = rememberCoroutineScope()
@@ -465,7 +468,7 @@ fun BoxScope.ProfileFavoritesFloatingControls(
                 )
                 Spacer(modifier = Modifier.width(8.dp))
                 Text(
-                    text = ProfileFavoriteCategoryLabels.getOrElse(selectedCategory) { "Anime" },
+                    text = categoryLabels.getOrElse(selectedCategory) { categoryLabels.firstOrNull().orEmpty() },
                     color = KitsugiColors.Background,
                     style = MaterialTheme.typography.bodyMedium,
                     fontWeight = FontWeight.Black
@@ -490,7 +493,14 @@ fun BoxScope.ProfileFavoritesFloatingControls(
                 .clip(RoundedCornerShape(16.dp))
                 .background(accent)
                 .tvClickable(shape = RoundedCornerShape(16.dp)) {
-                    scope.launch { listState.animateScrollToItem(0) }
+                    // Tapping the profile's scroll-to-top control must restore the shared
+                    // navigation bar even though programmatic scrolling may not emit a
+                    // nested-scroll gesture that makes the bar visible again.
+                    onScrollReset()
+                    scope.launch {
+                        listState.animateScrollToItem(0)
+                        onScrollReset()
+                    }
                 },
             contentAlignment = Alignment.Center
         ) {
@@ -512,7 +522,7 @@ fun BoxScope.ProfileFavoritesFloatingControls(
                     .padding(bottom = 24.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                ProfileFavoriteCategoryLabels.forEachIndexed { idx, label ->
+                categoryLabels.forEachIndexed { idx, label ->
                     val isSelected = idx == selectedCategory
                     val shape = RoundedCornerShape(16.dp)
                     Row(
@@ -537,12 +547,14 @@ fun BoxScope.ProfileFavoritesFloatingControls(
                             style = MaterialTheme.typography.bodyLarge,
                             fontWeight = if (isSelected) FontWeight.Black else FontWeight.SemiBold
                         )
-                        Text(
-                            text = categoryCounts.getOrElse(idx) { 0 }.toString(),
-                            color = if (isSelected) accent else KitsugiColors.TextMuted,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
+                        if (showCounts) {
+                            Text(
+                                text = categoryCounts.getOrElse(idx) { 0 }.toString(),
+                                color = if (isSelected) accent else KitsugiColors.TextMuted,
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             }

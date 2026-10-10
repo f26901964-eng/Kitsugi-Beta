@@ -67,7 +67,8 @@ fun AniListProfileContent(
     isLandscape: Boolean,
     accentColor: Color,
     onImageClick: ((urls: List<String>, initialIndex: Int, title: String) -> Unit)? = null,
-    isBottomBarVisible: Boolean = true
+    isBottomBarVisible: Boolean = true,
+    onScrollReset: () -> Unit = {}
 ) {
     val context = LocalContext.current
     var activeTab by rememberSaveable { mutableIntStateOf(viewModel.aniListActiveTab) }
@@ -392,11 +393,26 @@ fun AniListProfileContent(
 
     ProfileFavoritesFloatingControls(
         listState = listState,
-        visible = activeTab == 3,
-        selectedCategory = favoritesFilter,
-        categoryCounts = favCategoryCounts,
-        onCategorySelected = { favoritesFilter = it },
-        bottomOffset = bottomOffset
+        visible = activeTab in 2..4,
+        selectedCategory = when (activeTab) { 2 -> statsSubTab; 4 -> socialFilter; else -> favoritesFilter },
+        categoryCounts = when (activeTab) {
+            3 -> favCategoryCounts
+            4 -> listOf(state.socialState.followers.size, state.socialState.following.size)
+            else -> emptyList()
+        },
+        categoryLabels = when (activeTab) {
+            2 -> listOf("Genel Bakış", "Türler", "Etiketler", "Ekip", "Seslendirenler", "Stüdyolar")
+            4 -> listOf("Takipçiler", "Takip Edilen")
+            else -> ProfileFavoriteCategoryLabels
+        },
+        showCounts = activeTab != 2,
+        onCategorySelected = { when (activeTab) {
+            2 -> statsSubTab = it
+            4 -> socialFilter = it
+            else -> favoritesFilter = it
+        } },
+        bottomOffset = bottomOffset,
+        onScrollReset = onScrollReset
     )
     }
 }

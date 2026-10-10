@@ -150,15 +150,9 @@ object CsCfWarmupManager {
     /**
      * WebView'ı güvenli ve **tek seferlik** biçimde söker/serbest bırakır.
      *
-     * Neden kritik: `WebView.destroy()` çağrıldıktan sonra aynı nesne üzerinde yapılan her
-     * çağrı (`stopLoading()` dahil) Chromium tarafında "Application attempted to call on a
-     * destroyed WebView" üretir ve **RenderThread içinde use-after-free (SIGSEGV)** riski
-     * yaratır. 2026-10-09 tarihli sessiz çökme raporlarında (pid 15790 / 18716 / 28270)
-     * çökme tam olarak `RenderThread` üzerinde, `libhwui.so` display-list oynatımı sırasında
-     * `fault_addr=0x20` ile gerçekleşti ve logcat'te bu uyarı her warmup sonrası tekrarladı.
-     *
-     * Bu yüzden: (1) `settled` bayrağı ile yalnızca bir kez çalışır, (2) view önce parent'tan
-     * sökülür, (3) yük durdurulur, (4) referanslar kesilir, (5) en son `destroy()` çağrılır.
+     * Teardown yalnızca ana thread'de yapılır. `about:blank` yükleyip hemen `destroy()` etmekten
+     * kaçınıyoruz; bu, kapatma sırasında Chromium'da yeni bir sayfa/render işi başlatabiliyordu.
+     * Sıra: parent'tan sök → yükü durdur → client referanslarını kes → destroy.
      */
     private fun releaseWebView(webViewRef: WebView?, settled: java.util.concurrent.atomic.AtomicBoolean) {
         if (!settled.compareAndSet(false, true)) return
@@ -167,8 +161,8 @@ object CsCfWarmupManager {
             (webViewRef.parent as? android.view.ViewGroup)?.removeView(webViewRef)
         } catch (_: Throwable) {}
         try { webViewRef.stopLoading() } catch (_: Throwable) {}
-        try { webViewRef.loadUrl("about:blank") } catch (_: Throwable) {}
         try { webViewRef.webViewClient = WebViewClient() } catch (_: Throwable) {}
+        try { webViewRef.webChromeClient = null } catch (_: Throwable) {}
         try { webViewRef.destroy() } catch (_: Throwable) {}
     }
 

@@ -79,27 +79,120 @@ internal object TmdbCreditsClient {
 
             val crewArray = root.optJSONArray("crew")
             val staffList = mutableListOf<KitsugiStaff>()
+            val seenStaffKeys = mutableSetOf<String>()
             if (crewArray != null) {
                 for (i in 0 until crewArray.length()) {
                     val item = crewArray.getJSONObject(i)
                     val id = item.optInt("id")
-                    val name = item.optString("name", "Bilinmeyen")
+                    val rawName = item.optString("name", "Bilinmeyen")
+                    val origName = item.optString("original_name", "").trim()
+                    val hasCjkName = PreferenceHelpers.hasCjkCharacters(rawName)
+                    val latinOrig = origName.takeIf { it.isNotBlank() && !PreferenceHelpers.hasCjkCharacters(it) }
+                    val displayName = latinOrig ?: rawName
+                    val nativeName = when {
+                        hasCjkName -> rawName
+                        origName.isNotBlank() && PreferenceHelpers.hasCjkCharacters(origName) -> origName
+                        else -> null
+                    }
                     val job = item.optString("job", "Ekip Üyesi")
+                    val roleTr = job.toTurkishStaffRole()
+                    val dedupKey = "${id}_${roleTr.lowercase()}"
+                    if (!seenStaffKeys.add(dedupKey)) continue
                     val profilePath = item.optNullableString("profile_path")
                     val imageUrl = if (!profilePath.isNullOrEmpty()) "$IMG_W185$profilePath" else null
                     staffList.add(
-                        KitsugiStaff(id = id, name = name, role = job.toTurkishStaffRole(),
-                            imageUrl = imageUrl, source = "tmdb")
+                        KitsugiStaff(
+                            id = id,
+                            name = displayName,
+                            role = roleTr,
+                            imageUrl = imageUrl,
+                            source = "tmdb",
+                            romanizedName = latinOrig ?: rawName.takeIf { !hasCjkName },
+                            nativeName = nativeName
+                        )
                     )
                 }
             }
+
+            // Dizi/Anime serilerinde /tv/{id}/credits çoğunlukla yalnızca yürütücü yapımcıları döndürür.
+            // Serinin tüm bölümlerindeki yönetmen, senarist, besteci ve karakter tasarımcılarını almak için
+            // /tv/{id}/aggregate_credits uç noktasından ekip listesini zenginleştiriyoruz.
+            if (!isMovie && staffList.size < 25) {
+                val aggUrl = "https://api.themoviedb.org/3/tv/$tmdbId/aggregate_credits?api_key=$apiKey&language=$language"
+                runCatching {
+                    val aggResp = executeGet(aggUrl)
+                    if (!aggResp.isNullOrBlank()) {
+                        val aggCrew = JSONObject(aggResp).optJSONArray("crew")
+                        if (aggCrew != null) {
+                            val items = (0 until aggCrew.length()).mapNotNull { aggCrew.optJSONObject(it) }
+                                .sortedWith(
+                                    compareByDescending<JSONObject> { !it.optNullableString("profile_path").isNullOrBlank() }
+                                        .thenByDescending { it.optInt("total_episode_count", 0) }
+                                        .thenByDescending { it.optDouble("popularity", 0.0) }
+                                )
+                                .take(35)
+                            for (item in items) {
+                                val id = item.optInt("id")
+                                val rawName = item.optString("name", "Bilinmeyen")
+                                val origName = item.optString("original_name", "").trim()
+                                val hasCjkName = PreferenceHelpers.hasCjkCharacters(rawName)
+                                val latinOrig = origName.takeIf { it.isNotBlank() && !PreferenceHelpers.hasCjkCharacters(it) }
+                                val displayName = latinOrig ?: rawName
+                                val nativeName = when {
+                                    hasCjkName -> rawName
+                                    origName.isNotBlank() && PreferenceHelpers.hasCjkCharacters(origName) -> origName
+                                    else -> null
+                                }
+                                val jobsArr = item.optJSONArray("jobs")
+                                val roles = mutableListOf<String>()
+                                if (jobsArr != null) {
+                                    for (j in 0 until minOf(jobsArr.length(), 3)) {
+                                        val jobStr = jobsArr.optJSONObject(j)?.optString("job", "")?.trim().orEmpty()
+                                        if (jobStr.isNotBlank()) {
+                                            roles.add(jobStr.toTurkishStaffRole())
+                                        }
+                                    }
+                                }
+                                if (roles.isEmpty()) {
+                                    val dept = item.optString("department", "Ekip Üyesi")
+                                    roles.add(dept.toTurkishStaffRole())
+                                }
+                                val combinedRole = roles.distinct().joinToString(", ")
+                                val dedupKey = "${id}_${combinedRole.lowercase()}"
+                                if (staffList.any { it.id == id } || !seenStaffKeys.add(dedupKey)) continue
+                                val profilePath = item.optNullableString("profile_path")
+                                val imageUrl = if (!profilePath.isNullOrEmpty()) "$IMG_W185$profilePath" else null
+                                staffList.add(
+                                    KitsugiStaff(
+                                        id = id,
+                                        name = displayName,
+                                        role = combinedRole,
+                                        imageUrl = imageUrl,
+                                        source = "tmdb",
+                                        romanizedName = latinOrig ?: rawName.takeIf { !hasCjkName },
+                                        nativeName = nativeName
+                                    )
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             // TMDB isimleri çoğunlukla Japonca (CJK) döner; romaji/Latin ad kişinin
-            // also_known_as listesinden alınır. Kart ve listelerde romaji gösterilebilsin diye
-            // yalnızca CJK adı olan kişiler için romanizedName doldurulur.
-            val cjkPersonIds = charList.flatMap { it.voiceActors }
-                .filter { PreferenceHelpers.hasCjkCharacters(it.name) }
-                .map { it.id } +
-                staffList.filter { PreferenceHelpers.hasCjkCharacters(it.name) }.map { it.id }
+            // also_known_as listesinden alınır. Seslendirme sanatçıları ekip bütçesini
+            // tüketmesin diye her iki liste için ayrı kota ayrılır.
+            val cjkVoiceActorIds = charList.flatMap { it.voiceActors }
+                .filter { PreferenceHelpers.hasCjkCharacters(it.name) && it.romanizedName.isNullOrBlank() }
+                .map { it.id }
+                .distinct()
+                .take(MAX_PERSON_ROMAJI_LOOKUPS)
+            val cjkStaffIds = staffList
+                .filter { PreferenceHelpers.hasCjkCharacters(it.name) && it.romanizedName.isNullOrBlank() }
+                .map { it.id }
+                .distinct()
+                .take(16)
+            val cjkPersonIds = (cjkVoiceActorIds + cjkStaffIds).distinct()
             val romajiByPerson: Map<Int, String> = if (cjkPersonIds.isEmpty()) emptyMap<Int, String>()
                 else resolvePersonRomaji(cjkPersonIds, apiKey, language, executeGet)
             if (romajiByPerson.isEmpty()) {
@@ -109,12 +202,24 @@ internal object TmdbCreditsClient {
                     charList.map { character ->
                         character.copy(
                             voiceActors = character.voiceActors.map { va ->
-                                romajiByPerson[va.id]?.let { va.copy(romanizedName = it) } ?: va
+                                romajiByPerson[va.id]?.let {
+                                    va.copy(
+                                        name = it,
+                                        romanizedName = it,
+                                        nativeName = va.nativeName ?: va.name.takeIf { n -> PreferenceHelpers.hasCjkCharacters(n) }
+                                    )
+                                } ?: va
                             }
                         )
                     },
                     staffList.map { staff ->
-                        romajiByPerson[staff.id]?.let { staff.copy(romanizedName = it) } ?: staff
+                        romajiByPerson[staff.id]?.let {
+                            staff.copy(
+                                name = it,
+                                romanizedName = it,
+                                nativeName = staff.nativeName ?: staff.name.takeIf { n -> PreferenceHelpers.hasCjkCharacters(n) }
+                            )
+                        } ?: staff
                     }
                 )
             }
@@ -565,11 +670,14 @@ internal object TmdbCreditsClient {
     /**
      * Çoklu dilde TMDB kişi adlarından (CJK) Latin/romaji adayını seçer.
      * Boşluk içeren ad ("Keitarou Motonaga") tercih edilir; yoksa ilk Latin ad.
+     *
+     * ÖNEMLİ: Yalnızca "CJK değil" kontrolü yeterli değildir — `also_known_as` listesinde
+     * Arapça, Tayca, Kiril gibi CJK-olmayan ama Latin de OLMAYAN çeviriler de bulunabilir
+     * (ör. "اری کیتامورا", "ไอ โนะนะกะ"). Bunlar yanlışlıkla romaji/İngilizce ad yerine
+     * seçiliyordu. `isLatinText` yalnızca gerçekten Latin alfabeli adları kabul eder.
      */
     internal fun pickLatinAlias(aliases: List<String>): String? {
-        val latin = aliases.filter { alias ->
-            alias.any { it.isLetter() } && !PreferenceHelpers.hasCjkCharacters(alias)
-        }
+        val latin = aliases.filter { alias -> PreferenceHelpers.isLatinText(alias) }
         return latin.firstOrNull { it.contains(' ') } ?: latin.firstOrNull()
     }
 
@@ -580,15 +688,17 @@ internal object TmdbCreditsClient {
         executeGet: suspend (String) -> String?
     ): List<String> {
         personAliasCache[personId]?.let { return it }
-        val url = "https://api.themoviedb.org/3/person/$personId?api_key=$apiKey&language=$language"
+        val url = "https://api.themoviedb.org/3/person/$personId?api_key=$apiKey&language=en-US"
         return try {
             val responseText = executeGet(url) ?: return emptyList()
             val root = JSONObject(responseText)
+            val primaryName = root.optString("name", "").trim().takeIf { it.isNotEmpty() }
             val aka = root.optJSONArray("also_known_as")
-            val aliases: List<String> = if (aka == null) emptyList<String>() else
+            val akaList: List<String> = if (aka == null) emptyList() else
                 (0 until aka.length()).mapNotNull { i ->
                     aka.optString(i, "").trim().takeIf { it.isNotEmpty() }
                 }
+            val aliases = (listOfNotNull(primaryName) + akaList).distinct()
             personAliasCache[personId] = aliases
             aliases
         } catch (e: Exception) {
@@ -604,7 +714,7 @@ internal object TmdbCreditsClient {
         language: String,
         executeGet: suspend (String) -> String?
     ): Map<Int, String> = coroutineScope {
-        personIds.filter { it > 0 }.distinct().take(MAX_PERSON_ROMAJI_LOOKUPS).map { id ->
+        personIds.filter { it > 0 }.distinct().take(28).map { id ->
             async {
                 val romaji = pickLatinAlias(fetchPersonAliases(id, apiKey, language, executeGet))
                 id to romaji

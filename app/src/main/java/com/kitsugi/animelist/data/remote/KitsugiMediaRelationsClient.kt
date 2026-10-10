@@ -79,46 +79,117 @@ class KitsugiMediaRelationsClient {
                     }
                 }
                 "simkl" -> {
-                    if (mediaType == MediaType.Anime) {
-                        val malId = realMalId ?: DetailCache.getMediaDetail("simkl", externalId)?.realMalId
-                        if (malId != null && malId > 0) {
-                            val malList = fetchRelations("jikan", malId, mediaType, null, null, title)
-                            if (malList.isNotEmpty()) return@withContext malList
+                    val simklCross = KitsugiSimklDetailClient.resolveSimklCrossIds(
+                        simklId = externalId,
+                        mediaType = mediaType,
+                        hintTmdbId = tmdbId,
+                        hintMalId = realMalId
+                    )
+                    val detail = DetailCache.getMediaDetail("simkl", externalId)
+                    val malId = realMalId?.takeIf { it > 0 && it != externalId }
+                        ?: simklCross.malId
+                        ?: detail?.realMalId
+                    val resolvedTmdb = tmdbId?.takeIf { it > 0 }
+                        ?: simklCross.tmdbId
+                        ?: detail?.tmdbId
+                    val aniListId = simklCross.aniListId
+                    val effectiveTitle = title ?: simklCross.title ?: detail?.title ?: detail?.titleEnglish
+                    val animeMediaType = if (mediaType == MediaType.Manga) MediaType.Manga else MediaType.Anime
+
+                    val combined = mutableListOf<KitsugiRelation>()
+
+                    if (malId != null && malId > 0) {
+                        val malList = runCatching {
+                            fetchRelations("jikan", malId, animeMediaType, resolvedTmdb, malId, effectiveTitle)
+                        }.getOrNull().orEmpty()
+                        combined.addAll(malList)
+                    } else if (aniListId != null && aniListId > 0) {
+                        val aniList = runCatching {
+                            fetchRelationsFromAniList(100_000_000 + aniListId, animeMediaType)
+                        }.getOrNull().orEmpty()
+                        combined.addAll(aniList)
+                    }
+
+                    // Simkl'in kendi relations dizisi (varsa)
+                    val simklNative = runCatching {
+                        KitsugiSimklDetailClient.fetchSimklNativeRelations(externalId, mediaType)
+                    }.getOrNull().orEmpty()
+                    if (simklNative.isNotEmpty()) {
+                        val existingTitles = combined.mapNotNull {
+                            it.title.lowercase().replace(Regex("[^a-z0-9]"), "").takeIf { s -> s.isNotBlank() }
+                        }.toMutableSet()
+                        for (rel in simklNative) {
+                            val norm = rel.title.lowercase().replace(Regex("[^a-z0-9]"), "")
+                            if (norm.isNotBlank() && existingTitles.add(norm)) {
+                                combined.add(rel)
+                            }
                         }
                     }
-                    val resolvedTmdb = tmdbId ?: run {
-                        val malIdForResolve = realMalId ?: DetailCache.getMediaDetail("simkl", externalId)?.realMalId
-                        KitsugiIdResolver.resolveIds(malId = malIdForResolve, aniListId = null, tmdbId = tmdbId).tmdbId
-                    }
+
                     if (resolvedTmdb != null && resolvedTmdb > 0) {
-                        val isMovie = mediaType == MediaType.Movie
-                        val tmdbRelations = TmdbApiClient().fetchRelations(resolvedTmdb, isMovie)
-                        if (tmdbRelations.isNotEmpty()) return@withContext tmdbRelations.map { it.copy(source = "simkl") }
+                        val tmdbRelations = runCatching {
+                            TmdbApiClient().fetchRelations(resolvedTmdb, simklCross.isMovie)
+                        }.getOrNull().orEmpty()
+                        if (tmdbRelations.isNotEmpty()) {
+                            val existingTitles = combined.mapNotNull {
+                                it.title.lowercase().replace(Regex("[^a-z0-9]"), "").takeIf { s -> s.isNotBlank() }
+                            }.toMutableSet()
+                            for (rel in tmdbRelations) {
+                                val norm = rel.title.lowercase().replace(Regex("[^a-z0-9]"), "")
+                                if (norm.isNotBlank() && existingTitles.add(norm)) {
+                                    combined.add(rel.copy(source = "tmdb"))
+                                }
+                            }
+                        }
                     }
-                    emptyList()
+
+                    if (combined.isEmpty() && mediaType == MediaType.Anime && !effectiveTitle.isNullOrBlank()) {
+                        val cleanTitle = effectiveTitle.replace(Regex("\\s*\\(.*?\\)"), "").trim()
+                        if (cleanTitle.isNotBlank()) {
+                            combined.addAll(
+                                runCatching { fetchRelationsFromAniListBySearch(cleanTitle, animeMediaType) }
+                                    .getOrNull().orEmpty()
+                            )
+                        }
+                    }
+
+                    combined.distinctBy { "${it.source}_${it.malId}" }
                 }
                 "tmdb" -> {
                     val effectiveTmdbId = tmdbId ?: externalId
                     if (effectiveTmdbId > 0) {
                         val isMovie = mediaType == MediaType.Movie
                         val tmdbRels = TmdbApiClient().fetchRelations(effectiveTmdbId, isMovie).map { it.copy(source = "tmdb") }
-                        if (tmdbRels.isNotEmpty()) return@withContext tmdbRels
+                        if (tmdbRels.isNotEmpty() && mediaType != MediaType.Anime) return@withContext tmdbRels
 
                         val mediaDetail = DetailCache.getMediaDetail("tmdb", effectiveTmdbId)
-                        val malId = realMalId ?: mediaDetail?.realMalId
+                        val resolvedCross = runCatching {
+                            KitsugiIdResolver.resolveIds(
+                                malId = realMalId ?: mediaDetail?.realMalId,
+                                aniListId = null,
+                                tmdbId = effectiveTmdbId,
+                                mediaType = mediaType
+                            )
+                        }.getOrNull()
+                        val malId = realMalId ?: mediaDetail?.realMalId ?: resolvedCross?.malId
                         if (malId != null && malId > 0) {
-                            val malList = fetchRelations("jikan", malId, mediaType, null, null, title)
-                            if (malList.isNotEmpty()) return@withContext malList
+                            val malList = fetchRelations("jikan", malId, MediaType.Anime, effectiveTmdbId, malId, title)
+                            if (malList.isNotEmpty()) return@withContext (malList + tmdbRels).distinctBy { "${it.source}_${it.malId}" }
+                        }
+                        val aniListId = resolvedCross?.aniListId
+                        if (aniListId != null && aniListId > 0) {
+                            val aniList = fetchRelationsFromAniList(100_000_000 + aniListId, MediaType.Anime)
+                            if (aniList.isNotEmpty()) return@withContext (aniList + tmdbRels).distinctBy { "${it.source}_${it.malId}" }
                         }
 
                         val cleanTitle = (title ?: mediaDetail?.title ?: mediaDetail?.titleEnglish)
                             ?.replace(Regex("\\s*\\(.*?\\)"), "")?.trim()
                         if (!cleanTitle.isNullOrBlank()) {
                             val aniRelations = fetchRelationsFromAniListBySearch(cleanTitle, mediaType)
-                            if (aniRelations.isNotEmpty()) return@withContext aniRelations
+                            if (aniRelations.isNotEmpty()) return@withContext (aniRelations + tmdbRels).distinctBy { "${it.source}_${it.malId}" }
                         }
 
-                        emptyList()
+                        tmdbRels
                     } else emptyList()
                 }
                 "kitsu" -> {
@@ -479,23 +550,55 @@ class KitsugiMediaRelationsClient {
                     (native + extra).distinctBy { "${it.source}_${it.malId}" }
                 }
                 "simkl" -> {
+                    val simklCross = KitsugiSimklDetailClient.resolveSimklCrossIds(
+                        simklId = externalId,
+                        mediaType = mediaType,
+                        hintTmdbId = tmdbId,
+                        hintMalId = realMalId
+                    )
+                    val detail = DetailCache.getMediaDetail("simkl", externalId)
+                    val malId = realMalId?.takeIf { it > 0 && it != externalId }
+                        ?: simklCross.malId
+                        ?: detail?.realMalId
+                    val resolvedTmdb = tmdbId?.takeIf { it > 0 }
+                        ?: simklCross.tmdbId
+                        ?: detail?.tmdbId
+                    val aniListId = simklCross.aniListId
+                    val effectiveTitle = title ?: simklCross.title ?: detail?.title ?: detail?.titleEnglish
+                    val animeMediaType = if (mediaType == MediaType.Manga) MediaType.Manga else MediaType.Anime
+
+                    val recs = mutableListOf<KitsugiRelation>()
                     if (mediaType == MediaType.Anime) {
-                        val malId = realMalId ?: DetailCache.getMediaDetail("simkl", externalId)?.realMalId
                         if (malId != null && malId > 0) {
-                            val malList = fetchRecommendations("jikan", malId, mediaType, null, null, title)
-                            if (malList.isNotEmpty()) return@withContext malList
+                            recs.addAll(
+                                runCatching { fetchRecommendations("jikan", malId, animeMediaType, resolvedTmdb, malId, effectiveTitle) }
+                                    .getOrNull().orEmpty()
+                            )
+                        } else if (aniListId != null && aniListId > 0) {
+                            recs.addAll(
+                                runCatching { fetchRecommendationsFromAniList(100_000_000 + aniListId, animeMediaType) }
+                                    .getOrNull().orEmpty()
+                            )
                         }
                     }
-                    val resolvedTmdb = tmdbId ?: run {
-                        val malIdForResolve = realMalId ?: DetailCache.getMediaDetail("simkl", externalId)?.realMalId
-                        KitsugiIdResolver.resolveIds(malId = malIdForResolve, aniListId = null, tmdbId = tmdbId).tmdbId
+
+                    val simklNativeRecs = runCatching {
+                        KitsugiSimklDetailClient.fetchSimklNativeRecommendations(externalId, mediaType)
+                    }.getOrNull().orEmpty()
+                    if (simklNativeRecs.isNotEmpty()) {
+                        recs.addAll(simklNativeRecs)
                     }
+
                     if (resolvedTmdb != null && resolvedTmdb > 0) {
-                        val isMovie = mediaType == MediaType.Movie
-                        val tmdbRecommendations = TmdbApiClient().fetchRecommendations(resolvedTmdb, isMovie)
-                        if (tmdbRecommendations.isNotEmpty()) return@withContext tmdbRecommendations.map { it.copy(source = "simkl") }
+                        val tmdbRecommendations = runCatching {
+                            TmdbApiClient().fetchRecommendations(resolvedTmdb, simklCross.isMovie)
+                        }.getOrNull().orEmpty()
+                        if (tmdbRecommendations.isNotEmpty()) {
+                            recs.addAll(tmdbRecommendations.map { it.copy(source = "tmdb") })
+                        }
                     }
-                    emptyList()
+
+                    recs.distinctBy { "${it.source}_${it.malId}" }
                 }
                 "tmdb" -> {
                     val effectiveTmdbId = tmdbId ?: externalId

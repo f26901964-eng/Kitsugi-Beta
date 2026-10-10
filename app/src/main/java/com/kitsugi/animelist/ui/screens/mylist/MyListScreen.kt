@@ -65,7 +65,7 @@ import com.kitsugi.animelist.ui.theme.LocalIsTv
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
-import com.kitsugi.animelist.data.remote.matches
+import com.kitsugi.animelist.data.remote.matchesInSource
 import com.kitsugi.animelist.ui.components.KitsugiApiSearchDialog
 import com.kitsugi.animelist.ui.components.KitsugiConfirmDialog
 import com.kitsugi.animelist.ui.components.KitsugiInfoDialog
@@ -738,8 +738,8 @@ fun MyListScreen(
                     else -> result.source
                 }
 
-                // Duplicate kontrolü: herhangi bir platform ID'si üzerinden eşleşme yeter
-                val alreadyExists = entries.firstOrNull { entry -> entry.matches(result) }
+                // A provider result belongs only to that provider's list, not to a cross-provider copy.
+                val alreadyExists = entries.firstOrNull { entry -> entry.matchesInSource(result) }
 
                 if (alreadyExists != null) {
                     duplicateMessage = duplicateListMessage(alreadyExists)

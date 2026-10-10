@@ -3,6 +3,8 @@ package com.kitsugi.animelist.ui.components
 import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.rememberScrollState
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -60,9 +62,18 @@ fun KitsugiAllReviewsBottomSheet(
     var page by remember { mutableStateOf(1) }
     var hasMore by remember { mutableStateOf(true) }
 
-    // Translation states
+    // Translation & source filter states
     var selectedLanguage by remember { mutableStateOf("original") }
-    val translatedSummaries = remember { mutableStateMapOf<Int, String>() }
+    var selectedSourceFilter by remember { mutableStateOf("all") }
+    val translatedSummaries = remember { mutableStateMapOf<String, String>() }
+
+    val filteredReviews = remember(reviewsList, selectedSourceFilter) {
+        if (selectedSourceFilter == "all") {
+            reviewsList
+        } else {
+            reviewsList.filter { it.source.equals(selectedSourceFilter, ignoreCase = true) }
+        }
+    }
 
     var activeReviewForDetail by remember { mutableStateOf<KitsugiReview?>(null) }
 
@@ -124,12 +135,13 @@ fun KitsugiAllReviewsBottomSheet(
     // Translation orchestration
     LaunchedEffect(selectedLanguage, reviewsList) {
         if (selectedLanguage == "turkish") {
-            reviewsList.forEachIndexed { index, rev ->
-                if (!translatedSummaries.containsKey(index)) {
+            reviewsList.forEach { rev ->
+                val revKey = "${rev.source}_${rev.username}_${rev.dateText}"
+                if (!translatedSummaries.containsKey(revKey)) {
                     coroutineScope.launch {
                         val tr = translationManager.translateToTurkish(rev.summary)
                         if (tr.isNotBlank()) {
-                            translatedSummaries[index] = tr
+                            translatedSummaries[revKey] = tr
                         }
                     }
                 }
@@ -221,13 +233,61 @@ fun KitsugiAllReviewsBottomSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            // Source Filter Pills (Tümü / AniList / MAL / Kitsu / TMDB / Shikimori / Bangumi)
+            val availableSources = remember(reviewsList) {
+                reviewsList.map { it.source.lowercase() }.distinct()
+            }
+            if (availableSources.size > 1) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(bottom = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val allOptions = listOf(
+                        "all" to "Tümü",
+                        "anilist" to "AniList",
+                        "jikan" to "MAL",
+                        "kitsu" to "Kitsu",
+                        "tmdb" to "TMDB",
+                        "shikimori" to "Shikimori",
+                        "bangumi" to "Bangumi"
+                    ).filter { (id, _) -> id == "all" || id in availableSources }
+
+                    allOptions.forEach { (sourceId, label) ->
+                        val isSelected = selectedSourceFilter == sourceId
+                        Row(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(10.dp))
+                                .background(if (isSelected) accentColor.copy(alpha = 0.22f) else KitsugiColors.SurfaceStrong)
+                                .tvClickable(shape = RoundedCornerShape(10.dp)) { selectedSourceFilter = sourceId }
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp)
+                        ) {
+                            if (sourceId != "all") {
+                                KitsugiPlatformLogo(platformId = sourceId, size = 12.dp)
+                            }
+                            Text(
+                                text = label,
+                                color = if (isSelected) accentColor else KitsugiColors.TextSecondary,
+                                fontSize = 12.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
 
             if (isLoading && reviewsList.isEmpty()) {
                 Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                     KitsugiPlasmaLoader(size = 46.dp)
                 }
-            } else if (reviewsList.isEmpty()) {
+            } else if (filteredReviews.isEmpty()) {
                 Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                     Text(text = "İnceleme bulunamadı.", color = KitsugiColors.TextMuted, fontSize = 14.sp)
                 }
@@ -239,9 +299,10 @@ fun KitsugiAllReviewsBottomSheet(
                         .weight(1f),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    items(reviewsList.size) { index ->
-                        val rev = reviewsList[index]
-                        val displaySummary = if (selectedLanguage == "turkish") translatedSummaries[index] ?: rev.summary else rev.summary
+                    items(filteredReviews.size) { index ->
+                        val rev = filteredReviews[index]
+                        val revKey = "${rev.source}_${rev.username}_${rev.dateText}"
+                        val displaySummary = if (selectedLanguage == "turkish") translatedSummaries[revKey] ?: rev.summary else rev.summary
                         
                         // Theme-aligned Review Card
                         Column(

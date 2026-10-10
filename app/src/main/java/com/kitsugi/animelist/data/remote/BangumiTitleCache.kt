@@ -70,7 +70,7 @@ internal object BangumiTitleCache {
     private fun appContext(): Context? = KitsugiApplication.getInstance()?.applicationContext
 
     private fun usableLatin(value: String?): String? = value?.trim()?.takeIf {
-        it.isNotEmpty() && it.any(Char::isLetter) && !PreferenceHelpers.hasCjkCharacters(it)
+        PreferenceHelpers.isLatinText(it)
     }
 
     /** Disk önbelleğini bir kez belleğe alır. */

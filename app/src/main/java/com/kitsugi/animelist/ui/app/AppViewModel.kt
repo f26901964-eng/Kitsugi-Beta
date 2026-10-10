@@ -10,7 +10,7 @@ import androidx.lifecycle.viewModelScope
 import com.kitsugi.animelist.data.local.MediaEntryBackup
 import com.kitsugi.animelist.data.local.MediaEntryRepository
 import com.kitsugi.animelist.data.remote.ApiSearchSelection
-import com.kitsugi.animelist.data.remote.matches
+import com.kitsugi.animelist.data.remote.matchesInSource
 import com.kitsugi.animelist.data.settings.SettingsDataStore
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
@@ -375,10 +375,9 @@ class AppViewModel : ViewModel() {
             else -> "simkl"
         }
 
-        // Ön kontrol: currentEntries içinde zaten var mı? (herhangi bir kaynak üzerinden)
-        // Mesaj GELEN başlığı değil, listede BULUNAN kaydı göstermeli ki kullanıcı onu
-        // Listem'de arayıp bulabilsin (kaynak sekmesiyle birlikte).
-        val existingEntry = currentEntries.firstOrNull { entry -> entry.matches(result) }
+        // Provider listeleri birbirinden bağımsızdır: başka bir kaynaktaki kopya, bu
+        // kaynağın ekleme işlemini engellememeli.
+        val existingEntry = currentEntries.firstOrNull { entry -> entry.matchesInSource(result) }
         if (existingEntry != null) {
             showSnackbarMessage(duplicateListMessage(existingEntry))
             return
@@ -413,7 +412,7 @@ class AppViewModel : ViewModel() {
                 realMalId = result.realMalId ?: finalMalId,
                 tmdbId = result.tmdbId ?: finalTmdbId
             )
-            val existingAfterResolve = currentEntries.firstOrNull { entry -> entry.matches(resolvedProbe) }
+            val existingAfterResolve = currentEntries.firstOrNull { entry -> entry.matchesInSource(resolvedProbe) }
             if (existingAfterResolve != null) {
                 showSnackbarMessage(duplicateListMessage(existingAfterResolve))
                 return@launch

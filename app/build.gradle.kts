@@ -30,7 +30,7 @@ android {
     val bangumiClientId     = localProperties.getProperty("bangumi_client_id")     ?: "YOUR_BANGUMI_CLIENT_ID"
     val bangumiClientSecret = localProperties.getProperty("bangumi_client_secret") ?: "YOUR_BANGUMI_CLIENT_SECRET"
 
-    val appVersionName = "2.4.226"
+    val appVersionName = "2.4.227"
 
     compileSdk = 36
 
@@ -222,6 +222,9 @@ configurations.all {
         force("com.fasterxml.jackson.core:jackson-databind:2.18.3")
         force("com.fasterxml.jackson.core:jackson-annotations:2.18.3")
         force("com.fasterxml.jackson.module:jackson-module-kotlin:2.18.3")
+        // Keep Supabase 3.0.3's Instant serializer ABI; a newer transitive datetime artifact
+        // can otherwise replace the class Supabase Auth references at runtime.
+        force("org.jetbrains.kotlinx:kotlinx-datetime:0.6.1")
     }
 }
 
@@ -356,6 +359,10 @@ dependencies {
         exclude(group = "org.jetbrains.compose.ui")
         exclude(group = "org.jetbrains.compose.foundation")
     }
+
+    // Supabase Auth's UserInfo/UserSession models serialize kotlinx.datetime.Instant timestamps.
+    // Declare the expected upstream version directly so the serializer is present in every APK.
+    implementation(libs.kotlinx.datetime)
 
     // Supabase
     implementation(platform(libs.supabase.bom))

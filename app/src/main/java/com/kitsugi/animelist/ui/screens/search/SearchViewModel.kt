@@ -457,8 +457,8 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun resetFilters() {
-        _uiState.update {
-            it.copy(
+        _uiState.update { current ->
+            val cleared = current.copy(
                 genres = emptyList(),
                 excludedGenres = emptyList(),
                 tags = emptyList(),
@@ -478,11 +478,30 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 onMyList = null,
                 isDoujin = null,
                 isAdultFilter = null,
+                detailSearchFilterRequest = null,
                 sortSearch = KitsugiMediaSortSearch.SEARCH_MATCH,
                 isSortDescending = true,
                 page = 1,
                 hasNextPage = true
             )
+            when (current.selectedEngine) {
+                SearchSourceEngine.ANILIST -> cleared.copy(aniListSpecificFilters = AniListSpecificFilters())
+                SearchSourceEngine.MAL -> cleared.copy(malSpecificFilters = MalSpecificFilters())
+                SearchSourceEngine.TMDB -> cleared.copy(tmdbSpecificFilters = TmdbSpecificFilters())
+                SearchSourceEngine.SHIKIMORI -> cleared.copy(shikimoriSpecificFilters = ShikimoriSpecificFilters())
+                SearchSourceEngine.KITSU -> cleared.copy(kitsuSpecificFilters = KitsuSpecificFilters())
+                SearchSourceEngine.SIMKL -> cleared.copy(simklSpecificFilters = SimklSpecificFilters())
+                SearchSourceEngine.BANGUMI -> cleared.copy(bangumiSpecificFilters = BangumiSpecificFilters())
+                SearchSourceEngine.ALL -> cleared.copy(
+                    aniListSpecificFilters = AniListSpecificFilters(),
+                    malSpecificFilters = MalSpecificFilters(),
+                    tmdbSpecificFilters = TmdbSpecificFilters(),
+                    shikimoriSpecificFilters = ShikimoriSpecificFilters(),
+                    kitsuSpecificFilters = KitsuSpecificFilters(),
+                    simklSpecificFilters = SimklSpecificFilters(),
+                    bangumiSpecificFilters = BangumiSpecificFilters()
+                )
+            }
         }
         search(resetPage = true)
     }
@@ -707,8 +726,22 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
             SearchSourceEngine.KITSU -> state.kitsuSpecificFilters.activeCount
             SearchSourceEngine.SIMKL -> state.simklSpecificFilters.activeCount
             SearchSourceEngine.BANGUMI -> state.bangumiSpecificFilters.activeCount
-            SearchSourceEngine.ALL -> 0
+            SearchSourceEngine.ALL -> state.activeFilterCount
         }
+    }
+
+    private fun planAllSourcesForState(state: SearchUiState, scope: SearchScope): AllSourcePlan {
+        val base = planAllSources(scope)
+        val request = state.detailSearchFilterRequest ?: return base
+        return base.copy(
+            aniList = base.aniList && CanonicalFilterBridge.supportsDetailFilter(SearchSourceEngine.ANILIST, request),
+            mal = base.mal && CanonicalFilterBridge.supportsDetailFilter(SearchSourceEngine.MAL, request),
+            tmdb = base.tmdb && CanonicalFilterBridge.supportsDetailFilter(SearchSourceEngine.TMDB, request),
+            shikimori = base.shikimori && CanonicalFilterBridge.supportsDetailFilter(SearchSourceEngine.SHIKIMORI, request),
+            kitsu = base.kitsu && CanonicalFilterBridge.supportsDetailFilter(SearchSourceEngine.KITSU, request),
+            simkl = base.simkl && CanonicalFilterBridge.supportsDetailFilter(SearchSourceEngine.SIMKL, request),
+            bangumi = base.bangumi && CanonicalFilterBridge.supportsDetailFilter(SearchSourceEngine.BANGUMI, request)
+        )
     }
 
     /**
@@ -737,6 +770,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 maxEpCh = null,
                 minDuration = null,
                 maxDuration = null,
+                detailSearchFilterRequest = null,
                 sortSearch = KitsugiMediaSortSearch.SEARCH_MATCH,
                 isSortDescending = true,
                 hasSearched = false
@@ -769,6 +803,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 maxEpCh = null,
                 minDuration = null,
                 maxDuration = null,
+                detailSearchFilterRequest = null,
                 sortSearch = KitsugiMediaSortSearch.SEARCH_MATCH,
                 isSortDescending = true,
                 hasSearched = false
@@ -783,201 +818,169 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
      * tek bir kanonik model üzerinden filtre olarak ayarlar ve aramayı anında tetikler.
      */
     fun applyDetailFilterRequest(request: DetailSearchFilterRequest) {
-        val targetEngine = CanonicalFilterBridge.sourceToEngine(request.source)
-        val targetScope = CanonicalFilterBridge.autoScopeGuard(targetEngine, request.mediaType)
-        val cleanGenre = request.genre?.let { translateToEnglishForSearch(it) }
-        val cleanTheme = request.theme?.let { translateToEnglishForSearch(it) }
-        val cleanDemographic = request.demographic?.let { translateToEnglishForSearch(it) }
-        val cleanTag = request.tag?.let { translateToEnglishForSearch(it) }
-
-        val mappedTab = when (targetEngine) {
-            SearchSourceEngine.ALL -> KitsugiSearchTab.All
-            SearchSourceEngine.ANILIST -> if (targetScope == SearchScope.MANGA) KitsugiSearchTab.Manga else KitsugiSearchTab.Anime
-            SearchSourceEngine.MAL -> KitsugiSearchTab.MAL
-            SearchSourceEngine.TMDB -> KitsugiSearchTab.TMDB
-            SearchSourceEngine.SHIKIMORI -> KitsugiSearchTab.Shikimori
-            SearchSourceEngine.KITSU -> KitsugiSearchTab.Kitsu
-            SearchSourceEngine.SIMKL -> KitsugiSearchTab.Simkl
-            SearchSourceEngine.BANGUMI -> KitsugiSearchTab.Bangumi
+        // Detail facets are intentionally always searched in ALL mode. `source` remains
+        // available for provenance, while `tagSource` carries the tag's native taxonomy.
+        val cleanGenre = request.genre?.let(::translateToEnglishForSearch)?.trim()?.takeIf { it.isNotBlank() }
+        val cleanTheme = request.theme?.let(::translateToEnglishForSearch)?.trim()?.takeIf { it.isNotBlank() }
+        val cleanDemographic = request.demographic?.let(::translateToEnglishForSearch)?.trim()?.takeIf { it.isNotBlank() }
+        val cleanTag = request.tag?.let(::translateToEnglishForSearch)?.trim()?.takeIf { it.isNotBlank() }
+        val season = CanonicalFilterBridge.normalizeSeason(request.season)
+        val year = request.year?.takeIf { it > 0 }
+        val normalizedRequest = request.copy(
+            source = SearchSourceEngine.ALL.id,
+            genre = cleanGenre,
+            theme = cleanTheme,
+            demographic = cleanDemographic,
+            tag = cleanTag,
+            season = season,
+            year = year
+        )
+        val targetScope = CanonicalFilterBridge.autoScopeGuard(SearchSourceEngine.ALL, request.mediaType)
+        val facetTerms = listOfNotNull(cleanGenre, cleanTheme, cleanDemographic)
+        val anyFacetTerm = (facetTerms + listOfNotNull(cleanTag)).firstOrNull()
+        val isManga = request.mediaType == MediaType.Manga
+        val isTv = request.mediaType == MediaType.TvShow
+        val tmdbTagId = request.keywordId?.takeIf {
+            it > 0 && CanonicalFilterBridge.isTmdbTagSource(request.tagSource)
         }
-        val mappedPlatform = when (targetEngine) {
-            SearchSourceEngine.ALL -> SearchPlatform.All
-            SearchSourceEngine.ANILIST -> SearchPlatform.AniList
-            SearchSourceEngine.MAL -> SearchPlatform.MAL
-            SearchSourceEngine.TMDB -> SearchPlatform.TMDB
-            SearchSourceEngine.SHIKIMORI -> SearchPlatform.Shikimori
-            SearchSourceEngine.KITSU -> SearchPlatform.Kitsu
-            SearchSourceEngine.SIMKL -> SearchPlatform.Simkl
-            SearchSourceEngine.BANGUMI -> SearchPlatform.Bangumi
+        val supports = { engine: SearchSourceEngine ->
+            CanonicalFilterBridge.supportsDetailFilter(engine, normalizedRequest)
         }
+        val aniListOfficialGenre = facetTerms.firstOrNull()?.takeIf {
+            cleanTag == null && CanonicalFilterBridge.isOfficialAniListGenre(it)
+        }
+        val aniListTagTerms = buildList {
+            if (cleanTag != null) add(cleanTag)
+            facetTerms.filterNot { it == aniListOfficialGenre }.forEach { add(it) }
+        }.distinct()
+        val bangumiTag = request.tag?.takeIf {
+            request.tagSource.equals("bangumi", ignoreCase = true) || request.tagSource.equals("bgm", ignoreCase = true)
+        }?.trim()?.takeIf { it.isNotBlank() } ?: cleanTag
+        val bangumiTags = listOfNotNull(cleanGenre, cleanTheme, cleanDemographic, bangumiTag).distinct()
+        val kitsuCategories = listOfNotNull(cleanGenre, cleanTheme, cleanDemographic, cleanTag).distinct()
 
+        val aniListFilters = if (supports(SearchSourceEngine.ANILIST)) {
+            AniListSpecificFilters(
+                season = season,
+                seasonYear = year,
+                startYear = if (season == null) year else null,
+                endYear = if (season == null) year else null,
+                genres = listOfNotNull(aniListOfficialGenre),
+                tags = aniListTagTerms
+            )
+        } else AniListSpecificFilters()
+
+        val malGenreId = anyFacetTerm?.let {
+            CanonicalFilterBridge.mapMalGenreId(it, isManga)?.toIntOrNull()
+        }
+        val malFilters = if (supports(SearchSourceEngine.MAL)) {
+            MalSpecificFilters(
+                season = season?.lowercase(java.util.Locale.ROOT),
+                seasonYear = year,
+                genres = listOfNotNull(malGenreId),
+                startYear = if (season == null) year else null,
+                endYear = if (season == null) year else null
+            )
+        } else MalSpecificFilters()
+
+        val tmdbGenreIds = if (supports(SearchSourceEngine.TMDB) && cleanTag == null) {
+            facetTerms.mapNotNull { CanonicalFilterBridge.mapTmdbGenreId(it, isTv) }.distinct()
+        } else emptyList()
+        val tmdbFilters = if (supports(SearchSourceEngine.TMDB)) {
+            TmdbSpecificFilters(
+                isMovie = request.mediaType != MediaType.TvShow,
+                genres = tmdbGenreIds,
+                startYear = if (season == null) year else null,
+                endYear = if (season == null) year else null,
+                keyword = tmdbTagId?.toString()
+            )
+        } else TmdbSpecificFilters()
+
+        val shikimoriGenreId = anyFacetTerm?.let {
+            CanonicalFilterBridge.mapAnimeGenreId(it)
+                ?: CanonicalFilterBridge.mapMalGenreId(it, isManga)?.toIntOrNull()
+        }
+        val shikimoriSeason = when {
+            season != null && year != null -> "${season.lowercase(java.util.Locale.ROOT)}_$year"
+            year != null -> year.toString()
+            else -> null
+        }
+        val shikimoriFilters = if (supports(SearchSourceEngine.SHIKIMORI)) {
+            ShikimoriSpecificFilters(
+                season = shikimoriSeason,
+                genres = listOfNotNull(shikimoriGenreId)
+            )
+        } else ShikimoriSpecificFilters()
+
+        val kitsuFilters = if (supports(SearchSourceEngine.KITSU)) {
+            KitsuSpecificFilters(
+                season = season?.lowercase(java.util.Locale.ROOT),
+                seasonYear = year,
+                categories = kitsuCategories
+            )
+        } else KitsuSpecificFilters()
+
+        val simklGenre = anyFacetTerm?.let(CanonicalFilterBridge::mapSimklGenre)
+        val simklFilters = if (supports(SearchSourceEngine.SIMKL)) {
+            SimklSpecificFilters(
+                genre = simklGenre,
+                year = year?.toString()
+            )
+        } else SimklSpecificFilters()
+
+        val bangumiFilters = if (supports(SearchSourceEngine.BANGUMI)) {
+            BangumiSpecificFilters(
+                tags = bangumiTags,
+                yearFrom = if (season == null) year else null,
+                yearTo = if (season == null) year else null
+            )
+        } else BangumiSpecificFilters()
+
+        val seasonEnum = season?.let { value ->
+            KitsugiMediaSeason.entries.firstOrNull { it.apiValue == value }
+        }
         _uiState.update { current ->
-            var newState = current.copy(
+            current.copy(
                 query = "",
-                selectedEngine = targetEngine,
+                selectedEngine = SearchSourceEngine.ALL,
                 selectedScope = targetScope,
-                currentTab = mappedTab,
-                selectedPlatform = mappedPlatform,
+                currentTab = KitsugiSearchTab.All,
+                selectedPlatform = SearchPlatform.All,
                 selectedMediaType = request.mediaType,
-                genres = if (cleanGenre != null) listOf(cleanGenre) else emptyList(),
-                tags = if (cleanTag != null) listOf(cleanTag) else emptyList(),
+                detailSearchFilterRequest = normalizedRequest,
+                genres = listOfNotNull(cleanGenre ?: cleanTheme ?: cleanDemographic),
+                tags = listOfNotNull(cleanTag),
                 excludedGenres = emptyList(),
                 selectedFormats = emptyList(),
                 selectedStatuses = emptyList(),
                 country = null,
-                startYear = request.year,
-                endYear = request.year,
+                selectedSources = emptyList(),
+                startYear = year,
+                endYear = year,
+                season = seasonEnum,
+                minScore = null,
+                maxScore = null,
+                minEpCh = null,
+                maxEpCh = null,
+                minDuration = null,
+                maxDuration = null,
+                onMyList = null,
+                isDoujin = null,
+                isAdultFilter = null,
+                sortSearch = KitsugiMediaSortSearch.SEARCH_MATCH,
+                isSortDescending = true,
+                aniListSpecificFilters = aniListFilters,
+                malSpecificFilters = malFilters,
+                tmdbSpecificFilters = tmdbFilters,
+                shikimoriSpecificFilters = shikimoriFilters,
+                kitsuSpecificFilters = kitsuFilters,
+                simklSpecificFilters = simklFilters,
+                bangumiSpecificFilters = bangumiFilters,
                 page = 1,
                 hasNextPage = true,
                 hasSearched = false
             )
-
-            when (targetEngine) {
-                SearchSourceEngine.ANILIST -> {
-                    val currentF = newState.aniListSpecificFilters
-                    val newGenres = if (cleanGenre != null) listOf(cleanGenre) else emptyList()
-                    val newTags = if (cleanTag != null) listOf(cleanTag) else emptyList()
-                    val newFormats = if (!request.format.isNullOrBlank()) listOf(request.format.uppercase()) else emptyList()
-                    val newStatuses = if (!request.status.isNullOrBlank()) listOf(request.status.uppercase()) else emptyList()
-                    newState = newState.copy(
-                        aniListSpecificFilters = currentF.copy(
-                            genres = newGenres,
-                            tags = newTags,
-                            formats = newFormats,
-                            statuses = newStatuses,
-                            season = request.season?.uppercase(),
-                            seasonYear = request.year,
-                            startYear = request.year,
-                            country = request.countryCode
-                        )
-                    )
-                }
-                SearchSourceEngine.MAL -> {
-                    val currentF = newState.malSpecificFilters
-                    val malGenreIdStr = cleanGenre?.let { CanonicalFilterBridge.mapMalGenreId(it, request.mediaType == MediaType.Manga) }
-                        ?: cleanTheme?.let { CanonicalFilterBridge.mapMalGenreId(it, request.mediaType == MediaType.Manga) }
-                        ?: cleanDemographic?.let { CanonicalFilterBridge.mapMalGenreId(it, request.mediaType == MediaType.Manga) }
-                    val malGenreId = malGenreIdStr?.toIntOrNull()
-                    val newGenres = if (malGenreId != null) listOf(malGenreId) else emptyList()
-                    newState = newState.copy(
-                        malSpecificFilters = currentF.copy(
-                            genres = newGenres,
-                            type = request.format?.lowercase(),
-                            status = request.status?.lowercase(),
-                            season = request.season?.lowercase(),
-                            seasonYear = request.year,
-                            producerId = request.producerId ?: request.studioId,
-                            magazineId = request.magazineId,
-                            rating = request.ageRating,
-                            orderBy = request.sortBy ?: currentF.orderBy
-                        )
-                    )
-                }
-                SearchSourceEngine.TMDB -> {
-                    val currentF = newState.tmdbSpecificFilters
-                    val isTv = targetScope == SearchScope.TV || request.mediaType == MediaType.TvShow
-                    val tmdbGenreId = cleanGenre?.let { CanonicalFilterBridge.mapTmdbGenreId(it, isTv) }
-                    val newGenres = if (tmdbGenreId != null) listOf(tmdbGenreId) else emptyList()
-                    newState = newState.copy(
-                        tmdbSpecificFilters = currentF.copy(
-                            genres = newGenres,
-                            originCountry = request.countryCode,
-                            startYear = request.year,
-                            endYear = request.year,
-                            networkId = request.networkId,
-                            keyword = request.keywordId?.toString() ?: cleanTag,
-                            tvStatus = request.status,
-                            sortBy = request.sortBy ?: currentF.sortBy
-                        )
-                    )
-                }
-                SearchSourceEngine.SHIKIMORI -> {
-                    val currentF = newState.shikimoriSpecificFilters
-                    val shikiGenreId = cleanGenre?.let { getJikanGenreId(it) } ?: cleanGenre?.toIntOrNull()
-                    val newGenres = if (shikiGenreId != null) listOf(shikiGenreId) else emptyList()
-                    val newKinds = if (!request.format.isNullOrBlank()) listOf(request.format.lowercase()) else emptyList()
-                    val newStatuses = if (!request.status.isNullOrBlank()) listOf(request.status.lowercase()) else emptyList()
-                    newState = newState.copy(
-                        shikimoriSpecificFilters = currentF.copy(
-                            genres = newGenres,
-                            kinds = newKinds,
-                            statuses = newStatuses,
-                            season = request.year?.toString() ?: request.season?.lowercase(),
-                            studioId = request.studioId,
-                            publisherId = request.producerId ?: request.magazineId,
-                            rating = request.ageRating,
-                            order = request.sortBy ?: currentF.order
-                        )
-                    )
-                }
-                SearchSourceEngine.KITSU -> {
-                    val currentF = newState.kitsuSpecificFilters
-                    val cat = cleanGenre ?: cleanTag
-                    val newCategories = if (cat != null) listOf(cat) else emptyList()
-                    val newSubtypes = if (!request.format.isNullOrBlank()) listOf(request.format.lowercase()) else emptyList()
-                    val newStatuses = if (!request.status.isNullOrBlank()) listOf(request.status.lowercase()) else emptyList()
-                    newState = newState.copy(
-                        kitsuSpecificFilters = currentF.copy(
-                            categories = newCategories,
-                            subtypes = newSubtypes,
-                            statuses = newStatuses,
-                            season = request.season?.lowercase(),
-                            seasonYear = request.year,
-                            ageRating = request.ageRating,
-                            streamers = if (!request.streamerName.isNullOrBlank()) listOf(request.streamerName) else emptyList(),
-                            sort = request.sortBy ?: currentF.sort
-                        )
-                    )
-                }
-                SearchSourceEngine.SIMKL -> {
-                    val currentF = newState.simklSpecificFilters
-                    newState = newState.copy(
-                        simklSpecificFilters = currentF.copy(
-                            genre = cleanGenre,
-                            year = request.year?.toString(),
-                            country = request.countryCode,
-                            subtype = request.format?.lowercase(),
-                            sort = request.sortBy ?: currentF.sort
-                        )
-                    )
-                }
-                SearchSourceEngine.BANGUMI -> {
-                    val currentF = newState.bangumiSpecificFilters
-                    // Bangumi'de tür/tema adı ayrı bir filtre alanı değildir; wiki
-                    // etiketleri (tag) üzerinden aranır. Bu yüzden kanonik isimler
-                    // etiket listesine çevrilir.
-                    val bangumiTags = listOfNotNull(cleanGenre, cleanTheme, cleanDemographic, cleanTag)
-                        .map { it.trim() }
-                        .filter { it.isNotBlank() }
-                        .distinct()
-                    val bangumiSort = when {
-                        request.sortBy == null -> currentF.sort
-                        request.sortBy.contains("score", true) || request.sortBy.contains("rank", true) -> "rank"
-                        request.sortBy.contains("popular", true) -> "heat"
-                        else -> "match"
-                    }
-                    newState = newState.copy(
-                        bangumiSpecificFilters = currentF.copy(
-                            tags = bangumiTags,
-                            yearFrom = request.year,
-                            yearTo = request.year,
-                            sort = bangumiSort
-                        )
-                    )
-                }
-                SearchSourceEngine.ALL -> {
-                    newState = newState.copy(
-                        genres = if (cleanGenre != null) listOf(cleanGenre) else emptyList(),
-                        tags = if (cleanTag != null) listOf(cleanTag) else emptyList(),
-                        startYear = request.year,
-                        endYear = request.year
-                    )
-                }
-            }
-
-            newState
         }
-
         search(resetPage = true)
     }
 
@@ -1182,7 +1185,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 // aksi halde raflar bir kare boyunca boş + yüklenmiyor görünüp
                 // kayboluyor, sonra shimmer ile geri geliyordu (titreme).
                 multiResults = if (state.selectedEngine == SearchSourceEngine.ALL) {
-                    planAllSources(state.selectedScope).toLoadingState()
+                    planAllSourcesForState(state, state.selectedScope).toLoadingState()
                 } else {
                     it.multiResults
                 }
@@ -1345,7 +1348,9 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                                 orderBy = f.orderBy,
                                 page = page,
                                 season = f.season,
-                                seasonYear = f.seasonYear
+                                seasonYear = f.seasonYear,
+                                startYear = f.startYear,
+                                endYear = f.endYear
                             )
                             return Pair(res, res.size >= 24)
                         }
@@ -1601,7 +1606,7 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
         val isShelfSearch = (state.currentTab == KitsugiSearchTab.All || engine == SearchSourceEngine.ALL) &&
             scope != SearchScope.CHARACTER && scope != SearchScope.STAFF
         if (isShelfSearch) {
-            val plan = planAllSources(scope)
+            val plan = planAllSourcesForState(state, scope)
             _uiState.update { it.copy(multiResults = plan.toLoadingState()) }
             return supervisorScope {
                 // Kapsam duyarlı çoklu platform araması: her kaynak yalnızca kapsamın
@@ -1730,6 +1735,11 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 }
 
                 val aniListDef = async(Dispatchers.IO) {
+                    val f = state.aniListSpecificFilters
+                    val globalAniListGenres = state.genres.filter { CanonicalFilterBridge.isOfficialAniListGenre(it) }
+                        .map(::translateToEnglishForSearch)
+                    val globalAniListTags = (state.tags + state.genres.filterNot { CanonicalFilterBridge.isOfficialAniListGenre(it) })
+                        .map(::translateToEnglishForSearch).distinct()
                     val res = fetchMediaShelf(
                         active = plan.aniList,
                         anime = {
@@ -1737,7 +1747,19 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                                 query = queryText,
                                 mediaType = MediaType.Anime,
                                 showAdultContent = showAdult,
-                                sort = aniListShelfSort,
+                                formats = f.formats.ifEmpty { state.selectedFormats.map { it.apiValue } }.takeIf { it.isNotEmpty() },
+                                statuses = f.statuses.ifEmpty { state.selectedStatuses.map { it.apiValue } }.takeIf { it.isNotEmpty() },
+                                season = f.season ?: state.season?.apiValue,
+                                seasonYear = f.seasonYear ?: state.startYear,
+                                genres = f.genres.ifEmpty { globalAniListGenres }.takeIf { it.isNotEmpty() },
+                                excludedGenres = f.excludedGenres.ifEmpty { state.excludedGenres.filter { CanonicalFilterBridge.isOfficialAniListGenre(it) }.map(::translateToEnglishForSearch) }.takeIf { it.isNotEmpty() },
+                                tags = f.tags.ifEmpty { globalAniListTags }.takeIf { it.isNotEmpty() },
+                                minYear = f.startYear ?: state.startYear,
+                                maxYear = f.endYear ?: state.endYear,
+                                sort = if (f.sort == "POPULARITY_DESC") aniListShelfSort else listOf(f.sort),
+                                country = aniListCountry ?: f.country,
+                                sources = f.sources.takeIf { it.isNotEmpty() },
+                                isAdult = f.isAdult,
                                 page = 1,
                                 perPage = allShelfFetchLimit
                             ).results
@@ -1747,8 +1769,19 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                                 query = queryText,
                                 mediaType = MediaType.Manga,
                                 showAdultContent = showAdult,
-                                country = aniListCountry,
-                                sort = aniListShelfSort,
+                                formats = f.formats.ifEmpty { state.selectedFormats.map { it.apiValue } }.takeIf { it.isNotEmpty() },
+                                statuses = f.statuses.ifEmpty { state.selectedStatuses.map { it.apiValue } }.takeIf { it.isNotEmpty() },
+                                season = f.season ?: state.season?.apiValue,
+                                seasonYear = f.seasonYear ?: state.startYear,
+                                genres = f.genres.ifEmpty { globalAniListGenres }.takeIf { it.isNotEmpty() },
+                                excludedGenres = f.excludedGenres.ifEmpty { state.excludedGenres.filter { CanonicalFilterBridge.isOfficialAniListGenre(it) }.map(::translateToEnglishForSearch) }.takeIf { it.isNotEmpty() },
+                                tags = f.tags.ifEmpty { globalAniListTags }.takeIf { it.isNotEmpty() },
+                                minYear = f.startYear ?: state.startYear,
+                                maxYear = f.endYear ?: state.endYear,
+                                sort = if (f.sort == "POPULARITY_DESC") aniListShelfSort else listOf(f.sort),
+                                country = aniListCountry ?: f.country,
+                                sources = f.sources.takeIf { it.isNotEmpty() },
+                                isAdult = f.isAdult,
                                 page = 1,
                                 perPage = allShelfFetchLimit
                             ).results
@@ -1759,83 +1792,148 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 }
 
                 val malDef = async(Dispatchers.IO) {
+                    val f = state.malSpecificFilters
+                    suspend fun searchMal(type: MediaType) = apiClient.searchMalAdvanced(
+                        query = queryText,
+                        mediaType = type,
+                        showAdultContent = showAdult,
+                        status = f.status,
+                        format = f.type,
+                        genres = f.genres.takeIf { it.isNotEmpty() },
+                        excludedGenres = f.excludedGenres.takeIf { it.isNotEmpty() },
+                        rating = f.rating,
+                        minScore = f.minScore,
+                        maxScore = f.maxScore,
+                        producerId = f.producerId,
+                        magazineId = f.magazineId,
+                        letter = f.letter,
+                        sort = f.sortDirection,
+                        orderBy = f.orderBy,
+                        page = 1,
+                        season = f.season,
+                        seasonYear = f.seasonYear,
+                        startYear = f.startYear,
+                        endYear = f.endYear
+                    )
                     val res = fetchMediaShelf(
                         active = plan.mal,
-                        anime = {
-                            apiClient.searchMALOnly(
-                                query = queryText,
-                                mediaType = MediaType.Anime,
-                                showAdultContent = showAdult
-                            )
-                        },
-                        manga = {
-                            apiClient.searchMALOnly(
-                                query = queryText,
-                                mediaType = MediaType.Manga,
-                                showAdultContent = showAdult
-                            )
-                        }
+                        anime = { searchMal(MediaType.Anime) },
+                        manga = { searchMal(MediaType.Manga) }
                     )
                     onPlatformCompleted(res) { it.copy(malResults = res, isLoadingMal = false) }
                     res
                 }
 
                 val tmdbDef = async(Dispatchers.IO) {
+                    val f = state.tmdbSpecificFilters
                     val res = fetchSingleShelf(active = plan.tmdb) {
-                        val list = TmdbApiClient().search(queryText)
+                        val client = TmdbApiClient()
                         val allowed = tmdbAllowedTypes
-                        if (allowed == null) list else list.filter { it.type in allowed }
+                        if (queryText.isNotBlank() && f.activeCount == 0) {
+                            val list = client.search(queryText)
+                            if (allowed == null) list else list.filter { it.type in allowed }
+                        } else {
+                            val mediaKinds = allowed ?: setOf(MediaType.Movie, MediaType.TvShow)
+                            mediaKinds.flatMap { type ->
+                                val isMovie = type == MediaType.Movie
+                                client.discoverAdvanced(
+                                    isMovie = isMovie,
+                                    page = 1,
+                                    sortBy = f.sortBy,
+                                    genres = f.genres.takeIf { it.isNotEmpty() },
+                                    excludedGenres = f.excludedGenres.takeIf { it.isNotEmpty() },
+                                    originCountry = f.originCountry,
+                                    startYear = f.startYear ?: state.startYear,
+                                    endYear = f.endYear ?: state.endYear,
+                                    minScore = f.minScore,
+                                    maxScore = f.maxScore,
+                                    minVoteCount = f.minVoteCount,
+                                    minRuntime = f.minRuntime,
+                                    maxRuntime = f.maxRuntime,
+                                    watchProviderId = f.watchProviderId,
+                                    networkId = f.networkId,
+                                    keyword = f.keyword,
+                                    tvStatus = f.tvStatus,
+                                    tvType = f.tvType,
+                                    includeAdult = f.includeAdult
+                                )
+                            }.distinctBy { SearchRelevance.keyOf(it) }
+                        }
                     }
                     onPlatformCompleted(res) { it.copy(tmdbResults = res, isLoadingTmdb = false) }
                     res
                 }
 
                 val shikimoriDef = async(Dispatchers.IO) {
+                    val f = state.shikimoriSpecificFilters
+                    suspend fun searchShikimori(type: MediaType) = KitsugiShikimoriClient.searchMediaAdvanced(
+                        mediaType = type,
+                        query = queryText,
+                        page = 1,
+                        limit = allShelfFetchLimit,
+                        order = f.order,
+                        kinds = f.kinds.takeIf { it.isNotEmpty() },
+                        statuses = f.statuses.takeIf { it.isNotEmpty() },
+                        season = f.season,
+                        score = f.minScore,
+                        duration = f.duration,
+                        rating = f.rating,
+                        genres = f.genres.takeIf { it.isNotEmpty() },
+                        excludedGenres = f.excludedGenres.takeIf { it.isNotEmpty() },
+                        studioId = f.studioId,
+                        publisherId = f.publisherId,
+                        censored = f.censored
+                    )
                     val res = fetchMediaShelf(
                         active = plan.shikimori,
-                        anime = { KitsugiShikimoriClient.searchAnime(queryText, limit = allShelfFetchLimit * 2) },
-                        manga = {
-                            KitsugiShikimoriClient.searchMediaAdvanced(
-                                mediaType = MediaType.Manga,
-                                query = queryText,
-                                limit = allShelfFetchLimit
-                            )
-                        }
+                        anime = { searchShikimori(MediaType.Anime) },
+                        manga = { searchShikimori(MediaType.Manga) }
                     )
                     onPlatformCompleted(res) { it.copy(shikimoriResults = res, isLoadingShikimori = false) }
                     res
                 }
 
                 val bangumiDef = async(Dispatchers.IO) {
+                    val f = state.bangumiSpecificFilters
+                    suspend fun searchBangumi(type: MediaType) = KitsugiBangumiClient.searchMediaAdvanced(
+                        mediaType = type,
+                        query = queryText,
+                        page = 1,
+                        limit = BangumiApiClient.SEARCH_PAGE_SIZE,
+                        sort = f.sort,
+                        tags = f.tags,
+                        yearFrom = f.yearFrom,
+                        yearTo = f.yearTo,
+                        minScore = f.minScore,
+                        includeAdult = f.nsfw || showAdult
+                    )
                     val res = fetchMediaShelf(
                         active = plan.bangumi,
-                        anime = {
-                            KitsugiBangumiClient.searchAnime(
-                                queryText,
-                                limit = BangumiApiClient.SEARCH_PAGE_SIZE,
-                                includeAdult = showAdult
-                            )
-                        },
-                        manga = {
-                            KitsugiBangumiClient.searchManga(
-                                queryText,
-                                limit = allShelfFetchLimit,
-                                includeAdult = showAdult
-                            )
-                        }
+                        anime = { searchBangumi(MediaType.Anime) },
+                        manga = { searchBangumi(MediaType.Manga) }
                     )
                     onPlatformCompleted(res) { it.copy(bangumiResults = res, isLoadingBangumi = false) }
                     res
                 }
 
                 val kitsuDef = async(Dispatchers.IO) {
+                    val f = state.kitsuSpecificFilters
                     val res = fetchMediaShelf(
                         active = plan.kitsu,
                         anime = {
                             KitsuExploreClient.searchMediaAdvanced(
                                 mediaType = MediaType.Anime,
                                 query = queryText,
-                                limit = allShelfFetchLimit
+                                limit = allShelfFetchLimit,
+                                sort = f.sort,
+                                subtypes = f.subtypes.takeIf { it.isNotEmpty() },
+                                statuses = f.statuses.takeIf { it.isNotEmpty() },
+                                season = f.season,
+                                seasonYear = f.seasonYear,
+                                categories = f.categories.takeIf { it.isNotEmpty() },
+                                ageRating = f.ageRating,
+                                streamers = f.streamers.takeIf { it.isNotEmpty() },
+                                minRating = f.minRating
                             )
                         },
                         manga = {
@@ -1843,7 +1941,15 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                                 mediaType = MediaType.Manga,
                                 query = queryText,
                                 limit = allShelfFetchLimit,
-                                subtypes = kitsuSubtypes
+                                sort = f.sort,
+                                subtypes = kitsuSubtypes ?: f.subtypes.takeIf { it.isNotEmpty() },
+                                statuses = f.statuses.takeIf { it.isNotEmpty() },
+                                season = f.season,
+                                seasonYear = f.seasonYear,
+                                categories = f.categories.takeIf { it.isNotEmpty() },
+                                ageRating = f.ageRating,
+                                streamers = f.streamers.takeIf { it.isNotEmpty() },
+                                minRating = f.minRating
                             )
                         }
                     )
@@ -1852,12 +1958,28 @@ class SearchViewModel(application: Application) : AndroidViewModel(application) 
                 }
 
                 val simklDef = async(Dispatchers.IO) {
+                    val f = state.simklSpecificFilters
                     val res = fetchSingleShelf(active = plan.simkl) {
-                        SimklApiClient().search(
-                            queryText,
-                            type = scope.simklTypeFilter,
-                            limit = allShelfFetchLimit
-                        )
+                        val client = SimklApiClient()
+                        if (queryText.isNotBlank() && f.activeCount == 0) {
+                            client.search(
+                                queryText,
+                                type = scope.simklTypeFilter,
+                                limit = allShelfFetchLimit
+                            )
+                        } else {
+                            client.searchAdvanced(
+                                type = scope.simklTypeFilter ?: "anime",
+                                query = queryText,
+                                subtype = f.subtype,
+                                genre = f.genre,
+                                country = f.country,
+                                year = f.year,
+                                sort = f.sort,
+                                limit = allShelfFetchLimit,
+                                page = 1
+                            )
+                        }
                     }
                     onPlatformCompleted(res) { it.copy(simklResults = res, isLoadingSimkl = false) }
                     res

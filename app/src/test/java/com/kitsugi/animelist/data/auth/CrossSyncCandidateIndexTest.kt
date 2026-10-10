@@ -34,6 +34,17 @@ class CrossSyncCandidateIndexTest {
     }
 
     @Test
+    fun indexesBangumiStableIdCorrectly() {
+        val index = CrossSyncCandidateIndex<Group>()
+        val bangumiGroup = Group("bangumi")
+        val bangumiEntry = anime("Frieren", malId = 500_000_123, source = "bangumi")
+        index.add(bangumiGroup, bangumiEntry)
+
+        val queryEntry = anime("Sousou no Frieren", malId = 500_000_123, source = "bangumi")
+        assertEquals(setOf(bangumiGroup), index.possibleMatches(queryEntry))
+    }
+
+    @Test
     fun indexPartitionsTitlesByMediaTypeAndDoesNotReturnUnrelatedGroups() {
         val index = CrossSyncCandidateIndex<Group>()
         val groups = (0 until 2_000).map { position ->
@@ -55,7 +66,8 @@ class CrossSyncCandidateIndexTest {
         malId: Int? = null,
         titleEnglish: String? = null,
         titleJapanese: String? = null,
-        year: Int? = null
+        year: Int? = null,
+        source: String = if (malId == null) "manual" else "mal"
     ) = MediaEntry(
         id = 1,
         title = title,
@@ -64,7 +76,7 @@ class CrossSyncCandidateIndexTest {
         score = null,
         progress = 0,
         total = null,
-        source = if (malId == null) "manual" else "mal",
+        source = source,
         malId = malId,
         titleEnglish = titleEnglish,
         titleJapanese = titleJapanese,

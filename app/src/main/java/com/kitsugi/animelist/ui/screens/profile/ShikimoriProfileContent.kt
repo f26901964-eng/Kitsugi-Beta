@@ -40,6 +40,7 @@ import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.app.KitsugiProfileViewModel
 import com.kitsugi.animelist.ui.app.ProfileFavoriteItem
 import com.kitsugi.animelist.ui.app.ShikimoriProfileState
+import com.kitsugi.animelist.ui.components.KitsugiNsfwImage
 import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
@@ -721,9 +722,12 @@ private fun ShikimoriRatesTab(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         if (!item.imageUrl.isNullOrBlank()) {
-                            AsyncImage(
+                            // 18+ blur burada da geçerli: kart, kullanıcının ayarına göre
+                            // bulanıklaştırılır (düz AsyncImage sızıntıya yol açardı).
+                            KitsugiNsfwImage(
                                 model = item.imageUrl,
                                 contentDescription = item.title,
+                                isAdult = item.isAdult,
                                 modifier = Modifier
                                     .size(44.dp, 60.dp)
                                     .clip(RoundedCornerShape(8.dp)),

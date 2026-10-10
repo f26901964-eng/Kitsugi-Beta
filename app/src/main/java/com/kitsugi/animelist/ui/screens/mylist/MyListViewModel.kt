@@ -54,10 +54,11 @@ class MyListViewModel(application: Application) : AndroidViewModel(application) 
             // Kitsu kimlik alanını kanonik stableId uzayına taşı (eski sürüm import'ları
             // bu alana gerçek MAL ID yazıyordu → ayrıntı sayfası alakasız veri açıyordu)
             KitsuIdentityMigration.runIfNeeded(context, dao)
-            // Eski sürümlerde Shikimori import'u +18 (rx/hentai) tespiti yapamadığı için
-            // tüm kayıtlar isAdult=false yazılmıştı → liste sayfasında blur uygulanmıyordu.
-            // Mevcut kayıtları GraphQL üzerinden yeniden kontrol edip işaretle.
-            com.kitsugi.animelist.ui.screens.mylist.ShikimoriAdultFlagMigration.runIfNeeded(context, dao)
+            // +18 blur'unun TÜM kaynaklarda uygulanması için eksik yetişkin işaretlerini
+            // kimlik üzerinden tamamla: Simkl/Shikimori/Bangumi liste API'leri `adult`
+            // alanını taşımadığından satırlar isAdult=false yazılıyordu → Listem (Simkl)
+            // ve "Tümü" sekmesinde afişler bulanıklanmıyordu.
+            AdultFlagBackfillMigration.runIfNeeded(context, dao)
         }
     }
 

@@ -583,8 +583,18 @@ internal fun ApiGenresChipRow(
 internal fun ApiInfoSection(
     detail: KitsugiMediaDetail,
     mediaType: MediaType,
-    onSearchQuery: (String) -> Unit = {}
+    fallbackYear: Int? = null,
+    onSearchQuery: (String) -> Unit = {},
+    onSeasonClick: (com.kitsugi.animelist.ui.screens.search.DetailSeasonMetadata) -> Unit = {}
 ) {
+    val seasonMetadata = com.kitsugi.animelist.ui.screens.search.resolveDetailSeasonMetadata(
+        rawSeason = detail.rawSeason ?: detail.season,
+        displayedSeason = detail.season,
+        seasonYear = detail.seasonYear,
+        startDate = detail.startDate,
+        fallbackYear = detail.year ?: fallbackYear,
+        deriveFromDate = mediaType == MediaType.Anime
+    )
     SelectionContainer {
         Column(
             modifier = Modifier
@@ -603,7 +613,7 @@ internal fun ApiInfoSection(
             val synonymNames = cleanDetailSynonyms(detail.synonyms)
             val rows = buildList {
                 if (!detail.status.isNullOrBlank()) add("Durum" to detail.status)
-                if (!detail.season.isNullOrBlank()) add("Sezon" to detail.season)
+                seasonMetadata.displayLabel?.let { add("Sezon" to it) }
                 if (!detail.startDate.isNullOrBlank()) add("Başlangıç" to detail.startDate)
                 if (!detail.endDate.isNullOrBlank()) add("Bitiş" to detail.endDate)
                 if (!detail.sourceMaterial.isNullOrBlank()) add("Kaynak" to detail.sourceMaterial)
@@ -619,8 +629,10 @@ internal fun ApiInfoSection(
             }
 
             rows.forEachIndexed { index, (label, value) ->
-                val onValueClick = if (label == "Sezon") {
-                    { onSearchQuery(value) }
+                val onValueClick = if (
+                    label == "Sezon" && seasonMetadata.apiSeason != null && seasonMetadata.year != null
+                ) {
+                    { onSeasonClick(seasonMetadata) }
                 } else {
                     null
                 }

@@ -473,7 +473,9 @@ internal object KitsugiMalDetailClient {
                     rank = rank,
                     popularityRank = popularityRank,
                     scoredBy = scoredBy,
-                    members = members
+                    members = members,
+                    format = data.optNullableString("type"),
+                    rawFormat = data.optNullableString("type")
                 )
                 } // end use{}
                 if (result != null) return result
@@ -749,7 +751,9 @@ internal object KitsugiMalDetailClient {
                 rank = rank,
                 popularityRank = popularityRank,
                 scoredBy = scoredBy,
-                members = members
+                members = members,
+                format = d.optNullableString("type"),
+                rawFormat = d.optNullableString("type")
             )
         } catch (e: Exception) {
             Log.e(TAG, "parseOfficialMalDetailJson: Parse error: ${e.message}")

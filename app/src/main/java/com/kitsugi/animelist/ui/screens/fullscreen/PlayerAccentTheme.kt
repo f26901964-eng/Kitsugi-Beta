@@ -6,6 +6,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.luminance
 import com.kitsugi.animelist.ui.theme.KitsugiColors
+import com.kitsugi.animelist.ui.theme.onAccentColor
 
 /**
  * Medya oynatıcının (ana ekran, sheet'ler, dialog'lar, sliderlar, butonlar) tamamını
@@ -19,7 +20,8 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 @Composable
 fun PlayerAccentTheme(content: @Composable () -> Unit) {
     val accent = KitsugiColors.Accent
-    val onAccent = if (accent.luminance() > 0.5f) Color.Black else Color.White
+    // Zemin koyuluğuna göre siyah-beyaz arası otomatik geçiş (tüm uygulamayla aynı mekanizma)
+    val onAccent = onAccentColor(accent)
     val base = MaterialTheme.colorScheme
     val scheme = base.copy(
         primary = accent,
@@ -49,5 +51,4 @@ fun playerSurfaceColor(alpha: Float = 1f): Color =
 
 /** Oynatıcı içinde kullanılan vurgu renginin üstündeki okunabilir metin/ikon rengi. */
 @Composable
-fun playerOnAccentColor(): Color =
-    if (KitsugiColors.Accent.luminance() > 0.5f) Color.Black else Color.White
+fun playerOnAccentColor(): Color = onAccentColor(KitsugiColors.Accent)

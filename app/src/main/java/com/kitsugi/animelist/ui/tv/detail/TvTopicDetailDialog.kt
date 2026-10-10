@@ -37,6 +37,8 @@ import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.utils.tvClickable
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 
 @Composable
 fun TvTopicDetailDialog(
@@ -50,6 +52,9 @@ fun TvTopicDetailDialog(
     val coroutineScope = rememberCoroutineScope()
     val translationManager = remember { TranslationManager(context) }
 
+    var activeTopic by remember(topic) { mutableStateOf(topic) }
+    val isAniListTopic = activeTopic.source.equals("anilist", ignoreCase = true)
+
     var commentsList by remember { mutableStateOf<List<KitsugiForumReply>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var isLoadingMore by remember { mutableStateOf(false) }
@@ -60,27 +65,42 @@ fun TvTopicDetailDialog(
     var topicLikeCountState by remember(topic.id) { mutableStateOf(topic.likeCount) }
 
     var selectedLanguage by remember { mutableStateOf("original") }
-    var translatedTitle by remember { mutableStateOf<String?>(null) }
+    var translatedTitle by remember(topic.id) { mutableStateOf<String?>(null) }
+    var translatedBody by remember(topic.id) { mutableStateOf<String?>(null) }
     val translatedComments = remember { mutableStateMapOf<Int, String>() }
 
-    // Yorumları yükle
-    LaunchedEffect(topic.id) {
+    // Yorumları yükle + MAL OP zenginleştirmesi
+    LaunchedEffect(topic.id, topic.source) {
         isLoading = true
         page = 1
         hasMore = true
+        activeTopic = topic
         runCatching {
-            commentsList = apiClient.fetchForumTopicReplies(topic.id, page = 1)
+            coroutineScope {
+                val enrichDef = async { apiClient.enrichForumTopicIfNeeded(topic) }
+                val repliesDef = async {
+                    apiClient.fetchForumTopicReplies(topic.id, page = 1, source = topic.source)
+                }
+                activeTopic = enrichDef.await()
+                commentsList = repliesDef.await()
+            }
         }
         isLoading = false
     }
 
     // Çeviri işleme
-    LaunchedEffect(selectedLanguage, commentsList) {
+    LaunchedEffect(selectedLanguage, commentsList, activeTopic.body) {
         if (selectedLanguage == "turkish") {
             if (translatedTitle == null) {
                 coroutineScope.launch {
-                    val tr = translationManager.translateToTurkish(topic.title)
+                    val tr = translationManager.translateToTurkish(activeTopic.title)
                     if (tr.isNotBlank()) translatedTitle = tr
+                }
+            }
+            if (translatedBody == null && activeTopic.body.isNotBlank()) {
+                coroutineScope.launch {
+                    val tr = translationManager.translateToTurkish(activeTopic.body)
+                    if (tr.isNotBlank()) translatedBody = tr
                 }
             }
             commentsList.forEach { comment ->
@@ -102,7 +122,11 @@ fun TvTopicDetailDialog(
         coroutineScope.launch {
             try {
                 val nextPage = page + 1
-                val newComments = apiClient.fetchForumTopicReplies(topic.id, page = nextPage)
+                val newComments = apiClient.fetchForumTopicReplies(
+                    activeTopic.id,
+                    page = nextPage,
+                    source = activeTopic.source
+                )
                 if (newComments.isEmpty()) {
                     hasMore = false
                 } else {
@@ -138,7 +162,7 @@ fun TvTopicDetailDialog(
                         .fillMaxHeight(),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    val displayTitle = if (selectedLanguage == "turkish") translatedTitle ?: topic.title else topic.title
+                    val displayTitle = if (selectedLanguage == "turkish") translatedTitle ?: activeTopic.title else activeTopic.title
                     Text(
                         text = displayTitle,
                         color = KitsugiColors.TextPrimary,
@@ -159,16 +183,16 @@ fun TvTopicDetailDialog(
                                 .background(KitsugiColors.SurfaceSoft),
                             contentAlignment = Alignment.Center
                         ) {
-                            if (!topic.avatarUrl.isNullOrBlank()) {
+                            if (!activeTopic.avatarUrl.isNullOrBlank()) {
                                 AsyncImage(
-                                    model = topic.avatarUrl,
-                                    contentDescription = topic.username,
+                                    model = activeTopic.avatarUrl,
+                                    contentDescription = activeTopic.username,
                                     modifier = Modifier.fillMaxSize(),
                                     contentScale = ContentScale.Crop
                                 )
                             } else {
                                 Text(
-                                    text = topic.username.take(1).uppercase(),
+                                    text = activeTopic.username.take(1).uppercase(),
                                     color = KitsugiColors.TextMuted,
                                     fontWeight = FontWeight.Bold,
                                     fontSize = 12.sp
@@ -178,14 +202,14 @@ fun TvTopicDetailDialog(
 
                         Column {
                             Text(
-                                text = topic.username,
+                                text = activeTopic.username,
                                 color = KitsugiColors.TextPrimary,
                                 fontSize = 13.sp,
                                 fontWeight = FontWeight.Bold
                             )
-                            if (!topic.dateText.isNullOrBlank()) {
+                            if (!activeTopic.dateText.isNullOrBlank()) {
                                 Text(
-                                    text = topic.dateText,
+                                    text = activeTopic.dateText.orEmpty(),
                                     color = KitsugiColors.TextSecondary,
                                     fontSize = 11.sp
                                 )
@@ -195,55 +219,55 @@ fun TvTopicDetailDialog(
 
                     Divider(color = KitsugiColors.SurfaceSoft)
 
-                    // Beğeni Butonu
-                    var isLikeFocused by remember { mutableStateOf(false) }
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(12.dp))
-                            .background(if (isLikeFocused) Color.White.copy(alpha = 0.1f) else KitsugiColors.Surface)
-                            .border(
-                                width = if (isLikeFocused) 1.5.dp else 0.dp,
-                                color = if (isLikeFocused) Color.White else Color.Transparent,
-                                shape = RoundedCornerShape(12.dp)
-                            )
-                            .onFocusChanged { isLikeFocused = it.isFocused }
-                            .tvClickable(shape = RoundedCornerShape(12.dp)) {
-                                coroutineScope.launch {
-                                    val success = apiClient.toggleLike(topic.id, "THREAD")
-                                    if (success) {
-                                        isTopicLikedState = !isTopicLikedState
-                                        topicLikeCountState = if (isTopicLikedState) topicLikeCountState + 1 else topicLikeCountState - 1
-                                    } else {
-                                        Toast.makeText(context, "Lütfen önce giriş yapın", Toast.LENGTH_SHORT).show()
+                    if (isAniListTopic) {
+                        // Beğeni Butonu
+                        var isLikeFocused by remember { mutableStateOf(false) }
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(if (isLikeFocused) Color.White.copy(alpha = 0.1f) else KitsugiColors.Surface)
+                                .border(
+                                    width = if (isLikeFocused) 1.5.dp else 0.dp,
+                                    color = if (isLikeFocused) Color.White else Color.Transparent,
+                                    shape = RoundedCornerShape(12.dp)
+                                )
+                                .onFocusChanged { isLikeFocused = it.isFocused }
+                                .tvClickable(shape = RoundedCornerShape(12.dp)) {
+                                    coroutineScope.launch {
+                                        val success = apiClient.toggleLike(activeTopic.id, "THREAD")
+                                        if (success) {
+                                            isTopicLikedState = !isTopicLikedState
+                                            topicLikeCountState = if (isTopicLikedState) topicLikeCountState + 1 else topicLikeCountState - 1
+                                        } else {
+                                            Toast.makeText(context, "Lütfen önce giriş yapın", Toast.LENGTH_SHORT).show()
+                                        }
                                     }
                                 }
-                            }
-                            .padding(12.dp)
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.Center,
-                            modifier = Modifier.fillMaxWidth()
+                                .padding(12.dp)
                         ) {
-                            Icon(
-                                imageVector = if (isTopicLikedState) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                contentDescription = "Beğen",
-                                tint = if (isTopicLikedState) accentColor else KitsugiColors.TextSecondary,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = "$topicLikeCountState Beğeni",
-                                color = KitsugiColors.TextPrimary,
-                                style = MaterialTheme.typography.bodyMedium,
-                                fontWeight = FontWeight.Bold
-                            )
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.Center,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Icon(
+                                    imageVector = if (isTopicLikedState) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                                    contentDescription = "Beğen",
+                                    tint = if (isTopicLikedState) accentColor else KitsugiColors.TextSecondary,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "$topicLikeCountState Beğeni",
+                                    color = KitsugiColors.TextPrimary,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
                         }
-                    }
 
-                    // Abone Ol Butonu (Jikan/MAL hariç)
-                    if (source.lowercase() != "jikan" && source.lowercase() != "mal") {
+                        // Abone Ol Butonu
                         var isSubFocused by remember { mutableStateOf(false) }
                         Box(
                             modifier = Modifier
@@ -258,7 +282,7 @@ fun TvTopicDetailDialog(
                                 .onFocusChanged { isSubFocused = it.isFocused }
                                 .tvClickable(shape = RoundedCornerShape(12.dp)) {
                                     coroutineScope.launch {
-                                        val success = apiClient.toggleThreadSubscription(topic.id)
+                                        val success = apiClient.toggleThreadSubscription(activeTopic.id)
                                         if (success) {
                                             isSubscribed = !isSubscribed
                                             val msg = if (isSubscribed) "Abone olundu" else "Abonelik iptal edildi"
@@ -378,11 +402,16 @@ fun TvTopicDetailDialog(
                         .background(KitsugiColors.Surface)
                         .padding(12.dp)
                 ) {
-                    if (isLoading && commentsList.isEmpty()) {
+                    val displayBody = if (selectedLanguage == "turkish") {
+                        translatedBody ?: activeTopic.body
+                    } else {
+                        activeTopic.body
+                    }
+                    if (isLoading && commentsList.isEmpty() && displayBody.isBlank()) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             KitsugiPlasmaLoader(size = 48.dp)
                         }
-                    } else if (commentsList.isEmpty()) {
+                    } else if (commentsList.isEmpty() && displayBody.isBlank()) {
                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                             Text(
                                 text = "Yorum bulunmuyor veya bu kaynak çevrimdışı.",
@@ -396,6 +425,23 @@ fun TvTopicDetailDialog(
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                             contentPadding = PaddingValues(bottom = 16.dp)
                         ) {
+                            if (displayBody.isNotBlank()) {
+                                item {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clip(RoundedCornerShape(12.dp))
+                                            .background(KitsugiColors.Background)
+                                            .padding(12.dp)
+                                    ) {
+                                        KitsugiMarkdownText(
+                                            text = displayBody,
+                                            fontSize = 14.sp,
+                                            lineHeight = 21.sp
+                                        )
+                                    }
+                                }
+                            }
                             items(commentsList, key = { it.id }) { comment ->
                                 val displayCommentText = if (selectedLanguage == "turkish") {
                                     translatedComments[comment.id] ?: comment.comment

@@ -4,6 +4,7 @@ import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.model.WatchStatus
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -152,6 +153,46 @@ class MediaEntryMatchesTest {
         val stored = entry(title = "Eski Kayıtlı Ad", malId = 500_000_876, source = "bangumi")
         val asResult = result(title = "Clannad: After Story", malId = 500_000_876, source = "bangumi")
         assertTrue(stored.matches(asResult))
+    }
+
+    @Test
+    fun `source scoped Bangumi lookup does not borrow a matching Simkl entry`() {
+        val bangumiResult = result(
+            title = "Steins;Gate",
+            malId = 500_000_876,
+            year = 2011,
+            source = "bangumi",
+            realMalId = 9253,
+            tmdbId = 12345
+        )
+        val simklCopy = entry(
+            title = "Steins;Gate",
+            malId = 987654,
+            year = 2011,
+            source = "simkl",
+            tmdbId = 12345
+        )
+
+        assertTrue(simklCopy.matches(bangumiResult))
+        assertFalse(simklCopy.matchesInSource(bangumiResult))
+        assertNull(listOf(simklCopy).firstMatchingInSource(bangumiResult))
+    }
+
+    @Test
+    fun `source scoped lookup accepts Bangumi aliases and exact source ids`() {
+        val storedBangumi = entry(
+            title = "Old title",
+            malId = 500_000_876,
+            source = "bgm"
+        )
+        val bangumiResult = result(
+            title = "New title",
+            malId = 500_000_876,
+            source = "bangumi"
+        )
+
+        assertTrue(storedBangumi.matchesInSource(bangumiResult))
+        assertTrue(listOf(storedBangumi).firstMatchingInSource(bangumiResult) === storedBangumi)
     }
 
     @Test

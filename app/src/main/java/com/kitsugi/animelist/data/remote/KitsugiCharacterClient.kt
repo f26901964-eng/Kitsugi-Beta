@@ -41,6 +41,12 @@ class KitsugiCharacterClient {
         /** Karakter adı aramaları için toplam süre bütçesi — sekme bunu beklemez. */
         private const val ANILIST_CHAR_IMAGE_FALLBACK_BUDGET_MS = 6_000L
 
+        /**
+         * TMDB kaynaklı animasyon/anime içeriklerinde AniList görsel bulamadığında denenen
+         * MAL/Jikan, Shikimori ve Kitsu yedeklerinin her biri için ayrı süre bütçesi.
+         */
+        private const val CROSS_SOURCE_CHAR_IMAGE_BUDGET_MS = 5_000L
+
         /** İsim eşleştirmede "aynı kişi mi" ayrımını bozan sıfatlar. */
         private val ANI_CHAR_NAME_MODIFIERS = setOf(
             "former", "self", "child", "young", "older", "future", "past",
@@ -147,29 +153,41 @@ class KitsugiCharacterClient {
                     }
                 }
                 "simkl" -> {
+                    val simklCross = KitsugiSimklDetailClient.resolveSimklCrossIds(
+                        simklId = externalId,
+                        mediaType = mediaType,
+                        hintTmdbId = tmdbId,
+                        hintMalId = realMalId
+                    )
                     val simklDetail = DetailCache.getMediaDetail("simkl", externalId)
-                    val malId = realMalId?.takeIf { it > 0 } ?: simklDetail?.realMalId
+                    val malId = realMalId?.takeIf { it > 0 && it != externalId }
+                        ?: simklCross.malId
+                        ?: simklDetail?.realMalId
                     if (malId != null && malId > 0) {
-                        val malList = fetchCharacters("jikan", malId, MediaType.Anime, malId, null, title)
+                        val malList = fetchCharacters("jikan", malId, MediaType.Anime, malId, simklCross.tmdbId ?: tmdbId, title ?: simklCross.title)
                         if (malList.isNotEmpty()) return@withContext malList
-                        val aniList = fetchCharacters("anilist", malId, MediaType.Anime, malId, null, title)
+                        val aniList = fetchCharacters("anilist", malId, MediaType.Anime, malId, simklCross.tmdbId ?: tmdbId, title ?: simklCross.title)
+                        if (aniList.isNotEmpty()) return@withContext aniList
+                    } else if (simklCross.aniListId != null && simklCross.aniListId > 0) {
+                        val aniList = fetchCharacters("anilist", 100_000_000 + simklCross.aniListId, MediaType.Anime, null, simklCross.tmdbId ?: tmdbId, title ?: simklCross.title)
                         if (aniList.isNotEmpty()) return@withContext aniList
                     }
-                    val resolvedTmdb = tmdbId ?: run {
+                    val resolvedTmdb = tmdbId ?: simklCross.tmdbId ?: run {
                         val malIdForResolve = malId ?: simklDetail?.realMalId
-                        KitsugiIdResolver.resolveIds(malId = malIdForResolve, aniListId = null, tmdbId = tmdbId).tmdbId
+                        KitsugiIdResolver.resolveIds(malId = malIdForResolve, aniListId = simklCross.aniListId, tmdbId = tmdbId).tmdbId
                     }
                     if (resolvedTmdb != null && resolvedTmdb > 0) {
-                        val isMovie = mediaType == MediaType.Movie
+                        val isMovie = simklCross.isMovie || mediaType == MediaType.Movie
                         val isRealMedia = simklDetail?.type == MediaType.TvShow || simklDetail?.type == MediaType.Movie ||
                                           mediaType == MediaType.TvShow || (mediaType == MediaType.Movie && malId == null)
                         val (tmdbChars, _) = TmdbApiClient().fetchCredits(resolvedTmdb, isMovie)
-                        val titleCandidates = buildTitleCandidates(title, simklDetail)
+                        val titleCandidates = buildTitleCandidates(title ?: simklCross.title, simklDetail)
                         if (tmdbChars.isNotEmpty()) {
                             return@withContext if (isRealMedia) {
                                 tmdbChars.map { it.copy(isRealMediaRole = true) }
                             } else {
-                                enrichCharactersWithAnimeImages(tmdbChars, titleCandidates, malId)
+                                val aniListEnriched = enrichCharactersWithAnimeImages(tmdbChars, titleCandidates, malId)
+                                enrichFromCrossSourceCharacterLists(aniListEnriched, mediaType, malId)
                             }
                         }
                     }
@@ -191,7 +209,8 @@ class KitsugiCharacterClient {
                             if (isRealMedia) {
                                 tmdbChars.map { it.copy(isRealMediaRole = true) }
                             } else {
-                                enrichCharactersWithAnimeImages(tmdbChars, titleCandidates, effectiveMalId)
+                                val aniListEnriched = enrichCharactersWithAnimeImages(tmdbChars, titleCandidates, effectiveMalId)
+                                enrichFromCrossSourceCharacterLists(aniListEnriched, mediaType, effectiveMalId)
                             }
                         } else {
                             tmdbChars
@@ -201,59 +220,7 @@ class KitsugiCharacterClient {
                 "jikan", "mal" -> {
                     val jikanId = MalJikanMediaSupport.resolveMalId(source, externalId, realMalId)
                         ?: return@withContext emptyList()
-                    val endpoint = MalJikanMediaSupport.jikanEndpoint(mediaType)
-                    val url = URL("https://api.jikan.moe/v4/$endpoint/$jikanId/characters")
-                    Log.d(TAG, "Jikan isteği: $url")
-                    val jikanList = runCatching {
-                        KitsugiApiBase.runWithRateLimit {
-                            // 429/5xx'te kısa bekleme ile yeniden dene — Jikan rate-limit'inde
-                            // karakter listesi "eksik" dönmüş olmasın.
-                            val response = KitsugiApiBase.executeGetRequestResilient(url)
-                            if (response == null) {
-                                Log.w(TAG, "Jikan yanıt null: $url")
-                                return@runWithRateLimit emptyList()
-                            }
-                            if (!response.trimStart().startsWith('{')) {
-                                Log.e(TAG, "Jikan HTML/CF yanıtı (ilk 200 char): ${response.take(200)}")
-                                return@runWithRateLimit emptyList()
-                            }
-                            val root = JSONObject(response)
-                            val data = root.optJSONArray("data")
-                            if (data == null) {
-                                Log.w(TAG, "Jikan 'data' alanı yok. Root keys: ${root.keys().asSequence().toList()}")
-                                return@runWithRateLimit emptyList()
-                            }
-                            Log.d(TAG, "Jikan karakter sayısı: ${data.length()}")
-                            val list = mutableListOf<KitsugiCharacter>()
-                            for (i in 0 until data.length()) {
-                                val item = data.optJSONObject(i) ?: continue
-                                val charObj = item.optJSONObject("character") ?: continue
-                                val id = charObj.optInt("mal_id")
-                                val name = (charObj.optNullableString("name") ?: "Bilinmeyen").toFriendlyName()
-                                val role = (item.optNullableString("role") ?: "Bilinmeyen").toTurkishCharacterRole()
-                                val imageUrl = charObj.optJSONObject("images")?.optJSONObject("jpg")?.optNullableString("image_url")
-
-                                val vaList = mutableListOf<KitsugiVoiceActor>()
-                                val vaArray = item.optJSONArray("voice_actors")
-                                if (vaArray != null) {
-                                    for (j in 0 until vaArray.length()) {
-                                        val vaItem = vaArray.optJSONObject(j) ?: continue
-                                        val vaPerson = vaItem.optJSONObject("person") ?: continue
-                                        val vaId = vaPerson.optInt("mal_id")
-                                        val vaName = (vaPerson.optNullableString("name") ?: "Bilinmeyen").toFriendlyName()
-                                        val vaLang = (vaItem.optNullableString("language") ?: "Bilinmeyen").toTurkishLanguage()
-                                        val vaImageUrl = vaPerson.optJSONObject("images")?.optJSONObject("jpg")?.optNullableString("image_url")
-                                        vaList.add(KitsugiVoiceActor(vaId, vaName, vaLang, vaImageUrl, source = "jikan"))
-                                    }
-                                }
-                                list.add(KitsugiCharacter(id, name, role, imageUrl, vaList, source = "jikan"))
-                            }
-                            list
-                        }
-                    }.getOrElse { err ->
-                        Log.e(TAG, "Jikan fetch exception: ${err.javaClass.simpleName}: ${err.message}", err)
-                        emptyList()
-                    }
+                    val jikanList = fetchJikanCharacterList(jikanId, mediaType)
 
                     if (jikanList.isNotEmpty()) {
                         jikanList
@@ -940,7 +907,7 @@ class KitsugiCharacterClient {
                 "kitsu" -> {
                     val kitsuDetail = runCatching {
                         val request = okhttp3.Request.Builder()
-                            .url("https://kitsu.io/api/edge/characters/$characterId")
+                            .url(KitsuApiHost.url("/characters/$characterId"))
                             .header("Accept", "application/vnd.api+json")
                             .header("User-Agent", "Kitsugi/1.0 (Android)")
                             .build()
@@ -1067,10 +1034,36 @@ class KitsugiCharacterClient {
         }
     }
 
+    /**
+     * AniList karakter düğümü: adı sorguyla eşleşiyor mu (birebir / jeton kümesi) ve
+     * karakterin yer aldığı yapımlardan hiçbiri +18 değil mi?
+     */
+    private fun isVerifiedAniListCharacterNode(node: JSONObject, query: String): Boolean {
+        val nameObj = node.optJSONObject("name") ?: return false
+        val candidates = mutableListOf<String>()
+        nameObj.optNullableString("userPreferred")?.let { candidates.add(it) }
+        nameObj.optNullableString("full")?.let { candidates.add(it) }
+        nameObj.optNullableString("native")?.let { candidates.add(it) }
+        val alts = nameObj.optJSONArray("alternative")
+        if (alts != null) {
+            for (i in 0 until alts.length()) {
+                val alt = alts.optString(i)
+                if (alt.isNotBlank() && alt != "null") candidates.add(alt)
+            }
+        }
+        if (candidates.none { KitsugiPersonImageAggregator.nameMatches(query, it) }) return false
+        val edges = node.optJSONObject("media")?.optJSONArray("edges") ?: return true
+        for (i in 0 until edges.length()) {
+            val media = edges.optJSONObject(i)?.optJSONObject("node") ?: continue
+            if (media.optBoolean("isAdult", false)) return false
+        }
+        return true
+    }
+
     private suspend fun fetchAniListCharacterByName(name: String): KitsugiCharacterDetail? {
         val query = """
             query (${'$'}search: String) {
-                Page(page: 1, perPage: 1) {
+                Page(page: 1, perPage: 8) {
                     characters(search: ${'$'}search) {
                         id
                         isFavourite
@@ -1099,6 +1092,7 @@ class KitsugiCharacterClient {
                                 node {
                                     id
                                     idMal
+                                    isAdult
                                     title { userPreferred english romaji native }
                                     coverImage { large }
                                     type
@@ -1116,13 +1110,20 @@ class KitsugiCharacterClient {
                 }
             }
         """.trimIndent()
+        // Kimliksiz isim araması yalnızca ayırt edici adlarla yapılır (ör. "Suzu" değil).
+        if (!KitsugiPersonImageAggregator.isUnambiguousName(name)) return null
         val variables = JSONObject().put("search", name)
         return runCatching {
             val response = KitsugiApiBase.executeAniListQuery(query, variables) ?: return@runCatching null
             val root = JSONObject(response)
             val charactersArr = root.optJSONObject("data")?.optJSONObject("Page")?.optJSONArray("characters") ?: return@runCatching null
             if (charactersArr.length() == 0) return@runCatching null
-            val data = charactersArr.getJSONObject(0)
+            // İlk sonuç körlemesine alınmaz: yalnızca adı sorguyla eşleşen ve +18 yapımda
+            // geçmeyen karakter kabul edilir (aynı isimli başka karakterin verisi karışmaz).
+            val data = (0 until charactersArr.length())
+                .mapNotNull { charactersArr.optJSONObject(it) }
+                .firstOrNull { node -> isVerifiedAniListCharacterNode(node, name) }
+                ?: return@runCatching null
 
             val nameObj = data.optJSONObject("name")
             val personName = nameObj.aniListPersonName()
@@ -1248,6 +1249,188 @@ class KitsugiCharacterClient {
                 romanizedName = personName.romanized
             )
         }.getOrNull()
+    }
+
+    /**
+     * MAL/Jikan karakter listesini çeker. Hem standart Jikan akışında hem de TMDB/Simkl
+     * için görsel zincirinde (AniList'in bulamadığı yeni veya adı uyuşmayan yapımlarda)
+     * kullanılır.
+     */
+    private suspend fun fetchJikanCharacterList(malId: Int, mediaType: MediaType): List<KitsugiCharacter> {
+        val endpoint = MalJikanMediaSupport.jikanEndpoint(mediaType)
+        val url = URL("https://api.jikan.moe/v4/$endpoint/$malId/characters")
+        Log.d(TAG, "Jikan isteği: $url")
+        return runCatching {
+            KitsugiApiBase.runWithRateLimit {
+                val response = KitsugiApiBase.executeGetRequestResilient(url)
+                if (response == null) {
+                    Log.w(TAG, "Jikan yanıt null: $url")
+                    return@runWithRateLimit emptyList()
+                }
+                if (!response.trimStart().startsWith('{')) {
+                    Log.e(TAG, "Jikan HTML/CF yanıtı (ilk 200 char): ${response.take(200)}")
+                    return@runWithRateLimit emptyList()
+                }
+                val root = JSONObject(response)
+                val data = root.optJSONArray("data")
+                if (data == null) {
+                    Log.w(TAG, "Jikan 'data' alanı yok. Root keys: ${root.keys().asSequence().toList()}")
+                    return@runWithRateLimit emptyList()
+                }
+                Log.d(TAG, "Jikan karakter sayısı: ${data.length()}")
+                val list = mutableListOf<KitsugiCharacter>()
+                for (i in 0 until data.length()) {
+                    val item = data.optJSONObject(i) ?: continue
+                    val charObj = item.optJSONObject("character") ?: continue
+                    val id = charObj.optInt("mal_id")
+                    val name = (charObj.optNullableString("name") ?: "Bilinmeyen").toFriendlyName()
+                    val role = (item.optNullableString("role") ?: "Bilinmeyen").toTurkishCharacterRole()
+                    val imageUrl = charObj.optJSONObject("images")?.optJSONObject("jpg")?.optNullableString("image_url")
+
+                    val vaList = mutableListOf<KitsugiVoiceActor>()
+                    val vaArray = item.optJSONArray("voice_actors")
+                    if (vaArray != null) {
+                        for (j in 0 until vaArray.length()) {
+                            val vaItem = vaArray.optJSONObject(j) ?: continue
+                            val vaPerson = vaItem.optJSONObject("person") ?: continue
+                            val vaId = vaPerson.optInt("mal_id")
+                            val vaName = (vaPerson.optNullableString("name") ?: "Bilinmeyen").toFriendlyName()
+                            val vaLang = (vaItem.optNullableString("language") ?: "Bilinmeyen").toTurkishLanguage()
+                            val vaImageUrl = vaPerson.optJSONObject("images")?.optJSONObject("jpg")?.optNullableString("image_url")
+                            vaList.add(KitsugiVoiceActor(vaId, vaName, vaLang, vaImageUrl, source = "jikan"))
+                        }
+                    }
+                    list.add(KitsugiCharacter(id, name, role, imageUrl, vaList, source = "jikan"))
+                }
+                list
+            }
+        }.getOrElse { err ->
+            Log.e(TAG, "Jikan fetch exception: ${err.javaClass.simpleName}: ${err.message}", err)
+            emptyList()
+        }
+    }
+
+    /**
+     * TMDB/Simkl kaynaklı animasyon/anime karakterleri için çapraz kaynak görsel zinciri.
+     *
+     * Sırasıyla MAL/Jikan → Shikimori → Kitsu denenir; ilk görsel getiren kaynak kullanılır. AniList
+     * zaten [enrichCharactersWithAnimeImages] içinde denendi; burada geriye kalan
+     * kaynaklar sırayla denenir. Her adım yalnızca GÖRSELİ HÂLÂ BOŞ olan karakterler için
+     * ve yalnızca doğrulanmış [realMalId] varken çalışır (yanlış yapımın görseliyle
+     * eşleşmeyi önlemek için).
+     */
+    private suspend fun enrichFromCrossSourceCharacterLists(
+        characters: List<KitsugiCharacter>,
+        mediaType: MediaType,
+        realMalId: Int?
+    ): List<KitsugiCharacter> {
+        if (realMalId == null || realMalId <= 0) return characters
+        if (characters.none { it.imageUrl.isNullOrBlank() }) return characters
+
+        var current = characters
+
+        // 1) MAL/Jikan karakter listesi — realMalId doğrudan güvenilir bir kimliktir.
+        if (current.any { it.imageUrl.isNullOrBlank() }) {
+            val jikanChars = runCatching {
+                withTimeoutOrNull(CROSS_SOURCE_CHAR_IMAGE_BUDGET_MS) {
+                    fetchJikanCharacterList(realMalId, mediaType)
+                }
+            }.getOrNull().orEmpty()
+            if (jikanChars.isNotEmpty()) {
+                current = mergeImagesFromReferenceCharacters(current, jikanChars)
+            }
+        }
+
+        // 2) Shikimori karakter listesi — MAL → Shikimori eşlemesi (ARM) gerekir.
+        if (current.any { it.imageUrl.isNullOrBlank() }) {
+            val shikiChars = runCatching {
+                withTimeoutOrNull(CROSS_SOURCE_CHAR_IMAGE_BUDGET_MS) {
+                    val shikiId = KitsugiIdResolver.resolveShikimoriIdFromMal(realMalId)
+                    if (shikiId != null && shikiId > 0) {
+                        KitsugiShikimoriClient.fetchCharacters(mediaType, shikiId)
+                    } else emptyList()
+                }
+            }.getOrNull().orEmpty()
+            if (shikiChars.isNotEmpty()) {
+                current = mergeImagesFromReferenceCharacters(current, shikiChars)
+            }
+        }
+
+        // 3) Kitsu karakter listesi — MAL → Kitsu eşlemesi (ARM) gerekir.
+        if (current.any { it.imageUrl.isNullOrBlank() }) {
+            val kitsuChars = runCatching {
+                withTimeoutOrNull(CROSS_SOURCE_CHAR_IMAGE_BUDGET_MS) {
+                    val kitsuId = KitsugiIdResolver.resolveIds(
+                        malId = realMalId,
+                        aniListId = null,
+                        mediaType = mediaType
+                    ).kitsuId
+                    if (kitsuId != null && kitsuId > 0) {
+                        KitsuClient.fetchKitsuCharacters(kitsuId)
+                    } else emptyList()
+                }
+            }.getOrNull().orEmpty()
+            if (kitsuChars.isNotEmpty()) {
+                current = mergeImagesFromReferenceCharacters(current, kitsuChars)
+            }
+        }
+
+        return current
+    }
+
+    /**
+     * Görseli boş kalan karakterlere, başka bir kaynaktan gelen referans listesiyle ad
+     * eşleştirmesi yaparak görsel (ve eksikse kimlik) atar. Eşleşme bulunamazsa karakter
+     * değişmeden kalır — yanlış görsel asla atanmaz.
+     */
+    private fun mergeImagesFromReferenceCharacters(
+        characters: List<KitsugiCharacter>,
+        reference: List<KitsugiCharacter>
+    ): List<KitsugiCharacter> {
+        val withImages = reference.filter { !it.imageUrl.isNullOrBlank() }
+        if (withImages.isEmpty()) return characters
+
+        fun norm(s: String) = s.lowercase()
+            .replace(Regex("\\s*\\((?:voice|uncredited|uncredited voice|child)\\)", RegexOption.IGNORE_CASE), "")
+            .replace("ou", "o").replace("oo", "o").replace("oh", "o").replace("uu", "u")
+            .replace(Regex("[^a-z0-9]"), "")
+
+        fun getTokens(s: String): Set<String> = s.lowercase()
+            .replace(Regex("\\s*\\((?:voice|uncredited|uncredited voice|child)\\)", RegexOption.IGNORE_CASE), "")
+            .split(Regex("[^a-z0-9]+"))
+            .filter { it.length >= 2 }
+            .toSet()
+
+        return characters.map { char ->
+            if (!char.imageUrl.isNullOrBlank()) return@map char
+            val targetNorm = norm(char.name)
+            if (targetNorm.length < 2) return@map char
+            val targetTokens = getTokens(char.name)
+
+            val match = withImages.firstOrNull { norm(it.name) == targetNorm }
+                ?: withImages.firstOrNull { ref ->
+                    val refTokens = getTokens(ref.name)
+                    refTokens.isNotEmpty() && targetTokens.isNotEmpty() && refTokens == targetTokens
+                }
+                ?: withImages.firstOrNull { ref ->
+                    val refTokens = getTokens(ref.name)
+                    if (refTokens.isEmpty() || targetTokens.isEmpty()) return@firstOrNull false
+                    val firstShared = (refTokens.first() in targetTokens) || (targetTokens.first() in refTokens)
+                    if (!firstShared) return@firstOrNull false
+                    val intersection = refTokens.intersect(targetTokens)
+                    val union = refTokens.union(targetTokens)
+                    union.isNotEmpty() && intersection.size.toDouble() / union.size.toDouble() >= 0.5
+                }
+
+            if (match != null) {
+                char.copy(
+                    imageUrl = match.imageUrl,
+                    voiceActors = if (char.voiceActors.isEmpty()) match.voiceActors else char.voiceActors
+                )
+            } else {
+                char
+            }
+        }
     }
 
     private suspend fun enrichCharactersWithAnimeImages(

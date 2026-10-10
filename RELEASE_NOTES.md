@@ -1,5 +1,144 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.227)
+
+### 🎯 1. Kaynak Bazlı Arama & Bölüm Mekaniği: Film ve Dizi için Ayrı Boru Hatları (`CsStreamRunner.kt`, `CsTitleMatcher.kt`)
+- **Temel İlke:** Tüm kaynaklarda içerik araması artık YALNIZCA çıplak eser adıyla yapılır — sezon/bölüm bilgisi arama sorgusuna ASLA karışmaz. Hiçbir site (Türkçe/yabancı) "X 1. Sezon 1. Bölüm" sorgusunu çözemez; doğru akış oturtuldu: başlık ara → içerik sayfasına gir → (dizi ise) sezon+bölüm sayfasına in → video verilerini çek.
+- **Film Mekaniği (ayrı boru hattı):** Filmler sezon mantığıyla depolanmaz; eşleşen içerik sayfası doğrudan video sayfası olarak kullanılır (dataUrl/url → loadLinks), bölüm eşleştirme yapılmaz.
+- **Dizi/Anime Mekaniği (ayrı boru hattı):** Yüklenen sayfanın bölüm listesinden hedef S+E seçilir; eklenti bölüm listesi doldurmuyorsa (sayfa-tipli plugin) sayfa URL'si bölüm kapsayıcısı olarak kullanılır.
+- **Sezon Sayfası Gezinmesi:** Bölüm listesi dolu ama hedef sezon sayfada yoksa site sezonu ayrı tutuyordur; eklentinin KENDİ search+load akışıyla sezon sayfasına inilir — kaynak-bağımsız, tüm eklentilerde ortak genel adım.
+- **Eski Hata Düzeltildi:** Bölüm listesi dolu olup eşleşme yoksa loadLinks'e DİZİ sayfası URL'si veriliyordu — 25 sn'lik link çıkarma bütçesi çöpe gidiyor, kart "akış bulunamadı" diyordu. Artık gerçek sebep tracker'a yazılır ve sezon gezinmesi denenir.
+- **Sezon Girdisi Araması (güvenlik ağı):** Sezon ekli sorgular ("X 2. Sezon") asla birincil arama değildir; yalnızca çıplak başlık araması sıfır sonuç döndürürse (sezonları ayrı indeksleyen siteler için) denenir.
+- **Sayfa Tipine Göre Boru Hattı:** Yanlış sınıflandırma durumunda (film bayrağıyla gelip kaynak "tek bölüm" dizi girdisi döndürürse — Türkçe sitelerde çok yaygın) boru hattı yüklenen sayfanın gerçek tipine göre seçilir; mekanik bayrağa değil kaynağa bakar.
+
+### 🛡️ 2. Cloudflare WebView Bellek Sızıntısı ve Çökme Riski (`CloudflareInterceptor.kt`, `KitsugiApplication.kt`, `CsCfWarmupManager.kt`)
+- **Başarılı Challenge Sonrası WebView Sızıntısı Giderildi:** `cf_clearance` bulunduğunda bekleme sayacı tamamlanıyor, fakat eski timeout kolu yalnızca sayaç hâlâ açıkken `destroy()` çağırıyordu. Başarılı çözüm yolunda WebView açık kalıyor; sonraki challenge'larda native Chromium/RenderThread kaynaklarının birikmesine yol açabiliyordu. Başarı, zaman aşımı ve iptal artık ana thread'de tek seferlik temizliğe gidiyor.
+- **Başlangıçta Toplu WebView Açılması Kaldırıldı:** Açılışta 14 adede kadar gizli WebView ile Cloudflare warmup yapılmıyor. Challenge çözümü yalnızca ihtiyaç duyulan host için tembel (lazy) başlatılıyor.
+- **Güvenli Teardown:** WebView yok edilmeden hemen önce `about:blank` yüklenmesi kaldırıldı; view hiyerarşisinden sökme, yükü durdurma, client referanslarını kesme ve tek `destroy()` sırası kullanılıyor.
+
+### 🌐 3. Kaynak Bazlı Liste Eşleştirme & Yetişkin İçerik Bulanıklığı (`KitsugiModels.kt`, `AppRoot.kt`, `AppRootDetailPages.kt`)
+- **Kaynak Bazlı Ayrım (`matchesInSource`, `firstMatchingInSource`):** Liste aidiyeti ve detay sayfası kontrolleri artık platform kaynağına duyarlıdır. Bangumi (`bgm`, `bgm.tv`) kayıtları Bangumi düzenleyicisine yönlendirilir; Simkl veya AniList eşleşmeleri Bangumi öğelerinin listede görünmesine sebep olmaz.
+- **Profil Favorilerinde Başa Dön Butonu:** Profil favorilerindeki "başa dön" butonu, kaydırma öncesinde ve sonrasında paylaşılan alt çubuk görünürlüğünü sıfırlar.
+- **Yetişkin İçerik Bulanıklığı Taşıması:** AniList profil favorilerindeki yetişkin medya durumu detay navigasyonuna taşınır; sinematik yükleme posterleri ilk kareden itibaren bulanıklık ayarına uyar.
+
+### 🏷️ 4. Ortak Küresel Etiket ve Tür Çevirileri (`BangumiTagDictionary.kt`, `SearchTranslation.kt`, `GenreLabelFormatter.kt`, `KitsugiTranslations.kt`)
+- **Tüm Kaynaklarda Birlik:** AniList, MAL, Kitsu, Shikimori ve Bangumi için etiket ve tür çevirileri tek ortak BangumiTagDictionary ve SearchTranslation tablosu üzerinden hizalandı.
+- **Çevrilen ve İyileştirilen Etiketler:** Heteroseksüel, Erkek/Kadın Baş Karakter, Ters Harem, Ağırlıklı Kadro etiketleri, Klon/Klonlar, Uzaylılar, Poliamori, Kuudere, Çıplaklık, Ansambl Kadro, Fantastik, Günlük Yaşam, Romantik, Isekai, Cyberpunk, Kıyamet Sonrası, Orta Çağ ve diğer tüm jargonsal karşılıklar standartlaştırıldı.
+
+### 🗑️ 5. Görsel Galerisinde Üçüncü Buton: Sil (`KitsugiImageGalleryDialog.kt`, `KitsugiImageDownloadHelper.kt`, `DownloadsScreen.kt`)
+- **Silme Butonu Eklendi:** Galeri eylem sırası artık **İndir → Paylaş → Sil → Kapat** şeklindedir; kardeşleriyle aynı cam kutu dilinde kırmızı uyarı tonuyla çizilir ve Android TV kumandalarında odaklanabilir.
+- **Dikey ve Yatay Eşitliği:** Dikey başlıkta 40.dp, yatay yan panelde 36.dp — boyut/köşe parametreleriyle yönetilen tek `KitsugiGalleryDeleteButton` bileşeni kullanılır.
+- **Gerçek Silme:** MediaStore kaydını (`content://`), kullanıcının seçtiği SAF klasöründeki dosyayı ve `Download/Kitsugi/Images` altındaki kopyaları kaldırır; ardından harici galerilerin ölü kareler göstermemesi için `MediaScanner`'ı bilgilendirir.
+- **İndirilenler Ekranı Entegrasyonu:** İndirilen resimler galerisinden silme işlemi kareyi anında kaldırır ve listeyi yeniden tarar; yeni grup düzeyinde silme butonu bir başlığın indirilen tüm resimlerini tek işlemde temizler.
+
+### 🖼️ 6. GIF ve Çoklu Format Desteği (`KitsugiImageDownloadHelper.kt`)
+- **Yerel Kaynaklar Paylaşılabilir:** `file://` ve `content://` öğeleri doğrudan FileProvider üzerinden iletilir; MediaStore/SAF satırları çözücü üzerinden okunur.
+- **Genişletilmiş Format Tespiti:** GIF87a/89a, PNG + APNG, JPEG/MPO, WebP (VP8X), AVIF/AVIS, HEIF/HEIC, BMP ve TIFF formatları tanınır ve hareketli içerikler bozulmadan saklanır.
+
+### 🔞 7. +18 Blur Zorunluluğu Tüm Kaynaklarda (`AdultFlagBackfillMigration.kt`, `ShikimoriAdultResolver.kt`, `TmdbAdultResolver.kt`, `MediaEntryRepository.kt`, `KitsugiApplication.kt`, `AiringNotificationWorker.kt`)
+- **Simkl Listesi Onarımı:** Simkl senkronizasyonunun eksik bıraktığı yetişkin bayrağı kanonik kimlik üzerinden `AdultFlagBackfillMigration` ile tamamlanır.
+- **Kaynaklar Arası +18 Yayılımı:** `MediaEntryRepository.entriesFlow` satırları `MediaIdentity.keys()` üzerinden eşleştirir; aynı yapımın AniList satırı +18 işaretliyse Simkl/Shikimori/"Tümü" sekmesindeki satırı da bulanıklaşır.
+- **İşaretler Asla Silinmez:** `replaceSourcePreservingAdultFlags()` sayesinde otomatik senkron ve bildirim işçisi işaretli bayrakları korur.
+
+### 🧪 8. Testler
+- `ImageFormatDetectionTest`, `AdultFlagBackfillMigrationTest`, `MediaEntryRepositoryAdultPropagationTest`.
+
+### 🎨 9. Tam Renk Seçici, Gradyan Vurgu Mekaniği & Otomatik Siyah-Beyaz Kontrast (`KitsugiAccentColorPickerDialog.kt`, `KitsugiAccentSupport.kt`, `Theme.kt`, `KitsugiColors.kt`, `AppSettings.kt`, `SettingsDataStore.kt`)
+- **"+" Butonu Tam Panel Açıyor:** Eski "hex kodu girin" dialoğu kaldırıldı; yerine 3 sekmeli zengin panel geldi:
+  - **Palet:** 19 renk ailesi × 10 ton (50→900) + siyah/beyaz = **192 renk**.
+  - **Özel:** Tam **HSV doygunluk–değer karesi + ton şeridi** (sınırsız renk, isteğe bağlı hex alanı).
+  - **Gradyan:** İki renkli açılı lineer gradyan: açı slider'ı + 8 yön ön ayarı (→ ↘ ↓ ↙ ← ↖ ↑ ↗), canlı şerit önizleme, başlangıç/bitiş renk seçimi.
+- **Kalıcı Gradyan Mekaniği:** `customAccentColor2` (bitiş rengi) ve `customAccentGradientAngle` (açı) kalıcı olarak saklanır; tüm vurgu zeminlerinde iki renk arasında seçilen açıyla lineer akış uygulanır.
+- **Otomatik Siyah ↔ Beyaz Kontrast (`onAccentColor`):** Vurgu zeminindeki TÜM yazı ve ikonlar, seçilen rengin koyuluğuna göre yumuşak (smoothstep) geçişle otomatik siyah veya beyaz kontrast alır (ayar ikonları, aksiyon butonları, oynatıcı overlayleri, FAB'lar vb.).
+
+### 🔄 10. Bangumi Çapraz Eşitleme (Cross-Sync) Tam Entegrasyonu (`AuthViewModel.kt`, `BangumiSyncManager.kt`, `PlatformRateLimiter.kt`, `CrossSyncDisclaimer.kt`)
+- **6/6 Platform Desteği:** AniList, MyAnimeList, Simkl, Kitsu, Shikimori ve Bangumi artık tam çapraz senkronizasyon havuzunda birlikte çalışır.
+- **Hız Sınırı & Aday İndeksi:** Bangumi API için 400ms hız sınırı tanımlandı; ad eşleştirme ve çoklu başlık aramasında Japonca/orijinal ad desteği eklendi.
+- **Akıllı İçe Aktarma:** Senkronizasyon sonrası Bangumi verisi `smartImport` ile yerel veritabanıyla doğrulanır.
+
+### 🈯 11. TMDB/Simkl Kadro Adlarında Yanlış Alfabe Düzeltmesi & Hayali Karakter Görsel Zinciri (`PreferenceHelpers.kt`, `TmdbCreditsClient.kt`, `KitsugiCharacterClient.kt`)
+- **Yanlış Alfabe Kökten Çözüldü:** `pickLatinAlias()` artık CJK-olmayan her alfabeyi Latin sanmak yerine `PreferenceHelpers.isLatinText()` ile harflerin gerçekten Latin (Türkçe harfler dahil) olduğunu doğrular; Arapça veya Tayca çeviriler elenerek doğru Latin/Romaji adlar seçilir.
+- **Çapraz Kaynak Görsel Zinciri:** TMDB/Simkl animasyon içeriklerinde AniList'in görsel bulamadığı karakterler için sırasıyla MAL/Jikan → Shikimori → Kitsu kaynaklarından doğrulanmış gerçek MAL ID ile görsel çekilir.
+
+### 🏢 12. Stüdyo & Yapımcı Yapım Listesi Sonsuz Sayfalama & Limit Düzeltmesi (`KitsugiStudioClient.kt`, `JikanGateway.kt`, `StudioDetailViewModel.kt`, `StudioDetailPage.kt`, `KitsugiModels.kt`)
+- **Tenrai 50 İstek Limiti Koruması:** Tenrai `limit > 50` isteklerinde 400 hatası döndürüyordu; `TENRAI_MAX_LIMIT = 50` ile `JikanGateway.tenraiRest` içinde otomatik sınırlandırılarak yapım listesinin boş gelmesi önlendi.
+- **Tüm Kaynaklarda Sayfalama Desteği:** 50'den fazla yapımı olan stüdyolar için MAL/Jikan (`has_next_page`), Shikimori (`page` ve `limit=50`), AniList (`pageInfo.hasNextPage`), TMDB (`movie` ve `tv` discover için `total_pages`) sayfalama desteği entegre edildi.
+- **Akıcı Sonsuz Kaydırma & Hata Kurtarma:** Liste ve grid görünümünde sona yaklaşıldığında sonraki sayfa otomatik çekilir; yükleme anında alt ortada minimal yükleme çemberi, ağ hatasında "Devamı yüklenemedi · Tekrar dene" butonu sunulur.
+
+### 🎬 13. Fragman (Ön İzleme) Satır Kalıcılığı & Oynatıcı Kontrolü (`KitsugiDetailThemesTrailerComponents.kt`)
+- **Kalıcı Satır Kartı:** Ön İzleme kartında oynatıcı açıldığında "Fragmanı İzle" satırının kaybolması sorunu giderildi; açılış/kapanış müziklerindeki gibi oynatıcının üzerinde görünür kalır.
+- **Aktif Durum & Toggle:** Oynatıcı açıkken daire içinde yukarı ok (chevron) ikonu, vurgulu arka plan ve renk gösterilir; satıra tekrar dokunulduğunda oynatıcı kapanır (veya altındaki "Kapat" düğmesi kullanılabilir).
+- **Tüm Detay Sayfalarında Geçerli:** Ortak `KitsugiTrailerCard` bileşeni üzerinden hem kütüphaneden açılan medya detayında hem de arama/API detay sayfalarında (anime ve manga) aktif.
+
+---
+
+## 🇬🇧 English (v2.4.227)
+
+### 🎯 1. Per-Source Search & Episode Mechanics: Separate Pipelines for Movies vs Series (`CsStreamRunner.kt`, `CsTitleMatcher.kt`)
+- **Core principle:** Content search across ALL sources now uses ONLY the bare work title — season/episode info never enters the search query. No site (Turkish or foreign) can resolve "X Season 1 Episode 1"; the correct flow is established: search title → enter content page → (series) descend to the season+episode page → extract video data.
+- **Movie pipeline (separate):** Movies carry no season logic; the matched content page is used directly as the video page (dataUrl/url → loadLinks), with no episode matching.
+- **Series/anime pipeline (separate):** The target S/E is picked from the loaded page's episode list; when a plugin fills no episode list (page-style plugin), the page URL is used as the episode container.
+- **Season page navigation:** When the episode list is populated but the target season is absent, the site keeps seasons on separate entries; the plugin's OWN search+load flow navigates to the season page — a generic, source-agnostic step applied for every addon.
+- **Old bug fixed:** When episodes existed but none matched, the SERIES page URL was fed to loadLinks — the 25s link-extraction budget was wasted and the card showed "no streams found". The real reason is now recorded and season navigation is attempted instead.
+- **Season-entry search (safety net):** Season-suffixed queries ("X Season 2") are never primary searches; they run only when the bare-title search returns zero results (sites that index seasons as separate entries).
+- **Page-type-driven pipeline:** On misclassification (movie flag but the source returns a "single episode" series entry — very common on Turkish sites), the pipeline is chosen by the loaded page's real type; the mechanics follow the source, not the flag.
+
+### 🛡️ 2. Cloudflare WebView Leak & Crash-Risk Fix (`CloudflareInterceptor.kt`, `KitsugiApplication.kt`, `CsCfWarmupManager.kt`)
+- **WebView Leak After Successful Challenges:** The old timeout destroyed the WebView only while the latch was still pending. Once `cf_clearance` succeeded, the latch completed and the timeout skipped destruction, potentially allowing Chromium/RenderThread resources to accumulate. Success, timeout, and cancellation now share one main-thread, exactly-once teardown.
+- **No Batch of Startup WebViews:** Startup no longer launches up to 14 hidden WebViews to pre-warm Cloudflare cookies. Challenges are solved lazily for the host that actually needs them.
+- **Safer Teardown:** Removed the immediate `about:blank` navigation before destruction; teardown removes the view, stops loading, clears client references, and destroys the WebView once.
+
+### 🌐 3. Source-Scoped List Membership & Adult Content Blur (`KitsugiModels.kt`, `AppRoot.kt`, `AppRootDetailPages.kt`)
+- **Source-Scoped Membership (`matchesInSource`, `firstMatchingInSource`):** List membership and detail lookups are scoped by platform source. Bangumi entries open Bangumi's editor, and Simkl or AniList records do not falsely mark Bangumi items as listed.
+- **Scroll-to-Top Bottom Bar Reset:** Profile favorites scroll-to-top button now resets the shared bottom-bar visibility before and after scrolling.
+- **Adult Content Blur Propagation:** Adult status from AniList profile favorites now reaches detail navigation so cinematic loading animation posters blur properly from the first frame.
+
+### 🏷️ 4. Unified Global Tag & Genre Translations (`BangumiTagDictionary.kt`, `SearchTranslation.kt`, `GenreLabelFormatter.kt`, `KitsugiTranslations.kt`)
+- **Consistency Across Providers:** Unified tag and genre definitions for AniList, MAL, Kitsu, Shikimori, and Bangumi across dictionaries, XML string resources, and search maps.
+- **Standardized Terms:** Aligned translations for Heterosexual, Protagonist variants, Reverse Harem, Cast types, Kuudere, Nudity, Ensemble Cast, Fantasy, Slice of Life, Romance, Isekai, Cyberpunk, Post-Apocalyptic, and Medieval.
+
+### 🗑️ 5. Third Gallery Button: Delete Downloaded Media (`KitsugiImageGalleryDialog.kt`, `KitsugiImageDownloadHelper.kt`, `DownloadsScreen.kt`)
+- **Delete Button Added:** Action row now includes delete with two-step confirmation, MediaStore/SAF cleanup, and index synchronization.
+- **Downloads Screen Integration:** Seamless tile removal and group-level bulk deletion.
+
+### 🖼️ 6. Full GIF / Image Format Support (`KitsugiImageDownloadHelper.kt`)
+- **Local File Sharing:** FileProvider sharing for local files and raw preservation for animated GIFs, animated WebP, and APNG.
+
+### 🔞 7. Universal +18 Blur Enforcement (`AdultFlagBackfillMigration.kt`, `MediaEntryRepository.kt`, etc.)
+- **Cross-Source Propagation:** Canonical identity matching propagates adult flags across all providers and ensures flags are never dropped during sync.
+
+### 🧪 8. Tests
+- `ImageFormatDetectionTest`, `AdultFlagBackfillMigrationTest`, `MediaEntryRepositoryAdultPropagationTest`.
+
+### 🎨 9. Full Color Picker, Gradient Accent Mechanics & Auto Black-White Contrast (`KitsugiAccentColorPickerDialog.kt`, `KitsugiAccentSupport.kt`, `Theme.kt`, `KitsugiColors.kt`, `AppSettings.kt`, `SettingsDataStore.kt`)
+- **"+" Button Opens Full Panel:** Replaced plain hex dialog with a 3-tab color picker:
+  - **Palette:** 19 color families × 10 shades + black/white = **192 colors**.
+  - **Custom:** Full **HSV saturation-value square + hue slider** (infinite colors, optional hex input).
+  - **Gradient:** Two-color angled linear gradient with slider + 8 direction presets, live preview, start/end color targets.
+- **Persistent Gradient Mechanics:** Persisted `customAccentColor2` and `customAccentGradientAngle`; renders gradient flows across buttons, setting icon circles, badges, and previews.
+- **Automatic Black ↔ White Contrast (`onAccentColor`):** Contrast on accent backgrounds automatically transitions smoothly between black and white based on luminance.
+
+### 🔄 10. Bangumi Full Cross-Sync Integration (`AuthViewModel.kt`, `BangumiSyncManager.kt`, `PlatformRateLimiter.kt`, `CrossSyncDisclaimer.kt`)
+- **6/6 Connected Platform Support:** Full parity across AniList, MyAnimeList, Simkl, Kitsu, Shikimori, and Bangumi.
+- **Rate Limiting & Japanese Title Matching:** 400ms rate limiter and candidate title resolution for Bangumi subjects.
+- **Post-Sync Verification:** Automated `smartImport` verification for Bangumi library after sync.
+
+### 🈯 11. Fixed Wrong-Script Cast Names & Character Image Fallback Chain (`PreferenceHelpers.kt`, `TmdbCreditsClient.kt`, `KitsugiCharacterClient.kt`)
+- **Latin Script Validation:** Replaced naive non-CJK check with `PreferenceHelpers.isLatinText()` to prevent Thai/Arabic aliases from overriding English/Romaji names.
+- **Cross-Source Character Image Chain:** For TMDB/Simkl anime entries missing AniList images, resolves portraits in sequence across MAL/Jikan → Shikimori → Kitsu using verified MAL IDs and name tokens.
+
+### 🏢 12. Studio & Producer Works Infinite Pagination & Limit Fix (`KitsugiStudioClient.kt`, `JikanGateway.kt`, `StudioDetailViewModel.kt`, `StudioDetailPage.kt`, `KitsugiModels.kt`)
+- **Tenrai 50 Request Limit Safeguard:** Tenrai returned HTTP 400 for `limit > 50`; capped automatically via `TENRAI_MAX_LIMIT = 50` in `JikanGateway.tenraiRest`.
+- **Full Cross-Source Works Pagination:** Added continuous pagination for studios with >50 works across MAL/Jikan (`has_next_page`), Shikimori (`page` and `limit=50`), AniList (`pageInfo.hasNextPage`), and TMDB (`total_pages` across movie and tv discover).
+- **Infinite Scrolling & Failure Recovery:** Seamless pagination as the user scrolls near the end of grid/list layouts, with a minimal loading indicator and retry button on network failures.
+
+### 🎬 13. Trailer Preview Row Persistence & Player Toggle (`KitsugiDetailThemesTrailerComponents.kt`)
+- **Persistent Header Row:** The "Watch Trailer" row remains visible above the expanded player, mimicking the opening/ending theme music player layout.
+- **Active State & Tap Toggle:** Features an upward chevron icon and accent highlighting when active. Tapping the row toggles the player closed, alongside the bottom close button.
+- **Universal Scope:** Powered by the shared `KitsugiTrailerCard`, functioning seamlessly across both library entries and API search details for anime and manga.
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.226)
 
 ### 📝 1. Liste Düzenleme Ekranı & Platform Eşitlemesi (`KitsugiEditMediaSheet.kt`, `BangumiSyncManager.kt`, `KitsuSyncManager.kt`, `ShikimoriSyncManager.kt`)

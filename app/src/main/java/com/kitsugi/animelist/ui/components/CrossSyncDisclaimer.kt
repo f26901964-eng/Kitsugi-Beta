@@ -35,7 +35,7 @@ object CrossSyncDisclaimer {
     const val FULL =
         "Çapraz eşitleme DENEYSEL bir özelliktir ve beta aşamasındadır. Eşleştirmeler otomatik yapılır; " +
             "hiçbir eşleştirme %100 doğruluk garantisi taşımaz. Yanlış eşleşme, liste karışması, yanlış " +
-            "ilerleme/puan/durum bilgisi veya AniList, MyAnimeList, Simkl, Kitsu ve Shikimori tarafından uygulanan " +
+            "ilerleme/puan/durum bilgisi veya AniList, MyAnimeList, Simkl, Kitsu, Shikimori ve Bangumi tarafından uygulanan " +
             "kısıtlama, askıya alma ya da hesap yasağı gibi sonuçlardan Kitsugi ve geliştiricileri sorumlu tutulamaz. " +
             "Özellik kendi sorumluluğunuzda kullanılır; önemli listelerinizi eşitlemeden önce yedekleyin. " +
             "Kanunen sınırlandırılamayan haller (ağır kusur gibi) saklıdır. Kullanım, ilgili platformların " +

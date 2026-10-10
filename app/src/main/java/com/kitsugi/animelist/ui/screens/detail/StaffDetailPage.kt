@@ -5,6 +5,9 @@
 
 package com.kitsugi.animelist.ui.screens.detail
 
+import androidx.compose.runtime.CompositionLocalProvider
+import com.kitsugi.animelist.ui.components.LocalKitsugiGalleryLoading
+
 import androidx.compose.foundation.background
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.horizontalScroll
@@ -78,6 +81,7 @@ import androidx.compose.material.icons.automirrored.rounded.ArrowBack
 import androidx.compose.runtime.rememberCoroutineScope
 import com.kitsugi.animelist.data.remote.JikanApiClient
 import com.kitsugi.animelist.data.remote.GalleryItem
+import com.kitsugi.animelist.data.remote.galleryPersonLabel
 import com.kitsugi.animelist.data.remote.GalleryCategory
 import com.kitsugi.animelist.data.remote.displayPersonName
 import com.kitsugi.animelist.data.remote.KitsugiStaffDetail
@@ -120,6 +124,7 @@ fun StaffDetailPage(
     name: String? = null,
     imageUrl: String? = null,
     titleLanguage: String = "ROMAJI",
+    staffNameLanguage: String = com.kitsugi.animelist.data.settings.KitsugiContentPrefs.staffNameLanguage,
     preferredTranslator: String = "DEFAULT"
 ) {
     val accentColor = LocalKitsugiAccent.current
@@ -127,6 +132,8 @@ fun StaffDetailPage(
 
     // Obtain ViewModel
     val viewModel: StaffDetailViewModel = viewModel(key = "staff_${source}_${staffId}")
+    val galleryLoading by viewModel.galleryLoading.collectAsState()
+    CompositionLocalProvider(LocalKitsugiGalleryLoading provides galleryLoading) {
 
     // Load staff in ViewModel
     LaunchedEffect(staffId, source) {
@@ -197,15 +204,15 @@ fun StaffDetailPage(
             }
             is StaffDetailState.Success -> {
                 val rawDetail = currentState.detail
-                val detail = remember(rawDetail, titleLanguage) {
+                val detail = remember(rawDetail, staffNameLanguage) {
                     rawDetail.copy(
                         // Japonca alt satır yalnızca özgün dil seçiliyken gösterilir; diğer dillerde
                         // ad seçilen dile göre (İngilizce → Romaji → özgün son çare) çözülür.
                         nativeName = rawDetail.nativeName.takeIf {
-                            titleLanguage == "NATIVE" || titleLanguage == "JAPANESE_STAFF"
+                            staffNameLanguage == "NATIVE" || staffNameLanguage == "JAPANESE_STAFF"
                         },
                         name = displayPersonName(
-                            rawDetail.name, rawDetail.romanizedName, rawDetail.nativeName, titleLanguage, rawDetail.englishName
+                            rawDetail.name, rawDetail.romanizedName, rawDetail.nativeName, staffNameLanguage, rawDetail.englishName
                         ),
                         characterRoles = rawDetail.characterRoles.map { role ->
                             role.copy(
@@ -213,7 +220,7 @@ fun StaffDetailPage(
                                     role.characterName,
                                     role.characterRomanizedName,
                                     role.characterNativeName,
-                                    titleLanguage,
+                                    staffNameLanguage,
                                     role.characterEnglishName
                                 )
                             )
@@ -252,7 +259,23 @@ fun StaffDetailPage(
                 val tabListState = rememberLazyListState()
                 var activeGalleryItems by remember { mutableStateOf<List<GalleryItem>>(emptyList()) }
                 var activeGalleryIndex by remember { mutableStateOf(0) }
-                val galleryItems by viewModel.galleryItems.collectAsState()
+                val rawGalleryItems by viewModel.galleryItems.collectAsState()
+                // Galeri etiketi (ad) seçilen başlık diline göre çözülür: İngilizce → Romaji → Latin alternatif.
+                val galleryLabel = remember(rawDetail, titleLanguage) {
+                    galleryPersonLabel(
+                        titleLanguage = titleLanguage,
+                        name = rawDetail.name,
+                        romanized = rawDetail.romanizedName,
+                        native = rawDetail.nativeName,
+                        english = rawDetail.englishName,
+                        alternatives = rawDetail.alternativeNames
+                    )
+                }
+                val galleryItems = remember(rawGalleryItems, galleryLabel) {
+                    rawGalleryItems.map { item ->
+                        if (item.description != null) item.copy(description = galleryLabel) else item
+                    }
+                }
                 val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
                 // TV odak highway
                 val leftPanelFocusRequester = remember { FocusRequester() }
@@ -285,7 +308,7 @@ fun StaffDetailPage(
                                     onBackClick = onBackClick,
                                     onToggleFavourite = { viewModel.toggleFavourite() },
                                     onGalleryClick = { items, idx ->
-                                        activeGalleryItems = items
+                                        if (!galleryLoading) activeGalleryItems = items
                                         activeGalleryIndex = idx
                                     },
                                     modifier = Modifier.weight(leftPanelWeight)
@@ -338,7 +361,7 @@ fun StaffDetailPage(
                                                     preferredTranslator = preferredTranslator,
                                                     accentColor = accentColor,
                                                     onGalleryClick = { items, idx ->
-                                                        activeGalleryItems = items
+                                                        if (!galleryLoading) activeGalleryItems = items
                                                         activeGalleryIndex = idx
                                                     },
                                                     onTranslateClick = { viewModel.translateBio() }
@@ -396,7 +419,7 @@ fun StaffDetailPage(
                                     onBackClick = onBackClick,
                                     onToggleFavourite = { viewModel.toggleFavourite() },
                                     onGalleryOpen = { items, idx ->
-                                        activeGalleryItems = items
+                                        if (!galleryLoading) activeGalleryItems = items
                                         activeGalleryIndex = idx
                                     }
                                 )
@@ -423,7 +446,7 @@ fun StaffDetailPage(
                                     onBackClick = onBackClick,
                                     onToggleFavourite = { viewModel.toggleFavourite() },
                                     onGalleryOpen = { items, idx ->
-                                        activeGalleryItems = items
+                                        if (!galleryLoading) activeGalleryItems = items
                                         activeGalleryIndex = idx
                                     },
                                     onTabSelected = { index ->
@@ -502,7 +525,7 @@ fun StaffDetailPage(
                                                         preferredTranslator = preferredTranslator,
                                                         accentColor = accentColor,
                                                         onGalleryClick = { items, idx ->
-                                                            activeGalleryItems = items
+                                                            if (!galleryLoading) activeGalleryItems = items
                                                             activeGalleryIndex = idx
                                                         },
                                                         onTranslateClick = { viewModel.translateBio() }
@@ -548,5 +571,6 @@ fun StaffDetailPage(
         } // end Success
     } // end when
 } // end outer Box
+    }
 } // end StaffDetailPage
 

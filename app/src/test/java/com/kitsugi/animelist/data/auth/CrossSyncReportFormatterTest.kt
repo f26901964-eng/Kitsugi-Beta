@@ -29,7 +29,8 @@ class CrossSyncReportFormatterTest {
                         isError = true,
                         details = "java.io.IOException: HTTP 500"
                     ),
-                    CrossSyncLogEntry(platform = "Simkl", message = "Başarıyla eklendi")
+                    CrossSyncLogEntry(platform = "Simkl", message = "Başarıyla eklendi"),
+                    CrossSyncLogEntry(platform = "Bangumi", message = "Bangumi kaydı eşitlendi")
                 )
             ),
             generatedAt = 1234L
@@ -38,8 +39,9 @@ class CrossSyncReportFormatterTest {
         assertTrue(report.contains("SORUNLAR / UYARILAR (2)"))
         assertTrue(report.contains("MAL ID: 101 ile MAL ID: 202 uyuşmuyor"))
         assertTrue(report.contains("java.io.IOException: HTTP 500"))
-        assertTrue(report.contains("TÜM İŞLEM VE EŞLEŞTİRME KAYITLARI (3)"))
+        assertTrue(report.contains("TÜM İŞLEM VE EŞLEŞTİRME KAYITLARI (4)"))
         assertTrue(report.contains("Başarıyla eklendi"))
+        assertTrue(report.contains("Bangumi kaydı eşitlendi"))
         assertTrue(report.contains("AniList: başlangıç=4"))
     }
 

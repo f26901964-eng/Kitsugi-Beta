@@ -439,33 +439,65 @@ class KitsugiDetailClient {
                     } else null
                 }
                 "simkl" -> {
-                    // ── Öncelik zinciri (TMDB ilk sıradadır) ────────────────────────────
-                    // Simkl API'si verileri gecikmeli döndürdüğü için Simkl kayıtlarının
-                    // ayrıntı sayfası önce TMDB üzerinden açılır. TMDB çözülemezse
-                    // anime kayıtlarında Jikan (MAL), son çare olarak Simkl kullanılır.
-                    val malIdForResolve = realMalId?.takeIf { it > 0 }
+                    // Simkl API'sinden çapraz ID'ler (mal, tmdb, anilist, kitsu) çözümlenir;
+                    // böylece TMDB detayı dönerken bile realMalId ve type korunur ve
+                    // Ekip, İlişkiler, Grafikler, Yorumlar sekmeleri eksiksiz çalışır.
+                    val simklCross = KitsugiSimklDetailClient.resolveSimklCrossIds(
+                        simklId = extId,
+                        mediaType = mediaType,
+                        hintTmdbId = tmdbId,
+                        hintMalId = realMalId
+                    )
+                    val malIdForResolve = realMalId?.takeIf { it > 0 && it != extId }
+                        ?: simklCross.malId
                         ?: DetailCache.getMediaDetail("simkl", extId)?.realMalId
-                    val resolvedTmdb = tmdbId?.takeIf { it > 0 } ?: run {
-                        KitsugiIdResolver.resolveIds(
-                            malId = malIdForResolve,
-                            aniListId = null,
-                            tmdbId = null,
-                            mediaType = mediaType
-                        ).tmdbId
-                    }
+                    val resolvedTmdb = tmdbId?.takeIf { it > 0 }
+                        ?: simklCross.tmdbId
+                        ?: run {
+                            KitsugiIdResolver.resolveIds(
+                                malId = malIdForResolve,
+                                aniListId = simklCross.aniListId,
+                                tmdbId = null,
+                                mediaType = mediaType
+                            ).tmdbId
+                        }
 
                     val tmdbDetail = fetchSimklDetailViaTmdb(
                         tmdbId = resolvedTmdb,
                         mediaType = mediaType,
-                        title = title
+                        title = title ?: simklCross.title
                     )
+                    val resolvedFinalMalId = malIdForResolve ?: tmdbDetail?.tmdbId?.let { foundTmdb ->
+                        KitsugiIdResolver.resolveIds(
+                            malId = null,
+                            aniListId = simklCross.aniListId,
+                            tmdbId = foundTmdb,
+                            mediaType = mediaType
+                        ).malId
+                    }
                     if (tmdbDetail != null) {
-                        tmdbDetail
-                    } else if (mediaType == MediaType.Anime && malIdForResolve != null && malIdForResolve > 0) {
-                        KitsugiMalDetailClient.fetchDetail(malIdForResolve, mediaType)
-                            ?: KitsugiSimklDetailClient.fetchSimklDetailDirect(extId, mediaType)
+                        tmdbDetail.copy(
+                            realMalId = resolvedFinalMalId ?: tmdbDetail.realMalId,
+                            tmdbId = tmdbDetail.tmdbId ?: resolvedTmdb,
+                            type = mediaType
+                        )
+                    } else if (mediaType == MediaType.Anime && resolvedFinalMalId != null && resolvedFinalMalId > 0) {
+                        (KitsugiMalDetailClient.fetchDetail(resolvedFinalMalId, mediaType)
+                            ?: KitsugiSimklDetailClient.fetchSimklDetailDirect(extId, mediaType))?.let { det ->
+                            det.copy(
+                                realMalId = resolvedFinalMalId ?: det.realMalId,
+                                tmdbId = resolvedTmdb ?: det.tmdbId,
+                                type = mediaType
+                            )
+                        }
                     } else {
-                        KitsugiSimklDetailClient.fetchSimklDetailDirect(extId, mediaType)
+                        KitsugiSimklDetailClient.fetchSimklDetailDirect(extId, mediaType)?.let { simklDet ->
+                            simklDet.copy(
+                                realMalId = resolvedFinalMalId ?: simklDet.realMalId,
+                                tmdbId = resolvedTmdb ?: simklDet.tmdbId,
+                                type = mediaType
+                            )
+                        }
                     }
                 }
                 else -> null
@@ -568,7 +600,10 @@ class KitsugiDetailClient {
             }
 
             // 5. Cache update on success
-            val currentFinal = finalDetail
+            val currentFinal = finalDetail?.let {
+                if (it.type == null) it.copy(type = mediaType) else it
+            }
+            finalDetail = currentFinal
             if (currentFinal != null && !cacheKey.isNullOrBlank()) {
                 saveToRoomCache(source, mediaType, keyId, currentFinal)
             }
@@ -726,11 +761,23 @@ class KitsugiDetailClient {
         val safeRealMalId = if (isBangumi) KitsugiBangumiDetailClient.sanitizeMalId(realMalId) else realMalId
 
         // TMDB zenginleştirmesi için en iyi MAL ID'yi bul
+        val simklCrossForEnrich = if (source.equals("simkl", ignoreCase = true) && externalId > 0) {
+            runCatching {
+                KitsugiSimklDetailClient.resolveSimklCrossIds(
+                    simklId = externalId,
+                    mediaType = mediaType,
+                    hintTmdbId = tmdbId ?: currentDetail.tmdbId,
+                    hintMalId = safeRealMalId ?: currentDetail.realMalId
+                )
+            }.getOrNull()
+        } else null
+
         val effectiveRealMalId = safeRealMalId
             ?: currentDetail.realMalId
+            ?: simklCrossForEnrich?.malId
             ?: if (source.lowercase() == "anilist" && externalId < 100_000_000) externalId else null
 
-        var resolvedTmdbId = tmdbId ?: currentDetail.tmdbId
+        var resolvedTmdbId = tmdbId ?: currentDetail.tmdbId ?: simklCrossForEnrich?.tmdbId
 
         // Fallback scenario 2: Primary detail is not null, but tmdbId is missing -> Try direct TMDB search fallback by title!
         if ((resolvedTmdbId == null || resolvedTmdbId <= 0) && (mediaType == MediaType.Movie || mediaType == MediaType.TvShow)) {
@@ -765,6 +812,8 @@ class KitsugiDetailClient {
                 titleEnglish = updatedTitleEnglish,
                 genres = updatedGenres,
                 tmdbId = resolvedTmdbId ?: currentDetail.tmdbId,
+                realMalId = effectiveRealMalId ?: currentDetail.realMalId ?: trMeta.realMalId,
+                type = currentDetail.type ?: mediaType,
                 imageUrl = updatedImageUrl,
                 pictures = combinedPictures,
                 studios = mergedStudios,
@@ -786,7 +835,11 @@ class KitsugiDetailClient {
                 nextAiringEpisode = currentDetail.nextAiringEpisode ?: trMeta.nextAiringEpisode
             )
         } else {
-            currentDetail
+            currentDetail.copy(
+                tmdbId = resolvedTmdbId ?: currentDetail.tmdbId,
+                realMalId = effectiveRealMalId ?: currentDetail.realMalId,
+                type = currentDetail.type ?: mediaType
+            )
         }
 
         // Eğer nextAiringEpisode hâlâ null ise AniList üzerinden çöz ve çek
@@ -859,6 +912,8 @@ class KitsugiDetailClient {
             // ks1: bozuk Kitsu özetleri temizlenmeye başlandı (KitsuSynopsisValidator).
             // Eski satırlar bozuk özet taşıyabileceği için yeni anahtar kullanılır.
             source.equals("kitsu", ignoreCase = true) -> "${base}_ks1"
+            // s2: Simkl detaylarına çapraz realMalId ve type eklendi.
+            source.equals("simkl", ignoreCase = true) -> "${base}_vl${MediaTitleResolver.VERSION}_s2"
             MediaTitleResolver.isLatinPreferredSource(source) -> "${base}_vl${MediaTitleResolver.VERSION}"
             else -> base
         }

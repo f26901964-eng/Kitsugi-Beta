@@ -21,6 +21,7 @@ gson = "2.10.1"
 # TV, Supabase, Hilt & Serialization versions
 hilt = "2.55"
 kotlinxSerialization = "1.7.3"
+kotlinxDatetime = "0.6.1"
 tvMaterial = "1.0.0"
 tvFoundation = "1.0.0-alpha11"
 tvProvider = "1.1.0-beta01"
@@ -96,7 +97,8 @@ ktor-client-okhttp = { group = "io.ktor", name = "ktor-client-okhttp", version.r
 # ZXing QR
 zxing-core = { group = "com.google.zxing", name = "core", version.ref = "zxing" }
 
-# Kotlin Serialization
+# Kotlin Serialization & DateTime (Supabase Auth timestamp serializers)
+kotlinx-datetime = { group = "org.jetbrains.kotlinx", name = "kotlinx-datetime", version.ref = "kotlinxDatetime" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerialization" }
 
 # Hilt

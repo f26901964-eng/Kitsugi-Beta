@@ -6,6 +6,9 @@ import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.core.view.WindowCompat
 import com.google.gson.Gson
 import com.kitsugi.animelist.core.player.ExternalPlayerResultContract
@@ -209,7 +212,24 @@ class KitsugiStreamActivity : ComponentActivity() {
 
         val isTv = DeviceProfile.detect(this) == DeviceFormFactor.TV
         setContent {
-            KitsugiAnimeListTheme(isTv = isTv) {
+            val settingsStore = remember { com.kitsugi.animelist.data.settings.SettingsDataStore(applicationContext) }
+            val appSettings by settingsStore.settingsFlow.collectAsState(
+                initial = com.kitsugi.animelist.data.settings.AppSettings()
+            )
+            val darkTheme = when (appSettings.themeMode) {
+                "LIGHT" -> false
+                "DARK" -> true
+                else -> androidx.compose.foundation.isSystemInDarkTheme()
+            }
+            KitsugiAnimeListTheme(
+                darkTheme = darkTheme,
+                amoledBlack = appSettings.amoledBlack,
+                selectedThemeId = appSettings.selectedThemeId,
+                customAccentColor = appSettings.customAccentColor,
+                customAccentColor2 = appSettings.customAccentColor2,
+                customAccentGradientAngle = appSettings.customAccentGradientAngle,
+                isTv = isTv
+            ) {
                 KitsugiStreamScreen(
                     malId = currentMalId, aniListId = currentAniList, tmdbId = currentTmdbId,
                     episode = currentEpisode, season = currentSeason, isMovie = currentIsMovie,

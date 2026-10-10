@@ -3,6 +3,8 @@ package com.kitsugi.animelist.data.remote
 import com.kitsugi.animelist.KitsugiApplication
 import com.kitsugi.animelist.model.MediaType
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import org.json.JSONObject
@@ -89,29 +91,130 @@ class KitsugiStaffClient {
                     shikiStaff
                 }
                 "simkl" -> {
-                    val malId = realMalId ?: DetailCache.getMediaDetail("simkl", externalId)?.realMalId
-                    if (malId != null && malId > 0) {
-                        val malList = fetchStaff("jikan", malId, mediaType, null, null)
-                        if (malList.isNotEmpty()) return@withContext malList
+                    val simklCross = KitsugiSimklDetailClient.resolveSimklCrossIds(
+                        simklId = externalId,
+                        mediaType = mediaType,
+                        hintTmdbId = tmdbId,
+                        hintMalId = realMalId
+                    )
+                    val malId = realMalId?.takeIf { it > 0 && it != externalId }
+                        ?: simklCross.malId
+                        ?: DetailCache.getMediaDetail("simkl", externalId)?.realMalId
+                    val resolvedTmdb = tmdbId?.takeIf { it > 0 }
+                        ?: simklCross.tmdbId
+                        ?: DetailCache.getMediaDetail("simkl", externalId)?.tmdbId
+                    val aniListId = simklCross.aniListId ?: run {
+                        if (malId != null || resolvedTmdb != null) {
+                            runCatching {
+                                KitsugiIdResolver.resolveIds(
+                                    malId = malId,
+                                    aniListId = null,
+                                    tmdbId = resolvedTmdb,
+                                    mediaType = mediaType
+                                ).aniListId
+                            }.getOrNull()
+                        } else null
                     }
-                    val resolvedTmdb = tmdbId ?: run {
-                        val malIdForResolve = realMalId ?: DetailCache.getMediaDetail("simkl", externalId)?.realMalId
-                        KitsugiIdResolver.resolveIds(malId = malIdForResolve, aniListId = null, tmdbId = tmdbId).tmdbId
+                    val animeMediaType = if (mediaType == MediaType.Manga) MediaType.Manga else MediaType.Anime
+
+                    coroutineScope {
+                        val aniDeferred = async {
+                            val targetAniId = when {
+                                aniListId != null && aniListId > 0 -> 100_000_000 + aniListId
+                                malId != null && malId > 0 -> malId
+                                else -> null
+                            }
+                            if (targetAniId != null) {
+                                runCatching { fetchStaff("anilist", targetAniId, animeMediaType, null, malId) }
+                                    .getOrNull().orEmpty()
+                            } else emptyList()
+                        }
+                        val malDeferred = async {
+                            if (malId != null && malId > 0) {
+                                runCatching { fetchStaff("jikan", malId, animeMediaType, null, malId) }
+                                    .getOrNull().orEmpty()
+                            } else emptyList()
+                        }
+                        val tmdbDeferred = async {
+                            if (resolvedTmdb != null && resolvedTmdb > 0 && mediaType != MediaType.Manga) {
+                                val rawTmdbStaff = runCatching {
+                                    TmdbApiClient().fetchCredits(resolvedTmdb, simklCross.isMovie).second
+                                }.getOrNull().orEmpty()
+                                if (rawTmdbStaff.isNotEmpty() && malId != null && malId > 0) {
+                                    enrichBangumiStaffNames(rawTmdbStaff, animeMediaType, malId)
+                                } else {
+                                    rawTmdbStaff
+                                }
+                            } else emptyList()
+                        }
+
+                        val aniListStaff = aniDeferred.await()
+                        val malStaff = malDeferred.await()
+                        val tmdbStaff = tmdbDeferred.await()
+
+                        mergeAndEnrichStaffLists(
+                            primary = if (mediaType == MediaType.Anime) aniListStaff else tmdbStaff,
+                            secondary = if (mediaType == MediaType.Anime) malStaff else aniListStaff,
+                            tertiary = if (mediaType == MediaType.Anime) tmdbStaff else malStaff
+                        )
                     }
-                    if (resolvedTmdb != null && resolvedTmdb > 0) {
-                        val isMovie = mediaType == MediaType.Movie
-                        val (_, tmdbStaff) = TmdbApiClient().fetchCredits(resolvedTmdb, isMovie)
-                        if (tmdbStaff.isNotEmpty()) return@withContext tmdbStaff
-                    }
-                    emptyList()
                 }
 
                 "tmdb" -> {
                     val effectiveTmdbId = tmdbId ?: externalId
                     if (effectiveTmdbId > 0) {
                         val isMovie = mediaType == MediaType.Movie
-                        val (_, tmdbStaff) = TmdbApiClient().fetchCredits(effectiveTmdbId, isMovie)
-                        tmdbStaff
+                        val detail = DetailCache.getMediaDetail("tmdb", effectiveTmdbId)
+                        val resolvedIds = if (mediaType == MediaType.Anime || realMalId != null || detail?.realMalId != null) {
+                            runCatching {
+                                KitsugiIdResolver.resolveIds(
+                                    malId = realMalId ?: detail?.realMalId,
+                                    aniListId = null,
+                                    tmdbId = effectiveTmdbId,
+                                    mediaType = mediaType
+                                )
+                            }.getOrNull()
+                        } else null
+                        val malId = realMalId ?: detail?.realMalId ?: resolvedIds?.malId
+                        val aniListId = resolvedIds?.aniListId
+
+                        coroutineScope {
+                            val tmdbDeferred = async {
+                                val (_, rawTmdb) = TmdbApiClient().fetchCredits(effectiveTmdbId, isMovie)
+                                if (rawTmdb.isNotEmpty() && malId != null && malId > 0) {
+                                    enrichBangumiStaffNames(rawTmdb, MediaType.Anime, malId)
+                                } else rawTmdb
+                            }
+                            val aniDeferred = async {
+                                val targetAniId = when {
+                                    aniListId != null && aniListId > 0 -> 100_000_000 + aniListId
+                                    malId != null && malId > 0 -> malId
+                                    else -> null
+                                }
+                                if (targetAniId != null) {
+                                    runCatching { fetchStaff("anilist", targetAniId, MediaType.Anime, null, malId) }
+                                        .getOrNull().orEmpty()
+                                } else emptyList()
+                            }
+                            val malDeferred = async {
+                                if (malId != null && malId > 0) {
+                                    runCatching { fetchStaff("jikan", malId, MediaType.Anime, null, malId) }
+                                        .getOrNull().orEmpty()
+                                } else emptyList()
+                            }
+                            val tmdbStaff = tmdbDeferred.await()
+                            val aniStaff = aniDeferred.await()
+                            val malStaff = malDeferred.await()
+                            if (aniStaff.isEmpty() && malStaff.isEmpty()) {
+                                tmdbStaff
+                            } else {
+                                mergeAndEnrichStaffLists(
+                                    primary = if (mediaType == MediaType.Anime) aniStaff else tmdbStaff,
+                                    secondary = if (mediaType == MediaType.Anime) malStaff else aniStaff,
+                                    tertiary = if (mediaType == MediaType.Anime) tmdbStaff else malStaff
+                                )
+                            }
+                        }
                     } else emptyList()
                 }
                 "jikan", "mal" -> {
@@ -304,8 +407,11 @@ class KitsugiStaffClient {
             if (staffId <= 0) return@withContext null
             when (MalJikanMediaSupport.canonicalSource(source)) {
                 "bangumi", "bgm" -> {
-                    KitsugiBangumiCreditsClient.fetchPersonDetail(staffId, name)
+                    val raw = KitsugiBangumiCreditsClient.fetchPersonDetail(staffId, name)
                         ?: KitsugiBangumiDetailClient.fetchStaffDetail(staffId)
+                    // Karakter/yapım adları CJK kalmasın diye infobox + önbellekle zenginleştir.
+                    // Ağ isteği sınırı ve zaman aşımı içeride korunur; başarısız olursa ham veri döner.
+                    raw?.let { KitsugiBangumiDetailClient.enrichStaffDetailNames(it) }
                 }
                 "shikimori" -> {
                     KitsugiShikimoriClient.fetchStaffDetail(staffId)
@@ -661,7 +767,7 @@ class KitsugiStaffClient {
                     if (targetName.isNullOrBlank() && staffId > 0) {
                         targetName = runCatching {
                             val req = okhttp3.Request.Builder()
-                                .url("https://kitsu.io/api/edge/people/$staffId")
+                                .url(KitsuApiHost.url("/people/$staffId"))
                                 .header("Accept", "application/vnd.api+json")
                                 .header("User-Agent", "KitsugiApp/2.4")
                                 .build()
@@ -890,5 +996,100 @@ class KitsugiStaffClient {
                 romanizedName = personName.romanized
             )
         }.getOrNull()
+    }
+
+    private fun mergeAndEnrichStaffLists(
+        primary: List<KitsugiStaff>,
+        secondary: List<KitsugiStaff>,
+        tertiary: List<KitsugiStaff>
+    ): List<KitsugiStaff> {
+        val all = primary + secondary + tertiary
+        if (all.isEmpty()) return emptyList()
+
+        fun normLatin(text: String?): String? {
+            val s = text?.trim()?.takeIf { it.isNotBlank() && !PreferenceHelpers.hasCjkCharacters(it) } ?: return null
+            val tokens = s.lowercase()
+                .replace(Regex("[^a-z0-9\\s]"), " ")
+                .split(Regex("\\s+"))
+                .filter { it.isNotBlank() }
+                .sorted()
+            return tokens.takeIf { it.isNotEmpty() }?.joinToString(" ")
+        }
+
+        fun normNative(text: String?): String? {
+            val s = text?.trim()?.replace(Regex("\\s+"), "") ?: return null
+            return s.takeIf { it.isNotBlank() && PreferenceHelpers.hasCjkCharacters(it) }
+        }
+
+        val merged = mutableListOf<KitsugiStaff>()
+        val latinIndex = mutableMapOf<String, Int>()
+        val nativeIndex = mutableMapOf<String, Int>()
+
+        for (item in all) {
+            val lKey = normLatin(item.romanizedName) ?: normLatin(item.englishName) ?: normLatin(item.name)
+            val nKey = normNative(item.nativeName) ?: normNative(item.name)
+
+            val existingIdx = (lKey?.let { latinIndex[it] }) ?: (nKey?.let { nativeIndex[it] })
+            if (existingIdx == null) {
+                val idx = merged.size
+                merged.add(item)
+                if (lKey != null) latinIndex[lKey] = idx
+                if (nKey != null) nativeIndex[nKey] = idx
+            } else {
+                val cur = merged[existingIdx]
+                val bestRomanized = cur.romanizedName?.takeIf { it.isNotBlank() && !PreferenceHelpers.hasCjkCharacters(it) }
+                    ?: item.romanizedName?.takeIf { it.isNotBlank() && !PreferenceHelpers.hasCjkCharacters(it) }
+                    ?: cur.name.takeIf { !PreferenceHelpers.hasCjkCharacters(it) }
+                    ?: item.name.takeIf { !PreferenceHelpers.hasCjkCharacters(it) }
+                val bestNative = cur.nativeName?.takeIf { it.isNotBlank() }
+                    ?: item.nativeName?.takeIf { it.isNotBlank() }
+                    ?: cur.name.takeIf { PreferenceHelpers.hasCjkCharacters(it) }
+                    ?: item.name.takeIf { PreferenceHelpers.hasCjkCharacters(it) }
+                val bestEnglish = cur.englishName?.takeIf { it.isNotBlank() }
+                    ?: item.englishName?.takeIf { it.isNotBlank() }
+                val bestDisplay = bestRomanized ?: bestEnglish ?: cur.name.ifBlank { item.name }
+                val bestImage = cur.imageUrl?.takeIf { it.isNotBlank() }
+                    ?: item.imageUrl?.takeIf { it.isNotBlank() }
+                val combinedRoles = (cur.role.split(",") + item.role.split(","))
+                    .map { it.trim() }
+                    .filter { it.isNotBlank() && !it.equals("Ekip Üyesi", ignoreCase = true) }
+                    .distinctBy { it.lowercase() }
+                    .ifEmpty { listOf(cur.role.ifBlank { "Ekip Üyesi" }) }
+                    .take(3)
+                    .joinToString(", ")
+
+                val updated = cur.copy(
+                    name = bestDisplay,
+                    role = combinedRoles,
+                    imageUrl = bestImage,
+                    romanizedName = bestRomanized,
+                    nativeName = bestNative,
+                    englishName = bestEnglish
+                )
+                merged[existingIdx] = updated
+                if (lKey != null) latinIndex[lKey] = existingIdx
+                if (nKey != null) nativeIndex[nKey] = existingIdx
+            }
+        }
+
+        fun rolePriority(role: String): Int {
+            val r = role.lowercase()
+            return when {
+                r.contains("yönetmen") && !r.contains("yardımcı") && !r.contains("bölüm") -> 0
+                r.contains("orijinal yaratıcı") || r.contains("yaratıcı") || r.contains("eser sahibi") -> 1
+                r.contains("seri kompozisyonu") || r.contains("senaryo") || r.contains("yazar") -> 2
+                r.contains("karakter tasarımı") -> 3
+                r.contains("müzik") || r.contains("besteci") -> 4
+                r.contains("baş animasyon") || r.contains("ses yönetmeni") || r.contains("sanat yönetmeni") -> 5
+                r.contains("yapımcı") -> 6
+                else -> 7
+            }
+        }
+
+        return merged.sortedWith(
+            compareBy<KitsugiStaff> { PreferenceHelpers.hasCjkCharacters(it.name) && it.romanizedName.isNullOrBlank() }
+                .thenBy { rolePriority(it.role) }
+                .thenByDescending { !it.imageUrl.isNullOrBlank() }
+        )
     }
 }

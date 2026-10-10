@@ -79,7 +79,8 @@ fun KitsugiCinematicLoadingScreen(
                     }
                     .blur(16.dp),
                 contentScale = ContentScale.Crop,
-                blurRadius = 20.dp
+                blurRadius = 20.dp,
+                blurAdultMedia = blurAdultMedia
             )
         }
 
@@ -151,7 +152,8 @@ fun KitsugiCinematicLoadingScreen(
                         contentDescription = title,
                         isAdult = isAdult,
                         modifier = Modifier.fillMaxSize(),
-                        contentScale = ContentScale.Crop
+                        contentScale = ContentScale.Crop,
+                        blurAdultMedia = blurAdultMedia
                     )
                 }
                 Spacer(modifier = Modifier.height(24.dp))

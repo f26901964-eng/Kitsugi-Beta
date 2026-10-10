@@ -696,7 +696,8 @@ internal fun CrossSyncSettingsContent(profile: ProfileSettings) {
             (if (profile.isMalConnected) 1 else 0) +
             (if (profile.isSimklConnected) 1 else 0) +
             (if (profile.isKitsuConnected) 1 else 0) +
-            (if (profile.isShikimoriConnected) 1 else 0)
+            (if (profile.isShikimoriConnected) 1 else 0) +
+            (if (profile.isBangumiConnected) 1 else 0)
 
     val connectedNames = mutableListOf<String>().apply {
         if (profile.isAniListConnected) add("AniList")
@@ -752,7 +753,7 @@ internal fun CrossSyncSettingsContent(profile: ProfileSettings) {
                             fontSize = 15.sp
                         )
                         Text(
-                            text = "Bağlı hesaplar: $connectedCount / 5",
+                            text = "Bağlı hesaplar: $connectedCount / 6",
                             color = KitsugiColors.TextMuted,
                             fontSize = 12.sp
                         )
@@ -762,7 +763,7 @@ internal fun CrossSyncSettingsContent(profile: ProfileSettings) {
                     text = if (connectedCount >= 2)
                         "Bağlı olan $connectedNames hesaplarınızdaki kütüphaneler birbirleriyle iki yönlü eşitlenir. Eksik girişler karşılıklı tamamlanır, asla silme işlemi yapılmaz."
                     else
-                        "Çapraz senkronizasyonu kullanabilmek için lütfen en az 2 platform bağlayın (AniList, MyAnimeList, Simkl, Kitsu, Shikimori).",
+                        "Çapraz senkronizasyonu kullanabilmek için lütfen en az 2 platform bağlayın (AniList, MyAnimeList, Simkl, Kitsu, Shikimori, Bangumi).",
                     color = KitsugiColors.TextSecondary,
                     fontSize = 13.sp,
                     lineHeight = 19.sp

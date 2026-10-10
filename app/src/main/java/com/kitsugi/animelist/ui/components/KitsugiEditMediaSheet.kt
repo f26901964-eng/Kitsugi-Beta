@@ -60,6 +60,7 @@ import com.kitsugi.animelist.data.auth.AniListSyncManager
 import com.kitsugi.animelist.data.auth.ExternalAuthManager
 import androidx.compose.material.icons.rounded.List
 import kotlin.math.roundToInt
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -134,22 +135,25 @@ fun KitsugiEditMediaSheet(
         else -> initialEntry?.source?.lowercase() == "shikimori"
     }
     val isBangumi = when (source.lowercase()) {
-        "bangumi", "bgm" -> true
-        else -> initialEntry?.source?.lowercase() == "bangumi"
+        "bangumi", "bgm", "bgm.tv" -> true
+        else -> when (initialEntry?.source?.lowercase()) {
+            "bangumi", "bgm", "bgm.tv" -> true
+            else -> false
+        }
     }
     val isAniList = when (source.lowercase()) {
         "anilist" -> true
-        "mal", "jikan", "myanimelist", "kitsu", "shikimori", "simkl", "tmdb", "bangumi", "bgm" -> false
+        "mal", "jikan", "myanimelist", "kitsu", "shikimori", "simkl", "tmdb", "bangumi", "bgm", "bgm.tv" -> false
         else -> !isKitsu && !isShikimori && !isBangumi && initialEntry?.aniListEntryId != null
     }
     val isMal = when (source.lowercase()) {
         "mal", "jikan", "myanimelist" -> true
-        "anilist", "kitsu", "shikimori", "simkl", "tmdb", "bangumi", "bgm" -> false
+        "anilist", "kitsu", "shikimori", "simkl", "tmdb", "bangumi", "bgm", "bgm.tv" -> false
         else -> !isKitsu && !isShikimori && !isBangumi && !isAniList && (initialEntry?.malId != null || initialEntry?.source == "mal")
     }
     val isSimkl = when (source.lowercase()) {
         "simkl", "tmdb" -> true
-        "anilist", "mal", "jikan", "myanimelist", "kitsu", "shikimori", "bangumi", "bgm" -> false
+        "anilist", "mal", "jikan", "myanimelist", "kitsu", "shikimori", "bangumi", "bgm", "bgm.tv" -> false
         else -> !isKitsu && !isShikimori && !isBangumi && !isAniList && !isMal && (initialEntry?.simklId != null || initialEntry?.source == "simkl")
     }
     val isManual     = !isAniList && !isMal && !isSimkl && !isKitsu && !isShikimori && !isBangumi
@@ -172,6 +176,11 @@ fun KitsugiEditMediaSheet(
             else             -> db
         } else 0
         mutableIntStateOf(ui)
+    }
+
+    // AniHyou paritesi: 0,5 puanlama adımı seçiliyken kullanılan kayan puan durumu (0-10)
+    var scoreHalf by rememberSaveable(initialEntry?.id) {
+        mutableFloatStateOf((initialEntry?.score ?: 0).toFloat())
     }
 
     var isFavorite     by rememberSaveable(initialEntry?.id) { mutableStateOf(initialEntry?.isFavorite ?: false) }
@@ -257,8 +266,14 @@ fun KitsugiEditMediaSheet(
     
     val activeAdvancedScores = advancedScoresMap.values.filter { it > 0.0 }
     val advancedAverage = if (activeAdvancedScores.isNotEmpty()) activeAdvancedScores.average() else 0.0
+    // AniHyou paritesi: "Puanlama adımları" 0,5 ise yıldızlar yerine ±0,5 stepper geçer.
+    val scoreStepPref = com.kitsugi.animelist.data.settings.KitsugiContentPrefs.scoreStep
+    val halfStepMode = scoreStepPref == 0.5f && !advancedScoresEnabled &&
+        (scoreFormat == "POINT_10" || scoreFormat == "POINT_100" || scoreFormat == "POINT_5")
     val effectiveScoreRaw = if (advancedScoresEnabled && advancedScoresCategories.isNotEmpty()) {
         advancedAverage.roundToInt()
+    } else if (halfStepMode) {
+        scoreHalf.roundToInt()
     } else {
         scoreRaw
     }
@@ -524,13 +539,29 @@ fun KitsugiEditMediaSheet(
                         animationSpec = tween(300), label = "scoreColor"
                     )
                     Text(
-                        text = if (effectiveScoreRaw <= 0) "Puanlanmadı" else "$effectiveScoreRaw / $scoreMax" + (if (advancedScoresEnabled) " (Ortalama)" else ""),
+                        text = if (halfStepMode) {
+                            if (scoreHalf <= 0f) "Puanlanmadı" else String.format(java.util.Locale.US, "%.1f / 10", scoreHalf)
+                        } else if (effectiveScoreRaw <= 0) {
+                            "Puanlanmadı"
+                        } else {
+                            "$effectiveScoreRaw / $scoreMax" + (if (advancedScoresEnabled) " (Ortalama)" else "")
+                        },
                         color = scoreColor,
                         style = MaterialTheme.typography.titleMedium,
                         fontWeight = FontWeight.Bold
                     )
                     Spacer(modifier = Modifier.height(10.dp))
-                    Row(
+                    if (halfStepMode) {
+                        // AniHyou paritesi: 0,5 adımlı puan girişi (kaynaklara tam sayı yuvarlanarak yazılır)
+                        SheetRow(
+                            icon = Icons.Rounded.Star,
+                            label = "Puan (0,5 adım)",
+                            value = String.format(java.util.Locale.US, "%.1f", scoreHalf),
+                            onDecrement = { scoreHalf = (scoreHalf - 0.5f).coerceAtLeast(0f) },
+                            onIncrement = { scoreHalf = (scoreHalf + 0.5f).coerceAtMost(10f) }
+                        )
+                    }
+                    if (!halfStepMode) Row(
                         horizontalArrangement = Arrangement.spacedBy(4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
@@ -575,15 +606,16 @@ fun KitsugiEditMediaSheet(
                     advancedScoresCategories.forEach { category ->
                         val currentVal = advancedScoresMap[category] ?: 0.0
                         
+                        // AniHyou paritesi: detaylı kategoriler de "Puanlama adımları" tercihine uyar
                         val (step, maxVal) = when (scoreFormat) {
-                            "POINT_100" -> 1.0 to 100.0
+                            "POINT_100" -> (10.0 * scoreStepPref.toDouble()) to 100.0
                             "POINT_10_DECIMAL" -> 0.1 to 10.0
-                            "POINT_5" -> 1.0 to 5.0
+                            "POINT_5" -> scoreStepPref.toDouble() to 5.0
                             "POINT_3" -> 1.0 to 3.0
-                            else -> 1.0 to 10.0
+                            else -> scoreStepPref.toDouble() to 10.0
                         }
                         
-                        val formattedValue = if (scoreFormat == "POINT_10_DECIMAL") {
+                        val formattedValue = if (scoreFormat == "POINT_10_DECIMAL" || step < 1.0) {
                             String.format(java.util.Locale.US, "%.1f", currentVal)
                         } else {
                             currentVal.toInt().toString()

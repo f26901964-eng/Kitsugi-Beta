@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.screens.detail
 
+import com.kitsugi.animelist.ui.components.KitsugiGalleryIconButton
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import com.kitsugi.animelist.ui.utils.tvClickable
@@ -174,13 +175,7 @@ internal fun DetailHero(
                             ),
                         contentAlignment = Alignment.Center
                     ) {
-                        IconButton(onClick = onGalleryClick) {
-                            Icon(
-                                imageVector = Icons.Rounded.Image,
-                                contentDescription = "Galeri",
-                                tint = accentColorLocal
-                            )
-                        }
+                        KitsugiGalleryIconButton(onClick = onGalleryClick, accentColor = accentColorLocal)
                     }
                 }
 

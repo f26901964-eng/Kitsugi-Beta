@@ -1070,12 +1070,120 @@ object KitsugiBangumiDetailClient {
         }
     }
 
+    /**
+     * Kişi detay sayfasındaki karakter rolleri ve yapımlar için Latin ad zenginleştirmesi.
+     *
+     * Bangumi `/v0/persons/{id}/characters` ve `/v0/persons/{id}/subjects` uçları infobox
+     * döndürmez; bu yüzden karakter ve yapım adları CJK (Japonca/Çince) kalır. Bu fonksiyon:
+     *  1. Karakter adları için karakter detaylarını (`/v0/characters/{id}`) çeker — infobox'tan
+     *     romaji/İngilizce alınır (sınırlı sayıda, önbellekli).
+     *  2. Yapım başlıkları için [BangumiTitleCache] önbelleğine bakar — kayıt daha önce
+     *     çözülmüşse ağ isteği yapılmaz.
+     *
+     * Zaman aşımı olursa mevcut (CJK) değerler korunur; ekran boş kalmaz.
+     */
+    suspend fun enrichStaffDetailNames(detail: KitsugiStaffDetail): KitsugiStaffDetail {
+        if (detail.characterRoles.isEmpty() && detail.mediaWorks.isEmpty()) return detail
+
+        // 1) Karakter adları için infobox'tan romaji/İngilizce çek (sınırlı sayıda)
+        val characterLookups = detail.characterRoles
+            .filter { needsLatinName(it.characterName, it.characterRomanizedName, it.characterEnglishName) }
+            .map { EntityNameLookup("characters", it.characterId) }
+        val characterNames = if (characterLookups.isNotEmpty()) {
+            fetchEntityLocalizedNames(characterLookups)
+        } else emptyMap()
+
+        // 2) Yapım başlıkları için: önce önbelleğe bak, hâlâ CJK kalanlar için
+        //    v0 subject detayını çek (infobox'tan romaji/İngilizce). Sınırlı sayıda istek.
+        val allMediaIds = (detail.characterRoles.map { it.mediaId } + detail.mediaWorks.map { it.mediaId })
+            .distinct()
+        val cachedSubjectTitles = mutableMapOf<Int, BangumiTitleCache.LatinTitles?>()
+        val pendingSubjectIds = mutableListOf<Int>()
+        for (mediaId in allMediaIds) {
+            val rawId = BangumiIdNamespace.rawIdFromStable(mediaId) ?: continue
+            val cached = BangumiTitleCache.get(rawId)
+            cachedSubjectTitles[rawId] = cached
+            val hasLatin = cached != null && (usableLatinName(cached.romaji) != null || usableLatinName(cached.english) != null)
+            // Önbellekte Latin yoksa subject detayını çekilecek listeye ekle
+            if (!hasLatin) {
+                pendingSubjectIds.add(rawId)
+            }
+        }
+        // v0 subject detaylarını paralel çek (sınırlı sayıda, zaman aşımı korumalı)
+        if (pendingSubjectIds.isNotEmpty()) {
+            val subjectResults = java.util.concurrent.ConcurrentHashMap<Int, BangumiLocalizedName>()
+            withTimeoutOrNull(ENTITY_NAME_BATCH_TIMEOUT_MS) {
+                coroutineScope {
+                    pendingSubjectIds.take(ENTITY_NAME_LOOKUP_LIMIT).map { rawId ->
+                        async(Dispatchers.IO) {
+                            val localized = try {
+                                enrichmentRequestSemaphore.withPermit {
+                                    withTimeoutOrNull(ENTITY_NAME_LOOKUP_TIMEOUT_MS) {
+                                        val subject = loadSubject(rawId) ?: return@withTimeoutOrNull null
+                                        BangumiNameLocalizer.subject(
+                                            subject.name,
+                                            subject.nameCn,
+                                            subject.infobox
+                                        )
+                                    }
+                                }
+                            } catch (_: Exception) { null }
+                            localized?.let { subjectResults[rawId] = it }
+                        }
+                    }.awaitAll()
+                }
+            }
+            // Önbelleğe yaz ve cachedSubjectTitles'a aktar (sonraki ziyaretlerde ağ isteği gerekmesin)
+            for ((rawId, localized) in subjectResults) {
+                BangumiTitleCache.put(rawId, localized.romaji, localized.english, localized.native)
+                cachedSubjectTitles[rawId] = BangumiTitleCache.LatinTitles(localized.romaji, localized.english, localized.native)
+            }
+        }
+
+        // 3) Karakter rollerini zenginleştir
+        val enrichedRoles = detail.characterRoles.map { role ->
+            val localized = characterNames[EntityNameLookup("characters", role.characterId).cacheKey]
+            val rawSubjectId = BangumiIdNamespace.rawIdFromStable(role.mediaId)
+            val subjectTitles = rawSubjectId?.let { cachedSubjectTitles[it] }
+            val subjectLatin = subjectTitles?.let { usableLatinName(it.romaji) ?: usableLatinName(it.english) }
+            role.copy(
+                characterName = localizedDisplay(role.characterName, localized),
+                characterRomanizedName = usableLatinName(role.characterRomanizedName) ?: localized?.romaji,
+                characterNativeName = role.characterNativeName ?: localized?.native,
+                characterEnglishName = usableLatinName(role.characterEnglishName) ?: localized?.english,
+                // Önbellekten/istekten gelen Latin başlık varsa onu kullan
+                mediaTitle = subjectLatin ?: role.mediaTitle,
+                mediaTitleRomaji = role.mediaTitleRomaji ?: subjectTitles?.romaji,
+                mediaTitleEnglish = role.mediaTitleEnglish ?: subjectTitles?.english
+            )
+        }
+
+        // 4) Yapım listesini zenginleştir
+        val enrichedWorks = detail.mediaWorks.map { work ->
+            val rawSubjectId = BangumiIdNamespace.rawIdFromStable(work.mediaId)
+            val subjectTitles = rawSubjectId?.let { cachedSubjectTitles[it] }
+            if (subjectTitles != null && (subjectTitles.romaji != null || subjectTitles.english != null)) {
+                val latin = usableLatinName(subjectTitles.romaji) ?: usableLatinName(subjectTitles.english)
+                work.copy(
+                    mediaTitle = latin ?: work.mediaTitle,
+                    titleRomaji = work.titleRomaji ?: subjectTitles.romaji,
+                    titleEnglish = work.titleEnglish ?: subjectTitles.english
+                )
+            } else work
+        }
+
+        return detail.copy(
+            characterRoles = enrichedRoles,
+            mediaWorks = enrichedWorks
+        )
+    }
+
     private fun needsLatinName(name: String, romanized: String?, english: String?): Boolean =
         PreferenceHelpers.hasCjkCharacters(name) &&
             usableLatinName(romanized) == null && usableLatinName(english) == null
 
     private fun usableLatinName(name: String?): String? = name?.trim()?.takeIf {
-        it.isNotEmpty() && it.any(Char::isLetter) && !PreferenceHelpers.hasCjkCharacters(it)
+        PreferenceHelpers.isLatinText(it)
     }
 
     private fun localizedDisplay(original: String, localized: BangumiLocalizedName?): String =
@@ -1395,7 +1503,7 @@ object KitsugiBangumiDetailClient {
             val rawName = ep.strOrNull("name")
             val rawNameCn = ep.strOrNull("nameCN")
             val latinName = listOfNotNull(rawName, rawNameCn).firstOrNull {
-                it.any(Char::isLetter) && !PreferenceHelpers.hasCjkCharacters(it)
+                PreferenceHelpers.isLatinText(it)
             }
             val name = latinName ?: rawName ?: rawNameCn
             KitsugiStreamingEpisode(
@@ -1864,7 +1972,9 @@ object KitsugiBangumiDetailClient {
      * kimlikler zenginleştirme turunda eklenir. Eşleşmeyen adlar `0` olarak önbelleğe alınır.
      */
     private suspend fun withStudioPersonIds(detail: KitsugiMediaDetail): KitsugiMediaDetail {
-        val candidates = (detail.studios + detail.producers)
+        // Networks (yayıncı ağlar) da dahil — TBS, MBS gibi kanallar da Bangumi'de
+        // şirket (type=2) kaydı olarak tutulur ve aynı kişi detay şablonuyla açılır.
+        val candidates = (detail.studios + detail.producers + detail.networks)
             .filter { it.id <= 0 && it.source.equals(SOURCE, ignoreCase = true) && it.name.isNotBlank() }
             .map { it.name }
         if (candidates.isEmpty()) return detail
@@ -1883,7 +1993,8 @@ object KitsugiBangumiDetailClient {
 
         return detail.copy(
             studios = detail.studios.map(::apply),
-            producers = detail.producers.map(::apply)
+            producers = detail.producers.map(::apply),
+            networks = detail.networks.map(::apply)
         )
     }
 

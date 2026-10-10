@@ -38,6 +38,10 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
     private val _isFavourite = MutableStateFlow(false)
     val isFavourite: StateFlow<Boolean> = _isFavourite.asStateFlow()
 
+    /** Galeri tüm kaynaklardan (detay + galeri + yenileme) bitene kadar true. */
+    private val galleryTracker = GalleryLoadTracker()
+    val galleryLoading: StateFlow<Boolean> = galleryTracker.loading
+
     /**
      * "Hakkında" metninin gösterilecek hali — detay sayfasındaki Açıklama kartıyla
      * aynı sözleşme: önce ham metin, otomatik çeviri açıksa (veya metin Rusça ise)
@@ -46,12 +50,28 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
     private val _translatedAbout = MutableStateFlow<String?>(null)
     val translatedAbout: StateFlow<String?> = _translatedAbout.asStateFlow()
 
+    /** Sonraki yapım sayfası yükleniyor mu (sonsuz kaydırma). */
+    private val _isLoadingMore = MutableStateFlow(false)
+    val isLoadingMore: StateFlow<Boolean> = _isLoadingMore.asStateFlow()
+
+    /** Son sayfa isteği başarısız oldu; UI "tekrar dene" gösterir. */
+    private val _loadMoreFailed = MutableStateFlow(false)
+    val loadMoreFailed: StateFlow<Boolean> = _loadMoreFailed.asStateFlow()
+
+    /** Bir sonraki çekilecek yapım sayfası (1. sayfa fetchStudioDetail ile gelir). */
+    private var nextWorksPage = 2
+
     private var currentFetchKey: String? = null
     private var lastStudioId: Int = 0
     private var lastSource: String = ""
     private var lastStudioName: String? = null
+    private var lastStudioImageUrl: String? = null
 
-    fun loadStudio(studioId: Int, source: String, name: String? = null) {
+    /**
+     * @param imageUrl detay sayfasındaki çipten taşınan kurum logosu; kaynak API kendi logosunu
+     * vermese de galeri/hero boş kalmasın diye yedek olarak kullanılır.
+     */
+    fun loadStudio(studioId: Int, source: String, name: String? = null, imageUrl: String? = null) {
         val canonicalSource = StudioSourceSupport.canonicalSource(source) ?: source.lowercase()
         val newKey = "$canonicalSource:$studioId:${StudioSourceSupport.normalizeName(name)}"
         if (newKey == currentFetchKey) {
@@ -61,15 +81,20 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
 
         Log.d(TAG, "loadStudio: New key=$newKey (was $currentFetchKey)")
         currentFetchKey = newKey
+        nextWorksPage = 2
+        _isLoadingMore.value = false
+        _loadMoreFailed.value = false
         lastStudioId = studioId
         lastSource = source
         lastStudioName = name?.takeIf { it.isNotBlank() }
+        lastStudioImageUrl = imageUrl?.takeIf { it.isNotBlank() }
 
         val cachedStudioDetail = DetailCache.getStudioDetail(source, studioId)
             ?.takeIf { matchesExpectedStudio(source, lastStudioName, it.name) }
         _state.value = if (cachedStudioDetail != null) StudioDetailState.Success(cachedStudioDetail) else StudioDetailState.Loading
         if (cachedStudioDetail != null) _isFavourite.value = cachedStudioDetail.isFavourite
 
+        galleryTracker.reset()
         viewModelScope.launch {
             fetchStudioDetail(studioId, source, expectedFetchKey = newKey, name = lastStudioName)
         }
@@ -88,7 +113,23 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
         }
     }
 
+    /** Stüdyo detayı + galerisi bitene kadar galeri yükleniyor sayılır. */
     private suspend fun fetchStudioDetail(
+        studioId: Int,
+        source: String,
+        expectedFetchKey: String,
+        name: String? = null,
+        force: Boolean = false
+    ) {
+        val token = galleryTracker.begin()
+        try {
+            fetchStudioDetailInternal(studioId, source, expectedFetchKey, name, force)
+        } finally {
+            galleryTracker.end(token)
+        }
+    }
+
+    private suspend fun fetchStudioDetailInternal(
         studioId: Int,
         source: String,
         expectedFetchKey: String,
@@ -113,6 +154,10 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
 
         if (currentFetchKey != expectedFetchKey) return
         if (detail != null) {
+            // Yeni ilk sayfa geldi: sonsuz kaydırma durumu baştan başlar.
+            nextWorksPage = 2
+            _isLoadingMore.value = false
+            _loadMoreFailed.value = false
             _state.value = StudioDetailState.Success(detail)
             _isFavourite.value = detail.isFavourite
 
@@ -142,7 +187,7 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
             }
 
             // Build gallery from studio imageUrl (logo)
-            val imageUrl = detail.imageUrl
+            val imageUrl = detail.imageUrl ?: lastStudioImageUrl
             if (!imageUrl.isNullOrBlank()) {
                 val category = if (imageUrl.contains("logo", ignoreCase = true) ||
                     imageUrl.contains("image.tmdb.org", ignoreCase = true)) {
@@ -150,13 +195,54 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
                 } else {
                     GalleryCategory.POSTER
                 }
-                val src = if (imageUrl.contains("image.tmdb.org") || imageUrl.contains("tmdb.org")) "TMDB" else "Jikan"
+                val src = when {
+                    imageUrl.contains("image.tmdb.org") || imageUrl.contains("tmdb.org") -> "TMDB"
+                    imageUrl.contains("shikimori.") -> "Shikimori"
+                    imageUrl.contains("anilist.co") -> "AniList"
+                    imageUrl.contains("bgm.tv") || imageUrl.contains("bangumi.tv") -> "Bangumi"
+                    else -> "Jikan"
+                }
                 _galleryItems.value = listOf(GalleryItem(url = imageUrl, source = src, category = category, description = lastStudioName))
             } else {
                 _galleryItems.value = emptyList()
             }
         } else {
             _state.value = StudioDetailState.Error("Stüdyo detayları yüklenemedi.")
+        }
+    }
+
+    /**
+     * Sonraki yapım sayfasını çekip mevcut listeye ekler (sonsuz kaydırma).
+     * Önbelleğe yazılmaz: önbellek ilk sayfayı tutar, yeniden açılışta tutarlı kalır.
+     */
+    fun loadMoreWorks() {
+        val current = (_state.value as? StudioDetailState.Success)?.detail ?: return
+        if (!current.hasMoreWorks || _isLoadingMore.value) return
+        val expectedKey = currentFetchKey ?: return
+        val page = nextWorksPage
+        _isLoadingMore.value = true
+        _loadMoreFailed.value = false
+
+        viewModelScope.launch {
+            // Çözümlenmiş kimlik (detail.id) kullanılır: Jikan'da chip kimliğinden farklı olabilir.
+            val result = withContext(Dispatchers.IO) {
+                apiClient.fetchStudioWorksPage(lastSource, current.id, page)
+            }
+            // Bu arada başka bir stüdyo açıldıysa sonucu uygulama.
+            if (currentFetchKey != expectedKey) return@launch
+
+            _isLoadingMore.value = false
+            if (result == null) {
+                _loadMoreFailed.value = true
+                return@launch
+            }
+            val latest = (_state.value as? StudioDetailState.Success)?.detail ?: return@launch
+            nextWorksPage = page + 1
+            val merged = (latest.mediaWorks + result.works)
+                .distinctBy { it.mediaType to it.mediaId }
+            _state.value = StudioDetailState.Success(
+                latest.copy(mediaWorks = merged, hasMoreWorks = result.hasMore)
+            )
         }
     }
 

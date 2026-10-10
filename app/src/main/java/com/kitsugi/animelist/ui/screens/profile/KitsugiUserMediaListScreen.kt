@@ -62,7 +62,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.zIndex
 import com.kitsugi.animelist.data.remote.JikanSearchResult
-import com.kitsugi.animelist.data.remote.matches
+import com.kitsugi.animelist.data.remote.matchesInSource
 import com.kitsugi.animelist.data.settings.AppSettings
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
@@ -252,7 +252,7 @@ fun KitsugiUserMediaListScreen(
             titleRomaji = item.title,
             rawScoreDouble = item.score
         )
-        val localEntry = mediaEntries.firstOrNull { it.matches(result) }
+        val localEntry = mediaEntries.firstOrNull { it.matchesInSource(result) }
         if (localEntry != null) onLocalEntryClick(localEntry) else onMediaClick(result)
     }
 
@@ -423,7 +423,8 @@ fun KitsugiUserMediaListScreen(
                                     selectedSortId = selectedSortId
                                 )
                             }
-                        } else if (selectedStatusFilterId == "completed") {
+                        } else if (selectedStatusFilterId == "completed" || !appSettings.separatedListStyle) {
+                            // AniHyou paritesi: "Ayrılmış liste tarzını kullan" kapalıysa düz akış.
                             MyListFlatContent(
                                 visibleEntries = visibleEntries,
                                 selectedListLayoutId = selectedListLayoutId,

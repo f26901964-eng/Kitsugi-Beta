@@ -830,7 +830,7 @@ fun TvSettingsScreen(
                             item {
                                 TvSettingsActionRow(
                                     title = "Hesapları Birbiriyle Eşitle",
-                                    description = if (isCrossSyncRunning) "Eşitleme yapılıyor..." else "AniList ve MyAnimeList verilerini karşılıklı güncelleyin.",
+                                    description = if (isCrossSyncRunning) "Eşitleme yapılıyor..." else "Bağlı hesaplardaki verileri karşılıklı güncelleyin.",
                                     actionText = if (isCrossSyncRunning) "Eşitleniyor" else "Eşitle",
                                     onClick = {
                                         if (!isCrossSyncRunning) {

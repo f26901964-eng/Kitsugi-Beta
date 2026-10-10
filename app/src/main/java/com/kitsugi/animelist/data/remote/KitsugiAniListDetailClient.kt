@@ -24,6 +24,7 @@ internal object KitsugiAniListDetailClient {
                 Media($idFilter, type: ${'$'}type) {
                     id
                     idMal
+                    format
                     countryOfOrigin
                     description(asHtml: false)
                     genres
@@ -333,6 +334,7 @@ internal object KitsugiAniListDetailClient {
             val externalLinks = mutableListOf<KitsugiExternalLink>()
             val streamingLinks = mutableListOf<KitsugiExternalLink>()
             var extractedTmdbId: Int? = null
+            var extractedTmdbMovieId: Int? = null
             var extractedTmdbSeason: Int? = null
             media.optJSONArray("externalLinks")?.let { arr ->
                 for (i in 0 until arr.length()) {
@@ -345,10 +347,14 @@ internal object KitsugiAniListDetailClient {
                     val link = KitsugiExternalLink(site = site, url = url, language = lang)
                     if (type == "STREAMING") streamingLinks.add(link)
                     else externalLinks.add(link)
-                    if (extractedTmdbId == null && url.contains("themoviedb.org", ignoreCase = true)) {
-                        extractedTmdbId = Regex("""/tv/(\d+)""").find(url)?.groupValues?.get(1)?.toIntOrNull()
-                            ?: Regex("""/movie/(\d+)""").find(url)?.groupValues?.get(1)?.toIntOrNull()
-                        extractedTmdbSeason = Regex("""/season/(\d+)""").find(url)?.groupValues?.get(1)?.toIntOrNull()
+                    if (url.contains("themoviedb.org", ignoreCase = true)) {
+                        val movieId = Regex("""/movie/(\d+)""").find(url)?.groupValues?.get(1)?.toIntOrNull()
+                        val tvId = Regex("""/tv/(\d+)""").find(url)?.groupValues?.get(1)?.toIntOrNull()
+                        if (movieId != null && extractedTmdbMovieId == null) extractedTmdbMovieId = movieId
+                        if (tvId != null && extractedTmdbId == null) {
+                            extractedTmdbId = tvId
+                            extractedTmdbSeason = Regex("""/season/(\d+)""").find(url)?.groupValues?.get(1)?.toIntOrNull()
+                        }
                     }
                 }
             }
@@ -392,8 +398,14 @@ internal object KitsugiAniListDetailClient {
                 streamingEpisodes = streamingEpisodes,
                 openings = openings,
                 endings = endings,
-                tmdbId = extractedTmdbId,
+                tmdbId = if (media.optNullableString("format").equals("MOVIE", ignoreCase = true)) {
+                    extractedTmdbMovieId ?: extractedTmdbId
+                } else {
+                    extractedTmdbId ?: extractedTmdbMovieId
+                },
                 tmdbSeason = extractedTmdbSeason,
+                format = media.optNullableString("format"),
+                rawFormat = media.optNullableString("format"),
                 pictures = aniListPictures,
                 nextAiringEpisode = nextAiringEpisode,
                 meanScore = meanScore,

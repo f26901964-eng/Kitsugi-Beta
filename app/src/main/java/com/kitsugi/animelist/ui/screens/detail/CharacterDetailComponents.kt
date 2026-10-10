@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.screens.detail
 
+import com.kitsugi.animelist.ui.components.KitsugiGalleryIconButton
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -308,15 +309,9 @@ internal fun CharacterDetailLeftPanel(
                                 .then(Modifier.padding(1.dp)),
                             contentAlignment = Alignment.Center
                         ) {
-                            IconButton(onClick = {
+                            KitsugiGalleryIconButton(onClick = {
                                 onGalleryClick(galleryItems, 0)
-                            }) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Image,
-                                    contentDescription = stringResource(R.string.action_gallery),
-                                    tint = accentColor
-                                )
-                            }
+                            }, accentColor = accentColor)
                         }
                     }
 
@@ -627,9 +622,7 @@ internal fun CharacterPortraitHeroSection(
                         modifier = androidx.compose.ui.Modifier.size(40.dp).clip(CircleShape).background(accentColor.copy(alpha = 0.22f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        IconButton(onClick = { onGalleryOpen(galleryItems, 0) }) {
-                            Icon(Icons.Rounded.Image, contentDescription = stringResource(R.string.action_gallery), tint = accentColor)
-                        }
+                        KitsugiGalleryIconButton(onClick = { onGalleryOpen(galleryItems, 0) }, accentColor = accentColor)
                     }
                 }
                 Box(
@@ -747,9 +740,7 @@ internal fun CharacterDetailStickyHeader(
                     modifier = androidx.compose.ui.Modifier.weight(1f)
                 )
                 if (!detail.imageUrl.isNullOrBlank()) {
-                    IconButton(onClick = { onGalleryOpen(galleryItems, 0) }) {
-                        Icon(Icons.Rounded.Image, contentDescription = stringResource(R.string.action_gallery), tint = accentColor)
-                    }
+                    KitsugiGalleryIconButton(onClick = { onGalleryOpen(galleryItems, 0) }, accentColor = accentColor)
                 }
                 IconButton(onClick = {
                     val url = com.kitsugi.animelist.utils.ShareUtils.buildCharacterUrl(source, characterId)

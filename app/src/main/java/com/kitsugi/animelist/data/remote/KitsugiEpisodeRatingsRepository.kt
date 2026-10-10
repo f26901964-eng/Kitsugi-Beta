@@ -89,6 +89,129 @@ object KitsugiEpisodeRatingsRepository {
     private suspend fun isAnyLogoSourceEnabled(): Boolean =
         isTmdbArtworkEnabled() || getFanartSettings().first
 
+    /**
+     * Kullanıcının ayarlardan seçtiği TMDB dil tercihini döner.
+     * Fanart.tv (ISO 639-1) ve TMDB (iso_639_1) ile uyumlu kısa kod.
+     * Örn: "tr", "en", "ja", "fr", "de", "es", "it", "ru", "zh"
+     */
+    suspend fun getPreferredImageLanguage(): String {
+        val context = appContext ?: return "tr"
+        return try {
+            val settings = com.kitsugi.animelist.data.settings.SettingsDataStore(context).settingsFlow.first()
+            val lang = settings.tmdbLanguage.trim().lowercase()
+            // TMDB bazen "en-US" gibi dönebilir; ilk parçayı al
+            lang.replace('_', '-').split('-', limit = 2).first().ifBlank { "tr" }
+        } catch (e: Exception) {
+            "tr"
+        }
+    }
+
+    /**
+     * Dil kodunu Fanart.tv / TMDB uyumlu hale getirir.
+     * "en-US" → "en", "tr-TR" → "tr", boş → "en"
+     */
+    fun normalizeLanguageCode(language: String?): String {
+        val normalized = language?.trim()?.lowercase()?.replace('_', '-')?.takeIf { it.isNotBlank() }
+            ?: return "en"
+        return normalized.split('-', limit = 2).first().ifBlank { "en" }
+    }
+
+    /**
+     * Bu kayıt bir film logosu mu istiyor?
+     * Anime filmleri çoğu kaynakta [MediaType.Anime] olarak gelir; format / başlık / alt yazı da bakılır.
+     */
+    fun prefersMovieLogo(
+        type: com.kitsugi.animelist.model.MediaType?,
+        format: String? = null,
+        rawFormat: String? = null,
+        subtitle: String? = null,
+        title: String? = null
+    ): Boolean {
+        if (type == com.kitsugi.animelist.model.MediaType.Movie) return true
+        if (type == com.kitsugi.animelist.model.MediaType.TvShow) return false
+        val hints = listOfNotNull(format, rawFormat, subtitle, title).joinToString(" ")
+        if (hints.isBlank()) return false
+        return Regex("""(?i)(^|[^a-z0-9])(movie|film|映画|剧场版|劇場版)([^a-z0-9]|$)""").containsMatchIn(hints)
+    }
+
+    /** Galeri sıralaması: tercih edilen dil → metinsiz → İngilizce → diğer. */
+    fun galleryLanguageRank(language: String?, preferred: String): Int {
+        val lang = language?.trim()?.lowercase()?.substringBefore('-')?.substringBefore('_').orEmpty()
+        val wanted = normalizeLanguageCode(preferred)
+        return when {
+            lang == wanted -> 0
+            lang.isBlank() || lang == "00" || lang == "null" -> 1
+            lang == "en" -> 2
+            else -> 3
+        }
+    }
+
+    /**
+     * ARM veya animeapi JSON yanıtındaki `media` veya `themoviedb_type` alanını okuyarak
+     * bu TMDB kaydının türünü ("movie" veya "tv") [DetailCache.tmdbMediaCache]'e yazar.
+     *
+     * Bu önbellek TVDB sızıntısını önlemenin kritik anahtarıdır: TVDB anime filmlerini
+     * dizinin 0. sezonu olarak tutar. Film kaydı için bu TVDB ID'si ile fanart.tv TV
+     * sorgusu yapılırsa DİZİNİN logosu/afişi gelir (Chainsaw Man: Reze-hen → sarı dizi
+     * logosu vakası). `media` alanı bu tuzağı ayırt eden tek yetkili işarettir.
+     */
+    private fun cacheTmdbMediaKind(tmdbId: Int?, json: JSONObject) {
+        if (tmdbId == null || tmdbId <= 0) return
+        val armMedia = json.optString("media", "").trim().lowercase()
+        val apiType = json.optString("themoviedb_type", "").trim().lowercase()
+        val kind = when {
+            armMedia == "movie" || apiType == "movie" -> "movie"
+            armMedia == "tv" || apiType == "tv" || apiType == "series" -> "tv"
+            else -> null
+        }
+        if (kind != null) {
+            DetailCache.tmdbMediaCache[tmdbId] = kind
+            Log.d(TAG, "Media kind cached: tmdbId=$tmdbId → $kind")
+        }
+    }
+
+    /**
+     * Yalnızca TMDB ID bilinen kayıtlar için medya türünü ARM'den sorgular (önbellekli).
+     * ARM'de eşleme yoksa (404/400/boş) null yazılır → "kontrol edildi, film değil".
+     */
+    private fun queryMediaKindFromArm(tmdbId: Int): String? {
+        if (DetailCache.tmdbMediaCache.containsKey(tmdbId)) {
+            return DetailCache.tmdbMediaCache[tmdbId]
+        }
+        val kind = runCatching {
+            val url = URL("https://arm.haglund.dev/api/v2/ids?source=themoviedb&id=$tmdbId")
+            val response = KitsugiApiBase.executeGetRequest(url) ?: return@runCatching null
+            val trimmed = response.trim()
+            // ARM bazen tek elemanlı dizi döndürür — sar (fetchArmJson ile aynı davranış).
+            val json = runCatching {
+                if (trimmed.startsWith("[")) {
+                    val arr = JSONArray(trimmed)
+                    if (arr.length() == 0) null else arr.optJSONObject(0)
+                } else {
+                    JSONObject(trimmed)
+                }
+            }.getOrNull() ?: return@runCatching null
+            cacheTmdbMediaKind(tmdbId, json)
+            json.optString("media", "").trim().lowercase().takeIf { it == "movie" || it == "tv" }
+        }.getOrNull()
+        // Negatif önbellek: aynı ID için ARM'ye tekrar sorulmaz.
+        DetailCache.tmdbMediaCache[tmdbId] = kind
+        return kind
+    }
+
+    /**
+     * Bu TMDB ID'si bir FİLM kaydına mı ait? Önbellek → gerekirse ARM.
+     * Çağıranlar (logo, galeri) tür bilgisine güvenemediğinde (listeler filmleri
+     * "Anime/TV" olarak getirebilir) bu yöntemle kesinleştirir.
+     */
+    suspend fun isTmdbMovie(tmdbId: Int?): Boolean = withContext(Dispatchers.IO) {
+        if (tmdbId == null || tmdbId <= 0) return@withContext false
+        if (DetailCache.tmdbMediaCache.containsKey(tmdbId)) {
+            return@withContext DetailCache.tmdbMediaCache[tmdbId] == "movie"
+        }
+        queryMediaKindFromArm(tmdbId) == "movie"
+    }
+
     // ── All caches are consolidated in DetailCache (app-lifetime singleton) ──
     // References kept as local aliases for readability
     private val ratingsCache get() = DetailCache.episodeRatingsCache
@@ -101,16 +224,18 @@ object KitsugiEpisodeRatingsRepository {
     private val tmdbToTvdbCache get() = DetailCache.tmdbToTvdbCache
 
     // tmdbId → logo URL önbelleği
-    private val logoCache get() = DetailCache.logoCache
-    private data class LogoRequestKey(val tmdbId: Int, val tmdbArtwork: Boolean, val fanart: Boolean)
+    private val logoSelectionCache get() = DetailCache.logoSelectionCache
+    private data class LogoRequestKey(
+        val tmdbId: Int,
+        val tmdbArtwork: Boolean,
+        val fanart: Boolean,
+        val language: String,
+        val isMovie: Boolean,
+        val season: Int
+    )
     private val logoInFlight = mutableMapOf<LogoRequestKey, Deferred<String?>>()
-
-    // Film logoları (tmdbId → logo URL): TV logo önbelleğinden ayrı; aynı TMDB numarası iki türde de olabilir.
-    private val movieLogoCache: MutableMap<Int, String?> =
-        java.util.Collections.synchronizedMap(HashMap<Int, String?>())
-
-    // Kitsu kimliği → alt türü "movie" mi
-    private val kitsuMovieFlagCache = java.util.concurrent.ConcurrentHashMap<Int, Boolean>()
+    /** containsKey ile saklanan null'u, önbellekte olmama durumundan ayırır. */
+    private val NO_LOGO_CACHE = Any()
 
     data class TmdbEpisodeDto(
         val episodeNumber: Int,
@@ -185,12 +310,14 @@ object KitsugiEpisodeRatingsRepository {
             val url = URL("https://arm.haglund.dev/api/v2/ids?source=anilist&id=$aniListId")
             val response = KitsugiApiBase.executeGetRequest(url) ?: return@runCatching null
             val json = JSONObject(response)
+            val tmdbValEarly = json.optInt("themoviedb", -1).takeIf { it > 0 }
+            cacheTmdbMediaKind(tmdbValEarly, json)
             val tvdbVal = json.optInt("thetvdb", -1).takeIf { it > 0 }
-            if (tvdbVal != null) {
-                val tmdbVal = json.optInt("themoviedb", -1)
-                if (tmdbVal > 0) {
-                    mutex.withLock { tmdbToTvdbCache[tmdbVal] = tvdbVal }
-                }
+            // Filmin thetvdb'si DİZİNİN TVDB ID'sidir; filme bağlanırsa fanart-TV dizi sanatı sızar.
+            if (tvdbVal != null && tmdbValEarly != null &&
+                DetailCache.tmdbMediaCache[tmdbValEarly] != "movie"
+            ) {
+                mutex.withLock { tmdbToTvdbCache[tmdbValEarly] = tvdbVal }
             }
             if (json.isNull("themoviedb")) {
                 if (!json.isNull("myanimelist")) {
@@ -244,9 +371,10 @@ object KitsugiEpisodeRatingsRepository {
                 val response = KitsugiApiBase.executeGetRequest(url) ?: return@runCatching null
                 val json = JSONObject(response)
                 val value = json.optInt("themoviedb", -1)
+                cacheTmdbMediaKind(value.takeIf { it > 0 }, json)
                 val tvdbVal = json.optInt("thetvdb", -1).takeIf { it > 0 }
                 if (value > 0) {
-                    if (tvdbVal != null) {
+                    if (tvdbVal != null && DetailCache.tmdbMediaCache[value] != "movie") {
                         mutex.withLock { tmdbToTvdbCache[value] = tvdbVal }
                     }
                     val malId = if (json.isNull("myanimelist")) null else json.optInt("myanimelist", -1).takeIf { it > 0 }
@@ -286,92 +414,56 @@ object KitsugiEpisodeRatingsRepository {
         DetailCache.clear()
         inFlight.clear()
         logoInFlight.clear()
-        movieLogoCache.clear()
         tmdbEpisodesInFlight.clear()
     }
 
     /**
-     * TMDB ID'ye göre anime logo URL'ini döner.
-     * SeriesGraph /api/shows/{tmdbId} endpoint'inden logo_path çeker.
-     * TMDB image CDN (image.tmdb.org) API key gerektirmez.
+     * TMDB ID'ye göre eserin kendi logosunu döner.
      *
-     * [isMovie] = true: kaynak bir film. TMDB'de film ve TV dizisi kimlikleri aynı sayıyı
-     * paylaşabilir (örn. "Howl's Moving Castle" filmi ile "Roar" dizisi). Bu durumda TV uç
-     * noktaları (SeriesGraph, tv/images, TVDB tabanlı Fanart) filmin kaydına yanlış dizinin
-     * logosunu bağlar; film için yalnızca movie uç noktaları kullanılır.
+     * Filmlerde film logosu (Fanart movie + TMDB movie) dizi logosundan önce gelir;
+     * aksi halde anime filmleri ana serinin logosunu gösteriyordu.
+     * Dizilerde önce dizi logosu, yoksa film logosu denenir.
+     * Sezon > 1 ise dil önceliğini bozmadan sezona etiketli logo tercih edilir.
+     *
+     * Dil: ayarlardaki TMDB dili (ör. "en" → İngilizce logo). Yoksa metinsiz, sonra İngilizce, sonra herhangi biri.
+     * Eski Room logo önbelleği dil ve tür tutmadığı için seçimde kullanılmaz.
      */
-    suspend fun getLogoUrl(tmdbId: Int, isMovie: Boolean = false): String? = withContext(Dispatchers.IO) {
+    suspend fun getLogoUrl(
+        tmdbId: Int,
+        seasonNumber: Int? = null,
+        language: String? = null,
+        isMovie: Boolean = false
+    ): String? = withContext(Dispatchers.IO) {
         if (tmdbId <= 0) return@withContext null
 
+        val effectiveIsMovie = isMovie || isTmdbMovie(tmdbId)
+        val preferredLang = normalizeLanguageCode(language ?: getPreferredImageLanguage())
+        val season = seasonNumber?.takeIf { it > 1 } ?: 0
         val tmdbArtworkEnabled = isTmdbArtworkEnabled()
         val (fanartEnabled, fanartApiKey) = getFanartSettings()
         if (!tmdbArtworkEnabled && !fanartEnabled) return@withContext null
 
-        if (isMovie) {
-            return@withContext getMovieLogoUrl(tmdbId, tmdbArtworkEnabled, fanartEnabled, fanartApiKey)
+        val requestKey = LogoRequestKey(tmdbId, tmdbArtworkEnabled, fanartEnabled, preferredLang, effectiveIsMovie, season)
+        val cacheKey = "${requestKey.tmdbId}|${requestKey.language}|${requestKey.isMovie}|${requestKey.season}|${requestKey.tmdbArtwork}|${requestKey.fanart}"
+        val cached = mutex.withLock {
+            if (logoSelectionCache.containsKey(cacheKey)) logoSelectionCache[cacheKey] else NO_LOGO_CACHE
         }
+        if (cached !== NO_LOGO_CACHE) return@withContext cached as String?
 
-        // The legacy Room/memory cache has no source metadata. Only use it when both
-        // providers are enabled; otherwise an image from the disabled source could leak through.
-        val useSharedCache = tmdbArtworkEnabled && fanartEnabled
-        val requestKey = LogoRequestKey(tmdbId, tmdbArtworkEnabled, fanartEnabled)
-        if (useSharedCache) {
-            val isCached = mutex.withLock { logoCache.containsKey(tmdbId) }
-            if (isCached) return@withContext mutex.withLock { logoCache[tmdbId] }
-
-            val cachedEntity = runCatching { dao?.getByTmdbId(tmdbId) }.getOrNull()
-            if (cachedEntity != null) {
-                if (cachedEntity.logoNotFound) {
-                    mutex.withLock { logoCache[tmdbId] = null }
-                    Log.d(TAG, "Room logo hit (not found): tmdbId=$tmdbId")
-                    return@withContext null
-                }
-                if (!cachedEntity.logoUrl.isNullOrBlank()) {
-                    mutex.withLock { logoCache[tmdbId] = cachedEntity.logoUrl }
-                    Log.d(TAG, "Room logo hit (found): tmdbId=$tmdbId → ${cachedEntity.logoUrl}")
-                    return@withContext cachedEntity.logoUrl
-                }
-            }
-        }
-
-        // Include enabled providers in the in-flight key, so a setting change cannot
-        // accidentally join a request that is still fetching from a now-disabled source.
         val deferred = mutex.withLock {
             logoInFlight[requestKey] ?: scope.async {
                 try {
-                    val fanartLogoUrl = if (fanartEnabled) {
-                        val tvdbId = resolveTvdbIdFromTmdb(tmdbId)
-                        val tvLogo = if (tvdbId != null && tvdbId > 0) {
-                            runCatching { FanartApiClient.fetchBestLogo(tvdbId, fanartApiKey) }.getOrNull()
-                        } else null
-                        tvLogo ?: runCatching {
-                            FanartApiClient.fetchBestMovieLogo(tmdbId, fanartApiKey)
-                        }.getOrNull()
-                    } else null
-
-                    val tmdbLogoUrl = if (tmdbArtworkEnabled) {
-                        fetchLogoFromSeriesGraph(tmdbId) ?: fetchLogoFromTmdbDirect(tmdbId)
-                    } else null
-                    val finalUrl = fanartLogoUrl ?: tmdbLogoUrl
-
-                    if (useSharedCache) {
-                        mutex.withLock { logoCache[tmdbId] = finalUrl }
-                        runCatching {
-                            val existing = dao?.getByTmdbId(tmdbId)
-                            val updated = existing?.copy(
-                                logoUrl = finalUrl,
-                                logoNotFound = finalUrl == null
-                            ) ?: MediaMetaCacheEntity(
-                                tmdbId = tmdbId,
-                                malId = null,
-                                aniListId = null,
-                                logoUrl = finalUrl,
-                                logoNotFound = finalUrl == null
-                            )
-                            dao?.insert(updated)
-                            Log.d(TAG, "Room logo write: tmdbId=$tmdbId (notFound=${finalUrl == null})")
-                        }
-                    }
+                    val finalUrl = selectLogoUrl(
+                        tmdbId = tmdbId,
+                        season = season,
+                        language = preferredLang,
+                        isMovie = effectiveIsMovie,
+                        tmdbArtworkEnabled = tmdbArtworkEnabled,
+                        fanartEnabled = fanartEnabled,
+                        fanartApiKey = fanartApiKey
+                    )
+                    mutex.withLock { logoSelectionCache[cacheKey] = finalUrl }
+                    Log.d(TAG, "Logo selected: tmdbId=$tmdbId movie=$effectiveIsMovie season=$season lang=$preferredLang → $finalUrl")
                     finalUrl
                 } catch (e: Exception) {
                     Log.w(TAG, "Logo fetch failed for tmdbId=$tmdbId: ${e.javaClass.simpleName}")
@@ -384,81 +476,229 @@ object KitsugiEpisodeRatingsRepository {
         deferred.await()
     }
 
-    /**
-     * Film kaydı için logo: yalnızca movie uç noktaları (SeriesGraph ve TV uç noktaları hariç).
-     * TV tarafındaki logoCache/Room önbelleği bu yolda okunmaz ve yazılmaz; film logoları
-     * ayrı bir bellek önbelleğinde tutulur. Film logosu bulunamazsa TV'ye düşülmez.
-     */
-    private suspend fun getMovieLogoUrl(
+    private suspend fun selectLogoUrl(
         tmdbId: Int,
+        season: Int,
+        language: String,
+        isMovie: Boolean,
         tmdbArtworkEnabled: Boolean,
         fanartEnabled: Boolean,
         fanartApiKey: String
     ): String? {
-        if (movieLogoCache.containsKey(tmdbId)) return movieLogoCache[tmdbId]
-
-        val finalUrl = try {
-            val fanartLogoUrl = if (fanartEnabled) {
-                runCatching { FanartApiClient.fetchBestMovieLogo(tmdbId, fanartApiKey) }.getOrNull()
-            } else null
-            val tmdbLogoUrl = if (tmdbArtworkEnabled) {
-                runCatching { queryTmdbImages(tmdbId, "movie", TmdbApiClient.getActiveApiKey()) }
-                    .getOrNull()
-                    ?.let { "https://image.tmdb.org/t/p/w500$it" }
-            } else null
-            fanartLogoUrl ?: tmdbLogoUrl
-        } catch (e: Exception) {
-            // Geçici ağ hatasında önbelleğe alma: bir sonraki çağrıda yeniden denenir.
-            Log.w(TAG, "Movie logo fetch failed for tmdbId=$tmdbId: ${e.javaClass.simpleName}")
-            return null
+        // Film kayıtları asla TV/dizi/sezon zincirine girmemeli (yalnızca fanart movies + TMDB movie).
+        // Aksi halde filmin üzerinde dizinin logosu gösterilir (Chainsaw Man Reze-hen vakası).
+        if (isMovie) {
+            return movieLogoUrl(tmdbId, language, fanartEnabled, fanartApiKey, tmdbArtworkEnabled)
         }
 
-        movieLogoCache[tmdbId] = finalUrl
-        Log.d(TAG, "Movie logo: tmdbId=$tmdbId found=${finalUrl != null}")
-        return finalUrl
+        // Sezon logosu yalnızca tercih edilen dildeyse ana logodan önce gelir.
+        // Dil uymayan sezon logosu, doğru dildeki ana logoyu ezmez.
+        if (season > 1) {
+            seasonLogoUrl(tmdbId, season, language, strictLanguage = true, fanartEnabled, fanartApiKey, tmdbArtworkEnabled)
+                ?.let { return it }
+        }
+
+        val primary = seriesLogoUrl(tmdbId, season, language, fanartEnabled, fanartApiKey, tmdbArtworkEnabled)
+        if (!primary.isNullOrBlank()) return primary
+
+        if (season > 1) {
+            seasonLogoUrl(tmdbId, season, language, strictLanguage = false, fanartEnabled, fanartApiKey, tmdbArtworkEnabled)
+                ?.let { return it }
+        }
+
+        val secondary = movieLogoUrl(tmdbId, language, fanartEnabled, fanartApiKey, tmdbArtworkEnabled)
+        if (!secondary.isNullOrBlank()) return secondary
+
+        // SeriesGraph dil bilgisi taşımaz; yalnızca başka logo yoksa.
+        return fetchLogoFromSeriesGraph(tmdbId)
+    }
+
+    private suspend fun seriesLogoUrl(
+        tmdbId: Int,
+        season: Int,
+        language: String,
+        fanartEnabled: Boolean,
+        fanartApiKey: String,
+        tmdbArtworkEnabled: Boolean
+    ): String? {
+        val fanart = if (fanartEnabled) {
+            val tvdbId = resolveTvdbIdFromTmdb(tmdbId)
+            if (tvdbId != null && tvdbId > 0) {
+                runCatching {
+                    FanartApiClient.fetchBestLogo(
+                        tvdbId = tvdbId,
+                        apiKey = fanartApiKey,
+                        language = language,
+                        seasonNumber = season.takeIf { it > 1 }
+                    )
+                }.getOrNull()
+            } else null
+        } else null
+        if (!fanart.isNullOrBlank()) return fanart
+        return if (tmdbArtworkEnabled) {
+            queryTmdbImages(tmdbId, "tv", TmdbApiClient.getActiveApiKey(), language)
+                ?.let { "https://image.tmdb.org/t/p/w500$it" }
+        } else null
+    }
+
+    private fun movieLogoUrl(
+        tmdbId: Int,
+        language: String,
+        fanartEnabled: Boolean,
+        fanartApiKey: String,
+        tmdbArtworkEnabled: Boolean
+    ): String? {
+        val fanart = if (fanartEnabled) {
+            runCatching { FanartApiClient.fetchBestMovieLogo(tmdbId, fanartApiKey, language) }.getOrNull()
+        } else null
+        if (!fanart.isNullOrBlank()) return fanart
+        return if (tmdbArtworkEnabled) {
+            queryTmdbImages(tmdbId, "movie", TmdbApiClient.getActiveApiKey(), language)
+                ?.let { "https://image.tmdb.org/t/p/w500$it" }
+        } else null
+    }
+
+    private suspend fun seasonLogoUrl(
+        tmdbId: Int,
+        season: Int,
+        language: String,
+        strictLanguage: Boolean,
+        fanartEnabled: Boolean,
+        fanartApiKey: String,
+        tmdbArtworkEnabled: Boolean
+    ): String? {
+        if (tmdbArtworkEnabled) {
+            queryTmdbSeasonImages(tmdbId, season, language, allowFallback = !strictLanguage)?.let { return it }
+        }
+        if (fanartEnabled) {
+            val tvdbId = resolveTvdbIdFromTmdb(tmdbId)
+            if (tvdbId != null && tvdbId > 0) {
+                runCatching {
+                    FanartApiClient.fetchBestSeasonLogo(
+                        tvdbId = tvdbId,
+                        seasonNumber = season,
+                        apiKey = fanartApiKey,
+                        language = language,
+                        strictLanguage = strictLanguage
+                    )
+                }.getOrNull()?.let { return it }
+            }
+        }
+        return null
     }
 
     /**
-     * Kitsu kaydının alt türü "movie" mi? (Kitsu kimliği başına tek istek; sonuç bellekte tutulur.)
-     * Hata durumunda false döner ve önbelleğe alınmaz.
+     * Sezon bazlı logo URL'si döner (örn: "Attack on Titan Final Season" logosu).
+     *
+     * Kaynaklar (öncelik sırasıyla):
+     * 1. TMDB Sezon Images API: /tv/{tmdbId}/season/{seasonNumber}/images
+     *    (bazı diziler sezon bazlı logolu poster döner)
+     * 2. Fanart.tv seasonposter (sezon posteri logo yerine kullanılabilir)
+     * 3. TMDB ana logo (fallback)
+     *
+     * @param tmdbId TMDB ID (TV dizisi)
+     * @param seasonNumber Sezon numarası (2+)
+     * @param language Tercih edilen dil kodu
      */
-    private suspend fun isKitsuMovie(kitsuId: Int): Boolean = withContext(Dispatchers.IO) {
-        kitsuMovieFlagCache[kitsuId]?.let { return@withContext it }
-        val subtype = runCatching {
-            val request = okhttp3.Request.Builder()
-                .url("https://kitsu.io/api/edge/anime/$kitsuId")
-                .header("Accept", "application/vnd.api+json")
-                .header("User-Agent", "Kitsugi/1.0 (Android)")
-                .build()
-            com.kitsugi.animelist.core.network.KitsugiHttpClient.metadataClient
-                .newCall(request)
-                .execute()
-                .use { response ->
-                    if (!response.isSuccessful) return@use null
-                    val body = response.body?.string() ?: return@use null
-                    JSONObject(body)
-                        .optJSONObject("data")
-                        ?.optJSONObject("attributes")
-                        ?.optString("subtype", "")
-                }
-        }.getOrNull()
-        if (subtype == null) return@withContext false
-        val isMovie = subtype.equals("movie", ignoreCase = true)
-        kitsuMovieFlagCache[kitsuId] = isMovie
-        isMovie
+    suspend fun getSeasonLogoUrl(
+        tmdbId: Int,
+        seasonNumber: Int,
+        language: String? = null
+    ): String? = withContext(Dispatchers.IO) {
+        if (tmdbId <= 0 || seasonNumber <= 1) return@withContext null
+        val preferredLang = normalizeLanguageCode(language ?: getPreferredImageLanguage())
+        val (fanartEnabled, fanartApiKey) = getFanartSettings()
+        seasonLogoUrl(
+            tmdbId = tmdbId,
+            season = seasonNumber,
+            language = preferredLang,
+            strictLanguage = false,
+            fanartEnabled = fanartEnabled,
+            fanartApiKey = fanartApiKey,
+            tmdbArtworkEnabled = isTmdbArtworkEnabled()
+        )
     }
 
-    /** Tür bilgisi çağıran tarafta olmayan (ör. Kitsu listesi) kayıtlar için: Kitsu alt türü "movie" mi? */
-    suspend fun isKitsuMovieId(kitsuId: Int?): Boolean =
-        if (kitsuId == null || kitsuId <= 0) false else isKitsuMovie(kitsuId)
+    /**
+     * TMDB sezon images endpoint'inden yalnızca logo çeker.
+     * Sezon posteri logo yerine kullanılmaz — hero alanı şeffaf logo bekler.
+     */
+    private fun queryTmdbSeasonImages(
+        tmdbId: Int,
+        seasonNumber: Int,
+        language: String,
+        allowFallback: Boolean = true
+    ): String? {
+        val apiKey = TmdbApiClient.getActiveApiKey()
+        if (apiKey.isBlank()) return null
+
+        val url = runCatching {
+            URL("https://api.themoviedb.org/3/tv/$tmdbId/season/$seasonNumber/images?api_key=$apiKey")
+        }.getOrNull() ?: return null
+
+        val responseText = KitsugiApiBase.executeGetRequest(url) ?: return null
+        return runCatching {
+            val logos = JSONObject(responseText).optJSONArray("logos") ?: return@runCatching null
+            if (logos.length() == 0) return@runCatching null
+            val bestLogo = selectBestByLanguage(logos, language, allowFallback)
+            bestLogo?.let { "https://image.tmdb.org/t/p/original$it" }
+        }.getOrElse {
+            Log.w(TAG, "queryTmdbSeasonImages parse failed for tmdbId=$tmdbId season=$seasonNumber: ${it.message}")
+            null
+        }
+    }
+
+    /**
+     * TMDB images JSON array'den dile göre en iyi file_path'i seçer.
+     * Öncelik: tercih edilen dil → dil bağımsız (null/boş) → İngilizce → ilk öğe
+     */
+    private fun selectBestByLanguage(
+        jsonArray: JSONArray,
+        preferredLanguage: String,
+        allowFallback: Boolean = true
+    ): String? {
+        data class Pick(val path: String, val votes: Int)
+        var preferred: Pick? = null
+        var neutral: Pick? = null
+        var english: Pick? = null
+        var any: Pick? = null
+        val wanted = normalizeLanguageCode(preferredLanguage)
+
+        fun better(current: Pick?, path: String, votes: Int): Pick? =
+            if (current == null || votes > current.votes) Pick(path, votes) else current
+
+        for (i in 0 until jsonArray.length()) {
+            val obj = jsonArray.optJSONObject(i) ?: continue
+            val path = obj.optNullableString("file_path") ?: continue
+            if (path.isBlank()) continue
+            val votes = obj.optInt("vote_count", 0)
+            val lang = obj.optNullableString("iso_639_1").orEmpty().lowercase().substringBefore('-')
+            any = better(any, path, votes)
+            when {
+                lang == wanted -> preferred = better(preferred, path, votes)
+                lang.isBlank() || lang == "null" -> neutral = better(neutral, path, votes)
+                lang == "en" -> english = better(english, path, votes)
+            }
+        }
+
+        if (!allowFallback) return preferred?.path
+        return preferred?.path ?: neutral?.path ?: english?.path ?: any?.path
+    }
 
     /**
      * MAL ID'ye göre anime logo URL'ini döner.
      * AniList kaynaklı animeler için fallbackAniListId verilebilir.
+     *
+     * @param malId MAL ID
+     * @param fallbackAniListId AniList ID (yedek)
+     * @param seasonNumber Sezon numarası (sezon bazlı logo için)
+     * @param language Tercih edilen dil kodu (null = ayarlar)
      */
     suspend fun getLogoUrlByMalId(
         malId: Int,
         fallbackAniListId: Int? = null,
+        seasonNumber: Int? = null,
+        language: String? = null,
         isMovie: Boolean = false
     ): String? = withContext(Dispatchers.IO) {
         if (!isAnyLogoSourceEnabled()) return@withContext null
@@ -469,16 +709,23 @@ object KitsugiEpisodeRatingsRepository {
             tmdbId = resolveTmdbIdFromAniList(fallbackAniListId)
         }
         val resolvedId = tmdbId ?: return@withContext null
-        getLogoUrl(resolvedId, isMovie)
+        getLogoUrl(resolvedId, seasonNumber, language, isMovie)
     }
 
     /**
      * AniList ID'ye göre anime logo URL'ini döner.
      * ARM lookup başarısız olursa fallbackMalId ile tekrar dener.
+     *
+     * @param aniListId AniList ID
+     * @param fallbackMalId MAL ID (yedek)
+     * @param seasonNumber Sezon numarası (sezon bazlı logo için)
+     * @param language Tercih edilen dil kodu (null = ayarlar)
      */
     suspend fun getLogoUrlByAniListId(
         aniListId: Int,
         fallbackMalId: Int? = null,
+        seasonNumber: Int? = null,
+        language: String? = null,
         isMovie: Boolean = false
     ): String? = withContext(Dispatchers.IO) {
         if (!isAnyLogoSourceEnabled()) return@withContext null
@@ -490,7 +737,7 @@ object KitsugiEpisodeRatingsRepository {
             tmdbId = resolveTmdbIdFromMal(fallbackMalId)
         }
         val resolvedId = tmdbId ?: return@withContext null
-        getLogoUrl(resolvedId, isMovie)
+        getLogoUrl(resolvedId, seasonNumber, language, isMovie)
     }
 
     private fun fetchLogoFromSeriesGraph(tmdbId: Int): String? {
@@ -509,20 +756,7 @@ object KitsugiEpisodeRatingsRepository {
         }
     }
 
-    private fun fetchLogoFromTmdbDirect(tmdbId: Int): String? {
-        val apiKey = TmdbApiClient.getActiveApiKey()
-
-        // Try TV show first
-        var logoPath = queryTmdbImages(tmdbId, "tv", apiKey)
-        // If not found, try Movie
-        if (logoPath == null) {
-            logoPath = queryTmdbImages(tmdbId, "movie", apiKey)
-        }
-
-        return logoPath?.let { "https://image.tmdb.org/t/p/w500$it" }
-    }
-
-    private fun queryTmdbImages(tmdbId: Int, type: String, apiKey: String): String? {
+    private fun queryTmdbImages(tmdbId: Int, type: String, apiKey: String, preferredLanguage: String = "tr"): String? {
         val url = runCatching {
             URL("https://api.themoviedb.org/3/$type/$tmdbId/images?api_key=$apiKey")
         }.getOrNull() ?: return null
@@ -533,28 +767,35 @@ object KitsugiEpisodeRatingsRepository {
             val logos = json.optJSONArray("logos")
             if (logos == null || logos.length() == 0) return null
 
-            // Clearlogo dil önceliği: tr -> en -> neutral -> latin -> cjk
-            var trLogo: String? = null
-            var enLogo: String? = null
-            var neutralLogo: String? = null
-            var otherLatinLogo: String? = null
-            var cjkLogo: String? = null
+            // Dil önceliği: tercih edilen dil -> dil bağımsız -> İngilizce -> Latin -> CJK
+            val targetLang = normalizeLanguageCode(preferredLanguage)
+            data class LogoPick(val path: String, val score: Double)
+            fun consider(current: LogoPick?, path: String, score: Double): LogoPick =
+                if (current == null || score > current.score) LogoPick(path, score) else current
+
+            var preferredLogo: LogoPick? = null
+            var enLogo: LogoPick? = null
+            var neutralLogo: LogoPick? = null
+            var otherLatinLogo: LogoPick? = null
+            var cjkLogo: LogoPick? = null
 
             for (i in 0 until logos.length()) {
                 val logoObj = logos.getJSONObject(i)
                 val lang = logoObj.optNullableString("iso_639_1").orEmpty().lowercase()
                 val path = logoObj.optNullableString("file_path")
                 if (!path.isNullOrBlank()) {
-                    when (lang) {
-                        "tr" -> if (trLogo == null) trLogo = path
-                        "en" -> if (enLogo == null) enLogo = path
-                        "", "null" -> if (neutralLogo == null) neutralLogo = path
-                        "ja", "ko", "zh" -> if (cjkLogo == null) cjkLogo = path
-                        else -> if (otherLatinLogo == null) otherLatinLogo = path
+                    val score = logoObj.optInt("vote_count", 0) * 10.0 +
+                        logoObj.optDouble("vote_average", 0.0)
+                    when {
+                        lang == targetLang -> preferredLogo = consider(preferredLogo, path, score)
+                        lang.isBlank() || lang == "null" -> neutralLogo = consider(neutralLogo, path, score)
+                        lang == "en" -> enLogo = consider(enLogo, path, score)
+                        lang in listOf("ja", "ko", "zh") -> cjkLogo = consider(cjkLogo, path, score)
+                        else -> otherLatinLogo = consider(otherLatinLogo, path, score)
                     }
                 }
             }
-            trLogo ?: enLogo ?: neutralLogo ?: otherLatinLogo ?: cjkLogo
+            preferredLogo?.path ?: neutralLogo?.path ?: enLogo?.path ?: otherLatinLogo?.path ?: cjkLogo?.path
         }.getOrNull()
     }
 
@@ -574,6 +815,14 @@ object KitsugiEpisodeRatingsRepository {
         fallbackAniListId: Int? = null,
         fallbackKitsuId: Int? = null
     ): Int? = withContext(Dispatchers.IO) {
+        // FİLM koruması: TVDB anime filmlerini dizinin 0. sezonu olarak tutar; filmin
+        // TMDB ID'si için TVDB döndürülürse fanart-TV DİZİNİN logosunu/afişini getirir.
+        // Film kayıtları fanart-TV'ye hiç düşmemeli (yalnızca fanart movie + TMDB movie).
+        if (DetailCache.tmdbMediaCache[tmdbId] == "movie") {
+            Log.d(TAG, "TVDB resolve skipped (movie): tmdbId=$tmdbId")
+            return@withContext null
+        }
+
         // 1. Bellek önbelleği kontrolü
         if (tmdbToTvdbCache.containsKey(tmdbId)) {
             return@withContext mutex.withLock { tmdbToTvdbCache[tmdbId] }
@@ -689,14 +938,16 @@ object KitsugiEpisodeRatingsRepository {
         isMovie: Boolean = false,
         fallbackMalId: Int? = null,
         fallbackAniListId: Int? = null,
-        fallbackKitsuId: Int? = null
+        fallbackKitsuId: Int? = null,
+        language: String? = null
     ): List<GalleryItem> = withContext(Dispatchers.IO) {
         val (fanartEnabled, fanartApiKey) = getFanartSettings()
         if (!fanartEnabled || fanartApiKey.isBlank()) return@withContext emptyList()
+        val preferredLang = normalizeLanguageCode(language ?: getPreferredImageLanguage())
 
         // Bellek önbelleği: aynı sayfa tekrar açılırsa anında döner
         val cacheId = if (isMovie) tmdbId else tmdbId
-        val cached = DetailCache.getFanartGallery(isMovie, cacheId)
+        val cached = DetailCache.getFanartGallery(isMovie, cacheId, preferredLang)
         if (cached != null) {
             Log.d(TAG, "Fanart memory cache hit: isMovie=$isMovie id=$cacheId → ${cached.size} items")
             return@withContext cached
@@ -706,7 +957,7 @@ object KitsugiEpisodeRatingsRepository {
             if (tmdbId <= 0) return@withContext emptyList()
             // Film: TMDB ID doğrudan kullanılır
             runCatching {
-                FanartApiClient.fetchMovieImages(tmdbId, fanartApiKey)
+                FanartApiClient.fetchMovieImages(tmdbId, fanartApiKey, preferredLang)
             }.getOrElse {
                 Log.w(TAG, "getFanartGalleryItems (movie) failed: ${it.message}")
                 emptyList()
@@ -734,7 +985,7 @@ object KitsugiEpisodeRatingsRepository {
 
             if (tvdbId != null && tvdbId > 0) {
                 runCatching {
-                    FanartApiClient.fetchTvImages(tvdbId, fanartApiKey)
+                    FanartApiClient.fetchTvImages(tvdbId, fanartApiKey, preferredLang)
                 }.getOrElse {
                     Log.w(TAG, "getFanartGalleryItems (tv) failed: ${it.message}")
                     emptyList()
@@ -745,22 +996,39 @@ object KitsugiEpisodeRatingsRepository {
             }
         }
 
-        // FALLBACK: Eğer ilk deneme boş döndüyse ve tmdbId varsa, diğer endpoint'i dene.
-        // Film kaydında TV uç noktasına DÜŞÜLMEZ: TMDB ID'si aynı sayıdaki bir diziye ait olabilir
-        // (örn. Howl's Moving Castle filmi ile "Roar" dizisi) ve o dizinin görselleri filme karışır.
-        if (result.isEmpty() && tmdbId > 0 && !isMovie) {
-            // TV olarak arandı ama TVDB yoktu veya TV Fanart'ta bulunamadı (Örn: Anime filmleri fanart.tv'de Film altındadır)
-            // Doğrudan TMDB ID ile Film endpoint'ini dene!
-            result = runCatching {
-                FanartApiClient.fetchMovieImages(tmdbId, fanartApiKey)
-            }.getOrElse {
-                Log.w(TAG, "getFanartGalleryItems (movie fallback) failed: ${it.message}")
-                emptyList()
+        // FALLBACK: Eğer ilk deneme boş döndüyse ve tmdbId varsa, diğer endpoint'i dene
+        if (result.isEmpty() && tmdbId > 0) {
+            if (isMovie) {
+                // Film olarak arandı ama bulunamadı -> TV olarak TVDB çözüp dene
+                var fallbackTvdbId = resolveTvdbIdFromTmdb(tmdbId, fallbackMalId, fallbackAniListId, fallbackKitsuId)
+                if (fallbackTvdbId == null || fallbackTvdbId <= 0) {
+                    if (fallbackMalId != null && fallbackMalId > 0) fallbackTvdbId = resolveTvdbIdFromMal(fallbackMalId)
+                }
+                if (fallbackTvdbId == null || fallbackTvdbId <= 0) {
+                    if (fallbackAniListId != null && fallbackAniListId > 0) fallbackTvdbId = resolveTvdbIdFromAniList(fallbackAniListId)
+                }
+                if (fallbackTvdbId == null || fallbackTvdbId <= 0) {
+                    if (fallbackKitsuId != null && fallbackKitsuId > 0) fallbackTvdbId = resolveTvdbIdFromKitsu(fallbackKitsuId)
+                }
+                if (fallbackTvdbId != null && fallbackTvdbId > 0) {
+                    result = runCatching {
+                        FanartApiClient.fetchTvImages(fallbackTvdbId, fanartApiKey, preferredLang)
+                    }.getOrElse { emptyList() }
+                }
+            } else {
+                // TV olarak arandı ama TVDB yoktu veya TV Fanart'ta bulunamadı (Örn: Anime filmleri fanart.tv'de Film altındadır)
+                // Doğrudan TMDB ID ile Film endpoint'ini dene!
+                result = runCatching {
+                    FanartApiClient.fetchMovieImages(tmdbId, fanartApiKey, preferredLang)
+                }.getOrElse {
+                    Log.w(TAG, "getFanartGalleryItems (movie fallback) failed: ${it.message}")
+                    emptyList()
+                }
             }
         }
 
         if (result.isNotEmpty()) {
-            DetailCache.putFanartGallery(isMovie, cacheId, result)
+            DetailCache.putFanartGallery(isMovie, cacheId, result, preferredLang)
             Log.d(TAG, "Fanart memory cache write: isMovie=$isMovie id=$cacheId → ${result.size} items")
         }
         result
@@ -769,10 +1037,16 @@ object KitsugiEpisodeRatingsRepository {
     /**
      * TMDB ID ve medya türü (film/dizi) ile TMDB API'sinden tüm görselleri çeker.
      * Posterler, arka planlar (backdrop) ve logolar tam çözünürlükte elde edilir.
+     *
+     * [expectedTitles] verilirse görseller yalnızca TMDB kaydının başlığı bu başlıklardan
+     * biriyle uyuştuğunda listeye karışır. TMDB'de film ve dizi kimlikleri ayrı alanlardır;
+     * eşleme veya tür bilgisi yanlışsa aynı sayı bambaşka bir yapıma ait olabilir ve
+     * galeri alakasız görsellerle dolardı (bkz. [TmdbArtworkIdentity]).
      */
     suspend fun getTmdbGalleryItems(
         tmdbId: Int,
-        isMovie: Boolean = false
+        isMovie: Boolean = false,
+        expectedTitles: List<String> = emptyList()
     ): List<GalleryItem> = withContext(Dispatchers.IO) {
         if (tmdbId <= 0 || !isTmdbArtworkEnabled()) return@withContext emptyList()
 
@@ -785,8 +1059,7 @@ object KitsugiEpisodeRatingsRepository {
         val apiKey = TmdbApiClient.getActiveApiKey()
         if (apiKey.isBlank()) return@withContext emptyList()
 
-        fun parseTmdbImages(responseText: String): List<GalleryItem> {
-            val json = JSONObject(responseText)
+        fun parseTmdbImages(json: JSONObject): List<GalleryItem> {
             val list = mutableListOf<GalleryItem>()
 
             // 1. Posterler
@@ -864,28 +1137,41 @@ object KitsugiEpisodeRatingsRepository {
             return list
         }
 
+        // Beklenen tür önce denenir, sonra öteki tür. Bir kaydın görselleri yalnızca TMDB
+        // başlığı beklenenle uyuşursa listeye karışır — başlıklar gerçekten farklıysa o
+        // görseller başka bir yapıma aittir ve galeriye girmemeli.
         val primaryType = if (isMovie) "movie" else "tv"
-        val secondaryType = if (isMovie) "tv" else "movie"
-
-        var items = runCatching {
-            val url = URL("https://api.themoviedb.org/3/$primaryType/$tmdbId/images?api_key=$apiKey")
-            val resp = KitsugiApiBase.executeGetRequest(url)
-            if (!resp.isNullOrBlank()) parseTmdbImages(resp) else emptyList()
-        }.getOrElse {
-            Log.w(TAG, "getTmdbGalleryItems primary ($primaryType) failed: ${it.message}")
-            emptyList()
-        }
-
-        // Eğer birincil türden hiç görsel gelmediyse tersini dene (ör. film TV veya tersi)
-        if (items.isEmpty()) {
-            items = runCatching {
-                val fallbackUrl = URL("https://api.themoviedb.org/3/$secondaryType/$tmdbId/images?api_key=$apiKey")
-                val fallbackResp = KitsugiApiBase.executeGetRequest(fallbackUrl)
-                if (!fallbackResp.isNullOrBlank()) parseTmdbImages(fallbackResp) else emptyList()
+        val typesToTry = listOf(primaryType, if (isMovie) "tv" else "movie")
+        var items = emptyList<GalleryItem>()
+        for (type in typesToTry) {
+            val response = runCatching {
+                val url = URL(
+                    "https://api.themoviedb.org/3/$type/$tmdbId" +
+                        "?api_key=$apiKey&append_to_response=images"
+                )
+                val resp = KitsugiApiBase.executeGetRequest(url)
+                if (resp.isNullOrBlank()) null else JSONObject(resp)
             }.getOrElse {
-                Log.w(TAG, "getTmdbGalleryItems fallback ($secondaryType) failed: ${it.message}")
-                emptyList()
+                Log.w(TAG, "getTmdbGalleryItems ($type) failed: ${it.message}")
+                null
+            } ?: continue
+
+            val isMovieType = type == "movie"
+            val entryTitle = if (isMovieType) response.optString("title") else response.optString("name")
+            val entryOriginal = if (isMovieType) response.optString("original_title") else response.optString("original_name")
+            val verified = TmdbArtworkIdentity.matches(expectedTitles, entryTitle, entryOriginal)
+            val images = parseTmdbImages(response.optJSONObject("images") ?: response)
+            if (images.isEmpty()) continue
+
+            if (verified) {
+                items = images
+                break
             }
+            Log.w(
+                TAG,
+                "TMDB galeri kimliği reddedildi: $type/$tmdbId başlığı «$entryTitle» beklenenle " +
+                    "(${expectedTitles.firstOrNull() ?: "-"}) uyuşmuyor; görseller listeye karışmadı"
+            )
         }
 
         if (items.isNotEmpty()) {
@@ -979,12 +1265,14 @@ object KitsugiEpisodeRatingsRepository {
             val url = URL("https://arm.haglund.dev/api/v2/ids?source=myanimelist&id=$malId")
             val response = KitsugiApiBase.executeGetRequest(url) ?: return@runCatching null
             val json = JSONObject(response)
+            val tmdbValEarly = json.optInt("themoviedb", -1).takeIf { it > 0 }
+            cacheTmdbMediaKind(tmdbValEarly, json)
             val tvdbVal = json.optInt("thetvdb", -1).takeIf { it > 0 }
-            if (tvdbVal != null) {
-                val tmdbVal = json.optInt("themoviedb", -1)
-                if (tmdbVal > 0) {
-                    mutex.withLock { tmdbToTvdbCache[tmdbVal] = tvdbVal }
-                }
+            // Filmin thetvdb'si DİZİNİN TVDB ID'sidir; filme bağlanırsa fanart-TV dizi sanatı sızar.
+            if (tvdbVal != null && tmdbValEarly != null &&
+                DetailCache.tmdbMediaCache[tmdbValEarly] != "movie"
+            ) {
+                mutex.withLock { tmdbToTvdbCache[tmdbValEarly] = tvdbVal }
             }
             if (json.isNull("themoviedb")) null
             else {
@@ -1016,9 +1304,10 @@ object KitsugiEpisodeRatingsRepository {
                 val response = KitsugiApiBase.executeGetRequest(url) ?: return@runCatching null
                 val json = JSONObject(response)
                 val value = json.optInt("themoviedb", -1)
+                cacheTmdbMediaKind(value.takeIf { it > 0 }, json)
                 val tvdbVal = json.optInt("thetvdb", -1).takeIf { it > 0 }
                 if (value > 0) {
-                    if (tvdbVal != null) {
+                    if (tvdbVal != null && DetailCache.tmdbMediaCache[value] != "movie") {
                         mutex.withLock { tmdbToTvdbCache[value] = tvdbVal }
                     }
                     val aniListId = if (json.isNull("anilist")) null else json.optInt("anilist", -1).takeIf { it > 0 }
@@ -1194,7 +1483,7 @@ object KitsugiEpisodeRatingsRepository {
                                 .toMap()
                             parsed = parsed.map { dto ->
                                 val latin = enNames[dto.episodeNumber]?.takeIf {
-                                    !PreferenceHelpers.hasCjkCharacters(it)
+                                    PreferenceHelpers.isLatinText(it)
                                 }
                                 if (dto.name != null && PreferenceHelpers.hasCjkCharacters(dto.name) && latin != null) {
                                     dto.copy(name = latin)
@@ -1274,12 +1563,14 @@ object KitsugiEpisodeRatingsRepository {
             val url = URL("https://arm.haglund.dev/api/v2/ids?source=kitsu&id=$kitsuId")
             val response = KitsugiApiBase.executeGetRequest(url) ?: return@runCatching null
             val json = JSONObject(response)
+            val tmdbValEarly = json.optInt("themoviedb", -1).takeIf { it > 0 }
+            cacheTmdbMediaKind(tmdbValEarly, json)
             val tvdbVal = json.optInt("thetvdb", -1).takeIf { it > 0 }
-            if (tvdbVal != null) {
-                val tmdbVal = json.optInt("themoviedb", -1)
-                if (tmdbVal > 0) {
-                    mutex.withLock { tmdbToTvdbCache[tmdbVal] = tvdbVal }
-                }
+            // Filmin thetvdb'si DİZİNİN TVDB ID'sidir; filme bağlanırsa fanart-TV dizi sanatı sızar.
+            if (tvdbVal != null && tmdbValEarly != null &&
+                DetailCache.tmdbMediaCache[tmdbValEarly] != "movie"
+            ) {
+                mutex.withLock { tmdbToTvdbCache[tmdbValEarly] = tvdbVal }
             }
             if (json.isNull("themoviedb")) null
             else {
@@ -1336,6 +1627,44 @@ object KitsugiEpisodeRatingsRepository {
         }
     }
 
+
+    // Kitsu kimliği → alt türü "movie" mi
+    private val kitsuMovieFlagCache = java.util.concurrent.ConcurrentHashMap<Int, Boolean>()
+
+    /**
+     * Kitsu kaydının alt türü "movie" mi? (Kitsu kimliği başına tek istek; sonuç bellekte tutulur.)
+     * Hata durumunda false döner ve önbelleğe alınmaz.
+     */
+    private suspend fun isKitsuMovie(kitsuId: Int): Boolean = withContext(Dispatchers.IO) {
+        kitsuMovieFlagCache[kitsuId]?.let { return@withContext it }
+        val subtype = runCatching {
+            val request = okhttp3.Request.Builder()
+                .url(KitsuApiHost.url("/anime/$kitsuId"))
+                .header("Accept", "application/vnd.api+json")
+                .header("User-Agent", "Kitsugi/1.0 (Android)")
+                .build()
+            com.kitsugi.animelist.core.network.KitsugiHttpClient.metadataClient
+                .newCall(request)
+                .execute()
+                .use { response ->
+                    if (!response.isSuccessful) return@use null
+                    val body = response.body?.string() ?: return@use null
+                    org.json.JSONObject(body)
+                        .optJSONObject("data")
+                        ?.optJSONObject("attributes")
+                        ?.optString("subtype", "")
+                }
+        }.getOrNull()
+        if (subtype == null) return@withContext false
+        val isMovie = subtype.equals("movie", ignoreCase = true)
+        kitsuMovieFlagCache[kitsuId] = isMovie
+        isMovie
+    }
+
+    /** Tür bilgisi çağıran tarafta olmayan (ör. Kitsu listesi) kayıtlar için: Kitsu alt türü "movie" mi? */
+    suspend fun isKitsuMovieId(kitsuId: Int?): Boolean =
+        if (kitsuId == null || kitsuId <= 0) false else isKitsuMovie(kitsuId)
+
     suspend fun getEpisodeRatingsByKitsuId(kitsuId: Int): Map<Pair<Int, Int>, Double> = withContext(Dispatchers.IO) {
         if (!isTmdbEnabled()) return@withContext emptyMap()
         if (kitsuId <= 0) return@withContext emptyMap()
@@ -1343,12 +1672,16 @@ object KitsugiEpisodeRatingsRepository {
         fetchWithCache(tmdbId)
     }
 
-    suspend fun getLogoUrlByKitsuId(kitsuId: Int): String? = withContext(Dispatchers.IO) {
+    suspend fun getLogoUrlByKitsuId(
+        kitsuId: Int,
+        seasonNumber: Int? = null,
+        language: String? = null,
+        isMovie: Boolean = false
+    ): String? = withContext(Dispatchers.IO) {
         if (!isAnyLogoSourceEnabled()) return@withContext null
         if (kitsuId <= 0) return@withContext null
         val tmdbId = resolveTmdbIdFromKitsu(kitsuId) ?: return@withContext null
-        // Kitsu kayıtlarında tür bilgisi çağıran tarafta yok; alt türü Kitsu'dan alıyoruz.
-        getLogoUrl(tmdbId, isMovie = isKitsuMovie(kitsuId))
+        getLogoUrl(tmdbId, seasonNumber, language, isMovie = isMovie || isKitsuMovie(kitsuId))
     }
 
     suspend fun getResolvedTmdbIdForKitsu(kitsuId: Int): Int? = mutex.withLock {

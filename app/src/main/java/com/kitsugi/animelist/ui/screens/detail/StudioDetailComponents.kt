@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.screens.detail
 
+import com.kitsugi.animelist.ui.components.KitsugiGalleryIconButton
 import androidx.compose.foundation.background
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.layout.*
@@ -167,13 +168,7 @@ internal fun StudioHeroHeader(
                             .background(accentColor.copy(alpha = 0.22f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        IconButton(onClick = onGalleryClick) {
-                            Icon(
-                                imageVector = Icons.Rounded.Image,
-                                contentDescription = "Galeri",
-                                tint = accentColor
-                            )
-                        }
+                        KitsugiGalleryIconButton(onClick = onGalleryClick, accentColor = accentColor)
                     }
                 }
                 Box(
@@ -435,15 +430,9 @@ internal fun StudioDetailLeftPanel(
                                 .background(accentColor.copy(alpha = 0.22f)),
                             contentAlignment = Alignment.Center
                         ) {
-                            IconButton(onClick = {
+                            KitsugiGalleryIconButton(onClick = {
                                 onGalleryClick(galleryItems, 0)
-                            }) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Image,
-                                    contentDescription = "Galeri",
-                                    tint = accentColor
-                                )
-                            }
+                            }, accentColor = accentColor)
                         }
                     }
                     Box(

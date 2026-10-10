@@ -89,6 +89,7 @@ fun SearchScreen(
     onAddSelectionToList: (ApiSearchSelection) -> Unit,
     viewModel: SearchViewModel = viewModel(),
     titleLanguage: String = "ROMAJI",
+    staffNameLanguage: String = com.kitsugi.animelist.data.settings.KitsugiContentPrefs.staffNameLanguage,
     scoreFormat: String = "POINT_10",
     hideScores: Boolean = false,
     onSeeAllAddonSection: ((apiName: String, title: String, mainPageData: String, horizontalImages: Boolean, initialItems: List<com.lagradost.cloudstream3.SearchResponse>) -> Unit)? = null,
@@ -182,71 +183,12 @@ fun SearchScreen(
     }
 
     val entryMap = remember(currentEntries) {
-        val mapping = mutableMapOf<String, MediaEntry>()
-        currentEntries.forEach { entry ->
-            mapping["${entry.source.lowercase()}_${entry.type.name.lowercase()}_${entry.malId}"] = entry
-            mapping["${entry.source.lowercase()}_${entry.malId}"] = entry
-            if (entry.tmdbId != null) {
-                mapping["tmdb_${entry.tmdbId}"] = entry
-            }
-            if (entry.simklId != null) {
-                mapping["simkl_${entry.simklId}"] = entry
-            }
-            if (entry.source.equals("anilist", ignoreCase = true) && entry.malId != null && entry.malId >= 100_000_000) {
-                mapping["anilist_${entry.malId - 100_000_000}"] = entry
-            }
-            if (entry.source.equals("jikan", ignoreCase = true) || entry.source.equals("mal", ignoreCase = true)) {
-                mapping["mal_${entry.malId}"] = entry
-                mapping["jikan_${entry.malId}"] = entry
-            }
-            val normTitle = entry.title.lowercase().filter { it in 'a'..'z' || it in '0'..'9' }.trim()
-            if (normTitle.isNotEmpty()) {
-                mapping["${entry.type.name.lowercase()}_$normTitle"] = entry
-            }
-        }
-        mapping
+        com.kitsugi.animelist.ui.screens.explore.generateExploreEntryMap(currentEntries)
     }
 
     val getMediaEntry = remember(entryMap) {
         { result: JikanSearchResult ->
-            val compositeKey = "${result.source.lowercase()}_${result.type.name.lowercase()}_${result.malId}"
-            val directKey = "${result.source.lowercase()}_${result.malId}"
-            var found = entryMap[compositeKey] ?: entryMap[directKey]
-
-            if (found == null) {
-                val tmdbId = result.tmdbId ?: if (result.source.equals("tmdb", ignoreCase = true)) result.malId else null
-                if (tmdbId != null) {
-                    found = entryMap["tmdb_$tmdbId"]
-                }
-            }
-
-            if (found == null) {
-                val rMal = if (result.source.equals("jikan", ignoreCase = true) || result.source.equals("mal", ignoreCase = true)) {
-                    result.malId
-                } else {
-                    result.realMalId
-                }
-                if (rMal != null) {
-                    found = entryMap["${result.source.lowercase()}_$rMal"]
-                        ?: entryMap["mal_$rMal"]
-                        ?: entryMap["jikan_$rMal"]
-                        ?: entryMap["anilist_$rMal"]
-                        ?: entryMap["simkl_$rMal"]
-                }
-            }
-
-            if (found == null) {
-                val normTitle = buildString {
-                    for (c in result.title.lowercase()) {
-                        if (c in 'a'..'z' || c in '0'..'9') append(c)
-                    }
-                }.trim()
-                if (normTitle.isNotEmpty()) {
-                    found = entryMap["${result.type.name.lowercase()}_$normTitle"]
-                }
-            }
-
-            found
+            com.kitsugi.animelist.ui.screens.explore.getMediaEntryFromMap(result, entryMap)
         }
     }
 
@@ -574,13 +516,13 @@ fun SearchScreen(
                         result.title,
                         result.titleRomaji,
                         result.titleJapanese,
-                        titleLanguage,
+                        staffNameLanguage,
                         result.titleEnglish
                     )
                     CharacterStaffResultRow(
                         result = result.copy(
                             title = displayName,
-                            subtitle = if (titleLanguage in listOf("NATIVE", "JAPANESE_STAFF")) {
+                            subtitle = if (staffNameLanguage in listOf("NATIVE", "JAPANESE_STAFF")) {
                                 when {
                                     result.subtitle == displayName -> "Karakter"
                                     result.subtitle.startsWith("$displayName • ") -> result.subtitle.removePrefix("$displayName • ")
@@ -660,7 +602,7 @@ fun SearchScreen(
                     }
                 },
                 containerColor = accentColor,
-                contentColor = Color.White,
+                contentColor = com.kitsugi.animelist.ui.theme.onAccentColor(accentColor),
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier.size(52.dp)
             ) {

@@ -476,11 +476,14 @@ private fun AccountConnectionsTab(
         }
 
         // Çok Yönlü Eşitleme (En az 2 hesap bağlıysa göster)
+        val context = androidx.compose.ui.platform.LocalContext.current
+        val isBangumiConnected = com.kitsugi.animelist.data.auth.BangumiAuthStore.isConnected(context)
         val connectedCount = (if (isAniListConnected) 1 else 0) +
                 (if (isMalConnected) 1 else 0) +
                 (if (isSimklConnected) 1 else 0) +
                 (if (isKitsuConnected) 1 else 0) +
-                (if (isShikimoriConnected) 1 else 0)
+                (if (isShikimoriConnected) 1 else 0) +
+                (if (isBangumiConnected) 1 else 0)
 
         if (connectedCount >= 2) {
             val connectedNames = mutableListOf<String>().apply {
@@ -489,6 +492,7 @@ private fun AccountConnectionsTab(
                 if (isSimklConnected) add("Simkl")
                 if (isKitsuConnected) add("Kitsu")
                 if (isShikimoriConnected) add("Shikimori")
+                if (isBangumiConnected) add("Bangumi")
             }.joinToString(", ")
 
             KitsugiSettingsSection(title = "Çok Yönlü Eşitleme") {
@@ -506,9 +510,9 @@ private fun AccountConnectionsTab(
 
                     KitsugiSettingsItem(
                         title = when {
-                            crossSyncState.isRunning -> "Eşitleme Ayrıntılarını Aç ($connectedCount/5)"
-                            crossSyncState.startedAt != null -> "Son Eşitleme Raporu ($connectedCount/5)"
-                            else -> "Tüm Hesapları Birbiriyle Eşitle ($connectedCount/5)"
+                            crossSyncState.isRunning -> "Eşitleme Ayrıntılarını Aç ($connectedCount/6)"
+                            crossSyncState.startedAt != null -> "Son Eşitleme Raporu ($connectedCount/6)"
+                            else -> "Tüm Hesapları Birbiriyle Eşitle ($connectedCount/6)"
                         },
                         description = syncDesc,
                         icon = Icons.Rounded.Cached,

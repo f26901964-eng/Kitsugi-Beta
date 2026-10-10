@@ -307,14 +307,27 @@ fun KitsugiUserProfileScreen(
                 // Listem tarzı alt kontroller: kategori (sol) + yukarı kaydırma (sağ)
                 ProfileFavoritesFloatingControls(
                     listState = listState,
-                    visible = activeTab == 3,
-                    selectedCategory = favFilter,
-                    categoryCounts = listOf(
-                        state.favoriteAnime.size, state.favoriteManga.size, state.favoriteCharacters.size,
-                        state.favoriteStaff.size, state.favoriteStudios.size
-                    ),
-                    onCategorySelected = { viewModel.favoritesFilter = it },
-                    bottomOffset = 20.dp
+                    visible = activeTab in 2..4,
+                    selectedCategory = when (activeTab) { 2 -> viewModel.statsSubTab; 4 -> viewModel.socialFilter; else -> favFilter },
+                    categoryCounts = when (activeTab) {
+                        3 -> listOf(state.favoriteAnime.size, state.favoriteManga.size, state.favoriteCharacters.size,
+                            state.favoriteStaff.size, state.favoriteStudios.size)
+                        4 -> listOf(state.socialState.followers.size, state.socialState.following.size)
+                        else -> emptyList()
+                    },
+                    categoryLabels = when (activeTab) {
+                        2 -> listOf("Genel", "Türler", "Etiketler", "Ekip", "Seslendirenler", "Stüdyolar")
+                        4 -> listOf("Takipçiler", "Takip Edilen")
+                        else -> ProfileFavoriteCategoryLabels
+                    },
+                    showCounts = activeTab != 2,
+                    onCategorySelected = { when (activeTab) {
+                        2 -> viewModel.statsSubTab = it
+                        4 -> viewModel.socialFilter = it
+                        else -> viewModel.favoritesFilter = it
+                    } },
+                    bottomOffset = 20.dp,
+                    onScrollReset = onScrollReset
                 )
                 }
             }

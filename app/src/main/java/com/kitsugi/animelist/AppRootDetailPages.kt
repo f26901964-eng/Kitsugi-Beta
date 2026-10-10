@@ -11,7 +11,7 @@ import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.data.remote.ApiSearchSelection
 import com.kitsugi.animelist.data.remote.matches
-import com.kitsugi.animelist.data.remote.firstMatching
+import com.kitsugi.animelist.data.remote.firstMatchingInSource
 import com.kitsugi.animelist.model.WatchStatus
 import com.kitsugi.animelist.data.settings.AppSettings
 import com.kitsugi.animelist.data.local.MediaEntryRepository
@@ -22,6 +22,8 @@ import com.kitsugi.animelist.ui.screens.detail.StaffDetailPage
 import com.kitsugi.animelist.ui.screens.detail.CharacterDetailPage
 import com.kitsugi.animelist.ui.screens.detail.ApiResultDetailPage
 import com.kitsugi.animelist.ui.screens.detail.MediaEntryDetailPage
+import com.kitsugi.animelist.ui.screens.search.DetailSearchFilterRequest
+import com.kitsugi.animelist.ui.screens.search.CanonicalFilterBridge
 import com.kitsugi.animelist.data.settings.SettingsDataStore
 import com.kitsugi.animelist.data.local.KitsugiDatabase
 import kotlinx.coroutines.CoroutineScope
@@ -51,6 +53,7 @@ fun AppRootDetailPages(
     triggerSearch: (String) -> Unit,
     triggerSearchByGenre: (String) -> Unit = {},
     triggerSearchByTag: (String) -> Unit = {},
+    triggerDetailSearchFilter: (DetailSearchFilterRequest) -> Unit = {},
     onScrollReset: () -> Unit = {}
 ) {
     when (key) {
@@ -61,12 +64,9 @@ fun AppRootDetailPages(
                     source = key.source,
                     onBackClick = { navState.popDetailStack() },
                     onMediaClick = { mediaId, mediaType, mediaSource ->
-                        val existingEntry = mediaEntries.firstMatching(
+                        val existingEntry = mediaEntries.firstMatchingInSource(
                             mediaId = mediaId,
-                            mediaSource = mediaSource,
-                            isAniListConnected = authViewModel.isAniListConnected,
-                            isMalConnected = authViewModel.isMalConnected,
-                            isSimklConnected = authViewModel.isSimklConnected
+                            mediaSource = mediaSource
                         )
                         if (existingEntry != null) {
                             navState.navigateToDetail(DetailScreen.MediaDetail(existingEntry.id))
@@ -105,12 +105,9 @@ fun AppRootDetailPages(
                         navState.navigateToDetail(DetailScreen.CharacterDetail(charId, charSource, charName, charImageUrl))
                     },
                     onMediaClick = { mediaId, mediaType, mediaSource ->
-                        val existingEntry = mediaEntries.firstMatching(
+                        val existingEntry = mediaEntries.firstMatchingInSource(
                             mediaId = mediaId,
-                            mediaSource = mediaSource,
-                            isAniListConnected = authViewModel.isAniListConnected,
-                            isMalConnected = authViewModel.isMalConnected,
-                            isSimklConnected = authViewModel.isSimklConnected
+                            mediaSource = mediaSource
                         )
                         if (existingEntry != null) {
                             navState.navigateToDetail(DetailScreen.MediaDetail(existingEntry.id))
@@ -153,12 +150,9 @@ fun AppRootDetailPages(
                         navState.navigateToDetail(DetailScreen.CharacterDetail(charId, charSource, charName, charImageUrl))
                     },
                     onMediaClick = { mediaId, mediaType, mediaSource ->
-                        val existingEntry = mediaEntries.firstMatching(
+                        val existingEntry = mediaEntries.firstMatchingInSource(
                             mediaId = mediaId,
-                            mediaSource = mediaSource,
-                            isAniListConnected = authViewModel.isAniListConnected,
-                            isMalConnected = authViewModel.isMalConnected,
-                            isSimklConnected = authViewModel.isSimklConnected
+                            mediaSource = mediaSource
                         )
                         if (existingEntry != null) {
                             navState.navigateToDetail(DetailScreen.MediaDetail(existingEntry.id))
@@ -189,12 +183,7 @@ fun AppRootDetailPages(
 
         is AppStateKey.ApiResultDetail -> {
             navState.stateHolder.SaveableStateProvider(key = "api_${key.depth}_${key.result.source}_${key.result.malId}") {
-                val existingApiEntry = mediaEntries.firstMatching(
-                    result = key.result,
-                    isAniListConnected = authViewModel.isAniListConnected,
-                    isMalConnected = authViewModel.isMalConnected,
-                    isSimklConnected = authViewModel.isSimklConnected
-                )
+                val existingApiEntry = mediaEntries.firstMatchingInSource(key.result)
                 ApiResultDetailPage(
                     result = key.result,
                     existingEntry = existingApiEntry,
@@ -209,12 +198,7 @@ fun AppRootDetailPages(
                         onEditEntry(entry)
                     },
                     onRelationClick = { result ->
-                        val existingEntry = mediaEntries.firstMatching(
-                            result = result,
-                            isAniListConnected = authViewModel.isAniListConnected,
-                            isMalConnected = authViewModel.isMalConnected,
-                            isSimklConnected = authViewModel.isSimklConnected
-                        )
+                        val existingEntry = mediaEntries.firstMatchingInSource(result)
                         if (existingEntry != null) {
                             navState.navigateToDetail(DetailScreen.MediaDetail(existingEntry.id))
                         } else {
@@ -234,8 +218,32 @@ fun AppRootDetailPages(
                         navState.navigateToDetail(DetailScreen.UserProfile(userId, username, avatarUrl))
                     },
                     onSearchQuery = triggerSearch,
-                    onSearchByGenre = triggerSearchByGenre,
-                    onSearchByTag = triggerSearchByTag,
+                    onSearchByGenre = { genre ->
+                        triggerDetailSearchFilter(
+                            DetailSearchFilterRequest(source = key.result.source, mediaType = key.result.type, genre = genre)
+                        )
+                    },
+                    onSearchByTag = { tag ->
+                        triggerDetailSearchFilter(
+                            DetailSearchFilterRequest(
+                                source = key.result.source,
+                                mediaType = key.result.type,
+                                tag = tag.name,
+                                tagSource = tag.source,
+                                keywordId = tag.id?.takeIf { CanonicalFilterBridge.isTmdbTagSource(tag.source) }
+                            )
+                        )
+                    },
+                    onSearchBySeason = { season ->
+                        triggerDetailSearchFilter(
+                            DetailSearchFilterRequest(
+                                source = key.result.source,
+                                mediaType = key.result.type,
+                                season = season.apiSeason,
+                                year = season.year
+                            )
+                        )
+                    },
                     titleLanguage = appSettings.titleLanguage,
                     scoreFormat = appSettings.scoreFormat,
                     hideScores = appSettings.hideScores,
@@ -265,12 +273,7 @@ fun AppRootDetailPages(
                     mdbListShowTrakt = appSettings.mdbListShowTrakt,
                     settingsDataStore = settingsDataStore,
                     onToggleFavoriteClick = { selection ->
-                        val entry = mediaEntries.firstMatching(
-                            result = selection.result,
-                            isAniListConnected = authViewModel.isAniListConnected,
-                            isMalConnected = authViewModel.isMalConnected,
-                            isSimklConnected = authViewModel.isSimklConnected
-                        )
+                        val entry = mediaEntries.firstMatchingInSource(selection.result)
                         if (entry != null) {
                             // Toggle existing entry
                             val updatedEntry = entry.copy(isFavorite = !entry.isFavorite)
@@ -345,12 +348,7 @@ fun AppRootDetailPages(
                             onDeleteEntry(entry)
                         },
                         onRelationClick = { result ->
-                            val existingEntry = mediaEntries.firstMatching(
-                                result = result,
-                                isAniListConnected = authViewModel.isAniListConnected,
-                                isMalConnected = authViewModel.isMalConnected,
-                                isSimklConnected = authViewModel.isSimklConnected
-                            )
+                            val existingEntry = mediaEntries.firstMatchingInSource(result)
                             if (existingEntry != null) {
                                 navState.navigateToDetail(DetailScreen.MediaDetail(existingEntry.id))
                             } else {
@@ -370,8 +368,32 @@ fun AppRootDetailPages(
                             navState.navigateToDetail(DetailScreen.UserProfile(userId, username, avatarUrl))
                         },
                         onSearchQuery = triggerSearch,
-                        onSearchByGenre = triggerSearchByGenre,
-                        onSearchByTag = triggerSearchByTag,
+                        onSearchByGenre = { genre ->
+                            triggerDetailSearchFilter(
+                                DetailSearchFilterRequest(source = entry.source, mediaType = entry.type, genre = genre)
+                            )
+                        },
+                        onSearchByTag = { tag ->
+                            triggerDetailSearchFilter(
+                                DetailSearchFilterRequest(
+                                    source = entry.source,
+                                    mediaType = entry.type,
+                                    tag = tag.name,
+                                    tagSource = tag.source,
+                                    keywordId = tag.id?.takeIf { CanonicalFilterBridge.isTmdbTagSource(tag.source) }
+                                )
+                            )
+                        },
+                        onSearchBySeason = { season ->
+                            triggerDetailSearchFilter(
+                                DetailSearchFilterRequest(
+                                    source = entry.source,
+                                    mediaType = entry.type,
+                                    season = season.apiSeason,
+                                    year = season.year
+                                )
+                            )
+                        },
                         titleLanguage = appSettings.titleLanguage,
                         scoreFormat = appSettings.scoreFormat,
                         hideScores = appSettings.hideScores,
@@ -393,12 +415,7 @@ fun AppRootDetailPages(
                     preferredSource = key.preferredSource ?: "anilist",
                     onOpenAiringEntry = { airingEntry ->
                         val result = airingEntry.toJikanSearchResult(preferredSource = key.preferredSource)
-                        val existingEntry = mediaEntries.firstMatching(
-                            result = result,
-                            isAniListConnected = authViewModel.isAniListConnected,
-                            isMalConnected = authViewModel.isMalConnected,
-                            isSimklConnected = authViewModel.isSimklConnected
-                        )
+                        val existingEntry = mediaEntries.firstMatchingInSource(result)
                         if (existingEntry != null) {
                             navState.navigateToDetail(DetailScreen.MediaDetail(existingEntry.id))
                         } else {
@@ -494,12 +511,7 @@ fun AppRootDetailPages(
                             year = null,
                             source = source
                         )
-                        val existingEntry = mediaEntries.firstMatching(
-                            result = searchResult,
-                            isAniListConnected = authViewModel.isAniListConnected,
-                            isMalConnected = authViewModel.isMalConnected,
-                            isSimklConnected = authViewModel.isSimklConnected
-                        )
+                        val existingEntry = mediaEntries.firstMatchingInSource(searchResult)
                         if (existingEntry != null) {
                             navState.navigateToDetail(DetailScreen.MediaDetail(existingEntry.id))
                         } else {
@@ -572,13 +584,7 @@ fun AppRootDetailPages(
                                 mediaId + com.kitsugi.animelist.data.remote.KitsuExploreClient.ID_OFFSET
                             else -> mediaId
                         }
-                        val existingEntry = mediaEntries.firstMatching(
-                            mediaId = stableId,
-                            mediaSource = source,
-                            isAniListConnected = authViewModel.isAniListConnected,
-                            isMalConnected = authViewModel.isMalConnected,
-                            isSimklConnected = authViewModel.isSimklConnected
-                        )
+                        val existingEntry = mediaEntries.firstMatchingInSource(mediaId = stableId, mediaSource = source)
                         if (existingEntry != null) {
                             navState.navigateToDetail(DetailScreen.MediaDetail(existingEntry.id))
                         } else {

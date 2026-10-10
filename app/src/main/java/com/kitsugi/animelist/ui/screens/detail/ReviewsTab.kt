@@ -184,8 +184,7 @@ fun ReviewsTabContent(
                                 activeTopicForDetail = topic
                             },
                             backgroundColor = KitsugiColors.SurfaceSoft,
-                            // MAL kaynağında Jikan konuları (userId==null) beğenilemez, AniList'e çözülen konular (userId!=null) beğenilebilir
-                            onLikeClick = if (topic.userId != null) {
+                            onLikeClick = if (topic.source.equals("anilist", ignoreCase = true)) {
                                 {
                                     coroutineScope.launch {
                                         val success = apiClient.toggleLike(topic.id, "THREAD")

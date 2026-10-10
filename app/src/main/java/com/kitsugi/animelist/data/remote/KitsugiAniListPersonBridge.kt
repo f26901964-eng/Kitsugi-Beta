@@ -56,8 +56,7 @@ internal object KitsugiAniListPersonBridge {
     private val cache = BoundedCache<Int, MediaNames>("anilist.personBridge", 500)
 
     private fun isLatinName(text: String): Boolean =
-        text.any { it.isLetter() } &&
-            !com.kitsugi.animelist.utils.PreferenceHelpers.hasCjkCharacters(text)
+        com.kitsugi.animelist.utils.PreferenceHelpers.isLatinText(text)
 
     private fun normalizeKey(text: String): String? {
         val normalized = Normalizer.normalize(text.trim(), Normalizer.Form.NFKC)

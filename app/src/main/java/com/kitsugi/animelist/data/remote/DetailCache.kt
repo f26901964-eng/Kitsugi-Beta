@@ -20,8 +20,17 @@ object DetailCache {
     // ─── TMDB ID → TVDB ID mapping ───────────────────────────────────────────
     val tmdbToTvdbCache: MutableMap<Int, Int?> = BoundedCache<Int, Int?>("detail.tmdbToTvdb", 3000)
 
+    // ─── TMDB ID → media kind ("movie" | "tv" | null = kontrol edildi, film değil) ──
+    // ARM ("media") / animeapi ("themoviedb_type") çapraz eşlemelerinden doldurulur.
+    // Film kayıtlarının TVDB/fanart-TV zincirine girmesini engelleyen doğruluk kaynağı:
+    // TVDB filmleri dizinin 0. sezonu olarak tutar; film için TVDB kullanılırsa dizi
+    // logosu/afişi sızar (Chainsaw Man Reze-hen vakası).
+    val tmdbMediaCache: MutableMap<Int, String?> = BoundedCache<Int, String?>("detail.tmdbMedia", 3000)
+
     // ─── TMDB ID → Logo URL mapping ──────────────────────────────────────────
     val logoCache: MutableMap<Int, String?> = BoundedCache<Int, String?>("detail.logo", 1500)
+    /** Dil + tür + sezon anahtarlı logo seçimi. Eski tek-logo önbelleği dil/film ayrımı yapamaz. */
+    val logoSelectionCache: MutableMap<String, String?> = BoundedCache<String, String?>("detail.logoSelection", 400)
 
     // ─── TMDB (tmdbId, season) → episode DTOs ────────────────────────────────
     data class TmdbEpisodeDtoCached(
@@ -234,15 +243,18 @@ object DetailCache {
     }
 
     // Fanart.tv Gallery Cache
-    fun getFanartGallery(isMovie: Boolean, id: Int): List<GalleryItem>? {
-        val key = "${if (isMovie) "movie" else "tv"}_$id"
+    fun getFanartGallery(isMovie: Boolean, id: Int, language: String = ""): List<GalleryItem>? {
+        val key = fanartGalleryKey(isMovie, id, language)
         return fanartGalleryCache[key]
     }
 
-    fun putFanartGallery(isMovie: Boolean, id: Int, list: List<GalleryItem>) {
-        val key = "${if (isMovie) "movie" else "tv"}_$id"
+    fun putFanartGallery(isMovie: Boolean, id: Int, list: List<GalleryItem>, language: String = "") {
+        val key = fanartGalleryKey(isMovie, id, language)
         fanartGalleryCache[key] = list
     }
+
+    private fun fanartGalleryKey(isMovie: Boolean, id: Int, language: String): String =
+        "${if (isMovie) "movie" else "tv"}_${id}_${language.trim().lowercase()}"
 
     fun removeFanartGallery(isMovie: Boolean, id: Int) {
         val key = "${if (isMovie) "movie" else "tv"}_$id"
@@ -301,7 +313,9 @@ object DetailCache {
         episodeRatingsCache.clear()
         malToTmdbCache.clear()
         tmdbToTvdbCache.clear()
+        tmdbMediaCache.clear()
         logoCache.clear()
+        logoSelectionCache.clear()
         tmdbEpisodesCache.clear()
     }
 }

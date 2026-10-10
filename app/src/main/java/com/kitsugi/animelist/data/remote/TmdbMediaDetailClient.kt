@@ -252,6 +252,8 @@ internal object TmdbMediaDetailClient {
                 streamingEpisodes = emptyList(),
                 tmdbId = tmdbId,
                 tmdbSeason = 1,
+                format = if (isMovie) "MOVIE" else "TV",
+                rawFormat = if (isMovie) "movie" else "tv",
                 pictures = mediaImages,
                 totalSeasons = totalSeasonsVal,
                 nextAiringEpisode = nextAiring,

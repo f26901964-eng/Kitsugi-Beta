@@ -129,8 +129,9 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
     private val _galleryItems = MutableStateFlow<List<GalleryItem>>(emptyList())
     val galleryItems: StateFlow<List<GalleryItem>> = _galleryItems.asStateFlow()
 
-    private val _galleryLoading = MutableStateFlow(true)
-    val galleryLoading: StateFlow<Boolean> = _galleryLoading.asStateFlow()
+    /** Galeri tüm kaynaklardan (detay + galeri + yenileme) bitene kadar true. */
+    private val galleryTracker = GalleryLoadTracker()
+    val galleryLoading: StateFlow<Boolean> = galleryTracker.loading
 
     /** Her yeni entry navigasyonunda artar — UI bu trigger’ı izleyerek tab’ı 0’a sıfırlar. */
     private val _pageResetTrigger = MutableStateFlow(0)
@@ -197,7 +198,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
         _episodeRatings.value = emptyMap()
         _resolvedTmdbId.value = null
         _galleryItems.value = emptyList()
-        _galleryLoading.value = true
+        galleryTracker.reset()
 
         // Reset tab states to either cached values or Loading
         val malId = stableId
@@ -248,7 +249,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
         }
 
         // Detail fetch — sayfa render için kritik; öncelikli coroutine
-        viewModelScope.launch {
+        val detailJob = viewModelScope.launch {
             try {
                 fetchDetail(entry)
             } catch (e: Exception) {
@@ -257,16 +258,17 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             }
         }
 
-        // Galeri + Fanart.tv — detail ile paralel; tamamlandığında sayfa
-        // zaten açık olduğundan sadece galeri bölümü güncellenir.
+        // Galeri + Fanart.tv: galeri, detay verisine (banner, tanıtım görselleri, TMDB kimliği)
+        // bağlı olduğu için detay bitince başlar. Galeri tüm kaynaklarla bitene kadar "yükleniyor".
+        val galleryToken = galleryTracker.begin()
         viewModelScope.launch {
             try {
-                _galleryLoading.value = true
+                detailJob.join()
                 fetchFanartGallery(entry)
             } catch (e: Exception) {
                 Log.e(TAG, "Error fetching Fanart gallery (post-detail): ${e.message}", e)
             } finally {
-                _galleryLoading.value = false
+                galleryTracker.end(galleryToken)
             }
         }
 
@@ -335,6 +337,21 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
         else -> entry.malId ?: entry.id
     }
 
+    private fun realMalIdOf(entry: MediaEntry): Int? = when (entry.source.lowercase()) {
+        "simkl" -> {
+            val m = entry.malId
+            val s = entry.simklId
+            if (m != null && m > 0 && m != s && m < 100_000_000) m else null
+        }
+        "anilist" -> {
+            val m = entry.malId
+            if (m != null && m > 0 && m < 100_000_000) m else null
+        }
+        "kitsu" -> com.kitsugi.animelist.data.remote.KitsuIdNamespace.realMalIdOf(entry.malId)
+        "bangumi", "shikimori", "tmdb" -> null
+        else -> entry.malId?.takeIf { it in 1 until 100_000_000 }
+    }
+
     private suspend fun fetchDetail(entry: MediaEntry) {
         // NOT (Kitsu): kimlik alanı her zaman 300M aralığındaki stableId olmalıdır. Eski
         // kayıtlarda bu alan gerçek MAL ID taşıyabiliyor; KitsugiDetailClient kimliği
@@ -346,7 +363,8 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
         if (entry.source.equals("kitsu", ignoreCase = true)) {
             com.kitsugi.animelist.data.remote.KitsuIdNamespace.stableIdOrNull(effectiveExternalId)?.let { canonicalKitsuIdForEntry = entry.id to it }
         }
-        val cached = DetailCache.getMediaDetail(entry.source, stableId)
+        val cached = DetailCache.getMediaDetail(entry.source, stableId, entry.type.name)
+            ?: DetailCache.getMediaDetail(entry.source, stableId)
         val detail = if (cached != null) {
             cached
         } else {
@@ -360,24 +378,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                         // TMDB zenginleştirmesi için entry'deki ID'leri ilet
                         tmdbId = entry.tmdbId,
                         // realMalId → Jikan/ARM için gerçek MAL ID'si; kaynak bazında hesaplanır
-                        realMalId = when (entry.source.lowercase()) {
-                            "simkl" -> {
-                                // Simkl API ids.mal alanı varsa entry.malId gerçek MAL ID'dir (simklId'den farklı)
-                                val m = entry.malId; val s = entry.simklId
-                                if (m != null && m > 0 && m != s && m < 100_000_000) m else null
-                            }
-                            "anilist" -> {
-                                // 100M+ offset'li stableId gerçek MAL ID değil; < 100M ise MAL ID'dir
-                                val m = entry.malId
-                                if (m != null && m > 0 && m < 100_000_000) m else null
-                            }
-                            // Kitsu: 300M aralığı Kitsu stableId'sidir; yalnızca aralık altındaki
-                            // (eski sürümlerin yazdığı) değer gerçek MAL ID sayılır.
-                            "kitsu" -> com.kitsugi.animelist.data.remote.KitsuIdNamespace.realMalIdOf(entry.malId)
-                            // Bangumi: entry.malId stableId'dir (500M+), MAL ID değildir; istemci çapraz kimliği çözer.
-                            "bangumi" -> null
-                            else -> entry.malId
-                        },
+                        realMalId = realMalIdOf(entry),
                         title = entry.title
                     )
                 }
@@ -386,7 +387,10 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                 null
             }
             if (fetched != null) {
-                DetailCache.putMediaDetail(entry.source, stableId, fetched)
+                DetailCache.putMediaDetail(entry.source, stableId, fetched, entry.type.name)
+                if (effectiveExternalId > 0 && effectiveExternalId != stableId) {
+                    DetailCache.putMediaDetail(entry.source, effectiveExternalId, fetched, entry.type.name)
+                }
             }
             fetched
         }
@@ -414,12 +418,22 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
 
             // Detaydan gelen TMDB ID veya resimler varsa ve galeri henüz kısıtlıysa galeriyi zenginleştir.
             // Bangumi'de çapraz kimlikler detayla birlikte çözüldüğü için galeri her zaman bir kez yenilenir.
-            if (_galleryItems.value.size <= 2 || entry.source.equals("bangumi", ignoreCase = true)) {
+            val movieForGallery = KitsugiEpisodeRatingsRepository.prefersMovieLogo(
+                type = detail.type ?: entry.type,
+                format = detail.format,
+                rawFormat = detail.rawFormat,
+                subtitle = entry.subtitle,
+                title = listOfNotNull(detail.title, entry.title, entry.titleEnglish).joinToString(" | ")
+            )
+            if (_galleryItems.value.size <= 2 || entry.source.equals("bangumi", ignoreCase = true) || movieForGallery) {
+                val refreshToken = galleryTracker.begin()
                 viewModelScope.launch {
                     try {
                         fetchFanartGallery(entry)
                     } catch (e: Exception) {
                         Log.e(TAG, "Post-detail gallery refresh failed: ${e.message}")
+                    } finally {
+                        galleryTracker.end(refreshToken)
                     }
                 }
             }
@@ -457,16 +471,14 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                 }
             }
 
-            // Logo güncelle — Simkl gibi kaynaklarda detaydan realMalId veya tmdbId geldiğinde logo çekilebilir
-            if (_logoUrl.value == null) {
-                val showLogos = runCatching { settingsDataStore.settingsFlow.first().showAnimeLogos }.getOrDefault(true)
-                if (showLogos) {
-                    viewModelScope.launch {
-                        try {
-                            fetchLogo(entry, showLogos)
-                        } catch (e: Exception) {
-                            Log.e(TAG, "Post-detail logo fetch failed: ${e.message}")
-                        }
+            // Detay geldikten sonra logo yeniden seçilir: film/sezon ancak o zaman kesinleşir.
+            val showLogos = runCatching { settingsDataStore.settingsFlow.first().showAnimeLogos }.getOrDefault(true)
+            if (showLogos) {
+                viewModelScope.launch {
+                    try {
+                        fetchLogo(entry, showLogos)
+                    } catch (e: Exception) {
+                        Log.e(TAG, "Post-detail logo fetch failed: ${e.message}")
                     }
                 }
             }
@@ -557,6 +569,25 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
         _resolvedTmdbId.value = resolvedId
     }
 
+    private fun logoSelection(entry: MediaEntry): Pair<Boolean, Int?> {
+        val detail = _detailState.value
+        val isMovie = KitsugiEpisodeRatingsRepository.prefersMovieLogo(
+            type = detail?.type ?: entry.type,
+            format = detail?.format,
+            rawFormat = detail?.rawFormat,
+            subtitle = entry.subtitle,
+            title = listOfNotNull(detail?.title, detail?.titleEnglish, entry.title, entry.titleEnglish).joinToString(" | ")
+        )
+        val season = (_targetSeason.value.takeIf { it > 1 }
+            ?: KitsugiEpisodeRatingsRepository.determineTargetSeason(
+                tmdbSeason = detail?.tmdbSeason,
+                title = detail?.title ?: entry.title,
+                titleEnglish = detail?.titleEnglish ?: entry.titleEnglish,
+                synonyms = detail?.synonyms.orEmpty()
+            )).takeIf { it > 1 }
+        return isMovie to season
+    }
+
     private suspend fun fetchLogo(entry: MediaEntry, showAnimeLogos: Boolean) {
         val isManga = entry.type == MediaType.Manga || _detailState.value?.type == MediaType.Manga
         if (!showAnimeLogos || isManga) {
@@ -564,30 +595,34 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             return
         }
         val stableId = entry.malId ?: 0
-        val isMovie = entry.type == MediaType.Movie
+        val (isMovie, season) = logoSelection(entry)
+        val explicitTmdb = (entry.tmdbId ?: _detailState.value?.tmdbId)?.takeIf { it > 0 }
         val logo = withContext(Dispatchers.IO) {
-            when {
+            if (explicitTmdb != null) {
+                KitsugiEpisodeRatingsRepository.getLogoUrl(explicitTmdb, seasonNumber = season, isMovie = isMovie)
+            } else when {
                 entry.source.equals("tmdb", ignoreCase = true) -> {
                     val tmdbId = entry.tmdbId ?: if (stableId > 0) stableId else null
-                    if (tmdbId != null && tmdbId > 0) KitsugiEpisodeRatingsRepository.getLogoUrl(tmdbId, isMovie = isMovie) else null
+                    if (tmdbId != null && tmdbId > 0) {
+                        KitsugiEpisodeRatingsRepository.getLogoUrl(tmdbId, seasonNumber = season, isMovie = isMovie)
+                    } else null
                 }
                 entry.source.equals("anilist", ignoreCase = true) -> {
                     if (stableId >= 100_000_000) {
                         val aniListId = stableId - 100_000_000
                         val realMal = _detailState.value?.realMalId
-                        KitsugiEpisodeRatingsRepository.getLogoUrlByAniListId(aniListId, fallbackMalId = realMal, isMovie = isMovie)
+                        KitsugiEpisodeRatingsRepository.getLogoUrlByAniListId(aniListId, fallbackMalId = realMal, seasonNumber = season, isMovie = isMovie)
                     } else {
-                        KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId, isMovie = isMovie)
+                        KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId, seasonNumber = season, isMovie = isMovie)
                     }
                 }
                 entry.source.equals("kitsu", ignoreCase = true) -> {
                     val kitsuId = com.kitsugi.animelist.data.remote.KitsuIdNamespace.rawIdFromStable(stableId)
                     if (kitsuId != null && kitsuId > 0) {
-                        KitsugiEpisodeRatingsRepository.getLogoUrlByKitsuId(kitsuId)
+                        KitsugiEpisodeRatingsRepository.getLogoUrlByKitsuId(kitsuId, seasonNumber = season, isMovie = isMovie)
                     } else {
-                        // Kimlik Kitsu aralığında değil (eski kayıt) → MAL ID olarak dene
                         val malId = com.kitsugi.animelist.data.remote.KitsuIdNamespace.realMalIdOf(stableId)
-                        if (malId != null && malId > 0) KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(malId, isMovie = isMovie) else null
+                        if (malId != null && malId > 0) KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(malId, seasonNumber = season, isMovie = isMovie) else null
                     }
                 }
                 entry.source.equals("simkl", ignoreCase = true) -> {
@@ -595,17 +630,16 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                     val realMalId = detail?.realMalId
                     val tmdbId = entry.tmdbId ?: detail?.tmdbId
                     when {
-                        realMalId != null && realMalId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(realMalId, isMovie = isMovie)
-                        tmdbId != null && tmdbId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrl(tmdbId, isMovie = isMovie)
+                        realMalId != null && realMalId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(realMalId, seasonNumber = season, isMovie = isMovie)
+                        tmdbId != null && tmdbId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrl(tmdbId, seasonNumber = season, isMovie = isMovie)
                         else -> null
                     }
                 }
                 entry.source.equals("jikan", ignoreCase = true) ||
                 entry.source.equals("mal", ignoreCase = true) -> {
-                    if (stableId > 0) KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId, isMovie = isMovie) else null
+                    if (stableId > 0) KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId, seasonNumber = season, isMovie = isMovie) else null
                 }
                 entry.source.equals("bangumi", ignoreCase = true) -> {
-                    // Bangumi stableId'si MAL ID değildir: çözülen çapraz kimlik kullanılır.
                     val cross = runCatching {
                         KitsugiBangumiDetailClient.resolveCrossIds(stableId, entry.type)
                     }.getOrNull()
@@ -613,21 +647,20 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                     val aniListId = cross?.aniListId
                     val tmdb = entry.tmdbId ?: _detailState.value?.tmdbId ?: cross?.tmdbId
                     when {
-                        malId != null && malId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(malId, isMovie = isMovie)
-                        aniListId != null && aniListId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByAniListId(aniListId, fallbackMalId = null, isMovie = isMovie)
-                        tmdb != null && tmdb > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrl(tmdb, isMovie = isMovie)
+                        malId != null && malId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(malId, seasonNumber = season, isMovie = isMovie)
+                        aniListId != null && aniListId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByAniListId(aniListId, fallbackMalId = null, seasonNumber = season, isMovie = isMovie)
+                        tmdb != null && tmdb > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrl(tmdb, seasonNumber = season, isMovie = isMovie)
                         else -> null
                     }
                 }
                 entry.source.equals("shikimori", ignoreCase = true) -> {
-                    // Shikimori ID'si MAL ID değildir: önce gerçek MAL ID'si çözülür.
                     val malId = _detailState.value?.realMalId?.takeIf { it > 0 }
                         ?: KitsugiIdResolver.resolveMalIdFromShikimori(stableId)
-                    if (malId != null && malId > 0) KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(malId, isMovie = isMovie) else null
+                    if (malId != null && malId > 0) KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(malId, seasonNumber = season, isMovie = isMovie) else null
                 }
                 stableId > 0 && !entry.source.equals("simkl", ignoreCase = true) &&
                     !entry.source.equals("kitsu", ignoreCase = true) -> {
-                    KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId, isMovie = isMovie)
+                    KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(stableId, seasonNumber = season, isMovie = isMovie)
                 }
                 else -> null
             }
@@ -728,7 +761,13 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             }
         }
 
-        val isMovie = entry.type == MediaType.Movie
+        val isMovie = KitsugiEpisodeRatingsRepository.prefersMovieLogo(
+            type = _detailState.value?.type ?: entry.type,
+            format = _detailState.value?.format,
+            rawFormat = _detailState.value?.rawFormat,
+            subtitle = entry.subtitle,
+            title = listOfNotNull(_detailState.value?.title, entry.title, entry.titleEnglish).joinToString(" | ")
+        )
 
         val fallbackMalId: Int? = when {
             entry.source.equals("anilist", ignoreCase = true) -> {
@@ -763,13 +802,22 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
 
         // Kitsu listesi/detayında tür "Anime" olarak gelir; film olan Kitsu kaydını alt türünden anlarız.
         // Aksi halde film kaydının galerisine, TMDB ID'si aynı olan TV dizisinin görselleri karışır.
-        val galleryIsMovie = isMovie || KitsugiEpisodeRatingsRepository.isKitsuMovieId(fallbackKitsuId)
+        val galleryDetail = _detailState.value
+        val galleryIsMovie = isMovie ||
+            galleryDetail?.type == MediaType.Movie ||
+            KitsugiEpisodeRatingsRepository.isKitsuMovieId(fallbackKitsuId)
+        // TMDB kimliği çapraz eşlemeyle bulunduğundan görseller başlık doğrulamasından geçer.
+        val galleryTitles = listOfNotNull(
+            entry.title, entry.titleEnglish, entry.titleJapanese,
+            galleryDetail?.title, galleryDetail?.titleEnglish, galleryDetail?.titleRomaji,
+            galleryDetail?.titleJapanese
+        ).filter { it.isNotBlank() }.distinct()
 
         val (fanartItems, tmdbItems, shikimoriItems) = coroutineScope {
             val fanartDef = async(Dispatchers.IO) {
                 KitsugiEpisodeRatingsRepository.getFanartGalleryItems(
                     tmdbId = tmdbId ?: 0,
-                    isMovie = galleryIsMovie,
+                    isMovie = isMovie,
                     fallbackMalId = fallbackMalId,
                     fallbackAniListId = fallbackAniListId,
                     fallbackKitsuId = fallbackKitsuId
@@ -779,7 +827,8 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                 if (tmdbId != null && tmdbId > 0) {
                     KitsugiEpisodeRatingsRepository.getTmdbGalleryItems(
                         tmdbId = tmdbId,
-                        isMovie = galleryIsMovie
+                        isMovie = galleryIsMovie,
+                        expectedTitles = galleryTitles
                     )
                 } else emptyList()
             }
@@ -835,6 +884,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
         val allItems = (enrichedExisting + tmdbItems + fanartItems + shikimoriItems)
             .distinctBy { KitsugiBangumiDetailClient.galleryDedupKey(it.url) }
 
+        val preferredLang = runCatching { KitsugiEpisodeRatingsRepository.getPreferredImageLanguage() }.getOrDefault("en")
         val sortedItems = allItems.sortedWith(
             compareBy(
                 { item ->
@@ -851,6 +901,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                         GalleryCategory.OTHER -> 8
                     }
                 },
+                { item -> KitsugiEpisodeRatingsRepository.galleryLanguageRank(item.language, preferredLang) },
                 { item -> if (item.url == coverUrl) 0 else 1 }
             )
         )
@@ -1135,7 +1186,8 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                                     entry.source,
                                     effectiveExternalId,
                                     entry.type,
-                                    realMalId = effectiveRealMalId
+                                    realMalId = effectiveRealMalId,
+                                    tmdbId = tmdbId
                                 )
                             } ?: run {
                                 _statsState.value = DetailTabState.Error
@@ -1153,7 +1205,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                     7 -> {
                         val currentSuccess = _reviewsState.value as? DetailTabState.Success
                         val needsRefetch = currentSuccess == null ||
-                            (currentSuccess.data.isEmpty() && DetailCache.getMediaReviews(entry.source, malId) == null)
+                            (currentSuccess.data.isEmpty() && DetailCache.getMediaReviews(entry.source, malId, entry.type.name) == null)
                         if (needsRefetch) {
                             _reviewsState.value = DetailTabState.Loading
                             val fetched = fetchTabWithTimeout {
@@ -1170,7 +1222,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                             }
                             val result = fetched.value
                             if (result.isNotEmpty()) {
-                                DetailCache.putMediaReviews(entry.source, malId, result)
+                                DetailCache.putMediaReviews(entry.source, malId, result, entry.type.name)
                             }
                             _reviewsState.value = DetailTabState.Success(result)
                         }
@@ -1258,6 +1310,12 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
         DetailCache.removeMediaEpisodes(entry.source, entry.malId ?: 0)
         // Bölüm sekmesi = 8 (7 = Yorumlar). Yanlış indeks bölümleri hiç yüklemiyordu.
         loadTab(8, entry, _detailState.value?.realMalId)
+        viewModelScope.launch {
+            val showLogos = runCatching { settingsDataStore.settingsFlow.first().showAnimeLogos }.getOrDefault(true)
+            if (showLogos) {
+                runCatching { fetchLogo(entry, true) }
+            }
+        }
     }
 
     /**

@@ -40,6 +40,10 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
     private val _galleryItems = MutableStateFlow<List<GalleryItem>>(emptyList())
     val galleryItems: StateFlow<List<GalleryItem>> = _galleryItems.asStateFlow()
 
+    /** Galeri tüm kaynaklardan (detay + galeri + yenileme) bitene kadar true. */
+    private val galleryTracker = GalleryLoadTracker()
+    val galleryLoading: StateFlow<Boolean> = galleryTracker.loading
+
     private val _translatedBio = MutableStateFlow<String?>(null)
     val translatedBio: StateFlow<String?> = _translatedBio.asStateFlow()
 
@@ -91,6 +95,7 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
         _state.value = if (cachedStaffDetail != null) StaffDetailState.Success(cachedStaffDetail) else StaffDetailState.Loading
         _translatedBio.value = cachedBioTranslation
 
+        galleryTracker.reset()
         viewModelScope.launch {
             fetchStaffDetail(staffId, source, name)
         }
@@ -125,7 +130,17 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
         }
     }
 
+    /** Kişi detayı + galerisi bitene kadar galeri yükleniyor sayılır. */
     private suspend fun fetchStaffDetail(staffId: Int, source: String, name: String? = null, force: Boolean = false) {
+        val token = galleryTracker.begin()
+        try {
+            fetchStaffDetailInternal(staffId, source, name, force)
+        } finally {
+            galleryTracker.end(token)
+        }
+    }
+
+    private suspend fun fetchStaffDetailInternal(staffId: Int, source: String, name: String? = null, force: Boolean = false) {
         if (force) {
             DetailCache.removeStaffDetail(source, staffId)
         }

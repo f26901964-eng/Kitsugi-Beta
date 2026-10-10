@@ -124,10 +124,13 @@ import com.kitsugi.animelist.ui.screens.explore.ExploreScreen
 import com.kitsugi.animelist.ui.screens.explore.ExploreViewModel
 import com.kitsugi.animelist.ui.screens.explore.ExplorePlatform
 import com.kitsugi.animelist.ui.screens.explore.ExploreCategoryType
+import com.kitsugi.animelist.ui.screens.explore.generateExploreEntryMap
+import com.kitsugi.animelist.ui.screens.explore.getMediaEntryFromMap
 import com.kitsugi.animelist.ui.screens.fullscreen.FullScreenMediaGridPage
 import com.kitsugi.animelist.ui.screens.mylist.MyListScreen
 import com.kitsugi.animelist.ui.screens.search.SearchScreen
 import com.kitsugi.animelist.ui.screens.search.SearchViewModel
+import com.kitsugi.animelist.ui.screens.search.DetailSearchFilterRequest
 import com.kitsugi.animelist.ui.screens.settings.SettingsScreen
 import com.kitsugi.animelist.data.manga.MangaExtensionLoader
 import com.kitsugi.animelist.data.manga.MangaSourceRepository
@@ -335,6 +338,12 @@ fun AppRoot(
         navState.detailBackStack = emptyList<DetailScreen>()
         appViewModel.selectTab(MainTab.Search)
         searchViewModel.setTagFilter(tag)
+    }
+
+    val triggerDetailSearchFilter: (DetailSearchFilterRequest) -> Unit = { request ->
+        navState.detailBackStack = emptyList<DetailScreen>()
+        appViewModel.selectTab(MainTab.Search)
+        searchViewModel.applyDetailFilterRequest(request)
     }
 
     val activeScreen = navState.detailBackStack.lastOrNull()
@@ -611,76 +620,11 @@ fun AppRoot(
     }
 
     val entryMap = remember(mediaEntries) {
-        val mapping = mutableMapOf<String, MediaEntry>()
-        mediaEntries.forEach { entry ->
-            mapping["${entry.source.lowercase()}_${entry.type.name.lowercase()}_${entry.malId}"] = entry
-            mapping["${entry.source.lowercase()}_${entry.malId}"] = entry
-            if (entry.tmdbId != null) {
-                mapping["tmdb_${entry.tmdbId}"] = entry
-            }
-            if (entry.simklId != null) {
-                mapping["simkl_${entry.simklId}"] = entry
-            }
-            if (entry.source.equals("anilist", ignoreCase = true) && entry.malId != null && entry.malId >= 100_000_000) {
-                mapping["anilist_${entry.malId - 100_000_000}"] = entry
-            }
-            if (entry.source.equals("jikan", ignoreCase = true) || entry.source.equals("mal", ignoreCase = true)) {
-                mapping["mal_${entry.malId}"] = entry
-                mapping["jikan_${entry.malId}"] = entry
-            }
-            val normTitle = buildString {
-                for (c in entry.title.lowercase()) {
-                    if (c in 'a'..'z' || c in '0'..'9') append(c)
-                }
-            }.trim()
-            if (normTitle.isNotEmpty()) {
-                mapping["${entry.type.name.lowercase()}_$normTitle"] = entry
-            }
-        }
-        mapping
+        generateExploreEntryMap(mediaEntries)
     }
 
     val getMediaEntryLambda: (JikanSearchResult) -> MediaEntry? = remember(entryMap) {
-        { result: JikanSearchResult ->
-            val compositeKey = "${result.source.lowercase()}_${result.type.name.lowercase()}_${result.malId}"
-            val directKey = "${result.source.lowercase()}_${result.malId}"
-            var found = entryMap[compositeKey] ?: entryMap[directKey]
-
-            if (found == null) {
-                val tmdbId = result.tmdbId ?: if (result.source.equals("tmdb", ignoreCase = true)) result.malId else null
-                if (tmdbId != null) {
-                    found = entryMap["tmdb_$tmdbId"]
-                }
-            }
-
-            if (found == null) {
-                val rMal = if (result.source.equals("jikan", ignoreCase = true) || result.source.equals("mal", ignoreCase = true)) {
-                    result.malId
-                } else {
-                    result.realMalId
-                }
-                if (rMal != null) {
-                    found = entryMap["${result.source.lowercase()}_$rMal"]
-                        ?: entryMap["mal_$rMal"]
-                        ?: entryMap["jikan_$rMal"]
-                        ?: entryMap["anilist_$rMal"]
-                        ?: entryMap["simkl_$rMal"]
-                }
-            }
-
-            if (found == null) {
-                val normTitle = buildString {
-                    for (c in result.title.lowercase()) {
-                        if (c in 'a'..'z' || c in '0'..'9') append(c)
-                    }
-                }.trim()
-                if (normTitle.isNotEmpty()) {
-                    found = entryMap["${result.type.name.lowercase()}_$normTitle"]
-                }
-            }
-
-            found
-        }
+        { result: JikanSearchResult -> getMediaEntryFromMap(result, entryMap) }
     }
 
     fun getMediaEntry(result: JikanSearchResult): MediaEntry? = getMediaEntryLambda(result)
@@ -944,6 +888,7 @@ fun AppRoot(
                     triggerSearch = triggerSearch,
                     triggerSearchByGenre = triggerSearchByGenre,
                     triggerSearchByTag = triggerSearchByTag,
+                    triggerDetailSearchFilter = triggerDetailSearchFilter,
                     isAlreadyInList = ::isAlreadyInList,
                     getMediaEntry = ::getMediaEntry,
                     bottomBarScrollState = bottomBarScrollState
@@ -1081,6 +1026,7 @@ private fun AppNavigationContent(
     triggerSearch: (String) -> Unit,
     triggerSearchByGenre: (String) -> Unit = {},
     triggerSearchByTag: (String) -> Unit = {},
+    triggerDetailSearchFilter: (DetailSearchFilterRequest) -> Unit = {},
     isAlreadyInList: (JikanSearchResult) -> Boolean,
     getMediaEntry: (JikanSearchResult) -> MediaEntry?,
     bottomBarScrollState: com.kitsugi.animelist.utils.ScrollVisibilityState
@@ -1154,6 +1100,7 @@ private fun AppNavigationContent(
                     triggerSearch = triggerSearch,
                     triggerSearchByGenre = triggerSearchByGenre,
                     triggerSearchByTag = triggerSearchByTag,
+                    triggerDetailSearchFilter = triggerDetailSearchFilter,
                     onScrollReset = { bottomBarScrollState.show() }
                 )
             }

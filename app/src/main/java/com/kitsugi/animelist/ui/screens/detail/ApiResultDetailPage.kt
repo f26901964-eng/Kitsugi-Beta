@@ -5,6 +5,8 @@
 
 package com.kitsugi.animelist.ui.screens.detail
 import com.kitsugi.animelist.ui.components.KitsugiButton
+import com.kitsugi.animelist.ui.components.LocalKitsugiGalleryLoading
+import com.kitsugi.animelist.ui.components.KitsugiGalleryIconButton
 
 import android.content.Intent
 import android.net.Uri
@@ -164,7 +166,8 @@ fun ApiResultDetailPage(
     onStudioClick: (Int, String, String?, String?) -> Unit,
     onSearchQuery: (String) -> Unit = {},
     onSearchByGenre: (String) -> Unit = {},
-    onSearchByTag: (String) -> Unit = {},
+    onSearchByTag: (com.kitsugi.animelist.data.remote.KitsugiTag) -> Unit = {},
+    onSearchBySeason: (com.kitsugi.animelist.ui.screens.search.DetailSeasonMetadata) -> Unit = {},
     titleLanguage: String = "ROMAJI",
     scoreFormat: String = "POINT_10",
     hideScores: Boolean = false,
@@ -226,6 +229,7 @@ fun ApiResultDetailPage(
     val mdbListRatings by viewModel.mdbListRatings.collectAsState()
     val mdbListLoading by viewModel.mdbListLoading.collectAsState()
     val galleryLoading by viewModel.galleryLoading.collectAsState()
+    CompositionLocalProvider(LocalKitsugiGalleryLoading provides galleryLoading) {
     val pageResetTrigger by viewModel.pageResetTrigger.collectAsState()
 
     // Sadece detay verisi hazır olana kadar yükleme ekranı göster.
@@ -264,6 +268,10 @@ fun ApiResultDetailPage(
                 titleEnglish = effTitleEnglish,
                 titleJapanese = effTitleJapanese,
                 titleRomaji = effTitleRomaji,
+                // Liste kayıtlarında tür her zaman taşınmaz (Kitsu/Shikimori listeleri "Anime"
+                // derler). Detayın bildiği tür (ör. Shikimori `kind=movie`) hero etiketini,
+                // bölüm sayacını ve film/dizi akışlarını doğru türe çeker.
+                type = detail.type ?: result.type,
                 imageUrl = if (!detail.imageUrl.isNullOrBlank()) detail.imageUrl else result.imageUrl,
                 score = result.score ?: detail.score,
                 year = result.year ?: detail.year,
@@ -450,7 +458,7 @@ fun ApiResultDetailPage(
                     onReadMangaClick = onReadMangaClick,
                     onGalleryOpen = { items, idx ->
                         activeGalleryCategory = items.getOrNull(idx)?.category ?: GalleryCategory.POSTER
-                        activeGalleryItems = items
+                        if (!galleryLoading) activeGalleryItems = items
                         activeGalleryIndex = idx
                     },
                     onShowAuthWarning = { showAuthWarningDialog = true },
@@ -461,7 +469,7 @@ fun ApiResultDetailPage(
             },
             floatingHeaderActions = {
                 if (galleryItems.isNotEmpty() || !displayResult.imageUrl.isNullOrBlank()) {
-                    IconButton(onClick = {
+                    KitsugiGalleryIconButton(onClick = {
                         val clickedUrl = displayResult.imageUrl
                         val index = if (!clickedUrl.isNullOrBlank()) {
                             galleryItems.indexOfFirst { item ->
@@ -471,7 +479,7 @@ fun ApiResultDetailPage(
                         } else -1
                         if (index >= 0) {
                             activeGalleryCategory = GalleryCategory.POSTER
-                            activeGalleryItems = galleryItems
+                            if (!galleryLoading) activeGalleryItems = galleryItems
                             activeGalleryIndex = index
                         } else if (!clickedUrl.isNullOrBlank()) {
                             val coverItem = GalleryItem(
@@ -480,21 +488,15 @@ fun ApiResultDetailPage(
                                 source = displayResult.source
                             )
                             activeGalleryCategory = GalleryCategory.POSTER
-                            activeGalleryItems = listOf(coverItem) + galleryItems
+                            if (!galleryLoading) activeGalleryItems = listOf(coverItem) + galleryItems
                             activeGalleryIndex = 0
                         } else {
                             val posterIndex = galleryItems.indexOfFirst { it.category == GalleryCategory.POSTER }.coerceAtLeast(0)
                             activeGalleryCategory = GalleryCategory.POSTER
-                            activeGalleryItems = galleryItems
+                            if (!galleryLoading) activeGalleryItems = galleryItems
                             activeGalleryIndex = posterIndex
                         }
-                    }) {
-                        Icon(
-                            imageVector = Icons.Rounded.Image,
-                            contentDescription = "Galeri",
-                            tint = accentColor
-                        )
-                    }
+                    }, accentColor = accentColor)
                 }
                 IconButton(onClick = {
                     val url = buildExternalUrl(displayResult)
@@ -545,7 +547,7 @@ fun ApiResultDetailPage(
                         onReadMangaClick = onReadMangaClick,
                         onGalleryOpen = { items, idx ->
                             activeGalleryCategory = items.getOrNull(idx)?.category ?: GalleryCategory.POSTER
-                            activeGalleryItems = items
+                            if (!galleryLoading) activeGalleryItems = items
                             activeGalleryIndex = idx
                         },
                         onShowAuthWarning = { showAuthWarningDialog = true },
@@ -568,6 +570,7 @@ fun ApiResultDetailPage(
                             onStudioClick = onStudioClick,
                             onGenreClick = onSearchByGenre,
                             onTagClick = onSearchByTag,
+                            onSearchBySeason = onSearchBySeason,
                             onTranslateClick = {
                                 if (translatedSynopsis == null) {
                                     viewModel.translateSynopsis()
@@ -597,7 +600,7 @@ fun ApiResultDetailPage(
                                 { showIntegrationsDialog = true }
                             } else null,
                             onImageGalleryRequest = { urls, index ->
-                                activeGalleryItems = urls.map { url ->
+                                if (!galleryLoading) activeGalleryItems = urls.map { url ->
                                     GalleryItem(
                                         url = url,
                                         category = GalleryCategory.POSTER,
@@ -609,7 +612,7 @@ fun ApiResultDetailPage(
                             galleryItems = galleryItems,
                             galleryLoading = galleryLoading,
                             onGalleryItemRequest = { items, idx ->
-                                activeGalleryItems = items
+                                if (!galleryLoading) activeGalleryItems = items
                                 activeGalleryIndex = idx
                             }
                         )
@@ -626,14 +629,14 @@ fun ApiResultDetailPage(
                                     items = galleryItems,
                                     isAdult = displayResult.isAdult,
                                     onItemClick = { index ->
-                                        activeGalleryItems = galleryItems
+                                        if (!galleryLoading) activeGalleryItems = galleryItems
                                         activeGalleryIndex = index
                                     },
                                     onOpenGallery = { category ->
                                         val startIndex = if (category == null) 0
                                         else galleryItems.indexOfFirst { it.category == category }.coerceAtLeast(0)
                                         activeGalleryCategory = category
-                                        activeGalleryItems = galleryItems
+                                        if (!galleryLoading) activeGalleryItems = galleryItems
                                         activeGalleryIndex = startIndex
                                     }
                                 )
@@ -711,8 +714,14 @@ fun ApiResultDetailPage(
                         externalId = result.malId,
                         mediaType = displayResult.type,
                         apiClient = apiClient,
-                        tmdbId = displayResult.tmdbId ?: detailState?.tmdbId,
-                        realMalId = displayResult.realMalId ?: detailState?.realMalId,
+                        tmdbId = displayResult.tmdbId ?: detailState?.tmdbId ?: resolvedTmdbId,
+                        realMalId = detailState?.realMalId ?: displayResult.realMalId ?: result.malId.takeIf { m ->
+                            m in 1 until 100_000_000 &&
+                                !result.source.equals("shikimori", true) &&
+                                !result.source.equals("bangumi", true) &&
+                                !result.source.equals("tmdb", true) &&
+                                !result.source.equals("simkl", true)
+                        },
                         titleLanguage = titleLanguage,
                         onUserProfileClick = onUserProfileClick,
                         preferredTranslator = settingsState?.preferredTranslator ?: "DEFAULT"
@@ -993,6 +1002,7 @@ fun ApiResultDetailPage(
             onFanartTvApiKeyChanged = { coroutineScope.launch { settingsDataStore.setFanartTvApiKey(it) } },
             onDismiss = { showIntegrationsDialog = false }
         )
+    }
     }
 } // ApiResultDetailPage
 

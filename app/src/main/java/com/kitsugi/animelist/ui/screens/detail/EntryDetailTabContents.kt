@@ -22,6 +22,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.PhotoLibrary
 import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
+import com.kitsugi.animelist.ui.components.LocalKitsugiGalleryLoading
+import androidx.compose.ui.draw.alpha
 import com.kitsugi.animelist.ui.components.KitsugiPlatformLogos
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -52,6 +54,8 @@ import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.data.remote.MdbListRatings
 import com.kitsugi.animelist.data.remote.KitsugiMediaDetail
 import com.kitsugi.animelist.data.remote.KitsugiStreamingEpisode
+import com.kitsugi.animelist.data.remote.KitsugiTag
+import com.kitsugi.animelist.ui.screens.search.DetailSeasonMetadata
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.screens.stream.KitsugiStreamActivity
@@ -82,7 +86,8 @@ internal fun EntryDetailOverviewTab(
     onSearchQuery: (String) -> Unit,
     onStudioClick: (id: Int, source: String, name: String?, url: String?) -> Unit,
     onGenreClick: (String) -> Unit = {},
-    onTagClick: (String) -> Unit = {},
+    onTagClick: (KitsugiTag) -> Unit = {},
+    onSearchBySeason: (DetailSeasonMetadata) -> Unit = {},
     mdbListRatings: MdbListRatings? = null,
     mdbListLoading: Boolean = false,
     mdbListShowImdb: Boolean = true,
@@ -195,7 +200,13 @@ internal fun EntryDetailOverviewTab(
 
         // Bilgi satırları
         if (detail != null) {
-            EntryInfoSection(detail = detail, mediaType = entry.type, onSearchQuery = onSearchQuery)
+            EntryInfoSection(
+                detail = detail,
+                mediaType = entry.type,
+                fallbackYear = entry.year,
+                onSearchQuery = onSearchQuery,
+                onSeasonClick = onSearchBySeason
+            )
         }
 
         // Yayıncı + Harici Linkler
@@ -239,6 +250,8 @@ internal fun DetailGalleryCard(
     isAdult: Boolean = false
 ) {
     val accentColor = LocalKitsugiAccent.current
+    // Galeri tüm kaynaklardan yüklenene kadar görseller ve kategori butonu tıklanamaz.
+    val galleryLoading = LocalKitsugiGalleryLoading.current
 
     Column(
         modifier = Modifier
@@ -292,7 +305,8 @@ internal fun DetailGalleryCard(
             // Kategori seçici buton
             Box {
                 IconButton(
-                    onClick = { showCategoryMenu = true }
+                    onClick = { showCategoryMenu = true },
+                    enabled = !galleryLoading
                 ) {
                     Icon(
                         imageVector = Icons.Rounded.PhotoLibrary,
@@ -475,7 +489,8 @@ internal fun DetailGalleryCard(
                                     .aspectRatio(aspectRatio)
                                     .clip(RoundedCornerShape(12.dp))
                                     .border(1.dp, KitsugiColors.Border, RoundedCornerShape(12.dp))
-                                    .tvClickable(shape = RoundedCornerShape(12.dp)) { onItemClick(mainIndex) }
+                                    .alpha(if (galleryLoading) 0.5f else 1f)
+                                    .tvClickable(enabled = !galleryLoading, shape = RoundedCornerShape(12.dp)) { onItemClick(mainIndex) }
                             ) {
                                 com.kitsugi.animelist.ui.components.KitsugiNsfwImage(
                                     model = item.url,

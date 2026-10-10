@@ -468,7 +468,7 @@ private fun TvLibraryTabChip(
                 Text(
                     text = count.toString(),
                     style = MaterialTheme.typography.labelSmall,
-                    color = if (selected) Color.White else Color.White.copy(alpha = 0.55f),
+                    color = if (selected) com.kitsugi.animelist.ui.theme.onAccentColor(accent) else Color.White.copy(alpha = 0.55f),
                     fontWeight = FontWeight.SemiBold
                 )
             }

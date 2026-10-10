@@ -26,6 +26,13 @@ internal fun SettingsContext.buildSettingsParams() =
             onHomeLayoutSelected = { onHomeLayoutSelected(it) },
             titleLanguage = appSettings.titleLanguage,
             scoreFormat = appSettings.scoreFormat,
+            scoreStep = appSettings.scoreStep,
+            staffNameLanguage = appSettings.staffNameLanguage,
+            separatedListStyle = appSettings.separatedListStyle,
+            showLowPriority = appSettings.showLowPriority,
+            priorityColorsJson = appSettings.priorityColorsJson,
+            fuzzySearchEnabled = appSettings.fuzzySearchEnabled,
+            separateNovelsManga = appSettings.separateNovelsManga,
             hideScores = appSettings.hideScores,
             showAnimeLogos = appSettings.showAnimeLogos,
             onThemeSelected = { onThemeSelected(it) },
@@ -36,12 +43,26 @@ internal fun SettingsContext.buildSettingsParams() =
             onScoreFormatSelected = { onScoreFormatSelected(it) },
             onHideScoresChanged = { onHideScoresChanged(it) },
             onShowAnimeLogosChanged = { onShowAnimeLogosChanged(it) },
+            // ─── AniHyou paritesi: eksik içerik/liste ayarları ─────────────
+            onStaffNameLanguageSelected = { onStaffNameLanguageSelected(it) },
+            onScoreStepSelected = { onScoreStepSelected(it) },
+            onSeparatedListStyleChanged = { onSeparatedListStyleChanged(it) },
+            onShowLowPriorityChanged = { onShowLowPriorityChanged(it) },
+            onPriorityColorsChanged = { onPriorityColorsChanged(it) },
+            onFuzzySearchEnabledChanged = { onFuzzySearchEnabledChanged(it) },
+            onSeparateNovelsMangaChanged = { onSeparateNovelsMangaChanged(it) },
             themeMode = appSettings.themeMode,
             onThemeModeSelected = { onThemeModeSelected(it) },
             amoledBlack = appSettings.amoledBlack,
             onAmoledBlackChanged = { onAmoledBlackChanged(it) },
+            cardFramesEnabled = appSettings.cardFramesEnabled,
+            onCardFramesEnabledChanged = { onCardFramesEnabledChanged(it) },
             customAccentColor = appSettings.customAccentColor,
             onCustomAccentColorChanged = { onCustomAccentColorChanged(it) },
+            customAccentColor2 = appSettings.customAccentColor2,
+            onCustomAccentColor2Changed = { onCustomAccentColor2Changed(it) },
+            customAccentGradientAngle = appSettings.customAccentGradientAngle,
+            onCustomAccentGradientAngleChanged = { onCustomAccentGradientAngleChanged(it) },
             defaultTab = appSettings.defaultTab,
             onDefaultTabSelected = { onDefaultTabSelected(it) },
             appLanguage = appSettings.appLanguage,
@@ -745,6 +766,57 @@ internal fun SettingsContext.onTitleLanguageSelected(lang: String) {
     appViewModel.updateTitleLanguage(lang, settingsDataStore)
 }
 
+// ─── AniHyou paritesi: eksik içerik/liste ayarları handler'ları ──────────────
+
+internal fun SettingsContext.onStaffNameLanguageSelected(lang: String) {
+    coroutineScope.launch {
+        settingsDataStore.setStaffNameLanguage(lang)
+        appViewModel.showSnackbarMessage("Ekip & karakter adı dili güncellendi")
+    }
+}
+
+internal fun SettingsContext.onScoreStepSelected(step: String) {
+    coroutineScope.launch {
+        settingsDataStore.setScoreStep(step)
+        appViewModel.showSnackbarMessage("Puanlama adımları: $step")
+    }
+}
+
+internal fun SettingsContext.onSeparatedListStyleChanged(separated: Boolean) {
+    coroutineScope.launch {
+        settingsDataStore.setSeparatedListStyle(separated)
+        appViewModel.showSnackbarMessage(if (separated) "Ayrılmış liste tarzı etkin" else "Düz liste tarzı etkin")
+    }
+}
+
+internal fun SettingsContext.onShowLowPriorityChanged(show: Boolean) {
+    coroutineScope.launch {
+        settingsDataStore.setShowLowPriority(show)
+        appViewModel.showSnackbarMessage(if (show) "Düşük öncelik rozetleri gösteriliyor" else "Düşük öncelik rozetleri gizlendi")
+    }
+}
+
+internal fun SettingsContext.onPriorityColorsChanged(json: String) {
+    coroutineScope.launch {
+        settingsDataStore.setPriorityColorsJson(json)
+        appViewModel.showSnackbarMessage(if (json.isBlank()) "Öncelik renkleri varsayılana döndü" else "Öncelik renkleri güncellendi")
+    }
+}
+
+internal fun SettingsContext.onFuzzySearchEnabledChanged(enabled: Boolean) {
+    coroutineScope.launch {
+        settingsDataStore.setFuzzySearchEnabled(enabled)
+        appViewModel.showSnackbarMessage(if (enabled) "Fuzzy arama etkin" else "Fuzzy arama devre dışı")
+    }
+}
+
+internal fun SettingsContext.onSeparateNovelsMangaChanged(separate: Boolean) {
+    coroutineScope.launch {
+        settingsDataStore.setSeparateNovelsManga(separate)
+        appViewModel.showSnackbarMessage(if (separate) "Romanlar mangalardan ayrıldı" else "Romanlar mangalarla birlikte")
+    }
+}
+
 internal fun SettingsContext.onScoreFormatSelected(format: String) {
     appViewModel.updateScoreFormat(format, settingsDataStore)
 }
@@ -909,8 +981,20 @@ internal fun SettingsContext.onAmoledBlackChanged(enabled: Boolean) {
     coroutineScope.launch { settingsDataStore.setAmoledBlack(enabled) }
 }
 
+internal fun SettingsContext.onCardFramesEnabledChanged(enabled: Boolean) {
+    coroutineScope.launch { settingsDataStore.setCardFramesEnabled(enabled) }
+}
+
 internal fun SettingsContext.onCustomAccentColorChanged(color: Int) {
     coroutineScope.launch { settingsDataStore.setCustomAccentColor(color) }
+}
+
+internal fun SettingsContext.onCustomAccentColor2Changed(color: Int) {
+    coroutineScope.launch { settingsDataStore.setCustomAccentColor2(color) }
+}
+
+internal fun SettingsContext.onCustomAccentGradientAngleChanged(angle: Int) {
+    coroutineScope.launch { settingsDataStore.setCustomAccentGradientAngle(angle) }
 }
 
 internal fun SettingsContext.onDefaultTabSelected(tab: String) {

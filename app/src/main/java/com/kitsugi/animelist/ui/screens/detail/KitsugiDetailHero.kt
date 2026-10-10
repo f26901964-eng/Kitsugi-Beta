@@ -1,5 +1,7 @@
 package com.kitsugi.animelist.ui.screens.detail
 
+import com.kitsugi.animelist.ui.components.KitsugiGalleryIconButton
+
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import com.kitsugi.animelist.ui.utils.tvClickable
@@ -182,13 +184,7 @@ fun KitsugiDetailHero(
                             ),
                         contentAlignment = Alignment.Center
                     ) {
-                        IconButton(onClick = onGalleryClick) {
-                            Icon(
-                                imageVector = Icons.Rounded.Image,
-                                contentDescription = "Galeri",
-                                tint = accentColorLocal
-                            )
-                        }
+                        KitsugiGalleryIconButton(onClick = onGalleryClick, accentColor = accentColorLocal)
                     }
                 }
 
@@ -297,14 +293,17 @@ fun KitsugiDetailHero(
                 }
                 MetadataIconText(icon = formatIcon, text = formatText, tint = accentColor)
 
-                // 2. Episodes / Chapters count
-                val countIcon = if (isMangaType) Icons.Rounded.MenuBook else Icons.Rounded.Schedule
-                val countText = if (totalEpisodes != null && totalEpisodes > 0) {
-                    if (isMangaType) "$totalEpisodes Cilt/Bölüm" else "$totalEpisodes Bölüm"
-                } else {
-                    if (isMangaType) "- Cilt" else "- Bölüm"
+                // 2. Episodes / Chapters count — tek parça yapımlarda (film) bölüm sayacı
+                // gösterilmez; "1 Bölüm" satırı kaynak API'sinin dolgu değeriyle üretiliyordu.
+                if (formatText != "Film") {
+                    val countIcon = if (isMangaType) Icons.Rounded.MenuBook else Icons.Rounded.Schedule
+                    val countText = if (totalEpisodes != null && totalEpisodes > 0) {
+                        if (isMangaType) "$totalEpisodes Cilt/Bölüm" else "$totalEpisodes Bölüm"
+                    } else {
+                        if (isMangaType) "- Cilt" else "- Bölüm"
+                    }
+                    MetadataIconText(icon = countIcon, text = countText, tint = accentColor)
                 }
-                MetadataIconText(icon = countIcon, text = countText, tint = accentColor)
 
                 // 3. Status
                 if (statusLabel != null) {

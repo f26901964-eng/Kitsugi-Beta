@@ -180,8 +180,8 @@ class AiringNotificationWorker(
                 try {
                     val importedEntries = SimklImportManager.fetchAllLists(simklToken)
                     val repository = MediaEntryRepository(db.mediaEntryDao())
-                    repository.deleteBySource("simkl")
-                    repository.insertAll(importedEntries)
+                    // Sil-yeniden-yaz sırasında +18 işaretlerini koru (bkz. repository)
+                    repository.replaceSourcePreservingAdultFlags("simkl", importedEntries)
                     Log.d(TAG, "Simkl background sync successful: ${importedEntries.size} entries")
 
                     val calendarClient = SimklCalendarClient()

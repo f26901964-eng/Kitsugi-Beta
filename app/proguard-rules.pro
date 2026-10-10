@@ -79,6 +79,8 @@
 
 # ── Supabase / Ktor ───────────────────────────────────────────────────────────
 -keep class io.github.jan.supabase.** { *; }
+# Supabase Auth's generated serializers reference this object by its runtime class name.
+-keep class kotlinx.datetime.serializers.** { *; }
 -keep class io.ktor.** { *; }
 -dontwarn io.ktor.**
 

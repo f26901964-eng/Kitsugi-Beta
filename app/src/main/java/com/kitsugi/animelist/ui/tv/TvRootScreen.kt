@@ -101,8 +101,8 @@ import com.kitsugi.animelist.ui.tv.companion.TvCompanionQrScreen
 import com.kitsugi.animelist.data.local.MediaEntryRepository
 import com.kitsugi.animelist.data.local.KitsugiDatabase
 import com.kitsugi.animelist.model.WatchStatus
-import com.kitsugi.animelist.data.remote.matches
-import com.kitsugi.animelist.data.remote.firstMatching
+import com.kitsugi.animelist.data.remote.matchesInSource
+import com.kitsugi.animelist.data.remote.firstMatchingInSource
 import com.kitsugi.animelist.ui.app.AppDialogHost
 import androidx.compose.runtime.rememberCoroutineScope
 import kotlinx.coroutines.launch
@@ -442,12 +442,7 @@ fun TvRootScreen(
                 when (detail) {
                     is TvDetailTarget.Media -> {
                         val mediaResult = detail.result
-                        val existingApiEntry = mediaEntries.firstMatching(
-                            result = mediaResult,
-                            isAniListConnected = authViewModel.isAniListConnected,
-                            isMalConnected = authViewModel.isMalConnected,
-                            isSimklConnected = authViewModel.isSimklConnected
-                        )
+                        val existingApiEntry = mediaEntries.firstMatchingInSource(mediaResult)
 
                         TvDetailScreen(
                             result = mediaResult,
@@ -932,7 +927,7 @@ fun TvRootScreen(
         showMediaGridDialog = showMediaGridDialog,
         mediaGridDialogTitle = mediaGridDialogTitle,
         mediaGridDialogResults = mediaGridDialogResults,
-        isAlreadyInList = { result -> mediaEntries.any { it.matches(result) } },
+        isAlreadyInList = { result -> mediaEntries.any { it.matchesInSource(result) } },
         onMediaGridItemClick = { result ->
             navigationState.navigateToDetail(result)
         },

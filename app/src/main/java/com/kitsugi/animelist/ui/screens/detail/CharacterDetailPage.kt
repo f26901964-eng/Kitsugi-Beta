@@ -5,6 +5,9 @@
 
 package com.kitsugi.animelist.ui.screens.detail
 
+import androidx.compose.runtime.CompositionLocalProvider
+import com.kitsugi.animelist.ui.components.LocalKitsugiGalleryLoading
+import com.kitsugi.animelist.data.remote.galleryPersonLabel
 import androidx.compose.foundation.background
 import com.kitsugi.animelist.ui.utils.tvClickable
 import androidx.compose.foundation.horizontalScroll
@@ -121,6 +124,7 @@ fun CharacterDetailPage(
     name: String? = null,
     imageUrl: String? = null,
     titleLanguage: String = "ROMAJI",
+    staffNameLanguage: String = com.kitsugi.animelist.data.settings.KitsugiContentPrefs.staffNameLanguage,
     preferredTranslator: String = "DEFAULT",
     isRealMediaRole: Boolean = false
 ) {
@@ -129,6 +133,8 @@ fun CharacterDetailPage(
 
     // Obtain ViewModel
     val viewModel: CharacterDetailViewModel = viewModel(key = "character_${source}_${characterId}")
+    val galleryLoading by viewModel.galleryLoading.collectAsState()
+    CompositionLocalProvider(LocalKitsugiGalleryLoading provides galleryLoading) {
 
     // Load character in ViewModel — kartta gösterilen görsel (imageUrl) ipucu olarak
     // iletilir; kaynakta görsel yoksa detay sayfası resimsiz kalmaz.
@@ -200,18 +206,18 @@ fun CharacterDetailPage(
             }
             is CharacterDetailState.Success -> {
                 val rawDetail = currentState.detail
-                val detail = remember(rawDetail, titleLanguage) {
+                val detail = remember(rawDetail, staffNameLanguage) {
                     rawDetail.copy(
                         // Japonca alt satır yalnızca özgün dil seçiliyken gösterilir; diğer dillerde
                         // ad seçilen dile göre (İngilizce → Romaji → özgün son çare) çözülür.
                         nativeName = rawDetail.nativeName.takeIf {
-                            titleLanguage == "NATIVE" || titleLanguage == "JAPANESE_STAFF"
+                            staffNameLanguage == "NATIVE" || staffNameLanguage == "JAPANESE_STAFF"
                         },
                         name = displayPersonName(
-                            rawDetail.name, rawDetail.romanizedName, rawDetail.nativeName, titleLanguage, rawDetail.englishName
+                            rawDetail.name, rawDetail.romanizedName, rawDetail.nativeName, staffNameLanguage, rawDetail.englishName
                         ),
                         voiceActors = rawDetail.voiceActors.map { va ->
-                            va.copy(name = displayPersonName(va.name, va.romanizedName, va.nativeName, titleLanguage, va.englishName))
+                            va.copy(name = displayPersonName(va.name, va.romanizedName, va.nativeName, staffNameLanguage, va.englishName))
                         }
                     )
                 }
@@ -250,7 +256,23 @@ fun CharacterDetailPage(
                 val tabListState = rememberLazyListState()
                 var activeGalleryItems by remember { mutableStateOf<List<GalleryItem>>(emptyList()) }
                 var activeGalleryIndex by remember { mutableStateOf(0) }
-                val galleryItems by viewModel.galleryItems.collectAsState()
+                val rawGalleryItems by viewModel.galleryItems.collectAsState()
+                // Galeri etiketi (ad) seçilen başlık diline göre çözülür: İngilizce → Romaji → Latin alternatif.
+                val galleryLabel = remember(rawDetail, titleLanguage) {
+                    galleryPersonLabel(
+                        titleLanguage = titleLanguage,
+                        name = rawDetail.name,
+                        romanized = rawDetail.romanizedName,
+                        native = rawDetail.nativeName,
+                        english = rawDetail.englishName,
+                        alternatives = rawDetail.alternativeNames
+                    )
+                }
+                val galleryItems = remember(rawGalleryItems, galleryLabel) {
+                    rawGalleryItems.map { item ->
+                        if (item.description != null) item.copy(description = galleryLabel) else item
+                    }
+                }
 
                 val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
                 // TV odak highway
@@ -284,7 +306,7 @@ fun CharacterDetailPage(
                                     onBackClick = onBackClick,
                                     onToggleFavourite = { viewModel.toggleFavourite() },
                                     onGalleryClick = { items, idx ->
-                                        activeGalleryItems = items
+                                        if (!galleryLoading) activeGalleryItems = items
                                         activeGalleryIndex = idx
                                     },
                                     modifier = Modifier.weight(leftPanelWeight)
@@ -353,7 +375,7 @@ fun CharacterDetailPage(
                                                     preferredTranslator = preferredTranslator,
                                                     accentColor = accentColor,
                                                     onGalleryClick = { items, idx ->
-                                                        activeGalleryItems = items
+                                                        if (!galleryLoading) activeGalleryItems = items
                                                         activeGalleryIndex = idx
                                                     },
                                                     onTranslateClick = { viewModel.translateBio() }
@@ -410,7 +432,7 @@ fun CharacterDetailPage(
                                     onBackClick = onBackClick,
                                     onToggleFavourite = { viewModel.toggleFavourite() },
                                     onGalleryOpen = { items, idx ->
-                                        activeGalleryItems = items
+                                        if (!galleryLoading) activeGalleryItems = items
                                         activeGalleryIndex = idx
                                     }
                                 )
@@ -432,7 +454,7 @@ fun CharacterDetailPage(
                                     onBackClick = onBackClick,
                                     onToggleFavourite = { viewModel.toggleFavourite() },
                                     onGalleryOpen = { items, idx ->
-                                        activeGalleryItems = items
+                                        if (!galleryLoading) activeGalleryItems = items
                                         activeGalleryIndex = idx
                                     },
                                     onTabSelected = { coroutineScope.launch { pagerState.animateScrollToPage(it) } }
@@ -509,7 +531,7 @@ fun CharacterDetailPage(
                                                         preferredTranslator = preferredTranslator,
                                                         accentColor = accentColor,
                                                         onGalleryClick = { items, idx ->
-                                                            activeGalleryItems = items
+                                                            if (!galleryLoading) activeGalleryItems = items
                                                             activeGalleryIndex = idx
                                                         },
                                                         onTranslateClick = { viewModel.translateBio() }
@@ -554,6 +576,7 @@ fun CharacterDetailPage(
                 } // end PullToRefreshBox
             }
         }
+    }
     }
 }
 

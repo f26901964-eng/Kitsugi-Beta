@@ -31,6 +31,7 @@ import androidx.compose.material.icons.rounded.CheckCircle
 import androidx.compose.material.icons.rounded.ChevronLeft
 import androidx.compose.material.icons.rounded.ChevronRight
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Delete
 import androidx.compose.material.icons.rounded.Download
 import androidx.compose.material.icons.rounded.Image
 import androidx.compose.material.icons.rounded.Info
@@ -75,6 +76,10 @@ fun KitsugiImageGalleryDialog(
     title: String,
     isAdult: Boolean = false,
     allowDownload: Boolean = true,
+    /** Galeriden indirdiğimiz kopyanın (veya yerel dosyanın) silinmesine izin verilir mi? */
+    allowDelete: Boolean = true,
+    /** Silme başarılı olduğunda çağrılır — çağıran taraf listesinden bu URL'leri düşürür. */
+    onItemsDeleted: (List<String>) -> Unit = {},
     onDismiss: () -> Unit
 ) {
     if (galleryItems.isEmpty()) return
@@ -238,6 +243,90 @@ fun KitsugiImageGalleryDialog(
         }
     }
 
+    // ── SİLME (3. buton) ───────────────────────────────────────────────────
+    //  • İndirilmiş bir kopya varsa (index'te duruyor) veya galeri yerel bir dosyayı
+    //    (file:// / content://) gösteriyorsa buton aktiftir — dosya yerinden silinir.
+    //  • Henüz indirilmemiş uzak görsellerde buton pasif görünür; dokununca neden
+    //    silinemediği kısa mesajla anlatılır (kullanıcı "buton var ama çalışmıyor"
+    //    demesin diye sessiz bırakılmadı).
+    val currentDeleteUrl = currentActionItem?.url
+    var canDeleteCurrent by remember { mutableStateOf(false) }
+    var pendingDeleteUrls by remember { mutableStateOf<List<String>?>(null) }
+    var isDeleting by remember { mutableStateOf(false) }
+
+    LaunchedEffect(currentDeleteUrl, downloadedUrls, allowDelete) {
+        if (!allowDelete || currentDeleteUrl.isNullOrBlank()) {
+            canDeleteCurrent = false
+        } else {
+            canDeleteCurrent = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                KitsugiImageDownloadHelper.hasDeletableCopy(context, currentDeleteUrl)
+            }
+        }
+    }
+
+    // Liste küçülürse (silme sonrası çağıran taraf öğeleri düşürür) sayfa sınırda kalmasın
+    LaunchedEffect(filteredItems.size) {
+        if (filteredItems.isEmpty()) return@LaunchedEffect
+        if (pagerState.currentPage > filteredItems.size - 1) {
+            pagerState.scrollToPage(filteredItems.size - 1)
+        }
+    }
+
+    val confirmDelete = { urls: List<String> ->
+        if (urls.isNotEmpty() && !isDeleting) {
+            isDeleting = true
+            scope.launch {
+                var deleted = 0
+                var lastError: String? = null
+                urls.forEach { url ->
+                    when (val outcome = KitsugiImageDownloadHelper.deleteImageForUrl(context, url)) {
+                        is KitsugiImageDownloadHelper.GalleryDeleteOutcome.Success -> deleted++
+                        is KitsugiImageDownloadHelper.GalleryDeleteOutcome.Failed ->
+                            lastError = outcome.message
+                        is KitsugiImageDownloadHelper.GalleryDeleteOutcome.RequiresSystemConsent ->
+                            lastError = outcome.message
+                        KitsugiImageDownloadHelper.GalleryDeleteOutcome.NothingToDelete -> Unit
+                    }
+                }
+                // İndirme rozetleri ve indeks zaten güncellendi; galeriyi tazeleriz.
+                KitsugiImageDownloadHelper.refreshDownloadedUrls(context)
+                isDeleting = false
+                pendingDeleteUrls = null
+                when {
+                    deleted > 0 -> {
+                        onItemsDeleted(urls)
+                        android.widget.Toast.makeText(
+                            context,
+                            if (deleted > 1) "$deleted resim silindi." else "Resim silindi.",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                    }
+                    lastError != null ->
+                        android.widget.Toast.makeText(context, lastError, android.widget.Toast.LENGTH_LONG).show()
+                    else ->
+                        android.widget.Toast.makeText(
+                            context,
+                            "Silinecek indirilmiş kopya bulunamadı.",
+                            android.widget.Toast.LENGTH_SHORT
+                        ).show()
+                }
+            }
+        }
+    }
+
+    val onRequestDelete = {
+        val url = currentDeleteUrl
+        when {
+            url.isNullOrBlank() -> Unit
+            canDeleteCurrent -> pendingDeleteUrls = listOf(url)
+            else -> android.widget.Toast.makeText(
+                context,
+                "Bu resim daha önce indirilmemiş — silinecek bir kopya yok.",
+                android.widget.Toast.LENGTH_SHORT
+            ).show()
+        }
+    }
+
     Dialog(
         onDismissRequest = { dismissWithAnimation() },
         properties = DialogProperties(
@@ -306,7 +395,10 @@ fun KitsugiImageGalleryDialog(
                             galleryItems = galleryItems,
                             isAdult = isAdult,
                             showDownloadButton = showDownloadButton,
-                            isAlreadyDownloaded = isAlreadyDownloaded
+                            isAlreadyDownloaded = isAlreadyDownloaded,
+                            allowDelete = allowDelete,
+                            deleteActive = canDeleteCurrent,
+                            onRequestDelete = onRequestDelete
                         )
                     } else {
                         // ── PORTRAIT LAYOUT (existing behaviour) ───────────────────────
@@ -326,12 +418,35 @@ fun KitsugiImageGalleryDialog(
                             galleryItems = galleryItems,
                             isAdult = isAdult,
                             showDownloadButton = showDownloadButton,
-                            isAlreadyDownloaded = isAlreadyDownloaded
+                            isAlreadyDownloaded = isAlreadyDownloaded,
+                            allowDelete = allowDelete,
+                            deleteActive = canDeleteCurrent,
+                            onRequestDelete = onRequestDelete
                         )
                     }
                 }
             }
         }
+    }
+
+    // ── Silme onayı ────────────────────────────────────────────────────────
+    val pendingDelete = pendingDeleteUrls
+    if (allowDelete && !pendingDelete.isNullOrEmpty()) {
+        val targetLabel = remember(pendingDelete) {
+            KitsugiImageDownloadHelper.describeDeleteTarget(context, pendingDelete.first())
+        }
+        KitsugiConfirmDialog(
+            title = "Resmi Sil",
+            message = "Bu görselin cihazdaki kopyası silinecektir.\n\n" +
+                "• Konum: $targetLabel\n" +
+                "• Uygulama içi önbellek ve İndirilenler klasöründeki dosya kaldırılır.\n" +
+                "• Uzak kaynaktaki içerik silinmez — daha sonra tekrar indirebilirsiniz.",
+            confirmText = "Sil",
+            dismissText = "Vazgeç",
+            isDestructive = true,
+            onConfirm = { confirmDelete(pendingDelete) },
+            onDismiss = { pendingDeleteUrls = null }
+        )
     }
 }
 
@@ -359,7 +474,10 @@ private fun GalleryLandscapeLayout(
     galleryItems: List<GalleryItem>,
     isAdult: Boolean = false,
     showDownloadButton: Boolean = true,
-    isAlreadyDownloaded: Boolean = false
+    isAlreadyDownloaded: Boolean = false,
+    allowDelete: Boolean = true,
+    deleteActive: Boolean = false,
+    onRequestDelete: () -> Unit = {}
 ) {
     val scope = rememberCoroutineScope()
     val currentItem = filteredItems.getOrNull(pagerState.currentPage)
@@ -650,6 +768,18 @@ private fun GalleryLandscapeLayout(
                         contentDescription = "Paylaş"
                     )
 
+                    // Silme Butonu — indirilen kopyayı (veya yerel dosyayı) kaldırır.
+                    if (allowDelete) {
+                        KitsugiGalleryDeleteButton(
+                            size = 36.dp,
+                            iconSize = 18.dp,
+                            corner = 10.dp,
+                            active = deleteActive,
+                            glow = downloadGlow,
+                            onClick = onRequestDelete
+                        )
+                    }
+
                     Spacer(modifier = Modifier.weight(1f))
 
                     // Close
@@ -842,6 +972,13 @@ private fun GalleryLandscapeLayout(
                                 }
                             }
 
+                            val seasonLabel = formatGallerySeason(currentItem.season)
+                            if (seasonLabel != null) {
+                                item {
+                                    DetailRow(label = "Sezon", value = seasonLabel)
+                                }
+                            }
+
                             // Resolution
                             val resStr = formatResolution(currentItem.width, currentItem.height)
                             if (resStr != null) {
@@ -953,7 +1090,10 @@ private fun GalleryPortraitLayout(
     galleryItems: List<GalleryItem>,
     isAdult: Boolean = false,
     showDownloadButton: Boolean = true,
-    isAlreadyDownloaded: Boolean = false
+    isAlreadyDownloaded: Boolean = false,
+    allowDelete: Boolean = true,
+    deleteActive: Boolean = false,
+    onRequestDelete: () -> Unit = {}
 ) {
     val scope = rememberCoroutineScope()
 
@@ -982,7 +1122,10 @@ private fun GalleryPortraitLayout(
             showDownloadButton = showDownloadButton,
             isAlreadyDownloaded = isAlreadyDownloaded,
             showDetailsButton = currentPortraitItem != null,
-            onShowDetails = { showDetailsSheet = true }
+            onShowDetails = { showDetailsSheet = true },
+            allowDelete = allowDelete,
+            deleteActive = deleteActive,
+            onRequestDelete = onRequestDelete
         )
 
         // Categories filter (if multiple categories available)
@@ -1117,6 +1260,25 @@ private fun GalleryPortraitLayout(
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.SemiBold
                                 )
+                            }
+
+                            // 2b. Sezon Rozeti
+                            val seasonLabel = formatGallerySeason(item.season)
+                            if (seasonLabel != null) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(KitsugiColors.SurfaceSoft)
+                                        .border(1.dp, KitsugiColors.Border, RoundedCornerShape(6.dp))
+                                        .padding(horizontal = 7.dp, vertical = 3.dp)
+                                ) {
+                                    Text(
+                                        text = seasonLabel,
+                                        color = KitsugiColors.TextPrimary,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
+                                }
                             }
 
                             // 3. Dil Bilgisi
@@ -1397,6 +1559,12 @@ private fun GalleryDetailsSheet(
             // Tür
             DetailRow(label = "Tür", value = "$catEmoji ${item.category.label}")
 
+            // Sezon
+            val seasonLabel = formatGallerySeason(item.season)
+            if (seasonLabel != null) {
+                DetailRow(label = "Sezon", value = seasonLabel)
+            }
+
             // Dil
             if (langInfo != null) {
                 DetailRow(label = "Dil", value = "${langInfo.first} ${langInfo.second}")
@@ -1483,6 +1651,8 @@ fun KitsugiImageGalleryDialog(
     title: String,
     isAdult: Boolean = false,
     allowDownload: Boolean = true,
+    allowDelete: Boolean = true,
+    onItemsDeleted: (List<String>) -> Unit = {},
     onDismiss: () -> Unit
 ) {
     val items = remember(imageUrls) {
@@ -1494,6 +1664,8 @@ fun KitsugiImageGalleryDialog(
         title = title,
         isAdult = isAdult,
         allowDownload = allowDownload,
+        allowDelete = allowDelete,
+        onItemsDeleted = onItemsDeleted,
         onDismiss = onDismiss
     )
 }
@@ -1647,7 +1819,10 @@ private fun KitsugiGalleryHeader(
     showDownloadButton: Boolean = true,
     isAlreadyDownloaded: Boolean = false,
     showDetailsButton: Boolean = false,
-    onShowDetails: () -> Unit = {}
+    onShowDetails: () -> Unit = {},
+    allowDelete: Boolean = true,
+    deleteActive: Boolean = false,
+    onRequestDelete: () -> Unit = {}
 ) {
     Box(
         modifier = Modifier
@@ -1803,6 +1978,18 @@ private fun KitsugiGalleryHeader(
                         contentDescription = "Paylaş"
                     )
 
+                    // Silme Butonu — indirilen kopyayı (veya yerel dosyayı) kaldırır.
+                    if (allowDelete) {
+                        KitsugiGalleryDeleteButton(
+                            size = 40.dp,
+                            iconSize = 20.dp,
+                            corner = 12.dp,
+                            active = deleteActive,
+                            glow = downloadGlow,
+                            onClick = onRequestDelete
+                        )
+                    }
+
                     // Kapatma Butonu — nötr, SurfaceSoft tabanlı
                     Box(
                         modifier = Modifier
@@ -1832,11 +2019,18 @@ private fun KitsugiGalleryHeader(
     }
 }
 
+private fun formatGallerySeason(season: String?): String? {
+    val raw = season?.trim()?.takeIf { it.isNotBlank() && !it.equals("all", true) && it != "0" } ?: return null
+    val number = raw.toIntOrNull()
+    return if (number != null && number > 0) "📺 Sezon $number" else "📺 $raw"
+}
+
 private fun formatLanguage(code: String?): Pair<String, String>? {
     if (code.isNullOrBlank() || code == "00") return null
-    return when (code.lowercase()) {
+    val normalized = code.trim().lowercase().substringBefore('-').substringBefore('_')
+    return when (normalized) {
         "tr" -> Pair("🇹🇷", "Türkçe")
-        "en" -> Pair("🇬🇧", "İngilizce")
+        "en", "eng", "ing" -> Pair("🇬🇧", "İngilizce")
         "ja" -> Pair("🇯🇵", "Japonca")
         "de" -> Pair("🇩🇪", "Almanca")
         "fr" -> Pair("🇫🇷", "Fransızca")
@@ -1861,3 +2055,46 @@ private fun formatResolution(width: Int?, height: Int?): String? {
     }
     return if (tag != null) "$width×$height ($tag)" else "$width×$height"
 }
+
+/**
+ * Galeri "Sil" butonu — İndir / Paylaş ile aynı görsel dilde (kare cam kutu),
+ * kırmızı uyarı dokunuşuyla. Dikey (40.dp başlık) ve yatay (36.dp yan panel)
+ * düzenlerde AYNI bileşen kullanılır; boyut/ikon/köşe dışarıdan gelir.
+ *
+ * @param active true → indirilmiş bir kopya var, buton dolu kırmızı görünür;
+ *               false → silinecek kopya yok, buton soluk görünür (dokununca
+ *               neden silinemediği kısa mesajla söylenir).
+ */
+@Composable
+internal fun KitsugiGalleryDeleteButton(
+    size: androidx.compose.ui.unit.Dp,
+    iconSize: androidx.compose.ui.unit.Dp,
+    corner: androidx.compose.ui.unit.Dp,
+    active: Boolean,
+    glow: Float = 1f,
+    contentDescription: String = "İndirilen resmi sil",
+    onClick: () -> Unit
+) {
+    val danger = Color(0xFFFF3B3B)
+    val shape = RoundedCornerShape(corner)
+    val container = if (active) danger.copy(alpha = 0.20f * glow) else KitsugiColors.SurfaceStrong.copy(alpha = 0.72f)
+    val stroke = if (active) danger.copy(alpha = 0.55f) else KitsugiColors.Border.copy(alpha = 0.45f)
+    val tint = if (active) danger else KitsugiColors.TextMuted
+
+    Box(
+        modifier = Modifier
+            .size(size)
+            .background(color = container, shape = shape)
+            .border(1.dp, stroke, shape)
+            .tvClickable(shape = shape, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.Delete,
+            contentDescription = contentDescription,
+            tint = tint,
+            modifier = Modifier.size(iconSize)
+        )
+    }
+}
+

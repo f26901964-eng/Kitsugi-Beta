@@ -449,6 +449,7 @@ fun DownloadedImagesTab(
     onRefresh: () -> Unit
 ) {
     val context = LocalContext.current
+    val tabScope = rememberCoroutineScope()
     var galleryGroup by remember { mutableStateOf<DownloadedImageGroup?>(null) }
     var galleryInitialIndex by remember { mutableIntStateOf(0) }
 
@@ -468,11 +469,26 @@ fun DownloadedImagesTab(
     }
 
     // Açılan galeri: yalnızca ilgili grubun resimleri gösterilir.
-    // allowDownload=false → indirme butonu gösterilmez (içerik zaten cihazda).
+    // allowDownload=false → indirme butonu gösterilmez (içerik zaten cihazda);
+    // karşılığında galerideki SİL butonu aktif olur — indirilen kopya doğrudan
+    // buradan kaldırılabilir (İndirmeler ekranına geri dönmeden).
     val activeGroup = galleryGroup
-    if (activeGroup != null && activeGroup.items.isNotEmpty()) {
-        val galleryItems = remember(activeGroup) {
-            activeGroup.items.map { img ->
+    var deletedPaths by remember { mutableStateOf(setOf<String>()) }
+    val visibleGalleryItems = remember(activeGroup, deletedPaths) {
+        activeGroup?.items?.filterNot { img ->
+            ("file://" + img.file.absolutePath) in deletedPaths
+        } ?: emptyList()
+    }
+    // Grubun tüm resimleri silindiyse galeriyi kapat.
+    if (activeGroup != null && visibleGalleryItems.isEmpty() && deletedPaths.isNotEmpty()) {
+        LaunchedEffect(Unit) {
+            galleryGroup = null
+            deletedPaths = emptySet()
+        }
+    }
+    if (activeGroup != null && visibleGalleryItems.isNotEmpty()) {
+        val galleryItems = remember(visibleGalleryItems) {
+            visibleGalleryItems.map { img ->
                 GalleryItem(
                     url = "file://${img.file.absolutePath}",
                     source = "Kitsugi",
@@ -488,7 +504,15 @@ fun DownloadedImagesTab(
             initialIndex = galleryInitialIndex.coerceIn(0, galleryItems.size - 1),
             title = activeGroup.displayName,
             allowDownload = false,
-            onDismiss = { galleryGroup = null }
+            allowDelete = true,
+            onItemsDeleted = { urls ->
+                deletedPaths = deletedPaths + urls.toSet()
+                onRefresh()
+            },
+            onDismiss = {
+                galleryGroup = null
+                deletedPaths = emptySet()
+            }
         )
     }
 
@@ -572,6 +596,37 @@ fun DownloadedImagesTab(
                                 fontWeight = FontWeight.Bold
                             )
                         }
+                        // Grup bazlı silme: bu içeriğin indirilmiş TÜM resimleri tek
+                        // dokunuşla kaldırılır (iki aşamalı onay — yanlışlıkla silme yok).
+                        KitsugiAnimatedDeleteButton(
+                            onDelete = {
+                                val files = group.items.map { it.file }
+                                tabScope.launch {
+                                    var deleted = 0
+                                    files.forEach { file ->
+                                        val outcome = KitsugiImageDownloadHelper.deleteImageForUrl(
+                                            context,
+                                            "file://" + file.absolutePath
+                                        )
+                                        if (outcome is KitsugiImageDownloadHelper.GalleryDeleteOutcome.Success) deleted++
+                                        else if (file.exists()) runCatching { file.delete() }
+                                    }
+                                    if (deleted > 0) {
+                                        galleryGroup = null
+                                        deletedPaths = emptySet()
+                                    }
+                                    Toast.makeText(
+                                        context,
+                                        if (deleted > 0) "$deleted resim silindi." else "Resimler silinemedi.",
+                                        Toast.LENGTH_SHORT
+                                    ).show()
+                                    onRefresh()
+                                }
+                            },
+                            size = 26.dp,
+                            expandedWidth = 78.dp,
+                            contentDescription = "Bu içeriğin tüm indirilen resimlerini sil"
+                        )
                     }
                 }
                 // ── Grup resimleri ──
@@ -1311,7 +1366,12 @@ fun loadAllDownloadedSubtitles(
  * - Downloads/Kitsugi (legacy flat storage)
  */
 fun loadAllDownloadedImages(context: Context): List<DownloadedImageItem> {
-    val imageExtensions = setOf("jpg", "jpeg", "png", "webp", "gif")
+    // İndirilen görseller ORİJİNAL formatıyla kaydedilir (KitsugiImageDownloadHelper
+    // GIF/PNG/AVIF/HEIC dönüşümü yapmaz) → tarayıcı da aynı listeyi bilmeli, aksi
+    // halde örneğin indirilmiş bir HEIC/AVIF ne İndirmeler'de görünür ne de silinebilir.
+    val imageExtensions = setOf(
+        "jpg", "jpeg", "png", "webp", "gif", "avif", "heic", "heif", "bmp", "tiff"
+    )
     val results = mutableListOf<DownloadedImageItem>()
     val dirsToScan = listOfNotNull(
         File(Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS), "Kitsugi/Images"),

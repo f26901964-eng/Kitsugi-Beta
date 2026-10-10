@@ -30,6 +30,20 @@ data class AppSettings(
     val titleLanguage: String = "ROMAJI",
     // AniHyou'dan: Puanlama formatı (POINT_10 / POINT_100 / POINT_5 / POINT_3)
     val scoreFormat: String = "POINT_10",
+    // AniHyou'dan: Puanlama adımları ("1" veya "0.5") — puan girişi/stepper hassasiyeti
+    val scoreStep: String = "1",
+    // AniHyou'dan: Ekip & karakter adı dili (ROMAJI / ENGLISH / NATIVE)
+    val staffNameLanguage: String = "ROMAJI",
+    // AniHyou'dan: Ayrılmış liste tarzı (durum başlıklı gruplar); false = düz liste
+    val separatedListStyle: Boolean = true,
+    // AniHyou'dan: Düşük öncelikli (0) girişlerde öncelik rozetini göster
+    val showLowPriority: Boolean = false,
+    // AniHyou'dan: Öncelik seviyesi renk tohumları — JSON {"0":argb,"1":argb,"2":argb}; boş = varsayılan palet
+    val priorityColorsJson: String = "",
+    // AniHyou'dan: Fuzzy arama (yazım hataları, sıra bozukluğu ve kısaltmalar)
+    val fuzzySearchEnabled: Boolean = true,
+    // AniHyou'dan: Romanları (NOVEL) mangalardan ayrı raf/bölümde göster
+    val separateNovelsManga: Boolean = false,
     // MoeList'ten: Puanları gizle
     val hideScores: Boolean = false,
     val showAnimeLogos: Boolean = false,
@@ -110,7 +124,13 @@ data class AppSettings(
     val stripHdr10PlusSei: Boolean = false,
     val themeMode: String = "FOLLOW_SYSTEM",
     val amoledBlack: Boolean = false,
+    // Kart çerçeveleri (neon degrade kenarlık) açık/kapalı — Varsayılan olarak kapalıdır
+    val cardFramesEnabled: Boolean = false,
     val customAccentColor: Int = 0,
+    /** Özel vurgu gradyanının bitiş rengi (0 = gradyan yok, düz renk). */
+    val customAccentColor2: Int = 0,
+    /** Özel vurgu gradyanı açısı (derece, 0 = soldan sağa, 90 = yukarıdan aşağıya). */
+    val customAccentGradientAngle: Int = 135,
     val defaultTab: String = "LAST_USED",
     val lastUsedTab: String = "Explore",
     val appLanguage: String = "system",
@@ -292,4 +312,4 @@ enum class Dv7HandlingMode {
     DV81_LIBDOVI,
     HDR10_BASE_LAYER,
     STRIP_DV
-}
+}

@@ -17,6 +17,8 @@ import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.data.remote.MdbListRatings
 import com.kitsugi.animelist.data.remote.KitsugiMediaDetail
 import com.kitsugi.animelist.data.remote.KitsugiStreamingEpisode
+import com.kitsugi.animelist.data.remote.KitsugiTag
+import com.kitsugi.animelist.ui.screens.search.DetailSeasonMetadata
 import com.kitsugi.animelist.data.remote.StudioSourceSupport
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.screens.stream.KitsugiStreamActivity
@@ -40,7 +42,8 @@ internal fun ApiDetailOverviewTab(
     onSearchQuery: (String) -> Unit,
     onStudioClick: (id: Int, source: String, name: String?, url: String?) -> Unit,
     onGenreClick: (String) -> Unit = {},
-    onTagClick: (String) -> Unit = {},
+    onTagClick: (KitsugiTag) -> Unit = {},
+    onSearchBySeason: (DetailSeasonMetadata) -> Unit = {},
     onTranslateClick: () -> Unit,
     onCopyClick: () -> Unit,
     mdbListRatings: MdbListRatings? = null,
@@ -142,7 +145,9 @@ internal fun ApiDetailOverviewTab(
             ApiInfoSection(
                 detail = detail,
                 mediaType = result.type,
-                onSearchQuery = onSearchQuery
+                fallbackYear = result.year,
+                onSearchQuery = onSearchQuery,
+                onSeasonClick = onSearchBySeason
             )
             Spacer(modifier = Modifier.height(14.dp))
         }

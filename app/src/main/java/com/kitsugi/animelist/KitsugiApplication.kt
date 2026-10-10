@@ -320,8 +320,8 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
                         try {
                             android.util.Log.d("KitsugiAutoSync", "AniList listesi yenileniyor...")
                             val entries = com.kitsugi.animelist.data.auth.AniListImportManager.fetchAllLists(aniListToken)
-                            repo.deleteBySource("anilist")
-                            repo.insertAll(entries)
+                            // +18 işaretleri sil-yaz döngüsünde kaybolmasın
+                            repo.replaceSourcePreservingAdultFlags("anilist", entries)
                             syncCount += entries.size
                             android.util.Log.d("KitsugiAutoSync", "AniList: ${entries.size} kayıt yenilendi.")
                         } catch (e: Exception) {
@@ -337,8 +337,7 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
                             val dataStore = com.kitsugi.animelist.data.settings.SettingsDataStore(this@KitsugiApplication)
                             val showAdult = dataStore.settingsFlow.first().showAdultContent
                             val entries = com.kitsugi.animelist.data.auth.MalImportManager.fetchAllLists(malToken, showAdult)
-                            repo.deleteBySource("mal")
-                            repo.insertAll(entries)
+                            repo.replaceSourcePreservingAdultFlags("mal", entries)
                             syncCount += entries.size
                             android.util.Log.d("KitsugiAutoSync", "MAL: ${entries.size} kayıt yenilendi.")
                         } catch (e: Exception) {
@@ -352,8 +351,9 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
                         try {
                             android.util.Log.d("KitsugiAutoSync", "Simkl listesi yenileniyor...")
                             val entries = com.kitsugi.animelist.data.auth.SimklImportManager.fetchAllLists(simklToken)
-                            repo.deleteBySource("simkl")
-                            repo.insertAll(entries)
+                            // Simkl liste API'si `adult` taşımaz → eski +18 işaretleri
+                            // korunmalı ve hemen ardından kimlik üzerinden tamamlanmalı.
+                            repo.replaceSourcePreservingAdultFlags("simkl", entries)
                             syncCount += entries.size
                             android.util.Log.d("KitsugiAutoSync", "Simkl: ${entries.size} kayıt yenilendi.")
                         } catch (e: Exception) {
@@ -375,28 +375,10 @@ class KitsugiApplication : Application(), SingletonImageLoader.Factory {
         // Initialize Cloudstream runtime singleton context and client
         com.kitsugi.animelist.data.cloudstream.CsRuntimeInit.init(this)
 
-        // Trigger proactive cookie warmup AFTER domain fetch completes — ensures getFixedUrl()
-        // uses the latest dynamic domains and doesn't warmup dead/old addresses.
-        applicationScope.launch {
-            try {
-                // Önce güncel domain listesinin yüklenmesini bekle (max 8 saniye)
-                var waited = 0
-                while (!com.kitsugi.animelist.data.cloudstream.CsStreamRunner.isDomainListReady() && waited < 8_000) {
-                    kotlinx.coroutines.delay(200)
-                    waited += 200
-                }
-            // Warmup, her site için ana thread'de bir WebView oluşturur ve ağır JS/CF
-            // sayfaları yükler. Açılışta arayüzle yarışırsa RenderThread üzerinde ciddi
-            // baskı oluşturur (çökme raporlarında "Skipped 35 frames" ve
-            // "RenderInspector: DequeueBuffer time out" tam bu pencerede görülüyordu).
-            // Bu yüzden ilk kare oturduktan sonra başlatılır.
-            kotlinx.coroutines.delay(12_000)
-            android.util.Log.i("KitsugiApplication", "Triggering proactive cookie warmup on startup (domains ready: ${com.kitsugi.animelist.data.cloudstream.CsStreamRunner.isDomainListReady()})...")
-            com.kitsugi.animelist.data.cloudstream.CsCfWarmupManager.runWarmup(this@KitsugiApplication)
-            } catch (e: Exception) {
-                android.util.Log.e("KitsugiApplication", "Proactive cookie warmup failed: ${e.message}", e)
-            }
-        }
+        // Do not pre-create a batch of hidden WebViews during application startup.
+        // CloudflareKiller resolves a challenge lazily for the exact host that needs it.
+        // The previous startup warmup could create up to 14 Chromium renderers in sequence,
+        // adding substantial native memory and RenderThread pressure without user interaction.
 
         try {
             uy.kohesive.injekt.Injekt.addSingleton(eu.kanade.tachiyomi.network.NetworkHelper::class.java, eu.kanade.tachiyomi.network.NetworkHelper(this))

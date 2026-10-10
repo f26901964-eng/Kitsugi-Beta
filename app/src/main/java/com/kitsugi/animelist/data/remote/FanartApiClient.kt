@@ -70,6 +70,18 @@ object FanartApiClient {
         userKey.trim().ifBlank { BUILT_IN_API_KEY }
 
     /**
+     * Görsel dil tercihi: çağıran dil vermediyse UYGULAMA dilini kullanır (örn. "tr").
+     * Eskiden sabit "en" idi; Türkçe kullanıcıya İngilizce logo dayatılıyordu.
+     * Öncelik zinciri (extractBestUrl/appendImages): tercih edilen dil → nötr → en.
+     */
+    fun resolveLanguage(language: String): String {
+        val explicit = language.trim()
+        if (explicit.isNotBlank()) return explicit.lowercase()
+        val active = runCatching { TmdbApiClient.getActiveLanguage() }.getOrDefault("tr")
+        return active.substringBefore('-').trim().lowercase().ifBlank { "en" }
+    }
+
+    /**
      * Fanart.tv anahtarını gerçek bir, yaygın olarak bulunan film kaydıyla doğrular.
      * Boş anahtarda uygulamanın paylaşılan anahtarı sınanır.
      */
@@ -121,7 +133,7 @@ object FanartApiClient {
      * TVDB ID ile TV/Anime görsellerini çeker.
      * Tek HTTP isteği ile TÜM kategoriler alınır — limit yok.
      */
-    fun fetchTvImages(tvdbId: Int, apiKey: String, language: String = "en"): List<GalleryItem> {
+    fun fetchTvImages(tvdbId: Int, apiKey: String, language: String = ""): List<GalleryItem> {
         if (tvdbId <= 0 || apiKey.isBlank()) return emptyList()
         return try {
             val url = buildUrl("tv", tvdbId, apiKey)
@@ -131,7 +143,7 @@ object FanartApiClient {
                 return emptyList()
             }
             Log.d(TAG, "fetchTvImages: Response length=${response.length} for tvdbId=$tvdbId")
-            parseTvImages(JSONObject(response), language)
+            parseTvImages(JSONObject(response), resolveLanguage(language))
         } catch (e: Exception) {
             Log.w(TAG, "fetchTvImages failed for tvdbId=$tvdbId: ${e.message}", e)
             emptyList()
@@ -141,7 +153,12 @@ object FanartApiClient {
     /**
      * TVDB ID ile yalnızca en iyi logo URL'sini çeker (hero alanı için).
      */
-    fun fetchBestLogo(tvdbId: Int, apiKey: String, language: String = "en"): String? {
+    fun fetchBestLogo(
+        tvdbId: Int,
+        apiKey: String,
+        language: String = "",
+        seasonNumber: Int? = null
+    ): String? {
         if (tvdbId <= 0 || apiKey.isBlank()) return null
         return try {
             val url = buildUrl("tv", tvdbId, apiKey)
@@ -151,9 +168,39 @@ object FanartApiClient {
                 return null
             }
             val root = JSONObject(response)
-            extractBestUrl(root, listOf("hdtvlogo", "clearlogo", "hdclearart"), language)
+            // ClearART logo fallback'i DEĞİLDİR; ayrı bir kategoridir. Yalnızca gerçek logolar.
+            extractBestUrl(root, listOf("hdtvlogo", "clearlogo"), resolveLanguage(language), seasonNumber = seasonNumber)
         } catch (e: Exception) {
             Log.w(TAG, "fetchBestLogo (TV) failed for tvdbId=$tvdbId: ${e.message}", e)
+            null
+        }
+    }
+
+    /**
+     * Sezona özel logo çeker (TVDB). Yalnızca o sezona etiketli logolara bakar.
+     */
+    fun fetchBestSeasonLogo(
+        tvdbId: Int,
+        seasonNumber: Int,
+        apiKey: String,
+        language: String = "",
+        strictLanguage: Boolean = false
+    ): String? {
+        if (tvdbId <= 0 || seasonNumber <= 0 || apiKey.isBlank()) return null
+        return try {
+            val url = buildUrl("tv", tvdbId, apiKey)
+            val response = KitsugiApiBase.executeGetRequest(url) ?: return null
+            val root = JSONObject(response)
+            extractBestUrl(
+                root = root,
+                keys = listOf("hdtvlogo", "clearlogo"),
+                language = resolveLanguage(language),
+                seasonNumber = seasonNumber,
+                seasonOnly = true,
+                strictLanguage = strictLanguage
+            )
+        } catch (e: Exception) {
+            Log.w(TAG, "fetchBestSeasonLogo failed for tvdbId=$tvdbId season=$seasonNumber: ${e.message}", e)
             null
         }
     }
@@ -166,7 +213,7 @@ object FanartApiClient {
      * TMDB ID ile film görsellerini çeker.
      * Tek HTTP isteği ile TÜM kategoriler alınır — limit yok.
      */
-    fun fetchMovieImages(tmdbId: Int, apiKey: String, language: String = "en"): List<GalleryItem> {
+    fun fetchMovieImages(tmdbId: Int, apiKey: String, language: String = ""): List<GalleryItem> {
         if (tmdbId <= 0 || apiKey.isBlank()) return emptyList()
         return try {
             val url = buildUrl("movies", tmdbId, apiKey)
@@ -176,7 +223,7 @@ object FanartApiClient {
                 return emptyList()
             }
             Log.d(TAG, "fetchMovieImages: Response length=${response.length} for tmdbId=$tmdbId")
-            parseMovieImages(JSONObject(response), language)
+            parseMovieImages(JSONObject(response), resolveLanguage(language))
         } catch (e: Exception) {
             Log.w(TAG, "fetchMovieImages failed for tmdbId=$tmdbId: ${e.message}", e)
             emptyList()
@@ -186,7 +233,7 @@ object FanartApiClient {
     /**
      * TMDB ID ile yalnızca en iyi film logo URL'sini çeker (hero alanı için).
      */
-    fun fetchBestMovieLogo(tmdbId: Int, apiKey: String, language: String = "en"): String? {
+    fun fetchBestMovieLogo(tmdbId: Int, apiKey: String, language: String = ""): String? {
         if (tmdbId <= 0 || apiKey.isBlank()) return null
         return try {
             val url = buildUrl("movies", tmdbId, apiKey)
@@ -196,7 +243,8 @@ object FanartApiClient {
                 return null
             }
             val root = JSONObject(response)
-            extractBestUrl(root, listOf("hdmovielogo", "movielogo", "hdmovieclearart"), language)
+            // ClearART logo fallback'i DEĞİLDİR.
+            extractBestUrl(root, listOf("hdmovielogo", "movielogo"), resolveLanguage(language))
         } catch (e: Exception) {
             Log.w(TAG, "fetchBestMovieLogo failed for tmdbId=$tmdbId: ${e.message}", e)
             null
@@ -300,16 +348,19 @@ object FanartApiClient {
         preferredLanguage: String
     ) {
         val array = root.optJSONArray(key) ?: return
-        val preferred = mutableListOf<GalleryItem>()
-        val neutral   = mutableListOf<GalleryItem>()
-        val english   = mutableListOf<GalleryItem>()
-        val other     = mutableListOf<GalleryItem>()
+        val preferred = mutableListOf<Pair<Int, GalleryItem>>()
+        val neutral   = mutableListOf<Pair<Int, GalleryItem>>()
+        val english   = mutableListOf<Pair<Int, GalleryItem>>()
+        val other     = mutableListOf<Pair<Int, GalleryItem>>()
+        val wanted = preferredLanguage.trim().lowercase().substringBefore('-')
 
         for (i in 0 until array.length()) {
             val obj = array.optJSONObject(i) ?: continue
             val urlStr = obj.optString("url", "").trim()
             if (urlStr.isBlank()) continue
-            val lang = obj.optString("lang", "").trim()
+            val lang = normalizeFanartLang(obj.optString("lang", ""))
+            val season = normalizeFanartSeason(obj.optString("season", ""))
+            val likes = obj.optString("likes", "").toIntOrNull() ?: obj.optInt("likes", 0)
             val extractedName = extractNameFromUrl(urlStr)
 
             // ── API'nin görsel başına sağladığı alanlar (fanart.tv v3: name, iMDb) ──
@@ -328,19 +379,34 @@ object FanartApiClient {
                 source = "Fanart.tv",
                 category = category,
                 description = apiName.ifBlank { extractedName },
-                language = if (lang.isNotBlank() && lang != "00") lang else null,
-                details = details
+                language = lang,
+                details = details,
+                season = season
             )
+            val scored = likes to item
             when {
-                lang == preferredLanguage      -> preferred.add(item)
-                lang.isBlank() || lang == "00" -> neutral.add(item)
-                lang == "en"                   -> english.add(item)
-                else                           -> other.add(item)
+                lang == wanted                 -> preferred.add(scored)
+                lang == null                   -> neutral.add(scored)
+                lang == "en"                   -> english.add(scored)
+                else                           -> other.add(scored)
             }
         }
 
-        // Tüm öğeleri ekle — limit yok
-        target.addAll(preferred + neutral + english + other)
+        fun List<Pair<Int, GalleryItem>>.byLikes() = sortedByDescending { it.first }.map { it.second }
+        // Tüm öğeleri ekle — limit yok. Tercih edilen dil ve en çok beğenilen önde.
+        target.addAll(preferred.byLikes() + neutral.byLikes() + english.byLikes() + other.byLikes())
+    }
+
+    private fun normalizeFanartLang(raw: String): String? {
+        val lang = raw.trim().lowercase().substringBefore('-').substringBefore('_')
+        return if (lang.isBlank() || lang == "00" || lang == "null") null else lang
+    }
+
+    /** "all" / "0" sezon değil, eserin genel görselidir. */
+    private fun normalizeFanartSeason(raw: String): String? {
+        val season = raw.trim()
+        if (season.isBlank() || season == "0" || season.equals("all", true) || season.equals("null", true)) return null
+        return season
     }
 
     /**
@@ -382,29 +448,64 @@ object FanartApiClient {
     }
 
     /**
-     * Belirli alanlardan en iyi (tercih edilen dil → dil bağımsız → İngilizce) URL'yi döner.
+     * Logo alanlarından en iyi URL.
+     *
+     * Dil sırası: tercih edilen dil → metinsiz ("00") → İngilizce → diğer.
+     * Aynı dilde en çok beğenilen (likes) kazanır.
+     *
+     * [seasonNumber] verilirse o sezona etiketli logo, dil önceliğini bozmadan
+     * genel logodan önce gelir. [seasonOnly] ise genel logoya düşülmez.
      */
-    private fun extractBestUrl(root: JSONObject, keys: List<String>, language: String): String? {
+    private fun extractBestUrl(
+        root: JSONObject,
+        keys: List<String>,
+        language: String,
+        seasonNumber: Int? = null,
+        seasonOnly: Boolean = false,
+        strictLanguage: Boolean = false
+    ): String? {
+        data class Candidate(val url: String, val lang: String?, val likes: Int, val season: String?)
+
+        val candidates = mutableListOf<Candidate>()
         for (key in keys) {
             val array = root.optJSONArray(key) ?: continue
-            val preferred = mutableListOf<String>()
-            val neutral   = mutableListOf<String>()
-            val english   = mutableListOf<String>()
-
             for (i in 0 until array.length()) {
                 val obj = array.optJSONObject(i) ?: continue
                 val urlStr = obj.optString("url", "").trim()
                 if (urlStr.isBlank()) continue
-                val lang = obj.optString("lang", "").trim()
-                when {
-                    lang == language               -> preferred.add(urlStr)
-                    lang.isBlank() || lang == "00" -> neutral.add(urlStr)
-                    lang == "en"                   -> english.add(urlStr)
-                }
+                candidates.add(
+                    Candidate(
+                        url = urlStr,
+                        lang = normalizeFanartLang(obj.optString("lang", "")),
+                        likes = obj.optString("likes", "").toIntOrNull() ?: obj.optInt("likes", 0),
+                        season = normalizeFanartSeason(obj.optString("season", ""))
+                    )
+                )
             }
+        }
+        if (candidates.isEmpty()) return null
 
-            val best = preferred.firstOrNull() ?: neutral.firstOrNull() ?: english.firstOrNull()
-            if (!best.isNullOrBlank()) return best
+        val wantedSeason = seasonNumber?.takeIf { it > 0 }?.toString()
+        val seasonal = if (wantedSeason == null) emptyList() else candidates.filter { it.season == wantedSeason }
+        val main = candidates.filter { it.season == null }
+        val pools = when {
+            seasonOnly -> listOf(seasonal)
+            wantedSeason != null -> listOf(seasonal, main)
+            main.isNotEmpty() -> listOf(main)
+            else -> listOf(candidates)
+        }
+        val wanted = language.trim().lowercase().substringBefore('-').ifBlank { "en" }
+
+        fun best(pool: List<Candidate>, predicate: (Candidate) -> Boolean): String? =
+            pool.filter(predicate).maxByOrNull { it.likes }?.url
+
+        for (pool in pools) {
+            if (pool.isEmpty()) continue
+            best(pool) { it.lang == wanted }?.let { return it }
+            if (strictLanguage) continue
+            best(pool) { it.lang == null }?.let { return it }
+            best(pool) { it.lang == "en" }?.let { return it }
+            best(pool) { true }?.let { return it }
         }
         return null
     }

@@ -190,6 +190,25 @@ object KitsugiApiBase {
         return result.body
     }
 
+    fun executeGetRequestWithHeaders(url: URL, headers: Map<String, String>): String? {
+        awaitBudgetSync(url.host)
+        val reqBuilder = Request.Builder()
+            .url(url)
+            .header("Accept", "application/json")
+            .header("User-Agent", "KitsugiAnimeList/1.0")
+        headers.forEach { (k, v) -> reqBuilder.header(k, v) }
+        val request = reqBuilder.build()
+        return try {
+            com.kitsugi.animelist.core.network.KitsugiHttpClient.metadataClient.newCall(request).execute().use { response ->
+                if (response.isSuccessful) response.body?.string() else null
+            }
+        } catch (e: Exception) {
+            val safeUrl = SensitiveUrlRedactor.redact(url.toString())
+            android.util.Log.e("KitsugiApiBase", "executeGetRequestWithHeaders failed (${e.javaClass.simpleName}) for URL: $safeUrl")
+            null
+        }
+    }
+
     /**
      * 429 (rate-limit) ve 5xx (geçici sunucu hatası) durumlarında kısa bir beklemeyle
      * sınırlı sayıda tekrar deneyen GET.

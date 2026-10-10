@@ -1,4 +1,4 @@
-﻿package com.kitsugi.animelist.ui.screens.detail
+package com.kitsugi.animelist.ui.screens.detail
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.net.Uri
@@ -98,8 +98,60 @@ fun KitsugiTrailerCard(trailerUrl: String, mediaTitle: String = "") {
 
         Spacer(modifier = Modifier.height(12.dp))
 
+        val isPlayerOpen = showPlayer && videoId != null
+
+        // Fragman satırı — oynatıcı açıkken de üstte görünür kalır
+        // (Açılış/Kapanış müziklerindeki aktif satır kartıyla aynı davranış ve görünüm)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(16.dp))
+                .background(
+                    if (isPlayerOpen) accentColor.copy(alpha = 0.15f)
+                    else accentColor.copy(alpha = 0.12f)
+                )
+                .tvClickable(shape = RoundedCornerShape(16.dp)) {
+                    if (videoId != null) {
+                        showPlayer = !showPlayer
+                    } else {
+                        runCatching { uriHandler.openUri(trailerUrl) }
+                    }
+                }
+                .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .background(accentColor),
+                contentAlignment = Alignment.Center
+            ) {
+                Icon(
+                    imageVector = if (isPlayerOpen) Icons.Rounded.KeyboardArrowUp else Icons.Rounded.PlayArrow,
+                    contentDescription = if (isPlayerOpen) "Kapat" else "Oynat",
+                    tint = com.kitsugi.animelist.ui.theme.onAccentColor(accentColor),
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+            Column {
+                Text(
+                    text = "Fragmanı İzle",
+                    color = if (isPlayerOpen) accentColor else KitsugiColors.TextPrimary,
+                    style = MaterialTheme.typography.titleSmall,
+                    fontWeight = FontWeight.Bold
+                )
+                Text(
+                    text = if (videoId != null) "Uygulama içinde oynat" else "YouTube'da aç",
+                    color = KitsugiColors.TextSecondary,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+
         AnimatedVisibility(
-            visible = showPlayer && videoId != null,
+            visible = isPlayerOpen,
             enter = expandVertically(),
             exit = shrinkVertically()
         ) {
@@ -119,53 +171,7 @@ fun KitsugiTrailerCard(trailerUrl: String, mediaTitle: String = "") {
             }
         }
 
-        if (!showPlayer || videoId == null) {
-            // Oynat butonu
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(accentColor.copy(alpha = 0.12f))
-                    .tvClickable(shape = RoundedCornerShape(16.dp)) {
-                        if (videoId != null) {
-                            showPlayer = true
-                        } else {
-                            runCatching { uriHandler.openUri(trailerUrl) }
-                        }
-                    }
-                    .padding(horizontal = 16.dp, vertical = 14.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(accentColor),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Icon(
-                        imageVector = Icons.Rounded.PlayArrow,
-                        contentDescription = "Oynat",
-                        tint = KitsugiColors.Background,
-                        modifier = Modifier.size(24.dp)
-                    )
-                }
-                Column {
-                    Text(
-                        text = "Fragmanı İzle",
-                        color = KitsugiColors.TextPrimary,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        text = if (videoId != null) "Uygulama içinde oynat" else "YouTube'da aç",
-                        color = KitsugiColors.TextSecondary,
-                        style = MaterialTheme.typography.bodySmall
-                    )
-                }
-            }
-        } else {
+        if (isPlayerOpen) {
             // Kapat butonu
             Spacer(modifier = Modifier.height(8.dp))
             Row(
@@ -324,7 +330,7 @@ fun ThemePlayerContainer(
                             onClick = { retryTrigger++ },
                             colors = ButtonDefaults.buttonColors(containerColor = accentColor)
                         ) {
-                            Text("Tekrar Dene", color = KitsugiColors.Background)
+                            Text("Tekrar Dene", color = com.kitsugi.animelist.ui.theme.onAccentColor(accentColor))
                         }
                         KitsugiButton(
                             onClick = {

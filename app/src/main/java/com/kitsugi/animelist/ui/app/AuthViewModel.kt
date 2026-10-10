@@ -26,6 +26,7 @@ import com.kitsugi.animelist.data.auth.ShikimoriSyncManager
 import com.kitsugi.animelist.data.auth.BangumiAuthManager
 import com.kitsugi.animelist.data.auth.BangumiAuthStore
 import com.kitsugi.animelist.data.auth.BangumiImportManager
+import com.kitsugi.animelist.data.auth.BangumiSyncManager
 import com.kitsugi.animelist.data.local.MediaEntryRepository
 import com.kitsugi.animelist.data.settings.SettingsDataStore
 import com.kitsugi.animelist.model.MediaEntry
@@ -334,11 +335,12 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         var simkl: MediaEntry? = null,
         var kitsu: MediaEntry? = null,
         var shikimori: MediaEntry? = null,
+        var bangumi: MediaEntry? = null,
         var identityReviewRequired: Boolean = false,
         var identityReviewDetails: String? = null
     ) {
         val candidates: List<MediaEntry>
-            get() = listOfNotNull(aniList, mal, simkl, kitsu, shikimori)
+            get() = listOfNotNull(aniList, mal, simkl, kitsu, shikimori, bangumi)
 
         val primaryTitle: String
             get() = candidates.firstOrNull()?.titleEnglish?.takeIf { it.isNotBlank() }
@@ -385,7 +387,9 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
         } else null
         if (armMal != null && armMal.isRealMalId()) return armMal
 
-        val searchTitle = entry.titleEnglish?.takeIf { it.isNotBlank() } ?: entry.title.takeIf { it.isNotBlank() }
+        val searchTitle = entry.titleEnglish?.takeIf { it.isNotBlank() }
+            ?: entry.title.takeIf { it.isNotBlank() }
+            ?: entry.titleJapanese?.takeIf { it.isNotBlank() }
         if (!searchTitle.isNullOrBlank()) {
             val jikanResults = runSyncCatching {
                 // Jikan kota kapısı (JikanGateway) searchMALOnly içinde uygulanır.
@@ -394,11 +398,14 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     mediaType = entry.type
                 )
             }.getOrNull()
+            val candidateTitles = listOfNotNull(entry.title, entry.titleEnglish, entry.titleJapanese)
+                .map { com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(it) }
+                .filter { it.isNotBlank() }
             val jikanMal = jikanResults?.filter { res ->
                 res.type == entry.type && (entry.year == null || res.year == entry.year) &&
-                    listOfNotNull(res.title, res.titleEnglish, res.titleJapanese).any {
-                        com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(it) ==
-                            com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(searchTitle)
+                    listOfNotNull(res.title, res.titleEnglish, res.titleJapanese).any { resTitle ->
+                        val norm = com.kitsugi.animelist.model.MediaIdentity.normalizedTitle(resTitle)
+                        candidateTitles.any { it == norm }
                     }
             }?.singleOrNull()?.let { res -> (res.realMalId ?: res.malId).takeIf { it.isRealMalId() } }
             if (jikanMal != null) return jikanMal
@@ -505,12 +512,14 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             ) {
                 shikimoriUserId = ExternalAuthManager.getShikimoriUserId(context)
             }
+            val bangumiToken = if (syncSettings.syncEnabledBangumi) BangumiAuthStore.getValidToken(context) else null
 
             val isAniList = syncSettings.syncEnabledAnilist && !aniListToken.isNullOrBlank()
             val isMal = syncSettings.syncEnabledMal && !malToken.isNullOrBlank()
             val isSimkl = syncSettings.syncEnabledSimkl && !simklToken.isNullOrBlank()
             val isKitsu = syncSettings.syncEnabledKitsu && !kitsuToken.isNullOrBlank() && !kitsuUserId.isNullOrBlank()
             val isShikimori = syncSettings.syncEnabledShikimori && !shikimoriToken.isNullOrBlank() && shikimoriUserId != null
+            val isBangumi = syncSettings.syncEnabledBangumi && !bangumiToken.isNullOrBlank()
 
             val connectedPlatforms = mutableListOf<String>()
             if (isAniList) connectedPlatforms.add("AniList")
@@ -518,6 +527,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
             if (isSimkl) connectedPlatforms.add("Simkl")
             if (isKitsu) connectedPlatforms.add("Kitsu")
             if (isShikimori) connectedPlatforms.add("Shikimori")
+            if (isBangumi) connectedPlatforms.add("Bangumi")
 
             if (connectedPlatforms.size < 2) {
                 val message = "Eşitleme için en az iki hesap bağlı ve eşitlemesi açık olmalıdır."
@@ -584,9 +594,17 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     list
                 } else emptyList()
 
+                val bangumiEntries = if (isBangumi) {
+                    updateProgress("Bangumi listesi alınıyor...", "Kütüphaneniz okunuyor...")
+                    val list = BangumiImportManager.fetchAllLists(context, bangumiToken!!)
+                    statsMap["Bangumi"] = statsMap["Bangumi"]!!.copy(initialCount = list.size)
+                    logEvent("Bangumi", "Bangumi kütüphanesinden ${list.size} kayıt alındı.")
+                    list
+                } else emptyList()
+
                 // ── FAZ 2: Çoklu İndeks ile Unified Eşleştirme ────────────────────
                 val sourceEntryTotal = aniListEntries.size + malEntries.size + simklEntries.size +
-                    kitsuEntries.size + shikimoriEntries.size
+                    kitsuEntries.size + shikimoriEntries.size + bangumiEntries.size
                 updateProgress(
                     "İçerikler çapraz eşleştiriliyor...",
                     if (sourceEntryTotal > 0) "0 / $sourceEntryTotal kaynak kayıt taranıyor..." else "Listelerde eşleştirilecek kayıt yok",
@@ -800,6 +818,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                 clusterEntries(simklEntries) { item, entry -> item.simkl = entry }
                 clusterEntries(kitsuEntries) { item, entry -> item.kitsu = entry }
                 clusterEntries(shikimoriEntries) { item, entry -> item.shikimori = entry }
+                clusterEntries(bangumiEntries) { item, entry -> item.bangumi = entry }
 
                 logEvent("Analiz", "Toplam ${unifiedItems.size} tekil içerik tespit edildi. Eşitleme başlatılıyor...")
                 updateProgress(
@@ -868,6 +887,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         if (isSimkl && item.simkl == null && reviewType != MediaType.Manga) countSafetySkip("Simkl")
                         if (isKitsu && item.kitsu == null && reviewIsAnimeOrManga) countSafetySkip("Kitsu")
                         if (isShikimori && item.shikimori == null && reviewIsAnimeOrManga) countSafetySkip("Shikimori")
+                        if (isBangumi && item.bangumi == null && reviewIsAnimeOrManga) countSafetySkip("Bangumi")
                         if ((index + 1) % 2 == 0 || index == unifiedItems.lastIndex) {
                             updateProgress(
                                 step = "Kimlik kontrolü atlandı: $title",
@@ -939,6 +959,7 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         (isMal && isAnimeOrManga && item.mal == null) ||
                         (isKitsu && isAnimeOrManga && item.kitsu == null) ||
                         (isShikimori && isAnimeOrManga && item.shikimori == null) ||
+                        (isBangumi && isAnimeOrManga && item.bangumi == null) ||
                         (isSimkl && item.simkl == null)
                     val identityVerdict: com.kitsugi.animelist.data.auth.CrossSyncIdentityGuard.Verdict? =
                         if (realMalId != null && needsAnyAddition) {
@@ -987,7 +1008,12 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         )
                     }
 
+                    val bestTitleEnglish = candidates.firstNotNullOfOrNull { it.titleEnglish?.takeIf { e -> e.isNotBlank() } }
+                    val bestTitleJapanese = candidates.firstNotNullOfOrNull { it.titleJapanese?.takeIf { j -> j.isNotBlank() } }
+
                     val mergedEntry = newest.copy(
+                        titleEnglish = bestTitleEnglish ?: newest.titleEnglish,
+                        titleJapanese = bestTitleJapanese ?: newest.titleJapanese,
                         status = bestStatus,
                         progress = maxProgress,
                         volumeProgress = maxVolumeProgress,
@@ -1005,6 +1031,14 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         tmdbId = tmdbId ?: newest.tmdbId,
                         aniListEntryId = aniListEntryId ?: newest.aniListEntryId
                     )
+
+                    if (realMalId != null && item.bangumi != null) {
+                        com.kitsugi.animelist.data.remote.BangumiIdNamespace.rawIdFromStable(item.bangumi?.malId)?.let { subjectId ->
+                            runCatching {
+                                com.kitsugi.animelist.data.remote.BangumiLocalMappingCache.put(context, realMalId, isAnimeOrManga, subjectId)
+                            }
+                        }
+                    }
 
                     val mappingDetails = buildString {
                         appendLine("Kaynak platform kayıtları (${candidates.size}):")
@@ -1269,6 +1303,67 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                         }
                     }
 
+                    // ── 6. Bangumi Eşitleme (Anime & Manga) ──
+                    if (isBangumi && isAnimeOrManga) {
+                        kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                        val current = item.bangumi
+                        if (current == null && !additionsAllowed) {
+                            recordIdentitySkip("Bangumi", mergedEntry.title)
+                        } else if (current == null) {
+                            // Bangumi'de eksik -> EKLE! (kimlik güvencesinden geçti)
+                            com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("bangumi")
+                            val target = mergedEntry.copy(malId = guardedMalId ?: realMalId)
+                            val outcome = runSyncCatching { BangumiSyncManager.syncEntryToBangumi(context, target) }
+                            val res = outcome.getOrNull()
+                            if (res != null && res.errors.isEmpty()) {
+                                statsMap["Bangumi"] = statsMap["Bangumi"]!!.let { it.copy(addedCount = it.addedCount + 1) }
+                                logEvent("Bangumi", "[Bangumi] + Eklendi: ${mergedEntry.title} (${bestStatus.label})", isAddition = true, details = mappingDetails)
+                            } else if (res != null && res.errors.any { it.contains("eşleşmesi bulunamadı") || it.contains("bulunamadı") }) {
+                                recordSkip(
+                                    platform = "Bangumi",
+                                    reasonKey = "Bangumi条目 eşleşmesi bulunamadı",
+                                    title = mergedEntry.title,
+                                    message = "[Bangumi] - Atlandı (Bangumi eşleşmesi bulunamadı): ${mergedEntry.title}",
+                                    details = "$mappingDetails\n${res.errors.joinToString("; ")}"
+                                )
+                            } else {
+                                val errMsg = outcome.exceptionOrNull()?.crossSyncDiagnostic()
+                                    ?: res?.errors?.joinToString("; ")
+                                    ?: "Bilinmeyen hata"
+                                statsMap["Bangumi"] = statsMap["Bangumi"]!!.let { it.copy(errorCount = it.errorCount + 1) }
+                                logEvent("Bangumi", "[Bangumi] ! Hata: ${mergedEntry.title} ($errMsg)", isError = true, details = "$mappingDetails\n$errMsg")
+                            }
+                        } else {
+                            val needsUpdate = !singleSourceGroup && (
+                                (current.status != bestStatus) ||
+                                (current.progress < maxProgress) ||
+                                (current.volumeProgress < maxVolumeProgress) ||
+                                (bestScore != null && current.score != bestScore)
+                            )
+                            if (needsUpdate) {
+                                com.kitsugi.animelist.data.auth.PlatformRateLimiter.acquire("bangumi")
+                                val target = mergedEntry.copy(malId = current.malId ?: (guardedMalId ?: realMalId))
+                                val outcome = runSyncCatching { BangumiSyncManager.syncEntryToBangumi(context, target) }
+                                val res = outcome.getOrNull()
+                                if (res != null && res.errors.isEmpty()) {
+                                    statsMap["Bangumi"] = statsMap["Bangumi"]!!.let { it.copy(updatedCount = it.updatedCount + 1) }
+                                    logEvent(
+                                        "Bangumi",
+                                        "[Bangumi] ~ Güncellendi: ${mergedEntry.title} (${bestStatus.label}, Bölüm: $maxProgress)",
+                                        isUpdate = true,
+                                        details = mappingDetails
+                                    )
+                                } else {
+                                    val errMsg = outcome.exceptionOrNull()?.crossSyncDiagnostic()
+                                        ?: res?.errors?.joinToString("; ")
+                                        ?: "Bilinmeyen hata"
+                                    statsMap["Bangumi"] = statsMap["Bangumi"]!!.let { it.copy(errorCount = it.errorCount + 1) }
+                                    logEvent("Bangumi", "[Bangumi] ! Güncellenemedi: ${mergedEntry.title} ($errMsg)", isError = true, details = "$mappingDetails\n$errMsg")
+                                }
+                            }
+                        }
+                    }
+
 
                     if ((index + 1) % 2 == 0 || index == unifiedItems.size - 1) {
                         updateProgress(
@@ -1443,6 +1538,12 @@ class AuthViewModel(application: Application) : AndroidViewModel(application) {
                     val refreshToken = ExternalAuthManager.getSimklToken(context) ?: error("Simkl bağlantısı kesildi")
                     runSyncCatching { repository.smartImport("simkl", SimklImportManager.fetchAllLists(refreshToken), allowDelete = false) }
                         .onFailure { logEvent("Simkl", "Yerel liste güncellenemedi: ${it.message}", isError = true, details = it.crossSyncDiagnostic()) }
+                }
+                if (isBangumi) {
+                    kotlinx.coroutines.currentCoroutineContext().ensureActive()
+                    updateProgress("Bangumi listesi doğrulanıyor...", "Sunucudaki son liste okunuyor", processed = 0, total = 0, unit = "")
+                    runSyncCatching { repository.smartImport("bangumi", BangumiImportManager.fetchAllLists(context, bangumiToken!!), allowDelete = false) }
+                        .onFailure { logEvent("Bangumi", "Yerel liste güncellenemedi: ${it.message}", isError = true, details = it.crossSyncDiagnostic()) }
                 }
 
                 kotlinx.coroutines.currentCoroutineContext().ensureActive()

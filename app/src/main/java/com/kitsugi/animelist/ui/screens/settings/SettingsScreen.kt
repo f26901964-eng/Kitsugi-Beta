@@ -43,6 +43,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import kotlinx.coroutines.launch
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -678,8 +679,11 @@ private fun SettingsPreferencesContent(
     general: GeneralSettings,
     integrations: IntegrationsSettings
 ) {
+    var showCustomListsEditor by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
+
     val localSettings = androidx.compose.runtime.remember(
-        general.selectedThemeId, general.themeMode, general.amoledBlack, general.customAccentColor, general.defaultTab,
+        general.selectedThemeId, general.themeMode, general.amoledBlack, general.cardFramesEnabled,
+        general.customAccentColor, general.customAccentColor2, general.customAccentGradientAngle, general.defaultTab,
         general.showAdultContent, general.blurAdultMedia, general.showAnimeLogos, general.selectedListLayoutId, general.selectedHomeLayoutId,
         general.titleLanguage, general.scoreFormat, general.hideScores, integrations.autoTranslateEnabled, integrations.preferredTranslator,
         integrations.translateSourceLanguage, integrations.translateTargetLanguage, general.appLanguage, general.fixedNavBar,
@@ -687,13 +691,18 @@ private fun SettingsPreferencesContent(
         general.mangaReadingMode, general.mangaColorFilter, general.mangaFitMode, general.mangaBrightness,
         general.aniListNotificationsEnabled, general.malNotificationsEnabled, general.simklNotificationsEnabled,
         general.kitsuNotificationsEnabled, general.shikimoriNotificationsEnabled, general.notificationInterval,
+        general.staffNameLanguage, general.scoreStep, general.separatedListStyle, general.showLowPriority,
+        general.priorityColorsJson, general.fuzzySearchEnabled, general.separateNovelsManga,
         integrations.tmdbLanguage
     ) {
         com.kitsugi.animelist.data.settings.AppSettings(
             selectedThemeId = general.selectedThemeId,
             themeMode = general.themeMode,
             amoledBlack = general.amoledBlack,
+            cardFramesEnabled = general.cardFramesEnabled,
             customAccentColor = general.customAccentColor,
+            customAccentColor2 = general.customAccentColor2,
+            customAccentGradientAngle = general.customAccentGradientAngle,
             defaultTab = general.defaultTab,
             showAdultContent = general.showAdultContent,
             blurAdultMedia = general.blurAdultMedia,
@@ -703,6 +712,13 @@ private fun SettingsPreferencesContent(
             titleLanguage = general.titleLanguage,
             tmdbLanguage = integrations.tmdbLanguage,
             scoreFormat = general.scoreFormat,
+            scoreStep = general.scoreStep,
+            staffNameLanguage = general.staffNameLanguage,
+            separatedListStyle = general.separatedListStyle,
+            showLowPriority = general.showLowPriority,
+            priorityColorsJson = general.priorityColorsJson,
+            fuzzySearchEnabled = general.fuzzySearchEnabled,
+            separateNovelsManga = general.separateNovelsManga,
             hideScores = general.hideScores,
             autoTranslateEnabled = integrations.autoTranslateEnabled,
             preferredTranslator = integrations.preferredTranslator,
@@ -732,7 +748,10 @@ private fun SettingsPreferencesContent(
         onThemeSelected = general.onThemeSelected,
         onThemeModeSelected = general.onThemeModeSelected,
         onAmoledBlackChanged = general.onAmoledBlackChanged,
+        onCardFramesEnabledChanged = general.onCardFramesEnabledChanged,
         onCustomAccentColorChanged = general.onCustomAccentColorChanged,
+        onCustomAccentColor2Changed = general.onCustomAccentColor2Changed,
+        onCustomAccentGradientAngleChanged = general.onCustomAccentGradientAngleChanged,
         onDefaultTabSelected = general.onDefaultTabSelected,
         onAdultContentChanged = general.onAdultContentChanged,
         onBlurAdultMediaChanged = general.onBlurAdultMediaChanged,
@@ -742,6 +761,14 @@ private fun SettingsPreferencesContent(
         onScoreFormatSelected = general.onScoreFormatSelected,
         onHideScoresChanged = general.onHideScoresChanged,
         onHomeLayoutSelected = general.onHomeLayoutSelected,
+        onStaffNameLanguageSelected = general.onStaffNameLanguageSelected,
+        onScoreStepSelected = general.onScoreStepSelected,
+        onSeparatedListStyleChanged = general.onSeparatedListStyleChanged,
+        onShowLowPriorityChanged = general.onShowLowPriorityChanged,
+        onPriorityColorsChanged = general.onPriorityColorsChanged,
+        onFuzzySearchEnabledChanged = general.onFuzzySearchEnabledChanged,
+        onSeparateNovelsMangaChanged = general.onSeparateNovelsMangaChanged,
+        onOpenCustomListsEditor = { showCustomListsEditor = true },
         onAutoTranslateEnabledChanged = integrations.onAutoTranslateEnabledChanged,
         onPreferredTranslatorSelected = integrations.onPreferredTranslatorSelected,
         onTranslateSourceLanguageSelected = integrations.onTranslateSourceLanguageSelected,
@@ -765,6 +792,67 @@ private fun SettingsPreferencesContent(
         onMangaBrightnessChanged = general.onMangaBrightnessChanged,
         onDismiss = {}  // Sub-sayfada dismiss = no-op; geri butonu ile çıkılır
     )
+
+    if (showCustomListsEditor) {
+        AniListCustomListsEditorDialog(onDismiss = { showCustomListsEditor = false })
+    }
+}
+
+/**
+ * AniHyou "Özel Listeler" paritesi: AniList hesap özel listelerini yönetir.
+ * Liste adları AniList `UpdateUser` mutasyonu ile anime+manga seçeneklerine yazılır.
+ */
+@Composable
+private fun AniListCustomListsEditorDialog(onDismiss: () -> Unit) {
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var lists by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf<List<String>>(emptyList()) }
+    var isLoading by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(true) }
+
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            val token = com.kitsugi.animelist.data.auth.ExternalAuthManager.getAniListToken(context)
+            val anime = token?.let { com.kitsugi.animelist.data.auth.AniListSyncManager.getViewerCustomLists(it, false) }.orEmpty()
+            val manga = token?.let { com.kitsugi.animelist.data.auth.AniListSyncManager.getViewerCustomLists(it, true) }.orEmpty()
+            lists = (anime + manga).distinct()
+            isLoading = false
+        }
+    }
+
+    fun applyChange(newLists: List<String>) {
+        lists = newLists
+        scope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val token = com.kitsugi.animelist.data.auth.ExternalAuthManager.getAniListToken(context) ?: return@launch
+            runCatching { com.kitsugi.animelist.data.auth.AniListSyncManager.updateCustomLists(token, newLists) }
+        }
+    }
+
+    if (isLoading) {
+        com.kitsugi.animelist.ui.components.KitsugiSheetOrDialog(onDismiss = onDismiss) {
+            androidx.compose.foundation.layout.Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = androidx.compose.ui.Alignment.Center
+            ) {
+                androidx.compose.material3.CircularProgressIndicator()
+            }
+        }
+    } else {
+        com.kitsugi.animelist.ui.screens.list.CustomListEditorDialog(
+            customLists = lists,
+            onCreateList = { name ->
+                val trimmed = name.trim()
+                if (trimmed.isNotBlank() && !lists.contains(trimmed)) applyChange(lists + trimmed)
+            },
+            onRenameList = { oldName, newName ->
+                val trimmed = newName.trim()
+                if (trimmed.isNotBlank() && !lists.contains(trimmed)) {
+                    applyChange(lists.map { if (it == oldName) trimmed else it })
+                }
+            },
+            onDeleteList = { name -> applyChange(lists.filter { it != name }) },
+            onDismiss = onDismiss
+        )
+    }
 }
 
 @Composable

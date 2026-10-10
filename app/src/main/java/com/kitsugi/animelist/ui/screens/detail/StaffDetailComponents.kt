@@ -1,5 +1,6 @@
 package com.kitsugi.animelist.ui.screens.detail
 
+import com.kitsugi.animelist.ui.components.KitsugiGalleryIconButton
 import com.kitsugi.animelist.utils.cleanShikimoriBbCode
 import androidx.compose.foundation.background
 import com.kitsugi.animelist.ui.utils.tvClickable
@@ -300,15 +301,9 @@ internal fun StaffDetailLeftPanel(
                                 .background(accentColor.copy(alpha = 0.22f)),
                             contentAlignment = Alignment.Center
                         ) {
-                            IconButton(onClick = {
+                            KitsugiGalleryIconButton(onClick = {
                                 onGalleryClick(galleryItems, 0)
-                            }) {
-                                Icon(
-                                    imageVector = Icons.Rounded.Image,
-                                    contentDescription = stringResource(R.string.action_gallery),
-                                    tint = accentColor
-                                )
-                            }
+                            }, accentColor = accentColor)
                         }
                     }
 
@@ -658,15 +653,9 @@ internal fun StaffPortraitHeroSection(
                             .background(accentColor.copy(alpha = 0.22f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        IconButton(onClick = {
+                        KitsugiGalleryIconButton(onClick = {
                             onGalleryOpen(galleryItems, 0)
-                        }) {
-                            Icon(
-                                imageVector = Icons.Rounded.Image,
-                                contentDescription = stringResource(R.string.action_gallery),
-                                tint = accentColor
-                            )
-                        }
+                        }, accentColor = accentColor)
                     }
                 }
 
@@ -801,15 +790,9 @@ internal fun StaffDetailStickyHeader(
                     modifier = Modifier.weight(1f)
                 )
                 if (galleryItems.isNotEmpty()) {
-                    IconButton(onClick = {
+                    KitsugiGalleryIconButton(onClick = {
                         onGalleryOpen(galleryItems, 0)
-                    }) {
-                        Icon(
-                            imageVector = Icons.Rounded.Image,
-                            contentDescription = stringResource(R.string.action_gallery),
-                            tint = accentColor
-                        )
-                    }
+                    }, accentColor = accentColor)
                 }
                 IconButton(onClick = {
                     val url = com.kitsugi.animelist.utils.ShareUtils.buildStaffUrl(source, staffId)

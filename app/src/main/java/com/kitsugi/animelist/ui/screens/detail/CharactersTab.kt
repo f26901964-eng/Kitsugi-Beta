@@ -33,6 +33,11 @@ import androidx.compose.material3.Icon
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.RecordVoiceOver
 import com.kitsugi.animelist.ui.components.KitsugiSheetOrDialog
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material3.CircularProgressIndicator
+import com.kitsugi.animelist.data.remote.KitsugiVoiceActor
+import com.kitsugi.animelist.data.remote.KitsugiCharacterClient
+import com.kitsugi.animelist.data.remote.DetailCache
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.utils.toTurkishCharacterRole
@@ -45,9 +50,53 @@ fun CharactersTabContent(
     onCharacterClick: (KitsugiCharacter) -> Unit,
     onStaffClick: (Int, String, String?, String?) -> Unit,
     onMediaClick: (Int, String, String) -> Unit,
-    titleLanguage: String = "ROMAJI"
+    titleLanguage: String = "ROMAJI",
+    staffNameLanguage: String = com.kitsugi.animelist.data.settings.KitsugiContentPrefs.staffNameLanguage
 ) {
     var selectedCharacterForVoiceActors by remember { mutableStateOf<KitsugiCharacter?>(null) }
+
+    // Seslendirmen sheet'i: liste düzeyindeki veri çoğu kaynakta tek seslendirmen taşır
+    // (Jikan/MAL yalnızca Japonca, TMDB yalnızca oyuncu). Karakter detay sayfasının
+    // gösterdiği TAM çok-dilli listeyi burada da göstermek için açılışta zenginleştirilir.
+    var sheetVoiceActors by remember { mutableStateOf<List<KitsugiVoiceActor>>(emptyList()) }
+    var sheetVaLoading by remember { mutableStateOf(false) }
+    val characterClient = remember { KitsugiCharacterClient() }
+
+    LaunchedEffect(selectedCharacterForVoiceActors) {
+        val char = selectedCharacterForVoiceActors
+        if (char == null) {
+            sheetVoiceActors = emptyList()
+            sheetVaLoading = false
+            return@LaunchedEffect
+        }
+        sheetVoiceActors = char.voiceActors
+        if (char.id <= 0 || char.source.isBlank()) return@LaunchedEffect
+        sheetVaLoading = true
+        try {
+            // Önbellek sıcaksa (karakter detayı daha önce açıldıysa) tam liste anında gelir.
+            var full = DetailCache.getCharacterDetail(char.source, char.id)?.voiceActors.orEmpty()
+            if (full.isEmpty()) {
+                val detail = characterClient.fetchCharacterDetail(char.source, char.id, char.name)
+                if (detail != null) {
+                    DetailCache.putCharacterDetail(char.source, char.id, detail)
+                    full = detail.voiceActors
+                }
+            }
+            if (full.size > sheetVoiceActors.size) {
+                sheetVoiceActors = full.map { va ->
+                    va.copy(
+                        name = displayPersonName(
+                            va.name, va.romanizedName, va.nativeName, titleLanguage, va.englishName
+                        )
+                    )
+                }
+            }
+        } catch (e: Exception) {
+            android.util.Log.w("CharactersTab", "Seslendirmen listesi zenginleştirilemedi: ${e.message}")
+        } finally {
+            sheetVaLoading = false
+        }
+    }
 
     when (state) {
         is DetailTabState.Loading -> {
@@ -62,14 +111,14 @@ fun CharactersTabContent(
             )
         }
         is DetailTabState.Success -> {
-            val list = remember(state.data, titleLanguage) {
+            val list = remember(state.data, staffNameLanguage) {
                 state.data.map { character ->
                     character.copy(
                         name = displayPersonName(
-                            character.name, character.romanizedName, character.nativeName, titleLanguage, character.englishName
+                            character.name, character.romanizedName, character.nativeName, staffNameLanguage, character.englishName
                         ),
                         voiceActors = character.voiceActors.map { va ->
-                            va.copy(name = displayPersonName(va.name, va.romanizedName, va.nativeName, titleLanguage, va.englishName))
+                            va.copy(name = displayPersonName(va.name, va.romanizedName, va.nativeName, staffNameLanguage, va.englishName))
                         }
                     )
                 }
@@ -82,6 +131,19 @@ fun CharactersTabContent(
                     modifier = Modifier.padding(vertical = 16.dp)
                 )
             } else {
+                // Bangumi kadrosu topluluk katkılı bir kaynaktır; liste gizlenmez ama kaynağı
+                // belirtilir (canlı çekim kayıtlarda animasyon uyarlaması sanatı/rolü görülebiliyor).
+                val fromBangumi = list.any {
+                    it.source.equals("bangumi", ignoreCase = true) || it.source.equals("bgm", ignoreCase = true)
+                }
+                if (fromBangumi) {
+                    Text(
+                        text = stringResource(R.string.characters_bangumi_source_note),
+                        color = KitsugiColors.TextMuted,
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp)
+                    )
+                }
                 val isLandscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
                 if (isLandscape) {
                     // Yatay mod: 2 sütunlu grid
@@ -101,7 +163,10 @@ fun CharactersTabContent(
                                             char = char,
                                             onCharacterClick = onCharacterClick,
                                             onVoiceActorClick = { va -> onStaffClick(va.id, va.source, va.name, va.imageUrl) },
-                                            onShowVoiceActors = { selectedCharacterForVoiceActors = it }
+                                            onShowVoiceActors = { char ->
+                                                sheetVoiceActors = char.voiceActors
+                                                selectedCharacterForVoiceActors = char
+                                            }
                                         )
                                     }
                                 }
@@ -122,7 +187,10 @@ fun CharactersTabContent(
                                 char = char,
                                 onCharacterClick = onCharacterClick,
                                 onVoiceActorClick = { va -> onStaffClick(va.id, va.source, va.name, va.imageUrl) },
-                                onShowVoiceActors = { selectedCharacterForVoiceActors = it }
+                                onShowVoiceActors = { char ->
+                                                sheetVoiceActors = char.voiceActors
+                                                selectedCharacterForVoiceActors = char
+                                            }
                             )
                         }
                     }
@@ -153,8 +221,8 @@ fun CharactersTabContent(
                     .padding(horizontal = 24.dp, vertical = 8.dp),
                 verticalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                items(character.voiceActors.size) { index ->
-                    val va = character.voiceActors[index]
+                items(sheetVoiceActors.size) { index ->
+                    val va = sheetVoiceActors[index]
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
@@ -194,16 +262,32 @@ fun CharactersTabContent(
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold
                             )
-                            val labelText = if (va.language.equals("oyuncu", ignoreCase = true)) {
-                                stringResource(R.string.detail_role_actor)
-                            } else {
-                                va.language
+                            // Dil bilgisi yoksa (kaynak API vermediyse) dil uydurulmaz.
+                            val labelText = when {
+                                va.language.isBlank() -> stringResource(R.string.detail_role_voice_actor_plain)
+                                va.language.equals("oyuncu", ignoreCase = true) -> stringResource(R.string.detail_role_actor)
+                                else -> va.language
                             }
                             Text(
                                 text = labelText,
                                 color = KitsugiColors.TextMuted,
                                 style = MaterialTheme.typography.labelSmall,
                                 fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                }
+                // Tam çok-dilli liste arka planda yüklenirken küçük bir gösterge.
+                if (sheetVaLoading) {
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(22.dp),
+                                strokeWidth = 2.dp,
+                                color = KitsugiColors.TextMuted
                             )
                         }
                     }
@@ -349,10 +433,10 @@ fun CharacterVoiceActorCard(
                         overflow = TextOverflow.Ellipsis
                     )
                     // Dil zaten Türkçe geliyor: "Japonca", "Korece", "oyuncu" vb.
-                    val labelText = if (va.language.equals("oyuncu", ignoreCase = true)) {
-                        stringResource(R.string.detail_role_actor)
-                    } else {
-                        stringResource(R.string.detail_role_voice_actor, va.language)
+                    val labelText = when {
+                        va.language.isBlank() -> stringResource(R.string.detail_role_voice_actor_plain)
+                        va.language.equals("oyuncu", ignoreCase = true) -> stringResource(R.string.detail_role_actor)
+                        else -> stringResource(R.string.detail_role_voice_actor, va.language)
                     }
                     Text(
                         text = labelText,
@@ -370,7 +454,8 @@ fun CharacterVoiceActorCard(
 fun StaffTabContent(
     state: DetailTabState<List<KitsugiStaff>>,
     onStaffClick: (Int, String, String?, String?) -> Unit,
-    titleLanguage: String = "ROMAJI"
+    titleLanguage: String = "ROMAJI",
+    staffNameLanguage: String = com.kitsugi.animelist.data.settings.KitsugiContentPrefs.staffNameLanguage
 ) {
     when (state) {
         is DetailTabState.Loading -> {
@@ -385,11 +470,11 @@ fun StaffTabContent(
             )
         }
         is DetailTabState.Success -> {
-            val list = remember(state.data, titleLanguage) {
+            val list = remember(state.data, staffNameLanguage) {
                 state.data.map { staff ->
                     staff.copy(
                         name = displayPersonName(
-                            staff.name, staff.romanizedName, staff.nativeName, titleLanguage, staff.englishName
+                            staff.name, staff.romanizedName, staff.nativeName, staffNameLanguage, staff.englishName
                         )
                     )
                 }

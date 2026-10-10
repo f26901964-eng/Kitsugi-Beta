@@ -118,6 +118,8 @@ data class SearchUiState(
     val kitsuSpecificFilters: KitsuSpecificFilters = KitsuSpecificFilters(),
     val simklSpecificFilters: SimklSpecificFilters = SimklSpecificFilters(),
     val bangumiSpecificFilters: BangumiSpecificFilters = BangumiSpecificFilters(),
+    /** Last typed detail facet; used to avoid querying providers that cannot apply it. */
+    val detailSearchFilterRequest: DetailSearchFilterRequest? = null,
 
     // ── Plugin Explore Mode ────────────────────────────────────────────────
     /** When non-null, the search screen shows this plugin's explore page instead of normal search */
@@ -168,7 +170,9 @@ data class SearchUiState(
             SearchSourceEngine.ALL -> {
                 var c = 0
                 if (genres.isNotEmpty()) c += genres.size
+                if (tags.isNotEmpty()) c += tags.size
                 if (startYear != null || endYear != null) c++
+                if (season != null) c++
                 if (isAdultFilter != null) c++
                 c
             }

@@ -13,7 +13,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kitsugi.animelist.data.remote.ApiSearchSelection
 import com.kitsugi.animelist.data.remote.JikanSearchResult
-import com.kitsugi.animelist.data.remote.matches
+import com.kitsugi.animelist.data.remote.matchesInSource
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.ui.components.KitsugiErrorState
 import com.kitsugi.animelist.ui.components.KitsugiHorizontalMediaSection
@@ -45,7 +45,7 @@ fun AnimeScreen(
 
     fun isAlreadyInList(result: JikanSearchResult): Boolean {
         return currentEntries.any { entry ->
-            entry.matches(result)
+            entry.matchesInSource(result)
         }
     }
 

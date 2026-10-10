@@ -186,10 +186,29 @@ internal object CsTitleMatcher {
         season: Int? = null,
         isMovie: Boolean = false
     ): List<String> {
+        val seasonVariants =
+            if (!isMovie && season != null && season > 1) buildSeasonScopedVariants(main, alts, season)
+            else emptyList()
+        return (buildPlainTitleVariants(main, alts, isMovie) + seasonVariants).distinct()
+    }
+
+    /**
+     * YALNIZCA BAŞLIK içeren arama varyantları — sezon/bölüm bilgisi ASLA karışmaz.
+     *
+     * Temel ilke: hiçbir site (Türkçe veya yabancı) "X 1. Sezon 1. Bölüm" tarzı sorguyu
+     * anlayamaz; arama her zaman çıplak eser adıyla yapılır, sezon/bölüm bilgisi ancak
+     * içerik sayfasına girildikten SONRA bölüm listesinden eşleştirme için kullanılır.
+     *
+     * Language aliases lead the query list; cap raw synonyms so provider requests remain bounded.
+     * Include ALL alternative titles (English, Romaji, Japanese, Chinese, Turkish, synonyms)
+     * — Turkish streaming sites often use Turkish-translated titles that only appear in synonyms.
+     */
+    fun buildPlainTitleVariants(
+        main: String,
+        alts: List<String>,
+        isMovie: Boolean = false
+    ): List<String> {
         val variants = linkedSetOf<String>()
-        // Language aliases lead the query list; cap raw synonyms so provider requests remain bounded.
-        // Include ALL alternative titles (English, Romaji, Japanese, Chinese, Turkish, synonyms)
-        // — Turkish streaming sites often use Turkish-translated titles that only appear in synonyms.
         val fullTitles = (listOf(main) + alts)
             .map { Normalizer.normalize(it, Normalizer.Form.NFKC).trim() }
             .filter { normalizeTitleForMatch(it).length >= 2 }
@@ -206,27 +225,6 @@ internal object CsTitleMatcher {
             .filter { normalizeTitleForMatch(it).length >= 2 }
             .distinctBy(::queryKey)
 
-        if (!isMovie && season != null && season > 1) {
-            val primaryBases = (listOfNotNull(cleanedBases.firstOrNull()) + cleanedBases.drop(1).take(3))
-                .distinctBy(::queryKey)
-            val suffixes = buildList {
-                add("$season. Sezon")
-                add("Season $season")
-                add("S$season")
-                add("$season. sezon")
-                add(season.toString())
-                romanValues.firstOrNull { it.second == season }?.let { add(it.first.uppercase(Locale.ROOT)) }
-                val cjk = toCjkNumber(season)
-                add("第${season}期")
-                add("第${cjk}期")
-                add("第${season}季")
-                add("第${cjk}季")
-            }
-            for (base in primaryBases) {
-                for (suffix in suffixes) addVariant("$base $suffix")
-            }
-        }
-
         (fullTitles + cleanedBases).forEach { base ->
             addVariant(simplifyTitle(base))
             addVariant(toAsciiTitle(base))
@@ -235,6 +233,58 @@ internal object CsTitleMatcher {
             // Add a fully ASCII-transliterated variant (ğ→g, ş→s, ı→i, etc.)
             val asciiBase = toAsciiTitle(base)
             if (asciiBase != base) addVariant(asciiBase)
+        }
+
+        return variants.toList()
+    }
+
+    /**
+     * Sezon-kapsamlı varyantlar ("X 2. Sezon", "X Season 2", ...) — ASLA birincil arama
+     * sorgusu olarak kullanılmaz. İki güvenlik ağı durumunda devreye girer:
+     *  1. Çıplak başlık araması hiçbir sonuç döndürmediğinde (bazı siteler sezonları
+     *     ayrı girdiler olarak indeksler; "X 2. Sezon" sitenin kendi girdi adıdır).
+     *  2. İçerik sayfası yüklendi ama hedef sezon o sayfada yoksa — sezon sayfasına
+     *     gezinmenin genel (kaynak-bağımsız) yolu eklentinin kendi aramasını kullanmaktır.
+     */
+    fun buildSeasonScopedVariants(
+        main: String,
+        alts: List<String>,
+        season: Int
+    ): List<String> {
+        if (season <= 1) return emptyList()
+        val variants = linkedSetOf<String>()
+
+        fun addVariant(value: String?) {
+            val candidate = value?.trim().orEmpty()
+            if (normalizeTitleForMatch(candidate).length >= 2) variants.add(candidate)
+        }
+
+        val fullTitles = (listOf(main) + alts)
+            .map { Normalizer.normalize(it, Normalizer.Form.NFKC).trim() }
+            .filter { normalizeTitleForMatch(it).length >= 2 }
+            .distinctBy(::queryKey)
+            .take(12)
+        val cleanedBases = fullTitles.map { extractCleanBaseTitle(it, preserveInstallment = false) }
+            .filter { normalizeTitleForMatch(it).length >= 2 }
+            .distinctBy(::queryKey)
+
+        val primaryBases = (listOfNotNull(cleanedBases.firstOrNull()) + cleanedBases.drop(1).take(3))
+            .distinctBy(::queryKey)
+        val suffixes = buildList {
+            add("$season. Sezon")
+            add("Season $season")
+            add("S$season")
+            add("$season. sezon")
+            add(season.toString())
+            romanValues.firstOrNull { it.second == season }?.let { add(it.first.uppercase(Locale.ROOT)) }
+            val cjk = toCjkNumber(season)
+            add("第${season}期")
+            add("第${cjk}期")
+            add("第${season}季")
+            add("第${cjk}季")
+        }
+        for (base in primaryBases) {
+            for (suffix in suffixes) addVariant("$base $suffix")
         }
 
         return variants.toList()

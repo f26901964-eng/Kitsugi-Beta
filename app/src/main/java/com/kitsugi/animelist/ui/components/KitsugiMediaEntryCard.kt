@@ -848,6 +848,33 @@ private fun PosterView(
             .then(posterModifier),
         contentAlignment = Alignment.Center
     ) {
+        // AniHyou paritesi: öncelik rozeti (0=düşük/1=orta/2=yüksek).
+        // "Düşük önceliği göster" kapalıysa yalnızca orta+yüksek seviyede görünür.
+        val priorityLevel = entry.priority
+        if (priorityLevel != null && (priorityLevel > 0 || com.kitsugi.animelist.data.settings.KitsugiContentPrefs.showLowPriority)) {
+            val seed = com.kitsugi.animelist.data.settings.KitsugiContentPrefs.priorityColorSeed(priorityLevel)
+            val priorityBg = when (priorityLevel) {
+                0 -> seed?.let { Color(it) } ?: Color(0xFF607D8B)
+                1 -> seed?.let { Color(it) } ?: Color(0xFFFFB300)
+                2 -> seed?.let { Color(it) } ?: Color(0xFFE53935)
+                else -> seed?.let { Color(it) } ?: Color(0xFF9E9E9E)
+            }
+            Box(
+                modifier = Modifier
+                    .align(Alignment.TopEnd)
+                    .padding(4.dp)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(priorityBg)
+                    .padding(horizontal = 5.dp, vertical = 2.dp)
+            ) {
+                Text(
+                    text = priorityLevel.toString(),
+                    color = Color.White,
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold
+                )
+            }
+        }
         KitsugiNsfwImage(
             model = imageUrl,
             contentDescription = entry.title,

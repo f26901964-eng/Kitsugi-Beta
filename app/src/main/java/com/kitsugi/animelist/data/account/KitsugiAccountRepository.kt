@@ -34,6 +34,9 @@ object KitsugiAccountRepository {
         Result.success(block())
     } catch (e: CancellationException) {
         throw e
+    } catch (e: LinkageError) {
+        // A missing SDK/runtime class must be reported as an account error, not take down the UI.
+        Result.failure(e)
     } catch (e: Exception) {
         Result.failure(e)
     }
@@ -82,7 +85,10 @@ object KitsugiAccountRepository {
         LinkedAccountVault.forgetLocalVault(context)
         val auth = KitsugiAccountClient.client.auth
         LinkedAccountVault.changeSession {
-            auth.signUpWith(Email) {
+            auth.signUpWith(
+                provider = Email,
+                redirectUrl = KitsugiAccountClient.AUTH_CALLBACK_URL
+            ) {
                 this.email = email.trim()
                 this.password = password
             }

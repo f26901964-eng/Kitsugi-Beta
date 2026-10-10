@@ -82,13 +82,36 @@ class CloudflareInterceptor(private val context: Context) : Interceptor {
     @SuppressLint("SetJavaScriptEnabled")
     private fun resolveWithWebView(url: String, call: okhttp3.Call): String? {
         val latch = CountDownLatch(1)
-        var cfClearance: String? = null
+        val cfClearance = java.util.concurrent.atomic.AtomicReference<String?>(null)
+        val settled = java.util.concurrent.atomic.AtomicBoolean(false)
         val handler = Handler(Looper.getMainLooper())
-        var webViewRef: WebView? = null
+        val webViewRef = java.util.concurrent.atomic.AtomicReference<WebView?>(null)
+        var timeoutTask: Runnable? = null
+
+        // WebView lifecycle methods must stay on the main thread. Success, timeout and
+        // cancellation all funnel through this one-shot teardown, so none can destroy the
+        // same Chromium instance twice (and success no longer leaves it resident forever).
+        fun releaseOnMainThread() {
+            if (!settled.compareAndSet(false, true)) return
+            timeoutTask?.let { handler.removeCallbacks(it) }
+            val webView = webViewRef.getAndSet(null)
+            if (webView != null) {
+                try { (webView.parent as? android.view.ViewGroup)?.removeView(webView) } catch (_: Throwable) {}
+                try { webView.stopLoading() } catch (_: Throwable) {}
+                try { webView.webViewClient = WebViewClient() } catch (_: Throwable) {}
+                try { webView.webChromeClient = null } catch (_: Throwable) {}
+                try { webView.destroy() } catch (_: Throwable) {}
+            }
+            latch.countDown()
+        }
 
         handler.post {
+            if (settled.get() || call.isCanceled()) {
+                releaseOnMainThread()
+                return@post
+            }
             try {
-                val webView = WebView(context).apply {
+                val webView = WebView(context.applicationContext).apply {
                     settings.javaScriptEnabled = true
                     settings.domStorageEnabled = true
                     settings.userAgentString = NuvioOkHttpProvider.USER_AGENT
@@ -98,16 +121,20 @@ class CloudflareInterceptor(private val context: Context) : Interceptor {
                             view: WebView,
                             request: WebResourceRequest
                         ): Boolean {
-                            // Cloudflare redirect'lerini takip et
-                            view.loadUrl(request.url.toString())
-                            return true
+                            // Let WebView handle redirects itself; re-loading here can loop.
+                            return false
                         }
 
                         override fun onPageFinished(view: WebView, pageUrl: String) {
+                            if (settled.get() || call.isCanceled()) {
+                                releaseOnMainThread()
+                                return
+                            }
                             // Her sayfa yüklenişinde cf_clearance cookie'yi kontrol et
                             val httpUrl = pageUrl.toHttpUrlOrNull() ?: return
-                            val cookieString = CookieManager.getInstance()
-                                .getCookie(httpUrl.toString()) ?: return
+                            val cookieString = runCatching {
+                                CookieManager.getInstance().getCookie(httpUrl.toString())
+                            }.getOrNull() ?: return
 
                             val headers = okhttp3.Headers.Builder().add("Set-Cookie", cookieString).build()
                             val parsed = Cookie.parseAll(httpUrl, headers)
@@ -117,54 +144,57 @@ class CloudflareInterceptor(private val context: Context) : Interceptor {
                                     .firstOrNull { it.startsWith("$CF_CLEARANCE_COOKIE=") }
                                     ?.removePrefix("$CF_CLEARANCE_COOKIE=")
 
-                            if (found != null) {
-                                cfClearance = found
+                            if (!found.isNullOrBlank()) {
+                                cfClearance.set(found)
                                 Log.d(TAG, "cf_clearance cookie bulundu!")
-                                view.stopLoading()
-                                latch.countDown()
+                                releaseOnMainThread()
                             }
                         }
                     }
                 }
-                webViewRef = webView
-                webView.loadUrl(url)
+                webViewRef.set(webView)
 
-                // Timeout: latch 15s içinde indirilmezse iptal
-                handler.postDelayed({
-                    if (latch.count > 0) {
+                // Timeout: varsa son bir kez cookie'yi al, sonra WebView'ı her durumda kapat.
+                timeoutTask = Runnable {
+                    if (!settled.get()) {
                         Log.w(TAG, "WebView timeout: cf_clearance 15s içinde alınamadı — $url")
-                        webView.stopLoading()
-                        webView.destroy()
-                        latch.countDown()
+                        runCatching { CookieManager.getInstance().getCookie(url) }
+                            .getOrNull()
+                            ?.split(";")
+                            ?.map { it.trim() }
+                            ?.firstOrNull { it.startsWith("$CF_CLEARANCE_COOKIE=") }
+                            ?.removePrefix("$CF_CLEARANCE_COOKIE=")
+                            ?.takeIf { it.isNotBlank() }
+                            ?.let(cfClearance::set)
+                        releaseOnMainThread()
                     }
-                }, TIMEOUT_MS)
-
+                }.also { handler.postDelayed(it, TIMEOUT_MS) }
+                webView.loadUrl(url)
             } catch (e: Exception) {
                 Log.e(TAG, "WebView başlatma hatası: ${e.message}", e)
-                latch.countDown()
+                releaseOnMainThread()
             }
         }
 
-        // Wait in a cancellation-aware loop
+        // Wait in a cancellation-aware loop. A deadline fallback guarantees cleanup even if
+        // the delayed timeout callback was postponed by a busy main thread.
         val deadline = System.currentTimeMillis() + TIMEOUT_MS + 1000L
-        while (System.currentTimeMillis() < deadline && latch.count > 0) {
+        while (latch.count > 0 && System.currentTimeMillis() < deadline) {
             if (call.isCanceled()) {
                 Log.w(TAG, "Call was canceled, destroying WebView resolver.")
-                handler.post {
-                    try {
-                        webViewRef?.stopLoading()
-                        webViewRef?.destroy()
-                    } catch (t: Throwable) { /* ignore */ }
-                }
+                handler.post { releaseOnMainThread() }
                 break
             }
             try {
-                Thread.sleep(100L)
-            } catch (ie: InterruptedException) {
+                latch.await(100L, TimeUnit.MILLISECONDS)
+            } catch (_: InterruptedException) {
+                Thread.currentThread().interrupt()
+                handler.post { releaseOnMainThread() }
                 break
             }
         }
+        if (latch.count > 0) handler.post { releaseOnMainThread() }
 
-        return cfClearance
+        return cfClearance.get()
     }
 }

@@ -199,13 +199,20 @@ object BangumiSyncManager {
             // Eski/legacy kayıtlarda stableId yerine ham ID yazılmış olabilir.
             return stored
         }
-        return BangumiIdNamespace.resolveBangumiId(
-            context = context,
-            storedId = stored,
-            title = listOfNotNull(entry.titleJapanese, entry.title, entry.titleEnglish)
-                .firstOrNull { it.isNotBlank() },
-            expectedYear = entry.year,
-            isAnime = isAnime
-        )
+        val candidateTitles = listOfNotNull(entry.titleJapanese, entry.title, entry.titleEnglish)
+            .filter { it.isNotBlank() }
+            .distinct()
+
+        for (candidateTitle in candidateTitles) {
+            val resolved = BangumiIdNamespace.resolveBangumiId(
+                context = context,
+                storedId = stored,
+                title = candidateTitle,
+                expectedYear = entry.year,
+                isAnime = isAnime
+            )
+            if (resolved != null) return resolved
+        }
+        return null
     }
 }

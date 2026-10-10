@@ -15,13 +15,16 @@ object SearchResultScorer {
         val hasCompactMatch = query.compact.isNotBlank() && query.compact == candidate.compact
         val hasAliasOverlap = candidate.aliases.any { it in query.aliases } || query.aliases.any { it in candidate.aliases }
 
-        val similarity = max(
+        // AniHyou paritesi: "Fuzzy arama kullan" kapalıysa benzerlik (Levenshtein)
+        // skoru devre dışı kalır; yalnızca kesin/token/alias eşleşmeleri kabul edilir.
+        val fuzzyEnabled = com.kitsugi.animelist.data.settings.KitsugiContentPrefs.fuzzySearchEnabled
+        val similarity = if (fuzzyEnabled) max(
             MangaTitleMatcher.getSimilarityScore(query.raw, manga.title),
             max(
                 MangaTitleMatcher.getSimilarityScore(query.cleaned, candidate.cleaned),
                 MangaTitleMatcher.getSimilarityScore(query.ascii, candidate.ascii),
             ),
-        )
+        ) else 0.0
 
         // Reject candidates with no word overlap, compact match, alias overlap, or high similarity
         val isMatchEligible = hasTokenOverlap || hasCompactMatch || hasAliasOverlap || similarity >= 0.65

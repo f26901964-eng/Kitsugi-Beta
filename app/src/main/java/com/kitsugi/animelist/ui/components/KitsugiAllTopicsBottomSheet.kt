@@ -61,9 +61,18 @@ fun KitsugiAllTopicsBottomSheet(
     var page by remember { mutableStateOf(1) }
     var hasMore by remember { mutableStateOf(true) }
 
-    // Translation states
+    // Translation & source filter states
     var selectedLanguage by remember { mutableStateOf("original") }
+    var selectedSourceFilter by remember { mutableStateOf("all") }
     val translatedTitles = remember { mutableStateMapOf<Int, String>() }
+
+    val filteredTopics = remember(topicsList, selectedSourceFilter) {
+        if (selectedSourceFilter == "all") {
+            topicsList
+        } else {
+            topicsList.filter { it.source.equals(selectedSourceFilter, ignoreCase = true) }
+        }
+    }
 
     var activeTopicForDetail by remember { mutableStateOf<KitsugiForumTopic?>(null) }
 
@@ -104,7 +113,7 @@ fun KitsugiAllTopicsBottomSheet(
                 if (newTopics.isEmpty()) {
                     hasMore = false
                 } else {
-                    topicsList = (topicsList + newTopics).distinctBy { it.id }
+                    topicsList = (topicsList + newTopics).distinctBy { "${it.source}_${it.id}" }
                     page = nextPage
                 }
             } catch (e: Exception) {
@@ -223,13 +232,50 @@ fun KitsugiAllTopicsBottomSheet(
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
+            // Source Filter Pills (Tümü / AniList / MAL)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(bottom = 10.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                val filterOptions = listOf(
+                    "all" to "Tümü",
+                    "anilist" to "AniList",
+                    "jikan" to "MAL"
+                )
+                filterOptions.forEach { (sourceId, label) ->
+                    val isSelected = selectedSourceFilter == sourceId
+                    Row(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(10.dp))
+                            .background(if (isSelected) accentColor.copy(alpha = 0.22f) else KitsugiColors.SurfaceStrong)
+                            .tvClickable(shape = RoundedCornerShape(10.dp)) { selectedSourceFilter = sourceId }
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        if (sourceId != "all") {
+                            KitsugiPlatformLogo(platformId = sourceId, size = 12.dp)
+                        }
+                        Text(
+                            text = label,
+                            color = if (isSelected) accentColor else KitsugiColors.TextSecondary,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(4.dp))
 
             if (isLoading && topicsList.isEmpty()) {
                 Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                     KitsugiPlasmaLoader(size = 46.dp)
                 }
-            } else if (topicsList.isEmpty()) {
+            } else if (filteredTopics.isEmpty()) {
                 Box(modifier = Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                     Text(text = "Tartışma konusu bulunamadı.", color = KitsugiColors.TextMuted, fontSize = 14.sp)
                 }
@@ -241,7 +287,7 @@ fun KitsugiAllTopicsBottomSheet(
                         .weight(1f),
                     verticalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
-                    items(topicsList, key = { it.id }) { topic ->
+                    items(filteredTopics, key = { "${it.source}_${it.id}" }) { topic ->
                         val displayTitle = if (selectedLanguage == "turkish") translatedTitles[topic.id] ?: topic.title else topic.title
                         
                         // Theme-aligned Topic Card
@@ -361,7 +407,7 @@ fun KitsugiAllTopicsBottomSheet(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(10.dp)
                                 ) {
-                                    if (topic.userId != null) {
+                                    if (topic.source.equals("anilist", ignoreCase = true)) {
                                         Row(
                                             verticalAlignment = Alignment.CenterVertically,
                                             modifier = Modifier.tvClickable(shape = RoundedCornerShape(8.dp)) {

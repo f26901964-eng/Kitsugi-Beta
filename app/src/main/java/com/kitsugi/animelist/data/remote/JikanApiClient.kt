@@ -176,11 +176,13 @@ class JikanApiClient(
         orderBy: String? = null,
         page: Int = 1,
         season: String? = null,
-        seasonYear: Int? = null
+        seasonYear: Int? = null,
+        startYear: Int? = null,
+        endYear: Int? = null
     ) = jikanSearchClient.searchMalAdvanced(
         query, mediaType, showAdultContent, status, format, genres, excludedGenres,
         rating, minScore, maxScore, producerId, magazineId, letter, sort, orderBy,
-        page, season, seasonYear
+        page, season, seasonYear, startYear, endYear
     )
 
     suspend fun searchMalCharacters(query: String, page: Int = 1, orderBy: String = "favorites", sort: String = "desc", letter: String? = null) =
@@ -267,11 +269,12 @@ class JikanApiClient(
     suspend fun fetchStaff(source: String, externalId: Int?, mediaType: MediaType, tmdbId: Int? = null, realMalId: Int? = null) = staffClient.fetchStaff(source, externalId, mediaType, tmdbId, realMalId)
     suspend fun fetchStaffDetail(source: String, staffId: Int, name: String? = null) = staffClient.fetchStaffDetail(source, staffId, name)
     suspend fun fetchStudioDetail(source: String, studioId: Int, name: String? = null) = studioClient.fetchStudioDetail(source, studioId, name)
+    suspend fun fetchStudioWorksPage(source: String, studioId: Int, page: Int) = studioClient.fetchStudioWorksPage(source, studioId, page)
 
     // Relations, Stats, Reviews, Episodes
     suspend fun fetchRelations(source: String, externalId: Int?, mediaType: MediaType, tmdbId: Int? = null, realMalId: Int? = null, title: String? = null) = mediaRelationsClient.fetchRelations(source, externalId, mediaType, tmdbId, realMalId, title)
     suspend fun fetchRecommendations(source: String, externalId: Int?, mediaType: MediaType, tmdbId: Int? = null, realMalId: Int? = null, title: String? = null) = mediaRelationsClient.fetchRecommendations(source, externalId, mediaType, tmdbId, realMalId, title)
-    suspend fun fetchStats(source: String, externalId: Int?, mediaType: MediaType, realMalId: Int? = null) = mediaSocialClient.fetchStats(source, externalId, mediaType, realMalId)
+    suspend fun fetchStats(source: String, externalId: Int?, mediaType: MediaType, realMalId: Int? = null, tmdbId: Int? = null) = mediaSocialClient.fetchStats(source, externalId, mediaType, realMalId, tmdbId)
     suspend fun fetchReviews(source: String, externalId: Int?, mediaType: MediaType, page: Int = 1, tmdbId: Int? = null, realMalId: Int? = null) = mediaSocialClient.fetchReviews(source, externalId, mediaType, page, tmdbId, realMalId)
     suspend fun fetchEpisodes(
         source: String,
@@ -305,8 +308,11 @@ class JikanApiClient(
     suspend fun fetchActivityReplies(activityId: Int) =
         mediaSocialClient.fetchActivityReplies(activityId)
 
-    suspend fun fetchForumTopicReplies(topicId: Int, page: Int = 1) =
-        mediaSocialClient.fetchForumTopicReplies(topicId, page)
+    suspend fun fetchForumTopicReplies(topicId: Int, page: Int = 1, source: String = "anilist") =
+        mediaSocialClient.fetchForumTopicReplies(topicId, page, source)
+
+    suspend fun enrichForumTopicIfNeeded(topic: KitsugiForumTopic) =
+        mediaSocialClient.enrichForumTopicIfNeeded(topic)
 
     suspend fun toggleLike(id: Int, type: String) =
         mediaMutationsClient.toggleLike(id, type)

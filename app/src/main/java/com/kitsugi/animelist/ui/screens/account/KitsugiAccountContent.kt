@@ -24,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -37,8 +38,11 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
+import com.kitsugi.animelist.data.account.KitsugiAccountClient
 import com.kitsugi.animelist.data.account.KitsugiAccountRepository
 import com.kitsugi.animelist.data.account.LinkedAccountVault
+import io.github.jan.supabase.auth.auth
+import io.github.jan.supabase.auth.status.SessionStatus
 import com.kitsugi.animelist.data.local.KitsugiDatabase
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
@@ -68,6 +72,22 @@ fun KitsugiAccountContent() {
     var busy by remember { mutableStateOf(false) }
     var message by remember { mutableStateOf<String?>(null) }
     var isError by remember { mutableStateOf(false) }
+    val authSessionStatus by KitsugiAccountClient.client.auth.sessionStatus.collectAsState()
+
+    // E-posta doğrulama deep link'i mevcut Activity'ye döndüğünde bu ekran oturumu da izler.
+    LaunchedEffect(authSessionStatus) {
+        when (val status = authSessionStatus) {
+            is SessionStatus.Authenticated -> status.session.user?.email?.let { confirmedEmail ->
+                loggedInEmail = confirmedEmail
+                if (message?.startsWith("Doğrulama e-postası") == true) {
+                    isError = false
+                    message = "E-posta doğrulandı. Şifreni tekrar girerek güvenli kasayı aç."
+                }
+            }
+            is SessionStatus.NotAuthenticated -> loggedInEmail = null
+            else -> Unit
+        }
+    }
 
     fun showError(prefix: String, e: Throwable) {
         isError = true
@@ -249,11 +269,53 @@ fun KitsugiAccountContent() {
 
         if (loggedInEmail != null) {
             Text(vaultStatus, style = MaterialTheme.typography.bodySmall, color = KitsugiColors.TextSecondary)
+            if (!LinkedAccountVault.hasLocalVault(context)) {
+                Text(
+                    "E-posta doğrulaması hesabı açtı. Şifreli yedeğini kullanmak için Kitsugi şifreni tekrar doğrula.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = KitsugiColors.TextSecondary
+                )
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    enabled = !busy,
+                    label = { Text("Kitsugi şifresi") },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                    modifier = Modifier.fillMaxWidth()
+                )
+                Button(
+                    onClick = {
+                        val accountEmail = loggedInEmail ?: return@Button
+                        busy = true
+                        isError = false
+                        message = null
+                        scope.launch {
+                            KitsugiAccountRepository.signIn(context, accountEmail, password)
+                                .onSuccess {
+                                    password = ""
+                                    if (LinkedAccountVault.hasLocalVault(context)) {
+                                        isError = false
+                                        message = "Şifre doğrulandı; güvenli hesap yedeğin açıldı."
+                                    } else {
+                                        isError = true
+                                        message = "Giriş doğrulandı ancak kasa açılamadı: ${LinkedAccountVault.status.value}"
+                                    }
+                                }
+                                .onFailure { showError("Şifre doğrulanamadı", it) }
+                            busy = false
+                        }
+                    },
+                    enabled = !busy && password.length >= 6,
+                    modifier = Modifier.fillMaxWidth()
+                ) { Text("Şifreyi doğrula ve kasayı aç") }
+            }
             Text("Şifre sıfırlanırsa eski şifreli kasa açılamaz. Yerel veriler çıkışta silinmez; farklı hesaba girişte bu cihazdaki veriler o hesaba yedeklenebilir.",
                 style = MaterialTheme.typography.bodySmall, color = KitsugiColors.TextSecondary)
             Button(
                 onClick = { syncNow() },
-                enabled = !busy,
+                enabled = !busy && LinkedAccountVault.hasLocalVault(context),
                 modifier = Modifier.fillMaxWidth()
             ) { Text("Şimdi eşitle") }
             if (vaultConflicts.isNotEmpty()) {

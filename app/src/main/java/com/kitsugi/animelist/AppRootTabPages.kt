@@ -171,9 +171,21 @@ fun AppRootTabPages(
                         // AniList kaynaklı anime/manga favorilerinde gelen ID direkt AniList ID'sidir.
                         // KitsugiAniListDetailClient 100M+ offset'e göre id: vs idMal: ayrımı yapar.
                         // Offset eklenerek doğru sorgulama sağlanır.
-                        val stableId = if (source == "anilist") mediaId + 100_000_000 else mediaId
-                        // isAdult, mevcut liste kaydından türetilerek blur tutarlılığı sağlanır.
-                        val resolvedIsAdult = ctx.mediaEntries.firstOrNull { entry ->
+                        val stableId = if (source.equals("anilist", ignoreCase = true)) mediaId + 100_000_000 else mediaId
+                        // Favori API verisindeki adult bilgisini de taşı: içerik yerel listede
+                        // olmasa bile açılış animasyonundaki poster ilk kareden itibaren bulanık kalmalı.
+                        val profileFavoriteAdult = if (source.equals("anilist", ignoreCase = true)) {
+                            val profileState = ctx.kitsugiProfileViewModel.aniListState.value
+                            val favorites = if (mediaType == MediaType.Manga) {
+                                profileState.favoriteManga
+                            } else {
+                                profileState.favoriteAnime
+                            }
+                            favorites.firstOrNull { it.id.toIntOrNull() == mediaId }?.isAdult
+                        } else {
+                            null
+                        }
+                        val resolvedIsAdult = profileFavoriteAdult ?: ctx.mediaEntries.firstOrNull { entry ->
                             entry.malId == stableId && entry.source.equals(source, ignoreCase = true)
                         }?.isAdult ?: false
                         val result = com.kitsugi.animelist.data.remote.JikanSearchResult(
@@ -209,7 +221,8 @@ fun AppRootTabPages(
                     onUserProfileClick = { userId, username, avatarUrl ->
                         ctx.navState.navigateToDetail(DetailScreen.UserProfile(userId, username, avatarUrl))
                     },
-                    isBottomBarVisible = ctx.isBottomBarVisible
+                    isBottomBarVisible = ctx.isBottomBarVisible,
+                    onScrollReset = ctx.onScrollReset
                 )
             }
         }
@@ -242,7 +255,8 @@ private fun ExploreTabPage(ctx: TabPagesContext) {
         onEditEntry = ctx.onEditEntry,
         onOpenAiringCalendar = {
             val preferredSource = when (ctx.exploreViewModel.selectedPlatform) {
-                com.kitsugi.animelist.ui.screens.explore.ExplorePlatform.ALL -> "anilist"
+                // Tümü: takvim tüm kaynakların birleşimi (AniList + TMDB + ...)
+                com.kitsugi.animelist.ui.screens.explore.ExplorePlatform.ALL -> "all"
                 com.kitsugi.animelist.ui.screens.explore.ExplorePlatform.MAL -> "jikan"
                 com.kitsugi.animelist.ui.screens.explore.ExplorePlatform.AniList -> "anilist"
                 com.kitsugi.animelist.ui.screens.explore.ExplorePlatform.TMDB -> "tmdb"
@@ -265,6 +279,7 @@ private fun ExploreTabPage(ctx: TabPagesContext) {
         titleLanguage = ctx.appSettings.titleLanguage,
         scoreFormat = ctx.appSettings.scoreFormat,
         hideScores = ctx.appSettings.hideScores,
+        separateNovelsManga = ctx.appSettings.separateNovelsManga,
         onOpenNotifications = { ctx.navState.navigateToDetail(DetailScreen.Notifications) },
         isNotificationsVisible = ctx.authViewModel.isAniListConnected || ctx.authViewModel.isMalConnected || ctx.authViewModel.isSimklConnected,
         showAnimeLogos = ctx.appSettings.showAnimeLogos,
@@ -296,6 +311,7 @@ private fun SearchTabPage(ctx: TabPagesContext) {
         onAddSelectionToList = ctx.onAddApiSelectionToList,
         viewModel = ctx.searchViewModel,
         titleLanguage = ctx.appSettings.titleLanguage,
+        staffNameLanguage = ctx.appSettings.staffNameLanguage,
         scoreFormat = ctx.appSettings.scoreFormat,
         hideScores = ctx.appSettings.hideScores,
         isBottomBarVisible = ctx.isBottomBarVisible,

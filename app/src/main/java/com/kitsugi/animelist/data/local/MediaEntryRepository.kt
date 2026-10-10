@@ -16,9 +16,10 @@ class MediaEntryRepository(
 ) {
     val entriesFlow: Flow<List<MediaEntry>> = kotlinx.coroutines.flow.flow {
         dao.observeAll().collect { entities ->
-            emit(entities.map { it.toDomain() })
+            emit(entities.withCrossSourceAdultFlags())
         }
     }
+
 
     suspend fun insert(entry: MediaEntry) {
         val entryWithTime = if (entry.updatedAt == 0L) {
@@ -99,7 +100,14 @@ class MediaEntryRepository(
             }
             if (match != null) {
                 matchedIds.add(match.id)
-                updates[match.id] = imported.copy(id = match.id).toEntity()
+                // +18 işareti GERİ ALINMAZ: örneğin Simkl liste API'si yetişkin bayrağını
+                // taşımıyor; güncel kayıt `isAdult = false` getirse bile AniList/MAL gibi
+                // birinci elden bilgilendirilmiş satırın işaretini silmek bulanıklığı
+                // kaybeder (rapor: "Simkl listesinde 18+ blur uygulanmıyor").
+                updates[match.id] = imported.copy(
+                    id = match.id,
+                    isAdult = imported.isAdult || match.isAdult
+                ).toEntity()
             } else {
                 val prior = inserts.indexOfFirst {
                     com.kitsugi.animelist.model.MediaIdentity.sameMedia(it, imported, allowTitle = false)
@@ -110,6 +118,54 @@ class MediaEntryRepository(
         // allowDelete=false must really mean NO deletion, including alleged title duplicates.
         val deletions = if (allowDelete) existing.filter { it.id !in matchedIds }.map { it.id } else emptyList()
         dao.smartImportTransaction(inserts.map { it.copy(id = 0).toEntity() }, updates.values.toList(), deletions)
+
+        if (sourceNeedsAdultRescan(source)) {
+            // Liste yeni çekildi → +18 işaretlerini kimliklerden tamamla.
+            val appContext = context ?: com.kitsugi.animelist.KitsugiApplication.getInstance()?.applicationContext
+            if (appContext != null) {
+                runCatching {
+                    com.kitsugi.animelist.ui.screens.mylist.AdultFlagBackfillMigration.requestRescan(appContext)
+                }
+            }
+        }
+    }
+
+    /**
+     * Bir kaynağın listesini BAŞTAN yazarken +18 işaretlerini korur.
+     *
+     * `deleteBySource(...) + insertAll(...)` kalıbı (gecelik arka plan senkronu ve
+     * bildirim işçisi bunu yapıyor) sil-yeniden-yaz döngüsüdür: Simkl/Shikimori/Kitsu
+     * liste API'leri `adult` alanını taşımadığından, daha önce kimlik üzerinden
+     * işaretlenmiş kayıtların bulanıklığı da o gece silinirdi — "bir düzeldi, sonra
+     * yine bozuldu" şikâyetinin kökü. Bu metot eski işaretleri kanonik kimlikler
+     * üzerinden yeni listeye geri yazar.
+     */
+    suspend fun replaceSourcePreservingAdultFlags(source: String, entries: List<MediaEntry>) {
+        val preservedKeys = runCatching {
+            dao.getAll()
+                .filter { it.source.equals(source, ignoreCase = true) && it.isAdult }
+                .map { it.toDomain() }
+                .flatMap { com.kitsugi.animelist.model.MediaIdentity.keys(it) }
+                .toSet()
+        }.getOrDefault(emptySet())
+
+        val enriched = if (preservedKeys.isEmpty()) entries else entries.map { entry ->
+            if (entry.isAdult ||
+                com.kitsugi.animelist.model.MediaIdentity.keys(entry).any { it in preservedKeys }
+            ) entry.copy(isAdult = true) else entry
+        }
+
+        dao.deleteBySource(source)
+        insertAll(enriched)
+
+        if (sourceNeedsAdultRescan(source)) {
+            val appContext = context ?: com.kitsugi.animelist.KitsugiApplication.getInstance()?.applicationContext
+            if (appContext != null) {
+                runCatching {
+                    com.kitsugi.animelist.ui.screens.mylist.AdultFlagBackfillMigration.requestRescan(appContext)
+                }
+            }
+        }
     }
 
     suspend fun updateAllDirect(entries: List<MediaEntry>) {
@@ -288,3 +344,47 @@ class MediaEntryRepository(
         }
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// +18 (NSFW blur) işaretleri — kaynaklar arası tutarlılık
+// ─────────────────────────────────────────────────────────────────────────────
+
+/**
+ * +18 işaretini KAYNAKLAR ARASI yayar.
+ *
+ * `isAdult` satır bazlı tutulur; oysa +18 bir YAPIM özelliğidir. AniList satırı
+ * `isAdult = true` derken Simkl/Shikimori/Bangumi satırı aynı yapım için `false`
+ * olabilir (bu kaynakların liste API'leri `adult` alanını taşımıyor). Sonuç: blur
+ * ayarı açıkken kullanıcı aynı yapımı bir sekmede bulanık, diğerinde çıplak
+ * görüyordu — rapor: "Simkl listem sayfası üzerinde kutucuklara 18+ blur
+ * uygulanmıyor".
+ *
+ * Bu yüzden kanonik kimlikleri ([com.kitsugi.animelist.model.MediaIdentity.keys])
+ * eşleşen tüm satırlar +18 sayılır. Yalnızca false→true yönünde çalışır; asla
+ * işareti kaldırmaz ve kimliği çakışan (farklı yapım) satırlara dokunmaz.
+ */
+internal fun List<MediaEntryEntity>.withCrossSourceAdultFlags(): List<MediaEntry> {
+    if (isEmpty()) return emptyList()
+    val domains = map { it.toDomain() }
+    val adultKeys = HashSet<String>()
+    domains.forEach { entry ->
+        if (entry.isAdult) adultKeys += com.kitsugi.animelist.model.MediaIdentity.keys(entry)
+    }
+    if (adultKeys.isEmpty()) return domains
+    return domains.map { entry ->
+        if (entry.isAdult) entry
+        else if (com.kitsugi.animelist.model.MediaIdentity.keys(entry).any { it in adultKeys }) {
+            entry.copy(isAdult = true)
+        } else entry
+    }
+}
+
+/**
+ * Bu kaynakların liste API'leri +18 bilgisini taşımaz; içe aktarımdan sonra
+ * kimlik üzerinden yeniden sorgulanmaları gerekir
+ * (bkz. [com.kitsugi.animelist.ui.screens.mylist.AdultFlagBackfillMigration]).
+ */
+internal fun sourceNeedsAdultRescan(source: String): Boolean =
+    source.equals("simkl", ignoreCase = true) ||
+        source.equals("shikimori", ignoreCase = true) ||
+        source.equals("bangumi", ignoreCase = true)

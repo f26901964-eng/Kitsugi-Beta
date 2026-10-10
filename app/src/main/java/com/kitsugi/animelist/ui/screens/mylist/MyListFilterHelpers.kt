@@ -82,7 +82,15 @@ internal fun filterMyListEntries(
                     entry.source.lowercase().contains(normalizedQuery) ||
                     entry.year?.toString()?.contains(normalizedQuery) == true ||
                     entry.malId?.toString()?.contains(normalizedQuery) == true ||
-                    normQueryMatch
+                    normQueryMatch ||
+                    // AniHyou paritesi: "Fuzzy arama kullan" — yazım hatası/kısaltma toleransı
+                    (
+                        com.kitsugi.animelist.data.settings.KitsugiContentPrefs.fuzzySearchEnabled && (
+                            com.kitsugi.animelist.data.settings.KitsugiContentPrefs.fuzzyMatches(entry.title, normalizedQuery) ||
+                                com.kitsugi.animelist.data.settings.KitsugiContentPrefs.fuzzyMatches(entry.titleEnglish.orEmpty(), normalizedQuery) ||
+                                com.kitsugi.animelist.data.settings.KitsugiContentPrefs.fuzzyMatches(entry.titleJapanese.orEmpty(), normalizedQuery)
+                            )
+                        )
             }
         }
         .toList()

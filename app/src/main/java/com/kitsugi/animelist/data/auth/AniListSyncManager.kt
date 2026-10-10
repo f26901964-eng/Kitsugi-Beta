@@ -546,6 +546,32 @@ object AniListSyncManager {
         }
     }
 
+    /**
+     * AniHyou "Özel Listeler" paritesi: hesap genelindeki özel liste adlarını günceller.
+     * UpdateUser mutasyonu anime+manga liste seçeneklerine aynı ad listesini yazar.
+     */
+    fun updateCustomLists(token: String, customLists: List<String>): Boolean {
+        val query = """
+            mutation (${'$'}animeLists: [String], ${'$'}mangaLists: [String]) {
+                UpdateUser(
+                    animeListOptions: { customLists: ${'$'}animeLists },
+                    mangaListOptions: { customLists: ${'$'}mangaLists }
+                ) {
+                    id
+                }
+            }
+        """.trimIndent()
+        val variables = JSONObject()
+            .put("animeLists", org.json.JSONArray(customLists))
+            .put("mangaLists", org.json.JSONArray(customLists))
+        return try {
+            val response = postAniList(token = token, query = query, variables = variables)
+            JSONObject(response).optJSONObject("data")?.optJSONObject("UpdateUser") != null
+        } catch (e: java.lang.Exception) {
+            false
+        }
+    }
+
     fun updateEntryCustomLists(
         token: String,
         mediaId: Int?,

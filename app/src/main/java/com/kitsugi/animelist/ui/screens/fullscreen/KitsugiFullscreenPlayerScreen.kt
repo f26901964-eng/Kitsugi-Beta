@@ -1347,7 +1347,7 @@ fun PlaybackEndedOverlay(
                         onClick = onPlayNext,
                         colors = ButtonDefaults.buttonColors(
                             containerColor = KitsugiColors.Accent,
-                            contentColor = Color.White
+                            contentColor = com.kitsugi.animelist.ui.theme.onAccentColor(KitsugiColors.Accent)
                         ),
                         shape = RoundedCornerShape(8.dp)
                     ) {

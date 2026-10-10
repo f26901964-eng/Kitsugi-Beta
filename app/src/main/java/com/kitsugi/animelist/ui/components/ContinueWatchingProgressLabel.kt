@@ -79,7 +79,7 @@ fun ContinueWatchingProgressLabel(
                     Icon(
                         imageVector = Icons.Default.PlayArrow,
                         contentDescription = null,
-                        tint = Color.White,
+                        tint = com.kitsugi.animelist.ui.theme.onAccentColor(accentColor),
                         modifier = Modifier.size(10.dp)
                     )
                 }

@@ -205,13 +205,24 @@ class JikanSearchClient {
         orderBy: String? = null,
         page: Int = 1,
         season: String? = null,
-        seasonYear: Int? = null
+        seasonYear: Int? = null,
+        startYear: Int? = null,
+        endYear: Int? = null
     ): List<JikanSearchResult> {
         return withContext(Dispatchers.IO) {
             val endpoint = if (mediaType == MediaType.Manga) "manga" else "anime"
 
-            // 1. Sezon ve Yıl seçiliyse -> Resmi MAL Sezon API'si
-            if (season != null && seasonYear != null && endpoint == "anime") {
+            // The seasonal endpoint natively applies only season+year; combine it with
+            // Jikan's regular search endpoint whenever any other facet/sort is requested.
+            val hasAdditionalSeasonFilters = !genres.isNullOrEmpty() || !excludedGenres.isNullOrEmpty() ||
+                !status.isNullOrBlank() || !format.isNullOrBlank() || !rating.isNullOrBlank() ||
+                minScore != null || maxScore != null || producerId != null || magazineId != null ||
+                !letter.isNullOrBlank() || startYear != null || endYear != null ||
+                (!sort.isNullOrBlank() && !sort.equals("desc", ignoreCase = true)) ||
+                (!orderBy.isNullOrBlank() && !orderBy.equals("popularity", ignoreCase = true))
+            if (query.isBlank() && season != null && seasonYear != null && endpoint == "anime" &&
+                !hasAdditionalSeasonFilters
+            ) {
                 val offset = (page - 1).coerceAtLeast(0) * 24
                 val fields = "id,title,main_picture,alternative_titles,start_date,mean,num_episodes,media_type,genres,nsfw,rank,popularity,num_list_users"
                 val sUrl = "https://api.myanimelist.net/v2/anime/season/$seasonYear/${season.lowercase()}?limit=24&offset=$offset&fields=$fields"
@@ -236,6 +247,47 @@ class JikanSearchClient {
                 return@withContext runCatching {
                     searchJikanFallback(query, mediaType, showAdultContent, page)
                 }.getOrDefault(emptyList())
+            }
+
+            // Jikan supports native genre/date filters on /anime and /manga. MAL's
+            // ranking endpoint does not accept them, so never fall back to an unfiltered
+            // ranking list when a detail facet is active.
+            val hasJikanFilters = !genres.isNullOrEmpty() || !excludedGenres.isNullOrEmpty() ||
+                !status.isNullOrBlank() || !format.isNullOrBlank() || !rating.isNullOrBlank() ||
+                minScore != null || maxScore != null || producerId != null || magazineId != null ||
+                startYear != null || endYear != null || season != null || seasonYear != null
+            if (query.isBlank() && hasJikanFilters) {
+                val params = mutableListOf("limit=24", "page=${page.coerceAtLeast(1)}", "sfw=${jikanSfw(showAdultContent)}")
+                fun addParam(key: String, value: String?) {
+                    if (!value.isNullOrBlank()) params += "$key=${URLEncoder.encode(value, "UTF-8")}"
+                }
+                val seasonRange = if (season != null && seasonYear != null && endpoint == "anime") {
+                    when (season.lowercase()) {
+                        "winter" -> "$seasonYear-01-01" to "$seasonYear-03-31"
+                        "spring" -> "$seasonYear-04-01" to "$seasonYear-06-30"
+                        "summer" -> "$seasonYear-07-01" to "$seasonYear-09-30"
+                        "fall", "autumn" -> "$seasonYear-10-01" to "$seasonYear-12-31"
+                        else -> null
+                    }
+                } else null
+                val effectiveStartYear = startYear?.takeIf { it > 0 }
+                val effectiveEndYear = endYear?.takeIf { it > 0 }
+                addParam("start_date", effectiveStartYear?.let { "$it-01-01" } ?: seasonRange?.first)
+                addParam("end_date", effectiveEndYear?.let { "$it-12-31" } ?: seasonRange?.second)
+                addParam("genres", genres?.takeIf { it.isNotEmpty() }?.joinToString(","))
+                addParam("genres_exclude", excludedGenres?.takeIf { it.isNotEmpty() }?.joinToString(","))
+                addParam("status", status)
+                addParam("type", format)
+                addParam("rating", rating)
+                addParam("min_score", minScore?.toString())
+                addParam("max_score", maxScore?.toString())
+                addParam("producers", producerId?.toString())
+                addParam("magazines", magazineId?.toString())
+                val sortField = orderBy?.takeIf { it.isNotBlank() }
+                addParam("order_by", sortField)
+                addParam("sort", sort?.takeIf { it.equals("asc", true) || it.equals("desc", true) })
+                val filtered = jikanListOrEmpty("$endpoint?${params.joinToString("&")}", mediaType)
+                return@withContext filtered
             }
 
             // 3. Yalnızca boş sorguda -> Resmi MAL Sıralama API'si

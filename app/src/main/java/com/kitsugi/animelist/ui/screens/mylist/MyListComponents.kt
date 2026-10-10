@@ -970,7 +970,10 @@ fun MyListContentPage(
                         )
                         Spacer(modifier = Modifier.height(90.dp))
                     }
-                } else if (selectedStatusFilterId == "completed" && pageTabIndex == selectedTabIndex) {
+                } else if ((selectedStatusFilterId == "completed" && pageTabIndex == selectedTabIndex) ||
+                    !appSettings.separatedListStyle
+                ) {
+                    // AniHyou paritesi: "Ayrılmış liste tarzını kullan" kapalıysa düz akış.
                     MyListFlatContent(
                         visibleEntries = displayEntries,
                         selectedListLayoutId = selectedListLayoutId,

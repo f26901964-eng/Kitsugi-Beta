@@ -22,7 +22,9 @@ data class GalleryItem(
      * alanlar (yükleyen, indirme sayısı vb.) uydurulmaz — yalnızca gerçekten
      * gelen veriler listelenir.
      */
-    val details: Map<String, String> = emptyMap()
+    val details: Map<String, String> = emptyMap(),
+    /** Fanart.tv sezon etiketi ("1", "2"…). "all" / boş değer yazılmaz. */
+    val season: String? = null
 )
 
 enum class GalleryCategory(val label: String) {

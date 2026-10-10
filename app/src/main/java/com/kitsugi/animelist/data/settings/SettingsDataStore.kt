@@ -29,7 +29,9 @@ class SettingsDataStore(
     // Explicit portable-only allowlist. Never copy API keys, SAF/file URIs, caches or device flags.
     private val cloudKeys = setOf(
         "selected_theme_id", "show_adult_content", "blur_adult_media", "selected_list_layout_id",
-        "profile_name", "list_title", "title_language", "score_format", "hide_scores",
+        "profile_name", "list_title", "title_language", "score_format", "score_step",
+        "staff_name_language", "separated_list_style", "show_low_priority", "priority_colors_json",
+        "fuzzy_search_enabled", "separate_novels_manga", "hide_scores",
         "show_anime_logos", "player_preference", "is_autoplay_enabled", "skip_intro_duration_sec",
         "default_subtitle_size", "default_subtitle_color", "subtitle_bold", "subtitle_outline_enabled",
         "manga_reading_mode", "manga_color_filter", "manga_fit_mode", "search_history_enabled",
@@ -48,7 +50,8 @@ class SettingsDataStore(
                 when (name) {
                     "show_adult_content", "blur_adult_media", "hide_scores", "show_anime_logos",
                     "is_autoplay_enabled", "subtitle_bold", "subtitle_outline_enabled",
-                    "search_history_enabled" -> if (value is Boolean) prefs[booleanPreferencesKey(name)] = value
+                    "search_history_enabled", "separated_list_style", "show_low_priority",
+                    "fuzzy_search_enabled", "separate_novels_manga" -> if (value is Boolean) prefs[booleanPreferencesKey(name)] = value
                     "skip_intro_duration_sec", "default_subtitle_size", "default_subtitle_color" ->
                         if (value is Int) prefs[intPreferencesKey(name)] = value
                     else -> if (value is String) prefs[stringPreferencesKey(name)] = value
@@ -80,6 +83,20 @@ class SettingsDataStore(
         val TitleLanguage = stringPreferencesKey("title_language")
         // AniHyou'dan uyarlama: puanlama formatı (POINT_10 / POINT_100 / POINT_5 / POINT_3)
         val ScoreFormat = stringPreferencesKey("score_format")
+        // AniHyou'dan uyarlama: puanlama adımları ("1" / "0.5")
+        val ScoreStep = stringPreferencesKey("score_step")
+        // AniHyou'dan uyarlama: ekip & karakter adı dili (ROMAJI / ENGLISH / NATIVE)
+        val StaffNameLanguage = stringPreferencesKey("staff_name_language")
+        // AniHyou'dan uyarlama: ayrılmış liste tarzı
+        val SeparatedListStyle = booleanPreferencesKey("separated_list_style")
+        // AniHyou'dan uyarlama: düşük öncelik rozetini göster
+        val ShowLowPriority = booleanPreferencesKey("show_low_priority")
+        // AniHyou'dan uyarlama: öncelik renk tohumları JSON'ı
+        val PriorityColorsJson = stringPreferencesKey("priority_colors_json")
+        // AniHyou'dan uyarlama: fuzzy arama
+        val FuzzySearchEnabled = booleanPreferencesKey("fuzzy_search_enabled")
+        // AniHyou'dan uyarlama: roman/manga ayrımı
+        val SeparateNovelsManga = booleanPreferencesKey("separate_novels_manga")
         // MoeList'ten uyarlama: puanları gizle
         val HideScores = booleanPreferencesKey("hide_scores")
         val ShowAnimeLogos = booleanPreferencesKey("show_anime_logos")
@@ -153,7 +170,10 @@ class SettingsDataStore(
         val StripHdr10PlusSei = booleanPreferencesKey("strip_hdr10_plus_sei")
         val ThemeMode = stringPreferencesKey("theme_mode")
         val AmoledBlack = booleanPreferencesKey("amoled_black")
+        val CardFramesEnabled = booleanPreferencesKey("card_frames_enabled")
         val CustomAccentColor = intPreferencesKey("custom_accent_color")
+        val CustomAccentColor2 = intPreferencesKey("custom_accent_color_2")
+        val CustomAccentGradientAngle = intPreferencesKey("custom_accent_gradient_angle")
         val DefaultTab = stringPreferencesKey("default_tab")
         val LastUsedTab = stringPreferencesKey("last_used_tab")
         val AppLanguage = stringPreferencesKey("app_language")
@@ -382,6 +402,13 @@ class SettingsDataStore(
                     bannerImageUri = preferences[Keys.BannerImageUri] ?: "",
                     titleLanguage = preferences[Keys.TitleLanguage] ?: "ROMAJI",
                     scoreFormat = preferences[Keys.ScoreFormat] ?: "POINT_10",
+                    scoreStep = preferences[Keys.ScoreStep] ?: "1",
+                    staffNameLanguage = preferences[Keys.StaffNameLanguage] ?: "ROMAJI",
+                    separatedListStyle = preferences[Keys.SeparatedListStyle] ?: true,
+                    showLowPriority = preferences[Keys.ShowLowPriority] ?: false,
+                    priorityColorsJson = preferences[Keys.PriorityColorsJson] ?: "",
+                    fuzzySearchEnabled = preferences[Keys.FuzzySearchEnabled] ?: true,
+                    separateNovelsManga = preferences[Keys.SeparateNovelsManga] ?: false,
                     hideScores = preferences[Keys.HideScores] ?: false,
                     showAnimeLogos = preferences[Keys.ShowAnimeLogos] ?: false,
                     playerPreference = preferences[Keys.PlayerPreference] ?: "MPV",
@@ -455,7 +482,10 @@ class SettingsDataStore(
                     stripHdr10PlusSei = preferences[Keys.StripHdr10PlusSei] ?: false,
                     themeMode = preferences[Keys.ThemeMode] ?: "FOLLOW_SYSTEM",
                     amoledBlack = preferences[Keys.AmoledBlack] ?: false,
+                    cardFramesEnabled = preferences[Keys.CardFramesEnabled] ?: false,
                     customAccentColor = preferences[Keys.CustomAccentColor] ?: 0,
+                    customAccentColor2 = preferences[Keys.CustomAccentColor2] ?: 0,
+                    customAccentGradientAngle = preferences[Keys.CustomAccentGradientAngle] ?: 135,
                     defaultTab = preferences[Keys.DefaultTab] ?: "LAST_USED",
                     lastUsedTab = preferences[Keys.LastUsedTab] ?: "Explore",
                     appLanguage = preferences[Keys.AppLanguage] ?: "system",
@@ -576,6 +606,8 @@ class SettingsDataStore(
                 parsedSettings.translateSourceLanguage,
                 parsedSettings.translateTargetLanguage
             )
+            // Compose dışı istemciler (arama/senkron/kartlar) içerik tercihlerine senkron erişsin.
+            com.kitsugi.animelist.data.settings.KitsugiContentPrefs.update(parsedSettings)
             emit(parsedSettings)
         }
     }
@@ -754,6 +786,55 @@ class SettingsDataStore(
     suspend fun setScoreFormat(scoreFormat: String) {
         context.settingsDataStore.edit { preferences ->
             preferences[Keys.ScoreFormat] = scoreFormat
+        }
+    }
+
+    // AniHyou'dan uyarlama: Puanlama adımları ("1" / "0.5")
+    suspend fun setScoreStep(step: String) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[Keys.ScoreStep] = step
+        }
+    }
+
+    // AniHyou'dan uyarlama: Ekip & karakter adı dili (ROMAJI / ENGLISH / NATIVE)
+    suspend fun setStaffNameLanguage(language: String) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[Keys.StaffNameLanguage] = language
+        }
+    }
+
+    // AniHyou'dan uyarlama: Ayrılmış liste tarzı
+    suspend fun setSeparatedListStyle(separated: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[Keys.SeparatedListStyle] = separated
+        }
+    }
+
+    // AniHyou'dan uyarlama: Düşük öncelik rozetini göster
+    suspend fun setShowLowPriority(show: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[Keys.ShowLowPriority] = show
+        }
+    }
+
+    // AniHyou'dan uyarlama: Öncelik renk tohumları JSON'ı
+    suspend fun setPriorityColorsJson(json: String) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[Keys.PriorityColorsJson] = json
+        }
+    }
+
+    // AniHyou'dan uyarlama: Fuzzy arama
+    suspend fun setFuzzySearchEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[Keys.FuzzySearchEnabled] = enabled
+        }
+    }
+
+    // AniHyou'dan uyarlama: Roman/manga ayrımı
+    suspend fun setSeparateNovelsManga(separate: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[Keys.SeparateNovelsManga] = separate
         }
     }
 
@@ -1115,9 +1196,27 @@ class SettingsDataStore(
         }
     }
 
+    suspend fun setCardFramesEnabled(enabled: Boolean) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[Keys.CardFramesEnabled] = enabled
+        }
+    }
+
     suspend fun setCustomAccentColor(color: Int) {
         context.settingsDataStore.edit { preferences ->
             preferences[Keys.CustomAccentColor] = color
+        }
+    }
+
+    suspend fun setCustomAccentColor2(color: Int) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[Keys.CustomAccentColor2] = color
+        }
+    }
+
+    suspend fun setCustomAccentGradientAngle(angle: Int) {
+        context.settingsDataStore.edit { preferences ->
+            preferences[Keys.CustomAccentGradientAngle] = angle
         }
     }
 

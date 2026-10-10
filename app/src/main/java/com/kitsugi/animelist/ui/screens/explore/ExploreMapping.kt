@@ -1,74 +1,83 @@
 package com.kitsugi.animelist.ui.screens.explore
 
-import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.data.remote.JikanSearchResult
+import com.kitsugi.animelist.data.remote.canonicalMediaSourceId
+import com.kitsugi.animelist.data.remote.matchesInSource
+import com.kitsugi.animelist.model.MediaEntry
+import com.kitsugi.animelist.model.MediaIdentity
 
-fun generateExploreEntryMap(currentEntries: List<MediaEntry>): Map<String, MediaEntry> {
-    val mapping = mutableMapOf<String, MediaEntry>()
-    currentEntries.forEach { entry ->
-        mapping["${entry.source.lowercase()}_${entry.type.name.lowercase()}_${entry.malId}"] = entry
-        mapping["${entry.source.lowercase()}_${entry.malId}"] = entry
-        if (entry.tmdbId != null) {
-            mapping["tmdb_${entry.tmdbId}"] = entry
-        }
-        if (entry.simklId != null) {
-            mapping["simkl_${entry.simklId}"] = entry
-        }
-        if (entry.source.equals("anilist", ignoreCase = true) && entry.malId != null && entry.malId >= 100_000_000) {
-            mapping["anilist_${entry.malId - 100_000_000}"] = entry
-        }
-        if (entry.source.equals("jikan", ignoreCase = true) || entry.source.equals("mal", ignoreCase = true)) {
-            mapping["mal_${entry.malId}"] = entry
-            mapping["jikan_${entry.malId}"] = entry
-        }
-        val normTitle = entry.title.lowercase().filter { it in 'a'..'z' || it in '0'..'9' }.trim()
-        if (normTitle.isNotEmpty()) {
-            mapping["${entry.type.name.lowercase()}_$normTitle"] = entry
-        }
+/** Source-scoped index used to mark catalog/search results as present in the matching list. */
+internal typealias ExploreEntryMap = Map<String, List<MediaEntry>>
+
+internal fun generateExploreEntryMap(currentEntries: List<MediaEntry>): ExploreEntryMap {
+    val mapping = mutableMapOf<String, MutableList<MediaEntry>>()
+
+    fun add(key: String, entry: MediaEntry) {
+        mapping.getOrPut(key) { mutableListOf() }.add(entry)
     }
-    return mapping
+
+    currentEntries.forEach { entry ->
+        val source = canonicalMediaSourceId(entry.source)
+        val type = entry.type.name.lowercase()
+        add("$source|all", entry)
+        entry.malId?.let { id ->
+            add("$source|type|$type|id|$id", entry)
+            add("$source|id|$id", entry)
+            if (source == "anilist" && id >= 100_000_000) {
+                add("$source|id|${id - 100_000_000}", entry)
+            }
+        }
+        if (source == "simkl") {
+            entry.simklId?.let { add("$source|id|$it", entry) }
+        }
+        entry.tmdbId?.let { add("$source|tmdb|$it", entry) }
+
+        listOfNotNull(entry.title, entry.titleEnglish, entry.titleJapanese)
+            .map { MediaIdentity.normalizedTitle(it) }
+            .filter { it.length >= 2 }
+            .distinct()
+            .forEach { normalized -> add("$source|title|$type|$normalized", entry) }
+    }
+
+    return mapping.mapValues { (_, entries) -> entries.distinctBy { "${it.source}:${it.id}" } }
 }
 
-fun getMediaEntryFromMap(
+internal fun getMediaEntryFromMap(
     result: JikanSearchResult,
-    entryMap: Map<String, MediaEntry>
+    entryMap: ExploreEntryMap
 ): MediaEntry? {
-    val compositeKey = "${result.source.lowercase()}_${result.type.name.lowercase()}_${result.malId}"
-    val directKey = "${result.source.lowercase()}_${result.malId}"
-    var found = entryMap[compositeKey] ?: entryMap[directKey]
+    val source = canonicalMediaSourceId(result.source)
+    val type = result.type.name.lowercase()
+    val candidates = linkedSetOf<MediaEntry>()
 
-    if (found == null) {
-        val tmdbId = result.tmdbId ?: if (result.source.equals("tmdb", ignoreCase = true)) result.malId else null
-        if (tmdbId != null) {
-            found = entryMap["tmdb_$tmdbId"]
-        }
+    fun add(key: String) {
+        entryMap[key].orEmpty().forEach { candidates.add(it) }
     }
 
-    if (found == null) {
-        val rMal = if (result.source.equals("jikan", ignoreCase = true) || result.source.equals("mal", ignoreCase = true)) {
-            result.malId
+    add("$source|type|$type|id|${result.malId}")
+    add("$source|id|${result.malId}")
+    if (source == "anilist") {
+        val alternateId = if (result.malId >= 100_000_000) {
+            result.malId - 100_000_000
         } else {
-            result.realMalId
+            result.malId + 100_000_000
         }
-        if (rMal != null) {
-            found = entryMap["${result.source.lowercase()}_$rMal"]
-                ?: entryMap["mal_$rMal"]
-                ?: entryMap["jikan_$rMal"]
-                ?: entryMap["anilist_$rMal"]
-                ?: entryMap["simkl_$rMal"]
-        }
+        add("$source|id|$alternateId")
+    }
+    result.tmdbId?.let { add("$source|tmdb|$it") }
+    if (source == "tmdb") {
+        add("$source|tmdb|${result.malId}")
     }
 
-    if (found == null) {
-        val normTitle = buildString {
-            for (c in result.title.lowercase()) {
-                if (c in 'a'..'z' || c in '0'..'9') append(c)
-            }
-        }.trim()
-        if (normTitle.isNotEmpty()) {
-            found = entryMap["${result.type.name.lowercase()}_$normTitle"]
-        }
-    }
+    listOfNotNull(result.title, result.titleEnglish, result.titleJapanese, result.titleRomaji)
+        .map { MediaIdentity.normalizedTitle(it) }
+        .filter { it.length >= 2 }
+        .distinct()
+        .forEach { normalized -> add("$source|title|$type|$normalized") }
 
-    return found
+    // Keep a source-only fallback for IDs whose provider-specific namespace changed. The
+    // matcher still enforces exact provider identity before accepting a title/ID match.
+    if (candidates.isEmpty()) add("$source|all")
+
+    return candidates.firstOrNull { it.matchesInSource(result) }
 }

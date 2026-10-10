@@ -1,4 +1,4 @@
-﻿package com.kitsugi.animelist.ui.components
+package com.kitsugi.animelist.ui.components
 import com.kitsugi.animelist.ui.components.KitsugiButton
 
 import android.content.Context
@@ -33,8 +33,10 @@ import com.kitsugi.animelist.data.remote.KitsugiForumReply
 import com.kitsugi.animelist.data.remote.KitsugiForumTopic
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
-import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
+import com.kitsugi.animelist.utils.KitsugiTranslateUtils.openTranslator
 
 import androidx.compose.foundation.clickable
 
@@ -52,6 +54,9 @@ fun KitsugiTopicDetailBottomSheet(
     val coroutineScope = rememberCoroutineScope()
     val translationManager = remember { TranslationManager(context) }
 
+    var activeTopic by remember(topic) { mutableStateOf(topic) }
+    val isAniListTopic = activeTopic.source.equals("anilist", ignoreCase = true)
+
     var commentsList by remember { mutableStateOf<List<KitsugiForumReply>>(emptyList()) }
     var isLoading by remember { mutableStateOf(true) }
     var isLoadingMore by remember { mutableStateOf(false) }
@@ -65,17 +70,26 @@ fun KitsugiTopicDetailBottomSheet(
 
     // Translation states
     var selectedLanguage by remember { mutableStateOf("original") }
-    var translatedTitle by remember { mutableStateOf<String?>(null) }
+    var translatedTitle by remember(topic.id) { mutableStateOf<String?>(null) }
+    var translatedBody by remember(topic.id) { mutableStateOf<String?>(null) }
     val translatedComments = remember { mutableStateMapOf<Int, String>() }
 
     val listState = rememberLazyListState()
 
-    // Load initial comments
-    LaunchedEffect(topic.id) {
+    // Load initial comments + enrich MAL OP if needed
+    LaunchedEffect(topic.id, topic.source) {
         isLoading = true
         page = 1
         hasMore = true
-        commentsList = apiClient.fetchForumTopicReplies(topic.id, page = 1)
+        activeTopic = topic
+        coroutineScope {
+            val enrichDef = async { apiClient.enrichForumTopicIfNeeded(topic) }
+            val repliesDef = async {
+                apiClient.fetchForumTopicReplies(topic.id, page = 1, source = topic.source)
+            }
+            activeTopic = enrichDef.await()
+            commentsList = repliesDef.await()
+        }
         isLoading = false
     }
 
@@ -94,7 +108,11 @@ fun KitsugiTopicDetailBottomSheet(
         coroutineScope.launch {
             try {
                 val nextPage = page + 1
-                val newComments = apiClient.fetchForumTopicReplies(topic.id, page = nextPage)
+                val newComments = apiClient.fetchForumTopicReplies(
+                    activeTopic.id,
+                    page = nextPage,
+                    source = activeTopic.source
+                )
                 if (newComments.isEmpty()) {
                     hasMore = false
                 } else {
@@ -117,13 +135,20 @@ fun KitsugiTopicDetailBottomSheet(
     }
 
     // Translation orchestration
-    LaunchedEffect(selectedLanguage, commentsList) {
+    LaunchedEffect(selectedLanguage, commentsList, activeTopic.body) {
         if (selectedLanguage == "turkish") {
             // Translate topic title
             if (translatedTitle == null) {
                 coroutineScope.launch {
-                    val tr = translationManager.translateToTurkish(topic.title)
+                    val tr = translationManager.translateToTurkish(activeTopic.title)
                     if (tr.isNotBlank()) translatedTitle = tr
+                }
+            }
+            // Translate topic OP body
+            if (translatedBody == null && activeTopic.body.isNotBlank()) {
+                coroutineScope.launch {
+                    val tr = translationManager.translateToTurkish(activeTopic.body)
+                    if (tr.isNotBlank()) translatedBody = tr
                 }
             }
             // Recursive translation helper
@@ -187,11 +212,11 @@ fun KitsugiTopicDetailBottomSheet(
                     overflow = TextOverflow.Ellipsis
                 )
 
-                if (source.lowercase() != "jikan" && source.lowercase() != "mal") {
+                if (isAniListTopic) {
                     IconButton(
                         onClick = {
                             coroutineScope.launch {
-                                val success = apiClient.toggleThreadSubscription(topic.id)
+                                val success = apiClient.toggleThreadSubscription(activeTopic.id)
                                 if (success) {
                                     isSubscribed = !isSubscribed
                                     val msg = if (isSubscribed) "Abone olundu" else "Abonelik iptal edildi"
@@ -268,7 +293,14 @@ fun KitsugiTopicDetailBottomSheet(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     IconButton(
-                        onClick = { context.openTranslator(topic.title) },
+                        onClick = {
+                            val textToTranslate = if (activeTopic.body.isNotBlank()) {
+                                "${activeTopic.title}\n\n${activeTopic.body}"
+                            } else {
+                                activeTopic.title
+                            }
+                            context.openTranslator(textToTranslate)
+                        },
                         modifier = Modifier.size(36.dp)
                     ) {
                         Icon(
@@ -280,7 +312,12 @@ fun KitsugiTopicDetailBottomSheet(
                     IconButton(
                         onClick = {
                             val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("topic_title", topic.title))
+                            val clipText = if (activeTopic.body.isNotBlank()) {
+                                "${activeTopic.title}\n\n${activeTopic.body}"
+                            } else {
+                                activeTopic.title
+                            }
+                            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("topic_title", clipText))
                             Toast.makeText(context, "Panoya kopyalandı", Toast.LENGTH_SHORT).show()
                         },
                         modifier = Modifier.size(36.dp)
@@ -304,26 +341,26 @@ fun KitsugiTopicDetailBottomSheet(
                     .weight(1f),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                // Item 1: Topic title & Author Card
+                // Item 1: Topic title, Author & OP Body Card
                 item {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 4.dp, vertical = 8.dp)
                     ) {
-                        val displayTitle = if (selectedLanguage == "turkish") translatedTitle ?: topic.title else topic.title
+                        val displayTitle = if (selectedLanguage == "turkish") translatedTitle ?: activeTopic.title else activeTopic.title
                         Text(
                             text = displayTitle,
                             color = KitsugiColors.TextPrimary,
                             fontSize = 22.sp,
                             fontWeight = FontWeight.SemiBold,
-                            lineHeight = 24.sp
+                            lineHeight = 26.sp
                         )
-                        if (!topic.dateText.isNullOrBlank()) {
+                        if (!activeTopic.dateText.isNullOrBlank()) {
                             Text(
-                                text = topic.dateText,
+                                text = activeTopic.dateText.orEmpty(),
                                 color = KitsugiColors.TextSecondary,
-                                fontSize = 15.sp,
+                                fontSize = 14.sp,
                                 modifier = Modifier.padding(top = 4.dp)
                             )
                         }
@@ -348,21 +385,21 @@ fun KitsugiTopicDetailBottomSheet(
                                         .background(KitsugiColors.SurfaceSoft)
                                         .then(
                                             if (onUserProfileClick != null) {
-                                                Modifier.clickable { onUserProfileClick(topic.userId, topic.username, topic.avatarUrl) }
+                                                Modifier.clickable { onUserProfileClick(activeTopic.userId, activeTopic.username, activeTopic.avatarUrl) }
                                             } else Modifier
                                         )
                                 ) {
-                                    if (!topic.avatarUrl.isNullOrBlank()) {
+                                    if (!activeTopic.avatarUrl.isNullOrBlank()) {
                                         AsyncImage(
-                                            model = topic.avatarUrl,
-                                            contentDescription = topic.username,
+                                            model = activeTopic.avatarUrl,
+                                            contentDescription = activeTopic.username,
                                             modifier = Modifier.fillMaxSize(),
                                             contentScale = ContentScale.Crop
                                         )
                                     } else {
                                         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
                                             Text(
-                                                text = topic.username.take(1).uppercase(),
+                                                text = activeTopic.username.take(1).uppercase(),
                                                 color = KitsugiColors.TextMuted,
                                                 fontWeight = FontWeight.Bold,
                                                 fontSize = 14.sp
@@ -372,57 +409,59 @@ fun KitsugiTopicDetailBottomSheet(
                                 }
                                 Spacer(modifier = Modifier.width(10.dp))
                                 Text(
-                                    text = topic.username,
+                                    text = activeTopic.username,
                                     color = KitsugiColors.TextPrimary,
                                     fontSize = 14.sp,
                                     fontWeight = FontWeight.Bold,
                                     modifier = if (onUserProfileClick != null) {
                                         Modifier
                                             .clip(RoundedCornerShape(4.dp))
-                                            .clickable { onUserProfileClick(topic.userId, topic.username, topic.avatarUrl) }
+                                            .clickable { onUserProfileClick(activeTopic.userId, activeTopic.username, activeTopic.avatarUrl) }
                                             .padding(horizontal = 4.dp, vertical = 2.dp)
                                     } else Modifier
                                 )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                KitsugiPlatformLogo(platformId = activeTopic.source, size = 16.dp)
                             }
 
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
-                            ) {
-                                // Like/Favorite
+                            if (isAniListTopic) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier
-                                        .clip(RoundedCornerShape(8.dp))
-                                        .tvClickable {
-                                            coroutineScope.launch {
-                                                val success = apiClient.toggleLike(topic.id, "THREAD")
-                                                if (success) {
-                                                    isTopicLikedState = !isTopicLikedState
-                                                    topicLikeCountState = if (isTopicLikedState) topicLikeCountState + 1 else topicLikeCountState - 1
-                                                } else {
-                                                    Toast.makeText(context, "Lütfen önce giriş yapın", Toast.LENGTH_SHORT).show()
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                                ) {
+                                    // Like/Favorite
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .tvClickable {
+                                                coroutineScope.launch {
+                                                    val success = apiClient.toggleLike(activeTopic.id, "THREAD")
+                                                    if (success) {
+                                                        isTopicLikedState = !isTopicLikedState
+                                                        topicLikeCountState = if (isTopicLikedState) topicLikeCountState + 1 else topicLikeCountState - 1
+                                                    } else {
+                                                        Toast.makeText(context, "Lütfen önce giriş yapın", Toast.LENGTH_SHORT).show()
+                                                    }
                                                 }
                                             }
-                                        }
-                                        .padding(horizontal = 8.dp, vertical = 4.dp)
-                                ) {
-                                    Icon(
-                                        imageVector = if (isTopicLikedState) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                        contentDescription = "Beğen",
-                                        tint = if (isTopicLikedState) accentColor else KitsugiColors.TextSecondary,
-                                        modifier = Modifier.size(20.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = topicLikeCountState.toString(),
-                                        color = KitsugiColors.TextSecondary,
-                                        fontSize = 14.sp
-                                    )
-                                }
+                                            .padding(horizontal = 8.dp, vertical = 4.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = if (isTopicLikedState) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                                            contentDescription = "Beğen",
+                                            tint = if (isTopicLikedState) accentColor else KitsugiColors.TextSecondary,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = topicLikeCountState.toString(),
+                                            color = KitsugiColors.TextSecondary,
+                                            fontSize = 14.sp
+                                        )
+                                    }
 
-                                // Reply
-                                if (source.lowercase() != "jikan" && source.lowercase() != "mal") {
+                                    // Reply
                                     IconButton(
                                         onClick = { showReplyEditor = true }
                                     ) {
@@ -437,6 +476,28 @@ fun KitsugiTopicDetailBottomSheet(
                             }
                         }
 
+                        val displayBody = if (selectedLanguage == "turkish") {
+                            translatedBody ?: activeTopic.body
+                        } else {
+                            activeTopic.body
+                        }
+                        if (displayBody.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(14.dp))
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(KitsugiColors.Surface)
+                                    .padding(14.dp)
+                            ) {
+                                KitsugiMarkdownText(
+                                    text = displayBody,
+                                    fontSize = 14.sp,
+                                    lineHeight = 21.sp
+                                )
+                            }
+                        }
+
                         Spacer(modifier = Modifier.height(12.dp))
                         HorizontalDivider(color = KitsugiColors.Border.copy(alpha = 0.3f))
                     }
@@ -444,8 +505,9 @@ fun KitsugiTopicDetailBottomSheet(
 
                 // Section Header
                 item {
+                    val replyTotal = maxOf(activeTopic.commentCount, commentsList.size)
                     Text(
-                        text = "Yorumlar",
+                        text = if (replyTotal > 0) "Yanıtlar ($replyTotal)" else "Yorumlar",
                         color = KitsugiColors.TextPrimary,
                         fontSize = 14.sp,
                         fontWeight = FontWeight.Bold,
@@ -487,9 +549,13 @@ fun KitsugiTopicDetailBottomSheet(
                             selectedLanguage = selectedLanguage,
                             translatedComments = translatedComments,
                             onUserProfileClick = onUserProfileClick,
-                            onReplyClick = { target ->
-                                replyTargetComment = target
-                                showReplyEditor = true
+                            onReplyClick = if (isAniListTopic) {
+                                { target ->
+                                    replyTargetComment = target
+                                    showReplyEditor = true
+                                }
+                            } else {
+                                { }
                             }
                         )
                     }
@@ -507,7 +573,7 @@ fun KitsugiTopicDetailBottomSheet(
 
             Spacer(modifier = Modifier.height(16.dp))
 
-            if (source.lowercase() != "jikan" && source.lowercase() != "mal") {
+            if (isAniListTopic) {
                 KitsugiButton(
                     onClick = { showReplyEditor = true },
                     shape = RoundedCornerShape(14.dp),
@@ -525,7 +591,7 @@ fun KitsugiTopicDetailBottomSheet(
         }
     }
 
-    if (showReplyEditor) {
+    if (showReplyEditor && isAniListTopic) {
         val editorTitle = if (replyTargetComment != null) {
             "${replyTargetComment?.username} Kullanıcısına Yanıt Ver"
         } else {
@@ -541,7 +607,7 @@ fun KitsugiTopicDetailBottomSheet(
             placeholder = editorPlaceholder,
             onPublish = { text ->
                 apiClient.postReply(
-                    targetId = topic.id,
+                    targetId = activeTopic.id,
                     isActivity = false,
                     text = text,
                     parentCommentId = replyTargetComment?.id
@@ -553,7 +619,11 @@ fun KitsugiTopicDetailBottomSheet(
                 // Reload comments after posting
                 coroutineScope.launch {
                     isLoading = true
-                    commentsList = apiClient.fetchForumTopicReplies(topic.id, page = 1)
+                    commentsList = apiClient.fetchForumTopicReplies(
+                        activeTopic.id,
+                        page = 1,
+                        source = activeTopic.source
+                    )
                     isLoading = false
                 }
             }

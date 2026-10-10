@@ -135,7 +135,7 @@ fun TvReviewsTabContent(
                             TvTopicCard(
                                 topic = topic,
                                 onClick = { activeTopicForDetail = topic },
-                                onLikeClick = if (source.lowercase() != "jikan" && source.lowercase() != "mal") {
+                                onLikeClick = if (topic.source.equals("anilist", ignoreCase = true)) {
                                     {
                                         coroutineScope.launch {
                                             val success = apiClient.toggleLike(topic.id, "THREAD")

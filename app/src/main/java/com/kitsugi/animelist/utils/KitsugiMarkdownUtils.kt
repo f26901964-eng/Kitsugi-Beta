@@ -79,19 +79,22 @@ object KitsugiMarkdownUtils {
     )
 
     // Standart BBCode regex'leri
-    private val boldRegex          = Regex("\\[b\\](.*?)\\[/b\\]",          RegexOption.DOT_MATCHES_ALL)
-    private val italicRegex        = Regex("\\[i\\](.*?)\\[/i\\]",          RegexOption.DOT_MATCHES_ALL)
-    private val underlineRegex     = Regex("\\[u\\](.*?)\\[/u\\]",          RegexOption.DOT_MATCHES_ALL)
-    private val strikeRegex        = Regex("\\[s\\](.*?)\\[/s\\]",          RegexOption.DOT_MATCHES_ALL)
-    private val centerRegexBB      = Regex("\\[center\\](.*?)\\[/center\\]", RegexOption.DOT_MATCHES_ALL)
-    private val sizeRegex          = Regex("\\[size=[^\\]]*\\](.*?)\\[/size\\]", RegexOption.DOT_MATCHES_ALL)
-    private val colorRegex         = Regex("\\[color=[^\\]]*\\](.*?)\\[/color\\]", RegexOption.DOT_MATCHES_ALL)
-    private val spoilerSimpleRegex = Regex("\\[spoiler\\](.*?)\\[/spoiler\\]", RegexOption.DOT_MATCHES_ALL)
-    private val spoilerParamRegex  = Regex("\\[spoiler=[^\\]]*\\](.*?)\\[/spoiler\\]", RegexOption.DOT_MATCHES_ALL)
-    private val quoteRegex         = Regex("\\[quote\\](.*?)\\[/quote\\]",  RegexOption.DOT_MATCHES_ALL)
-    private val urlParamRegex      = Regex("\\[url=(.*?)\\](.*?)\\[/url\\]", RegexOption.DOT_MATCHES_ALL)
-    private val urlSimpleRegex     = Regex("\\[url\\](.*?)\\[/url\\]",      RegexOption.DOT_MATCHES_ALL)
-    private val imgBBRegex         = Regex("\\[img[^\\]]*\\](.*?)\\[/img\\]", RegexOption.DOT_MATCHES_ALL)
+    private val boldRegex          = Regex("\\[b\\](.*?)\\[/b\\]",          setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+    private val italicRegex        = Regex("\\[i\\](.*?)\\[/i\\]",          setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+    private val underlineRegex     = Regex("\\[u\\](.*?)\\[/u\\]",          setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+    private val strikeRegex        = Regex("\\[s\\](.*?)\\[/s\\]",          setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+    private val centerRegexBB      = Regex("\\[center\\](.*?)\\[/center\\]", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+    private val sizeRegex          = Regex("\\[size=[^\\]]*\\](.*?)\\[/size\\]", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+    private val colorRegex         = Regex("\\[color=[^\\]]*\\](.*?)\\[/color\\]", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+    private val spoilerSimpleRegex = Regex("\\[spoiler\\]((?:(?!\\[spoiler).)*?)\\[/spoiler\\]", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+    private val spoilerParamRegex  = Regex("\\[spoiler=[^\\]]*\\]((?:(?!\\[spoiler).)*?)\\[/spoiler\\]", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+    private val quoteRegex         = Regex("\\[quote\\]((?:(?!\\[quote).)*?)\\[/quote\\]", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+    private val quoteParamRegex    = Regex("\\[quote=([^\\]]*)\\]((?:(?!\\[quote).)*?)\\[/quote\\]", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+    private val urlParamRegex      = Regex("\\[url=([^\\]]+)\\](.*?)\\[/url\\]", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+    private val urlSimpleRegex     = Regex("\\[url\\](.*?)\\[/url\\]",      setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+    private val imgBBRegex         = Regex("\\[img[^\\]]*\\](.*?)\\[/img\\]", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+    private val ytBBRegex          = Regex("\\[yt\\](.*?)\\[/yt\\]", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
+    private val codeBBRegex        = Regex("\\[code\\](.*?)\\[/code\\]", setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE))
 
     // ── Public API ────────────────────────────────────────────────────────────
 
@@ -227,11 +230,14 @@ object KitsugiMarkdownUtils {
     private fun String.convertBBCodeToMarkdown(): String {
         var result = this.cleanShikimoriBbCode()
 
-        // Basit liste dönüşümleri
-        result = result.replace("[list]", "").replace("[/list]", "")
-        result = result.replace("[*]", "- ")
+        // Basit liste ve ayırıcı dönüşümleri
+        result = result
+            .replace(Regex("\\[/?list(?:=[^\\]]*)?\\]", RegexOption.IGNORE_CASE), "")
+            .replace(Regex("\\[\\*\\]"), "\n- ")
+            .replace(Regex("\\[hr\\]", RegexOption.IGNORE_CASE), "\n---\n")
 
         var previous: String
+        var iterations = 0
         do {
             previous = result
             result = result
@@ -245,11 +251,32 @@ object KitsugiMarkdownUtils {
                 .replace(colorRegex)         { it.groupValues[1] }
                 .replace(spoilerSimpleRegex) { "~!${it.groupValues[1]}!~" }
                 .replace(spoilerParamRegex)  { "~!${it.groupValues[1]}!~" }
-                .replace(quoteRegex)         { "\n> ${it.groupValues[1].replace("\n", "\n> ")}\n" }
-                .replace(urlParamRegex)      { "[${it.groupValues[2]}](${it.groupValues[1]})" }
-                .replace(urlSimpleRegex)     { "[${it.groupValues[1]}](${it.groupValues[1]})" }
-                .replace(imgBBRegex)         { "img(${it.groupValues[1]})" }
-        } while (result != previous)
+                .replace(quoteParamRegex) { match ->
+                    val rawMeta = match.groupValues[1]
+                    val author = rawMeta
+                        .replace(Regex("message=\\d+", RegexOption.IGNORE_CASE), "")
+                        .replace("\"", "")
+                        .replace("'", "")
+                        .trim()
+                    val quotedBody = match.groupValues[2].trim().replace("\n", "\n> ")
+                    if (author.isNotBlank()) {
+                        "\n> **@$author:**\n> $quotedBody\n"
+                    } else {
+                        "\n> $quotedBody\n"
+                    }
+                }
+                .replace(quoteRegex)         { "\n> ${it.groupValues[1].trim().replace("\n", "\n> ")}\n" }
+                .replace(urlParamRegex)      { "[${it.groupValues[2]}](${it.groupValues[1].trim().trim('\"', '\'')})" }
+                .replace(urlSimpleRegex)     { "[${it.groupValues[1].trim()}](${it.groupValues[1].trim()})" }
+                .replace(imgBBRegex)         { "img(${it.groupValues[1].trim()})" }
+                .replace(ytBBRegex) { match ->
+                    val rawYt = match.groupValues[1].trim()
+                    val ytUrl = if (rawYt.startsWith("http", ignoreCase = true)) rawYt else "https://www.youtube.com/watch?v=$rawYt"
+                    "\n[▶ YouTube Videosu]($ytUrl)\n"
+                }
+                .replace(codeBBRegex)        { "\n```\n${it.groupValues[1].trim()}\n```\n" }
+            iterations++
+        } while (result != previous && iterations < 12)
 
         return result
     }

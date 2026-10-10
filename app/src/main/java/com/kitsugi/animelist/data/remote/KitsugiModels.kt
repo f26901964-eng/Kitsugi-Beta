@@ -77,7 +77,15 @@ data class KitsugiStudioDetail(
     val about: String? = null,
     val mediaWorks: List<KitsugiStaffMediaWork> = emptyList(),
     val isFavourite: Boolean = false,
-    val aniListId: Int? = null
+    val aniListId: Int? = null,
+    /** Yapım listesinde bu sayfadan sonra da içerik olup olmadığı (sonsuz kaydırma). */
+    val hasMoreWorks: Boolean = false
+)
+
+/** Stüdyo yapım listesinin bir sayfası ([hasMore]: sonraki sayfa var mı). */
+data class KitsugiStudioWorksPage(
+    val works: List<KitsugiStaffMediaWork>,
+    val hasMore: Boolean
 )
 
 data class KitsugiMediaDetail(
@@ -358,7 +366,8 @@ data class KitsugiForumTopic(
     val likeCount: Int = 0,
     val isLiked: Boolean = false,
     val userId: Int? = null,
-    val source: String = "anilist"
+    val source: String = "anilist",
+    val body: String = ""
 )
 
 data class KitsugiForumReply(
@@ -406,17 +415,50 @@ data class KitsugiActivityReply(
     val userId: Int? = null
 )
 
+/** Canonical identity for a list provider; aliases are unified, providers are not. */
+fun canonicalMediaSourceId(source: String): String = when (source.trim().lowercase()) {
+    "anilist", "al" -> "anilist"
+    "mal", "myanimelist", "jikan", "jikan (mal)", "mal (jikan)" -> "mal"
+    "simkl" -> "simkl"
+    "tmdb", "themoviedb" -> "tmdb"
+    "kitsu" -> "kitsu"
+    "shikimori", "shiki" -> "shikimori"
+    "bangumi", "bgm", "bgm.tv" -> "bangumi"
+    else -> source.trim().lowercase()
+}
+
+/**
+ * Membership matching for a provider-scoped screen. Cross-provider identity (same MAL/TMDB
+ * ID or title) must never make a Simkl record appear as a Bangumi/AniList/etc. list item.
+ */
+fun MediaEntry.matchesInSource(result: JikanSearchResult): Boolean =
+    canonicalMediaSourceId(source) == canonicalMediaSourceId(result.source) && matches(result)
+
+fun MediaEntry.matchesInSource(mediaId: Int, mediaSource: String): Boolean =
+    canonicalMediaSourceId(source) == canonicalMediaSourceId(mediaSource) && matches(mediaId, mediaSource)
+
+fun List<MediaEntry>.firstMatchingInSource(result: JikanSearchResult): MediaEntry? =
+    firstOrNull { it.matchesInSource(result) }
+
+fun List<MediaEntry>.firstMatchingInSource(mediaId: Int, mediaSource: String): MediaEntry? =
+    firstOrNull { it.matchesInSource(mediaId, mediaSource) }
+
 fun MediaEntry.matches(result: JikanSearchResult): Boolean {
     // 1. Doğrudan kaynak + ID eşleşmesi (AniList offset normalizasyonu dahil)
-    if (this.source.equals(result.source, ignoreCase = true)) {
-        if (this.source.equals("anilist", ignoreCase = true)) {
+    if (canonicalMediaSourceId(this.source) == canonicalMediaSourceId(result.source)) {
+        if (canonicalMediaSourceId(this.source) == "anilist") {
             val rawEntryId = if (this.malId != null && this.malId >= 100_000_000) this.malId - 100_000_000 else this.malId
             val rawResultId = if (result.malId >= 100_000_000) result.malId - 100_000_000 else result.malId
             if (rawEntryId != null && rawEntryId == rawResultId) {
                 return true
             }
-        } else if (this.malId == result.malId) {
-            return true
+        } else {
+            if (this.malId == result.malId) {
+                return true
+            }
+            if (canonicalMediaSourceId(this.source) == "simkl" && this.simklId == result.malId) {
+                return true
+            }
         }
     }
 
@@ -465,15 +507,20 @@ fun MediaEntry.matches(result: JikanSearchResult): Boolean {
 }
 
 fun MediaEntry.matches(mediaId: Int, mediaSource: String): Boolean {
-    if (this.source.equals(mediaSource, ignoreCase = true)) {
-        if (this.source.equals("anilist", ignoreCase = true)) {
+    if (canonicalMediaSourceId(this.source) == canonicalMediaSourceId(mediaSource)) {
+        if (canonicalMediaSourceId(this.source) == "anilist") {
             val rawEntryId = if (this.malId != null && this.malId >= 100_000_000) this.malId - 100_000_000 else this.malId
             val rawMediaId = if (mediaId >= 100_000_000) mediaId - 100_000_000 else mediaId
             if (rawEntryId != null && rawEntryId == rawMediaId) {
                 return true
             }
-        } else if (this.malId == mediaId) {
-            return true
+        } else {
+            if (this.malId == mediaId) {
+                return true
+            }
+            if (canonicalMediaSourceId(this.source) == "simkl" && this.simklId == mediaId) {
+                return true
+            }
         }
     }
 
