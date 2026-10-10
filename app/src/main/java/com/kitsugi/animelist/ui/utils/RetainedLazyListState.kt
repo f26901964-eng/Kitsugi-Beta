@@ -5,12 +5,28 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.listSaver
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
-import kotlinx.coroutines.flow.collect
 import androidx.compose.runtime.snapshotFlow
+import kotlinx.coroutines.flow.collect
+
+/**
+ * Kaydırma konumu tutucusu.
+ *
+ * BİLİNÇLİ OLARAK Compose state DEĞİL düz bir nesne: konum her kaydırma karesinde
+ * yazılıyor. Compose state olsaydı, bu değeri okuyan composable (Keşfet / Arama
+ * ekranının tamamı) her karede yeniden kompoze olurdu → kaydırma kasmasının kök nedeni.
+ * Değer yalnızca kaydetme (save-instance-state) anında okunur.
+ */
+private class RetainedScrollPosition(var index: Int, var offset: Int)
+
+private val RetainedScrollPositionSaver = listSaver<RetainedScrollPosition, Int>(
+    save = { listOf(it.index, it.offset) },
+    restore = { RetainedScrollPosition(it[0], it[1]) }
+)
 
 /**
  * Lazy lists clamp a restored index to zero if their loading placeholder has fewer items.
@@ -23,14 +39,17 @@ fun rememberRetainedLazyListState(
     initialIndex: Int = 0,
     initialOffset: Int = 0
 ): LazyListState {
-    var savedIndex by rememberSaveable { mutableIntStateOf(initialIndex) }
-    var savedOffset by rememberSaveable { mutableIntStateOf(initialOffset) }
-    val state = rememberLazyListState(savedIndex, savedOffset)
-    var restored by androidx.compose.runtime.remember { mutableStateOf(false) }
+    val position = rememberSaveable(saver = RetainedScrollPositionSaver) {
+        RetainedScrollPosition(initialIndex, initialOffset)
+    }
+    // Yalnızca ilk oluşturmada okunur; sonrasında gözlemlenmeyen düz alanlar okunduğu için
+    // bu satır kompozisyonu geçersiz kılmaz.
+    val state = rememberLazyListState(position.index, position.offset)
+    var restored by remember { mutableStateOf(false) }
 
     LaunchedEffect(state, contentReady) {
         if (contentReady && !restored) {
-            state.scrollToItem(savedIndex, savedOffset)
+            state.scrollToItem(position.index, position.offset)
             restored = true
         }
     }
@@ -38,8 +57,8 @@ fun rememberRetainedLazyListState(
         if (contentReady && restored) {
             snapshotFlow { state.firstVisibleItemIndex to state.firstVisibleItemScrollOffset }
                 .collect { (index, offset) ->
-                    savedIndex = index
-                    savedOffset = offset
+                    position.index = index
+                    position.offset = offset
                 }
         }
     }

@@ -333,6 +333,9 @@ fun ExploreScreen(
         label = "explore_fab_bottom_padding"
     )
     val showFab by remember { derivedStateOf { lazyListState.firstVisibleItemIndex > 1 } }
+    // Hero yalnızca "en üstte mi" bilgisine ihtiyaç duyar; ham indeksi item içinde okumak
+    // her satır geçişinde hero'yu yeniden kompoze ediyordu. derivedStateOf yalnızca bool değişince tetikler.
+    val isHeroVisible by remember { derivedStateOf { lazyListState.firstVisibleItemIndex == 0 } }
 
     // Manuel olarak tepeye dönüldüğünde sıfırlama sinyali ver (diğer sayfalarla aynı sözleşme).
     LaunchedEffect(lazyListState) {
@@ -398,7 +401,7 @@ fun ExploreScreen(
                                         hideScores = hideScores,
                                         showAnimeLogos = showAnimeLogos,
                                         blurAdultMedia = blurAdultMedia,
-                                        isVisible = lazyListState.firstVisibleItemIndex == 0
+                                        isVisible = isHeroVisible
                                     )
                                     Spacer(modifier = Modifier.height(6.dp))
                                 }

@@ -545,8 +545,15 @@ fun FullScreenMediaGridPage(
         if (isGridView && shouldLoadMoreGrid && !isLoadingMore && hasMorePages) loadNextPage()
     }
 
-    val showFloatingHeader = if (isGridView) gridState.firstVisibleItemIndex >= 1
-    else listState.firstVisibleItemIndex >= 1
+    // derivedStateOf: sayfa gövdesi her satır/öğe geçişinde değil, yalnızca eşik boolean'ı
+    // değişince yeniden kompoze olur. (Eskiden doğrudan okunuyordu → tüm Tümünü Gör sayfası
+    // her satır geçişinde yeniden kuruluyor ve üst overlay eşikte açılıp kapanıyordu.)
+    val showFloatingHeader by remember {
+        derivedStateOf {
+            if (isGridView) gridState.firstVisibleItemIndex >= 1
+            else listState.firstVisibleItemIndex >= 1
+        }
+    }
 
     val showScrollToTop by remember {
         derivedStateOf {

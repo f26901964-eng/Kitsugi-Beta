@@ -167,30 +167,37 @@ fun KitsugiShimmerProvider(
     active: Boolean = true,
     content: @Composable () -> Unit
 ) {
-    if (active) {
-        val sharedBrush = rememberKitsugiShimmerBrush()
-        CompositionLocalProvider(
-            LocalShimmerBrush provides sharedBrush,
-            content = content
-        )
+    // ÖNEMLİ: `if` yalnızca FIRÇAYI seçer; içerik (`content`) `if` dalının DIŞINDA kalır.
+    // Eski sürümde `if/else` içinde iki ayrı CompositionLocalProvider vardı → `active`
+    // her değiştiğinde (yükleme başladı/bitti, pull-to-refresh, arama yükleniyor) tüm içerik
+    // ağacı söküp baştan kuruluyordu: hero pager durumu sıfırlanıyor, tüm raflar yeniden
+    // kompoze oluyor ve kaydırma sırasında takılma/sıçrama üretiyordu.
+    val brush: Brush = if (active) {
+        rememberKitsugiShimmerBrush()
     } else {
-        val shimmerColors = listOf(
-            KitsugiColors.Surface,
-            KitsugiColors.SurfaceSoft.copy(alpha = 0.6f),
-            KitsugiColors.SurfaceStrong.copy(alpha = 0.4f),
-            KitsugiColors.SurfaceSoft.copy(alpha = 0.6f),
-            KitsugiColors.Surface,
-        )
-        val staticBrush = remember(shimmerColors) {
-            Brush.linearGradient(
-                colors = shimmerColors,
-                start = Offset(0f, 0f),
-                end = Offset(1300f, 0f),
-            )
-        }
-        CompositionLocalProvider(
-            LocalShimmerBrush provides staticBrush,
-            content = content
+        rememberStaticKitsugiShimmerBrush()
+    }
+    CompositionLocalProvider(
+        LocalShimmerBrush provides brush,
+        content = content
+    )
+}
+
+/** Animasyonsuz (statik) shimmer fırçası — yükleme yokken InfiniteTransition oluşturmaz. */
+@Composable
+private fun rememberStaticKitsugiShimmerBrush(): Brush {
+    val shimmerColors = listOf(
+        KitsugiColors.Surface,
+        KitsugiColors.SurfaceSoft.copy(alpha = 0.6f),
+        KitsugiColors.SurfaceStrong.copy(alpha = 0.4f),
+        KitsugiColors.SurfaceSoft.copy(alpha = 0.6f),
+        KitsugiColors.Surface,
+    )
+    return remember(shimmerColors) {
+        Brush.linearGradient(
+            colors = shimmerColors,
+            start = Offset(0f, 0f),
+            end = Offset(1300f, 0f),
         )
     }
 }

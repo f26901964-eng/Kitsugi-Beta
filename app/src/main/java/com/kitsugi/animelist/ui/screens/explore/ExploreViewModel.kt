@@ -1274,10 +1274,24 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
     // tamamlanır; sonuçlar exploreIdentity anahtarıyla önbelleklenir.
     private val heroBackdropCache = mutableMapOf<String, String>() // "" = arama sonuçsuz
     private val heroBackdropInFlight = mutableSetOf<String>()
+    private var heroOverridesFlushJob: Job? = null
 
     /** identity → backdropUrl eşlemesi (eklendiğinde hero anında güncellenir). */
     var heroBackdropOverrides by mutableStateOf<Map<String, String>>(emptyMap())
         private set
+
+    /**
+     * Backdrop sonuçlarını toplu yayınlar. Her çözümde ayrı state yazmak (ve her seferinde
+     * tüm haritayı kopyalamak) Keşfet ekranını ~N kez yeniden kompoze edip hero logo
+     * aramasını yeniden başlatıyordu; birkaç yüz ms'lik pencerede tek yazım yeterli.
+     */
+    private fun scheduleHeroOverridesFlush() {
+        if (heroOverridesFlushJob?.isActive == true) return
+        heroOverridesFlushJob = viewModelScope.launch {
+            kotlinx.coroutines.delay(250L)
+            heroBackdropOverrides = heroBackdropCache.toMap()
+        }
+    }
 
     /**
      * Seçilen vitrin öğelerinde eksik yatay arka planları TMDB'den çözer.
@@ -1307,7 +1321,7 @@ class ExploreViewModel(application: Application) : AndroidViewModel(application)
                         }
                         heroBackdropInFlight.remove(identity)
                         heroBackdropCache[identity] = url ?: ""
-                        heroBackdropOverrides = heroBackdropCache.toMap()
+                        scheduleHeroOverridesFlush()
                     }
                 }
             }
