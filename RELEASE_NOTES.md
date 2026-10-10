@@ -1,5 +1,65 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.236)
+
+### 🚀 1. Genel Performans, Donma (Kasma) ve GC Fırtınası Çözümü
+- **Kare Gecikmesi %96 İyileştirildi:** Logcat ve gfxinfo analizlerinde görülen 1200 ms'lik takılmalar giderildi; p99 kare süresi 1200 ms'den 46 ms'ye düşürüldü, takılma oranı (jank rate) %30'dan %8'e indi.
+- **İç İçe Looper ve Logcat Yönlendirmesi Kaldırıldı:** `KitsugiApplication` içindeki ek ana looper döngüsü (`Looper.loop()`) ve arka planda diske sürekli yazan `logcat -f` süreci temizlenerek ana iş parçacığı (main thread) rahatlatıldı.
+- **Degrade Shader & Brush Önbelleği (`GradientBrushCache`):** Her çizim karesinde yeni shader/fırça tahsisatı engellendi. Eski `customAccentColor2` kalıntılarının gereksiz yere çift renkli çizim yolunu tetiklemesi engellendi.
+- **AniList 429 Ağ Rahatlaması:** Üst üste binen yeniden deneme döngüleri engellendi; AniList 429 (Rate Limit) durumunda tüm sorgular için ortak bekleme süresi devreye alındı.
+
+### 🛡️ 2. GPU RenderThread Çökme Koruması (`Modifier.safeBlur`)
+- **Donanımsal Bulanıklık Güvenliği:** API 31 altındaki cihazlarda ve riskli GPU sürücülerinde `libhwui` SIGSEGV çökmelerine yol açan koşulsuz `.blur()` çağrıları `Modifier.safeBlur()` ile korumaya alındı; aşırı yarıçap değerleri sınırlandı.
+- **Üst Üste Binen GPU Katmanları Temizlendi:** `KitsugiCinematicLoadingScreen` içindeki çift GPU bulanıklık katmanı teke indirildi; `MangaDetailScreen` ve eklenti diyaloglarındaki ağır bulanıklıklar optimize edildi.
+
+### 🌐 3. Android 13+ Dil Değiştirme ve Çökme Düzeltmesi
+- **Aktif Dil Senkronizasyonu (`locales_config.xml`):** Android 13+ `LocaleManager` için Türkçe ve İngilizce dilleri açıkça tanımlandı (`locales_config.xml`), manifest entegrasyonu tamamlandı. "İngilizce seçili ama Türkçe görünüyor" sorunu giderildi.
+- **API 33+ Modern Dil API'si:** Dil geçişi `AppCompatDelegate.setApplicationLocales()` ile modernize edildi; dil değişimi sonrası çağrılan `recreate()` kuyruğun sonuna alınarak döngü ve çökme engellendi.
+- **Dize Formatı Hataları Düzeltildi:** Dil dosyalarındaki hatalı yüzde formatları (`Normal (%0)` -> `Normal (0%)`) düzeltildi.
+
+### 📐 4. Kart Düzeni, Metin Kesilmesi ve Geri Sayım Optimizasyonu
+- **Rozet ve Başlık Kesilmesi Çözüldü:** 2 satırlı başlık, alt başlık ve sonraki bölüm rozetinin alt kısımdan taşmasını engellemek için portre kart metin alanı 182 dp'ye (`EXPLORE_CARD_PORTRAIT_TEXT_HEIGHT`) yükseltildi.
+- **10 Saniyelik Donma Döngüsü Kırıldı:** `NextAiringChip` içindeki her 10 saniyede bir ekranı tetikleyen sayaç 30–60 saniyeye çıkarıldı. `KitsugiUpcomingAirEnricher` iptal istisnaları (`CancellationException`) doğru yönetilerek arka plan ağ kilitlemeleri önlendi.
+
+### 🧲 5. Yatay Satırlarda Akıcı Kart Yaslama (Snap Scrolling)
+- **Sola Yapışan Kaydırma Geri Getirildi:** Keşfet vitrinleri, arama sonuçları, detay rafları ve profil sayfalarındaki yatay kart listelerine `KitsugiScrollDefaults.rememberRowSnapFling(state)` eklendi; kartlar kaydırma bitiminde sola akıcı ve muntazam biçimde oturuyor.
+
+### 🔑 6. Liste Anahtarları (Key Collision) & "Tümünü Gör" Sonsuz Yükleme Düzeltmesi
+- **Tür Bazlı Kimlik Ayrımı (`KitsugiLazyKeys.kt`):** Keşfet, arama ve ızgara listelerinde aynı sayısal kimliğe sahip anime ve mangaların çakışmasını engellemek için anahtarlara medya türü (`type`) dahil edildi.
+- **Sonsuz İstek Döngüsü Sınırlandı:** `FullScreenMediaGridPage` sayfasında kullanıcı kaydırmadan tetiklenen sürekli sayfa çekme döngüsüne kaydırma başına bütçe eklendi.
+
+---
+
+## 🇬🇧 English (v2.4.236)
+
+### 🚀 1. Systemwide Lag, Stutter & GC Thrashing Fix
+- **96% Frame Latency Reduction:** Eliminated severe 1200ms frame spikes observed in logcat/gfxinfo; p99 frame latency reduced from 1200ms to 46ms, and janky frame rate dropped from ~30% to 8.13%.
+- **Removed Nested Looper & Disk Logcat:** Stripped redundant nested `Looper.loop()` in `KitsugiApplication` and background `logcat -f` disk streaming process, relieving heavy main thread contention.
+- **Cached Gradient Shaders & Brushes (`GradientBrushCache`):** Cached linear gradients and draw node brushes, stopping continuous per-frame shader allocations. Guarded stale `customAccentColor2` to avoid triggering double-accent drawing paths unintentionally.
+- **AniList 429 Retry Storm Prevention:** Implemented a global rate-limit cooldown for AniList 429 responses, preventing cascading 10-15s retry storms.
+
+### 🛡️ 2. GPU RenderThread Crash Safety (`Modifier.safeBlur`)
+- **Hardware Blur Guard:** Replaced unconditional `.blur()` modifiers across screens with `Modifier.safeBlur()`, skipping blur on API < 31 and clamping blur radius to prevent `libhwui` RenderThread SIGSEGV crashes on vulnerable GPUs.
+- **Eliminated Redundant GPU Layers:** Removed nested double GPU blur pass in `KitsugiCinematicLoadingScreen`; optimized heavy blur layers in `MangaDetailScreen` and addon dialogs.
+
+### 🌐 3. Android 13+ Per-App Language Switching & Crash Fix
+- **Explicit Locale Configuration (`locales_config.xml`):** Declared English and Turkish locales in `res/xml/locales_config.xml` and manifest to satisfy Android 13+ `LocaleManager` requirements, resolving "English selected but Turkish shown" issues.
+- **Modernized Locale API for API 33+:** Switched to `AppCompatDelegate.setApplicationLocales()`. Deferred activity `recreate()` call via main looper handler post to prevent activity recreation crashes.
+- **Fixed Malformed String Templates:** Corrected invalid percentage token placements in localized resources (`Normal (%0)` -> `Normal (0%)`).
+
+### 📐 4. Card Layout, Text Clipping & Countdown Timer Optimization
+- **Badge & Title Overflow Fix:** Increased portrait card text container height to 182dp (`EXPLORE_CARD_PORTRAIT_TEXT_HEIGHT`), ensuring two-line titles, subtitles, and next-airing chips render cleanly without clipping.
+- **Eliminated 10-Second Frame Freeze:** Re-tuned `NextAiringChip` ticker interval from 10s to 30-60s. Handled `CancellationException` properly in `KitsugiUpcomingAirEnricher` to avoid negative caching loops.
+
+### 🧲 5. Horizontal Shelf Snap Scrolling
+- **Restored Left-Edge Snap Fling:** Added `KitsugiScrollDefaults.rememberRowSnapFling(state)` (`SnapPosition.Start`) across Explore shelves, search rows, detail recommendations, and profile collections.
+
+### 🔑 6. Lazy Column/Row Key Collision & Infinite Load Loop Fix
+- **Type-Aware Identity Keys (`KitsugiLazyKeys.kt`):** Included media type (`type`) in Compose item keys across 11 shelves and grids, preventing collision when anime and manga share the same ID.
+- **Bounded Pagination Budget:** Fixed continuous unprompted pagination in `FullScreenMediaGridPage` by requiring active scroll gestures.
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.235)
 
 ### 🎨 1. Premium Açılır Menü Tasarımı (`KitsugiDropdownMenu`)
