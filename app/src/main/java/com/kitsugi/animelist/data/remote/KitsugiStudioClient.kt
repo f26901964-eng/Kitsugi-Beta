@@ -43,7 +43,7 @@ class KitsugiStudioClient {
                 }
                 "anilist" -> fetchAniListStudioDetail(studioId)
                 "bangumi" -> fetchBangumiStudioDetail(studioId)
-                "shikimori" -> fetchShikimoriStudioDetail(studioId)
+                "shikimori" -> fetchShikimoriStudioDetail(studioId, name)
                 "tmdb" -> {
                     val tmdbRes = fetchTmdbStudioDetail(studioId)
                     if (tmdbRes != null && !tmdbRes.name.isNullOrBlank() &&
@@ -120,18 +120,13 @@ class KitsugiStudioClient {
         bestId
     }.getOrNull()
 
-    private suspend fun fetchShikimoriStudioDetail(studioId: Int): KitsugiStudioDetail? = runCatching {
-        val infoUrl = URL("https://shikimori.io/api/studios/$studioId")
-        val infoResponse = KitsugiApiBase.executeGetRequestResilient(infoUrl) ?: return@runCatching null
-        val info = JSONObject(infoResponse)
-        val name = info.optNullableString("name")
-            ?: info.optNullableString("filtered_name")
-            ?: return@runCatching null
-        val imageUrl = info.optJSONObject("image")?.let { image ->
-            (image.optNullableString("original") ?: image.optNullableString("preview"))
-                ?.let(::absoluteShikimoriImageUrl)
-        }
-        val about = info.optNullableString("description")?.cleanApiText()?.takeIf { it.isNotBlank() }
+    /**
+     * Shikimori'de tekil `/api/studios/{id}` ucu yoktur (404 döner); stüdyo kayıtları yalnızca
+     * `/api/studios` listesinde bulunur. Bu yüzden ad, tıklanan chip'ten alınır ve yapımlar
+     * doğrudan `/api/animes?studio={id}` ucundan çekilir.
+     */
+    private suspend fun fetchShikimoriStudioDetail(studioId: Int, name: String?): KitsugiStudioDetail? = runCatching {
+        val studioName = name?.trim()?.takeIf { it.isNotEmpty() } ?: return@runCatching null
         val mediaWorks = mutableListOf<KitsugiStaffMediaWork>()
         val worksUrl = URL("https://shikimori.io/api/animes?studio=$studioId&limit=50&order=aired_on")
         val worksResponse = KitsugiApiBase.executeGetRequestResilient(worksUrl)
@@ -166,16 +161,16 @@ class KitsugiStudioClient {
 
         KitsugiStudioDetail(
             id = studioId,
-            name = name,
+            name = studioName,
             isMain = true,
-            imageUrl = imageUrl,
-            about = about,
+            imageUrl = null,
+            about = null,
             mediaWorks = mediaWorks.distinctBy { it.mediaId }
         )
     }.getOrNull()
 
     private fun absoluteShikimoriImageUrl(value: String): String? = when {
-        value.isBlank() -> null
+        value.isBlank() || value.contains("/assets/globals/missing_") -> null
         value.startsWith("https://", ignoreCase = true) || value.startsWith("http://", ignoreCase = true) -> value
         value.startsWith("//") -> "https:$value"
         value.startsWith("/") -> "https://shikimori.io$value"
@@ -302,12 +297,14 @@ class KitsugiStudioClient {
 
     private suspend fun fetchJikanStudioDetail(studioId: Int): KitsugiStudioDetail? {
         val infoUrl = URL("https://api.jikan.moe/v4/producers/$studioId")
-        val mediaUrl = URL("https://api.jikan.moe/v4/anime?producers=$studioId&order_by=start_date&sort=desc&limit=80&sfw=false")
+        // limit=50: Tenrai'nin üst sınırı; daha büyük değerler 400 döndürüp yapım listesini boşaltıyordu.
+        val mediaUrl = URL("https://api.jikan.moe/v4/anime?producers=$studioId&order_by=start_date&sort=desc&limit=50&sfw=false")
 
         return runCatching {
             // Jikan rate limit: maks 3 istek/saniye — her çağrı runWithRateLimit ile korunuyor
+            // Resilient: tek seferlik 429/5xx yüzünden tüm stüdyo sayfası düşmesin.
             val infoResponse = KitsugiApiBase.runWithRateLimit {
-                KitsugiApiBase.executeGetRequest(infoUrl)
+                KitsugiApiBase.executeGetRequestResilient(infoUrl)
             } ?: return@runCatching null
             val infoRoot = JSONObject(infoResponse)
             val infoData = infoRoot.optJSONObject("data") ?: return@runCatching null
@@ -342,7 +339,7 @@ class KitsugiStudioClient {
 
             val mediaWorks = mutableListOf<KitsugiStaffMediaWork>()
             val mediaResponse = KitsugiApiBase.runWithRateLimit {
-                KitsugiApiBase.executeGetRequest(mediaUrl)
+                KitsugiApiBase.executeGetRequestResilient(mediaUrl)
             }
             if (mediaResponse != null) {
                 val mediaRoot = JSONObject(mediaResponse)
@@ -394,7 +391,7 @@ class KitsugiStudioClient {
                     isAnimationStudio
                     isFavourite
                     favourites
-                    media(page: 1, perPage: 80, sort: [START_DATE_DESC]) {
+                    media(page: 1, perPage: 50, sort: [START_DATE_DESC]) {
                         nodes {
                             id
                             idMal
@@ -478,7 +475,7 @@ class KitsugiStudioClient {
                         isAnimationStudio
                         isFavourite
                         favourites
-                        media(page: 1, perPage: 80, sort: [START_DATE_DESC]) {
+                        media(page: 1, perPage: 50, sort: [START_DATE_DESC]) {
                             nodes {
                                 id
                                 idMal

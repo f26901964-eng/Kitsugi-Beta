@@ -38,6 +38,7 @@ object JikanGateway {
     private const val CANONICAL_PREFIX = "https://api.jikan.moe/v4/"
     private const val CANONICAL_HOST = "api.jikan.moe"
     private const val TENRAI_BASE = "https://api.tenrai.org/v1"
+    private const val TENRAI_MAX_LIMIT = 50
     private const val USER_AGENT = "KitsugiAnimeList/1.0"
 
     /** Host'lar arası istek aralığı: Jikan/Tenrai 3-4 istek/sn sınırının altında kalmak için. */
@@ -116,15 +117,23 @@ object JikanGateway {
         return hosts
     }
 
-    /** Jikan sorgu parametrelerini Tenrai biçimine çevirir: `sfw=true` → `sfw`, `sfw=false` kaldırılır. */
+    /**
+     * Jikan sorgu parametrelerini Tenrai biçimine çevirir: `sfw=true` → `sfw`, `sfw=false` kaldırılır.
+     * Tenrai `limit` değerini en fazla 50 kabul eder (`limit=80` → 400 "limit must be <= 50");
+     * fazlası bu sınıra indirilir, aksi halde liste uçları (stüdyo yapımları vb.) boş kalır.
+     */
     internal fun tenraiRest(rest: String): String {
         val path = rest.substringBefore('?')
         val query = rest.substringAfter('?', "")
         if (query.isEmpty()) return path
         val params = query.split('&').mapNotNull { p ->
-            when (p) {
-                "sfw=true" -> "sfw"
-                "sfw=false" -> null
+            when {
+                p == "sfw=true" -> "sfw"
+                p == "sfw=false" -> null
+                p.startsWith("limit=") -> {
+                    val requested = p.removePrefix("limit=").toIntOrNull()
+                    if (requested != null && requested > TENRAI_MAX_LIMIT) "limit=$TENRAI_MAX_LIMIT" else p
+                }
                 else -> p
             }
         }
