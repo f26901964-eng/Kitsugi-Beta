@@ -4369,5 +4369,5 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="storage_bucket_webview">Web verileri</string>
     <string name="storage_bucket_webview_desc">Eklenti oturumları, çerezler ve WebView önbelleği</string>
     <string name="storage_bucket_extensions">Eklenti dosyaları</string>
-    <string name="storage_bucket_extensions_desc">Yüklü Cloudstream/Manga eklentileri — Ayarlar &gt; Eklentiler'den yönetilir</string>
+    <string name="storage_bucket_extensions_desc">Yüklü Cloudstream/Manga eklentileri — Ayarlar &gt; Eklentiler\'den yönetilir</string>
 </resources>

@@ -8,6 +8,7 @@ import androidx.annotation.StringRes
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.core.p2p.P2pSettingsRepository
 import com.kitsugi.animelist.core.p2p.P2pStreamingEngine
+import com.kitsugi.animelist.core.p2p.isStreaming
 import com.kitsugi.animelist.data.local.KitsugiDatabase
 import com.kitsugi.animelist.data.manga.loader.MangaCache
 import kotlinx.coroutines.Dispatchers
@@ -498,7 +499,7 @@ object StorageJanitor {
     @Suppress("DEPRECATION")
     private suspend fun clearWebViewData(context: Context) {
         withContext(Dispatchers.Main) {
-            runCatching { WebView.clearCache(true) }
+            runCatching { WebView(context).clearCache(true) }
             runCatching { WebStorage.getInstance().deleteAllData() }
         }
         // Kalan çerez/dosya artıklarını da bırakma (WebView kapalıyken güvenlidir).
