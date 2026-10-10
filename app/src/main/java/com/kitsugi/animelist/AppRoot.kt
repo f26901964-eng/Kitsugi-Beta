@@ -1011,6 +1011,23 @@ fun AppRoot(
             onRetryInstallClick = { updateViewModel.retryInstall() },
             onDismiss = { updateViewModel.dismissUpdate() }
         )
+
+        // ── OAuth WebView Dialog (MAL/AniList/Simkl için eski haline restore) ────
+        // Harici tarayıcı yerine uygulama içi WebView ile giriş, basic auth popup fix
+        val oauthService = authViewModel.oauthServiceToShow
+        if (oauthService != null) {
+            com.kitsugi.animelist.ui.components.KitsugiOAuthWebViewDialog(
+                serviceName = oauthService,
+                onDismiss = { authViewModel.dismissOAuthDialog() },
+                onSuccess = { svc ->
+                    authViewModel.dismissOAuthDialog()
+                    // Başarı mesajı zaten authEvents flow'undan geliyor
+                },
+                onError = { err ->
+                    // Hata durumunda da dialog açık kalabilir, kullanıcı kapatabilir
+                }
+            )
+        }
     }
 }
 

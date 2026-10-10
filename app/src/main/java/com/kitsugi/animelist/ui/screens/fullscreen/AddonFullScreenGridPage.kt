@@ -556,7 +556,7 @@ fun AddonFullScreenGridPage(
 
                 itemsIndexed(
                     displayedResults,
-                    key = { idx, result -> "${state.apiName}_${result.cs3Url}_l$idx" }
+                    key = { _, result -> "${state.apiName}_${result.cs3Url}_list" }
                 ) { index, result ->
                     KitsugiRankingMediaCard(
                         result = result,

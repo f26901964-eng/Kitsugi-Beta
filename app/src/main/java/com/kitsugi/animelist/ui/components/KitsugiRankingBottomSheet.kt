@@ -221,7 +221,7 @@ fun KitsugiRankingBottomSheet(
                 ) {
                     itemsIndexed(
                         items = resultsList,
-                        key = { index, item -> "${item.source}_${item.malId}_$index" }
+                        key = { _, item -> "${item.source}_${item.type}_${item.malId}_${item.tmdbId ?: 0}" }
                     ) { index, item ->
                         KitsugiRankingMediaCard(
                             result = item,
