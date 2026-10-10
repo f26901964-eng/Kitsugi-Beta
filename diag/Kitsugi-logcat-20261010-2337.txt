@@ -1,0 +1,858 @@
+=== SON ÇÖKME RAPORU ===
+╔══════════════════════════════════════════════════════════════╗
+║           KİTSUGİ CRASH REPORT — 2026-10-10 00:21:13.255
+╚══════════════════════════════════════════════════════════════╝
+
+▶ UYGULAMA BİLGİSİ
+  Version    : 2.4.226-beta.29859616 (29859616)
+  Build Type : release
+  Uptime     : 2697s
+  PID        : 13504
+
+▶ CİHAZ BİLGİSİ
+  Marka      : Xiaomi
+  Model      : 23043RP34C
+  Üretici    : Xiaomi
+  Android    : 13 (API 33)
+  Cihaz      : pipa
+  Ürün       : pipa
+  ABI        : arm64-v8a
+
+▶ THREAD BİLGİSİ
+  Thread     : main
+  Thread ID  : 2
+  Tip        : FOREGROUND (Ana UI Thread)
+  Daemon     : false
+
+▶ BELLEK DURUMU
+  Kullanılan : 113 MB / 512 MB (max)
+  Toplam JVM : 119 MB
+  Serbest    : 6 MB
+  Önbellekler: heap=112MB/512MB caches=bangumi.entityName:63, bangumi.titleCache:16, bangumi.subject:15, bangumi.cross:8, detail.malToTmdb:5, detail.logo:5, detail.tmdbToTvdb:4, detail.reviews:2
+
+▶ HATA ZİNCİRİ
+    HATA   : java.lang.NoClassDefFoundError: Failed resolution of: Lkotlinx/datetime/serializers/InstantIso8601Serializer;
+    NEDEN 1 : java.lang.ClassNotFoundException: kotlinx.datetime.serializers.InstantIso8601Serializer
+
+▶ TAM STACKTRACE
+java.lang.NoClassDefFoundError: Failed resolution of: Lkotlinx/datetime/serializers/InstantIso8601Serializer;
+	at io.github.jan.supabase.auth.user.UserInfo$$serializer.deserialize(SourceFile:1)
+	at io.github.jan.supabase.auth.user.UserInfo$$serializer.deserialize(SourceFile:2)
+	at ob.b.decodeSerializableValue(Unknown Source:202)
+	at nb.d.a(Unknown Source:74)
+	at io.github.jan.supabase.auth.providers.builtin.Email.decodeResult(SourceFile:3)
+	at io.github.jan.supabase.auth.providers.builtin.Email.decodeResult(SourceFile:1)
+	at io.github.jan.supabase.auth.providers.builtin.DefaultAuthProvider$DefaultImpls.signUp(Unknown Source:384)
+	at io.github.jan.supabase.auth.providers.builtin.DefaultAuthProvider$signUp$1.invokeSuspend(Unknown Source:15)
+	at kotlin.coroutines.jvm.internal.BaseContinuationImpl.resumeWith(Unknown Source:11)
+	at kotlinx.coroutines.DispatchedTask.run(Unknown Source:128)
+	at kotlinx.coroutines.internal.LimitedDispatcher$Worker.run(Unknown Source:3)
+	at kotlinx.coroutines.scheduling.TaskImpl.run(Unknown Source:2)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler.runSafely(Unknown Source:0)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.executeTask(Unknown Source:33)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.runWorker(Unknown Source:28)
+	at kotlinx.coroutines.scheduling.CoroutineScheduler$Worker.run(Unknown Source:0)
+	Suppressed: kotlinx.coroutines.internal.DiagnosticCoroutineContextException: [androidx.compose.ui.platform.MotionDurationScaleImpl@e9cc9cd, androidx.compose.runtime.BroadcastFrameClock@fcc9282, StandaloneCoroutine{Cancelling}@14a2d93, AndroidUiDispatcher@92a61d0]
+Caused by: java.lang.ClassNotFoundException: kotlinx.datetime.serializers.InstantIso8601Serializer
+	... 16 more
+
+
+▶ SON BİLİNEN EKRAN
+  Tab(tab=Settings)
+
+▶ UYGULAMA EYLEM İZİ (son eylemler, sondan geriye)
+  2026-10-10 00:21:04  ekran → Tab(tab=Settings)
+  2026-10-10 00:21:04  ekran → Tab(tab=Explore)
+  2026-10-10 00:20:18  ekran → ApiResultDetail(result=JikanSearchResult(malId=500000876, title=CLANNAD 〜AFTER STORY〜, subtitle=TV, type=Anime, total=24, score=9, isAdult=false, imageUrl=https://lain.bgm.tv/r/400/pic/cover/l/67/d1/876_dCfrd.jpg, year=2008, source=bangumi, realMalId=null, titleEnglish=CLANNAD 〜AFTER STORY〜, titleJapanese=CLANNAD 〜AFTER STORY〜, titleRomaji=CLANNAD 〜AFTER STORY〜, tmdbId=null, backdropUrl=https://lain.bgm.tv/pic/cover/l/67/d1/876_dCfrd.jpg, rank=1, members=31880, favorites=60374, rawScoreDouble=9.2, nextAiringEpisode=null, cs3Url=null, cs3ApiName=null, genres=[Clannad, 京阿尼, 催泪, key, 神作, 麻枝准, 治愈, 人生, TV, ~After-Story~, 治愈系, 游戏改]), depth=1)
+  2026-10-10 00:20:11  ekran → StaffDetail(staffId=47, source=bangumi, depth=2, name=Key, imageUrl=https://lain.bgm.tv/r/200/pic/crt/l/da/92/47_prsn_I3f0W.jpg?r=1576875767)
+  2026-10-10 00:20:04  ekran → ApiResultDetail(result=JikanSearchResult(malId=500000876, title=CLANNAD 〜AFTER STORY〜, subtitle=TV, type=Anime, total=24, score=9, isAdult=false, imageUrl=https://lain.bgm.tv/r/400/pic/cover/l/67/d1/876_dCfrd.jpg, year=2008, source=bangumi, realMalId=null, titleEnglish=CLANNAD 〜AFTER STORY〜, titleJapanese=CLANNAD 〜AFTER STORY〜, titleRomaji=CLANNAD 〜AFTER STORY〜, tmdbId=null, backdropUrl=https://lain.bgm.tv/pic/cover/l/67/d1/876_dCfrd.jpg, rank=1, members=31880, favorites=60374, rawScoreDouble=9.2, nextAiringEpisode=null, cs3Url=null, cs3ApiName=null, genres=[Clannad, 京阿尼, 催泪, key, 神作, 麻枝准, 治愈, 人生, TV, ~After-Story~, 治愈系, 游戏改]), depth=1)
+  2026-10-10 00:18:27  galeri gezinme: sayfa 17/19
+  2026-10-10 00:18:27  galeri gezinme: sayfa 18/19
+  2026-10-10 00:18:26  galeri gezinme: sayfa 19/19
+  2026-10-10 00:18:25  galeri gezinme: sayfa 18/19
+  2026-10-10 00:18:22  galeri gezinme: sayfa 17/19
+  2026-10-10 00:18:22  galeri gezinme: sayfa 16/19
+  2026-10-10 00:18:21  galeri gezinme: sayfa 15/19
+  2026-10-10 00:18:19  galeri gezinme: sayfa 14/19
+  2026-10-10 00:18:18  galeri gezinme: sayfa 13/19
+  2026-10-10 00:18:18  galeri gezinme: sayfa 12/19
+  2026-10-10 00:18:17  galeri gezinme: sayfa 11/19
+  2026-10-10 00:18:16  galeri gezinme: sayfa 10/19
+  2026-10-10 00:18:16  galeri gezinme: sayfa 9/19
+  2026-10-10 00:18:15  galeri gezinme: sayfa 8/19
+  2026-10-10 00:18:14  galeri gezinme: sayfa 7/19
+  2026-10-10 00:18:14  galeri gezinme: sayfa 6/19
+  2026-10-10 00:18:13  galeri gezinme: sayfa 5/19
+  2026-10-10 00:18:12  galeri gezinme: sayfa 4/19
+  2026-10-10 00:18:11  galeri gezinme: sayfa 3/19
+  2026-10-10 00:18:10  galeri gezinme: sayfa 2/19
+  2026-10-10 00:18:09  galeri gezinme: sayfa 1/19
+  2026-10-10 00:18:09  ekran → Galeri: Nakamura Yūichi = Nakamura Yuuichi (19 görsel)
+  2026-10-10 00:18:08  ekran → StaffDetail(staffId=4724, source=bangumi, depth=2, name=Nakamura Yuuichi, imageUrl=https://lain.bgm.tv/r/200/pic/crt/l/7a/78/4724_prsn_7TvWV.jpg)
+  2026-10-10 00:18:06  ekran → ApiResultDetail(result=JikanSearchResult(malId=500000876, title=CLANNAD 〜AFTER STORY〜, subtitle=TV, type=Anime, total=24, score=9, isAdult=false, imageUrl=https://lain.bgm.tv/r/400/pic/cover/l/67/d1/876_dCfrd.jpg, year=2008, source=bangumi, realMalId=null, titleEnglish=CLANNAD 〜AFTER STORY〜, titleJapanese=CLANNAD 〜AFTER STORY〜, titleRomaji=CLANNAD 〜AFTER STORY〜, tmdbId=null, backdropUrl=https://lain.bgm.tv/pic/cover/l/67/d1/876_dCfrd.jpg, rank=1, members=31880, favorites=60374, rawScoreDouble=9.2, nextAiringEpisode=null, cs3Url=null, cs3ApiName=null, genres=[Clannad, 京阿尼, 催泪, key, 神作, 麻枝准, 治愈, 人生, TV, ~After-Story~, 治愈系, 游戏改]), depth=1)
+  2026-10-10 00:17:58  ekran → StaffDetail(staffId=4724, source=bangumi, depth=2, name=Nakamura Yuuichi, imageUrl=https://lain.bgm.tv/r/200/pic/crt/l/7a/78/4724_prsn_7TvWV.jpg)
+
+▶ AKTİF THREAD LİSTESİ (ilk 25)
+  [RUNNABLE] hwuiTask1 (daemon=true)
+  [TIMED_WA] DefaultDispatcher-worker-7 (daemon=true)
+  [TIMED_WA] DefaultDispatcher-worker-20 (daemon=true)
+  [RUNNABLE] Jit thread pool worker thread 0 (daemon=true)
+  [WAITING ] KitsugiSessionIO (daemon=true)
+  [TIMED_WA] OkHttp Dispatcher (daemon=false)
+  [RUNNABLE] OkHttp image.tmdb.org (daemon=true)
+  [RUNNABLE] OkHttp cloudflare-dns.com (daemon=true)
+  [RUNNABLE] ThreadPoolSingl (daemon=false)
+  [RUNNABLE] OkHttp kuramanime.club (daemon=true)
+  [TIMED_WA] DefaultDispatcher-worker-8 (daemon=true)
+  [RUNNABLE] binder:13504_D (daemon=false)
+  [RUNNABLE] ConnectivityThread (daemon=false)
+  [TIMED_WA] OkHttp TaskRunner (daemon=true)
+  [RUNNABLE] Chrome_IOThread (daemon=false)
+  [RUNNABLE] binder:13504_7 (daemon=false)
+  [TIMED_WA] OkHttp Dispatcher (daemon=false)
+  [TIMED_WA] OkHttp Dispatcher (daemon=false)
+  [RUNNABLE] binder:13504_E (daemon=false)
+  [TIMED_WA] OkHttp Dispatcher (daemon=false)
+  [RUNNABLE] OkHttp animejara.com (daemon=true)
+  [RUNNABLE] ThreadPoolForeg (daemon=false)
+  [RUNNABLE] AudioPortEventHandler (daemon=false)
+  [RUNNABLE] binder:13504_1 (daemon=false)
+  [RUNNABLE] queued-work-looper (daemon=false)
+
+═══════════════════════════════════════════════════════════════
+
+=========================
+
+10-10 23:37:19.797 D/DecorView[](17699): onWindowFocusChanged hasWindowFocus false
+10-10 23:37:19.776 D/VRI[MainActivity](17699): vri.reportDrawFinished syncSeqId=0 android.view.ViewRootImpl.lambda$createSyncIfNeeded$4$android-view-ViewRootImpl:3861 android.view.ViewRootImpl$$ExternalSyntheticLambda1.run:6 android.os.Handler.handleCallback:942 android.os.Handler.dispatchMessage:99 android.os.Looper.loopOnce:211 
+10-10 23:37:19.775 E/perf_hint(17699): Session creation failed, mPreferredRateNanos: -1
+10-10 23:37:19.755 D/VRI[MainActivity](17699): vri.Setup new sync id=0 syncSeqId=0
+10-10 23:37:19.755 D/VRI[MainActivity](17699): vri.reportNextDraw android.view.ViewRootImpl.performTraversals:3793 android.view.ViewRootImpl.doTraversal:2551 android.view.ViewRootImpl$TraversalRunnable.run:9509 android.view.Choreographer$CallbackRecord.run:1495 android.view.Choreographer$CallbackRecord.run:1503 
+10-10 23:37:19.750 I/ForceDarkHelperStubImpl(17699): setViewRootImplForceDark: false for com.kitsugi.animelist.MainActivity@b174df8, reason: AppDarkModeEnable
+10-10 23:37:19.719 I/ForceDarkHelperStubImpl(17699): setViewRootImplForceDark: false for com.kitsugi.animelist.MainActivity@b174df8, reason: AppDarkModeEnable
+10-10 23:37:19.714 W/OnBackInvokedCallback(17699): Set 'android:enableOnBackInvokedCallback="true"' in the application manifest.
+10-10 23:37:19.714 W/OnBackInvokedCallback(17699): OnBackInvokedCallback is not enabled for the application.
+10-10 23:37:19.707 D/MULTI_WINDOW_ENABLED(17699): true
+10-10 23:37:19.707 D/IS_CTS_MODE(17699): false
+10-10 23:37:17.748 W/RetryInterceptor(17699): 429 alındı. Retry-After: 5000ms — https://graphql.anilist.co/
+10-10 23:37:17.687 D/RetryInterceptor(17699): Retry 1/2 for https://graphql.anilist.co/
+10-10 23:37:17.583 I/tsugi.animelist(17699): Compiler allocated 9126KB to compile void i3.q.g(com.kitsugi.animelist.d6, androidx.compose.runtime.Composer, int)
+10-10 23:37:12.728 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:37:12.687 W/RetryInterceptor(17699): 429 alındı. Retry-After: 5000ms — https://graphql.anilist.co/
+10-10 23:37:10.371 W/Looper  (17699): PerfMonitor doFrame : time=14ms vsyncFrame=0 latency=305ms procState=-1 historyMsgCount=7 (msgIndex=1 wall=309ms seq=23246 running=296ms late=238ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:37:10.357 I/Choreographer(17699): Skipped 43 frames!  The application may be doing too much work on its main thread.
+10-10 23:37:10.356 W/Looper  (17699): PerfMonitor doFrame : time=309ms vsyncFrame=0 latency=238ms procState=-1 historyMsgCount=8 (msgIndex=1 wall=239ms seq=23238 running=232ms runnable=3ms late=1021ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:37:10.273 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:37:10.119 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:37:10.060 I/OpenGLRenderer(17699): Davey! duration=1265ms; Flags=0, FrameTimelineVsyncId=276276932, IntendedVsync=321407243539393, Vsync=321408259818675, InputEventId=0, HandleInputStart=321408264188221, AnimationStart=321408264190356, PerformTraversalsStart=321408438592231, DrawStart=321408438654314, FrameDeadline=321407260606912, FrameInterval=321408264117231, FrameStartTime=6956409, SyncQueued=321408502733064, SyncStart=321408502826346, IssueDrawCommandsStart=321408503537179, SwapBuffers=321408506467543, FrameCompleted=321408509612231, DequeueBufferDuration=17292, QueueBufferDuration=251979, GpuCompleted=321408509612231, SwapBuffersCompleted=321408507174054, DisplayPresentTime=321407680805148, CommandSubmissionCompleted=321408506467543, 
+10-10 23:37:10.047 I/Choreographer(17699): Skipped 34 frames!  The application may be doing too much work on its main thread.
+10-10 23:37:10.046 W/Looper  (17699): PerfMonitor doFrame : time=239ms vsyncFrame=0 latency=1021ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=1023ms seq=23234 running=990ms runnable=6ms late=1ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:37:09.953 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:37:09.807 I/Choreographer(17699): Skipped 146 frames!  The application may be doing too much work on its main thread.
+10-10 23:37:09.803 W/Looper  (17699): PerfMonitor doFrame : time=1023ms vsyncFrame=0 latency=1ms procState=-1
+10-10 23:37:09.803 W/Looper  (17699): PerfMonitor longMsg : seq=23234 plan=23:37:08.779 late=1ms wall=1023ms running=990ms runnable=6ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver procState=-1
+10-10 23:37:09.760 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:37:09.575 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:37:09.354 D/RetryInterceptor(17699): Retry 1/2 for https://graphql.anilist.co/
+10-10 23:37:09.329 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:37:09.077 I/tsugi.animelist(17699): This is non sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:37:08.945 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:37:08.838 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:37:08.354 W/RetryInterceptor(17699): 429 alındı. Retry-After: 1000ms — https://graphql.anilist.co/
+10-10 23:37:08.194 W/KitsugiApiBase(17699): AniList query retryable failure with code: 429 
+10-10 23:37:08.029 D/RetryInterceptor(17699): Retry 2/2 for https://graphql.anilist.co/
+10-10 23:37:07.464 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:37:07.311 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:37:07.139 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:37:06.226 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:37:05.994 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:37:03.029 W/RetryInterceptor(17699): 429 alındı. Retry-After: 5000ms — https://graphql.anilist.co/
+10-10 23:37:02.837 D/RetryInterceptor(17699): Retry 1/2 for https://graphql.anilist.co/
+10-10 23:36:57.836 W/RetryInterceptor(17699): 429 alındı. Retry-After: 5000ms — https://graphql.anilist.co/
+10-10 23:36:57.683 W/KitsugiApiBase(17699): AniList query retryable failure with code: 429 
+10-10 23:36:57.521 D/RetryInterceptor(17699): Retry 2/2 for https://graphql.anilist.co/
+10-10 23:36:56.530 I/tsugi.animelist(17699): This is non sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:56.470 W/Looper  (17699): PerfMonitor doFrame : time=1ms vsyncFrame=0 latency=406ms procState=-1 historyMsgCount=3 (msgIndex=1 wall=411ms seq=18459 running=398ms runnable=1ms late=1ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:36:56.469 I/Choreographer(17699): Skipped 58 frames!  The application may be doing too much work on its main thread.
+10-10 23:36:56.467 W/Looper  (17699): PerfMonitor doFrame : time=411ms vsyncFrame=0 latency=1ms procState=-1 historyMsgCount=4
+10-10 23:36:56.407 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:56.355 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:56.295 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:56.234 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:56.160 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:56.088 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:55.581 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:55.485 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:55.365 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:55.161 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:54.453 I/Choreographer(17699): Skipped 41 frames!  The application may be doing too much work on its main thread.
+10-10 23:36:54.451 W/Looper  (17699): PerfMonitor doFrame : time=301ms vsyncFrame=0 latency=1ms procState=-1 historyMsgCount=1
+10-10 23:36:54.381 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:52.520 W/RetryInterceptor(17699): 429 alındı. Retry-After: 5000ms — https://graphql.anilist.co/
+10-10 23:36:52.313 D/RetryInterceptor(17699): Retry 1/2 for https://graphql.anilist.co/
+10-10 23:36:47.310 W/RetryInterceptor(17699): 429 alındı. Retry-After: 5000ms — https://graphql.anilist.co/
+10-10 23:36:47.165 I/OpenGLRenderer(17699): Davey! duration=1587ms; Flags=0, FrameTimelineVsyncId=276260594, IntendedVsync=321384026704601, Vsync=321384882407729, InputEventId=0, HandleInputStart=321384885156407, AnimationStart=321384885158021, PerformTraversalsStart=321385598071302, DrawStart=321385598169792, FrameDeadline=321384043772484, FrameInterval=321384885107865, FrameStartTime=6956773, SyncQueued=321385608840469, SyncStart=321385608882083, IssueDrawCommandsStart=321385609223750, SwapBuffers=321385611024479, FrameCompleted=321385614320417, DequeueBufferDuration=16094, QueueBufferDuration=205573, GpuCompleted=321385614320417, SwapBuffersCompleted=321385611594271, DisplayPresentTime=321382196101564, CommandSubmissionCompleted=321385611024479, 
+10-10 23:36:47.163 W/Looper  (17699): PerfMonitor doFrame : time=8ms vsyncFrame=0 latency=720ms procState=-1 historyMsgCount=3 (msgIndex=1 wall=724ms seq=17915 running=701ms runnable=8ms late=859ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:36:47.162 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:47.154 I/Choreographer(17699): Skipped 35 frames!  The application may be doing too much work on its main thread.
+10-10 23:36:47.153 W/Looper  (17699): PerfMonitor doFrame : time=724ms vsyncFrame=0 latency=859ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=1661ms seq=17910 running=1616ms runnable=11ms late=1ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:36:46.993 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:46.799 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:46.622 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:46.451 I/OpenGLRenderer(17699): Davey! duration=1673ms; Flags=0, FrameTimelineVsyncId=276260563, IntendedVsync=321383219430395, Vsync=321383219430395, InputEventId=890843887, HandleInputStart=321383220343647, AnimationStart=321383220345939, PerformTraversalsStart=321384026511303, DrawStart=321384870955469, FrameDeadline=321383236496475, FrameInterval=321383220315261, FrameStartTime=6954970, SyncQueued=321384881144219, SyncStart=321384881385990, IssueDrawCommandsStart=321384881643125, SwapBuffers=321384883453021, FrameCompleted=321384893259844, DequeueBufferDuration=14687, QueueBufferDuration=188281, GpuCompleted=321384893259844, SwapBuffersCompleted=321384883893855, DisplayPresentTime=321378766268232, CommandSubmissionCompleted=321384883453021, 
+10-10 23:36:46.428 I/Choreographer(17699): Skipped 123 frames!  The application may be doing too much work on its main thread.
+10-10 23:36:46.425 W/Looper  (17699): PerfMonitor doFrame : time=1661ms vsyncFrame=0 latency=1ms procState=-1
+10-10 23:36:46.425 W/Looper  (17699): PerfMonitor longMsg : seq=17910 plan=23:36:44.762 late=1ms wall=1661ms running=1616ms runnable=11ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver procState=-1
+10-10 23:36:46.384 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:46.122 I/tsugi.animelist(17699): Background concurrent copying GC freed 898261(30MB) AllocSpace objects, 3(72KB) LOS objects, 34% free, 45MB/69MB, paused 44us,39us total 108.252ms
+10-10 23:36:46.122 I/tsugi.animelist(17699): This is non sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:45.942 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:45.800 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:45.658 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:45.501 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:45.348 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:45.172 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:44.974 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:44.804 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:44.770 I/OpenGLRenderer(17699): Davey! duration=741ms; Flags=0, FrameTimelineVsyncId=276260542, IntendedVsync=321382482203575, Vsync=321382482203575, InputEventId=0, HandleInputStart=321382482589845, AnimationStart=321382482592866, PerformTraversalsStart=321383210072501, DrawStart=321383210144272, FrameDeadline=321382492314685, FrameInterval=321382482566564, FrameStartTime=6954970, SyncQueued=321383210710782, SyncStart=321383210787553, IssueDrawCommandsStart=321383210893803, SwapBuffers=321383215624845, FrameCompleted=321383223977814, DequeueBufferDuration=14792, QueueBufferDuration=416146, GpuCompleted=321383223977814, SwapBuffersCompleted=321383216503334, DisplayPresentTime=321378759311513, CommandSubmissionCompleted=321383215624845, 
+10-10 23:36:44.754 W/Looper  (17699): PerfMonitor doFrame : time=728ms vsyncFrame=0 latency=0ms procState=-1
+10-10 23:36:44.555 I/tsugi.animelist(17699): Background concurrent copying GC freed 1152605(39MB) AllocSpace objects, 2(40KB) LOS objects, 36% free, 41MB/65MB, paused 63us,60us total 106.559ms
+10-10 23:36:44.554 I/tsugi.animelist(17699): This is non sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:44.407 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:44.334 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:44.251 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:44.168 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:44.078 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:43.941 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:43.720 I/OpenGLRenderer(17699): Davey! duration=701ms; Flags=0, FrameTimelineVsyncId=276259959, IntendedVsync=321381466529820, Vsync=321382155003243, InputEventId=920504821, HandleInputStart=321382156584897, AnimationStart=321382157045158, PerformTraversalsStart=321382157833179, DrawStart=321382157874272, FrameDeadline=321381483595207, FrameInterval=321382156542137, FrameStartTime=6954277, SyncQueued=321382158347554, SyncStart=321382158602814, IssueDrawCommandsStart=321382158750574, SwapBuffers=321382161620001, FrameCompleted=321382167991720, DequeueBufferDuration=10625, QueueBufferDuration=3462396, GpuCompleted=321382167991720, SwapBuffersCompleted=321382165612345, DisplayPresentTime=321378557582815, CommandSubmissionCompleted=321382161620001, 
+10-10 23:36:43.713 I/OpenGLRenderer(17699): Davey! duration=705ms; Flags=0, FrameTimelineVsyncId=276259951, IntendedVsync=321381459574736, Vsync=321381459574736, InputEventId=0, HandleInputStart=321381460749168, AnimationStart=321381460750054, PerformTraversalsStart=321382154175991, DrawStart=321382154238647, FrameDeadline=321381476640930, FrameInterval=321381460737137, FrameStartTime=6955084, SyncQueued=321382154605054, SyncStart=321382154692241, IssueDrawCommandsStart=321382154834741, SwapBuffers=321382157534741, FrameCompleted=321382165266147, DequeueBufferDuration=17917, QueueBufferDuration=308959, GpuCompleted=321382165266147, SwapBuffersCompleted=321382158451772, DisplayPresentTime=321378550629638, CommandSubmissionCompleted=321382157534741, 
+10-10 23:36:43.702 W/Looper  (17699): PerfMonitor doFrame : time=2ms vsyncFrame=0 latency=690ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=694ms seq=17789 running=680ms runnable=1ms late=1ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:36:43.699 I/Choreographer(17699): Skipped 99 frames!  The application may be doing too much work on its main thread.
+10-10 23:36:43.698 W/Looper  (17699): PerfMonitor doFrame : time=694ms vsyncFrame=0 latency=1ms procState=-1 historyMsgCount=4
+10-10 23:36:43.648 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:43.527 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:43.397 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:43.266 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:43.117 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:42.933 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:42.603 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:42.399 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:41.576 W/Looper  (17699): PerfMonitor doFrame : time=7ms vsyncFrame=0 latency=590ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=602ms seq=17485 running=584ms runnable=8ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:36:41.568 I/Choreographer(17699): Skipped 84 frames!  The application may be doing too much work on its main thread.
+10-10 23:36:41.566 W/Looper  (17699): PerfMonitor doFrame : time=602ms vsyncFrame=0 latency=0ms procState=-1
+10-10 23:36:41.511 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:41.260 I/tsugi.animelist(17699): Background concurrent copying GC freed 1023025(34MB) AllocSpace objects, 3(68KB) LOS objects, 34% free, 46MB/70MB, paused 47us,41us total 116.976ms
+10-10 23:36:41.260 I/tsugi.animelist(17699): This is non sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:41.087 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:40.516 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:40.399 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:39.511 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:39.391 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:39.093 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:38.931 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:38.240 W/Looper  (17699): PerfMonitor doFrame : time=6ms vsyncFrame=0 latency=490ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=496ms seq=17098 running=483ms runnable=3ms late=1ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:36:38.234 I/Choreographer(17699): Skipped 70 frames!  The application may be doing too much work on its main thread.
+10-10 23:36:38.233 W/Looper  (17699): PerfMonitor doFrame : time=496ms vsyncFrame=0 latency=1ms procState=-1 historyMsgCount=1
+10-10 23:36:38.136 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:37.960 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:37.730 W/Looper  (17699): PerfMonitor doFrame : time=759ms vsyncFrame=0 latency=500ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=507ms seq=17082 running=487ms runnable=7ms late=1ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:36:37.718 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:37.479 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:37.221 I/tsugi.animelist(17699): Background concurrent copying GC freed 907658(29MB) AllocSpace objects, 2(40KB) LOS objects, 34% free, 45MB/69MB, paused 75us,61us total 116.508ms
+10-10 23:36:37.221 I/tsugi.animelist(17699): This is non sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:37.091 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:37.026 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:36.970 I/Choreographer(17699): Skipped 72 frames!  The application may be doing too much work on its main thread.
+10-10 23:36:36.969 W/Looper  (17699): PerfMonitor doFrame : time=507ms vsyncFrame=0 latency=1ms procState=-1
+10-10 23:36:36.938 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:36.827 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:36.717 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:36.591 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:36.469 I/OpenGLRenderer(17699): Davey! duration=771ms; Flags=0, FrameTimelineVsyncId=276255354, IntendedVsync=321374147865000, Vsync=321374557587196, InputEventId=0, HandleInputStart=321374558095838, AnimationStart=321374558097192, PerformTraversalsStart=321374911834744, DrawStart=321374911910004, FrameDeadline=321374164920554, FrameInterval=321374558044275, FrameStartTime=6944444, SyncQueued=321374913487244, SyncStart=321374913547660, IssueDrawCommandsStart=321374913777035, SwapBuffers=321374916441619, FrameCompleted=321374919449171, DequeueBufferDuration=27032, QueueBufferDuration=221667, GpuCompleted=321374919449171, SwapBuffersCompleted=321374917065473, DisplayPresentTime=321369451088235, CommandSubmissionCompleted=321374916441619, 
+10-10 23:36:36.458 W/Looper  (17699): PerfMonitor doFrame : time=357ms vsyncFrame=0 latency=411ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=411ms seq=17072 running=397ms runnable=4ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:36:36.445 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:36.284 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:36.129 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:36.101 I/Choreographer(17699): Skipped 59 frames!  The application may be doing too much work on its main thread.
+10-10 23:36:36.100 W/Looper  (17699): PerfMonitor doFrame : time=411ms vsyncFrame=0 latency=0ms procState=-1
+10-10 23:36:35.954 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:35.764 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:35.698 I/OpenGLRenderer(17699): Davey! duration=813ms; Flags=0, FrameTimelineVsyncId=276255338, IntendedVsync=321373340979766, Vsync=321373786224566, InputEventId=0, HandleInputStart=321373786360682, AnimationStart=321373786361880, PerformTraversalsStart=321374140887296, DrawStart=321374140945525, FrameDeadline=321373358047826, FrameInterval=321373786316150, FrameStartTime=6956950, SyncQueued=321374142270161, SyncStart=321374142348234, IssueDrawCommandsStart=321374142637921, SwapBuffers=321374146715890, FrameCompleted=321374154646567, DequeueBufferDuration=37344, QueueBufferDuration=320625, GpuCompleted=321374154646567, SwapBuffersCompleted=321374147578859, DisplayPresentTime=321369437168756, CommandSubmissionCompleted=321374146715890, 
+10-10 23:36:35.688 W/Looper  (17699): PerfMonitor doFrame : time=358ms vsyncFrame=0 latency=446ms procState=-1 historyMsgCount=6 (msgIndex=3 wall=445ms seq=17061 running=429ms runnable=1ms late=466ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:36:35.539 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:35.340 I/OpenGLRenderer(17699): Davey! duration=922ms; Flags=0, FrameTimelineVsyncId=276255330, IntendedVsync=321372874885256, Vsync=321373334050820, InputEventId=0, HandleInputStart=321373340285213, AnimationStart=321373340287349, PerformTraversalsStart=321373706362140, DrawStart=321373706430890, FrameDeadline=321372891953420, FrameInterval=321373340217036, FrameStartTime=6957054, SyncQueued=321373785453911, SyncStart=321373785494432, IssueDrawCommandsStart=321373785611671, SwapBuffers=321373787650161, FrameCompleted=321373797233807, DequeueBufferDuration=14375, QueueBufferDuration=218542, GpuCompleted=321373797233807, SwapBuffersCompleted=321373788179536, DisplayPresentTime=321369430207715, CommandSubmissionCompleted=321373787650161, 
+10-10 23:36:35.329 I/Choreographer(17699): Skipped 64 frames!  The application may be doing too much work on its main thread.
+10-10 23:36:35.328 W/Looper  (17699): PerfMonitor doFrame : time=445ms vsyncFrame=0 latency=466ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=471ms seq=17057 running=457ms late=1ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:36:35.296 I/tsugi.animelist(17699): This is non sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:35.188 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:35.144 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:35.100 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:35.054 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:35.004 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:34.948 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:34.884 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:34.883 I/Choreographer(17699): Skipped 66 frames!  The application may be doing too much work on its main thread.
+10-10 23:36:34.882 W/Looper  (17699): PerfMonitor doFrame : time=471ms vsyncFrame=0 latency=1ms procState=-1 historyMsgCount=5
+10-10 23:36:34.818 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:34.744 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:34.670 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:34.587 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:34.498 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:34.411 W/Looper  (17699): PerfMonitor doFrame : time=2ms vsyncFrame=0 latency=472ms procState=-1 historyMsgCount=3 (msgIndex=1 wall=475ms seq=17049 running=466ms runnable=1ms late=1ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:36:34.410 I/Choreographer(17699): Skipped 67 frames!  The application may be doing too much work on its main thread.
+10-10 23:36:34.407 W/Looper  (17699): PerfMonitor doFrame : time=475ms vsyncFrame=0 latency=1ms procState=-1
+10-10 23:36:34.390 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:34.277 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:34.168 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:34.032 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:33.805 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:33.799 W/Looper  (17699): PerfMonitor doFrame : time=7ms vsyncFrame=0 latency=522ms procState=-1 historyMsgCount=3 (msgIndex=1 wall=526ms seq=16993 running=520ms runnable=1ms late=1ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:36:33.792 I/Choreographer(17699): Skipped 75 frames!  The application may be doing too much work on its main thread.
+10-10 23:36:33.790 W/Looper  (17699): PerfMonitor doFrame : time=526ms vsyncFrame=0 latency=1ms procState=-1
+10-10 23:36:33.652 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:33.485 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:33.140 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:33.065 W/RenderInspector(17699): QueueBuffer time out on com.kitsugi.animelist/com.kitsugi.animelist.MainActivity, count=1, avg=8 ms, max=8 ms.
+10-10 23:36:33.046 I/OpenGLRenderer(17699): Davey! duration=721ms; Flags=0, FrameTimelineVsyncId=276254500, IntendedVsync=321370780756100, Vsync=321371482997081, InputEventId=304475785, HandleInputStart=321371488512662, AnimationStart=321371488514433, PerformTraversalsStart=321371489339381, DrawStart=321371489390214, FrameDeadline=321370797820091, FrameInterval=321371488458703, FrameStartTime=6952881, SyncQueued=321371490371828, SyncStart=321371490443651, IssueDrawCommandsStart=321371490586203, SwapBuffers=321371492641256, FrameCompleted=321371502761881, DequeueBufferDuration=14011, QueueBufferDuration=166354, GpuCompleted=321371502761881, SwapBuffersCompleted=321371493071151, DisplayPresentTime=321367920547559, CommandSubmissionCompleted=321371492641256, 
+10-10 23:36:33.033 W/Looper  (17699): PerfMonitor doFrame : time=2ms vsyncFrame=0 latency=708ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=600ms seq=16876 running=581ms runnable=1ms late=61ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver) (msgIndex=3 wall=108ms seq=16878 running=107ms late=601ms h=android.os.Handler c=androidx.compose.ui.platform.AndroidUiDispatcher$dispatchCallback$1)
+10-10 23:36:33.031 I/Choreographer(17699): Skipped 101 frames!  The application may be doing too much work on its main thread.
+10-10 23:36:32.922 W/Looper  (17699): PerfMonitor doFrame : time=600ms vsyncFrame=0 latency=61ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=63ms seq=16874 running=63ms late=60ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:36:32.854 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:32.613 I/tsugi.animelist(17699): This is non sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:32.515 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:32.477 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:32.435 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:32.393 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:32.341 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:32.275 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:32.169 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:32.006 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:31.917 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:31.839 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:31.742 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:31.579 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:30.814 W/Looper  (17699): PerfMonitor doFrame : time=5ms vsyncFrame=0 latency=448ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=458ms seq=16556 running=435ms runnable=14ms late=1ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:36:30.809 I/Choreographer(17699): Skipped 64 frames!  The application may be doing too much work on its main thread.
+10-10 23:36:30.807 W/Looper  (17699): PerfMonitor doFrame : time=458ms vsyncFrame=0 latency=1ms procState=-1
+10-10 23:36:30.782 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:30.655 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:30.509 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:29.626 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:29.311 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:29.112 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:28.139 I/tsugi.animelist(17699): Background concurrent copying GC freed 747037(24MB) AllocSpace objects, 4(100KB) LOS objects, 37% free, 40MB/64MB, paused 39us,46us total 105.553ms
+10-10 23:36:28.139 I/tsugi.animelist(17699): This is non sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:28.058 I/Choreographer(17699): Skipped 38 frames!  The application may be doing too much work on its main thread.
+10-10 23:36:28.000 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:27.925 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:27.851 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:27.784 I/Choreographer(17699): Skipped 39 frames!  The application may be doing too much work on its main thread.
+10-10 23:36:27.782 W/Looper  (17699): PerfMonitor doFrame : time=280ms vsyncFrame=0 latency=779ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=785ms seq=16277 running=765ms runnable=6ms late=272ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:36:27.748 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:27.657 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:27.570 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:27.503 I/Choreographer(17699): Skipped 111 frames!  The application may be doing too much work on its main thread.
+10-10 23:36:27.503 W/Looper  (17699): PerfMonitor doFrame : time=785ms vsyncFrame=0 latency=272ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=278ms seq=16275 running=272ms runnable=1ms late=1ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:36:27.429 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:27.310 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:27.174 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:27.015 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:26.851 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:26.718 I/Choreographer(17699): Skipped 39 frames!  The application may be doing too much work on its main thread.
+10-10 23:36:26.690 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:26.345 I/tsugi.animelist(17699): Background concurrent copying GC freed 893678(29MB) AllocSpace objects, 1(24KB) LOS objects, 37% free, 39MB/63MB, paused 73us,50us total 112.314ms
+10-10 23:36:26.345 I/tsugi.animelist(17699): This is non sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:26.326 W/Looper  (17699): PerfMonitor doFrame : time=2ms vsyncFrame=0 latency=316ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=324ms seq=16234 running=307ms runnable=7ms late=264ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:36:26.324 I/Choreographer(17699): Skipped 45 frames!  The application may be doing too much work on its main thread.
+10-10 23:36:26.324 W/Looper  (17699): PerfMonitor doFrame : time=324ms vsyncFrame=0 latency=264ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=270ms seq=16232 running=252ms runnable=10ms late=1ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:36:26.199 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:26.112 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:26.049 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:26.002 W/RenderInspector(17699): QueueBuffer time out on com.kitsugi.animelist/com.kitsugi.animelist.MainActivity, count=1, avg=8 ms, max=8 ms.
+10-10 23:36:25.999 I/Choreographer(17699): Skipped 37 frames!  The application may be doing too much work on its main thread.
+10-10 23:36:25.949 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:25.858 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:25.652 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:25.630 I/Choreographer(17699): Skipped 42 frames!  The application may be doing too much work on its main thread.
+10-10 23:36:25.629 W/Looper  (17699): PerfMonitor doFrame : time=304ms vsyncFrame=0 latency=237ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=242ms seq=16200 running=237ms runnable=1ms late=50ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:36:25.524 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:25.414 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:25.325 I/Choreographer(17699): Skipped 34 frames!  The application may be doing too much work on its main thread.
+10-10 23:36:25.279 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:25.148 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:25.007 I/Choreographer(17699): Skipped 42 frames!  The application may be doing too much work on its main thread.
+10-10 23:36:24.974 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:24.813 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:24.713 I/Choreographer(17699): Skipped 36 frames!  The application may be doing too much work on its main thread.
+10-10 23:36:24.616 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:24.306 I/tsugi.animelist(17699): This is non sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:24.197 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:24.120 W/Looper  (17699): PerfMonitor doFrame : time=3ms vsyncFrame=0 latency=371ms procState=-1 historyMsgCount=3 (msgIndex=1 wall=377ms seq=16072 running=360ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:36:24.118 I/Choreographer(17699): Skipped 53 frames!  The application may be doing too much work on its main thread.
+10-10 23:36:24.116 W/Looper  (17699): PerfMonitor doFrame : time=377ms vsyncFrame=0 latency=0ms procState=-1
+10-10 23:36:24.094 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:24.042 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:23.988 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:23.926 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:23.853 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:23.785 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:23.636 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:23.329 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:23.262 W/Looper  (17699): PerfMonitor doFrame : time=3ms vsyncFrame=0 latency=333ms procState=-1 historyMsgCount=3 (msgIndex=1 wall=339ms seq=15887 running=327ms runnable=1ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:36:23.258 I/Choreographer(17699): Skipped 47 frames!  The application may be doing too much work on its main thread.
+10-10 23:36:23.257 W/Looper  (17699): PerfMonitor doFrame : time=339ms vsyncFrame=0 latency=0ms procState=-1
+10-10 23:36:23.227 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:23.125 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:23.012 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:22.817 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:22.484 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:22.175 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:21.213 W/Looper  (17699): PerfMonitor doFrame : time=5ms vsyncFrame=0 latency=322ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=339ms seq=15454 running=328ms runnable=2ms late=2ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:36:21.208 I/Choreographer(17699): Skipped 46 frames!  The application may be doing too much work on its main thread.
+10-10 23:36:21.206 W/Looper  (17699): PerfMonitor doFrame : time=339ms vsyncFrame=0 latency=2ms procState=-1 historyMsgCount=1
+10-10 23:36:21.121 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:19.416 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:18.803 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:18.566 W/Looper  (17699): PerfMonitor doFrame : time=7ms vsyncFrame=0 latency=407ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=411ms seq=15063 running=397ms runnable=1ms late=168ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:36:18.560 I/Choreographer(17699): Skipped 58 frames!  The application may be doing too much work on its main thread.
+10-10 23:36:18.557 W/Looper  (17699): PerfMonitor doFrame : time=411ms vsyncFrame=0 latency=168ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=173ms seq=15059 running=169ms late=70ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:36:18.534 I/tsugi.animelist(17699): Background concurrent copying GC freed 885596(29MB) AllocSpace objects, 2(76KB) LOS objects, 34% free, 45MB/69MB, paused 103us,56us total 108.884ms
+10-10 23:36:18.534 I/tsugi.animelist(17699): This is non sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:18.407 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:18.367 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:18.326 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:18.279 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:18.230 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:18.173 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:18.101 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:18.032 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:17.962 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:17.215 I/OpenGLRenderer(17699): Davey! duration=988ms; Flags=0, FrameTimelineVsyncId=276243307, IntendedVsync=321354682661563, Vsync=321355162598929, InputEventId=0, HandleInputStart=321355169096314, AnimationStart=321355169098033, PerformTraversalsStart=321355654058293, DrawStart=321355654127980, FrameDeadline=321354699728287, FrameInterval=321355169037980, FrameStartTime=6955614, SyncQueued=321355658690376, SyncStart=321355658739751, IssueDrawCommandsStart=321355659015532, SwapBuffers=321355661632824, FrameCompleted=321355671514699, DequeueBufferDuration=14323, QueueBufferDuration=220573, GpuCompleted=321355671514699, SwapBuffersCompleted=321355662183866, DisplayPresentTime=321352184156627, CommandSubmissionCompleted=321355661632824, 
+10-10 23:36:17.210 W/Looper  (17699): PerfMonitor doFrame : time=5ms vsyncFrame=0 latency=493ms procState=-1 historyMsgCount=5 (msgIndex=2 wall=490ms seq=14846 running=484ms runnable=1ms late=487ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:36:17.205 I/Choreographer(17699): Skipped 70 frames!  The application may be doing too much work on its main thread.
+10-10 23:36:17.202 W/Looper  (17699): PerfMonitor doFrame : time=490ms vsyncFrame=0 latency=487ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=487ms seq=14842 running=479ms late=66ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:36:17.162 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:17.069 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:16.957 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:16.840 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:16.712 I/Choreographer(17699): Skipped 69 frames!  The application may be doing too much work on its main thread.
+10-10 23:36:16.709 W/Looper  (17699): PerfMonitor doFrame : time=487ms vsyncFrame=0 latency=66ms procState=-1 historyMsgCount=3 (msgIndex=1 wall=72ms seq=14839 running=73ms late=21ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:36:16.701 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:16.566 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:16.413 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:16.238 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:16.086 W/Looper  (17699): PerfMonitor doFrame : time=6ms vsyncFrame=0 latency=306ms procState=-1 historyMsgCount=2 (msgIndex=2 wall=269ms seq=14825 running=268ms late=39ms h=android.os.Handler c=androidx.compose.ui.platform.AndroidUiDispatcher$dispatchCallback$1)
+10-10 23:36:16.080 I/Choreographer(17699): Skipped 43 frames!  The application may be doing too much work on its main thread.
+10-10 23:36:16.026 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:15.239 I/tsugi.animelist(17699): Background concurrent copying GC freed 848378(30MB) AllocSpace objects, 1(24KB) LOS objects, 37% free, 40MB/64MB, paused 52us,40us total 125.319ms
+10-10 23:36:15.239 I/tsugi.animelist(17699): This is non sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:15.191 I/Choreographer(17699): Skipped 42 frames!  The application may be doing too much work on its main thread.
+10-10 23:36:15.188 W/Looper  (17699): PerfMonitor doFrame : time=417ms vsyncFrame=0 latency=0ms procState=-1
+10-10 23:36:15.098 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:15.046 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:14.990 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:14.945 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:14.906 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:14.831 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:13.143 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:11.430 W/RenderInspector(17699): QueueBuffer time out on com.kitsugi.animelist/com.kitsugi.animelist.MainActivity, count=1, avg=7 ms, max=7 ms.
+10-10 23:36:10.872 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:08.813 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:07.160 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:05.441 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:05.240 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:04.945 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:04.672 I/tsugi.animelist(17699): This is sticky GC, maxfree is 8388608 minfree is 2097152
+10-10 23:36:04.278 I/Choreographer(17699): Skipped 31 frames!  The application may be doing too much work on its main thread.
+10-10 23:36:04.163 I/tsugi.animelist(17699): Background concurrent copying GC freed 829560(28MB) AllocSpace objects, 2(48KB) LOS objects, 35% free, 43MB/67MB, paused 61us,61us total 105.181ms
+10-10 23:36:04.163 I/tsugi.animelist(17699): This is non sticky GC, maxfree is 8388608 minfree is 2097152
+--------- beginning of main
+10-10 23:36:02.693 W/Looper  (17699): PerfMonitor doFrame : time=320ms vsyncFrame=0 latency=173ms procState=-1 historyMsgCount=2
+10-10 23:35:58.549 I/ForceDarkHelperStubImpl(17699): setViewRootImplForceDark: false for com.kitsugi.animelist.MainActivity@b174df8, reason: AppDarkModeEnable
+10-10 23:35:58.511 I/ForceDarkHelperStubImpl(17699): setViewRootImplForceDark: false for com.kitsugi.animelist.MainActivity@b174df8, reason: AppDarkModeEnable
+10-10 23:35:51.002 W/Looper  (17699): PerfMonitor doFrame : time=9ms vsyncFrame=0 latency=586ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=708ms seq=8356 running=686ms runnable=6ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:35:50.989 W/Looper  (17699): PerfMonitor doFrame : time=708ms vsyncFrame=0 latency=0ms procState=-1
+10-10 23:35:40.642 I/ForceDarkHelperStubImpl(17699): setViewRootImplForceDark: false for com.kitsugi.animelist.MainActivity@b174df8, reason: AppDarkModeEnable
+10-10 23:35:40.597 I/ForceDarkHelperStubImpl(17699): setViewRootImplForceDark: false for com.kitsugi.animelist.MainActivity@b174df8, reason: AppDarkModeEnable
+10-10 23:35:36.799 W/Looper  (17699): PerfMonitor doFrame : time=40ms vsyncFrame=0 latency=302ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=306ms seq=4018 running=296ms runnable=2ms io=2ms late=15ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:35:36.758 W/Looper  (17699): PerfMonitor doFrame : time=306ms vsyncFrame=0 latency=15ms procState=-1 historyMsgCount=1
+10-10 23:34:43.895 W/Looper  (17699): PerfMonitor doFrame : time=183ms vsyncFrame=0 latency=2251ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=2248ms seq=2669 running=2181ms runnable=26ms late=408ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:34:43.708 W/Looper  (17699): PerfMonitor doFrame : time=2248ms vsyncFrame=0 latency=408ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=409ms seq=2665 running=402ms runnable=3ms late=234ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:34:43.708 W/Looper  (17699): PerfMonitor longMsg : seq=2669 plan=23:34:41.051 late=408ms wall=2248ms running=2181ms runnable=26ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver procState=-1
+10-10 23:34:41.457 W/Looper  (17699): PerfMonitor doFrame : time=409ms vsyncFrame=0 latency=234ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=292ms seq=2660 running=289ms late=310ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver) (msgIndex=5 wall=118ms seq=2664 running=116ms late=118ms h=android.os.Handler c=androidx.compose.ui.platform.AndroidUiDispatcher$dispatchCallback$1)
+10-10 23:34:40.929 W/Looper  (17699): PerfMonitor doFrame : time=292ms vsyncFrame=0 latency=310ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=313ms seq=2656 running=310ms runnable=1ms late=294ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:34:40.636 W/Looper  (17699): PerfMonitor doFrame : time=313ms vsyncFrame=0 latency=294ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=298ms seq=2651 running=293ms late=537ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:34:40.321 W/Looper  (17699): PerfMonitor doFrame : time=298ms vsyncFrame=0 latency=537ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=405ms seq=2647 running=398ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver) (msgIndex=4 wall=138ms seq=2650 running=135ms late=406ms h=android.os.Handler c=androidx.compose.ui.platform.AndroidUiDispatcher$dispatchCallback$1)
+10-10 23:34:39.884 W/Looper  (17699): PerfMonitor doFrame : time=405ms vsyncFrame=0 latency=0ms procState=-1
+10-10 23:34:38.781 W/Looper  (17699): PerfMonitor doFrame : time=389ms vsyncFrame=0 latency=284ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=288ms seq=2622 running=284ms late=50ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:34:37.952 W/Looper  (17699): PerfMonitor doFrame : time=5ms vsyncFrame=0 latency=451ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=456ms seq=2596 running=447ms runnable=1ms late=1ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:34:37.946 W/Looper  (17699): PerfMonitor doFrame : time=456ms vsyncFrame=0 latency=1ms procState=-1
+10-10 23:34:37.367 W/Looper  (17699): PerfMonitor doFrame : time=13ms vsyncFrame=0 latency=824ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=828ms seq=2525 running=804ms late=258ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:34:37.351 W/Looper  (17699): PerfMonitor doFrame : time=828ms vsyncFrame=0 latency=258ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=258ms seq=2521 running=255ms late=151ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:34:34.983 W/Looper  (17699): PerfMonitor doFrame : time=11ms vsyncFrame=0 latency=593ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=609ms seq=2325 running=596ms runnable=3ms io=1ms late=3ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:34:34.970 W/Looper  (17699): PerfMonitor doFrame : time=609ms vsyncFrame=0 latency=3ms procState=-1 historyMsgCount=1
+10-10 23:34:16.351 W/Looper  (17699): PerfMonitor doFrame : time=73ms vsyncFrame=0 latency=348ms procState=-1 historyMsgCount=14 (msgIndex=1 wall=317ms seq=187 running=116ms runnable=18ms late=475ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:34:16.246 W/Looper  (17699): PerfMonitor doFrame : time=317ms vsyncFrame=0 latency=475ms procState=-1 historyMsgCount=9 (msgIndex=1 wall=538ms seq=178 running=45ms runnable=32ms io=2ms late=1ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:34:15.927 W/Looper  (17699): PerfMonitor looperActivity : package=com.kitsugi.animelist/.MainActivity time=4ms latency=517ms running=4ms  procState=-1  historyMsgCount=6 (msgIndex=1 wall=538ms seq=178 running=45ms runnable=32ms io=2ms late=1ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:34:15.924 W/Looper  (17699): PerfMonitor looperActivity : package=com.kitsugi.animelist/.MainActivity time=6ms latency=512ms running=5ms  procState=-1  historyMsgCount=5 (msgIndex=1 wall=538ms seq=178 running=45ms runnable=32ms io=2ms late=1ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:34:15.923 I/ForceDarkHelperStubImpl(17699): setViewRootImplForceDark: false for com.kitsugi.animelist.MainActivity@b174df8, reason: AppDarkModeEnable
+10-10 23:34:15.917 W/Looper  (17699): PerfMonitor looperActivity : package=com.kitsugi.animelist/.MainActivity time=0ms latency=566ms running=0ms  procState=-1  historyMsgCount=5 (msgIndex=3 wall=538ms seq=178 running=45ms runnable=32ms io=2ms late=1ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:34:15.916 W/Looper  (17699): PerfMonitor doFrame : time=538ms vsyncFrame=0 latency=1ms procState=-1
+10-10 23:34:15.453 I/ForceDarkHelperStubImpl(17699): setViewRootImplForceDark: false for com.kitsugi.animelist.MainActivity@b174df8, reason: AppDarkModeEnable
+10-10 23:34:15.345 I/ForceDarkHelperStubImpl(17699): setViewRootImplForceDark: false for com.kitsugi.animelist.MainActivity@b174df8, reason: AppDarkModeEnable
+10-10 23:34:15.343 I/ForceDarkHelperStubImpl(17699): setViewRootImplForceDark: false for com.kitsugi.animelist.MainActivity@b174df8, reason: AppDarkModeEnable
+10-10 23:34:02.125 W/Looper  (17699): PerfMonitor doFrame : time=15ms vsyncFrame=0 latency=887ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=899ms seq=126 running=769ms runnable=83ms io=2ms late=3ms h=android.os.Handler c=androidx.compose.ui.platform.AndroidUiDispatcher$dispatchCallback$1)
+10-10 23:33:58.354 W/Looper  (17699): PerfMonitor doFrame : time=878ms vsyncFrame=0 latency=157ms procState=-1 historyMsgCount=6 (msgIndex=1 wall=161ms seq=31 running=158ms runnable=1ms late=162ms h=android.os.Handler c=androidx.compose.ui.platform.AndroidUiDispatcher$dispatchCallback$1)
+10-10 23:33:57.242 I/ForceDarkHelperStubImpl(17699): setViewRootImplForceDark: false for com.kitsugi.animelist.MainActivity@b174df8, reason: AppDarkModeEnable
+10-10 23:33:56.933 D/FramePredict(17699): FramePredict init: true
+10-10 23:33:56.932 W/Looper  (17699): PerfMonitor looperActivity : package=com.kitsugi.animelist/.MainActivity time=2ms latency=319ms running=0ms  procState=-1  historyMsgCount=6 (msgIndex=2 wall=215ms seq=2 running=155ms io=2ms late=10ms h=android.app.ActivityThread$H w=110) (msgIndex=3 wall=101ms seq=3 running=78ms io=2ms late=223ms h=android.app.ActivityThread$H w=159)
+10-10 23:33:56.931 W/Looper  (17699): PerfMonitor looperActivity : package=com.kitsugi.animelist/.MainActivity time=0ms latency=319ms running=4ms  procState=-1  historyMsgCount=5 (msgIndex=2 wall=215ms seq=2 running=155ms io=2ms late=10ms h=android.app.ActivityThread$H w=110) (msgIndex=3 wall=101ms seq=3 running=78ms io=2ms late=223ms h=android.app.ActivityThread$H w=159)
+10-10 23:33:56.930 W/Looper  (17699): PerfMonitor looperActivity : package=com.kitsugi.animelist/.MainActivity time=0ms latency=321ms running=0ms  procState=-1  historyMsgCount=3 (msgIndex=2 wall=215ms seq=2 running=155ms io=2ms late=10ms h=android.app.ActivityThread$H w=110) (msgIndex=3 wall=101ms seq=3 running=78ms io=2ms late=223ms h=android.app.ActivityThread$H w=159)
+10-10 23:33:56.922 I/ForceDarkHelperStubImpl(17699): setViewRootImplForceDark: false for com.kitsugi.animelist.MainActivity@b174df8, reason: AppDarkModeEnable
+10-10 23:33:56.894 D/MiuiMultiWindowUtils(17699): getTotalRam formatSizeWith1024: 8
+10-10 23:33:56.894 D/MiuiMultiWindowUtils(17699): getTotalRam getRamFromProcMv: 0
+10-10 23:33:56.892 D/MiuiMultiWindowUtils(17699): freeform resolution args raw data:{  "liuqin": {    "freeform_args": {      "vertical_portrait":{"aspect_ratio":0.5625, "original_ratio":0.3334,"original_scale":0.835,"top_margin":0.049,"left_margin":0.2775},      "horizontal_portrait":{"aspect_ratio":0.5625, "original_ratio":0.3334,"original_scale":0.835,"top_margin":-1,"left_margin":0.6525},      "vertical_landscape":{"aspect_ratio":-1, "original_ratio":1,"original_scale":0.468,"top_margin":0.049,"left_margin":-1},      "horizontal_landscape":{"aspect_ratio":-1, "original_ratio":1,"original_scale":0.468,"top_margin":-1,"left_margin":0.4976}    },    "mini_freeform_args":{      "vertical_portrait":{"aspect_ratio":0.5625, "original_ratio":0.1278},      "horizontal_portrait":{"aspect_ratio":0.5625, "original_ratio":0.1278},      "vertical_landscape":{"aspect_ratio":-1, "original_ratio":0.1778},      "horizontal_landscape":{"aspect_ratio":-1, "original_ratio":0.1778}    }  },  "pipa": {    "freeform_args": {      "vertical_portrait":{"aspect_ratio":0.5625, "original_ratio":0.3334,"original_scale":0.835,"top_margin":0.049,"left_margin":0.2775},      "horizontal_portrait":{"aspect_ratio":0.5625, "original_ratio":0.3334,"original_scale":0.835,"top_margin":-1,"left_margin":0.6525},      "vertical_landscape":{"aspect_ratio":-1, "original_ratio":1,"original_scale":0.468,"top_margin":0.049,"left_margin":-1},      "horizontal_landscape":{"aspect_ratio":-1, "original_ratio":1,"original_scale":0.468,"top_margin":-1,"left_margin":0.4976}    },    "mini_freeform_args":{      "vertical_portrait":{"aspect_ratio":0.5625, "original_ratio":0.1278},      "horizontal_portrait":{"aspect_ratio":0.5625, "original_ratio":0.1278},      "vertical_landscape":{"aspect_ratio":-1, "original_ratio":0.1778},      "horizontal_landscape":{"aspect_ratio":-1, "original_ratio":0.1778}    }  },  "yunluo": {    "freeform_args": {      "vertical_portrait":{"aspect_ratio":0.5625, "original_ratio":0.48,"original_scale":0.6133,"top_margin":0.049,"left_margin":0.2775},      "horizontal_portrait":{"aspect_ratio":0.5625, "original_ratio":0.48,"original_scale":0.6133,"top_margin":-1,"left_margin":0.6525},      "vertical_landscape":{"aspect_ratio":-1, "original_ratio":1,"original_scale":0.468,"top_margin":0.049,"left_margin":-1},      "horizontal_landscape":{"aspect_ratio":-1, "original_ratio":1,"original_scale":0.468,"top_margin":-1,"left_margin":0.4976}    },    "mini_freeform_args":{      "vertical_portrait":{"aspect_ratio":0.5625, "original_ratio":0.1917},      "horizontal_portrait":{"aspect_ratio":0.5625, "original_ratio":0.1917},      "vertical_landscape":{"aspect_ratio":-1, "original_ratio":0.2667},      "horizontal_landscape":{"aspect_ratio":-1, "original_ratio":0.2667}    }  },  "zizhan":{    "freeform_args": {      "inner":{        "vertical_portrait":{"aspect_ratio":0.626, "original_ratio":0.5643,"original_scale":0.74,"top_margin":0.168,"left_margin":0.484},        "horizontal_portrait":{"aspect_ratio":0.626, "original_ratio":0.5643,"original_scale":0.74,"top_margin":0.1222,"left_margin":0.59745},        "vertical_landscape":{"aspect_ratio":1.6, "original_ratio":1,"original_scale":0.604,"top_margin":0.2596,"left_margin":0.2624},        "horizontal_landscape":{"aspect_ratio":1.6, "original_ratio":1,"original_scale":0.604,"top_margin":0.213,"left_margin":0.3758}      },      "outer":{        "vertical_portrait":{"aspect_ratio":0.626, "original_ratio":1,"original_scale":0.74,"top_margin":0.0753,"left_margin":-1},        "horizontal_portrait":{"aspect_ratio":0.626, "original_ratio":1,"original_scale":0.5756,"top_margin":-1,"left_margin":0.0753},        "vertical_landscape":{"aspect_ratio":1.6, "original_ratio":0.6847,"original_scale":0.587,"top_margin":0.0753,"left_margin":-1},        "horizontal_landscape":{"aspect_ratio":1.6, "original_ratio":0.6847,"original_scale":0.587,"top_margin":-1,"left_margin":0.0753}}    },    "mini_freeform_args":{      "inner":{        "vertical_portrait":{"aspect_ratio":0.626, "original_ratio":0.147},        "horizontal_portrait":{
+10-10 23:00:10.123 W/Looper  ( 9791): PerfMonitor doFrame : time=7ms vsyncFrame=0 latency=470ms procState=-1 historyMsgCount=3 (msgIndex=1 wall=474ms seq=60608 running=465ms runnable=3ms late=2ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:00:10.115 W/Looper  ( 9791): PerfMonitor doFrame : time=474ms vsyncFrame=0 latency=2ms procState=-1 historyMsgCount=1
+10-10 23:00:09.633 W/Looper  ( 9791): PerfMonitor doFrame : time=678ms vsyncFrame=0 latency=4ms procState=-1 historyMsgCount=2
+10-10 23:00:08.944 W/Looper  ( 9791): PerfMonitor doFrame : time=2ms vsyncFrame=0 latency=770ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=772ms seq=60581 running=765ms late=338ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:00:08.941 W/Looper  ( 9791): PerfMonitor doFrame : time=772ms vsyncFrame=0 latency=338ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=340ms seq=60577 running=339ms runnable=1ms late=372ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:00:08.167 W/Looper  ( 9791): PerfMonitor doFrame : time=340ms vsyncFrame=0 latency=372ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=374ms seq=60572 running=370ms late=178ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:00:07.825 W/Looper  ( 9791): PerfMonitor doFrame : time=374ms vsyncFrame=0 latency=178ms procState=-1 historyMsgCount=3 (msgIndex=1 wall=181ms seq=60569 running=182ms late=65ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:00:05.101 W/Looper  ( 9791): PerfMonitor doFrame : time=3ms vsyncFrame=0 latency=580ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=632ms seq=60245 running=622ms runnable=3ms late=621ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:00:05.097 W/Looper  ( 9791): PerfMonitor doFrame : time=632ms vsyncFrame=0 latency=621ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=662ms seq=60241 running=655ms runnable=1ms late=584ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:00:04.465 W/Looper  ( 9791): PerfMonitor doFrame : time=662ms vsyncFrame=0 latency=584ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=635ms seq=60236 running=624ms runnable=4ms late=623ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:00:03.801 W/Looper  ( 9791): PerfMonitor doFrame : time=635ms vsyncFrame=0 latency=623ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=664ms seq=60232 running=658ms runnable=1ms late=566ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:00:03.166 W/Looper  ( 9791): PerfMonitor doFrame : time=664ms vsyncFrame=0 latency=566ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=625ms seq=60228 running=616ms runnable=3ms late=635ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:00:02.502 W/Looper  ( 9791): PerfMonitor doFrame : time=625ms vsyncFrame=0 latency=635ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=686ms seq=60224 running=679ms runnable=2ms late=675ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:00:01.877 W/Looper  ( 9791): PerfMonitor doFrame : time=686ms vsyncFrame=0 latency=675ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=692ms seq=60222 running=680ms runnable=4ms late=2ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 23:00:01.190 W/Looper  ( 9791): PerfMonitor doFrame : time=692ms vsyncFrame=0 latency=2ms procState=-1
+10-10 22:59:52.926 W/Looper  ( 9791): PerfMonitor doFrame : time=5ms vsyncFrame=0 latency=712ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=731ms seq=60211 running=718ms runnable=5ms late=1ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:59:52.921 W/Looper  ( 9791): PerfMonitor doFrame : time=731ms vsyncFrame=0 latency=1ms procState=-1
+10-10 22:59:42.613 W/Looper  ( 9791): PerfMonitor doFrame : time=3ms vsyncFrame=0 latency=697ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=715ms seq=60199 running=699ms runnable=8ms late=2ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:59:42.609 W/Looper  ( 9791): PerfMonitor doFrame : time=715ms vsyncFrame=0 latency=2ms procState=-1
+10-10 22:59:32.377 W/Looper  ( 9791): PerfMonitor doFrame : time=5ms vsyncFrame=0 latency=701ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=719ms seq=60188 running=706ms runnable=3ms late=2ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:59:32.372 W/Looper  ( 9791): PerfMonitor doFrame : time=719ms vsyncFrame=0 latency=2ms procState=-1
+10-10 22:59:21.859 W/Looper  ( 9791): PerfMonitor doFrame : time=3ms vsyncFrame=0 latency=670ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=688ms seq=60176 running=674ms runnable=6ms late=1ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:59:21.856 W/Looper  ( 9791): PerfMonitor doFrame : time=688ms vsyncFrame=0 latency=1ms procState=-1
+10-10 22:59:11.706 W/Looper  ( 9791): PerfMonitor doFrame : time=3ms vsyncFrame=0 latency=701ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=717ms seq=60165 running=701ms runnable=7ms late=2ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:59:11.702 W/Looper  ( 9791): PerfMonitor doFrame : time=717ms vsyncFrame=0 latency=2ms procState=-1
+10-10 22:59:01.374 W/Looper  ( 9791): PerfMonitor doFrame : time=4ms vsyncFrame=0 latency=589ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=647ms seq=60143 running=639ms runnable=3ms late=715ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:59:01.369 W/Looper  ( 9791): PerfMonitor doFrame : time=647ms vsyncFrame=0 latency=715ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=732ms seq=60141 running=720ms runnable=3ms late=2ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:59:00.722 W/Looper  ( 9791): PerfMonitor doFrame : time=732ms vsyncFrame=0 latency=2ms procState=-1
+10-10 22:58:55.157 W/Looper  ( 9791): PerfMonitor doFrame : time=5ms vsyncFrame=0 latency=681ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=698ms seq=60130 running=690ms runnable=2ms late=2ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:55.151 W/Looper  ( 9791): PerfMonitor doFrame : time=698ms vsyncFrame=0 latency=2ms procState=-1
+10-10 22:58:44.316 W/Looper  ( 9791): PerfMonitor doFrame : time=5ms vsyncFrame=0 latency=709ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=727ms seq=60119 running=709ms runnable=12ms late=2ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:44.311 W/Looper  ( 9791): PerfMonitor doFrame : time=727ms vsyncFrame=0 latency=2ms procState=-1
+10-10 22:58:33.717 W/Looper  ( 9791): PerfMonitor doFrame : time=4ms vsyncFrame=0 latency=599ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=664ms seq=60101 running=647ms runnable=8ms late=630ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:33.712 W/Looper  ( 9791): PerfMonitor doFrame : time=664ms vsyncFrame=0 latency=630ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=684ms seq=60097 running=664ms runnable=10ms late=1ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:33.047 W/Looper  ( 9791): PerfMonitor doFrame : time=684ms vsyncFrame=0 latency=1ms procState=-1
+10-10 22:58:32.357 W/Looper  ( 9791): PerfMonitor doFrame : time=643ms vsyncFrame=0 latency=630ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=683ms seq=60087 running=667ms runnable=11ms late=566ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:31.713 W/Looper  ( 9791): PerfMonitor doFrame : time=683ms vsyncFrame=0 latency=566ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=619ms seq=60083 running=606ms runnable=3ms late=635ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:31.030 W/Looper  ( 9791): PerfMonitor doFrame : time=619ms vsyncFrame=0 latency=635ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=673ms seq=60079 running=664ms runnable=3ms late=580ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:30.410 W/Looper  ( 9791): PerfMonitor doFrame : time=673ms vsyncFrame=0 latency=580ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=646ms seq=60075 running=630ms runnable=7ms late=622ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:29.736 W/Looper  ( 9791): PerfMonitor doFrame : time=646ms vsyncFrame=0 latency=622ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=686ms seq=60071 running=672ms runnable=8ms late=575ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:29.089 W/Looper  ( 9791): PerfMonitor doFrame : time=686ms vsyncFrame=0 latency=575ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=625ms seq=60067 running=620ms runnable=2ms late=643ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:28.400 W/Looper  ( 9791): PerfMonitor doFrame : time=625ms vsyncFrame=0 latency=643ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=684ms seq=60063 running=671ms runnable=1ms late=578ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:27.774 W/Looper  ( 9791): PerfMonitor doFrame : time=684ms vsyncFrame=0 latency=578ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=629ms seq=60059 running=621ms runnable=2ms late=643ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:27.089 W/Looper  ( 9791): PerfMonitor doFrame : time=629ms vsyncFrame=0 latency=643ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=684ms seq=60054 running=667ms runnable=8ms late=605ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:26.459 W/Looper  ( 9791): PerfMonitor doFrame : time=684ms vsyncFrame=0 latency=605ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=655ms seq=60050 running=643ms runnable=3ms late=652ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:25.774 W/Looper  ( 9791): PerfMonitor doFrame : time=655ms vsyncFrame=0 latency=652ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=693ms seq=60046 running=677ms runnable=8ms late=598ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:25.118 W/Looper  ( 9791): PerfMonitor doFrame : time=693ms vsyncFrame=0 latency=598ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=653ms seq=60042 running=639ms runnable=7ms late=674ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:24.425 W/Looper  ( 9791): PerfMonitor doFrame : time=653ms vsyncFrame=0 latency=674ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=717ms seq=60038 running=698ms runnable=10ms late=582ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:23.771 W/Looper  ( 9791): PerfMonitor doFrame : time=717ms vsyncFrame=0 latency=582ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=641ms seq=60034 running=624ms runnable=7ms late=629ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:23.053 W/Looper  ( 9791): PerfMonitor doFrame : time=641ms vsyncFrame=0 latency=629ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=672ms seq=60030 running=657ms runnable=9ms late=597ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:22.411 W/Looper  ( 9791): PerfMonitor doFrame : time=672ms vsyncFrame=0 latency=597ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=648ms seq=60026 running=631ms runnable=8ms late=651ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:21.738 W/Looper  ( 9791): PerfMonitor doFrame : time=648ms vsyncFrame=0 latency=651ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=714ms seq=60022 running=699ms runnable=7ms late=591ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:21.090 W/Looper  ( 9791): PerfMonitor doFrame : time=714ms vsyncFrame=0 latency=591ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=646ms seq=60017 running=627ms runnable=12ms late=633ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:20.375 W/Looper  ( 9791): PerfMonitor doFrame : time=646ms vsyncFrame=0 latency=633ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=674ms seq=60013 running=658ms runnable=11ms late=598ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:19.728 W/Looper  ( 9791): PerfMonitor doFrame : time=674ms vsyncFrame=0 latency=598ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=654ms seq=60009 running=631ms runnable=14ms late=624ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:19.053 W/Looper  ( 9791): PerfMonitor doFrame : time=654ms vsyncFrame=0 latency=624ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=668ms seq=60005 running=657ms runnable=4ms late=596ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:18.399 W/Looper  ( 9791): PerfMonitor doFrame : time=668ms vsyncFrame=0 latency=596ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=658ms seq=60001 running=650ms runnable=2ms late=633ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:17.730 W/Looper  ( 9791): PerfMonitor doFrame : time=658ms vsyncFrame=0 latency=633ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=675ms seq=59997 running=657ms runnable=12ms late=695ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:17.071 W/Looper  ( 9791): PerfMonitor doFrame : time=675ms vsyncFrame=0 latency=695ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=764ms seq=59993 running=666ms runnable=9ms late=625ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:16.395 W/Looper  ( 9791): PerfMonitor doFrame : time=764ms vsyncFrame=0 latency=625ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=663ms seq=59988 running=650ms runnable=5ms late=583ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:15.626 W/Looper  ( 9791): PerfMonitor doFrame : time=663ms vsyncFrame=0 latency=583ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=647ms seq=59984 running=632ms runnable=6ms late=646ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:14.962 W/Looper  ( 9791): PerfMonitor doFrame : time=647ms vsyncFrame=0 latency=646ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=691ms seq=59979 running=677ms runnable=5ms late=579ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:14.314 W/Looper  ( 9791): PerfMonitor doFrame : time=691ms vsyncFrame=0 latency=579ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=643ms seq=59975 running=630ms runnable=6ms late=632ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:13.623 W/Looper  ( 9791): PerfMonitor doFrame : time=643ms vsyncFrame=0 latency=632ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=676ms seq=59971 running=665ms runnable=4ms late=602ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:12.980 W/Looper  ( 9791): PerfMonitor doFrame : time=676ms vsyncFrame=0 latency=602ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=657ms seq=59967 running=642ms runnable=8ms late=639ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:12.302 W/Looper  ( 9791): PerfMonitor doFrame : time=657ms vsyncFrame=0 latency=639ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=684ms seq=59963 running=666ms runnable=12ms late=594ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:11.644 W/Looper  ( 9791): PerfMonitor doFrame : time=684ms vsyncFrame=0 latency=594ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=671ms seq=59959 running=654ms runnable=9ms late=646ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:10.960 W/Looper  ( 9791): PerfMonitor doFrame : time=671ms vsyncFrame=0 latency=646ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=686ms seq=59955 running=670ms runnable=10ms late=578ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:10.287 W/Looper  ( 9791): PerfMonitor doFrame : time=686ms vsyncFrame=0 latency=578ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=634ms seq=59951 running=626ms runnable=2ms late=660ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:09.600 W/Looper  ( 9791): PerfMonitor doFrame : time=634ms vsyncFrame=0 latency=660ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=706ms seq=59947 running=688ms runnable=11ms late=587ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:08.966 W/Looper  ( 9791): PerfMonitor doFrame : time=706ms vsyncFrame=0 latency=587ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=640ms seq=59942 running=622ms runnable=12ms late=621ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:08.259 W/Looper  ( 9791): PerfMonitor doFrame : time=640ms vsyncFrame=0 latency=621ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=662ms seq=59938 running=650ms runnable=3ms late=601ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:07.618 W/Looper  ( 9791): PerfMonitor doFrame : time=662ms vsyncFrame=0 latency=601ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=652ms seq=59934 running=641ms runnable=6ms late=642ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:06.956 W/Looper  ( 9791): PerfMonitor doFrame : time=652ms vsyncFrame=0 latency=642ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=689ms seq=59930 running=665ms runnable=15ms late=576ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:06.303 W/Looper  ( 9791): PerfMonitor doFrame : time=689ms vsyncFrame=0 latency=576ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=631ms seq=59926 running=622ms runnable=3ms late=636ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:05.613 W/Looper  ( 9791): PerfMonitor doFrame : time=631ms vsyncFrame=0 latency=636ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=681ms seq=59922 running=664ms runnable=9ms late=588ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:04.981 W/Looper  ( 9791): PerfMonitor doFrame : time=681ms vsyncFrame=0 latency=588ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=638ms seq=59918 running=625ms runnable=7ms late=616ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:04.299 W/Looper  ( 9791): PerfMonitor doFrame : time=638ms vsyncFrame=0 latency=616ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=658ms seq=59914 running=649ms runnable=5ms late=581ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:03.660 W/Looper  ( 9791): PerfMonitor doFrame : time=658ms vsyncFrame=0 latency=581ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=642ms seq=59910 running=631ms runnable=3ms late=624ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:03.002 W/Looper  ( 9791): PerfMonitor doFrame : time=642ms vsyncFrame=0 latency=624ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=679ms seq=59905 running=671ms runnable=1ms late=576ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:02.359 W/Looper  ( 9791): PerfMonitor doFrame : time=679ms vsyncFrame=0 latency=576ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=630ms seq=59901 running=622ms runnable=3ms late=632ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:01.678 W/Looper  ( 9791): PerfMonitor doFrame : time=630ms vsyncFrame=0 latency=632ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=681ms seq=59897 running=669ms runnable=7ms late=603ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:01.047 W/Looper  ( 9791): PerfMonitor doFrame : time=681ms vsyncFrame=0 latency=603ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=656ms seq=59893 running=647ms runnable=3ms late=712ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:58:00.365 W/Looper  ( 9791): PerfMonitor doFrame : time=656ms vsyncFrame=0 latency=712ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=730ms seq=59891 running=718ms runnable=5ms late=1ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:57:59.709 W/Looper  ( 9791): PerfMonitor doFrame : time=730ms vsyncFrame=0 latency=1ms procState=-1
+10-10 22:57:50.410 W/Looper  ( 9791): PerfMonitor doFrame : time=4ms vsyncFrame=0 latency=697ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=716ms seq=59879 running=706ms runnable=5ms late=1ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:57:50.406 W/Looper  ( 9791): PerfMonitor doFrame : time=716ms vsyncFrame=0 latency=1ms procState=-1
+10-10 22:57:40.229 W/Looper  ( 9791): PerfMonitor doFrame : time=2ms vsyncFrame=0 latency=713ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=731ms seq=59868 running=714ms runnable=11ms late=1ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:57:40.227 W/Looper  ( 9791): PerfMonitor doFrame : time=731ms vsyncFrame=0 latency=1ms procState=-1
+10-10 22:57:30.022 W/Looper  ( 9791): PerfMonitor doFrame : time=5ms vsyncFrame=0 latency=685ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=702ms seq=59856 running=691ms runnable=4ms late=1ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:57:30.016 W/Looper  ( 9791): PerfMonitor doFrame : time=702ms vsyncFrame=0 latency=1ms procState=-1
+10-10 22:57:19.835 W/Looper  ( 9791): PerfMonitor doFrame : time=6ms vsyncFrame=0 latency=697ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=716ms seq=59841 running=702ms runnable=6ms late=1ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:57:19.828 W/Looper  ( 9791): PerfMonitor doFrame : time=716ms vsyncFrame=0 latency=1ms procState=-1
+10-10 22:57:09.551 W/Looper  ( 9791): PerfMonitor doFrame : time=4ms vsyncFrame=0 latency=663ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=680ms seq=59825 running=672ms runnable=3ms late=2ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:57:09.546 W/Looper  ( 9791): PerfMonitor doFrame : time=680ms vsyncFrame=0 latency=2ms procState=-1
+10-10 22:56:59.394 W/Looper  ( 9791): PerfMonitor doFrame : time=6ms vsyncFrame=0 latency=698ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=718ms seq=59814 running=706ms runnable=6ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:59.387 W/Looper  ( 9791): PerfMonitor doFrame : time=718ms vsyncFrame=0 latency=0ms procState=-1
+10-10 22:56:51.627 W/Looper  ( 9791): PerfMonitor doFrame : time=4ms vsyncFrame=0 latency=662ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=681ms seq=59802 running=670ms runnable=4ms late=1ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:51.623 W/Looper  ( 9791): PerfMonitor doFrame : time=681ms vsyncFrame=0 latency=1ms procState=-1
+10-10 22:56:41.065 W/Looper  ( 9791): PerfMonitor doFrame : time=6ms vsyncFrame=0 latency=740ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=759ms seq=59791 running=747ms runnable=5ms late=2ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:41.059 W/Looper  ( 9791): PerfMonitor doFrame : time=759ms vsyncFrame=0 latency=2ms procState=-1
+10-10 22:56:30.431 W/Looper  ( 9791): PerfMonitor doFrame : time=5ms vsyncFrame=0 latency=610ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=663ms seq=59777 running=648ms runnable=7ms late=633ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:30.425 W/Looper  ( 9791): PerfMonitor doFrame : time=663ms vsyncFrame=0 latency=633ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=677ms seq=59773 running=665ms runnable=5ms late=596ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:29.761 W/Looper  ( 9791): PerfMonitor doFrame : time=677ms vsyncFrame=0 latency=596ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=660ms seq=59769 running=647ms runnable=6ms late=638ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:29.083 W/Looper  ( 9791): PerfMonitor doFrame : time=660ms vsyncFrame=0 latency=638ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=676ms seq=59765 running=661ms runnable=9ms late=585ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:28.421 W/Looper  ( 9791): PerfMonitor doFrame : time=676ms vsyncFrame=0 latency=585ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=641ms seq=59761 running=629ms runnable=7ms late=639ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:27.744 W/Looper  ( 9791): PerfMonitor doFrame : time=641ms vsyncFrame=0 latency=639ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=682ms seq=59757 running=666ms runnable=8ms late=604ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:27.101 W/Looper  ( 9791): PerfMonitor doFrame : time=682ms vsyncFrame=0 latency=604ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=677ms seq=59753 running=661ms runnable=10ms late=641ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:26.418 W/Looper  ( 9791): PerfMonitor doFrame : time=677ms vsyncFrame=0 latency=641ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=683ms seq=59748 running=670ms runnable=9ms late=596ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:25.740 W/Looper  ( 9791): PerfMonitor doFrame : time=683ms vsyncFrame=0 latency=596ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=658ms seq=59744 running=645ms runnable=5ms late=647ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:25.056 W/Looper  ( 9791): PerfMonitor doFrame : time=658ms vsyncFrame=0 latency=647ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=692ms seq=59740 running=680ms runnable=7ms late=608ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:24.397 W/Looper  ( 9791): PerfMonitor doFrame : time=692ms vsyncFrame=0 latency=608ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=667ms seq=59736 running=648ms runnable=13ms late=635ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:23.703 W/Looper  ( 9791): PerfMonitor doFrame : time=667ms vsyncFrame=0 latency=635ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=680ms seq=59732 running=664ms runnable=9ms late=595ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:23.035 W/Looper  ( 9791): PerfMonitor doFrame : time=680ms vsyncFrame=0 latency=595ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=649ms seq=59728 running=633ms runnable=6ms late=626ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:22.355 W/Looper  ( 9791): PerfMonitor doFrame : time=649ms vsyncFrame=0 latency=626ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=668ms seq=59724 running=658ms runnable=4ms late=598ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:21.705 W/Looper  ( 9791): PerfMonitor doFrame : time=668ms vsyncFrame=0 latency=598ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=658ms seq=59720 running=646ms runnable=5ms late=628ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:21.036 W/Looper  ( 9791): PerfMonitor doFrame : time=658ms vsyncFrame=0 latency=628ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=670ms seq=59716 running=661ms runnable=4ms late=605ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:20.378 W/Looper  ( 9791): PerfMonitor doFrame : time=670ms vsyncFrame=0 latency=605ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=658ms seq=59711 running=640ms runnable=6ms late=648ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:19.706 W/Looper  ( 9791): PerfMonitor doFrame : time=658ms vsyncFrame=0 latency=648ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=694ms seq=59707 running=681ms runnable=4ms late=615ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:19.048 W/Looper  ( 9791): PerfMonitor doFrame : time=694ms vsyncFrame=0 latency=615ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=675ms seq=59703 running=655ms runnable=10ms late=662ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:18.354 W/Looper  ( 9791): PerfMonitor doFrame : time=675ms vsyncFrame=0 latency=662ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=703ms seq=59699 running=690ms runnable=9ms late=584ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:17.678 W/Looper  ( 9791): PerfMonitor doFrame : time=703ms vsyncFrame=0 latency=584ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=652ms seq=59695 running=641ms runnable=4ms late=655ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:16.974 W/Looper  ( 9791): PerfMonitor doFrame : time=652ms vsyncFrame=0 latency=655ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=696ms seq=59691 running=686ms runnable=6ms late=598ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:16.320 W/Looper  ( 9791): PerfMonitor doFrame : time=696ms vsyncFrame=0 latency=598ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=662ms seq=59687 running=650ms runnable=5ms late=672ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:15.623 W/Looper  ( 9791): PerfMonitor doFrame : time=662ms vsyncFrame=0 latency=672ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=711ms seq=59683 running=689ms runnable=12ms late=586ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:14.960 W/Looper  ( 9791): PerfMonitor doFrame : time=711ms vsyncFrame=0 latency=586ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=636ms seq=59679 running=626ms runnable=3ms late=646ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:14.248 W/Looper  ( 9791): PerfMonitor doFrame : time=636ms vsyncFrame=0 latency=646ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=686ms seq=59674 running=672ms runnable=8ms late=571ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:13.612 W/Looper  ( 9791): PerfMonitor doFrame : time=686ms vsyncFrame=0 latency=571ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=662ms seq=59670 running=648ms runnable=7ms late=639ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:12.925 W/Looper  ( 9791): PerfMonitor doFrame : time=662ms vsyncFrame=0 latency=639ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=690ms seq=59666 running=679ms runnable=6ms late=616ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:12.263 W/Looper  ( 9791): PerfMonitor doFrame : time=690ms vsyncFrame=0 latency=616ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=671ms seq=59662 running=661ms runnable=4ms late=632ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:11.571 W/Looper  ( 9791): PerfMonitor doFrame : time=671ms vsyncFrame=0 latency=632ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=678ms seq=59658 running=669ms runnable=2ms late=599ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:10.898 W/Looper  ( 9791): PerfMonitor doFrame : time=678ms vsyncFrame=0 latency=599ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=660ms seq=59654 running=646ms runnable=7ms late=641ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:10.219 W/Looper  ( 9791): PerfMonitor doFrame : time=660ms vsyncFrame=0 latency=641ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=680ms seq=59650 running=669ms runnable=4ms late=600ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:09.559 W/Looper  ( 9791): PerfMonitor doFrame : time=680ms vsyncFrame=0 latency=600ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=667ms seq=59646 running=658ms runnable=5ms late=641ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:08.877 W/Looper  ( 9791): PerfMonitor doFrame : time=667ms vsyncFrame=0 latency=641ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=686ms seq=59642 running=668ms runnable=10ms late=602ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:08.210 W/Looper  ( 9791): PerfMonitor doFrame : time=686ms vsyncFrame=0 latency=602ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=662ms seq=59637 running=643ms runnable=10ms late=662ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:07.522 W/Looper  ( 9791): PerfMonitor doFrame : time=662ms vsyncFrame=0 latency=662ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=708ms seq=59633 running=687ms runnable=10ms late=593ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:06.859 W/Looper  ( 9791): PerfMonitor doFrame : time=708ms vsyncFrame=0 latency=593ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=646ms seq=59629 running=634ms runnable=6ms late=642ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:06.150 W/Looper  ( 9791): PerfMonitor doFrame : time=646ms vsyncFrame=0 latency=642ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=683ms seq=59625 running=663ms runnable=13ms late=577ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:05.504 W/Looper  ( 9791): PerfMonitor doFrame : time=683ms vsyncFrame=0 latency=577ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=635ms seq=59621 running=627ms runnable=2ms late=623ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:04.820 W/Looper  ( 9791): PerfMonitor doFrame : time=635ms vsyncFrame=0 latency=623ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=668ms seq=59617 running=654ms runnable=8ms late=595ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:04.184 W/Looper  ( 9791): PerfMonitor doFrame : time=668ms vsyncFrame=0 latency=595ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=659ms seq=59613 running=651ms runnable=2ms late=624ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:03.516 W/Looper  ( 9791): PerfMonitor doFrame : time=659ms vsyncFrame=0 latency=624ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=668ms seq=59609 running=657ms runnable=5ms late=589ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:02.856 W/Looper  ( 9791): PerfMonitor doFrame : time=668ms vsyncFrame=0 latency=589ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=651ms seq=59605 running=641ms runnable=5ms late=618ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:02.187 W/Looper  ( 9791): PerfMonitor doFrame : time=651ms vsyncFrame=0 latency=618ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=660ms seq=59600 running=651ms runnable=3ms late=584ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:01.536 W/Looper  ( 9791): PerfMonitor doFrame : time=660ms vsyncFrame=0 latency=584ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=641ms seq=59596 running=631ms runnable=2ms late=617ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:00.875 W/Looper  ( 9791): PerfMonitor doFrame : time=641ms vsyncFrame=0 latency=617ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=671ms seq=59592 running=663ms runnable=4ms late=685ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:56:00.233 W/Looper  ( 9791): PerfMonitor doFrame : time=671ms vsyncFrame=0 latency=685ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=704ms seq=59590 running=693ms runnable=3ms late=1ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:55:59.562 W/Looper  ( 9791): PerfMonitor doFrame : time=704ms vsyncFrame=0 latency=1ms procState=-1
+10-10 22:55:50.432 W/Looper  ( 9791): PerfMonitor doFrame : time=2ms vsyncFrame=0 latency=742ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=761ms seq=59579 running=744ms runnable=9ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:55:50.430 W/Looper  ( 9791): PerfMonitor doFrame : time=761ms vsyncFrame=0 latency=0ms procState=-1 historyMsgCount=1
+10-10 22:55:40.048 W/Looper  ( 9791): PerfMonitor doFrame : time=5ms vsyncFrame=0 latency=668ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=687ms seq=59567 running=676ms runnable=2ms late=1ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:55:40.042 W/Looper  ( 9791): PerfMonitor doFrame : time=687ms vsyncFrame=0 latency=1ms procState=-1
+10-10 22:55:29.861 W/Looper  ( 9791): PerfMonitor doFrame : time=5ms vsyncFrame=0 latency=702ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=720ms seq=59556 running=706ms runnable=5ms late=1ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:55:29.855 W/Looper  ( 9791): PerfMonitor doFrame : time=720ms vsyncFrame=0 latency=1ms procState=-1
+10-10 22:55:19.647 W/Looper  ( 9791): PerfMonitor doFrame : time=6ms vsyncFrame=0 latency=697ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=715ms seq=59544 running=698ms runnable=6ms late=2ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:55:19.641 W/Looper  ( 9791): PerfMonitor doFrame : time=715ms vsyncFrame=0 latency=2ms procState=-1 historyMsgCount=2
+10-10 22:55:09.464 W/Looper  ( 9791): PerfMonitor doFrame : time=5ms vsyncFrame=0 latency=712ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=731ms seq=59533 running=717ms runnable=6ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:55:09.459 W/Looper  ( 9791): PerfMonitor doFrame : time=731ms vsyncFrame=0 latency=0ms procState=-1 historyMsgCount=1
+10-10 22:54:59.028 W/Looper  ( 9791): PerfMonitor doFrame : time=5ms vsyncFrame=0 latency=615ms procState=-1 historyMsgCount=6 (msgIndex=1 wall=682ms seq=59515 running=668ms runnable=8ms late=634ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:59.022 W/Looper  ( 9791): PerfMonitor doFrame : time=682ms vsyncFrame=0 latency=634ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=694ms seq=59511 running=676ms runnable=10ms late=580ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:58.339 W/Looper  ( 9791): PerfMonitor doFrame : time=694ms vsyncFrame=0 latency=580ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=647ms seq=59507 running=633ms runnable=3ms late=633ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:57.643 W/Looper  ( 9791): PerfMonitor doFrame : time=647ms vsyncFrame=0 latency=633ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=676ms seq=59503 running=658ms runnable=11ms late=561ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:56.994 W/Looper  ( 9791): PerfMonitor doFrame : time=676ms vsyncFrame=0 latency=561ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=622ms seq=59499 running=604ms runnable=12ms late=606ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:56.317 W/Looper  ( 9791): PerfMonitor doFrame : time=622ms vsyncFrame=0 latency=606ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=645ms seq=59495 running=631ms runnable=6ms late=565ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:55.694 W/Looper  ( 9791): PerfMonitor doFrame : time=645ms vsyncFrame=0 latency=565ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=624ms seq=59491 running=609ms runnable=7ms late=595ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:55.049 W/Looper  ( 9791): PerfMonitor doFrame : time=624ms vsyncFrame=0 latency=595ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=638ms seq=59487 running=624ms runnable=7ms late=562ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:54.425 W/Looper  ( 9791): PerfMonitor doFrame : time=638ms vsyncFrame=0 latency=562ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=626ms seq=59483 running=615ms runnable=3ms late=624ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:53.786 W/Looper  ( 9791): PerfMonitor doFrame : time=626ms vsyncFrame=0 latency=624ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=668ms seq=59478 running=650ms runnable=11ms late=539ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:53.160 W/Looper  ( 9791): PerfMonitor doFrame : time=668ms vsyncFrame=0 latency=539ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=593ms seq=59474 running=588ms runnable=1ms late=620ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:52.491 W/Looper  ( 9791): PerfMonitor doFrame : time=593ms vsyncFrame=0 latency=620ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=670ms seq=59470 running=660ms runnable=1ms late=569ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:51.897 W/Looper  ( 9791): PerfMonitor doFrame : time=670ms vsyncFrame=0 latency=569ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=622ms seq=59466 running=604ms runnable=12ms late=634ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:51.226 W/Looper  ( 9791): PerfMonitor doFrame : time=622ms vsyncFrame=0 latency=634ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=677ms seq=59462 running=662ms runnable=11ms late=569ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:50.603 W/Looper  ( 9791): PerfMonitor doFrame : time=677ms vsyncFrame=0 latency=569ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=630ms seq=59458 running=605ms runnable=17ms late=599ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:49.925 W/Looper  ( 9791): PerfMonitor doFrame : time=630ms vsyncFrame=0 latency=599ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=643ms seq=59454 running=631ms runnable=3ms late=560ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:49.294 W/Looper  ( 9791): PerfMonitor doFrame : time=643ms vsyncFrame=0 latency=560ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=622ms seq=59450 running=607ms runnable=8ms late=605ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:48.650 W/Looper  ( 9791): PerfMonitor doFrame : time=622ms vsyncFrame=0 latency=605ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=650ms seq=59446 running=636ms runnable=7ms late=552ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:48.028 W/Looper  ( 9791): PerfMonitor doFrame : time=650ms vsyncFrame=0 latency=552ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=599ms seq=59441 running=591ms runnable=3ms late=613ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:47.376 W/Looper  ( 9791): PerfMonitor doFrame : time=599ms vsyncFrame=0 latency=613ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=658ms seq=59437 running=639ms runnable=14ms late=567ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:46.776 W/Looper  ( 9791): PerfMonitor doFrame : time=658ms vsyncFrame=0 latency=567ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=628ms seq=59433 running=602ms runnable=16ms late=613ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:46.118 W/Looper  ( 9791): PerfMonitor doFrame : time=628ms vsyncFrame=0 latency=613ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=655ms seq=59429 running=647ms late=540ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:45.488 W/Looper  ( 9791): PerfMonitor doFrame : time=655ms vsyncFrame=0 latency=540ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=594ms seq=59425 running=587ms runnable=2ms late=600ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:44.832 W/Looper  ( 9791): PerfMonitor doFrame : time=594ms vsyncFrame=0 latency=600ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=642ms seq=59421 running=633ms runnable=2ms late=534ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:44.237 W/Looper  ( 9791): PerfMonitor doFrame : time=642ms vsyncFrame=0 latency=534ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=592ms seq=59417 running=585ms late=609ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:43.594 W/Looper  ( 9791): PerfMonitor doFrame : time=592ms vsyncFrame=0 latency=609ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=651ms seq=59413 running=643ms runnable=1ms late=541ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:43.002 W/Looper  ( 9791): PerfMonitor doFrame : time=651ms vsyncFrame=0 latency=541ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=599ms seq=59409 running=590ms runnable=3ms late=588ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:42.349 W/Looper  ( 9791): PerfMonitor doFrame : time=599ms vsyncFrame=0 latency=588ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=635ms seq=59404 running=625ms runnable=5ms late=585ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:41.749 W/Looper  ( 9791): PerfMonitor doFrame : time=635ms vsyncFrame=0 latency=585ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=637ms seq=59400 running=627ms runnable=4ms late=615ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:41.114 W/Looper  ( 9791): PerfMonitor doFrame : time=637ms vsyncFrame=0 latency=615ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=656ms seq=59396 running=645ms runnable=4ms late=598ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:40.475 W/Looper  ( 9791): PerfMonitor doFrame : time=656ms vsyncFrame=0 latency=598ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=649ms seq=59392 running=635ms runnable=5ms late=609ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:39.818 W/Looper  ( 9791): PerfMonitor doFrame : time=649ms vsyncFrame=0 latency=609ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=652ms seq=59388 running=644ms runnable=3ms late=534ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:39.169 W/Looper  ( 9791): PerfMonitor doFrame : time=652ms vsyncFrame=0 latency=534ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=594ms seq=59384 running=586ms runnable=2ms late=680ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:38.515 W/Looper  ( 9791): PerfMonitor doFrame : time=594ms vsyncFrame=0 latency=680ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=698ms seq=59382 running=689ms runnable=2ms late=2ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:37.921 W/Looper  ( 9791): PerfMonitor doFrame : time=698ms vsyncFrame=0 latency=2ms procState=-1
+10-10 22:54:34.371 W/Looper  ( 9791): PerfMonitor doFrame : time=6ms vsyncFrame=0 latency=651ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=669ms seq=59371 running=656ms runnable=5ms late=2ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:34.365 W/Looper  ( 9791): PerfMonitor doFrame : time=669ms vsyncFrame=0 latency=2ms procState=-1
+10-10 22:54:23.856 W/Looper  ( 9791): PerfMonitor doFrame : time=5ms vsyncFrame=0 latency=694ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=712ms seq=59360 running=698ms runnable=6ms late=2ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:23.850 W/Looper  ( 9791): PerfMonitor doFrame : time=712ms vsyncFrame=0 latency=2ms procState=-1
+10-10 22:54:13.172 W/Looper  ( 9791): PerfMonitor doFrame : time=6ms vsyncFrame=0 latency=542ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=595ms seq=59346 running=584ms runnable=2ms late=608ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:13.166 W/Looper  ( 9791): PerfMonitor doFrame : time=595ms vsyncFrame=0 latency=608ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=647ms seq=59342 running=639ms runnable=1ms late=551ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:12.570 W/Looper  ( 9791): PerfMonitor doFrame : time=647ms vsyncFrame=0 latency=551ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=606ms seq=59338 running=588ms runnable=9ms late=605ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:11.922 W/Looper  ( 9791): PerfMonitor doFrame : time=606ms vsyncFrame=0 latency=605ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=646ms seq=59334 running=636ms runnable=4ms late=557ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:11.316 W/Looper  ( 9791): PerfMonitor doFrame : time=646ms vsyncFrame=0 latency=557ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=609ms seq=59329 running=592ms runnable=11ms late=615ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:10.669 W/Looper  ( 9791): PerfMonitor doFrame : time=609ms vsyncFrame=0 latency=615ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=660ms seq=59325 running=640ms runnable=12ms late=560ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:10.059 W/Looper  ( 9791): PerfMonitor doFrame : time=660ms vsyncFrame=0 latency=560ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=610ms seq=59321 running=598ms runnable=6ms late=603ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:09.399 W/Looper  ( 9791): PerfMonitor doFrame : time=610ms vsyncFrame=0 latency=603ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=652ms seq=59317 running=639ms runnable=7ms late=569ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:08.787 W/Looper  ( 9791): PerfMonitor doFrame : time=652ms vsyncFrame=0 latency=569ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=621ms seq=59313 running=605ms runnable=10ms late=601ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:08.134 W/Looper  ( 9791): PerfMonitor doFrame : time=621ms vsyncFrame=0 latency=601ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=654ms seq=59309 running=639ms runnable=9ms late=558ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:07.512 W/Looper  ( 9791): PerfMonitor doFrame : time=654ms vsyncFrame=0 latency=558ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=609ms seq=59305 running=595ms runnable=8ms late=623ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:06.857 W/Looper  ( 9791): PerfMonitor doFrame : time=609ms vsyncFrame=0 latency=623ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=676ms seq=59301 running=655ms runnable=12ms late=572ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:06.247 W/Looper  ( 9791): PerfMonitor doFrame : time=676ms vsyncFrame=0 latency=572ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=619ms seq=59297 running=607ms runnable=3ms late=611ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:05.570 W/Looper  ( 9791): PerfMonitor doFrame : time=619ms vsyncFrame=0 latency=611ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=662ms seq=59292 running=646ms runnable=10ms late=581ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:04.949 W/Looper  ( 9791): PerfMonitor doFrame : time=662ms vsyncFrame=0 latency=581ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=634ms seq=59288 running=626ms runnable=1ms late=628ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:04.286 W/Looper  ( 9791): PerfMonitor doFrame : time=634ms vsyncFrame=0 latency=628ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=669ms seq=59284 running=651ms runnable=11ms late=565ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:03.652 W/Looper  ( 9791): PerfMonitor doFrame : time=669ms vsyncFrame=0 latency=565ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=613ms seq=59280 running=605ms runnable=3ms late=633ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:02.982 W/Looper  ( 9791): PerfMonitor doFrame : time=613ms vsyncFrame=0 latency=633ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=677ms seq=59276 running=652ms runnable=16ms late=539ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:02.368 W/Looper  ( 9791): PerfMonitor doFrame : time=677ms vsyncFrame=0 latency=539ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=599ms seq=59272 running=592ms late=593ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:01.690 W/Looper  ( 9791): PerfMonitor doFrame : time=599ms vsyncFrame=0 latency=593ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=632ms seq=59268 running=626ms runnable=1ms late=558ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:01.091 W/Looper  ( 9791): PerfMonitor doFrame : time=632ms vsyncFrame=0 latency=558ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=615ms seq=59264 running=605ms runnable=5ms late=603ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:54:00.458 W/Looper  ( 9791): PerfMonitor doFrame : time=615ms vsyncFrame=0 latency=603ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=648ms seq=59260 running=637ms runnable=1ms late=560ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:59.842 W/Looper  ( 9791): PerfMonitor doFrame : time=648ms vsyncFrame=0 latency=560ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=611ms seq=59255 running=599ms runnable=7ms late=616ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:59.193 W/Looper  ( 9791): PerfMonitor doFrame : time=611ms vsyncFrame=0 latency=616ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=659ms seq=59251 running=647ms runnable=6ms late=533ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:58.581 W/Looper  ( 9791): PerfMonitor doFrame : time=659ms vsyncFrame=0 latency=533ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=584ms seq=59247 running=575ms late=609ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:57.922 W/Looper  ( 9791): PerfMonitor doFrame : time=584ms vsyncFrame=0 latency=609ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=651ms seq=59243 running=638ms runnable=7ms late=536ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:57.336 W/Looper  ( 9791): PerfMonitor doFrame : time=651ms vsyncFrame=0 latency=536ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=588ms seq=59239 running=579ms runnable=2ms late=601ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:56.685 W/Looper  ( 9791): PerfMonitor doFrame : time=588ms vsyncFrame=0 latency=601ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=652ms seq=59235 running=643ms runnable=4ms late=577ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:56.096 W/Looper  ( 9791): PerfMonitor doFrame : time=652ms vsyncFrame=0 latency=577ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=627ms seq=59230 running=621ms late=631ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:55.444 W/Looper  ( 9791): PerfMonitor doFrame : time=627ms vsyncFrame=0 latency=631ms procState=-1 historyMsgCount=6 (msgIndex=1 wall=666ms seq=59224 running=658ms runnable=3ms late=617ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:54.808 W/Looper  ( 9791): PerfMonitor doFrame : time=666ms vsyncFrame=0 latency=617ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=674ms seq=59220 running=664ms runnable=6ms late=679ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:54.140 W/Looper  ( 9791): PerfMonitor doFrame : time=674ms vsyncFrame=0 latency=679ms procState=-1 historyMsgCount=9 (msgIndex=1 wall=730ms seq=59211 running=718ms runnable=5ms late=594ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:53.465 W/Looper  ( 9791): PerfMonitor doFrame : time=730ms vsyncFrame=0 latency=594ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=648ms seq=59207 running=623ms runnable=18ms late=605ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:52.732 W/Looper  ( 9791): PerfMonitor doFrame : time=648ms vsyncFrame=0 latency=605ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=651ms seq=59203 running=637ms runnable=9ms late=572ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:52.083 W/Looper  ( 9791): PerfMonitor doFrame : time=651ms vsyncFrame=0 latency=572ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=630ms seq=59199 running=615ms runnable=9ms late=603ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:51.431 W/Looper  ( 9791): PerfMonitor doFrame : time=630ms vsyncFrame=0 latency=603ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=652ms seq=59195 running=638ms runnable=7ms late=568ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:50.800 W/Looper  ( 9791): PerfMonitor doFrame : time=652ms vsyncFrame=0 latency=568ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=618ms seq=59191 running=602ms runnable=9ms late=610ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:50.147 W/Looper  ( 9791): PerfMonitor doFrame : time=618ms vsyncFrame=0 latency=610ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=654ms seq=59187 running=639ms runnable=8ms late=562ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:49.529 W/Looper  ( 9791): PerfMonitor doFrame : time=654ms vsyncFrame=0 latency=562ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=610ms seq=59183 running=598ms runnable=4ms late=639ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:48.875 W/Looper  ( 9791): PerfMonitor doFrame : time=610ms vsyncFrame=0 latency=639ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=683ms seq=59179 running=666ms runnable=11ms late=547ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:48.264 W/Looper  ( 9791): PerfMonitor doFrame : time=683ms vsyncFrame=0 latency=547ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=599ms seq=59174 running=592ms runnable=2ms late=607ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:47.579 W/Looper  ( 9791): PerfMonitor doFrame : time=599ms vsyncFrame=0 latency=607ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=650ms seq=59170 running=637ms runnable=6ms late=562ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:46.979 W/Looper  ( 9791): PerfMonitor doFrame : time=650ms vsyncFrame=0 latency=562ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=617ms seq=59166 running=607ms runnable=2ms late=598ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:46.329 W/Looper  ( 9791): PerfMonitor doFrame : time=617ms vsyncFrame=0 latency=598ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=660ms seq=59162 running=638ms runnable=14ms late=563ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:45.711 W/Looper  ( 9791): PerfMonitor doFrame : time=660ms vsyncFrame=0 latency=563ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=618ms seq=59158 running=607ms runnable=4ms late=598ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:45.050 W/Looper  ( 9791): PerfMonitor doFrame : time=618ms vsyncFrame=0 latency=598ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=638ms seq=59154 running=631ms late=557ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:44.431 W/Looper  ( 9791): PerfMonitor doFrame : time=638ms vsyncFrame=0 latency=557ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=604ms seq=59150 running=595ms runnable=5ms late=613ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:43.791 W/Looper  ( 9791): PerfMonitor doFrame : time=604ms vsyncFrame=0 latency=613ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=654ms seq=59146 running=638ms runnable=8ms late=557ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:43.187 W/Looper  ( 9791): PerfMonitor doFrame : time=654ms vsyncFrame=0 latency=557ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=612ms seq=59142 running=596ms runnable=9ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:42.533 W/Looper  ( 9791): PerfMonitor doFrame : time=612ms vsyncFrame=0 latency=0ms procState=-1
+10-10 22:53:41.917 W/Looper  ( 9791): PerfMonitor doFrame : time=629ms vsyncFrame=0 latency=544ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=595ms seq=59132 running=584ms runnable=3ms late=587ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:41.287 W/Looper  ( 9791): PerfMonitor doFrame : time=595ms vsyncFrame=0 latency=587ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=629ms seq=59128 running=623ms runnable=2ms late=577ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:40.691 W/Looper  ( 9791): PerfMonitor doFrame : time=629ms vsyncFrame=0 latency=577ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=626ms seq=59124 running=615ms runnable=5ms late=604ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:40.061 W/Looper  ( 9791): PerfMonitor doFrame : time=626ms vsyncFrame=0 latency=604ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=653ms seq=59120 running=648ms runnable=1ms late=534ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:39.434 W/Looper  ( 9791): PerfMonitor doFrame : time=653ms vsyncFrame=0 latency=534ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=589ms seq=59116 running=583ms runnable=1ms late=605ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:38.780 W/Looper  ( 9791): PerfMonitor doFrame : time=589ms vsyncFrame=0 latency=605ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=661ms seq=59112 running=651ms runnable=4ms late=669ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:38.190 W/Looper  ( 9791): PerfMonitor doFrame : time=661ms vsyncFrame=0 latency=669ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=686ms seq=59110 running=670ms runnable=8ms late=1ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:37.528 W/Looper  ( 9791): PerfMonitor doFrame : time=686ms vsyncFrame=0 latency=1ms procState=-1
+10-10 22:53:28.369 W/Looper  ( 9791): PerfMonitor doFrame : time=5ms vsyncFrame=0 latency=686ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=704ms seq=59095 running=690ms runnable=7ms late=1ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:28.364 W/Looper  ( 9791): PerfMonitor doFrame : time=704ms vsyncFrame=0 latency=1ms procState=-1
+10-10 22:53:18.099 W/Looper  ( 9791): PerfMonitor doFrame : time=5ms vsyncFrame=0 latency=616ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=635ms seq=59083 running=624ms runnable=2ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:18.093 W/Looper  ( 9791): PerfMonitor doFrame : time=635ms vsyncFrame=0 latency=0ms procState=-1 historyMsgCount=1
+10-10 22:53:07.962 W/Looper  ( 9791): PerfMonitor doFrame : time=4ms vsyncFrame=0 latency=682ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=700ms seq=59072 running=686ms runnable=4ms late=2ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:53:07.958 W/Looper  ( 9791): PerfMonitor doFrame : time=700ms vsyncFrame=0 latency=2ms procState=-1
+10-10 22:52:57.739 W/Looper  ( 9791): PerfMonitor doFrame : time=8ms vsyncFrame=0 latency=658ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=677ms seq=59060 running=665ms runnable=3ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:57.730 W/Looper  ( 9791): PerfMonitor doFrame : time=677ms vsyncFrame=0 latency=0ms procState=-1 historyMsgCount=1
+10-10 22:52:47.576 W/Looper  ( 9791): PerfMonitor doFrame : time=3ms vsyncFrame=0 latency=693ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=711ms seq=59049 running=702ms runnable=1ms late=2ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:47.573 W/Looper  ( 9791): PerfMonitor doFrame : time=711ms vsyncFrame=0 latency=2ms procState=-1
+10-10 22:52:37.236 W/Looper  ( 9791): PerfMonitor doFrame : time=4ms vsyncFrame=0 latency=578ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=629ms seq=59032 running=608ms runnable=12ms late=650ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:37.231 W/Looper  ( 9791): PerfMonitor doFrame : time=629ms vsyncFrame=0 latency=650ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=696ms seq=59028 running=672ms runnable=13ms late=573ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:36.602 W/Looper  ( 9791): PerfMonitor doFrame : time=696ms vsyncFrame=0 latency=573ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=644ms seq=59023 running=628ms runnable=9ms late=610ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:35.905 W/Looper  ( 9791): PerfMonitor doFrame : time=644ms vsyncFrame=0 latency=610ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=650ms seq=59019 running=636ms runnable=7ms late=543ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:35.260 W/Looper  ( 9791): PerfMonitor doFrame : time=650ms vsyncFrame=0 latency=543ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=596ms seq=59015 running=583ms runnable=7ms late=620ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:34.609 W/Looper  ( 9791): PerfMonitor doFrame : time=596ms vsyncFrame=0 latency=620ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=666ms seq=59011 running=641ms runnable=17ms late=559ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:34.011 W/Looper  ( 9791): PerfMonitor doFrame : time=666ms vsyncFrame=0 latency=559ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=618ms seq=59007 running=606ms runnable=8ms late=608ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:33.345 W/Looper  ( 9791): PerfMonitor doFrame : time=618ms vsyncFrame=0 latency=608ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=647ms seq=59003 running=633ms runnable=3ms late=579ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:32.725 W/Looper  ( 9791): PerfMonitor doFrame : time=647ms vsyncFrame=0 latency=579ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=645ms seq=58999 running=629ms runnable=9ms late=608ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:32.078 W/Looper  ( 9791): PerfMonitor doFrame : time=645ms vsyncFrame=0 latency=608ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=647ms seq=58995 running=634ms runnable=1ms late=566ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:31.433 W/Looper  ( 9791): PerfMonitor doFrame : time=647ms vsyncFrame=0 latency=566ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=617ms seq=58991 running=603ms runnable=6ms late=650ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:30.785 W/Looper  ( 9791): PerfMonitor doFrame : time=617ms vsyncFrame=0 latency=650ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=698ms seq=58986 running=669ms runnable=19ms late=563ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:30.166 W/Looper  ( 9791): PerfMonitor doFrame : time=698ms vsyncFrame=0 latency=563ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=617ms seq=58982 running=597ms runnable=12ms late=613ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:29.467 W/Looper  ( 9791): PerfMonitor doFrame : time=617ms vsyncFrame=0 latency=613ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=659ms seq=58978 running=636ms runnable=13ms late=553ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:28.850 W/Looper  ( 9791): PerfMonitor doFrame : time=659ms vsyncFrame=0 latency=553ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=602ms seq=58974 running=583ms runnable=9ms late=617ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:28.190 W/Looper  ( 9791): PerfMonitor doFrame : time=602ms vsyncFrame=0 latency=617ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=659ms seq=58970 running=641ms runnable=11ms late=597ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:27.587 W/Looper  ( 9791): PerfMonitor doFrame : time=659ms vsyncFrame=0 latency=597ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=645ms seq=58966 running=635ms runnable=3ms late=620ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:26.927 W/Looper  ( 9791): PerfMonitor doFrame : time=645ms vsyncFrame=0 latency=620ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=662ms seq=58962 running=648ms runnable=6ms late=560ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:26.279 W/Looper  ( 9791): PerfMonitor doFrame : time=662ms vsyncFrame=0 latency=560ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=609ms seq=58958 running=600ms runnable=3ms late=604ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:25.616 W/Looper  ( 9791): PerfMonitor doFrame : time=609ms vsyncFrame=0 latency=604ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=648ms seq=58954 running=636ms runnable=6ms late=581ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:25.006 W/Looper  ( 9791): PerfMonitor doFrame : time=648ms vsyncFrame=0 latency=581ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=629ms seq=58949 running=605ms runnable=15ms late=605ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:24.357 W/Looper  ( 9791): PerfMonitor doFrame : time=629ms vsyncFrame=0 latency=605ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=646ms seq=58945 running=630ms runnable=8ms late=570ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:23.728 W/Looper  ( 9791): PerfMonitor doFrame : time=646ms vsyncFrame=0 latency=570ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=639ms seq=58941 running=622ms runnable=8ms late=619ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:23.081 W/Looper  ( 9791): PerfMonitor doFrame : time=639ms vsyncFrame=0 latency=619ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=659ms seq=58937 running=644ms runnable=8ms late=557ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:22.441 W/Looper  ( 9791): PerfMonitor doFrame : time=659ms vsyncFrame=0 latency=557ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=607ms seq=58933 running=595ms runnable=5ms late=604ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:21.781 W/Looper  ( 9791): PerfMonitor doFrame : time=607ms vsyncFrame=0 latency=604ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=646ms seq=58929 running=627ms runnable=7ms late=583ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:21.173 W/Looper  ( 9791): PerfMonitor doFrame : time=646ms vsyncFrame=0 latency=583ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=637ms seq=58925 running=618ms runnable=10ms late=606ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:20.526 W/Looper  ( 9791): PerfMonitor doFrame : time=637ms vsyncFrame=0 latency=606ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=657ms seq=58921 running=636ms runnable=7ms late=595ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:19.889 W/Looper  ( 9791): PerfMonitor doFrame : time=657ms vsyncFrame=0 latency=595ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=649ms seq=58916 running=634ms runnable=6ms late=620ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:19.230 W/Looper  ( 9791): PerfMonitor doFrame : time=649ms vsyncFrame=0 latency=620ms procState=-1 historyMsgCount=7 (msgIndex=1 wall=662ms seq=58909 running=645ms runnable=9ms late=580ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:18.577 W/Looper  ( 9791): PerfMonitor doFrame : time=662ms vsyncFrame=0 latency=580ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=634ms seq=58904 running=619ms runnable=7ms late=640ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:17.915 W/Looper  ( 9791): PerfMonitor doFrame : time=634ms vsyncFrame=0 latency=640ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=682ms seq=58899 running=660ms runnable=14ms late=570ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:17.279 W/Looper  ( 9791): PerfMonitor doFrame : time=682ms vsyncFrame=0 latency=570ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=627ms seq=58894 running=607ms runnable=7ms late=616ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:16.596 W/Looper  ( 9791): PerfMonitor doFrame : time=627ms vsyncFrame=0 latency=616ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=662ms seq=58889 running=647ms runnable=6ms late=552ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:15.969 W/Looper  ( 9791): PerfMonitor doFrame : time=662ms vsyncFrame=0 latency=552ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=606ms seq=58884 running=588ms runnable=8ms late=633ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:15.305 W/Looper  ( 9791): PerfMonitor doFrame : time=606ms vsyncFrame=0 latency=633ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=676ms seq=58879 running=654ms runnable=13ms late=569ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:14.698 W/Looper  ( 9791): PerfMonitor doFrame : time=676ms vsyncFrame=0 latency=569ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=623ms seq=58874 running=601ms runnable=12ms late=613ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:14.021 W/Looper  ( 9791): PerfMonitor doFrame : time=623ms vsyncFrame=0 latency=613ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=653ms seq=58870 running=644ms runnable=1ms late=564ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:13.398 W/Looper  ( 9791): PerfMonitor doFrame : time=653ms vsyncFrame=0 latency=564ms procState=-1 historyMsgCount=6 (msgIndex=1 wall=616ms seq=58864 running=598ms runnable=10ms late=628ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:12.743 W/Looper  ( 9791): PerfMonitor doFrame : time=616ms vsyncFrame=0 latency=628ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=669ms seq=58859 running=651ms runnable=8ms late=555ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:12.125 W/Looper  ( 9791): PerfMonitor doFrame : time=669ms vsyncFrame=0 latency=555ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=604ms seq=58854 running=593ms runnable=1ms late=624ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:11.454 W/Looper  ( 9791): PerfMonitor doFrame : time=604ms vsyncFrame=0 latency=624ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=666ms seq=58849 running=655ms runnable=5ms late=548ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:10.848 W/Looper  ( 9791): PerfMonitor doFrame : time=666ms vsyncFrame=0 latency=548ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=605ms seq=58844 running=590ms runnable=2ms late=617ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:10.182 W/Looper  ( 9791): PerfMonitor doFrame : time=605ms vsyncFrame=0 latency=617ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=668ms seq=58840 running=650ms runnable=5ms late=650ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:09.575 W/Looper  ( 9791): PerfMonitor doFrame : time=668ms vsyncFrame=0 latency=650ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=599ms seq=58835 running=587ms runnable=4ms late=636ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver) (msgIndex=5 wall=54ms seq=58839 running=55ms late=596ms h=android.view.ViewRootImpl$ViewRootHandler c=androidx.compose.foundation.lazy.layout.AndroidPrefetchScheduler)
+10-10 22:52:08.852 W/Looper  ( 9791): PerfMonitor doFrame : time=599ms vsyncFrame=0 latency=636ms procState=-1 historyMsgCount=6 (msgIndex=1 wall=597ms seq=58829 running=586ms runnable=4ms late=581ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:08.208 W/Looper  ( 9791): PerfMonitor doFrame : time=597ms vsyncFrame=0 latency=581ms procState=-1 historyMsgCount=3 (msgIndex=1 wall=581ms seq=58826 running=570ms runnable=4ms late=603ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:07.610 W/Looper  ( 9791): PerfMonitor doFrame : time=581ms vsyncFrame=0 latency=603ms procState=-1 historyMsgCount=6 (msgIndex=1 wall=607ms seq=58820 running=596ms runnable=4ms late=474ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:07.028 W/Looper  ( 9791): PerfMonitor doFrame : time=607ms vsyncFrame=0 latency=474ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=478ms seq=58816 running=472ms runnable=2ms late=1580ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:06.420 W/Looper  ( 9791): PerfMonitor doFrame : time=478ms vsyncFrame=0 latency=1580ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=1461ms seq=58811 running=1444ms runnable=1ms late=733ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver) (msgIndex=4 wall=120ms seq=58814 running=118ms runnable=1ms late=1464ms h=android.os.Handler c=androidx.compose.ui.platform.AndroidUiDispatcher$dispatchCallback$1)
+10-10 22:52:05.820 W/Looper  ( 9791): PerfMonitor doFrame : time=1461ms vsyncFrame=0 latency=733ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=840ms seq=58807 running=830ms runnable=1ms late=1186ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:05.820 W/Looper  ( 9791): PerfMonitor longMsg : seq=58811 plan=22:52:03.625 late=733ms wall=1461ms running=1444ms runnable=1ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver procState=-1
+10-10 22:52:04.357 W/Looper  ( 9791): PerfMonitor doFrame : time=840ms vsyncFrame=0 latency=1186ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=552ms seq=58802 running=548ms runnable=1ms late=528ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver) (msgIndex=5 wall=633ms seq=58806 running=625ms late=552ms h=android.os.Handler c=androidx.compose.ui.platform.AndroidUiDispatcher$dispatchCallback$1)
+10-10 22:52:02.882 W/Looper  ( 9791): PerfMonitor doFrame : time=552ms vsyncFrame=0 latency=528ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=528ms seq=58798 running=522ms late=533ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:02.328 W/Looper  ( 9791): PerfMonitor doFrame : time=528ms vsyncFrame=0 latency=533ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=422ms seq=58793 running=412ms runnable=3ms late=626ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver) (msgIndex=4 wall=117ms seq=58796 running=114ms late=422ms h=android.os.Handler c=androidx.compose.ui.platform.AndroidUiDispatcher$dispatchCallback$1)
+10-10 22:52:01.682 W/Looper  ( 9791): PerfMonitor doFrame : time=422ms vsyncFrame=0 latency=626ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=629ms seq=58788 running=623ms late=551ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:01.257 W/Looper  ( 9791): PerfMonitor doFrame : time=629ms vsyncFrame=0 latency=551ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=557ms seq=58783 running=549ms runnable=1ms late=418ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:00.628 W/Looper  ( 9791): PerfMonitor doFrame : time=557ms vsyncFrame=0 latency=418ms procState=-1 historyMsgCount=3 (msgIndex=1 wall=420ms seq=58780 running=415ms late=428ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:52:00.069 W/Looper  ( 9791): PerfMonitor doFrame : time=420ms vsyncFrame=0 latency=428ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=432ms seq=58775 running=427ms runnable=1ms late=871ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:51:59.649 W/Looper  ( 9791): PerfMonitor doFrame : time=432ms vsyncFrame=0 latency=871ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=752ms seq=58771 running=745ms runnable=1ms late=1ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver) (msgIndex=4 wall=123ms seq=58774 running=123ms late=754ms h=android.os.Handler c=androidx.compose.ui.platform.AndroidUiDispatcher$dispatchCallback$1)
+10-10 22:51:59.091 W/Looper  ( 9791): PerfMonitor doFrame : time=752ms vsyncFrame=0 latency=1ms procState=-1 historyMsgCount=1
+10-10 22:51:58.259 W/Looper  ( 9791): PerfMonitor doFrame : time=1ms vsyncFrame=0 latency=956ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=958ms seq=58729 running=947ms runnable=1ms io=1ms late=351ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:51:58.256 W/Looper  ( 9791): PerfMonitor doFrame : time=958ms vsyncFrame=0 latency=351ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=353ms seq=58724 running=349ms late=170ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:51:57.296 W/Looper  ( 9791): PerfMonitor doFrame : time=353ms vsyncFrame=0 latency=170ms procState=-1 historyMsgCount=3 (msgIndex=1 wall=173ms seq=58721 running=175ms late=87ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:51:55.921 W/Looper  ( 9791): PerfMonitor doFrame : time=7ms vsyncFrame=0 latency=505ms procState=-1 historyMsgCount=2 (msgIndex=1 wall=516ms seq=58543 running=505ms runnable=4ms io=2ms late=1ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:51:55.912 W/Looper  ( 9791): PerfMonitor doFrame : time=516ms vsyncFrame=0 latency=1ms procState=-1 historyMsgCount=1
+10-10 22:51:54.250 W/Looper  ( 9791): PerfMonitor doFrame : time=10ms vsyncFrame=0 latency=576ms procState=-1 historyMsgCount=6 (msgIndex=1 wall=913ms seq=58424 running=893ms runnable=3ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:51:54.235 W/Looper  ( 9791): PerfMonitor doFrame : time=913ms vsyncFrame=0 latency=0ms procState=-1
+10-10 22:51:49.723 W/Looper  ( 9791): PerfMonitor doFrame : time=394ms vsyncFrame=0 latency=0ms procState=-1
+10-10 22:51:48.158 W/Looper  ( 9791): PerfMonitor doFrame : time=7ms vsyncFrame=0 latency=471ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=476ms seq=57467 running=471ms runnable=1ms late=118ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:51:48.149 W/Looper  ( 9791): PerfMonitor doFrame : time=476ms vsyncFrame=0 latency=118ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=120ms seq=57462 running=120ms late=151ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:51:38.112 W/Looper  ( 9791): PerfMonitor doFrame : time=3ms vsyncFrame=0 latency=301ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=305ms seq=56639 running=302ms late=259ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:51:38.108 W/Looper  ( 9791): PerfMonitor doFrame : time=305ms vsyncFrame=0 latency=259ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=262ms seq=56635 running=260ms late=142ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:51:28.726 W/Looper  ( 9791): PerfMonitor doFrame : time=6ms vsyncFrame=0 latency=703ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=704ms seq=56230 running=697ms runnable=1ms late=230ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:51:28.715 W/Looper  ( 9791): PerfMonitor doFrame : time=704ms vsyncFrame=0 latency=230ms procState=-1 historyMsgCount=4 (msgIndex=1 wall=233ms seq=56226 running=232ms late=58ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:51:26.679 W/Looper  ( 9791): PerfMonitor doFrame : time=5ms vsyncFrame=0 latency=313ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=314ms seq=55972 running=309ms runnable=1ms late=176ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+10-10 22:51:26.670 W/Looper  ( 9791): PerfMonitor doFrame : time=314ms vsyncFrame=0 latency=176ms procState=-1 historyMsgCount=5 (msgIndex=1 wall=177ms seq=55967 running=176ms late=64ms h=android.view.Choreographer$FrameHandler c=android.view.Choreographer$FrameDisplayEventReceiver)
+--------- beginning of system
