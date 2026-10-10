@@ -841,7 +841,7 @@ class KitsugiCharacterClient {
                     // AniList veya Jikan üzerinden gerçek karakter profilini yükle
                     val cleanCharName = name?.replace(Regex("\\s*\\((?:voice|uncredited|uncredited voice|child)\\)", RegexOption.IGNORE_CASE), "")?.trim()
                     if (!cleanCharName.isNullOrBlank()) {
-                        val aniDetail = fetchAniListCharacterByName(cleanCharName)
+                        val aniDetail = fetchAniListCharacterByName(primaryCharacterName(cleanCharName))
                         if (aniDetail != null) {
                             // Kaynakta görsel yoksa arayüzden gelen görseli tamamla.
                             return@withContext if (aniDetail.imageUrl.isNullOrBlank() && !fallbackImageUrl.isNullOrBlank()) {
@@ -849,8 +849,14 @@ class KitsugiCharacterClient {
                             } else aniDetail
                         }
                         val jikanDetail = runCatching {
-                            val jikanSearch = JikanApiClient().searchMalCharacters(cleanCharName, page = 1)
-                            val firstMalId = jikanSearch.firstOrNull()?.malId
+                            // Jikan araması bulanıktır ("Spider" -> "Peak Spider" gibi). İlk sonuç
+                            // körlemesine alınmaz; yalnızca karakter adı gerçekten eşleşen kayıt kabul edilir.
+                            val lookupName = primaryCharacterName(cleanCharName)
+                            if (!KitsugiPersonImageAggregator.isUnambiguousName(lookupName)) return@runCatching null
+                            val jikanSearch = JikanApiClient().searchMalCharacters(lookupName, page = 1)
+                            val firstMalId = jikanSearch
+                                .firstOrNull { KitsugiPersonImageAggregator.nameMatches(lookupName, it.title) }
+                                ?.malId
                             if (firstMalId != null && firstMalId > 0) {
                                 fetchCharacterDetail("jikan", firstMalId, cleanCharName, fallbackImageUrl)
                             } else null
@@ -1036,6 +1042,14 @@ class KitsugiCharacterClient {
             }
         }
     }
+
+    /**
+     * TMDB karakter adı çoğunlukla "Gerçek Ad / Kurgusal Ad" biçimindedir
+     * (ör. "Peter Parker / Spider-Man"). Arama ve doğrulama için yalnızca ilk parça
+     * kullanılır; aksi halde "Spider-Man" gibi ortak kelimeler yanlış karakterle eşleşir.
+     */
+    private fun primaryCharacterName(name: String): String =
+        name.substringBefore("/").substringBefore(" (").trim().ifBlank { name.trim() }
 
     /**
      * AniList karakter düğümü: adı sorguyla eşleşiyor mu (birebir / jeton kümesi) ve
