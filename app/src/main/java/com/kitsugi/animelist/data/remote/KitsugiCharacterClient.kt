@@ -838,41 +838,30 @@ class KitsugiCharacterClient {
                     }
 
                     // Kurgusal/anime karakteri ise (name parametresi varsa) seslendirmen biyografisi yerine
-                    // AniList veya Jikan üzerinden gerçek karakter profilini yükle. TMDB rolü
-                    // "Peter Parker / Spider-Man" gibi birden fazla ad içeriyorsa her alias ayrı
-                    // aranır; Jikan'ın alaka sıralı ilk sonucu ancak karakter adı doğrulanırsa kabul edilir.
+                    // AniList veya Jikan üzerinden gerçek karakter profilini yükle
                     val cleanCharName = name?.replace(Regex("\\s*\\((?:voice|uncredited|uncredited voice|child)\\)", RegexOption.IGNORE_CASE), "")?.trim()
                     if (!cleanCharName.isNullOrBlank()) {
-                        val roleNames = CharacterDetailIdentity.nameCandidates(cleanCharName)
-                        for (roleName in roleNames) {
-                            val aniDetail = fetchAniListCharacterByName(roleName)
-                            if (aniDetail != null && CharacterDetailIdentity.matchesExpectedDetail(
-                                    source = "tmdb",
-                                    expectedName = cleanCharName,
-                                    isRealMediaRole = false,
-                                    detail = aniDetail
-                                )) {
-                                // Kaynakta görsel yoksa arayüzden gelen görseli tamamla.
-                                return@withContext if (aniDetail.imageUrl.isNullOrBlank() && !fallbackImageUrl.isNullOrBlank()) {
-                                    aniDetail.copy(imageUrl = fallbackImageUrl, source = "tmdb")
-                                } else aniDetail.copy(source = "tmdb")
-                            }
+                        val aniDetail = fetchAniListCharacterByName(primaryCharacterName(cleanCharName))
+                        if (aniDetail != null) {
+                            // Kaynakta görsel yoksa arayüzden gelen görseli tamamla.
+                            return@withContext if (aniDetail.imageUrl.isNullOrBlank() && !fallbackImageUrl.isNullOrBlank()) {
+                                aniDetail.copy(imageUrl = fallbackImageUrl)
+                            } else aniDetail
                         }
-
-                        for (roleName in roleNames) {
-                            val jikanCandidate = runCatching {
-                                JikanApiClient().searchMalCharacters(roleName, page = 1)
-                                    .firstOrNull { CharacterDetailIdentity.roleNameMatches(roleName, listOf(it.title)) }
-                            }.getOrNull() ?: continue
-                            val jikanDetail = runCatching {
-                                fetchCharacterDetail("jikan", jikanCandidate.malId, roleName, fallbackImageUrl)
-                            }.getOrNull() ?: continue
-                            if (!CharacterDetailIdentity.matchesExpectedDetail(
-                                    source = "tmdb",
-                                    expectedName = cleanCharName,
-                                    isRealMediaRole = false,
-                                    detail = jikanDetail
-                                )) continue
+                        val jikanDetail = runCatching {
+                            // Jikan araması bulanıktır ("Spider" -> "Peak Spider" gibi). İlk sonuç
+                            // körlemesine alınmaz; yalnızca karakter adı gerçekten eşleşen kayıt kabul edilir.
+                            val lookupName = primaryCharacterName(cleanCharName)
+                            if (!KitsugiPersonImageAggregator.isUnambiguousName(lookupName)) return@runCatching null
+                            val jikanSearch = JikanApiClient().searchMalCharacters(lookupName, page = 1)
+                            val firstMalId = jikanSearch
+                                .firstOrNull { KitsugiPersonImageAggregator.nameMatches(lookupName, it.title) }
+                                ?.malId
+                            if (firstMalId != null && firstMalId > 0) {
+                                fetchCharacterDetail("jikan", firstMalId, cleanCharName, fallbackImageUrl)
+                            } else null
+                        }.getOrNull()
+                        if (jikanDetail != null) {
                             return@withContext if (jikanDetail.imageUrl.isNullOrBlank() && !fallbackImageUrl.isNullOrBlank()) {
                                 jikanDetail.copy(imageUrl = fallbackImageUrl)
                             } else jikanDetail
@@ -1053,6 +1042,14 @@ class KitsugiCharacterClient {
             }
         }
     }
+
+    /**
+     * TMDB karakter adı çoğunlukla "Gerçek Ad / Kurgusal Ad" biçimindedir
+     * (ör. "Peter Parker / Spider-Man"). Arama ve doğrulama için yalnızca ilk parça
+     * kullanılır; aksi halde "Spider-Man" gibi ortak kelimeler yanlış karakterle eşleşir.
+     */
+    private fun primaryCharacterName(name: String): String =
+        name.substringBefore("/").substringBefore(" (").trim().ifBlank { name.trim() }
 
     /**
      * AniList karakter düğümü: adı sorguyla eşleşiyor mu (birebir / jeton kümesi) ve
