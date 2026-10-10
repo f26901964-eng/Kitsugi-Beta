@@ -26,7 +26,14 @@ data class AiringEntry(
     val averageScore: Int? = null,
     val countryOfOrigin: String? = null,
     /** +18 içerik mi? (AniList `media.isAdult`) — bulanıklık için kullanılır */
-    val isAdult: Boolean = false
+    val isAdult: Boolean = false,
+    /**
+     * Kaynağın kendisi: "anilist" (varsayılan) veya "tmdb".
+     * "Tümü" (birleşik takvim) modunda aynı haftada hem AniList hem TMDB kaydı
+     * bulunabilir → öğe tıklanınca detay rotasının doğru kimlik uzayından
+     * çözülmesi için kayıt kendi kaynağını taşır.
+     */
+    val source: String = "anilist"
 ) {
     /** Yayın saatini okunabilir "HH:mm" formatında döndürür. */
     fun formattedTime(): String {
@@ -65,6 +72,10 @@ data class AiringEntry(
         val finalSource = when (preferredSource) {
             "jikan" -> if (malId != null) "jikan" else "anilist"
             "tmdb" -> "tmdb"
+            // Birleşik ("Tümü") takvim: kayıt hangi kaynaktan geldiyse o kimlik
+            // uzayını kullan — TMDB kaydı tmdb id'siyle, AniList kaydı mal/anilist
+            // id'siyle detay sayfasına çözülür.
+            "all" -> if (source.equals("tmdb", true)) "tmdb" else "anilist"
             else -> "anilist"
         }
         val finalId = if (finalSource == "tmdb") aniListId else if (finalSource == "jikan") malId!! else (malId ?: aniListId)

@@ -14,17 +14,54 @@ class KitsugiAiringCalendarClient {
 
     suspend fun fetchWeeklySchedule(accessToken: String? = null, preferredSource: String? = null): Map<Int, List<AiringEntry>> {
         return withContext(Dispatchers.IO) {
-            if (preferredSource == "tmdb") {
-                fetchTmdbWeeklySchedule()
-            } else {
-                val (weekStart, weekEnd) = currentWeekRange()
-                val rawEntries = fetchAiringSchedule(weekStart, weekEnd, accessToken)
-                rawEntries
-                    .filter { it.airingAt in weekStart..weekEnd }
-                    .groupBy { it.dayOfWeek }
-                    .mapValues { (_, list) -> list.sortedBy { it.airingAt } }
+            when (preferredSource) {
+                "tmdb" -> fetchTmdbWeeklySchedule()
+                // "Tümü" keşfet modu: haftalık takvim tüm kaynakların BİRLEŞİMİ —
+                // AniList bölüm takvimi + TMDB vizyon/bölüm tarihleri tek takvimde.
+                "all" -> mergeWeeklySchedules(
+                    fetchAniListWeeklySchedule(accessToken),
+                    fetchTmdbWeeklySchedule()
+                )
+                else -> fetchAniListWeeklySchedule(accessToken)
             }
         }
+    }
+
+    /** AniList `airingSchedules` haftalık takvimi (eski varsayılan davranış). */
+    private suspend fun fetchAniListWeeklySchedule(accessToken: String?): Map<Int, List<AiringEntry>> {
+        val (weekStart, weekEnd) = currentWeekRange()
+        val rawEntries = fetchAiringSchedule(weekStart, weekEnd, accessToken)
+        return rawEntries
+            .filter { it.airingAt in weekStart..weekEnd }
+            .groupBy { it.dayOfWeek }
+            .mapValues { (_, list) -> list.sortedBy { it.airingAt } }
+    }
+
+    /**
+     * Birden fazla takvimin gün bazlı birleşimi. Aynı yapım hem AniList hem TMDB
+     * takviminde olabilir → aynı gün içinde kimlik ve normalize başlıkla tekilleştirilir
+     * (öncelik ilk takvimde, yani AniList'te kalır: kesin bölüm numarası ondadır).
+     */
+    private fun mergeWeeklySchedules(
+        vararg schedules: Map<Int, List<AiringEntry>>
+    ): Map<Int, List<AiringEntry>> {
+        val merged = mutableMapOf<Int, MutableList<AiringEntry>>()
+        for (schedule in schedules) {
+            for ((day, entries) in schedule) {
+                val bucket = merged.getOrPut(day) { mutableListOf() }
+                for (entry in entries) {
+                    val sameId = bucket.any { it.aniListId == entry.aniListId && it.source == entry.source }
+                    val titleKey = normalizeAiringTitle(entry.title)
+                        ?: normalizeAiringTitle(entry.titleEnglish)
+                    val sameTitle = titleKey != null && bucket.any { existing ->
+                        normalizeAiringTitle(existing.title) == titleKey ||
+                            normalizeAiringTitle(existing.titleEnglish) == titleKey
+                    }
+                    if (!sameId && !sameTitle) bucket.add(entry)
+                }
+            }
+        }
+        return merged.mapValues { (_, list) -> list.sortedBy { it.airingAt } }
     }
 
     private suspend fun fetchTmdbWeeklySchedule(): Map<Int, List<AiringEntry>> {
@@ -142,7 +179,8 @@ class KitsugiAiringCalendarClient {
                     airingAt = airingAt,
                     dayOfWeek = dayOfWeek,
                     averageScore = score,
-                    isAdult = item.optBoolean("adult", false)
+                    isAdult = item.optBoolean("adult", false),
+                    source = "tmdb"
                 )
 
                 // TMDB film ve dizi kimlik alanları çakışabilir → dedupe anahtarı türle birlikte.

@@ -107,7 +107,9 @@ fun KitsugiAiringCalendarScreen(
             onGridViewChange = { isGridView = it },
             onRefresh = { viewModel.loadSchedule(preferredSource = preferredSource, force = true) },
             onBackClick = onBackClick,
-            isTmdb = preferredSource == "tmdb"
+            // Birleşik ("all") takvimde film/dizi kayıtları da olduğundan sayaç
+            // etiketi TMDB modundaki gibi "içerik" olur.
+            isTmdb = preferredSource == "tmdb" || preferredSource == "all"
         )
 
         // ── Gün sekmeleri ──────────────────────────────────────────────────

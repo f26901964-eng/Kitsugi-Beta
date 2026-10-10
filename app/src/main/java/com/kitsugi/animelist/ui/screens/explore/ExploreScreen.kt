@@ -41,6 +41,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.data.remote.ApiSearchSelection
 import com.kitsugi.animelist.data.remote.JikanSearchResult
+import com.kitsugi.animelist.data.remote.normalizeAiringTitle
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
 import com.kitsugi.animelist.ui.components.KitsugiHeroSection
@@ -144,20 +145,30 @@ fun ExploreScreen(
         else sourceSections(viewModel.selectedPlatform, filteredSourcePayload)
     }
 
-    // Tümü modunda tek ORTAK "Yakında Yayında" şeridi: her kaynak payload'ı aynı
-    // gerçek-kimlikli takvim verisini taşıdığı için dolu olan ilk payload yeterlidir
-    // (öncelik: AniList → MAL → TMDB → diğerleri).
+    // Tümü modunda tek ORTAK "Yakında Yayında" şeridi: tüm kaynakların yayın
+    // takvimi verisinin BİRLEŞİMİ — AniList/MAL bölüm takvimi + TMDB vizyon/bölüm
+    // tarihleri birlikte gösterilir (kimlik + normalize başlıkla tekilleştirilir,
+    // yayın zamanına göre sıralanır). Kaynak modunda şerit kaynağa özgü kalır.
     val sharedAiringSoon = remember(viewModel.allSourceStates, showAdultContent) {
         fun List<JikanSearchResult>?.ready() =
             this.orEmpty().filter { showAdultContent || !it.isAdult }
-        val priority = viewModel.allSourceStates[ExplorePlatform.AniList]?.payload?.airingSoonAnime.ready()
-            .ifEmpty { viewModel.allSourceStates[ExplorePlatform.MAL]?.payload?.airingSoonAnime.ready() }
-            .ifEmpty { viewModel.allSourceStates[ExplorePlatform.TMDB]?.payload?.airingSoonAnime.ready() }
-        priority.ifEmpty {
-            ExplorePlatform.sources.firstNotNullOfOrNull { p ->
-                viewModel.allSourceStates[p]?.payload?.airingSoonAnime.ready()
-                    .takeIf { it.isNotEmpty() }
-            } ?: emptyList()
+        // Öncelik sırası: bölüm numarası taşıyan kaynaklar önce (duplikasyonda
+        // daha zengin kayıt kazanır), TMDB vizyon listesi sonra eklenir.
+        val priority = listOf(ExplorePlatform.AniList, ExplorePlatform.MAL, ExplorePlatform.TMDB)
+        val order = priority + ExplorePlatform.sources.filter { it !in priority }
+        val byIdentity = LinkedHashMap<String, JikanSearchResult>()
+        val seenTitles = mutableSetOf<String>()
+        for (platform in order) {
+            for (item in viewModel.allSourceStates[platform]?.payload?.airingSoonAnime.ready()) {
+                val titleKey = normalizeAiringTitle(item.title)
+                if (titleKey != null && !seenTitles.add(titleKey)) continue
+                val identity = item.exploreIdentity()
+                if (!byIdentity.containsKey(identity)) byIdentity[identity] = item
+            }
+        }
+        byIdentity.values.sortedBy {
+            com.kitsugi.animelist.utils.NextAiringFormat.parse(it.nextAiringEpisode).epoch
+                ?: Long.MAX_VALUE
         }
     }
     val airingSoonTitle = stringResource(R.string.explore_airing_soon)

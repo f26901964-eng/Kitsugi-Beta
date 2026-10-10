@@ -211,6 +211,17 @@ fun FullScreenMediaGridPage(
         session?.cachedHasMore = hasMorePages
     }
 
+    // ── Yaklaşan yayın tarihi zenginleştirme ──────────────────────────────────
+    // TMDB "Yaklaşan Film ve Diziler" / Shikimori "Yayındaki Animeler" gibi liste
+    // verileri öğenin kendi yayın takvimini taşımaz → kullanıcı detay sayfasına
+    // girmeden kartlarda yaklaşan tarih görünmüyordu. Eksik `nextAiringEpisode`
+    // alanları önbellekli yardımcıyla tamamlanır (AniList bölüm takvimi +
+    // TMDB `next_episode_to_air`); eşleşmeyen öğeler değişmeden kalır.
+    LaunchedEffect(loadedResults) {
+        val enriched = com.kitsugi.animelist.data.remote.KitsugiUpcomingAirEnricher.enrich(loadedResults)
+        if (enriched != loadedResults) loadedResults = enriched
+    }
+
     suspend fun fetchSeasonalPage(page: Int): List<JikanSearchResult> = when (platform) {
         ExplorePlatform.AniList -> apiClient.aniListSeasonalAnime(page, showAdultContent, seasonalYear, seasonalSeason, seasonalSort)
         ExplorePlatform.MAL -> apiClient.seasonalAnime(page, showAdultContent, seasonalYear, seasonalSeason, seasonalSort)
