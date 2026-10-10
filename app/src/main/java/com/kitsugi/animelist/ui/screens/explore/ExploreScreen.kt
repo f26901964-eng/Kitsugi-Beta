@@ -88,6 +88,7 @@ fun ExploreScreen(
     isNotificationsVisible: Boolean = false,
     /** Alt navigasyon barı görünüyor mu? — "Yukarı Çık" FAB'ı alt barın üstünde hizalanır. */
     isBottomBarVisible: Boolean = true,
+    bottomBarScrollState: com.kitsugi.animelist.utils.ScrollVisibilityState? = null,
     /** Liste tepesine dönüldüğünde çağrılır (diğer ana sayfalarla aynı sözleşme). */
     onScrollReset: (() -> Unit)? = null,
     /** TMDB hatası — Ayarlar/Entegrasyonlar sayfasına yönlendir */
@@ -320,18 +321,6 @@ fun ExploreScreen(
             viewModel.enrichHeroBackdrops(displayHeroItems)
         }
     }
-    val navigationBarsPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
-    val fabBottomPadding by animateDpAsState(
-        targetValue = if (isLandscape) {
-            16.dp
-        } else if (isBottomBarVisible) {
-            80.dp + navigationBarsPadding
-        } else {
-            16.dp + navigationBarsPadding
-        },
-        animationSpec = tween(durationMillis = 200),
-        label = "explore_fab_bottom_padding"
-    )
     val showFab by remember { derivedStateOf { lazyListState.firstVisibleItemIndex > 1 } }
     // PERF: hero'nun görünürlük bilgisini derivedStateOf içine al — doğrudan
     // firstVisibleItemIndex okumak her kaydırma karesinde hero'yu ve tüm
@@ -771,29 +760,17 @@ fun ExploreScreen(
             }
 
             // ── "Yukarı Çık" FAB — aşağı kaydırınca belirir, alt bar üstünde hizalanır ──
-            androidx.compose.animation.AnimatedVisibility(
+            com.kitsugi.animelist.ui.components.KitsugiScrollToTopFab(
                 visible = showFab,
-                enter = fadeIn() + scaleIn(),
-                exit = fadeOut() + scaleOut(),
-                modifier = Modifier
-                    .align(Alignment.BottomEnd)
-                    .padding(end = 20.dp, bottom = fabBottomPadding)
-            ) {
-                FloatingActionButton(
-                    onClick = {
-                        onScrollReset?.invoke()
-                        scope.launch {
-                            lazyListState.animateScrollToItem(0)
-                        }
-                    },
-                    containerColor = accentColor,
-                    contentColor = com.kitsugi.animelist.ui.theme.onAccentColor(accentColor),
-                    shape = RoundedCornerShape(16.dp),
-                    modifier = Modifier.size(52.dp)
-                ) {
-                    Icon(Icons.Default.ArrowUpward, contentDescription = stringResource(R.string.yukari_cik))
-                }
-            }
+                isLandscape = isLandscape,
+                bottomBarScrollState = bottomBarScrollState,
+                fallbackBottomBarVisible = isBottomBarVisible,
+                onClick = {
+                    onScrollReset?.invoke()
+                    scope.launch { lazyListState.animateScrollToItem(0) }
+                },
+                modifier = Modifier.align(Alignment.BottomEnd)
+            )
         }
     }
 

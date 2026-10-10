@@ -1287,7 +1287,7 @@ private fun AppNavigationContent(
                         onEditEntry = onEditEntry,
                         onSearchByGenre = triggerSearchByGenre,
                         onSearchByTag = triggerSearchByTag,
-                        isBottomBarVisible = bottomBarScrollState.isVisible,
+                        bottomBarScrollState = bottomBarScrollState,
                         onScrollReset = { bottomBarScrollState.show() }
                     )
                 )
