@@ -12,7 +12,9 @@ import com.kitsugi.animelist.data.remote.DetailCache
 import com.kitsugi.animelist.data.remote.GalleryCategory
 import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.data.remote.JikanApiClient
+import com.kitsugi.animelist.data.remote.KitsugiBangumiDetailClient
 import com.kitsugi.animelist.data.remote.KitsugiMediaMutationsClient
+import com.kitsugi.animelist.data.remote.KitsugiStaffDetail
 import com.kitsugi.animelist.data.remote.KitsugiPersonImageAggregator
 import com.kitsugi.animelist.data.remote.RateLimitException
 import com.kitsugi.animelist.data.remote.ResourceNotFoundException
@@ -170,7 +172,10 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
             DetailCache.putStaffDetail(source, staffId, detail)
             _state.value = StaffDetailState.Success(detail)
             _isFavourite.value = detail.isFavourite
-            if (isBangumiSource(source)) refreshBangumiFavourite(detail.id)
+            if (isBangumiSource(source)) {
+                refreshBangumiFavourite(detail.id)
+                warmBangumiStaffTitles(detail)
+            }
 
             // Build gallery from imageUrl + Jikan /people pictures
             buildStaffGallery(staffId, source, detail.imageUrl)
@@ -328,6 +333,29 @@ class StaffDetailViewModel(application: Application) : AndroidViewModel(applicat
             val updated = current.copy(isFavourite = favourite)
             _state.value = StaffDetailState.Success(updated)
             DetailCache.putStaffDetail(lastSource, lastStaffId, updated)
+        }
+    }
+
+    /**
+     * Uzun filmografiler için arka plan başlık çözümü: senkron zenginleştirmenin süre
+     * bütçesine sığmayan CJK başlıkları çözer, kalıcı önbelleğe yazar ve değişiklik
+     * varsa ekranı günceller. Böylece ikinci ziyarette liste tamamen Latin başlıkla açılır.
+     */
+    private fun warmBangumiStaffTitles(detail: KitsugiStaffDetail) {
+        viewModelScope.launch {
+            val updated = withContext(Dispatchers.IO) {
+                runCatching { KitsugiBangumiDetailClient.enrichStaffDetailNames(detail, background = true) }
+                    .getOrNull()
+            } ?: return@launch
+            if (updated == detail) return@launch
+            if (lastStaffId != detail.id || !isBangumiSource(lastSource)) return@launch
+            // Eşzamanlı favori güncellemesinin isFavourite alanını ezmesini engelle.
+            val merged = updated.copy(
+                isFavourite = (_state.value as? StaffDetailState.Success)?.detail?.isFavourite
+                    ?: updated.isFavourite
+            )
+            DetailCache.putStaffDetail(lastSource, detail.id, merged)
+            _state.value = StaffDetailState.Success(merged)
         }
     }
 

@@ -53,8 +53,9 @@ import coil3.compose.AsyncImage
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
+import com.kitsugi.animelist.utils.toLocalizedCharacterRole
+import com.kitsugi.animelist.utils.toLocalizedMediaTypeString
 import com.kitsugi.animelist.utils.toTurkishLanguage
-import com.kitsugi.animelist.utils.toTurkishMediaTypeString
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -125,7 +126,7 @@ internal fun MediaAppearanceRow(
                 overflow = TextOverflow.Ellipsis
             )
             Text(
-                text = "${appearance.mediaType.toTurkishMediaTypeString()} \u2022 ${stringResource(R.string.detail_role_prefix, appearance.characterRole)}",
+                text = "${appearance.mediaType.toLocalizedMediaTypeString()} \u2022 ${stringResource(R.string.detail_role_prefix, appearance.characterRole.toLocalizedCharacterRole())}",
                 color = KitsugiColors.TextMuted,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Medium

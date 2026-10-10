@@ -41,7 +41,7 @@ import com.kitsugi.animelist.data.remote.DetailCache
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
 import com.kitsugi.animelist.utils.toTurkishCharacterRole
-import com.kitsugi.animelist.utils.toTurkishStaffRole
+import com.kitsugi.animelist.utils.toLocalizedStaffRole
 import com.kitsugi.animelist.utils.toTurkishLanguage
 
 @Composable
@@ -356,7 +356,7 @@ fun CharacterVoiceActorCard(
                     overflow = TextOverflow.Ellipsis
                 )
                 // Rol zaten veri katmanında Türkçeye çevrilmiş gelir ("Ana Karakter", "Yardımcı Karakter", vb.)
-                val isMainRole = char.role.contains("Ana", ignoreCase = true) || char.role.equals("Main", ignoreCase = true)
+                val isMainRole = char.role.contains("Ana", ignoreCase = true) || char.role.contains("Main", ignoreCase = true)
                 Text(
                     text = char.role,
                     color = if (isMainRole) accentColor else KitsugiColors.TextMuted,
@@ -568,7 +568,7 @@ fun StaffRow(
                 fontWeight = FontWeight.Bold
             )
             Text(
-                text = staff.role.toTurkishStaffRole(),
+                text = staff.role.toLocalizedStaffRole(),
                 color = KitsugiColors.TextMuted,
                 style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Medium

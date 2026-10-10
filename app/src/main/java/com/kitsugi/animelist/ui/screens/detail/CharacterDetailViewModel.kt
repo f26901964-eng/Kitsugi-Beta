@@ -12,6 +12,8 @@ import com.kitsugi.animelist.data.remote.DetailCache
 import com.kitsugi.animelist.data.remote.GalleryCategory
 import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.data.remote.JikanApiClient
+import com.kitsugi.animelist.data.remote.KitsugiBangumiDetailClient
+import com.kitsugi.animelist.data.remote.KitsugiCharacterDetail
 import com.kitsugi.animelist.data.remote.KitsugiMediaMutationsClient
 import com.kitsugi.animelist.data.remote.KitsugiPersonImageAggregator
 import com.kitsugi.animelist.data.remote.MalJikanMediaSupport
@@ -198,7 +200,10 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
             DetailCache.putCharacterDetail(source, characterId, detail)
             _state.value = CharacterDetailState.Success(detail)
             _isFavourite.value = detail.isFavourite
-            if (isBangumiSource(source)) refreshBangumiFavourite(detail.id)
+            if (isBangumiSource(source)) {
+                refreshBangumiFavourite(detail.id)
+                warmBangumiCharacterTitles(detail)
+            }
 
             // Build gallery from imageUrl + Jikan /pictures
             buildCharacterGallery(characterId, source, detail.imageUrl)
@@ -347,6 +352,29 @@ class CharacterDetailViewModel(application: Application) : AndroidViewModel(appl
     private fun isBangumiSource(source: String): Boolean {
         val key = source.trim().lowercase()
         return key == "bangumi" || key == "bgm"
+    }
+
+    /**
+     * "Yapımlar" listesindeki CJK başlıklar için arka plan çözümü: senkron zenginleştirmenin
+     * süre bütçesine sığmayan satırları çözer, kalıcı önbelleğe yazar ve değişiklik varsa
+     * ekranı günceller. İkinci ziyarette liste tamamen Latin başlıkla açılır.
+     */
+    private fun warmBangumiCharacterTitles(detail: KitsugiCharacterDetail) {
+        viewModelScope.launch {
+            val updated = withContext(Dispatchers.IO) {
+                runCatching { KitsugiBangumiDetailClient.enrichCharacterDetailNames(detail, background = true) }
+                    .getOrNull()
+            } ?: return@launch
+            if (updated == detail) return@launch
+            if (lastCharacterId != detail.id || !isBangumiSource(lastSource)) return@launch
+            // Eşzamanlı favori güncellemesinin isFavourite alanını ezmesini engelle.
+            val merged = updated.copy(
+                isFavourite = (_state.value as? CharacterDetailState.Success)?.detail?.isFavourite
+                    ?: updated.isFavourite
+            )
+            DetailCache.putCharacterDetail(lastSource, detail.id, merged)
+            _state.value = CharacterDetailState.Success(merged)
+        }
     }
 
     /** Bangumi karakterinde favori durumunu token sahibinin koleksiyonundan okur (bağlıysa). */

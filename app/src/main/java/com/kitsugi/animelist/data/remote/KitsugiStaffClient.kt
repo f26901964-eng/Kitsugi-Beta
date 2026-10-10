@@ -411,7 +411,7 @@ class KitsugiStaffClient {
                         ?: KitsugiBangumiDetailClient.fetchStaffDetail(staffId)
                     // Karakter/yapım adları CJK kalmasın diye infobox + önbellekle zenginleştir.
                     // Ağ isteği sınırı ve zaman aşımı içeride korunur; başarısız olursa ham veri döner.
-                    raw?.let { KitsugiBangumiDetailClient.enrichStaffDetailNames(it) }
+                    raw?.let { KitsugiBangumiDetailClient.enrichStaffDetailNames(it, cacheOnly = true) }
                 }
                 "shikimori" -> {
                     KitsugiShikimoriClient.fetchStaffDetail(staffId)
