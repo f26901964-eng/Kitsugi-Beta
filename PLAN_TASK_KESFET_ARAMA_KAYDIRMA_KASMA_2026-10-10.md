@@ -28,6 +28,8 @@
 - [x] T5 — `ExploreScreen`: hero `isVisible` → `derivedStateOf` (P5)
 - [x] T6 — Statik doğrulama (import, imza, kapsam, `derivedStateOf`/`listSaver` kullanımı)
 - [x] T7 — Rapor + bu plan dosyası
+- [x] T13 — `AppRoot`: yerel `fun` referansları (`::isAlreadyInList`, `::getMediaEntry`) → `remember`'lı lambda (ikinci denetim)
+- [ ] T14 — Alt bar görünürlüğünün sekme sayfalarını yeniden kompoze etmesi (`isBottomBarVisible`) — cihaz testi sonrası karar
 - [ ] T8 — CI derlemesi (`./gradlew assembleDebug`)
 - [ ] T9 — Cihazda Keşfet (Tümü + tek kaynak) kaydırma: yükleme sırasında ve sonrasında
 - [ ] T10 — Cihazda Arama: sonuç gelirken kaydırma; geri dönünce konum korunuyor mu
@@ -48,6 +50,7 @@ app/src/main/java/com/kitsugi/animelist/ui/components/KitsugiShimmer.kt
 app/src/main/java/com/kitsugi/animelist/ui/screens/fullscreen/FullScreenMediaGridPage.kt
 app/src/main/java/com/kitsugi/animelist/ui/screens/explore/ExploreViewModel.kt
 app/src/main/java/com/kitsugi/animelist/ui/screens/explore/ExploreScreen.kt
+app/src/main/java/com/kitsugi/animelist/AppRoot.kt
 ```
 
 ## Not

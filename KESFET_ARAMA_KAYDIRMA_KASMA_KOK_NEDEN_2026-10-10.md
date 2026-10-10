@@ -104,3 +104,28 @@ statik olarak doğrulandı: import kontrolleri, `listSaver`/`rememberSaveable` i
 kapsam (değişkenlerin kullanıldığı composable içinde tanımlı olması), `derivedStateOf`
 kullanımı. **CI derlemesi ve cihazda Keşfet (Tümü + tek kaynak), Arama ve bir Tümünü Gör
 sayfasında kaydırma testi önerilir.**
+
+## 6. İkinci denetim turu (2026-10-10) — ek bulgular
+
+**Düzeltildi**
+
+- `AppRoot.kt`: `getMediaEntry` / `isAlreadyInList` yerel `fun` idi ve `::fn` referansları olarak
+  Tümünü Gör / arama composable'larına geçiliyordu. Yerel fonksiyon referansları her AppRoot
+  yenilemesinde yeni nesne olduğundan çocuk composable'lar parametre değişti sanıp tüm kartları
+  yeniden kompoze ediyordu. Artık `remember`'lı lambda'lar (`isAlreadyInList`) ve sabit
+  `getMediaEntryLambda` referansı kullanılıyor.
+
+**Bilinçli olarak henüz değiştirilmedi (cihazda doğrulanmadan dokunmamak için)**
+
+- Alt bar `bottomBarScrollState.isVisible` değeri, sekme sayfası composable'ında parametre olarak
+  okunuyor (`AppRoot.kt` ~1275). Her yön değişiminde (25 px eşik) Keşfet/Listem sayfası yeniden
+  kompoze oluyor. Piksel başına değil, yön değişiminde tetiklenir; ama kaydırma sırasında sık
+  tekrarlanabilir. Düzeltme için `ExploreScreen`'in `isBottomBarVisible` parametresinin tipini
+  değiştirmek gerekir (ör. `() -> Boolean`). Cihaz testinden sonra yapılması önerilir.
+- Kart gölgesi (`kitsugiNeonGlow` → `shadow`) ve nadir durumda adult blur: tasarım kararı.
+
+**Denetlenip sorun bulunmayanlar**
+
+- `tvClickable`, `KitsugiSourceBadge`, `StatusBadge`: kart başına hafif, sorun yok.
+- `SearchScreen`: `filteredResults` `remember` ile önbelleklenmiş; `shouldLoadMore` `derivedStateOf`.
+- Coil `AsyncImage`: boyut kısıtlarından otomatik çözümleniyor.
