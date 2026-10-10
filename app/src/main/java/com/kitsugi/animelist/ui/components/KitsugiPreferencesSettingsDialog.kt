@@ -344,7 +344,7 @@ private fun AppearanceTab(
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
         // TEMA & RENKLER
-        KitsugiSettingsSection(title = "Tema & Görünüm") {
+        KitsugiSettingsSection(title = stringResource(R.string.settings_section_theme_look)) {
             val isDarkThemeActive = when (themeMode) {
                 "LIGHT" -> false
                 "DARK" -> true
@@ -353,10 +353,10 @@ private fun AppearanceTab(
 
             // Uiverse (Galahhad) Sun/Moon animasyonlu tema geçiş butonu
             KitsugiThemeModeSwitchItem(
-                title = "Karanlık Tema",
-                description = if (themeMode == "DARK") "Gece modu devrede (Ay & Yıldızlar)"
-                else if (themeMode == "LIGHT") "Gündüz modu devrede (Güneş & Bulutlar)"
-                else "Sistem teması takip ediliyor",
+                title = stringResource(R.string.settings_dark_theme),
+                description = if (themeMode == "DARK") stringResource(R.string.settings_dark_theme_night)
+                else if (themeMode == "LIGHT") stringResource(R.string.settings_dark_theme_day)
+                else stringResource(R.string.settings_dark_theme_system),
                 icon = if (isDarkThemeActive) Icons.Rounded.DarkMode else Icons.Rounded.LightMode,
                 iconColor = accentColor,
                 checked = isDarkThemeActive,
@@ -370,7 +370,7 @@ private fun AppearanceTab(
             Box {
                 KitsugiSettingsListItem(
                     title = stringResource(R.string.settings_theme_mode),
-                    description = "Uygulamanın renk modunu ayarlayın",
+                    description = stringResource(R.string.settings_theme_mode_desc),
                     value = themeModeOptions.find { it.id == themeMode }?.title ?: "",
                     icon = Icons.Rounded.Palette,
                     iconColor = accentColor,
@@ -494,7 +494,7 @@ private fun AppearanceTab(
         }
 
         // KULLANICI ARAYÜZÜ & DAVRANIŞ
-        KitsugiSettingsSection(title = "Navigasyon & Başlangıç") {
+        KitsugiSettingsSection(title = stringResource(R.string.settings_section_nav_start)) {
             Box {
                 KitsugiSettingsListItem(
                     title = stringResource(R.string.settings_app_language),
@@ -523,7 +523,7 @@ private fun AppearanceTab(
             Box {
                 KitsugiSettingsListItem(
                     title = stringResource(R.string.option_last_used),
-                    description = "Uygulama açıldığında gösterilecek varsayılan sekmeyi belirleyin",
+                    description = stringResource(R.string.settings_default_tab_desc),
                     value = defaultTabOptions.find { it.id == defaultTab }?.title ?: "",
                     icon = Icons.Rounded.Settings,
                     iconColor = accentColor,
@@ -931,7 +931,7 @@ private fun ListScoreTab(
         }
 
         // DEĞERLENDİRME & BİLDİRİMLER
-        KitsugiSettingsSection(title = "Değerlendirme & Bildirimler") {
+        KitsugiSettingsSection(title = stringResource(R.string.settings_section_rating_notifs)) {
             Box {
                 KitsugiSettingsListItem(
                     title = stringResource(R.string.settings_score_format),
@@ -980,17 +980,17 @@ private fun ListScoreTab(
             KitsugiSettingsDivider()
 
             val preferredTranslatorOptions = listOf(
-                KitsugiChoiceOption(id = "DEFAULT", title = "Varsayılan", description = "Tüm çeviri uygulamalarını sırayla dener"),
-                KitsugiChoiceOption(id = "GOOGLE", title = "Google Translate", description = "Google Çeviri uygulamasını kullanır"),
-                KitsugiChoiceOption(id = "DEEPL", title = "DeepL", description = "DeepL uygulamasını kullanır"),
-                KitsugiChoiceOption(id = "TRANSLATE_YOU", title = "TranslateYou", description = "TranslateYou uygulamasını kullanır")
+                KitsugiChoiceOption(id = "DEFAULT", title = stringResource(R.string.translator_option_default), description = stringResource(R.string.translator_default_desc)),
+                KitsugiChoiceOption(id = "GOOGLE", title = "Google Translate", description = stringResource(R.string.translator_google_desc)),
+                KitsugiChoiceOption(id = "DEEPL", title = "DeepL", description = stringResource(R.string.translator_deepl_desc)),
+                KitsugiChoiceOption(id = "TRANSLATE_YOU", title = "TranslateYou", description = stringResource(R.string.translator_translateyou_desc))
             )
             var showTranslatorDialog by remember { mutableStateOf(false) }
 
             KitsugiSettingsListItem(
-                title = "Çevirici",
-                description = "Metin çevirilerinde kullanılacak harici çeviri uygulamasını seçin",
-                value = preferredTranslatorOptions.find { it.id == appSettings.preferredTranslator }?.title ?: "Varsayılan",
+                title = stringResource(R.string.settings_translator),
+                description = stringResource(R.string.settings_translator_desc),
+                value = preferredTranslatorOptions.find { it.id == appSettings.preferredTranslator }?.title ?: stringResource(R.string.translator_option_default),
                 icon = Icons.Rounded.Translate,
                 iconColor = accentColor,
                 onClick = { showTranslatorDialog = true }
@@ -1002,7 +1002,7 @@ private fun ListScoreTab(
                     containerColor = KitsugiColors.surface,
                     title = {
                         Text(
-                            text = "Translator",
+                            text = stringResource(R.string.settings_translator),
                             color = KitsugiColors.textPrimary,
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
@@ -1064,9 +1064,9 @@ private fun ListScoreTab(
             }
 
             // Google Translate'in desteklediği TÜM diller — kaynak tarafta ek olarak
-            // "Otomatik (Algıla)" vardır; hedef dil uygulama diline göre çözülür.
+            // Otomatik (Algıla) seçeneği vardır; hedef dil uygulama diline göre çözülür.
             val translateSourceLanguages = listOf(
-                KitsugiChoiceOption(id = "auto", title = "Otomatik (Algıla)", description = "")
+                KitsugiChoiceOption(id = "auto", title = stringResource(R.string.translate_auto_detect), description = "")
             ) + com.kitsugi.animelist.utils.KitsugiTranslateUtils.googleLanguageCatalog.map { (code, name) ->
                 KitsugiChoiceOption(id = code, title = name, description = "")
             }
@@ -1082,9 +1082,9 @@ private fun ListScoreTab(
             KitsugiSettingsDivider()
 
             KitsugiSettingsListItem(
-                title = "Çeviri Kaynak Dili",
-                description = "Çevrilecek metnin kaynak dilini seçin",
-                value = translateSourceLanguages.find { it.id == appSettings.translateSourceLanguage }?.title ?: "Otomatik (Algıla)",
+                title = stringResource(R.string.settings_translate_source),
+                description = stringResource(R.string.settings_translate_source_desc),
+                value = translateSourceLanguages.find { it.id == appSettings.translateSourceLanguage }?.title ?: stringResource(R.string.translate_auto_detect),
                 icon = Icons.Rounded.Translate,
                 iconColor = accentColor,
                 onClick = { showSourceLangDialog = true }
@@ -1096,7 +1096,7 @@ private fun ListScoreTab(
                     containerColor = KitsugiColors.surface,
                     title = {
                         Text(
-                            text = "Çeviri Kaynak Dili",
+                            text = stringResource(R.string.settings_translate_source),
                             color = KitsugiColors.textPrimary,
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
@@ -1154,8 +1154,8 @@ private fun ListScoreTab(
             KitsugiSettingsDivider()
 
             KitsugiSettingsListItem(
-                title = "Çeviri Hedef Dili",
-                description = "Metinlerin çevrileceği hedef dili seçin",
+                title = stringResource(R.string.settings_translate_target),
+                description = stringResource(R.string.settings_translate_target_desc),
                 value = translateTargetLanguages.find { it.id == appSettings.translateTargetLanguage }?.title ?: "Türkçe",
                 icon = Icons.Rounded.Translate,
                 iconColor = accentColor,
@@ -1168,7 +1168,7 @@ private fun ListScoreTab(
                     containerColor = KitsugiColors.surface,
                     title = {
                         Text(
-                            text = "Çeviri Hedef Dili",
+                            text = stringResource(R.string.settings_translate_target),
                             color = KitsugiColors.textPrimary,
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
@@ -1240,11 +1240,11 @@ private fun ListScoreTab(
             KitsugiSettingsDivider()
 
             KitsugiSettingsSwitchItem(
-                title = "AniList Bildirimleri",
+                title = stringResource(R.string.settings_notif_anilist),
                 description = if (appSettings.aniListNotificationsEnabled)
-                    "Okunmamış AniList bildirimleri arka planda kontrol edilir"
+                    stringResource(R.string.settings_notif_anilist_on)
                 else
-                    "Okunmamış AniList bildirimlerinin arka plan kontrolü devre dışı",
+                    stringResource(R.string.settings_notif_anilist_off),
                 icon = Icons.Rounded.Settings,
                 iconColor = accentColor,
                 checked = appSettings.aniListNotificationsEnabled,
@@ -1254,11 +1254,11 @@ private fun ListScoreTab(
             KitsugiSettingsDivider()
 
             KitsugiSettingsSwitchItem(
-                title = "MyAnimeList Bildirimleri",
+                title = stringResource(R.string.settings_notif_mal),
                 description = if (appSettings.malNotificationsEnabled)
-                    "MyAnimeList takvimindeki yeni yayınlar arka planda kontrol edilir"
+                    stringResource(R.string.settings_notif_mal_on)
                 else
-                    "MyAnimeList yeni yayın kontrolü devre dışı",
+                    stringResource(R.string.settings_notif_mal_off),
                 icon = Icons.Rounded.Settings,
                 iconColor = accentColor,
                 checked = appSettings.malNotificationsEnabled,
@@ -1268,11 +1268,11 @@ private fun ListScoreTab(
             KitsugiSettingsDivider()
 
             KitsugiSettingsSwitchItem(
-                title = "Simkl Bildirimleri",
+                title = stringResource(R.string.settings_notif_simkl),
                 description = if (appSettings.simklNotificationsEnabled)
-                    "Simkl izleme listesindeki güncellemeler arka planda kontrol edilir"
+                    stringResource(R.string.settings_notif_simkl_on)
                 else
-                    "Simkl izleme listesi kontrolü devre dışı",
+                    stringResource(R.string.settings_notif_simkl_off),
                 icon = Icons.Rounded.Settings,
                 iconColor = accentColor,
                 checked = appSettings.simklNotificationsEnabled,
@@ -1282,11 +1282,11 @@ private fun ListScoreTab(
             KitsugiSettingsDivider()
 
             KitsugiSettingsSwitchItem(
-                title = "Kitsu Bildirimleri",
+                title = stringResource(R.string.settings_notif_kitsu),
                 description = if (appSettings.kitsuNotificationsEnabled)
-                    "Kitsu takip listenizdeki sonraki bölüm tarihleri arka planda kontrol edilir"
+                    stringResource(R.string.settings_notif_kitsu_on)
                 else
-                    "Kitsu yayın tarihi kontrolü devre dışı",
+                    stringResource(R.string.settings_notif_kitsu_off),
                 icon = Icons.Rounded.Settings,
                 iconColor = accentColor,
                 checked = appSettings.kitsuNotificationsEnabled,
@@ -1296,11 +1296,11 @@ private fun ListScoreTab(
             KitsugiSettingsDivider()
 
             KitsugiSettingsSwitchItem(
-                title = "Shikimori Bildirimleri",
+                title = stringResource(R.string.settings_notif_shikimori),
                 description = if (appSettings.shikimoriNotificationsEnabled)
-                    "Shikimori kişisel bildirimleri arka planda kontrol edilir (messages izni gerekir)"
+                    stringResource(R.string.settings_notif_shikimori_on)
                 else
-                    "Shikimori bildirim kontrolü devre dışı",
+                    stringResource(R.string.settings_notif_shikimori_off),
                 icon = Icons.Rounded.Settings,
                 iconColor = accentColor,
                 checked = appSettings.shikimoriNotificationsEnabled,
@@ -1310,18 +1310,18 @@ private fun ListScoreTab(
             KitsugiSettingsDivider()
 
             val intervalOptions = listOf(
-                KitsugiChoiceOption(id = "30", title = "30 Dakika", description = "30 dakikada bir kontrol eder"),
-                KitsugiChoiceOption(id = "60", title = "1 Saat", description = "Her saat kontrol eder"),
-                KitsugiChoiceOption(id = "180", title = "3 Saat (Önerilen)", description = "Her 3 saatte bir kontrol eder"),
-                KitsugiChoiceOption(id = "360", title = "6 Saat", description = "Her 6 saatte bir kontrol eder"),
-                KitsugiChoiceOption(id = "720", title = "12 Saat", description = "Günde iki kez kontrol eder"),
-                KitsugiChoiceOption(id = "1440", title = "24 Saat", description = "Günde bir kez kontrol eder")
+                KitsugiChoiceOption(id = "30", title = stringResource(R.string.notif_interval_30), description = stringResource(R.string.notif_interval_30_desc)),
+                KitsugiChoiceOption(id = "60", title = stringResource(R.string.notif_interval_60), description = stringResource(R.string.notif_interval_60_desc)),
+                KitsugiChoiceOption(id = "180", title = stringResource(R.string.notif_interval_180), description = stringResource(R.string.notif_interval_180_desc)),
+                KitsugiChoiceOption(id = "360", title = stringResource(R.string.notif_interval_360), description = stringResource(R.string.notif_interval_360_desc)),
+                KitsugiChoiceOption(id = "720", title = stringResource(R.string.notif_interval_720), description = stringResource(R.string.notif_interval_720_desc)),
+                KitsugiChoiceOption(id = "1440", title = stringResource(R.string.notif_interval_1440), description = stringResource(R.string.notif_interval_1440_desc))
             )
             var showIntervalDialog by remember { mutableStateOf(false) }
 
             KitsugiSettingsListItem(
-                title = "Bildirim Kontrol Sıklığı",
-                description = "Arka planda yapılacak bildirim kontrollerinin sıklığını belirleyin",
+                title = stringResource(R.string.settings_notif_interval),
+                description = stringResource(R.string.settings_notif_interval_desc),
                 value = intervalOptions.find { it.id == appSettings.notificationInterval.toString() }?.title ?: "${appSettings.notificationInterval} Dakika",
                 icon = Icons.Rounded.Settings,
                 iconColor = accentColor,
@@ -1334,7 +1334,7 @@ private fun ListScoreTab(
                     containerColor = KitsugiColors.surface,
                     title = {
                         Text(
-                            text = "Kontrol Sıklığı",
+                            text = stringResource(R.string.settings_notif_interval_sheet),
                             color = KitsugiColors.textPrimary,
                             style = MaterialTheme.typography.titleLarge,
                             fontWeight = FontWeight.Bold
@@ -1521,7 +1521,7 @@ private fun MangaReaderTab(
             .padding(vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(20.dp)
     ) {
-        KitsugiSettingsSection(title = "Manga Okuyucu Ayarları") {
+        KitsugiSettingsSection(title = stringResource(R.string.settings_section_manga_reader)) {
             Box {
                 KitsugiSettingsListItem(
                     title = stringResource(R.string.manga_reading_direction),

@@ -922,6 +922,105 @@
     <string name="staff_role_animation_direction">Animasyon Yönetmeni</string>
     <string name="staff_role_script_screenplay">Senarist</string>
 
+    <!-- Ayarlar Ekranı — Mobil (TR/EN parity) -->
+    <string name="settings_kitsugi_account">Kitsugi Hesabı</string>
+    <string name="settings_account_connections">Hesap Bağlantıları</string>
+    <string name="settings_cross_sync">Çapraz Eşitleme (Cross-Sync)</string>
+    <string name="settings_addons_sources">Eklentiler &amp; Kaynaklar</string>
+    <string name="settings_integrations">Harici Entegrasyonlar</string>
+    <string name="settings_data_backup">Veri &amp; Yedekleme</string>
+    <string name="settings_download_settings">İndirme Ayarları</string>
+    <string name="settings_feedback">Geri Bildirim</string>
+    <string name="settings_plugin_diagnostic">Eklenti Tanılama</string>
+    <string name="settings_section_account">Hesap</string>
+    <string name="settings_section_app">Uygulama</string>
+    <string name="settings_section_sources">Kaynaklar &amp; Entegrasyonlar</string>
+    <string name="settings_section_data">Veri &amp; Depolama</string>
+    <string name="settings_section_support">Destek &amp; Hakkında</string>
+    <string name="settings_kitsugi_account_desc">Giriş yap, arama geçmişini cihazlar arasında eşitle</string>
+    <string name="settings_account_connections_desc">AniList, MyAnimeList, Simkl, Kitsu ve Shikimori hesap eşitlemeleri</string>
+    <string name="settings_pref_desc">Tema, liste görünümü, puanlama, dil ve bildirim ayarları</string>
+    <string name="settings_player_title">Oynatıcı</string>
+    <string name="settings_player_desc">Dahili oynatıcı, jestler, altyazı, ses ve codec ayarları</string>
+    <string name="settings_watch_history">İzleme Geçmişi</string>
+    <string name="settings_watch_history_desc">İzlediğiniz anime bölümlerini görüntüleyin veya temizleyin</string>
+    <string name="settings_addons_streams">Eklentiler &amp; Akış Kaynakları</string>
+    <string name="settings_addons_streams_desc">Torrent, video sağlayıcıları, debrid ve manga kaynakları</string>
+    <string name="settings_integrations_desc">TMDB, MDBList, FanArt.tv ve AniSkip (Intro/Outro)</string>
+    <string name="settings_data_backup_desc">Yedek al/geri yükle ve DoH (DNS) yönetimi</string>
+    <string name="settings_download_settings_desc">İndirme konumları, Wi-Fi ve harici indirici ayarları</string>
+    <string name="settings_downloads">İndirmeler</string>
+    <string name="settings_downloads_desc">İndirilen videolar, altyazılar ve resimler</string>
+    <string name="settings_about">Hakkında</string>
+    <string name="settings_about_desc">Sürüm: %1$s • Açık kaynak &amp; katkıda bulunanlar</string>
+    <string name="settings_feedback_desc">Hata bildirin veya önerilerinizi paylaşın</string>
+    <string name="settings_delete_all_title">Tüm liste silinsin mi?</string>
+    <string name="settings_delete_all_message">Room veritabanındaki tüm anime/manga kayıtları kalıcı olarak silinecek. Tema ve uygulama ayarları korunur.</string>
+    <string name="settings_delete_all_confirm">Tümünü sil</string>
+    <string name="feedback_no_email_app">E-posta uygulaması bulunamadı. Lütfen kitsugibeta@gmail.com adresine yazın.</string>
+    <string name="feedback_mail_body">Tür: %1$s\nKonu: %2$s\n\nAçıklama:\n%3$s\n\n-- Cihaz Bilgisi --\nUygulama Sürümü: %4$s (%5$d)\nCihaz: %6$s\nAndroid Sürümü: API %7$d</string>
+
+    <!-- Ayarlar Tercihler Diyaloğu (TR) -->
+    <string name="settings_section_theme_look">Tema &amp; Görünüm</string>
+    <string name="settings_section_nav_start">Navigasyon &amp; Başlangıç</string>
+    <string name="settings_section_rating_notifs">Değerlendirme &amp; Bildirimler</string>
+    <string name="settings_section_manga_reader">Manga Okuyucu Ayarları</string>
+    <string name="settings_dark_theme">Karanlık Tema</string>
+    <string name="settings_dark_theme_night">Gece modu devrede (Ay &amp; Yıldızlar)</string>
+    <string name="settings_dark_theme_day">Gündüz modu devrede (Güneş &amp; Bulutlar)</string>
+    <string name="settings_dark_theme_system">Sistem teması takip ediliyor</string>
+    <string name="settings_theme_mode_desc">Uygulamanın renk modunu ayarlayın</string>
+    <string name="settings_default_tab_desc">Uygulama açıldığında gösterilecek varsayılan sekmeyi belirleyin</string>
+    <string name="translator_option_default">Varsayılan</string>
+    <string name="translator_default_desc">Tüm çeviri uygulamalarını sırayla dener</string>
+    <string name="translator_google_desc">Google Çeviri uygulamasını kullanır</string>
+    <string name="translator_deepl_desc">DeepL uygulamasını kullanır</string>
+    <string name="translator_translateyou_desc">TranslateYou uygulamasını kullanır</string>
+    <string name="settings_translator">Çevirici</string>
+    <string name="settings_translator_desc">Metin çevirilerinde kullanılacak harici çeviri uygulamasını seçin</string>
+    <string name="translate_auto_detect">Otomatik (Algıla)</string>
+    <string name="settings_translate_source">Çeviri Kaynak Dili</string>
+    <string name="settings_translate_source_desc">Çevrilecek metnin kaynak dilini seçin</string>
+    <string name="settings_translate_target">Çeviri Hedef Dili</string>
+    <string name="settings_translate_target_desc">Metinlerin çevrileceği hedef dili seçin</string>
+    <string name="settings_notif_anilist">AniList Bildirimleri</string>
+    <string name="settings_notif_mal">MyAnimeList Bildirimleri</string>
+    <string name="settings_notif_simkl">Simkl Bildirimleri</string>
+    <string name="settings_notif_kitsu">Kitsu Bildirimleri</string>
+    <string name="settings_notif_shikimori">Shikimori Bildirimleri</string>
+    <string name="settings_notif_anilist_on">Okunmamış AniList bildirimleri arka planda kontrol edilir</string>
+    <string name="settings_notif_anilist_off">Okunmamış AniList bildirimlerinin arka plan kontrolü devre dışı</string>
+    <string name="settings_notif_mal_on">MyAnimeList takvimindeki yeni yayınlar arka planda kontrol edilir</string>
+    <string name="settings_notif_mal_off">MyAnimeList yeni yayın kontrolü devre dışı</string>
+    <string name="settings_notif_simkl_on">Simkl izleme listesindeki güncellemeler arka planda kontrol edilir</string>
+    <string name="settings_notif_simkl_off">Simkl izleme listesi kontrolü devre dışı</string>
+    <string name="settings_notif_kitsu_on">Kitsu takip listenizdeki sonraki bölüm tarihleri arka planda kontrol edilir</string>
+    <string name="settings_notif_kitsu_off">Kitsu yayın tarihi kontrolü devre dışı</string>
+    <string name="settings_notif_shikimori_on">Shikimori kişisel bildirimleri arka planda kontrol edilir (messages izni gerekir)</string>
+    <string name="settings_notif_shikimori_off">Shikimori bildirim kontrolü devre dışı</string>
+    <string name="notif_interval_30">30 Dakika</string>
+    <string name="notif_interval_30_desc">30 dakikada bir kontrol eder</string>
+    <string name="notif_interval_60">1 Saat</string>
+    <string name="notif_interval_60_desc">Her saat kontrol eder</string>
+    <string name="notif_interval_180">3 Saat (Önerilen)</string>
+    <string name="notif_interval_180_desc">Her 3 saatte bir kontrol eder</string>
+    <string name="notif_interval_360">6 Saat</string>
+    <string name="notif_interval_360_desc">Her 6 saatte bir kontrol eder</string>
+    <string name="notif_interval_720">12 Saat</string>
+    <string name="notif_interval_720_desc">Günde iki kez kontrol eder</string>
+    <string name="notif_interval_1440">24 Saat</string>
+    <string name="notif_interval_1440_desc">Günde bir kez kontrol eder</string>
+    <string name="settings_notif_interval">Bildirim Kontrol Sıklığı</string>
+    <string name="settings_notif_interval_desc">Arka planda yapılacak bildirim kontrollerinin sıklığını belirleyin</string>
+    <string name="settings_notif_interval_sheet">Kontrol Sıklığı</string>
+
+    <!-- Bangumi bildirim notları (sync bloğu öncesi) -->
+    <string name="notif_bangumi_in_list">Bangumi izleme listesinde (在看)</string>
+    <string name="notif_login_required_bangumi">Bangumi\'ye giriş yapmanız gerekiyor</string>
+    <string name="notif_notice_bangumi_feed">Bangumi\'nin genel API\'sinde bildirim ucu yoktur; bu liste izleme listeniz (在看) ve yayın takvimi eşleşmesidir. %1$d izlenen yapım • %2$d yayın eşleşmesi.</string>
+    <string name="notif_notice_bangumi_no_list">Bangumi izleme listenizde (在看) kayıt bulunmuyor.</string>
+    <string name="notif_notice_bangumi_not_connected">Bangumi hesabı bağlı değil; yalnızca yerel kayıtlar gösteriliyor. Bangumi\'nin genel API\'sinde bildirim ucu yoktur.</string>
+
     <!-- Bangumi Etiketleri (Çince/Japonca kaynak değerler) -->
     <!-- OTOMATİK ÜRETİLDİ: scripts/sync_bangumi_tag_strings.py -->
     <string name="bangumi_tag_tv">TV</string>
@@ -1742,11 +1841,4 @@
     <string name="bangumi_tag_ambient_music">Ambient</string>
     <string name="bangumi_tag_instrumental">Enstrümantal</string>
 
-    <string name="bangumi_tag_ona">ONA</string>
-    <string name="bangumi_tag_war">Savaş</string>
-    <string name="notif_bangumi_in_list">Bangumi izleme listesinde (在看)</string>
-    <string name="notif_login_required_bangumi">Bangumi\'ye giriş yapmanız gerekiyor</string>
-    <string name="notif_notice_bangumi_feed">Bangumi\'nin genel API\'sinde bildirim ucu yoktur; bu liste izleme listeniz (在看) ve yayın takvimi eşleşmesidir. %1$d izlenen yapım • %2$d yayın eşleşmesi.</string>
-    <string name="notif_notice_bangumi_no_list">Bangumi izleme listenizde (在看) kayıt bulunmuyor.</string>
-    <string name="notif_notice_bangumi_not_connected">Bangumi hesabı bağlı değil; yalnızca yerel kayıtlar gösteriliyor. Bangumi\'nin genel API\'sinde bildirim ucu yoktur.</string>
 </resources>

@@ -17,6 +17,7 @@
     <string name="tab_explore">Explore</string>
     <string name="tab_mylist">My List</string>
     <string name="tab_search">Search</string>
+    <string name="tab_profile">Profile</string>
     <string name="tab_settings">Settings</string>
 
     <!-- Settings Dialog -->
@@ -488,7 +489,355 @@
     <string name="explore_simkl_continue_watching_series">Continue Watching (Series &amp; Anime)</string>
     <string name="explore_simkl_plantowatch_series">Plan to Watch (Series &amp; Anime)</string>
     <string name="explore_read_manga">Read Manga</string>
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- Search — Genres (AniList official genres)                          -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <string name="genre_action">Action</string>
+    <string name="genre_adventure">Adventure</string>
+    <string name="genre_comedy">Comedy</string>
+    <string name="genre_drama">Drama</string>
+    <string name="genre_ecchi">Ecchi</string>
+    <string name="genre_fantasy">Fantasy</string>
+    <string name="genre_hentai">Hentai</string>
+    <string name="genre_horror">Horror</string>
+    <string name="genre_mahou_shoujo">Magical Girl</string>
+    <string name="genre_mecha">Mecha</string>
+    <string name="genre_music">Music</string>
+    <string name="genre_mystery">Mystery</string>
+    <string name="genre_psychological">Psychological</string>
+    <string name="genre_romance">Romance</string>
+    <string name="genre_sci_fi">Science Fiction</string>
+    <string name="genre_slice_of_life">Slice of Life</string>
+    <string name="genre_sports">Sports</string>
+    <string name="genre_supernatural">Supernatural</string>
+    <string name="genre_thriller">Thriller</string>
 
+    <!-- Demographics -->
+    <string name="genre_shounen">Shōnen</string>
+    <string name="genre_shoujo">Shōjo</string>
+    <string name="genre_seinen">Seinen</string>
+    <string name="genre_josei">Josei</string>
+    <string name="genre_kids">Kids</string>
+
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+    <!-- Search — Tags                                                      -->
+    <!-- ═══════════════════════════════════════════════════════════════════ -->
+
+    <!-- Action Tags -->
+    <string name="tag_archery">Archery</string>
+    <string name="tag_battle_royale">Battle Royale</string>
+    <string name="tag_espionage">Espionage</string>
+    <string name="tag_fugitive">Fugitive</string>
+    <string name="tag_guns">Guns</string>
+    <string name="tag_martial_arts">Martial Arts</string>
+    <string name="tag_spearplay">Spearplay</string>
+    <string name="tag_swordplay">Swordplay</string>
+
+    <!-- Fantasy Tags -->
+    <string name="tag_alchemy">Alchemy</string>
+    <string name="tag_body_swapping">Body Swapping</string>
+    <string name="tag_cultivation">Cultivation</string>
+    <string name="tag_curses">Curses</string>
+    <string name="tag_exorcism">Exorcism</string>
+    <string name="tag_fairy_tale">Fairy Tale</string>
+    <string name="tag_henshin">Henshin</string>
+    <string name="tag_isekai">Isekai</string>
+    <string name="tag_kaiju">Kaiju</string>
+    <string name="tag_magic">Magic</string>
+    <string name="tag_mythology">Mythology</string>
+    <string name="tag_necromancy">Necromancy</string>
+    <string name="tag_reverse_isekai">Reverse Isekai</string>
+    <string name="tag_shapeshifting">Shapeshifting</string>
+    <string name="tag_steampunk">Steampunk</string>
+    <string name="tag_super_power">Super Power</string>
+    <string name="tag_superhero">Superhero</string>
+    <string name="tag_wuxia">Wuxia</string>
+    <string name="tag_youkai">Youkai</string>
+
+    <!-- Science Fiction Tags -->
+    <string name="tag_cyberpunk">Cyberpunk</string>
+    <string name="tag_space_opera">Space Opera</string>
+    <string name="tag_time_loop">Time Loop</string>
+    <string name="tag_time_manipulation">Time Manipulation</string>
+    <string name="tag_time_travel">Time Travel</string>
+    <string name="tag_post_apocalyptic">Post-Apocalyptic</string>
+    <string name="tag_tokusatsu">Tokusatsu</string>
+    <string name="tag_real_robot">Real Robot</string>
+    <string name="tag_super_robot">Super Robot</string>
+
+    <!-- Horror / Thriller Tags -->
+    <string name="tag_gore">Gore / Violence</string>
+    <string name="tag_body_horror">Body Horror</string>
+    <string name="tag_cosmic_horror">Cosmic Horror</string>
+    <string name="tag_survival">Survival</string>
+    <string name="tag_torture">Torture</string>
+    <string name="tag_suicide">Suicide</string>
+    <string name="tag_eco_horror">Eco Horror</string>
+
+    <!-- Romance Tags -->
+    <string name="tag_love_triangle">Love Triangle</string>
+    <string name="tag_love_polygon">Love Polygon</string>
+    <string name="tag_harem">Harem</string>
+    <string name="tag_reverse_harem">Reverse Harem</string>
+    <string name="tag_unrequited_love">Unrequited Love</string>
+    <string name="tag_fake_relationship">Fake Relationship</string>
+    <string name="tag_boys_love">Boys Love</string>
+    <string name="tag_yuri">Yuri</string>
+    <string name="tag_cohabitation">Cohabitation</string>
+    <string name="tag_age_gap">Age Gap</string>
+    <string name="tag_matchmaking">Matchmaking</string>
+    <string name="tag_interspecies">Interspecies Romance</string>
+    <string name="tag_cheating">Cheating</string>
+    <string name="tag_polyamorous">Polyamorous</string>
+    <string name="tag_teens_love">Teens\' Love</string>
+
+    <!-- Drama Tags -->
+    <string name="tag_coming_of_age">Coming of Age</string>
+    <string name="tag_revenge">Revenge</string>
+    <string name="tag_tragedy">Tragedy</string>
+    <string name="tag_conspiracy">Conspiracy</string>
+    <string name="tag_bullying">Bullying</string>
+    <string name="tag_class_struggle">Class Struggle</string>
+    <string name="tag_rehabilitation">Rehabilitation</string>
+    <string name="tag_kingdom_management">Kingdom Management</string>
+
+    <!-- Slice of Life Tags -->
+    <string name="tag_iyashikei">Iyashikei</string>
+    <string name="tag_otaku_culture">Otaku Culture</string>
+    <string name="tag_gourmet">Gourmet</string>
+    <string name="tag_family_life">Family Life</string>
+    <string name="tag_parenthood">Parenthood</string>
+    <string name="tag_agriculture">Agriculture</string>
+    <string name="tag_school_club">School Club</string>
+    <string name="tag_cgdct">CGDCT</string>
+    <string name="tag_childcare">Childcare</string>
+    <string name="tag_horticulture">Horticulture</string>
+
+    <!-- Art / Music Tags -->
+    <string name="tag_band">Band</string>
+    <string name="tag_dancing">Dancing</string>
+    <string name="tag_idols">Idols</string>
+    <string name="tag_showbiz">Showbiz</string>
+    <string name="tag_performing_arts">Performing Arts</string>
+    <string name="tag_fashion">Fashion</string>
+    <string name="tag_photography">Photography</string>
+    <string name="tag_modeling">Modeling</string>
+    <string name="tag_acting">Acting</string>
+    <string name="tag_ballet">Ballet</string>
+    <string name="tag_classical_music">Classical Music</string>
+    <string name="tag_hip_hop_music">Hip-Hop Music</string>
+    <string name="tag_jazz_music">Jazz Music</string>
+    <string name="tag_metal_music">Metal Music</string>
+    <string name="tag_musical_theater">Musical Theater</string>
+    <string name="tag_rock_music">Rock Music</string>
+    <string name="tag_drawing">Drawing</string>
+    <string name="tag_food">Food</string>
+    <string name="tag_writing">Writing</string>
+    <string name="tag_calligraphy">Calligraphy</string>
+    <string name="tag_classic_literature">Classic Literature</string>
+    <string name="tag_kabuki">Kabuki</string>
+    <string name="tag_makeup">Makeup</string>
+    <string name="tag_rakugo">Rakugo</string>
+    <string name="tag_manzai">Manzai</string>
+
+    <!-- Sports Tags -->
+    <string name="tag_football">Football</string>
+    <string name="tag_basketball">Basketball</string>
+    <string name="tag_baseball">Baseball</string>
+    <string name="tag_volleyball">Volleyball</string>
+    <string name="tag_tennis">Tennis</string>
+    <string name="tag_swimming">Swimming</string>
+    <string name="tag_boxing">Boxing</string>
+    <string name="tag_judo">Judo</string>
+    <string name="tag_cycling">Cycling</string>
+    <string name="tag_surfing">Surfing</string>
+    <string name="tag_rugby">Rugby</string>
+    <string name="tag_skateboarding">Skateboarding</string>
+    <string name="tag_table_tennis">Table Tennis</string>
+    <string name="tag_ice_skating">Ice Skating</string>
+    <string name="tag_sumo">Sumo</string>
+    <string name="tag_wrestling">Wrestling</string>
+    <string name="tag_fishing">Fishing</string>
+    <string name="tag_fitness">Fitness</string>
+    <string name="tag_golf">Golf</string>
+    <string name="tag_american_football">American Football</string>
+    <string name="tag_athletics">Athletics</string>
+    <string name="tag_badminton">Badminton</string>
+    <string name="tag_fencing">Fencing</string>
+    <string name="tag_lacrosse">Lacrosse</string>
+    <string name="tag_handball">Handball</string>
+    <string name="tag_cheerleading">Cheerleading</string>
+    <string name="tag_parkour">Parkour</string>
+    <string name="tag_scuba_diving">Scuba Diving</string>
+    <string name="tag_acrobatics">Acrobatics</string>
+    <string name="tag_airsoft">Airsoft</string>
+    <string name="tag_bowling">Bowling</string>
+    <string name="tag_combat_sports">Combat Sports</string>
+    <string name="tag_team_sports">Team Sports</string>
+
+    <!-- Game Tags -->
+    <string name="tag_e_sports">E-Sports</string>
+    <string name="tag_video_games">Video Games</string>
+    <string name="tag_board_game">Board Game</string>
+    <string name="tag_card_battle">Card Battle</string>
+    <string name="tag_mahjong">Mahjong</string>
+    <string name="tag_shogi">Shogi</string>
+    <string name="tag_go">Go</string>
+    <string name="tag_karuta">Karuta</string>
+    <string name="tag_poker">Poker</string>
+    <string name="tag_strategy_game">Strategy Game</string>
+    <string name="tag_high_stakes_game">High Stakes Game</string>
+    <string name="tag_death_game">Death Game</string>
+
+    <!-- Character Tags -->
+    <string name="tag_vampire">Vampire</string>
+    <string name="tag_zombie">Zombie</string>
+    <string name="tag_werewolf">Werewolf</string>
+    <string name="tag_witch">Witch</string>
+    <string name="tag_samurai">Samurai</string>
+    <string name="tag_ninja">Ninja</string>
+    <string name="tag_pirates">Pirates</string>
+    <string name="tag_vikings">Vikings</string>
+    <string name="tag_demon">Demon / Devil</string>
+    <string name="tag_angel">Angel</string>
+    <string name="tag_ghost">Ghost</string>
+    <string name="tag_tsundere">Tsundere</string>
+    <string name="tag_yandere">Yandere</string>
+    <string name="tag_villainess">Villainess</string>
+    <string name="tag_tomboy">Tomboy</string>
+    <string name="tag_vtuber">VTuber</string>
+    <string name="tag_twins">Twins</string>
+    <string name="tag_teacher">Teacher</string>
+    <string name="tag_orphan">Orphan</string>
+    <string name="tag_shrine_maiden">Shrine Maiden</string>
+    <string name="tag_succubus">Succubus</string>
+    <string name="tag_skeleton">Skeleton</string>
+    <string name="tag_tanned_skin">Tanned Skin</string>
+    <string name="tag_transgender">Transgender</string>
+    <string name="tag_veterinarian">Veterinarian</string>
+    <string name="tag_kuudere">Kuudere</string>
+
+    <!-- Organization Tags -->
+    <string name="tag_mafia">Mafia</string>
+    <string name="tag_yakuza">Yakuza</string>
+    <string name="tag_police">Police</string>
+    <string name="tag_assassins">Assassins</string>
+    <string name="tag_gangs">Gangs</string>
+    <string name="tag_military">Military</string>
+    <string name="tag_firefighters">Firefighters</string>
+    <string name="tag_triads">Triads</string>
+    <string name="tag_criminal_organization">Criminal Organization</string>
+    <string name="tag_cult">Cult</string>
+
+    <!-- Setting / Time Tags -->
+    <string name="tag_school">School</string>
+    <string name="tag_workplace">Workplace</string>
+    <string name="tag_dungeon">Dungeon</string>
+    <string name="tag_prison">Prison</string>
+    <string name="tag_medieval">Medieval</string>
+    <string name="tag_historical">Historical</string>
+    <string name="tag_dystopian">Dystopian</string>
+    <string name="tag_space">Space</string>
+    <string name="tag_virtual_world">Virtual World</string>
+    <string name="tag_urban_fantasy">Urban Fantasy</string>
+    <string name="tag_afterlife">Afterlife</string>
+    <string name="tag_alternate_universe">Alternate Universe</string>
+    <string name="tag_ancient_china">Ancient China</string>
+    <string name="tag_camping">Camping</string>
+    <string name="tag_restaurant">Restaurant</string>
+    <string name="tag_college">College</string>
+    <string name="tag_boarding_school">Boarding School</string>
+    <string name="tag_bar">Bar</string>
+    <string name="tag_circus">Circus</string>
+    <string name="tag_office">Office</string>
+    <string name="tag_coastal">Coastal</string>
+    <string name="tag_desert">Desert</string>
+    <string name="tag_rural">Rural</string>
+    <string name="tag_wilderness">Wilderness</string>
+    <string name="tag_snowscape">Snowscape</string>
+    <string name="tag_urban">Urban</string>
+    <string name="tag_inn">Inn / Hotel</string>
+    <string name="tag_time_skip">Time Skip</string>
+    <string name="tag_achronological_order">Achronological Order</string>
+    <string name="tag_anachronism">Anachronism</string>
+
+    <!-- Other Themes -->
+    <string name="tag_reincarnation">Reincarnation</string>
+    <string name="tag_gambling">Gambling</string>
+    <string name="tag_politics">Politics</string>
+    <string name="tag_philosophy">Philosophy</string>
+    <string name="tag_religion">Religion</string>
+    <string name="tag_war">War</string>
+    <string name="tag_crime">Crime</string>
+    <string name="tag_drugs">Drugs</string>
+    <string name="tag_medicine">Medicine</string>
+    <string name="tag_pandemic">Pandemic</string>
+    <string name="tag_environmental">Environmental</string>
+    <string name="tag_economics">Economics</string>
+    <string name="tag_marriage">Marriage</string>
+    <string name="tag_travel">Travel</string>
+    <string name="tag_educational">Educational</string>
+    <string name="tag_delinquents">Delinquents</string>
+    <string name="tag_gender_bending">Gender Bending</string>
+    <string name="tag_lgbtq">LGBTQ+ Themes</string>
+    <string name="tag_found_family">Found Family</string>
+    <string name="tag_memory_manipulation">Memory Manipulation</string>
+    <string name="tag_noir">Noir</string>
+    <string name="tag_prophecy">Prophecy</string>
+    <string name="tag_crossover">Crossover</string>
+    <string name="tag_chibi">Chibi</string>
+    <string name="tag_terrorism">Terrorism</string>
+    <string name="tag_animals">Animals</string>
+    <string name="tag_astronomy">Astronomy</string>
+    <string name="tag_body_horror_theme">Body Horror</string>
+    <string name="tag_brainwashing">Brainwashing</string>
+    <string name="tag_cosmic_horror_theme">Cosmic Horror</string>
+    <string name="tag_creature_taming">Creature Taming</string>
+    <string name="tag_royal_affairs">Royal Affairs</string>
+    <string name="tag_slavery">Slavery</string>
+    <string name="tag_human_experimentation">Human Experimentation</string>
+    <string name="tag_rescue">Rescue</string>
+    <string name="tag_parody">Parody</string>
+    <string name="tag_satire">Satire</string>
+    <string name="tag_slapstick">Slapstick</string>
+    <string name="tag_surreal_comedy">Surreal Comedy</string>
+    <string name="tag_gag_humor">Gag Humor</string>
+    <string name="tag_filmmaking">Filmmaking</string>
+    <string name="tag_vocal_synth">Vocal Synthesizer</string>
+    <string name="tag_biographical">Biographical</string>
+    <string name="tag_autobiographical">Autobiographical</string>
+    <string name="tag_software_development">Software Development</string>
+    <string name="tag_mountaineering">Mountaineering</string>
+    <string name="tag_denpa">Denpa</string>
+    <string name="tag_cannibalism">Cannibalism</string>
+    <string name="tag_indigenous_cultures">Indigenous Cultures</string>
+    <string name="tag_lost_civilization">Lost Civilization</string>
+    <string name="tag_language_barrier">Language Barrier</string>
+    <string name="tag_meta">Meta</string>
+    <string name="tag_adoption">Adoption</string>
+    <string name="tag_pregnancy">Pregnancy</string>
+    <string name="tag_proxy_battle">Proxy Battle</string>
+    <string name="tag_childhood_friend">Childhood Friend</string>
+    <string name="tag_gourmet_food">Gourmet Food</string>
+    <string name="tag_konbini">Convenience Store (Konbini)</string>
+    <string name="tag_outdoor_activities">Outdoor Activities</string>
+    <string name="tag_foreign">Foreign Country</string>
+    <string name="tag_natural_disaster">Natural Disaster</string>
+
+    <!-- Comedy Tags -->
+    <string name="tag_avant_garde">Avant Garde</string>
+    <string name="tag_adult_cast">Adult Cast</string>
+    <string name="tag_ero_guro">Ero Guro</string>
+
+    <!-- TMDB-specific genres -->
+    <string name="genre_animation">Animation</string>
+    <string name="genre_documentary">Documentary</string>
+    <string name="genre_family">Family</string>
+    <string name="genre_western">Western</string>
+    <string name="genre_tv_movie">TV Movie</string>
+    <string name="genre_crime">Crime</string>
+    <string name="genre_war">War</string>
+    <string name="genre_history">History</string>
     <!-- ═══════════════════════════════════════════════════════════════════ -->
     <!-- Character &amp; Staff Detail Screens                               -->
     <!-- ═══════════════════════════════════════════════════════════════════ -->
@@ -538,6 +887,7 @@
     <string name="empty_character_roles">No character voice roles found.</string>
     <string name="empty_media_works">No media works found.</string>
 
+    <!-- Detail row labels -->
     <string name="detail_role_prefix">Role: %1$s</string>
     <string name="label_unknown">Unknown</string>
 
@@ -547,6 +897,7 @@
 
     <!-- Common Staff/Crew Roles -->
     <string name="staff_role_director">Director</string>
+    <string name="staff_role_directing">Directing</string>
     <string name="staff_role_producer">Producer</string>
     <string name="staff_role_writer">Writer</string>
     <string name="staff_role_creator">Creator</string>
@@ -570,6 +921,105 @@
     <string name="staff_role_episode_direction">Episode Direction</string>
     <string name="staff_role_animation_direction">Animation Direction</string>
     <string name="staff_role_script_screenplay">Script/Screenplay</string>
+
+    <!-- Settings Screen — Mobile (TR/EN parity) -->
+    <string name="settings_kitsugi_account">Kitsugi Account</string>
+    <string name="settings_account_connections">Account Connections</string>
+    <string name="settings_cross_sync">Cross-Sync</string>
+    <string name="settings_addons_sources">Add-ons &amp; Sources</string>
+    <string name="settings_integrations">External Integrations</string>
+    <string name="settings_data_backup">Data &amp; Backup</string>
+    <string name="settings_download_settings">Download Settings</string>
+    <string name="settings_feedback">Feedback</string>
+    <string name="settings_plugin_diagnostic">Plugin Diagnostics</string>
+    <string name="settings_section_account">Account</string>
+    <string name="settings_section_app">App</string>
+    <string name="settings_section_sources">Sources &amp; Integrations</string>
+    <string name="settings_section_data">Data &amp; Storage</string>
+    <string name="settings_section_support">Support &amp; About</string>
+    <string name="settings_kitsugi_account_desc">Sign in and sync your search history across devices</string>
+    <string name="settings_account_connections_desc">AniList, MyAnimeList, Simkl, Kitsu and Shikimori account syncing</string>
+    <string name="settings_pref_desc">Theme, list layout, scoring, language and notification settings</string>
+    <string name="settings_player_title">Player</string>
+    <string name="settings_player_desc">Internal player, gestures, subtitles, audio and codec settings</string>
+    <string name="settings_watch_history">Watch History</string>
+    <string name="settings_watch_history_desc">View or clear the anime episodes you have watched</string>
+    <string name="settings_addons_streams">Add-ons &amp; Stream Sources</string>
+    <string name="settings_addons_streams_desc">Torrent, video providers, debrid and manga sources</string>
+    <string name="settings_integrations_desc">TMDB, MDBList, FanArt.tv and AniSkip (Intro/Outro)</string>
+    <string name="settings_data_backup_desc">Back up / restore and DoH (DNS) management</string>
+    <string name="settings_download_settings_desc">Download locations, Wi-Fi and external downloader settings</string>
+    <string name="settings_downloads">Downloads</string>
+    <string name="settings_downloads_desc">Downloaded videos, subtitles and images</string>
+    <string name="settings_about">About</string>
+    <string name="settings_about_desc">Version: %1$s • Open source &amp; contributors</string>
+    <string name="settings_feedback_desc">Report a bug or share your suggestions</string>
+    <string name="settings_delete_all_title">Delete entire list?</string>
+    <string name="settings_delete_all_message">All anime/manga records in the Room database will be permanently deleted. Theme and app settings are preserved.</string>
+    <string name="settings_delete_all_confirm">Delete all</string>
+    <string name="feedback_no_email_app">No e-mail app found. Please write to kitsugibeta@gmail.com.</string>
+    <string name="feedback_mail_body">Type: %1$s\nSubject: %2$s\n\nDescription:\n%3$s\n\n-- Device Info --\nApp Version: %4$s (%5$d)\nDevice: %6$s\nAndroid Version: API %7$d</string>
+
+    <!-- Ayarlar Tercihler Diyaloğu (EN) -->
+    <string name="settings_section_theme_look">Theme &amp; Appearance</string>
+    <string name="settings_section_nav_start">Navigation &amp; Startup</string>
+    <string name="settings_section_rating_notifs">Rating &amp; Notifications</string>
+    <string name="settings_section_manga_reader">Manga Reader Settings</string>
+    <string name="settings_dark_theme">Dark Theme</string>
+    <string name="settings_dark_theme_night">Night mode active (Moon &amp; Stars)</string>
+    <string name="settings_dark_theme_day">Day mode active (Sun &amp; Clouds)</string>
+    <string name="settings_dark_theme_system">Following the system theme</string>
+    <string name="settings_theme_mode_desc">Adjust the app color mode</string>
+    <string name="settings_default_tab_desc">Choose the default tab shown when the app opens</string>
+    <string name="translator_option_default">Default</string>
+    <string name="translator_default_desc">Tries all translator apps in order</string>
+    <string name="translator_google_desc">Uses the Google Translate app</string>
+    <string name="translator_deepl_desc">Uses the DeepL app</string>
+    <string name="translator_translateyou_desc">Uses the TranslateYou app</string>
+    <string name="settings_translator">Translator</string>
+    <string name="settings_translator_desc">Choose the external translator app used for text translations</string>
+    <string name="translate_auto_detect">Auto (Detect)</string>
+    <string name="settings_translate_source">Translation Source Language</string>
+    <string name="settings_translate_source_desc">Choose the source language of the text to translate</string>
+    <string name="settings_translate_target">Translation Target Language</string>
+    <string name="settings_translate_target_desc">Choose the target language for translations</string>
+    <string name="settings_notif_anilist">AniList Notifications</string>
+    <string name="settings_notif_mal">MyAnimeList Notifications</string>
+    <string name="settings_notif_simkl">Simkl Notifications</string>
+    <string name="settings_notif_kitsu">Kitsu Notifications</string>
+    <string name="settings_notif_shikimori">Shikimori Notifications</string>
+    <string name="settings_notif_anilist_on">Unread AniList notifications are checked in the background</string>
+    <string name="settings_notif_anilist_off">Background check for unread AniList notifications is disabled</string>
+    <string name="settings_notif_mal_on">New airings in the MyAnimeList calendar are checked in the background</string>
+    <string name="settings_notif_mal_off">MyAnimeList new airing check is disabled</string>
+    <string name="settings_notif_simkl_on">Updates in the Simkl watch list are checked in the background</string>
+    <string name="settings_notif_simkl_off">Simkl watch list check is disabled</string>
+    <string name="settings_notif_kitsu_on">Next episode dates in your Kitsu watch list are checked in the background</string>
+    <string name="settings_notif_kitsu_off">Kitsu air date check is disabled</string>
+    <string name="settings_notif_shikimori_on">Shikimori personal notifications are checked in the background (requires messages permission)</string>
+    <string name="settings_notif_shikimori_off">Shikimori notification check is disabled</string>
+    <string name="notif_interval_30">30 Minutes</string>
+    <string name="notif_interval_30_desc">Checks every 30 minutes</string>
+    <string name="notif_interval_60">1 Hour</string>
+    <string name="notif_interval_60_desc">Checks every hour</string>
+    <string name="notif_interval_180">3 Hours (Recommended)</string>
+    <string name="notif_interval_180_desc">Checks every 3 hours</string>
+    <string name="notif_interval_360">6 Hours</string>
+    <string name="notif_interval_360_desc">Checks every 6 hours</string>
+    <string name="notif_interval_720">12 Hours</string>
+    <string name="notif_interval_720_desc">Checks twice a day</string>
+    <string name="notif_interval_1440">24 Hours</string>
+    <string name="notif_interval_1440_desc">Checks once a day</string>
+    <string name="settings_notif_interval">Notification Check Frequency</string>
+    <string name="settings_notif_interval_desc">Set how often notifications are checked in the background</string>
+    <string name="settings_notif_interval_sheet">Check Frequency</string>
+
+    <!-- Bangumi bildirim notları (sync bloğu öncesi) -->
+    <string name="notif_bangumi_in_list">In your Bangumi watch list (在看)</string>
+    <string name="notif_login_required_bangumi">You need to log in to Bangumi</string>
+    <string name="notif_notice_bangumi_feed">Bangumi\'s public API has no notification endpoint; this list is your watch list (在看) matched against the airing calendar. %1$d watched works • %2$d airing matches.</string>
+    <string name="notif_notice_bangumi_no_list">Your Bangumi watch list (在看) is empty.</string>
+    <string name="notif_notice_bangumi_not_connected">No Bangumi account connected; only local entries are shown. Bangumi\'s public API has no notification endpoint.</string>
 
     <!-- Bangumi Tags (Chinese/Japanese source values) -->
     <!-- AUTO-GENERATED: scripts/sync_bangumi_tag_strings.py -->
@@ -1391,11 +1841,4 @@
     <string name="bangumi_tag_ambient_music">Ambient</string>
     <string name="bangumi_tag_instrumental">Instrumental</string>
 
-    <string name="bangumi_tag_ona">ONA</string>
-    <string name="bangumi_tag_war">War</string>
-    <string name="notif_bangumi_in_list">In your Bangumi watch list (在看)</string>
-    <string name="notif_login_required_bangumi">You need to log in to Bangumi</string>
-    <string name="notif_notice_bangumi_feed">Bangumi\'s public API has no notification endpoint; this list is your watch list (在看) matched against the airing calendar. %1$d watched works • %2$d airing matches.</string>
-    <string name="notif_notice_bangumi_no_list">Your Bangumi watch list (在看) is empty.</string>
-    <string name="notif_notice_bangumi_not_connected">No Bangumi account connected; only local entries are shown. Bangumi\'s public API has no notification endpoint.</string>
 </resources>
