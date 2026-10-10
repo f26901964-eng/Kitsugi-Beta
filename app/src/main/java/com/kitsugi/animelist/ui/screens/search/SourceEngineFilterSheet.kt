@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.utils.toLocalizedTagLabel
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
@@ -97,19 +98,33 @@ fun SourceEngineFilterSheet(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
-                    Text(
-                        text = "${uiState.selectedEngine.emoji} ${uiState.selectedEngine.label} Filtreleri",
-                        style = MaterialTheme.typography.titleLarge.copy(
-                            fontWeight = FontWeight.Bold,
-                            color = KitsugiColors.TextPrimary
+                Row(
+                    modifier = Modifier.weight(1f),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // Kaynak emojisi yerine platformun orijinal logosu.
+                    KitsugiPlatformLogo(
+                        platformId = uiState.selectedEngine.id,
+                        size = 26.dp,
+                        fallbackTint = KitsugiColors.TextPrimary
+                    )
+                    Column {
+                        Text(
+                            text = "${uiState.selectedEngine.label} ${stringResource(R.string.filtreler)}",
+                            style = MaterialTheme.typography.titleLarge.copy(
+                                fontWeight = FontWeight.Bold,
+                                color = KitsugiColors.TextPrimary
+                            )
                         )
-                    )
-                    Text(
-                        text = stringResource(R.string.inline_customize_your_search_criteria_7608a6b),
-                        style = MaterialTheme.typography.bodySmall.copy(color = KitsugiColors.TextMuted)
-                    )
+                        Text(
+                            text = stringResource(R.string.inline_customize_your_search_criteria_7608a6b),
+                            style = MaterialTheme.typography.bodySmall.copy(color = KitsugiColors.TextMuted)
+                        )
+                    }
                 }
+
+                Spacer(modifier = Modifier.width(8.dp))
 
                 OutlinedButton(
                     onClick = { viewModel.resetEngineFilters(uiState.selectedEngine) },

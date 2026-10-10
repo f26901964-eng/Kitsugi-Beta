@@ -2,6 +2,7 @@ package com.kitsugi.animelist.ui.screens.search
 
 import android.app.Application
 import com.kitsugi.animelist.ui.theme.gradient.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -32,6 +33,7 @@ import com.kitsugi.animelist.data.remote.ApiSearchSelection
 import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.ui.app.SourceSearchOwner
+import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
@@ -106,15 +108,28 @@ fun SourceSearchPage(
                     tint = KitsugiColors.TextPrimary
                 )
             }
-            Text(
-                text = "${engine.emoji} ${engine.label} Arama",
-                color = KitsugiColors.TextPrimary,
-                style = MaterialTheme.typography.titleLarge,
-                fontWeight = FontWeight.Bold,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.weight(1f)
-            )
+            // Kaynak adından ÖNCE emoji değil, platformun ORİJİNAL logosu gösterilir
+            // (KitsugiPlatformLogo: AniList, MAL, TMDB, Shikimori, Kitsu, Simkl, Bangumi).
+            // "Tümü" motorunda logo bulunmadığı için küre simgesine düşer.
+            Row(
+                modifier = Modifier.weight(1f),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                KitsugiPlatformLogo(
+                    platformId = engine.id,
+                    size = 26.dp,
+                    fallbackTint = KitsugiColors.TextPrimary
+                )
+                Text(
+                    text = "${engine.label} ${stringResource(R.string.arama)}",
+                    color = KitsugiColors.TextPrimary,
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.Bold,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
             Spacer(modifier = Modifier.width(8.dp))
         }
 

@@ -34,6 +34,8 @@ import androidx.compose.ui.graphics.Color
 import coil3.compose.AsyncImage
 import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.ui.components.KitsugiNsfwImage
+import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
+import com.kitsugi.animelist.ui.components.KitsugiPlatformLogos
 import com.kitsugi.animelist.ui.theme.LocalIsTv
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
@@ -210,12 +212,27 @@ fun SearchResultRow(
                             .background(KitsugiColors.SurfaceStrong)
                             .padding(horizontal = 6.dp, vertical = 2.dp)
                     ) {
-                        Text(
-                            text = sourceLabel,
-                            color = sourceColor,
-                            style = MaterialTheme.typography.labelSmall,
-                            fontWeight = FontWeight.Bold
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp)
+                        ) {
+                            // Kaynak rozetinde artık platformun ORİJİNAL logosu da var
+                            // (AniList, MyAnimeList, TMDB, Shikimori, Kitsu, Simkl, Bangumi).
+                            // Logo tanınmayan kaynaklarda (CS3 eklentileri) yalnızca ad kalır.
+                            if (KitsugiPlatformLogos.resFor(result.source) != null) {
+                                KitsugiPlatformLogo(
+                                    platformId = result.source,
+                                    size = 12.dp,
+                                    cornerRadius = 3.dp
+                                )
+                            }
+                            Text(
+                                text = sourceLabel,
+                                color = sourceColor,
+                                style = MaterialTheme.typography.labelSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
                     }
                 }
             }

@@ -27,6 +27,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.kitsugi.animelist.ui.components.KitsugiPlatformLogo
 import com.kitsugi.animelist.ui.theme.KitsugiColors
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import androidx.compose.ui.res.stringResource
@@ -660,13 +661,24 @@ fun SortOptionsContent(
             .padding(horizontal = 20.dp)
             .padding(bottom = 32.dp)
     ) {
-        Text(
-            text = "${engine.emoji} Sıralama Seçenekleri",
-            style = MaterialTheme.typography.titleLarge.copy(
-                fontWeight = FontWeight.Bold,
-                color = KitsugiColors.TextPrimary
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
+        ) {
+            // Kaynak emojisi yerine platformun orijinal logosu.
+            KitsugiPlatformLogo(
+                platformId = engine.id,
+                size = 26.dp,
+                fallbackTint = KitsugiColors.TextPrimary
             )
-        )
+            Text(
+                text = stringResource(R.string.inline_1_s_sorting_options_f94d7e1, engine.label),
+                style = MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.Bold,
+                    color = KitsugiColors.TextPrimary
+                )
+            )
+        }
         Spacer(modifier = Modifier.height(14.dp))
 
         sortOptions.forEach { (key, label) ->

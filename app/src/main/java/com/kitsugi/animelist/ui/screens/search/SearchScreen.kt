@@ -873,8 +873,15 @@ private fun SearchOptionsSummaryRow(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(6.dp)
         ) {
+            // Kaynak kısaltması/emojisi yerine platformun orijinal logosu +
+            // tam adı gösterilir (örn. 🌸 SHI → Shikimori logosu + "Shikimori").
+            KitsugiPlatformLogo(
+                platformId = engine.id,
+                size = 16.dp,
+                fallbackTint = accentColor
+            )
             Text(
-                text = "🎛️ ${engine.shortLabel} • ${parts.joinToString(" • ")}",
+                text = "${engine.label} • ${parts.joinToString(" • ")}",
                 color = accentColor,
                 fontSize = 12.sp,
                 fontWeight = FontWeight.Bold,

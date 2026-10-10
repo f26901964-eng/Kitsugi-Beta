@@ -1,5 +1,25 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.237) — Arama Kaynak Logoları & UI Tutarlılığı
+
+### 🏷️ 1. Arama Sayfasında Orijinal Marka Logoları (Emoji Yerine Vektör Logolar)
+- **Orijinal Marka Logoları Entegre Edildi:** Kaynağa özel arama başlıklarındaki emojiler (🅰️ AniList, Ⓜ️ MyAnimeList, 🎬 TMDB, 🌸 Shikimori, 🦊 Kitsu, 📺 Simkl, 🎌 Bangumi) kaldırılarak uygulamanın geri kalanıyla tam görsel tutarlılık sağlayan `KitsugiPlatformLogo` vektör çizimleri (`ic_logo_*`) yerleştirildi.
+- **Filtre ve Sıralama Panelleri:** `SourceEngineFilterSheet` ve `SourceSpecificFilterChipsRow` başlıkları ilgili platformun logosuyla güncellendi; başlık satırına esnek yerleşim (`weight(1f)`) eklenerek "Sıfırla" butonunun taşması önlendi.
+- **Sonuç Kartı Rozetleri & Filtre Özeti:** Arama sonuç kartlarındaki rozetlere ve filtre özet çipine platformun gerçek marka logosu eklendi; logo bulunmayan kaynaklarda (CS3 eklentileri) metin rozet korundu. "Tümü" motoru için küre simgesine zarifçe düşüş sağlandı.
+- **Uluslararasılaşma (i18n):** Kaynağa özel başlıklar `R.string.arama` ve `R.string.filtreler` üzerinden okunarak İngilizce arayüzde doğru yerelleşme ("AniList Search", "Filters") sağlandı.
+
+---
+
+## 🇬🇧 English (v2.4.237) — Search Source Logos & UI Consistency
+
+### 🏷️ 1. Original Brand Logos Across Search Screens (Vector Logos Instead of Emojis)
+- **Official Brand Logos Integrated:** Replaced source header emojis (🅰️ AniList, Ⓜ️ MyAnimeList, 🎬 TMDB, 🌸 Shikimori, 🦊 Kitsu, 📺 Simkl, 🎌 Bangumi) with official vector brand icons (`ic_logo_*`) via `KitsugiPlatformLogo` for visual consistency across the app.
+- **Filter & Sort Sheets:** Updated `SourceEngineFilterSheet` and `SourceSpecificFilterChipsRow` headers with platform logos; added flexible weight distribution to ensure the "Reset" action button never clips on long titles.
+- **Result Badges & Filter Summary Chip:** Added brand logos to search result cards and the filter summary chip; safely falls back to text-only for extensions (CS3) and a globe icon for the "All" engine.
+- **Localization (i18n):** Engine search titles now dynamically resolve through `R.string.arama` and `R.string.filtreler`, correctly rendering as "AniList Search" and "Filters" in English.
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.236) — Depolama Şişmesi, Performans & Dil Düzeltmeleri
 
 ### 🗄️ 1. Merkezî Depolama Bekçisi (`StorageJanitor`) & Depolama Ayarları (~4 GB Şişme Çözümü)
