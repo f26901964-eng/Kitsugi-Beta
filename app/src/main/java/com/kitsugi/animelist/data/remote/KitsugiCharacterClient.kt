@@ -940,7 +940,7 @@ class KitsugiCharacterClient {
                 "kitsu" -> {
                     val kitsuDetail = runCatching {
                         val request = okhttp3.Request.Builder()
-                            .url("https://kitsu.io/api/edge/characters/$characterId")
+                            .url(KitsuApiHost.url("/characters/$characterId"))
                             .header("Accept", "application/vnd.api+json")
                             .header("User-Agent", "Kitsugi/1.0 (Android)")
                             .build()

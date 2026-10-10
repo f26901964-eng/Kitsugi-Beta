@@ -3,6 +3,7 @@ package com.kitsugi.animelist.data.remote
 import com.kitsugi.animelist.model.MediaType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
@@ -43,7 +44,7 @@ class KitsugiStudioClient {
                 }
                 "anilist" -> fetchAniListStudioDetail(studioId)
                 "bangumi" -> fetchBangumiStudioDetail(studioId)
-                "shikimori" -> fetchShikimoriStudioDetail(studioId)
+                "shikimori" -> fetchShikimoriStudioDetail(studioId, name)
                 "tmdb" -> {
                     val tmdbRes = fetchTmdbStudioDetail(studioId)
                     if (tmdbRes != null && !tmdbRes.name.isNullOrBlank() &&
@@ -120,32 +121,39 @@ class KitsugiStudioClient {
         bestId
     }.getOrNull()
 
-    private suspend fun fetchShikimoriStudioDetail(studioId: Int): KitsugiStudioDetail? = runCatching {
-        val infoUrl = URL("https://shikimori.io/api/studios/$studioId")
-        val infoResponse = KitsugiApiBase.executeGetRequestResilient(infoUrl) ?: return@runCatching null
-        val info = JSONObject(infoResponse)
-        val name = info.optNullableString("name")
-            ?: info.optNullableString("filtered_name")
-            ?: return@runCatching null
-        val imageUrl = info.optJSONObject("image")?.let { image ->
-            (image.optNullableString("original") ?: image.optNullableString("preview"))
-                ?.let(::absoluteShikimoriImageUrl)
-        }
-        val about = info.optNullableString("description")?.cleanApiText()?.takeIf { it.isNotBlank() }
-        val mediaWorks = mutableListOf<KitsugiStaffMediaWork>()
+    /**
+     * Shikimori stüdyo (kurum) sayfası.
+     *
+     * ÖNEMLİ: Shikimori'nin tek kayıtlık stüdyo ucu YOKTUR — `GET /api/studios/{id}` 404
+     * döner, `/api/studios` ise tüm stüdyoların dizin listesidir. Eski kod bu olmayan ucu
+     * okumaya çalıştığı için Shikimori kaynaklı yapımlarda "Stüdyo detayları yüklenemedi."
+     * ekranı görünüyordu. Sayfa artık iki doğrulanmış uçtan kurulur:
+     *  - `GET /api/animes?studio={id}` → stüdyonun yapımları
+     *  - `GET /api/animes/{animeId}`   → anime kaydının `studios[]` satırı (kanonik ad + logo)
+     *
+     * Stüdyo logosu Shikimori'de `/system/studios/...` biçiminde göreli dize olarak döner;
+     * anime `studios[]` alanında `image` bir NESNE değil DİZGİDİR (düz yol).
+     */
+    private suspend fun fetchShikimoriStudioDetail(
+        studioId: Int,
+        expectedName: String?
+    ): KitsugiStudioDetail? = runCatching {
         val worksUrl = URL("https://shikimori.io/api/animes?studio=$studioId&limit=50&order=aired_on")
         val worksResponse = KitsugiApiBase.executeGetRequestResilient(worksUrl)
-        val works = worksResponse?.let { runCatching { org.json.JSONArray(it) }.getOrNull() }
+        val works = worksResponse?.let { runCatching { JSONArray(it) }.getOrNull() }
+
+        val mediaWorks = mutableListOf<KitsugiStaffMediaWork>()
+        var sampleAnimeId: Int? = null
         if (works != null) {
             for (index in 0 until works.length()) {
                 val item = works.optJSONObject(index) ?: continue
                 val mediaId = item.optInt("id").takeIf { it > 0 } ?: continue
+                if (sampleAnimeId == null) sampleAnimeId = mediaId
                 val romajiTitle = item.optNullableString("name")
                 val englishTitle = item.optJSONArray("english")?.optString(0)?.takeIf { it.isNotBlank() && it != "null" }
                 val russianTitle = item.optNullableString("russian")
                 val title = russianTitle ?: englishTitle ?: romajiTitle ?: "Başlıksız"
                 val kind = item.optNullableString("kind").orEmpty().lowercase()
-                val mediaType = if (kind == "movie") MediaType.Movie else MediaType.Anime
                 val posterUrl = item.optJSONObject("image")
                     ?.let { image -> (image.optNullableString("original") ?: image.optNullableString("preview")) }
                     ?.let(::absoluteShikimoriImageUrl)
@@ -164,12 +172,43 @@ class KitsugiStudioClient {
             }
         }
 
+        // Ad ve logo, yapımın kendi kaydındaki studios[] satırından doğrulanır.
+        var studioName: String? = null
+        var studioImage: String? = null
+        val animeId = sampleAnimeId
+        if (animeId != null) {
+            val animeDetail = runCatching {
+                val url = URL("https://shikimori.io/api/animes/$animeId")
+                KitsugiApiBase.executeGetRequestResilient(url)?.let { JSONObject(it) }
+            }.getOrNull()
+            val studios = animeDetail?.optJSONArray("studios")
+            if (studios != null) {
+                for (index in 0 until studios.length()) {
+                    val entry = studios.optJSONObject(index) ?: continue
+                    if (entry.optInt("id") != studioId) continue
+                    studioName = entry.optNullableString("name") ?: entry.optNullableString("filtered_name")
+                    studioImage = (entry.optNullableString("image") ?: entry.optJSONObject("image")
+                        ?.optNullableString("original"))?.let(::absoluteShikimoriImageUrl)
+                    break
+                }
+            }
+        }
+
+        val name = studioName?.takeIf { it.isNotBlank() }
+            ?: expectedName?.takeIf { it.isNotBlank() }
+            ?: return@runCatching null
+        if (mediaWorks.isEmpty() && studioName.isNullOrBlank() && studioImage.isNullOrBlank()) {
+            // Shikimori'de bu kimlikle hiçbir kayıt yok → sayfa kurulamıyor.
+            return@runCatching null
+        }
+
         KitsugiStudioDetail(
             id = studioId,
             name = name,
             isMain = true,
-            imageUrl = imageUrl,
-            about = about,
+            imageUrl = studioImage,
+            // Shikimori stüdyolar için açıklama alanı sağlamaz; boş metin uydurulmaz.
+            about = null,
             mediaWorks = mediaWorks.distinctBy { it.mediaId }
         )
     }.getOrNull()

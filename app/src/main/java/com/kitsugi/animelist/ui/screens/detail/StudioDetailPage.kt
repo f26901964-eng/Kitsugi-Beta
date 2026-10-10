@@ -108,8 +108,8 @@ fun StudioDetailPage(
     val viewModel: StudioDetailViewModel = viewModel(key = "studio_${source}_${studioId}")
 
     // Load studio in ViewModel
-    LaunchedEffect(studioId, source, name) {
-        viewModel.loadStudio(studioId, source, name)
+    LaunchedEffect(studioId, source, name, imageUrl) {
+        viewModel.loadStudio(studioId, source, name, imageUrl)
     }
 
     // Collect state from ViewModel

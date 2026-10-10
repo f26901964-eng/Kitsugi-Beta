@@ -341,13 +341,13 @@ object KitsugiPersonImageAggregator {
     ): List<SourceImage> = withContext(Dispatchers.IO) {
         runCatching {
             if (knownId != null && knownId > 0) {
-                val root = kitsuGet("https://kitsu.io/api/edge/characters/$knownId")
+                val root = kitsuGet(KitsuApiHost.url("/characters/$knownId"))
                 val attrs = root?.optJSONObject("data")?.optJSONObject("attributes")
                 kitsuImageOf(attrs)?.let { return@runCatching listOf(SourceImage(it, SRC_KITSU)) }
             }
             for (name in names) {
                 val encoded = URLEncoder.encode(name, "UTF-8")
-                val root = kitsuGet("https://kitsu.io/api/edge/characters?filter[name]=$encoded&page[limit]=5")
+                val root = kitsuGet(KitsuApiHost.url("/characters?filter[name]=$encoded&page[limit]=5"))
                     ?: continue
                 val data = root.optJSONArray("data") ?: continue
                 for (i in 0 until data.length()) {

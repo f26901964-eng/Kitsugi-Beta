@@ -330,6 +330,7 @@
     <string name="detail_voice_actors">Voice Actors</string>
     <string name="detail_role_actor">Actor</string>
     <string name="detail_role_voice_actor">Voice Actor (%1$s)</string>
+    <string name="detail_role_voice_actor_plain">Voice Actor</string>
     <string name="detail_staff_load_error">Error loading staff details.</string>
     <string name="detail_staff_empty">No staff details found.</string>
     

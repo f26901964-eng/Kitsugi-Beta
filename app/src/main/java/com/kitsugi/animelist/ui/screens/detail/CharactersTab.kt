@@ -194,10 +194,11 @@ fun CharactersTabContent(
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Bold
                             )
-                            val labelText = if (va.language.equals("oyuncu", ignoreCase = true)) {
-                                stringResource(R.string.detail_role_actor)
-                            } else {
-                                va.language
+                            // Dil bilgisi yoksa (kaynak API vermediyse) dil uydurulmaz.
+                            val labelText = when {
+                                va.language.isBlank() -> stringResource(R.string.detail_role_voice_actor_plain)
+                                va.language.equals("oyuncu", ignoreCase = true) -> stringResource(R.string.detail_role_actor)
+                                else -> va.language
                             }
                             Text(
                                 text = labelText,
@@ -349,10 +350,10 @@ fun CharacterVoiceActorCard(
                         overflow = TextOverflow.Ellipsis
                     )
                     // Dil zaten Türkçe geliyor: "Japonca", "Korece", "oyuncu" vb.
-                    val labelText = if (va.language.equals("oyuncu", ignoreCase = true)) {
-                        stringResource(R.string.detail_role_actor)
-                    } else {
-                        stringResource(R.string.detail_role_voice_actor, va.language)
+                    val labelText = when {
+                        va.language.isBlank() -> stringResource(R.string.detail_role_voice_actor_plain)
+                        va.language.equals("oyuncu", ignoreCase = true) -> stringResource(R.string.detail_role_actor)
+                        else -> stringResource(R.string.detail_role_voice_actor, va.language)
                     }
                     Text(
                         text = labelText,

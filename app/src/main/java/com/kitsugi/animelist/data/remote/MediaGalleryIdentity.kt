@@ -70,3 +70,39 @@ internal fun resolveMediaGalleryIdentity(
         kitsuId = kitsuId
     )
 }
+
+/**
+ * Çapraz sağlayıcıdan (ARM/MAL/AniList/Kitsu/Shikimori) çözülen TMDB kimliğinin gerçekten
+ * aynı yapıma ait olup olmadığını başlıktan doğrular.
+ *
+ * NEDEN GEREKLİ? TMDB'de `movie` ve `tv` kimlik alanları AYRIDIR: 8390 bir film iken aynı
+ * sayı bir diziye ait olabilir. Eşleme ya da tür bilgisi yanlışsa galeri, hiç ilgisi olmayan
+ * bir yapımın afiş/logolarıyla dolar (ör. Komşum Totoro sayfasında Popeye görselleri).
+ * Bu yüzden görseller listeye eklenmeden önce TMDB kaydının başlığıyla arama başlığı
+ * karşılaştırılır; eşleşme yoksa görseller hiç kullanılmaz.
+ */
+internal object TmdbArtworkIdentity {
+
+    fun normalize(value: String?): String = value.orEmpty()
+        .lowercase()
+        .replace(Regex("[^\\p{L}\\p{N}]+"), "")
+        .removePrefix("the")
+        .trim()
+
+    /** Eşleşme yoksa galeriye hiçbir şey karışmaz; şüphede kalınırsa (veri eksik) izin verilir. */
+    fun matches(expectedTitles: List<String>, tmdbTitle: String?, tmdbOriginalTitle: String?): Boolean {
+        val candidates = listOfNotNull(tmdbTitle?.takeIf { it.isNotBlank() }, tmdbOriginalTitle?.takeIf { it.isNotBlank() })
+            .map { normalize(it) }
+            .filter { it.isNotEmpty() }
+        // TMDB başlık alanı boşsa (nadir) doğrulama yapılamaz → fail-open.
+        if (candidates.isEmpty()) return true
+        val expected = expectedTitles.map { normalize(it) }.filter { it.length >= 3 }
+        if (expected.isEmpty()) return true
+        return expected.any { exp ->
+            candidates.any { tmdb ->
+                tmdb == exp ||
+                    (tmdb.length >= 5 && (tmdb.contains(exp) || exp.contains(tmdb)))
+            }
+        }
+    }
+}

@@ -50,8 +50,13 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
     private var lastStudioId: Int = 0
     private var lastSource: String = ""
     private var lastStudioName: String? = null
+    private var lastStudioImageUrl: String? = null
 
-    fun loadStudio(studioId: Int, source: String, name: String? = null) {
+    /**
+     * @param imageUrl detay sayfasındaki çipten taşınan kurum logosu; kaynak API kendi logosunu
+     * vermese de galeri/hero boş kalmasın diye yedek olarak kullanılır.
+     */
+    fun loadStudio(studioId: Int, source: String, name: String? = null, imageUrl: String? = null) {
         val canonicalSource = StudioSourceSupport.canonicalSource(source) ?: source.lowercase()
         val newKey = "$canonicalSource:$studioId:${StudioSourceSupport.normalizeName(name)}"
         if (newKey == currentFetchKey) {
@@ -64,6 +69,7 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
         lastStudioId = studioId
         lastSource = source
         lastStudioName = name?.takeIf { it.isNotBlank() }
+        lastStudioImageUrl = imageUrl?.takeIf { it.isNotBlank() }
 
         val cachedStudioDetail = DetailCache.getStudioDetail(source, studioId)
             ?.takeIf { matchesExpectedStudio(source, lastStudioName, it.name) }
@@ -142,7 +148,7 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
             }
 
             // Build gallery from studio imageUrl (logo)
-            val imageUrl = detail.imageUrl
+            val imageUrl = detail.imageUrl ?: lastStudioImageUrl
             if (!imageUrl.isNullOrBlank()) {
                 val category = if (imageUrl.contains("logo", ignoreCase = true) ||
                     imageUrl.contains("image.tmdb.org", ignoreCase = true)) {
@@ -150,7 +156,13 @@ class StudioDetailViewModel(application: Application) : AndroidViewModel(applica
                 } else {
                     GalleryCategory.POSTER
                 }
-                val src = if (imageUrl.contains("image.tmdb.org") || imageUrl.contains("tmdb.org")) "TMDB" else "Jikan"
+                val src = when {
+                    imageUrl.contains("image.tmdb.org") || imageUrl.contains("tmdb.org") -> "TMDB"
+                    imageUrl.contains("shikimori.") -> "Shikimori"
+                    imageUrl.contains("anilist.co") -> "AniList"
+                    imageUrl.contains("bgm.tv") || imageUrl.contains("bangumi.tv") -> "Bangumi"
+                    else -> "Jikan"
+                }
                 _galleryItems.value = listOf(GalleryItem(url = imageUrl, source = src, category = category, description = lastStudioName))
             } else {
                 _galleryItems.value = emptyList()

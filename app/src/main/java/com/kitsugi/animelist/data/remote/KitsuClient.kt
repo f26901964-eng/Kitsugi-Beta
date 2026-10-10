@@ -19,7 +19,13 @@ import com.kitsugi.animelist.utils.*
 
 object KitsuClient {
     private const val TAG = "KitsuClient"
-    private const val BASE = "https://kitsu.io/api/edge"
+
+    /**
+     * Kitsu uç adresi [KitsuApiHost] üzerinden çözülür. `kitsu.io` uyumluluk katmanı
+     * `page[offset]`/`sort` parametrelerini yok saydığı için karakter sayfalamasında kopya
+     * kayıtlar buradan kaynaklanıyordu.
+     */
+    private val BASE: String get() = KitsuApiHost.base
 
     suspend fun fetchAnimeDetail(kitsuIdOrSlug: String): KitsugiMediaDetail? = withContext(Dispatchers.IO) {
         val url = "$BASE/anime/$kitsuIdOrSlug"

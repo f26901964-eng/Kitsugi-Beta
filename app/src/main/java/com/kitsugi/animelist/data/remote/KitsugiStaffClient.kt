@@ -661,7 +661,7 @@ class KitsugiStaffClient {
                     if (targetName.isNullOrBlank() && staffId > 0) {
                         targetName = runCatching {
                             val req = okhttp3.Request.Builder()
-                                .url("https://kitsu.io/api/edge/people/$staffId")
+                                .url(KitsuApiHost.url("/people/$staffId"))
                                 .header("Accept", "application/vnd.api+json")
                                 .header("User-Agent", "KitsugiApp/2.4")
                                 .build()

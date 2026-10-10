@@ -1061,10 +1061,18 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
             }
         }
 
-        val isMovie = result.type == MediaType.Movie
-        // Kitsu listesi/detayında tür "Anime" olarak gelir; film olan Kitsu kaydını alt türünden anlarız.
-        // Aksi halde film kaydının galerisine, TMDB ID'si aynı olan TV dizisinin görselleri karışır.
+        val galleryDetail = _detailState.value
+        val isMovie = result.type == MediaType.Movie || galleryDetail?.type == MediaType.Movie
+        // Kitsu/Shikimori listelerinde tür "Anime" olarak gelir; film olan kaydı alt türünden
+        // ayırırız. Aksi halde film kaydının galerisine, TMDB ID'si aynı olan TV dizisinin
+        // görselleri karışır (TMDB'de film ve dizi kimlikleri ayrı alanlardır).
         val galleryIsMovie = isMovie || KitsugiEpisodeRatingsRepository.isKitsuMovieId(fallbackKitsuId)
+        // Çapraz eşleme yanlış kimliğe düştüyse görseller hiç kullanılmasın diye beklenen başlıklar.
+        val galleryTitles = listOfNotNull(
+            result.title, result.titleEnglish, result.titleJapanese,
+            galleryDetail?.title, galleryDetail?.titleEnglish, galleryDetail?.titleRomaji,
+            galleryDetail?.titleJapanese
+        ).filter { it.isNotBlank() }.distinct()
 
         val providers = coroutineScope {
             val fanartDef = async(Dispatchers.IO) {
@@ -1080,7 +1088,8 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                 if (tmdbId != null && tmdbId > 0) {
                     KitsugiEpisodeRatingsRepository.getTmdbGalleryItems(
                         tmdbId = tmdbId,
-                        isMovie = galleryIsMovie
+                        isMovie = galleryIsMovie,
+                        expectedTitles = galleryTitles
                     )
                 } else emptyList()
             }

@@ -426,7 +426,7 @@ object KitsugiEpisodeRatingsRepository {
         kitsuMovieFlagCache[kitsuId]?.let { return@withContext it }
         val subtype = runCatching {
             val request = okhttp3.Request.Builder()
-                .url("https://kitsu.io/api/edge/anime/$kitsuId")
+                .url(KitsuApiHost.url("/anime/$kitsuId"))
                 .header("Accept", "application/vnd.api+json")
                 .header("User-Agent", "Kitsugi/1.0 (Android)")
                 .build()
@@ -769,10 +769,16 @@ object KitsugiEpisodeRatingsRepository {
     /**
      * TMDB ID ve medya türü (film/dizi) ile TMDB API'sinden tüm görselleri çeker.
      * Posterler, arka planlar (backdrop) ve logolar tam çözünürlükte elde edilir.
+     *
+     * [expectedTitles] verilirse görseller yalnızca TMDB kaydının başlığı bu başlıklardan
+     * biriyle uyuştuğunda listeye karışır. TMDB'de film ve dizi kimlikleri ayrı alanlardır;
+     * eşleme veya tür bilgisi yanlışsa aynı sayı bambaşka bir yapıma ait olabilir ve
+     * galeri alakasız görsellerle dolardı (bkz. [TmdbArtworkIdentity]).
      */
     suspend fun getTmdbGalleryItems(
         tmdbId: Int,
-        isMovie: Boolean = false
+        isMovie: Boolean = false,
+        expectedTitles: List<String> = emptyList()
     ): List<GalleryItem> = withContext(Dispatchers.IO) {
         if (tmdbId <= 0 || !isTmdbArtworkEnabled()) return@withContext emptyList()
 
@@ -785,8 +791,7 @@ object KitsugiEpisodeRatingsRepository {
         val apiKey = TmdbApiClient.getActiveApiKey()
         if (apiKey.isBlank()) return@withContext emptyList()
 
-        fun parseTmdbImages(responseText: String): List<GalleryItem> {
-            val json = JSONObject(responseText)
+        fun parseTmdbImages(json: JSONObject): List<GalleryItem> {
             val list = mutableListOf<GalleryItem>()
 
             // 1. Posterler
@@ -864,28 +869,41 @@ object KitsugiEpisodeRatingsRepository {
             return list
         }
 
+        // Beklenen tür önce denenir, sonra öteki tür. Bir kaydın görselleri yalnızca TMDB
+        // başlığı beklenenle uyuşursa listeye karışır — başlıklar gerçekten farklıysa o
+        // görseller başka bir yapıma aittir ve galeriye girmemeli.
         val primaryType = if (isMovie) "movie" else "tv"
-        val secondaryType = if (isMovie) "tv" else "movie"
-
-        var items = runCatching {
-            val url = URL("https://api.themoviedb.org/3/$primaryType/$tmdbId/images?api_key=$apiKey")
-            val resp = KitsugiApiBase.executeGetRequest(url)
-            if (!resp.isNullOrBlank()) parseTmdbImages(resp) else emptyList()
-        }.getOrElse {
-            Log.w(TAG, "getTmdbGalleryItems primary ($primaryType) failed: ${it.message}")
-            emptyList()
-        }
-
-        // Eğer birincil türden hiç görsel gelmediyse tersini dene (ör. film TV veya tersi)
-        if (items.isEmpty()) {
-            items = runCatching {
-                val fallbackUrl = URL("https://api.themoviedb.org/3/$secondaryType/$tmdbId/images?api_key=$apiKey")
-                val fallbackResp = KitsugiApiBase.executeGetRequest(fallbackUrl)
-                if (!fallbackResp.isNullOrBlank()) parseTmdbImages(fallbackResp) else emptyList()
+        val typesToTry = listOf(primaryType, if (isMovie) "tv" else "movie")
+        var items = emptyList<GalleryItem>()
+        for (type in typesToTry) {
+            val response = runCatching {
+                val url = URL(
+                    "https://api.themoviedb.org/3/$type/$tmdbId" +
+                        "?api_key=$apiKey&append_to_response=images"
+                )
+                val resp = KitsugiApiBase.executeGetRequest(url)
+                if (resp.isNullOrBlank()) null else JSONObject(resp)
             }.getOrElse {
-                Log.w(TAG, "getTmdbGalleryItems fallback ($secondaryType) failed: ${it.message}")
-                emptyList()
+                Log.w(TAG, "getTmdbGalleryItems ($type) failed: ${it.message}")
+                null
+            } ?: continue
+
+            val isMovieType = type == "movie"
+            val entryTitle = if (isMovieType) response.optString("title") else response.optString("name")
+            val entryOriginal = if (isMovieType) response.optString("original_title") else response.optString("original_name")
+            val verified = TmdbArtworkIdentity.matches(expectedTitles, entryTitle, entryOriginal)
+            val images = parseTmdbImages(response.optJSONObject("images") ?: response)
+            if (images.isEmpty()) continue
+
+            if (verified) {
+                items = images
+                break
             }
+            Log.w(
+                TAG,
+                "TMDB galeri kimliği reddedildi: $type/$tmdbId başlığı «$entryTitle» beklenenle " +
+                    "(${expectedTitles.firstOrNull() ?: "-"}) uyuşmuyor; görseller listeye karışmadı"
+            )
         }
 
         if (items.isNotEmpty()) {

@@ -331,6 +331,7 @@
     <string name="detail_voice_actors">Seslendirmenler</string>
     <string name="detail_role_actor">Oyuncu</string>
     <string name="detail_role_voice_actor">Seslendirici (%1$s)</string>
+    <string name="detail_role_voice_actor_plain">Seslendirici</string>
     <string name="detail_staff_load_error">Ekip bilgisi yüklenirken hata oluştu.</string>
     <string name="detail_staff_empty">Ekip bilgisi bulunamadı.</string>
     

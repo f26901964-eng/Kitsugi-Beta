@@ -186,7 +186,6 @@ fun FullScreenMediaGridPage(
         context.getString(com.kitsugi.animelist.R.string.explore_simkl_plantowatch_series),
         context.getString(com.kitsugi.animelist.R.string.explore_simkl_plantowatch_movies)
     ).any { title.contains(it, ignoreCase = true) }
-    val finiteChart = platform == ExplorePlatform.KITSU && categoryType == ExploreCategoryType.TRENDING_ANIME
     val simklCategoryUsesFiniteChart = platform == ExplorePlatform.SIMKL && categoryType in setOf(
         ExploreCategoryType.TOP_ANIME,
         ExploreCategoryType.MOVIE_ANIME,
@@ -202,7 +201,7 @@ fun FullScreenMediaGridPage(
     }
     var simklTrendingResults by remember(platform, categoryType) { mutableStateOf<List<JikanSearchResult>?>(null) }
     var hasMorePages by remember(platform, categoryType, isSimklPersonalList) {
-        mutableStateOf(session?.cachedHasMore ?: (!isSimklPersonalList && (platform == ExplorePlatform.SIMKL || !finiteChart || initialResults.isEmpty())))
+        mutableStateOf(session?.cachedHasMore ?: !isSimklPersonalList)
     }
     var loadError by remember { mutableStateOf<String?>(null) }
     androidx.compose.runtime.SideEffect {
@@ -377,7 +376,7 @@ fun FullScreenMediaGridPage(
                     ExplorePlatform.KITSU -> when (categoryType) {
                         ExploreCategoryType.TOP_RATED_ANIME -> com.kitsugi.animelist.data.remote.KitsuExploreClient.topRatedAnime(20, offset = (np - 1) * 20)
                         ExploreCategoryType.TOP_RATED_MANGA -> com.kitsugi.animelist.data.remote.KitsuExploreClient.topRatedManga(20, offset = (np - 1) * 20)
-                        ExploreCategoryType.TRENDING_ANIME -> com.kitsugi.animelist.data.remote.KitsuExploreClient.trendingAnime(20)
+                        ExploreCategoryType.TRENDING_ANIME -> com.kitsugi.animelist.data.remote.KitsuExploreClient.trendingAnime(20, offset = (np - 1) * 20)
                         ExploreCategoryType.MOVIE_ANIME -> com.kitsugi.animelist.data.remote.KitsuExploreClient.movieAnime(20, offset = (np - 1) * 20)
                         ExploreCategoryType.SEASONAL_ANIME -> fetchSeasonalPage(np)
                         ExploreCategoryType.TOP_ANIME -> com.kitsugi.animelist.data.remote.KitsuExploreClient.topAnime(20, offset = (np - 1) * 20)
@@ -427,7 +426,9 @@ fun FullScreenMediaGridPage(
                         loadedResults = loadedResults + uniqueItems
                         currentPage = np
                     }
-                    if (uniqueItems.isEmpty() || finiteChart) hasMorePages = false
+                    // Sayfa boş ya da tamamı kopyaysa liste sona ermiş kabul edilir.
+                    // (Kitsu gibi sayfalamayı yok sayan uçlar burada durur; sonsuz döngü olmaz.)
+                    if (uniqueItems.isEmpty()) hasMorePages = false
                     if (platform == ExplorePlatform.SIMKL && simklCategoryHasPagination &&
                         (newItems.size < SIMKL_EXPLORE_PAGE_SIZE ||
                             (!simklCategoryUsesFiniteChart && np >= SIMKL_MAX_API_PAGE))

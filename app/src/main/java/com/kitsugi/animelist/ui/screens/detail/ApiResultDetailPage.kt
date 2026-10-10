@@ -264,6 +264,10 @@ fun ApiResultDetailPage(
                 titleEnglish = effTitleEnglish,
                 titleJapanese = effTitleJapanese,
                 titleRomaji = effTitleRomaji,
+                // Liste kayıtlarında tür her zaman taşınmaz (Kitsu/Shikimori listeleri "Anime"
+                // derler). Detayın bildiği tür (ör. Shikimori `kind=movie`) hero etiketini,
+                // bölüm sayacını ve film/dizi akışlarını doğru türe çeker.
+                type = detail.type ?: result.type,
                 imageUrl = if (!detail.imageUrl.isNullOrBlank()) detail.imageUrl else result.imageUrl,
                 score = result.score ?: detail.score,
                 year = result.year ?: detail.year,

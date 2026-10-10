@@ -17,7 +17,7 @@ import java.net.URLEncoder
  *  - AniList API geçici olarak kapalı (AniListServiceDownException) → Kitsu'ya düş
  *
  * Kitsu API özellikleri:
- *  - Base URL: https://kitsu.io/api/edge
+ *  - Base URL: [KitsuApiHost] üzerinden çözülür (kitsu.app kanonik, kitsu.io yedek)
  *  - Format: JSON:API (application/vnd.api+json)
  *  - Auth: GET istekleri için gerekmiyor (public keşfet)
  *  - Rate Limit: Belirtilmemiş; yavaş-sabırlı istek yapılması önerilir
@@ -30,8 +30,21 @@ import java.net.URLEncoder
  */
 object KitsuExploreClient {
     private const val TAG = "KitsuExploreClient"
-    private const val BASE = "https://kitsu.io/api/edge"
     private const val KITSU_ID_OFFSET = 300_000_000
+
+    /**
+     * Sayfa başına kayıt tavanı. Kitsu `page[limit]` için 20'den büyük değeri
+     * `400 Invalid page value → Limit exceeds maximum page size of 20` ile reddeder.
+     */
+    private const val KITSU_MAX_PAGE_LIMIT = 20
+
+    /**
+     * `page[offset]` desteklemeyen host'ta (kitsu.io uyumluluk katmanı) 2. sayfanın 1.
+     * sayfayla birebir aynı olduğunu anlayabilmek için sorgu başına ilk kaydın kimliği.
+     */
+    private val pageAnchors = com.kitsugi.animelist.core.memory.BoundedCache<String, String>(
+        name = "kitsu_page_anchor", maxEntries = 64
+    )
 
     // ── Public API ───────────────────────────────────────────────────────────
     
@@ -44,8 +57,7 @@ object KitsuExploreClient {
             }
             val safeLimit = limit.coerceIn(1, 20)
             val encoded = java.net.URLEncoder.encode(query, "UTF-8")
-            val url = "$BASE/$endpoint?filter[text]=$encoded&page[limit]=$safeLimit"
-            fetchList(url, mediaType)
+            fetchPaged("/$endpoint?filter[text]=$encoded&page[limit]=$safeLimit", mediaType)
         }
 
     suspend fun searchMediaAdvanced(
@@ -84,8 +96,7 @@ object KitsuExploreClient {
         if (!streamers.isNullOrEmpty()) params.add("filter[streamers]=${streamers.joinToString(",")}")
         if (minRating != null && minRating > 0) params.add("filter[averageRating]=$minRating..100")
 
-        val url = "$BASE/$endpoint?${params.joinToString("&")}"
-        fetchList(url, mediaType)
+        fetchPaged("/$endpoint?${params.joinToString("&")}", mediaType)
     }
 
     suspend fun searchCharacters(query: String, page: Int = 1, limit: Int = 20): List<JikanSearchResult> = withContext(Dispatchers.IO) {
@@ -93,7 +104,7 @@ object KitsuExploreClient {
         val safeLimit = limit.coerceIn(1, 20)
         val offset = (page - 1) * safeLimit
         val encoded = java.net.URLEncoder.encode(query.trim(), "UTF-8")
-        val url = "$BASE/characters?filter[name]=$encoded&page[limit]=$safeLimit&page[offset]=$offset"
+        val url = KitsuApiHost.url("/characters?filter[name]=$encoded&page[limit]=$safeLimit&page[offset]=$offset")
         val req = Request.Builder().url(url).header("Accept", "application/vnd.api+json").build()
         try {
             KitsugiHttpClient.client.newCall(req).execute().use { res ->
@@ -131,86 +142,145 @@ object KitsuExploreClient {
         }
     }
 
-    /** Trend animeler (Kitsu trending endpoint) */
-    suspend fun trendingAnime(limit: Int = 20): List<JikanSearchResult> =
-        fetchAnimeList("$BASE/trending/anime?limit=$limit")
+    /**
+     * Trend animeler (Kitsu trending endpoint).
+     *
+     * `page[limit]`/`page[offset]` JSON:API sayfalamasını kullanır; böylece "Tümünü Gör"
+     * sayfası 20 kayıtta kilitli kalmaz.
+     */
+    suspend fun trendingAnime(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
+        fetchAnimeList(
+            "/trending/anime?page[limit]=${limit.coerceIn(1, KITSU_MAX_PAGE_LIMIT)}" +
+                "&page[offset]=${offset.coerceAtLeast(0)}"
+        )
 
     /** Sezonluk animeler (belirtilen mevsim ve yıl) */
     suspend fun seasonalAnime(season: String, year: Int, limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
-        fetchAnimeList("$BASE/anime?filter[season]=${season.lowercase()}&filter[seasonYear]=$year&sort=-userCount&page[limit]=$limit&page[offset]=$offset")
+        fetchAnimeList("/anime?filter[season]=${season.lowercase()}&filter[seasonYear]=$year&sort=-userCount&page[limit]=$limit&page[offset]=$offset")
 
     /** En yüksek puanlı animeler */
     suspend fun topRatedAnime(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
-        fetchAnimeList("$BASE/anime?sort=-averageRating&page[limit]=$limit&page[offset]=$offset")
+        fetchAnimeList("/anime?sort=-averageRating&page[limit]=$limit&page[offset]=$offset")
 
     /** En popüler animeler (userCount'a göre sıralı) */
     suspend fun topAnime(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
-        fetchAnimeList("$BASE/anime?sort=-userCount&page[limit]=$limit&page[offset]=$offset")
+        fetchAnimeList("/anime?sort=-userCount&page[limit]=$limit&page[offset]=$offset")
 
     /** Yayında olan animeler */
     suspend fun airingAnime(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
-        fetchAnimeList("$BASE/anime?filter[status]=current&sort=-userCount&page[limit]=$limit&page[offset]=$offset")
+        fetchAnimeList("/anime?filter[status]=current&sort=-userCount&page[limit]=$limit&page[offset]=$offset")
 
     /** Yakında yayınlanacak animeler */
     suspend fun upcomingAnime(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
-        fetchAnimeList("$BASE/anime?filter[status]=upcoming&sort=-userCount&page[limit]=$limit&page[offset]=$offset")
+        fetchAnimeList("/anime?filter[status]=upcoming&sort=-userCount&page[limit]=$limit&page[offset]=$offset")
 
     /** Yakın zamanda eklenen animeler */
     suspend fun newlyAddedAnime(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
-        fetchAnimeList("$BASE/anime?sort=-createdAt&page[limit]=$limit&page[offset]=$offset")
+        fetchAnimeList("/anime?sort=-createdAt&page[limit]=$limit&page[offset]=$offset")
 
     /** Film formatındaki animeler */
     suspend fun movieAnime(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
-        fetchAnimeList("$BASE/anime?filter[subtype]=movie&sort=-userCount&page[limit]=$limit&page[offset]=$offset")
+        fetchAnimeList("/anime?filter[subtype]=movie&sort=-userCount&page[limit]=$limit&page[offset]=$offset")
 
     /** En yüksek puanlı mangalar */
     suspend fun topRatedManga(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
-        fetchMangaList("$BASE/manga?sort=-averageRating&page[limit]=$limit&page[offset]=$offset")
+        fetchMangaList("/manga?sort=-averageRating&page[limit]=$limit&page[offset]=$offset")
 
     /** En popüler mangalar */
     suspend fun topManga(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
-        fetchMangaList("$BASE/manga?sort=-userCount&page[limit]=$limit&page[offset]=$offset")
+        fetchMangaList("/manga?sort=-userCount&page[limit]=$limit&page[offset]=$offset")
 
     /** Yayında olan mangalar */
     suspend fun publishingManga(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
-        fetchMangaList("$BASE/manga?filter[status]=current&sort=-userCount&page[limit]=$limit&page[offset]=$offset")
+        fetchMangaList("/manga?filter[status]=current&sort=-userCount&page[limit]=$limit&page[offset]=$offset")
 
     /** Trend mangalar (favoritesCount sırası) */
     suspend fun trendingManga(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
-        fetchMangaList("$BASE/manga?sort=-favoritesCount&page[limit]=$limit&page[offset]=$offset")
+        fetchMangaList("/manga?sort=-favoritesCount&page[limit]=$limit&page[offset]=$offset")
 
     /** Yakın zamanda eklenen mangalar */
     suspend fun newlyAddedManga(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
-        fetchMangaList("$BASE/manga?sort=-createdAt&page[limit]=$limit&page[offset]=$offset")
+        fetchMangaList("/manga?sort=-createdAt&page[limit]=$limit&page[offset]=$offset")
 
     // ── Internal HTTP ─────────────────────────────────────────────────────────
 
-    private suspend fun fetchAnimeList(url: String): List<JikanSearchResult> =
-        withContext(Dispatchers.IO) {
-            fetchList(url, MediaType.Anime)
-        }
+    private suspend fun fetchAnimeList(pathAndQuery: String): List<JikanSearchResult> =
+        fetchPaged(pathAndQuery, MediaType.Anime)
 
-    private suspend fun fetchMangaList(url: String): List<JikanSearchResult> =
-        withContext(Dispatchers.IO) {
-            fetchList(url, MediaType.Manga)
-        }
+    private suspend fun fetchMangaList(pathAndQuery: String): List<JikanSearchResult> =
+        fetchPaged(pathAndQuery, MediaType.Manga)
 
-    private fun fetchList(url: String, mediaType: MediaType): List<JikanSearchResult> {
+    /**
+     * Kitsu liste ucu çağrısı: host seçimi, yedek host denemesi ve sayfa bekçisi burada.
+     *
+     * Sayfa bekçisi: `page[offset]` bazı adreslerde yok sayılıyor ve 2. sayfa 1. sayfanın
+     * aynısını dönüyordu. Arayüz kopya kayıtları elediği için kullanıcı "devamı hiç
+     * gelmiyor" diye görüyordu. Artık ilk sayfanın baş kaydıyla aynı kayıt dönerse önce
+     * diğer adres denenir; o da aynısını verirse listenin bittiği kabul edilir.
+     */
+    private suspend fun fetchPaged(
+        pathAndQuery: String,
+        mediaType: MediaType
+    ): List<JikanSearchResult> = withContext(Dispatchers.IO) {
+        val offset = pagingOffset(pathAndQuery)
+        val anchorKey = pagingAnchorKey(pathAndQuery)
+        var primaryFailed = false
+        for (host in KitsuApiHost.candidates()) {
+            val items = runCatching { fetchFromHost(KitsuApiHost.url(pathAndQuery, host), mediaType) }
+                .getOrElse { err ->
+                    Log.w(TAG, "Kitsu isteği başarısız ($host): ${err.message}")
+                    null
+                }
+            if (items == null) {
+                primaryFailed = true
+                continue
+            }
+            val head = items.firstOrNull()?.let { "${it.source}:${it.malId}:${it.title}" }
+            if (offset > 0) {
+                val anchor = pageAnchors[anchorKey]
+                if (anchor != null && head == anchor) {
+                    Log.w(TAG, "Kitsu sayfa bekçisi: offset=$offset aynı kaydı döndürdü ($host atlandı)")
+                    continue
+                }
+            } else if (head != null) {
+                pageAnchors[anchorKey] = head
+            }
+            if (host != KitsuApiHost.base && primaryFailed) KitsuApiHost.degrade()
+            return@withContext items
+        }
+        if (primaryFailed) KitsuApiHost.degrade()
+        emptyList()
+    }
+
+    /** Sorgudaki `page[offset]` değeri (yoksa 0). */
+    private fun pagingOffset(pathAndQuery: String): Int =
+        Regex("page\\[offset\\]=(\\d+)").find(pathAndQuery)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+
+    /** `page[offset]` hariç sorgunun tamamı — aynı listenin sayfaları aynı anahtarı paylaşır. */
+    private fun pagingAnchorKey(pathAndQuery: String): String =
+        pathAndQuery.replace(Regex("&?page\\[offset\\]=\\d+"), "")
+
+    /** Tek bir adresten liste çeker; HTTP hatası/bozuk gövde için `null` döner. */
+    private fun fetchFromHost(url: String, mediaType: MediaType): List<JikanSearchResult>? {
+        val request = Request.Builder()
+            .url(url)
+            .header("Accept", "application/vnd.api+json")
+            .header("Content-Type", "application/vnd.api+json")
+            .header("User-Agent", "Kitsugi/1.0 (Android)")
+            .build()
+
         return try {
-            val request = Request.Builder()
-                .url(url)
-                .header("Accept", "application/vnd.api+json")
-                .header("Content-Type", "application/vnd.api+json")
-                .header("User-Agent", "Kitsugi/1.0 (Android)")
-                .build()
-
             KitsugiHttpClient.client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
                     Log.w(TAG, "HTTP ${response.code} for $url")
-                    return emptyList()
+                    return null
                 }
-                val body = response.body?.string() ?: return emptyList()
+                val body = response.body?.string() ?: return null
                 val root = JSONObject(body)
+                if (root.has("errors")) {
+                    Log.w(TAG, "Kitsu hata yanıtı for $url: ${root.optJSONArray("errors")?.optJSONObject(0)?.optString("detail")}")
+                    return null
+                }
                 val dataArr = root.optJSONArray("data") ?: return emptyList()
 
                 val results = mutableListOf<JikanSearchResult>()
@@ -222,7 +292,7 @@ object KitsuExploreClient {
             }
         } catch (e: Exception) {
             Log.e(TAG, "Error fetching Kitsu list from $url: ${e.message}", e)
-            emptyList()
+            null
         }
     }
 
@@ -363,7 +433,7 @@ object KitsuExploreClient {
     private suspend fun fetchMangaDetailOnce(kitsuId: String, authToken: String?): KitsugiMediaDetail? =
         withContext(Dispatchers.IO) {
             try {
-                val url = "$BASE/manga/$kitsuId"
+                val url = KitsuApiHost.url("/manga/$kitsuId")
                 val builder = Request.Builder()
                     .url(url)
                     .header("Accept", "application/vnd.api+json")

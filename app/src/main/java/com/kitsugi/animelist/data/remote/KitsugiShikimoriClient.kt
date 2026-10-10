@@ -594,6 +594,11 @@ object KitsugiShikimoriClient {
 
                     KitsugiMediaDetail(
                         synopsis = synopsis,
+                        // Shikimori'nin `kind` alanı türün asıl kaynağıdır: "movie" kaydı
+                        // "Anime/TV" olarak etiketlenirse film akışları (TMDB galeri türü,
+                        // bölüm sayısı, oynatıcı varsayılanları) yanlış çalışıyordu.
+                        type = if (mediaType == MediaType.Manga) MediaType.Manga
+                               else kindToMediaType(data.optString("kind", "tv")),
                         genres = genresList.toTurkishGenres(),
                         status = statusStr,
                         studios = studiosList,
