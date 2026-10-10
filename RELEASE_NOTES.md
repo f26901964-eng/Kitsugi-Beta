@@ -1,5 +1,29 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.227)
+
+### 🎯 1. Kaynak Bazlı Arama & Bölüm Mekaniği: Film ve Dizi için Ayrı Boru Hatları (`CsStreamRunner.kt`, `CsTitleMatcher.kt`)
+- **Temel İlke:** Tüm kaynaklarda içerik araması artık YALNIZCA çıplak eser adıyla yapılır — sezon/bölüm bilgisi arama sorgusuna ASLA karışmaz. Hiçbir site (Türkçe/yabancı) "X 1. Sezon 1. Bölüm" sorgusunu çözemez; doğru akış oturtuldu: başlık ara → içerik sayfasına gir → (dizi ise) sezon+bölüm sayfasına in → video verilerini çek.
+- **Film Mekaniği (ayrı boru hattı):** Filmler sezon mantığıyla depolanmaz; eşleşen içerik sayfası doğrudan video sayfası olarak kullanılır (dataUrl/url → loadLinks), bölüm eşleştirme yapılmaz.
+- **Dizi/Anime Mekaniği (ayrı boru hattı):** Yüklenen sayfanın bölüm listesinden hedef S+E seçilir; eklenti bölüm listesi doldurmuyorsa (sayfa-tipli plugin) sayfa URL'si bölüm kapsayıcısı olarak kullanılır.
+- **Sezon Sayfası Gezinmesi:** Bölüm listesi dolu ama hedef sezon sayfada yoksa site sezonu ayrı tutuyordur; eklentinin KENDİ search+load akışıyla sezon sayfasına inilir — kaynak-bağımsız, tüm eklentilerde ortak genel adım.
+- **Eski Hata Düzeltildi:** Bölüm listesi dolu olup eşleşme yoksa loadLinks'e DİZİ sayfası URL'si veriliyordu — 25 sn'lik link çıkarma bütçesi çöpe gidiyor, kart "akış bulunamadı" diyordu. Artık gerçek sebep tracker'a yazılır ve sezon gezinmesi denenir.
+- **Sezon Girdisi Araması (güvenlik ağı):** Sezon ekli sorgular ("X 2. Sezon") asla birincil arama değildir; yalnızca çıplak başlık araması sıfır sonuç döndürürse (sezonları ayrı indeksleyen siteler için) denenir.
+
+---
+
+## 🇬 English (v2.4.227)
+
+### 🎯 1. Per-Source Search & Episode Mechanics: Separate Pipelines for Movies vs Series (`CsStreamRunner.kt`, `CsTitleMatcher.kt`)
+- **Core principle:** Content search across ALL sources now uses ONLY the bare work title — season/episode info never enters the search query. No site (Turkish or foreign) can resolve "X Season 1 Episode 1"; the correct flow is established: search title → enter content page → (series) descend to the season+episode page → extract video data.
+- **Movie pipeline (separate):** Movies carry no season logic; the matched content page is used directly as the video page (dataUrl/url → loadLinks), with no episode matching.
+- **Series/anime pipeline (separate):** The target S/E is picked from the loaded page's episode list; when a plugin fills no episode list (page-style plugin), the page URL is used as the episode container.
+- **Season page navigation:** When the episode list is populated but the target season is absent, the site keeps seasons on separate entries; the plugin's OWN search+load flow navigates to the season page — a generic, source-agnostic step applied for every addon.
+- **Old bug fixed:** When episodes existed but none matched, the SERIES page URL was fed to loadLinks — the 25s link-extraction budget was wasted and the card showed "no streams found". The real reason is now recorded and season navigation is attempted instead.
+- **Season-entry search (safety net):** Season-suffixed queries ("X Season 2") are never primary searches; they run only when the bare-title search returns zero results (sites that index seasons as separate entries).
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.226)
 
 ### 📝 1. Liste Düzenleme Ekranı & Platform Eşitlemesi (`KitsugiEditMediaSheet.kt`, `BangumiSyncManager.kt`, `KitsuSyncManager.kt`, `ShikimoriSyncManager.kt`)

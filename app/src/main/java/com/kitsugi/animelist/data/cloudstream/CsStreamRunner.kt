@@ -1122,8 +1122,15 @@ object CsStreamRunner {
             CsTrace.info(api.name, "search", "getLoadUrl boş → title-search fallback")
         }
 
-        // Preserve language aliases; include season-specific forms only for episodic content.
-        val titleVariants = buildTitleVariants(title, alternativeTitles, season, isMovie == true)
+        // ── ARAMA İLKESİ (film & dizi mekaniklerinin ortak kuralı) ─────────────
+        // Birincil arama YALNIZCA çıplak eser adı ile yapılır — sezon/bölüm bilgisi
+        // ASLA arama sorgusuna karışmaz. Hiçbir site (Türkçe/yabancı) "X 1. Sezon
+        // 1. Bölüm" sorgusunu çözemez; doğru akış: başlık ara → içerik sayfasına gir
+        // → (dizi ise) sezon+bölüm sayfasına in → video verilerini çek.
+        // Sezon-kapsamlı sorgular yalnızca iki güvenlik ağı için vardır:
+        //  (a) çıplak arama sıfır sonuç döndürürse (sezonları ayrı indeksleyen siteler),
+        //  (b) içerik sayfasında hedef sezon yoksa sezon sayfasına gezinme.
+        val titleVariants = buildPlainTitleVariants(title, alternativeTitles, isMovie == true)
         Log.d(TAG, "[${api.name}] Arama varyantları (${titleVariants.size}): ${titleVariants.take(6)}")
         CsTrace.info(api.name, "variants", "${titleVariants.size} varyant: ${titleVariants.take(6)}")
 
@@ -1199,6 +1206,36 @@ object CsStreamRunner {
                     searchedVariant = variant
                     Log.d(TAG, "[${api.name}] ✓ Özgün domainle '${variant}' için ${results.size} sonuç bulundu")
                     break
+                }
+            }
+        }
+
+        // SON ÇARE 1.5 (sezon girdisi araması — YALNIZCA diziler): Çıplak başlık araması
+        // hiçbir sonuç vermediyse bazı siteler sezonları AYRI girdiler olarak indeksler
+        // ("X 2. Sezon" sitede bağımsız bir eserdir). Bu aşama asla birincil arama değildir;
+        // yalnızca çıplak arama boş kaldığında devreye giren kaynak-bağımsız güvenlik ağıdır.
+        // Filmlerde sezon mantığı olmadığından bu aşama tamamen atlanır.
+        if (results.isEmpty() && isMovie != true && season > 1 &&
+            System.currentTimeMillis() - searchStartMs < searchTimeBudgetMs
+        ) {
+            val seasonVariants = buildSeasonScopedVariants(title, alternativeTitles, season)
+            Log.d(TAG, "[${api.name}] Sezon girdisi araması (${seasonVariants.size} varyant): ${seasonVariants.take(4)}")
+            CsTrace.info(api.name, "season-search", "Çıplak arama boş → ${seasonVariants.size} sezon varyantı deneniyor")
+            var seasonVariantIndex = 0
+            seasonSearch@ while (seasonVariantIndex < seasonVariants.size) {
+                if (System.currentTimeMillis() - searchStartMs > searchTimeBudgetMs) break@seasonSearch
+                val batch = seasonVariants.drop(seasonVariantIndex).take(3)
+                seasonVariantIndex += batch.size
+                val batchResults = kotlinx.coroutines.coroutineScope {
+                    batch.map { v -> async { v to safeSearch(api, v) } }.awaitAll()
+                }
+                for ((v, vr) in batchResults) {
+                    if (vr.isNotEmpty()) {
+                        results = vr
+                        searchedVariant = "$v (sezon girdisi)"
+                        Log.d(TAG, "[${api.name}] ✓ Sezon girdisi araması '$v' → ${vr.size} sonuç")
+                        break@seasonSearch
+                    }
                 }
             }
         }
@@ -1347,39 +1384,49 @@ object CsStreamRunner {
         CsTrace.info(api.name, "match", "Eşleşme: '${finalMatch.name}' skor=${"%.2f".format(getBestTitleSimilarity(finalMatch.name, title, alternativeTitles, isMovie))}")
         
         // If we already loaded the correct LoadResponse, reuse it instead of reloading!
-        return if (bestLoadResponse != null && finalMatch == validatedMatch) {
-            val episodeData = if (isMovie == true) {
-                if (bestLoadResponse is MovieLoadResponse) {
-                    findEpisodeData(bestLoadResponse, season, episode)
-                } else {
-                    bestLoadResponse.url.takeIf { it.isNotBlank() }
-                }
-            } else {
-                findEpisodeData(bestLoadResponse, season, episode)
-                    ?: bestLoadResponse.url.takeIf { it.isNotBlank() }?.also {
-                        Log.w(TAG, "[${api.name}] findEpisodeData null — URL fallback: $it (powerDizi/XPrime style)")
-                    }
-            }
-            if (episodeData == null) {
-                Log.w(TAG, "[${api.name}] S${season}E${episode} ve URL fallback da başarısız.")
-                emptyList()
-            } else {
-                extractStreamsFromEpisode(api, bestLoadResponse, episodeData, partialSink)
-            }
-        } else {
-            loadAndExtractStreams(api, finalMatch, season, episode, isMovie == true, partialSink)
-        }
+        // Film ve dizi mekanikleri AYRI boru hatlarıdır — dispatcher türüne göre yönlendirir.
+        return loadAndExtractStreams(
+            api = api,
+            match = finalMatch,
+            season = season,
+            episode = episode,
+            isMovie = isMovie == true,
+            partialSink = partialSink,
+            preloaded = if (bestLoadResponse != null && finalMatch == validatedMatch) bestLoadResponse else null,
+            title = title,
+            alternativeTitles = alternativeTitles,
+            year = year
+        )
     }
 
+    /**
+     * ── KAYNAK-BAĞIMSIZ BORU HATTI DİSPATCHER'I ───────────────────────────────
+     * Film ve dizi/anime içerikleri için AYRI video veri çekme mekaniklerini
+     * yönlendirir. Her iki mekanik de aynı ilkeyi izler:
+     *   başlık ara → içerik sayfasına gir (load) → video verilerini çek (loadLinks)
+     * fark yalnızca ortadaki adımdadır:
+     *   - [extractMovieStreams]: filmler sezon mantığıyla depolanmaz; eşleşen
+     *     içerik sayfasının kendisi video sayfasıdır.
+     *   - [extractSeriesStreams]: dizi/anime/sezonlu içerik; yüklenen sayfadan
+     *     sezon+bölüm eşleşmesi yapılır, hedef sezon sayfada yoksa eklentinin
+     *     kendi aramasıyla sezon sayfasına gezinilir.
+     *
+     * @param preloaded Doğrulama aşamasında zaten yüklenmiş LoadResponse (çift load önleme).
+     * @param title     Sezon sayfası gezinmesi için eser adı (doğrudan-URL modunda match.name).
+     */
     private suspend fun loadAndExtractStreams(
         api: MainAPI,
         match: SearchResponse,
         season: Int,
         episode: Int,
         isMovie: Boolean = false,
-        partialSink: MutableList<StreamSource>? = null
+        partialSink: MutableList<StreamSource>? = null,
+        preloaded: LoadResponse? = null,
+        title: String? = null,
+        alternativeTitles: List<String> = emptyList(),
+        year: Int? = null
     ): List<StreamSource> {
-        val loadResponse = safeLoad(api, match.url) ?: run {
+        val loadResponse = preloaded ?: safeLoad(api, match.url) ?: run {
             Log.w(TAG, "[${api.name}] safeLoad null döndü: ${match.url}")
             // safeLoad exception yolunda zaten recordFailure yapar; yalnızca timeout vb.
             // mesajsız başarısızlıklarda sebep yaz (var olan spesifik hatanın üzerine yazma).
@@ -1389,28 +1436,155 @@ object CsStreamRunner {
             return emptyList()
         }
 
-        // Movies load links from the movie page URL; episodic content first resolves its episode.
-        val episodeData = if (isMovie) {
-            if (loadResponse is MovieLoadResponse) {
-                findEpisodeData(loadResponse, season, episode)
-            } else {
-                loadResponse.url.takeIf { it.isNotBlank() }
-            }
+        return if (isMovie) {
+            extractMovieStreams(api, loadResponse, partialSink)
         } else {
-            findEpisodeData(loadResponse, season, episode)
-                ?: loadResponse.url.takeIf { it.isNotBlank() }?.also {
-                    Log.w(TAG, "[${api.name}] findEpisodeData null — URL fallback: $it (powerDizi/XPrime style)")
-                }
+            extractSeriesStreams(
+                api = api,
+                loadResponse = loadResponse,
+                season = season,
+                episode = episode,
+                partialSink = partialSink,
+                title = title ?: match.name,
+                alternativeTitles = alternativeTitles,
+                year = year
+            )
         }
-        if (episodeData == null) {
-            Log.w(TAG, "[${api.name}] S${season}E${episode} bulunamadı. LoadResponse tipi: ${loadResponse.javaClass.simpleName}")
-            CsTrace.warn(api.name, "episode", "S${season}E${episode} bölümü bulunamadı (LoadResponse=${loadResponse.javaClass.simpleName})")
-            CsPluginStatusTracker.recordSkip(api.name, "S${season}E${episode} bölümü bulunamadı (${loadResponse.javaClass.simpleName})")
+    }
+
+    /**
+     * ── FİLM MEKANİĞİ ────────────────────────────────────────────────────────
+     * Filmler sezon/bölüm mantığıyla depolanmaz: eşleşen içerik sayfası doğrudan
+     * video sayfasıdır. Sorguya sezon/bölüm karışmaz, bölüm eşleştirme yapılmaz;
+     * sayfa verisi (dataUrl / url) doğrudan loadLinks'e verilir.
+     */
+    private suspend fun extractMovieStreams(
+        api: MainAPI,
+        loadResponse: LoadResponse,
+        partialSink: MutableList<StreamSource>?
+    ): List<StreamSource> {
+        val movieData = when (loadResponse) {
+            is MovieLoadResponse -> loadResponse.dataUrl.takeIf { !it.isNullOrBlank() } ?: loadResponse.url
+            else -> loadResponse.url.takeIf { !it.isNullOrBlank() }
+        }
+        if (movieData.isNullOrBlank()) {
+            Log.w(TAG, "[${api.name}] 🎬 Film mekaniği: sayfa URL'si boş (${loadResponse.javaClass.simpleName})")
+            CsTrace.warn(api.name, "movie", "Film sayfası url/dataUrl boş (${loadResponse.javaClass.simpleName})")
+            CsPluginStatusTracker.recordSkip(api.name, "Film sayfası çözülemedi (url/dataUrl boş)")
             return emptyList()
         }
+        Log.d(TAG, "[${api.name}] 🎬 Film mekaniği: içerik sayfası → loadLinks ($movieData)")
+        CsTrace.info(api.name, "movie", "İçerik sayfası video verisi için kullanılıyor")
+        return extractStreamsFromEpisode(api, loadResponse, movieData, partialSink)
+    }
 
-        Log.d(TAG, "[${api.name}] S${season}E${episode} için episodeData bulundu")
-        return extractStreamsFromEpisode(api, loadResponse, episodeData, partialSink)
+    /**
+     * ── DİZİ/ANİME MEKANİĞİ ──────────────────────────────────────────────────
+     * Doğru akış: başlık ara → içerik sayfası → SEZON+BÖLÜM sayfası → video verisi.
+     *
+     * 1. Yüklenen sayfanın bölüm listesinden hedef S/E seçilir (CsEpisodeMatcher).
+     * 2. Eklenti bölüm listesi doldurmuyorsa (sayfa-tipli plugin; powerDizi/XPrime
+     *    tarzı) sayfa URL'si bölüm kapsayıcısı olarak kullanılır.
+     * 3. Bölüm listesi DOLU ama hedef sezon/bölüm yoksa site sezonu ayrı sayfada
+     *    tutuyordur: [navigateToSeasonPage] eklentinin kendi aramasıyla sezon
+     *    sayfasına iner (kaynak-bağımsız genel sezona-inme adımı).
+     *
+     * ESKİ DAVRANIŞ (HATA): bölüm listesi dolu olup eşleşme yoksa loadLinks'e
+     * DİZİ sayfasının URL'si veriliyordu — video verisi asla dizi sayfasından
+     * gelmez; 25 sn'lik loadLinks bütçesi çöpe gidiyor ve kart "akış bulunamadı"
+     * diyordu. Artık bu durumda gerçek sebep yazılır ve sezon gezinmesi denenir.
+     */
+    private suspend fun extractSeriesStreams(
+        api: MainAPI,
+        loadResponse: LoadResponse,
+        season: Int,
+        episode: Int,
+        partialSink: MutableList<StreamSource>?,
+        title: String,
+        alternativeTitles: List<String>,
+        year: Int?
+    ): List<StreamSource> {
+        val episodeData = findEpisodeData(loadResponse, season, episode)
+        if (episodeData != null) {
+            Log.d(TAG, "[${api.name}] 📺 Dizi mekaniği: S${season}E${episode} bölüm verisi yüklenen sayfada bulundu")
+            return extractStreamsFromEpisode(api, loadResponse, episodeData, partialSink)
+        }
+
+        val epCount = episodeCountOf(loadResponse)
+        if (epCount == 0) {
+            val pageUrl = loadResponse.url.takeIf { !it.isNullOrBlank() }
+            if (pageUrl == null) {
+                Log.w(TAG, "[${api.name}] 📺 Bölüm listesi boş ve sayfa URL'si de boş (${loadResponse.javaClass.simpleName})")
+                CsTrace.warn(api.name, "episode", "Bölüm listesi boş, url boş (${loadResponse.javaClass.simpleName})")
+                CsPluginStatusTracker.recordSkip(api.name, "S${season}E${episode} çözülemedi (bölüm listesi ve url boş)")
+                return emptyList()
+            }
+            Log.w(TAG, "[${api.name}] 📺 Bölüm listesi boş — sayfa-tipli plugin (powerDizi/XPrime tarzı): URL fallback $pageUrl")
+            CsTrace.info(api.name, "episode", "Bölüm listesi boş; sayfa URL'si bölüm kapsayıcısı olarak kullanılıyor")
+            return extractStreamsFromEpisode(api, loadResponse, pageUrl, partialSink)
+        }
+
+        // Bölüm listesi DOLU ama hedef S/E yok → site sezonu ayrı tutuyor; sezon sayfasına in.
+        // Gezinme sorguları için en güvenilir başlık, yüklenen sayfanın KENDİ adıdır
+        // (doğrudan-URL modunda match.name eklenti adı olabilir).
+        val navTitle = loadResponse.name.takeIf { !it.isNullOrBlank() } ?: title
+        Log.w(TAG, "[${api.name}] 📺 S${season}E${episode} yüklenen sayfada yok (${epCount} bölüm) — sezon sayfasına geziniliyor")
+        CsTrace.warn(api.name, "episode", "S${season}E${episode} ${epCount} bölüm içinde yok — sezon gezinmesi ('$navTitle')")
+        val navigated = withTimeoutOrNull(20_000L) {
+            navigateToSeasonPage(api, loadResponse, season, episode, navTitle, alternativeTitles, year)
+        }
+        if (navigated != null) {
+            return extractStreamsFromEpisode(api, navigated.second, navigated.first, partialSink)
+        }
+        CsPluginStatusTracker.recordSkip(
+            api.name,
+            "S${season}E${episode} bulunamadı — sezon sayfası gezinmesi de sonuç vermedi (yüklenen sayfada ${epCount} bölüm vardı)"
+        )
+        return emptyList()
+    }
+
+    /**
+     * Genel sezon sayfası gezinmesi: CloudStream API'sinde sezon gezinme metodu
+     * yoktur; sitenin o sezona ait sayfasına ulaşmanın kaynak-bağımsız tek yolu
+     * eklentinin KENDİ search+load akışını kullanmaktır (Türkçe/yabancı siteler
+     * sezonları sıklıkla ayrı girdi olarak indeksler: "X 2. Sezon").
+     *
+     * @return (bölüm verisi, sezon sayfası LoadResponse) ikilisi; başarısızsa null.
+     */
+    private suspend fun navigateToSeasonPage(
+        api: MainAPI,
+        current: LoadResponse,
+        season: Int,
+        episode: Int,
+        title: String,
+        alternativeTitles: List<String>,
+        year: Int?
+    ): Pair<String, LoadResponse>? {
+        val queries = buildSeasonScopedVariants(title, alternativeTitles, season).take(4)
+        if (queries.isEmpty()) return null
+        for (query in queries) {
+            val results = safeSearch(api, query)
+            if (results.isEmpty()) continue
+            val candidates = results.filter { it.url != current.url }
+            if (candidates.isEmpty()) continue
+            val match = findBestMatch(candidates, title, alternativeTitles, year, season, episode, false)
+                ?: candidates.firstOrNull()
+                ?: continue
+            val resp = safeLoad(api, match.url) ?: continue
+            val data = findEpisodeData(resp, season, episode) ?: continue
+            Log.d(TAG, "[${api.name}] ⤷ Sezon gezinmesi başarılı: '$query' → '${match.name}' → S${season}E${episode}")
+            CsTrace.info(api.name, "season-nav", "'$query' → ${match.url}")
+            return data to resp
+        }
+        CsTrace.warn(api.name, "season-nav", "${queries.size} sezon sorgusu da sezon sayfasına inemedi")
+        return null
+    }
+
+    /** LoadResponse'un doldurduğu bölüm sayısı (0 = sayfa-tipli plugin). */
+    private fun episodeCountOf(response: LoadResponse): Int = when (response) {
+        is AnimeLoadResponse -> response.episodes.values.sumOf { it.size }
+        is TvSeriesLoadResponse -> response.episodes.size
+        else -> 0
     }
 
     /**
@@ -2714,8 +2888,13 @@ object CsStreamRunner {
     // Delegated to CsLanguageDetector — see CsLanguageDetector.kt
     private fun detectLanguageCode(lang: String): String =
         CsLanguageDetector.detectLanguageCode(lang)
-    private fun buildTitleVariants(main: String, alts: List<String>, season: Int, isMovie: Boolean = false): List<String> =
-        CsTitleMatcher.buildTitleVariants(main, alts, season, isMovie)
+    /** Yalnızca çıplak eser adı varyantları — birincil arama sorguları (sezon/bölüm karışmaz). */
+    private fun buildPlainTitleVariants(main: String, alts: List<String>, isMovie: Boolean): List<String> =
+        CsTitleMatcher.buildPlainTitleVariants(main, alts, isMovie)
+
+    /** Sezon-kapsamlı varyantlar — yalnızca güvenlik ağları (sezon girdisi araması / sezon sayfası gezinmesi). */
+    private fun buildSeasonScopedVariants(main: String, alts: List<String>, season: Int): List<String> =
+        CsTitleMatcher.buildSeasonScopedVariants(main, alts, season)
 
     /**
      * Geniş arama sorguları üretir — tüm başlık varyantları boş döndüğünde devreye girer.
