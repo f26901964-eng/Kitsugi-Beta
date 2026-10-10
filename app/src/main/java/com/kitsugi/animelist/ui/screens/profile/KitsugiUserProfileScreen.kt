@@ -232,6 +232,7 @@ fun KitsugiUserProfileScreen(
                                         val subTabs = listOf("Genel", "Türler", "Etiketler", "Ekip", "Seslendirenler", "Stüdyolar")
                                         val s = rememberLazyListState()
                                         LazyRow(state = s,
+                                            flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(s),
                                             modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                             items(subTabs.size) { idx ->
                                                 ProfileFilterChip(subTabs[idx], viewModel.statsSubTab == idx, resolvedAccent) { viewModel.statsSubTab = idx }
@@ -242,6 +243,7 @@ fun KitsugiUserProfileScreen(
                                         val s = rememberLazyListState()
                                         val labels = listOf("Anime", "Manga", "Karakterler", "Ekip", "Stüdyolar")
                                         LazyRow(state = s,
+                                            flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(s),
                                             modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                             items(5) { idx ->
                                                 ProfileFilterChip(labels[idx], viewModel.favoritesFilter == idx, resolvedAccent) { viewModel.favoritesFilter = idx }
@@ -251,6 +253,7 @@ fun KitsugiUserProfileScreen(
                                     4 -> {
                                         val s = rememberLazyListState()
                                         LazyRow(state = s,
+                                            flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(s),
                                             modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                             item { ProfileFilterChip("Takipçiler (${state.socialState.followers.size})", viewModel.socialFilter == 0, resolvedAccent) { viewModel.socialFilter = 0 } }
                                             item { ProfileFilterChip("Takip Edilen (${state.socialState.following.size})", viewModel.socialFilter == 1, resolvedAccent) { viewModel.socialFilter = 1 } }

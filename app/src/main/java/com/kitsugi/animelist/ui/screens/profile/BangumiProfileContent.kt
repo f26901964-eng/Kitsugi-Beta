@@ -579,7 +579,11 @@ private fun BangumiFavoriteRow(
     titleLanguage: String,
     onClick: (BangumiFavoriteItem) -> Unit
 ) {
-    LazyRow(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+    val snapRowState = androidx.compose.foundation.lazy.rememberLazyListState()
+    LazyRow(
+        state = snapRowState,
+        flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(snapRowState),
+        horizontalArrangement = Arrangement.spacedBy(12.dp)) {
         items(favorites, key = { it.id }) { favorite ->
             val displayName = BangumiNameLocalizer.entity(favorite.name).displayFor(titleLanguage)
             Column(

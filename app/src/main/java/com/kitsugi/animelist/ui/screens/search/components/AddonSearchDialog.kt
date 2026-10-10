@@ -299,7 +299,10 @@ fun AddonSearchDialog(
                                             modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
                                         )
 
+                                        val snapRowState = androidx.compose.foundation.lazy.rememberLazyListState()
                                         LazyRow(
+                                            state = snapRowState,
+                                            flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(snapRowState),
                                             modifier = Modifier.fillMaxWidth(),
                                             contentPadding = PaddingValues(horizontal = 8.dp),
                                             horizontalArrangement = Arrangement.spacedBy(12.dp)

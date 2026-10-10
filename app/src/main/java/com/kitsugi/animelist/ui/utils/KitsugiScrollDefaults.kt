@@ -4,6 +4,10 @@ import androidx.compose.animation.core.AnimationSpec
 import androidx.compose.animation.core.spring
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.gestures.BringIntoViewSpec
+import androidx.compose.foundation.gestures.FlingBehavior
+import androidx.compose.foundation.gestures.snapping.SnapPosition
+import androidx.compose.foundation.gestures.snapping.rememberSnapFlingBehavior
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 
@@ -26,6 +30,21 @@ import androidx.compose.runtime.remember
  * ⚠️ Bu API @ExperimentalFoundationApi kapsamındadır.
  */
 object KitsugiScrollDefaults {
+
+    /**
+     * Yatay kart satırları için "tık tık" sola yapışan kaydırma.
+     *
+     * Parmak bırakıldığında satır, en yakın kartın sol kenarı içerik
+     * dolgusunun (contentPadding) başına oturacak şekilde durur. Fling
+     * davranışı yalnızca satırın kendi (yatay) ekseninde çalışır; dikey
+     * kaydırmayı etkilemez.
+     */
+    @Composable
+    fun rememberRowSnapFling(state: LazyListState): FlingBehavior =
+        rememberSnapFlingBehavior(
+            lazyListState = state,
+            snapPosition = SnapPosition.Start
+        )
 
     /**
      * Fokus alan öğeyi viewport'un yatay merkezine getirir.

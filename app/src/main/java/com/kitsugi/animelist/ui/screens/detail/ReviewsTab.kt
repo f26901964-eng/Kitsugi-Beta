@@ -169,6 +169,7 @@ fun ReviewsTabContent(
 
                 LazyRow(
                     state = topicsListState,
+                    flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(topicsListState),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     contentPadding = PaddingValues(horizontal = 14.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -249,6 +250,7 @@ fun ReviewsTabContent(
 
                 LazyRow(
                     state = activitiesListState,
+                    flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(activitiesListState),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                     contentPadding = PaddingValues(horizontal = 14.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -351,6 +353,7 @@ fun ReviewsTabContent(
                     } else {
                         LazyRow(
                             state = reviewsListState,
+                            flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(reviewsListState),
                             horizontalArrangement = Arrangement.spacedBy(10.dp),
                             contentPadding = PaddingValues(horizontal = 14.dp),
                             modifier = Modifier.fillMaxWidth()

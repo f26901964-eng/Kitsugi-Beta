@@ -130,6 +130,7 @@ fun UserProfileStatsTab(
                             val scoreDistListState = rememberLazyListState()
                             LazyRow(
                                 state = scoreDistListState,
+                                flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(scoreDistListState),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
@@ -185,6 +186,7 @@ fun UserProfileStatsTab(
                             val lengthDistListState = rememberLazyListState()
                             LazyRow(
                                 state = lengthDistListState,
+                                flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(lengthDistListState),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
@@ -321,6 +323,7 @@ fun UserProfileStatsTab(
                             val releaseYearDistListState = rememberLazyListState()
                             LazyRow(
                                 state = releaseYearDistListState,
+                                flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(releaseYearDistListState),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
@@ -380,6 +383,7 @@ fun UserProfileStatsTab(
                             val startYearDistListState = rememberLazyListState()
                             LazyRow(
                                 state = startYearDistListState,
+                                flingBehavior = com.kitsugi.animelist.ui.utils.KitsugiScrollDefaults.rememberRowSnapFling(startYearDistListState),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
