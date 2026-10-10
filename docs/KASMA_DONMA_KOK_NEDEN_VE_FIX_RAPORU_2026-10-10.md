@@ -68,6 +68,27 @@ tahsisatları giderilmişti; bu da 2.4.235'te yoktu, birleştirmeyle alındı.
 | `a350173` | `KitsugiGradientMaterial.kt`: `AccentAwareBackgroundNode` ve `AccentAwareBorderNode` çözülen fırçayı girdiler değişene kadar node üzerinde önbellekliyor (kare-başına çözüm çağrısı yok) |
 | `a350173` | `Theme.kt`: `accentColor2` yalnızca `customAccentColor != 0 && customAccentColor2 != 0` iken aktif — hazır temada eski/bayatsı ikinci renk gradyan modunu artık aktive edemez |
 
+## 3.5 Logcat Kanıtları (diag/ — 22:51–22:58 yakalaması, v2.4.235)
+
+`diag/Kitsugi-logcat-20261010-2337.txt`, `diag/logcat.txt`, `diag/gfxinfo.txt`,
+`diag/meminfo.txt` (GitHub üzerinden alındı; doğrudan ek kanalı sandbox'a ulaşmadı).
+
+| Kanıt | Değer | Yorum |
+|---|---|---|
+| `Looper PerfMonitor doFrame` | 242 kare 500–999 ms, 2 kare ≥1000 ms | Ana thread kare başına 0.5–1.4 sn çalışıyor = hissedilen donma |
+| `Choreographer: Skipped` | sürekli 80–92 frame | Her donma ~1.3–1.5 sn |
+| `OpenGLRenderer: Davey!` | 1237–1300 ms | Aynı donmaların render tarafı yansıması |
+| GC | ~4.5 dk'da 100 background GC; her biri ~1 MİLYON nesne (34–36 MB) freed | Bellek sızıntısı DEĞİL (heap 43–48 MB sabit), devasa **allocation churn** — recomposition/çizim başına yoğun nesne üretimi |
+| gfxinfo | Janky %24, p90=1200 ms, Slow UI thread=330, GPU p99=11 ms | Sorun %100 ana thread CPU; GPU sağlıklı |
+| `RetryInterceptor` / `KitsugiApiBase` | 34× 429 (Retry-After 5 sn), sorgular ~10 sn'de bir tekrar | AniList rate-limit duvarına katmanlı retry (2×3) fırtınası |
+| ANR / FATAL | YOK | Uygulama çökmüyor; bozuk durumda ayakta kalıyor |
+| Eski crash raporu (00:21, v2.4.226) | `NoClassDefFoundError: kotlinx.datetime.serializers.InstantIso8601Serializer` | v2.4.227'de proguard keep + datetime 0.6.1 pin ile ZATEN düzeltilmiş |
+
+Bu kanıtlar 2. bölümdeki kök nedenleri doğruluyor: iç içe Looper'ın yuttuğu
+hatalarla ayakta tutulan bozuk kompozisyon durumu + akşamki ~300 dosyalık
+gradyan entegrasyonunun kare-başı fırça/shader tahsisatı, ana thread'de
+kare başına yüzlerce ms ve saniyede ~35 MB çöp üretimi olarak görülüyor.
+
 ## 4. Doğrulama
 
 - [x] Değiştirilen dosyalarda dengeli parantez/kaşeli kontrolü.
