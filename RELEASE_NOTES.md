@@ -1,5 +1,31 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.231)
+
+### 🌸 1. Bangumi Kişi ve Karakter Detayları — Uygulama Dilinde Başlık ve Rol Yerelleştirmesi
+- **Üç Kademeli Latin Başlık Çözümleyicisi (`BangumiSubjectTitleResolver`):** Bangumi kişi ve karakter listelerinin yalnızca Japonca/Çince isim döndürmesi nedeniyle "Yapımlar" ve "Karakterler" sekmelerinde başlıkların CJK kalması sorunu giderildi:
+  1. `BangumiTitleCache` kalıcı önbelleği (daha önce çözülen başlıklar için sıfır ağ isteği).
+  2. Bangumi v0 subject infobox (`英文名` / `罗马字` / `别名`).
+  3. **AniList Aliased Toplu Arama:** Tek GraphQL isteğinde çoklu aliased sorgu ile `native`/`synonyms` alanlarında birebir normalize eşleşme doğrulaması; yanlış eşleşme reddedilir ve sonuçlar kalıcı önbelleğe işlenir (`BangumiSubjectTitleResolver.kt`).
+- **Karakter ve Kadro Zenginleştirme Hatları:** Karakter detayı için `enrichCharacterDetailNames()` eklendi; `enrichStaffDetailNames()` ortak çözümleyiciye bağlandı. Senkron geçiş `cacheOnly` ile anında çizim sağlarken, ViewModel arka planda kalan başlıkları çözerek ekranı akıcı şekilde günceller (`KitsugiBangumiDetailClient.kt`, `CharacterDetailViewModel.kt`, `StaffDetailViewModel.kt`).
+- **Arayüz Diline Duyarlı Rol ve Tür Sözlüğü (`BangumiRoleDictionary`):** Çince ve Japonca rol etiketleri (`主角`, `配角`, `客串`, `主題歌演出`, `原作`, `监督` vb.) uygulamanın diline (TR / EN) çevrilir. Veri katmanındaki sabit Türkçe etiketler kaldırılarak İngilizce arayüzde İngilizce ("Main Character", "Staff Member", "Male"), Türkçe arayüzde Türkçe gösterim sağlandı (`BangumiRoleDictionary.kt`, `KitsugiTranslations.kt`, `KitsugiBangumiCreditsClient.kt`).
+- **Birim Testleri & Kararlılık:** `BangumiSubjectTitleResolverTest` ve `KitsugiTranslationsTest` testleri ile stableId/rawId dönüştürücüleri ve rol sözlüğü tam kapsamlı test edildi.
+
+---
+
+## 🇬🇧 English (v2.4.231)
+
+### 🌸 1. Bangumi Staff & Character Details — Localized Titles and Roles
+- **Three-Tier Latin Title Resolver (`BangumiSubjectTitleResolver`):** Fixed CJK (Japanese/Chinese) titles in the "Works" and "Characters" tabs of Bangumi person and character details:
+  1. Persistent `BangumiTitleCache` (zero network calls for previously resolved items).
+  2. Bangumi v0 subject infobox (`英文名` / `罗马字` / `别名`).
+  3. **AniList Aliased Batch Search:** Executes batched GraphQL searches in a single request with strict normalized matching on `native` titles and synonyms; incorrect candidates are safely rejected and valid matches are stored in persistent cache (`BangumiSubjectTitleResolver.kt`).
+- **Character & Staff Enrichment Pipelines:** Added `enrichCharacterDetailNames()` for character details and routed `enrichStaffDetailNames()` through the shared title resolver. Synchronous paths use `cacheOnly` for instant rendering, while ViewModels resolve background queues asynchronously (`KitsugiBangumiDetailClient.kt`, `CharacterDetailViewModel.kt`, `StaffDetailViewModel.kt`).
+- **Locale-Aware Role & Type Dictionary (`BangumiRoleDictionary`):** Chinese/Japanese role and credit labels (`主角`, `配角`, `客串`, `主題歌演出`, `原作`, `监督`, etc.) are now translated according to the active app language (TR / EN). Hardcoded Turkish fallback strings in data models were eliminated in favor of clean English and Turkish labels (`BangumiRoleDictionary.kt`, `KitsugiTranslations.kt`, `KitsugiBangumiCreditsClient.kt`).
+- **Unit Testing & Reliability:** Validated with comprehensive tests in `BangumiSubjectTitleResolverTest` and `KitsugiTranslationsTest` verifying ID mapping, alias alignment, and role localization.
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.230)
 
 ### ⚡ 1. Keşfet Kaynak Yükleme ve Arayüz Performansı İyileştirmeleri
