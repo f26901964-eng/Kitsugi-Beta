@@ -21,6 +21,8 @@ data class P2pSettingsUiState(
     val torrentProfile: P2pTorrentProfile = P2pTorrentProfile.BALANCED,
     val cacheSize: P2pCacheSize = P2pCacheSize.GB_2,
     val consentGranted: Boolean = false,
+    /** Oynatıcı kapanınca / yeni akış başlayınca torrent önbelleğini otomatik boşalt. */
+    val clearCacheOnClose: Boolean = true,
 )
 
 data class P2pCacheUiState(

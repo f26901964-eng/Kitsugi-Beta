@@ -289,6 +289,18 @@ object PlatformErrorCatalog {
     fun explainCode(context: Context, codeText: String?): Explanation =
         explain(context, PlatformErrorCode.fromCode(codeText))
 
+    /** Profil hata kartları gibi dar alanlar için kısa, iki dilli hata özeti. */
+    fun conciseBilingual(context: Context, code: PlatformErrorCode): String {
+        if (code == PlatformErrorCode.ANL_2002) {
+            val tr = localizedContext(context, "tr").getString(R.string.pf_err_anl_2002_profile_short)
+            val en = localizedContext(context, "en").getString(R.string.pf_err_anl_2002_profile_short)
+            return "TR — $tr\nEN — $en"
+        }
+        val tr = localized(context, code, "tr")
+        val en = localized(context, code, "en")
+        return "TR — ${tr.first}: ${tr.third}\nEN — ${en.first}: ${en.third}"
+    }
+
     /**
      * Rapor/paylaşım için **iki dilli** blok üretir: hem Türkçe hem İngilizce.
      * Kullanıcı raporu geliştiriciye gönderdiğinde hangi dilde olursa olsun anlaşılsın.

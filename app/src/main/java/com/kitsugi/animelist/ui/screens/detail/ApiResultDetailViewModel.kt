@@ -285,6 +285,10 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
             if (showLogos) {
                 runCatching { fetchLogo(result, true) }
             }
+            // The detail gallery has its own season-aware cache and includes TMDB season logos.
+            if (_galleryItems.value.isNotEmpty()) {
+                runCatching { fetchFanartGallery(result) }
+            }
         }
     }
 
@@ -585,13 +589,13 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
             subtitle = result.subtitle,
             title = listOfNotNull(detail?.title, detail?.titleEnglish, result.title, result.titleEnglish).joinToString(" | ")
         )
-        val season = (_targetSeason.value.takeIf { it > 1 }
+        val season = (_targetSeason.value.takeIf { it > 0 }
             ?: KitsugiEpisodeRatingsRepository.determineTargetSeason(
                 tmdbSeason = detail?.tmdbSeason,
                 title = detail?.title ?: result.title,
                 titleEnglish = detail?.titleEnglish ?: result.titleEnglish,
                 synonyms = detail?.synonyms.orEmpty()
-            )).takeIf { it > 1 }
+            )).takeIf { it > 0 }
         return isMovie to season
     }
 
@@ -1177,7 +1181,8 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                     KitsugiEpisodeRatingsRepository.getTmdbGalleryItems(
                         tmdbId = tmdbId,
                         isMovie = galleryIsMovie,
-                        expectedTitles = galleryTitles
+                        expectedTitles = galleryTitles,
+                        seasonNumber = if (galleryIsMovie) null else _targetSeason.value
                     )
                 } else emptyList()
             }
@@ -1259,6 +1264,7 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                     }
                 },
                 { item -> KitsugiEpisodeRatingsRepository.galleryLanguageRank(item.language, preferredLang) },
+                { item -> KitsugiEpisodeRatingsRepository.gallerySeasonRank(item.season, _targetSeason.value) },
                 { item -> if (item.url == coverUrl) 0 else 1 }
             )
         )

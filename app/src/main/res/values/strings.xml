@@ -6074,4 +6074,5 @@ Eklentiler ekranından eklenti etkinleştirin.</string>
     <string name="profile_error_language_en">EN</string>
     <string name="profile_error_http_status">HTTP %1$d</string>
     <string name="profile_error_icon_description">Platform hatası</string>
+    <string name="pf_err_anl_2002_profile_short">AniList istekleri geçici olarak sınırladı. Bir dakika bekleyip yeniden deneyin.</string>
 </resources>

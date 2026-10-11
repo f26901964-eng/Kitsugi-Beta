@@ -1,7 +1,7 @@
 # Plan / Task — Logo dili, doğru eser logosu ve sezon logosu
 
-Tarih: 2026-10-09  
-Kapsam: Detay sayfası hero logosu, vitrin logosu, galeri dil/sezon rozeti  
+Tarih: 2026-10-09
+Kapsam: Detay sayfası hero logosu, vitrin logosu, galeri dil/sezon rozeti
 Kaynaklar: Fanart.tv, TMDB, AniList, MAL
 
 ## Sorun

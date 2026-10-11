@@ -10,6 +10,7 @@ import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -134,17 +135,13 @@ object KitsugiEpisodeRatingsRepository {
         return Regex("""(?i)(^|[^a-z0-9])(movie|film|映画|剧场版|劇場版)([^a-z0-9]|$)""").containsMatchIn(hints)
     }
 
-    /** Galeri sıralaması: tercih edilen dil → metinsiz → İngilizce → diğer. */
-    fun galleryLanguageRank(language: String?, preferred: String): Int {
-        val lang = language?.trim()?.lowercase()?.substringBefore('-')?.substringBefore('_').orEmpty()
-        val wanted = normalizeLanguageCode(preferred)
-        return when {
-            lang == wanted -> 0
-            lang.isBlank() || lang == "00" || lang == "null" -> 1
-            lang == "en" -> 2
-            else -> 3
-        }
-    }
+    /** Galeri sıralaması da hero logo seçimiyle aynı dil zincirini kullanır. */
+    fun galleryLanguageRank(language: String?, preferred: String): Int =
+        LogoSelectionPolicy.languageRank(language, preferred)
+
+    /** Aynı dilde, istenen sezonun logosunu seri genel logosundan önce gösterir. */
+    fun gallerySeasonRank(season: String?, preferredSeason: Int?): Int =
+        LogoSelectionPolicy.gallerySeasonRank(season, preferredSeason)
 
     /**
      * ARM veya animeapi JSON yanıtındaki `media` veya `themoviedb_type` alanını okuyarak
@@ -444,12 +441,11 @@ object KitsugiEpisodeRatingsRepository {
     /**
      * TMDB ID'ye göre eserin kendi logosunu döner.
      *
-     * Filmlerde film logosu (Fanart movie + TMDB movie) dizi logosundan önce gelir;
-     * aksi halde anime filmleri ana serinin logosunu gösteriyordu.
-     * Dizilerde önce dizi logosu, yoksa film logosu denenir.
-     * Sezon > 1 ise dil önceliğini bozmadan sezona etiketli logo tercih edilir.
+     * Filmler yalnızca film uç noktalarından, diziler yalnızca dizi uç noktalarından seçilir;
+     * böylece anime filmlerine ana serinin logosu sızmaz.
+     * Bir sezon seçilmişse o sezona etiketli logo, aynı dil katmanındaki genel logo öncesinde gelir.
      *
-     * Dil: ayarlardaki TMDB dili (ör. "en" → İngilizce logo). Yoksa metinsiz, sonra İngilizce, sonra herhangi biri.
+     * Dil: seçili uygulama dili → İngilizce → metadatasız/romaji → Japonca/Çince → diğer.
      * Eski Room logo önbelleği dil ve tür tutmadığı için seçimde kullanılmaz.
      */
     suspend fun getLogoUrl(
@@ -470,7 +466,7 @@ object KitsugiEpisodeRatingsRepository {
             else -> isMovie || isTmdbMovie(tmdbId)
         }
         val preferredLang = normalizeLanguageCode(language ?: getPreferredImageLanguage())
-        val season = seasonNumber?.takeIf { it > 1 } ?: 0
+        val season = seasonNumber?.takeIf { it > 0 && !effectiveIsMovie } ?: 0
         val tmdbArtworkEnabled = isTmdbArtworkEnabled()
         val (fanartEnabled, fanartApiKey) = getFanartSettings()
         if (!tmdbArtworkEnabled && !fanartEnabled) return@withContext null
@@ -518,202 +514,151 @@ object KitsugiEpisodeRatingsRepository {
         fanartEnabled: Boolean,
         fanartApiKey: String
     ): String? {
-        // Film kayıtları asla TV/dizi/sezon zincirine girmemeli (yalnızca fanart movies + TMDB movie).
-        // Aksi halde filmin üzerinde dizinin logosu gösterilir (Chainsaw Man Reze-hen vakası).
-        if (isMovie) {
-            return movieLogoUrl(tmdbId, language, fanartEnabled, fanartApiKey, tmdbArtworkEnabled)
-        }
+        // A film can only use the movie endpoints; never leak the TV/season logo into a film.
+        val targetSeason = season.takeIf { it > 0 && !isMovie }
+        val candidates = collectLogoCandidates(
+            tmdbId = tmdbId,
+            season = targetSeason,
+            language = language,
+            isMovie = isMovie,
+            tmdbArtworkEnabled = tmdbArtworkEnabled,
+            fanartEnabled = fanartEnabled,
+            fanartApiKey = fanartApiKey,
+        )
+        LogoSelectionPolicy.select(candidates, language, targetSeason)?.let { return it.url }
 
-        // Sezon logosu yalnızca tercih edilen dildeyse ana logodan önce gelir.
-        // Dil uymayan sezon logosu, doğru dildeki ana logoyu ezmez.
-        if (season > 1) {
-            seasonLogoUrl(tmdbId, season, language, strictLanguage = true, fanartEnabled, fanartApiKey, tmdbArtworkEnabled)
-                ?.let { return it }
-        }
-
-        val primary = seriesLogoUrl(tmdbId, season, language, fanartEnabled, fanartApiKey, tmdbArtworkEnabled)
-        if (!primary.isNullOrBlank()) return primary
-
-        if (season > 1) {
-            seasonLogoUrl(tmdbId, season, language, strictLanguage = false, fanartEnabled, fanartApiKey, tmdbArtworkEnabled)
-                ?.let { return it }
-        }
-
-        // Movie endpoint fallback YOK — TMDB film/dizi kimlikleri ayrı alanlardır.
-        // SeriesGraph dil bilgisi taşımaz; yalnızca başka logo yoksa.
-        return fetchLogoFromSeriesGraph(tmdbId)
+        // SeriesGraph does not expose a language label, so it is used only when neither
+        // metadata provider supplies an eligible logo. It is never allowed to outrank a
+        // known-language candidate (especially a Japanese/Chinese final fallback).
+        return if (!isMovie) fetchLogoFromSeriesGraph(tmdbId) else null
     }
 
-    private suspend fun seriesLogoUrl(
+    /** Fetch both providers once, then rank all matching candidates by language and season. */
+    private suspend fun collectLogoCandidates(
         tmdbId: Int,
-        season: Int,
+        season: Int?,
         language: String,
+        isMovie: Boolean,
+        tmdbArtworkEnabled: Boolean,
         fanartEnabled: Boolean,
         fanartApiKey: String,
-        tmdbArtworkEnabled: Boolean
-    ): String? {
-        val fanart = if (fanartEnabled) {
-            val tvdbId = resolveTvdbIdFromTmdb(tmdbId)
-            if (tvdbId != null && tvdbId > 0) {
-                runCatching {
-                    FanartApiClient.fetchBestLogo(
-                        tvdbId = tvdbId,
-                        apiKey = fanartApiKey,
-                        language = language,
-                        seasonNumber = season.takeIf { it > 1 }
+    ): List<LogoCandidate> = coroutineScope {
+        val tmdbCandidates = async(Dispatchers.IO) {
+            if (!tmdbArtworkEnabled) return@async emptyList<LogoCandidate>()
+            val apiKey = TmdbApiClient.getActiveApiKey()
+            if (apiKey.isBlank()) return@async emptyList<LogoCandidate>()
+
+            buildList {
+                addAll(
+                    queryTmdbLogoCandidates(
+                        tmdbId = tmdbId,
+                        type = if (isMovie) "movie" else "tv",
+                        apiKey = apiKey,
+                        preferredLanguage = language,
                     )
-                }.getOrNull()
-            } else null
-        } else null
-        if (!fanart.isNullOrBlank()) return fanart
-        return if (tmdbArtworkEnabled) {
-            queryTmdbImages(tmdbId, "tv", TmdbApiClient.getActiveApiKey(), language)
-                ?.let { "https://image.tmdb.org/t/p/w500$it" }
-        } else null
-    }
-
-    private fun movieLogoUrl(
-        tmdbId: Int,
-        language: String,
-        fanartEnabled: Boolean,
-        fanartApiKey: String,
-        tmdbArtworkEnabled: Boolean
-    ): String? {
-        val fanart = if (fanartEnabled) {
-            runCatching { FanartApiClient.fetchBestMovieLogo(tmdbId, fanartApiKey, language) }.getOrNull()
-        } else null
-        if (!fanart.isNullOrBlank()) return fanart
-        return if (tmdbArtworkEnabled) {
-            queryTmdbImages(tmdbId, "movie", TmdbApiClient.getActiveApiKey(), language)
-                ?.let { "https://image.tmdb.org/t/p/w500$it" }
-        } else null
-    }
-
-    private suspend fun seasonLogoUrl(
-        tmdbId: Int,
-        season: Int,
-        language: String,
-        strictLanguage: Boolean,
-        fanartEnabled: Boolean,
-        fanartApiKey: String,
-        tmdbArtworkEnabled: Boolean
-    ): String? {
-        if (tmdbArtworkEnabled) {
-            queryTmdbSeasonImages(tmdbId, season, language, allowFallback = !strictLanguage)?.let { return it }
-        }
-        if (fanartEnabled) {
-            val tvdbId = resolveTvdbIdFromTmdb(tmdbId)
-            if (tvdbId != null && tvdbId > 0) {
-                runCatching {
-                    FanartApiClient.fetchBestSeasonLogo(
-                        tvdbId = tvdbId,
-                        seasonNumber = season,
-                        apiKey = fanartApiKey,
-                        language = language,
-                        strictLanguage = strictLanguage
+                )
+                if (!isMovie && season != null) {
+                    addAll(
+                        queryTmdbLogoCandidates(
+                            tmdbId = tmdbId,
+                            type = "tv",
+                            apiKey = apiKey,
+                            preferredLanguage = language,
+                            seasonNumber = season,
+                        )
                     )
-                }.getOrNull()?.let { return it }
+                }
             }
         }
-        return null
+
+        val fanartCandidates = async(Dispatchers.IO) {
+            if (!fanartEnabled || fanartApiKey.isBlank()) return@async emptyList<LogoCandidate>()
+            if (isMovie) {
+                FanartApiClient.fetchMovieLogoCandidates(tmdbId, fanartApiKey)
+            } else {
+                val tvdbId = runCatching { resolveTvdbIdFromTmdb(tmdbId) }.getOrNull()
+                if (tvdbId != null && tvdbId > 0) {
+                    FanartApiClient.fetchTvLogoCandidates(tvdbId, fanartApiKey)
+                } else emptyList()
+            }
+        }
+
+        tmdbCandidates.await() + fanartCandidates.await()
+    }
+
+    /** TMDB logos endpoint; include every language tier instead of relying on TMDB's en/null default. */
+    private fun queryTmdbLogoCandidates(
+        tmdbId: Int,
+        type: String,
+        apiKey: String,
+        preferredLanguage: String,
+        seasonNumber: Int? = null,
+    ): List<LogoCandidate> {
+        if (tmdbId <= 0 || apiKey.isBlank()) return emptyList()
+        if (seasonNumber != null && type != "tv") return emptyList()
+
+        val endpoint = if (seasonNumber != null) {
+            "tv/$tmdbId/season/$seasonNumber/images"
+        } else {
+            "$type/$tmdbId/images"
+        }
+        val includeLanguages = LogoSelectionPolicy.tmdbImageLanguages(preferredLanguage).joinToString(",")
+        val url = runCatching {
+            URL("https://api.themoviedb.org/3/$endpoint?api_key=$apiKey&include_image_language=$includeLanguages")
+        }.getOrNull() ?: return emptyList()
+
+        val responseText = KitsugiApiBase.executeGetRequest(url) ?: return emptyList()
+        return runCatching {
+            val logos = JSONObject(responseText).optJSONArray("logos") ?: return@runCatching emptyList()
+            buildList {
+                for (i in 0 until logos.length()) {
+                    val obj = logos.optJSONObject(i) ?: continue
+                    val path = obj.optNullableString("file_path")?.takeIf { it.isNotBlank() } ?: continue
+                    val languageCode = obj.optNullableString("iso_639_1")
+                    val voteScore = obj.optInt("vote_count", 0) * 10.0 + obj.optDouble("vote_average", 0.0)
+                    val size = if (seasonNumber != null) "original" else "w500"
+                    add(
+                        LogoCandidate(
+                            url = "https://image.tmdb.org/t/p/$size$path",
+                            language = languageCode,
+                            season = seasonNumber?.toString(),
+                            score = voteScore,
+                            sourcePriority = LogoSelectionPolicy.TMDB_SOURCE_PRIORITY,
+                        )
+                    )
+                }
+            }
+        }.getOrElse {
+            Log.w(TAG, "TMDB logo parse failed for $endpoint: ${it.javaClass.simpleName}")
+            emptyList()
+        }
     }
 
     /**
-     * Sezon bazlı logo URL'si döner (örn: "Attack on Titan Final Season" logosu).
-     *
-     * Kaynaklar (öncelik sırasıyla):
-     * 1. TMDB Sezon Images API: /tv/{tmdbId}/season/{seasonNumber}/images
-     *    (bazı diziler sezon bazlı logolu poster döner)
-     * 2. Fanart.tv seasonposter (sezon posteri logo yerine kullanılabilir)
-     * 3. TMDB ana logo (fallback)
-     *
-     * @param tmdbId TMDB ID (TV dizisi)
-     * @param seasonNumber Sezon numarası (2+)
-     * @param language Tercih edilen dil kodu
+     * Returns the best logo explicitly tagged for a season. Season posters are never
+     * substituted into the transparent-logo slot.
      */
     suspend fun getSeasonLogoUrl(
         tmdbId: Int,
         seasonNumber: Int,
         language: String? = null
     ): String? = withContext(Dispatchers.IO) {
-        if (tmdbId <= 0 || seasonNumber <= 1) return@withContext null
+        if (tmdbId <= 0 || seasonNumber <= 0) return@withContext null
         val preferredLang = normalizeLanguageCode(language ?: getPreferredImageLanguage())
+        val tmdbArtworkEnabled = isTmdbArtworkEnabled()
         val (fanartEnabled, fanartApiKey) = getFanartSettings()
-        seasonLogoUrl(
+        if (!tmdbArtworkEnabled && !fanartEnabled) return@withContext null
+
+        val candidates = collectLogoCandidates(
             tmdbId = tmdbId,
             season = seasonNumber,
             language = preferredLang,
-            strictLanguage = false,
+            isMovie = false,
+            tmdbArtworkEnabled = tmdbArtworkEnabled,
             fanartEnabled = fanartEnabled,
             fanartApiKey = fanartApiKey,
-            tmdbArtworkEnabled = isTmdbArtworkEnabled()
         )
-    }
-
-    /**
-     * TMDB sezon images endpoint'inden yalnızca logo çeker.
-     * Sezon posteri logo yerine kullanılmaz — hero alanı şeffaf logo bekler.
-     */
-    private fun queryTmdbSeasonImages(
-        tmdbId: Int,
-        seasonNumber: Int,
-        language: String,
-        allowFallback: Boolean = true
-    ): String? {
-        val apiKey = TmdbApiClient.getActiveApiKey()
-        if (apiKey.isBlank()) return null
-
-        val url = runCatching {
-            URL("https://api.themoviedb.org/3/tv/$tmdbId/season/$seasonNumber/images?api_key=$apiKey")
-        }.getOrNull() ?: return null
-
-        val responseText = KitsugiApiBase.executeGetRequest(url) ?: return null
-        return runCatching {
-            val logos = JSONObject(responseText).optJSONArray("logos") ?: return@runCatching null
-            if (logos.length() == 0) return@runCatching null
-            val bestLogo = selectBestByLanguage(logos, language, allowFallback)
-            bestLogo?.let { "https://image.tmdb.org/t/p/original$it" }
-        }.getOrElse {
-            Log.w(TAG, "queryTmdbSeasonImages parse failed for tmdbId=$tmdbId season=$seasonNumber: ${it.message}")
-            null
-        }
-    }
-
-    /**
-     * TMDB images JSON array'den dile göre en iyi file_path'i seçer.
-     * Öncelik: tercih edilen dil → dil bağımsız (null/boş) → İngilizce → ilk öğe
-     */
-    private fun selectBestByLanguage(
-        jsonArray: JSONArray,
-        preferredLanguage: String,
-        allowFallback: Boolean = true
-    ): String? {
-        data class Pick(val path: String, val votes: Int)
-        var preferred: Pick? = null
-        var neutral: Pick? = null
-        var english: Pick? = null
-        var any: Pick? = null
-        val wanted = normalizeLanguageCode(preferredLanguage)
-
-        fun better(current: Pick?, path: String, votes: Int): Pick? =
-            if (current == null || votes > current.votes) Pick(path, votes) else current
-
-        for (i in 0 until jsonArray.length()) {
-            val obj = jsonArray.optJSONObject(i) ?: continue
-            val path = obj.optNullableString("file_path") ?: continue
-            if (path.isBlank()) continue
-            val votes = obj.optInt("vote_count", 0)
-            val lang = obj.optNullableString("iso_639_1").orEmpty().lowercase().substringBefore('-')
-            any = better(any, path, votes)
-            when {
-                lang == wanted -> preferred = better(preferred, path, votes)
-                lang.isBlank() || lang == "null" -> neutral = better(neutral, path, votes)
-                lang == "en" -> english = better(english, path, votes)
-            }
-        }
-
-        if (!allowFallback) return preferred?.path
-        return preferred?.path ?: neutral?.path ?: english?.path ?: any?.path
+        LogoSelectionPolicy.selectSeasonOnly(candidates, preferredLang, seasonNumber)?.url
     }
 
     /**
@@ -787,49 +732,6 @@ object KitsugiEpisodeRatingsRepository {
             Log.w(TAG, "Logo parse failed for tmdbId=$tmdbId: ${it.message}")
             null
         }
-    }
-
-    private fun queryTmdbImages(tmdbId: Int, type: String, apiKey: String, preferredLanguage: String = "tr"): String? {
-        val url = runCatching {
-            URL("https://api.themoviedb.org/3/$type/$tmdbId/images?api_key=$apiKey")
-        }.getOrNull() ?: return null
-
-        val responseText = KitsugiApiBase.executeGetRequest(url) ?: return null
-        return runCatching {
-            val json = JSONObject(responseText)
-            val logos = json.optJSONArray("logos")
-            if (logos == null || logos.length() == 0) return null
-
-            // Dil önceliği: tercih edilen dil -> dil bağımsız -> İngilizce -> Latin -> CJK
-            val targetLang = normalizeLanguageCode(preferredLanguage)
-            data class LogoPick(val path: String, val score: Double)
-            fun consider(current: LogoPick?, path: String, score: Double): LogoPick =
-                if (current == null || score > current.score) LogoPick(path, score) else current
-
-            var preferredLogo: LogoPick? = null
-            var enLogo: LogoPick? = null
-            var neutralLogo: LogoPick? = null
-            var otherLatinLogo: LogoPick? = null
-            var cjkLogo: LogoPick? = null
-
-            for (i in 0 until logos.length()) {
-                val logoObj = logos.getJSONObject(i)
-                val lang = logoObj.optNullableString("iso_639_1").orEmpty().lowercase()
-                val path = logoObj.optNullableString("file_path")
-                if (!path.isNullOrBlank()) {
-                    val score = logoObj.optInt("vote_count", 0) * 10.0 +
-                        logoObj.optDouble("vote_average", 0.0)
-                    when {
-                        lang == targetLang -> preferredLogo = consider(preferredLogo, path, score)
-                        lang.isBlank() || lang == "null" -> neutralLogo = consider(neutralLogo, path, score)
-                        lang == "en" -> enLogo = consider(enLogo, path, score)
-                        lang in listOf("ja", "ko", "zh") -> cjkLogo = consider(cjkLogo, path, score)
-                        else -> otherLatinLogo = consider(otherLatinLogo, path, score)
-                    }
-                }
-            }
-            preferredLogo?.path ?: neutralLogo?.path ?: enLogo?.path ?: otherLatinLogo?.path ?: cjkLogo?.path
-        }.getOrNull()
     }
 
     /**
@@ -1052,18 +954,22 @@ object KitsugiEpisodeRatingsRepository {
     suspend fun getTmdbGalleryItems(
         tmdbId: Int,
         isMovie: Boolean = false,
-        expectedTitles: List<String> = emptyList()
+        expectedTitles: List<String> = emptyList(),
+        seasonNumber: Int? = null
     ): List<GalleryItem> = withContext(Dispatchers.IO) {
         if (tmdbId <= 0 || !isTmdbArtworkEnabled()) return@withContext emptyList()
 
-        val cached = DetailCache.getTmdbGallery(isMovie, tmdbId)
+        val preferredLanguage = normalizeLanguageCode(getPreferredImageLanguage())
+        val requestedSeason = seasonNumber?.takeIf { it > 0 && !isMovie }
+        val cached = DetailCache.getTmdbGallery(isMovie, tmdbId, preferredLanguage, requestedSeason)
         if (cached != null) {
-            Log.d(TAG, "TMDB gallery memory cache hit: isMovie=$isMovie id=$tmdbId → ${cached.size} items")
+            Log.d(TAG, "TMDB gallery memory cache hit: isMovie=$isMovie id=$tmdbId season=${requestedSeason ?: 0} lang=$preferredLanguage → ${cached.size} items")
             return@withContext cached
         }
 
         val apiKey = TmdbApiClient.getActiveApiKey()
         if (apiKey.isBlank()) return@withContext emptyList()
+        val includeImageLanguages = LogoSelectionPolicy.tmdbImageLanguages(preferredLanguage).joinToString(",")
 
         fun parseTmdbImages(json: JSONObject): List<GalleryItem> {
             val list = mutableListOf<GalleryItem>()
@@ -1153,7 +1059,7 @@ object KitsugiEpisodeRatingsRepository {
             val response = runCatching {
                 val url = URL(
                     "https://api.themoviedb.org/3/$type/$tmdbId" +
-                        "?api_key=$apiKey&append_to_response=images"
+                        "?api_key=$apiKey&append_to_response=images&include_image_language=$includeImageLanguages"
                 )
                 val resp = KitsugiApiBase.executeGetRequest(url)
                 if (resp.isNullOrBlank()) null else JSONObject(resp)
@@ -1166,26 +1072,72 @@ object KitsugiEpisodeRatingsRepository {
             val entryTitle = if (isMovieType) response.optString("title") else response.optString("name")
             val entryOriginal = if (isMovieType) response.optString("original_title") else response.optString("original_name")
             val verified = TmdbArtworkIdentity.matches(expectedTitles, entryTitle, entryOriginal)
-            val images = parseTmdbImages(response.optJSONObject("images") ?: response)
-            if (images.isEmpty()) continue
-
-            if (verified) {
-                items = images
-                break
+            if (!verified) {
+                Log.w(
+                    TAG,
+                    "TMDB galeri kimliği reddedildi: $type/$tmdbId başlığı «$entryTitle» beklenenle " +
+                        "(${expectedTitles.firstOrNull() ?: "-"}) uyuşmuyor; görseller listeye karışmadı"
+                )
+                continue
             }
-            Log.w(
-                TAG,
-                "TMDB galeri kimliği reddedildi: $type/$tmdbId başlığı «$entryTitle» beklenenle " +
-                    "(${expectedTitles.firstOrNull() ?: "-"}) uyuşmuyor; görseller listeye karışmadı"
-            )
+
+            val images = parseTmdbImages(response.optJSONObject("images") ?: response)
+            val seasonLogos = if (!isMovie && requestedSeason != null) {
+                queryTmdbSeasonGalleryLogos(tmdbId, requestedSeason, apiKey, preferredLanguage)
+            } else emptyList()
+            items = (seasonLogos + images).distinctBy { it.url }
+            if (items.isNotEmpty()) break
         }
 
         if (items.isNotEmpty()) {
-            DetailCache.putTmdbGallery(isMovie, tmdbId, items)
-            Log.d(TAG, "TMDB gallery memory cache write: isMovie=$isMovie id=$tmdbId → ${items.size} items")
+            DetailCache.putTmdbGallery(isMovie, tmdbId, items, preferredLanguage, requestedSeason)
+            Log.d(TAG, "TMDB gallery memory cache write: isMovie=$isMovie id=$tmdbId season=${requestedSeason ?: 0} lang=$preferredLanguage → ${items.size} items")
         }
 
         items
+    }
+
+    /** TMDB sezon görsel uç noktasındaki şeffaf logoları galeriye sezon rozetiyle ekler. */
+    private fun queryTmdbSeasonGalleryLogos(
+        tmdbId: Int,
+        seasonNumber: Int,
+        apiKey: String,
+        preferredLanguage: String,
+    ): List<GalleryItem> {
+        if (tmdbId <= 0 || seasonNumber <= 0 || apiKey.isBlank()) return emptyList()
+        val includeLanguages = LogoSelectionPolicy.tmdbImageLanguages(preferredLanguage).joinToString(",")
+        val url = runCatching {
+            URL(
+                "https://api.themoviedb.org/3/tv/$tmdbId/season/$seasonNumber/images" +
+                    "?api_key=$apiKey&include_image_language=$includeLanguages"
+            )
+        }.getOrNull() ?: return emptyList()
+        val response = KitsugiApiBase.executeGetRequest(url) ?: return emptyList()
+
+        return runCatching {
+            val logos = JSONObject(response).optJSONArray("logos") ?: return@runCatching emptyList()
+            buildList {
+                for (i in 0 until logos.length()) {
+                    val obj = logos.optJSONObject(i) ?: continue
+                    val path = obj.optNullableString("file_path")?.takeIf { it.isNotBlank() } ?: continue
+                    add(
+                        GalleryItem(
+                            url = "https://image.tmdb.org/t/p/original$path",
+                            source = "TMDB",
+                            category = GalleryCategory.LOGO,
+                            description = "TMDB Season Logo",
+                            language = obj.optNullableString("iso_639_1")?.ifBlank { null },
+                            width = obj.optInt("width").takeIf { it > 0 },
+                            height = obj.optInt("height").takeIf { it > 0 },
+                            season = seasonNumber.toString(),
+                        )
+                    )
+                }
+            }
+        }.getOrElse {
+            Log.w(TAG, "TMDB season gallery logo parse failed for tv/$tmdbId season=$seasonNumber: ${it.javaClass.simpleName}")
+            emptyList()
+        }
     }
 
     /**

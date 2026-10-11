@@ -578,13 +578,13 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             subtitle = entry.subtitle,
             title = listOfNotNull(detail?.title, detail?.titleEnglish, entry.title, entry.titleEnglish).joinToString(" | ")
         )
-        val season = (_targetSeason.value.takeIf { it > 1 }
+        val season = (_targetSeason.value.takeIf { it > 0 }
             ?: KitsugiEpisodeRatingsRepository.determineTargetSeason(
                 tmdbSeason = detail?.tmdbSeason,
                 title = detail?.title ?: entry.title,
                 titleEnglish = detail?.titleEnglish ?: entry.titleEnglish,
                 synonyms = detail?.synonyms.orEmpty()
-            )).takeIf { it > 1 }
+            )).takeIf { it > 0 }
         return isMovie to season
     }
 
@@ -833,7 +833,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             val fanartDef = async(Dispatchers.IO) {
                 KitsugiEpisodeRatingsRepository.getFanartGalleryItems(
                     tmdbId = tmdbId ?: 0,
-                    isMovie = isMovie,
+                    isMovie = galleryIsMovie,
                     fallbackMalId = fallbackMalId,
                     fallbackAniListId = fallbackAniListId,
                     fallbackKitsuId = fallbackKitsuId
@@ -844,7 +844,8 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                     KitsugiEpisodeRatingsRepository.getTmdbGalleryItems(
                         tmdbId = tmdbId,
                         isMovie = galleryIsMovie,
-                        expectedTitles = galleryTitles
+                        expectedTitles = galleryTitles,
+                        seasonNumber = if (galleryIsMovie) null else _targetSeason.value
                     )
                 } else emptyList()
             }
@@ -930,6 +931,7 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                     }
                 },
                 { item -> KitsugiEpisodeRatingsRepository.galleryLanguageRank(item.language, preferredLang) },
+                { item -> KitsugiEpisodeRatingsRepository.gallerySeasonRank(item.season, _targetSeason.value) },
                 { item -> if (item.url == coverUrl) 0 else 1 }
             )
         )
@@ -1400,6 +1402,10 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             val showLogos = runCatching { settingsDataStore.settingsFlow.first().showAnimeLogos }.getOrDefault(true)
             if (showLogos) {
                 runCatching { fetchLogo(entry, true) }
+            }
+            // Rebuild the image list using the selected season's TMDB artwork cache.
+            if (_galleryItems.value.isNotEmpty()) {
+                runCatching { fetchFanartGallery(entry) }
             }
         }
     }

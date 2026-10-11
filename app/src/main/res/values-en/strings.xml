@@ -6072,4 +6072,5 @@
     <string name="profile_error_language_en">EN</string>
     <string name="profile_error_http_status">HTTP %1$d</string>
     <string name="profile_error_icon_description">Platform error</string>
+    <string name="pf_err_anl_2002_profile_short">AniList temporarily limited requests. Wait a minute, then try again.</string>
 </resources>

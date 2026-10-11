@@ -11,6 +11,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.kitsugi.animelist.data.auth.ExternalAuthManager
 import com.kitsugi.animelist.data.local.MediaEntryRepository
+import com.kitsugi.animelist.data.platform.ListPlatform
+import com.kitsugi.animelist.data.platform.PlatformErrorCatalog
+import com.kitsugi.animelist.data.platform.PlatformHttpException
 import com.kitsugi.animelist.data.remote.optNullableString
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
@@ -498,7 +501,9 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
                 fetchAniListSocial(token, id)
 
             } catch (e: Exception) {
-                _aniListState.update { it.copy(isLoading = false, error = e.message ?: "AniList verisi yüklenirken hata oluştu.") }
+                val errorCode = PlatformErrorCatalog.classify(platform = ListPlatform.ANILIST, error = e)
+                val userMessage = PlatformErrorCatalog.conciseBilingual(context, errorCode)
+                _aniListState.update { it.copy(isLoading = false, error = userMessage) }
             }
         }
     }
@@ -1194,8 +1199,9 @@ class KitsugiProfileViewModel(application: Application) : AndroidViewModel(appli
 
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
-                    val errorText = response.body?.string().orEmpty()
-                    throw IllegalStateException("AniList hatası: ${response.code} $errorText")
+                    // Keep the response body out of exceptions and user-facing state; it may be raw JSON.
+                    response.body?.close()
+                    throw PlatformHttpException(response.code, "AniList profile request failed")
                 }
                 response.body?.string() ?: ""
             }

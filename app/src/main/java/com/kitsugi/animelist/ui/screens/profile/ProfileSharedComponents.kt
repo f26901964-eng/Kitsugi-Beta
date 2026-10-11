@@ -1,4 +1,4 @@
-﻿@file:OptIn(
+@file:OptIn(
     androidx.compose.foundation.ExperimentalFoundationApi::class,
     androidx.compose.material3.ExperimentalMaterial3Api::class
 )
@@ -48,6 +48,7 @@ fun ExternalProfileWrapper(
     onConnectClick: () -> Unit,
     accentColor: Color,
     platformName: String,
+    onRetry: (() -> Unit)? = null,
     content: @Composable () -> Unit
 ) {
     if (!isConnected) {
@@ -111,7 +112,8 @@ fun ExternalProfileWrapper(
         ) {
             ProfileServiceErrorCard(
                 platformName = platformName,
-                rawError = error.orEmpty()
+                rawError = error.orEmpty(),
+                onRetry = onRetry
             )
         }
     } else {
@@ -122,7 +124,8 @@ fun ExternalProfileWrapper(
 @Composable
 private fun ProfileServiceErrorCard(
     platformName: String,
-    rawError: String
+    rawError: String,
+    onRetry: (() -> Unit)? = null
 ) {
     val summary = remember(rawError) { classifyProfileError(rawError) }
     val titleRes = when (summary.kind) {
@@ -236,6 +239,19 @@ private fun ProfileServiceErrorCard(
                 explanation = stringResource(englishExplanationRes),
                 accentColor = accentColor
             )
+
+            if (onRetry != null) {
+                Spacer(Modifier.height(4.dp))
+                Button(
+                    onClick = onRetry,
+                    colors = ButtonDefaults.buttonColors(containerColor = accentColor),
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                ) {
+                    Icon(Icons.Rounded.Refresh, contentDescription = null)
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.action_retry), color = KitsugiColors.Background)
+                }
+            }
         }
     }
 }

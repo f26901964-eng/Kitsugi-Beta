@@ -224,7 +224,8 @@ fun KitsugiProfileScreen(
                             error = aniListState.error,
                             onConnectClick = onLoginAniList,
                             accentColor = accentColor,
-                            platformName = "AniList"
+                            platformName = "AniList",
+                            onRetry = { viewModel.fetchAniListProfile(forceRefresh = true) }
                         ) {
                             AniListProfileContent(
                                 viewModel = viewModel,
@@ -260,7 +261,8 @@ fun KitsugiProfileScreen(
                             error = malState.error,
                             onConnectClick = onLoginMal,
                             accentColor = accentColor,
-                            platformName = "MyAnimeList"
+                            platformName = "MyAnimeList",
+                            onRetry = { viewModel.fetchMalProfile(forceRefresh = true) }
                         ) {
                             MalProfileContent(
                                 viewModel = viewModel,
@@ -284,7 +286,8 @@ fun KitsugiProfileScreen(
                             error = simklState.error,
                             onConnectClick = onLoginSimkl,
                             accentColor = accentColor,
-                            platformName = "Simkl"
+                            platformName = "Simkl",
+                            onRetry = { viewModel.fetchSimklProfile(forceRefresh = true) }
                         ) {
                             SimklProfileContent(
                                 viewModel = viewModel,
@@ -306,7 +309,8 @@ fun KitsugiProfileScreen(
                             error = kitsuState.error,
                             onConnectClick = { if (onKitsuAuthSubmit != null) showKitsuLoginDialog = true else onLoginKitsu() },
                             accentColor = accentColor,
-                            platformName = "Kitsu"
+                            platformName = "Kitsu",
+                            onRetry = { viewModel.fetchKitsuProfile(forceRefresh = true) }
                         ) {
                             KitsuProfileContent(
                                 viewModel = viewModel,
@@ -328,7 +332,8 @@ fun KitsugiProfileScreen(
                             error = bangumiState.error,
                             onConnectClick = { if (onBangumiAuthSubmit != null) showBangumiLoginDialog = true else onLoginBangumi() },
                             accentColor = accentColor,
-                            platformName = "Bangumi"
+                            platformName = "Bangumi",
+                            onRetry = { viewModel.fetchBangumiProfile(forceRefresh = true) }
                         ) {
                             BangumiProfileContent(
                                 state = bangumiState,
@@ -354,7 +359,8 @@ fun KitsugiProfileScreen(
                             error = shikimoriState.error,
                             onConnectClick = { if (onShikimoriAuthSubmit != null) showShikimoriLoginDialog = true else onLoginShikimori() },
                             accentColor = accentColor,
-                            platformName = "Shikimori"
+                            platformName = "Shikimori",
+                            onRetry = { viewModel.fetchShikimoriProfile(forceRefresh = true) }
                         ) {
                             ShikimoriProfileContent(
                                 viewModel = viewModel,

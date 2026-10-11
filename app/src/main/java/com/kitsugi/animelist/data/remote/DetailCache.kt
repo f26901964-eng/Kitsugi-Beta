@@ -265,8 +265,8 @@ object DetailCache {
         "${if (isMovie) "movie" else "tv"}_${id}_${language.trim().lowercase()}"
 
     fun removeFanartGallery(isMovie: Boolean, id: Int) {
-        val key = "${if (isMovie) "movie" else "tv"}_$id"
-        fanartGalleryCache.remove(key)
+        val prefix = "${if (isMovie) "movie" else "tv"}_${id}_"
+        fanartGalleryCache.keys.filter { it.startsWith(prefix) }.forEach { key -> fanartGalleryCache.remove(key) }
     }
 
     fun clearFanartCache() {
@@ -274,19 +274,32 @@ object DetailCache {
     }
 
     // TMDB Gallery Cache
-    fun getTmdbGallery(isMovie: Boolean, id: Int): List<GalleryItem>? {
-        val key = "${if (isMovie) "movie" else "tv"}_$id"
-        return tmdbGalleryCache[key]
+    fun getTmdbGallery(
+        isMovie: Boolean,
+        id: Int,
+        language: String = "",
+        seasonNumber: Int? = null
+    ): List<GalleryItem>? = tmdbGalleryCache[tmdbGalleryKey(isMovie, id, language, seasonNumber)]
+
+    fun putTmdbGallery(
+        isMovie: Boolean,
+        id: Int,
+        list: List<GalleryItem>,
+        language: String = "",
+        seasonNumber: Int? = null
+    ) {
+        tmdbGalleryCache[tmdbGalleryKey(isMovie, id, language, seasonNumber)] = list
     }
 
-    fun putTmdbGallery(isMovie: Boolean, id: Int, list: List<GalleryItem>) {
-        val key = "${if (isMovie) "movie" else "tv"}_$id"
-        tmdbGalleryCache[key] = list
+    private fun tmdbGalleryKey(isMovie: Boolean, id: Int, language: String, seasonNumber: Int?): String {
+        val normalizedLanguage = language.trim().lowercase().replace('_', '-').substringBefore('-')
+        val season = seasonNumber?.takeIf { it > 0 } ?: 0
+        return "${if (isMovie) "movie" else "tv"}_${id}_${normalizedLanguage}_$season"
     }
 
     fun removeTmdbGallery(isMovie: Boolean, id: Int) {
-        val key = "${if (isMovie) "movie" else "tv"}_$id"
-        tmdbGalleryCache.remove(key)
+        val prefix = "${if (isMovie) "movie" else "tv"}_${id}_"
+        tmdbGalleryCache.keys.filter { it.startsWith(prefix) }.forEach { key -> tmdbGalleryCache.remove(key) }
     }
 
     fun clearTmdbGalleryCache() {

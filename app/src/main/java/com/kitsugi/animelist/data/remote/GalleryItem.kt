@@ -26,7 +26,7 @@ data class GalleryItem(
      * gelen veriler listelenir.
      */
     val details: Map<String, String> = emptyMap(),
-    /** Fanart.tv sezon etiketi ("1", "2"…). "all" / boş değer yazılmaz. */
+    /** Fanart.tv veya TMDB sezon etiketi ("1", "2"…). Genel/boş değer yazılmaz. */
     val season: String? = null
 )
 
