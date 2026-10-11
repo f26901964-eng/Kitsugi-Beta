@@ -22,6 +22,13 @@ internal enum class HeroArtworkFit {
 internal const val HERO_FIT_TOLERANCE = 1.38f
 
 /**
+ * Detay sayfasının 16:9 sinematik bandı için **daha sıkı** uyum eşiği.
+ * Bu eşik aşılırsa görsel kırpılmaz; "tam görünür + yumuşak dolgu" gösterilir.
+ * 1.20 → 16:9 bir görselin en fazla ~%20'si kırpılır (ör. 2:1 görselde yalnızca %11).
+ */
+internal const val HERO_BANNER_FIT_TOLERANCE = 1.20f
+
+/**
  * Görselin kutuya yerleşme biçimini gerçek en-boy oranlarına göre seçer.
  *
  * @param boxAspect   Kutu en-boy oranı (genişlik / yükseklik).

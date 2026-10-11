@@ -2,45 +2,49 @@
 
 ## 🇹🇷 Türkçe
 
-### 🖼️ 1. Vitrin (Keşfet Hero) Yatay Mod Uyumu ve Kırpma Düzeltmesi
+### 🎬 1. Detay Sayfaları — Her İki Yönde de 16:9 Sinematik Bant (POSTER VİTRİN YOK)
 
-- **Yatay modda vitrin bandı büyütüldü:** Yatay telefon/tablet vitrini artık ekran yüksekliğinin ~%74'ünü (tablet ~%62) kaplıyor. 16:9 kapak görselleri daha önce ~2.5–3:1 gibi ince bir şeride kırpılıyordu; yeni bantta en-boy oranı ~2.07:1'e indi ve görselin yaklaşık %86'sı görünüyor — telefon, tablet, yatay ve dikey otomatik uyarlanır.
-- **Akıllı kırpma hizalaması:** Görselin **gerçek** en-boy oranı okunup kırpma penceresi ona göre hesaplanıyor; görselin üstünden yalnızca ~%5 pay kesiliyor ve yatayda tam ortalanıyor. Karakterlerin kafası/yüzü artık üstten kesilmiyor, görsel de gereğinden fazla yukarı kaymış görünmüyor.
-- **Karartma (scrim) azaltıldı:** Üst üste binen gradyanlar yumuşatıldı; vitrin görseli "karanlık/çamurlu" görünmüyor, metin okunurluğu korunuyor.
-- **Manga yatay modda tam ortada:** Dikey poster (manga) geniş yatay vitrinde artık sağa yaslanmıyor; ekranın **tam ortasında**, olabildiğince büyük ve kesilmeden gösteriliyor (arkasında yumuşak atmosferik dolgu).
+- **Vitrin artık her zaman 16:9 sinematik banttır:** Detay sayfası dikey modda da, yatay modda da **aynı tasarımı** kullanır. Poster artık vitrin paneli olarak kullanılmaz.
+- **Bant kırpılmaz:** En kaliteli **YATAY** görsel (TMDB / Fanart.tv / galeri arka planları) 16:9 bantta **kesilmeden** gösterilir. Görselin oranı banttan belirgin farklıysa (~%20'den fazla kırpma gerekiyorsa) kırpmak yerine "tam görünür + yumuşak dolgu" devreye girer — ör. çok geniş bir sinema afişi veya dikey bir poster bandın içinde tamamı görünür.
+- **En kalitelisi otomatik seçilir:** Aday sırası kalite sıralıdır → çözümleyicinin TMDB/Fanart.tv sıralaması (4K > 2K > 1080p, yazısız, oylu) → kaynağın kendi arka planı → galeri yatay görselleri (çözünürlüğe göre).
+- **Boyut uyumu:** Bant yüksekliği panel genişliğinden türetilir (`genişlik × 9/16`) ve ekran yüksekliğinin %62'sini geçmez → telefon, tablet, TV ve hem dikey hem yatay yönde aynı görünüm.
+- **Başlık/meta bandın altında:** Logo/başlık, format-tür sayaç satırı, yayın bilgisi ve rozetler (kaynak, yıl, puan, favori, listede, +18) bandın altındaki bilgi alanına akar.
+- **Kütüphane (MediaEntry) detay sayfası** da birebir aynı mantığa geçti: en kaliteli yatay galeri görseli bantta, yoksa poster bandın içinde kesilmeden.
 
-### 🎬 2. Detay Sayfaları — Yön Bazlı "En Kaliteli Görsel" Mantığı
+### 🖼️ 2. Keşfet Vitrini (Hero) Yatay/Dikey Uyumu
 
-- **Yatay mod:** En kaliteli **YATAY** görsel (TMDB / Fanart.tv / galeri arka planları) **16:9 sinematik bantta kırpılmadan** gösterilir; başlık, meta satırları ve rozetler bandın altına akar.
-- **Dikey mod:** En kaliteli **DİKEY poster** (tam çözünürlüğe yükseltilmiş) tam boy vitrinde gösterilir.
-- **Oran uyuşmazlığında kesme yok:** Görsel alanı ile görselin en-boy oranı çok farklıysa (ör. yatay görsel + dikey panel) kırpma yerine "tam görünür + yumuşak dolgu" devreye girer.
-- **Kütüphane detayı da aynı mantıkta:** `MediaEntry` detay sayfasının yatay vitrini de kayıtla ilişkili en kaliteli yatay galeri görselini kullanır.
+- **Yatay modda bant büyütüldü:** Yatay telefon vitrini ekran yüksekliğinin ~%74'ü (tablet ~%62). 16:9 kapak görselleri artık ince bir şeride kırpılmıyor; görselin yaklaşık %86'sı görünüyor.
+- **Dinamik kırpma hizalaması:** Görselin **gerçek** en-boy oranı okunup kırpma penceresi ona göre hesaplanıyor; görselin üstünden yalnızca ~%5 pay kesiliyor ve yatayda tam ortalanıyor → karakterlerin kafası/yüzü kesilmiyor, görsel fazla yukarı kaymıyor.
+- **Karartma (scrim) azaltıldı:** Üst üste binen gradyanlar yumuşatıldı; görsel net ve canlı.
+- **Manga yatayda tam ortada:** Dikey poster (manga) geniş yatay vitrinde sağa yaslanmıyor; ekranın **tam ortasında**, olabildiğince büyük ve kesilmeden gösteriliyor (arkasında yumuşak atmosferik dolgu).
 
 ### ✅ 3. Testler
 
-- `HeroImageSelectionTest` yeni dinamik hizalama, oran/uyum (COVER ↔ CONTAIN_WITH_FILL) ve cihaz/yön bazlı bant yüksekliği kurallarıyla genişletildi.
+- `HeroImageSelectionTest`: dinamik hizalama, oran/uyum (COVER ↔ CONTAIN_WITH_FILL) ve cihaz/yön bazlı bant yüksekliği testleri.
 
 ---
 
 ## 🇬🇧 English
 
-### 🖼️ 1. Explore Hero Landscape Fit & Cropping Fix
+### 🎬 1. Detail Pages — 16:9 Cinematic Band in BOTH Orientations (NO poster hero)
 
-- **Taller landscape hero band:** The landscape phone/tablet hero now uses ~74% (tablet ~62%) of the screen height. 16:9 key visuals used to be cropped into a ~2.5–3:1 sliver; the new band lands at ~2.07:1 so roughly 86% of the artwork is visible — automatically adapting to phone, tablet, landscape and portrait.
-- **Smart crop alignment:** The artwork's **real** aspect ratio is read and the crop window is derived from it — only ~5% is trimmed from the top and the image is horizontally centred. Character heads/faces are no longer cut off, and the art no longer drifts too far up.
-- **Lighter scrims:** Overlapping gradients were softened; the hero artwork is no longer muddy/dark while text contrast is preserved.
-- **Manga centred in landscape:** Vertical posters (manga) are no longer pushed to the right — they are shown **dead centre**, as large as possible and uncropped, over a soft ambient fill.
+- **The hero is always a 16:9 cinematic band:** the detail page uses the **same layout** in portrait and landscape. Vertical posters are no longer used as the hero panel.
+- **The band is never sliced:** the highest-quality **WIDE** artwork (TMDB / Fanart.tv / gallery backdrops) is shown **uncropped**. When the artwork ratio differs too much from the band (would require >~20% cropping) the app switches to "fully visible + soft fill" — e.g. an ultra-wide key visual or a vertical poster is shown complete inside the band.
+- **Best quality auto-selected:** candidates are quality-ordered → resolver's TMDB/Fanart.tv ranking (4K > 2K > 1080p, textless, voted) → native backdrop → wide gallery images (by resolution).
+- **Device fit:** band height derives from the panel width (`width × 9/16`) and never exceeds 62% of screen height → identical look on phones, tablets, TV, portrait and landscape.
+- **Title/metadata below the band:** logo/title, format & count row, airing info and badges (source, year, score, favourite, in-list, +18) flow into the info area under the band.
+- **Library (MediaEntry) detail page** follows the exact same rule: best wide gallery artwork in the band, otherwise the poster shown complete inside the band.
 
-### 🎬 2. Detail Pages — Orientation-Aware "Best Artwork" Logic
+### 🖼️ 2. Explore Hero Landscape/Portrait Fit
 
-- **Landscape:** The highest-quality **WIDE** artwork (TMDB / Fanart.tv / gallery backdrops) is shown in a **cropped-free 16:9 cinematic band**; title, metadata rows and badges flow below the band.
-- **Portrait:** The highest-quality **VERTICAL poster** (upgraded to full resolution) fills the full-height hero.
-- **No slicing on aspect mismatch:** When the artwork and the hero area differ wildly (e.g. wide art in a tall panel), the app switches to "fully visible + soft fill" instead of cropping.
-- **Library detail matches:** The `MediaEntry` detail page's landscape hero now uses the best wide gallery artwork of the entry.
+- **Taller landscape band:** landscape phone hero now uses ~74% of the screen height (tablet ~62%); 16:9 key visuals are no longer cropped into a sliver — about 86% of the artwork is visible.
+- **Dynamic crop alignment:** the artwork's **real** aspect ratio drives the crop window; only ~5% is trimmed from the top and the image is horizontally centred.
+- **Lighter scrims:** overlapping gradients softened; the artwork is crisp and vivid.
+- **Manga centred in landscape:** vertical posters are no longer pushed to the right — they sit **dead centre**, as large as possible and uncropped, over a soft ambient fill.
 
 ### ✅ 3. Tests
 
-- `HeroImageSelectionTest` was extended with the new dynamic alignment, fit (COVER ↔ CONTAIN_WITH_FILL) and device/orientation band-height rules.
+- `HeroImageSelectionTest`: dynamic alignment, fit (COVER ↔ CONTAIN_WITH_FILL) and device/orientation band-height rules.
 
 ---
 

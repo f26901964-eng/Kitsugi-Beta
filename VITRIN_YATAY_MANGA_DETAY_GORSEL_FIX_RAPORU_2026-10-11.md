@@ -1,8 +1,13 @@
 # VİTRİN (HERO) YATAY/ DİKEY GÖRSEL UYUMU ve DETAY SAYFASI GENİŞ GÖRSEL MANTIĞI — DÜZELTME RAPORU
 
 **Tarih:** 2026-10-11  
-**Sürüm:** v2.4.249  
-**Durum:** Kod tamamlandı (bu ortamda derleme yapılamadı — aşağıdaki "Doğrulama" bölümüne bakın)
+**Sürüm:** v2.4.250  
+**Durum:** Kod tamamlandı (derleme GitHub Actions'ta doğrulandı; cihaz testi kullanıcıda)
+
+> **REVİZYON (v2.4.250):** Kullanıcı geri bildirimi sonrası **detay sayfası vitrini her iki yönde de
+> 16:9 sinematik bant** olacak şekilde sabitlendi; **poster artık vitrin paneli olarak kullanılmıyor.**
+> Poster yalnızca hiç yatay görsel yoksa bandın içinde kesilmeden gösterilir. Bölüm 3.4 ve 3.5
+> bu karara göre güncellenmiştir.
 
 ---
 
@@ -58,22 +63,23 @@
 - **Manga/poster geniş bantta tam ortada:** ön katman `Alignment.Center` (eskiden yatayda `0.42f` sağa yaslı), üstte/altta simetrik boşluk + altta başlık/meta için 96dp pay → poster metnin arkasına gömülmüyor.
 - Kapak (Crop) yolu artık `heroImageAlignment(..., imageAspect = loadedImageAspect)` kullanıyor.
 
-### 3.4 `KitsugiDetailHero.kt` (API/kaynak detay vitrini)
+### 3.4 `KitsugiDetailHero.kt` (API/kaynak detay vitrini) — v2.4.250 REVİZYONU
 
-- **Yön bazlı plan:** adaylar ikiye ayrıldı ve kalite sırası korundu:
-  - `verticalArtworkCandidates` = kaynak posteri (tam çözünürlüğe yükseltilmiş) → `artwork.posterCandidates` → galeri dikey görselleri (çözünürlük sırasına göre)
-  - `horizontalArtworkCandidates` = kaynak arka planı (doğrulanmış) → `artwork.backdropCandidates` → galeri yatay görselleri
-  - **Yatay modda:** yatay görseller önce. **Dikey modda:** dikey poster önce. (Manga gibi yatay görseli olmayan içerikler yatay modda da poster ile tam boy gösterilir.)
-- **Gerçek kutu ölçümü:** vitrin artık `BoxWithConstraints` ile kendi genişliğini ölçüyor; kutu oranı ekran genişliğinden değil, **gerçek panel genişliğinden** türetiliyor.
-- **16:9 sinematik bant:** yatay modda yatay görsel varsa görsel alanı `maxWidth * 9/16` yüksekliğinde (tam 16:9) → yatay kapak **hiç kırpılmadan** görünür; başlık/logo/meta/rozet bloğu bandın altında 220dp'lik bilgi alanına yerleşir. Bant yüksekliği panel genişliğinden türediği için telefon, tablet ve TV'de aynı oran korunur.
-- **Oran uyuşmazlığı koruması:** `heroArtworkFit` ile `CONTAIN_WITH_FILL` seçildiğinde görsel kesilmez; arkasında aynı görselin yumuşak dolgusu olur.
-- Yatay modda vitrin yüksekliği `(screenHeightDp * 0.88).coerceIn(360f, 640f)`; dikey modda eski `470dp` aynen korundu.
+- **Vitrin her iki yönde de aynı: 16:9 sinematik bant.** Yön bazlı dallanma kaldırıldı; ekran yönü artık görsel seçimini etkilemiyor. Poster vitrin paneli olarak **kullanılmıyor**.
+- **Aday sırası kalite sıralı:**
+  - `wideArtworkCandidates` = `artwork.backdropCandidates` (TMDB/Fanart.tv kalite sıralaması: 4K > 2K > 1080p, yazısız, oylu) → `nativeBackdropUrl` → galeri yatay görselleri (çözünürlük sırasına göre)
+  - `tallArtworkCandidates` (yalnızca YEDEK) = `artwork.posterCandidates` → `nativePosterUrl` → galeri dikey görselleri
+  - `imagePlan = wide + tall` → en kaliteli yatay görsel her zaman ilk sırada.
+- **Boyut:** görsel alanı `bannerHeight = (maxWidth * 9/16).coerceAtMost(screenHeightDp * 0.62)`; vitrin kutusu `bannerHeight + 220dp` (bilgi alanı). Bant genişlikten türediği için telefon, tablet, TV, dikey ve yatayda aynı görünüm; ekran yüksekliği sınırı TV/büyük tablette taşmayı engeller.
+- **Kırpma yok:** `heroArtworkFit(..., tolerance = HERO_BANNER_FIT_TOLERANCE = 1.20f)` — yatay görsel banttan %20'den fazla saparsa `CONTAIN_WITH_FILL` (tam görünür + yumuşak dolgu). Böylece ultra geniş afişler ve dikey posterler de **kesilmeden** görünür.
+- **Gerçek ölçüm:** kutu oranı ekran genişliğinden değil, `BoxWithConstraints` ile **gerçek panel genişliğinden** türetiliyor (eski hata: sol panel içindeki vitrin ekran oranı sanılıyordu).
+- Başlık/logo, format-sayaç satırı, yayın bilgisi ve rozetler bandın altındaki bilgi alanına akar.
 
-### 3.5 `KitsugiDetailHeroSection.kt` (`DetailHero` — kütüphane detayı)
+### 3.5 `KitsugiDetailHeroSection.kt` (`DetailHero` — kütüphane detayı) — v2.4.250 REVİZYONU
 
-- Yeni parametre: `galleryItems: List<GalleryItem>` (çağıran: `EntryDetailLeftPanel`, iletildi).
-- Yatay modda kayıtla ilişkili **en kaliteli yatay galeri görseli** 16:9 bantta kırpılmadan; dikey modda poster (tam çözünürlüğe yükseltilmiş) tam boy vitrinde.
-- Aynı gerçek ölçüm + dinamik hizalama + yedek zinciri (`onLoadingFailed` ile sıradaki adaya geçiş) eklendi.
+- Yeni parametre: `galleryItems: List<GalleryItem>` (çağıran: `EntryDetailLeftPanel` ile iletildi).
+- **Aynı kural:** vitrin her iki yönde de 16:9 sinematik bant; `imagePlan = wideGalleryUrls (çözünürlük sırası) + posterUrl`. Poster yalnızca hiç yatay görsel yoksa bandın içinde kesilmeden gösterilir.
+- Bant `(maxWidth * 9/16).coerceAtMost(screenHeight * 0.62)` + 220dp bilgi alanı; `HERO_BANNER_FIT_TOLERANCE` ile kırpma yerine "tam görünür + dolgu" (tıklanabilir katman korunur), `onLoadingFailed` ile yedek aday zinciri.
 
 ### 3.6 Testler — `HeroImageSelectionTest.kt`
 
@@ -99,17 +105,18 @@ Mevcut testler (kaynak önceliği, Bangumi kapak reddi, TMDB/Fanart kalite sıra
 4. `app/src/main/java/com/kitsugi/animelist/ui/screens/detail/KitsugiDetailHeroSection.kt`
 5. `app/src/main/java/com/kitsugi/animelist/ui/screens/detail/EntryDetailLeftPanel.kt`
 6. `app/src/test/java/com/kitsugi/animelist/ui/components/HeroImageSelectionTest.kt`
-7. `app/build.gradle.kts` (sürüm `2.4.248 → 2.4.249`)
-8. `release_notes_v2.4.249.md`, `RELEASE_NOTES.md`
+7. `app/build.gradle.kts` (sürüm `2.4.248 → 2.4.250`)
+8. `release_notes_v2.4.250.md`, `RELEASE_NOTES.md`
 
 ---
 
 ## 5. Doğrulama ve Kalan Riskler
 
-- **Bu ortamda derleme yapılamadı:** sandbox'ta JDK/Android SDK/Gradle önbelleği ve ağ erişimi (Maven) yok. Bu nedenle tüm dosyalar için parantez/süslü parantez dengesi, içe aktarma (import) tamlığı ve sınıf/üye adları elle doğrulandı.
+- **Derleme:** GitHub Actions "Android Derleme Doğrulama" iş akışı `arena/f2e286c7-kitsugi-beta` dalında çalıştı ve **başarılı** oldu (v2.4.249 turu). v2.4.250 revizyonu aynı iş akışıyla yeniden doğrulanır.
 - Cihazda kontrol edilmesi gerekenler:
-  1. Yatay telefonda Keşfet vitrini (bant ekran yüksekliğinin ~%74'ü, görselin çoğu görünür).
-  2. Yatay telefonda manga vitrini (poster tam ortada, kesilmemiş).
-  3. Detay sayfası yatay: 16:9 bant + altında başlık/meta; dikey: tam boy poster.
-  4. Poster/oran uyuşmazlığında "tam görünür + dolgu" davranışı.
-- **Bilinen sınırlama:** Panel genişliği küçük olduğunda (yatay telefonda sol panel ~300dp) 16:9 bant ~170dp yüksekliğinde olur; yatay görselin **tamamı** görünür ama görsel alanı eski 470dp'lik panelden küçüktür. Bu, "geniş resmi kesmeden göster" gereksiniminin doğal sonucudur.
+  1. Detay sayfası — **dikey mod**: 16:9 bant + altında başlık/meta/rozetler (poster paneli yok).
+  2. Detay sayfası — **yatay mod**: aynı 16:9 bant, kenarlarından hiç kesilmemiş.
+  3. Manga/Bangumi gibi yatay görseli olmayan kayıtlar: poster bandın içinde **kesilmeden** ve ortada.
+  4. Keşfet vitrini yatay (bant büyük, görsel çoğu görünür) ve manga vitrini (poster tam ortada).
+- **Bilinen sınırlama:** Panel genişliği küçük olduğunda (yatay telefonda sol panel ~300dp) 16:9 bant ~170dp yüksekliğinde olur. Bant her zaman genişlikten türediği için görsel oranı korunur; alan eski 470dp panelden küçüktür — "kırpılmadan göster" gereksiniminin doğal sonucu.
+- **Not:** Detay vitrini artık yön fark etmeksizin bant olduğu için, çok geniş (ör. 21:9) bir kapak görseli dikey modda da tamamen görünür ama bantta üst/alt ince dolgu şeritleri oluşabilir (bilinçli tercih: kırpmama).

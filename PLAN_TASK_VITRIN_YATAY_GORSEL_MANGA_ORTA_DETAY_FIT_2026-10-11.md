@@ -1,9 +1,13 @@
 # PLAN / TASK — Vitrin (Hero) Yatay Mod Uyumu, Manga Orta Hizalama ve Detay Sayfası Yön Bazlı Görsel Seçimi
 
 **Tarih:** 2026-10-11  
-**Sürüm:** v2.4.249  
-**Dal (branch):** `arena/f2e286c7-kitsugi-beta` (commit `3338234`)  
+**Sürüm:** v2.4.250  
+**Dal (branch):** `arena/f2e286c7-kitsugi-beta`  
 **Durum:** Kod + dokümantasyon tamamlandı. **Cihaz testi kullanıcıda.**
+
+> **REVİZYON (v2.4.250):** Kullanıcı geri bildirimi: *"Detay sayfası yatayda hep aynı, dikey moddayken de poster değil —
+> 16:9 sinematik bantta kırpılmadan bu olacak bu; en kalitelisi otomatik seçilecek."*
+> Buna göre **detay sayfası vitrini her iki yönde de 16:9 sinematik bant** olarak sabitlendi (Görev 8).
 
 ---
 
@@ -14,7 +18,7 @@
 | 1 | Keşfet vitrini yatay modda çirkin: 16:9 kapak görseli çok ince şeride kırpılıyor, gradyanlarla kararmış görünüyor; telefon/tablet uyumu yok | 1 |
 | 2 | Yatay modda manga (Berserk): poster sağa yaslanmış, **tam ortada** olması gerekiyor | 2 |
 | 3 | Detay sayfası yatay modda en kaliteli **geniş** görselin kullanılması | 3 |
-| 4 | Detay sayfası dikey modda en kaliteli **posterin** kullanılması (otomatik) | 3-4 |
+| 4 | Detay sayfası: her iki yönde de **16:9 sinematik bant, kırpılmadan**, en kalitelisi otomatik (poster vitrin paneli DEĞİL) | 3-4 |
 
 ---
 
@@ -26,6 +30,7 @@
 4. `KitsugiHeroSection`: manga posterinin "tam görünür" katmanı `BiasAlignment(0.42f, -0.04f)` ile sağa yaslı.
 5. `KitsugiDetailHero`: vitrin **sol panel** içinde olmasına rağmen kutu oranı `screenWidthDp/470dp` ile hesaplanıyordu (gerçek oran ~0.63, sanılan ~1.67) → yatay görsel seçilip dikey panele sığdırılmak için %65'i kırpılıyordu.
 6. Görsel aday sırası ekran yönüne göre değil, yanlış kutu oranına göre belirleniyordu.
+8. (v2.4.250) Dikey modda ve yatay görseli olmayan kayıtlarda vitrin **tam boy poster paneline** düşüyordu; vitrin tasarımı kayıttan kayıda değişiyordu. Kullanıcı bunun yerine **her durumda 16:9 sinematik bant** istedi.
 7. `DetailHero` (kütüphane detayı) yalnızca posteri (`entry.imageUrl`) `Crop` ile gösteriyordu; galerideki yatay görseller hiç kullanılmıyordu.
 
 ---
@@ -49,30 +54,33 @@
 - [x] Kapak yolu `heroImageAlignment(..., imageAspect = loadedImageAspect)` kullanıyor
 
 ### [x] Görev 4 — Detay vitrini (`KitsugiDetailHero.kt`)
-- [x] Adaylar ikiye ayrıldı: `verticalArtworkCandidates` / `horizontalArtworkCandidates` (her liste kendi içinde kalite sırasında)
-- [x] **Yatay modda yatay görsel önce**, dikey modda poster önce
+- [x] Adaylar: `wideArtworkCandidates` (kalite sıralı: `artwork.backdropCandidates` → `nativeBackdropUrl` → galeri yatayları) + `tallArtworkCandidates` (YEDEK: posterler)
 - [x] `BoxWithConstraints` ile gerçek panel ölçümü (ekran genişliği yerine)
-- [x] Yatay modda **16:9 sinematik bant** (`maxWidth * 9/16`) → kapak görseli **kırpılmadan**; başlık/meta bandın altındaki 220dp bilgi alanına akar
-- [x] Oran uyuşmazlığında `CONTAIN_WITH_FILL` (tam görünür + yumuşak dolgu)
-- [x] Yatay vitrin yüksekliği `(screenHeight*0.88).coerceIn(360,640)`; dikeyde 470dp korundu
+- [x] **16:9 sinematik bant her iki yönde:** `bannerHeight = (maxWidth * 9/16).coerceAtMost(screenHeight * 0.62)` → kapak görseli **kırpılmadan**; başlık/meta bandın altındaki 220dp bilgi alanına akar
+- [x] Kırpma yok: `heroArtworkFit(..., tolerance = HERO_BANNER_FIT_TOLERANCE = 1.20f)` ile `CONTAIN_WITH_FILL` (tam görünür + yumuşak dolgu)
+- [x] Poster vitrin paneli olarak **kullanılmıyor**; yalnızca hiç yatay görsel yoksa bandın içinde kesilmeden gösteriliyor
 
 ### [x] Görev 5 — Kütüphane detay vitrini (`KitsugiDetailHeroSection.kt` + `EntryDetailLeftPanel.kt`)
-- [x] `DetailHero`'ya `galleryItems: List<GalleryItem>` parametresi
-- [x] `EntryDetailLeftPanel` galeriyi iletiyor
-- [x] Yatay modda en kaliteli yatay galeri görseli 16:9 bantta; dikeyde poster
-- [x] `onLoadingFailed` ile yedek aday zinciri
+- [x] `DetailHero`'ya `galleryItems: List<GalleryItem>` parametresi; `EntryDetailLeftPanel` iletiyor
+- [x] Aynı kural: **her iki yönde 16:9 bant**, `imagePlan = galeri yatayları (çözünürlük sırası) + poster`
+- [x] `onLoadingFailed` ile yedek aday zinciri, aynı ölçüm/kırpma kuralları
 
 ### [x] Görev 6 — Birim testleri (`HeroImageSelectionTest.kt`)
 - [x] Dinamik hizalama testi (16:9 + 2.47:1 bant → bias ≈ -0.09; poster + dikey telefon → ≈ -0.08; poster + geniş bant → ≤ -0.30)
 - [x] `heroArtworkFit` uyum testi (COVER/CONTAIN_WITH_FILL/oran bilinmiyor)
 - [x] Bant yüksekliği testi (476dp yatay telefon → 352dp; tablet ≥ 480dp; dikey telefon 440dp)
 
-### [ ] Görev 7 — Cihaz testi (KULLANICIDA)
-- [ ] Yatay telefonda Keşfet vitrini (bant büyük, görsel net/kırpılmamış)
+### [x] Görev 7 — Ortam doğrulaması
+- [x] Parantez/süslü parantez dengesi, import tamlığı ve üye adları kontrol edildi
+- [x] GitHub Actions derleme doğrulaması: çalıştırıldı (v2.4.249 turu başarılı, v2.4.250 revizyonu yeniden doğrulanır)
+
+### [ ] Görev 8 — Cihaz testi (KULLANICIDA)
+- [ ] Detay sayfası **dikey**: 16:9 bant + altında başlık/meta/rozetler (poster paneli YOK)
+- [ ] Detay sayfası **yatay**: aynı 16:9 bant, kenarlardan kesilmemiş
+- [ ] Manga/Bangumi kayıtları: poster bandın içinde kesilmeden, ortada
+- [ ] Yatay telefonda Keşfet vitrini (bant büyük, görsel çoğu görünür)
 - [ ] Yatay telefonda manga vitrini (poster tam ortada)
-- [ ] Detay sayfası yatay (16:9 bant + altında başlık/meta/rozetler)
-- [ ] Detay sayfası dikey (tam boy poster)
-- [ ] Oran uyuşmazlığı durumunda "tam görünür + dolgu"
+- [ ] Oran uyuşmazlığında "tam görünür + yumuşak dolgu"
 - [ ] Tablet yatay/dikey kontrolü
 
 ---
@@ -87,8 +95,8 @@
 | `app/src/main/java/com/kitsugi/animelist/ui/screens/detail/KitsugiDetailHeroSection.kt` | DEĞİŞTİ |
 | `app/src/main/java/com/kitsugi/animelist/ui/screens/detail/EntryDetailLeftPanel.kt` | DEĞİŞTİ |
 | `app/src/test/java/com/kitsugi/animelist/ui/components/HeroImageSelectionTest.kt` | DEĞİŞTİ |
-| `app/build.gradle.kts` (sürüm 2.4.249) | DEĞİŞTİ |
-| `release_notes_v2.4.249.md`, `RELEASE_NOTES.md` | DEĞİŞTİ / YENİ |
+| `app/build.gradle.kts` (sürüm 2.4.250) | DEĞİŞTİ |
+| `release_notes_v2.4.250.md`, `RELEASE_NOTES.md` | DEĞİŞTİ / YENİ |
 | `VITRIN_YATAY_MANGA_DETAY_GORSEL_FIX_RAPORU_2026-10-11.md` | YENİ (rapor) |
 
 ---

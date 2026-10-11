@@ -223,6 +223,13 @@ object KitsugiHeroArtworkResolver {
             return null
         }
 
+        // AniList/MAL gibi kaynakların dikey kapak adresleri yatay arka plan sayılmaz
+        // (ör. `s4.anilist.co/.../cover/large/bx123.jpg`). Aksi hâlde 16:9 sinematik bantta
+        // yanlarda dolgu şeritleri oluşur.
+        if (isLikelyVerticalUrl(url = sanitized, posterUrl = null, backdropUrl = null)) {
+            return null
+        }
+
         // Poster ile aynı görsel kimliğine sahipse yatay backdrop olarak kullanılmaz.
         if (!posterUrl.isNullOrBlank() && normalizeImageIdentity(sanitized) == normalizeImageIdentity(posterUrl)) {
             return null
