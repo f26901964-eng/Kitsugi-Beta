@@ -3,7 +3,6 @@ package com.kitsugi.animelist.ui.components
 import com.kitsugi.animelist.ui.theme.gradient.Icon
 import com.kitsugi.animelist.ui.theme.gradient.RadioButton
 import com.kitsugi.animelist.ui.theme.gradient.Slider
-import com.kitsugi.animelist.ui.theme.gradient.TabRow
 import com.kitsugi.animelist.ui.theme.gradient.Text
 
 import com.kitsugi.animelist.ui.theme.gradient.background
@@ -23,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.DarkMode
 import androidx.compose.material.icons.rounded.LightMode
+import androidx.compose.material.icons.rounded.ListAlt
 import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Settings
 import androidx.compose.material.icons.rounded.Star
@@ -116,10 +116,15 @@ fun KitsugiPreferencesSettingsDialog(
     onMangaColorFilterSelected: (String) -> Unit = {},
     onMangaFitModeSelected: (String) -> Unit = {},
     onMangaBrightnessChanged: (Float) -> Unit = {},
-    embeddedMode: Boolean = false
+    embeddedMode: Boolean = false,
+    initialPage: Int = 0
 ) {
-    val pagerState = rememberPagerState(pageCount = { 3 })
+    val pagerState = rememberPagerState(initialPage = initialPage.coerceIn(0, 2), pageCount = { 3 })
     val scope = rememberCoroutineScope()
+    LaunchedEffect(initialPage) {
+        val targetPage = initialPage.coerceIn(0, 2)
+        if (pagerState.currentPage != targetPage) pagerState.animateScrollToPage(targetPage)
+    }
     val accentColor = LocalKitsugiAccent.current
     val KitsugiColors = LocalKitsugiColors.current
 
@@ -163,51 +168,16 @@ fun KitsugiPreferencesSettingsDialog(
                         }
                     }
                 }
-                TabRow(
-                    selectedTabIndex = pagerState.currentPage,
-                    containerColor = KitsugiColors.surface,
-                    contentColor = accentColor
-                ) {
-                    Tab(
-                        selected = pagerState.currentPage == 0,
-                        onClick = {
-                            scope.launch { pagerState.animateScrollToPage(0) }
-                        },
-                        text = {
-                            Text(
-                                stringResource(R.string.settings_tab_appearance),
-                                fontWeight = if (pagerState.currentPage == 0) FontWeight.Bold else FontWeight.Normal,
-                                fontSize = 13.sp
-                            )
-                        }
-                    )
-                    Tab(
-                        selected = pagerState.currentPage == 1,
-                        onClick = {
-                            scope.launch { pagerState.animateScrollToPage(1) }
-                        },
-                        text = {
-                            Text(
-                                stringResource(R.string.settings_tab_list_score),
-                                fontWeight = if (pagerState.currentPage == 1) FontWeight.Bold else FontWeight.Normal,
-                                fontSize = 13.sp
-                            )
-                        }
-                    )
-                    Tab(
-                        selected = pagerState.currentPage == 2,
-                        onClick = {
-                            scope.launch { pagerState.animateScrollToPage(2) }
-                        },
-                        text = {
-                            Text(
-                                stringResource(R.string.settings_tab_manga_reader),
-                                fontWeight = if (pagerState.currentPage == 2) FontWeight.Bold else FontWeight.Normal,
-                                fontSize = 13.sp
-                            )
-                        }
-                    )
-                }
+                KitsugiSettingsSegmentedTabs(
+                    tabs = listOf(
+                        KitsugiSettingsTabOption(stringResource(R.string.settings_tab_appearance), Icons.Rounded.Palette),
+                        KitsugiSettingsTabOption(stringResource(R.string.settings_tab_list_score), Icons.Rounded.ListAlt),
+                        KitsugiSettingsTabOption(stringResource(R.string.settings_tab_manga_reader), Icons.Rounded.MenuBook)
+                    ),
+                    selectedIndex = pagerState.currentPage,
+                    accentColor = accentColor,
+                    onSelect = { index -> scope.launch { pagerState.animateScrollToPage(index) } }
+                )
             }
 
             // Body

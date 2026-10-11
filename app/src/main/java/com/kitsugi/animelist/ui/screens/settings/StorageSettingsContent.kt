@@ -123,41 +123,39 @@ fun StorageSettingsContent() {
     ) {
         Spacer(Modifier.height(8.dp))
 
-        // ── Toplam kullanım ────────────────────────────────────────────────────
-        KitsugiSettingsSection(title = stringResource(R.string.storage_title)) {
-            SettingsNavCard {
-                Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            text = stringResource(R.string.storage_total),
-                            color = KitsugiColors.TextPrimary,
-                            style = MaterialTheme.typography.bodyMedium,
-                            fontWeight = FontWeight.SemiBold,
-                            modifier = Modifier.weight(1f)
-                        )
-                        Text(
-                            text = if (usages == null) stringResource(R.string.storage_calculating)
-                            else formatBytes(totalBytes),
-                            color = accentColor,
-                            style = MaterialTheme.typography.titleMedium,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                    Spacer(Modifier.height(6.dp))
+        // ── Genel Bakış ────────────────────────────────────────────────────────
+        SettingsNavCard {
+            Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = stringResource(R.string.storage_protected_note),
-                        color = KitsugiColors.TextMuted,
-                        style = MaterialTheme.typography.bodySmall
+                        text = stringResource(R.string.storage_total),
+                        color = KitsugiColors.TextPrimary,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.SemiBold,
+                        modifier = Modifier.weight(1f)
                     )
-                    if (statusMessage != null) {
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            text = statusMessage!!,
-                            color = KitsugiColors.AccentGreen,
-                            style = MaterialTheme.typography.bodySmall,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
+                    Text(
+                        text = if (usages == null) stringResource(R.string.storage_calculating)
+                        else formatBytes(totalBytes),
+                        color = accentColor,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    text = stringResource(R.string.storage_protected_note),
+                    color = KitsugiColors.TextMuted,
+                    style = MaterialTheme.typography.bodySmall
+                )
+                if (statusMessage != null) {
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        text = statusMessage!!,
+                        color = KitsugiColors.AccentGreen,
+                        style = MaterialTheme.typography.bodySmall,
+                        fontWeight = FontWeight.SemiBold
+                    )
                 }
             }
         }
@@ -165,47 +163,46 @@ fun StorageSettingsContent() {
         Spacer(Modifier.height(12.dp))
 
         // ── Kalemler ───────────────────────────────────────────────────────────
-        KitsugiSettingsSection(title = stringResource(R.string.storage_section_buckets)) {
-            SettingsNavCard {
-                val list = usages
-                if (list == null) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 24.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = accentColor, strokeWidth = 2.dp)
-                    }
-                } else {
-                    list.forEachIndexed { index, usage ->
-                        if (index > 0) KitsugiSettingsDivider()
-                        StorageBucketRow(
-                            usage = usage,
-                            busy = busyBucket == usage.bucket,
-                            enabled = !busyAll,
-                            accentColor = accentColor,
-                            onClear = {
-                                if (usage.bucket == StorageJanitor.Bucket.WEBVIEW_DATA) {
-                                    showWebViewConfirm = true
-                                } else {
-                                    busyBucket = usage.bucket
-                                    scope.launch {
-                                        val result = StorageJanitor.clean(context, usage.bucket)
-                                        refresh()
-                                        busyBucket = null
-                                        statusMessage = result.message
-                                            ?: if (result.freedBytes > 0L)
-                                                context.getString(
-                                                    R.string.storage_cleared_amount,
-                                                    formatBytes(result.freedBytes)
-                                                )
-                                            else context.getString(R.string.storage_cleared_nothing)
-                                    }
+        SectionHeader(stringResource(R.string.storage_section_buckets))
+        SettingsNavCard {
+            val list = usages
+            if (list == null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = accentColor, strokeWidth = 2.dp)
+                }
+            } else {
+                list.forEachIndexed { index, usage ->
+                    if (index > 0) KitsugiSettingsDivider()
+                    StorageBucketRow(
+                        usage = usage,
+                        busy = busyBucket == usage.bucket,
+                        enabled = !busyAll,
+                        accentColor = accentColor,
+                        onClear = {
+                            if (usage.bucket == StorageJanitor.Bucket.WEBVIEW_DATA) {
+                                showWebViewConfirm = true
+                            } else {
+                                busyBucket = usage.bucket
+                                scope.launch {
+                                    val result = StorageJanitor.clean(context, usage.bucket)
+                                    refresh()
+                                    busyBucket = null
+                                    statusMessage = result.message
+                                        ?: if (result.freedBytes > 0L)
+                                            context.getString(
+                                                R.string.storage_cleared_amount,
+                                                formatBytes(result.freedBytes)
+                                            )
+                                        else context.getString(R.string.storage_cleared_nothing)
                                 }
                             }
-                        )
-                    }
+                        }
+                    )
                 }
             }
         }
@@ -215,54 +212,56 @@ fun StorageSettingsContent() {
         // ── İndirilenler (kullanıcı dosyaları) ─────────────────────────────────
         // Önbelleklerden ayrı tutulur: buradaki dosyalar kullanıcının kendi içeriğidir,
         // yalnızca açık onayla silinir ve "Güvenli önbellekleri temizle" bunlara dokunmaz.
-        KitsugiSettingsSection(
-            title = stringResource(R.string.storage_section_downloads),
-            subtitle = stringResource(R.string.storage_downloads_hint)
-        ) {
-            SettingsNavCard {
-                Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
-                    Text(
-                        text = stringResource(R.string.storage_downloads_total, formatBytes(downloadsTotal)),
-                        color = accentColor,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
+        SectionHeader(stringResource(R.string.storage_section_downloads))
+        SettingsNavCard {
+            Column(Modifier.padding(horizontal = 16.dp, vertical = 14.dp)) {
+                Text(
+                    text = stringResource(R.string.storage_downloads_total, formatBytes(downloadsTotal)),
+                    color = accentColor,
+                    style = MaterialTheme.typography.bodyMedium,
+                    fontWeight = FontWeight.Bold
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = stringResource(R.string.storage_downloads_hint),
+                    color = KitsugiColors.TextMuted,
+                    style = MaterialTheme.typography.bodySmall
+                )
             }
+        }
 
-            Spacer(Modifier.height(8.dp))
+        Spacer(Modifier.height(8.dp))
 
-            SettingsNavCard {
-                val downloads = downloadUsages
-                if (downloads == null) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 24.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        CircularProgressIndicator(color = accentColor, strokeWidth = 2.dp)
-                    }
-                } else {
-                    downloads.forEachIndexed { index, usage ->
-                        if (index > 0) KitsugiSettingsDivider()
-                        DownloadRow(
-                            usage = usage,
-                            busy = busyDownloadKind == usage.kind || busyAllDownloads,
-                            enabled = !busyAll && !busyAllDownloads && busyDownloadKind == null,
-                            accentColor = KitsugiColors.AccentRed,
-                            onClear = { confirmDownloadKind = usage.kind }
-                        )
-                    }
-
-                    KitsugiSettingsDivider()
-
-                    DeleteAllDownloadsRow(
-                        busy = busyAllDownloads,
-                        enabled = !busyAll && busyDownloadKind == null && !busyAllDownloads,
-                        onClear = { showDeleteAllDownloadsConfirm = true }
+        SettingsNavCard {
+            val downloads = downloadUsages
+            if (downloads == null) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 24.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    CircularProgressIndicator(color = accentColor, strokeWidth = 2.dp)
+                }
+            } else {
+                downloads.forEachIndexed { index, usage ->
+                    if (index > 0) KitsugiSettingsDivider()
+                    DownloadRow(
+                        usage = usage,
+                        busy = busyDownloadKind == usage.kind || busyAllDownloads,
+                        enabled = !busyAll && !busyAllDownloads && busyDownloadKind == null,
+                        accentColor = KitsugiColors.AccentRed,
+                        onClear = { confirmDownloadKind = usage.kind }
                     )
                 }
+
+                KitsugiSettingsDivider()
+
+                DeleteAllDownloadsRow(
+                    busy = busyAllDownloads,
+                    enabled = !busyAll && busyDownloadKind == null && !busyAllDownloads,
+                    onClear = { showDeleteAllDownloadsConfirm = true }
+                )
             }
         }
 

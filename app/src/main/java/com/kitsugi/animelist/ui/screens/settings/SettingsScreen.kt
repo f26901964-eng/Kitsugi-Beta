@@ -10,6 +10,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,7 +26,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.ArrowBack
-import androidx.compose.material.icons.automirrored.rounded.ManageSearch
 import androidx.compose.material.icons.rounded.*
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -59,6 +59,7 @@ import com.kitsugi.animelist.utils.KitsugiStrings
 import com.kitsugi.animelist.ui.components.KitsugiConfirmDialog
 import com.kitsugi.animelist.ui.components.KitsugiIntegrationsSettingsDialog
 import com.kitsugi.animelist.ui.components.KitsugiPlayerSettingsDialog
+import com.kitsugi.animelist.ui.components.PlayerSettingsSubScreen
 import com.kitsugi.animelist.ui.components.KitsugiPreferencesSettingsDialog
 import com.kitsugi.animelist.ui.components.KitsugiSettingsDivider
 import com.kitsugi.animelist.ui.components.KitsugiSettingsItem
@@ -103,17 +104,58 @@ fun SettingsScreen(
     params: SettingsScreenParameters
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
-    val accentColor = LocalKitsugiAccent.current
-
     var route by rememberSaveable { mutableStateOf(SettingsRoute.Main) }
+    var pluginDiagnosticBackRoute by rememberSaveable { mutableStateOf(SettingsRoute.AddonsExtensions) }
     var errorCatalogBackRoute by rememberSaveable { mutableStateOf(SettingsRoute.Main) }
     var showDeleteAllConfirm by rememberSaveable { mutableStateOf(false) }
+    var settingsSearchQuery by rememberSaveable { mutableStateOf("") }
+    var appearanceInitialPage by rememberSaveable { mutableStateOf(0) }
+    var playerInitialSubScreen by rememberSaveable { mutableStateOf(PlayerSettingsSubScreen.Main) }
+    var playerCurrentSubScreen by rememberSaveable { mutableStateOf(PlayerSettingsSubScreen.Main) }
+    var addonsInitialTab by rememberSaveable { mutableStateOf(0) }
+    var integrationsInitialPage by rememberSaveable { mutableStateOf(0) }
     var systemSettingsInitialPage by rememberSaveable { mutableStateOf(0) }
+
+    fun navigateToSettingsPage(target: SettingsRoute, searchEntry: SettingsSearchEntry? = null) {
+        val pageIndex = searchEntry?.pageIndex ?: 0
+        when (target) {
+            SettingsRoute.AppearancePreferences -> appearanceInitialPage = pageIndex.coerceIn(0, 2)
+            SettingsRoute.PlayerSettings -> {
+                val playerTarget = searchEntry?.playerSubScreen ?: PlayerSettingsSubScreen.Main
+                playerInitialSubScreen = playerTarget
+                playerCurrentSubScreen = playerTarget
+            }
+            SettingsRoute.AddonsExtensions -> addonsInitialTab = pageIndex.coerceIn(0, 2)
+            SettingsRoute.Integrations -> integrationsInitialPage = pageIndex.coerceIn(0, 3)
+            SettingsRoute.DataBackup -> systemSettingsInitialPage = pageIndex.coerceIn(0, 1)
+            SettingsRoute.PluginDiagnostic -> pluginDiagnosticBackRoute = SettingsRoute.Main
+            SettingsRoute.PlatformErrorCodes -> errorCatalogBackRoute = SettingsRoute.Main
+            else -> Unit
+        }
+        route = target
+    }
+
+    fun openDownloads() {
+        if (params.onOpenDownloads != null) {
+            params.onOpenDownloads.invoke()
+        } else {
+            context.startActivity(
+                android.content.Intent(
+                    context,
+                    com.kitsugi.animelist.ui.screens.offline.DownloadsActivity::class.java
+                )
+            )
+        }
+    }
+
+    fun openAbout() {
+        (params.onOpenAbout ?: { params.integrations.onOpenAbout() }).invoke()
+    }
 
     // Geri tuşu — hiyerarşik geri navigasyon
     BackHandler(enabled = route != SettingsRoute.Main) {
         route = when (route) {
-            SettingsRoute.PluginDiagnostic -> SettingsRoute.AddonsExtensions
+            SettingsRoute.PluginDiagnostic -> pluginDiagnosticBackRoute
             SettingsRoute.PlatformErrorCodes -> errorCatalogBackRoute
             SettingsRoute.AniListSettings,
             SettingsRoute.MalSettings,
@@ -137,8 +179,6 @@ fun SettingsScreen(
         }
     }
 
-    val isGoingForward = route != SettingsRoute.Main
-
     AnimatedContent(
         targetState = route,
         transitionSpec = {
@@ -158,11 +198,18 @@ fun SettingsScreen(
             SettingsRoute.Main -> {
                 SettingsMainPage(
                     params = params,
-                    onNavigate = {
-                        if (it == SettingsRoute.PlatformErrorCodes) {
-                            errorCatalogBackRoute = SettingsRoute.Main
+                    searchQuery = settingsSearchQuery,
+                    onSearchQueryChange = { settingsSearchQuery = it },
+                    onNavigate = { navigateToSettingsPage(it) },
+                    onOpenDownloads = { openDownloads() },
+                    onOpenAbout = { openAbout() },
+                    onSearchResultSelected = { entry ->
+                        when (entry.action) {
+                            SettingsMainAction.WatchHistory -> params.onOpenWatchHistory?.invoke()
+                            SettingsMainAction.Downloads -> openDownloads()
+                            SettingsMainAction.About -> openAbout()
+                            null -> entry.route?.let { navigateToSettingsPage(it, entry) }
                         }
-                        route = it
                     }
                 )
             }
@@ -254,23 +301,45 @@ fun SettingsScreen(
             SettingsRoute.AppearancePreferences -> {
                 SettingsSubPage(
                     title = stringResource(R.string.settings_pref_title),
-                    onBack = { route = SettingsRoute.Main }
+                    onBack = { route = SettingsRoute.Main },
+                    contentHandlesNavigationBars = true
                 ) {
                     SettingsPreferencesContent(
                         general = params.general,
-                        integrations = params.integrations
+                        integrations = params.integrations,
+                        initialPage = appearanceInitialPage
                     )
                 }
             }
 
             SettingsRoute.PlayerSettings -> {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .statusBarsPadding()
+                val playerPageTitle = when (playerCurrentSubScreen) {
+                    PlayerSettingsSubScreen.Main -> stringResource(R.string.pd_title)
+                    PlayerSettingsSubScreen.DahiliOynatici -> stringResource(R.string.pd_tab_internal)
+                    PlayerSettingsSubScreen.Hareketler -> stringResource(R.string.pd_sub_gestures)
+                    PlayerSettingsSubScreen.KodCozucu -> stringResource(R.string.pd_tab_decoder)
+                    PlayerSettingsSubScreen.Altyazilar -> stringResource(R.string.pd_tab_subtitles)
+                    PlayerSettingsSubScreen.Ses -> stringResource(R.string.pd_sub_audio)
+                    PlayerSettingsSubScreen.OzelButonlar -> stringResource(R.string.pd_tab_custom_buttons)
+                    PlayerSettingsSubScreen.KodDuzenleyici -> stringResource(R.string.pd_tab_code_editor)
+                    PlayerSettingsSubScreen.Gelismis -> stringResource(R.string.pd_tab_advanced)
+                }
+                SettingsSubPage(
+                    title = playerPageTitle,
+                    onBack = {
+                        if (playerCurrentSubScreen != PlayerSettingsSubScreen.Main) {
+                            playerInitialSubScreen = PlayerSettingsSubScreen.Main
+                            playerCurrentSubScreen = PlayerSettingsSubScreen.Main
+                        } else {
+                            route = SettingsRoute.Main
+                        }
+                    },
+                    contentHandlesNavigationBars = true
                 ) {
                     SettingsPlayerContent(
                         player = params.player,
+                        initialSubScreen = playerInitialSubScreen,
+                        onSubScreenChanged = { playerCurrentSubScreen = it },
                         onDismiss = { route = SettingsRoute.Main }
                     )
                 }
@@ -279,12 +348,17 @@ fun SettingsScreen(
             SettingsRoute.AddonsExtensions -> {
                 SettingsSubPage(
                     title = stringResource(R.string.settings_addons_sources),
-                    onBack = { route = SettingsRoute.Main }
+                    onBack = { route = SettingsRoute.Main },
+                    contentHandlesNavigationBars = true
                 ) {
                     SettingsAddonsContent(
                         addon = params.addon,
                         manga = params.manga,
-                        onOpenDiagnostic = { route = SettingsRoute.PluginDiagnostic },
+                        initialTab = addonsInitialTab,
+                        onOpenDiagnostic = {
+                            pluginDiagnosticBackRoute = SettingsRoute.AddonsExtensions
+                            route = SettingsRoute.PluginDiagnostic
+                        },
                         onExplorePlugin = { pluginName ->
                             route = SettingsRoute.Main
                             params.onExplorePlugin?.invoke(pluginName)
@@ -300,16 +374,21 @@ fun SettingsScreen(
             SettingsRoute.Integrations -> {
                 SettingsSubPage(
                     title = stringResource(R.string.settings_integrations),
-                    onBack = { route = SettingsRoute.Main }
+                    onBack = { route = SettingsRoute.Main },
+                    contentHandlesNavigationBars = true
                 ) {
-                    SettingsIntegrationsContent(integrations = params.integrations)
+                    SettingsIntegrationsContent(
+                        integrations = params.integrations,
+                        initialPage = integrationsInitialPage
+                    )
                 }
             }
 
             SettingsRoute.DataBackup -> {
                 SettingsSubPage(
                     title = stringResource(R.string.settings_data_backup),
-                    onBack = { route = SettingsRoute.Main }
+                    onBack = { route = SettingsRoute.Main },
+                    contentHandlesNavigationBars = true
                 ) {
                     KitsugiSystemSettingsDialog(
                         embeddedMode = true,
@@ -322,7 +401,7 @@ fun SettingsScreen(
                         dnsChoice = params.integrations.dnsChoice,
                         onDnsChoiceSelected = params.integrations.onDnsChoiceSelected,
                         download = params.download,
-                        initialPage = 0,
+                        initialPage = systemSettingsInitialPage,
                         onDismiss = { route = SettingsRoute.Main }
                     )
                 }
@@ -362,7 +441,8 @@ fun SettingsScreen(
             SettingsRoute.Feedback -> {
                 SettingsSubPage(
                     title = stringResource(R.string.settings_feedback),
-                    onBack = { route = SettingsRoute.Main }
+                    onBack = { route = SettingsRoute.Main },
+                    contentHandlesNavigationBars = true
                 ) {
                     com.kitsugi.animelist.ui.screens.more.FeedbackDialog(
                         embeddedMode = true,
@@ -402,11 +482,11 @@ fun SettingsScreen(
             SettingsRoute.PluginDiagnostic -> {
                 SettingsSubPage(
                     title = stringResource(R.string.settings_plugin_diagnostic),
-                    onBack = { route = SettingsRoute.AddonsExtensions }
+                    onBack = { route = pluginDiagnosticBackRoute }
                 ) {
                     CsPluginDiagnosticScreen(
                         embeddedMode = true,
-                        onDismiss = { route = SettingsRoute.AddonsExtensions },
+                        onDismiss = { route = pluginDiagnosticBackRoute },
                         onOpenErrorCatalog = {
                             errorCatalogBackRoute = SettingsRoute.PluginDiagnostic
                             route = SettingsRoute.PlatformErrorCodes
@@ -450,21 +530,27 @@ fun SettingsScreen(
 @Composable
 private fun SettingsMainPage(
     params: SettingsScreenParameters,
-    onNavigate: (SettingsRoute) -> Unit
+    searchQuery: String,
+    onSearchQueryChange: (String) -> Unit,
+    onNavigate: (SettingsRoute) -> Unit,
+    onOpenDownloads: () -> Unit,
+    onOpenAbout: () -> Unit,
+    onSearchResultSelected: (SettingsSearchEntry) -> Unit
 ) {
-    val context = androidx.compose.ui.platform.LocalContext.current
     val accentColor = LocalKitsugiAccent.current
     val scrollState = rememberLazyListState()
+    val searchResults = findSettingsMatches(settingsSearchEntries(), searchQuery)
+    val isSearching = searchQuery.isNotBlank()
 
-    val selectedTheme = themeOptions.firstOrNull { it.id == params.general.selectedThemeId }
-        ?: themeOptions.first()
+    LaunchedEffect(searchQuery) {
+        if (isSearching) scrollState.scrollToItem(0)
+    }
 
     Column(
         modifier = Modifier
             .fillMaxSize()
             .statusBarsPadding()
     ) {
-        // Top App Bar
         TopAppBar(
             title = {
                 Text(
@@ -479,173 +565,228 @@ private fun SettingsMainPage(
             )
         )
 
+        Spacer(Modifier.height(4.dp))
+        SettingsSearchField(
+            value = searchQuery,
+            onValueChange = onSearchQueryChange
+        )
+        Spacer(Modifier.height(4.dp))
+
         LazyColumn(
             state = scrollState,
             modifier = Modifier
                 .fillMaxSize()
                 .navigationBarsPadding(),
         ) {
-            // ── Hesap Bağlantıları ──────────────────────────────────────────
-            item {
-                Spacer(Modifier.height(8.dp))
-                SectionHeader(stringResource(R.string.settings_section_account))
-                SettingsNavCard {
-                    KitsugiSettingsItem(
-                        title = stringResource(R.string.settings_kitsugi_account),
-                        description = stringResource(R.string.settings_kitsugi_account_desc),
-                        icon = Icons.Rounded.AccountCircle,
-                        iconColor = KitsugiColors.AccentGreen,
-                        onClick = { onNavigate(SettingsRoute.KitsugiAccount) }
+            if (isSearching) {
+                item {
+                    Text(
+                        text = stringResource(R.string.settings_search_results_count, searchResults.size),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.SemiBold,
+                        color = KitsugiColors.TextSecondary,
+                        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 10.dp, bottom = 8.dp)
                     )
                 }
-                Spacer(Modifier.height(8.dp))
-                SettingsNavCard {
-                    KitsugiSettingsItem(
-                        title = stringResource(R.string.settings_account_connections),
-                        description = stringResource(R.string.settings_account_connections_desc),
-                        icon = Icons.Rounded.Person,
-                        iconColor = KitsugiColors.AccentBlue,
-                        onClick = { onNavigate(SettingsRoute.AccountConnections) }
-                    )
-                }
-                Spacer(Modifier.height(16.dp))
-            }
 
-            // ── Uygulama Ayarları ───────────────────────────────────────────
-            item {
-                SectionHeader(stringResource(R.string.settings_section_app))
-                SettingsNavCard {
-                    KitsugiSettingsItem(
-                        title = stringResource(R.string.settings_pref_title),
-                        description = stringResource(R.string.settings_pref_desc),
-                        icon = Icons.Rounded.Palette,
-                        iconColor = accentColor,
-                        onClick = { onNavigate(SettingsRoute.AppearancePreferences) }
-                    )
-                    KitsugiSettingsDivider()
-                    KitsugiSettingsItem(
-                        title = stringResource(R.string.settings_player_title),
-                        description = stringResource(R.string.settings_player_desc),
-                        icon = Icons.Rounded.PlayCircle,
-                        iconColor = KitsugiColors.AccentOrange,
-                        onClick = { onNavigate(SettingsRoute.PlayerSettings) }
-                    )
-                    KitsugiSettingsDivider()
-                    KitsugiSettingsItem(
-                        title = stringResource(R.string.settings_watch_history),
-                        description = stringResource(R.string.settings_watch_history_desc),
-                        icon = Icons.Rounded.History,
-                        iconColor = KitsugiColors.AccentTeal,
-                        onClick = { params.onOpenWatchHistory?.invoke() }
-                    )
-                }
-                Spacer(Modifier.height(16.dp))
-            }
-
-            // ── Kaynaklar & Entegrasyonlar ──────────────────────────────────
-            item {
-                SectionHeader(stringResource(R.string.settings_section_sources))
-                SettingsNavCard {
-                    KitsugiSettingsItem(
-                        title = stringResource(R.string.settings_addons_streams),
-                        description = stringResource(R.string.settings_addons_streams_desc),
-                        icon = Icons.Rounded.Extension,
-                        iconColor = KitsugiColors.AccentPurple,
-                        onClick = { onNavigate(SettingsRoute.AddonsExtensions) }
-                    )
-                    KitsugiSettingsDivider()
-                    KitsugiSettingsItem(
-                        title = stringResource(R.string.settings_integrations),
-                        description = stringResource(R.string.settings_integrations_desc),
-                        icon = Icons.Rounded.Hub,
-                        iconColor = KitsugiColors.AccentBlue,
-                        onClick = { onNavigate(SettingsRoute.Integrations) }
-                    )
-                    KitsugiSettingsDivider()
-                    KitsugiSettingsItem(
-                        title = stringResource(R.string.platform_error_catalog_open),
-                        description = stringResource(R.string.platform_error_catalog_desc),
-                        icon = Icons.Rounded.Info,
-                        iconColor = KitsugiColors.AccentOrange,
-                        onClick = { onNavigate(SettingsRoute.PlatformErrorCodes) }
-                    )
-                }
-                Spacer(Modifier.height(16.dp))
-            }
-
-            // ── Veri & Depolama ─────────────────────────────────────────────
-            item {
-                SectionHeader(stringResource(R.string.settings_section_data))
-                SettingsNavCard {
-                    KitsugiSettingsItem(
-                        title = stringResource(R.string.settings_data_backup),
-                        description = stringResource(R.string.settings_data_backup_desc),
-                        icon = Icons.Rounded.Storage,
-                        iconColor = KitsugiColors.AccentGreen,
-                        onClick = { onNavigate(SettingsRoute.DataBackup) }
-                    )
-                    KitsugiSettingsDivider()
-                    KitsugiSettingsItem(
-                        title = stringResource(R.string.storage_title),
-                        description = stringResource(R.string.storage_menu_desc),
-                        icon = Icons.Rounded.CleaningServices,
-                        iconColor = KitsugiColors.AccentTeal,
-                        onClick = { onNavigate(SettingsRoute.Storage) }
-                    )
-                    KitsugiSettingsDivider()
-                    KitsugiSettingsItem(
-                        title = stringResource(R.string.settings_download_settings),
-                        description = stringResource(R.string.settings_download_settings_desc),
-                        icon = Icons.Rounded.Tune,
-                        iconColor = KitsugiColors.AccentGreen,
-                        onClick = { onNavigate(SettingsRoute.Downloads) }
-                    )
-                    KitsugiSettingsDivider()
-                    KitsugiSettingsItem(
-                        title = stringResource(R.string.settings_downloads),
-                        description = stringResource(R.string.settings_downloads_desc),
-                        icon = Icons.Rounded.Download,
-                        iconColor = KitsugiColors.AccentGreen,
-                        onClick = {
-                            if (params.onOpenDownloads != null) {
-                                params.onOpenDownloads.invoke()
-                            } else {
-                                context.startActivity(
-                                    android.content.Intent(
-                                        context,
-                                        com.kitsugi.animelist.ui.screens.offline.DownloadsActivity::class.java
-                                    )
+                if (searchResults.isEmpty()) {
+                    item {
+                        SettingsNavCard {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 24.dp, vertical = 32.dp),
+                                horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Rounded.SearchOff,
+                                    contentDescription = null,
+                                    tint = KitsugiColors.TextMuted
+                                )
+                                Spacer(Modifier.height(12.dp))
+                                Text(
+                                    text = stringResource(R.string.settings_search_empty_title),
+                                    style = MaterialTheme.typography.titleMedium,
+                                    fontWeight = FontWeight.SemiBold,
+                                    color = KitsugiColors.TextPrimary
+                                )
+                                Spacer(Modifier.height(6.dp))
+                                Text(
+                                    text = stringResource(R.string.settings_search_empty_body),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = KitsugiColors.TextMuted
                                 )
                             }
                         }
-                    )
-                }
-                Spacer(Modifier.height(16.dp))
-            }
-
-            // ── Hakkında & Destek ───────────────────────────────────────────
-            item {
-                SectionHeader(stringResource(R.string.settings_section_support))
-                SettingsNavCard {
-                    KitsugiSettingsItem(
-                        title = stringResource(R.string.settings_about),
-                        description = stringResource(R.string.settings_about_desc, BuildConfig.VERSION_NAME),
-                        icon = Icons.Rounded.Info,
-                        iconColor = KitsugiColors.AccentIndigo,
-                        onClick = {
-                            (params.onOpenAbout ?: { params.integrations.onOpenAbout() }).invoke()
+                        Spacer(Modifier.height(20.dp))
+                    }
+                } else {
+                    searchResults.forEachIndexed { index, entry ->
+                        item(key = "settings-search-${entry.key}") {
+                            if (index > 0) Spacer(Modifier.height(8.dp))
+                            SettingsNavCard {
+                                SettingsSearchResultItem(
+                                    entry = entry,
+                                    onClick = { onSearchResultSelected(entry) }
+                                )
+                            }
                         }
-                    )
-                    KitsugiSettingsDivider()
-                    KitsugiSettingsItem(
-                        title = stringResource(R.string.settings_feedback),
-                        description = stringResource(R.string.settings_feedback_desc),
-                        icon = Icons.Rounded.Feedback,
-                        iconColor = KitsugiColors.AccentBlue,
-                        onClick = { onNavigate(SettingsRoute.Feedback) }
-                    )
+                    }
+                    item { Spacer(Modifier.height(24.dp)) }
                 }
-                Spacer(Modifier.height(80.dp))
+            } else {
+                // ── Hesap ─────────────────────────────────────────────────────
+                item {
+                    Spacer(Modifier.height(8.dp))
+                    SectionHeader(stringResource(R.string.settings_section_account))
+                    SettingsNavCard {
+                        KitsugiSettingsItem(
+                            title = stringResource(R.string.settings_kitsugi_account),
+                            description = stringResource(R.string.settings_kitsugi_account_desc),
+                            icon = Icons.Rounded.AccountCircle,
+                            iconColor = KitsugiColors.AccentGreen,
+                            onClick = { onNavigate(SettingsRoute.KitsugiAccount) }
+                        )
+                    }
+                    Spacer(Modifier.height(8.dp))
+                    SettingsNavCard {
+                        KitsugiSettingsItem(
+                            title = stringResource(R.string.settings_account_connections),
+                            description = stringResource(R.string.settings_account_connections_desc),
+                            icon = Icons.Rounded.Person,
+                            iconColor = KitsugiColors.AccentBlue,
+                            onClick = { onNavigate(SettingsRoute.AccountConnections) }
+                        )
+                    }
+                    Spacer(Modifier.height(16.dp))
+                }
+
+                // ── Uygulama ve görünüm ──────────────────────────────────────
+                item {
+                    SectionHeader(stringResource(R.string.settings_section_app))
+                    SettingsNavCard {
+                        KitsugiSettingsItem(
+                            title = stringResource(R.string.settings_pref_title),
+                            description = stringResource(R.string.settings_pref_desc),
+                            icon = Icons.Rounded.Palette,
+                            iconColor = accentColor,
+                            onClick = { onNavigate(SettingsRoute.AppearancePreferences) }
+                        )
+                        KitsugiSettingsDivider()
+                        KitsugiSettingsItem(
+                            title = stringResource(R.string.settings_player_title),
+                            description = stringResource(R.string.settings_player_desc),
+                            icon = Icons.Rounded.PlayCircle,
+                            iconColor = KitsugiColors.AccentOrange,
+                            onClick = { onNavigate(SettingsRoute.PlayerSettings) }
+                        )
+                    }
+                    Spacer(Modifier.height(16.dp))
+                }
+
+                // ── Kaynaklar ve entegrasyonlar ───────────────────────────────
+                item {
+                    SectionHeader(stringResource(R.string.settings_section_sources))
+                    SettingsNavCard {
+                        KitsugiSettingsItem(
+                            title = stringResource(R.string.settings_addons_streams),
+                            description = stringResource(R.string.settings_addons_streams_desc),
+                            icon = Icons.Rounded.Extension,
+                            iconColor = KitsugiColors.AccentPurple,
+                            onClick = { onNavigate(SettingsRoute.AddonsExtensions) }
+                        )
+                        KitsugiSettingsDivider()
+                        KitsugiSettingsItem(
+                            title = stringResource(R.string.settings_integrations),
+                            description = stringResource(R.string.settings_integrations_desc),
+                            icon = Icons.Rounded.Hub,
+                            iconColor = KitsugiColors.AccentBlue,
+                            onClick = { onNavigate(SettingsRoute.Integrations) }
+                        )
+                    }
+                    Spacer(Modifier.height(16.dp))
+                }
+
+                // ── Veri ve depolama ──────────────────────────────────────────
+                item {
+                    SectionHeader(stringResource(R.string.settings_section_data))
+                    SettingsNavCard {
+                        KitsugiSettingsItem(
+                            title = stringResource(R.string.settings_data_backup),
+                            description = stringResource(R.string.settings_data_backup_desc),
+                            icon = Icons.Rounded.Storage,
+                            iconColor = KitsugiColors.AccentGreen,
+                            onClick = { onNavigate(SettingsRoute.DataBackup) }
+                        )
+                        KitsugiSettingsDivider()
+                        KitsugiSettingsItem(
+                            title = stringResource(R.string.storage_title),
+                            description = stringResource(R.string.storage_menu_desc),
+                            icon = Icons.Rounded.CleaningServices,
+                            iconColor = KitsugiColors.AccentTeal,
+                            onClick = { onNavigate(SettingsRoute.Storage) }
+                        )
+                        KitsugiSettingsDivider()
+                        KitsugiSettingsItem(
+                            title = stringResource(R.string.settings_download_settings),
+                            description = stringResource(R.string.settings_download_settings_desc),
+                            icon = Icons.Rounded.Tune,
+                            iconColor = KitsugiColors.AccentGreen,
+                            onClick = { onNavigate(SettingsRoute.Downloads) }
+                        )
+                        KitsugiSettingsDivider()
+                        KitsugiSettingsItem(
+                            title = stringResource(R.string.settings_downloads),
+                            description = stringResource(R.string.settings_downloads_desc),
+                            icon = Icons.Rounded.Download,
+                            iconColor = KitsugiColors.AccentGreen,
+                            onClick = onOpenDownloads
+                        )
+                        KitsugiSettingsDivider()
+                        KitsugiSettingsItem(
+                            title = stringResource(R.string.settings_watch_history),
+                            description = stringResource(R.string.settings_watch_history_desc),
+                            icon = Icons.Rounded.History,
+                            iconColor = KitsugiColors.AccentTeal,
+                            onClick = { params.onOpenWatchHistory?.invoke() }
+                        )
+                    }
+                    Spacer(Modifier.height(16.dp))
+                }
+
+                // ── Destek ────────────────────────────────────────────────────
+                item {
+                    SectionHeader(stringResource(R.string.settings_section_support))
+                    SettingsNavCard {
+                        KitsugiSettingsItem(
+                            title = stringResource(R.string.settings_about),
+                            description = stringResource(R.string.settings_about_desc, BuildConfig.VERSION_NAME),
+                            icon = Icons.Rounded.Info,
+                            iconColor = KitsugiColors.AccentIndigo,
+                            onClick = onOpenAbout
+                        )
+                        KitsugiSettingsDivider()
+                        KitsugiSettingsItem(
+                            title = stringResource(R.string.settings_feedback),
+                            description = stringResource(R.string.settings_feedback_desc),
+                            icon = Icons.Rounded.Feedback,
+                            iconColor = KitsugiColors.AccentBlue,
+                            onClick = { onNavigate(SettingsRoute.Feedback) }
+                        )
+                    }
+                    Spacer(Modifier.height(16.dp))
+                    SectionHeader(stringResource(R.string.settings_section_diagnostics))
+                    SettingsNavCard {
+                        KitsugiSettingsItem(
+                            title = stringResource(R.string.platform_error_catalog_open),
+                            description = stringResource(R.string.platform_error_catalog_desc),
+                            icon = Icons.Rounded.BugReport,
+                            iconColor = KitsugiColors.AccentOrange,
+                            onClick = { onNavigate(SettingsRoute.PlatformErrorCodes) }
+                        )
+                    }
+                    Spacer(Modifier.height(80.dp))
+                }
             }
         }
     }
@@ -658,6 +799,7 @@ private fun SettingsMainPage(
 private fun SettingsSubPage(
     title: String,
     onBack: () -> Unit,
+    contentHandlesNavigationBars: Boolean = false,
     content: @Composable () -> Unit
 ) {
     Column(
@@ -688,7 +830,17 @@ private fun SettingsSubPage(
             )
         )
         HorizontalDivider(color = KitsugiColors.Border.copy(alpha = 0.5f))
-        content()
+        Box(
+            modifier = Modifier
+                .weight(1f)
+                .fillMaxWidth()
+                .then(
+                    if (contentHandlesNavigationBars) Modifier
+                    else Modifier.navigationBarsPadding()
+                )
+        ) {
+            content()
+        }
     }
 }
 
@@ -725,7 +877,8 @@ internal fun SettingsNavCard(content: @Composable () -> Unit) {
 @Composable
 private fun SettingsPreferencesContent(
     general: GeneralSettings,
-    integrations: IntegrationsSettings
+    integrations: IntegrationsSettings,
+    initialPage: Int
 ) {
     var showCustomListsEditor by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
 
@@ -792,6 +945,7 @@ private fun SettingsPreferencesContent(
     }
     KitsugiPreferencesSettingsDialog(
         embeddedMode = true,
+        initialPage = initialPage,
         appSettings = localSettings,
         onThemeSelected = general.onThemeSelected,
         onThemeModeSelected = general.onThemeModeSelected,
@@ -906,10 +1060,15 @@ private fun AniListCustomListsEditorDialog(onDismiss: () -> Unit) {
 @Composable
 private fun SettingsPlayerContent(
     player: PlayerSettings,
+    initialSubScreen: PlayerSettingsSubScreen,
+    onSubScreenChanged: (PlayerSettingsSubScreen) -> Unit,
     onDismiss: () -> Unit
 ) {
     KitsugiPlayerSettingsDialog(
         embeddedMode = true,
+        hideEmbeddedHeader = true,
+        initialSubScreen = initialSubScreen,
+        onSubScreenChanged = onSubScreenChanged,
         playerPreference = player.playerPreference,
         preferredExternalPlayerPackage = player.preferredExternalPlayerPackage,
         isAutoplayEnabled = player.isAutoplayEnabled,
@@ -1000,12 +1159,14 @@ private fun SettingsPlayerContent(
 private fun SettingsAddonsContent(
     addon: AddonSettings,
     manga: MangaSettings,
+    initialTab: Int,
     onOpenDiagnostic: () -> Unit,
     onExplorePlugin: (String) -> Unit,
     onOpenPluginPicker: () -> Unit
 ) {
     KitsugiAddonsSettingsDialog(
         embeddedMode = true,
+        initialTab = initialTab,
         addons = addon.addons,
         initialDebridToken = addon.debridToken,
         repos = addon.repos,
@@ -1088,9 +1249,13 @@ private fun SettingsAddonsContent(
 }
 
 @Composable
-private fun SettingsIntegrationsContent(integrations: IntegrationsSettings) {
+private fun SettingsIntegrationsContent(
+    integrations: IntegrationsSettings,
+    initialPage: Int
+) {
     KitsugiIntegrationsSettingsDialog(
         embeddedMode = true,
+        initialPage = initialPage,
         tmdbEnabled = integrations.tmdbEnabled,
         onTmdbEnabledChanged = integrations.onTmdbEnabledChanged,
         tmdbApiKey = integrations.tmdbApiKey,

@@ -1,4 +1,4 @@
-﻿package com.kitsugi.animelist.ui.components
+package com.kitsugi.animelist.ui.components
 
 import androidx.compose.ui.res.stringResource
 
@@ -22,7 +22,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Close
+import androidx.compose.material.icons.rounded.Dns
 import androidx.compose.material.icons.rounded.Folder
+import androidx.compose.material.icons.rounded.Storage
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -60,6 +62,10 @@ fun KitsugiSystemSettingsDialog(
     val accentColor = LocalKitsugiAccent.current
     val pagerState = rememberPagerState(initialPage = initialPage.coerceIn(0, 1), pageCount = { 2 })
     val scope = rememberCoroutineScope()
+    LaunchedEffect(initialPage) {
+        val targetPage = initialPage.coerceIn(0, 1)
+        if (pagerState.currentPage != targetPage) pagerState.animateScrollToPage(targetPage)
+    }
 
     val dataManagementScrollState = rememberScrollState()
     val dnsSettingsScrollState = rememberScrollState()
@@ -99,38 +105,15 @@ fun KitsugiSystemSettingsDialog(
                     }
                 }
             }
-            TabRow(
-                selectedTabIndex = pagerState.currentPage,
-                containerColor = KitsugiColors.Surface,
-                contentColor = accentColor
-            ) {
-                Tab(
-                    selected = pagerState.currentPage == 0,
-                    onClick = {
-                        scope.launch { pagerState.animateScrollToPage(0) }
-                    },
-                    text = {
-                        Text(
-                            stringResource(R.string.inline_data_management_4b7c656),
-                            fontWeight = if (pagerState.currentPage == 0) FontWeight.Bold else FontWeight.Normal,
-                            fontSize = 13.sp
-                        )
-                    }
-                )
-                Tab(
-                    selected = pagerState.currentPage == 1,
-                    onClick = {
-                        scope.launch { pagerState.animateScrollToPage(1) }
-                    },
-                    text = {
-                        Text(
-                            "DNS (DoH)",
-                            fontWeight = if (pagerState.currentPage == 1) FontWeight.Bold else FontWeight.Normal,
-                            fontSize = 13.sp
-                        )
-                    }
-                )
-            }
+            KitsugiSettingsSegmentedTabs(
+                tabs = listOf(
+                    KitsugiSettingsTabOption(stringResource(R.string.inline_data_management_4b7c656), Icons.Rounded.Storage),
+                    KitsugiSettingsTabOption("DNS (DoH)", Icons.Rounded.Dns)
+                ),
+                selectedIndex = pagerState.currentPage,
+                accentColor = accentColor,
+                onSelect = { index -> scope.launch { pagerState.animateScrollToPage(index) } }
+            )
         }
 
         // Body
@@ -159,15 +142,17 @@ fun KitsugiSystemSettingsDialog(
             }
         }
 
-        // Footer
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 8.dp),
-            horizontalArrangement = Arrangement.End
-        ) {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.action_ok), color = accentColor, fontWeight = FontWeight.SemiBold)
+        // In the full-screen settings shell, navigation is handled by the shared top back bar.
+        if (!embeddedMode) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.End
+            ) {
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(R.string.action_ok), color = accentColor, fontWeight = FontWeight.SemiBold)
+                }
             }
         }
     }

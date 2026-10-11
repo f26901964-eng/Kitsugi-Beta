@@ -1,4 +1,15 @@
 <resources>
+    <string name="settings_search_hint">Tüm ayarlarda ara (tema, altyazı, DNS…)</string>
+    <string name="settings_search_clear">Aramayı temizle</string>
+    <string name="settings_search_results_count">%1$d ayar bulundu</string>
+    <string name="settings_search_empty_title">Eşleşen ayar bulunamadı</string>
+    <string name="settings_search_empty_body">Farklı bir kelime deneyin. Ayar adları, özellikler ve kategoriler aranır.</string>
+    <string name="settings_search_default_tab">Varsayılan açılış sekmesi</string>
+    <string name="settings_search_home_layout">Ana sayfa düzeni</string>
+    <string name="settings_search_score_step">Puan adımı</string>
+    <string name="settings_search_fuzzy">Akıllı arama</string>
+    <string name="settings_search_download_location">İndirme konumu</string>
+    <string name="settings_section_diagnostics">Geliştirici &amp; Tanılama</string>
     <string name="app_name">Kitsugi</string>
     <string name="action_retry">Yeniden Dene</string>
     <string name="action_see_all">Tümünü Gör</string>

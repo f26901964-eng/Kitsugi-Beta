@@ -37,6 +37,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -60,8 +61,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.ui.theme.LocalIsTv
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccentBrush
@@ -73,6 +76,7 @@ import com.kitsugi.animelist.ui.theme.gradient.Text
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.theme.gradient.border
 import com.kitsugi.animelist.ui.theme.isSameAccentRgb
+import com.kitsugi.animelist.ui.theme.accentBrushWithAlpha
 import androidx.compose.ui.graphics.vector.ImageVector
 
 @Composable
@@ -115,6 +119,78 @@ fun KitsugiSettingsSection(
                 modifier = Modifier.fillMaxWidth(),
                 content = content
             )
+        }
+    }
+}
+
+internal data class KitsugiSettingsTabOption(
+    val title: String,
+    val icon: ImageVector
+)
+
+/** A shared, app-styled segmented selector for settings pagers. */
+@Composable
+internal fun KitsugiSettingsSegmentedTabs(
+    tabs: List<KitsugiSettingsTabOption>,
+    selectedIndex: Int,
+    accentColor: Color,
+    onSelect: (Int) -> Unit
+) {
+    if (tabs.isEmpty()) return
+
+    val selectedSegmentFill = accentBrushWithAlpha(0.14f)
+    val selectedSegmentBorder = accentBrushWithAlpha(0.48f)
+    val safeSelectedIndex = selectedIndex.coerceIn(tabs.indices)
+    val outerShape = RoundedCornerShape(16.dp)
+    val segmentShape = RoundedCornerShape(13.dp)
+
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(outerShape)
+            .background(KitsugiColors.Surface)
+            .border(1.dp, KitsugiColors.Border.copy(alpha = 0.6f), outerShape)
+            .padding(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        tabs.forEachIndexed { index, tab ->
+            val selected = safeSelectedIndex == index
+            Column(
+                modifier = Modifier
+                    .weight(1f)
+                    .heightIn(min = 54.dp)
+                    .clip(segmentShape)
+                    .then(
+                        if (selected) {
+                            Modifier
+                                .background(selectedSegmentFill, segmentShape)
+                                .border(1.dp, selectedSegmentBorder, segmentShape)
+                        } else {
+                            Modifier
+                        }
+                    )
+                    .tvClickable(shape = segmentShape) { onSelect(index) }
+                    .padding(vertical = 8.dp, horizontal = 3.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                Icon(
+                    imageVector = tab.icon,
+                    contentDescription = null,
+                    tint = if (selected) accentColor else KitsugiColors.TextMuted,
+                    modifier = Modifier.size(17.dp)
+                )
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    text = tab.title,
+                    color = if (selected) accentColor else KitsugiColors.TextSecondary,
+                    fontSize = 11.sp,
+                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    textAlign = TextAlign.Center
+                )
+            }
         }
     }
 }

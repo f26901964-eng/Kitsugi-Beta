@@ -25,9 +25,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.data.local.CloudstreamRepoEntity
 import com.kitsugi.animelist.data.local.CsPluginEntity
 import com.kitsugi.animelist.data.local.ManagedAddonEntity
@@ -39,7 +37,6 @@ import com.kitsugi.animelist.ui.components.addons.MangaExtensionsTab
 import com.kitsugi.animelist.ui.components.addons.StremioTab
 import com.kitsugi.animelist.ui.theme.LocalKitsugiAccent
 import com.kitsugi.animelist.ui.theme.KitsugiColors
-import com.kitsugi.animelist.ui.theme.accentBrushWithAlpha
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -140,7 +137,11 @@ fun KitsugiAddonsSettingsDialog(
     var webViewDialogTitle by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
     val context = androidx.compose.ui.platform.LocalContext.current
-    val pagerState = rememberPagerState(initialPage = initialTab, pageCount = { 3 })
+    val pagerState = rememberPagerState(initialPage = initialTab.coerceIn(0, 2), pageCount = { 3 })
+    LaunchedEffect(initialTab) {
+        val targetPage = initialTab.coerceIn(0, 2)
+        if (pagerState.currentPage != targetPage) pagerState.animateScrollToPage(targetPage)
+    }
 
     val stremioListState = rememberLazyListState()
     val cloudstreamListState = rememberLazyListState()
@@ -189,8 +190,21 @@ fun KitsugiAddonsSettingsDialog(
                         }
                     }
                 }
-                Spacer(Modifier.height(if (embeddedMode) 8.dp else 12.dp))
-                AddonsSegmentedTabs(
+                KitsugiSettingsSegmentedTabs(
+                    tabs = listOf(
+                        KitsugiSettingsTabOption(
+                            stringResource(R.string.inline_torrent_streaming_89e2cac),
+                            Icons.Rounded.Bolt
+                        ),
+                        KitsugiSettingsTabOption(
+                            stringResource(R.string.inline_video_providers_1e04646),
+                            Icons.Rounded.PlayCircle
+                        ),
+                        KitsugiSettingsTabOption(
+                            stringResource(R.string.inline_manga_sources_03288ff),
+                            Icons.Rounded.AutoStories
+                        )
+                    ),
                     selectedIndex = pagerState.currentPage,
                     accentColor = accentColor,
                     onSelect = { index -> scope.launch { pagerState.animateScrollToPage(index) } }
@@ -437,77 +451,5 @@ fun KitsugiAddonsSettingsDialog(
             },
             containerColor = KitsugiColors.SurfaceStrong
         )
-    }
-}
-
-/**
- * Sekme seçici — "Torrent & Akış / Video Kaynakları / Manga Kaynakları".
- *
- * Material `TabRow` yerine yuvarlatılmış segment kullanılır: etiketler ikonla birlikte
- * alt alta durur, bu yüzden uzun Türkçe adlar dar telefonlarda dahi kesilmeden sığar ve
- * seçili sekme kartın içinde vurgulu bir kapsül olarak belirginleşir.
- */
-@Composable
-private fun AddonsSegmentedTabs(
-    selectedIndex: Int,
-    accentColor: Color,
-    onSelect: (Int) -> Unit
-) {
-    // Sekme başlıkları kısa/madde madde tutulur: "Video Kaynakları" (Cloudstream) ve
-    // "Manga Kaynakları" (Mihon/Tachiyomi) ayrımı ilk bakışta anlaşılır olsun.
-    val tabs = listOf(
-        stringResource(R.string.inline_torrent_streaming_89e2cac) to Icons.Rounded.Bolt,
-        stringResource(R.string.addon_video_sources) to Icons.Rounded.PlayCircle,
-        stringResource(R.string.inline_manga_sources_03288ff) to Icons.Rounded.AutoStories
-    )
-    val selectedSegmentFill = accentBrushWithAlpha(0.14f)
-    val selectedSegmentBorder = accentBrushWithAlpha(0.48f)
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(16.dp))
-            .background(KitsugiColors.Surface)
-            .border(1.dp, KitsugiColors.Border.copy(alpha = 0.6f), RoundedCornerShape(16.dp))
-            .padding(4.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        tabs.forEachIndexed { index, (label, icon) ->
-            val selected = selectedIndex == index
-            Column(
-                modifier = Modifier
-                    .weight(1f)
-                    .clip(RoundedCornerShape(13.dp))
-                    .then(
-                        if (selected) {
-                            Modifier
-                                .background(selectedSegmentFill, RoundedCornerShape(13.dp))
-                                .border(1.dp, selectedSegmentBorder, RoundedCornerShape(13.dp))
-                        } else {
-                            Modifier
-                        }
-                    )
-                    .tvClickable(shape = RoundedCornerShape(13.dp)) { onSelect(index) }
-                    .padding(vertical = 8.dp, horizontal = 4.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center
-            ) {
-                Icon(
-                    imageVector = icon,
-                    contentDescription = null,
-                    tint = if (selected) accentColor else KitsugiColors.TextMuted,
-                    modifier = Modifier.size(17.dp)
-                )
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    text = label,
-                    color = if (selected) accentColor else KitsugiColors.TextSecondary,
-                    fontSize = 11.sp,
-                    fontWeight = if (selected) FontWeight.Bold else FontWeight.Medium,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
-        }
     }
 }

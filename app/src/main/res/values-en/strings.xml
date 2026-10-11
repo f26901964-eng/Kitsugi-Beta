@@ -1,4 +1,15 @@
 <resources>
+    <string name="settings_search_hint">Search all settings (theme, subtitles, DNS…)</string>
+    <string name="settings_search_clear">Clear search</string>
+    <string name="settings_search_results_count">Results: %1$d</string>
+    <string name="settings_search_empty_title">No matching settings</string>
+    <string name="settings_search_empty_body">Try a different word. Setting names, features, and categories are searched.</string>
+    <string name="settings_search_default_tab">Default startup tab</string>
+    <string name="settings_search_home_layout">Home screen layout</string>
+    <string name="settings_search_score_step">Score step</string>
+    <string name="settings_search_fuzzy">Fuzzy search</string>
+    <string name="settings_search_download_location">Download location</string>
+    <string name="settings_section_diagnostics">Developer &amp; Diagnostics</string>
     <string name="app_name">Kitsugi</string>
     <string name="action_retry">Retry</string>
     <string name="action_see_all">See All</string>

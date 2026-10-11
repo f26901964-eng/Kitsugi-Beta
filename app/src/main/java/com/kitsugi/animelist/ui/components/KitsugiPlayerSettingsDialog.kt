@@ -163,6 +163,9 @@ fun KitsugiPlayerSettingsDialog(
     decoderPriority: Int = 0,
     onDecoderPriorityChanged: (Int) -> Unit = {},
     embeddedMode: Boolean = false,
+    initialSubScreen: PlayerSettingsSubScreen = PlayerSettingsSubScreen.Main,
+    hideEmbeddedHeader: Boolean = false,
+    onSubScreenChanged: (PlayerSettingsSubScreen) -> Unit = {},
     onDismiss: () -> Unit
 ) {
     val accentColor = LocalKitsugiAccent.current
@@ -180,7 +183,13 @@ fun KitsugiPlayerSettingsDialog(
     val customButtons by customButtonsFlow.collectAsState(initial = emptyList())
 
     // Sub-screen Navigation State
-    var activeSubScreen by rememberSaveable { mutableStateOf(PlayerSettingsSubScreen.Main) }
+    var activeSubScreen by rememberSaveable { mutableStateOf(initialSubScreen) }
+    LaunchedEffect(initialSubScreen) {
+        activeSubScreen = initialSubScreen
+    }
+    LaunchedEffect(activeSubScreen) {
+        onSubScreenChanged(activeSubScreen)
+    }
 
     // Lazy List States for scrolling
     val mainMenuScrollState = rememberLazyListState()
@@ -248,63 +257,66 @@ fun KitsugiPlayerSettingsDialog(
                 .fillMaxSize()
                 .background(KitsugiColors.Surface)
         ) {
-            // Header Content
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    if (activeSubScreen != PlayerSettingsSubScreen.Main) {
-                        IconButton(onClick = { activeSubScreen = PlayerSettingsSubScreen.Main }) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                                contentDescription = stringResource(R.string.notif_action_back),
-                                tint = KitsugiColors.TextPrimary
-                            )
+            if (!hideEmbeddedHeader) {
+                // Header Content
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        if (activeSubScreen != PlayerSettingsSubScreen.Main) {
+                            IconButton(onClick = { activeSubScreen = PlayerSettingsSubScreen.Main }) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                                    contentDescription = stringResource(R.string.notif_action_back),
+                                    tint = KitsugiColors.TextPrimary
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
+                        } else if (embeddedMode) {
+                            IconButton(onClick = onDismiss) {
+                                Icon(
+                                    imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                                    contentDescription = stringResource(R.string.notif_action_back),
+                                    tint = KitsugiColors.TextPrimary
+                                )
+                            }
+                            Spacer(modifier = Modifier.width(8.dp))
                         }
-                        Spacer(modifier = Modifier.width(8.dp))
-                    } else if (embeddedMode) {
-                        IconButton(onClick = onDismiss) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                                contentDescription = stringResource(R.string.notif_action_back),
-                                tint = KitsugiColors.TextPrimary
-                            )
-                        }
-                        Spacer(modifier = Modifier.width(8.dp))
-                    }
-                    Text(
-                        text = when (activeSubScreen) {
-                            PlayerSettingsSubScreen.Main -> stringResource(R.string.pd_title)
-                            PlayerSettingsSubScreen.DahiliOynatici -> stringResource(R.string.pd_tab_internal)
-                            PlayerSettingsSubScreen.Hareketler -> stringResource(R.string.pd_sub_gestures)
-                            PlayerSettingsSubScreen.KodCozucu -> stringResource(R.string.pd_tab_decoder)
-                            PlayerSettingsSubScreen.Altyazilar -> stringResource(R.string.pd_tab_subtitles)
-                            PlayerSettingsSubScreen.Ses -> stringResource(R.string.pd_sub_audio)
-                            PlayerSettingsSubScreen.OzelButonlar -> stringResource(R.string.pd_tab_custom_buttons)
-                            PlayerSettingsSubScreen.KodDuzenleyici -> stringResource(R.string.pd_tab_code_editor)
-                            PlayerSettingsSubScreen.Gelismis -> stringResource(R.string.pd_tab_advanced)
-                        },
-                        color = KitsugiColors.TextPrimary,
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-                if (!embeddedMode) {
-                    IconButton(onClick = onDismiss) {
-                        Icon(
-                            imageVector = Icons.Rounded.Close,
-                            contentDescription = stringResource(R.string.settings_close),
-                            tint = KitsugiColors.TextSecondary
+                        Text(
+                            text = when (activeSubScreen) {
+                                PlayerSettingsSubScreen.Main -> stringResource(R.string.pd_title)
+                                PlayerSettingsSubScreen.DahiliOynatici -> stringResource(R.string.pd_tab_internal)
+                                PlayerSettingsSubScreen.Hareketler -> stringResource(R.string.pd_sub_gestures)
+                                PlayerSettingsSubScreen.KodCozucu -> stringResource(R.string.pd_tab_decoder)
+                                PlayerSettingsSubScreen.Altyazilar -> stringResource(R.string.pd_tab_subtitles)
+                                PlayerSettingsSubScreen.Ses -> stringResource(R.string.pd_sub_audio)
+                                PlayerSettingsSubScreen.OzelButonlar -> stringResource(R.string.pd_tab_custom_buttons)
+                                PlayerSettingsSubScreen.KodDuzenleyici -> stringResource(R.string.pd_tab_code_editor)
+                                PlayerSettingsSubScreen.Gelismis -> stringResource(R.string.pd_tab_advanced)
+                            },
+                            color = KitsugiColors.TextPrimary,
+                            style = MaterialTheme.typography.titleLarge,
+                            fontWeight = FontWeight.Bold
                         )
                     }
+                    if (!embeddedMode) {
+                        IconButton(onClick = onDismiss) {
+                            Icon(
+                                imageVector = Icons.Rounded.Close,
+                                contentDescription = stringResource(R.string.settings_close),
+                                tint = KitsugiColors.TextSecondary
+                            )
+                        }
+                    }
                 }
-            }
 
-            KitsugiSettingsDivider()
+                KitsugiSettingsDivider()
+
+            }
 
             // Sub-screen Selector / Body Content with slide & fade transitions
             AnimatedContent(
