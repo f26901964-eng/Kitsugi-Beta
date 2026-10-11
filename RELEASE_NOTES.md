@@ -6,9 +6,9 @@
 - **Kök Neden Giderildi:** Keşfet, "Tümünü Gör" ve Arama ekranlarındaki listede olmayan her bir kart için kullanıcının bağlı hesabındaki TÜM kütüphane taranıyor ve başlıklar ana iş parçacığında (UI thread) her karede yeniden normalize ediliyordu. Hesapta kayıt sayısı arttıkça yaşanan ağırlaşmanın asıl sebebi buydu.
 - **Doğrudan İndeks Arama:** Tam liste taraması tamamen kaldırıldı. Eşleşme O(1) karma indeks adaylarıyla sınırlandırıldı. `realMalId` indekse eklenerek doğru eşleşmeler korundu, kaydırma ve yüklemeler yağ gibi akıcı hale getirildi.
 
-### 🎯 2. Vitrin (Hero Section) Tıklama Yönlendirmesi Düzeltildi
-- **Şeffaf Katman Hit-Test Engeli:** Vitrinde paralaks için arka arkaya çizilen katmanlarda, görünmez komşu sayfaların (`alpha = 0`) dokunma olaylarını yutması (One Piece'e tıklayınca Frieren detayının açılması) çözüldü.
-- **Dinamik Öncü Sayfa (`frontPageIndex`):** Yalnızca o an ekranda önde duran aktif sayfa tıklama alacak şekilde kısıtlandı.
+### 🎯 2. Vitrin (Hero Section) Tıklama Yönlendirmesi ve Belirgin Sayaç Göstergesi
+- **Baskın Öğeyi Çözümleme (`openVisibleHeroItem`):** Vitrinde üst üste binen katmanlarda görünmez komşu sayfaların tıklamaları yutması çözüldü; tıklama anında ekranda görsel olarak baskın olan içerik (`round(currentPage + offset)`) doğrudan açılıyor (One Piece'e tıklayınca One Piece, Frieren'e tıklayınca Frieren).
+- **Belirgin Noktalar ve Sayısal Sayaç:** Sayfa gösterge noktaları kalınlaştırılıp opaklaştırıldı (7dp); yanına kaçıncı sıradaki içeriğin gösterildiğini belirten `N / M` (örn. 3 / 11) sayısal sayaç rozeti eklendi. `derivedStateOf` ile performans korundu.
 
 ### 🚀 3. "Tümünü Gör" Grid Yarış Durumu (Race Condition) ve İç İçe Geçme Düzeltildi
 - **Snapshot Birleştirme Mantığı:** Hızlı kaydırma sırasında 1. sayfa zenginleştirilirken (enrich) 2. sayfa geldiğinde oluşan yarış durumu çözüldü; enrich tamamlandığında mevcut liste snapshot ile akıllıca birleştirilerek (`merge`) kartların kaybolması ve zıplaması önlendi.
@@ -64,9 +64,9 @@
 - **Root Cause Eliminated:** For every card not in the user list, the code performed an O(N) full scan over the user's entire connected account library and normalized titles on the UI thread.
 - **Direct Index Resolution:** Eliminated full library fallbacks. Candidate searches are strictly index-driven. Added `realMalId` index keys to preserve genuine matches, eliminating frame drops.
 
-### 🎯 2. Hero Section Click Routing Fix
-- **Hit-Test Layering Fixed:** In the multi-layer parallax hero pager, invisible neighboring pages (`alpha = 0`) were intercepting touch events (causing taps on One Piece to open Frieren).
-- **Active Front Page Guard (`frontPageIndex`):** Only the active, front-most page receives touch events.
+### 🎯 2. Hero Section Click Routing & Prominent Counter Badge
+- **Dominant Item Resolution (`openVisibleHeroItem`):** In the multi-layer parallax hero pager, invisible neighboring pages no longer intercept touch events. Taps resolve the visually dominant item (`round(currentPage + offset)`) directly (tapping One Piece opens One Piece, tapping Frieren opens Frieren).
+- **Thicker Dots & Numerical Counter Badge:** Pagination dots thickened and emphasized (7dp); added an `N / M` (e.g. 3 / 11) numerical badge indicator updating via `derivedStateOf`.
 
 ### 🚀 3. "See All" Grid Race Condition & Visual Overlap Fix
 - **Enrich Snapshot Merging:** Resolved the race condition during fast scrolling where page 1 enrichment overwritten newly loaded page 2 results. Snapshot merge logic ensures persistent, smooth data flow without flickering or jumping cards.
