@@ -84,6 +84,30 @@ Sonuç: CF korumalı hostlarda zincir daha 2. halkada kopuyor, kullanıcı "ekle
 - Adım 1 (mevcut): sezon-kapsamlı arama sorgularıyla fallback.
 - Bölüm listesi dolu ama hedef S/E yoksa → sezon gezinmesi; liste boşsa sayfa-tipli plugin URL fallback'i (değişmedi).
 
+### 3.4 Video kaynaklarının EKSİKSİZLİĞİ ("1 tanesini değil tamamını")
+Video zinciri 4 aşamalıdır ve her embed URL'si (ölü CDN listesindekiler dahil) bu
+zincirin TAMAMINDAN geçer; hiçbir host beyaz listeyle filtrelenmez:
+1. **AAR `loadExtractor`** — ~300 gömülü extractor; Türk sitelerinin fiilen kullandıkları
+   dahil: `TRsTX` (HDFilmCehennemi player), `Hotlinger`, `VideoSeyred`, `HDMomPlayer`,
+   `Vidmoly`, `FileMoon`, `StreamWish`, `MixDrop`, `Doodstream`, `StreamTape`, `Upstream`,
+   `Voe`, `OkRu`, `SibNet`, `VK`, `Sendvid`, `Uqload`, `VidHide`, `StreamSB`, `Megacloud`…
+2. **Kitsugi wrapper fallback** — regex tabanlı 9 wrapper.
+   *Fix (v2.4.239):* `GdriveplayerWrapper` when'da olmasına rağmen `needsHtml` listesinde
+   yoktu → HTML hiç çekilmiyor, fallback sessizce boşa dönüyordu.
+3. **Derin tarama (`EmbedMediaScanner`)** — packed-JS unpacker, escape/base64 çözümü,
+   iframe zinciri (derinlik 2), Content-Type doğrulaması. Closeload/Kwik gibi packed
+   oynatıcılar burada çözülür.
+   *Fix (v2.4.239):* embed sayfası indirme 10 sn'de kalıyordu; host challenge gördüyse
+   120 sn sabırlı tek yeniden indirme.
+4. **WebView medya yakalayıcı** — JS ile üretilen akışlar için son çare ağ sniff'i.
+   *Fix (v2.4.239):* `loadExtractor` 20 sn'de pes edip CF korumalı embed host'larını
+   (molystream, closeload…) kaybediyordu; challenge kanıtı + boş sonuç varsa 120 sn
+   sabırlı TEK yeniden deneme (kısmi sonuç varsa denenmez → mükerrer kaynak yok).
+
+Doğrulama kaynağı: `video_extractor_report.md` (51 host probesi) — canlı olanların
+tamamı yukarıdaki 4 aşamadan en az biriyle çözümlenir; ölü olanlar (fembed, gogohd,
+vtube.to…) zaten site tarafında kapandığı için veri üretemez.
+
 ---
 
 ## 4. Değişen dosyalar

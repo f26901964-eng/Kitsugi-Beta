@@ -2010,7 +2010,11 @@ object CsStreamRunner {
         referer: String,
         providerName: String
     ): EmbedPageFetch = try {
-        val response = withTimeoutOrNull(EMBED_HTML_TIMEOUT_MS) {
+        val host = runCatching { java.net.URI(url).host }.getOrNull()
+        // v2.4.239: CF korumalı embed sayfaları (molystream, closeload vb.) 10 sn'lik
+        // derin-tarama bütçesinde çözülemiyordu. Host challenge gördüyse bir kez de
+        // tam CF sabır bütçesiyle (120 sn) indir — "veri eksiksiz gelsin" ilkesi.
+        val fetch = suspend {
             com.lagradost.cloudstream3.app.get(
                 url = url,
                 referer = referer,
@@ -2019,6 +2023,12 @@ object CsStreamRunner {
                 // yine de MAX_EMBED_HTML_CHARS sınırı uygulanır.
                 headers = mapOf("Range" to "bytes=0-1048575", "Accept" to "*/*")
             )
+        }
+        var response = withTimeoutOrNull(EMBED_HTML_TIMEOUT_MS) { fetch() }
+        if (response == null && host != null && CloudflareKiller.wasChallenged(host)) {
+            Log.w(TAG, "[$providerName] 🔐 Embed sayfası challenge altında — sabırlı yeniden indirme (120 sn): $url")
+            CsTrace.info(providerName, "embed", "CF challenge → sabırlı embed sayfası indirme")
+            response = withTimeoutOrNull(CloudflareKiller.CF_SOLVE_BUDGET_MS) { fetch() }
         }
         if (response == null) {
             Log.d(TAG, "[$providerName] Derin tarama için sayfa zaman aşımı: $url")
@@ -2240,9 +2250,12 @@ object CsStreamRunner {
 
         val resolvedStreams = mutableListOf<StreamSource>()
         var errorMsg: String? = null
-        try {
-            val timedOut = withTimeoutOrNull(20_000L) {
-                try {
+        // v2.4.239: loadExtractor çağrısı lambda'ya alındı — CF korumalı embed host'larında
+        // (challenge kanıtı varsa) 20 sn'lik ilk deneme sonrası 120 sn sabırla TEK bir
+        // yeniden deneme yapılabilmesi için. Kısmi sonuç geldiyse yeniden denenmez
+        // (mükerrer kaynak eklenmesin diye).
+        val runExtractor: suspend () -> Unit = {
+            try {
                     loadExtractor(
                         url      = resolvedUrl,
                         referer  = referer,
@@ -2298,10 +2311,20 @@ object CsStreamRunner {
                     errorMsg = "${e.javaClass.simpleName}: ${e.message}"
                     Log.e(TAG, "[$providerName] loadExtractor HATA: $errorMsg")
                 }
-            } == null
+        }
+        try {
+            var timedOut = withTimeoutOrNull(20_000L) { runExtractor() } == null
+            if (timedOut && resolvedStreams.isEmpty()) {
+                val embedHost = runCatching { java.net.URI(resolvedUrl).host }.getOrNull()
+                if (embedHost != null && CloudflareKiller.wasChallenged(embedHost)) {
+                    Log.w(TAG, "[$providerName] 🔐 Embed host challenge gördü — loadExtractor sabırlı yeniden deneme (120 sn): $resolvedUrl")
+                    CsTrace.info(providerName, "embed", "challenge kanıtı → sabırlı loadExtractor yeniden denemesi")
+                    timedOut = withTimeoutOrNull(CloudflareKiller.CF_SOLVE_BUDGET_MS) { runExtractor() } == null
+                }
+            }
             if (timedOut && errorMsg == null) {
-                errorMsg = "Timeout: 20 seconds exceeded"
-                Log.w(TAG, "[$providerName] loadExtractor 20 saniyelik zaman aşımına uğradı.")
+                errorMsg = "Timeout: extractor bütçesi aşıldı"
+                Log.w(TAG, "[$providerName] loadExtractor zaman aşımına uğradı (CF sabırlı deneme dahil).")
             }
         } catch (e: Throwable) {
             if (e is kotlinx.coroutines.CancellationException) throw e
@@ -2317,7 +2340,10 @@ object CsStreamRunner {
         var embedPageHtml: String? = null
         if (resolvedStreams.isEmpty()) {
             try {
-                val needsHtml = com.kitsugi.animelist.data.cloudstream.extractors.McloudWrapper.isMcloudUrl(resolvedUrl) ||
+                // v2.4.239 fix: GdriveplayerWrapper aşağıdaki when'da olmasına rağmen
+                // needsHtml listesinde YOKTU → pageContent boş kalıp fallback hiç çalışmıyordu.
+                val needsHtml = com.kitsugi.animelist.data.cloudstream.extractors.GdriveplayerWrapper.isGdriveplayerUrl(resolvedUrl) ||
+                        com.kitsugi.animelist.data.cloudstream.extractors.McloudWrapper.isMcloudUrl(resolvedUrl) ||
                         com.kitsugi.animelist.data.cloudstream.extractors.MixdropWrapper.isMixdropUrl(resolvedUrl) ||
                         com.kitsugi.animelist.data.cloudstream.extractors.Mp4UploadWrapper.isMp4UploadUrl(resolvedUrl) ||
                         com.kitsugi.animelist.data.cloudstream.extractors.StreamTapeWrapper.isStreamTapeUrl(resolvedUrl) ||
