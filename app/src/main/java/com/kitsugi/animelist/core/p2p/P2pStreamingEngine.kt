@@ -78,6 +78,24 @@ object P2pStreamingEngine {
 
     fun initialize(context: Context) {
         appContext = context.applicationContext
+        // Önceki oturumdan (uygulama öldürüldüğü için kapanış temizliği çalışmamış olabilir)
+        // kalan torrent parçalarını, motor henüz açılmadan süpür.
+        scope.launch { sweepLeftoverCacheOnLaunch() }
+    }
+
+    /**
+     * Açılışta, motor henüz çalışmıyorken ve aktif akış yokken önbellek artıklarını siler.
+     * "Video kapanınca temizle" ayarı kapalıysa dokunmaz.
+     */
+    private suspend fun sweepLeftoverCacheOnLaunch() {
+        startMutex.withLock {
+            if (engine != null || _state.value.isStreaming) return
+            if (!P2pSettingsRepository.isClearCacheOnCloseEnabled()) return
+            val context = appContext ?: return
+            val dir = File(context.cacheDir, "p2p-engine/payload")
+            val children = runCatching { dir.listFiles() }.getOrNull() ?: return
+            children.forEach { child -> runCatching { child.deleteRecursively() } }
+        }
     }
 
     suspend fun startStream(request: P2pStreamRequest): String = withContext(Dispatchers.IO) {
@@ -305,9 +323,23 @@ object P2pStreamingEngine {
     private suspend fun cleanupDetachedStream(detached: DetachedStream, shutdownEngine: Boolean) {
         detached.streamId?.let { streamId ->
             stopPreparedStream(detached.engine, streamId)
+            // Oynatıcı kapandı / akış değişti: bu akışın parçalarını diskten hemen geri al.
+            // Yalnızca akış gerçekten başlamışsa (streamId) ve ayar açıksa çalışır.
+            if (P2pSettingsRepository.isClearCacheOnCloseEnabled()) {
+                reclaimCacheAfterStream(detached.engine)
+            }
         }
         if (shutdownEngine) {
             closeEngine(detached.engine)
+        }
+    }
+
+    /** Motor önbelleğini sıfır hedefe indirir (akış durdurulduktan sonra çağrılır). */
+    private suspend fun reclaimCacheAfterStream(target: NuvioEngine?) {
+        if (target == null) return
+        withContext(NonCancellable) {
+            runCatching { target.reclaimDiskCache(0L) }
+                .onFailure { Log.w(TAG, "P2P önbelleği kapanışta boşaltılamadı: ${it.message}") }
         }
     }
 

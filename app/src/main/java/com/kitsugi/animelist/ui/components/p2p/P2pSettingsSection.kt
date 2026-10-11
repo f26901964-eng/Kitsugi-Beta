@@ -339,6 +339,37 @@ fun P2pSettingsSection(
 
                 HorizontalDivider(color = KitsugiColors.Border.copy(alpha = 0.5f))
 
+                // 6. Video kapanınca önbelleği otomatik temizle
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                        Text(
+                            text = "Video kapanınca önbelleği temizle",
+                            color = KitsugiColors.TextPrimary,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Medium
+                        )
+                        Text(
+                            text = if (p2pState.clearCacheOnClose) {
+                                "Torrent verisi yalnızca izlerken tutulur; oynatıcı kapanınca silinir."
+                            } else {
+                                "Kapalı: torrent verisi cihazda birikir. Manuel olarak 'Temizle' ile silebilirsiniz."
+                            },
+                            color = if (p2pState.clearCacheOnClose) accentColor else KitsugiColors.TextSecondary,
+                            fontSize = 12.sp
+                        )
+                    }
+                    Switch(
+                        checked = p2pState.clearCacheOnClose,
+                        onCheckedChange = { P2pSettingsRepository.setClearCacheOnClose(it) }
+                    )
+                }
+
+                HorizontalDivider(color = KitsugiColors.Border.copy(alpha = 0.5f))
+
                 // 7. Önbelleği Temizle
                 Row(
                     modifier = Modifier.fillMaxWidth(),

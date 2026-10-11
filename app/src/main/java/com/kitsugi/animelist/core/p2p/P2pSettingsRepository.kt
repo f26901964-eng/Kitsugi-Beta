@@ -15,6 +15,7 @@ object P2pSettingsRepository {
     private const val KEY_TORRENT_PROFILE = "torrent_profile"
     private const val KEY_CACHE_SIZE = "cache_size"
     private const val KEY_CONSENT_GRANTED = "consent_granted"
+    private const val KEY_CLEAR_CACHE_ON_CLOSE = "clear_cache_on_close"
 
     private var prefs: SharedPreferences? = null
     private val _uiState = MutableStateFlow(P2pSettingsUiState())
@@ -28,6 +29,7 @@ object P2pSettingsRepository {
     private var torrentProfile = P2pTorrentProfile.BALANCED
     private var cacheSize = P2pCacheSize.GB_2
     private var consentGranted = false
+    private var clearCacheOnClose = true
 
     fun initialize(context: Context) {
         if (prefs == null) {
@@ -99,6 +101,19 @@ object P2pSettingsRepository {
         publish()
     }
 
+    fun isClearCacheOnCloseEnabled(): Boolean {
+        ensureLoaded()
+        return clearCacheOnClose
+    }
+
+    fun setClearCacheOnClose(enabled: Boolean) {
+        ensureLoaded()
+        if (clearCacheOnClose == enabled) return
+        clearCacheOnClose = enabled
+        prefs?.edit()?.putBoolean(KEY_CLEAR_CACHE_ON_CLOSE, enabled)?.apply()
+        publish()
+    }
+
     fun setConsentGranted(granted: Boolean) {
         ensureLoaded()
         if (consentGranted == granted) return
@@ -121,6 +136,7 @@ object P2pSettingsRepository {
             ?.let { stored -> P2pCacheSize.entries.firstOrNull { it.name == stored } }
             ?: P2pCacheSize.GB_2
         consentGranted = p?.getBoolean(KEY_CONSENT_GRANTED, false) ?: false
+        clearCacheOnClose = p?.getBoolean(KEY_CLEAR_CACHE_ON_CLOSE, true) ?: true
         publish()
     }
 
@@ -133,6 +149,7 @@ object P2pSettingsRepository {
             torrentProfile = torrentProfile,
             cacheSize = cacheSize,
             consentGranted = consentGranted,
+            clearCacheOnClose = clearCacheOnClose,
         )
     }
 }

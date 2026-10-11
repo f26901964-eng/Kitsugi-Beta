@@ -100,9 +100,17 @@ object KitsugiBangumiDetailClient {
      */
     private const val STUDIO_LOOKUP_LIMIT = 24
     private const val STUDIO_LOOKUP_BATCH_TIMEOUT_MS = 10_000L
+
+    /** Kurum adı araması: aynı ada sahip çok kayıt olabildiğinden ilk 5 yetersiz kalıyordu. */
+    private const val STUDIO_SEARCH_LIMIT = 10
+
+    /** Bulunamayan kurumlar bu süre boyunca yeniden aranmaz (geçici hatalar bunun dışında). */
+    private const val STUDIO_MISS_TTL_MS = 10 * 60 * 1000L
     private val studioLookupSemaphore = Semaphore(4)
     private val studioPersonIdCache = BoundedCache<String, Int>("bangumi.studioPersonId", 256)
     private val studioPersonImageCache = BoundedCache<String, String>("bangumi.studioPersonImage", 256)
+    /** Kurum adı → "bu süreye kadar yeniden arama" zaman damgası (yalnızca başarılı-boş sonuçlar). */
+    private val studioPersonMissUntil = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
     private data class EntityNameCacheEntry(
         val name: BangumiLocalizedName?,
@@ -2036,11 +2044,22 @@ object KitsugiBangumiDetailClient {
     private suspend fun findStudioPersonId(name: String): Int? {
         val key = normalizeCompanyKey(name)
         if (key.isEmpty()) return null
-        studioPersonIdCache[key]?.let { cached -> return cached.takeIf { it > 0 } }
+        studioPersonIdCache[key]?.let { cached -> if (cached > 0) return cached }
+        studioPersonMissUntil[key]?.let { until ->
+            if (System.currentTimeMillis() < until) return null
+        }
         val token = tokenOrNull()
-        val candidates = runCatching {
-            BangumiApiClient.searchPersons(keyword = name, token = token, limit = 5).data
-        }.getOrDefault(emptyList())
+        // Ağ/zaman aşımı hatası "bulunamadı" anlamına GELMEZ: önbelleğe alınmaz, bir sonraki
+        // tıklamada/yeniden denemede tekrar sorgulanır. (Eskiden hata → boş liste → kalıcı 0
+        // kaydı oluşuyor, kurum sayfası oturum boyunca açılmıyordu.)
+        val candidates = try {
+            BangumiApiClient.searchPersons(keyword = name, token = token, limit = STUDIO_SEARCH_LIMIT).data
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (e: Exception) {
+            Log.w(TAG, "Kurum araması başarısız ($name): ${e.message}")
+            return null
+        }
         // Öncelik şirket kayıtlarında (type = 2, 公司); şirket eşleşmezse aynı ada sahip
         // kişi kaydı (type = 1 — ör. yapımcı şahıslar) kabul edilir: detay sayfası zaten
         // kişi şablonunu kullanır ve kişinin yapım listesi anlamlı bir sayfa açar.
@@ -2051,15 +2070,21 @@ object KitsugiBangumiDetailClient {
             }
         val matched = candidates.filter { it.type == 2 }.firstOrNull(::exactMatch)
             ?: candidates.filter { it.type == 1 }.firstOrNull(::exactMatch)
-        val id = matched?.id?.takeIf { it > 0 } ?: 0
+        val id = matched?.id?.takeIf { it > 0 }
         matched?.images?.let { images ->
             BangumiApiClient.absoluteImageUrl(images.poster)?.let { imageUrl ->
                 studioPersonImageCache[key] = imageUrl
             }
         }
+        if (id == null) {
+            if (studioPersonMissUntil.size > 256) studioPersonMissUntil.clear()
+            studioPersonMissUntil[key] = System.currentTimeMillis() + STUDIO_MISS_TTL_MS
+            return null
+        }
+        studioPersonMissUntil.remove(key)
         if (studioPersonIdCache.size > 256) studioPersonIdCache.clear()
         studioPersonIdCache[key] = id
-        return id.takeIf { it > 0 }
+        return id
     }
 
     /**
