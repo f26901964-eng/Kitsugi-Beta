@@ -48,6 +48,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.kitsugi.animelist.data.cloudstream.CsPluginLoader
+import com.kitsugi.animelist.data.cloudstream.CsStreamRunner
 import com.kitsugi.animelist.data.local.KitsugiDatabase
 import com.kitsugi.animelist.data.remote.JikanSearchResult
 import com.kitsugi.animelist.ui.components.KitsugiPlasmaLoader
@@ -152,11 +153,11 @@ fun PluginPickerScreen(
                         Log.e("PluginPickerScreen", "Load failed: ${plugin.name} — ${e.message}")
                     }
                 }
-                val enabledIds = enabledPlugins.map { it.id }.toSet()
+                // v2.4.240 (KN-D): tek normalize edilmiş eşleştirme (bkz. isApiEnabledFor).
+                val enabledIds = enabledPlugins.map { it.id }
                 val loaded = APIHolder.allProviders.filter { api ->
-                    val pluginId = java.io.File(api.sourcePlugin ?: "").nameWithoutExtension
-                    enabledIds.contains(pluginId)
-                }.sortedBy { it.name.lowercase() }
+                    CsStreamRunner.isApiEnabledFor(api, enabledIds)
+                }.sortedBy { CsStreamRunner.normalizePluginKey(it.name) }
 
                 cachedActiveApis = loaded
                 withContext(Dispatchers.Main) {

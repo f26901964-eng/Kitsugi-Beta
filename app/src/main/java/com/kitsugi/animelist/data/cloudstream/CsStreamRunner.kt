@@ -74,7 +74,20 @@ object CsStreamRunner {
      * GLOBAL olduğu için kuyruktaki eklentiler izin beklerken kendi 20 sn'lik arama
      * bütçeleri doluyor ve daha tek sorgu atamadan "arama sıfır" dönüyordu.
      */
-    private val searchSemaphore = Semaphore(24)
+    private val searchSemaphore = Semaphore(32)
+
+    /**
+     * v2.4.240 (KN-K): `searchSemaphore` kuyruğunda toplam geçiren süre (ms, tüm çağrılar).
+     *
+     * Neden gerekli: arama bütçesi (`searchTimeBudgetMs`) duvar saatiyle ölçülüyordu; 30+
+     * eklenti paralel başladığında bir varyantın 3-6 araması kuyrukta izin beklerken bütçeyi
+     * tüketiyor ve eklenti DAHA TEK BİR SORGU ATAMDAN "arama sıfır" dönüyordu. Sayaç,
+     * `runGetStreams`'ta bütçe hesabından çıkarılır → bekleme, arama hakkını yiyemez.
+     */
+    private val searchQueueWaitMs = java.util.concurrent.atomic.AtomicLong(0L)
+
+    /** Kuyruk bekleme sayacı anlık görüntüsü (bkz. [searchQueueWaitMs]). */
+    fun searchQueueWaitSnapshot(): Long = searchQueueWaitMs.get()
 
     /**
      * İçerik yükleme ve stream link çekme için ayrı semaphore.
@@ -528,6 +541,25 @@ object CsStreamRunner {
     /** CF şüpheli hostlarda aşama bazlı sabır süresi (120 sn) — safeSearch / safeLoad / loadLinks */
     private const val CF_STAGE_TIMEOUT_MS = 120_000L
 
+    /**
+     * v2.4.240 (KN-A): safeSearch / safeLoad için TABAN aşama süresi.
+     *
+     * Yukarıdaki CF sabır bütçesi tasarım olarak "safeSearch / safeLoad / loadLinks" üçününe
+     * uygulanacaktı; koda yalnızca loadLinks bağlanmıştı (stageTimeoutMs çağrısı). Arama ve
+     * load sabit 15 sn'de kaldığı için, Cloudflare/Turnstile/vDDoS çözümü 90-120 sn süren
+     * her kaynakta kutu çözüm bitmeden patlıyor ve sonuç HER ZAMAN "0 sonuç" oluyordu —
+     * üstelik zaman aşımı hiçbir yere yazılmadığı için ayırt edilemiyordu.
+     */
+    private const val SEARCH_STAGE_TIMEOUT_MS = 15_000L
+    private const val LOAD_STAGE_TIMEOUT_MS = 15_000L
+
+    /**
+     * v2.4.240: safeSearch içinden çağrılan CF gate'inin bütçesi. UI akışları
+     * (ensureCfClearance) tam CF_GATE_BUDGET_MS'i kullanabilir; akış boru hattında
+     * provider bütçesi (75 sn) gate'e yenilmesin diye daha kısa tutulur.
+     */
+    private const val SEARCH_GATE_BUDGET_MS = 40_000L
+
     private val dynamicDomains = java.util.concurrent.ConcurrentHashMap<String, String>()
     private val dynamicBlockedPlugins = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
     private val isDomainListFetched = java.util.concurrent.atomic.AtomicBoolean(false)
@@ -678,6 +710,13 @@ object CsStreamRunner {
      * [clearUnsupportedMethodsCache] ile her yeni aramada temizlenir.
      */
     private val domainRevertedPlugins = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
+
+    /**
+     * Bu oturumda arama öncesi CF gate'i DENENMİŞ eklentiler. Gate, arama zaman kutusunun
+     * dışında koşar ama 90 sn'ye kadar sürebildiği için aynı eklentinin 18 arama varyantında
+     * tekrar tekrar denenmez. [clearUnsupportedMethodsCache] ile her yeni aramada sıfırlanır.
+     */
+    private val cfGateTriedForPlugins = java.util.concurrent.ConcurrentHashMap.newKeySet<String>()
 
     /**
      * Eklentinin domaini KNOWN_BROKEN_DOMAINS listesinde mi?
@@ -943,6 +982,9 @@ object CsStreamRunner {
         val count = unsupportedMethods.size
         unsupportedMethods.clear()
         domainRevertedPlugins.clear()
+        // v2.4.240: yeni arama turunda CF gate'i tekrar denenbilir (bir önceki turda
+        // clearance çerezi süresi dolmuş olabilir). Gate eklenti başına yalnızca 1 kez koşar.
+        cfGateTriedForPlugins.clear()
         if (count > 0) Log.d(TAG, "unsupportedMethods cache temizlendi ($count kayıt silindi)")
     }
 
@@ -1029,6 +1071,74 @@ object CsStreamRunner {
      */
     suspend fun ensureCfClearance(api: MainAPI) {
         runCfGateIfNeeded(api)
+    }
+
+    /**
+     * v2.4.240: `safeSearch`'e giren TÜM yollar (detay sayfası "İzle"/"Bölümler" akışı,
+     * eklenti arama sayfası, `searchAllAddons`, tanı ekleri) artık arama ÖNCESİNDE
+     * clearance gate'inden geçer.
+     *
+     * Eski durumda gate yalnızca AddonExploreDialog'un kullandığı `searchWithCfRetry` /
+     * `ensureCfClearance` yolundaydı; akış boru hattı (runGetStreams) gate'i hiç görmediği
+     * için çerez kabı boş kalıyor ve her arama doğrudan challenge sayfasına çarpıyordu.
+     *
+     * Maliyet: sağlıklı hostlarda `cfGateNeeded` false döner → tek bir istek bile atılmaz.
+     * Eklenti başına oturumda bir kez denenir (18 varyant × gate olmasın diye).
+     */
+    private suspend fun runSearchGateOnce(api: MainAPI) {
+        if (api.name in cfGateTriedForPlugins) return
+        if (!cfGateNeeded(api)) return
+        cfGateTriedForPlugins.add(api.name)
+        val ctx = AcraApplication.context ?: return
+        val url = getFixedUrl(api.mainUrl)
+        if (url.isBlank()) return
+        Log.w(
+            TAG,
+            "[${api.name}] 🔐 safeSearch öncesi CF gate: ${hostOf(api)} için clearance deneniyor " +
+                "(bütçe ${minOf(CsCfWarmupManager.CF_GATE_BUDGET_MS, SEARCH_GATE_BUDGET_MS)}ms)"
+        )
+        CsTrace.info(api.name, "cf-gate", "Arama öncesi clearance (tek deneme, kısaltılmış bütçe)")
+        runCatching {
+            CsCfWarmupManager.ensureClearance(
+                ctx,
+                url,
+                minOf(CsCfWarmupManager.CF_GATE_BUDGET_MS, SEARCH_GATE_BUDGET_MS)
+            )
+        }.onFailure { e ->
+            Log.w(TAG, "[${api.name}] safeSearch CF gate hatası: ${e.message}")
+        }
+    }
+
+    /**
+     * Bir `MainAPI`, kullanıcının etkinleştirdiği eklenti kimliklerinden birine mi ait?
+     *
+     * ESKİ DAVRANIŞ (HATA): üç ayrı çağrı noktası üç farklı eşleştirme yazmıştı —
+     * `searchAllAddons` `lowercase(Locale.ROOT)` kullanıyor, arayüz diyalogları ise hiç
+     * küçültmüyordu. Türkçe noktalı İ/ş/ğ karakterlerinde `lowercase()` birleşik nokta
+     * ürettiği için (ve dosya adı ile DB id'si birebir eşleşmediğinde) filtre BOŞ liste
+     * döndürüyordu → "hiçbir eklentiden veri gelmiyor". Tek ve normalize edilmiş yol budur.
+     */
+    fun isApiEnabledFor(api: MainAPI, enabledIds: Collection<String>): Boolean {
+        val fileKey = runCatching { java.io.File(api.sourcePlugin ?: "").nameWithoutExtension }.getOrNull()
+        return matchesEnabledPlugin(fileKey, api.name, enabledIds)
+    }
+
+    /**
+     * [isApiEnabledFor]'in Android'sız saf çekirdeği — JVM unit testiyle doğrulanabilir.
+     *
+     * @param fileKey `api.sourcePlugin` dosya adının uzantısız hâli (yükleme kaynağı yoksa null)
+     */
+    internal fun matchesEnabledPlugin(
+        fileKey: String?,
+        apiName: String,
+        enabledIds: Collection<String>
+    ): Boolean {
+        if (enabledIds.isEmpty()) return false
+        val keys = enabledIds.map { normalizePluginKey(it) }.filter { it.isNotBlank() }.toSet()
+        if (keys.isEmpty()) return false
+        val normalizedFile = fileKey?.let { normalizePluginKey(it) }
+        if (!normalizedFile.isNullOrBlank() && normalizedFile in keys) return true
+        return normalizePluginKey(apiName) in keys
     }
 
     /**
@@ -1317,10 +1427,18 @@ object CsStreamRunner {
         // ile ayrıca genişletilir.
         val searchTimeBudgetMs = if (api.name in CF_PROTECTED_PLUGINS || cfGateNeeded(api)) 60_000L else 20_000L
         val searchStartMs = System.currentTimeMillis()
+        // v2.4.240 (KN-K): kuyrukta geçen süre bütçeden sayılmaz — aşağıdaki her bütçe
+        // kontrolü bu lambda üzerinden ölçülür.
+        var queuedSearchWaitMs = 0L
+        var queueSnapshot = searchQueueWaitSnapshot()
+        val searchElapsedMs: () -> Long = {
+            val waited = searchQueueWaitSnapshot() - queueSnapshot
+            kotlin.math.max(0L, System.currentTimeMillis() - searchStartMs - queuedSearchWaitMs - waited)
+        }
         val searchVariants = titleVariants.take(maxSearchVariants)
         var variantIndex = 0
         searchLoop@ while (variantIndex < searchVariants.size) {
-            val elapsedNow = System.currentTimeMillis() - searchStartMs
+            val elapsedNow = searchElapsedMs()
             if (elapsedNow > searchTimeBudgetMs) {
                 Log.w(TAG, "[${api.name}] Arama zaman bütçesi doldu (${elapsedNow}ms) — kalan varyantlar atlandı")
                 CsTrace.warn(api.name, "search", "Arama zaman bütçesi doldu (${elapsedNow} ms) — ${searchVariants.size - variantIndex} varyant atlandı")
@@ -1330,6 +1448,12 @@ object CsStreamRunner {
             variantIndex += batch.size
             val batchResults = kotlinx.coroutines.coroutineScope {
                 batch.map { variant -> async { variant to safeSearch(api, variant) } }.awaitAll()
+            }
+            // Bu partinin kuyruk bekleme süresini bütçe sayacından düş (kaydırmalı pencere).
+            run {
+                val now = searchQueueWaitSnapshot()
+                queuedSearchWaitMs += now - queueSnapshot
+                queueSnapshot = now
             }
             for ((variant, variantResults) in batchResults) {
                 if (variantResults.isNotEmpty()) {
@@ -1354,7 +1478,7 @@ object CsStreamRunner {
                 }
                 // Makul bir aday varsa ve zaman kutusunun yarısı geçtiyse kalan sorguları
                 // boşuna deneme — bütçenin kalanını load/extract aşamasına bırak.
-                if (bestSoFar != null && System.currentTimeMillis() - searchStartMs > searchTimeBudgetMs / 2) {
+                if (bestSoFar != null && searchElapsedMs() > searchTimeBudgetMs / 2) {
                     Log.d(TAG, "[${api.name}] Zaman kutusu içinde makul eşleşme bulundu — kalan sorgular atlandı")
                     break@searchLoop
                 }
@@ -1382,14 +1506,14 @@ object CsStreamRunner {
         // yalnızca çıplak arama boş kaldığında devreye giren kaynak-bağımsız güvenlik ağıdır.
         // Filmlerde sezon mantığı olmadığından bu aşama tamamen atlanır.
         if (results.isEmpty() && isMovie != true && season > 1 &&
-            System.currentTimeMillis() - searchStartMs < searchTimeBudgetMs
+            searchElapsedMs() < searchTimeBudgetMs
         ) {
             val seasonVariants = buildSeasonScopedVariants(title, alternativeTitles, season)
             Log.d(TAG, "[${api.name}] Sezon girdisi araması (${seasonVariants.size} varyant): ${seasonVariants.take(4)}")
             CsTrace.info(api.name, "season-search", "Çıplak arama boş → ${seasonVariants.size} sezon varyantı deneniyor")
             var seasonVariantIndex = 0
             seasonSearch@ while (seasonVariantIndex < seasonVariants.size) {
-                if (System.currentTimeMillis() - searchStartMs > searchTimeBudgetMs) break@seasonSearch
+                if (searchElapsedMs() > searchTimeBudgetMs) break@seasonSearch
                 val batch = seasonVariants.drop(seasonVariantIndex).take(3)
                 seasonVariantIndex += batch.size
                 val batchResults = kotlinx.coroutines.coroutineScope {
@@ -1411,7 +1535,7 @@ object CsStreamRunner {
         // bazen tamamen farklı başlıklar kullanır (örn. "Örümcek-Adam" yerine "Spider-Man"
         // veya tam tersi). Bu fallback, jenerik ama anlamlı kelimelerle arama yapar.
         // Zaman kutusu dolduysa denenmez — kalan bütçe load/extract için saklanır.
-        if (results.isEmpty() && System.currentTimeMillis() - searchStartMs < searchTimeBudgetMs) {
+        if (results.isEmpty() && searchElapsedMs() < searchTimeBudgetMs) {
             val broadQueries = buildBroadSearchQueries(title, alternativeTitles)
             Log.d(TAG, "[${api.name}] Geniş arama deneniyor (${broadQueries.size} sorgu): $broadQueries")
             for (broadQuery in broadQueries) {
@@ -3162,8 +3286,14 @@ object CsStreamRunner {
             // Sessiz atlama YOK — eski davranış eklentiyi kalıcı olarak sıfıra indiriyordu.
             Log.w(TAG, "[${api.name}] safeSearch: Domain (${api.mainUrl}) ölü domain listesinde — yine de deneniyor.")
         }
+        // v2.4.240 (KN-A + KN-C): arama kutusu CF sabır bütçesini tanır ve gate arama
+        // ZAMAN KUTUSUNUN DIŞINDA koşar (çözüm süresi arama bütçesini yemez).
+        val searchStageMs = stageTimeoutMs(api, SEARCH_STAGE_TIMEOUT_MS)
+        runSearchGateOnce(api)
+        val queueWaitStart = System.currentTimeMillis()
         return searchSemaphore.withPermit {
-            withTimeoutOrNull(15_000L) {
+            searchQueueWaitMs.addAndGet(System.currentTimeMillis() - queueWaitStart)
+            withTimeoutOrNull(searchStageMs) {
                 try {
                 // Hafif throttle — aggressive rate-limiting'i önler
                 kotlinx.coroutines.delay(300)
@@ -3569,7 +3699,30 @@ object CsStreamRunner {
                 Log.e(SERR, "💥 SEARCH CRASH [${api.name}] query='$query' — ${e.javaClass.simpleName}: $errMsg\n${e.getStackTracePretty()}")
                 emptyList()
             }
-            } ?: emptyList()
+            } ?: run {
+                // v2.4.240: zaman kutusu doldu — bu "sitede içerik yok" CEVABI DEĞİLDİR.
+                // Eski davranış `?: emptyList()` ile bu durumu gerçek sıfır sonuçtan ayırt
+                // edilemez hâle getiriyordu; kullanıcı "eklenti ölü", geliştirici "site
+                // sonuç vermiyor" sanıyordu. Artık iz bırakılır ve UI'da gerçek sebep görünür.
+                Log.w(
+                    TAG,
+                    "[${api.name}] ⏱️ search('$query') ${searchStageMs}ms içinde tamamlanamadı — " +
+                        "boş sonuç (zaman aşımı; kuyruk bekleme dahil)."
+                )
+                Log.e(SERR, "⏱️ SEARCH TIMEOUT [${api.name}] query='$query' — ${searchStageMs}ms aşıldı. Bu 'içerik yok' DEĞİLDİR; arama iptal edildi.")
+                CsTrace.warn(
+                    api.name,
+                    "search-timeout",
+                    "Arama ${searchStageMs}ms'de tamamlanmadı (arama kapısı kuyruğu + ağ) — sonuç bilinmiyor"
+                )
+                if (CsPluginStatusTracker.getErrorMessage(api.name) == null) {
+                    CsPluginStatusTracker.recordSkip(
+                        api.name,
+                        "Arama ${searchStageMs / 1000} sn içinde tamamlanamadı (zaman aşımı) — içerik yok sanılmasın"
+                    )
+                }
+                emptyList()
+            }
         }
     }
 
@@ -3589,8 +3742,12 @@ object CsStreamRunner {
             // Sessiz atlama YOK — detay/bölüm yüklemesi de denenmeli; hata tracker'a düşer.
             Log.w(TAG, "[${api.name}] safeLoad: Domain (${api.mainUrl}) ölü domain listesinde — yine de deneniyor.")
         }
-        return loadSemaphore.withPermit {
-            withTimeoutOrNull(15_000L) {
+        // v2.4.240 (KN-B): load da arama ile aynı tuzağa düşüyordu (sabit 15 sn).
+        // CF çözümü sürerken kutu patlıyor → "aramada bulundu ama detay alınamadı" → 0 stream.
+        val loadStageMs = stageTimeoutMs(api, LOAD_STAGE_TIMEOUT_MS)
+        val loadBoxStart = System.currentTimeMillis()
+        val loadOutcome = loadSemaphore.withPermit {
+            withTimeoutOrNull(loadStageMs) {
                 try {
                 kotlinx.coroutines.delay(300)
                 Log.d(TAG, "[${api.name}] load('$url') çağrılıyor...")
@@ -3610,6 +3767,19 @@ object CsStreamRunner {
             }
             }  // withTimeoutOrNull
         }  // withPermit
+        // null iki anlama gelebilir: gerçek "bulunamadı" veya zaman aşımı. Süre ölçümüyle
+        // ayrıştırılır ve timeout iz olarak bırakılır (eski davranışta tamamen sessizdi).
+        if (loadOutcome == null) {
+            val spent = System.currentTimeMillis() - loadBoxStart
+            if (spent >= loadStageMs) {
+                Log.w(TAG, "[${api.name}] ⏱️ load('$url') ${loadStageMs}ms içinde tamamlanamadı (${spent}ms geçti) — detay alınamadı.")
+                CsTrace.warn(api.name, "load-timeout", "load ${loadStageMs}ms'de tamamlanmadı — detay/bölüm verisi alınamadı (timeout)")
+                if (CsPluginStatusTracker.getErrorMessage(api.name) == null) {
+                    CsPluginStatusTracker.recordSkip(api.name, "Detay yükleme ${loadStageMs / 1000} sn içinde tamamlanamadı (zaman aşımı)")
+                }
+            }
+        }
+        return loadOutcome
     }
 
     private fun hasSyncDataSupport(resp: LoadResponse): Boolean {
@@ -3769,11 +3939,16 @@ object CsStreamRunner {
                 Log.e(TAG, "Failed to load extension ${plugin.name} during global search: ${e.message}")
             }
         }
-        val enabledIds = enabledPlugins.map { it.id.lowercase(Locale.ROOT) }.toSet()
+        // v2.4.240 (KN-D-2): yeni aramada oturum blokları temizlenir — StreamViewModel
+        // bunu zaten yapıyordu; bu yol (vitirin/film-fragman fallback ve eklenti arama
+        // sayfaları) yapmıyordu. Bir önceki aramada 3 hataya düşen eklenti burada
+        // "Engellendi — atlanıyor" ile SESSİZCE es geçiliyordu.
+        CsPluginStatusTracker.clear()
+        clearUnsupportedMethodsCache()
+
+        val enabledIds = enabledPlugins.map { it.id }
         val activeApis = com.lagradost.cloudstream3.APIHolder.allProviders.filter { api ->
-            val pluginId = java.io.File(api.sourcePlugin).nameWithoutExtension.lowercase(Locale.ROOT)
-            val apiName = api.name.lowercase(Locale.ROOT)
-            enabledIds.contains(pluginId) || enabledIds.contains(apiName)
+            isApiEnabledFor(api, enabledIds)
         }
         if (activeApis.isEmpty()) {
             return@withContext emptyList()

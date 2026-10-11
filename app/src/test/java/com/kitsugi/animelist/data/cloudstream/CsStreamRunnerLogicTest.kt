@@ -494,4 +494,56 @@ class CsStreamRunnerLogicTest {
             setOf("pichive.online", "sssrr.org", "abyss.to")
         }
     }
+    // ─── v2.4.240 KN-D: etkin eklenti → API eşleştirmesi ──────────────────────
+    //
+    // Eski davranış: `File(api.sourcePlugin).nameWithoutExtension == plugin.id` birebir
+    // karşılaştırması + yer yer `lowercase(Locale.ROOT)`. Türkçe noktalı İ/ş/ğ ve harf
+    // büyüklüğü farklarında filtre BOŞ liste dönüyordu → "hiçbir eklenti denenmedi".
+
+    @Test
+    fun testMatchesEnabledPlugin_exactId() {
+        assertTrue(
+            CsStreamRunner.matchesEnabledPlugin(
+                fileKey = "DiziPal", apiName = "DiziPal", enabledIds = listOf("DiziPal")
+            )
+        )
+    }
+
+    @Test
+    fun testMatchesEnabledPlugin_turkishDottedI() {
+        // DB id'si "WFilmİzle", dosya adı "wfilmizle.cs3" → normalize edilince eşleşmeli.
+        assertTrue(
+            CsStreamRunner.matchesEnabledPlugin(
+                fileKey = "wfilmizle", apiName = "WFilmİzle", enabledIds = listOf("WFilmİzle")
+            )
+        )
+        assertTrue(
+            CsStreamRunner.matchesEnabledPlugin(
+                fileKey = "WFilmİzle", apiName = "WFilmizle", enabledIds = listOf("wfilmizle")
+            )
+        )
+    }
+
+    @Test
+    fun testMatchesEnabledPlugin_caseAndTurkishDialectInsensitive() {
+        val ids = listOf("AsyaAnimeleri", "CizgiMax", "İzleAI")
+        assertTrue(CsStreamRunner.matchesEnabledPlugin("asyaanimeleri", "AsyaAnimeleri", ids))
+        assertTrue(CsStreamRunner.matchesEnabledPlugin("cizgimax.cs3".removeSuffix(".cs3"), "CizgiMax", ids))
+        assertTrue(CsStreamRunner.matchesEnabledPlugin(null, "IzleAI", ids))
+    }
+
+    @Test
+    fun testMatchesEnabledPlugin_fallsBackToApiNameWhenFileMissing() {
+        // Yerleşik/built-in sağlayıcılarda sourcePlugin null → api.name üzerinden eşleşmeli.
+        assertTrue(CsStreamRunner.matchesEnabledPlugin(null, "Animeler", listOf("Animeler")))
+        assertFalse(CsStreamRunner.matchesEnabledPlugin(null, "Animeler", listOf("DiziPal")))
+    }
+
+    @Test
+    fun testMatchesEnabledPlugin_emptyAndBlankInputs() {
+        assertFalse(CsStreamRunner.matchesEnabledPlugin("DiziPal", "DiziPal", emptyList()))
+        assertFalse(CsStreamRunner.matchesEnabledPlugin("", "", listOf("  ")))
+        // null dosya anahtarı + boş ad → eşleşme yok (yanlış pozitif engellenir)
+        assertFalse(CsStreamRunner.matchesEnabledPlugin(null, "", listOf("DiziPal")))
+    }
 }

@@ -45,6 +45,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import coil.compose.AsyncImage
 import com.kitsugi.animelist.data.cloudstream.CsPluginLoader
+import com.kitsugi.animelist.data.cloudstream.CsPluginStatusTracker
 import com.kitsugi.animelist.data.cloudstream.CsStreamRunner
 import com.kitsugi.animelist.data.local.KitsugiDatabase
 import com.kitsugi.animelist.ui.theme.KitsugiColors
@@ -98,10 +99,14 @@ fun AddonSearchDialog(
                         Log.e("AddonSearchDialog", "Failed to load extension ${plugin.name}: ${e.message}")
                     }
                 }
-                val enabledIds = enabledPlugins.map { it.id }.toSet()
+                // v2.4.240 (KN-D): tek normalize edilmiş eşleştirme. Eskiden burada
+                // `File(api.sourcePlugin).nameWithoutExtension == plugin.id` birebir
+                // karşılaştırması yapılıyordu; dosya adı ile DB id'si farklıysa (Türkçe
+                // İ/ş/ğ, büyük/küçük harf) liste BOŞ kalıyor ve arama tek bir eklenti bile
+                // denemeden "sonuç yok" dönüyordu.
+                val enabledIds = enabledPlugins.map { it.id }
                 activeApis = APIHolder.allProviders.filter { api ->
-                    val pluginId = java.io.File(api.sourcePlugin ?: "").nameWithoutExtension
-                    enabledIds.contains(pluginId)
+                    CsStreamRunner.isApiEnabledFor(api, enabledIds)
                 }
             } catch (e: Exception) {
                 Log.e("AddonSearchDialog", "Error fetching active extensions: ${e.message}")
@@ -111,6 +116,10 @@ fun AddonSearchDialog(
 
     val performSearch = {
         if (query.isNotBlank()) {
+            // v2.4.240 (KN-D-2): yeni aramada oturum bloklarını temizle — aksi halde
+            // bir önceki turda 3 hataya düşen eklenti bu aramada SESSİZCE atlanır.
+            CsPluginStatusTracker.clear()
+            CsStreamRunner.clearUnsupportedMethodsCache()
             isLoading = true
             hasSearched = true
             keyboardController?.hide()
@@ -122,7 +131,7 @@ fun AddonSearchDialog(
                         val jobs = apiList.map { api ->
                             async {
                                 try {
-                                    val searchRes = CsStreamRunner.safeSearch(api, query)
+                                    val searchRes = CsStreamRunner.searchWithCfRetry(api, query)
                                     synchronized(list) {
                                         searchRes.forEach { list.add(api to it) }
                                     }
