@@ -40,8 +40,13 @@ object ExternalAuthManager {
     private const val KEY_ANILIST_TOKEN = "anilist_access_token"
     private const val KEY_ANILIST_CODE_VERIFIER = "anilist_code_verifier"
 
-    private val MAL_CLIENT_ID get() = com.kitsugi.animelist.BuildConfig.MAL_CLIENT_ID
-    private val MAL_CLIENT_SECRET get() = com.kitsugi.animelist.BuildConfig.MAL_CLIENT_SECRET
+    /**
+     * MAL giriş (OAuth) istemcisi — malapp://auth redirect'iyle kayıtlı "Android" tipi uygulama.
+     * DİKKAT: BuildConfig.MAL_CLIENT_ID (Web tipi, API/miribyou anahtarı) burada KULLANILMAMALI;
+     * o istemciyle authorize ucu 401 Basic Auth döndürüp tarayıcıda "Oturum açın" popup'ı açıyor.
+     */
+    private val MAL_CLIENT_ID get() = com.kitsugi.animelist.BuildConfig.MAL_OAUTH_CLIENT_ID
+    private val MAL_CLIENT_SECRET get() = com.kitsugi.animelist.BuildConfig.MAL_OAUTH_CLIENT_SECRET
     private const val KEY_MAL_TOKEN = "mal_access_token"
     private const val KEY_MAL_REFRESH_TOKEN = "mal_refresh_token"
     private const val KEY_MAL_TOKEN_EXPIRES_AT = "mal_token_expires_at"

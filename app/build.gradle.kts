@@ -22,6 +22,12 @@ android {
     val anilistSecret     = localProperties.getProperty("anilist_client_secret") ?: "RwKJVnuh1B76AMKaWyEgsig6KwjGQpkpbMwJSi4j"
     val malClientId       = localProperties.getProperty("mal_client_id")         ?: "7b77365a6acb496a4af1c08a375c7a71"
     val malClientSecret   = localProperties.getProperty("mal_client_secret")     ?: "9eb8fb4ddabf3dd04ced067b08c4b8474f73a746a2a5eb18640f45887b352334"
+    // MAL GİRİŞİ (OAuth) için AYRI istemci: "Android" tipinde, redirect = malapp://auth.
+    // Yukarıdaki mal_client_id (Web tipi, miribyou/API için) malapp://auth ile kayıtlı DEĞİL;
+    // authorize ucuna verilince MAL 401 + Basic Auth döndürüyor ve tarayıcı "Oturum açın"
+    // popup'ı gösteriyordu. Android tipi istemci secret KULLANMAZ (boş bırakılmalı).
+    val malOAuthClientId     = localProperties.getProperty("mal_oauth_client_id")     ?: "9dfa9b926eecef62128b6d464c7e33b9"
+    val malOAuthClientSecret = localProperties.getProperty("mal_oauth_client_secret") ?: ""
     // miribyou kök adresi (Jikan uyumlu, açık kaynak). local.properties ile geçersiz kılınabilir; boşsa atlanır.
     val miribyouBaseUrl   = localProperties.getProperty("miribyou_base_url")     ?: "https://miribyou-topaz.vercel.app"
     val simklClientId     = localProperties.getProperty("simkl_client_id")       ?: "650ad7c96b7e1ab1e0056f745708ee0d05558480e8e0c6ae80f1061d2ae31496"
@@ -50,6 +56,8 @@ android {
         buildConfigField("String", "ANILIST_CLIENT_SECRET",  "\"$anilistSecret\"")
         buildConfigField("String", "MAL_CLIENT_ID",          "\"$malClientId\"")
         buildConfigField("String", "MAL_CLIENT_SECRET",      "\"$malClientSecret\"")
+        buildConfigField("String", "MAL_OAUTH_CLIENT_ID",    "\"$malOAuthClientId\"")
+        buildConfigField("String", "MAL_OAUTH_CLIENT_SECRET", "\"$malOAuthClientSecret\"")
         buildConfigField("String", "MIRIBYOU_BASE_URL",      "\"$miribyouBaseUrl\"")
         buildConfigField("String", "SIMKL_CLIENT_ID",        "\"$simklClientId\"")
         buildConfigField("String", "SIMKL_CLIENT_SECRET",    "\"$simklSecret\"")

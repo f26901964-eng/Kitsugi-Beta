@@ -14,6 +14,10 @@ anilist_client_secret=YOUR_ANILIST_CLIENT_SECRET
 
 # MyAnimeList OAuth — https://myanimelist.net/apiconfig
 mal_client_id=YOUR_MAL_CLIENT_ID
+# MAL GİRİŞİ için ayrı istemci: App Type = Android, App Redirect URL = malapp://auth
+# (Android tipi istemcide secret yoktur; mal_oauth_client_secret boş kalabilir.)
+mal_oauth_client_id=YOUR_MAL_ANDROID_CLIENT_ID
+mal_oauth_client_secret=
 
 # Simkl OAuth — https://simkl.com/settings/developer
 simkl_client_id=YOUR_SIMKL_CLIENT_ID

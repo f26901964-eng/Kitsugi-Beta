@@ -134,7 +134,7 @@ fun KitsugiTvQrLoginDialog(
 
         // T3-01: BuildConfig'den alınır
         val ANILIST_CLIENT_ID = com.kitsugi.animelist.BuildConfig.ANILIST_CLIENT_ID
-        val MAL_CLIENT_ID = com.kitsugi.animelist.BuildConfig.MAL_CLIENT_ID
+        val MAL_CLIENT_ID = com.kitsugi.animelist.BuildConfig.MAL_OAUTH_CLIENT_ID
         val REDIRECT = "malapp://auth"
 
         var url = ""
