@@ -44,11 +44,13 @@ class HeroSelectionTest {
 
     // ── Vitrin logoları ───────────────────────────────────────────────────
 
-    @Test fun bangumiAndSimklShowAvailableHeroLogosWithoutChangingOtherSources() {
+    @Test fun artworkLogoSourcesShowTheirHeroLogosWhenTheGlobalSettingIsOff() {
         assertTrue(shouldShowHeroLogo(item(1, source = "bangumi"), showAnimeLogos = false))
         assertTrue(shouldShowHeroLogo(item(2, source = "simkl"), showAnimeLogos = false))
-        assertEquals(false, shouldShowHeroLogo(item(3, source = "anilist"), showAnimeLogos = false))
-        assertTrue(shouldShowHeroLogo(item(4, source = "anilist"), showAnimeLogos = true))
+        assertTrue(shouldShowHeroLogo(item(3, source = "shikimori"), showAnimeLogos = false))
+        assertTrue(shouldShowHeroLogo(item(4, source = "SHIKI"), showAnimeLogos = false))
+        assertEquals(false, shouldShowHeroLogo(item(5, source = "anilist"), showAnimeLogos = false))
+        assertTrue(shouldShowHeroLogo(item(6, source = "anilist"), showAnimeLogos = true))
     }
 
     @Test fun mangaDoesNotRequestAnimeLogoEvenWhenTheSettingIsEnabled() {

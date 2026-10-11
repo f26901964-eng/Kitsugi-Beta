@@ -115,6 +115,7 @@ object KitsugiShikimoriClient {
                             imageUrl = imageUrl,
                             year = year,
                             source = "shikimori",
+                            realMalId = item.optInt("myanimelist_id").takeIf { it in 1..99_999_999 },
                             titleEnglish = romajiTitle.ifBlank { null }
                         )
                     )
@@ -163,6 +164,7 @@ object KitsugiShikimoriClient {
                             imageUrl = imageUrl,
                             year = year,
                             source = "shikimori",
+                            realMalId = item.optInt("myanimelist_id").takeIf { it in 1..99_999_999 },
                             titleEnglish = romajiTitle.ifBlank { null }
                         )
                     )
@@ -256,6 +258,7 @@ object KitsugiShikimoriClient {
                         imageUrl = imageUrl,
                         year = yr,
                         source = "shikimori",
+                        realMalId = item.optInt("myanimelist_id").takeIf { it in 1..99_999_999 },
                         titleEnglish = romajiTitle.ifBlank { null }
                     )
                 )

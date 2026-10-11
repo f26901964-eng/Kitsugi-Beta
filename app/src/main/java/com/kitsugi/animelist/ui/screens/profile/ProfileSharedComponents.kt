@@ -109,12 +109,161 @@ fun ExternalProfileWrapper(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.Center
         ) {
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text(text = error, color = KitsugiColors.TextPrimary)
-            }
+            ProfileServiceErrorCard(
+                platformName = platformName,
+                rawError = error.orEmpty()
+            )
         }
     } else {
         content()
+    }
+}
+
+@Composable
+private fun ProfileServiceErrorCard(
+    platformName: String,
+    rawError: String
+) {
+    val summary = remember(rawError) { classifyProfileError(rawError) }
+    val titleRes = when (summary.kind) {
+        ProfileErrorKind.RATE_LIMIT -> R.string.profile_error_rate_limit_title
+        ProfileErrorKind.AUTHENTICATION -> R.string.profile_error_auth_title
+        ProfileErrorKind.PERMISSION -> R.string.profile_error_permission_title
+        ProfileErrorKind.NOT_FOUND -> R.string.profile_error_not_found_title
+        ProfileErrorKind.TIMEOUT -> R.string.profile_error_timeout_title
+        ProfileErrorKind.SERVER -> R.string.profile_error_server_title
+        ProfileErrorKind.NETWORK -> R.string.profile_error_network_title
+        ProfileErrorKind.REQUEST_REJECTED -> R.string.profile_error_request_title
+        ProfileErrorKind.UNKNOWN -> R.string.profile_error_unknown_title
+    }
+    val turkishExplanationRes = when (summary.kind) {
+        ProfileErrorKind.RATE_LIMIT -> R.string.profile_error_rate_limit_tr
+        ProfileErrorKind.AUTHENTICATION -> R.string.profile_error_auth_tr
+        ProfileErrorKind.PERMISSION -> R.string.profile_error_permission_tr
+        ProfileErrorKind.NOT_FOUND -> R.string.profile_error_not_found_tr
+        ProfileErrorKind.TIMEOUT -> R.string.profile_error_timeout_tr
+        ProfileErrorKind.SERVER -> R.string.profile_error_server_tr
+        ProfileErrorKind.NETWORK -> R.string.profile_error_network_tr
+        ProfileErrorKind.REQUEST_REJECTED -> R.string.profile_error_request_tr
+        ProfileErrorKind.UNKNOWN -> R.string.profile_error_unknown_tr
+    }
+    val englishExplanationRes = when (summary.kind) {
+        ProfileErrorKind.RATE_LIMIT -> R.string.profile_error_rate_limit_en
+        ProfileErrorKind.AUTHENTICATION -> R.string.profile_error_auth_en
+        ProfileErrorKind.PERMISSION -> R.string.profile_error_permission_en
+        ProfileErrorKind.NOT_FOUND -> R.string.profile_error_not_found_en
+        ProfileErrorKind.TIMEOUT -> R.string.profile_error_timeout_en
+        ProfileErrorKind.SERVER -> R.string.profile_error_server_en
+        ProfileErrorKind.NETWORK -> R.string.profile_error_network_en
+        ProfileErrorKind.REQUEST_REJECTED -> R.string.profile_error_request_en
+        ProfileErrorKind.UNKNOWN -> R.string.profile_error_unknown_en
+    }
+    val accentColor = LocalKitsugiAccent.current
+
+    Card(
+        shape = RoundedCornerShape(20.dp),
+        colors = CardDefaults.cardColors(containerColor = KitsugiColors.Surface),
+        modifier = Modifier
+            .widthIn(max = 560.dp)
+            .fillMaxWidth()
+            .padding(horizontal = 20.dp, vertical = 16.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                Box(
+                    modifier = Modifier
+                        .size(42.dp)
+                        .clip(CircleShape)
+                        .background(KitsugiColors.AccentRed.copy(alpha = 0.14f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(
+                        imageVector = Icons.Rounded.ErrorOutline,
+                        contentDescription = stringResource(R.string.profile_error_icon_description),
+                        tint = KitsugiColors.AccentRed,
+                        modifier = Modifier.size(22.dp)
+                    )
+                }
+
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        text = platformName,
+                        color = KitsugiColors.TextMuted,
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                    Text(
+                        text = stringResource(titleRes),
+                        color = KitsugiColors.TextPrimary,
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+
+                summary.httpStatusCode?.let { statusCode ->
+                    Surface(
+                        shape = RoundedCornerShape(999.dp),
+                        color = KitsugiColors.AccentRed.copy(alpha = 0.12f)
+                    ) {
+                        Text(
+                            text = stringResource(R.string.profile_error_http_status, statusCode),
+                            color = KitsugiColors.AccentRed,
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 6.dp)
+                        )
+                    }
+                }
+            }
+
+            HorizontalDivider(color = KitsugiColors.Border.copy(alpha = 0.55f))
+
+            ProfileErrorTranslation(
+                languageLabel = stringResource(R.string.profile_error_language_tr),
+                explanation = stringResource(turkishExplanationRes),
+                accentColor = accentColor
+            )
+            ProfileErrorTranslation(
+                languageLabel = stringResource(R.string.profile_error_language_en),
+                explanation = stringResource(englishExplanationRes),
+                accentColor = accentColor
+            )
+        }
+    }
+}
+
+@Composable
+private fun ProfileErrorTranslation(
+    languageLabel: String,
+    explanation: String,
+    accentColor: Color
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.Top,
+        horizontalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Text(
+            text = languageLabel,
+            color = accentColor,
+            style = MaterialTheme.typography.labelSmall,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.width(28.dp).padding(top = 2.dp)
+        )
+        Text(
+            text = explanation,
+            color = KitsugiColors.TextSecondary,
+            style = MaterialTheme.typography.bodySmall.copy(lineHeight = 18.sp),
+            modifier = Modifier.weight(1f)
+        )
     }
 }
 
