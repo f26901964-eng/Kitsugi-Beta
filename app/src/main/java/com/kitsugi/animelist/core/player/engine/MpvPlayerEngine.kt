@@ -356,13 +356,35 @@ class MpvPlayerEngine(
     }
 
     override fun selectTrack(trackOption: TrackOption) {
+        var applied = true
+        // KULLANICI elle seçti → ilk otomatik parça seçimi bir daha devreye girmemeli.
+        // Aksi hâlde hemen ardından çalışan `updateTracks()` (harici altyazılar henüz
+        // "hazır" sayılmadıysa `initialSelectionDone` hâlâ false olduğu için) otomatik
+        // tercihi uygulayıp kullanıcının seçimini geri alabiliyordu — kullanıcının
+        // "3 ses seçeneği hiçbir şey değiştirmiyor" gözleminin olası nedenlerinden biri.
+        initialSelectionDone = true
+        selectionForced = true
         if (trackOption.groupIndex == 0) {
-            mpvView?.selectAudioTrackById(trackOption.trackIndex)
+            applied = mpvView?.selectAudioTrackById(trackOption.trackIndex) ?: false
         } else if (trackOption.groupIndex == 1) {
-            mpvView?.selectSubtitleTrackById(trackOption.trackIndex)
+            applied = mpvView?.selectSubtitleTrackById(trackOption.trackIndex) ?: false
             _isSubtitleDisabled = false
         }
+        if (!applied) {
+            Log.w(TAG, "Parça seçimi uygulanamadı: label='${trackOption.label}' id=${trackOption.trackIndex}")
+            com.kitsugi.animelist.data.cloudstream.diag.CsTrace.warn(
+                "Player",
+                "track",
+                "Ses/altyazı parçası uygulanamadı: ${trackOption.label} (id=${trackOption.trackIndex})"
+            )
+        }
         updateTracks()
+        // mpv özelliği asenkron uygular; kısa bir gecikmeyle listede GERÇEK seçimi tazele
+        // (aksi hâlde arayüz eski seçimi göstermeye devam ediyor ve "hiçbir şey değişmiyor"
+        // izlenimi doğuyordu).
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+            updateTracks()
+        }, 350L)
     }
 
     override fun disableSubtitles() {

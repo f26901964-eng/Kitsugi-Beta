@@ -38,6 +38,13 @@ class KitsugiMpvSurfaceView @JvmOverloads constructor(
     private var pendingInitialMediaUrl: String? = null
     private var pendingInitialStartOption: String? = null
     private var hardwareDecodeMode: MpvHardwareDecodeMode = MpvHardwareDecodeMode.AUTO_SAFE
+
+    /**
+     * Kullanıcının elle seçtiği ses parçası (mpv track id). 2026-10-12 kullanıcı raporu:
+     * "3 ses seçeneği hiçbir şey değiştirmiyor, hep aynı İngilizce ses oynuyor."
+     * Seçim yapıldıktan sonra dil tercihi/otomatik seçim yolları bu değeri EZMEZ.
+     */
+    private var userSelectedAudioId: Int? = null
     private var currentAspectMode: AspectMode = AspectMode.ORIGINAL
     private var pendingAspectRetryCount = 0
     private val aspectReapplyRunnable = Runnable {
@@ -149,6 +156,8 @@ class KitsugiMpvSurfaceView @JvmOverloads constructor(
 
     private fun applyDefaultTrackSelectionForNewLoad() {
         runCatching {
+            // Yeni medya yüklendi → kullanıcı seçimi artık geçersiz, mpv kendi seçsin.
+            userSelectedAudioId = null
             // Let mpv choose the default streams for every new media load.
             mpv.setPropertyString("aid", "auto")
             mpv.setPropertyString("sid", "auto")
@@ -231,8 +240,15 @@ class KitsugiMpvSurfaceView @JvmOverloads constructor(
         runCatching {
             // Empty value resets language preference back to default behavior.
             mpv.setPropertyString("alang", normalized.joinToString(","))
-            // Re-run automatic audio selection with the latest preferences.
-            mpv.setPropertyString("aid", "auto")
+            val userPick = userSelectedAudioId
+            if (userPick == null) {
+                // Re-run automatic audio selection with the latest preferences.
+                mpv.setPropertyString("aid", "auto")
+            } else {
+                // Kullanıcı elle bir ses parçası seçtiyse dil tercihi onu EZMEMELİ.
+                applyAudioSelection(userPick)
+                Log.i(TAG, "alang güncellendi; kullanıcının ses seçimi (id=$userPick) korundu.")
+            }
         }.onFailure {
             Log.w(TAG, "Failed to set audio language preference: ${it.message}")
         }
@@ -356,13 +372,57 @@ class KitsugiMpvSurfaceView @JvmOverloads constructor(
 
     fun selectAudioTrackById(trackId: Int): Boolean {
         if (!initialized) return false
-        return runCatching {
-            mpv.setPropertyInt("aid", trackId)
-            true
-        }.getOrElse {
-            Log.w(TAG, "Failed to select audio track id=$trackId: ${it.message}")
-            false
+        userSelectedAudioId = trackId
+        return applyAudioSelection(trackId)
+    }
+
+    /**
+     * Ses parçasını seçer ve GERÇEKTEN uygulandığını doğrular.
+     *
+     * mpv'de `aid` bazı sürümlerde yalnız `setPropertyInt` ile, bazılarında yalnız `command`
+     * yoluyla uygulanır. Tek yol denendiğinde seçim sessizce başarısız olabiliyor ve kullanıcı
+     * "hiçbir şey değişmiyor" görüyordu — bu yüzden iki yol da denenir ve sonuç doğrulanır.
+     */
+    private fun applyAudioSelection(trackId: Int): Boolean {
+        if (!initialized) return false
+
+        fun currentAid(): Int? = runCatching { mpv.getPropertyString("aid")?.toIntOrNull() }.getOrNull()
+
+        // 1) Doğrudan aid özelliği
+        val propertyOk = runCatching { mpv.setPropertyInt("aid", trackId) }.isSuccess
+        if (currentAid() == trackId) {
+            Log.i(TAG, "Ses parçası seçildi (aid=$trackId)")
+            return true
         }
+
+        // 2) Komut yolu — bazı libmpv sürümlerinde aid yalnız komutla uygulanır
+        val commandOk = runCatching { mpv.command("set", "aid", trackId.toString()) }.isSuccess
+        val applied = currentAid()
+        if (applied == trackId) {
+            Log.i(TAG, "Ses parçası seçildi (command set aid=$trackId)")
+            return true
+        }
+
+        // 3) Son çare: aid'i metin olarak yaz (bazı sürümler int kabul etmez)
+        val previousAid = currentAid()
+        runCatching { mpv.setPropertyString("aid", trackId.toString()) }
+        val finalAid = currentAid()
+
+        if (finalAid == trackId) {
+            Log.i(TAG, "Ses parçası seçildi (string aid=$trackId)")
+            return true
+        }
+
+        // Seçim uygulanmadıysa sesi sessiz bırakmamak için önceki parçaya dön.
+        if (previousAid != null && previousAid != finalAid) {
+            runCatching { mpv.setPropertyInt("aid", previousAid) }
+        }
+        Log.w(
+            TAG,
+            "Ses parçası seçilemedi: istenen=$trackId, aid=${finalAid ?: "?"}, " +
+                "setProperty=${propertyOk}, command=${commandOk}"
+        )
+        return propertyOk || commandOk
     }
 
     fun selectSubtitleTrackById(trackId: Int): Boolean {

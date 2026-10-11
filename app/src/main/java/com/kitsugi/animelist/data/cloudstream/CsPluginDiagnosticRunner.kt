@@ -83,6 +83,51 @@ object CsPluginDiagnosticRunner {
 
     private val diagnosticEmbedResults = java.util.concurrent.ConcurrentHashMap<String, MutableList<EmbedResult>>()
 
+    /**
+     * Eklenti DEX'lerinin ÇALIŞMA ZAMANINDA görmesi gereken host sınıfları.
+     *
+     * Kullanıcı raporu (2026-10-12): "birçok eklenti ya patlak ya sorunlu" — raporda onlarca
+     * eklenti `Failed resolution of: Lkotlinx/serialization/KSerializer;` / `Lcom/google/gson/Gson;`
+     * ile düşüyordu. Bu, eklentinin bozuk olduğu anlamına GELMEZ; host tarafında (R8/shrink veya
+     * sınıf yükleyici) bir eksiklik anlamına gelir. Tanı artık bunu açıkça ayırır.
+     */
+    private val REQUIRED_HOST_CLASSES = listOf(
+        "kotlinx.serialization.KSerializer",
+        "kotlinx.serialization.json.Json",
+        "kotlinx.serialization.descriptors.SerialDescriptor",
+        "com.google.gson.Gson",
+        "com.fasterxml.jackson.databind.ObjectMapper",
+        "okhttp3.OkHttpClient",
+        "org.jsoup.Jsoup",
+        "com.lagradost.cloudstream3.MainAPI",
+        "com.lagradost.nicehttp.NiceResponse",
+    )
+
+    private val _hostAbiMissing = MutableStateFlow<List<String>>(emptyList())
+
+    /** Host (uygulama) tarafında eksik olan eklenti-runtime sınıfları. Boşsa ABI sağlam. */
+    val hostAbiMissing: StateFlow<List<String>> = _hostAbiMissing.asStateFlow()
+
+    private fun refreshHostAbiState() {
+        val loader = this.javaClass.classLoader ?: return
+        val missing = REQUIRED_HOST_CLASSES.filter { className ->
+            try {
+                loader.loadClass(className)
+                false
+            } catch (_: Throwable) {
+                true
+            }
+        }
+        _hostAbiMissing.value = missing
+        if (missing.isNotEmpty()) {
+            Log.e(
+                TAG,
+                "❌ HOST ABI EKSİK: ${missing.joinToString()} — bu sınıfları kullanan eklentiler " +
+                    "uygulama tarafındaki eksiklik nedeniyle düşer (eklenti bozuk değildir)."
+            )
+        }
+    }
+
     @Volatile
     private var cancelled = false
 
@@ -279,6 +324,63 @@ object CsPluginDiagnosticRunner {
                msg.contains("deadline exceeded")
     }
 
+    /**
+     * Bağlantı (linkage) hatasının somut kanıtını çıkarır.
+     *
+     * - Eksik sınıf:  "Failed resolution of: Lkotlinx/serialization/KSerializer;" -> sınıf adı
+     * - Eksik metot:  "No direct method (Ljava/lang/String;...)" -> imza
+     *
+     * Bu kanıt, eklentinin "bozuk" mu yoksa uygulamanın eklenti ABI'sini eksik mi sunduğunu
+     * raporun içinde görünür kılar.
+     */
+    private fun missingClassFrom(t: Throwable): String? {
+        val text = buildString {
+            var current: Throwable? = t
+            var guard = 0
+            while (current != null && guard < 6) {
+                append(current.message.orEmpty())
+                append(' ')
+                current = current.cause
+                guard++
+            }
+            append(t.javaClass.name)
+        }
+
+        fun normalizeDescriptor(descriptor: String?): String? = descriptor
+            ?.replace('/', '.')
+            ?.takeIf { it.isNotBlank() && !it.startsWith("java.") && !it.startsWith("android.") }
+
+        normalizeDescriptor(Regex("Failed resolution of: L([^;]+);").find(text)?.groupValues?.get(1))
+            ?.let { return it }
+        normalizeDescriptor(Regex("NoClassDefFoundError: L([^;\\s]+);").find(text)?.groupValues?.get(1))
+            ?.let { return it }
+        // CloudStream host yüzeyinde bulunmayan API imzası (reflection ile çağrılan metotlar)
+        Regex("No direct method \\(([^)]*)\\)").find(text)
+            ?.groupValues?.get(1)
+            ?.takeIf { it.isNotBlank() }
+            ?.let { return "metot imzası: ($it)" }
+        return null
+    }
+
+    /**
+     * Eklentinin bağlantı (linkage) hatası, host'ta da EKSİK olan bir sınıftan mı geliyor?
+     *
+     * Bu ayrım kullanıcı raporunun ana şikâyetini çözer: "eklenti bozuk" sanılan onlarca
+     * eklenti aslında uygulamanın kendi ABI eksikliğinden düşüyor olabilir. Kanıt yoksa null.
+     */
+    private fun hostAbiCauseFor(result: DiagnosticResult): String? {
+        val missing = _hostAbiMissing.value
+        if (missing.isEmpty()) return null
+        val evidence = buildString {
+            append(result.error.orEmpty())
+            append(' ')
+            result.phaseErrors.forEach { append(it.message).append(' ') }
+        }.lowercase(java.util.Locale.ROOT)
+        return missing.firstOrNull { className ->
+            evidence.contains(className.lowercase(java.util.Locale.ROOT))
+        }
+    }
+
     /** Throwable'dan PhaseError oluşturur */
     private fun buildPhaseError(phase: String, t: Throwable): PhaseError {
         val resource = throwAbleToResource<Any>(t)
@@ -288,10 +390,18 @@ object CsPluginDiagnosticRunner {
         }
         val msg = t.message ?: t.javaClass.simpleName
         val stackSnippet = t.getStackTracePretty()
+        // Eksik sınıf bilgisi mesaja eklenir: kullanıcı "eklenti bozuk" mu yoksa
+        // "uygulama tarafı eksik" mi olduğunu raporun kendisinde görsün.
+        val missingClass = missingClassFrom(t)
+        val enrichedMessage = if (missingClass != null) {
+            "$errorString [EKSİK HOST ABI: $missingClass]"
+        } else {
+            errorString
+        }
         return PhaseError(
             phase         = phase,
             errorClass    = t.javaClass.simpleName,
-            message       = errorString,
+            message       = enrichedMessage,
             httpCode      = extractHttpCode(t),
             isCfPattern   = isCfPattern(msg) || isCfPattern(t.javaClass.name) || isCfPattern(errorString),
             isDdosGuard   = isDdosGuard(msg) || isDdosGuard(errorString),
@@ -367,6 +477,7 @@ object CsPluginDiagnosticRunner {
         _isRunning.value = true
         _results.value = emptyList()
         _reportPath.value = null
+        refreshHostAbiState()
         _progress.value = DiagnosticProgress(0, 0, KitsugiStrings.get(R.string.cs_diag_loading_plugins), KitsugiStrings.get(R.string.cs_diag_preparing))
 
         diagnosticEmbedResults.clear()
@@ -910,6 +1021,16 @@ object CsPluginDiagnosticRunner {
             sb.appendLine("**Mod:** In-App (mevcut WebView/cookie koruması; CF/WAF cooldown'ları korunur) • $modeStr | Paralel MAX_CONCURRENT=$MAX_CONCURRENT")
             sb.appendLine("**Toplam:** ${results.size} eklenti")
             sb.appendLine()
+            val hostAbiMissing = _hostAbiMissing.value
+            if (hostAbiMissing.isNotEmpty()) {
+                sb.appendLine("## ⚠️ Host ABI Eksik (UYGULAMA TARAFI)")
+                sb.appendLine()
+                sb.appendLine("Aşağıdaki sınıflar uygulama içinde bulunamadı. Bu sınıfları kullanan eklentiler")
+                sb.appendLine("\"bozuk\" DEĞİLDİR; hata uygulama paketlemesinden (R8/küçültme) kaynaklanır:")
+                sb.appendLine()
+                hostAbiMissing.forEach { sb.appendLine("- `$it`") }
+                sb.appendLine()
+            }
             sb.appendLine("## Özet")
             sb.appendLine("| Durum | Sayı |")
             sb.appendLine("|---|---|")
@@ -948,7 +1069,9 @@ object CsPluginDiagnosticRunner {
                     ResultStatus.CF_BLOCKED   -> "🔐 Confirmed CF/WAF/DDoS"
                     ResultStatus.LOAD_FAILED  -> "⚠️ Load Fail"
                     ResultStatus.DEAD         -> "❌ ${r.error?.take(35) ?: "Bozuk"}"
-                    ResultStatus.RUNTIME_INCOMPATIBLE -> "🧩 Runtime incompatible"
+                    ResultStatus.RUNTIME_INCOMPATIBLE ->
+                        hostAbiCauseFor(r)?.let { "🧩 Host ABI eksik: $it (UYGULAMA tarafı)" }
+                            ?: "🧩 Runtime incompatible (eklenti tarafı)"
                     ResultStatus.AUTH_REQUIRED -> "🔑 Account/login required"
                 }
                 val protection = when {

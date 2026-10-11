@@ -21,6 +21,9 @@ class CsPluginDiagnosticViewModel : ViewModel() {
     val isRunning  get() = CsPluginDiagnosticRunner.isRunning
     val reportPath get() = CsPluginDiagnosticRunner.reportPath
 
+    /** Host (uygulama) tarafında eksik eklenti-runtime sınıfları — boşsa ABI sağlam. */
+    val hostAbiMissing get() = CsPluginDiagnosticRunner.hostAbiMissing
+
     fun startDiagnostic(context: Context) {
         viewModelScope.launch {
             CsPluginDiagnosticRunner.startDiagnostic(context.applicationContext, onlyInstalled = onlyInstalled)
