@@ -81,6 +81,8 @@ class AddonExploreInlineState(
             val dataList = withContext(Dispatchers.IO) {
                 val list = mutableListOf<HomePageList>()
                 try {
+                    // v2.4.239: satır-içi eklenti vitrini de CF gate'li.
+                    runCatching { CsStreamRunner.ensureCfClearance(api) }
                     for (pageData in api.mainPage) {
                         try {
                             val req = MainPageRequest(pageData.name, pageData.data, pageData.horizontalImages)

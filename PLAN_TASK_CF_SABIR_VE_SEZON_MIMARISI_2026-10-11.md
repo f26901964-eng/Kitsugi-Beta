@@ -68,6 +68,14 @@ Sonuç: CF korumalı hostlarda zincir daha 2. halkada kopuyor, kullanıcı "ekle
 - CF şüpheli hostlarda arama kutusu 40 sn → **60 sn** (gate artık kutu dışında).
 - `cfGateNeeded()`: çerez yok + (CF_PROTECTED listesi | challenge görüldü | warmup listesi | önceki hata WAF imzalı).
 
+### 3.2b Eklenti sayfası halkası (Ekran görüntüsü 1–3)
+- `AddonExploreDialog` (Eklenti Portalı → eklenti → arama kutusu) ve `AddonExploreInline`
+  vitrin/arama yüklemelerinde de **gate** çalışır (`CsStreamRunner.ensureCfClearance`).
+- `searchWithCfRetry`: arama boş döner **ve** challenge kanıtı varsa tam bütçeli gate +
+  120 sn sabırlı tek yeniden deneme. `searchAllAddons` (stream ekranı "tüm kaynaklarda ara")
+  da bu ağla çalışır → "her kaynak en azından veri versin".
+- Sağlıklı kaynaklarda kanıt olmadığı için bu yol 0 ms'de geçer.
+
 ### 3.3 "Üst sezon barı" mimarisi
 - `extractSeriesStreams` yüklenen sayfanın sezon barını loglar: sunulan sezonlar / istenen SxEy / bölüm sayısı.
 - `navigateToSeasonPage` **Adım 0**: detay URL'sindeki sezon jetonunu (`sezon-2`, `season-2`, `/s2/`)

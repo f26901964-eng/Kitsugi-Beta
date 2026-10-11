@@ -963,8 +963,7 @@ object CsStreamRunner {
      * "kaynak zaten kendi çözüyormuş" hissi buradan gelir.
      */
     private suspend fun runCfGateIfNeeded(api: MainAPI) {
-        if (!cfGateNeeded(api)) return
-        val ctx = AcraApplication.context ?: run {
+        if (!cfGateNeeded(api)) return        val ctx = AcraApplication.context ?: run {
             Log.w(TAG, "[${api.name}] CF gate: context yok — atlanıyor")
             return
         }
@@ -988,6 +987,34 @@ object CsStreamRunner {
         }.onFailure { e ->
             Log.w(TAG, "[${api.name}] CF gate hatası: ${e.message}")
         }
+    }
+
+    /**
+     * UI akışları (Eklenti Portalı içi arama / ana sayfa vitrini) için arama öncesi
+     * CF gate'i. v2.4.239: eklenti sayfasındaki çıplak-isim araması da stream akışıyla
+     * aynı korumayı alır — clearance yoksa ≤90 sn'de gizli WebView çözer, sağlıklı
+     * sitelerde 0 ms'de döner.
+     */
+    suspend fun ensureCfClearance(api: MainAPI) {
+        runCfGateIfNeeded(api)
+    }
+
+    /**
+     * v2.4.239 "boş + kanıt" yeniden denemesi: ilk arama boş döner VE host'un challenge
+     * gördüğüne dair kanıt varsa (CloudflareKiller.wasChallenged), tam bütçeli CF gate'i
+     * çalıştırılıp arama SABIRLI (120 sn aşama bütçesi) biçimde bir kez daha denenecek.
+     * Sağlıklı kaynaklarda kanıt olmayacağı için bu yol asla ekstra gecikme üretmez;
+     * "her kaynak en azından veri versin" ilkesinin güvenlik ağıdır.
+     */
+    internal suspend fun searchWithCfRetry(api: MainAPI, query: String): List<SearchResponse> {
+        val first = safeSearch(api, query)
+        if (first.isNotEmpty()) return first
+        val host = hostOf(api) ?: return first
+        if (!CloudflareKiller.wasChallenged(host)) return first
+        Log.w(TAG, "[${api.name}] 🔍 Arama boş + challenge kanıtı → CF gate + sabırlı tek yeniden deneme")
+        CsTrace.info(api.name, "search", "boş sonuç + challenge kanıtı → gate ve sabırlı yeniden deneme")
+        runCatching { runCfGateIfNeeded(api) }
+        return safeSearch(api, query)
     }
 
     /**
@@ -3760,7 +3787,8 @@ object CsStreamRunner {
                 async {
                     try {
                         ensurePluginReady(api)
-                        val searchRes = safeSearch(api, query)
+                        // v2.4.239: boş sonuç + challenge kanıtı → gate + sabırlı yeniden deneme.
+                        val searchRes = searchWithCfRetry(api, query)
                         synchronized(results) {
                             searchRes.forEach { results.add(api to it) }
                         }
