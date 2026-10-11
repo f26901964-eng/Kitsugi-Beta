@@ -613,15 +613,12 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
             _detailState.value?.titleRomaji, _detailState.value?.titleJapanese
         ).filter { it.isNotBlank() }.distinct()
         val explicitTmdb = (result.tmdbId ?: _detailState.value?.tmdbId)?.takeIf { it > 0 }
-        // Simkl kayıtları liste/detayda yalnızca romaji başlık taşır; TMDB kayıtları ise
-        // İngilizce/Japonca adlandırılır. Bu yüzden Simkl için `expectedTitles` başlık
-        // doğrulaması yanlış negatif üretiyor ve logoyu tamamen engelliyordu. Simkl'ın
-        // çözdüğü KENDİ kimlikleri (tmdb/mal) otorite kabul edilir — vitrin dalındaki
-        // (`KitsugiHeroSection.fetchHeroLogo`) kuralla aynı.
-        val verifiedLogoTitles = if (result.source.equals("simkl", ignoreCase = true)) emptyList() else logoTitles
         val logo = withContext(Dispatchers.IO) {
-            if (explicitTmdb != null) {
-                KitsugiEpisodeRatingsRepository.getLogoUrl(explicitTmdb, seasonNumber = season, isMovie = isMovie, expectedTitles = verifiedLogoTitles)
+            val explicitLogo = explicitTmdb?.let {
+                KitsugiEpisodeRatingsRepository.getLogoUrl(it, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles)
+            }?.takeIf { it.isNotBlank() }
+            if (explicitLogo != null) {
+                explicitLogo
             } else when {
                 result.source.equals("tmdb", ignoreCase = true) -> {
                     val tmdbId = result.tmdbId ?: if (stableId > 0) stableId else null
@@ -644,13 +641,26 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
                     KitsugiEpisodeRatingsRepository.getLogoUrlByKitsuId(kitsuId, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles)
                 }
                 result.source.equals("simkl", ignoreCase = true) -> {
-                    val realMal = result.realMalId ?: _detailState.value?.realMalId
-                    val tmdb = result.tmdbId ?: _detailState.value?.tmdbId
-                    when {
-                        realMal != null && realMal > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(realMal, seasonNumber = season, isMovie = isMovie, expectedTitles = verifiedLogoTitles)
-                        tmdb != null && tmdb > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrl(tmdb, seasonNumber = season, isMovie = isMovie, expectedTitles = verifiedLogoTitles)
-                        else -> null
-                    }
+                    val cross = com.kitsugi.animelist.data.remote.KitsugiSimklDetailClient.resolveSimklCrossIds(
+                        simklId = stableId,
+                        mediaType = result.type,
+                        hintTmdbId = result.tmdbId ?: _detailState.value?.tmdbId,
+                        hintMalId = result.realMalId ?: _detailState.value?.realMalId
+                    )
+                    val simklTitles = (logoTitles + listOfNotNull(cross.title)).distinct()
+                    val effectiveIsMovie = isMovie || cross.isMovie
+                    val realMal = (result.realMalId ?: _detailState.value?.realMalId ?: cross.malId)
+                        ?.takeIf { it > 0 && it != stableId }
+                    val tmdb = (result.tmdbId ?: _detailState.value?.tmdbId ?: cross.tmdbId)
+                        ?.takeIf { it > 0 }
+                    tmdb?.let { KitsugiEpisodeRatingsRepository.getLogoUrl(it, seasonNumber = season, isMovie = effectiveIsMovie, expectedTitles = simklTitles) }
+                        ?.takeIf { it.isNotBlank() }
+                        ?: realMal?.let { KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(it, fallbackAniListId = cross.aniListId, seasonNumber = season, isMovie = effectiveIsMovie, expectedTitles = simklTitles) }
+                            ?.takeIf { it.isNotBlank() }
+                        ?: cross.aniListId?.takeIf { it > 0 }?.let { KitsugiEpisodeRatingsRepository.getLogoUrlByAniListId(it, fallbackMalId = realMal, seasonNumber = season, isMovie = effectiveIsMovie, expectedTitles = simklTitles) }
+                            ?.takeIf { it.isNotBlank() }
+                        ?: cross.kitsuId?.takeIf { it > 0 }?.let { KitsugiEpisodeRatingsRepository.getLogoUrlByKitsuId(it, seasonNumber = season, isMovie = effectiveIsMovie, expectedTitles = simklTitles) }
+                            ?.takeIf { it.isNotBlank() }
                 }
                 result.source.equals("jikan", ignoreCase = true) ||
                 result.source.equals("mal", ignoreCase = true) -> {

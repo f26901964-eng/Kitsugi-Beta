@@ -27,23 +27,18 @@ internal object KitsuApiHost {
     /** Eski adres; yönlendirici/uyumluluk katmanı (sayfalama ve sıralama parametreleri yok sayılır). */
     const val LEGACY = "https://kitsu.io/api/edge"
 
-    @Volatile
-    private var degradedToLegacy = false
-
-    /** Şu an tercih edilen taban adres. */
-    val base: String get() = if (degradedToLegacy) LEGACY else PRIMARY
+    /** Her zaman kanonik adres tercih edilir; LEGACY yalnızca istek bazında yedektir. */
+    val base: String get() = PRIMARY
 
     /**
-     * Denenecek adres sırası: tercih edilen adres önce, diğeri yedek olarak.
-     * Bir isteğin ilk adreste başarısız olması sonraki istekleri de etkiler ([degrade]).
+     * Denenecek adres sırası: her zaman önce kanonik [PRIMARY], ağ hatası halinde yedek [LEGACY].
+     * `LEGACY` (`kitsu.io`) sıralama ve sayfalama parametrelerini yok saydığı için hiçbir zaman
+     * kalıcı birincil adrese yükseltilmez.
      */
-    fun candidates(): List<String> =
-        if (degradedToLegacy) listOf(LEGACY, PRIMARY) else listOf(PRIMARY, LEGACY)
+    fun candidates(): List<String> = listOf(PRIMARY, LEGACY)
 
-    /** Tercih edilen adres çöktü: sıradaki istekler yedek adresle başlasın. */
-    fun degrade() {
-        degradedToLegacy = true
-    }
+    /** Geriye dönük uyumluluk için korunur (no-op). */
+    fun degrade() = Unit
 
     /** Tam adres üretir: `pathAndQuery` "/" ile başlar (ör. `/anime?page[limit]=20`). */
     fun url(pathAndQuery: String, host: String = base): String = host + pathAndQuery

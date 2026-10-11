@@ -602,13 +602,12 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
             _detailState.value?.titleRomaji, _detailState.value?.titleJapanese
         ).filter { it.isNotBlank() }.distinct()
         val explicitTmdb = (entry.tmdbId ?: _detailState.value?.tmdbId)?.takeIf { it > 0 }
-        // Simkl kayıtları yalnızca romaji başlık taşır; TMDB başlık doğrulaması bu
-        // kaynakta yanlış negatif üretip logoyu engelliyordu. Simkl'ın KENDİ çözdüğü
-        // kimlikler otorite kabul edilir (vitrin + API detay sayfasıyla aynı kural).
-        val verifiedLogoTitles = if (entry.source.equals("simkl", ignoreCase = true)) emptyList() else logoTitles
         val logo = withContext(Dispatchers.IO) {
-            if (explicitTmdb != null) {
-                KitsugiEpisodeRatingsRepository.getLogoUrl(explicitTmdb, seasonNumber = season, isMovie = isMovie, expectedTitles = verifiedLogoTitles)
+            val explicitLogo = explicitTmdb?.let {
+                KitsugiEpisodeRatingsRepository.getLogoUrl(it, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles)
+            }?.takeIf { it.isNotBlank() }
+            if (explicitLogo != null) {
+                explicitLogo
             } else when {
                 entry.source.equals("tmdb", ignoreCase = true) -> {
                     val tmdbId = entry.tmdbId ?: if (stableId > 0) stableId else null
@@ -636,13 +635,24 @@ class MediaEntryDetailViewModel(application: Application) : AndroidViewModel(app
                 }
                 entry.source.equals("simkl", ignoreCase = true) -> {
                     val detail = _detailState.value
-                    val realMalId = detail?.realMalId
-                    val tmdbId = entry.tmdbId ?: detail?.tmdbId
-                    when {
-                        realMalId != null && realMalId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(realMalId, seasonNumber = season, isMovie = isMovie, expectedTitles = verifiedLogoTitles)
-                        tmdbId != null && tmdbId > 0 -> KitsugiEpisodeRatingsRepository.getLogoUrl(tmdbId, seasonNumber = season, isMovie = isMovie, expectedTitles = verifiedLogoTitles)
-                        else -> null
-                    }
+                    val cross = com.kitsugi.animelist.data.remote.KitsugiSimklDetailClient.resolveSimklCrossIds(
+                        simklId = stableId,
+                        mediaType = entry.type,
+                        hintTmdbId = entry.tmdbId ?: detail?.tmdbId,
+                        hintMalId = detail?.realMalId
+                    )
+                    val simklTitles = (logoTitles + listOfNotNull(cross.title)).distinct()
+                    val effectiveIsMovie = isMovie || cross.isMovie
+                    val realMalId = (detail?.realMalId ?: cross.malId)?.takeIf { it > 0 && it != stableId }
+                    val tmdbId = (entry.tmdbId ?: detail?.tmdbId ?: cross.tmdbId)?.takeIf { it > 0 }
+                    tmdbId?.let { KitsugiEpisodeRatingsRepository.getLogoUrl(it, seasonNumber = season, isMovie = effectiveIsMovie, expectedTitles = simklTitles) }
+                        ?.takeIf { it.isNotBlank() }
+                        ?: realMalId?.let { KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(it, fallbackAniListId = cross.aniListId, seasonNumber = season, isMovie = effectiveIsMovie, expectedTitles = simklTitles) }
+                            ?.takeIf { it.isNotBlank() }
+                        ?: cross.aniListId?.takeIf { it > 0 }?.let { KitsugiEpisodeRatingsRepository.getLogoUrlByAniListId(it, fallbackMalId = realMalId, seasonNumber = season, isMovie = effectiveIsMovie, expectedTitles = simklTitles) }
+                            ?.takeIf { it.isNotBlank() }
+                        ?: cross.kitsuId?.takeIf { it > 0 }?.let { KitsugiEpisodeRatingsRepository.getLogoUrlByKitsuId(it, seasonNumber = season, isMovie = effectiveIsMovie, expectedTitles = simklTitles) }
+                            ?.takeIf { it.isNotBlank() }
                 }
                 entry.source.equals("jikan", ignoreCase = true) ||
                 entry.source.equals("mal", ignoreCase = true) -> {

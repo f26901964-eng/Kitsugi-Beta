@@ -263,12 +263,20 @@ fun ExploreScreen(
                     ?: backdropOverrides[identity]?.takeIf { it.isNotBlank() }
                     ?: sanitizedBackdrop
             }
-            if (finalPoster == item.imageUrl && finalBackdrop == item.backdropUrl) {
+            val resolvedTmdbId = item.tmdbId ?: artwork?.resolvedTmdbId
+            val resolvedMalId = item.realMalId ?: artwork?.resolvedMalId
+            if (finalPoster == item.imageUrl &&
+                finalBackdrop == item.backdropUrl &&
+                resolvedTmdbId == item.tmdbId &&
+                resolvedMalId == item.realMalId
+            ) {
                 item
             } else {
                 item.copy(
                     imageUrl = finalPoster,
-                    backdropUrl = finalBackdrop
+                    backdropUrl = finalBackdrop,
+                    tmdbId = resolvedTmdbId,
+                    realMalId = resolvedMalId
                 )
             }
         }

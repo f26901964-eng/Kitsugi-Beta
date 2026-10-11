@@ -145,64 +145,115 @@ object KitsuExploreClient {
     }
 
     /**
-     * Trend animeler (Kitsu trending endpoint).
+     * Trend animeler (Kitsu trending endpoint + sayfalı devam).
      *
-     * `page[limit]`/`page[offset]` JSON:API sayfalamasını kullanır; böylece "Tümünü Gör"
-     * sayfası 20 kayıtta kilitli kalmaz.
+     * Kitsu'nun `TrendingController` ucu (`/trending/anime`) JSON:API `page[limit]` ve
+     * `page[offset]` parametrelerini yok sayar ve sabit 10 kayıt döndürür (ayrıca üst seviye
+     * `limit` parametresi sunucuda String olarak okunduğundan `limit - 1` hatasına yol açar).
+     * Bu nedenle:
+     *  - 1. sayfada (`offset == 0`) `/trending/anime` çağrılır ve `limit` değerine ulaşmak
+     *    için popüler yayındaki animelerle (`airingAnime` / `topAnime`) tamamlanır.
+     *  - Sonraki sayfalarda (`offset > 0`) popüler yayındaki animelerle (`airingAnime`,
+     *    yedek olarak `topAnime`) kesintisiz sayfalamaya devam edilir.
      */
     suspend fun trendingAnime(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
-        fetchAnimeList(
-            "/trending/anime?page[limit]=${limit.coerceIn(1, KITSU_MAX_PAGE_LIMIT)}" +
-                "&page[offset]=${offset.coerceAtLeast(0)}"
-        )
+        withContext(Dispatchers.IO) {
+            val safeLimit = limit.coerceIn(1, KITSU_MAX_PAGE_LIMIT)
+            val safeOffset = offset.coerceAtLeast(0)
+            if (safeOffset == 0) {
+                val primary = fetchAnimeList("/trending/anime")
+                if (primary.size >= safeLimit) return@withContext primary.take(safeLimit)
+                val supplement = airingAnime(safeLimit, offset = 0).ifEmpty { topAnime(safeLimit, offset = 0) }
+                (primary + supplement).distinctBy { it.malId }.take(safeLimit)
+            } else {
+                val airing = airingAnime(safeLimit, offset = safeOffset)
+                if (airing.isNotEmpty()) airing else topAnime(safeLimit, offset = safeOffset)
+            }
+        }
 
     /** Sezonluk animeler (belirtilen mevsim ve yıl) */
-    suspend fun seasonalAnime(season: String, year: Int, limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
-        fetchAnimeList("/anime?filter[season]=${season.lowercase()}&filter[seasonYear]=$year&sort=-userCount&page[limit]=$limit&page[offset]=$offset")
+    suspend fun seasonalAnime(season: String, year: Int, limit: Int = 20, offset: Int = 0): List<JikanSearchResult> {
+        val safeLimit = limit.coerceIn(1, KITSU_MAX_PAGE_LIMIT)
+        val safeOffset = offset.coerceAtLeast(0)
+        return fetchAnimeList("/anime?filter[season]=${season.lowercase()}&filter[seasonYear]=$year&sort=-userCount&page[limit]=$safeLimit&page[offset]=$safeOffset")
+    }
 
     /** En yüksek puanlı animeler */
-    suspend fun topRatedAnime(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
-        fetchAnimeList("/anime?sort=-averageRating&page[limit]=$limit&page[offset]=$offset")
+    suspend fun topRatedAnime(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> {
+        val safeLimit = limit.coerceIn(1, KITSU_MAX_PAGE_LIMIT)
+        val safeOffset = offset.coerceAtLeast(0)
+        return fetchAnimeList("/anime?sort=-averageRating&page[limit]=$safeLimit&page[offset]=$safeOffset")
+    }
 
     /** En popüler animeler (userCount'a göre sıralı) */
-    suspend fun topAnime(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
-        fetchAnimeList("/anime?sort=-userCount&page[limit]=$limit&page[offset]=$offset")
+    suspend fun topAnime(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> {
+        val safeLimit = limit.coerceIn(1, KITSU_MAX_PAGE_LIMIT)
+        val safeOffset = offset.coerceAtLeast(0)
+        return fetchAnimeList("/anime?sort=-userCount&page[limit]=$safeLimit&page[offset]=$safeOffset")
+    }
 
     /** Yayında olan animeler */
-    suspend fun airingAnime(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
-        fetchAnimeList("/anime?filter[status]=current&sort=-userCount&page[limit]=$limit&page[offset]=$offset")
+    suspend fun airingAnime(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> {
+        val safeLimit = limit.coerceIn(1, KITSU_MAX_PAGE_LIMIT)
+        val safeOffset = offset.coerceAtLeast(0)
+        return fetchAnimeList("/anime?filter[status]=current&sort=-userCount&page[limit]=$safeLimit&page[offset]=$safeOffset")
+    }
 
     /** Yakında yayınlanacak animeler */
-    suspend fun upcomingAnime(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
-        fetchAnimeList("/anime?filter[status]=upcoming&sort=-userCount&page[limit]=$limit&page[offset]=$offset")
+    suspend fun upcomingAnime(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> {
+        val safeLimit = limit.coerceIn(1, KITSU_MAX_PAGE_LIMIT)
+        val safeOffset = offset.coerceAtLeast(0)
+        return fetchAnimeList("/anime?filter[status]=upcoming&sort=-userCount&page[limit]=$safeLimit&page[offset]=$safeOffset")
+    }
 
     /** Yakın zamanda eklenen animeler */
-    suspend fun newlyAddedAnime(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
-        fetchAnimeList("/anime?sort=-createdAt&page[limit]=$limit&page[offset]=$offset")
+    suspend fun newlyAddedAnime(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> {
+        val safeLimit = limit.coerceIn(1, KITSU_MAX_PAGE_LIMIT)
+        val safeOffset = offset.coerceAtLeast(0)
+        return fetchAnimeList("/anime?sort=-createdAt&page[limit]=$safeLimit&page[offset]=$safeOffset")
+    }
 
     /** Film formatındaki animeler */
-    suspend fun movieAnime(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
-        fetchAnimeList("/anime?filter[subtype]=movie&sort=-userCount&page[limit]=$limit&page[offset]=$offset")
+    suspend fun movieAnime(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> {
+        val safeLimit = limit.coerceIn(1, KITSU_MAX_PAGE_LIMIT)
+        val safeOffset = offset.coerceAtLeast(0)
+        return fetchAnimeList("/anime?filter[subtype]=movie&sort=-userCount&page[limit]=$safeLimit&page[offset]=$safeOffset")
+    }
 
     /** En yüksek puanlı mangalar */
-    suspend fun topRatedManga(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
-        fetchMangaList("/manga?sort=-averageRating&page[limit]=$limit&page[offset]=$offset")
+    suspend fun topRatedManga(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> {
+        val safeLimit = limit.coerceIn(1, KITSU_MAX_PAGE_LIMIT)
+        val safeOffset = offset.coerceAtLeast(0)
+        return fetchMangaList("/manga?sort=-averageRating&page[limit]=$safeLimit&page[offset]=$safeOffset")
+    }
 
     /** En popüler mangalar */
-    suspend fun topManga(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
-        fetchMangaList("/manga?sort=-userCount&page[limit]=$limit&page[offset]=$offset")
+    suspend fun topManga(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> {
+        val safeLimit = limit.coerceIn(1, KITSU_MAX_PAGE_LIMIT)
+        val safeOffset = offset.coerceAtLeast(0)
+        return fetchMangaList("/manga?sort=-userCount&page[limit]=$safeLimit&page[offset]=$safeOffset")
+    }
 
     /** Yayında olan mangalar */
-    suspend fun publishingManga(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
-        fetchMangaList("/manga?filter[status]=current&sort=-userCount&page[limit]=$limit&page[offset]=$offset")
+    suspend fun publishingManga(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> {
+        val safeLimit = limit.coerceIn(1, KITSU_MAX_PAGE_LIMIT)
+        val safeOffset = offset.coerceAtLeast(0)
+        return fetchMangaList("/manga?filter[status]=current&sort=-userCount&page[limit]=$safeLimit&page[offset]=$safeOffset")
+    }
 
     /** Trend mangalar (favoritesCount sırası) */
-    suspend fun trendingManga(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
-        fetchMangaList("/manga?sort=-favoritesCount&page[limit]=$limit&page[offset]=$offset")
+    suspend fun trendingManga(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> {
+        val safeLimit = limit.coerceIn(1, KITSU_MAX_PAGE_LIMIT)
+        val safeOffset = offset.coerceAtLeast(0)
+        return fetchMangaList("/manga?sort=-favoritesCount&page[limit]=$safeLimit&page[offset]=$safeOffset")
+    }
 
     /** Yakın zamanda eklenen mangalar */
-    suspend fun newlyAddedManga(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> =
-        fetchMangaList("/manga?sort=-createdAt&page[limit]=$limit&page[offset]=$offset")
+    suspend fun newlyAddedManga(limit: Int = 20, offset: Int = 0): List<JikanSearchResult> {
+        val safeLimit = limit.coerceIn(1, KITSU_MAX_PAGE_LIMIT)
+        val safeOffset = offset.coerceAtLeast(0)
+        return fetchMangaList("/manga?sort=-createdAt&page[limit]=$safeLimit&page[offset]=$safeOffset")
+    }
 
     // ── Internal HTTP ─────────────────────────────────────────────────────────
 
@@ -213,54 +264,109 @@ object KitsuExploreClient {
         fetchPaged(pathAndQuery, MediaType.Manga)
 
     /**
-     * Kitsu liste ucu çağrısı: host seçimi, yedek host denemesi ve sayfa bekçisi burada.
+     * Kitsu liste ucu çağrısı: host seçimi, Typesense sayfa kayması telafisi ve sayfa bekçisi.
      *
-     * Sayfa bekçisi: `page[offset]` bazı adreslerde yok sayılıyor ve 2. sayfa 1. sayfanın
-     * aynısını dönüyordu. Arayüz kopya kayıtları elediği için kullanıcı "devamı hiç
-     * gelmiyor" diye görüyordu. Artık ilk sayfanın baş kaydıyla aynı kayıt dönerse önce
-     * diğer adres denenir; o da aynısını verirse listenin bittiği kabul edilir.
+     * KÖK NEDEN (Typesense 1-tabanlı sayfa hatası):
+     * Kitsu sunucusu (`hummingbird-me/kitsu-server`) `filter[...]` içeren `/anime` ve `/manga`
+     * sorgularını `TypesenseSearchService`'e yönlendirir. Sunucudaki `_page = (@_offset / @_limit).floor`
+     * hesabı `+ 1` eklemediği için:
+     *  - `page[offset]=0&page[limit]=20`  → Typesense `page=0` (1. sayfa döner)
+     *  - `page[offset]=20&page[limit]=20` → Typesense `page=1` (YİNE 1. sayfa döner!)
+     *  - `page[offset]=40&page[limit]=20` → Typesense `page=2` (gerçek 2. sayfa döner)
+     *
+     * Bu nedenle `filter[...]` içeren sorgularda `offset > 0` için efektif offset `offset + limit`
+     * olarak gönderilir. Filtresiz sorgular (`topAnime`, `topRatedAnime` vb.) doğrudan PostgreSQL
+     * `OFFSET` kullandığı için olduğu gibi gönderilir; yine de ilk sayfayla aynı baş kayıt
+     * dönerse aynı host üzerinde `offset + limit` ile bir kez daha denenir.
      */
     private suspend fun fetchPaged(
         pathAndQuery: String,
         mediaType: MediaType
     ): List<JikanSearchResult> = withContext(Dispatchers.IO) {
         val offset = pagingOffset(pathAndQuery)
+        val limit = pagingLimit(pathAndQuery)
         val anchorKey = pagingAnchorKey(pathAndQuery)
-        var primaryFailed = false
+        val effectiveQuery = adjustKitsuTypesenseQuery(pathAndQuery)
+
         for (host in KitsuApiHost.candidates()) {
-            val items = runCatching { fetchFromHost(KitsuApiHost.url(pathAndQuery, host), mediaType) }
+            var items = runCatching { fetchFromHost(KitsuApiHost.url(effectiveQuery, host), mediaType) }
                 .getOrElse { err ->
                     Log.w(TAG, "Kitsu isteği başarısız ($host): ${err.message}")
                     null
                 }
-            if (items == null) {
-                primaryFailed = true
-                continue
-            }
-            val head = items.firstOrNull()?.let { "${it.source}:${it.malId}:${it.title}" }
+            if (items == null) continue
+
+            var head = items.firstOrNull()?.let { "${it.source}:${it.malId}:${it.title}" }
             if (offset > 0) {
                 val anchor = pageAnchors[anchorKey]
                 if (anchor != null && head == anchor) {
+                    // Eğer henüz offset+limit kaydırması uygulanmadıysa aynı host'ta kaydırarak dene
+                    if (effectiveQuery == pathAndQuery) {
+                        val shiftedQuery = withPagingOffset(pathAndQuery, offset + limit)
+                        val retryItems = runCatching { fetchFromHost(KitsuApiHost.url(shiftedQuery, host), mediaType) }
+                            .getOrNull()
+                        val retryHead = retryItems?.firstOrNull()?.let { "${it.source}:${it.malId}:${it.title}" }
+                        if (!retryItems.isNullOrEmpty() && retryHead != anchor) {
+                            return@withContext retryItems
+                        }
+                    }
                     Log.w(TAG, "Kitsu sayfa bekçisi: offset=$offset aynı kaydı döndürdü ($host atlandı)")
                     continue
                 }
             } else if (head != null) {
                 pageAnchors[anchorKey] = head
             }
-            if (host != KitsuApiHost.base && primaryFailed) KitsuApiHost.degrade()
             return@withContext items
         }
-        if (primaryFailed) KitsuApiHost.degrade()
         emptyList()
     }
 
+    /**
+     * Kitsu'nun `TypesenseSearchService` (`filter[...]` içeren `/anime` ve `/manga` uçları)
+     * `(_offset / _limit).floor` hesabındaki 1-tabanlı sayfa kaymasını telafi eder.
+     */
+    internal fun adjustKitsuTypesenseQuery(pathAndQuery: String): String {
+        val offset = pagingOffset(pathAndQuery)
+        if (offset <= 0 || !usesTypesensePaging(pathAndQuery)) return pathAndQuery
+        val limit = pagingLimit(pathAndQuery)
+        return withPagingOffset(pathAndQuery, offset + limit)
+    }
+
+    internal fun usesTypesensePaging(pathAndQuery: String): Boolean {
+        val path = pathAndQuery.substringBefore('?')
+        if (path != "/anime" && path != "/manga") return false
+        return pathAndQuery.contains("filter[")
+    }
+
+    internal fun withPagingOffset(pathAndQuery: String, newOffset: Int): String =
+        if (Regex("page\\[offset\\]=\\d+").containsMatchIn(pathAndQuery)) {
+            pathAndQuery.replace(Regex("page\\[offset\\]=\\d+"), "page[offset]=$newOffset")
+        } else {
+            val sep = if (pathAndQuery.contains('?')) "&" else "?"
+            "$pathAndQuery${sep}page[offset]=$newOffset"
+        }
+
     /** Sorgudaki `page[offset]` değeri (yoksa 0). */
-    private fun pagingOffset(pathAndQuery: String): Int =
+    internal fun pagingOffset(pathAndQuery: String): Int =
         Regex("page\\[offset\\]=(\\d+)").find(pathAndQuery)?.groupValues?.get(1)?.toIntOrNull() ?: 0
 
-    /** `page[offset]` hariç sorgunun tamamı — aynı listenin sayfaları aynı anahtarı paylaşır. */
-    private fun pagingAnchorKey(pathAndQuery: String): String =
-        pathAndQuery.replace(Regex("&?page\\[offset\\]=\\d+"), "")
+    /** Sorgudaki `page[limit]` değeri (yoksa 20). */
+    internal fun pagingLimit(pathAndQuery: String): Int =
+        Regex("page\\[limit\\]=(\\d+)").find(pathAndQuery)?.groupValues?.get(1)?.toIntOrNull()
+            ?.coerceIn(1, KITSU_MAX_PAGE_LIMIT)
+            ?: KITSU_MAX_PAGE_LIMIT
+
+    /** `page[offset]` hariç kanonik sorgu anahtarı — parametre sırasından bağımsızdır. */
+    internal fun pagingAnchorKey(pathAndQuery: String): String {
+        val path = pathAndQuery.substringBefore('?')
+        val query = pathAndQuery.substringAfter('?', "")
+        if (query.isBlank()) return path
+        val normalizedParams = query
+            .split('&')
+            .filter { it.isNotBlank() && !it.startsWith("page[offset]=") }
+            .sorted()
+        return if (normalizedParams.isEmpty()) path else "$path?${normalizedParams.joinToString("&")}"
+    }
 
     /** Tek bir adresten liste çeker; HTTP hatası/bozuk gövde için `null` döner. */
     private fun fetchFromHost(url: String, mediaType: MediaType): List<JikanSearchResult>? {

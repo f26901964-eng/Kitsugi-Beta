@@ -156,7 +156,7 @@ fun SearchScreen(
                 // Kullanıcı kaydırdı: otomatik sayfalama bütçesi yenilenir (normal sonsuz
                 // kaydırma birebir korunur; yalnızca kaydırma olmadan zincirlenen istek
                 // döngüsü engellenir).
-                if (autoLoadBudget != AUTO_LOAD_BUDGET_PER_SCROLL) {
+                if (autoLoadBudget != AUTO_LOAD_BUDGET_PER_SCROLL || lastAutoLoadLoadedCount != -1) {
                     autoLoadBudget = AUTO_LOAD_BUDGET_PER_SCROLL
                     lastAutoLoadLoadedCount = -1
                 }
@@ -181,7 +181,7 @@ fun SearchScreen(
             total > 0 && lastVisible >= total - 3 && !uiState.isLoading && !uiState.isLoadingMore && uiState.hasNextPage
         }
     }
-    LaunchedEffect(shouldLoadMore) {
+    LaunchedEffect(shouldLoadMore, autoLoadBudget, uiState.results.size) {
         if (shouldLoadMore) {
             val loadedCount = uiState.results.size
             if (autoLoadBudget > 0 && loadedCount != lastAutoLoadLoadedCount) {

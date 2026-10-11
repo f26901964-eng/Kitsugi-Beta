@@ -580,26 +580,33 @@ fun FullScreenMediaGridPage(
     //         (3) kullanıcı kaydırdığında bütçe yenilenir.
     var autoLoadBudget by remember { mutableIntStateOf(AUTO_LOAD_BUDGET_PER_SCROLL) }
     var lastAutoLoadVisibleCount by remember { mutableIntStateOf(-1) }
+
+    LaunchedEffect(selectedGenreId, selectedSortOption, seasonalSeason, seasonalYear, seasonalSort) {
+        autoLoadBudget = AUTO_LOAD_BUDGET_PER_SCROLL
+        lastAutoLoadVisibleCount = -1
+    }
+
     LaunchedEffect(listState, gridState) {
         // Kompozisyonda state okumadan kaydırma hareketini izle (recomposition yok).
         snapshotFlow {
-            Triple(
+            listOf(
                 listState.firstVisibleItemIndex,
                 listState.firstVisibleItemScrollOffset,
-                gridState.firstVisibleItemIndex
+                gridState.firstVisibleItemIndex,
+                gridState.firstVisibleItemScrollOffset
             )
         }.collect {
             // Kullanıcı kaydırdı → bütçe ve "son yüklenen görünür öğe sayısı" sıfırlanır.
             // Böylece normal sonsuz kaydırma davranışı birebir korunur; yalnızca kimsenin
             // kaydırmadığı durumda arka arkaya istek atan kaçak döngü engellenir.
-            if (autoLoadBudget != AUTO_LOAD_BUDGET_PER_SCROLL) {
+            if (autoLoadBudget != AUTO_LOAD_BUDGET_PER_SCROLL || lastAutoLoadVisibleCount != -1) {
                 autoLoadBudget = AUTO_LOAD_BUDGET_PER_SCROLL
                 lastAutoLoadVisibleCount = -1
             }
         }
     }
 
-    LaunchedEffect(shouldLoadMoreList, isLoadingMore, hasMorePages, isGridView) {
+    LaunchedEffect(shouldLoadMoreList, isLoadingMore, hasMorePages, isGridView, autoLoadBudget, displayedResults.size) {
         if (!isGridView && shouldLoadMoreList && !isLoadingMore && hasMorePages) {
             val visibleCount = displayedResults.size
             if (autoLoadBudget > 0 && visibleCount != lastAutoLoadVisibleCount) {
@@ -610,7 +617,7 @@ fun FullScreenMediaGridPage(
         }
     }
 
-    LaunchedEffect(shouldLoadMoreGrid, isLoadingMore, hasMorePages, isGridView) {
+    LaunchedEffect(shouldLoadMoreGrid, isLoadingMore, hasMorePages, isGridView, autoLoadBudget, displayedResults.size) {
         if (isGridView && shouldLoadMoreGrid && !isLoadingMore && hasMorePages) {
             val visibleCount = displayedResults.size
             if (autoLoadBudget > 0 && visibleCount != lastAutoLoadVisibleCount) {

@@ -46,8 +46,6 @@ import com.kitsugi.animelist.data.remote.KitsugiEpisodeRatingsRepository
 import com.kitsugi.animelist.data.remote.KitsugiBangumiDetailClient
 import com.kitsugi.animelist.data.remote.KitsugiHeroArtworkResolver
 import com.kitsugi.animelist.data.remote.KitsugiIdResolver
-import com.kitsugi.animelist.data.remote.KitsugiSimklDetailClient
-import com.kitsugi.animelist.data.remote.TmdbArtworkIdentity
 import com.kitsugi.animelist.utils.copyOnDoubleTap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
@@ -110,7 +108,7 @@ private suspend fun fetchHeroLogo(item: JikanSearchResult): String? = try {
         titleEnglish = item.titleEnglish,
         synonyms = emptyList()
     ).takeIf { it > 1 }
-    when {
+    val primaryLogo = when {
         item.source.equals("tmdb", ignoreCase = true) -> {
             val tmdbId = item.tmdbId ?: stableId.takeIf { it > 0 }
             tmdbId?.takeIf { it > 0 }?.let { KitsugiEpisodeRatingsRepository.getLogoUrl(it, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles) }
@@ -139,21 +137,26 @@ private suspend fun fetchHeroLogo(item: JikanSearchResult): String? = try {
                     ?.let { KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(it, seasonNumber = season, isMovie = isMovie, expectedTitles = logoTitles) }
         }
         item.source.equals("simkl", ignoreCase = true) -> {
-            // NOT: Simkl liste/şerit kayıtları anime için yalnızca ROMAJI başlık taşır
-            // (title_en/title_native çoğu kayıtta yok). TMDB kayıtları İngilizce/Japonca
-            // adlandırıldığı için `expectedTitles` başlık doğrulaması bu kaynakta yanlış
-            // negatif üretip logoyu tamamen engelliyordu. Simkl'ın KENDİ kimlikleri
-            // (ids.tmdb / ids.mal) otorite kabul edilir; doğrulama yalnızca aşağıdaki
-            // çapraz kimlik yedeğinde uygulanır.
-            val realMalId = item.realMalId?.takeIf { it in 1..99_999_999 }
+            val cross = com.kitsugi.animelist.data.remote.KitsugiSimklDetailClient.resolveSimklCrossIds(
+                simklId = stableId,
+                mediaType = item.type,
+                hintTmdbId = item.tmdbId,
+                hintMalId = item.realMalId
+            )
+            val simklTitles = (logoTitles + listOfNotNull(cross.title)).distinct()
+            val effectiveIsMovie = isMovie || cross.isMovie
+            val realMalId = item.realMalId?.takeIf { it in 1..99_999_999 && it != stableId }
+                ?: cross.malId?.takeIf { it in 1..99_999_999 && it != stableId }
             val tmdbId = item.tmdbId?.takeIf { it > 0 }
-            tmdbId?.let {
-                KitsugiEpisodeRatingsRepository.getLogoUrl(it, seasonNumber = season, isMovie = isMovie, expectedTitles = emptyList())
-            }?.takeIf { it.isNotBlank() }
-                ?: realMalId?.let {
-                    KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(it, seasonNumber = season, isMovie = isMovie, expectedTitles = emptyList())
-                }?.takeIf { it.isNotBlank() }
-                ?: fetchSimklCrossLogo(item, stableId, season, isMovie, logoTitles)
+                ?: cross.tmdbId?.takeIf { it > 0 }
+            tmdbId?.let { KitsugiEpisodeRatingsRepository.getLogoUrl(it, seasonNumber = season, isMovie = effectiveIsMovie, expectedTitles = simklTitles) }
+                ?.takeIf { it.isNotBlank() }
+                ?: realMalId?.let { KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(it, fallbackAniListId = cross.aniListId, seasonNumber = season, isMovie = effectiveIsMovie, expectedTitles = simklTitles) }
+                    ?.takeIf { it.isNotBlank() }
+                ?: cross.aniListId?.takeIf { it > 0 }?.let { KitsugiEpisodeRatingsRepository.getLogoUrlByAniListId(it, fallbackMalId = realMalId, seasonNumber = season, isMovie = effectiveIsMovie, expectedTitles = simklTitles) }
+                    ?.takeIf { it.isNotBlank() }
+                ?: cross.kitsuId?.takeIf { it > 0 }?.let { KitsugiEpisodeRatingsRepository.getLogoUrlByKitsuId(it, seasonNumber = season, isMovie = effectiveIsMovie, expectedTitles = simklTitles) }
+                    ?.takeIf { it.isNotBlank() }
         }
         item.source.equals("bangumi", ignoreCase = true) || item.source.equals("bgm", ignoreCase = true) -> {
             // Bangumi kimliği 500M+ stableId'dir; MAL olarak kesinlikle kullanma.
@@ -184,73 +187,34 @@ private suspend fun fetchHeroLogo(item: JikanSearchResult): String? = try {
         }
         else -> null
     }
+    if (!primaryLogo.isNullOrBlank()) {
+        primaryLogo
+    } else {
+        val resolvedArt = runCatching { KitsugiHeroArtworkResolver.resolveArtwork(item) }.getOrNull()
+        val fallbackTmdbId = resolvedArt?.resolvedTmdbId?.takeIf { it > 0 }
+        val fallbackMalId = resolvedArt?.resolvedMalId?.takeIf { it in 1..99_999_999 }
+        val fallbackIsMovie = resolvedArt?.isMovie ?: isMovie
+        fallbackTmdbId?.let {
+            KitsugiEpisodeRatingsRepository.getLogoUrl(
+                tmdbId = it,
+                seasonNumber = season,
+                isMovie = fallbackIsMovie,
+                expectedTitles = emptyList()
+            )
+        }?.takeIf { it.isNotBlank() }
+            ?: fallbackMalId?.let {
+                KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(
+                    malId = it,
+                    seasonNumber = season,
+                    isMovie = fallbackIsMovie,
+                    expectedTitles = logoTitles
+                )
+            }?.takeIf { it.isNotBlank() }
+    }
 } catch (cancelled: CancellationException) {
     throw cancelled
 } catch (_: Exception) {
     null
-}
-
-/**
- * Simkl şerit/liste kaydı kimlik taşımıyorsa (nadiren; `parseBestMediaArray` bu
- * durumda sıra numarasını geçici kimlik yapar) Simkl `extended=full` kaydından
- * çapraz kimlikleri çözer — Bangumi akışındaki
- * `KitsugiBangumiDetailClient.resolveCrossIds` deseninin Simkl karşılığı.
- *
- * Uydurma/yanlış kimlik koruması: çözülen Simkl kaydının KENDİ başlık alanları
- * (title / title_en / romaji / native) öğe başlıklarıyla kesişmiyorsa logo
- * sorulmaz; böylece geçici kimlik başka bir yapımın logosunu getirmez.
- */
-private suspend fun fetchSimklCrossLogo(
-    item: JikanSearchResult,
-    simklId: Int,
-    season: Int?,
-    isMovie: Boolean,
-    logoTitles: List<String>
-): String? {
-    if (simklId <= 0) return null
-    val raw = runCatching {
-        KitsugiSimklDetailClient.fetchSimklRawJson(simklId, item.type)
-    }.getOrNull() ?: return null
-    val recordTitles = listOfNotNull(
-        raw.optString("title"),
-        raw.optString("title_en"),
-        raw.optString("en_title"),
-        raw.optString("title_english"),
-        raw.optString("title_romaji"),
-        raw.optString("romaji"),
-        raw.optString("title_native"),
-        raw.optString("ja_title"),
-        raw.optString("title_japanese")
-    ).map { it.trim() }.filter { it.isNotBlank() }.distinct()
-    if (logoTitles.isNotEmpty() &&
-        !TmdbArtworkIdentity.matches(logoTitles, recordTitles.firstOrNull(), null, recordTitles.drop(1))
-    ) {
-        return null
-    }
-    val cross = runCatching {
-        KitsugiSimklDetailClient.resolveSimklCrossIds(simklId, item.type)
-    }.getOrNull() ?: return null
-    val movie = isMovie || cross.isMovie
-    // Simkl kimliği MAL uzayına düşmesin (detay istemcisiyle aynı koruma).
-    val malId = cross.malId?.takeIf { it in 1..99_999_999 && it != simklId }
-    return malId?.let {
-        KitsugiEpisodeRatingsRepository.getLogoUrlByMalId(it, seasonNumber = season, isMovie = movie, expectedTitles = emptyList())
-    }?.takeIf { it.isNotBlank() }
-        ?: cross.tmdbId?.takeIf { it > 0 }?.let {
-            KitsugiEpisodeRatingsRepository.getLogoUrl(it, seasonNumber = season, isMovie = movie, expectedTitles = emptyList())
-        }?.takeIf { it.isNotBlank() }
-        ?: cross.aniListId?.takeIf { it > 0 }?.let {
-            KitsugiEpisodeRatingsRepository.getLogoUrlByAniListId(
-                aniListId = it,
-                fallbackMalId = malId,
-                seasonNumber = season,
-                isMovie = movie,
-                expectedTitles = emptyList()
-            )
-        }?.takeIf { it.isNotBlank() }
-        ?: cross.kitsuId?.takeIf { it > 0 }?.let {
-            KitsugiEpisodeRatingsRepository.getLogoUrlByKitsuId(it, seasonNumber = season, isMovie = movie, expectedTitles = emptyList())
-        }?.takeIf { it.isNotBlank() }
 }
 
 // Kaynak adı etiketleri artık ortak `toFriendlySourceLabel()` üzerinden üretilir;
@@ -348,7 +312,11 @@ fun KitsugiHeroSection(
     val coroutineScope = rememberCoroutineScope()
     val accentColor = LocalKitsugiAccent.current
 
-    var logos by remember(items) { mutableStateOf<Map<String, String?>>(emptyMap()) }
+    val pagerKey = remember(items) {
+        items.joinToString("|") { "${it.source}:${it.type}:${it.malId}:${it.title}" }
+    }
+
+    var logos by remember(pagerKey) { mutableStateOf<Map<String, String?>>(emptyMap()) }
 
     LaunchedEffect(items, showAnimeLogos) {
         if (items.none { shouldShowHeroLogo(it, showAnimeLogos) }) {
@@ -366,7 +334,7 @@ fun KitsugiHeroSection(
             items.indices.filter { it != cur }.forEach { add(items[it]) }
         }.distinctBy { heroItemIdentity(it) }
             .filter { shouldShowHeroLogo(it, showAnimeLogos) }
-            .filterNot { logoMap.containsKey(heroItemIdentity(it)) }
+            .filter { logoMap[heroItemIdentity(it)].isNullOrBlank() }
 
         val logoCompletions = Channel<Pair<String, String?>>(Channel.UNLIMITED)
         val pending = priorityItems.map { item ->
@@ -382,10 +350,6 @@ fun KitsugiHeroSection(
             logoMap[identity] = logoUrl
             logos = logoMap.toMap()
         }
-    }
-
-    val pagerKey = remember(items) {
-        items.joinToString("|") { "${it.source}:${it.type}:${it.malId}:${it.title}" }
     }
     // TMDB + Fanart.tv üzerinden her öğe için en kaliteli dikey poster + yatay arka plan çözümü.
     // Önbellekte varsa ilk karede (0ms) senkron olarak okunur; ekran döndürmede anında hazırdır.

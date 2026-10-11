@@ -573,12 +573,12 @@ object KitsugiHeroArtworkResolver {
             )
         }
 
-        val allTitles = buildList {
+        val allTitles = mutableListOf<String>().apply {
             item.titleEnglish?.trim()?.takeIf { it.isNotBlank() }?.let { add(it) }
             item.title.trim().takeIf { it.isNotBlank() }?.let { add(it) }
             item.titleRomaji?.trim()?.takeIf { it.isNotBlank() }?.let { add(it) }
             item.titleJapanese?.trim()?.takeIf { it.isNotBlank() }?.let { add(it) }
-        }.distinct()
+        }.distinct().toMutableList()
 
         var likelyMovie = item.type == MediaType.Movie ||
             KitsugiEpisodeRatingsRepository.prefersMovieLogo(
@@ -653,8 +653,32 @@ object KitsugiHeroArtworkResolver {
                 }
             }
             "simkl" -> {
+                if (item.malId > 0 && (tmdbId == null || malId == null)) {
+                    val cross = runCatching {
+                        KitsugiSimklDetailClient.resolveSimklCrossIds(
+                            simklId = item.malId,
+                            mediaType = item.type,
+                            hintTmdbId = tmdbId,
+                            hintMalId = malId
+                        )
+                    }.getOrNull()
+                    if (cross != null) {
+                        malId = malId ?: cross.malId?.takeIf { it in 1..99_999_999 }
+                        aniListId = aniListId ?: cross.aniListId?.takeIf { it > 0 }
+                        kitsuId = kitsuId ?: cross.kitsuId?.takeIf { it > 0 }
+                        tmdbId = tmdbId ?: cross.tmdbId?.takeIf { it > 0 }
+                        if (cross.isMovie) likelyMovie = true
+                        cross.title?.trim()?.takeIf { it.isNotBlank() && it !in allTitles }?.let { allTitles.add(0, it) }
+                    }
+                }
                 if (tmdbId == null && malId != null) {
                     tmdbId = KitsugiEpisodeRatingsRepository.resolveTmdbIdFromMal(malId)
+                }
+                if (tmdbId == null && aniListId != null) {
+                    tmdbId = KitsugiEpisodeRatingsRepository.resolveTmdbIdFromAniList(aniListId)
+                }
+                if (tmdbId == null && kitsuId != null) {
+                    tmdbId = KitsugiEpisodeRatingsRepository.resolveTmdbIdFromKitsu(kitsuId)
                 }
             }
             "bangumi" -> {
@@ -903,7 +927,17 @@ object KitsugiHeroArtworkResolver {
             if (expectedTitles.isNotEmpty() &&
                 !TmdbArtworkIdentity.matches(expectedTitles, entryTitle, entryOriginal, altTitles)
             ) {
-                continue
+                val genresArr = json.optJSONArray("genres")
+                val hasAnimation = genresArr != null && (0 until genresArr.length()).any {
+                    genresArr.optJSONObject(it)?.optInt("id") == 16
+                }
+                val isRomajiOnlyAnimeFallback = isMovieType == isMovie &&
+                    hasAnimation &&
+                    com.kitsugi.animelist.utils.MediaTitleResolver.hasCjk(entryOriginal) &&
+                    expectedTitles.none { com.kitsugi.animelist.utils.MediaTitleResolver.hasCjk(it) }
+                if (!isRomajiOnlyAnimeFallback) {
+                    continue
+                }
             }
 
             DetailCache.tmdbMediaCache[tmdbId] = type
@@ -1129,17 +1163,22 @@ object KitsugiHeroArtworkResolver {
                     directTitleScore >= 55 -> directTitleScore
                     i == 0 && yearDiff != null && yearDiff <= 1 && (mediaType != MediaType.Anime || hasAnimationGenre) -> 72
                     i <= 1 && yearDiff == 0 && hasAnimationGenre && mediaType == MediaType.Anime -> 68
+                    i == 0 && !isMovieCandidate && hasAnimationGenre && mediaType == MediaType.Anime -> 68
                     else -> directTitleScore
                 }
 
                 if (effectiveTitleScore < 55) continue
-                if (yearDiff != null && yearDiff > 3 && effectiveTitleScore < 95) continue
+                val isMultiSeasonTvCandidate = !isMovieCandidate &&
+                    effectiveTitleScore >= 68 &&
+                    (mediaType != MediaType.Anime || hasAnimationGenre)
+                if (yearDiff != null && yearDiff > 3 && effectiveTitleScore < 95 && !isMultiSeasonTvCandidate) continue
 
-                val yearBonus = when (yearDiff) {
-                    null -> 0
-                    0 -> 30
-                    1 -> 15
-                    2 -> 5
+                val yearBonus = when {
+                    yearDiff == null -> 0
+                    yearDiff == 0 -> 30
+                    yearDiff == 1 -> 15
+                    yearDiff == 2 -> 5
+                    isMultiSeasonTvCandidate -> 0
                     else -> -25
                 }
                 val typeBonus = when {

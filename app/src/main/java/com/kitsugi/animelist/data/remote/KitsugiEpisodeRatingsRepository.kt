@@ -226,7 +226,19 @@ object KitsugiEpisodeRatingsRepository {
         val title = if (isTv) json.optString("name") else json.optString("title")
         val original = if (isTv) json.optString("original_name") else json.optString("original_title")
         val altTitles = TmdbArtworkIdentity.extractAlternativeTitles(json)
-        val matches = TmdbArtworkIdentity.matches(expectedTitles, title, original, altTitles)
+        var matches = TmdbArtworkIdentity.matches(expectedTitles, title, original, altTitles)
+        if (!matches) {
+            val genresArr = json.optJSONArray("genres")
+            val hasAnimation = genresArr != null && (0 until genresArr.length()).any {
+                genresArr.optJSONObject(it)?.optInt("id") == 16
+            }
+            if (hasAnimation &&
+                com.kitsugi.animelist.utils.MediaTitleResolver.hasCjk(original) &&
+                expectedTitles.none { com.kitsugi.animelist.utils.MediaTitleResolver.hasCjk(it) }
+            ) {
+                matches = true
+            }
+        }
         if (matches) {
             DetailCache.tmdbMediaCache[tmdbId] = if (isTv) "tv" else "movie"
         }
@@ -458,12 +470,19 @@ object KitsugiEpisodeRatingsRepository {
     ): String? = withContext(Dispatchers.IO) {
         if (tmdbId <= 0) return@withContext null
 
+        val cachedMediaKind = DetailCache.tmdbMediaCache[tmdbId]
         val titleMatchedMovie = if (expectedTitles.isNotEmpty()) tmdbRecordMatches(tmdbId, isTv = false, expectedTitles) else null
         val titleMatchedTv = if (expectedTitles.isNotEmpty()) tmdbRecordMatches(tmdbId, isTv = true, expectedTitles) else null
         val effectiveIsMovie = when {
             titleMatchedMovie == true && titleMatchedTv != true -> true
             titleMatchedTv == true && titleMatchedMovie != true -> false
-            titleMatchedMovie == false && titleMatchedTv == false -> return@withContext null
+            titleMatchedMovie == false && titleMatchedTv == false -> {
+                when (cachedMediaKind) {
+                    "movie" -> true
+                    "tv" -> false
+                    else -> return@withContext null
+                }
+            }
             else -> isMovie || isTmdbMovie(tmdbId)
         }
         val preferredLang = normalizeLanguageCode(language ?: getPreferredImageLanguage())
