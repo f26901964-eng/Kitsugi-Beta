@@ -78,6 +78,12 @@
 -dontwarn org.openjsse.net.ssl.OpenJSSE
 
 # ── Gson ──────────────────────────────────────────────────────────────────────
+# v2.4.249 (CS-TANI-2026-10-11): CS3 eklentileri Gson'u isimle bağlıyor
+# (or. Torrential: `NoClassDefFoundError: Lcom/google/gson/Gson`). R8 ulaşılabilir
+# olduğu için sınıfı silmez ama ADINI DEĞİŞTİRİR; eklenti DEX'i orijinal adı
+# arar ve patlar. kotlinx.serialization ile aynı kural: tam keep.
+-keep class com.google.gson.** { *; }
+-keepclassmembers class com.google.gson.** { *; }
 -keep class com.google.gson.reflect.TypeToken { *; }
 -keep class * extends com.google.gson.reflect.TypeToken
 -keepclassmembers class * {

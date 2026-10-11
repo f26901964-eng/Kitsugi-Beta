@@ -163,13 +163,15 @@ object CsStreamRunner {
         // Anizium domain yönlendirmeleri
         "x.anizium.co"        to "api.anizium.co",
         "x.anizium.de"        to "api.anizium.de",
-        // RecTV domain geçişleri (m.prectv72.lol aktif)
-        "prectv38.sbs"        to "m.prectv72.lol",
-        "prectv43.sbs"        to "m.prectv72.lol",
-        "prectv50.sbs"        to "m.prectv72.lol",
-        "a.prectv70.lol"      to "m.prectv72.lol",
-        "b.prectv70.lol"      to "m.prectv72.lol",
-        "m.prectv50.sbs"      to "m.prectv72.lol",
+        // RecTV domain geçişleri (v2.4.249: Kekik-master 2026-10-11 → a.psrectv80.xyz;
+        // m.prectv72.lol artık bayat, ara basamak olarak korunuyor)
+        "prectv38.sbs"        to "a.psrectv80.xyz",
+        "prectv43.sbs"        to "a.psrectv80.xyz",
+        "prectv50.sbs"        to "a.psrectv80.xyz",
+        "a.prectv70.lol"      to "a.psrectv80.xyz",
+        "b.prectv70.lol"      to "a.psrectv80.xyz",
+        "m.prectv50.sbs"      to "a.psrectv80.xyz",
+        "m.prectv72.lol"      to "a.psrectv80.xyz",
         // DBX (DiziBox) embed player
         "dbx.molystream.org"  to "www.molystream.org",
         // DiziPal — en güncel canlı domain (dizipal3008.com)
@@ -177,6 +179,9 @@ object CsStreamRunner {
         "dizipal1571.com"     to "dizipal3008.com",
         "dizipal1210.com"     to "dizipal3008.com",
         "dizipal1219.com"     to "dizipal3008.com",
+        // v2.4.249: dağıtılan DiziPal v33 bu domain'i kullanıyor, haritasızdı
+        // (park sayfası HTML'i → '<' JSON hatası). Asıl çözüm eklenti güncellemesi.
+        "dizipal1214.com"     to "dizipal3008.com",
         "dizipal1565.com"     to "dizipal3008.com",
         "dizipal1570.com"     to "dizipal3008.com",
         "dizipal1573.com"     to "dizipal3008.com",
@@ -226,7 +231,8 @@ object CsStreamRunner {
         "selcukflix.co"       to "selcukflix.com",
         "tranimeizle.io"      to "www.tranimeizle.live",
         "asyalog.com"         to "asyalog.co",
-        "sinema.cv"           to "sinema.gg",
+        // v2.4.249: .gg bayat ara basamaktı (tek geçiş kuralı) → doğrudan sinemacc.com
+        "sinema.cv"           to "sinemacc.com",
         // WFilmizle — güncel domain (wfilmizle.net)
         "wfilmizle.co"        to "wfilmizle.net",
         "wfilmizle.to"        to "wfilmizle.net",
@@ -243,16 +249,18 @@ object CsStreamRunner {
         // DiziGecesi
         "dizigecesi.net"      to "dizigecesi.com",
         "dizigecesi.org"      to "dizigecesi.com",
-        // SetFilmIzle — .my boş döndürüyor, .uk de arama sıfır
-        "setfilmizle.my"      to "www.setfilmizle.uk",
+        // SetFilmIzle — v2.4.249: .uk ÖLÜ (UnknownHost), uygulama eklentiyi kendisi
+        // ölü domaine yönlendiriyordu. Kekik-master 2026-10-11 → setfilmizle.ltd
+        "setfilmizle.my"      to "www.setfilmizle.ltd",
+        "setfilmizle.uk"      to "www.setfilmizle.ltd",
         // KultFilmler — nikyokki sürümü kultfilmler.pro kullanıyor (ölü), .net aktif
         "kultfilmler.pro"     to "kultfilmler.net",
         // MirrorVerse — net52.cc ölü, net77.cc aktif (Netmirror/Dismirror ile aynı)
         "net52.cc"            to "net77.cc",
         // ─── 2026-08 İkinci tanı raporu domain düzeltmeleri ─────────────────────
-        // DiziLife — dizi73.life aktif ama stream yok; eski domain
-        "dizi43.life"         to "dizi73.life",
-        "dizi55.life"         to "dizi73.life",
+        // DiziLife — v2.4.249: 73 bayat ara basamaktı (tek geçiş kuralı) → doğrudan 75
+        "dizi43.life"         to "dizi75.life",
+        "dizi55.life"         to "dizi75.life",
         // YeniKaynak — yenikaynak.com aktif
         "yenikaynak.net"      to "www.yenikaynak.com",
         // DiziYo — www.diziyo.so aktif
@@ -281,8 +289,9 @@ object CsStreamRunner {
         // TRasyalog — asyalog.co feroxx repoda arama yapıyor ama stream çıkmıyor;
         // maarrem sürümü asyalog.com kullanıyor — ikisini de aktif domain'e yönlendir
         "asyalog.com"          to "asyalog.co",
-        // SelcukFlix — nikyokki selcukflix.net kullanıyor (0 sonuç); .co aktif endpoint
-        "selcukflix.net"       to "selcukflix.co",
+        // SelcukFlix — v2.4.249: .co bayat ara basamaktı; Kekik-master → selcukflix.com
+        // (uygulama tek geçiş uygular, zincirleme yapmaz — doğrudan güncel hedef şart)
+        "selcukflix.net"       to "selcukflix.com",
         // WebteIzle — webteizle.info (maarrem/nikyokki) 0 stream; feroxx webteizle3.xyz çalışıyor
         "webteizle.info"       to "webteizle3.xyz",
         "webteizle2.xyz"       to "webteizle3.xyz",
@@ -298,8 +307,8 @@ object CsStreamRunner {
         // ─── 2026-08 Cs-Karma-master tanı raporu domain düzeltmeleri ────────────
         // CinemaCity — cinemacity.cc CF/403 yeni aktif domain: cinemacity.rip
         "cinemacity.cc"        to "cinemacity.rip",
-        // DiziPal — warmup ve eklenti domain yönlendirmesi
-        "dizipal.bid"          to "dizipal1565.com",
+        // v2.4.249: yinelenen "dizipal.bid" girdisi silindi — Kotlin mapOf'ta SON yazan
+        // kazanır, bu satır yukarıdaki dizipal3008.com hedefini 1565 ile gölgeliyordu.
         // CizgiMax — aktif domain: cizgimax.online
         "cizgiduo.online"      to "cizgimax.online",
         // ─── 2026-08 Stream problemi olan eklentiler için embed düzeltmeleri ──
