@@ -5,8 +5,13 @@ import com.kitsugi.animelist.ui.components.KitsugiGalleryIconButton
 import com.kitsugi.animelist.ui.theme.gradient.background
 import com.kitsugi.animelist.ui.theme.gradient.border
 import com.kitsugi.animelist.ui.utils.tvClickable
+import com.kitsugi.animelist.ui.components.heroImageAlignment
+import com.kitsugi.animelist.data.remote.GalleryItem
+import com.kitsugi.animelist.data.remote.KitsugiHeroArtworkResolver
+import android.content.res.Configuration
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -36,6 +41,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import com.kitsugi.animelist.ui.theme.gradient.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -61,6 +67,7 @@ import com.kitsugi.animelist.utils.PreferenceHelpers.getDisplayTitle
 import com.kitsugi.animelist.utils.copyOnDoubleTap
 import com.kitsugi.animelist.utils.ShareUtils
 import com.kitsugi.animelist.utils.toFriendlySourceLabel
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import com.kitsugi.animelist.R
@@ -78,116 +85,131 @@ internal fun DetailHero(
     onGalleryClick: (() -> Unit)? = null,
     nextAiring: String? = null,
     showFavoriteButton: Boolean = false,
-    onToggleFavoriteClick: (() -> Unit)? = null
+    onToggleFavoriteClick: (() -> Unit)? = null,
+    /** Kayıtla ilişkili galeri görselleri: yatay modda en kaliteli YATAY görsel vitrinde kullanılır. */
+    galleryItems: List<GalleryItem> = emptyList()
 ) {
     val accentColor = LocalKitsugiAccent.current
     val statusColor = statusColor(entry.status)
     val context = LocalContext.current
 
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(470.dp)
+    // ── Yön bazlı görsel seçimi ────────────────────────────────────────────────
+    // Yatay modda: galerideki en kaliteli YATAY görsel 16:9 sinematik bantta kırpılmadan.
+    // Dikey modda: kaydın posteri (tam çözünürlüğe yükseltilmiş) tam boy vitrinde.
+    val configuration = LocalConfiguration.current
+    val isLandscapeScreen = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
+    val screenHeightDp = configuration.screenHeightDp.toFloat()
+
+    val posterUrl = remember(entry.imageUrl) { KitsugiHeroArtworkResolver.upgradeNativePosterUrl(entry.imageUrl) }
+    val wideGalleryUrls = remember(galleryItems) {
+        galleryItems.filter { isHorizontalGalleryItem(it) }.sortedByDescending { galleryPixels(it) }.map { it.url }
+    }
+    val useWideBanner = isLandscapeScreen && wideGalleryUrls.isNotEmpty()
+    val imagePlan = remember(useWideBanner, wideGalleryUrls, posterUrl) {
+        val ordered = if (useWideBanner) wideGalleryUrls + listOfNotNull(posterUrl) else listOfNotNull(posterUrl)
+        ordered.distinct()
+    }
+    var imageIndex by remember(imagePlan) { mutableIntStateOf(0) }
+    val heroImageModel = imagePlan.getOrNull(imageIndex)
+    val heroHeightDp = remember(isLandscapeScreen, screenHeightDp) {
+        if (isLandscapeScreen) (screenHeightDp * 0.88f).coerceIn(360f, 640f) else DETAIL_HERO_HEIGHT_DP
+    }
+    var loadedImageAspect by remember(heroImageModel) { mutableStateOf<Float?>(null) }
+
+    BoxWithConstraints(
+        modifier = Modifier.fillMaxWidth()
     ) {
-        if (!entry.imageUrl.isNullOrBlank()) {
-            KitsugiNsfwImage(
-                model = entry.imageUrl,
-                contentDescription = entry.getDisplayTitle(titleLanguage),
-                isAdult = entry.isAdult,
-                blurAdultMedia = blurAdultMedia,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .tvClickable { onPosterClick(entry.imageUrl) },
-                contentScale = ContentScale.Crop
-            )
+        // 1. ADIM: panel genişliğini ölç → yatay modda 16:9 bant + bilgi alanı yüksekliği
+        val bannerHeight = if (useWideBanner) maxWidth * DETAIL_HERO_BANNER_RATIO else 0.dp
+        val heroBoxHeight = if (useWideBanner) {
+            bannerHeight + DETAIL_HERO_INFO_AREA_HEIGHT
         } else {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .background(statusColor.copy(alpha = 0.20f)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    text = entry.getDisplayTitle(titleLanguage).take(2).uppercase(),
-                    color = statusColor,
-                    style = MaterialTheme.typography.displayLarge,
-                    fontWeight = FontWeight.Black
-                )
-            }
+            heroHeightDp.dp
         }
 
-        Box(
+        // 2. ADIM: asıl vitrin alanı
+        BoxWithConstraints(
             modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        colors = listOf(
-                            KitsugiColors.Background.copy(alpha = 0.05f),
-                            KitsugiColors.Background.copy(alpha = 0.30f),
-                            KitsugiColors.Background.copy(alpha = 0.72f),
-                            KitsugiColors.Background
-                        )
-                    )
-                )
-        )
-
-        // ── Top action bar: Back (left) + Action buttons (right) ───────────────
-        Row(
-            modifier = Modifier
-                .align(Alignment.TopStart)
                 .fillMaxWidth()
-                .padding(horizontal = 8.dp, vertical = 16.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+                .height(heroBoxHeight)
         ) {
-            // Geri butonu
-            Box(
-                modifier = Modifier
-                    .size(40.dp)
-                    .clip(CircleShape)
-                    .background(KitsugiColors.Background.copy(alpha = 0.45f)),
-                contentAlignment = Alignment.Center
-            ) {
-                IconButton(onClick = onBackClick) {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
-                        contentDescription = stringResource(R.string.geri),
-                        tint = KitsugiColors.TextPrimary
+            val heroBoxWidthDp = maxWidth.value
+            val heroBoxHeightDp = maxHeight.value
+            val imageAreaHeight = if (useWideBanner) maxWidth * DETAIL_HERO_BANNER_RATIO else maxHeight
+            val imageAreaModifier = if (useWideBanner) {
+                Modifier
+                    .fillMaxWidth()
+                    .height(imageAreaHeight)
+                    .align(Alignment.TopCenter)
+            } else {
+                Modifier.fillMaxSize()
+            }
+            val imageAreaAspect = when {
+                useWideBanner && imageAreaHeight.value > 0f -> heroBoxWidthDp / imageAreaHeight.value
+                heroBoxHeightDp > 0f -> heroBoxWidthDp / heroBoxHeightDp
+                else -> 1f
+            }
+            val heroAlignmentValue = heroImageAlignment(
+                chosenIsPoster = !useWideBanner,
+                heroAspect = imageAreaAspect,
+                imageAspect = loadedImageAspect
+            )
+            if (!heroImageModel.isNullOrBlank()) {
+                KitsugiNsfwImage(
+                    model = heroImageModel,
+                    contentDescription = entry.getDisplayTitle(titleLanguage),
+                    isAdult = entry.isAdult,
+                    blurAdultMedia = blurAdultMedia,
+                    modifier = imageAreaModifier
+                        .tvClickable { onPosterClick(heroImageModel) },
+                    contentScale = ContentScale.Crop,
+                    alignment = heroAlignmentValue,
+                    onLoadingFailed = {
+                        if (imageIndex < imagePlan.lastIndex) imageIndex += 1
+                    },
+                    onImageAspectResolved = { ratio -> loadedImageAspect = ratio }
+                )
+            } else {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(statusColor.copy(alpha = 0.20f)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        text = entry.getDisplayTitle(titleLanguage).take(2).uppercase(),
+                        color = statusColor,
+                        style = MaterialTheme.typography.displayLarge,
+                        fontWeight = FontWeight.Black
                     )
                 }
             }
 
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(
+                        Brush.verticalGradient(
+                            colors = listOf(
+                                KitsugiColors.Background.copy(alpha = 0.05f),
+                                KitsugiColors.Background.copy(alpha = 0.30f),
+                                KitsugiColors.Background.copy(alpha = 0.72f),
+                                KitsugiColors.Background
+                            )
+                        )
+                    )
+            )
+
+            // ── Top action bar: Back (left) + Action buttons (right) ───────────────
             Row(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                modifier = Modifier
+                    .align(Alignment.TopStart)
+                    .fillMaxWidth()
+                    .padding(horizontal = 8.dp, vertical = 16.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Galeri butonu (yalnızca içerik varsa görünür)
-                if (onGalleryClick != null) {
-                    val accentColorLocal = LocalKitsugiAccent.current
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(accentColorLocal.copy(alpha = 0.22f))
-                            .then(
-                                Modifier.border(
-                                    width = 1.dp,
-                                    color = accentColorLocal.copy(alpha = 0.45f),
-                                    shape = CircleShape
-                                )
-                            ),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        KitsugiGalleryIconButton(onClick = onGalleryClick, accentColor = accentColorLocal)
-                    }
-                }
-
-                // Paylaş butonu
-                val shareAction: () -> Unit = onShareClick ?: {
-                    val mediaId = entry.malId ?: entry.id
-                    val url = ShareUtils.buildMediaUrl(entry.source, mediaId, entry.type)
-                    ShareUtils.shareText(context, entry.title, url)
-                }
+                // Geri butonu
                 Box(
                     modifier = Modifier
                         .size(40.dp)
@@ -195,16 +217,46 @@ internal fun DetailHero(
                         .background(KitsugiColors.Background.copy(alpha = 0.45f)),
                     contentAlignment = Alignment.Center
                 ) {
-                    IconButton(onClick = shareAction) {
+                    IconButton(onClick = onBackClick) {
                         Icon(
-                            imageVector = Icons.Rounded.Share,
-                            contentDescription = stringResource(R.string.paylas),
+                            imageVector = Icons.AutoMirrored.Rounded.ArrowBack,
+                            contentDescription = stringResource(R.string.geri),
                             tint = KitsugiColors.TextPrimary
                         )
                     }
                 }
 
-                if (showFavoriteButton && onToggleFavoriteClick != null) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // Galeri butonu (yalnızca içerik varsa görünür)
+                    if (onGalleryClick != null) {
+                        val accentColorLocal = LocalKitsugiAccent.current
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(accentColorLocal.copy(alpha = 0.22f))
+                                .then(
+                                    Modifier.border(
+                                        width = 1.dp,
+                                        color = accentColorLocal.copy(alpha = 0.45f),
+                                        shape = CircleShape
+                                    )
+                                ),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            KitsugiGalleryIconButton(onClick = onGalleryClick, accentColor = accentColorLocal)
+                        }
+                    }
+
+                    // Paylaş butonu
+                    val shareAction: () -> Unit = onShareClick ?: {
+                        val mediaId = entry.malId ?: entry.id
+                        val url = ShareUtils.buildMediaUrl(entry.source, mediaId, entry.type)
+                        ShareUtils.shareText(context, entry.title, url)
+                    }
                     Box(
                         modifier = Modifier
                             .size(40.dp)
@@ -212,43 +264,71 @@ internal fun DetailHero(
                             .background(KitsugiColors.Background.copy(alpha = 0.45f)),
                         contentAlignment = Alignment.Center
                     ) {
-                        IconButton(onClick = onToggleFavoriteClick) {
+                        IconButton(onClick = shareAction) {
                             Icon(
-                                imageVector = if (entry.isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
-                                contentDescription = if (entry.isFavorite) stringResource(R.string.action_favourite_remove) else "Favori Yap",
-                                tint = if (entry.isFavorite) accentColor else KitsugiColors.TextPrimary
+                                imageVector = Icons.Rounded.Share,
+                                contentDescription = stringResource(R.string.paylas),
+                                tint = KitsugiColors.TextPrimary
                             )
+                        }
+                    }
+
+                    if (showFavoriteButton && onToggleFavoriteClick != null) {
+                        Box(
+                            modifier = Modifier
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(KitsugiColors.Background.copy(alpha = 0.45f)),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            IconButton(onClick = onToggleFavoriteClick) {
+                                Icon(
+                                    imageVector = if (entry.isFavorite) Icons.Rounded.Favorite else Icons.Rounded.FavoriteBorder,
+                                    contentDescription = if (entry.isFavorite) stringResource(R.string.action_favourite_remove) else "Favori Yap",
+                                    tint = if (entry.isFavorite) accentColor else KitsugiColors.TextPrimary
+                                )
+                            }
                         }
                     }
                 }
             }
-        }
 
-        Column(
-            modifier = Modifier
-                .align(Alignment.BottomStart)
-                .padding(20.dp)
-        ) {
-            val context = LocalContext.current
-            val titleText = entry.getDisplayTitle(titleLanguage)
-            val copyTitleGesture = Modifier.copyOnDoubleTap(context, titleText)
+            Column(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(20.dp)
+            ) {
+                val context = LocalContext.current
+                val titleText = entry.getDisplayTitle(titleLanguage)
+                val copyTitleGesture = Modifier.copyOnDoubleTap(context, titleText)
 
-            if (!logoUrl.isNullOrBlank()) {
-                var logoFailed by remember(logoUrl) { mutableStateOf(false) }
-                if (!logoFailed) {
-                    AsyncImage(
-                        model = logoUrl,
-                        contentDescription = entry.getDisplayTitle(titleLanguage),
-                        modifier = Modifier
-                            .height(75.dp)
-                            .fillMaxWidth(0.85f)
-                            .then(copyTitleGesture),
-                        contentScale = ContentScale.Fit,
-                        alignment = Alignment.CenterStart,
-                        onError = {
-                            logoFailed = true
-                        }
-                    )
+                if (!logoUrl.isNullOrBlank()) {
+                    var logoFailed by remember(logoUrl) { mutableStateOf(false) }
+                    if (!logoFailed) {
+                        AsyncImage(
+                            model = logoUrl,
+                            contentDescription = entry.getDisplayTitle(titleLanguage),
+                            modifier = Modifier
+                                .height(75.dp)
+                                .fillMaxWidth(0.85f)
+                                .then(copyTitleGesture),
+                            contentScale = ContentScale.Fit,
+                            alignment = Alignment.CenterStart,
+                            onError = {
+                                logoFailed = true
+                            }
+                        )
+                    } else {
+                        Text(
+                            text = entry.getDisplayTitle(titleLanguage),
+                            modifier = copyTitleGesture,
+                            color = KitsugiColors.TextPrimary,
+                            style = MaterialTheme.typography.headlineMedium,
+                            fontWeight = FontWeight.Black,
+                            maxLines = 3,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 } else {
                     Text(
                         text = entry.getDisplayTitle(titleLanguage),
@@ -260,107 +340,97 @@ internal fun DetailHero(
                         overflow = TextOverflow.Ellipsis
                     )
                 }
-            } else {
-                Text(
-                    text = entry.getDisplayTitle(titleLanguage),
-                    modifier = copyTitleGesture,
-                    color = KitsugiColors.TextPrimary,
-                    style = MaterialTheme.typography.headlineMedium,
-                    fontWeight = FontWeight.Black,
-                    maxLines = 3,
-                    overflow = TextOverflow.Ellipsis
-                )
-            }
 
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                // 1. Format
-                val formatIcon = if (entry.type == MediaType.Manga) Icons.Rounded.Book else Icons.Rounded.Tv
-                val formatText = when (entry.type) {
-                    MediaType.Anime -> "TV"
-                    else -> entry.type.localizedLabel()
-                }
-                MetadataIconText(icon = formatIcon, text = formatText, tint = accentColor)
-
-                // 2. Episodes / Chapters count
-                val countIcon = if (entry.type == MediaType.Manga) Icons.Rounded.MenuBook else Icons.Rounded.Schedule
-                val totalVal = entry.total
-                val countText = if (totalVal != null && totalVal > 0) {
-                    if (entry.type == MediaType.Manga) stringResource(R.string.hero_count_volumes_chapters, totalVal)
-                    else stringResource(R.string.hero_count_episodes, totalVal)
-                } else {
-                    if (entry.type == MediaType.Manga) stringResource(R.string.hero_count_no_volumes)
-                    else stringResource(R.string.hero_count_no_episodes)
-                }
-                MetadataIconText(icon = countIcon, text = countText, tint = accentColor)
-
-                // 3. Status
-                val statusIcon = Icons.Rounded.RssFeed
-                MetadataIconText(icon = statusIcon, text = entry.status.localizedLabel(), tint = statusColor)
-            }
-
-            val airingText = rememberAiringCountdownText(nextAiring)
-            if (airingText.isNotBlank()) {
-                Spacer(modifier = Modifier.height(4.dp))
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 2.dp)
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Icon(
-                        imageVector = Icons.Rounded.Schedule,
-                        contentDescription = stringResource(R.string.cd_airing_soon),
-                        tint = KitsugiColors.AccentOrange,
-                        modifier = Modifier.size(16.dp)
-                    )
-                    Text(
-                        text = stringResource(R.string.hero_airing_soon, airingText),
-                        color = KitsugiColors.AccentOrange,
-                        style = MaterialTheme.typography.bodyMedium,
-                        fontWeight = FontWeight.Bold
-                    )
+                    // 1. Format
+                    val formatIcon = if (entry.type == MediaType.Manga) Icons.Rounded.Book else Icons.Rounded.Tv
+                    val formatText = when (entry.type) {
+                        MediaType.Anime -> "TV"
+                        else -> entry.type.localizedLabel()
+                    }
+                    MetadataIconText(icon = formatIcon, text = formatText, tint = accentColor)
+
+                    // 2. Episodes / Chapters count
+                    val countIcon = if (entry.type == MediaType.Manga) Icons.Rounded.MenuBook else Icons.Rounded.Schedule
+                    val totalVal = entry.total
+                    val countText = if (totalVal != null && totalVal > 0) {
+                        if (entry.type == MediaType.Manga) stringResource(R.string.hero_count_volumes_chapters, totalVal)
+                        else stringResource(R.string.hero_count_episodes, totalVal)
+                    } else {
+                        if (entry.type == MediaType.Manga) stringResource(R.string.hero_count_no_volumes)
+                        else stringResource(R.string.hero_count_no_episodes)
+                    }
+                    MetadataIconText(icon = countIcon, text = countText, tint = accentColor)
+
+                    // 3. Status
+                    val statusIcon = Icons.Rounded.RssFeed
+                    MetadataIconText(icon = statusIcon, text = entry.status.localizedLabel(), tint = statusColor)
                 }
+
+                val airingText = rememberAiringCountdownText(nextAiring)
+                if (airingText.isNotBlank()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 2.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Rounded.Schedule,
+                            contentDescription = stringResource(R.string.cd_airing_soon),
+                            tint = KitsugiColors.AccentOrange,
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text(
+                            text = stringResource(R.string.hero_airing_soon, airingText),
+                            color = KitsugiColors.AccentOrange,
+                            style = MaterialTheme.typography.bodyMedium,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(10.dp))
+
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    DetailSourcePill(
+                        source = entry.source,
+                        color = if (entry.source.equals("tmdb", ignoreCase = true)) Color(0xFFFFB800) else accentColor
+                    )
+
+                    if (entry.year != null) {
+                        DetailPill(
+                            text = entry.year.toString(),
+                            color = KitsugiColors.TextSecondary
+                        )
+                    }
+
+                    if (entry.isFavorite) {
+                        DetailPill(
+                            text = "★ Favori",
+                            color = accentColor
+                        )
+                    }
+
+                    if (entry.isAdult) {
+                        DetailPill(
+                            text = "+18",
+                            color = KitsugiColors.AccentRed
+                        )
+                    }
+                }
+
+
             }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                DetailSourcePill(
-                    source = entry.source,
-                    color = if (entry.source.equals("tmdb", ignoreCase = true)) Color(0xFFFFB800) else accentColor
-                )
-
-                if (entry.year != null) {
-                    DetailPill(
-                        text = entry.year.toString(),
-                        color = KitsugiColors.TextSecondary
-                    )
-                }
-
-                if (entry.isFavorite) {
-                    DetailPill(
-                        text = "★ Favori",
-                        color = accentColor
-                    )
-                }
-
-                if (entry.isAdult) {
-                    DetailPill(
-                        text = "+18",
-                        color = KitsugiColors.AccentRed
-                    )
-                }
-            }
-
-
         }
     }
 }

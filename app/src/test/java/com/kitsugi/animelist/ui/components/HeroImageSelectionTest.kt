@@ -156,6 +156,76 @@ class HeroImageSelectionTest {
     }
 
     @Test
+    fun `dynamic crop alignment protects the top of the artwork and centres it horizontally`() {
+        // 16:9 arka plan + 2.47:1 geniş bant → görselin üstünden yalnızca ~%5 kesilir.
+        val wide = heroImageAlignment(
+            chosenIsPoster = false,
+            heroAspect = 2.47f,
+            imageAspect = 16f / 9f
+        ) as BiasAlignment
+        assertEquals(0f, wide.horizontalBias, 0.001f)
+        assertEquals(-0.09f, wide.verticalBias, 0.02f)
+
+        // Dikey poster dikey telefonda: %80'i görünür → neredeyse ortada, hafif üst odak.
+        val posterPortrait = heroImageAlignment(
+            chosenIsPoster = true,
+            heroAspect = 0.83f,
+            imageAspect = 0.67f
+        ) as BiasAlignment
+        assertEquals(-0.08f, posterPortrait.verticalBias, 0.03f)
+
+        // Dikey poster çok geniş bir şeritte: yalnızca en üst kısım korunur (baş/yüz kesilmez).
+        val posterWide = heroImageAlignment(
+            chosenIsPoster = true,
+            heroAspect = 2.5f,
+            imageAspect = 0.67f
+        ) as BiasAlignment
+        assertTrue("poster üst sınırda yukarı odaklanmalı", posterWide.verticalBias <= -0.30f)
+    }
+
+    @Test
+    fun `aspect mismatch falls back to contain with fill so wide art is never sliced`() {
+        // Tam eşleşme ve küçük uyumsuzluk → kaplama (COVER)
+        assertEquals(HeroArtworkFit.COVER, heroArtworkFit(boxAspect = 16f / 9f, imageAspect = 16f / 9f))
+        assertEquals(HeroArtworkFit.COVER, heroArtworkFit(boxAspect = 2.07f, imageAspect = 16f / 9f))
+        // Yatay görsel dikey panelde / dikey poster geniş bantta → tam görünür + dolgu
+        assertEquals(HeroArtworkFit.CONTAIN_WITH_FILL, heroArtworkFit(boxAspect = 0.72f, imageAspect = 16f / 9f))
+        assertEquals(HeroArtworkFit.CONTAIN_WITH_FILL, heroArtworkFit(boxAspect = 2.40f, imageAspect = 0.67f))
+        // Poster + dikey panel: neredeyse tam oturur → kaplama
+        assertEquals(HeroArtworkFit.COVER, heroArtworkFit(boxAspect = 0.72f, imageAspect = 0.67f))
+        // Oran bilinmiyorsa (görsel henüz yüklenmedi) güvenli varsayılan
+        assertEquals(HeroArtworkFit.COVER, heroArtworkFit(boxAspect = 2.4f, imageAspect = null))
+    }
+
+    @Test
+    fun `landscape band is tall enough to show wide artwork almost uncropped`() {
+        val landscapePhone = heroBandHeightDp(
+            screenHeightDp = 476f,
+            isLandscape = true,
+            isTablet = false,
+            isTv = false
+        )
+        // 730dp genişlikte 352dp band → ~2.07:1; 16:9 görselin ~%86'sı görünür.
+        assertEquals(352f, landscapePhone, 1f)
+
+        val landscapeTablet = heroBandHeightDp(
+            screenHeightDp = 800f,
+            isLandscape = true,
+            isTablet = true,
+            isTv = false
+        )
+        assertTrue("tablet bandı telefon bandından büyük olmalı", landscapeTablet >= 480f)
+
+        val portraitPhone = heroBandHeightDp(
+            screenHeightDp = 800f,
+            isLandscape = false,
+            isTablet = false,
+            isTv = false
+        )
+        assertEquals(440f, portraitPhone, 1f)
+    }
+
+    @Test
     fun `artwork resolver selects highest quality vertical poster and horizontal backdrop from TMDB and Fanart`() {
         val lowResTmdbPoster = KitsugiHeroArtworkResolver.ArtworkCandidate(
             url = "https://image.tmdb.org/t/p/original/low_poster.jpg",
