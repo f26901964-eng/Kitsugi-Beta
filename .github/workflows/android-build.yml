@@ -67,18 +67,6 @@ jobs:
         env:
           GRADLE_OPTS: -Dfile.encoding=UTF-8
 
-      - name: 🩺 Hata günlük özetini dala kaydet (geçici teşhis)
-        if: failure()
-        run: |
-          { echo "RUN=${{ github.run_id }}"; tail -n 300 build.log; } > CI_BUILD_FAILURE_LOG.txt 2>/dev/null || true
-          [ -s CI_BUILD_FAILURE_LOG.txt ] || exit 0
-          git config user.name "kitsugi-ci-bot"
-          git config user.email "kitsugi-ci-bot@users.noreply.github.com"
-          git add -f CI_BUILD_FAILURE_LOG.txt
-          git commit -m "ci: derleme hata günlüğü (geçici teşhis)"
-          git remote set-url origin "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git"
-          git push origin "HEAD:${GITHUB_REF_NAME}"
-
       - name: 📲 APK'yı yükle
         if: success()
         uses: actions/upload-artifact@v4
