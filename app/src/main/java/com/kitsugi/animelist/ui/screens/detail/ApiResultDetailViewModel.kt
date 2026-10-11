@@ -23,6 +23,8 @@ import com.kitsugi.animelist.data.remote.KitsugiStreamingEpisode
 import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.data.remote.GalleryCategory
 import com.kitsugi.animelist.data.remote.KitsugiIdResolver
+import com.kitsugi.animelist.data.remote.KitsugiHeroArtworkResolver
+import com.kitsugi.animelist.ui.components.HeroArtworkImagePolicy
 import com.kitsugi.animelist.data.remote.resolveMediaGalleryIdentity
 import com.kitsugi.animelist.data.settings.SettingsDataStore
 import com.kitsugi.animelist.model.MediaType
@@ -49,6 +51,13 @@ private const val TAB_FETCH_TIMEOUT_MS = 25_000L
 
 /** Bölüm listesi çok bölümlü serilerde (ör. 1000+ bölüm) sayfa sayfa çekilir; daha uzun sınır. */
 private const val TAB_EPISODES_FETCH_TIMEOUT_MS = 90_000L
+
+/**
+ * Vitrin (hero) görsel planının çözümleme zaman tavanı.
+ * Sayfa açılışı bu adım yüzünden asla dakikalarca beklenmez; tavan aşılırsa vitrin
+ * kendi yedek zinciriyle (kaynak görseli → galeri) devam eder.
+ */
+private const val HERO_ARTWORK_RESOLVE_TIMEOUT_MS = 5_000L
 
 class ApiResultDetailViewModel(application: Application) : AndroidViewModel(application) {
 
@@ -118,6 +127,17 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
     private val _galleryItems = MutableStateFlow<List<GalleryItem>>(emptyList())
     val galleryItems: StateFlow<List<GalleryItem>> = _galleryItems.asStateFlow()
 
+    /**
+     * Detay sayfası VİTRİN görsel planı — TMDB (`/original`) + Fanart.tv kalite
+     * sıralamasıyla çözülmüş en kaliteli yatay arka plan ve poster adayları.
+     *
+     * Sayfa render edilmeden **ÖNCE** doldurulur; böylece vitrin ilk kareden itibaren
+     * en kaliteli görseli gösterir, önce düşük çözünürlüklü kaynak görselini basıp
+     * sonra değiştirmez.
+     */
+    private val _heroArtwork = MutableStateFlow<KitsugiHeroArtworkResolver.HeroArtwork?>(null)
+    val heroArtwork: StateFlow<KitsugiHeroArtworkResolver.HeroArtwork?> = _heroArtwork.asStateFlow()
+
     /** Galeri tüm kaynaklardan (detay + galeri + yenileme) bitene kadar true. */
     private val galleryTracker = GalleryLoadTracker()
     val galleryLoading: StateFlow<Boolean> = galleryTracker.loading
@@ -181,6 +201,8 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         _episodeRatings.value = emptyMap()
         _resolvedTmdbId.value = null
         _galleryItems.value = emptyList()
+        _heroArtwork.value = null
+        heroArtworkKey = null
         galleryTracker.reset()
 
         val cachedCharacters = DetailCache.getMediaCharacters(result.source, result.malId)
@@ -296,6 +318,75 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
      *  asla kullanıcıyı dakika dakika bekletmesin. */
      private val enrichTimeoutMillis: Long get() = 20_000L
 
+    /** Vitrin görsel planının son çözümlendiği kimlik anahtarı (tek uçuş için). */
+    private var heroArtworkKey: String? = null
+
+    /**
+     * Vitrin (hero) görsel planını çözer ve en kaliteli adayı önceden yükler.
+     *
+     * Sayfa render edilmeden **önce** çağrılır:
+     *  1. Detaydan gelen kimlikler (TMDB/MAL/başlıklar) birincil sonuçla birleştirilir —
+     *     çözümleyici doğru TMDB/Fanart.tv eşleşmesini bulabilsin diye.
+     *  2. [KitsugiHeroArtworkResolver] TMDB + Fanart.tv adaylarını çözünürlük,
+     *     16:9 oran, yazısız temizlik ve topluluk oylarına göre sıralar.
+     *  3. En kaliteli aday [HeroArtworkImagePolicy] ile **tam 8-bit renkte** ve sınırlı
+     *     ölçüde decode edilir → sayfa açıldığında bitmap hazırdır.
+     *
+     * Herhangi bir adım başarısız olursa sessizce çıkılır; vitrin kendi yedek
+     * zinciriyle (kaynak görseli → galeri) devam eder.
+     */
+    private suspend fun resolveHeroArtwork(
+        result: JikanSearchResult,
+        detail: KitsugiMediaDetail?
+    ) {
+        val heroItem = if (detail != null) {
+            result.copy(
+                tmdbId = detail.tmdbId ?: result.tmdbId,
+                realMalId = detail.realMalId ?: result.realMalId,
+                imageUrl = if (!detail.imageUrl.isNullOrBlank()) detail.imageUrl else result.imageUrl,
+                backdropUrl = detail.bannerImage ?: result.backdropUrl,
+                year = detail.year ?: result.year,
+                titleEnglish = detail.titleEnglish ?: result.titleEnglish,
+                titleRomaji = detail.titleRomaji ?: result.titleRomaji,
+                titleJapanese = detail.titleJapanese ?: result.titleJapanese,
+                type = detail.type ?: result.type
+            )
+        } else {
+            result
+        }
+
+        val key = KitsugiHeroArtworkResolver.cacheKey(heroItem)
+        if (key == heroArtworkKey && _heroArtwork.value != null) return
+
+        // Not: CancellationException yeniden firlatilir — yoksa kapsam iptali yutulur.
+        val artwork = try {
+            withTimeoutOrNull(HERO_ARTWORK_RESOLVE_TIMEOUT_MS) {
+                withContext(Dispatchers.IO) {
+                    KitsugiHeroArtworkResolver.resolveArtwork(heroItem)
+                }
+            }
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            Log.w(TAG, "resolveHeroArtwork failed for ${result.title}: ${e.message}")
+            null
+        } ?: return
+
+        heroArtworkKey = key
+        _heroArtwork.value = artwork
+
+        // En kaliteli yatay adayi sayfa acilmadan decode et (ilk kare aninda gelsin).
+        // Manga gibi yatay görseli olmayan kayitlarda poster adayi kullanilir.
+        val preloadUrls = artwork.backdropCandidates.ifEmpty { artwork.posterCandidates }
+        try {
+            HeroArtworkImagePolicy.preload(context = context, urls = preloadUrls)
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (e: Exception) {
+            Log.w(TAG, "Hero artwork preload failed for ${result.title}: ${e.message}")
+        }
+    }
+
     private suspend fun fetchDetail(result: JikanSearchResult) {
         // TMDB devre dışıysa TMDB zenginleştirmesini atla
         val settings = runCatching { settingsDataStore.settingsFlow.first() }.getOrNull()
@@ -331,6 +422,13 @@ class ApiResultDetailViewModel(application: Application) : AndroidViewModel(appl
         }
 
         _detailState.value = detail
+
+        // ── Vitrin görseli: SAYFA AÇILMADAN ÖNCE çözülür ─────────────────────────
+        // Kullanıcı detay sayfasını görmeden en kaliteli TMDB (`/original`) /
+        // Fanart.tv yatay arka plan seçilir ve decode edilir. Böylece vitrin ilk
+        // kareden itibaren doğru ve tam çözünürlüklü görseli gösterir.
+        resolveHeroArtwork(result, detail)
+
         _detailLoading.value = false
 
         if (detail != null) {

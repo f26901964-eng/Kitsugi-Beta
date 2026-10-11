@@ -1,5 +1,19 @@
 # Kitsugi-Beta — Sürüm Notları / Release Notes
 
+## 🇹🇷 Türkçe (v2.4.251)
+
+### 🖼️ 1. Detay Sayfası Vitrin Görseli — Tam Kalite + Sayfa Açılmadan Önce Hazır
+
+- **RGB_565 decode kapatıldı (asıl kalite sebibi):** Uygulamanın genel Coil `ImageLoader`'ı bellek tasarrufu için `allowRgb565(true)` ile kuruludur. RGB_565 kanal başına 5/6/5 bit olduğu için gökyüzü, sakura, ışık geçişleri gibi **yumuşak gradyanlarda bantlaşma (banding)** ve renk kaybı oluşuruyordu — anime key visual'ları neredeyse tamamen gradyan olduğu için hasar gözle görülür seviyedeydi. Yeni `HeroArtworkImagePolicy` vitrin görsellerini `allowRgb565(false)` (tam 8-bit renk) ve ekrandan türetilmiş **sınırlı** ölçüde (en fazla 2560×1440 px) decode eder. Liste/grid kartları eskisi gibi RGB_565 ile devam eder.
+- **Görsel planı sayfa açılmadan ÖNCE çözülüyor:** `KitsugiDetailHero` görsel planını kendi içinde ağ çağrısıyla çözüyordu; sayfa bu çözüm bitmeden render ediliyordu → kullanıcı önce düşük çözünürlüklü kaynak görselini görüp sonra TMDB/Fanart görseliyle **değişim** yaşıyordu. `ApiResultDetailViewModel.resolveHeroArtwork()` artık planı `_detailLoading = false` olmadan önce çözüyor (5 sn zaman tavanı, iptal güvenli) ve en kaliteli adayı decode ederek önbelleğe koyuyor; `KitsugiDetailHero` bunu `preResolvedArtwork` olarak **ilk kareden** kullanıyor.
+- **Yatay modda vitrin büyütüldü:** Sol panel dar olduğu için 16:9 bant küçük kalıyordu. Yatayda bant artık 250dp taban ve ekran yüksekliğinin %72'si tavan ile hesaplanıyor.
+- **Tam görünürlük garantisi (dikey + yatay):** `heroArtworkFit(..., HERO_BANNER_FIT_TOLERANCE = 1.20)` → 16:9 görsel + 16:9 bant kayıpsız; dikey poster veya ultra geniş afiş banttan saparsa **KIRPILMIYOR**, "tam görünür + yumuşak dolgu" ile gösteriliyor.
+
+### ✅ 2. Testler
+- `HeroImageSelectionTest`'e 3 yeni test: hedef ölçü sınırları (4K decode'ı bellek taşmasını engeller), 16:9 bant oranı ve dikey posterin hiç kırpılmaması.
+
+---
+
 ## 🇹🇷 Türkçe (v2.4.250)
 
 ### 🎬 1. Detay Sayfaları — Her İki Yönde de 16:9 Sinematik Bant (POSTER VİTRİN YOK)

@@ -26,6 +26,7 @@ import com.kitsugi.animelist.data.remote.ApiSearchSelection
 import com.kitsugi.animelist.data.remote.GalleryCategory
 import com.kitsugi.animelist.data.remote.GalleryItem
 import com.kitsugi.animelist.data.remote.JikanSearchResult
+import com.kitsugi.animelist.data.remote.KitsugiHeroArtworkResolver
 import com.kitsugi.animelist.data.remote.KitsugiMediaDetail
 import com.kitsugi.animelist.model.MediaEntry
 import com.kitsugi.animelist.model.MediaType
@@ -72,7 +73,9 @@ fun ApiDetailLeftPanel(
     onShowAuthWarning: () -> Unit,
     leftPanelFocusRequester: FocusRequester,
     tabBarFocusRequester: FocusRequester,
-    targetSeason: Int = 1
+    targetSeason: Int = 1,
+    /** Sayfa açılmadan önce çözülmüş vitrin görsel planı (TMDB/Fanart.tv kalite sırası). */
+    heroArtwork: KitsugiHeroArtworkResolver.HeroArtwork? = null
 ) {
     val context = LocalContext.current
     val uriHandler = LocalUriHandler.current
@@ -91,6 +94,7 @@ fun ApiDetailLeftPanel(
         backdropUrl = displayResult.backdropUrl,
         mediaType = displayResult.type,
         artworkItem = displayResult,
+        preResolvedArtwork = heroArtwork,
         galleryItems = galleryItems,
         logoUrl = if (showAnimeLogos) logoUrl else null,
         source = displayResult.source,

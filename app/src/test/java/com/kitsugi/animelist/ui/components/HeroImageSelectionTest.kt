@@ -303,4 +303,58 @@ class HeroImageSelectionTest {
         assertEquals("https://image.tmdb.org/t/p/original/4k_textless_bg.jpg", rankedBackdrops.first())
         assertEquals("https://assets.fanart.tv/fanart/tv/1/showbackground/fanart_bg.jpg", rankedBackdrops[1])
     }
+
+    // ─────────────────────────────────────────────────────────────────────────────
+    // Vitrin görsel KALİTE politikası (HeroArtworkImagePolicy)
+    // ─────────────────────────────────────────────────────────────────────────────
+
+    @Test
+    fun `hero target size scales with screen width and never decodes 4K into memory`() {
+        // 1080px genişlikli telefon → 1.5x pay, 16:9 hedef
+        val w = clampHeroTargetWidth(1080)
+        assertEquals(1620, w)
+        assertEquals(911, clampHeroTargetHeight(w))
+
+        // Çok küçük ekranda bile kullanılabilir taban korunur
+        assertTrue(clampHeroTargetWidth(320) >= 720)
+        assertTrue(clampHeroTargetHeight(clampHeroTargetWidth(320)) >= 405)
+
+        // 4K tablet/TV: hedef asla MAX tavanı geçmez (4K decode = ~33 MB yerine sınırlı bitmap)
+        val wide = clampHeroTargetWidth(3840)
+        assertEquals(HeroArtworkImagePolicy.MAX_TARGET_WIDTH_PX, wide)
+        assertTrue(clampHeroTargetHeight(wide) <= HeroArtworkImagePolicy.MAX_TARGET_HEIGHT_PX)
+        // RGB_565 yerine ARGB_8888 kullanıldığında bile bitmap tavanı makul kalmalı
+        val bytes = wide.toLong() * clampHeroTargetHeight(wide) * 4L
+        assertTrue("hero bitmap tavanı aşıldı: $bytes bayt", bytes <= 16L * 1024 * 1024)
+    }
+
+    @Test
+    fun `hero target height keeps the cinematic 16-9 band ratio`() {
+        val w = clampHeroTargetWidth(1080)
+        val h = clampHeroTargetHeight(w)
+        val ratio = w.toDouble() / h.toDouble()
+        // 16:9 ≈ 1.778 — band oranı korunuyorsa kırpma gerekmez
+        assertTrue("beklenen 16:9 bandı, bulunan $ratio", ratio in 1.70..1.85)
+    }
+
+    @Test
+    fun `hero fit never slices a vertical poster inside the cinematic band`() {
+        // Dikey poster (2:3 ≈ 0.667) + 16:9 bant (1.778) → fark eşiği aşılır → KIRPMA yok
+        val fit = heroArtworkFit(
+            boxAspect = 16f / 9f,
+            imageAspect = 2f / 3f,
+            tolerance = HERO_BANNER_FIT_TOLERANCE
+        )
+        assertEquals(HeroArtworkFit.CONTAIN_WITH_FILL, fit)
+
+        // 16:9 görsel + 16:9 bant → hiç kırpma/dolgu gerekmez
+        assertEquals(
+            HeroArtworkFit.COVER,
+            heroArtworkFit(
+                boxAspect = 16f / 9f,
+                imageAspect = 16f / 9f,
+                tolerance = HERO_BANNER_FIT_TOLERANCE
+            )
+        )
+    }
 }
