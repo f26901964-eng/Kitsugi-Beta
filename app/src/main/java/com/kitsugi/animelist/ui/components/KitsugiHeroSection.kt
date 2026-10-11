@@ -43,7 +43,7 @@ import androidx.compose.runtime.derivedStateOf
 import com.kitsugi.animelist.data.remote.KitsugiEpisodeRatingsRepository
 import com.kitsugi.animelist.data.remote.KitsugiBangumiDetailClient
 import com.kitsugi.animelist.data.remote.KitsugiIdResolver
-import com.kitsugi.animelist.utils.copyOnDoubleTap
+import com.kitsugi.animelist.utils.copyToClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.Alignment
@@ -86,6 +86,52 @@ import com.kitsugi.animelist.R
 private const val HERO_BACKGROUND_PARALLAX = 0.055f
 private const val HERO_BACKGROUND_SCALE = 1.0f
 private const val HERO_CONTENT_PARALLAX = 0.18f
+
+/**
+ * Yatay modda vitrin yüksekliği, sabit bir dp bandına sıkıştırılmak yerine
+ * EKRAN GENİŞLİĞİ ve arka plan görselinin oranından (16:9) hesaplanır.
+ * Üst sınır yalnızca ekran yüksekliğidir (kullanıcı alta kaydırabileceğini
+ * görebilsin diye küçük bir pay bırakılır).
+ */
+private const val HERO_LANDSCAPE_TARGET_ASPECT = 16f / 9f
+
+/**
+ * Geniş bantta (yatay mod, geniş tablet şeridi) dikey bir görsel (manga kapağı,
+ * poster) `Crop` ile çizilirse kapağın yalnızca ince bir şeridi görünür ve
+ * görsel ortalanmamış/kesik durur. Bu eşiğin üstündeki kutularda dikey görsel
+ * `Fit` + ortalanmış çizilir, arkaya aynı görselin bulanık dolgusu konur.
+ */
+private const val HERO_FIT_ASPECT_THRESHOLD = 1.15f
+private const val HERO_FIT_HEIGHT_FRACTION = 0.82f
+/** Ön plan görselinin dikey konumu: -1 en üst, +1 en alt. Metin bloğunun üstünde kalır. */
+private const val HERO_FIT_VERTICAL_BIAS = -0.45f
+private const val HERO_FILL_SCRIM_ALPHA = 0.60f
+private const val HERO_FILL_SCALE = 1.14f
+private val HERO_FILL_BLUR_RADIUS = 26.dp
+
+/**
+ * Yatay mod vitrin yüksekliği: [HERO_LANDSCAPE_TARGET_ASPECT] oranına göre
+ * görselin tam görünmesi için gereken yükseklik; yalnızca ekran yüksekliğinin
+ * [maxFraction] değeriyle sınırlanır (eski sürümdeki katı dp üst sınırları yok).
+ */
+internal fun heroLandscapeHeightDp(
+    screenWidthDp: Float,
+    screenHeightDp: Float,
+    minDp: Float,
+    maxFraction: Float
+): Dp {
+    val heightForImage = screenWidthDp / HERO_LANDSCAPE_TARGET_ASPECT
+    val upperBound = maxOf(minDp, screenHeightDp * maxFraction)
+    return heightForImage.coerceIn(minDp, upperBound).dp
+}
+
+/**
+ * Geniş bantta dikey bir görsel (manga kapağı / poster) `Crop` ile çizilirse
+ * kapağın yalnızca ince bir şeridi görünür. Bu durumda görsel kırpılmadan,
+ * ortalanmış (`Fit`) çizilir — manga vitrininin "ortalanmayan" görüntüsü buradan geliyordu.
+ */
+internal fun heroUsesFitPresentation(chosenIsPoster: Boolean, heroAspect: Float): Boolean =
+    chosenIsPoster && heroAspect >= HERO_FIT_ASPECT_THRESHOLD
 
 private fun heroItemIdentity(item: JikanSearchResult): String =
     "${item.source.trim().lowercase()}:${item.type.name}:${item.malId}"
@@ -328,25 +374,40 @@ fun KitsugiHeroSection(
                 HomeHeroLayout(
                     isTablet = true,
                     isLandscape = true,
-                    heroHeight = (screenHeightDp * 0.48f).coerceIn(300f, 390f).dp,
+                    // Yatay tablet: yükseklik ekran genişliği + 16:9 arka plan oranından
+                    // hesaplanır; üst sınır ekran yüksekliğinin %80'i (eski sabit
+                    // 300–390 dp bandı kaldırıldı — vitrin ekranla birlikte büyür).
+                    heroHeight = heroLandscapeHeightDp(
+                        screenWidthDp = screenWidthDp.toFloat(),
+                        screenHeightDp = screenHeightDp.toFloat(),
+                        minDp = 340f,
+                        maxFraction = 0.80f
+                    ),
                     contentMaxWidth = 640.dp,
                     contentWidthFraction = 0.56f,
                     contentHorizontalPadding = if (screenWidthDp >= 1000f) 52.dp else 36.dp,
                     contentVerticalPadding = 18.dp,
-                    bottomFadeHeight = 180.dp,
+                    bottomFadeHeight = 210.dp,
                     logoWidthFraction = 0.52f,
                 )
             } else {
-                // Yatay modda telefon: yukarı aşağı kısa (kompakt), sağa sola uzun, alttaki blokları açıkta bırakır
+                // Yatay modda telefon: ekran genişliği kadar geniş, arka plan görselinin
+                // oranına göre mümkün olduğunca yüksek (üst sınır ekran yüksekliğinin
+                // %90'ı). Eskiden 210–265 dp ile sınırlandırılıyordu.
                 HomeHeroLayout(
                     isTablet = false,
                     isLandscape = true,
-                    heroHeight = (screenHeightDp * 0.60f).coerceIn(210f, 265f).dp,
+                    heroHeight = heroLandscapeHeightDp(
+                        screenWidthDp = screenWidthDp.toFloat(),
+                        screenHeightDp = screenHeightDp.toFloat(),
+                        minDp = 240f,
+                        maxFraction = 0.90f
+                    ),
                     contentMaxWidth = 520.dp,
                     contentWidthFraction = 0.56f,
                     contentHorizontalPadding = 24.dp,
                     contentVerticalPadding = 12.dp,
-                    bottomFadeHeight = 140.dp,
+                    bottomFadeHeight = 170.dp,
                     logoWidthFraction = 0.48f,
                 )
             }
@@ -495,39 +556,22 @@ fun KitsugiHeroSection(
             Box(modifier = Modifier.fillMaxSize())
         }
 
-        // Hit-test düzeltmesi: görünür sayfalar (current-1, current, current+1) üst üste
-        // çizilir. alpha=0 olan komşu katmanlar görsel olarak görünmese de dokunma
-        // olaylarını yiyor ve "yanlış anime" detay sayfası açılmasına sebep oluyordu
-        // (One Piece'e tıklayınca Frieren açılması vb.). Sadece o an ÖNDE olan sayfa
-        // (offset mutlak değeri en küçük olan) tıklama alsın; diğer katmanlar
-        // pointerInput'ı kendi üstlerine kapatmasın.
-        val frontPageIndex by remember(pagerState) {
-            derivedStateOf {
-                var best = visiblePageIndices.firstOrNull() ?: 0
-                var bestOffset = Float.MAX_VALUE
-                visiblePageIndices.forEach { idx ->
-                    val o = abs(heroPageOffset(pagerState, idx))
-                    if (o < bestOffset) {
-                        bestOffset = o
-                        best = idx
-                    }
-                }
-                best
-            }
-        }
-
+        // Tıklama güvenliği: görünür sayfalar (current-1, current, current+1) üst üste
+        // çizilir ve en üstteki katman dokunmayı yakalar — bu yüzden HER katman aynı
+        // `openVisibleHeroItem()` lambda'sını kullanır. Lambda, tıklama anında ekranda
+        // görsel olarak baskın olan öğeyi çözer; hangi katman dokunmayı yakalarsa
+        // yakalasın doğru içerik açılır (eski sürümde yalnızca "ön" katman tıklama
+        // alıyordu ve geçiş animasyonu sırasında tıklamalar boşa gidiyordu).
         visiblePageIndices.forEach { page ->
             val item = items[page]
             val displayTitle = item.getDisplayTitle(titleLanguage)
-            val isFrontPage = (page == frontPageIndex)
             Box(
                 modifier = Modifier
                     .fillMaxSize()
                     .then(
-                        if (isTv || !isFrontPage) {
-                            // Komşu sayfalar (alpha=0) ve TV odak modu: katman dokunmaları
-                            // yutmasın diye clickable ekleme. TV'de Enter tuşu zaten üstteki
-                            // ana Box'ta pagerState.currentPage ile doğru öğeyi tetikliyor.
+                        if (isTv) {
+                            // TV odak modu: dokunma yok, Enter tuşu üstteki ana Box'ta
+                            // `openVisibleHeroItem()` ile doğru öğeyi açıyor.
                             Modifier
                         } else {
                             Modifier.tvClickable(
@@ -555,8 +599,13 @@ fun KitsugiHeroSection(
                     val heroBoxAspect = if (heroBoxHeightDp > 0f) heroBoxWidthDp / heroBoxHeightDp else 1f
                     val chosenIsPoster =
                         heroImageModel == item.imageUrl?.trim()?.takeIf { it.isNotEmpty() }
-                    // Kaplayan sunum (Cover): seçilen görsel vitrini BAŞTAN SONA KAPLAR.
-                    // Fit/bulanık dolgu yok — yön ve ekran boyutu artık kırpma oranıyla uyumludur.
+                    // Geniş bantta (yatay mod / geniş tablet şeridi) dikey bir görsel
+                    // (manga kapağı, affiş) `Crop` ile çizilirse kapağın sadece ince bir
+                    // şeridi görünür ve "ortalanmamış" durur. Bu durumda görsel TAM ve
+                    // ORTALANMIŞ (`Fit`) çizilir; arkaya aynı görselin bulanık + koyu
+                    // dolgusu konur. Yatay fanart/backdrop varsa eskisi gibi tam kaplar.
+                    val useFitPresentation =
+                        heroUsesFitPresentation(chosenIsPoster, heroBoxAspect)
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -569,14 +618,49 @@ fun KitsugiHeroSection(
                                 scaleY = HERO_BACKGROUND_SCALE * heroScrollScale
                             }
                     ) {
+                        if (useFitPresentation) {
+                            // 1) Arka dolgu: aynı görsel büyütülüp bulanıklaştırılır ve
+                            //    koyulaştırılır → kutuda boşluk kalmaz, kapak okunur.
+                            KitsugiNsfwImage(
+                                model = heroImageModel,
+                                contentDescription = null,
+                                isAdult = item.isAdult,
+                                blurAdultMedia = blurAdultMedia,
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .graphicsLayer {
+                                        scaleX = HERO_FILL_SCALE
+                                        scaleY = HERO_FILL_SCALE
+                                    }
+                                    .safeBlur(HERO_FILL_BLUR_RADIUS),
+                                contentScale = ContentScale.Crop,
+                                alignment = Alignment.Center
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(KitsugiColors.Background.copy(alpha = HERO_FILL_SCRIM_ALPHA))
+                            )
+                        }
+                        // 2) Ön plan: kırpılmayan, yatayda tam ortalanmış görsel.
                         KitsugiNsfwImage(
                             model = heroImageModel,
                             contentDescription = displayTitle,
                             isAdult = item.isAdult,
                             blurAdultMedia = blurAdultMedia,
-                            modifier = Modifier.fillMaxSize(),
-                            contentScale = ContentScale.Crop,
-                            alignment = heroImageAlignment(chosenIsPoster, heroBoxAspect),
+                            modifier = if (useFitPresentation) {
+                                Modifier
+                                    .fillMaxHeight(HERO_FIT_HEIGHT_FRACTION)
+                                    .align(BiasAlignment(0f, HERO_FIT_VERTICAL_BIAS))
+                            } else {
+                                Modifier.fillMaxSize()
+                            },
+                            contentScale = if (useFitPresentation) ContentScale.Fit else ContentScale.Crop,
+                            alignment = if (useFitPresentation) {
+                                Alignment.Center
+                            } else {
+                                heroImageAlignment(chosenIsPoster, heroBoxAspect)
+                            },
                             onLoadingFailed = {
                                 // Birincil görsel yüklenemezse sıradaki adaya düş
                                 // (ör. backdrop başarısız → poster, poster başarısız → backdrop).
@@ -692,10 +776,8 @@ fun KitsugiHeroSection(
                     val item = items[page]
                     val displayTitle = item.getDisplayTitle(titleLanguage)
                     val alreadyInList = alreadyInList(item)
-                    val isFrontPageCol = (page == frontPageIndex)
 
                     val context = LocalContext.current
-                    val copyTitleGesture = Modifier.copyOnDoubleTap(context, displayTitle)
 
                     Column(
                         modifier = Modifier
@@ -706,14 +788,21 @@ fun KitsugiHeroSection(
                                 translationX = -offset * heroWidthPx * HERO_CONTENT_PARALLAX
                             }
                             .then(
-                                if (isTv || !isFrontPageCol) {
-                                    // Komşu sayfaların metin/başlık katmanları (alpha=0)
-                                    // tıklamaları yutmasın; sadece öndeki sayfa detay açar.
+                                if (isTv) {
+                                    // TV odak modu: dokunma yok (Enter tuşu üstteki ana
+                                    // Box'ta `openVisibleHeroItem()` çağırıyor).
                                     Modifier
                                 } else {
                                     Modifier.tvClickable(
                                         shape = RoundedCornerShape(12.dp),
-                                        scaleOnFocus = false
+                                        scaleOnFocus = false,
+                                        // Başlığı kopyalama hareketi ARTIK metnin kendi
+                                        // üzerinde değil: eskiden başlık/logo `pointerInput`
+                                        // (detectTapGestures) ile dokunmayı YUTUYORDU ve
+                                        // başlığa dokununca detay sayfası açılmıyordu.
+                                        // Tek düğümde birleştirildi: kısa dokunuş = detay,
+                                        // basılı tutma = başlığı panoya kopyala.
+                                        onLongClick = { copyToClipboard(context, displayTitle) }
                                     ) { openVisibleHeroItem() }
                                 }
                             ),
@@ -761,8 +850,7 @@ fun KitsugiHeroSection(
                                     modifier = Modifier
                                         .align(Alignment.Start)
                                         .height(if (layout.isLandscape) 56.dp else if (layout.isTablet) 86.dp else 68.dp)
-                                        .fillMaxWidth(0.85f)
-                                        .then(copyTitleGesture),
+                                        .fillMaxWidth(0.85f),
                                     contentScale = ContentScale.Fit,
                                     alignment = Alignment.CenterStart,
                                     onError = {
@@ -780,7 +868,6 @@ fun KitsugiHeroSection(
                                     textAlign = TextAlign.Start,
                                     modifier = Modifier
                                         .fillMaxWidth()
-                                        .then(copyTitleGesture)
                                 )
                             }
                         } else {
@@ -794,7 +881,6 @@ fun KitsugiHeroSection(
                                 textAlign = TextAlign.Start,
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .then(copyTitleGesture)
                             )
                         }
 

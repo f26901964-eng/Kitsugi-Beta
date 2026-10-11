@@ -273,11 +273,19 @@ fun KitsugiShimmerHeroSection(
     val screenWidthDp = configuration.screenWidthDp
     val screenHeightDp = configuration.screenHeightDp
     val isLandscape = configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE || screenWidthDp > screenHeightDp
+    val isTablet = if (isLandscape) screenHeightDp >= 600f else screenWidthDp >= 600f
 
+    // Yer tutucu, gerçek vitrinle AYNI yüksekliği kullanmalı: aksi hâlde veri
+    // gelince vitrin bir anda büyüyüp/küçülüyor ve liste zıplıyordu.
     val finalHeight = if (heroHeight != Dp.Unspecified) {
         heroHeight
     } else if (isLandscape) {
-        (screenHeightDp * 0.60f).coerceIn(210f, 265f).dp
+        heroLandscapeHeightDp(
+            screenWidthDp = screenWidthDp.toFloat(),
+            screenHeightDp = screenHeightDp.toFloat(),
+            minDp = if (isTablet) 340f else 240f,
+            maxFraction = if (isTablet) 0.80f else 0.90f
+        )
     } else {
         (screenHeightDp * 0.50f).coerceIn(390f, 460f).dp
     }
